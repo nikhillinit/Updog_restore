@@ -1,0 +1,69 @@
+# Optimizing Partial Sales
+
+## Realizing DPI
+
+In the current market, we are increasingly seeing GPs explore partial sales of their active deals to realize DPI on their funds. This is especially true for deals where the deals have been held for a reasonable holding period, or where the company has had already had meaningful step-ups in valuation since the fund’s initial investment
+
+However the next questions are usually:
+
+* What valuation should we sell at?
+* What % of the investment should we sell?
+
+Today, we are releasing a new feature that helps answer both these questions.
+
+## What valuation should we sell at?
+
+While it might be tempting to assume we the fund should sell the position at the prevailing valuation, this approach might now always be adequate as this might end up diluting the fund's IRR.
+
+By realizing liquidity today, the fund is giving up on a higher potential exit later on - and trading off future proceeds for cash today. This is a classic [time value of money](https://online.hbs.edu/blog/post/time-value-of-money) problem. The resulting liquidity from the partial could be put to work into new investments (especially if the fund is recycling exits) to realize even greater returns for the fund.
+
+To ensure the partial sale is accretive, the resulting cash flows from a partial sale today should result in at least the _same IRR_ as holding the entire investment.&#x20;
+
+This frequently means the sale valuation might need to be at a slight premium to the current valuation.
+
+This requires a bit of math.
+
+## The underlying math.
+
+Let’s assume the currently projected IRR for a deal (without any partial sales) is **30%** and it's currently forecasted cash flows are as follows:
+
+<figure><img src="https://lh6.googleusercontent.com/QKHekzKJRs_yn2YOzdyG5l06FZWBDsi3Ro56e3vxZFcyasKq7iXKMVeA8J3PFCmolERQXBVp7BiCSnpAb0SW183TdpLNQCBdAxakcg58TR5jsHjpBusYYz7YVgSeA1UyWdJ9_DrRpkqIFP-s2-KXKD0" alt="Projected cash flows equation" width="375"><figcaption></figcaption></figure>
+
+Next, let’s assume we partially sell 25% of this deal today. Consequently, the resulting exit proceeds in the future will now be reduced by 25% as well. In fact, the new cash flows of the deal without taking into account the partial sale proceeds are as follows (assuming the cash flows for the first 3 periods were investments we have already done):
+
+<figure><img src="https://lh5.googleusercontent.com/GCLnX432nt8MtKreiDN1uiUBY-6RjC82yTTqLesdNQdqE6D8DOtMd5DIXGZxLlj3v1QtmE88XTLBk-aok3i4LPxoufDjkXgGU_DX9IWWCqWt8_F6i-lSJhK2xmMnk2dUR0TLY0ujuG2QmaHQV5I_p4Y" alt="New cash flows equation" width="375"><figcaption></figcaption></figure>
+
+To compute the minimum partial sale needed to achieve the same 30% IRR, we calculate the NPV of the _New Cash Flows_ at a discount rate of 30% (recall IRR is the rate at which NPV is 0).&#x20;
+
+<figure><img src="https://lh5.googleusercontent.com/oZogMRfhfqC8dmltL-fI8wVms6tO8pOvQo8wubkHauEyukT599jNDNTqRL2Nz7vaEPBdOWewyuGdgDt-4gCDMqPzFY68DBkAsen1g5r1WL8wnzUGmB9tGMudYrCzUVuyvOnNbYha05KqI3yHvLyKtZ8" alt="New cash flows equation" width="188"><figcaption></figcaption></figure>
+
+This resulting NPV would represent the _discounted value_ today of the proceeds from the partial sale.&#x20;
+
+Next, to solve for the company valuation, we first translate the NPV to FV (Future Value) today again at the 30% IRR rate to calculate the _Implied Proceeds from Partial Sale._
+
+<figure><img src="https://lh5.googleusercontent.com/BYWwKFGkaJEDKy3NZ4pS-6s4xnWreo0lbbu_GO1nkxdKJUVQdvYOgBTDe-iwHMUdwjDg5MJ6cAug2r-IqYNFCcKEiQ2SX9YiPIZEW0H2hZgQkBT6GnS8O43gF9falDBA4F8x4K4qdfehbb5n8Nx8KuY" alt="Implied proceeds from partial sale equation" width="563"><figcaption></figcaption></figure>
+
+And finally, we imply the Minimum Company Valuation from the Partial Sale Proceeds\
+
+
+<figure><img src="https://lh5.googleusercontent.com/G3SRSzZM8bpLliB4ZIRqvtibJs0idbDz4tXJ2Q-uBsfNLaaznq4XdROrV3kNcdzIZ28MNcWcJ-VaQdmm78nkxDb1Y8m4QEKaRIUBjLGNY3DDxTXFMov6-pqtJBLM-QeoLGh3BNj3W6UatnXk_-W3brk" alt="Minimum company valuation equation" width="563"><figcaption></figcaption></figure>
+
+## Deal IRR vs. Fund IRR
+
+A naive approach would be to compute the IRR at the deal level (after all we are doing all this in the context of a single deal). Interestingly we have found situations where a partial sale could be accretive at the deal-level, but still dilutive at the fund-level.&#x20;
+
+The reason is again time value of money. If the fund made an investment later in its investment horizon, there could be deviation between Deal IRR and Fund IRR as the fund-level cash flows would be significantly discounted relative to the deal-level cash flows.&#x20;
+
+By focusing this analysis on the Fund IRR, we can ensure that the partial sale would truly be accretive to both the Fund IRR and the Deal IRR.
+
+## Tactyc’s Minimum Partial Sale Valuation
+
+Tactyc now automatically computes the **Minimum Partial Sale Valuation** for each active investment with the above logic. Under the **Insights** section of your fund's dashboard, Tactyc shows a table of **Minimum Partial Sale Valuation** i.e the lowest price the fund could sell a partial position in the deal for the resulting cash flows to still be accretive to the fund’s IRR.&#x20;
+
+<figure><img src="https://1140952435-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FZHbhyXMRhSms1HKARvhg%2Fuploads%2F0jmmizWxGewONbh2oKed%2Fimage.png?alt=media&#x26;token=11d786cc-b5a7-4482-b06e-e66fd74c6c6b" alt=""><figcaption></figcaption></figure>
+
+Tactyc also adds a few more features to add additional details around this strategy.
+
+* GPs can also flex the **% Sold** variable to understand how much MOIC and Gain they are losing by executing a partial sale
+* Tactyc automatically show whether the **Minimum Partial Sale Valuation** is already at a discount to the latest valuation of the company
+* Finally, Tactyc computes the **Minimum Partial Sale Valuation** for each performance case (an upside scenario projected to return a 20x would have a higher **Minimum Partial Sale Valuation** than a downside scenario projected to return a 2x).

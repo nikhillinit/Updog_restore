@@ -1,0 +1,87 @@
+---
+description: >-
+  We discuss follow-on strategies in detail and the quantitative methods used
+  for follow-on reserve allocation and deployment.
+---
+
+# Strategies for Optimal Follow-On Investments
+
+#### Strategies for Optimal Follow-On Investments <a href="#id-2d8b" id="id-2d8b"></a>
+
+Post-launch, a fund manager’s focus shifts from portfolio construction to active portfolio management — and a frequent pain point is follow-on reserve sizing on active deals. Most managers grapple with optimal follow-on reserve for a deal and oftentimes struggle to determine how follow-on reserves should change over time. We’ve surveyed the best practices of hundreds of emerging managers and in this post, we shed light on the quantitative frameworks used to answer both of these questions.
+
+_**Before we begin, let’s address a few misconceptions we’ve seen regarding follow-on strategies:**_
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*dFjYQCUK2qSH62_3" alt=""><figcaption></figcaption></figure>
+
+Most managers take a balanced approach — they’ll follow on in deals where the managers continue to have conviction while passing on a few where the exit expectations have drastically reduced. We’ve noticed that the decision to follow on is frequently _sentiment-driven._ Managers may “fall in love” with a deal, fall prey to the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost), or make follow-on investments based on their relationships with founders.
+
+To avoid these pitfalls, we’ve noticed most successful data-driven managers follow a _quantitative workflow_ that periodically takes into account a company’s expected performance to size reserves, rebalance reserves, and eventually deploy reserves. This is what the workflow looks like:
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*LQH9sg4dBmxmEh3K" alt=""><figcaption></figcaption></figure>
+
+Executing the above workflow in action requires a bit of math. This is where [Tactyc Venture Manager](http://vc.tactyc.io/) comes in — a portfolio scenario-planning platform that automatically executes this workflow.
+
+**The Workflow in Action**
+
+Let’s say we’ve made a $1M seed investment in _Company X_ — and our underwrite case expects the company to exit at a $100M valuation. We’ve built the underwrite case in Venture Manager as follows:
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*iemV2TKBwuvQ1XeO" alt=""><figcaption></figcaption></figure>
+
+_Step 1: Estimate Initial Reserves_
+
+What is the optimal reserve amount for the future Series A round? Venture Manager helps answer this by summarizing impacts to _Exit MOICs, Return the Fund, Exit FMV_ at various reserve levels:
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*B0R9rdWIEG-6RKHY" alt=""><figcaption></figcaption></figure>
+
+Picking the right reserve level here is a balancing act. We don’t want the _Return the Fund_ metric to increase beyond reasonable valuations — but also want to reduce depression on _Exit MOIC_. We also want to compare this deal’s reserve ratio with our overall fund reserve ratio to ensure we aren’t significantly over or under-allocating reserves for this investment vs. our overall fund’s reserve ratio.
+
+_Step 2: Building Performance Cases_
+
+Next, we build multiple performance cases for this investment at various exit values (e.g. a “downside” and “upside” case with 20% probability each). Venture Manager automatically summarizes the _Exit MOICs, MOIC on Initial Investment,_ and _MOIC on Follow-on Investment_ across each case:
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*0VZ0SWhc1PMkm8S2" alt=""><figcaption></figcaption></figure>
+
+Based on the above, Venture Manager’s recommended reserve level is $900K for a future follow-on investment in _Company X_’s Series A round.
+
+It’s worth pointing out the _Follow-On MOIC_ metric of 3.98x — this is the key. The _Follow-On MOIC_ is the expected return on follow-on investments _only_.
+
+Many fund managers miss calculating this essential metric (as the math can become somewhat cumbersome), but as will become evident shortly, this is a powerful metric to compare expected returns on reserves across deals in the rest of this workflow.
+
+_Step 3: Periodically Rebalance Reserves_
+
+Over time our view on each investment’s potential exit values and probabilities may change as we track the company’s actual performance to projected — this is an opportunity to re-balance deal reserves. Let’s say our current reserve levels are as follows:
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*bJuHRpb61l_NO4JF" alt=""><figcaption></figcaption></figure>
+
+And after 6 months, we review _Company X_’s operating performance and compare it to our projection built at the time we made the first investment — and realize that the company is falling short of our expectations.
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*75OwO1-Z6FZzJkfh" alt=""><figcaption></figcaption></figure>
+
+We decide to revisit our downside case for _Company X_ and increase its probability to align exit expectations with actual performance data.
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*OJweh3OiO1bQwyg3" alt=""><figcaption></figcaption></figure>
+
+**Our expected Follow-On MOIC has now drastically reduced from the original 3.98x to only 1.65x**. Are there other companies in our portfolio where this follow-on reserve may be better spent? To answer, we take a look at the _Follow-On MOIC_ metric across our entire portfolio to compare investments on an apples-to-apples basis.
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*4oM3PsdrAzZCzOPX" alt=""><figcaption></figcaption></figure>
+
+Company H, A, and B all have higher Follow-on MOICs than _Company X_. We want to maximize reserves in H, A, and B (subject to available pro-rata rights in those companies) and should consider shifting reserves from _Company X_ to _Company H, A, or B_ instead.
+
+The point here is that by taking expected performance into consideration across deals, we can allocate the greatest reserves to the highest yielding deals — and continuously rebalance as our performance expectations change.
+
+**Closing Thoughts: Data-Driven Workflows = Crucial**
+
+Reserve planning and deployment can become more art than science. This workflow removes emotions and avoids sunk cost fallacies to creep into the decision-making process. [Tactyc Venture Manager](http://vc.tactyc.io/) makes scenario-planning workflows easy and readily available — without having to update or manage complicated spreadsheet models. We’ve crystalized this specific follow-on workflow into our software by computing _Follow-On MOICs_ for every deal automatically. We want to empower every emerging manager with these strategies from day one.
+
+**Upcoming Webinar on Follow-On Strategies**
+
+Join us on Thursday, March 24 2022 at 1 pm Eastern for a live webinar on follow-on strategies. We’ll be joined by Michael Palank, Partner at MaC Venture Capital, and Anubhav Srivastava, Founder of Tactyc, to discuss follow-on strategies in detail and the quantitative methods used for follow-on reserve allocation and deployment. [Join us by registering here!](https://us02web.zoom.us/webinar/register/WN_C_NYkHJmTSu01TrfODFNbg)
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*l1qPUW3WePW_Zofl" alt=""><figcaption></figcaption></figure>
+
+Tactyc ([tactyc.io](https://www.tactyc.io)) is a portfolio construction and scenario planning software for venture funds. If you’d are interested in using Tactyc for your portfolio management and planning, [schedule a demo](https://calendly.com/tactyc/demo) to learn more.
+
+{% embed url="https://kauffman-fellows.medium.com/strategies-for-optimal-follow-on-investments-d67b52809197" %}
+Written by Anubhav Srivastava, Tactyc Founder. March 2022
+{% endembed %}

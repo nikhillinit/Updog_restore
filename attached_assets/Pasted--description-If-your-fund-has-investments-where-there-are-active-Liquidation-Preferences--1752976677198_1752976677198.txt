@@ -1,0 +1,32 @@
+---
+description: >-
+  If your fund has investments where there are active Liquidation Preferences
+  (”liq prefs”), you can run Exit scenarios to incorporate the impact of liq
+  prefs.
+---
+
+# Liquidation preferences
+
+<figure><img src="https://1366836623-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FWOWjDH33JGp4Ay1omBCB%2Fuploads%2FSSgjfUu20KT4xz9xc0h5%2FScreenshot%202023-12-13%20at%209.45.18%20AM.png?alt=media&#x26;token=54c37e33-1ed4-44e1-ad61-839838e1ec9e" alt=""><figcaption></figcaption></figure>
+
+## Adding an liquidation preference waterfall to an investment
+
+
+
+<figure><img src="https://1366836623-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FWOWjDH33JGp4Ay1omBCB%2Fuploads%2FTkoB3M6NMBSIAhaBXLjf%2FScreenshot%202023-12-13%20at%209.43.54%20AM.png?alt=media&#x26;token=ef76e1d5-7dc9-4d36-b83a-f76b57696b0f" alt="" width="563"><figcaption></figcaption></figure>
+
+1. Click on **Liq Prefs** from the Actions toolbar within an investment's **Performance Case**
+2. Turn on **Enable Liquidation Preferences**
+3. Specify the following:
+   * **Total Liq Pref Owned:** This is the total amount of liquidation preference owned by your fund. For e.g. if you have a 2x Liq Pref on a $2mm investment, you would enter $4mm in this field
+   * **Liq Pref Type**: Specify whether your liq pref is participating or non-participating
+   * **Liq Pref Cap** (for participating liq prefs only)**:** Specify if there is a liq pref cap
+   * **Liq Pref Cap Amount**: If there is a cap, enter the cap amount. For e.g. if you have a 3x cap on a $2mm investment, you would enter $6mm as the cap.
+   * **Total Liq Prefs in Front**: The total amount of liq prefs expected senior to our position.
+   * **Total Other Liq Prefs Pari Passu:** Amount of liq prefs pari passu to us (not including our own)
+   * **Total Liq Prefs Senior:** Total amount of liq prefs that are below or junior to us in the exit waterfall.
+4. Once a liquidation pref waterfall has been created, the Exit Event will show a “Liq Prefs Active” sign to signify that there are active Liquidation Prefs in effect.
+
+## Working with multiple cases
+
+If you are working with multiple performance cases, you may want to copy liq prefs from one case to another. From the **Actions** toolbar, click on _**Liq Prefs**_ to import a liquidation preference waterfall from another case.

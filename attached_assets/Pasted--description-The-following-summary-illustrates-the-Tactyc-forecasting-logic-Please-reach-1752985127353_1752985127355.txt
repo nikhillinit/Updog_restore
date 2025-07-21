@@ -1,0 +1,49 @@
+---
+description: >-
+  The following summary illustrates the Tactyc forecasting logic. Please reach
+  out to us at support@tactyc.io if you would like further detail.
+---
+
+# Construction Methodology
+
+## **Portfolio Construction**
+
+The Tactyc modeling methodology is a step-based process based on the parameters set forth in the **Construction Wizard.**
+
+Its important to understand that Tactyc does not forecast an investment line by line (that only happens for actual investments you’ve added to the portfolio). Instead, the model calculates the "average" cash flows for each your **Allocations**
+
+**1. Determine Investable Capital**
+
+Investable Capital is determined by netting fees and expenses from the committed capital. Any forecasted proceeds from exit recycling is also included in this calculation and increases investable capital.
+
+\
+**2. Create Allocations**
+
+Investable Capital is then segmented into different allocations (such as Seed Investments or Series A Investments). These allocations are further categorized by _Initial_ and _Follow On_ capital available in each allocation
+
+\
+**3. Projecting Initial Investments**
+
+All initial investments are projected on a monthly straight-line basis by the cadence defined for each allocation.
+
+\
+**4. Projecting Follow-On Investments**
+
+The follow-on check sizes defined for each allocation are _weighted_ by the current round's graduation rates to develop a probabilistic level of follow-on investments.
+
+\
+**5. Projecting Exits and Failures**
+
+The exit values defined for each round are _weighted_ by exit rates rates at each round to develop a probabilistic level of realized exit proceeds. All investments that do not graduate or exit are assumed to fail at a 0.0x multiple of their initial investment.
+
+\
+**6. Computing Return Metrics**
+
+Exit proceeds are then computed against the fund's waterfall to determine proceeds to LPs and GP's. These cash flows are then used to determine IRR, return multiples, TVPI and other return metrics.
+
+
+
+<figure><img src="https://1366836623-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FWOWjDH33JGp4Ay1omBCB%2Fuploads%2FP0DtmQq9wQ6v0NP8PfNu%2FUntitled.png?alt=media&#x26;token=26878554-881b-4555-9e42-6a7ecb8f42b7" alt=""><figcaption></figcaption></figure>
+
+
+

@@ -1,0 +1,285 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { useState } from "react";
+import { Calculator, TrendingUp, DollarSign, Target } from "lucide-react";
+import DualForecastDashboard from '@/components/dashboard/dual-forecast-dashboard';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
+
+const projectionData = [
+  { year: '2024', investment: 25, exits: 0, nav: 125, irr: 15.2 },
+  { year: '2025', investment: 35, exits: 5, nav: 180, irr: 22.8 },
+  { year: '2026', investment: 20, exits: 15, nav: 220, irr: 28.5 },
+  { year: '2027', investment: 15, exits: 35, nav: 280, irr: 35.2 },
+  { year: '2028', investment: 5, exits: 45, nav: 320, irr: 38.7 },
+];
+
+const cohortData = [
+  { cohort: '2020', invested: 45, currentValue: 125, projectedValue: 180, irr: 42.1 },
+  { cohort: '2021', invested: 38, currentValue: 89, projectedValue: 145, irr: 35.8 },
+  { cohort: '2022', invested: 32, currentValue: 55, projectedValue: 98, irr: 28.4 },
+  { cohort: '2023', invested: 28, currentValue: 35, projectedValue: 78, irr: 22.9 },
+];
+
+const scenarioData = {
+  conservative: { totalReturns: 2.8, irr: 22.5, dpi: 1.8 },
+  base: { totalReturns: 3.5, irr: 28.4, dpi: 2.2 },
+  optimistic: { totalReturns: 4.8, irr: 35.7, dpi: 2.9 },
+};
+
+export default function FinancialModeling() {
+  const [selectedScenario, setSelectedScenario] = useState('base');
+  const [selectedCohort, setSelectedCohort] = useState('all');
+
+  return (
+    <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Financial Modeling & Forecasting</h1>
+        <p className="text-muted-foreground mt-2">
+          Advanced scenario planning with live fund performance data
+        </p>
+      </div>
+
+      <Tabs defaultValue="forecast" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="forecast">Live Forecasting</TabsTrigger>
+          <TabsTrigger value="modeling">Scenario Modeling</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="forecast">
+          <ErrorBoundary>
+            <DualForecastDashboard />
+          </ErrorBoundary>
+        </TabsContent>
+        
+        <TabsContent value="modeling">
+      {/* Key Metrics Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Projected IRR</p>
+                <p className="text-2xl font-bold text-gray-800 mt-1">28.4%</p>
+                <p className="text-green-600 text-sm mt-1">Above target</p>
+              </div>
+              <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-green-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Total Multiple</p>
+                <p className="text-2xl font-bold text-gray-800 mt-1">3.5x</p>
+                <p className="text-green-600 text-sm mt-1">Base case</p>
+              </div>
+              <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                <Calculator className="h-6 w-6 text-blue-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">DPI Target</p>
+                <p className="text-2xl font-bold text-gray-800 mt-1">2.2x</p>
+                <p className="text-blue-600 text-sm mt-1">Expected</p>
+              </div>
+              <div className="w-12 h-12 bg-cyan-50 rounded-lg flex items-center justify-center">
+                <Target className="h-6 w-6 text-cyan-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Reserve Ratio</p>
+                <p className="text-2xl font-bold text-gray-800 mt-1">35%</p>
+                <p className="text-orange-600 text-sm mt-1">Follow-on ready</p>
+              </div>
+              <div className="w-12 h-12 bg-orange-50 rounded-lg flex items-center justify-center">
+                <DollarSign className="h-6 w-6 text-orange-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Fund Projection Model */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold text-gray-800">
+              Fund Projection Model
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={projectionData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="year" stroke="#666" fontSize={12} />
+                  <YAxis stroke="#666" fontSize={12} />
+                  <Tooltip formatter={(value, name) => [`$${value}M`, name === 'investment' ? 'Investment' : name === 'exits' ? 'Exits' : 'NAV']} />
+                  <Area type="monotone" dataKey="nav" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
+                  <Area type="monotone" dataKey="investment" stackId="2" stroke="#10b981" fill="#10b981" />
+                  <Area type="monotone" dataKey="exits" stackId="2" stroke="#f59e0b" fill="#f59e0b" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-semibold text-gray-800">
+                Cohort Analysis
+              </CardTitle>
+              <Select value={selectedCohort} onValueChange={setSelectedCohort}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Cohorts</SelectItem>
+                  <SelectItem value="2020">2020</SelectItem>
+                  <SelectItem value="2021">2021</SelectItem>
+                  <SelectItem value="2022">2022</SelectItem>
+                  <SelectItem value="2023">2023</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={cohortData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="cohort" stroke="#666" fontSize={12} />
+                  <YAxis stroke="#666" fontSize={12} />
+                  <Tooltip formatter={(value) => [`$${value}M`, 'Value']} />
+                  <Bar dataKey="invested" fill="#94a3b8" name="Invested" />
+                  <Bar dataKey="currentValue" fill="#3b82f6" name="Current Value" />
+                  <Bar dataKey="projectedValue" fill="#06b6d4" name="Projected Value" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Scenario Analysis */}
+      <Card className="mb-8">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold text-gray-800">
+              Scenario Analysis
+            </CardTitle>
+            <Select value={selectedScenario} onValueChange={setSelectedScenario}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="conservative">Conservative</SelectItem>
+                <SelectItem value="base">Base Case</SelectItem>
+                <SelectItem value="optimistic">Optimistic</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {Object.entries(scenarioData).map(([scenario, metrics]) => (
+              <div 
+                key={scenario}
+                className={`p-6 rounded-lg border-2 transition-colors ${
+                  selectedScenario === scenario 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 bg-gray-50'
+                }`}
+              >
+                <h4 className="font-semibold text-gray-800 capitalize mb-4">{scenario}</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Returns:</span>
+                    <span className="font-medium">{metrics.totalReturns}x</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Net IRR:</span>
+                    <span className="font-medium">{metrics.irr}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">DPI:</span>
+                    <span className="font-medium">{metrics.dpi}x</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Reserve Analysis */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold text-gray-800">
+            Reserve Analysis & Follow-on Strategy
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-800">Reserve Allocation</h4>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-700">Follow-on Reserve:</span>
+                  <span className="font-semibold">$35M (35%)</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-700">Deployed Reserves:</span>
+                  <span className="font-semibold">$12M (34%)</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                  <span className="text-gray-700">Available Reserves:</span>
+                  <span className="font-semibold text-green-600">$23M (66%)</span>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-800">Follow-on Strategy</h4>
+              <div className="space-y-3 text-sm">
+                <p className="text-gray-600">
+                  • Target 2-3x follow-on investments in top quartile performers
+                </p>
+                <p className="text-gray-600">
+                  • Reserve 35% of fund size for follow-on rounds
+                </p>
+                <p className="text-gray-600">
+                  • Maintain pro-rata rights in Series B+ rounds
+                </p>
+                <p className="text-gray-600">
+                  • Deploy reserves over 3-4 year period post initial investment
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+        </TabsContent>
+      </Tabs>
+    </main>
+  );
+}

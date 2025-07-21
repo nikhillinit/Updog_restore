@@ -1,0 +1,40 @@
+# Replit configuration for GitHub integration
+run = "npm run dev"
+
+[deployment]
+build = "npm run build"
+run = "npm start"
+
+[env]
+NODE_ENV = "development"
+
+[gitHubImport]
+requiredFiles = [".replit", "replit.nix"]
+
+[languages.typescript]
+pattern = "**/*.{ts,tsx}"
+syntax = "typescript"
+languageServer = "typescript-language-server"
+
+[languages.javascript] 
+pattern = "**/*.{js,jsx}"
+syntax = "javascript"
+languageServer = "typescript-language-server"
+
+[nix]
+channel = "stable-22_11"
+
+[github]
+# Configuration for auto-sync with UpDawg repository
+repository = "nikhillinit/UpDawg"
+branch = "main"
+autoSync = true
+syncOnSave = true
+
+[packager]
+language = "nodejs"
+
+[packager.features]
+packageSearch = true
+guessImports = true
+enabledForHosting = false

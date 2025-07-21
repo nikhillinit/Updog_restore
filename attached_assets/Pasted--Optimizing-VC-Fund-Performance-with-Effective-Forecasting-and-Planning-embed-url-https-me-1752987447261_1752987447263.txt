@@ -1,0 +1,105 @@
+# Optimizing VC Fund Performance with Effective Forecasting and Planning
+
+{% embed url="https://medium.com/wharton-fintech/optimizing-vc-fund-performance-with-effective-forecasting-and-planning-1ada078af23e" %}
+June 7, 2023
+{% endembed %}
+
+_Written in conjuction with_ [_Kailee Costello_](https://medium.com/@kaileecostello?source=post_page-----1ada078af23e--------------------------------) _of Wharton Fintech_
+
+Published in [Wharton FinTech](https://medium.com/wharton-fintech?source=post_page-----1ada078af23e--------------------------------)·7 min read
+
+_This article is a collaboration between Wharton FinTech and_ [_Tactyc_](http://tactyc.io/)_, a platform that enables GPs to construct and manage venture portfolios. The team at Tactyc share their insights on the best practices for fund modeling and explain why maintaining an active forecast is important for responding to market shifts and deal terms as well as for optimizing follow-on returns._
+
+Whether you are an emerging or established VC fund manager, fund modeling and performance forecasting is a core workflow. During the fund-raising process, this is known as portfolio construction; GPs build a hypothetical performance forecast that summarizes the fund’s strategy.
+
+Beyond the fund-raise, active fund managers ideally maintain a forward-looking model to track performance and plan future capital deployment. However, this is frequently very hard to do in spreadsheets given the number of investments and variables – therefore, it is often only done at a high level or not at all. This lack of perspective makes data-driven decision-making in quarterly and annual fund reviews extremely difficult.
+
+In a world where data-driven workflows are becoming more common and necessary (to optimize returns and demonstrate thoughtful processes to LPs), how can GPs incorporate fund modeling into their ongoing workflow? In this article, we’ll explore best practices for fund modeling and common missed opportunities.
+
+**It all starts with construction**
+
+The cornerstone of a successful forecasting workflow starts with portfolio construction. Many managers view portfolio construction as a one-off activity purely for the fundraising process. But, portfolio construction should be the quantitative backbone of your fund strategy and, if done correctly, be used to guide your fund performance. The inner workings of portfolio construction deserve its own blog post which the team at Tactyc have covered in past discussions [such as this](https://www.firstrepublic.com/-/media/frb/documents/pdfs/innovators/fund-model-report.pdf) report with First Republic Bank and [this podcast](https://ventureunlocked.substack.com/p/portfolio-construction-trends-and#details) with Samir Kaji of Venture Unlocked. In short, portfolio construction is a single model that summarizes the fund strategy.
+
+Common “inputs” to this model are:
+
+* **Fund size:** Capital committed to the fund
+* **Capital allocation:** Portion of capital allocated to Seed investments vs. Series A, etc.
+* **Target ownership:** Desired ownership in each company at entry and in subsequent follow-on rounds
+* **Macro and market data:** Expected valuations and round sizes during the investment period, ideally by sector and/or geography
+* **Graduation rates:** The likelihood of a company moving to the next funding round vs. the likelihood of failure at each round
+
+The typical model “outputs” are:
+
+* **Number of deals:** Total number of expected deals the fund can do
+* **Check sizes:** Average initial entry ticket size
+* **Reserve ratios:** Capital earmarked for follow-on investments
+* **Performance metrics:** Usually TVPI, MOIC, and IRR for the LP and Carried Interest for the GP
+
+One common mistake is to set a reserve ratio as an input. There are many variables that go into potential reserve requirements (such as: valuations, graduation rates, and target ownership) — all of these factors are overlooked if the reserve ratio is assumed at the start instead of being calculated based on these underlying variables.
+
+<figure><img src="https://miro.medium.com/v2/resize:fit:700/1*bZtPdsDPsvyIpfIeI1v5eQ.png" alt="" height="296" width="700"><figcaption></figcaption></figure>
+
+It is also worth noting that portfolio construction is useful not just because “LPs ask for it”. It’s the “playbook” for the GP and should ideally be grounded with real-world data. In fact, as we’ll see shortly — a rock-solid portfolio construction plan enables the GP to monitor and course-correct their fund performance in later years.
+
+**Beyond the Fund-Raise**
+
+Once a construction plan is built, funds are raised and capital deployment is underway, it’s easy for a GP to forget about the original construction model. In fact, these models seldom see the light of day beyond the fund-raise. **This is a missed opportunity.**
+
+Once the fund has active investments, it becomes **all the more important** that GPs maintain an active forecast. With actual data layered on top of the construction plan, you can answer important questions such as:
+
+* **Actual vs. planned:** Were our original valuation and check size assumptions too rosy? Has the market moved significantly since we launched?
+* **Projected returns:** By incorporating actual investment data the model can now start projecting expected returns and give you a line of sight into potential DPI, TVPI, and other return metrics.
+* **Course correction:** How can the fund “get back on track”? Should we change our allocation or check size strategy going forward?
+
+The point is to **stay nimble** as a fund. By responding to the latest market shifts and deal terms, GPs can change their “original” assumptions to develop a new thesis based on actual data with insight into how those changes are expected to impact performance.
+
+**How is this done?**
+
+To build a forecast for an active fund, GPs need to:
+
+* **Build deal-level forecasts for individual investments.** This requires delving into each investment, building an underwriting case, and setting future reserves and expected exit scenarios.
+* **Assume a performance level for the remaining undeployed capital**. Usually, the undeployed capital is assumed to perform as per the original (or revised) construction plan.
+
+Combining the deal-level forecasts and the construction plan gives the GP a current forecast. This is the new expected performance of the fund that takes into account its actual deals.
+
+<figure><img src="https://miro.medium.com/v2/resize:fit:700/1*9g8UC2RjcjLkQtEzprIpxA.png" alt="" height="392" width="700"><figcaption></figcaption></figure>
+
+**Deal-level forecasting**
+
+Building deal-level forecasts requires forecasting future rounds, future dilutions, and future exit scenarios for each investment.
+
+Many GPs also build multiple probabilistic scenarios for each deal (such as a downside case, IPO case, and a 1x return case) and summarize the results in a _Weighted Case Analysis._
+
+<figure><img src="https://miro.medium.com/v2/resize:fit:700/0*6qSXchR-ttLIPNnc" alt="" height="310" width="700"><figcaption></figcaption></figure>
+
+The result of all of this work is GPs now have expected exit multiples and future reserves for each active investment.
+
+**Adding it all together**
+
+Combining the deal-level forecasts with the undeployed capital plan now enables GPs to analyze:
+
+* **Actual deployment vs. plan:** How have our actual initial checks deviated from our original plan?
+* **Pacing:** How many deals have we done to date, and how many can we still do going forward?
+* **Performance:** What is our TVPI to date and how does it compare to plan?
+
+**Reserve planning**
+
+Perhaps the most important benefit of forecasting is that it can help GPs optimize follow-on reserves toward their best investments.
+
+Once individual deal forecasts are built, GPs can compare the expected return on the _marginal dollar of investment_ in each compan&#x79;_._ This enables GPs to compare each investment on an “apples-to-apples” basis and take opportunity cost into account. If the fund were limited on reserves, it should aggressively follow-on into _the companies with the highest margin return_.
+
+The reason this works is that you are taking all quantitative and qualitative factors, such as TAM, management team, and competition, into account for each deal when building the deal-level forecast. This expected return multiple is risk-weighted by all the above factors — enabling the fund to compare one company with another in an objective manner.
+
+**Putting this into practice**
+
+The above workflow is not trivial to implement with spreadsheets and frequently requires multiple resources to maintain these forecasts effectively.
+
+That’s why Anubhav Srivastava founded [Tactyc](http://tactyc.io/) — a platform that enables GPs to construct and manage venture portfolios without being burdened by spreadsheet workflows. Tactyc works with 200+ venture funds globally today by empowering every manager with a data-driven approach to fund management.
+
+A GP can **build a robust portfolio construction plan in Tactyc in minutes**. The platform provides the ability to flex all of the above-mentioned construction parameters in an interactive model in order to optimize the fund’s strategy and then easily share the plan with potential LPs. [See an example model here.](https://tactyc.io/published/venturemanager)
+
+<figure><img src="https://miro.medium.com/v2/resize:fit:700/0*6rQqsSFvw_GZxtCp" alt="" height="319" width="700"><figcaption></figcaption></figure>
+
+* For deal-level forecasting, Tactyc offers the ability to bulk import your existing investments and then forecast by round for each portfolio company, including automatically reserving your pro-rata or defining a specific investment size.
+* Tactyc then combines your deal-level forecasting with your construction strategy for undeployed capital to calculate projected fund performance. This helps aggregate your future capital needs and evaluate fund performance vs. plan.
+* Lastly, Tactyc provides robust portfolio insights and reporting. GPs can easily compare the companies with the highest marginal return for reserve planning, can analyze how their funds are deployed across sectors/geographies, and can identify their best-performing co-investors

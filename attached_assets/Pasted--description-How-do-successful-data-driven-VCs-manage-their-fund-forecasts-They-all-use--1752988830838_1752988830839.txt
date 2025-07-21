@@ -1,0 +1,116 @@
+---
+description: >-
+  How do successful data-driven VCs manage their fund forecasts? They all use a
+  powerful analytical workflow that creates a feedback loop enabling them to
+  constantly course-correct their fund.
+---
+
+# Secrets of the Data-Driven Fund Manager
+
+#### Secrets of the Data-Driven Fund Manager <a href="#cb50" id="cb50"></a>
+
+**Learning From Successful Managers**
+
+Over the past few months at Tactyc, we have surveyed various data-driven venture managers to see how they create and manage their fund forecast models. Does their success lie in access to proprietary data? Superior quantitative methodologies? Surprisingly, the answer turned out to be simple — they all use a powerful analytical workflow that creates a feedback loop enabling them to constantly course-correct their fund.
+
+In this post, we’ll show you this workflow in action with [Tactyc](http://tactyc.io), a new product that lets any manager deploy these feedback loops in minutes and without the need for complicated spreadsheets. [An example of a fund model is shown here.](https://vc.tactyc.io/published/uIM6t9co-)
+
+**It All Starts With Construction**
+
+Successful managers are very _deliberate_ and _precise_ with their portfolio construction parameters and spend hundreds of iterations refining them. They don’t hold any preconceived notions on allocations, follow-on reserves, check sizes, and number of investments — instead letting their model answer it for them.
+
+In contrast, we’ve seen many emerging managers build construction models with the end in mind. For example, they may assume a portfolio of X companies and a follow-on reserve of 40% and then back into the fund returns needed to fit these constraints. Such models are rarely flexible enough for the manager to question assumptions they already assume to be true (i.e. portfolio size, follow-on reserves % or capital allocations) and lead to the manager “missing out” on finding alternate optimal structures.
+
+Part of the problem is that building a _flexible_ construction model from the ground up in a spreadsheet is not a trivial task given the large number of variables in play, and if done correctly can take weeks to build.
+
+Tactyc Venture Manager lets managers build a state-of-the-art fund model in minutes by simply answering a few questions around your fund structure and round profiles. For example, [we’ve set up a $100mm seed fund](https://vc.tactyc.io/published/uIM6t9co-) that invests primarily in Seed and Series A companies. We’ve defined future round profiles, round sizes, pre-money valuations, ESOP dilutions, and graduation and exit rates. Venture Manager takes all these assumptions to automatically build a _probabilistic_ construction model.
+
+**Defined Round Profiles**
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*HmXHtgqsQUC0Hz4h" alt=""><figcaption></figcaption></figure>
+
+**Capital Allocation Example**
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*RynJIzkJ30rBvqXB" alt=""><figcaption></figcaption></figure>
+
+In this example above, we’ve:
+
+* allocated 60% of our investable capital to Seed Investments and any follow-ons resulting from those investments (remaining 40% to Series A investments).
+* initial investment based on a 10% Entry Ownership (implying a check size of $1.32mm)
+* follow-on strategy to participate until Series A with an investment of $763k to maintain 10% ownership
+
+Some funds prefer to specify check sizes instead of tracking to an ownership and there’s no preferred approach. Venture Manager lets you choose either method to determine how long, how often and how much they want to exercise their pro-rata.
+
+The model results are summarized in a visual dashboard below.
+
+**Visual Dashboard of Model Results**
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*9FyPmH7mE64HF9hT" alt=""><figcaption></figcaption></figure>
+
+The fund is projected to make 34 investments (28 Seed and 6 Series A), hold a follow-on reserve of 20.6% and projected to return a gross multiple of 3.78x and a TVPI of 3.22x.
+
+**Exploring Alternate Allocation Scenarios**
+
+Next, we’ll flex the allocations and follow-on strategies to see how portfolio sizes and returns change. We have modelled 8 scenarios:
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*ZjVqi1GEj6SC8eT8" alt=""><figcaption></figcaption></figure>
+
+In Scenario 1–4 the fund follow-on for 1 additional round, and in Scenarios 4–10 the fund follow-ons for 2 additional rounds. We’ve also flexed allocations in each scenario. The results show that increasing Series A allocations decrease returns and also decreases our number of investments while increasing follow-on rounds reduces the number of initial investments the fund can make and also reduces our fund returns.
+
+**Exploring Recycling**
+
+Exit recycling is a powerful mechanism to increase investable capital, create alignment between LPs and GPs and increase the number of investments without increasing commitments. The general idea is to recycle proceeds from realized exits and re-invest them into new or follow-on investments. In Venture manager, we’ll set up our fee structure to recycle 25% of our management fees from exit proceeds::
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*FeBihnmeAby8zt5v" alt=""><figcaption></figcaption></figure>
+
+This resulting matrix compares fee recycling on investable capital, number of investments, and fund returns.
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*T87Dh9JLwxQ-OXKo" alt=""><figcaption></figcaption></figure>
+
+With a 100% recycle, our investable capital is almost at parity with the total committed capital (the difference being the fund expenses) — implying the LPs see very little fee leakage on their commitments.
+
+**Putting It All Together**
+
+In a few minutes, we’ve explored the impacts of flexing allocations, follow-on strategies and exit proceeds recycling. The final decision on construction parameters involves qualitative discussions around team size, diligence capabilities, market conditions, hiring plans, etc that determine how many investments the fund could support and the cadence they are comfortable with.
+
+**Updating the Construction Model with Actual Investments**
+
+After the fund is launched, successful managers constantly benchmark their actual fund metrics, not just with the broad indices but also relative to what they had originally constructed _— and then they go on to update their construction model to find a better strategy for future investments._ This creates a powerful feedback loop, where the original construction model is constantly updated with existing investments to develop new projections. By evaluating the spread between actual and construction plans, these managers tweak and adjust their original construction parameters to course-correct on future investment decisions.
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*2WiDxgFrySFHDV2H" alt=""><figcaption></figcaption></figure>
+
+In contrast, many first-time managers completely abandon their construction model after launch. The minutiae of updating books for investments and computing multiples and IRRs etc. is frequently classified as “fund administration” and not part of daily or weekly partner discussions. The downside is that the fund is swayed heavily by market conditions and if the market ends up being vastly different than they thought, they aren’t able to quickly find new strategies for future investments.
+
+In Venture Manager, we’ve defined 6 successful investments for the fund.
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*w6zv_hqRc9hv0klB" alt=""><figcaption></figcaption></figure>
+
+Next, we can do a market check. Venture Manager shows us how the fund’s average initial check sizes, follow-on reserves and entry pre-money valuations compared to our construction model.
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*nTmhWWxGpmg8cISr" alt=""><figcaption></figcaption></figure>
+
+The above metrics show the market has been more expensive than originally modeled — the pre-money valuations are higher, the initial check sizes are greater and a larger amount of reserves have to be allocated per deal. _The result is that despite successful exits on some of these investments, the final projected TVPI for the fund is 2.53x, almost 22% lower than expected construction TVPI of 3.22x._
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*10unGNTbeuWgenBI" alt=""><figcaption></figcaption></figure>
+
+**Finding Strategies to Course Correct**
+
+How do we get the fund back to a 3.22x TVPI? The manager can update their original construction parameters with new check sizes and valuations based on their market data — and adjust allocations and follow-on strategies to regain back the loss in return multiple. For example, we ran a new scenario where we decreased the number of investments we’ll follow on into (effectively saying we’ll be more judicious in our follow-ons instead of following onto every single graduation) and increased our Seed allocations vs. Series A. The result is we can “get back on track” to a 3.22x TVPI.
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*-DnABBU_YYilBJSx" alt=""><figcaption></figcaption></figure>
+
+**Closing Thoughts**
+
+There is no “proprietary data” at work here and none of the math presented above is difficult. The key to the data-driven manager is this workflow — a “market-updated” construction model always at hand that can answer future investment strategies.
+
+While all of the above could be done in spreadsheet models that get updated periodically — we found that these probabilistic spreadsheet models are difficult to build from scratch, and even more cumbersome to manage with real investments. Most emerging managers simply revert to a Google Spreadsheet for tracking their investments, but rarely update their construction models to answer future investment questions.
+
+We built Tactyc so every manager can integrate this data-driven process in minutes — and we welcome your feedback on ways to improve it.
+
+— —
+
+Tactyc is available at [tactyc.io](https://www.tactyc.io). We welcome feedback from the community that can help us improve the platform and to make fund analytics easier and simpler for every emerging manager. If you’d like to onboard your fund’s model into Venture Manager, please [schedule a demo](https://calendly.com/tactyc/demo) here.
+
+{% embed url="https://kauffman-fellows.medium.com/secrets-of-the-data-driven-fund-manager-10ceb5871e56" %}
+Written with the Kauffman Fellows. November 2021
+{% endembed %}

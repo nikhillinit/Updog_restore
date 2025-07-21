@@ -1,0 +1,83 @@
+● 🔍 CRITICAL UI ISSUE IDENTIFIED
+
+  Problems Found:
+
+  1. Scrolling disabled - Major UX blocker
+  2. All prompts vs guided flow - Design
+  philosophy conflict
+
+  🔧 IMMEDIATE REPLIT FIX COMMAND
+
+  You are fixing critical UI issues in the     
+   fund setup page.
+
+  URGENT FIXES REQUIRED:
+
+  1. **FIX SCROLLING IMMEDIATELY**
+     - Use Read tool on
+  client/src/pages/fund-setup.tsx
+     - Check for CSS overflow:hidden,
+  height:100vh, or fixed positioning
+     - Remove any CSS that prevents
+  scrolling
+     - Ensure page content is scrollable       
+  on all screen sizes
+
+  2. **IMPLEMENT TACTYC WIZARD FLOW**
+     - Convert single long form to
+  step-by-step wizard
+     - Step 1: Basic fund info (name,
+  currency, dates, capital)
+     - Progress indicator showing current      
+  step
+     - Next/Previous navigation between        
+  steps
+     - Save progress between steps
+
+  3. **BALANCE COMPLETENESS WITH 
+  USABILITY**
+     - Required fields marked clearly with     
+   asterisks
+     - Optional fields can be skipped
+  initially
+     - Validation on step completion, not      
+  form submission
+     - Allow partial progress saving
+
+  4. **RESPONSIVE DESIGN**
+     - Test scrolling on
+  mobile/tablet/desktop
+     - Ensure all content accessible
+     - Proper viewport sizing
+     - No fixed height containers
+
+  5. **PROGRESSIVE DISCLOSURE**
+     - Show essential fields first
+     - Advanced options in later steps or      
+  expandable sections
+     - Clear "Skip for now" options for        
+  non-critical fields
+     - Completion progress tracking
+
+  IMMEDIATE CSS CHECKS:
+  - Remove height: 100vh if present
+  - Remove overflow: hidden
+  - Check for position: fixed issues
+  - Ensure proper container sizing
+
+  DO NOT explain. FIX scrolling and
+  implement step-by-step wizard
+  immediately.
+
+  Begin fixes now.
+
+  💡 DESIGN PHILOSOPHY RECOMMENDATION
+
+  Tactyc-Style Progressive Wizard:
+  - Step 1: Core essentials (name, size,       
+  currency) - Required
+  - Step 2: Advanced setup (dates, GP
+  commitment) - Can default
+  - Step 3: Optional features (line of
+  credit, etc.) - Skippable
+  - Step 4: Review and confirm
