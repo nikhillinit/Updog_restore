@@ -1,0 +1,39 @@
+Why can I not construct my fund model from number of investments instead of capital allocation percentages?
+
+GPs that are used to deterministic Excel based models may want to just set a fixed number of initial investments, and construction their plan based on this number. There’s a few reasons why we don’t support this methodology.
+
+We want to emphasize there is no right or wrong way to do portfolio construction. There are only approaches that are flexible and in-flexible. A flexible approach has the advantage of giving the GP multiple levers to pull to run varied construction strategies.
+
+The problem with setting a fixed number of initial investments
+The main problem with this approach are:
+
+If you pick a number of deals that is too low, you might have too much unused capital
+
+If you pick a number of deals that is too high, you will not have enough capital to do the deals
+
+This usually then results in the GP having to iterate multiple times to land at a number of deals that leaves the least amount of under/over-allocated capital. If the GP then changes their assumption on follow-on checks, fees, expenses - the entire model breaks down again and they would need to iterate all over again to land at the optimal number of investments.
+
+In fact, if any of the below variables change, the GP needs to go back and change the number of deals:
+
+Fund commitment
+
+Management fee assumptions
+
+Initial and Follow-On Check size assumptions
+
+Fund expenses
+
+Recycling assumptions
+
+In short, this is a fragile approach - that can very easily “break” the model by creating pools of capital that are unused or over-allocated.
+
+The benefits of capital allocation
+By setting capital allocations first, 
+
+Tactyc will ensure there is no unused/over-allocated capital. It will always fully use up all the available investable capital and give you the answer on number of forecasted deals. 
+
+It also takes far fewer number of iterations to land at the optimal number of deals and follow-on reserves. Simply set your ideal check sizes - and then it’s a matter of playing with capital allocation (%) to arrive at your construction strategy. You should be able to optimize your fund model in a couple of iterations.
+
+If you change your mind on check sizes, reserve strategies, fees and expenses, recycling % - the model will automatically accommodate these changes without needing to change other parameters.
+
+We believe this approach is more stable, flexible - and gives the GP’s multiple levers to pull to run varied construction strategies.

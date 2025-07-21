@@ -1,0 +1,21 @@
+{
+  "repository": "nikhillinit/UpDawg",
+  "branch": "main",
+  "autoSync": true,
+  "syncOnSave": true,
+  "buildCommand": "npm run build",
+  "startCommand": "npm start",
+  "environment": {
+    "NODE_ENV": "production"
+  },
+  "replit": {
+    "domain": "povc-fund-model.replit.app",
+    "port": 5000,
+    "deployment": "auto"
+  },
+  "github": {
+    "integration": "enabled",
+    "autoCommit": true,
+    "syncDirectory": "C:\\Users\\nikhi\\OneDrive\\Documents\\Press On Ventures\\POVC Fund Model\\UpDawg"
+  }
+}

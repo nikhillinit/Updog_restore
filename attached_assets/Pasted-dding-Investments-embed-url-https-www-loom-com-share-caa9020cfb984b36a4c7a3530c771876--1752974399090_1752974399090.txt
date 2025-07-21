@@ -1,0 +1,71 @@
+dding Investments
+
+{% embed url="https://www.loom.com/share/caa9020cfb984b36a4c7a3530c771876" %}
+
+
+
+## Adding an investment
+
+* Click on the **Add Investment** button from your **Investments** Page.&#x20;
+* The dropdown button will present a list of your sector profiles and ask you to select the entry round at which the fund is entering this investment. For example if you are adding a Series A investment in the FinTech profile you would go to **FinTech Profile > Series A**. Once clicked, you’ll see an **Investment Editor** open up.
+
+<figure><img src="https://1366836623-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FWOWjDH33JGp4Ay1omBCB%2Fuploads%2FH5iFAVZ9lVDsZciLqgzz%2Fimage.png?alt=media&#x26;token=20168adf-4750-45f8-b9be-e151aafb1c83" alt="adding investments in portfolio management software" width="366"><figcaption></figcaption></figure>
+
+
+
+* Enter data on this investment's name, sector, geography etc. The only required field is **Investment Name**.
+* Under the **Performance Case** section you can now define the terms of the rounds the company has had, as well as future rounds you expect the company to have.&#x20;
+* Click on **Edit** for the first round and set the investment date and investment terms.&#x20;
+
+## Editing Round Terms
+
+* Click on **Edit** for the round to open the **Event Editor**
+
+![editing investments in portfolio management software for VCs](https://1366836623-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FWOWjDH33JGp4Ay1omBCB%2Fuploads%2FxnroF1LnovVilFpzE9cm%2Fimage.png?alt=media\&token=00beffcb-282b-4c4a-a007-47aaa313a87a)
+
+* The **Event Editor** enables you to set the parameters of the round.
+
+<figure><img src="https://1366836623-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FWOWjDH33JGp4Ay1omBCB%2Fuploads%2F1gtYG8KB4HXIT8Zbf8EZ%2Fimage.png?alt=media&#x26;token=d89deff4-950c-43b9-8a16-219ff2f1ea4e" alt="initial investment management software for venture capitalist"><figcaption></figcaption></figure>
+
+## **Planned Investments**
+
+* Simply set the investment date of the first round to the future and Tactyc will automatically capture this investment as a planned deal
+
+## **Constraints**
+
+* Each investment must at least have **one Investment Round** and **one Exit Round (which could be in the future)**
+* Note the investment date cannot be prior to the fund’s start date (if you find yourself unable to “go back in the past”, this is the reason). Please change your fund start date in that case to match your earliest investment. For warehoused deals, they need to be entered as of the fund’s start date and they can then be “tagged” as Warehouse deals to identify them for reporting purposes.
+
+## Bulk Upload
+
+You can also bulk import multiple investments at one with an Excel option.
+
+*   Click on **Bulk Imports & Updates  > Import New Rounds** from your main investments page
+
+
+
+<figure><img src="https://1366836623-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FWOWjDH33JGp4Ay1omBCB%2Fuploads%2F2m3h82wsmTCxTvE0aOCd%2FScreenshot%202024-06-17%20at%2012.00.13%20PM.png?alt=media&#x26;token=c2557035-e1c1-4a4d-8c66-766b22c0b335" alt=""><figcaption></figcaption></figure>
+
+* Download the Excel template and follow the instructions
+
+## Developing Forecasts for Uploaded Investments
+
+If you’ve bulk uploaded your current investment rounds, there’s two other recommended steps. These steps will let Tactyc develop forecasts and expected exit returns from your current investments from your pre-defined Sector Profiles
+
+## Build Future Rounds for Each Deal
+
+* After the import is finished open each investment and use the **Future** option under the **Performance Case** section to have Tactyc forecast future rounds.
+
+<figure><img src="https://1366836623-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FWOWjDH33JGp4Ay1omBCB%2Fuploads%2FzmsWaKlmkFbqDtVCdDks%2FScreenshot%202023-12-13%20at%209.42.07%20AM.png?alt=media&#x26;token=97f8500c-eb69-4c1e-a4e6-5a871423b82e" alt="" width="563"><figcaption></figcaption></figure>
+
+* **On the next dialog you can select the** Sector Profile and staring round
+
+<figure><img src="https://1366836623-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FWOWjDH33JGp4Ay1omBCB%2Fuploads%2FG2FSExWk4eQfm1kXNUPB%2FScreenshot%202024-05-05%20at%2011.06.32%20AM.png?alt=media&#x26;token=5c4bbfce-ae62-4b43-a28d-8ddf04ffdab0" alt="" width="563"><figcaption></figcaption></figure>
+
+* Once future rounds are built, update the exit valuation to reflect your thesis for the company
+
+## Build Future Rounds in Bulk
+
+To make building future rounds from Sector Profiles, you can use the **Build Future Rounds** from under the **Bulk Imports & Updates** selection
+
+This will open a view where you can build future rounds quickly for each company.

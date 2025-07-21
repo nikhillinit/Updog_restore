@@ -1,0 +1,48 @@
+1. **Calculate Fully Diluted Shares**
+   Add up all existing outstanding shares plus all shares reserved in your option pool.
+
+   > Fully Diluted Shares = Total Current Shares + Option Pool Shares
+
+2. **Determine Current Ownership Percentage**
+   For each stakeholder, divide their individual share count by the Fully Diluted Shares.
+
+   > Ownership % (today) = Sharesᵢ ÷ Fully Diluted Shares
+
+3. **Compute Price per Share for the Next Round**
+   Take your pre-money valuation, add any option-pool top-up amount, and divide by the total number of shares that will be outstanding just before closing (existing fully diluted shares plus any new option shares).
+
+   > Price per Share = (Pre-Money Valuation + Option Pool Increase)
+   >                ÷ (Fully Diluted Shares + New Option Shares)
+
+4. **Calculate New Investor Shares**
+   Divide the total new capital you’re raising by the Price per Share.
+
+   > New Investor Shares = Round Size ÷ Price per Share
+
+5. **Find Post-Money Valuation**
+   Simply add the new capital raised to the pre-money valuation.
+
+   > Post-Money Valuation = Pre-Money Valuation + Round Size
+
+6. **Determine the Conversion Price for SAFEs/Notes**
+
+   * **Cap-Based Price**: Divide the valuation cap by the implied pre-round share count (pre-money valuation ÷ fully diluted shares).
+   * **Discount-Based Price**: Multiply the new round Price per Share by (1 − Discount %).
+     Then take the lower of those two prices.
+
+   > Conversion Price = min(Cap-Based Price, Discount-Based Price)
+
+7. **Convert Each SAFE/Note into Shares**
+   For each instrument, divide its invested principal by the Conversion Price.
+
+   > SAFE/Note Shares = Principal ÷ Conversion Price
+
+8. **Compute the New Total Share Count After the Round**
+   Add together the original Fully Diluted Shares, the New Investor Shares, and all SAFE/Note Shares.
+
+   > New Total Shares = Fully Diluted Shares + New Investor Shares + Σ SAFE/Note Shares
+
+9. **Recalculate Ownership Percentages Post-Round**
+   For every stakeholder (founders, employees, investors, converted note holders), divide their final share count by the New Total Shares.
+
+   > Ownership % (post-round) = Sharesᵢ ÷ New Total Shares

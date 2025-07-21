@@ -1,0 +1,28 @@
+# Leveling Up on Return the Fund Analysis
+
+**What is Return the Fund?**
+
+_Return the Fund_ is a common analysis managers undertake when evaluating venture deals. This involves calculating a _Return the Fund_ metric i.e. the aggregate valuation a company needs to achieve in order to pay back the entire fund. A “Fund Returner” is a single deal that achieves this threshold — and while rare, deals like these are critical given the Power Law nature in VC.
+
+Tactyc automatically calculates and presents _Return the Fund_ in different contexts to answer various questions for the manager.
+
+**For Portfolio Construction**
+
+When constructing a fund, Tactyc shows the _Return the Fund_ for each allocation and how that changes over subsequent rounds (shown in the _Rounds_ section of your fund’s dashboard).
+
+As the fund’s ownership dilutes over subsequent rounds, _Return the Fund_ increases — and this can be helpful in setting future reserves to keep this metric in check.
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*4EIzXCXJ0vuTyd9-.gif" alt=""><figcaption></figcaption></figure>
+
+**Beyond Construction**\
+Similarly, for active portfolio companies, Tactyc automatically calculates the _Return the Fund_ at each forecasted round. Simply select a specific investment’s performance case to view the _Return the Fund_ profile.
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*TIfxULebPbzxzvCY.gif" alt=""><figcaption></figcaption></figure>
+
+**For Determining Reserves**
+
+When setting reserves for a future round, Tactyc automatically shows how _Return the Fund_ changes at different reserve levels. As reserves increase, _Return the Fund_ decreases and thus a manager can use this as a guide to optimize their reserve for a particular deal.
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*RcgmfBkZcu1KKK1J.png" alt=""><figcaption></figcaption></figure>
+
+By [Tactyc](https://medium.com/@tactyc) on [November 25, 2022](https://medium.com/p/d6731c4e26f2).

@@ -1,0 +1,33 @@
+---
+description: Change model parameters to run new fund scenarios quickly.
+---
+
+# Scenario Builder
+
+## To run new scenarios for your fund model:
+
+* Go to **Scenario Builder** from the sidebar
+* Click on **Create Scenario** and give this scenario a name
+* Change the model parameters from the **Scenario Parameters** section. You can revisit multiple parameter sections (such as sectors, allocations, fees, investments, etc.)
+
+<figure><img src="https://1366836623-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FWOWjDH33JGp4Ay1omBCB%2Fuploads%2FAgrHAl7vZkQUOlhv0qw0%2Fimage.png?alt=media&#x26;token=161f8959-01c5-462f-af87-b59823132f43" alt=""><figcaption></figcaption></figure>
+
+* After entering new model parameters, Tactyc will recalculate the model and show the results under **This Scenario** column
+* Click on **Save Scenario** when complete
+
+<figure><img src="https://1366836623-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FWOWjDH33JGp4Ay1omBCB%2Fuploads%2F4Cy91hmUEgyNOPztNLnJ%2Fimage.png?alt=media&#x26;token=4dd3f4e5-e0a7-492d-b79e-5f1b400ecaf2" alt=""><figcaption></figcaption></figure>
+
+
+
+## **Running fund scenarios based on individual investment scenarios**
+
+If you have built multiple performance cases for your investments, you can easily turn cases "on" or "off" for multiple investments and evaluate impact on fund performance.
+
+* Go to **Scenario Builder > Create Scenario**
+* Go to **Scenario Parameters > Investments**
+* You should now see a list of all your investment cases. You can "turn a case on" and \
+  "off" by with the **100%** and **0%** buttons under **Action**
+* Click on **Recalculate**
+* Evaluate the **Scenario Results** and then **Save Scenario**
+
+<figure><img src="https://1366836623-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FWOWjDH33JGp4Ay1omBCB%2Fuploads%2Fi7LZY4EkCzsFNpQJEzpJ%2FScreenshot%202024-01-12%20at%2012.38.08%20PM.png?alt=media&#x26;token=38cfd27f-eb1b-42f5-97eb-fd9156a81f32" alt=""><figcaption></figcaption></figure>

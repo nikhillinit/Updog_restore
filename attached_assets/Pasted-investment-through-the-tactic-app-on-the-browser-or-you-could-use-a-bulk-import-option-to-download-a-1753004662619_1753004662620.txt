@@ -1,0 +1,23 @@
+investment through the tactic app on the browser or you could use a bulk import option to download an excel template fill it out with your investment data and upload it directly back in the platform. 
+
+In this video we'll show you how to add an investment with the app. Simply click on add investment and select the appropriate sector profile from your construction wizard and select the starting round of that investment. 
+
+Let's say we're adding a seed investment the next section is called the investment editor and this is where you can enter a name for that investment let's call this an investment company called tactic you can enter the url sectors and you can even define your own sectors here management teams geographies you can add tags to the deals and you can even create your own tags simply start typing your new tag name and you can track partners board members and co-investors. 
+
+Next you can also model out these investment outcomes these are called performance cases. If we made a seed investment we'd like to tell tactic the terms of that seed investment so click on edit event for the seed round enter the date of this deal and the terms of that investment. 
+
+As you can tell tactic has already pulled in future rounds of this investment from that sector profile that we had picked and it has already tagged graduation rates to each of these future rounds. If you'd like to change these graduation rates simply click on edit event and change the graduation rate. 
+
+If you'd like to add another round after this deal click on next round and select graduation on next round to create a new round you can then edit that event and go through the same process of changing the date and the terms of that new round. 
+
+If you'd like to update the ownership or valuation use the ownership update or valuation update methods. If this was a secondary acquisition you could click on edit event and change that initial investment to a secondary acquisition. 
+
+You can also choose to set your Resolve levels here. Let's say we decide that we'd like to have a Series A and Series B follow-on investment at our Parata levels. Simply click on Resolve Parata, and Tactic will automatically calculate the Reserves needed to maintain your Parata. 
+
+You can also come in and change the terms of these future rounds. Once you've done this, you can then select another performance case to model. For example, we could call this case we've currently built as our base case. 
+
+And in this base case, the company has an exit of a 3 billion in June 2030, which currently is after our fund date. So we may choose to go in and change the fund date to an earlier date. We can then call this our base case and assign a probability. 
+
+Let's say we give it a 50% probability. And we can choose to build another case that we're calling the downside case. And maybe in the downside case, the company fails to make it beyond the series A around. 
+
+In fact, it exits with a 0. And in this case, we're giving it a 10% probability. You may also choose to build an upside case. And maybe in this upside case, we'd like to keep the exit valuation to $3 billion, but we'd like to increase the probability of these graduations to a higher number. 

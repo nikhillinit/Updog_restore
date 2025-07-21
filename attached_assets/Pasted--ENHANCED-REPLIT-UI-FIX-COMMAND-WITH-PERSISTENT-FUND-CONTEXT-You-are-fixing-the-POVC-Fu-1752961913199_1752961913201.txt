@@ -1,0 +1,88 @@
+● 🔧 ENHANCED REPLIT UI FIX COMMAND WITH 
+  PERSISTENT FUND CONTEXT
+
+  You are fixing the POVC Fund Model UI/UX
+   in Replit with persistent fund
+  management.
+
+  IMMEDIATE UI FIXES REQUIRED:
+
+  1. **IMPLEMENT FUND CONTEXT 
+  PERSISTENCE**
+     - Use Read tool on
+  client/src/contexts/FundContext.tsx
+     - Ensure fund data persists across        
+  all pages after setup
+     - Store fund configuration in
+  localStorage or database
+     - Prevent re-entry of fund parameters     
+   on navigation
+
+  2. **PROPER USER FLOW WITH STATE 
+  MANAGEMENT**
+     - Use Read tool on client/src/App.tsx     
+   to check routing
+     - Create fund setup onboarding as
+  landing experience
+     - After fund setup: redirect to
+  dashboard with persistent data
+     - All pages (forecasting, reporting,      
+  management) use same fund context
+
+  3. **FIX SIDEBAR NAVIGATION WITH FUND        
+  STATE**
+     - Use Read tool on
+  client/src/components/layout/sidebar.tsx     
+     - Navigation only appears after fund      
+  is configured
+     - All sidebar routes share the same       
+  fund data
+     - No re-prompting for fund parameters     
+
+  4. **SEAMLESS WORKFLOW IMPLEMENTATION**      
+     - Fund Setup → Dashboard →
+  Forecasting → Reporting → Management
+     - Each section accesses the same fund     
+   configuration
+     - Header shows current fund
+  name/details consistently
+     - Settings page allows fund parameter     
+   editing if needed
+
+  5. **PROFESSIONAL CHART INTEGRATION**        
+     - Use Read tool on
+  client/src/components/charts/ directory      
+     - Charts automatically populate with      
+  fund data
+     - Remove exposed/raw chart elements       
+     - Add proper loading states and fund      
+  context
+
+  EXECUTION ORDER:
+  1. Verify FundContext provides
+  persistent state management
+  2. Fix routing: setup → persistent fund      
+  dashboard
+  3. Ensure all pages consume fund context     
+   without re-entry
+  4. Polish navigation and chart
+  presentation
+  5. Test complete workflow: setup once,       
+  navigate freely
+
+  CRITICAL: Once fund is set up, user
+  should NEVER re-enter fund parameters        
+  when navigating between forecasting,
+  reporting, and management sections.
+
+  DO NOT explain. IMPLEMENT persistent
+  fund state and fix UX immediately.
+
+  Begin fixes now.
+
+  📋 USE THIS ENHANCED COMMAND IN REPLIT       
+
+  This ensures the fund setup is a
+  one-time process, with all subsequent        
+  pages using the persistent fund data
+  seamlessly.

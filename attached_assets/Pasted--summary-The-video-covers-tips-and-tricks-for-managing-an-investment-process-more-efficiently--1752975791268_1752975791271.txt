@@ -1,0 +1,22 @@
+  
+# summary  
+The video covers tips and tricks for managing an investment process more efficiently. It details how to use the planning view to filter investments by future rounds (e.g., the next three or four rounds) and to view and edit expected reserved investment levels. The video emphasizes the importance of noting that reserved amounts are probability-weighted based on the graduation rate. For example, a 50% graduation rate on a $1.5 million reserve would result in $750k actually being reserved. The video also explains how to update investment cases when a new round occurs, such as a CVC round, including syncing historical rounds across different cases (base, downside, upside) to maintain consistency. Finally, it demonstrates how to create new cases by cloning existing ones, like starting a new case from the downside case, and reminds users that all probabilities for these cases should be considered.  
+# chapter  
+## Planning View and Filtering Investments [00:00:00](#)  
+  
+The video introduces tips and tricks to simplify investment process management. It highlights the planning view, which allows users to filter investments to display future rounds, such as the next three or four. This filtering helps in focusing on upcoming investment opportunities and managing expectations for future commitments.  
+## Editing Reserved Investment Levels [00:00:23](#)  
+  
+The video explains that within the planning view, users can filter a grid to see the expected reserved investment levels for each round. The grid is editable, allowing users to directly input and modify the reserved investment amounts as needed. Changes can be saved with a simple click.  
+## Adjusting Reserves within Investments [00:00:38](#)  
+  
+The video details how to change reserves within an individual investment by navigating to future rounds and modifying the future investment amount. It emphasizes that the actual reserved amount is probability-weighted based on the graduation rate. For instance, with a 50% graduation rate and a $1.5 million reserve, the system will reserve $750,000 (50% of $1.5 million).  
+## Updating Investment Cases with New Rounds [00:01:15](#)  
+  
+The video demonstrates how to update all investment cases when a new round occurs, using a CVC round as an example. Users can edit the event, change the date to reflect when the investment occurred, and set the graduation rate to 100% for historical rounds. The exact investment amount for the round can be entered.  
+## Syncing Cases and Cloning Options [00:01:36](#)  
+  
+The video explains how to sync investment rounds across different cases (base, downside, and upside). If the base case is updated with a new round, the sync option can be used in the downside and upside cases to automatically add the same round. This ensures consistency across all cases, and prior rounds can then be deleted. The video also shows how to create a new case by cloning an existing one, such as starting from the downside case, allowing for efficient case building.  
+## Reminder about Probabilities [00:02:14](#)  
+  
+The video concludes by reminding users to consider all probabilities for the different investment cases they are managing.

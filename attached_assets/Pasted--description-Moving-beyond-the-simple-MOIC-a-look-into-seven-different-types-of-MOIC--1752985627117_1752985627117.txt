@@ -1,0 +1,63 @@
+---
+description: >-
+  Moving beyond the simple MOIC - a look into seven different types of MOIC
+  calculations and they can be used in fund analysis.
+---
+
+# Leveling up on MOIC Analysis
+
+#### **Leveling up on MOIC Analysis** <a href="#id-566e" id="id-566e"></a>
+
+The Multiple of Invested Capital (MOIC) is arguably the most common performance indicator in VC. Along with IRR, every LP report has a series of “marks” that show the Current MOIC on a deal.
+
+One of the reasons MOIC is so common is that it’s simple to calculate…
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*qkAfk_sapoLqNFe8" alt=""><figcaption></figcaption></figure>
+
+…and simple to understand. Anything above 1.0x is a profitable deal and anything below is a loss.
+
+However, as you’ll see below, MOICs are more than just a reporting metric. In fact, they can be a very useful _planning_ metric, especially for reserve deployment. But for that, we have to first take a look at the different types of MOIC calculations that are possible (spoiler alert: there are upto 7 different MOICs).
+
+**Moving beyond the simple MOIC**
+
+At [Tactyc](http://tactyc.io), we’ve seen that most data-driven managers work with multiple MOICs — and each MOIC answers a different question for the manager or helps them develop a more nuanced understanding of deal performance.
+
+For e.g. the simple MOIC can be “extended” to include future return expectations (which are usually built based on management projections and underwriting thesis). This enables us to take MOIC from a reporting into a planning perspective.
+
+MOICs can be further refined by separating the performance of initial investments from the follow-on investments, thereby letting us analyze reserve performance standalone.
+
+It might be helpful to think of MOICs along these lines:
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*vl67ZqVZUj-VbIb2" alt=""><figcaption></figcaption></figure>
+
+And here is a comparison of the question each MOIC answers along with the calculation methodology
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*0WyzaJH8xo7aH0aZ" alt=""><figcaption></figcaption></figure>
+
+**A special mention**
+
+The **Exit MOIC on Planned Reserves** deserves special mention as it is a very useful metric in optimizing reserves. By summarizing the future follow-on performance it enables us to compare one company’s reserves with another.
+
+When optimizing follow-on reserves, comparing this metric can guide future follow-on deployments. In [Tactyc](http://tactyc.io), we automatically calculate and rank all of your portfolio companies based on this metric.
+
+<figure><img src="https://cdn-images-1.medium.com/max/800/0*7B8C8ji3ctvGy96e" alt=""><figcaption></figcaption></figure>
+
+**Not always quite as simple**
+
+Despite seeming simple, some of the MOIC calculations can get quite complex. For example:
+
+* If there are multiple follow-on investments, the Current MOIC on Deployed Reserves needs to be calculated on a _weighted average share price of follow-ons_.
+* Realized proceeds from partial sales need to be incorporated in every single MOIC calculation above
+* If a SAFE or Convertible Note is involved, the MOIC on initial investment needs to account for conversion price
+
+At Tactyc, we see only a small percentage of funds have the analytical workflows that enable calculation, tracking and monitoring of these metrics — as calculating them in spreadsheets is not always trivial. However, we’ve also seen that the managers that do follow these workflows are able to better quantify their reserve planning process to LPs and are also consistently outperforming the benchmarks.
+
+That’s why we created Tactyc! So every manager can be empowered with these data-driven analyses without having to manually build them.
+
+**About Tactyc**
+
+[Tactyc](https://streaklinks.com/BQMr3BtnpyKyv2cIhg01Yy0g/http%3A%2F%2Ftactyc.io%2F?email=anubhav%40tactyc.io) is the first performance forecasting and scenario platform for VCs and is used by more than 160 funds globally. Our software enables VCs to easily manage and forecast venture portfolios and replaces much of the traditional complicated spreadsheet workflows. If you’d like to explore Tactyc for your fund, please visit [tactyc.io](https://www.tactyc.io) or [schedule a demo](http://tactyc.io/demo) here.
+
+
+
+By [Tactyc](https://medium.com/@tactyc) in conjunction with Kauffman Fellows on [November 25, 2022](https://medium.com/p/71026cf536ea).

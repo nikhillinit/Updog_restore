@@ -1,0 +1,80 @@
+1. Go **KPI Manager** from the sidebar
+2. Select the portfolio company, you’d like to track KPIs for and click on **Add KPI**. Select from a list of pre-defined KPIs or create your own KPI metric using the **New Metric** option
+3. For each KPI, you can specify:
+   * whether the KPI is quantitative or qualitative
+   * the tracking frequency (how often you expect to track this KPI)
+   * tracking period (range over which you expect to track the KPI)
+   * KPI data format (currency, percentage etc.)
+   * Description (a quick description of this KPI)
+   * Company Comments (qualitative comments or MD\&A)
+   * whether you would like the company to upload documents related to this KPI
+
+
+
+
+
+
+
+### **Adding KPI Data**
+
+
+
+You can add KPI data yourself, or if you are on an Enterprise Plan, you can also request portfolio companies to enter their KPI data themselves.
+
+To add a KPI data yourself:
+
+* Go to **KPI Manager > Manage KPIs > Select Company > Add KPI**
+* Enter data directly in the grid
+* Click **Save**
+
+
+
+#### Assigning a company contact
+
+1. Go to **KPI Manager** > **KPI Requests** > **Contacts**
+2. Enter an email address for the company. You can also use the **Import** function to import contacts from an Excel spreadsheet.
+
+
+
+####
+
+#### **Create a KPI Request Form**
+
+1. Go to **KPI Manager > KPI Requests**
+2.  Click on **Create KPI Request(s)** button
+
+    1. Select a **Reporting Periods** for the KPI request. All periods after this reporting period will be treated as "projected", and all periods prior to the reporting period will be treated as "historicals".
+    2. Click on “All Companies” if you’d like to create request forms for all portfolio companies where you are tracking KPIs
+    3. Click on a single company if you’d like to create a request form for just that one company for now.
+
+    Note: Only companies where you are tracking KPIs are eligible for these forms. 
+
+    * Specify which KPI metrics would you like to be visible in these KPI requests. By default all KPI metrics are visible. (this option is only available if you clicking on **All Companies**).
+    * Specify whether you’d like to use a passcode to protect the web form data. If no password is specified, anyone with access to the web form URL link will be able to see the KPI data within that web form. Click on **Create Request** when done.
+4. A new request form will be generated. The status of this form is currently **Pending Update**
+
+**Automatically sending the KPI request form**
+
+1. If a contact has been assigned to the portfolio company, you can have Tactyc automatically send an email to the company notifying them to update their data using the **Request Form.**&#x20;
+2. Click **Send** for an automated email to be send to the company. To send request forms to multiple companies, click the check boxes next to the appropriate request form and click on **Send Selected.**
+
+**Manually sending the KPI request form**
+
+To manually send this form to the portfolio company, copy the web form link using the **Copy** option and send it your contact at the portfolio company.&#x20;
+
+#### **What the portfolio company sees when they click the link:**
+
+
+
+1. When the portfolio company opens the KPI request, they will see a single editable view of all their current KPI data and commentary.
+2. They can then enter new data and commentary to update these metrics
+3. Once completed, they will click on **Submit** at the bottom of the page to finish the update
+
+#### **Once a request has been submitted**
+
+1. Once a portfolio company completes a KPI request, you will receive an automated email notification specifying your KPI request is now completed and ask you to log in to Tactyc to approve the request
+2. Once logged in, you will see the request status has now changed from **Pending Status** _to_ **Pending Review**
+3. To review the KPI update, open the request by clicking on the company name. A review panel will open up showing the original KPI data and updated KPI data for comparison.
+4. If you’re happy with the changes, click on **Save** to accept all the new KPI updates. The new KPI data will now automatically be saved and available for reporting. If you’d like to disregard this request, click on Reject to reject the request
+
+Note: If you would like to skip the approval process for all KPI requests, go to your **Settings** (from your sidebar) and turn on the **Auto-Approve KPI Requests** option.

@@ -1,0 +1,143 @@
+---
+description: >-
+  The “data-driven” venture fund manager is a term that has gained popularity in
+  recent years. But what does it really mean to be “data-driven” when it comes
+  to portfolio management and planning?
+---
+
+# Top Six Workflows of Data-Driven Venture Managers
+
+The “data-driven” venture fund manager is a term that has gained popularity in recent years. The rise of AI algorithms, data science, and access to larger datasets have increased the quantitative rigor at traditional venture funds. But what does it really mean to be “data-driven” when it comes to portfolio management and planning?
+
+At [Tactyc](http://tactyc.io), we work with hundreds of data-driven managers globally in helping them with portfolio construction, reserve planning, and portfolio management functions. In our work, we have consistently seen the same common patterns and workflows in our best-performing managers.
+
+Interestingly, we’ve come to the conclusion that being “data-driven” doesn’t necessarily mean the most sophisticated algorithms, custom-built software, or complicated Monte Carlo simulations. Instead, the most data-driven investors mostly work with simple quantitative methods - but follow them in a disciplined manner across their entire portfolio, repeatedly and consistently.
+
+In this post, we’ll summarize the most common patterns and workflows that we see successful data-driven managers employ.
+
+## 1. Building and maintaining a current fund forecast&#x20;
+
+This is the core workflow of data-driven funds from which many other critical workflows stem.
+
+Most managers build a [portfolio construction model](https://blog.tactyc.io/emerging-manager-operational-road-map-venture-fund-portfolio-construction-models) when raising capital, but very few actually maintain a forward-looking model of their fund after deploying capital. In fact, most portfolio constructions never get opened after the fund is launched. A current forecast is a live forward-looking view of fund performance that takes into account actual portfolio companies.
+
+The fund’s current forecast is built by combining the _expected performance of actual investments and their reserves_, plus assumes _construction performance on undeployed capital_.
+
+<figure><img src="https://1140952435-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FZHbhyXMRhSms1HKARvhg%2Fuploads%2Fs9a3A6nS3zrWyZtS2bVN%2FScreenshot%202024-01-29%20at%2012.14.22%20PM.png?alt=media&#x26;token=a90453d1-2e93-44b0-b405-2b93333bf1a2" alt=""><figcaption></figcaption></figure>
+
+\
+Once the portfolio construction model is built, the next step is to create forward-looking projections on actual investments. In fact, most data-driven managers we work with also create upside and downside scenarios that are probability-weighted for each deal - and these scenarios can then be rolled up to fund-level upside and downside scenarios. The best fund managers maintain this “current forecast” by constantly updating it for new investments, changing market conditions and trends, and individual portfolio company exit assumptions based on trajectory.&#x20;
+
+So, why doesn’t every fund do this? Well, given the number of variables, managing these probabilistic models in spreadsheets is very complicated and requires dedicated resources.&#x20;
+
+However, by ignoring this workflow, managers are effectively cutting off an entire set of valuable analyses (see 2-5 below) that provide rich insights to inform decision-making and improve the likelihood of fund outperformance.&#x20;
+
+_See more detail on_ [_building and managing a VC fund forecast model_](https://medium.com/wharton-fintech/optimizing-vc-fund-performance-with-effective-forecasting-and-planning-1ada078af23e) _in an article with Wharton Fintech._&#x20;
+
+## 2. Tracking pacing, market conditions, current and projected TVPI, DPI, and IRR to identify any necessary course corrections
+
+Once the manager starts building and maintaining a current forecast for the fund, they can answer the following questions:
+
+**Pacing:** Are we on track in capital deployed? On number of portfolio companies in total and by stage?
+
+<figure><img src="https://1140952435-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FZHbhyXMRhSms1HKARvhg%2Fuploads%2FVaVETQKeLy0yws6yFH0e%2FScreenshot%202024-01-29%20at%2012.03.07%20PM.png?alt=media&#x26;token=7f18749c-8921-422e-b334-6657da17bef1" alt=""><figcaption></figcaption></figure>
+
+
+
+
+
+**Changing Market Conditions:** Are valuations and round sizes meaningfully different than when we launched our fund and built our original construction plan? If so, how should our allocations or check sizes change in response to the market?
+
+<figure><img src="https://1140952435-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FZHbhyXMRhSms1HKARvhg%2Fuploads%2FXqjamBfBGfsXE0Ojw2Cd%2FScreenshot%202024-01-29%20at%2012.13.12%20PM.png?alt=media&#x26;token=4a6e276c-86b9-47c5-9c51-f8a2a16e905a" alt=""><figcaption></figcaption></figure>
+
+\
+**Investment Terms and Reserves:** Are our actual investment terms meaningfully different from our original assumptions? Are we getting our target ownership in each company? If not, what can we change going forward?
+
+<figure><img src="https://1140952435-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FZHbhyXMRhSms1HKARvhg%2Fuploads%2Fc0K3j58ALtDvdkobc1fh%2FScreenshot%202024-01-29%20at%2012.04.27%20PM.png?alt=media&#x26;token=93085bc2-7df7-49d2-b16f-a0602c046ae4" alt=""><figcaption></figcaption></figure>
+
+\
+These questions are typically asked every 6 months or each quarter in deep internal reviews and allow the investment team to course-correct should actual performance start to meaningfully deviate from projected returns.
+
+The benefit of having a flexible current forecast model is that the manager can input new assumptions for strategies to apply on undeployed capital and immediately see the impact on returns. This allows the manager to understand what they need to execute to get back on track.
+
+## 3. Running Scenario Analysis on Active Investments
+
+Over the life of your fund, your view of each portfolio company’s potential will continue to evolve and become more refined as they demonstrate product-market fit (or not), growth (or not), and a likelihood of exit. New competitors, changes in TAM, management team changes - these can all heavily influence exit outcomes.
+
+Most data-driven managers we work with create the following scenarios for each deal:
+
+* Base Case
+* 1x Case
+* Write-Off Case
+* Moderate upside
+* IPO or Home-run case
+
+Each of these cases is then assigned probabilities and each case might have a different set of reserve assumptions as well.&#x20;
+
+<figure><img src="https://1140952435-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FZHbhyXMRhSms1HKARvhg%2Fuploads%2FkKC85Tu3STKfmnSKLFeo%2FScreenshot%202024-01-29%20at%2012.04.57%20PM.png?alt=media&#x26;token=1cfff99f-c4c4-45c9-9108-0f188124c9c9" alt=""><figcaption></figcaption></figure>
+
+A “weighted average” performance is then computed that summarizes the expected MOIC and expected reserves for each deal.
+
+<figure><img src="https://1140952435-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FZHbhyXMRhSms1HKARvhg%2Fuploads%2FK7CDLTR8vqslDlqgYtQj%2FScreenshot%202024-01-29%20at%2012.05.21%20PM.png?alt=media&#x26;token=ce029e76-4602-40a7-a5fa-d92e2fc3939e" alt=""><figcaption></figcaption></figure>
+
+\
+These probabilities are evaluated each quarter as part of an internal review - and changed depending on the dynamics of the company and its market.
+
+The benefit of this approach is that it forces the manager to monitor and even quantify risk on each deal and as a response dial up or down their reserves depending on these risk levels.
+
+## 4. Optimizing reserves based on objective metrics
+
+Reserve allocation decisions can often be driven by subjective criteria such as the relationship with the founder and the need to “back your winners”. While there are certainly merits to follow-on from a signaling perspective - a truly data-driven approach requires viewing reserve allocation from an opportunity cost analysis. Is the next $1 best spent on this company, another company, or a new initial check?
+
+To evaluate this, managers need to calculate a Follow-On MOIC (i.e., what is the expected return on the next $1 into each company). If a manager has built risk-weighted scenarios (see #3 above), this analysis becomes fairly straightforward.&#x20;
+
+In Tactyc, we compute the expansion in share price between a follow-on round and potential exits to come up with the Follow-on MOIC and then each portfolio company is ranked based on this Follow-On MOIC.
+
+<figure><img src="https://1140952435-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FZHbhyXMRhSms1HKARvhg%2Fuploads%2FXnRudt9slzd9V1G9di7D%2FScreenshot%202024-01-29%20at%2012.06.02%20PM.png?alt=media&#x26;token=a5f421de-bdef-4aaf-980e-fc4eb7069a4a" alt=""><figcaption></figcaption></figure>
+
+\
+The Follow-on MOIC enables managers to compare portfolio companies in different markets, stages, and risk levels on an “apples-to-apples” basis.&#x20;
+
+The reason this works is that the manager is now taking into account all quantitative and qualitative factors, such as growth, TAM, management team, and competition, for each deal when building the deal-level forecast. The Follow-On MOIC implicitly quantifies the outcome of these factors.
+
+When viewed with this objective lens, a manager might even be surprised by conclusions that may seem counterintuitive at first. They might see a “beloved” company rank low or a “smaller” investment appearing high on this list - and these are precisely the types of situations that this workflow is intended to uncover.
+
+## 5. Converting RVPI to DPI opportunistically
+
+LPs want to invest in funds that are thoughtful and responsible stewards of their capital. This goes beyond your investment strategy and extends into thinking about how and when you distribute funds back to your LPs.
+
+One way to do this is to evaluate opportunities to sell partial stakes in investments in order to realize gains (and cash) that may not only create early DPI for your investors but also have a positive impact on your fund returns. There is a point at which receiving some cash today instead of waiting years for a greater total amount of cash actually increases your IRR.&#x20;
+
+Most data-driven managers we work with ask this question - what is the minimum valuation we should sell (part of our stake in) this company today in the secondary market, for our IRR not to be affected? And if the answer is less than (or close to) the current valuation of the company, then that creates a very actionable opportunity for the fund to actively realize DPI today.
+
+In Tactyc, we automatically calculate the minimum sale valuation today for each active investment.
+
+<figure><img src="https://1140952435-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FZHbhyXMRhSms1HKARvhg%2Fuploads%2FMpoyIlPCLLLHNvugsvOQ%2FScreenshot%202024-01-29%20at%2012.06.23%20PM.png?alt=media&#x26;token=b9834658-bed1-4374-80bc-f70c018b143a" alt=""><figcaption></figcaption></figure>
+
+A drawback to this strategy is that there may be a loss in TVPI, so the manager must believe that 1) future market outlook will deteriorate even further and want to lock in gains today and either distribute or re-invest the realized proceeds into other sectors or 2) they have held the investment long enough or an exit is far enough off to warrant locking in some initial gains even if the company is expected to continue to outperform.
+
+_See more detail on the underlying math of_ [_optimizing for partial sales_](https://blog.tactyc.io/optimizing-partial-sales)_._ &#x20;
+
+## 6. Tracking KPIs for actionable insights
+
+Lastly, most funds track company performance KPIs through their information rights. These are typically revenue figures, cash balances, burn rates, cash runways, etc. However, how the manager acts upon this data can be critical in not only monitoring existing investments but can also inform future investment decisions.
+
+For e.g., some data-driven managers take the revenue collected for portfolio companies and combine them with the valuation data to compute revenue multiples on their entire portfolio. This can then inform portfolio-level or sector-level revenue multiples - and how that is trending over time.
+
+<figure><img src="https://1140952435-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FZHbhyXMRhSms1HKARvhg%2Fuploads%2FK5KwGOqX9VddT9omSMgj%2FScreenshot%202024-01-29%20at%2012.07.09%20PM.png?alt=media&#x26;token=b681ee79-8bb5-49ec-acfa-0adf1dac9211" alt=""><figcaption></figcaption></figure>
+
+
+
+This analysis can also be further parsed out into revenue multiples for individual sectors (SaaS vs. Commerce for e.g.) to understand if the fund revenue multiple is largely in line with the broader sector. And finally, by evaluating revenue multiples and their trajectory, the fund can also be better informed on whether valuations for deals in the pipeline are in line or meaningfully different from their current portfolio companies.
+
+Finally, by tracking KPIs over time, the manager can use the operating performance to tie back to the upside and downside scenarios for each deal, or the reserves allocated to specific companies. If a company is continuously over-performing relative to plan, the manager could increase the upside probability, or start to allocate more reserves anticipating a successful future funding environment for the company.
+
+## Closing Thoughts
+
+These quantitative workflows are accessible to every fund manager, established or emerging, and can be done in spreadsheets or software such as Tactyc. The key is to follow these workflows in a disciplined and consistent manner and work with a live current forecast of your fund at all points in time. In our experience, building and maintaining these models in spreadsheets is resource intensive and not a trivial exercise - which is why we built Tactyc, so every manager can be empowered to deploy these workflows quickly and efficiently.&#x20;
+
+_**See more details on**_ [_**Tactyc**_](https://tactyc.io/) _**and**_ [_**schedule a demo**_](https://tactyc.io/demo)_**.**_&#x20;
+
+\-----
+
+Published on August 22, 2023\
