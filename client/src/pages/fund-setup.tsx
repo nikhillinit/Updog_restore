@@ -11,12 +11,19 @@ import { useToast } from "@/hooks/use-toast";
 import { useFundContext } from "@/contexts/FundContext";
 import { CheckCircle, Circle, ArrowRight, ArrowLeft, Building2 } from "lucide-react";
 import BudgetCreator from "@/components/budget/budget-creator";
+import InvestmentStrategyStep from "./InvestmentStrategyStep";
+import ExitRecyclingStep from "./ExitRecyclingStep";
+import WaterfallStep from "./WaterfallStep";
+import type { InvestmentStrategy, ExitRecycling, Waterfall } from "@shared/types";
 
-type WizardStep = 'fund-basics' | 'committed-capital' | 'advanced-settings' | 'review';
+type WizardStep = 'fund-basics' | 'committed-capital' | 'investment-strategy' | 'exit-recycling' | 'waterfall' | 'advanced-settings' | 'review';
 
 const WIZARD_STEPS: { id: WizardStep; label: string; description: string; icon: string }[] = [
   { id: 'fund-basics', label: 'Fund Name, Currency and Life', description: 'Some basic facts on your fund', icon: 'F' },
   { id: 'committed-capital', label: 'Committed Capital', description: 'The total capital committed from Limited and General Partners', icon: 'C' },
+  { id: 'investment-strategy', label: 'Investment Strategy', description: 'Define stages, sectors, and capital allocation', icon: 'I' },
+  { id: 'exit-recycling', label: 'Exit Recycling', description: 'Configure exit proceeds recycling', icon: 'E' },
+  { id: 'waterfall', label: 'Waterfall', description: 'Set distribution waterfall and carry terms', icon: 'W' },
   { id: 'advanced-settings', label: 'Advanced Settings', description: 'Traditional fund or SPV', icon: 'A' },
   { id: 'review', label: 'Review', description: 'Review and create fund', icon: 'R' },
 ];
@@ -54,6 +61,45 @@ export default function FundSetup() {
     
     // GP Commitment in Management Fees
     includeGPInManagementFees: false,
+    
+    // Investment Strategy
+    investmentStrategy: {
+      stages: [
+        { id: 'stage-1', name: 'Seed', graduationRate: 30, exitRate: 20 },
+        { id: 'stage-2', name: 'Series A', graduationRate: 40, exitRate: 25 },
+        { id: 'stage-3', name: 'Series B+', graduationRate: 0, exitRate: 35 }
+      ],
+      sectorProfiles: [
+        { id: 'sector-1', name: 'FinTech', targetPercentage: 40, description: 'Financial technology companies' },
+        { id: 'sector-2', name: 'HealthTech', targetPercentage: 30, description: 'Healthcare technology companies' },
+        { id: 'sector-3', name: 'Enterprise SaaS', targetPercentage: 30, description: 'B2B software solutions' }
+      ],
+      allocations: [
+        { id: 'alloc-1', category: 'New Investments', percentage: 75, description: 'Fresh capital for new portfolio companies' },
+        { id: 'alloc-2', category: 'Reserves', percentage: 20, description: 'Follow-on investments for existing portfolio' },
+        { id: 'alloc-3', category: 'Operating Expenses', percentage: 5, description: 'Fund management and operations' }
+      ]
+    } as InvestmentStrategy,
+    
+    // Exit Recycling
+    exitRecycling: {
+      enabled: false,
+      recyclePercentage: 0,
+      recycleWindowMonths: 24,
+      restrictToSameSector: false,
+      restrictToSameStage: false
+    } as ExitRecycling,
+    
+    // Waterfall
+    waterfall: {
+      type: 'american' as const,
+      hurdle: 0.08, // 8%
+      catchUp: 0.08, // 8%
+      carryVesting: {
+        cliffYears: 0,
+        vestingYears: 4
+      }
+    } as Waterfall,
     
     // Advanced Settings
     vehicleStructure: "traditional_fund", // traditional_fund or spv
@@ -112,7 +158,7 @@ export default function FundSetup() {
   };
 
   const handleNext = () => {
-    const stepOrder: WizardStep[] = ['fund-basics', 'committed-capital', 'advanced-settings', 'review'];
+    const stepOrder: WizardStep[] = ['fund-basics', 'committed-capital', 'investment-strategy', 'exit-recycling', 'waterfall', 'advanced-settings', 'review'];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex < stepOrder.length - 1) {
       setCurrentStep(stepOrder[currentIndex + 1]);
@@ -120,7 +166,7 @@ export default function FundSetup() {
   };
 
   const handleBack = () => {
-    const stepOrder: WizardStep[] = ['fund-basics', 'committed-capital', 'advanced-settings', 'review'];
+    const stepOrder: WizardStep[] = ['fund-basics', 'committed-capital', 'investment-strategy', 'exit-recycling', 'waterfall', 'advanced-settings', 'review'];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex > 0) {
       setCurrentStep(stepOrder[currentIndex - 1]);
@@ -394,6 +440,30 @@ export default function FundSetup() {
                   <p className="text-sm text-gray-600">Percentage of GP commitment that is cashless (default: 0%)</p>
                 </div>
               </div>
+            )}
+
+            {/* Investment Strategy Step */}
+            {currentStep === 'investment-strategy' && (
+              <InvestmentStrategyStep
+                data={fundData.investmentStrategy}
+                onChange={(data) => handleInputChange('investmentStrategy', data)}
+              />
+            )}
+
+            {/* Exit Recycling Step */}
+            {currentStep === 'exit-recycling' && (
+              <ExitRecyclingStep
+                data={fundData.exitRecycling}
+                onChange={(data) => handleInputChange('exitRecycling', data)}
+              />
+            )}
+
+            {/* Waterfall Step */}
+            {currentStep === 'waterfall' && (
+              <WaterfallStep
+                data={fundData.waterfall}
+                onChange={(data) => handleInputChange('waterfall', data)}
+              />
             )}
 
             {/* Advanced Settings Step */}
@@ -1268,6 +1338,105 @@ export default function FundSetup() {
                       <div>
                         <p className="text-sm text-gray-600">Cashless GP Commit</p>
                         <p className="font-semibold text-gray-900">{fundData.cashlessGPPercent}%</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Investment Strategy Summary */}
+                  <div className="border-b border-gray-200 pb-4">
+                    <h4 className="font-medium text-gray-900 mb-3">Investment Strategy</h4>
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-gray-600 mb-2">Investment Stages</p>
+                        <div className="space-y-1">
+                          {fundData.investmentStrategy.stages.map((stage, index) => (
+                            <p key={stage.id} className="text-sm text-gray-900">
+                              {stage.name}: {stage.graduationRate}% graduation, {stage.exitRate}% exit
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600 mb-2">Sector Allocation</p>
+                        <div className="space-y-1">
+                          {fundData.investmentStrategy.sectorProfiles.map((sector, index) => (
+                            <p key={sector.id} className="text-sm text-gray-900">
+                              {sector.name}: {sector.targetPercentage}%
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600 mb-2">Capital Allocation</p>
+                        <div className="space-y-1">
+                          {fundData.investmentStrategy.allocations.map((allocation, index) => (
+                            <p key={allocation.id} className="text-sm text-gray-900">
+                              {allocation.category}: {allocation.percentage}%
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Exit Recycling Summary */}
+                  <div className="border-b border-gray-200 pb-4">
+                    <h4 className="font-medium text-gray-900 mb-3">Exit Recycling</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600">Status</p>
+                        <p className="font-semibold text-gray-900">
+                          {fundData.exitRecycling.enabled ? 'Enabled' : 'Disabled'}
+                        </p>
+                      </div>
+                      {fundData.exitRecycling.enabled && (
+                        <>
+                          <div>
+                            <p className="text-sm text-gray-600">Recycle Percentage</p>
+                            <p className="font-semibold text-gray-900">{fundData.exitRecycling.recyclePercentage}%</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Window</p>
+                            <p className="font-semibold text-gray-900">{fundData.exitRecycling.recycleWindowMonths} months</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Restrictions</p>
+                            <p className="font-semibold text-gray-900">
+                              {fundData.exitRecycling.restrictToSameSector || fundData.exitRecycling.restrictToSameStage
+                                ? `${fundData.exitRecycling.restrictToSameSector ? 'Same Sector' : ''} ${
+                                    fundData.exitRecycling.restrictToSameSector && fundData.exitRecycling.restrictToSameStage ? '& ' : ''
+                                  }${fundData.exitRecycling.restrictToSameStage ? 'Same Stage' : ''}`
+                                : 'None'}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Waterfall Summary */}
+                  <div className="border-b border-gray-200 pb-4">
+                    <h4 className="font-medium text-gray-900 mb-3">Waterfall Structure</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600">Type</p>
+                        <p className="font-semibold text-gray-900">
+                          {fundData.waterfall.type === 'european' ? 'European (deal-by-deal)' : 'American (fund-level)'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Hurdle Rate</p>
+                        <p className="font-semibold text-gray-900">{(fundData.waterfall.hurdle * 100).toFixed(1)}%</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Catch-up Rate</p>
+                        <p className="font-semibold text-gray-900">{(fundData.waterfall.catchUp * 100).toFixed(1)}%</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Carry Vesting</p>
+                        <p className="font-semibold text-gray-900">
+                          {fundData.waterfall.carryVesting.cliffYears}y cliff, {fundData.waterfall.carryVesting.vestingYears}y vest
+                        </p>
                       </div>
                     </div>
                   </div>

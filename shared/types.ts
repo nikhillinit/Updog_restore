@@ -190,6 +190,75 @@ export const ConfidenceLevel = {
 export type ConfidenceLevelType = typeof ConfidenceLevel[keyof typeof ConfidenceLevel];
 
 // =============================================================================
+// FUND SETUP TYPES (Investment Strategy, Exit Recycling, Waterfall)
+// =============================================================================
+
+// Investment Strategy Types
+export const StageSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  graduationRate: z.number().min(0).max(100), // percentage
+  exitRate: z.number().min(0).max(100), // percentage
+});
+
+export const SectorProfileSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  targetPercentage: z.number().min(0).max(100), // percentage of fund
+  description: z.string().optional(),
+});
+
+export const AllocationSchema = z.object({
+  id: z.string(),
+  category: z.string().min(1),
+  percentage: z.number().min(0).max(100), // percentage of fund
+  description: z.string().optional(),
+});
+
+export const InvestmentStrategySchema = z.object({
+  stages: z.array(StageSchema),
+  sectorProfiles: z.array(SectorProfileSchema),
+  allocations: z.array(AllocationSchema),
+});
+
+// Exit Recycling Types
+export const ExitRecyclingSchema = z.object({
+  enabled: z.boolean().default(false),
+  recyclePercentage: z.number().min(0).max(100).default(0), // percentage of exit proceeds to recycle
+  maxRecycleAmount: z.number().min(0).optional(), // max dollar amount to recycle
+  recycleWindowMonths: z.number().int().min(1).max(120).default(24), // time window for recycling
+  restrictToSameSector: z.boolean().default(false),
+  restrictToSameStage: z.boolean().default(false),
+});
+
+// Waterfall Types
+export const WaterfallSchema = z.object({
+  type: z.enum(['european', 'american']),
+  hurdle: z.number().min(0).max(1), // decimal representation (e.g., 0.08 for 8%)
+  catchUp: z.number().min(0).max(1), // decimal representation
+  carryVesting: z.object({
+    cliffYears: z.number().int().min(0).max(10).default(0),
+    vestingYears: z.number().int().min(1).max(10).default(4),
+  }),
+});
+
+// Complete Fund Setup Types (extending existing)
+export const CompleteFundSetupSchema = z.object({
+  // Basic fund info
+  name: z.string().min(1),
+  size: z.number().positive(),
+  deployedCapital: z.number().nonnegative(),
+  managementFee: z.number().min(0).max(1),
+  carryPercentage: z.number().min(0).max(1),
+  vintageYear: z.number().int().min(2000).max(2030),
+  
+  // New strategy/recycling/waterfall
+  investmentStrategy: InvestmentStrategySchema,
+  exitRecycling: ExitRecyclingSchema,
+  waterfall: WaterfallSchema,
+});
+
+// =============================================================================
 // UTILITY TYPES
 // =============================================================================
 
@@ -211,3 +280,12 @@ export type MarketConditionExtended = {
     liquidity: number;
   };
 };
+
+// Fund Setup TypeScript Types
+export type Stage = z.infer<typeof StageSchema>;
+export type SectorProfile = z.infer<typeof SectorProfileSchema>;
+export type Allocation = z.infer<typeof AllocationSchema>;
+export type InvestmentStrategy = z.infer<typeof InvestmentStrategySchema>;
+export type ExitRecycling = z.infer<typeof ExitRecyclingSchema>;
+export type Waterfall = z.infer<typeof WaterfallSchema>;
+export type CompleteFundSetup = z.infer<typeof CompleteFundSetupSchema>;

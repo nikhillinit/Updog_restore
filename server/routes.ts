@@ -5,6 +5,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { storage } from "./storage";
 import { insertFundSchema, insertPortfolioCompanySchema, insertActivitySchema } from "@shared/schema";
+import { fundSchema } from "./validators/fundSchema";
 import { ReserveEngine, generateReserveSummary } from "../client/src/core/reserves/ReserveEngine.js";
 import { PacingEngine, generatePacingSummary } from "../client/src/core/pacing/PacingEngine.js";
 import { CohortEngine, generateCohortSummary } from "../client/src/core/cohorts/CohortEngine.js";
@@ -61,7 +62,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/funds", async (req, res) => {
     try {
-      const result = insertFundSchema.safeParse(req.body);
+      // Use comprehensive fund schema with cross-field validation
+      const result = fundSchema.safeParse(req.body);
       if (!result.success) {
         const error: ApiError = {
           error: 'Invalid fund data',
@@ -70,7 +72,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         return res.status(400).json(error);
       }
-      const fund = await storage.createFund(result.data);
+      
+      // Convert to format expected by storage layer (only basic fund fields)
+      const basicFundData = {
+        name: result.data.name,
+        size: result.data.size,
+        deployedCapital: result.data.deployedCapital,
+        managementFee: result.data.managementFee,
+        carryPercentage: result.data.carryPercentage,
+        vintageYear: result.data.vintageYear,
+        status: 'active'
+      };
+      
+      const fund = await storage.createFund(basicFundData);
       res.status(201).json(fund);
     } catch (error) {
       const apiError: ApiError = {
