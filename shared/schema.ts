@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, decimal, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, decimal, timestamp, jsonb, varchar, index, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -324,3 +324,25 @@ export type MarketResearch = typeof marketResearch.$inferSelect;
 export type InsertMarketResearch = z.infer<typeof insertMarketResearchSchema>;
 export type FinancialProjection = typeof financialProjections.$inferSelect;
 export type InsertFinancialProjection = z.infer<typeof insertFinancialProjectionSchema>;
+
+export const reserveStrategies = pgTable("reserve_strategies", {
+  id: serial("id").primaryKey(),
+  fundId: integer("fund_id").notNull().references(() => funds.id),
+  companyId: integer("company_id").notNull().references(() => portfolioCompanies.id),
+  allocation: decimal("allocation", { precision: 15, scale: 2 }).notNull(),
+  confidence: decimal("confidence", { precision: 3, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow()
+}, (table) => ({
+  fundCompanyIdx: index("idx_reserve_strategies_fund_company").on(table.fundId, table.companyId)
+}));
+
+export const pacingHistory = pgTable("pacing_history", {
+  id: serial("id").primaryKey(),
+  fundId: integer("fund_id").notNull().references(() => funds.id),
+  quarter: varchar("quarter", { length: 8 }).notNull(),
+  deploymentAmount: decimal("deployment_amount", { precision: 15, scale: 2 }).notNull(),
+  marketCondition: varchar("market_condition", { length: 16 }),
+  createdAt: timestamp("created_at").defaultNow()
+}, (table) => ({
+  fundQuarterUnique: unique("unique_fund_quarter").on(table.fundId, table.quarter)
+}));
