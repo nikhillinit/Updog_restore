@@ -47,7 +47,10 @@ export default function FundSetup() {
     ],
     
     // Cashless GP Commit (Optional)
-    cashlessGPPercent: "20",
+    cashlessGPPercent: "0",
+    
+    // Capital Call Schedule
+    capitalCallSchedule: "12",
     
     // GP Commitment in Management Fees
     includeGPInManagementFees: false,
@@ -349,40 +352,40 @@ export default function FundSetup() {
                   </div>
                 </div>
 
-                {/* Optional: Define Timing of LP Commitment Closes */}
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <Button 
-                    variant="ghost" 
-                    className="flex items-center text-gray-700 font-medium"
-                  >
-                    <span className="mr-2">▶</span>
-                    Optional: Define Timing of LP Commitment Closes
-                  </Button>
+                {/* Capital Call Schedule */}
+                <div className="space-y-3">
+                  <Label className="text-base font-medium text-gray-900">
+                    Capital Call Schedule (months)
+                  </Label>
+                  <div className="relative max-w-xs">
+                    <Input
+                      type="number"
+                      value={fundData.capitalCallSchedule}
+                      onChange={(e) => handleInputChange('capitalCallSchedule', e.target.value)}
+                      placeholder="12"
+                      className="h-11 border-gray-300 w-full min-w-0"
+                    />
+                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">months</span>
+                  </div>
+                  <p className="text-sm text-gray-600">Frequency of capital calls to investors</p>
                 </div>
 
                 {/* Cashless GP Commit */}
-                <div className="bg-gray-50 rounded-lg p-6 space-y-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-gray-700 font-medium">▼</span>
-                    <span className="text-gray-900 font-medium">Cashless GP Commit</span>
-                    <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-medium">Optional</span>
+                <div className="space-y-3">
+                  <Label className="text-base font-medium text-gray-900">
+                    Cashless GP Commitment (%)
+                  </Label>
+                  <div className="relative max-w-xs">
+                    <Input
+                      type="number"
+                      value={fundData.cashlessGPPercent}
+                      onChange={(e) => handleInputChange('cashlessGPPercent', e.target.value)}
+                      placeholder="0"
+                      className="h-11 pr-8 border-gray-300 w-full min-w-0"
+                    />
+                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
                   </div>
-                  
-                  <div className="space-y-3">
-                    <Label className="text-base font-medium text-gray-900">
-                      What % of the GP Commit is Cashless?
-                    </Label>
-                    <div className="relative max-w-xs">
-                      <Input
-                        type="number"
-                        value={fundData.cashlessGPPercent}
-                        onChange={(e) => handleInputChange('cashlessGPPercent', e.target.value)}
-                        placeholder="20"
-                        className="h-11 pr-8 border-gray-300 w-full min-w-0"
-                      />
-                      <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
-                    </div>
-                  </div>
+                  <p className="text-sm text-gray-600">Percentage of GP commitment that is cashless (default: 0%)</p>
                 </div>
               </div>
             )}

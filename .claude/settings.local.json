@@ -18,7 +18,10 @@
       "Bash(rm:*)",
       "Bash(grep:*)",
       "WebFetch(domain:github.com)",
-      "Bash(git clone:*)"
+      "Bash(git clone:*)",
+      "Bash(tasklist:*)",
+      "Bash(taskkill:*)",
+      "Bash(powershell:*)"
     ],
     "deny": []
   }
