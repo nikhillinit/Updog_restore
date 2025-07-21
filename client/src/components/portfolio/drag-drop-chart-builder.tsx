@@ -200,126 +200,125 @@ export default function DragDropChartBuilder({ onChartChange }: DragDropChartBui
         </Card>
       </div>
 
-        {/* Middle - Chart Type Selection */}
-        <div className="col-span-2">
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="text-sm">Chart Type</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="space-y-3">
-                {CHART_TYPES.map(chartType => {
-                  const Icon = chartType.icon;
-                  return (
-                    <div
-                      key={chartType.id}
-                      className={`
-                        p-3 rounded-lg border-2 cursor-pointer transition-all
-                        ${selectedChartType === chartType.id 
-                          ? `${chartType.color} border-current shadow-md` 
-                          : 'border-gray-200 hover:border-gray-300'
-                        }
-                      `}
-                      onClick={() => {
-                        setSelectedChartType(chartType.id);
-                        const config = {
-                          type: chartType.id,
-                          xAxis: chartAreas.find(a => a.id === 'x-axis')?.field?.name || '',
-                          yAxis: chartAreas.find(a => a.id === 'y-axis')?.field?.name || '',
-                          groupBy: chartAreas.find(a => a.id === 'group-by')?.field?.name || '',
-                          title: generateChartTitle(chartAreas),
-                        };
-                        onChartChange(config);
-                      }}
-                    >
-                      <div className="flex flex-col items-center space-y-2">
-                        <Icon className="h-6 w-6" />
-                        <span className="text-xs font-medium text-center">
-                          {chartType.name}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right - Chart Configuration Areas */}
-        <div className="col-span-7">
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="text-sm">Chart Configuration</CardTitle>
-              <p className="text-xs text-gray-600">
-                Drag fields from the left panel into the areas below to build your chart
-              </p>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="grid grid-cols-2 gap-4">
-                {chartAreas.map(area => (
-                  <div key={area.id} className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
-                      {area.label}
-                    </label>
-                    <div
-                      className={`
-                        min-h-[80px] p-4 rounded-lg border-2 border-dashed transition-colors
-                        ${area.field 
-                          ? 'border-green-300 bg-green-50'
-                          : 'border-gray-300 bg-gray-50'
-                        }
-                      `}
-                    >
-                      {area.field ? (
-                        <div className={`p-2 rounded border ${getCategoryColor(area.field.category)}`}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <span className="font-mono text-xs bg-white px-1 rounded">
-                                {getCategoryIcon(area.field.type)}
-                              </span>
-                              <span className="text-sm font-medium">{area.field.label}</span>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 w-5 p-0"
-                              onClick={() => removeFieldFromArea(area.id)}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-gray-500">
-                          <div className="text-center">
-                            <div className="text-sm">Click + on field to add here</div>
-                            <div className="text-xs mt-1">
-                              Accepts: {area.accepts.join(', ')}
-                            </div>
-                          </div>
-                        </div>
-                      )}
+      {/* Middle - Chart Type Selection */}
+      <div className="col-span-2">
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle className="text-sm">Chart Type</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="space-y-3">
+              {CHART_TYPES.map(chartType => {
+                const Icon = chartType.icon;
+                return (
+                  <div
+                    key={chartType.id}
+                    className={`
+                      p-3 rounded-lg border-2 cursor-pointer transition-all
+                      ${selectedChartType === chartType.id 
+                        ? `${chartType.color} border-current shadow-md` 
+                        : 'border-gray-200 hover:border-gray-300'
+                      }
+                    `}
+                    onClick={() => {
+                      setSelectedChartType(chartType.id);
+                      const config = {
+                        type: chartType.id,
+                        xAxis: chartAreas.find(a => a.id === 'x-axis')?.field?.name || '',
+                        yAxis: chartAreas.find(a => a.id === 'y-axis')?.field?.name || '',
+                        groupBy: chartAreas.find(a => a.id === 'group-by')?.field?.name || '',
+                        title: generateChartTitle(chartAreas),
+                      };
+                      onChartChange(config);
+                    }}
+                  >
+                    <div className="flex flex-col items-center space-y-2">
+                      <Icon className="h-6 w-6" />
+                      <span className="text-xs font-medium text-center">
+                        {chartType.name}
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
-              
-              {/* Configuration Summary */}
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">Current Configuration</h4>
-                <div className="space-y-1 text-xs">
-                  <div>Chart Type: <Badge variant="outline">{selectedChartType}</Badge></div>
-                  <div>X-Axis: <Badge variant="outline">{chartAreas.find(a => a.id === 'x-axis')?.field?.label || 'None'}</Badge></div>
-                  <div>Y-Axis: <Badge variant="outline">{chartAreas.find(a => a.id === 'y-axis')?.field?.label || 'None'}</Badge></div>
-                  {chartAreas.find(a => a.id === 'group-by')?.field && (
-                    <div>Group By: <Badge variant="outline">{chartAreas.find(a => a.id === 'group-by')?.field?.label}</Badge></div>
-                  )}
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Right - Chart Configuration Areas */}
+      <div className="col-span-7">
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle className="text-sm">Chart Configuration</CardTitle>
+            <p className="text-xs text-gray-600">
+              Drag fields from the left panel into the areas below to build your chart
+            </p>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-2 gap-4">
+              {chartAreas.map(area => (
+                <div key={area.id} className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    {area.label}
+                  </label>
+                  <div
+                    className={`
+                      min-h-[80px] p-4 rounded-lg border-2 border-dashed transition-colors
+                      ${area.field 
+                        ? 'border-green-300 bg-green-50'
+                        : 'border-gray-300 bg-gray-50'
+                      }
+                    `}
+                  >
+                    {area.field ? (
+                      <div className={`p-2 rounded border ${getCategoryColor(area.field.category)}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-mono text-xs bg-white px-1 rounded">
+                              {getCategoryIcon(area.field.type)}
+                            </span>
+                            <span className="text-sm font-medium">{area.field.label}</span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 w-5 p-0"
+                            onClick={() => removeFieldFromArea(area.id)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-gray-500">
+                        <div className="text-center">
+                          <div className="text-sm">Click + on field to add here</div>
+                          <div className="text-xs mt-1">
+                            Accepts: {area.accepts.join(', ')}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
+              ))}
+            </div>
+            
+            {/* Configuration Summary */}
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <h4 className="text-sm font-medium mb-2">Current Configuration</h4>
+              <div className="space-y-1 text-xs">
+                <div>Chart Type: <Badge variant="outline">{selectedChartType}</Badge></div>
+                <div>X-Axis: <Badge variant="outline">{chartAreas.find(a => a.id === 'x-axis')?.field?.label || 'None'}</Badge></div>
+                <div>Y-Axis: <Badge variant="outline">{chartAreas.find(a => a.id === 'y-axis')?.field?.label || 'None'}</Badge></div>
+                {chartAreas.find(a => a.id === 'group-by')?.field && (
+                  <div>Group By: <Badge variant="outline">{chartAreas.find(a => a.id === 'group-by')?.field?.label}</Badge></div>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
