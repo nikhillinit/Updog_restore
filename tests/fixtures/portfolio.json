@@ -1,0 +1,28 @@
+{
+  "companies": [
+    {
+      "id": 1,
+      "name": "TechCorp",
+      "invested": 750000,
+      "ownership": 0.12,
+      "stage": "Series A",
+      "sector": "SaaS"
+    },
+    {
+      "id": 2,
+      "name": "DataFlow",
+      "invested": 500000,
+      "ownership": 0.08,
+      "stage": "Seed",
+      "sector": "Analytics"
+    },
+    {
+      "id": 3,
+      "name": "CloudVision",
+      "invested": 1200000,
+      "ownership": 0.15,
+      "stage": "Series B",
+      "sector": "Infrastructure"
+    }
+  ]
+}

@@ -1,7 +1,15 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { readFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 import { storage } from "./storage";
 import { insertFundSchema, insertPortfolioCompanySchema, insertActivitySchema } from "@shared/schema";
+import { ReserveEngine, type ReserveInput } from "../client/src/core/reserves/ReserveEngine.js";
+import { PacingEngine, type PacingInput } from "../client/src/core/pacing/PacingEngine.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Fund routes
@@ -199,6 +207,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(performanceCase);
     } catch (error) {
       res.status(500).json({ message: "Failed to add performance case" });
+    }
+  });
+
+  // Reserve Engine routes
+  app.get("/api/reserves/:fundId", async (req, res) => {
+    try {
+      const { fundId } = req.params;
+      
+      // Load portfolio fixture data
+      const portfolioPath = join(__dirname, '../tests/fixtures/portfolio.json');
+      const portfolioData = JSON.parse(readFileSync(portfolioPath, 'utf-8'));
+      
+      // Transform to ReserveInput format
+      const portfolio: ReserveInput[] = portfolioData.companies.map((company: any, index: number) => ({
+        id: index + 1,
+        invested: company.invested || 500000,
+        ownership: company.ownership || 0.15,
+        stage: company.stage || 'Series A',
+        sector: company.sector || 'Tech'
+      }));
+      
+      // Call ReserveEngine
+      const results = ReserveEngine(portfolio);
+      
+      res.json(results);
+    } catch (error) {
+      console.error('ReserveEngine error:', error);
+      res.status(500).json({ 
+        error: 'Failed to calculate reserve allocations',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Pacing Engine routes
+  app.get("/api/pacing/summary", async (req, res) => {
+    try {
+      // Mock pacing input - can be made configurable later
+      const pacingInput: PacingInput = {
+        fundSize: 50000000, // $50M fund
+        deploymentQuarter: 1, // Start from Q1
+        marketCondition: 'neutral'
+      };
+      
+      // Call PacingEngine
+      const results = PacingEngine(pacingInput);
+      
+      res.json(results);
+    } catch (error) {
+      console.error('PacingEngine error:', error);
+      res.status(500).json({
+        error: 'Failed to calculate pacing summary',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
