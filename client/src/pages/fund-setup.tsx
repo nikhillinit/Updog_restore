@@ -355,17 +355,23 @@ export default function FundSetup() {
                 {/* Capital Call Schedule */}
                 <div className="space-y-3">
                   <Label className="text-base font-medium text-gray-900">
-                    Capital Call Schedule (months)
+                    Capital Call Schedule
                   </Label>
-                  <div className="relative max-w-xs">
-                    <Input
-                      type="number"
-                      value={fundData.capitalCallSchedule}
-                      onChange={(e) => handleInputChange('capitalCallSchedule', e.target.value)}
-                      placeholder="12"
-                      className="h-11 border-gray-300 w-full min-w-0"
-                    />
-                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">months</span>
+                  <div className="max-w-xs">
+                    <Select 
+                      value={fundData.capitalCallSchedule} 
+                      onValueChange={(value) => handleInputChange('capitalCallSchedule', value)}
+                    >
+                      <SelectTrigger className="h-11 border-gray-300 w-full">
+                        <SelectValue placeholder="Select frequency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="12">Annual (12 months)</SelectItem>
+                        <SelectItem value="6">Semi-Annual (6 months)</SelectItem>
+                        <SelectItem value="3">Quarterly (3 months)</SelectItem>
+                        <SelectItem value="1">Monthly (1 month)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <p className="text-sm text-gray-600">Frequency of capital calls to investors</p>
                 </div>

@@ -21,7 +21,8 @@
       "Bash(git clone:*)",
       "Bash(tasklist:*)",
       "Bash(taskkill:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(pkill:*)"
     ],
     "deny": []
   }

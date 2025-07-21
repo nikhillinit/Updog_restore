@@ -420,7 +420,10 @@ export class DatabaseStorage implements IStorage {
       .insert(funds)
       .values({
         ...insertFund,
-        deployedCapital: insertFund.deployedCapital || "0",
+        size: insertFund.size.toString(),
+        deployedCapital: (insertFund.deployedCapital || 0).toString(),
+        managementFee: insertFund.managementFee.toString(),
+        carryPercentage: insertFund.carryPercentage.toString(),
         status: insertFund.status || "active"
       })
       .returning();
