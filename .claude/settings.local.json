@@ -25,7 +25,12 @@
       "Bash(pkill:*)",
       "Bash(npm run type-check:*)",
       "Bash(npm run start:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(mv:*)",
+      "Bash(npm run lint)",
+      "Bash(npm audit:*)",
+      "Bash(wc:*)",
+      "Bash(git rm:*)"
     ],
     "deny": []
   }
