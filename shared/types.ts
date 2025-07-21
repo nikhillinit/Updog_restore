@@ -252,6 +252,11 @@ export const CompleteFundSetupSchema = z.object({
   carryPercentage: z.number().min(0).max(1),
   vintageYear: z.number().int().min(2000).max(2030),
   
+  // Evergreen and fund life fields
+  isEvergreen: z.boolean().default(false),
+  lifeYears: z.number().int().min(3).max(20).optional(),
+  investmentHorizonYears: z.number().int().min(1).max(30),
+  
   // New strategy/recycling/waterfall
   investmentStrategy: InvestmentStrategySchema,
   exitRecycling: ExitRecyclingSchema,

@@ -39,9 +39,9 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
+      <div className="mb-6 space-y-1 text-center">
         <h2 className="text-2xl font-bold text-charcoal">Waterfall Structure</h2>
-        <p className="text-gray-600 mt-2">Define the distribution waterfall and carry terms</p>
+        <p className="text-gray-600">Define the distribution waterfall and carry terms</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -89,61 +89,63 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
           </CardContent>
         </Card>
 
-        {/* Financial Terms */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Financial Terms</CardTitle>
-            <CardDescription>
-              Set the hurdle rate and catch-up provisions
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label className="text-base font-medium">Hurdle Rate (%)</Label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={formatPercentage(data.hurdle)}
-                  onChange={(e) => handleChange('hurdle', parsePercentage(e.target.value))}
-                  className="pr-8"
-                  placeholder="8.0"
-                />
-                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
-              </div>
-              <p className="text-sm text-gray-600">
-                Minimum annual return LPs must receive before GPs earn carry
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-base font-medium">Catch-Up Rate (%)</Label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={formatPercentage(data.catchUp)}
-                  onChange={(e) => handleChange('catchUp', parsePercentage(e.target.value))}
-                  className="pr-8"
-                  placeholder="8.0"
-                />
-                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
-              </div>
-              <p className="text-sm text-gray-600">
-                Rate at which GPs catch up to their full carry percentage after hurdle is met
-              </p>
-              {data.catchUp < data.hurdle && (
-                <p className="text-sm text-red-500">
-                  Catch-up rate should be greater than or equal to hurdle rate
+        {/* Financial Terms - Only show for European waterfall */}
+        {data.type === 'european' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Financial Terms</CardTitle>
+              <CardDescription>
+                Set the hurdle rate and catch-up provisions for European waterfall
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label className="text-base font-medium">Hurdle Rate (%)</Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={formatPercentage(data.hurdle)}
+                    onChange={(e) => handleChange('hurdle', parsePercentage(e.target.value))}
+                    className="pr-8"
+                    placeholder="8.0"
+                  />
+                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Minimum annual return LPs must receive before GPs earn carry
                 </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-base font-medium">Catch-Up Rate (%)</Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={formatPercentage(data.catchUp)}
+                    onChange={(e) => handleChange('catchUp', parsePercentage(e.target.value))}
+                    className="pr-8"
+                    placeholder="8.0"
+                  />
+                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Rate at which GPs catch up to their full carry percentage after hurdle is met
+                </p>
+                {data.catchUp < data.hurdle && (
+                  <p className="text-sm text-red-500">
+                    Catch-up rate should be greater than or equal to hurdle rate
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Carry Vesting */}
