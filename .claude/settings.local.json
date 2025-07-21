@@ -22,7 +22,10 @@
       "Bash(tasklist:*)",
       "Bash(taskkill:*)",
       "Bash(powershell:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npm run start:*)",
+      "Bash(curl:*)"
     ],
     "deny": []
   }

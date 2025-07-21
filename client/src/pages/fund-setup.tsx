@@ -96,7 +96,7 @@ export default function FundSetup() {
     
     // Waterfall
     waterfall: {
-      type: 'american' as const,
+      type: 'EUROPEAN' as const,
       hurdle: 0.08, // 8%
       catchUp: 0.08, // 8%
       carryVesting: {
