@@ -189,6 +189,9 @@ describe('Fund Strategy Validation Rules', () => {
       managementFee: 0.02,
       carryPercentage: 0.20,
       vintageYear: 2024,
+      isEvergreen: false,
+      lifeYears: 10,
+      investmentHorizonYears: 5,
       investmentStrategy: {
         stages: [
           { id: 'stage-1', name: 'Seed', graduationRate: 30, exitRate: 20 },

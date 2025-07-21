@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -42,6 +43,9 @@ export default function FundSetup() {
     startDate: "2023-04-15",
     endDate: "2033-04-15",
     hasEndDate: true,
+    isEvergreen: false,
+    lifeYears: 10,
+    investmentHorizonYears: 5,
     capitalCallFrequency: "Monthly",
     
     // Committed Capital
@@ -347,6 +351,65 @@ export default function FundSetup() {
                       <SelectItem value="Upfront">Upfront</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Evergreen Toggle */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="evergreen-toggle" className="text-base font-medium text-gray-900">
+                      Ever-green fund?
+                    </Label>
+                    <Switch
+                      id="evergreen-toggle"
+                      checked={fundData.isEvergreen}
+                      onCheckedChange={(checked) => handleInputChange('isEvergreen', checked)}
+                    />
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    Evergreen funds have no fixed life and can invest indefinitely
+                  </p>
+                </div>
+
+                {/* Conditional Fund Life - Only show for closed-end funds */}
+                {!fundData.isEvergreen && (
+                  <div className="space-y-3">
+                    <Label htmlFor="fundLife" className="text-base font-medium text-gray-900">
+                      Fund Life (Years)
+                    </Label>
+                    <Input
+                      id="fundLife"
+                      type="number"
+                      min="3"
+                      max="20"
+                      value={fundData.lifeYears}
+                      onChange={(e) => handleInputChange('lifeYears', parseInt(e.target.value))}
+                      className="h-11 border-gray-300"
+                      placeholder="10"
+                    />
+                    <p className="text-sm text-gray-600">
+                      Total fund duration (typically 10-12 years)
+                    </p>
+                  </div>
+                )}
+
+                {/* Investment Horizon */}
+                <div className="space-y-3">
+                  <Label htmlFor="investmentHorizon" className="text-base font-medium text-gray-900">
+                    Investment Horizon (Years)
+                  </Label>
+                  <Input
+                    id="investmentHorizon"
+                    type="number"
+                    min="1"
+                    max={fundData.lifeYears || 20}
+                    value={fundData.investmentHorizonYears}
+                    onChange={(e) => handleInputChange('investmentHorizonYears', parseInt(e.target.value))}
+                    className="h-11 border-gray-300"
+                    placeholder="5"
+                  />
+                  <p className="text-sm text-gray-600">
+                    Period for making new investments (typically 3-5 years)
+                  </p>
                 </div>
               </div>
             )}

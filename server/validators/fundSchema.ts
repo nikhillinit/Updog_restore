@@ -84,6 +84,29 @@ export const fundSchema = CompleteFundSetupSchema
       message: "Catch-up rate must be greater than or equal to hurdle rate",
       path: ["waterfall", "catchUp"],
     }
+  )
+  .refine(
+    (data) => {
+      // Validation Rule: Fund life is required for closed-end funds
+      return data.isEvergreen || !!data.lifeYears;
+    },
+    {
+      message: "Fund life is required for closed-end funds",
+      path: ["lifeYears"],
+    }
+  )
+  .refine(
+    (data) => {
+      // Validation Rule: Investment horizon cannot exceed fund life for closed-end funds
+      if (!data.isEvergreen && data.lifeYears) {
+        return data.investmentHorizonYears <= data.lifeYears;
+      }
+      return true;
+    },
+    {
+      message: "Investment horizon cannot exceed fund life",
+      path: ["investmentHorizonYears"],
+    }
   );
 
 // Individual schema exports for component-level validation
