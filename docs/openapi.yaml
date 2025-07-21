@@ -1,0 +1,1195 @@
+openapi: 3.0.3
+info:
+  title: POVC Fund Management Platform API
+  description: |
+    Comprehensive API for the POVC Quantitative Fund Management Platform (Updog_restore).
+    
+    This API provides endpoints for managing venture capital funds, portfolio companies, investments, 
+    and advanced analytics engines for reserve allocation and pacing strategies.
+    
+    ## Key Features
+    - **Fund Management**: Create and manage VC funds with detailed metrics
+    - **Portfolio Tracking**: Monitor portfolio companies and their performance
+    - **Investment Analysis**: Track investments across multiple rounds
+    - **Reserve Engine**: ML-enhanced reserve allocation with confidence scoring
+    - **Pacing Engine**: Market-aware deployment pacing strategies
+    - **Dashboard Analytics**: Comprehensive fund performance dashboards
+    
+    ## Algorithm Modes
+    The system supports both rule-based (cold-start) and ML-enhanced algorithms:
+    - `ALG_RESERVE=true`: Enable ML-enhanced reserve allocation
+    - `ALG_PACING=true`: Enable ML-optimized deployment pacing
+    
+  version: 1.0.0
+  contact:
+    name: POVC Development Team
+    email: dev@povc.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development server
+  - url: https://api.povc.com/api
+    description: Production server
+
+paths:
+  # Fund Management Endpoints
+  /funds:
+    get:
+      summary: List all funds
+      description: Retrieve a list of all venture capital funds
+      tags:
+        - Funds
+      responses:
+        '200':
+          description: List of funds retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Fund'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      summary: Create a new fund
+      description: Create a new venture capital fund with initial configuration
+      tags:
+        - Funds
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFundRequest'
+      responses:
+        '201':
+          description: Fund created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Fund'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /funds/{id}:
+    get:
+      summary: Get fund by ID
+      description: Retrieve detailed information about a specific fund
+      tags:
+        - Funds
+      parameters:
+        - $ref: '#/components/parameters/FundId'
+      responses:
+        '200':
+          description: Fund details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Fund'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '404':
+          $ref: '#/components/responses/FundNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Portfolio Company Endpoints
+  /portfolio-companies:
+    get:
+      summary: List portfolio companies
+      description: Retrieve portfolio companies, optionally filtered by fund
+      tags:
+        - Portfolio Companies
+      parameters:
+        - name: fundId
+          in: query
+          description: Filter by fund ID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Portfolio companies retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PortfolioCompany'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      summary: Create portfolio company
+      description: Add a new portfolio company to the fund
+      tags:
+        - Portfolio Companies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePortfolioCompanyRequest'
+      responses:
+        '201':
+          description: Portfolio company created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioCompany'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /portfolio-companies/{id}:
+    get:
+      summary: Get portfolio company by ID
+      description: Retrieve detailed information about a specific portfolio company
+      tags:
+        - Portfolio Companies
+      parameters:
+        - $ref: '#/components/parameters/CompanyId'
+      responses:
+        '200':
+          description: Portfolio company details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioCompany'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '404':
+          $ref: '#/components/responses/CompanyNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Reserve Engine Endpoints
+  /reserves/{fundId}:
+    get:
+      summary: Get reserve allocations for fund
+      description: |
+        Generate reserve allocations for all portfolio companies in the specified fund.
+        
+        Uses either rule-based (cold-start) or ML-enhanced algorithms based on:
+        - Environment variable `ALG_RESERVE=true`
+        - Data availability and confidence thresholds
+        - Historical performance data
+        
+        Returns comprehensive reserve summary with confidence scores.
+      tags:
+        - Reserve Engine
+      parameters:
+        - $ref: '#/components/parameters/FundId'
+      responses:
+        '200':
+          description: Reserve allocations calculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReserveSummary'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '500':
+          $ref: '#/components/responses/EngineError'
+
+  # Pacing Engine Endpoints
+  /pacing/summary:
+    get:
+      summary: Generate deployment pacing strategy
+      description: |
+        Calculate optimal fund deployment pacing across quarters based on:
+        - Fund size and deployment timeline
+        - Market conditions (bull, bear, neutral)
+        - Algorithm mode (rule-based vs ML-enhanced)
+        
+        Supports customizable parameters for fund-specific optimization.
+      tags:
+        - Pacing Engine
+      parameters:
+        - name: fundSize
+          in: query
+          description: Total fund size in USD
+          schema:
+            type: integer
+            minimum: 1
+            default: 50000000
+            example: 100000000
+        - name: deploymentQuarter
+          in: query
+          description: Starting quarter for deployment
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            example: 1
+        - name: marketCondition
+          in: query
+          description: Current market condition affecting pacing strategy
+          schema:
+            type: string
+            enum: [bull, bear, neutral]
+            default: neutral
+            example: bull
+      responses:
+        '200':
+          description: Pacing strategy calculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PacingSummary'
+        '400':
+          $ref: '#/components/responses/InvalidPacingParameters'
+        '500':
+          $ref: '#/components/responses/EngineError'
+
+  # Dashboard Endpoints
+  /dashboard-summary/{fundId}:
+    get:
+      summary: Get comprehensive fund dashboard
+      description: |
+        Retrieve complete dashboard summary including:
+        - Fund overview and key metrics
+        - Portfolio company summaries
+        - Recent activity feed
+        - Performance indicators and ratios
+      tags:
+        - Dashboard
+      parameters:
+        - $ref: '#/components/parameters/FundId'
+      responses:
+        '200':
+          description: Dashboard data retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '404':
+          $ref: '#/components/responses/FundNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Investment Management
+  /investments:
+    get:
+      summary: List investments
+      description: Retrieve all investments, optionally filtered by fund
+      tags:
+        - Investments
+      parameters:
+        - name: fundId
+          in: query
+          description: Filter investments by fund ID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Investments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Investment'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      summary: Create new investment
+      description: Record a new investment transaction
+      tags:
+        - Investments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvestmentRequest'
+      responses:
+        '201':
+          description: Investment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Investment'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /investments/{id}:
+    get:
+      summary: Get investment by ID
+      description: Retrieve detailed information about a specific investment
+      tags:
+        - Investments
+      parameters:
+        - $ref: '#/components/parameters/InvestmentId'
+      responses:
+        '200':
+          description: Investment details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Investment'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '404':
+          $ref: '#/components/responses/InvestmentNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Fund Metrics
+  /fund-metrics/{fundId}:
+    get:
+      summary: Get fund performance metrics
+      description: Retrieve historical performance metrics for a fund
+      tags:
+        - Fund Metrics
+      parameters:
+        - $ref: '#/components/parameters/FundId'
+      responses:
+        '200':
+          description: Fund metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FundMetrics'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Activity Tracking
+  /activities:
+    get:
+      summary: List activities
+      description: Retrieve activity log, optionally filtered by fund
+      tags:
+        - Activities
+      parameters:
+        - name: fundId
+          in: query
+          description: Filter activities by fund ID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Activities retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Activity'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      summary: Create activity log entry
+      description: Record a new activity or event
+      tags:
+        - Activities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateActivityRequest'
+      responses:
+        '201':
+          description: Activity created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Activity'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+  schemas:
+    # Core Engine Types
+    ReserveInput:
+      type: object
+      required:
+        - id
+        - invested
+        - ownership
+        - stage
+        - sector
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          description: Unique portfolio company identifier
+        invested:
+          type: number
+          minimum: 0
+          description: Total amount invested in USD
+          example: 1500000
+        ownership:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Ownership percentage (0.0 to 1.0)
+          example: 0.15
+        stage:
+          type: string
+          minLength: 1
+          description: Investment stage
+          example: "Series A"
+          enum: [Seed, Series A, Series B, Series C, Growth]
+        sector:
+          type: string
+          minLength: 1
+          description: Company sector
+          example: "SaaS"
+          enum: [SaaS, Fintech, Healthcare, Analytics, Infrastructure, Enterprise]
+
+    ReserveOutput:
+      type: object
+      required:
+        - allocation
+        - confidence
+        - rationale
+      properties:
+        allocation:
+          type: number
+          minimum: 0
+          description: Recommended reserve allocation in USD
+          example: 2250000
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Algorithm confidence score (0.0 to 1.0)
+          example: 0.75
+        rationale:
+          type: string
+          minLength: 1
+          description: Human-readable explanation of allocation logic
+          example: "Series A stage, SaaS sector (ML-enhanced allocation)"
+
+    ReserveSummary:
+      type: object
+      required:
+        - fundId
+        - totalAllocation
+        - avgConfidence
+        - highConfidenceCount
+        - allocations
+        - generatedAt
+      properties:
+        fundId:
+          type: integer
+          minimum: 1
+          description: Fund identifier
+          example: 1
+        totalAllocation:
+          type: number
+          minimum: 0
+          description: Total recommended reserve allocation across all companies
+          example: 45750000
+        avgConfidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Average confidence score across all allocations
+          example: 0.78
+        highConfidenceCount:
+          type: integer
+          minimum: 0
+          description: Number of allocations with confidence >= 0.7
+          example: 12
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReserveOutput'
+          description: Individual reserve allocations for each portfolio company
+        generatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when allocations were calculated
+          example: "2024-01-15T10:30:00.000Z"
+
+    PacingInput:
+      type: object
+      required:
+        - fundSize
+        - deploymentQuarter
+        - marketCondition
+      properties:
+        fundSize:
+          type: number
+          minimum: 0
+          description: Total fund size in USD
+          example: 100000000
+        deploymentQuarter:
+          type: integer
+          minimum: 1
+          description: Starting quarter for deployment
+          example: 1
+        marketCondition:
+          type: string
+          enum: [bull, bear, neutral]
+          description: Current market condition
+          example: "bull"
+
+    PacingOutput:
+      type: object
+      required:
+        - quarter
+        - deployment
+        - note
+      properties:
+        quarter:
+          type: integer
+          minimum: 1
+          description: Quarter number
+          example: 3
+        deployment:
+          type: number
+          minimum: 0
+          description: Recommended deployment amount in USD for this quarter
+          example: 8750000
+        note:
+          type: string
+          minLength: 1
+          description: Strategy note explaining deployment logic
+          example: "bull market pacing (early-stage focus)"
+
+    PacingSummary:
+      type: object
+      required:
+        - fundSize
+        - totalQuarters
+        - avgQuarterlyDeployment
+        - marketCondition
+        - deployments
+        - generatedAt
+      properties:
+        fundSize:
+          type: number
+          minimum: 0
+          description: Total fund size
+          example: 100000000
+        totalQuarters:
+          type: integer
+          minimum: 1
+          description: Number of deployment quarters
+          example: 8
+        avgQuarterlyDeployment:
+          type: number
+          minimum: 0
+          description: Average deployment per quarter
+          example: 12500000
+        marketCondition:
+          type: string
+          enum: [bull, bear, neutral]
+          description: Market condition used for pacing
+          example: "bull"
+        deployments:
+          type: array
+          items:
+            $ref: '#/components/schemas/PacingOutput'
+          description: Quarterly deployment schedule
+        generatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when pacing was calculated
+          example: "2024-01-15T10:30:00.000Z"
+
+    # Business Entity Types
+    Fund:
+      type: object
+      required:
+        - id
+        - name
+        - size
+        - vintage
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          example: 1
+        name:
+          type: string
+          minLength: 1
+          example: "POVC Growth Fund I"
+        size:
+          type: string
+          description: Fund size in USD (stored as string for precision)
+          example: "100000000"
+        vintage:
+          type: integer
+          minimum: 2000
+          maximum: 2030
+          description: Fund vintage year
+          example: 2023
+        deployedCapital:
+          type: string
+          description: Total deployed capital in USD
+          example: "45000000"
+        strategy:
+          type: string
+          description: Investment strategy
+          example: "Growth-stage B2B SaaS"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2023-01-01T00:00:00.000Z"
+
+    PortfolioCompany:
+      type: object
+      required:
+        - id
+        - name
+        - fundId
+        - sector
+        - stage
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          example: 1
+        name:
+          type: string
+          minLength: 1
+          example: "TechCorp Inc"
+        fundId:
+          type: integer
+          minimum: 1
+          example: 1
+        sector:
+          type: string
+          example: "SaaS"
+        stage:
+          type: string
+          example: "Series B"
+        totalInvested:
+          type: string
+          description: Total amount invested
+          example: "2500000"
+        ownershipPct:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Ownership percentage
+          example: 0.18
+        valuation:
+          type: string
+          description: Current valuation
+          example: "25000000"
+        foundedYear:
+          type: integer
+          minimum: 1900
+          example: 2019
+
+    Investment:
+      type: object
+      required:
+        - id
+        - companyId
+        - amount
+        - round
+        - date
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          example: 1
+        companyId:
+          type: integer
+          minimum: 1
+          description: Portfolio company ID
+          example: 1
+        amount:
+          type: string
+          description: Investment amount in USD
+          example: "1500000"
+        round:
+          type: string
+          description: Investment round
+          example: "Series A"
+        date:
+          type: string
+          format: date
+          description: Investment date
+          example: "2023-06-15"
+        valuation:
+          type: string
+          description: Company valuation at investment
+          example: "15000000"
+        notes:
+          type: string
+          description: Investment notes
+          example: "Lead investor with board seat"
+
+    FundMetrics:
+      type: object
+      required:
+        - id
+        - fundId
+        - date
+        - irr
+        - multiple
+        - dpi
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          example: 1
+        fundId:
+          type: integer
+          minimum: 1
+          example: 1
+        date:
+          type: string
+          format: date
+          description: Metrics calculation date
+          example: "2024-01-01"
+        irr:
+          type: string
+          description: Internal Rate of Return
+          example: "0.24"
+        multiple:
+          type: string
+          description: Investment multiple (TVPI)
+          example: "2.1"
+        dpi:
+          type: string
+          description: Distributions to Paid-in capital ratio
+          example: "0.35"
+        rvpi:
+          type: string
+          description: Residual Value to Paid-in capital ratio
+          example: "1.75"
+
+    Activity:
+      type: object
+      required:
+        - id
+        - fundId
+        - type
+        - description
+        - activityDate
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          example: 1
+        fundId:
+          type: integer
+          minimum: 1
+          example: 1
+        type:
+          type: string
+          description: Activity type
+          example: "investment"
+          enum: [investment, exit, follow_on, board_meeting, milestone]
+        description:
+          type: string
+          minLength: 1
+          description: Activity description
+          example: "Series B investment in TechCorp"
+        amount:
+          type: string
+          description: Associated monetary amount
+          example: "2500000"
+        companyId:
+          type: integer
+          description: Related portfolio company ID
+          example: 1
+        activityDate:
+          type: string
+          format: date-time
+          description: When the activity occurred
+          example: "2024-01-15T14:30:00.000Z"
+
+    DashboardSummary:
+      type: object
+      required:
+        - fund
+        - portfolioCompanies
+        - recentActivities
+        - summary
+      properties:
+        fund:
+          $ref: '#/components/schemas/Fund'
+        portfolioCompanies:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortfolioCompany'
+        recentActivities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Activity'
+          maxItems: 5
+        metrics:
+          $ref: '#/components/schemas/FundMetrics'
+          nullable: true
+        summary:
+          type: object
+          required:
+            - totalCompanies
+            - deploymentRate
+            - currentIRR
+          properties:
+            totalCompanies:
+              type: integer
+              minimum: 0
+              description: Total number of portfolio companies
+              example: 15
+            deploymentRate:
+              type: number
+              minimum: 0
+              maximum: 100
+              description: Capital deployment rate as percentage
+              example: 65.5
+            currentIRR:
+              type: number
+              description: Current IRR percentage
+              example: 24.8
+
+    # Request Types
+    CreateFundRequest:
+      type: object
+      required:
+        - name
+        - size
+        - vintage
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "POVC Growth Fund II"
+        size:
+          type: string
+          pattern: '^[0-9]+$'
+          description: Fund size in USD
+          example: "150000000"
+        vintage:
+          type: integer
+          minimum: 2000
+          maximum: 2030
+          example: 2024
+        strategy:
+          type: string
+          maxLength: 500
+          example: "Early to growth-stage enterprise software"
+
+    CreatePortfolioCompanyRequest:
+      type: object
+      required:
+        - name
+        - fundId
+        - sector
+        - stage
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "DataFlow Analytics"
+        fundId:
+          type: integer
+          minimum: 1
+          example: 1
+        sector:
+          type: string
+          minLength: 1
+          example: "Analytics"
+        stage:
+          type: string
+          minLength: 1
+          example: "Series A"
+        foundedYear:
+          type: integer
+          minimum: 1900
+          maximum: 2030
+          example: 2020
+
+    CreateInvestmentRequest:
+      type: object
+      required:
+        - companyId
+        - amount
+        - round
+        - date
+      properties:
+        companyId:
+          type: integer
+          minimum: 1
+          example: 1
+        amount:
+          type: string
+          pattern: '^[0-9]+$'
+          example: "3000000"
+        round:
+          type: string
+          minLength: 1
+          example: "Series B"
+        date:
+          type: string
+          format: date
+          example: "2024-03-15"
+        valuation:
+          type: string
+          pattern: '^[0-9]+$'
+          example: "30000000"
+        notes:
+          type: string
+          maxLength: 1000
+
+    CreateActivityRequest:
+      type: object
+      required:
+        - fundId
+        - type
+        - description
+        - activityDate
+      properties:
+        fundId:
+          type: integer
+          minimum: 1
+          example: 1
+        type:
+          type: string
+          enum: [investment, exit, follow_on, board_meeting, milestone]
+          example: "investment"
+        description:
+          type: string
+          minLength: 1
+          maxLength: 500
+          example: "Completed Series B round"
+        amount:
+          type: string
+          pattern: '^[0-9]+$'
+          example: "5000000"
+        companyId:
+          type: integer
+          minimum: 1
+          example: 1
+        activityDate:
+          type: string
+          format: date-time
+          example: "2024-03-15T16:00:00.000Z"
+
+    # Error Response Types
+    ApiError:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error type identifier
+          example: "Invalid fund ID"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Fund ID must be a positive integer, received: abc"
+        code:
+          type: integer
+          description: Specific error code
+          example: 1001
+        details:
+          type: object
+          description: Additional error context
+          additionalProperties: true
+          example:
+            field: "fundId"
+            received: "abc"
+            expected: "positive integer"
+
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/ApiError'
+        - type: object
+          properties:
+            details:
+              type: object
+              properties:
+                validationErrors:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      field:
+                        type: string
+                      message:
+                        type: string
+                      code:
+                        type: string
+
+  parameters:
+    FundId:
+      name: id
+      in: path
+      required: true
+      description: Fund identifier
+      schema:
+        type: integer
+        minimum: 1
+        example: 1
+
+    CompanyId:
+      name: id
+      in: path
+      required: true
+      description: Portfolio company identifier
+      schema:
+        type: integer
+        minimum: 1
+        example: 1
+
+    InvestmentId:
+      name: id
+      in: path
+      required: true
+      description: Investment identifier
+      schema:
+        type: integer
+        minimum: 1
+        example: 1
+
+  responses:
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error: "Database operation failed"
+            message: "An unexpected error occurred while processing the request"
+
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+          example:
+            error: "Invalid fund data"
+            message: "Fund validation failed"
+            details:
+              validationErrors:
+                - field: "size"
+                  message: "Size must be a positive number"
+                  code: "invalid_type"
+
+    InvalidIdError:
+      description: Invalid ID parameter
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error: "Invalid fund ID"
+            message: "Fund ID must be a positive integer, received: abc"
+
+    FundNotFound:
+      description: Fund not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error: "Fund not found"
+            message: "No fund exists with ID: 999"
+
+    CompanyNotFound:
+      description: Portfolio company not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error: "Company not found"
+            message: "No portfolio company exists with ID: 999"
+
+    InvestmentNotFound:
+      description: Investment not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error: "Investment not found"
+            message: "No investment exists with ID: 999"
+
+    InvalidPacingParameters:
+      description: Invalid pacing engine parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error: "Invalid market condition"
+            message: "Market condition must be 'bull', 'bear', or 'neutral', received: invalid-condition"
+
+    EngineError:
+      description: Engine processing error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error: "Reserve engine processing failed"
+            message: "Unable to calculate allocations due to insufficient data"
+            details:
+              fundId: 1
+              reason: "portfolio_data_unavailable"
+
+  # Security Schemes (for future authentication)
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token-based authentication
+
+tags:
+  - name: Funds
+    description: Fund management operations
+  - name: Portfolio Companies
+    description: Portfolio company management
+  - name: Investments
+    description: Investment tracking and analysis
+  - name: Reserve Engine
+    description: ML-enhanced reserve allocation engine
+  - name: Pacing Engine
+    description: Market-aware deployment pacing strategies
+  - name: Dashboard
+    description: Comprehensive dashboard and analytics
+  - name: Fund Metrics
+    description: Fund performance metrics and KPIs
+  - name: Activities
+    description: Activity logging and tracking
+
+# Global security (commented out until authentication is implemented)
+# security:
+#   - bearerAuth: []

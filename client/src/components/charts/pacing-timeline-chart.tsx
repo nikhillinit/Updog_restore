@@ -38,17 +38,25 @@ export default function PacingTimelineChart() {
   }
 
   // Transform pacing data for chart display
-  const chartData = pacingData.map(item => ({
-    quarter: `Q${item.quarter}`,
-    deployment: item.deployment / 1000000, // Convert to millions
-    cumulative: pacingData
-      .slice(0, pacingData.findIndex(d => d.quarter === item.quarter) + 1)
-      .reduce((sum, d) => sum + d.deployment, 0) / 1000000,
-    note: item.note
-  }));
+  const deployments = pacingData?.deployments || [];
+  const chartData = deployments.map(item => {
+    const currentIndex = deployments.findIndex(d => d.quarter === item.quarter);
+    const cumulative = deployments
+      .slice(0, currentIndex + 1)
+      .reduce((sum, d) => sum + d.deployment, 0);
+    
+    return {
+      quarter: `Q${item.quarter}`,
+      deployment: item.deployment / 1000000, // Convert to millions
+      cumulative: cumulative / 1000000,
+      note: item.note
+    };
+  });
 
-  const totalDeployment = pacingData.reduce((sum, item) => sum + item.deployment, 0);
-  const avgQuarterlyDeployment = totalDeployment / pacingData.length;
+  const fundSize = pacingData?.fundSize || 0;
+  const avgQuarterlyDeployment = pacingData?.avgQuarterlyDeployment || 0;
+  const totalQuarters = pacingData?.totalQuarters || 0;
+  const marketCondition = pacingData?.marketCondition || 'neutral';
 
   return (
     <div className="space-y-6">
@@ -87,7 +95,7 @@ export default function PacingTimelineChart() {
               <div>
                 <p className="text-gray-600 text-sm font-medium">Total Fund Size</p>
                 <p className="text-2xl font-bold text-gray-800 mt-1">
-                  ${(totalDeployment / 1000000).toFixed(0)}M
+                  ${(fundSize / 1000000).toFixed(0)}M
                 </p>
               </div>
               <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
@@ -106,7 +114,7 @@ export default function PacingTimelineChart() {
                   ${(avgQuarterlyDeployment / 1000000).toFixed(1)}M
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
-                  {pacingData.length} quarters
+                  {totalQuarters} quarters
                 </p>
               </div>
               <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
@@ -122,7 +130,7 @@ export default function PacingTimelineChart() {
               <div>
                 <p className="text-gray-600 text-sm font-medium">Market Condition</p>
                 <p className="text-2xl font-bold text-gray-800 mt-1">
-                  {pacingData[0]?.note.split('(')[1]?.split(')')[0] || 'Neutral'}
+                  {marketCondition.charAt(0).toUpperCase() + marketCondition.slice(1)}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
                   Baseline pacing
@@ -147,7 +155,7 @@ export default function PacingTimelineChart() {
               <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex-1">
                   <p className="font-medium text-gray-800">{item.quarter} Deployment</p>
-                  <p className="text-sm text-gray-600">{pacingData[index]?.note}</p>
+                  <p className="text-sm text-gray-600">{item.note}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-semibold text-gray-800">

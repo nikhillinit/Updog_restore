@@ -1,23 +1,45 @@
-// ReserveEngine.ts
+// ReserveEngine.ts - Type-safe reserve allocation engine
 
-export interface ReserveInput {
-  id: number;
-  invested: number;
-  ownership: number;
-  stage: string;
-  sector: string;
-}
+import type { 
+  ReserveInput, 
+  ReserveOutput, 
+  ReserveSummary, 
+  EngineConfig,
+  ConfidenceLevelType 
+} from '@shared/types';
+import { ReserveInputSchema, ReserveOutputSchema } from '@shared/types';
+import { ConfidenceLevel } from '@shared/types';
 
-export interface ReserveOutput {
-  allocation: number;
-  confidence: number;
-  rationale: string;
-}
+// =============================================================================
+// CONFIGURATION & VALIDATION
+// =============================================================================
 
-// Algorithm mode detection
+/** Algorithm mode detection with type safety */
 function isAlgorithmModeEnabled(): boolean {
   return process.env.ALG_RESERVE === 'true' || process.env.NODE_ENV === 'development';
 }
+
+/** Validate and parse reserve input with Zod */
+function validateReserveInput(input: unknown): ReserveInput {
+  const result = ReserveInputSchema.safeParse(input);
+  if (!result.success) {
+    throw new Error(`Invalid reserve input: ${result.error.message}`);
+  }
+  return result.data;
+}
+
+/** Validate reserve output before returning */
+function validateReserveOutput(output: unknown): ReserveOutput {
+  const result = ReserveOutputSchema.safeParse(output);
+  if (!result.success) {
+    throw new Error(`Invalid reserve output: ${result.error.message}`);
+  }
+  return result.data;
+}
+
+// =============================================================================
+// CORE ALLOCATION LOGIC
+// =============================================================================
 
 // Enhanced rule-based allocation with confidence scoring
 function calculateRuleBasedAllocation(company: ReserveInput): ReserveOutput {
@@ -55,8 +77,8 @@ function calculateRuleBasedAllocation(company: ReserveInput): ReserveOutput {
     allocation *= 0.8;
   }
   
-  // Calculate confidence based on data quality
-  let confidence = 0.3; // Base cold-start confidence
+  // Calculate confidence based on data quality using defined levels
+  let confidence = ConfidenceLevel.COLD_START; // Base cold-start confidence
   
   // Increase confidence based on available data
   if (stage && sector) confidence += 0.2;
@@ -64,20 +86,22 @@ function calculateRuleBasedAllocation(company: ReserveInput): ReserveOutput {
   if (invested > 1000000) confidence += 0.1; // Larger investments = more data
   
   // Cap confidence at reasonable cold-start level
-  confidence = Math.min(confidence, 0.75);
+  confidence = Math.min(confidence, ConfidenceLevel.MEDIUM);
   
   let rationale = `${stage} stage, ${sector} sector`;
-  if (confidence <= 0.5) {
+  if (confidence <= ConfidenceLevel.LOW) {
     rationale += " (cold-start mode)";
   } else {
     rationale += " (enhanced rules)";
   }
   
-  return {
+  const output = {
     allocation: Math.round(allocation),
     confidence: Math.round(confidence * 100) / 100,
     rationale
   };
+  
+  return validateReserveOutput(output);
 }
 
 // Mock ML algorithm for high-confidence mode
@@ -89,19 +113,41 @@ function calculateMLBasedAllocation(company: ReserveInput): ReserveOutput {
   const mlAdjustment = 0.8 + (Math.random() * 0.4); // 0.8 to 1.2 multiplier
   const enhancedAllocation = baseAllocation.allocation * mlAdjustment;
   
-  return {
+  const output = {
     allocation: Math.round(enhancedAllocation),
-    confidence: Math.min(0.95, baseAllocation.confidence + 0.3),
+    confidence: Math.min(ConfidenceLevel.ML_ENHANCED, baseAllocation.confidence + 0.3),
     rationale: `ML-enhanced allocation (${baseAllocation.rationale.replace('(cold-start mode)', '').replace('(enhanced rules)', '').trim()})`
   };
+  
+  return validateReserveOutput(output);
 }
 
-export function ReserveEngine(portfolio: ReserveInput[]): ReserveOutput[] {
-  if (portfolio.length === 0) return [];
+// =============================================================================
+// MAIN ENGINE FUNCTIONS
+// =============================================================================
+
+/** 
+ * Primary ReserveEngine function with input validation 
+ * @param portfolio Array of portfolio companies
+ * @returns Array of reserve allocations with confidence scores
+ */
+export function ReserveEngine(portfolio: unknown[]): ReserveOutput[] {
+  if (!Array.isArray(portfolio) || portfolio.length === 0) {
+    return [];
+  }
+  
+  // Validate all inputs
+  const validatedPortfolio: ReserveInput[] = portfolio.map((company, index) => {
+    try {
+      return validateReserveInput(company);
+    } catch (error) {
+      throw new Error(`Invalid company data at index ${index}: ${error}`);
+    }
+  });
   
   const useAlgorithm = isAlgorithmModeEnabled();
   
-  return portfolio.map((company) => {
+  return validatedPortfolio.map((company) => {
     // Use ML algorithm if enabled and confidence threshold met
     if (useAlgorithm && Math.random() > 0.3) { // 70% chance of using ML in algorithm mode
       return calculateMLBasedAllocation(company);
@@ -109,4 +155,29 @@ export function ReserveEngine(portfolio: ReserveInput[]): ReserveOutput[] {
       return calculateRuleBasedAllocation(company);
     }
   });
+}
+
+/**
+ * Generate a comprehensive reserve summary for a fund
+ * @param fundId Fund identifier
+ * @param portfolio Portfolio companies
+ * @returns Complete reserve summary with metadata
+ */
+export function generateReserveSummary(fundId: number, portfolio: ReserveInput[]): ReserveSummary {
+  const allocations = ReserveEngine(portfolio);
+  
+  const totalAllocation = allocations.reduce((sum, item) => sum + item.allocation, 0);
+  const avgConfidence = allocations.length > 0 
+    ? allocations.reduce((sum, item) => sum + item.confidence, 0) / allocations.length 
+    : 0;
+  const highConfidenceCount = allocations.filter(item => item.confidence >= ConfidenceLevel.MEDIUM).length;
+  
+  return {
+    fundId,
+    totalAllocation,
+    avgConfidence: Math.round(avgConfidence * 100) / 100,
+    highConfidenceCount,
+    allocations,
+    generatedAt: new Date(),
+  };
 }

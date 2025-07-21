@@ -42,17 +42,18 @@ export default function ReserveAllocationChart({ fundId }: ReserveAllocationChar
   }
 
   // Transform reserve engine data to allocation pie chart format
-  const pieData = reserveData.map((item, index) => ({
+  const pieData = reserveData?.allocations.map((item, index) => ({
     id: `company-${index + 1}`,
     label: `Company ${index + 1}`,
     value: item.allocation,
     confidence: item.confidence
-  }));
+  })) || [];
 
-  // Calculate summary stats
-  const totalAllocation = reserveData.reduce((sum, item) => sum + item.allocation, 0);
-  const avgConfidence = reserveData.reduce((sum, item) => sum + item.confidence, 0) / reserveData.length;
-  const highConfidenceCount = reserveData.filter(item => item.confidence >= 0.7).length;
+  // Calculate summary stats from ReserveSummary
+  const totalAllocation = reserveData?.totalAllocation || 0;
+  const avgConfidence = reserveData?.avgConfidence || 0;
+  const highConfidenceCount = reserveData?.highConfidenceCount || 0;
+  const allocationCount = reserveData?.allocations.length || 0;
 
   return (
     <div className="space-y-6">
@@ -109,10 +110,10 @@ export default function ReserveAllocationChart({ fundId }: ReserveAllocationChar
               <div>
                 <p className="text-gray-600 text-sm font-medium">High Confidence</p>
                 <p className="text-2xl font-bold text-gray-800 mt-1">
-                  {highConfidenceCount}/{reserveData.length}
+                  {highConfidenceCount}/{allocationCount}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
-                  {((highConfidenceCount / reserveData.length) * 100).toFixed(0)}% of positions
+                  {allocationCount > 0 ? ((highConfidenceCount / allocationCount) * 100).toFixed(0) : 0}% of positions
                 </p>
               </div>
             </div>
@@ -127,7 +128,7 @@ export default function ReserveAllocationChart({ fundId }: ReserveAllocationChar
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {reserveData.map((item, index) => (
+            {reserveData?.allocations.map((item, index) => (
               <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex-1">
                   <p className="font-medium text-gray-800">Company {index + 1}</p>
