@@ -78,59 +78,59 @@ export default function TactycDashboard() {
     <div className="space-y-8">
       {/* Header Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-blue-50 border-blue-200">
+        <Card className="bg-white border-0 shadow-card">
           <CardContent className="p-6">
             <div className="text-center">
-              <div className="text-3xl font-bold text-blue-700">
+              <div className="text-3xl font-inter font-bold text-charcoal">
                 ${(investableCapital / 1000000).toFixed(1)}M
               </div>
-              <div className="text-blue-600 font-medium mt-1">
+              <div className="text-beige/80 font-medium mt-1">
                 {((investableCapital / committedCapital) * 100).toFixed(2)}%
               </div>
-              <div className="text-sm text-blue-600 mt-2">Investable Capital</div>
+              <div className="text-sm text-charcoal/70 mt-2">Investable Capital</div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white border-0 shadow-card">
           <CardContent className="p-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-gray-800">
+                <div className="text-2xl font-inter font-bold text-charcoal">
                   ${(initialCapital / 1000000).toFixed(1)}M
                 </div>
-                <div className="text-blue-600 font-medium">
+                <div className="text-beige/80 font-medium">
                   {((initialCapital / investableCapital) * 100).toFixed(2)}%
                 </div>
-                <div className="text-sm text-gray-600 mt-1">Projected Initial</div>
+                <div className="text-sm text-charcoal/70 mt-1">Projected Initial</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-gray-800">
+                <div className="text-2xl font-inter font-bold text-charcoal">
                   ${(followOnCapital / 1000000).toFixed(1)}M
                 </div>
-                <div className="text-blue-600 font-medium">
+                <div className="text-beige/80 font-medium">
                   {((followOnCapital / investableCapital) * 100).toFixed(2)}%
                 </div>
-                <div className="text-sm text-gray-600 mt-1">Projected Follow-On</div>
+                <div className="text-sm text-charcoal/70 mt-1">Projected Follow-On</div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white border-0 shadow-card">
           <CardContent className="p-6">
             <div className="text-center">
-              <div className="text-3xl font-bold text-gray-800">{projectedInvestments}</div>
-              <div className="text-gray-600 font-medium mt-1">Projected</div>
-              <div className="text-sm text-gray-600 mt-2">Number of Initial Investments</div>
+              <div className="text-3xl font-inter font-bold text-charcoal">{projectedInvestments}</div>
+              <div className="text-charcoal/70 font-medium mt-1">Projected</div>
+              <div className="text-sm text-charcoal/70 mt-2">Number of Initial Investments</div>
               <div className="flex justify-center space-x-4 mt-4">
                 <div className="text-center">
-                  <div className="text-lg font-bold text-gray-700">27</div>
-                  <div className="text-xs text-gray-500">By Entry Round</div>
+                  <div className="text-lg font-bold text-charcoal">27</div>
+                  <div className="text-xs text-charcoal/50">By Entry Round</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-lg font-bold text-gray-700">26</div>
-                  <div className="text-xs text-gray-500">By Allocations</div>
+                  <div className="text-lg font-bold text-charcoal">26</div>
+                  <div className="text-xs text-charcoal/50">By Allocations</div>
                 </div>
               </div>
             </div>
@@ -140,54 +140,54 @@ export default function TactycDashboard() {
 
       {/* Capital Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card>
+        <Card className="bg-white border-0 shadow-card">
           <CardHeader>
-            <CardTitle className="text-lg">Investable Capital Breakdown</CardTitle>
+            <CardTitle className="text-lg font-inter text-charcoal">Investable Capital Breakdown</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Committed Capital</span>
-                <span className="font-mono">${(committedCapital / 1000000).toFixed(0)}M</span>
+                <span className="text-charcoal/70">Committed Capital</span>
+                <span className="font-mono text-charcoal">${(committedCapital / 1000000).toFixed(0)}M</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Cashless Commit</span>
+                <span className="text-charcoal/70">Cashless Commit</span>
                 <span className="font-mono text-red-600">($0.8M)</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Management Fees</span>
+                <span className="text-charcoal/70">Management Fees</span>
                 <span className="font-mono text-red-600">($30.5M)</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Fund Expenses</span>
+                <span className="text-charcoal/70">Fund Expenses</span>
                 <span className="font-mono text-red-600">($3.4M)</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Exit Proceeds Recycled</span>
+                <span className="text-charcoal/70">Exit Proceeds Recycled</span>
                 <span className="font-mono text-green-600">$40.0M</span>
               </div>
-              <div className="border-t pt-4">
+              <div className="border-t border-charcoal/20 pt-4">
                 <div className="flex justify-between items-center font-bold">
-                  <span>Total Investable</span>
-                  <span className="font-mono">${(investableCapital / 1000000).toFixed(1)}M</span>
+                  <span className="text-charcoal">Total Investable</span>
+                  <span className="font-mono text-charcoal">${(investableCapital / 1000000).toFixed(1)}M</span>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white border-0 shadow-card">
           <CardHeader>
-            <CardTitle className="text-lg">Capital Allocation by Entry Round</CardTitle>
+            <CardTitle className="text-lg font-inter text-charcoal">Capital Allocation by Entry Round</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={investableCapitalData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis tickFormatter={(value) => `$${(value / 1000000).toFixed(0)}M`} />
-                <Bar dataKey="initial" fill="#3b82f6" name="Initial Investments" />
-                <Bar dataKey="followOn" fill="#1d4ed8" name="Follow-On Investments" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#f2f2f2" />
+                <XAxis dataKey="name" tick={{ fill: '#292929' }} />
+                <YAxis tick={{ fill: '#292929' }} tickFormatter={(value) => `$${(value / 1000000).toFixed(0)}M`} />
+                <Bar dataKey="initial" fill="#292929" name="Initial Investments" />
+                <Bar dataKey="followOn" fill="#E0D8D1" name="Follow-On Investments" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -264,48 +264,48 @@ export default function TactycDashboard() {
   );
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-white font-poppins">
       {/* Fund Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+      <div className="bg-lightGray rounded-lg shadow-card border-0 p-6 mb-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{currentFund.name}</h1>
+            <h1 className="text-2xl font-inter font-bold text-charcoal">{currentFund.name}</h1>
             <div className="flex items-center space-x-8 mt-4">
               <div>
-                <div className="text-sm text-gray-500">Capital</div>
+                <div className="text-sm text-charcoal/70">Capital</div>
                 <div className="grid grid-cols-3 gap-6 mt-2">
                   <div>
-                    <div className="text-sm font-medium text-gray-600">Committed</div>
-                    <div className="text-lg font-bold">${(committedCapital / 1000000).toFixed(0)}M</div>
+                    <div className="text-sm font-medium text-charcoal/70">Committed</div>
+                    <div className="text-lg font-bold text-charcoal">${(committedCapital / 1000000).toFixed(0)}M</div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-gray-600">Investable</div>
-                    <div className="text-lg font-bold">${(investableCapital / 1000000).toFixed(1)}M</div>
+                    <div className="text-sm font-medium text-charcoal/70">Investable</div>
+                    <div className="text-lg font-bold text-charcoal">${(investableCapital / 1000000).toFixed(1)}M</div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-gray-600">Reserve Ratio</div>
-                    <div className="text-lg font-bold">{reserveRatio}%</div>
+                    <div className="text-sm font-medium text-charcoal/70">Reserve Ratio</div>
+                    <div className="text-lg font-bold text-charcoal">{reserveRatio}%</div>
                   </div>
                 </div>
               </div>
               <div>
-                <div className="text-sm text-gray-500">Investments</div>
-                <div className="text-lg font-bold mt-2">{projectedInvestments}</div>
+                <div className="text-sm text-charcoal/70">Investments</div>
+                <div className="text-lg font-bold mt-2 text-charcoal">{projectedInvestments}</div>
               </div>
               <div>
-                <div className="text-sm text-gray-500">Fund Returns</div>
+                <div className="text-sm text-charcoal/70">Fund Returns</div>
                 <div className="grid grid-cols-3 gap-4 mt-2">
                   <div>
-                    <div className="text-sm font-medium text-gray-600">Projected Fund Value</div>
-                    <div className="text-lg font-bold">${(projectedFundValue / 1000000).toFixed(0)}M</div>
+                    <div className="text-sm font-medium text-charcoal/70">Projected Fund Value</div>
+                    <div className="text-lg font-bold text-charcoal">${(projectedFundValue / 1000000).toFixed(0)}M</div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-gray-600">Gross Multiple</div>
-                    <div className="text-lg font-bold">{grossMultiple}x</div>
+                    <div className="text-sm font-medium text-charcoal/70">Gross Multiple</div>
+                    <div className="text-lg font-bold text-charcoal">{grossMultiple}x</div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-gray-600">TVPI</div>
-                    <div className="text-lg font-bold">{tvpi}x</div>
+                    <div className="text-sm font-medium text-charcoal/70">TVPI</div>
+                    <div className="text-lg font-bold text-charcoal">{tvpi}x</div>
                   </div>
                 </div>
               </div>
@@ -314,7 +314,7 @@ export default function TactycDashboard() {
           
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              <Label htmlFor="view-toggle" className="text-sm font-medium">View Actual</Label>
+              <Label htmlFor="view-toggle" className="text-sm font-medium text-charcoal">View Actual</Label>
               <Switch 
                 id="view-toggle"
                 checked={viewType === "current"} 
@@ -322,14 +322,24 @@ export default function TactycDashboard() {
               />
             </div>
             <div className="flex space-x-2">
-              <Badge variant={viewType === "construction" ? "default" : "secondary"}>
+              <Badge 
+                variant={viewType === "construction" ? "default" : "secondary"}
+                className={viewType === "construction" ? "bg-charcoal text-white" : "bg-white text-charcoal border-charcoal/20"}
+              >
                 Construction Forecast
               </Badge>
-              <Badge variant={viewType === "current" ? "default" : "secondary"}>
+              <Badge 
+                variant={viewType === "current" ? "default" : "secondary"}
+                className={viewType === "current" ? "bg-charcoal text-white" : "bg-white text-charcoal border-charcoal/20"}
+              >
                 Current Forecast
               </Badge>
             </div>
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="border-charcoal/20 text-charcoal hover:bg-charcoal hover:text-white transition-colors"
+            >
               Construction Parameters
             </Button>
           </div>
