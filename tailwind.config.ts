@@ -12,9 +12,55 @@ export default {
       },
       colors: {
         // Target UI theme colors
-        charcoal: "#292929",
-        beige: "#E0D8D1", 
+        charcoal: {
+          DEFAULT: "#292929",
+          50: "#f8f8f8",
+          100: "#f0f0f0", 
+          200: "#e0e0e0",
+          300: "#c0c0c0",
+          400: "#a0a0a0",
+          500: "#808080",
+          600: "#606060",
+          700: "#404040",
+          800: "#303030",
+          900: "#292929",
+          950: "#1a1a1a"
+        },
+        beige: {
+          DEFAULT: "#E0D8D1",
+          50: "#f9f8f7",
+          100: "#f2f0ed",
+          200: "#e8e4de",
+          300: "#ddd6cb",
+          400: "#d1c7b8",
+          500: "#c4b8a5",
+          600: "#b0a087",
+          700: "#8f7f6b",
+          800: "#726356",
+          900: "#5c4e44"
+        },
         lightGray: "#F2F2F2",
+        // UI state colors
+        success: {
+          DEFAULT: "#10b981",
+          light: "#d1fae5",
+          dark: "#065f46"
+        },
+        warning: {
+          DEFAULT: "#f59e0b", 
+          light: "#fef3c7",
+          dark: "#92400e"
+        },
+        error: {
+          DEFAULT: "#ef4444",
+          light: "#fee2e2", 
+          dark: "#991b1b"
+        },
+        info: {
+          DEFAULT: "#3b82f6",
+          light: "#dbeafe",
+          dark: "#1e40af"
+        },
         // Existing shadcn colors (preserved for compatibility)
         background: "var(--background)",
         foreground: "var(--foreground)",
