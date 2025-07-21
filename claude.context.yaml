@@ -1,0 +1,14 @@
+project: Updog_restore
+description: Claude-led restoration and expansion of the POVC Quantitative Fund Management Platform.
+primary_goals:
+  - Integrate ReserveEngine and PacingEngine
+  - Support cold-start logic with rule-to-algorithm fallback
+  - Enable analytics dashboard with confidence scoring
+  - Maintain orchestrator agent flow: SCHEMA → ENGINES → INTEGRATION → TESTING
+source_of_truth: true
+key_files:
+  - orchestrate.js
+  - client/src/core/reserves/ReserveEngine.ts
+  - client/src/core/pacing/PacingEngine.ts
+  - shared/schema.ts
+  - tests/fixtures/portfolio.json
