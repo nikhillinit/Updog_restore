@@ -11,6 +11,11 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       colors: {
+        // Target UI theme colors
+        charcoal: "#292929",
+        beige: "#E0D8D1", 
+        lightGray: "#F2F2F2",
+        // Existing shadcn colors (preserved for compatibility)
         background: "var(--background)",
         foreground: "var(--foreground)",
         card: {
@@ -61,6 +66,16 @@ export default {
           border: "var(--sidebar-border)",
           ring: "var(--sidebar-ring)",
         },
+      },
+      fontFamily: {
+        inter: ["Inter", "sans-serif"],
+        poppins: ["Poppins", "sans-serif"],
+        mono: ["Roboto Mono", "monospace"],
+        sans: ["Inter", "sans-serif"],
+      },
+      boxShadow: {
+        card: "0 2px 8px rgba(0, 0, 0, 0.05)",
+        elevated: "0 4px 12px rgba(0, 0, 0, 0.08)",
       },
       keyframes: {
         "accordion-down": {
