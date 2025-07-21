@@ -12,12 +12,20 @@ A comprehensive venture capital fund modeling application built for Press On Ven
 - **Reporting**: Comprehensive reports with Excel export capabilities
 - **Dashboard**: Real-time visualization of fund performance metrics
 
+### Advanced Analytics Engines
+- **ReserveEngine**: ML-enhanced reserve allocation with confidence scoring
+- **PacingEngine**: Market-aware deployment pacing strategies  
+- **CohortEngine**: Vintage cohort analysis and performance benchmarking (scaffolded)
+
 ### Technical Features
 - **Modern Stack**: React + TypeScript + Express.js
 - **Database**: PostgreSQL with Drizzle ORM
-- **Charts**: Recharts for data visualization (25+ chart types capability)
+- **Charts**: Nivo + Recharts for advanced data visualization
 - **UI**: Shadcn/ui components with Tailwind CSS
 - **State Management**: TanStack Query for server state
+- **Testing**: Vitest with comprehensive test coverage (74 tests)
+- **Performance**: Memoized chart components and optimized rendering
+- **API Documentation**: Full OpenAPI 3.0 specification
 
 ## 📁 Project Structure
 
@@ -25,18 +33,28 @@ A comprehensive venture capital fund modeling application built for Press On Ven
 ├── client/                 # Frontend React application
 │   ├── src/
 │   │   ├── components/     # Reusable UI components
+│   │   │   └── charts/     # Advanced chart components (Nivo + Recharts)
+│   │   ├── core/           # Analytics engines
+│   │   │   ├── reserves/   # ReserveEngine for allocation strategies
+│   │   │   ├── pacing/     # PacingEngine for deployment pacing
+│   │   │   └── cohorts/    # CohortEngine for vintage analysis
 │   │   ├── pages/          # Application pages/routes
-│   │   ├── hooks/          # Custom React hooks
+│   │   ├── hooks/          # Custom React hooks (type-safe)
 │   │   ├── lib/            # Utility libraries
-│   │   ├── types/          # TypeScript type definitions
 │   │   └── utils/          # Utility functions
 ├── server/                 # Backend Express.js application
 │   ├── index.ts           # Server entry point
-│   ├── routes.ts          # API route definitions
+│   ├── routes.ts          # Type-safe API route definitions
 │   ├── storage.ts         # Data storage layer
 │   └── vite.ts            # Vite development server setup
 ├── shared/                 # Shared types and schemas
-│   └── schema.ts          # Database schema definitions
+│   ├── schema.ts          # Database schema definitions
+│   └── types.ts           # Comprehensive Zod schemas & TypeScript types
+├── tests/                  # Comprehensive test suite
+│   ├── api/               # Engine and API tests
+│   └── performance/       # Chart performance tests
+├── docs/                   # Documentation
+│   └── openapi.yaml       # Complete API specification
 └── package.json           # Project dependencies
 ```
 
@@ -69,13 +87,33 @@ A comprehensive venture capital fund modeling application built for Press On Ven
    Navigate to `http://localhost:5000`
 
 ### Environment Variables
-The application automatically detects and uses PostgreSQL when DATABASE_URL is available.
 
-**Current Configuration:**
-- `DATABASE_URL` - PostgreSQL connection string (configured)
-- `NODE_ENV` - Environment setting (development/production)
+The application supports several environment variables for configuration and feature flags:
 
-The app will use PostgreSQL when DATABASE_URL is set, otherwise falls back to in-memory storage with sample data.
+**Database Configuration:**
+- `DATABASE_URL` - PostgreSQL connection string (optional)
+- `NODE_ENV` - Environment setting (development/production/test)
+
+**Analytics Engine Feature Flags:**
+- `ALG_RESERVE=true` - Enable ML-enhanced reserve allocation engine
+- `ALG_PACING=true` - Enable ML-optimized deployment pacing engine  
+- `ALG_COHORT=true` - Enable ML-enhanced cohort analysis engine
+
+**Example .env file:**
+```bash
+# Database (optional - falls back to in-memory storage)
+DATABASE_URL=postgresql://username:password@localhost:5432/povc_fund_db
+
+# Environment
+NODE_ENV=development
+
+# Analytics Engine Feature Flags (optional - defaults to rule-based)
+ALG_RESERVE=true
+ALG_PACING=true
+ALG_COHORT=true
+```
+
+**Note:** When `NODE_ENV=development`, all analytics engines default to their enhanced ML modes for testing and development purposes.
 
 ## 🎯 Usage
 
@@ -133,7 +171,11 @@ The application manages the following core entities:
 ### Available Scripts
 - `npm run dev` - Start development server with hot reload
 - `npm run build` - Build for production  
-- `npm run preview` - Preview production build
+- `npm run start` - Start production server
+- `npm run check` - Run TypeScript type checking
+- `npm test` - Run test suite with Vitest
+- `npm run test:ui` - Run tests with UI dashboard
+- `npm run test:run` - Run tests once (CI mode)
 - `npm run db:push` - Push database schema changes (when using PostgreSQL)
 
 ### Development Workflow
@@ -147,6 +189,55 @@ The application manages the following core entities:
 - ESLint for code quality
 - Prettier for consistent formatting
 - Tailwind CSS for styling
+
+## 🔌 API Reference
+
+### Analytics Engines API
+
+The application provides three powerful analytics engines accessible via RESTful API:
+
+#### Reserve Engine
+**Endpoint:** `GET /api/reserves/:fundId`
+
+ML-enhanced reserve allocation engine with confidence scoring.
+
+```bash
+curl "http://localhost:3000/api/reserves/1"
+```
+
+**Response:** Returns `ReserveSummary` with allocation recommendations and confidence scores.
+
+#### Pacing Engine  
+**Endpoint:** `GET /api/pacing/summary?fundSize=100000000&deploymentQuarter=1&marketCondition=bull`
+
+Market-aware deployment pacing strategies across quarters.
+
+```bash
+curl "http://localhost:3000/api/pacing/summary?fundSize=50000000&marketCondition=neutral"
+```
+
+**Response:** Returns `PacingSummary` with quarterly deployment schedule.
+
+#### Cohort Engine (Scaffolded)
+**Endpoint:** `GET /api/cohorts/analysis?fundId=1&vintageYear=2022&cohortSize=15`
+
+Vintage cohort analysis and performance benchmarking.
+
+```bash
+curl "http://localhost:3000/api/cohorts/analysis?vintageYear=2023&cohortSize=20"
+```
+
+**Response:** Returns `CohortSummary` with vintage performance analysis.
+
+### Complete API Documentation
+Full OpenAPI 3.0 specification available at: [`/docs/openapi.yaml`](./docs/openapi.yaml)
+
+The spec includes:
+- All 20+ API endpoints with full documentation
+- Comprehensive request/response schemas
+- Input validation rules and error responses
+- Authentication schemes (ready for future implementation)
+- Interactive API testing capabilities
 
 ## 📊 Sample Data
 

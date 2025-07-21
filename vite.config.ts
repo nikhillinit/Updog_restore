@@ -37,8 +37,9 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: 'node',
+    environment: 'jsdom',
     root: '.',
-    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx']
+    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
+    setupFiles: ['tests/setup.ts']
   }
 });

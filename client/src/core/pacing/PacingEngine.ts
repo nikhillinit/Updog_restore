@@ -1,16 +1,38 @@
-// PacingEngine.ts
+// PacingEngine.ts - Type-safe fund deployment pacing engine
 
-export interface PacingInput {
-  fundSize: number;
-  deploymentQuarter: number;
-  marketCondition: 'bull' | 'bear' | 'neutral';
+import type { 
+  PacingInput, 
+  PacingOutput, 
+  PacingSummary,
+  MarketConditionExtended 
+} from '@shared/types';
+import { PacingInputSchema, PacingOutputSchema } from '@shared/types';
+
+// =============================================================================
+// CONFIGURATION & VALIDATION
+// =============================================================================
+
+/** Validate and parse pacing input with Zod */
+function validatePacingInput(input: unknown): PacingInput {
+  const result = PacingInputSchema.safeParse(input);
+  if (!result.success) {
+    throw new Error(`Invalid pacing input: ${result.error.message}`);
+  }
+  return result.data;
 }
 
-export interface PacingOutput {
-  quarter: number;
-  deployment: number;
-  note: string;
+/** Validate pacing output before returning */
+function validatePacingOutput(output: unknown): PacingOutput {
+  const result = PacingOutputSchema.safeParse(output);
+  if (!result.success) {
+    throw new Error(`Invalid pacing output: ${result.error.message}`);
+  }
+  return result.data;
 }
+
+// =============================================================================
+// CORE PACING LOGIC
+// =============================================================================
 
 // Algorithm mode detection
 function isAlgorithmModeEnabled(): boolean {
@@ -53,11 +75,13 @@ function calculateRuleBasedPacing(input: PacingInput): PacingOutput[] {
     else if (i < 6) phaseNote = 'mid-stage deployment';
     else phaseNote = 'late-stage optimization';
     
-    return {
+    const output = {
       quarter,
       deployment: Math.round(deployment),
       note: `${marketCondition} market pacing (${phaseNote})`
     };
+    
+    return validatePacingOutput(output);
   });
 }
 
@@ -79,13 +103,45 @@ function calculateMLBasedPacing(input: PacingInput): PacingOutput[] {
   });
 }
 
-export function PacingEngine(input: PacingInput): PacingOutput[] {
+// =============================================================================
+// MAIN ENGINE FUNCTIONS
+// =============================================================================
+
+/**
+ * Primary PacingEngine function with input validation
+ * @param input Pacing parameters (fund size, quarter, market condition)
+ * @returns Array of quarterly deployment allocations
+ */
+export function PacingEngine(input: unknown): PacingOutput[] {
+  const validatedInput = validatePacingInput(input);
   const useAlgorithm = isAlgorithmModeEnabled();
   
   // Use ML algorithm if enabled
   if (useAlgorithm) {
-    return calculateMLBasedPacing(input);
+    return calculateMLBasedPacing(validatedInput);
   } else {
-    return calculateRuleBasedPacing(input);
+    return calculateRuleBasedPacing(validatedInput);
   }
+}
+
+/**
+ * Generate comprehensive pacing summary with metadata
+ * @param input Pacing parameters
+ * @returns Complete pacing summary with statistics
+ */
+export function generatePacingSummary(input: PacingInput): PacingSummary {
+  const deployments = PacingEngine(input);
+  
+  const totalQuarters = deployments.length;
+  const totalDeployment = deployments.reduce((sum, d) => sum + d.deployment, 0);
+  const avgQuarterlyDeployment = totalQuarters > 0 ? totalDeployment / totalQuarters : 0;
+  
+  return {
+    fundSize: input.fundSize,
+    totalQuarters,
+    avgQuarterlyDeployment: Math.round(avgQuarterlyDeployment),
+    marketCondition: input.marketCondition,
+    deployments,
+    generatedAt: new Date(),
+  };
 }
