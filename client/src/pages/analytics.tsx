@@ -9,6 +9,8 @@ import {
 } from 'recharts';
 import { useState } from "react";
 import { useFundContext } from "@/contexts/FundContext";
+import ReserveAllocationChart from "@/components/charts/reserve-allocation-chart";
+import PacingTimelineChart from "@/components/charts/pacing-timeline-chart";
 import { 
   TrendingUp, TrendingDown, BarChart3, PieChart, Activity, 
   Target, Calendar, Filter, Download 
@@ -182,6 +184,17 @@ export default function Analytics() {
         </div>
 
         <TabsContent value="performance" className="space-y-6">
+          {/* Engine-Powered Reserve Allocations */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="lg:col-span-1">
+              <ReserveAllocationChart fundId={currentFund?.id || 1} />
+            </div>
+            <div className="lg:col-span-1">
+              <PacingTimelineChart />
+            </div>
+          </div>
+
+          {/* Traditional Performance Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
