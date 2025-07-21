@@ -77,8 +77,11 @@ export const fundSchema = CompleteFundSetupSchema
   )
   .refine(
     (data) => {
-      // Validation Rule: Waterfall hurdle and catch-up logical relationship
-      return data.waterfall.catchUp >= data.waterfall.hurdle;
+      // Validation Rule: Waterfall hurdle and catch-up logical relationship (only for EUROPEAN)
+      if (data.waterfall.type === 'EUROPEAN') {
+        return data.waterfall.catchUp >= data.waterfall.hurdle;
+      }
+      return true;
     },
     {
       message: "Catch-up rate must be greater than or equal to hurdle rate",
@@ -159,7 +162,11 @@ export const exitRecyclingSchema = ExitRecyclingSchema.refine(
 
 export const waterfallSchema = WaterfallSchema.refine(
   (data) => {
-    return data.catchUp >= data.hurdle;
+    // Only validate hurdle/catch-up for EUROPEAN waterfall
+    if (data.type === 'EUROPEAN') {
+      return data.catchUp >= data.hurdle;
+    }
+    return true;
   },
   {
     message: "Catch-up rate must be greater than or equal to hurdle rate",

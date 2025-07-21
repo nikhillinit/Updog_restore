@@ -56,11 +56,11 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
           <CardContent className="space-y-4">
             <RadioGroup 
               value={data.type} 
-              onValueChange={(value: 'european' | 'american') => handleChange('type', value)}
+              onValueChange={(value: 'EUROPEAN' | 'AMERICAN') => handleChange('type', value)}
             >
               <div className="space-y-4">
                 <div className="flex items-start space-x-3 p-4 border rounded-lg">
-                  <RadioGroupItem value="european" id="european" className="mt-1" />
+                  <RadioGroupItem value="EUROPEAN" id="european" className="mt-1" />
                   <div className="space-y-2">
                     <Label htmlFor="european" className="text-base font-medium cursor-pointer">
                       European Waterfall
@@ -73,7 +73,7 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
                 </div>
 
                 <div className="flex items-start space-x-3 p-4 border rounded-lg">
-                  <RadioGroupItem value="american" id="american" className="mt-1" />
+                  <RadioGroupItem value="AMERICAN" id="american" className="mt-1" />
                   <div className="space-y-2">
                     <Label htmlFor="american" className="text-base font-medium cursor-pointer">
                       American Waterfall
@@ -90,7 +90,7 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
         </Card>
 
         {/* Financial Terms - Only show for European waterfall */}
-        {data.type === 'european' && (
+        {data.type === 'EUROPEAN' && (
           <Card>
             <CardHeader>
               <CardTitle>Financial Terms</CardTitle>
