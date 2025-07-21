@@ -49,6 +49,9 @@ export default function FundSetup() {
     // Cashless GP Commit (Optional)
     cashlessGPPercent: "20",
     
+    // GP Commitment in Management Fees
+    includeGPInManagementFees: false,
+    
     // Advanced Settings
     vehicleStructure: "traditional_fund", // traditional_fund or spv
     
@@ -64,17 +67,13 @@ export default function FundSetup() {
   });
 
   const createFundMutation = useMutation({
-    mutationFn: (data: any) => apiRequest('/api/funds', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...data,
-        size: parseFloat(data.size),
-        managementFee: parseFloat(data.managementFee) / 100,
-        carryPercentage: parseFloat(data.carryPercentage) / 100,
-        vintageYear: parseInt(data.vintageYear),
-        deployedCapital: 0
-      })
+    mutationFn: (data: any) => apiRequest('POST', '/api/funds', {
+      ...data,
+      size: parseFloat(data.size),
+      managementFee: parseFloat(data.managementFee) / 100,
+      carryPercentage: parseFloat(data.carryPercentage) / 100,
+      vintageYear: parseInt(data.vintageYear),
+      deployedCapital: 0
     }),
     onSuccess: (newFund) => {
       queryClient.invalidateQueries({ queryKey: ['/api/funds'] });
@@ -96,7 +95,7 @@ export default function FundSetup() {
 
   const currentStepIndex = WIZARD_STEPS.findIndex(s => s.id === currentStep);
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFundData(prev => {
       const updated = { ...prev, [field]: value };
       
@@ -153,13 +152,13 @@ export default function FundSetup() {
 
   return (
     <div className="min-h-screen bg-gray-50 overflow-y-auto">
-      <div className="max-w-4xl mx-auto p-6 pb-20">
+      <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-20">
         {/* Header */}
         <div className="text-center mb-8 pt-8">
           <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <Building2 className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Press On Ventures Construction Wizard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 break-words">Press On Ventures Construction Wizard</h1>
           <p className="text-gray-600">Set up your fund with essential information</p>
         </div>
 
@@ -198,14 +197,14 @@ export default function FundSetup() {
         {/* Step Content */}
         <Card className="shadow-lg border-0 mt-16">
           <CardHeader className="bg-white border-b border-gray-200 rounded-t-lg">
-            <CardTitle className="text-xl font-semibold text-gray-900">
+            <CardTitle className="text-lg sm:text-xl font-semibold text-gray-900 break-words">
               {WIZARD_STEPS[currentStepIndex].label}
             </CardTitle>
             <p className="text-gray-600 text-sm mt-1">
               {WIZARD_STEPS[currentStepIndex].description}
             </p>
           </CardHeader>
-          <CardContent className="p-8 max-h-none overflow-visible">
+          <CardContent className="p-4 sm:p-6 lg:p-8 max-h-none overflow-visible">
             {/* Fund Basics Step */}
             {currentStep === 'fund-basics' && (
               <div className="space-y-8">
@@ -258,8 +257,8 @@ export default function FundSetup() {
                   <Label className="text-base font-medium text-gray-900">
                     Fund End Date
                   </Label>
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-2">
                       <input
                         type="checkbox"
                         id="hasEndDate"
@@ -276,7 +275,7 @@ export default function FundSetup() {
                         type="date"
                         value={fundData.endDate}
                         onChange={(e) => handleInputChange('endDate', e.target.value)}
-                        className="h-11 border-gray-300"
+                        className="h-11 border-gray-300 w-full min-w-0"
                       />
                     )}
                   </div>
@@ -318,7 +317,7 @@ export default function FundSetup() {
                       value={fundData.totalCommittedCapital}
                       onChange={(e) => handleInputChange('totalCommittedCapital', e.target.value)}
                       placeholder="100,000,000"
-                      className="h-11 pl-8 border-gray-300"
+                      className="h-11 pl-8 border-gray-300 w-full min-w-0"
                     />
                   </div>
                 </div>
@@ -328,7 +327,7 @@ export default function FundSetup() {
                   <Label className="text-base font-medium text-gray-900">
                     GP Commitment (%)
                   </Label>
-                  <div className="flex items-center space-x-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                     <div className="relative flex-1">
                       <Input
                         type="number"
@@ -336,7 +335,7 @@ export default function FundSetup() {
                         value={fundData.gpCommitmentPercent}
                         onChange={(e) => handleInputChange('gpCommitmentPercent', e.target.value)}
                         placeholder="2"
-                        className="h-11 pr-8 border-gray-300"
+                        className="h-11 pr-8 border-gray-300 w-full min-w-0"
                       />
                       <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
                     </div>
@@ -363,7 +362,7 @@ export default function FundSetup() {
 
                 {/* Cashless GP Commit */}
                 <div className="bg-gray-50 rounded-lg p-6 space-y-4">
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-gray-700 font-medium">▼</span>
                     <span className="text-gray-900 font-medium">Cashless GP Commit</span>
                     <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-medium">Optional</span>
@@ -379,7 +378,7 @@ export default function FundSetup() {
                         value={fundData.cashlessGPPercent}
                         onChange={(e) => handleInputChange('cashlessGPPercent', e.target.value)}
                         placeholder="20"
-                        className="h-11 pr-8 border-gray-300"
+                        className="h-11 pr-8 border-gray-300 w-full min-w-0"
                       />
                       <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
                     </div>
@@ -436,7 +435,7 @@ export default function FundSetup() {
               <div className="space-y-8">
                 <div className="border-b border-gray-200 pb-6">
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Fund Structure & Terms</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="vintageYear" className="text-sm font-medium text-gray-700">
                         Vintage Year
@@ -471,7 +470,7 @@ export default function FundSetup() {
 
                 <div className="border-b border-gray-200 pb-6">
                   <h3 className="text-lg font-medium text-gray-900 mb-4">GP Commitment</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="gpCommitment" className="text-sm font-medium text-gray-700">
                         GP Commitment %
@@ -508,7 +507,7 @@ export default function FundSetup() {
 
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Fund Timeline</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="fundLife" className="text-sm font-medium text-gray-700">
                         Fund Life (Years)
@@ -591,7 +590,7 @@ export default function FundSetup() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-gray-700">Min Check Size *</Label>
                       <div className="relative">
@@ -902,9 +901,31 @@ export default function FundSetup() {
                     </div>
                   </div>
 
+                  {/* GP Commitment in Management Fees */}
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="includeGPInManagementFees"
+                        checked={fundData.includeGPInManagementFees}
+                        onChange={(e) => handleInputChange('includeGPInManagementFees', e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <Label htmlFor="includeGPInManagementFees" className="text-sm font-medium text-gray-700">
+                        Include GP Commitment in Management Fee Calculation
+                      </Label>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {fundData.includeGPInManagementFees 
+                        ? "Management fees will be calculated on total committed capital including GP contribution"
+                        : "Management fees will be calculated only on LP committed capital, excluding GP contribution"
+                      }
+                    </p>
+                  </div>
+
                   {/* Fee Step-Down */}
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <input
                         type="checkbox"
                         id="feeStepDown"
@@ -950,7 +971,7 @@ export default function FundSetup() {
                   <p className="text-sm text-gray-600 mb-4">Allow exit proceeds to be re-invested into new investments</p>
                   
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <input
                         type="checkbox"
                         id="exitRecycling"
@@ -1018,7 +1039,7 @@ export default function FundSetup() {
                       </Select>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                       <div className="space-y-2">
                         <Label htmlFor="carryPercentage" className="text-sm font-medium text-gray-700">
                           Carry Percentage
@@ -1037,7 +1058,7 @@ export default function FundSetup() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <input
                             type="checkbox"
                             id="preferredReturn"
@@ -1302,7 +1323,7 @@ export default function FundSetup() {
                     className="bg-blue-600 hover:bg-blue-700"
                   >
                     {createFundMutation.isPending ? (
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                         <span>Creating Fund...</span>
                       </div>
