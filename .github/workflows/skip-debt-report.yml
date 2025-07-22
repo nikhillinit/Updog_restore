@@ -1,0 +1,111 @@
+name: Monthly Skip Debt Report
+
+on:
+  schedule:
+    # Run on the 1st of every month at 9 AM UTC
+    - cron: '0 9 1 * *'
+  workflow_dispatch:  # Allow manual trigger for testing
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Analyze skip debt
+        id: analyze
+        run: |
+          echo "📊 Analyzing test skip debt..."
+          
+          # Count skipped tests
+          TOTAL_SKIPS=$(grep -r "\.skip\|describe\.skip" tests/ --include="*.test.*" --include="*.spec.*" | wc -l || echo 0)
+          
+          # Get skip details
+          SKIP_DETAILS=$(grep -rn "\.skip\|describe\.skip" tests/ --include="*.test.*" --include="*.spec.*" || echo "No skips found")
+          
+          # Count by category
+          TEMP_SKIPS=$(grep -r "#temporary-skip" tests/ --include="*.test.*" --include="*.spec.*" | wc -l || echo 0)
+          UNAUTH_SKIPS=$((TOTAL_SKIPS - TEMP_SKIPS))
+          
+          # Calculate change from last month (using git)
+          LAST_MONTH=$(date -d "1 month ago" +%Y-%m-01)
+          git checkout $(git rev-list -n 1 --before="$LAST_MONTH" HEAD) -- tests/ 2>/dev/null || true
+          LAST_MONTH_SKIPS=$(grep -r "\.skip\|describe\.skip" tests/ --include="*.test.*" --include="*.spec.*" 2>/dev/null | wc -l || echo 0)
+          git checkout HEAD -- tests/
+          
+          SKIP_CHANGE=$((TOTAL_SKIPS - LAST_MONTH_SKIPS))
+          
+          # Generate report
+          REPORT="# 📊 Monthly Skip Debt Report
+          
+          **Date**: $(date +%Y-%m-%d)
+          **Total Skipped Tests**: $TOTAL_SKIPS
+          
+          ## 📈 Trend
+          - Last Month: $LAST_MONTH_SKIPS skips
+          - This Month: $TOTAL_SKIPS skips
+          - Change: $([ $SKIP_CHANGE -gt 0 ] && echo "+")$SKIP_CHANGE
+          
+          ## 🏷️ Categories
+          - ✅ Authorized (with #temporary-skip): $TEMP_SKIPS
+          - ❌ Unauthorized: $UNAUTH_SKIPS
+          
+          ## 📝 Skip Locations
+          \`\`\`
+          $SKIP_DETAILS
+          \`\`\`
+          
+          ## 🎯 Action Items
+          - Review unauthorized skips and add justification
+          - Prioritize skip removal based on test importance
+          - Update skip debt epic with current status"
+          
+          # Save report for artifact
+          echo "$REPORT" > skip-debt-report.md
+          
+          # Set outputs for notification
+          echo "total_skips=$TOTAL_SKIPS" >> $GITHUB_OUTPUT
+          echo "change=$SKIP_CHANGE" >> $GITHUB_OUTPUT
+          echo "unauthorized=$UNAUTH_SKIPS" >> $GITHUB_OUTPUT
+          
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: skip-debt-report-$(date +%Y-%m)
+          path: skip-debt-report.md
+          retention-days: 90
+          
+      - name: Create issue with report
+        if: steps.analyze.outputs.unauthorized > 0
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_BODY=$(cat skip-debt-report.md)
+          
+          gh issue create \
+            --title "Skip Debt Report - $(date +%B %Y)" \
+            --body "$ISSUE_BODY" \
+            --label "skip-debt,monthly-report" \
+            --assignee "@me"
+            
+      - name: Send Slack notification (optional)
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -X POST $SLACK_WEBHOOK_URL \
+            -H 'Content-type: application/json' \
+            -d '{
+              "text": "📊 Monthly Skip Debt Report",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Skip Debt Status*\n• Total Skips: ${{ steps.analyze.outputs.total_skips }}\n• Monthly Change: ${{ steps.analyze.outputs.change }}\n• Unauthorized: ${{ steps.analyze.outputs.unauthorized }}"
+                  }
+                }
+              ]
+            }'
