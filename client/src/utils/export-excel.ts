@@ -1,4 +1,16 @@
-export function exportToExcel(data: any, filename: string = 'povc-fund-report') {
+interface ExportData {
+  portfolioCompanies: Array<{
+    name: string;
+    sector: string;
+    stage: string;
+    investmentAmount: string;
+    currentValuation?: string;
+    status: string;
+    foundedYear?: string;
+  }>;
+}
+
+export function exportToExcel(data: ExportData, filename: string = 'povc-fund-report') {
   // Simple CSV export for demonstration
   // In production, you would use a library like xlsx or similar
   
@@ -18,7 +30,7 @@ export function exportToExcel(data: any, filename: string = 'povc-fund-report') 
   }
 }
 
-function generateCSV(data: any): string {
+function generateCSV(data: ExportData): string {
   if (!data || !data.portfolioCompanies) return '';
   
   const headers = [
@@ -32,7 +44,7 @@ function generateCSV(data: any): string {
     'Founded Year'
   ];
   
-  const rows = data.portfolioCompanies.map((company: any) => [
+  const rows = data.portfolioCompanies.map((company) => [
     company.name,
     company.sector,
     company.stage,

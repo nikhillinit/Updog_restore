@@ -30,7 +30,9 @@
       "Bash(npm run lint)",
       "Bash(npm audit:*)",
       "Bash(wc:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(npm run build:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": []
   }
