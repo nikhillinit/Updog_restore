@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import type { PortfolioCompany } from '@shared/schema';
 
 export function useFundData() {
   const { data: funds, isLoading } = useQuery({
@@ -18,7 +19,7 @@ export function useFundData() {
 }
 
 export function usePortfolioCompanies(fundId?: number) {
-  const { data: portfolioCompanies, isLoading } = useQuery({
+  const { data: portfolioCompanies, isLoading } = useQuery<PortfolioCompany[]>({
     queryKey: ['/api/portfolio-companies', fundId],
     enabled: !!fundId,
   });
