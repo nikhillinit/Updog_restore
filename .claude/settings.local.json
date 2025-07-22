@@ -34,7 +34,9 @@
       "Bash(npm run build:*)",
       "Bash(git checkout:*)",
       "Bash(time npx tsc -p tsconfig.fast.json --noEmit)",
-      "Bash(pnpm add:*)"
+      "Bash(pnpm add:*)",
+      "Bash(docker compose:*)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/povc_fund\" npm run db:push)"
     ],
     "deny": []
   }

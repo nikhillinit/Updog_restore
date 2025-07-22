@@ -14,6 +14,49 @@ export const funds = pgTable("funds", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Fund configuration storage (hybrid approach)
+export const fundConfigs = pgTable("fund_configs", {
+  id: serial("id").primaryKey(),
+  fundId: integer("fund_id").references(() => funds.id).notNull(),
+  version: integer("version").notNull().default(1),
+  config: jsonb("config").notNull(), // Stores full fund configuration
+  isDraft: boolean("is_draft").default(true),
+  isPublished: boolean("is_published").default(false),
+  publishedAt: timestamp("published_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  fundVersionUnique: unique().on(table.fundId, table.version),
+  fundVersionIdx: index("fund_configs_fund_version_idx").on(table.fundId, table.version),
+}));
+
+// Fund snapshots for CQRS pattern
+export const fundSnapshots = pgTable("fund_snapshots", {
+  id: serial("id").primaryKey(),
+  fundId: integer("fund_id").references(() => funds.id).notNull(),
+  type: varchar("type", { length: 50 }).notNull(), // 'RESERVE', 'PACING', 'COHORT'
+  payload: jsonb("payload").notNull(), // Calculation results
+  calcVersion: varchar("calc_version", { length: 20 }).notNull(),
+  correlationId: varchar("correlation_id", { length: 36 }).notNull(),
+  metadata: jsonb("metadata"), // Additional calculation metadata
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  lookupIdx: index("fund_snapshots_lookup_idx").on(table.fundId, table.type, table.createdAt.desc()),
+}));
+
+// Fund events for audit trail
+export const fundEvents = pgTable("fund_events", {
+  id: serial("id").primaryKey(),
+  fundId: integer("fund_id").references(() => funds.id).notNull(),
+  eventType: varchar("event_type", { length: 50 }).notNull(), // 'DRAFT_SAVED', 'PUBLISHED', 'CALC_TRIGGERED'
+  payload: jsonb("payload"), // Event data
+  userId: integer("user_id").references(() => users.id),
+  correlationId: varchar("correlation_id", { length: 36 }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  fundEventIdx: index("fund_events_fund_idx").on(table.fundId, table.createdAt.desc()),
+}));
+
 export const portfolioCompanies = pgTable("portfolio_companies", {
   id: serial("id").primaryKey(),
   fundId: integer("fund_id").references(() => funds.id),
@@ -296,6 +339,23 @@ export const insertCustomFieldValueSchema = createInsertSchema(customFieldValues
   updatedAt: true,
 });
 
+// Insert schemas for new tables
+export const insertFundConfigSchema = createInsertSchema(fundConfigs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertFundSnapshotSchema = createInsertSchema(fundSnapshots).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertFundEventSchema = createInsertSchema(fundEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Core Type Exports
 export type Fund = typeof funds.$inferSelect;
 export type InsertFund = z.infer<typeof insertFundSchema>;
@@ -313,6 +373,12 @@ export type CustomField = typeof customFields.$inferSelect;
 export type InsertCustomField = z.infer<typeof insertCustomFieldSchema>;
 export type CustomFieldValue = typeof customFieldValues.$inferSelect;
 export type InsertCustomFieldValue = z.infer<typeof insertCustomFieldValueSchema>;
+export type FundConfig = typeof fundConfigs.$inferSelect;
+export type InsertFundConfig = z.infer<typeof insertFundConfigSchema>;
+export type FundSnapshot = typeof fundSnapshots.$inferSelect;
+export type InsertFundSnapshot = z.infer<typeof insertFundSnapshotSchema>;
+export type FundEvent = typeof fundEvents.$inferSelect;
+export type InsertFundEvent = z.infer<typeof insertFundEventSchema>;
 
 // Pipeline Type Exports
 export type DealOpportunity = typeof dealOpportunities.$inferSelect;
