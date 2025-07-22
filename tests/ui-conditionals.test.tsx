@@ -25,7 +25,7 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-describe.skip('Conditional Field Visibility', () => {
+describe('Conditional Field Visibility', () => {
   describe('Evergreen Toggle and Fund Life Fields', () => {
     it('should show fund life field when evergreen is OFF', async () => {
       render(
@@ -81,7 +81,7 @@ describe.skip('Conditional Field Visibility', () => {
   describe('European Waterfall Conditional Fields', () => {
     it('should show hurdle and catch-up fields for European waterfall', () => {
       const mockWaterfallData: Waterfall = {
-        type: 'european',
+        type: 'EUROPEAN',
         hurdle: 0.08,
         catchUp: 0.08,
         carryVesting: {
@@ -103,7 +103,7 @@ describe.skip('Conditional Field Visibility', () => {
 
     it('should hide hurdle and catch-up fields for American waterfall', () => {
       const mockWaterfallData: Waterfall = {
-        type: 'american',
+        type: 'AMERICAN',
         hurdle: 0.08,
         catchUp: 0.08,
         carryVesting: {
@@ -125,7 +125,7 @@ describe.skip('Conditional Field Visibility', () => {
 
     it('should toggle financial terms when switching waterfall type', () => {
       const mockWaterfallData: Waterfall = {
-        type: 'american',
+        type: 'AMERICAN',
         hurdle: 0.08,
         catchUp: 0.08,
         carryVesting: {
@@ -151,7 +151,7 @@ describe.skip('Conditional Field Visibility', () => {
       fireEvent.click(europeanRadio);
 
       // Update the data and rerender
-      currentData = { ...currentData, type: 'european' };
+      currentData = { ...currentData, type: 'EUROPEAN' };
       rerender(
         <WaterfallStep data={currentData} onChange={mockOnChange} />
       );
@@ -201,11 +201,11 @@ describe.skip('Conditional Field Visibility', () => {
   });
 });
 
-describe.skip('Form Validation Tests', () => {
+describe('Form Validation Tests', () => {
   describe('Waterfall Validation', () => {
     it('should show error when catch-up rate is less than hurdle rate', () => {
       const mockWaterfallData: Waterfall = {
-        type: 'european',
+        type: 'EUROPEAN',
         hurdle: 0.10, // 10%
         catchUp: 0.08, // 8% - less than hurdle
         carryVesting: {
@@ -226,7 +226,7 @@ describe.skip('Form Validation Tests', () => {
 
     it('should not show error when catch-up rate equals hurdle rate', () => {
       const mockWaterfallData: Waterfall = {
-        type: 'european',
+        type: 'EUROPEAN',
         hurdle: 0.08, // 8%
         catchUp: 0.08, // 8% - equal to hurdle
         carryVesting: {
