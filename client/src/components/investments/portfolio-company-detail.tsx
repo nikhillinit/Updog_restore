@@ -16,7 +16,8 @@ import {
   Building2,
   Globe,
   Users,
-  ChevronDown
+  ChevronDown,
+  Activity
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

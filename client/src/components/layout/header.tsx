@@ -44,9 +44,9 @@ export default function Header({ currentModule }: HeaderProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleExport = () => {
-    if (currentFund) {
-      exportToExcel([currentFund], 'povc-fund-report');
-    }
+    // TODO: Fetch portfolio companies for current fund
+    console.warn('Export functionality needs portfolio companies data');
+    // exportToExcel({ portfolioCompanies: [] }, 'povc-fund-report');
   };
 
   const handleRefresh = async () => {
