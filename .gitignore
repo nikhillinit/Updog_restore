@@ -95,3 +95,17 @@ replit.nix
 
 # TypeScript cache files
 .tscache
+
+# Code quality and analysis tools
+.codacy/
+
+# Agent-generated documentation (temporary)
+AGENT_MODEL_ASSIGNMENTS.md
+KIMI_K2_ASSESSMENT.md
+TODO.md
+TS_FIX_ORCHESTRATION.md
+TS_FIX_STREAMLINED.md
+ts-boolean-errors.txt
+
+# Claude settings (local only)
+.claude/settings.local.json
