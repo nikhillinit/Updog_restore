@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { z } from "zod";
 import { db } from "../db";
 import { funds, fundConfigs, fundEvents, fundSnapshots } from "@shared/schema";
@@ -6,6 +6,11 @@ import { eq, and, desc } from "drizzle-orm";
 import type { ApiError } from "@shared/types";
 import { Queue } from "bullmq";
 import { v4 as uuidv4 } from "uuid";
+
+// Extend Request type to include user property
+interface AuthenticatedRequest extends Request {
+  user?: { id: string };
+}
 
 // Redis connection for queue
 const connection = {
@@ -20,7 +25,7 @@ const cohortQueue = new Queue('cohort-calc', { connection });
 
 export function registerFundConfigRoutes(app: Express) {
   // Save draft configuration
-  app.put("/api/funds/:id/draft", async (req, res) => {
+  app.put("/api/funds/:id/draft", async (req: AuthenticatedRequest, res) => {
     try {
       const fundId = parseInt(req.params.id);
       
@@ -67,7 +72,7 @@ export function registerFundConfigRoutes(app: Express) {
         fundId,
         eventType: 'DRAFT_SAVED',
         payload: { version: nextVersion },
-        userId: req.user?.id,
+        userId: req.user?.id ? parseInt(req.user.id) : null,
         correlationId: uuidv4(),
       });
 
@@ -118,7 +123,7 @@ export function registerFundConfigRoutes(app: Express) {
   });
 
   // Publish configuration
-  app.post("/api/funds/:id/publish", async (req, res) => {
+  app.post("/api/funds/:id/publish", async (req: AuthenticatedRequest, res) => {
     try {
       const fundId = parseInt(req.params.id);
       const correlationId = uuidv4();
@@ -167,7 +172,7 @@ export function registerFundConfigRoutes(app: Express) {
           version: published.version,
           config: published.config 
         },
-        userId: req.user?.id,
+        userId: req.user?.id ? parseInt(req.user.id) : null,
         correlationId,
       });
 
@@ -191,7 +196,7 @@ export function registerFundConfigRoutes(app: Express) {
           engines: ['reserve', 'pacing', 'cohort'],
           correlationId 
         },
-        userId: req.user?.id,
+        userId: req.user?.id ? parseInt(req.user.id) : null,
         correlationId,
       });
 
