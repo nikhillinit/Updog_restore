@@ -16,6 +16,8 @@ import InvestmentStrategyStep from "./InvestmentStrategyStep";
 import ExitRecyclingStep from "./ExitRecyclingStep";
 import WaterfallStep from "./WaterfallStep";
 import type { InvestmentStrategy, ExitRecycling, Waterfall } from "@shared/types";
+import type { Fund as DatabaseFund } from "@shared/schema";
+import type { Fund } from "@/contexts/FundContext";
 
 type WizardStep = 'fund-basics' | 'committed-capital' | 'investment-strategy' | 'exit-recycling' | 'waterfall' | 'advanced-settings' | 'review';
 
@@ -28,6 +30,20 @@ const WIZARD_STEPS: { id: WizardStep; label: string; description: string; icon: 
   { id: 'advanced-settings', label: 'Advanced Settings', description: 'Traditional fund or SPV', icon: 'A' },
   { id: 'review', label: 'Review', description: 'Review and create fund', icon: 'R' },
 ];
+
+// Helper function to convert database fund to context fund type
+const convertDatabaseFundToContextFund = (dbFund: DatabaseFund): Fund => ({
+  id: dbFund.id,
+  name: dbFund.name,
+  size: parseFloat(dbFund.size || "0"),
+  managementFee: parseFloat(dbFund.managementFee || "0"),
+  carryPercentage: parseFloat(dbFund.carryPercentage || "0"),
+  vintageYear: dbFund.vintageYear,
+  deployedCapital: parseFloat(dbFund.deployedCapital || "0"),
+  status: dbFund.status,
+  createdAt: dbFund.createdAt?.toISOString() || new Date().toISOString(),
+  updatedAt: new Date().toISOString(), // API doesn't return updatedAt, so use current time
+});
 
 export default function FundSetup() {
   const [, setLocation] = useLocation();
@@ -163,19 +179,29 @@ export default function FundSetup() {
     deployedCapital: 0
   });
 
-  const createFundMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await apiRequest('POST', '/api/funds', {
-        ...data,
-        size: parseFloat(data.size),
+  const createFundMutation = useMutation<Fund, Error, any>({
+    mutationFn: async (data: any): Promise<Fund> => {
+      // Extract only the fields required by CompleteFundSetupSchema
+      const fundPayload = {
+        name: data.name,
+        size: parseFloat(data.size || data.totalCommittedCapital),
+        deployedCapital: 0,
         managementFee: parseFloat(data.managementFee) / 100,
         carryPercentage: parseFloat(data.carryPercentage) / 100,
         vintageYear: parseInt(data.vintageYear),
-        deployedCapital: 0
-      });
-      return response.json();
+        isEvergreen: data.isEvergreen || false,
+        lifeYears: data.isEvergreen ? undefined : parseInt(data.lifeYears || data.fundLife || "10"),
+        investmentHorizonYears: parseInt(data.investmentHorizonYears || data.investmentPeriod || "5"),
+        investmentStrategy: data.investmentStrategy,
+        exitRecycling: data.exitRecycling,
+        waterfall: data.waterfall
+      };
+      
+      const response = await apiRequest('POST', '/api/funds', fundPayload);
+      const databaseFund = await response.json() as DatabaseFund;
+      return convertDatabaseFundToContextFund(databaseFund);
     },
-    onSuccess: (newFund) => {
+    onSuccess: (newFund: Fund) => {
       queryClient.invalidateQueries({ queryKey: ['/api/funds'] });
       setCurrentFund(newFund);
       toast({
