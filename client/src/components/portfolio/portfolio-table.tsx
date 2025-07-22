@@ -13,7 +13,7 @@ interface PortfolioCompany {
   foundedYear: number | null;
   status: string;
   description: string | null;
-  dealTags?: string[];
+  dealTags: string[] | null;
 }
 
 interface PortfolioTableProps {

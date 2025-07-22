@@ -61,6 +61,7 @@ interface Investment {
   valuationAtInvestment: number;
   leadInvestor?: string;
   rounds?: any[];
+  performanceCases?: any[];
 }
 
 export default function InvestmentDetail() {
