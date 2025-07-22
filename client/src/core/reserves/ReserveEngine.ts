@@ -78,7 +78,7 @@ function calculateRuleBasedAllocation(company: ReserveInput): ReserveOutput {
   }
   
   // Calculate confidence based on data quality using defined levels
-  let confidence = ConfidenceLevel.COLD_START; // Base cold-start confidence
+  let confidence: number = ConfidenceLevel.COLD_START; // Base cold-start confidence
   
   // Increase confidence based on available data
   if (stage && sector) confidence += 0.2;
@@ -86,7 +86,7 @@ function calculateRuleBasedAllocation(company: ReserveInput): ReserveOutput {
   if (invested > 1000000) confidence += 0.1; // Larger investments = more data
   
   // Cap confidence at reasonable cold-start level
-  confidence = Math.min(confidence, ConfidenceLevel.MEDIUM) as ConfidenceLevelType;
+  confidence = Math.min(confidence, ConfidenceLevel.MEDIUM);
   
   let rationale = `${stage} stage, ${sector} sector`;
   if (confidence <= ConfidenceLevel.LOW) {
