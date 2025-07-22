@@ -165,7 +165,7 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select a color">
-                  {value && (
+                  {value && typeof value === 'string' && (
                     <div className="flex items-center gap-2">
                       <div 
                         className="w-4 h-4 rounded-full" 
@@ -202,14 +202,18 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
                 className="w-full justify-start text-left font-normal"
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {value ? format(new Date(value), 'PPP') : 'Pick a date'}
+                {value && (typeof value === 'string' || typeof value === 'number' || value instanceof Date) 
+                  ? format(new Date(value), 'PPP') 
+                  : 'Pick a date'}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="single"
-                selected={value ? new Date(value) : undefined}
-                onSelect={(date) => updateFieldValue(field.id, date?.toISOString())}
+                selected={value && (typeof value === 'string' || typeof value === 'number' || value instanceof Date) 
+                  ? new Date(value) 
+                  : undefined}
+                onSelect={(date) => updateFieldValue(field.id, date?.toISOString() || '')}
                 initialFocus
               />
             </PopoverContent>
