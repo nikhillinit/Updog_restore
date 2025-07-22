@@ -104,7 +104,7 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
         return (
           <Input
             type="number"
-            value={value || ''}
+            value={typeof value === 'number' ? value.toString() : ''}
             onChange={(e) => updateFieldValue(field.id, parseFloat(e.target.value) || '')}
             placeholder="Enter a number"
           />
@@ -113,7 +113,7 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
       case 'text':
         return (
           <Textarea
-            value={value || ''}
+            value={(value as string) || ''}
             onChange={(e) => updateFieldValue(field.id, e.target.value)}
             placeholder="Enter text"
             rows={2}
@@ -121,7 +121,7 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
         );
 
       case 'tags':
-        const tags = value || [];
+        const tags = (value as string[]) || [];
         return (
           <div className="space-y-2">
             <div className="flex flex-wrap gap-2">
@@ -160,7 +160,7 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
         return (
           <div className="space-y-2">
             <Select
-              value={value || ''}
+              value={(value as string) || ''}
               onValueChange={(selectedColor) => updateFieldValue(field.id, selectedColor)}
             >
               <SelectTrigger>
