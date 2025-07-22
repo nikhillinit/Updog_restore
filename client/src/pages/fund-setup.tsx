@@ -122,9 +122,9 @@ export default function FundSetup() {
     
     // Fees and Expenses
     fundExpenses: [
-      { id: 'exp-1', name: 'Legal Fees', amount: '200000', timing: 'upfront' },
-      { id: 'exp-2', name: 'Audit & Tax', amount: '50000', timing: 'annual' },
-      { id: 'exp-3', name: 'Administration', amount: '100000', timing: 'annual' }
+      { id: 'exp-1', name: 'Legal Fees', amount: '200000', timing: 'upfront', category: 'Legal Fees', monthlyAmount: '16667', startMonth: '1', endMonth: '12' },
+      { id: 'exp-2', name: 'Audit & Tax', amount: '50000', timing: 'annual', category: 'Audit & Tax', monthlyAmount: '4167', startMonth: '1', endMonth: '120' },
+      { id: 'exp-3', name: 'Administration', amount: '100000', timing: 'annual', category: 'Administration', monthlyAmount: '8333', startMonth: '1', endMonth: '120' }
     ],
     feeStructure: "2.0",
     feeStepDown: false,
@@ -144,7 +144,13 @@ export default function FundSetup() {
     preferredReturnRate: "8",
     
     // Limited Partners
-    limitedPartners: [],
+    limitedPartners: [] as Array<{
+      id: string;
+      name: string;
+      investment: string;
+      feeProfile: string;
+      profitSplit: string;
+    }>,
     
     // Default values for fund creation
     size: "100000000",

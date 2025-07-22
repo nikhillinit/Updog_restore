@@ -20,7 +20,8 @@ import {
   Users,
   FileText,
   Settings,
-  Download
+  Download,
+  Calculator
 } from "lucide-react";
 
 type KPI = {

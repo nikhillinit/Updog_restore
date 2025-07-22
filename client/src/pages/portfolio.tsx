@@ -26,7 +26,7 @@ const stageDistribution = [
 
 export default function Portfolio() {
   const { currentFund } = useFundContext();
-  const { data: companies, isLoading } = usePortfolioCompanies(currentFund?.id);
+  const { portfolioCompanies: companies, isLoading } = usePortfolioCompanies(currentFund?.id);
   const [viewMode, setViewMode] = useState<'overview' | 'table' | 'moic' | 'charts'>('table');
 
   const totalInvestment = companies?.reduce((sum: number, company: any) => 
