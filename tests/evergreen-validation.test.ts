@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { fundSchema } from '../server/validators/fundSchema';
 import type { CompleteFundSetup } from '@shared/types';
 
-describe.skip('Evergreen Fund Validation', () => {
+describe('Evergreen Fund Validation', () => {
   const baseFundData: CompleteFundSetup = {
     name: "Test Fund",
     size: 100000000,
@@ -35,7 +35,7 @@ describe.skip('Evergreen Fund Validation', () => {
       restrictToSameStage: false
     },
     waterfall: {
-      type: 'american',
+      type: 'AMERICAN',
       hurdle: 0.08,
       catchUp: 0.08,
       carryVesting: {
@@ -150,7 +150,7 @@ describe.skip('Evergreen Fund Validation', () => {
       const europeanFund = {
         ...baseFundData,
         waterfall: {
-          type: 'european' as const,
+          type: 'EUROPEAN' as const,
           hurdle: 0.10, // 10%
           catchUp: 0.08, // 8% - less than hurdle, should fail
           carryVesting: {
@@ -174,7 +174,7 @@ describe.skip('Evergreen Fund Validation', () => {
       const europeanFund = {
         ...baseFundData,
         waterfall: {
-          type: 'european' as const,
+          type: 'EUROPEAN' as const,
           hurdle: 0.08, // 8%
           catchUp: 0.08, // 8% - equal to hurdle, should pass
           carryVesting: {
@@ -200,6 +200,12 @@ describe.skip('Evergreen Fund Validation', () => {
 
       const result = fundSchema.safeParse(minLifeFund);
       expect(result.success).toBe(false);
+      
+      if (!result.success) {
+        expect(result.error.errors.some(err => 
+          err.path.includes('lifeYears')
+        )).toBe(true);
+      }
     });
 
     it('should handle maximum fund life constraint', () => {
@@ -212,6 +218,12 @@ describe.skip('Evergreen Fund Validation', () => {
 
       const result = fundSchema.safeParse(maxLifeFund);
       expect(result.success).toBe(false);
+      
+      if (!result.success) {
+        expect(result.error.errors.some(err => 
+          err.path.includes('lifeYears')
+        )).toBe(true);
+      }
     });
 
     it('should handle minimum investment horizon constraint', () => {
@@ -224,6 +236,12 @@ describe.skip('Evergreen Fund Validation', () => {
 
       const result = fundSchema.safeParse(minHorizonFund);
       expect(result.success).toBe(false);
+      
+      if (!result.success) {
+        expect(result.error.errors.some(err => 
+          err.path.includes('investmentHorizonYears')
+        )).toBe(true);
+      }
     });
   });
 });

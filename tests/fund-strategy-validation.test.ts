@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { fundSchema, investmentStrategySchema, exitRecyclingSchema, waterfallSchema } from '../server/validators/fundSchema';
 import type { InvestmentStrategy, ExitRecycling, Waterfall } from '@shared/types';
 
-describe.skip('Fund Strategy Validation Rules', () => {
+describe('Fund Strategy Validation Rules', () => {
   describe('Investment Strategy Validation', () => {
     const validStrategy: InvestmentStrategy = {
       stages: [
@@ -139,7 +139,7 @@ describe.skip('Fund Strategy Validation Rules', () => {
 
   describe('Waterfall Validation', () => {
     const validWaterfall: Waterfall = {
-      type: 'american',
+      type: 'AMERICAN',
       hurdle: 0.08,
       catchUp: 0.10,
       carryVesting: {
@@ -164,9 +164,10 @@ describe.skip('Fund Strategy Validation Rules', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject catch-up rate lower than hurdle rate', () => {
+    it('should reject catch-up rate lower than hurdle rate for EUROPEAN waterfall', () => {
       const invalidWaterfall = {
         ...validWaterfall,
+        type: 'EUROPEAN' as const,
         hurdle: 0.10,
         catchUp: 0.08 // Lower than hurdle
       };
@@ -214,7 +215,7 @@ describe.skip('Fund Strategy Validation Rules', () => {
         restrictToSameStage: false
       },
       waterfall: {
-        type: 'american' as const,
+        type: 'AMERICAN' as const,
         hurdle: 0.08,
         catchUp: 0.08,
         carryVesting: {
@@ -250,6 +251,7 @@ describe.skip('Fund Strategy Validation Rules', () => {
         },
         waterfall: {
           ...validFund.waterfall,
+          type: 'EUROPEAN' as const,
           hurdle: 0.10,
           catchUp: 0.08 // Catch-up < hurdle
         }
