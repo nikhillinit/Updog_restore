@@ -123,7 +123,7 @@ async function seedPipelineData() {
       opportunityId: insertedOpportunities[0].id,
       criteriaName: 'Team',
       score: 9,
-      weight: 0.25,
+      weight: "0.25",
       notes: 'Exceptional founding team with deep domain expertise',
       scoredBy: 'Investment Partner'
     },
@@ -131,7 +131,7 @@ async function seedPipelineData() {
       opportunityId: insertedOpportunities[0].id,
       criteriaName: 'Market',
       score: 8,
-      weight: 0.20,
+      weight: "0.20",
       notes: 'Large addressable market with growing demand',
       scoredBy: 'Investment Partner'
     },
@@ -139,7 +139,7 @@ async function seedPipelineData() {
       opportunityId: insertedOpportunities[0].id,
       criteriaName: 'Product',
       score: 9,
-      weight: 0.25,
+      weight: "0.25",
       notes: 'Breakthrough technology with strong IP position',
       scoredBy: 'Technical Advisor'
     },
@@ -147,7 +147,7 @@ async function seedPipelineData() {
       opportunityId: insertedOpportunities[0].id,
       criteriaName: 'Traction',
       score: 7,
-      weight: 0.20,
+      weight: "0.20",
       notes: 'Good early customer validation, need more enterprise deals',
       scoredBy: 'Investment Associate'
     },
@@ -155,7 +155,7 @@ async function seedPipelineData() {
       opportunityId: insertedOpportunities[0].id,
       criteriaName: 'Financials',
       score: 8,
-      weight: 0.10,
+      weight: "0.10",
       notes: 'Strong unit economics and capital efficiency',
       scoredBy: 'Finance Team'
     }
