@@ -537,7 +537,7 @@ export default function FundSetup() {
                           : ''
                       }`}
                       placeholder="10"
-                      readOnly={fundData.hasEndDate && fundData.startDate && fundData.endDate}
+                      readOnly={Boolean(fundData.hasEndDate && fundData.startDate && fundData.endDate)}
                     />
                     <p className="text-sm text-gray-600">
                       {fundData.hasEndDate && fundData.startDate && fundData.endDate 
