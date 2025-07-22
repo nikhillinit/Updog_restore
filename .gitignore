@@ -91,4 +91,7 @@ replit.nix
 
 # Package manager lock files (optional - team can decide)
 # package-lock.json
-# yarn.lock.tscache
+# yarn.lock
+
+# TypeScript cache files
+.tscache

@@ -82,7 +82,10 @@ export default function ForecastingPage() {
         totalInvested,
         fundLevelMOIC,
         averageReserveEfficiency: portfolioCompanies.reduce((sum, co) => sum + co.reserveEfficiency, 0) / portfolioCompanies.length
-      }
+      },
+      investmentCycle: 36, // months
+      monthlyInvestmentRate: 1.2, // deals per month
+      totalDeals: 45 // total portfolio companies
     };
   };
 

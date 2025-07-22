@@ -51,10 +51,22 @@ export default function FundSetup() {
     // Committed Capital
     totalCommittedCapital: "100000000",
     gpCommitmentPercent: "2",
+    gpCommitment: "2",
     gpCommitmentAmount: "2000000",
     lpCommitmentAmount: "98000000",
     lpCommitmentCloses: [
       { month: 1, percentage: 100 }
+    ],
+    
+    // Investment Parameters
+    investmentStage: "seed",
+    followOnStrategy: "maintain_ownership",
+    checkSizeMin: "100000",
+    checkSizeMax: "2000000",
+    followOnRate: "50",
+    allocations: [
+      { id: 'alloc-1', name: 'Initial Investments', stage: 'seed', allocation: '60', sector: 'Generalist' },
+      { id: 'alloc-2', name: 'Follow-On', stage: 'series_a', allocation: '40', sector: 'Generalist' }
     ],
     
     // Cashless GP Commit (Optional)
@@ -108,6 +120,32 @@ export default function FundSetup() {
     // Advanced Settings
     vehicleStructure: "traditional_fund", // traditional_fund or spv
     
+    // Fees and Expenses
+    fundExpenses: [
+      { id: 'exp-1', name: 'Legal Fees', amount: '200000', timing: 'upfront' },
+      { id: 'exp-2', name: 'Audit & Tax', amount: '50000', timing: 'annual' },
+      { id: 'exp-3', name: 'Administration', amount: '100000', timing: 'annual' }
+    ],
+    feeStructure: "2.0",
+    feeStepDown: false,
+    feeStepDownYear: "5",
+    feeStepDownRate: "1.5",
+    
+    // Exit Recycling Fields
+    exitRecyclingRate: "50",
+    exitRecyclingCap: "100",
+    exitRecyclingTerm: "5",
+    
+    // Waterfall Fields
+    waterfallType: "EUROPEAN",
+    
+    // Preferred Return
+    preferredReturn: false,
+    preferredReturnRate: "8",
+    
+    // Limited Partners
+    limitedPartners: [],
+    
     // Default values for fund creation
     size: "100000000",
     managementFee: "2.0",
@@ -120,14 +158,17 @@ export default function FundSetup() {
   });
 
   const createFundMutation = useMutation({
-    mutationFn: (data: any) => apiRequest('POST', '/api/funds', {
-      ...data,
-      size: parseFloat(data.size),
-      managementFee: parseFloat(data.managementFee) / 100,
-      carryPercentage: parseFloat(data.carryPercentage) / 100,
-      vintageYear: parseInt(data.vintageYear),
-      deployedCapital: 0
-    }),
+    mutationFn: async (data: any) => {
+      const response = await apiRequest('POST', '/api/funds', {
+        ...data,
+        size: parseFloat(data.size),
+        managementFee: parseFloat(data.managementFee) / 100,
+        carryPercentage: parseFloat(data.carryPercentage) / 100,
+        vintageYear: parseInt(data.vintageYear),
+        deployedCapital: 0
+      });
+      return response.json();
+    },
     onSuccess: (newFund) => {
       queryClient.invalidateQueries({ queryKey: ['/api/funds'] });
       setCurrentFund(newFund);
@@ -159,6 +200,10 @@ export default function FundSetup() {
       
       return updated;
     });
+  };
+
+  const handleComplexDataChange = (field: string, value: any) => {
+    setFundData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleNext = () => {
@@ -323,7 +368,7 @@ export default function FundSetup() {
                         Fund has end date
                       </Label>
                     </div>
-                    {fundData.hasEndDate === 'true' && (
+                    {fundData.hasEndDate === true && (
                       <Input
                         type="date"
                         value={fundData.endDate}
@@ -382,7 +427,7 @@ export default function FundSetup() {
                       min="3"
                       max="20"
                       value={fundData.lifeYears}
-                      onChange={(e) => handleInputChange('lifeYears', parseInt(e.target.value))}
+                      onChange={(e) => handleInputChange('lifeYears', e.target.value)}
                       className="h-11 border-gray-300"
                       placeholder="10"
                     />
@@ -403,7 +448,7 @@ export default function FundSetup() {
                     min="1"
                     max={fundData.lifeYears || 20}
                     value={fundData.investmentHorizonYears}
-                    onChange={(e) => handleInputChange('investmentHorizonYears', parseInt(e.target.value))}
+                    onChange={(e) => handleInputChange('investmentHorizonYears', e.target.value)}
                     className="h-11 border-gray-300"
                     placeholder="5"
                   />
@@ -509,7 +554,7 @@ export default function FundSetup() {
             {currentStep === 'investment-strategy' && (
               <InvestmentStrategyStep
                 data={fundData.investmentStrategy}
-                onChange={(data) => handleInputChange('investmentStrategy', data)}
+                onChange={(data) => handleComplexDataChange('investmentStrategy', data)}
               />
             )}
 
@@ -517,7 +562,7 @@ export default function FundSetup() {
             {currentStep === 'exit-recycling' && (
               <ExitRecyclingStep
                 data={fundData.exitRecycling}
-                onChange={(data) => handleInputChange('exitRecycling', data)}
+                onChange={(data) => handleComplexDataChange('exitRecycling', data)}
               />
             )}
 
@@ -525,7 +570,7 @@ export default function FundSetup() {
             {currentStep === 'waterfall' && (
               <WaterfallStep
                 data={fundData.waterfall}
-                onChange={(data) => handleInputChange('waterfall', data)}
+                onChange={(data) => handleComplexDataChange('waterfall', data)}
               />
             )}
 
@@ -622,8 +667,8 @@ export default function FundSetup() {
                           id="gpCommitment"
                           type="number"
                           step="0.1"
-                          value={fundData.gpCommitment}
-                          onChange={(e) => handleInputChange('gpCommitment', e.target.value)}
+                          value={fundData.gpCommitmentPercent}
+                          onChange={(e) => handleInputChange('gpCommitmentPercent', e.target.value)}
                           placeholder="2.0"
                           className="h-11 pr-8"
                         />
@@ -637,8 +682,8 @@ export default function FundSetup() {
                       </Label>
                       <div className="h-11 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 flex items-center">
                         <span className="text-gray-900 font-medium">
-                          {fundData.size && fundData.gpCommitment 
-                            ? `$${((parseFloat(fundData.size) * parseFloat(fundData.gpCommitment)) / 100 / 1000000).toFixed(1)}M`
+                          {fundData.totalCommittedCapital && fundData.gpCommitmentPercent 
+                            ? `$${((parseFloat(fundData.totalCommittedCapital) * parseFloat(fundData.gpCommitmentPercent)) / 100 / 1000000).toFixed(1)}M`
                             : '$0M'}
                         </span>
                       </div>
@@ -684,7 +729,7 @@ export default function FundSetup() {
             )}
 
             {/* Features Step */}
-            {currentStep === 'features' && (
+            {currentStep === 'advanced-settings' && (
               <div className="space-y-8">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                   <p className="text-sm text-blue-800">
@@ -794,7 +839,7 @@ export default function FundSetup() {
                               onChange={(e) => {
                                 const newAllocations = [...fundData.allocations];
                                 newAllocations[index].name = e.target.value;
-                                handleInputChange('allocations', JSON.stringify(newAllocations));
+                                handleComplexDataChange('allocations', newAllocations);
                               }}
                               placeholder="e.g., Seed Investments"
                               className="h-10"
@@ -807,7 +852,7 @@ export default function FundSetup() {
                               onValueChange={(value) => {
                                 const newAllocations = [...fundData.allocations];
                                 newAllocations[index].stage = value;
-                                handleInputChange('allocations', JSON.stringify(newAllocations));
+                                handleComplexDataChange('allocations', newAllocations);
                               }}
                             >
                               <SelectTrigger className="h-10">
@@ -830,7 +875,7 @@ export default function FundSetup() {
                               onChange={(e) => {
                                 const newAllocations = [...fundData.allocations];
                                 newAllocations[index].allocation = e.target.value;
-                                handleInputChange('allocations', JSON.stringify(newAllocations));
+                                handleComplexDataChange('allocations', newAllocations);
                               }}
                               placeholder="80"
                               className="h-10"
@@ -843,7 +888,7 @@ export default function FundSetup() {
                               onValueChange={(value) => {
                                 const newAllocations = [...fundData.allocations];
                                 newAllocations[index].sector = value;
-                                handleInputChange('allocations', JSON.stringify(newAllocations));
+                                handleComplexDataChange('allocations', newAllocations);
                               }}
                             >
                               <SelectTrigger className="h-10">
@@ -1079,7 +1124,7 @@ export default function FundSetup() {
                         Enable fee step-down
                       </Label>
                     </div>
-                    {fundData.feeStepDown === 'true' && (
+                    {fundData.feeStepDown === true && (
                       <div className="grid grid-cols-2 gap-4 ml-6">
                         <div className="space-y-2">
                           <Label className="text-sm text-gray-600">Step-down after year</Label>
@@ -1117,22 +1162,28 @@ export default function FundSetup() {
                       <input
                         type="checkbox"
                         id="exitRecycling"
-                        checked={fundData.exitRecycling}
-                        onChange={(e) => handleInputChange('exitRecycling', e.target.checked.toString())}
+                        checked={fundData.exitRecycling.enabled}
+                        onChange={(e) => {
+                          const updated = { ...fundData.exitRecycling, enabled: e.target.checked };
+                          handleComplexDataChange('exitRecycling', updated);
+                        }}
                         className="h-4 w-4 text-blue-600 border-gray-300 rounded"
                       />
                       <Label htmlFor="exitRecycling" className="text-sm font-medium text-gray-700">
                         Enable exit recycling
                       </Label>
                     </div>
-                    {fundData.exitRecycling === 'true' && (
+                    {fundData.exitRecycling.enabled && (
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ml-6">
                         <div className="space-y-2">
                           <Label className="text-sm text-gray-600">Recycling rate (%)</Label>
                           <Input
                             type="number"
-                            value={fundData.exitRecyclingRate}
-                            onChange={(e) => handleInputChange('exitRecyclingRate', e.target.value)}
+                            value={fundData.exitRecycling.recyclePercentage}
+                            onChange={(e) => {
+                              const updated = { ...fundData.exitRecycling, recyclePercentage: parseFloat(e.target.value) };
+                              handleComplexDataChange('exitRecycling', updated);
+                            }}
                             placeholder="100"
                             className="h-10"
                           />
@@ -1141,8 +1192,11 @@ export default function FundSetup() {
                           <Label className="text-sm text-gray-600">Max cap (% of committed capital)</Label>
                           <Input
                             type="number"
-                            value={fundData.exitRecyclingCap}
-                            onChange={(e) => handleInputChange('exitRecyclingCap', e.target.value)}
+                            value={fundData.exitRecycling.maxRecycleAmount || ''}
+                            onChange={(e) => {
+                              const updated = { ...fundData.exitRecycling, maxRecycleAmount: parseFloat(e.target.value) };
+                              handleComplexDataChange('exitRecycling', updated);
+                            }}
                             placeholder="50"
                             className="h-10"
                           />
@@ -1151,8 +1205,11 @@ export default function FundSetup() {
                           <Label className="text-sm text-gray-600">Term (years)</Label>
                           <Input
                             type="number"
-                            value={fundData.exitRecyclingTerm}
-                            onChange={(e) => handleInputChange('exitRecyclingTerm', e.target.value)}
+                            value={fundData.exitRecycling.recycleWindowMonths}
+                            onChange={(e) => {
+                              const updated = { ...fundData.exitRecycling, recycleWindowMonths: parseFloat(e.target.value) };
+                              handleComplexDataChange('exitRecycling', updated);
+                            }}
                             placeholder="5"
                             className="h-10"
                           />
@@ -1170,7 +1227,10 @@ export default function FundSetup() {
                   <div className="space-y-6">
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-gray-700">Waterfall Type</Label>
-                      <Select value={fundData.waterfallType} onValueChange={(value) => handleInputChange('waterfallType', value)}>
+                      <Select value={fundData.waterfall.type} onValueChange={(value) => {
+                        const updated = { ...fundData.waterfall, type: value };
+                        handleComplexDataChange('waterfall', updated);
+                      }}>
                         <SelectTrigger className="h-11">
                           <SelectValue placeholder="Select waterfall type" />
                         </SelectTrigger>
@@ -1212,7 +1272,7 @@ export default function FundSetup() {
                             Preferred Return
                           </Label>
                         </div>
-                        {fundData.preferredReturn === 'true' && (
+                        {fundData.preferredReturn === true && (
                           <div className="relative">
                             <Input
                               type="number"
@@ -1484,7 +1544,7 @@ export default function FundSetup() {
                       <div>
                         <p className="text-sm text-gray-600">Type</p>
                         <p className="font-semibold text-gray-900">
-                          {fundData.waterfall.type === 'european' ? 'European (deal-by-deal)' : 'American (fund-level)'}
+                          {fundData.waterfall.type === 'EUROPEAN' ? 'European (deal-by-deal)' : 'American (fund-level)'}
                         </p>
                       </div>
                       <div>
@@ -1530,7 +1590,7 @@ export default function FundSetup() {
               <Button 
                 variant="outline" 
                 onClick={handleBack}
-                disabled={currentStep === 'essentials'}
+                disabled={currentStep === 'fund-basics'}
                 className="flex items-center space-x-2"
               >
                 <ArrowLeft className="h-4 w-4" />

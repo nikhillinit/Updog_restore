@@ -66,10 +66,7 @@ export default function InvestmentDetail() {
 
   const addRoundMutation = useMutation({
     mutationFn: (data: RoundData) => 
-      apiRequest(`/api/investments/${investmentId}/rounds`, {
-        method: 'POST',
-        body: data
-      }),
+      apiRequest('POST', `/api/investments/${investmentId}/rounds`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/investments', investmentId] });
       setShowRoundDialog(false);
@@ -79,10 +76,7 @@ export default function InvestmentDetail() {
 
   const addCaseMutation = useMutation({
     mutationFn: (data: PerformanceCaseData) => 
-      apiRequest(`/api/investments/${investmentId}/cases`, {
-        method: 'POST',
-        body: data
-      }),
+      apiRequest('POST', `/api/investments/${investmentId}/cases`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/investments', investmentId] });
       setShowCaseDialog(false);
