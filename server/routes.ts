@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { z } from "zod";
 import { storage } from "./storage";
 import { insertFundSchema, insertPortfolioCompanySchema, insertActivitySchema } from "@shared/schema";
 import { fundSchema } from "./validators/fundSchema";
@@ -62,8 +63,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/funds", async (req, res) => {
     try {
-      // Use comprehensive fund schema with cross-field validation
-      const result = fundSchema.safeParse(req.body);
+      // For now, validate only the basic fund fields that can be stored
+      // TODO: Add support for storing investment strategy, exit recycling, and waterfall
+      const basicFundSchema = z.object({
+        name: z.string().min(1),
+        size: z.number().positive(),
+        deployedCapital: z.number().nonnegative().optional(),
+        managementFee: z.number().min(0).max(1),
+        carryPercentage: z.number().min(0).max(1),
+        vintageYear: z.number().int().min(2000).max(2030)
+      });
+      
+      const result = basicFundSchema.safeParse(req.body);
       if (!result.success) {
         const error: ApiError = {
           error: 'Invalid fund data',
@@ -73,11 +84,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json(error);
       }
       
-      // Convert to format expected by storage layer (only basic fund fields)
+      // Convert to format expected by storage layer
       const basicFundData = {
         name: result.data.name,
         size: result.data.size,
-        deployedCapital: result.data.deployedCapital,
+        deployedCapital: result.data.deployedCapital || 0,
         managementFee: result.data.managementFee,
         carryPercentage: result.data.carryPercentage,
         vintageYear: result.data.vintageYear,
