@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -221,6 +221,16 @@ export default function FundSetup() {
 
   const currentStepIndex = WIZARD_STEPS.findIndex(s => s.id === currentStep);
 
+  // Initialize fund life calculation on component mount
+  useEffect(() => {
+    if (fundData.hasEndDate && fundData.startDate && fundData.endDate) {
+      const updatedData = calculateFundLifeFromDates(fundData);
+      if (updatedData !== fundData) {
+        setFundData(updatedData);
+      }
+    }
+  }, []); // Empty dependency array to run only on mount
+
   const handleInputChange = (field: string, value: string | boolean) => {
     setFundData(prev => {
       const updated = { ...prev, [field]: value };
@@ -228,6 +238,11 @@ export default function FundSetup() {
       // Auto-calculate dependent fields
       if (field === 'totalCommittedCapital' || field === 'gpCommitmentPercent') {
         return updateCalculatedFields(updated);
+      }
+      
+      // Auto-calculate fund life when dates change
+      if (field === 'startDate' || field === 'endDate') {
+        return calculateFundLifeFromDates(updated);
       }
       
       return updated;
@@ -252,6 +267,37 @@ export default function FundSetup() {
     if (currentIndex > 0) {
       setCurrentStep(stepOrder[currentIndex - 1]);
     }
+  };
+
+  const calculateFundLifeFromDates = (data: any) => {
+    if (data.startDate && data.endDate && data.hasEndDate) {
+      const startDate = new Date(data.startDate);
+      const endDate = new Date(data.endDate);
+      
+      if (endDate <= startDate) {
+        toast({
+          title: "Invalid Date Range",
+          description: "Fund end date must be after the start date.",
+          variant: "destructive",
+        });
+        return data;
+      }
+      
+      const diffInMs = endDate.getTime() - startDate.getTime();
+      const diffInYears = diffInMs / (1000 * 60 * 60 * 24 * 365.25);
+      const fundLifeYears = Math.round(diffInYears);
+      
+      return {
+        ...data,
+        lifeYears: fundLifeYears,
+        vintageYear: startDate.getFullYear().toString()
+      };
+    }
+    
+    return {
+      ...data,
+      vintageYear: data.startDate ? new Date(data.startDate).getFullYear().toString() : data.vintageYear
+    };
   };
 
   const updateCalculatedFields = (data: any) => {
@@ -393,22 +439,39 @@ export default function FundSetup() {
                         type="checkbox"
                         id="hasEndDate"
                         checked={fundData.hasEndDate}
-                        onChange={(e) => handleInputChange('hasEndDate', e.target.checked.toString())}
+                        onChange={(e) => {
+                          handleInputChange('hasEndDate', e.target.checked);
+                          if (!e.target.checked) {
+                            // Clear the calculated life years when switching to evergreen
+                            setFundData(prev => ({ ...prev, lifeYears: 10 }));
+                          }
+                        }}
                         className="h-4 w-4 text-blue-600 border-gray-300 rounded"
                       />
                       <Label htmlFor="hasEndDate" className="text-sm text-gray-700">
                         Fund has end date
                       </Label>
                     </div>
-                    {fundData.hasEndDate === true && (
+                    {fundData.hasEndDate && (
                       <Input
                         type="date"
                         value={fundData.endDate}
                         onChange={(e) => handleInputChange('endDate', e.target.value)}
                         className="h-11 border-gray-300 w-full min-w-0"
+                        min={fundData.startDate}
                       />
                     )}
                   </div>
+                  {fundData.hasEndDate && fundData.startDate && fundData.endDate && (
+                    <p className="text-sm text-gray-600">
+                      Fund life: {(() => {
+                        const start = new Date(fundData.startDate);
+                        const end = new Date(fundData.endDate);
+                        const years = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+                        return years;
+                      })()} years
+                    </p>
+                  )}
                 </div>
 
                 {/* Capital Call Frequency */}
@@ -460,11 +523,18 @@ export default function FundSetup() {
                       max="20"
                       value={fundData.lifeYears}
                       onChange={(e) => handleInputChange('lifeYears', e.target.value)}
-                      className="h-11 border-gray-300"
+                      className={`h-11 border-gray-300 ${
+                        fundData.hasEndDate && fundData.startDate && fundData.endDate 
+                          ? 'bg-gray-100 cursor-not-allowed' 
+                          : ''
+                      }`}
                       placeholder="10"
+                      readOnly={fundData.hasEndDate && fundData.startDate && fundData.endDate}
                     />
                     <p className="text-sm text-gray-600">
-                      Total fund duration (typically 10-12 years)
+                      {fundData.hasEndDate && fundData.startDate && fundData.endDate 
+                        ? 'Automatically calculated from start and end dates'
+                        : 'Total fund duration (typically 10-12 years)'}
                     </p>
                   </div>
                 )}
@@ -1149,14 +1219,14 @@ export default function FundSetup() {
                         type="checkbox"
                         id="feeStepDown"
                         checked={fundData.feeStepDown}
-                        onChange={(e) => handleInputChange('feeStepDown', e.target.checked.toString())}
+                        onChange={(e) => handleInputChange('feeStepDown', e.target.checked)}
                         className="h-4 w-4 text-blue-600 border-gray-300 rounded"
                       />
                       <Label htmlFor="feeStepDown" className="text-sm font-medium text-gray-700">
                         Enable fee step-down
                       </Label>
                     </div>
-                    {fundData.feeStepDown === true && (
+                    {fundData.feeStepDown && (
                       <div className="grid grid-cols-2 gap-4 ml-6">
                         <div className="space-y-2">
                           <Label className="text-sm text-gray-600">Step-down after year</Label>
@@ -1191,16 +1261,16 @@ export default function FundSetup() {
                   
                   <div className="space-y-4">
                     <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="exitRecycling"
-                        checked={fundData.exitRecycling.enabled}
-                        onChange={(e) => {
-                          const updated = { ...fundData.exitRecycling, enabled: e.target.checked };
-                          handleComplexDataChange('exitRecycling', updated);
-                        }}
-                        className="h-4 w-4 text-blue-600 border-gray-300 rounded"
-                      />
+                          <input
+                            type="checkbox"
+                            id="exitRecycling"
+                            checked={Boolean(fundData.exitRecycling.enabled)}
+                            onChange={(e) => {
+                              const updated = { ...fundData.exitRecycling, enabled: Boolean(e.target.checked) };
+                              handleComplexDataChange('exitRecycling', updated);
+                            }}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                          />
                       <Label htmlFor="exitRecycling" className="text-sm font-medium text-gray-700">
                         Enable exit recycling
                       </Label>
@@ -1297,14 +1367,14 @@ export default function FundSetup() {
                             type="checkbox"
                             id="preferredReturn"
                             checked={fundData.preferredReturn}
-                            onChange={(e) => handleInputChange('preferredReturn', e.target.checked.toString())}
+                            onChange={(e) => handleInputChange('preferredReturn', e.target.checked)}
                             className="h-4 w-4 text-blue-600 border-gray-300 rounded"
                           />
                           <Label htmlFor="preferredReturn" className="text-sm font-medium text-gray-700">
                             Preferred Return
                           </Label>
                         </div>
-                        {fundData.preferredReturn === true && (
+                        {fundData.preferredReturn && (
                           <div className="relative">
                             <Input
                               type="number"
