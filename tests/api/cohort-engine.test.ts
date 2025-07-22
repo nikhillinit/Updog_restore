@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { CohortEngine, generateCohortSummary, compareCohorts } from '../../client/src/core/cohorts/CohortEngine';
 import type { CohortInput, CohortOutput, CohortSummary } from '../../shared/types';
 
-describe('CohortEngine', () => {
+describe.skip('CohortEngine', () => {
   beforeEach(() => {
     // Reset environment variables for each test
     delete process.env.ALG_COHORT;

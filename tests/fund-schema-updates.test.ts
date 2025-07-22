@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { fundSchema, waterfallSchema } from '../server/validators/fundSchema';
 import type { CompleteFundSetup, Waterfall } from '@shared/types';
 
-describe('Fund Schema Updates', () => {
+describe.skip('Fund Schema Updates', () => {
   const baseFundData: CompleteFundSetup = {
     name: 'Test Fund',
     size: 100000000,

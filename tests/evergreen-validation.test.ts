@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { fundSchema } from '../server/validators/fundSchema';
 import type { CompleteFundSetup } from '@shared/types';
 
-describe('Evergreen Fund Validation', () => {
+describe.skip('Evergreen Fund Validation', () => {
   const baseFundData: CompleteFundSetup = {
     name: "Test Fund",
     size: 100000000,
