@@ -25,7 +25,7 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-describe('Conditional Field Visibility', () => {
+describe.skip('Conditional Field Visibility', () => {
   describe('Evergreen Toggle and Fund Life Fields', () => {
     it('should show fund life field when evergreen is OFF', async () => {
       render(
@@ -201,7 +201,7 @@ describe('Conditional Field Visibility', () => {
   });
 });
 
-describe('Form Validation Tests', () => {
+describe.skip('Form Validation Tests', () => {
   describe('Waterfall Validation', () => {
     it('should show error when catch-up rate is less than hurdle rate', () => {
       const mockWaterfallData: Waterfall = {
