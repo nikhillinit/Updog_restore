@@ -24,7 +24,7 @@ import { CustomField } from './custom-fields-manager';
 
 interface CustomFieldValue {
   fieldId: string;
-  value: any;
+  value: string | number | boolean | Date | string[];
 }
 
 interface CustomFieldsEditorProps {
@@ -65,7 +65,7 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
     return fieldValue?.value;
   };
 
-  const updateFieldValue = (fieldId: string, value: any) => {
+  const updateFieldValue = (fieldId: string, value: string | number | boolean | Date | string[]) => {
     const updatedValues = values.filter(v => v.fieldId !== fieldId);
     if (value !== undefined && value !== null && value !== '') {
       updatedValues.push({ fieldId, value });
@@ -77,7 +77,7 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
     const tagInput = tagInputs[fieldId]?.trim();
     if (!tagInput) return;
 
-    const currentTags = getFieldValue(fieldId) || [];
+    const currentTags = (getFieldValue(fieldId) as string[]) || [];
     if (!currentTags.includes(tagInput)) {
       updateFieldValue(fieldId, [...currentTags, tagInput]);
     }
@@ -85,7 +85,7 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
   };
 
   const removeTag = (fieldId: string, tagToRemove: string) => {
-    const currentTags = getFieldValue(fieldId) || [];
+    const currentTags = (getFieldValue(fieldId) as string[]) || [];
     updateFieldValue(fieldId, currentTags.filter((tag: string) => tag !== tagToRemove));
   };
 
