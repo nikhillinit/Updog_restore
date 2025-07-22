@@ -1,0 +1,37 @@
+# CODEOWNERS file for automatic PR review assignment
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global owners (fallback)
+* @nikhillinit
+
+# Test files ownership
+/tests/ @nikhillinit @qa-team
+*.test.ts @nikhillinit @qa-team
+*.test.tsx @nikhillinit @qa-team
+*.spec.ts @nikhillinit @qa-team
+*.spec.tsx @nikhillinit @qa-team
+
+# CI/CD ownership
+/.github/ @nikhillinit @devops-team
+/scripts/ @nikhillinit @devops-team
+
+# Core application code
+/client/src/core/ @nikhillinit
+/server/ @nikhillinit
+/shared/ @nikhillinit
+
+# Documentation
+*.md @nikhillinit
+/docs/ @nikhillinit
+
+# Configuration files
+*.json @nikhillinit
+*.yml @nikhillinit
+*.yaml @nikhillinit
+tsconfig*.json @nikhillinit
+vite.config.ts @nikhillinit
+vitest.config.ts @nikhillinit
+
+# Database
+/server/db/ @nikhillinit @backend-team
+*.sql @nikhillinit @backend-team
