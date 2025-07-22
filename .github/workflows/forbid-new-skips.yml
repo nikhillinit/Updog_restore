@@ -1,0 +1,76 @@
+name: Forbid New Test Skips
+
+on:
+  pull_request:
+    paths:
+      - 'tests/**'
+      - '**/*.test.*'
+      - '**/*.spec.*'
+
+jobs:
+  check-skips:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for unauthorized test skips
+        run: |
+          echo "Checking for new test skips..."
+          
+          # Get changed files in this PR
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}..HEAD | grep -E '\.(test|spec)\.(ts|tsx|js|jsx)$' || true)
+          
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No test files changed, skipping check"
+            exit 0
+          fi
+          
+          echo "Changed test files:"
+          echo "$CHANGED_FILES"
+          
+          # Check for new skips without proper justification
+          UNAUTHORIZED_SKIPS=()
+          
+          for file in $CHANGED_FILES; do
+            if [ -f "$file" ]; then
+              # Look for .skip( patterns
+              SKIP_LINES=$(grep -n "\.skip(" "$file" || true)
+              
+              if [ -n "$SKIP_LINES" ]; then
+                echo "Found skips in $file:"
+                echo "$SKIP_LINES"
+                
+                # Check each skip line for #temporary-skip comment
+                while IFS= read -r line; do
+                  LINE_NUM=$(echo "$line" | cut -d: -f1)
+                  LINE_CONTENT=$(echo "$line" | cut -d: -f2-)
+                  
+                  # Check if the line or nearby lines contain #temporary-skip
+                  CONTEXT=$(sed -n "$((LINE_NUM-2)),$((LINE_NUM+2))p" "$file")
+                  
+                  if ! echo "$CONTEXT" | grep -q "#temporary-skip"; then
+                    UNAUTHORIZED_SKIPS+=("$file:$LINE_NUM - $LINE_CONTENT")
+                  fi
+                done <<< "$SKIP_LINES"
+              fi
+            fi
+          done
+          
+          if [ ${#UNAUTHORIZED_SKIPS[@]} -gt 0 ]; then
+            echo "❌ Found unauthorized test skips:"
+            printf '%s\n' "${UNAUTHORIZED_SKIPS[@]}"
+            echo ""
+            echo "Please either:"
+            echo "1. Remove the .skip() calls, or"
+            echo "2. Add a '#temporary-skip' comment explaining why the test is skipped"
+            echo ""
+            echo "Example:"
+            echo "  describe.skip('My Test', () => { // #temporary-skip: needs database setup"
+            echo "  it.skip('should work', () => { // #temporary-skip: flaky in CI"
+            exit 1
+          else
+            echo "✅ All test skips are properly justified"
+          fi
