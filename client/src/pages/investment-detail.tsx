@@ -49,6 +49,20 @@ const performanceCaseSchema = z.object({
 type RoundData = z.infer<typeof roundSchema>;
 type PerformanceCaseData = z.infer<typeof performanceCaseSchema>;
 
+interface Investment {
+  id: number;
+  name: string;
+  geography: string;
+  sector: string;
+  stage: string;
+  amount: number;
+  investmentDate: string;
+  ownershipPercentage: number;
+  valuationAtInvestment: number;
+  leadInvestor?: string;
+  rounds?: any[];
+}
+
 export default function InvestmentDetail() {
   const [, params] = useRoute("/investments/:id");
   const investmentId = params?.id ? parseInt(params.id) : null;
@@ -59,7 +73,7 @@ export default function InvestmentDetail() {
   const [selectedPerformanceCase, setSelectedPerformanceCase] = useState<any>(null);
   const [showCapTableCalculator, setShowCapTableCalculator] = useState(false);
 
-  const { data: investment, isLoading } = useQuery({
+  const { data: investment, isLoading } = useQuery<Investment>({
     queryKey: ['/api/investments', investmentId],
     enabled: !!investmentId
   });
