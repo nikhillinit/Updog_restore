@@ -14,9 +14,9 @@ const connection = {
 };
 
 // Initialize queues
-const reserveQueue = new Queue('reserve:calc', { connection });
-const pacingQueue = new Queue('pacing:calc', { connection });
-const cohortQueue = new Queue('cohort:calc', { connection });
+const reserveQueue = new Queue('reserve-calc', { connection });
+const pacingQueue = new Queue('pacing-calc', { connection });
+const cohortQueue = new Queue('cohort-calc', { connection });
 
 export function registerFundConfigRoutes(app: Express) {
   // Save draft configuration
