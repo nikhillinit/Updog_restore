@@ -1,8 +1,10 @@
 import { Worker } from 'bullmq';
 import { db } from '../server/db';
+import { fundConfigs, fundSnapshots, portfolioCompanies } from '@shared/schema';
+import { eq, and, desc } from 'drizzle-orm';
 import { ReserveEngine, generateReserveSummary } from '../client/src/core/reserves/ReserveEngine';
 import { logger } from '../lib/logger';
-import { withMetrics } from '../lib/metrics';
+import { withMetrics, metrics } from '../lib/metrics';
 import type { ReserveInput } from '@shared/types';
 
 const connection = {
@@ -18,6 +20,8 @@ export const reserveWorker = new Worker(
     logger.info('Processing reserve calculation', { fundId, correlationId, jobId: job.id });
     
     return withMetrics('reserve', async () => {
+      const startTime = performance.now();
+      
       try {
         // TODO: Load fund config from fund_configs table
         // For now, use existing funds table
@@ -47,20 +51,36 @@ export const reserveWorker = new Worker(
         // Generate reserve calculations
         const reserves = generateReserveSummary(fundId, portfolio);
         
-        // TODO: Write to fund_snapshots table
-        // For now, just log the result
+        // Write snapshot to database
+        const [snapshot] = await db.insert(fundSnapshots).values({
+          fundId,
+          type: 'RESERVE',
+          payload: reserves as any, // JSONB expects any
+          calcVersion: process.env.ALG_RESERVE_VERSION || '1.0.0',
+          correlationId,
+          metadata: {
+            portfolioCount: portfolio.length,
+            engineRuntime: performance.now() - startTime,
+          },
+        }).returning();
+        
+        // Record metrics
+        metrics.recordSnapshotWrite('RESERVE', true);
+        
         logger.info('Reserve calculation completed', {
           fundId,
           correlationId,
+          snapshotId: snapshot.id,
           totalAllocation: reserves.totalAllocation,
           avgConfidence: reserves.avgConfidence,
         });
         
         return {
           fundId,
+          snapshotId: snapshot.id,
           reserves,
-          calculatedAt: new Date(),
-          version: process.env.ALG_RESERVE_VERSION || '1.0.0',
+          calculatedAt: snapshot.createdAt,
+          version: snapshot.calcVersion,
         };
       } catch (error) {
         logger.error('Reserve calculation failed', error as Error, {

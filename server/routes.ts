@@ -10,6 +10,7 @@ import { fundSchema } from "./validators/fundSchema";
 import { ReserveEngine, generateReserveSummary } from "../client/src/core/reserves/ReserveEngine.js";
 import { PacingEngine, generatePacingSummary } from "../client/src/core/pacing/PacingEngine.js";
 import { CohortEngine, generateCohortSummary } from "../client/src/core/cohorts/CohortEngine.js";
+import { registerFundConfigRoutes } from "./routes/fund-config.js";
 import type { ReserveInput, PacingInput, CohortInput, ApiError, ReserveSummary, PacingSummary, CohortSummary } from "@shared/types";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -635,6 +636,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json(apiError);
     }
   });
+
+  // Register fund configuration routes
+  registerFundConfigRoutes(app);
 
   const httpServer = createServer(app);
   return httpServer;
