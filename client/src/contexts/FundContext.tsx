@@ -12,6 +12,7 @@ export interface Fund {
   status: string;
   createdAt: string;
   updatedAt: string;
+  termYears?: number;
 }
 
 interface FundContextType {

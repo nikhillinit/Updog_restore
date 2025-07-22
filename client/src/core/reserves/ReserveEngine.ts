@@ -86,7 +86,7 @@ function calculateRuleBasedAllocation(company: ReserveInput): ReserveOutput {
   if (invested > 1000000) confidence += 0.1; // Larger investments = more data
   
   // Cap confidence at reasonable cold-start level
-  confidence = Math.min(confidence, ConfidenceLevel.MEDIUM);
+  confidence = Math.min(confidence, ConfidenceLevel.MEDIUM) as ConfidenceLevelType;
   
   let rationale = `${stage} stage, ${sector} sector`;
   if (confidence <= ConfidenceLevel.LOW) {

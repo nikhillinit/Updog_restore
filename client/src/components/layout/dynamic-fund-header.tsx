@@ -108,7 +108,7 @@ export default function DynamicFundHeader() {
                 <Separator orientation="vertical" className="h-4" />
                 <span>Vintage: {currentFund.vintageYear}</span>
                 <Separator orientation="vertical" className="h-4" />
-                <span>Term: {currentFund.termYears} years</span>
+                {currentFund.termYears && <span>Term: {currentFund.termYears} years</span>}
               </div>
             </div>
           </div>

@@ -91,4 +91,4 @@ replit.nix
 
 # Package manager lock files (optional - team can decide)
 # package-lock.json
-# yarn.lock
+# yarn.lock.tscache
