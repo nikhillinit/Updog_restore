@@ -70,8 +70,8 @@ const NivoMOICScatter = memo(function NivoMOICScatter({
     colors: ['#2563eb', '#dc2626', '#16a34a', '#ca8a04'],
     nodeSize: {
       key: 'investment',
-      values: [0, 5000000],
-      sizes: [6, 20]
+      values: [0, 5000000] as [number, number],
+      sizes: [6, 20] as [number, number]
     },
     animate: true,
     motionConfig: 'gentle' as const,

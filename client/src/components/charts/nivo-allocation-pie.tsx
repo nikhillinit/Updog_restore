@@ -46,19 +46,13 @@ const NivoAllocationPie = memo(function NivoAllocationPie({
     cornerRadius: 3,
     activeOuterRadiusOffset: 8,
     borderWidth: 1,
-    borderColor: {
-      from: 'color',
-      modifiers: [['darker', 0.2]]
-    },
+    borderColor: '#ffffff',
     arcLinkLabelsSkipAngle: 10,
     arcLinkLabelsTextColor: '#333333',
     arcLinkLabelsThickness: 2,
     arcLinkLabelsColor: { from: 'color' },
     arcLabelsSkipAngle: 10,
-    arcLabelsTextColor: {
-      from: 'color',
-      modifiers: [['darker', 2]]
-    },
+    arcLabelsTextColor: '#ffffff',
     colors: ['#2563eb', '#dc2626', '#16a34a', '#ca8a04', '#7c3aed', '#ea580c'],
     animate: true,
     motionConfig: 'gentle' as const,

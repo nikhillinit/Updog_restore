@@ -39,9 +39,14 @@ interface SAFENote {
   principal: number;
   valuationCap?: number;
   discount?: number;
+  interestRate?: number;
+  maturityDate?: string;
   conversionPrice?: number;
   shares?: number;
   holderName: string;
+  investmentDate: string;
+  mostFavoredNation?: boolean;
+  proRataRights?: boolean;
 }
 
 interface CapTableScenario {
@@ -81,7 +86,8 @@ const SAMPLE_SAFES_NOTES: SAFENote[] = [
     principal: 500000,
     valuationCap: 8000000,
     discount: 0.20,
-    holderName: 'Angel Investor 1'
+    holderName: 'Angel Investor 1',
+    investmentDate: '2024-01-15'
   },
   {
     id: 'safe-2',
@@ -89,7 +95,8 @@ const SAMPLE_SAFES_NOTES: SAFENote[] = [
     principal: 250000,
     valuationCap: 10000000,
     discount: 0.15,
-    holderName: 'Angel Investor 2'
+    holderName: 'Angel Investor 2',
+    investmentDate: '2024-02-01'
   },
   {
     id: 'note-1',
@@ -97,7 +104,8 @@ const SAMPLE_SAFES_NOTES: SAFENote[] = [
     principal: 750000,
     valuationCap: 12000000,
     discount: 0.25,
-    holderName: 'Convertible Note Holder'
+    holderName: 'Convertible Note Holder',
+    investmentDate: '2024-03-10'
   }
 ];
 

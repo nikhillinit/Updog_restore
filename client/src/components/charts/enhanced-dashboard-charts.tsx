@@ -112,8 +112,8 @@ export function PerformanceChart({ data, title = "Fund Performance Over Time" }:
             ]}
             tooltip={({ point }) => (
               <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-                <div className="font-semibold" style={{ color: point.serieColor }}>
-                  {point.serieId}
+                <div className="font-semibold" style={{ color: point.seriesColor }}>
+                  {point.seriesId}
                 </div>
                 <div className="text-sm text-gray-600">
                   {point.data.xFormatted}: {point.data.yFormatted}x
@@ -264,10 +264,46 @@ export function MOICAnalysisChart({ data, title = "Portfolio Performance Analysi
 // Enhanced Capital Deployment Heatmap
 export function CapitalDeploymentHeatmap({ data, title = "Capital Deployment by Stage & Quarter" }: any) {
   const heatmapData = [
-    { stage: 'Pre-Seed', 'Q1 2023': 2.1, 'Q2 2023': 3.2, 'Q3 2023': 1.8, 'Q4 2023': 2.5, 'Q1 2024': 1.9 },
-    { stage: 'Seed', 'Q1 2023': 4.5, 'Q2 2023': 6.1, 'Q3 2023': 5.2, 'Q4 2023': 4.8, 'Q1 2024': 5.5 },
-    { stage: 'Series A', 'Q1 2023': 8.2, 'Q2 2023': 12.1, 'Q3 2023': 9.5, 'Q4 2023': 11.2, 'Q1 2024': 8.8 },
-    { stage: 'Follow-on', 'Q1 2023': 1.2, 'Q2 2023': 2.8, 'Q3 2023': 3.1, 'Q4 2023': 4.2, 'Q1 2024': 3.6 }
+    {
+      id: 'Pre-Seed',
+      data: [
+        { x: 'Q1 2023', y: 2.1 },
+        { x: 'Q2 2023', y: 3.2 },
+        { x: 'Q3 2023', y: 1.8 },
+        { x: 'Q4 2023', y: 2.5 },
+        { x: 'Q1 2024', y: 1.9 }
+      ]
+    },
+    {
+      id: 'Seed',
+      data: [
+        { x: 'Q1 2023', y: 4.5 },
+        { x: 'Q2 2023', y: 6.1 },
+        { x: 'Q3 2023', y: 5.2 },
+        { x: 'Q4 2023', y: 4.8 },
+        { x: 'Q1 2024', y: 5.5 }
+      ]
+    },
+    {
+      id: 'Series A',
+      data: [
+        { x: 'Q1 2023', y: 8.2 },
+        { x: 'Q2 2023', y: 12.1 },
+        { x: 'Q3 2023', y: 9.5 },
+        { x: 'Q4 2023', y: 11.2 },
+        { x: 'Q1 2024', y: 8.8 }
+      ]
+    },
+    {
+      id: 'Follow-on',
+      data: [
+        { x: 'Q1 2023', y: 1.2 },
+        { x: 'Q2 2023', y: 2.8 },
+        { x: 'Q3 2023', y: 3.1 },
+        { x: 'Q4 2023', y: 4.2 },
+        { x: 'Q1 2024', y: 3.6 }
+      ]
+    }
   ];
 
   return (
@@ -280,8 +316,6 @@ export function CapitalDeploymentHeatmap({ data, title = "Capital Deployment by 
         <div style={{ height: '300px' }}>
           <ResponsiveHeatMap
             data={heatmapData}
-            keys={['Q1 2023', 'Q2 2023', 'Q3 2023', 'Q4 2023', 'Q1 2024']}
-            indexBy="stage"
             margin={{ top: 20, right: 20, bottom: 60, left: 80 }}
             colors={{
               type: 'diverging',
@@ -296,7 +330,6 @@ export function CapitalDeploymentHeatmap({ data, title = "Capital Deployment by 
             animate={true}
             motionConfig="gentle"
             hoverTarget="cell"
-            cellHoverOthersOpacity={0.25}
             tooltip={({ cell }) => (
               <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
                 <div className="font-semibold">
