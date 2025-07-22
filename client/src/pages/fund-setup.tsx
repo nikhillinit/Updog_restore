@@ -231,9 +231,17 @@ export default function FundSetup() {
     }
   }, []); // Empty dependency array to run only on mount
 
-  const handleInputChange = (field: string, value: string | boolean) => {
+  const handleInputChange = (field: string, value: string | boolean | number) => {
     setFundData(prev => {
-      const updated = { ...prev, [field]: value };
+      // Ensure proper type handling for boolean fields
+      let processedValue = value;
+      const booleanFields = ['hasEndDate', 'isEvergreen', 'includeGPInManagementFees', 'feeStepDown', 'preferredReturn'];
+      
+      if (booleanFields.includes(field)) {
+        processedValue = Boolean(value);
+      }
+      
+      const updated = { ...prev, [field]: processedValue };
       
       // Auto-calculate dependent fields
       if (field === 'totalCommittedCapital' || field === 'gpCommitmentPercent') {
@@ -1016,14 +1024,14 @@ export default function FundSetup() {
                       size="sm" 
                       onClick={() => {
                         const newAllocation = {
-                          id: Date.now(),
+                          id: `alloc-${Date.now()}`,
                           name: "",
                           sector: "technology",
                           allocation: "0",
                           stage: "seed"
                         };
                         const newAllocations = [...fundData.allocations, newAllocation];
-                        handleInputChange('allocations', JSON.stringify(newAllocations));
+                        handleComplexDataChange('allocations', newAllocations);
                       }}
                       className="text-blue-600 border-blue-200"
                     >
@@ -1043,13 +1051,13 @@ export default function FundSetup() {
                       fundSize={parseFloat(fundData.size) || 200000000}
                       onBudgetCreate={(budget) => {
                         const newExpenses = budget.map((item, index) => ({
-                          id: index + 1,
+                          id: `exp-${Date.now()}-${index}`,
                           category: item.category,
                           monthlyAmount: Math.round(item.lifetimeExpense / item.term).toString(),
                           startMonth: "1",
                           endMonth: item.term.toString()
                         }));
-                        handleInputChange('fundExpenses', JSON.stringify(newExpenses));
+                        handleComplexDataChange('fundExpenses', newExpenses);
                         toast({
                           title: "Budget Created",
                           description: `Successfully created budget with ${budget.length} expense categories`,
@@ -1069,7 +1077,7 @@ export default function FundSetup() {
                               onChange={(e) => {
                                 const newExpenses = [...fundData.fundExpenses];
                                 newExpenses[index].category = e.target.value;
-                                handleInputChange('fundExpenses', JSON.stringify(newExpenses));
+                                handleComplexDataChange('fundExpenses', newExpenses);
                               }}
                               placeholder="e.g., Legal & Compliance"
                               className="h-10"
@@ -1085,7 +1093,7 @@ export default function FundSetup() {
                                 onChange={(e) => {
                                   const newExpenses = [...fundData.fundExpenses];
                                   newExpenses[index].monthlyAmount = e.target.value;
-                                  handleInputChange('fundExpenses', JSON.stringify(newExpenses));
+                                  handleComplexDataChange('fundExpenses', newExpenses);
                                 }}
                                 placeholder="10000"
                                 className="h-10 pl-8"
@@ -1100,7 +1108,7 @@ export default function FundSetup() {
                               onChange={(e) => {
                                 const newExpenses = [...fundData.fundExpenses];
                                 newExpenses[index].startMonth = e.target.value;
-                                handleInputChange('fundExpenses', JSON.stringify(newExpenses));
+                                handleComplexDataChange('fundExpenses', newExpenses);
                               }}
                               placeholder="1"
                               className="h-10"
@@ -1114,7 +1122,7 @@ export default function FundSetup() {
                               onChange={(e) => {
                                 const newExpenses = [...fundData.fundExpenses];
                                 newExpenses[index].endMonth = e.target.value;
-                                handleInputChange('fundExpenses', JSON.stringify(newExpenses));
+                                handleComplexDataChange('fundExpenses', newExpenses);
                               }}
                               placeholder="120"
                               className="h-10"
@@ -1129,14 +1137,14 @@ export default function FundSetup() {
                       size="sm" 
                       onClick={() => {
                         const newExpense = {
-                          id: Date.now(),
+                          id: `exp-${Date.now()}`,
                           category: "",
                           monthlyAmount: "0",
                           startMonth: "1",
                           endMonth: "120"
                         };
                         const newExpenses = [...fundData.fundExpenses, newExpense];
-                        handleInputChange('fundExpenses', JSON.stringify(newExpenses));
+                        handleComplexDataChange('fundExpenses', newExpenses);
                       }}
                       className="text-blue-600 border-blue-200"
                     >
@@ -1409,7 +1417,7 @@ export default function FundSetup() {
                                 const newLPs = [...(fundData.limitedPartners || [])];
                                 if (newLPs[index]) {
                                   newLPs[index].name = e.target.value;
-                                  handleInputChange('limitedPartners', JSON.stringify(newLPs));
+                                  handleComplexDataChange('limitedPartners', newLPs);
                                 }
                               }}
                               placeholder="e.g., Institutional LPs"
@@ -1427,7 +1435,7 @@ export default function FundSetup() {
                                   const newLPs = [...(fundData.limitedPartners || [])];
                                   if (newLPs[index]) {
                                     newLPs[index].investment = e.target.value;
-                                    handleInputChange('limitedPartners', JSON.stringify(newLPs));
+                                    handleComplexDataChange('limitedPartners', newLPs);
                                   }
                                 }}
                                 placeholder="80000000"
@@ -1443,7 +1451,7 @@ export default function FundSetup() {
                                 const newLPs = [...(fundData.limitedPartners || [])];
                                 if (newLPs[index]) {
                                   newLPs[index].feeProfile = value;
-                                  handleInputChange('limitedPartners', JSON.stringify(newLPs));
+                                  handleComplexDataChange('limitedPartners', newLPs);
                                 }
                               }}
                             >
@@ -1466,7 +1474,7 @@ export default function FundSetup() {
                                 const newLPs = [...(fundData.limitedPartners || [])];
                                 if (newLPs[index]) {
                                   newLPs[index].profitSplit = value;
-                                  handleInputChange('limitedPartners', JSON.stringify(newLPs));
+                                  handleComplexDataChange('limitedPartners', newLPs);
                                 }
                               }}
                             >
@@ -1489,14 +1497,14 @@ export default function FundSetup() {
                         size="sm" 
                         onClick={() => {
                           const newLP = {
-                            id: Date.now(),
+                            id: `lp-${Date.now()}`,
                             name: "",
                             investment: "0",
                             feeProfile: "default",
                             profitSplit: "pro_rata"
                           };
                           const newLPs = [...(fundData.limitedPartners || []), newLP];
-                          handleInputChange('limitedPartners', JSON.stringify(newLPs));
+                          handleComplexDataChange('limitedPartners', newLPs);
                         }}
                         className="text-blue-600 border-blue-200"
                       >
