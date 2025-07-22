@@ -24,7 +24,8 @@
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "test:quick": "vitest run --exclude='**/api/**'",
-    "test:integration": "cross-env DATABASE_URL=postgresql://postgres:postgres@localhost:5432/povc_test vitest run --config vitest.integration.config.ts"
+    "test:integration": "cross-env DATABASE_URL=postgresql://postgres:postgres@localhost:5432/povc_test vitest run --config vitest.integration.config.ts",
+    "ai": "node scripts/ai-tools/index.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

@@ -1,0 +1,6 @@
+# AI Tools logs
+*.json
+*.patch
+*.log
+# Keep the directory
+!.gitignore
