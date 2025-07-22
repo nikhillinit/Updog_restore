@@ -1,0 +1,76 @@
+name: Release RC on Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  create-rc:
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release-candidate')
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Get version info
+        id: version
+        run: |
+          # Get current version from package.json
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          
+          # Generate RC version (append -rc.N)
+          EXISTING_RCS=$(git tag -l "v${CURRENT_VERSION}-rc.*" | wc -l)
+          NEXT_RC=$((EXISTING_RCS + 1))
+          RC_VERSION="v${CURRENT_VERSION}-rc.${NEXT_RC}"
+          
+          echo "version=${RC_VERSION}" >> $GITHUB_OUTPUT
+          echo "Creating RC version: ${RC_VERSION}"
+          
+      - name: Generate release notes
+        id: notes
+        run: |
+          # Get test statistics
+          PASSING_TESTS=$(grep -o "✅" .github/test-report.md 2>/dev/null | wc -l || echo "N/A")
+          SKIPPED_TESTS=$(grep -o "⏭️" .github/test-report.md 2>/dev/null | wc -l || echo "N/A")
+          
+          # Create release notes
+          NOTES="## Release Candidate ${VERSION}
+          
+          ### 📊 Test Coverage
+          - ✅ Passing: ${PASSING_TESTS} tests
+          - ⏭️ Skipped: ${SKIPPED_TESTS} tests
+          
+          ### 🔄 Changes
+          This RC includes all changes from PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}
+          
+          ### 📝 PR Description
+          ${{ github.event.pull_request.body }}
+          
+          ### 🧪 Testing Instructions
+          1. Run \`npm test\` to verify all tests pass
+          2. Run \`npm run build\` to ensure production build succeeds
+          3. Deploy to staging environment for QA validation
+          
+          ---
+          *Automated release from PR merge*"
+          
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ steps.version.outputs.version }} \
+            --title "Release Candidate ${{ steps.version.outputs.version }}" \
+            --notes "${{ steps.notes.outputs.notes }}" \
+            --prerelease \
+            --generate-notes
