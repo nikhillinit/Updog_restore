@@ -1,0 +1,37 @@
+codecov:
+  require_ci_to_pass: true
+  
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+  
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 2%  # Fail if coverage drops by more than 2%
+        base: auto
+        
+    patch:
+      default:
+        target: 80%  # New code should have at least 80% coverage
+        
+flags:
+  skip-debt:
+    paths:
+      - tests/
+    carryforward: true
+    
+comment:
+  layout: "reach,diff,flags,tree"
+  behavior: default
+  require_changes: false
+  
+ignore:
+  - "**/*.test.*"
+  - "**/*.spec.*"
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/coverage/**"
+  - "scripts/**"
