@@ -13,7 +13,7 @@ const connection = {
 };
 
 export const reserveWorker = new Worker(
-  'reserve:calc',
+  'reserve-calc',
   async (job) => {
     const { fundId, correlationId } = job.data;
     
