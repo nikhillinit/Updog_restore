@@ -1,0 +1,36 @@
+{
+  "name": "@povc/agent-core",
+  "version": "0.1.0",
+  "description": "Core framework for AI-augmented development agents",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "automation",
+    "development",
+    "framework"
+  ],
+  "author": "POVC Fund Model",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^3.2.4",
+    "@types/node": "^20.16.11",
+    "rimraf": "^6.0.1"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0.0"
+  }
+}
