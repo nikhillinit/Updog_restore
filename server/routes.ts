@@ -668,6 +668,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register fund configuration routes
   registerFundConfigRoutes(app);
 
+  // Register timeline routes for event-sourced architecture
+  const timelineRouter = await import('./routes/timeline.js');
+  app.use('/api/timeline', timelineRouter.default);
+
   const httpServer = createServer(app);
   return httpServer;
 }
