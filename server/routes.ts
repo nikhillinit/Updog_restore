@@ -11,12 +11,40 @@ import { ReserveEngine, generateReserveSummary } from "../client/src/core/reserv
 import { PacingEngine, generatePacingSummary } from "../client/src/core/pacing/PacingEngine.js";
 import { CohortEngine, generateCohortSummary } from "../client/src/core/cohorts/CohortEngine.js";
 import { registerFundConfigRoutes } from "./routes/fund-config.js";
+import { healthCheck, readinessCheck, livenessCheck } from "./health";
+import { register as metricsRegister, recordHttpMetrics } from "./metrics";
 import type { ReserveInput, PacingInput, CohortInput, ApiError, ReserveSummary, PacingSummary, CohortSummary } from "@shared/types";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check and metrics routes
+  app.get("/api/health", healthCheck);
+  app.get("/api/health/ready", readinessCheck);
+  app.get("/api/health/live", livenessCheck);
+  app.get("/metrics", async (req, res) => {
+    try {
+      res.set('Content-Type', metricsRegister.contentType);
+      const metrics = await metricsRegister.metrics();
+      res.send(metrics);
+    } catch (error) {
+      res.status(500).send('Error generating metrics');
+    }
+  });
+
+  // Middleware to record HTTP metrics
+  app.use((req, res, next) => {
+    const startTime = Date.now();
+    
+    res.on('finish', () => {
+      const duration = (Date.now() - startTime) / 1000;
+      recordHttpMetrics(req.method, req.route?.path || req.path, res.statusCode, duration);
+    });
+    
+    next();
+  });
+  
   // Fund routes - Type-safe error responses
   app.get("/api/funds", async (req, res) => {
     try {
