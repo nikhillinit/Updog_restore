@@ -36,6 +36,8 @@ Commands:
 
   status                  Show current project status
   
+  metrics                 Show agent metrics endpoint
+  
   help                    Show this help message
 
 Examples:
@@ -47,6 +49,7 @@ Examples:
   npm run ai repair                   # Repair all failing tests
   npm run ai repair "portfolio" --draft-pr  # Repair tests and create PR
   npm run ai status                  # Show project status
+  npm run ai metrics                 # Show metrics endpoint
 
 Log files are stored in ai-logs/ directory.
 `);
@@ -184,6 +187,21 @@ async function main() {
 
       case 'status': {
         await getProjectStatus();
+        break;
+      }
+
+      case 'metrics': {
+        console.log('=== AI Agent Metrics ===');
+        console.log('Metrics endpoint: http://localhost:3000/metrics');
+        console.log('Prometheus: http://localhost:9090');
+        console.log('Grafana: http://localhost:3001 (admin/admin)');
+        console.log('AlertManager: http://localhost:9093');
+        console.log('');
+        console.log('To start observability stack:');
+        console.log('  docker-compose -f docker-compose.observability.yml up -d');
+        console.log('');
+        console.log('To view metrics in terminal:');
+        console.log('  curl http://localhost:3000/metrics');
         break;
       }
 
