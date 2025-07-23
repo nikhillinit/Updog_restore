@@ -73,5 +73,54 @@ export const healthStatus = new promClient.Gauge({
   labelNames: ['component'], // 'database', 'redis', 'overall'
 });
 
+// Business logic metrics recording
+export function recordBusinessMetric(
+  operation: string,
+  status: 'success' | 'failure' | 'cache_hit' | 'queued',
+  duration?: number
+) {
+  // Record generic business operation metrics
+  if (!businessOperations.has(operation)) {
+    businessOperations.set(operation, {
+      counter: new promClient.Counter({
+        name: `povc_fund_${operation}_total`,
+        help: `Total number of ${operation} operations`,
+        labelNames: ['status'],
+      }),
+      histogram: duration !== undefined ? new promClient.Histogram({
+        name: `povc_fund_${operation}_duration_milliseconds`,
+        help: `Duration of ${operation} operations in milliseconds`,
+        labelNames: ['status'],
+        buckets: [10, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
+      }) : null,
+    });
+  }
+  
+  const metric = businessOperations.get(operation)!;
+  metric.counter.inc({ status });
+  
+  if (duration !== undefined && metric.histogram) {
+    metric.histogram.observe({ status }, duration);
+  }
+}
+
+// Cache for dynamically created metrics
+const businessOperations = new Map<string, {
+  counter: promClient.Counter<string>;
+  histogram: promClient.Histogram<string> | null;
+}>();
+
+// NATS bridge metrics
+export const natsBridgeConnections = new promClient.Gauge({
+  name: 'povc_fund_nats_bridge_connections',
+  help: 'Number of active NATS WebSocket connections',
+});
+
+export const natsBridgeMessages = new promClient.Counter({
+  name: 'povc_fund_nats_bridge_messages_total',
+  help: 'Total NATS bridge messages',
+  labelNames: ['direction', 'type'], // direction: in/out, type: event/subscribe/etc
+});
+
 // Export registry for metrics endpoint
 export const register = promClient.register;
