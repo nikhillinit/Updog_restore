@@ -29,6 +29,11 @@ Commands:
     --dry-run             Validate patch without applying
     --verbose             Show detailed output
 
+  repair [pattern]        Repair failing tests automatically
+    --max-repairs N       Maximum number of repairs (default: 5)
+    --draft-pr            Create draft PR with repairs
+    --verbose             Show detailed output
+
   status                  Show current project status
   
   help                    Show this help message
@@ -39,6 +44,8 @@ Examples:
   npm run ai test "portfolio"        # Run tests matching pattern
   npm run ai patch changes.json      # Apply JSON patch
   npm run ai patch fix.patch --dry-run  # Validate git patch
+  npm run ai repair                   # Repair all failing tests
+  npm run ai repair "portfolio" --draft-pr  # Repair tests and create PR
   npm run ai status                  # Show project status
 
 Log files are stored in ai-logs/ directory.
@@ -143,6 +150,35 @@ async function main() {
         
         const result = await applicator.applyPatch(patchData);
         process.exit(result.success ? 0 : 1);
+        break;
+      }
+
+      case 'repair': {
+        const pattern = commandArgs.find(arg => !arg.startsWith('--'));
+        const maxRepairsArg = commandArgs.find(arg => arg.startsWith('--max-repairs'));
+        const maxRepairs = maxRepairsArg ? parseInt(maxRepairsArg.split('=')[1] || '5') : 5;
+        
+        const options = {
+          maxRepairs,
+          draftPR: commandArgs.includes('--draft-pr'),
+          verbose: commandArgs.includes('--verbose')
+        };
+        
+        console.log('[AI-TOOLS] Starting test repair agent...');
+        console.log(`Pattern: ${pattern || 'all tests'}`);
+        console.log(`Max repairs: ${maxRepairs}`);
+        console.log(`Draft PR: ${options.draftPR ? 'yes' : 'no'}`);
+        
+        // In a real implementation, we would:
+        // 1. Import and instantiate TestRepairAgent
+        // 2. Run agent.execute() with proper input
+        // 3. Handle results and create PR if requested
+        
+        console.log('⚠️  Test repair agent implementation pending integration');
+        console.log('✅ Agent class completed in packages/test-repair-agent/');
+        
+        // Placeholder for actual implementation
+        process.exit(0);
         break;
       }
 
