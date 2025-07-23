@@ -1,0 +1,84 @@
+groups:
+  - name: ai-agent-alerts
+    rules:
+      # High failure rate alert
+      - alert: AgentHighFailureRate
+        expr: rate(agent_execution_failures_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High failure rate detected for agent {{ $labels.agent_name }}"
+          description: "Agent {{ $labels.agent_name }} has a failure rate of {{ $value }} failures/sec over the last 5 minutes."
+
+      # Agent down alert
+      - alert: AgentDown
+        expr: up{job="ai-agents"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "AI Agent monitoring endpoint is down"
+          description: "The AI agent monitoring endpoint has been down for more than 1 minute."
+
+      # Long execution time alert
+      - alert: AgentLongExecutionTime
+        expr: histogram_quantile(0.95, rate(agent_execution_duration_ms_bucket[5m])) > 60000
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Agent {{ $labels.agent_name }} has long execution times"
+          description: "95th percentile execution time for agent {{ $labels.agent_name }} is {{ $value }}ms, exceeding 60 seconds."
+
+      # No recent executions alert
+      - alert: AgentNoRecentExecutions
+        expr: (time() - agent_last_execution_timestamp / 1000) > 1800
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Agent {{ $labels.agent_name }} has not executed recently"
+          description: "Agent {{ $labels.agent_name }} has not executed for {{ $value }} seconds (over 30 minutes)."
+
+      # High retry rate alert
+      - alert: AgentHighRetryRate
+        expr: rate(agent_retries_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High retry rate for agent {{ $labels.agent_name }}"
+          description: "Agent {{ $labels.agent_name }} has a retry rate of {{ $value }} retries/sec over the last 5 minutes."
+
+  - name: system-alerts
+    rules:
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80% for more than 5 minutes. Current value: {{ $value }}%"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 85% for more than 5 minutes. Current value: {{ $value }}%"
+
+      # Disk space low
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk space is running low"
+          description: "Disk usage is above 90% for {{ $labels.mountpoint }}. Current value: {{ $value }}%"

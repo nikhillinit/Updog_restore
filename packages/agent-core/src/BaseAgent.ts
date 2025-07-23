@@ -1,4 +1,6 @@
 import { Logger } from './Logger';
+import { MetricsCollector } from './MetricsCollector';
+import { SlackNotifier, SlackConfig } from './SlackNotifier';
 
 export interface AgentConfig {
   name: string;
@@ -6,6 +8,7 @@ export interface AgentConfig {
   retryDelay?: number;
   timeout?: number;
   logLevel?: 'debug' | 'info' | 'warn' | 'error';
+  slack?: SlackConfig;
 }
 
 export interface AgentExecutionContext {
@@ -28,6 +31,8 @@ export interface AgentResult<T = any> {
 export abstract class BaseAgent<TInput = any, TOutput = any> {
   protected readonly config: Required<AgentConfig>;
   protected readonly logger: Logger;
+  protected readonly metrics: MetricsCollector;
+  protected readonly slack?: SlackNotifier;
 
   constructor(config: AgentConfig) {
     this.config = {
@@ -42,6 +47,14 @@ export abstract class BaseAgent<TInput = any, TOutput = any> {
       level: this.config.logLevel,
       agent: this.config.name,
     });
+
+    this.metrics = MetricsCollector.getInstance();
+    this.metrics.recordAgentStart(this.config.name);
+
+    // Initialize Slack notifier if config provided
+    if (config.slack) {
+      this.slack = new SlackNotifier(config.slack);
+    }
   }
 
   /**
@@ -83,6 +96,15 @@ export abstract class BaseAgent<TInput = any, TOutput = any> {
           duration,
         });
 
+        // Record metrics
+        this.metrics.recordExecution(
+          this.config.name,
+          operation,
+          'success',
+          duration,
+          retries
+        );
+
         return agentResult;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
@@ -114,6 +136,33 @@ export abstract class BaseAgent<TInput = any, TOutput = any> {
       result: agentResult,
       finalError: lastError?.message,
     });
+
+    // Record failure metrics
+    this.metrics.recordExecution(
+      this.config.name,
+      operation,
+      'failure',
+      duration,
+      retries - 1
+    );
+    
+    this.metrics.recordFailure(
+      this.config.name,
+      operation,
+      lastError?.constructor.name || 'UnknownError'
+    );
+
+    // Send Slack alert for critical failures
+    if (this.slack && lastError) {
+      this.slack.sendCrashAlert(this.config.name, lastError, {
+        operation,
+        retries: retries - 1,
+        duration,
+        runId: context.runId,
+      }).catch(err => 
+        this.logger.warn('Failed to send Slack alert', { error: err.message })
+      );
+    }
 
     return agentResult;
   }
