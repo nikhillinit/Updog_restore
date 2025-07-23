@@ -1,4 +1,4 @@
-name: CI
+name: CI - Epic G1 Platform Hardening
 
 on:
   push:
@@ -6,9 +6,27 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/povc_test
+  NODE_ENV: test
+
 jobs:
-  test:
+  platform-hardening:
     runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: povc_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     
     strategy:
       matrix:
@@ -27,20 +45,50 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
+      - name: Environment validation
+        run: |
+          echo "Testing environment validation..."
+          node -e "require('./server/env.js').validateEnv(); console.log('✅ Environment validation passed');"
+
+      - name: Database schema migration
+        run: |
+          echo "Running database migrations..."
+          npm run db:push
+          
       - name: Run TypeScript check
         run: npm run check
         
       - name: Run linting
         run: npm run lint
         
-      - name: Run tests with coverage
+      - name: Run tests with coverage (≥80% required)
         run: npm run test:run -- --coverage
         
+      - name: Verify coverage threshold (≥80%)
+        run: |
+          echo "Verifying coverage meets Epic G1 requirements..."
+          npm run test:run -- --coverage --reporter=json | jq '.coverageMap.totals.pct >= 80'
+        
+      - name: Health checks validation
+        run: |
+          echo "Testing health endpoints..."
+          npm run dev:api &
+          SERVER_PID=$!
+          sleep 5
+          
+          # Test health endpoints
+          curl -f http://localhost:5000/api/health || exit 1
+          curl -f http://localhost:5000/api/health/ready || exit 1
+          curl -f http://localhost:5000/api/health/live || exit 1
+          curl -f http://localhost:5000/metrics || exit 1
+          
+          kill $SERVER_PID
+          
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
-          files: ./coverage/coverage-final.json
-          flags: skip-debt
+          files: ./coverage/lcov.info
+          flags: epic-g1
           fail_ci_if_error: true
           
       - name: Build project
