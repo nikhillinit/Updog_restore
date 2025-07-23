@@ -41,7 +41,9 @@ Use `/init CLAUDE.md` to load this context file and get started with the codebas
 
 ## AI-Augmented Development
 - **Gateway Scripts**: `scripts/ai-tools/` - Structured interfaces for AI agents (test runner, patch applicator)
-- **Agent Framework**: `packages/agent-core/` - BaseAgent class with retry logic and structured logging
-- **CLI Interface**: `npm run ai` - Gateway for AI agent operations (test, patch, status)
-- **Logging**: All AI operations logged to `ai-logs/` with structured JSON format
-- **Architecture**: Monorepo pattern for specialized agent packages, progressive autonomy model
+- **Agent Framework**: `packages/agent-core/` - BaseAgent class with retry logic, metrics, and health monitoring
+- **Test Repair Agent**: `packages/test-repair-agent/` - Autonomous test failure detection and repair
+- **CLI Interface**: `npm run ai` - Gateway for AI agent operations (test, patch, repair, status, metrics)
+- **Observability**: Complete monitoring stack with Prometheus, Grafana, and Slack alerts
+- **Logging**: Structured JSON logging with metrics collection and health tracking
+- **Architecture**: Self-healing development workflows with progressive autonomy and comprehensive monitoring
