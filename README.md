@@ -26,6 +26,7 @@ A comprehensive venture capital fund modeling application built for Press On Ven
 - **Testing**: Vitest with comprehensive test coverage (74 tests)
 - **Performance**: Memoized chart components and optimized rendering
 - **API Documentation**: Full OpenAPI 3.0 specification
+- **AI-Augmented Development**: Autonomous test repair, monitoring, and self-healing workflows
 
 ## 📁 Project Structure
 
@@ -53,6 +54,11 @@ A comprehensive venture capital fund modeling application built for Press On Ven
 ├── tests/                  # Comprehensive test suite
 │   ├── api/               # Engine and API tests
 │   └── performance/       # Chart performance tests
+├── packages/               # AI agent packages (monorepo)
+│   ├── agent-core/        # Base agent framework with monitoring
+│   └── test-repair-agent/ # Autonomous test repair agent
+├── scripts/ai-tools/      # AI development gateway scripts
+├── observability/         # Monitoring stack (Prometheus, Grafana)
 ├── docs/                   # Documentation
 │   └── openapi.yaml       # Complete API specification
 └── package.json           # Project dependencies
@@ -85,6 +91,28 @@ A comprehensive venture capital fund modeling application built for Press On Ven
 
 4. **Open your browser**
    Navigate to `http://localhost:5000`
+
+### AI-Augmented Development Setup
+
+The application includes a complete AI-augmented development system:
+
+5. **Start observability stack** (optional)
+   ```bash
+   docker-compose -f docker-compose.observability.yml up -d
+   ```
+
+6. **Start metrics server** (optional)
+   ```bash
+   npm run ai:metrics
+   ```
+
+7. **Use AI tools**
+   ```bash
+   npm run ai help                    # Show available commands
+   npm run ai test --quick            # Run tests with AI monitoring
+   npm run ai repair --draft-pr       # Auto-repair failing tests
+   npm run ai metrics                 # View monitoring endpoints
+   ```
 
 ### Environment Variables
 
@@ -169,6 +197,8 @@ The application manages the following core entities:
 ## 🔧 Development
 
 ### Available Scripts
+
+#### Core Application
 - `npm run dev` - Start development server with hot reload
 - `npm run build` - Build for production  
 - `npm run start` - Start production server
@@ -177,6 +207,15 @@ The application manages the following core entities:
 - `npm run test:ui` - Run tests with UI dashboard
 - `npm run test:run` - Run tests once (CI mode)
 - `npm run db:push` - Push database schema changes (when using PostgreSQL)
+
+#### AI-Augmented Development
+- `npm run ai help` - Show AI tools help and available commands
+- `npm run ai test [pattern]` - Run tests with optional pattern matching
+- `npm run ai repair [pattern]` - Auto-repair failing tests with optional draft PR creation
+- `npm run ai patch <file>` - Apply code patches with safety checks
+- `npm run ai status` - Show project status and git information
+- `npm run ai metrics` - Show observability endpoints and setup instructions
+- `npm run ai:metrics` - Start dedicated metrics server for monitoring
 
 ### Development Workflow
 1. The app runs on a single port (5000) serving both frontend and backend
