@@ -1,4 +1,5 @@
 # POVC Fund-Modeling Platform
+<!-- Test comment for Codacy integration verification -->
 
 ## Overview
 
