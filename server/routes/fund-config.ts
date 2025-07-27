@@ -23,16 +23,35 @@ const reserveQueue = new Queue('reserve-calc', { connection });
 const pacingQueue = new Queue('pacing-calc', { connection });
 const cohortQueue = new Queue('cohort-calc', { connection });
 
+// Zod schema for draft validation. This ensures data passed to background
+// jobs conforms to the limits of downstream AI/ML models.
+const draftConfigSchema = z.object({
+  strategy: z.string().max(256, "Strategy must be 256 characters or less").optional(),
+  // Add any other text fields from the draft body that are used by the engines.
+}).passthrough(); // Allows other fields not defined in the schema
+
 export function registerFundConfigRoutes(app: Express) {
   // Save draft configuration
   app.put("/api/funds/:id/draft", async (req: AuthenticatedRequest, res) => {
     try {
       const fundId = parseInt(req.params.id);
       
+
       if (isNaN(fundId)) {
         const error: ApiError = {
           error: 'Invalid fund ID',
           message: 'Fund ID must be a number'
+        };
+        return res.status(400).json(error);
+      }
+
+      // Validate the request body against the schema
+      const validation = draftConfigSchema.safeParse(req.body);
+      if (!validation.success) {
+        const error: ApiError = {
+          error: 'Validation failed',
+          message: 'Draft configuration is invalid.',
+          details: validation.error.flatten(),
         };
         return res.status(400).json(error);
       }
