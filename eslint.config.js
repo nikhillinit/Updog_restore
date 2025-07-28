@@ -3,6 +3,10 @@ import typescript from '@typescript-eslint/eslint-plugin';
 import typescriptParser from '@typescript-eslint/parser';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
+import importPlugin from 'eslint-plugin-import';
+import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
+import globals from 'globals';
+import noAsyncArrayMethods from './eslint-rules/no-async-array-methods.js';
 
 export default [
   js.configs.recommended,
@@ -18,39 +22,46 @@ export default [
         },
       },
       globals: {
-        console: 'readonly',
-        process: 'readonly',
-        Buffer: 'readonly',
-        __dirname: 'readonly',
-        __filename: 'readonly',
-        global: 'readonly',
-        window: 'readonly',
-        document: 'readonly',
-        navigator: 'readonly',
-        HTMLElement: 'readonly',
-        HTMLInputElement: 'readonly',
-        Event: 'readonly',
+        ...globals.browser,
+        ...globals.node,
         React: 'readonly',
-        require: 'readonly',
-        module: 'readonly',
-        exports: 'readonly',
-        setInterval: 'readonly',
-        setTimeout: 'readonly',
-        clearInterval: 'readonly',
-        clearTimeout: 'readonly',
-        fetch: 'readonly',
-        performance: 'readonly',
       },
     },
     plugins: {
       '@typescript-eslint': typescript,
       react,
       'react-hooks': reactHooks,
+      import: importPlugin,
+      'jsx-a11y': jsxA11yPlugin,
+      'custom': {
+        rules: {
+          'no-async-array-methods': noAsyncArrayMethods
+        }
+      }
     },
     rules: {
       ...typescript.configs.recommended.rules,
       ...react.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
+      // Import plugin rules (temporarily disabled due to resolver issues)
+      'import/no-unresolved': 'off',
+      'import/named': 'off',
+      'import/default': 'off',
+      'import/namespace': 'off',
+      'import/no-absolute-path': 'error',
+      'import/no-self-import': 'off',
+      'import/no-cycle': 'off',
+      'import/no-duplicates': 'error',
+      // JSX A11y basic rules
+      'jsx-a11y/alt-text': 'error',
+      'jsx-a11y/anchor-has-content': 'error',
+      'jsx-a11y/aria-props': 'error',
+      'jsx-a11y/aria-proptypes': 'error',
+      'jsx-a11y/aria-unsupported-elements': 'error',
+      'jsx-a11y/heading-has-content': 'error',
+      'jsx-a11y/img-redundant-alt': 'error',
+      'jsx-a11y/no-access-key': 'error',
+      // Custom rules
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-require-imports': 'off',
@@ -60,19 +71,19 @@ export default [
       'no-console': 'warn',
       'no-debugger': 'warn',
       'no-undef': 'off', // TypeScript handles this better
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: "CallExpression[callee.property.name='forEach']",
-          message: "Use forEachAsync (from '@/utils/async-iteration') instead of native forEach for async operations, or ArraySafety.forEach (from 'utils/array-safety') for synchronous operations"
-        },
-        {
-          selector: "CallExpression[callee.property.name=/^(forEach|map|filter|reduce)$/]",
-          message: "Use async-safe helpers (forEachAsync, mapAsync, etc.)"
-        }
-      ],
+      // Replace no-restricted-syntax with our custom rule that has autofix
+      'custom/no-async-array-methods': 'error',
     },
     settings: {
+      'import/resolver': {
+        typescript: {
+          project: './tsconfig.json',
+          alwaysTryTypes: true
+        },
+        node: {
+          extensions: ['.js', '.jsx', '.ts', '.tsx']
+        }
+      },
       react: {
         version: 'detect',
       },
@@ -81,21 +92,14 @@ export default [
   {
     files: ['**/async-iteration.ts'],
     rules: {
-      'no-restricted-syntax': 'off', // Allow native array methods in async-iteration utilities
+      'custom/no-async-array-methods': 'off', // Allow native array methods in async-iteration utilities
     },
   },
   {
     files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
     languageOptions: {
       globals: {
-        describe: 'readonly',
-        it: 'readonly',
-        test: 'readonly',
-        expect: 'readonly',
-        beforeEach: 'readonly',
-        afterEach: 'readonly',
-        beforeAll: 'readonly',
-        afterAll: 'readonly',
+        ...globals.jest,
         vi: 'readonly',
       },
     },
