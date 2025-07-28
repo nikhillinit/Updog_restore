@@ -1,3 +1,4 @@
+import React from 'react';
 import { ResponsiveScatterPlot } from '@nivo/scatterplot';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { memo, useMemo, useCallback } from 'react';
