@@ -39,13 +39,14 @@ jobs:
       - name: Run lint
         run: npm run lint
 
-  test:
-    name: Run ${{ matrix.type }} tests
+  unit-tests:
+    name: Unit Tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    needs: [lint]
+    timeout-minutes: 15
     
     strategy:
       matrix:
-        type: [unit, integration]
         os: [ubuntu-latest, macos-latest, windows-latest]
       fail-fast: false
     
@@ -60,7 +61,7 @@ jobs:
           cache: 'npm'
       
       - name: Cache npm dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.npm
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
@@ -70,32 +71,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Wait for Postgres
-        if: matrix.type == 'integration' && runner.os == 'Linux'
-        run: |
-          while ! pg_isready -h localhost -p 5432 -U postgres; do
-            echo "Waiting for Postgres..."
-            sleep 2
-          done
-          echo "Postgres is ready!"
-      
       - name: Run unit tests
-        if: matrix.type == 'unit'
-        run: vitest run --coverage
+        run: npm run test:run -- --coverage
       
       - name: Upload coverage reports
-        if: matrix.type == 'unit'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report-${{ matrix.os }}
           path: coverage/
           retention-days: 30
-      
-      - name: Run integration tests
-        if: matrix.type == 'integration' && runner.os == 'Linux'
-        run: cross-env DATABASE_URL=postgresql://postgres:postgres@localhost:5432/test_db vitest run --config vitest.integration.config.ts --threads
-        env:
-          NODE_ENV: test
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [lint]
+    timeout-minutes: 20
     
     services:
       postgres:
@@ -111,3 +101,95 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Wait for Postgres
+        run: |
+          # Install postgresql-client if needed
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client
+          
+          # Wait for PostgreSQL to be ready
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U postgres; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            echo "Waiting for PostgreSQL to start... ($i/30)"
+            sleep 2
+          done
+      
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+          
+  generate_etags:
+    name: Generate ETags
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    if: success()
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build project
+        run: npm run build
+      
+      - name: Generate ETags for built site
+        run: |
+          # Create directory for ETags
+          mkdir -p dist/etags
+          
+          # Recursively compute and record ETags for all built files
+          find dist -type f -not -path "*/etags/*" -not -path "*/node_modules/*" | while read file; do
+            etag=$(sha1sum "$file" | awk '{print $1}')
+            echo "$etag  $file" >> dist/etags/ETAGS
+          done
+          
+          # Ensure ETAGS file exists even if no files were processed
+          touch dist/etags/ETAGS
+          
+          # Print summary
+          echo "Generated ETags for $(grep -c . dist/etags/ETAGS) files"
+          echo "First 5 entries:"
+          head -n 5 dist/etags/ETAGS
+      
+      - name: Upload ETAGS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-etags
+          path: dist/etags/ETAGS
+          retention-days: 30

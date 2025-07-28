@@ -1,6 +1,6 @@
 {
   "name": "rest-express",
-  "version": "1.3.0",
+  "version": "1.3.2",
   "type": "module",
   "license": "MIT",
   "scripts": {
@@ -20,11 +20,16 @@
     "orchestrator": "tsx scripts/orchestrate.ts",
     "workers:dev": "tsx --watch scripts/orchestrate.ts",
     "bench": "tsx scripts/bench-engine.ts",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:quick": "vitest run --exclude='**/api/**'",
     "test:integration": "cross-env DATABASE_URL=postgresql://postgres:postgres@localhost:5432/povc_test vitest run --config vitest.integration.config.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "playwright:install": "playwright install",
     "ai": "node scripts/ai-tools/index.js",
     "ai:metrics": "node scripts/ai-tools/metrics-server.js"
   },
