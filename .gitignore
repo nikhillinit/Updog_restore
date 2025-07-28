@@ -110,3 +110,7 @@ ts-boolean-errors.txt
 
 # Claude settings (local only)
 .claude/settings.local.json
+
+
+#Ignore vscode AI rules
+.github\copilot-instructions.md

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { forEach } from '../../utils/array-safety';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -185,7 +186,7 @@ export default function CapTableCalculator() {
     });
 
     // Add converted SAFEs/Notes
-    convertedInstruments.forEach(instrument => {
+    forEach(convertedInstruments, instrument => {
       proForma.push({
         id: instrument.id,
         name: instrument.holderName,
