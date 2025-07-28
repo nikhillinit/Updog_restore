@@ -38,6 +38,15 @@ jobs:
       
       - name: Run lint
         run: npm run lint
+      
+      - name: Notify Slack on failure
+        if: ${{ failure() }}
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          fields: repo,message,commit,author
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
   test:
     name: Run ${{ matrix.type }} tests
@@ -96,6 +105,15 @@ jobs:
         run: cross-env DATABASE_URL=postgresql://postgres:postgres@localhost:5432/test_db vitest run --config vitest.integration.config.ts --threads
         env:
           NODE_ENV: test
+      
+      - name: Notify Slack on failure
+        if: ${{ failure() }}
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          fields: repo,message,commit,author
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     
     services:
       postgres:
