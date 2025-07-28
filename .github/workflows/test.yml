@@ -1,0 +1,55 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Run ${{ matrix.type }} tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        type: [unit, integration]
+      fail-fast: false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run unit tests
+        if: matrix.type == 'unit'
+        run: vitest run --threads
+      
+      - name: Run integration tests
+        if: matrix.type == 'integration'
+        run: cross-env DATABASE_URL=postgresql://postgres:postgres@localhost:5432/test_db vitest run --config vitest.integration.config.ts --threads
+        env:
+          NODE_ENV: test
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
