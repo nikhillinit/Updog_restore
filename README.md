@@ -74,6 +74,15 @@ This repository contains the POVC Fund-Modeling Platform, a sophisticated applic
 
 This project follows the **Build → Measure → Analyze → Decide (BMAD)** workflow. The latest orchestration brief, including critical checkpoints and updated phases, can be found in `docs/bmad-brief.md`.
 
+## Documentation
+
+- [Schema Reference](docs/schema.md)
+- [Observability Guide](docs/observability.md)
+
+## Utilities
+
+- [Async Iteration Utilities](docs/dev/async-iteration.md) - Production-ready replacements for problematic `forEach` patterns
+
 ## Known Issues
 
 Several React component tests are failing due to missing React imports in `.test.tsx` files. Please see the relevant ticket for more details before running tests.
