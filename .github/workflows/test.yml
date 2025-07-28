@@ -6,14 +6,47 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run lint
+        run: npm run lint
+
   test:
     name: Run ${{ matrix.type }} tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     
     strategy:
       matrix:
         type: [unit, integration]
+        os: [ubuntu-latest, macos-latest, windows-latest]
       fail-fast: false
     
     steps:
@@ -26,15 +59,40 @@ jobs:
           node-version: '20'
           cache: 'npm'
       
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+      
       - name: Install dependencies
         run: npm ci
       
+      - name: Wait for Postgres
+        if: matrix.type == 'integration' && runner.os == 'Linux'
+        run: |
+          while ! pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for Postgres..."
+            sleep 2
+          done
+          echo "Postgres is ready!"
+      
       - name: Run unit tests
         if: matrix.type == 'unit'
-        run: vitest run --threads
+        run: vitest run --coverage
+      
+      - name: Upload coverage reports
+        if: matrix.type == 'unit'
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report-${{ matrix.os }}
+          path: coverage/
+          retention-days: 30
       
       - name: Run integration tests
-        if: matrix.type == 'integration'
+        if: matrix.type == 'integration' && runner.os == 'Linux'
         run: cross-env DATABASE_URL=postgresql://postgres:postgres@localhost:5432/test_db vitest run --config vitest.integration.config.ts --threads
         env:
           NODE_ENV: test
@@ -47,7 +105,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: test_db
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
