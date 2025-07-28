@@ -60,11 +60,28 @@ export default [
       'no-console': 'warn',
       'no-debugger': 'warn',
       'no-undef': 'off', // TypeScript handles this better
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.property.name='forEach']",
+          message: "Use forEachAsync (from '@/utils/async-iteration') instead of native forEach for async operations, or ArraySafety.forEach (from 'utils/array-safety') for synchronous operations"
+        },
+        {
+          selector: "CallExpression[callee.property.name=/^(forEach|map|filter|reduce)$/]",
+          message: "Use async-safe helpers (forEachAsync, mapAsync, etc.)"
+        }
+      ],
     },
     settings: {
       react: {
         version: 'detect',
       },
+    },
+  },
+  {
+    files: ['**/async-iteration.ts'],
+    rules: {
+      'no-restricted-syntax': 'off', // Allow native array methods in async-iteration utilities
     },
   },
   {
