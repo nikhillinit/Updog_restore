@@ -652,6 +652,7 @@ components:
           example: "45000000"
         strategy:
           type: string
+          maxLength: 256
           description: Investment strategy
           example: "Growth-stage B2B SaaS"
         createdAt:
@@ -682,9 +683,11 @@ components:
           example: 1
         sector:
           type: string
+          maxLength: 256
           example: "SaaS"
         stage:
           type: string
+          maxLength: 256
           example: "Series B"
         totalInvested:
           type: string
@@ -729,6 +732,7 @@ components:
           example: "1500000"
         round:
           type: string
+          maxLength: 256
           description: Investment round
           example: "Series A"
         date:
@@ -742,6 +746,7 @@ components:
           example: "15000000"
         notes:
           type: string
+          maxLength: 256
           description: Investment notes
           example: "Lead investor with board seat"
 
@@ -810,6 +815,7 @@ components:
         description:
           type: string
           minLength: 1
+          maxLength: 256
           description: Activity description
           example: "Series B investment in TechCorp"
         amount:
@@ -896,6 +902,7 @@ components:
           example: 2024
         strategy:
           type: string
+          maxLength: 256
           maxLength: 500
           example: "Early to growth-stage enterprise software"
 
@@ -918,9 +925,11 @@ components:
           example: 1
         sector:
           type: string
+          maxLength: 256
           minLength: 1
           example: "Analytics"
         stage:
+          maxLength: 256
           type: string
           minLength: 1
           example: "Series A"
@@ -948,6 +957,7 @@ components:
           example: "3000000"
         round:
           type: string
+          maxLength: 256
           minLength: 1
           example: "Series B"
         date:
@@ -960,6 +970,7 @@ components:
           example: "30000000"
         notes:
           type: string
+          maxLength: 256
           maxLength: 1000
 
     CreateActivityRequest:
@@ -981,6 +992,7 @@ components:
         description:
           type: string
           minLength: 1
+          maxLength: 256
           maxLength: 500
           example: "Completed Series B round"
         amount:

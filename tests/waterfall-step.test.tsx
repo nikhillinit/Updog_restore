@@ -1,7 +1,8 @@
+import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import WaterfallStep from '../client/src/pages/WaterfallStep';
-import type { Waterfall } from '@shared/types';
+import type { Waterfall } from '../shared/types';
 
 describe('WaterfallStep', () => {
   const mockOnChange = vi.fn();

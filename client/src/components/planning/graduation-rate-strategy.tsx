@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { forEach } from "../../utils/array-safety";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -194,7 +195,7 @@ export default function GraduationRateStrategy() {
       let remainingCompanies = portfolioSize;
       let totalFollowOn = 0;
       
-      randomizedRates.forEach((round, index) => {
+      forEach(randomizedRates, (round, index) => {
         const companiesReachingRound = Math.round(remainingCompanies * round.graduationRate);
         let currentOwnership = initialOwnership;
         
