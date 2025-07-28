@@ -73,15 +73,23 @@ jobs:
       - name: Wait for Postgres
         if: matrix.type == 'integration' && runner.os == 'Linux'
         run: |
-          while ! pg_isready -h localhost -p 5432 -U postgres; do
-            echo "Waiting for Postgres..."
+          # Install postgresql-client if needed
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client
+          
+          # Wait for PostgreSQL to be ready
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U postgres; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            echo "Waiting for PostgreSQL to start... ($i/30)"
             sleep 2
           done
-          echo "Postgres is ready!"
       
       - name: Run unit tests
         if: matrix.type == 'unit'
-        run: vitest run --coverage
+        run: npm run test:run -- --coverage
       
       - name: Upload coverage reports
         if: matrix.type == 'unit'
@@ -93,9 +101,10 @@ jobs:
       
       - name: Run integration tests
         if: matrix.type == 'integration' && runner.os == 'Linux'
-        run: cross-env DATABASE_URL=postgresql://postgres:postgres@localhost:5432/test_db vitest run --config vitest.integration.config.ts --threads
+        run: npm run test:integration
         env:
           NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
     
     services:
       postgres:
@@ -122,24 +131,40 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build project
+        run: npm run build
+      
       - name: Generate ETags for built site
         run: |
-          # Create docs/build directory if it doesn't exist
-          mkdir -p docs/build
+          # Create directory for ETags
+          mkdir -p dist/etags
           
-          # Copy relevant build artifacts to docs/build for ETag generation
           # Recursively compute and record ETags for all built files
-          find docs/build -type f 2>/dev/null | while read file; do
-            etag=$(printf "%s" "$(sha1sum "$file" | awk '{print $1}')")
-            printf "%s  %s\n" "$etag" "$file" >> docs/build/ETAGS
-          done || echo "No files found in docs/build, creating empty ETAGS file"
+          find dist -type f -not -path "*/etags/*" -not -path "*/node_modules/*" | while read file; do
+            etag=$(sha1sum "$file" | awk '{print $1}')
+            echo "$etag  $file" >> dist/etags/ETAGS
+          done
           
           # Ensure ETAGS file exists even if no files were processed
-          touch docs/build/ETAGS
+          touch dist/etags/ETAGS
+          
+          # Print summary
+          echo "Generated ETags for $(grep -c . dist/etags/ETAGS) files"
+          echo "First 5 entries:"
+          head -n 5 dist/etags/ETAGS
       
       - name: Upload ETAGS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: docs-etags
-          path: docs/build/ETAGS
+          name: build-etags
+          path: dist/etags/ETAGS
           retention-days: 30
