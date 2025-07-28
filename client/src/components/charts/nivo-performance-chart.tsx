@@ -1,6 +1,7 @@
+import React, { memo, useMemo, useCallback } from 'react';
 import { ResponsiveLine } from '@nivo/line';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { memo, useMemo, useCallback } from 'react';
+
 
 interface PerformanceData {
   id: string;
