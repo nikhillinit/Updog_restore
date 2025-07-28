@@ -1,4 +1,4 @@
-name: Tests
+name: "CI: enhance test workflow with caching, concurrency & health-check"
 
 on:
   push:
