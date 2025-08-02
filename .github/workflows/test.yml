@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  CI_EXPERIMENTAL: ${{ vars.CI_EXPERIMENTAL || 'false' }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -23,11 +26,49 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
     
+    - name: Cache build artifacts
+      if: env.CI_EXPERIMENTAL == 'true'
+      uses: actions/cache@v4
+      with:
+        path: dist/
+        key: ${{ runner.os }}-build-${{ hashFiles('server/**/*') }}
+        restore-keys: |
+          ${{ runner.os }}-build-
+    
     - name: Install dependencies
       run: npm ci
     
-    - name: Run tests
-      run: npm test
+    - name: Run tests with coverage
+      run: npm run test:coverage
     
     - name: Run build
       run: npm run build --if-present
+    
+    - name: Upload test failure logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-failure-logs-${{ matrix.node-version }}
+        path: |
+          test-results/
+          coverage/
+        retention-days: 14
+
+  etag-generation:
+    if: github.ref == 'refs/heads/main' && vars.CI_EXPERIMENTAL == 'true'
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Generate ETag
+      run: |
+        echo "etag-$(date +%s)-$(git rev-parse --short HEAD)" > etag.txt
+    
+    - name: Upload ETag artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: etag-artifact
+        path: etag.txt
+        retention-days: 30
