@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { memo, useMemo, useCallback } from 'react';
 import { ResponsivePie } from '@nivo/pie';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { memo, useMemo, useCallback } from 'react';
+
 
 interface AllocationData {
   id: string;

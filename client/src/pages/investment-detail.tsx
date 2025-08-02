@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRoute } from "wouter";
+import { useRoute , Link } from "wouter";
 import { useFundContext } from "@/contexts/FundContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +20,6 @@ import {
   ArrowLeft, Edit3, Plus, Calendar, DollarSign, TrendingUp, 
   Target, Building, MapPin, Tag, Users, BarChart3, TrendingDown, Calculator 
 } from "lucide-react";
-import { Link } from "wouter";
 import LiquidationPreferencesDialog from "@/components/investments/liquidation-preferences-dialog";
 import PerformanceCaseTabs from "@/components/investments/performance-case-tabs";
 import CapTableCalculator from "@/components/cap-table/cap-table-calculator";
