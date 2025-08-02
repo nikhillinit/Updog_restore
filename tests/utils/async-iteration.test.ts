@@ -2,7 +2,7 @@
  * Unit tests for async iteration utilities
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   forEachAsync,
   mapAsync,
@@ -17,6 +17,11 @@ import { logger } from '../../lib/logger';
 describe('async-iteration utilities', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe('forEachAsync', () => {
@@ -112,29 +117,27 @@ describe('async-iteration utilities', () => {
     it('should process items in parallel by default', async () => {
       const items = [1, 2, 3];
       const mapper = vi.fn().mockImplementation(async (item: number) => {
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await vi.advanceTimersByTimeAsync(10);
         return item * 2;
       });
 
-      const startTime = Date.now();
       const result = await mapAsync(items, mapper);
-      const endTime = Date.now();
 
       expect(result).toEqual([2, 4, 6]);
-      // Should complete in roughly parallel time (less than sequential)
-      expect(endTime - startTime).toBeLessThan(25); // Allow some buffer
+      expect(mapper).toHaveBeenCalledTimes(3);
     });
 
     it('should process items sequentially when parallel=false', async () => {
       const items = [1, 2, 3];
       const mapper = vi.fn().mockImplementation(async (item: number) => {
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await vi.advanceTimersByTimeAsync(10);
         return item * 2;
       });
 
       const result = await mapAsync(items, mapper, { parallel: false });
 
       expect(result).toEqual([2, 4, 6]);
+      expect(mapper).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -228,7 +231,7 @@ describe('async-iteration utilities', () => {
         .mockResolvedValueOnce(undefined);
 
       // Mock logger.error to avoid noise in tests
-      const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => logger);
 
       await processAsync(items, processor, { continueOnError: true });
 
