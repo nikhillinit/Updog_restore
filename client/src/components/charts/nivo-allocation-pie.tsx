@@ -2,7 +2,6 @@ import React, { memo, useMemo, useCallback } from 'react';
 import { ResponsivePie } from '@nivo/pie';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-
 interface AllocationData {
   id: string;
   label: string;

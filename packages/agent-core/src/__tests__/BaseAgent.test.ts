@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { BaseAgent } from '../BaseAgent';
 
 class TestAgent extends BaseAgent<string, string> {
@@ -20,6 +20,7 @@ describe('BaseAgent', () => {
   let agent: TestAgent;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     agent = new TestAgent({
       name: 'test-agent',
       maxRetries: 2,
@@ -27,6 +28,10 @@ describe('BaseAgent', () => {
     });
     agent.callCount = 0;
     agent.shouldFail = false;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('should execute successfully on first attempt', async () => {
@@ -42,12 +47,15 @@ describe('BaseAgent', () => {
   it('should retry on failure and succeed', async () => {
     agent.shouldFail = true;
     
-    // Make it succeed on the second attempt
-    setTimeout(() => {
-      agent.shouldFail = false;
-    }, 5);
+    // Use fake timers for deterministic test behavior
+    const executePromise = agent.execute('test-input');
+    
+    // Fast-forward timers and make second attempt succeed
+    await vi.runOnlyPendingTimersAsync();
+    agent.shouldFail = false;
+    await vi.runAllTimersAsync();
 
-    const result = await agent.execute('test-input');
+    const result = await executePromise;
 
     expect(result.success).toBe(true);
     expect(result.data).toBe('processed-test-input');

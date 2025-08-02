@@ -2,7 +2,6 @@ import React, { memo, useMemo, useCallback } from 'react';
 import { ResponsiveScatterPlot } from '@nivo/scatterplot';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-
 interface MOICData {
   id: string;
   data: Array<{
