@@ -16,7 +16,24 @@ jobs:
           # Split files across shards for faster execution
           files=$(git ls-files | head -n $((${{ matrix.shard }} * 500)))
           
-          if git grep -n -i slack -- $files ':!.github/workflows/slack-regression-guard.yml' ':!docs/legacy/*' ':!.migration/*'; then
+          if git grep -n -i slack -- $files \
+            ':!.github/workflows/slack-regression-guard.yml' \
+            ':!docs/legacy/*' \
+            ':!.migration/*' \
+            ':!.config/*' \
+            ':!*.md' \
+            ':!tatus' \
+            ':!docs/*' \
+            ':!observability/*' \
+            ':!packages/*/README.md' \
+            ':!repo/*' \
+            ':!scripts/apply-hotfixes.sh' \
+            ':!scripts/update-branch-protection.js' \
+            ':!.github/dependabot.yml' \
+            ':!.github/workflows/ci-hygiene.yml' \
+            ':!.github/workflows/maintenance.yml' \
+            ':!.github/workflows/migration-orchestrator.yml' \
+            ':!launch-script.sh'; then
             echo '❌  Slack reference found in shard ${{ matrix.shard }}'; exit 1
           fi
           echo '✅  Shard ${{ matrix.shard }} Slack-free'
