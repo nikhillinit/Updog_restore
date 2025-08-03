@@ -34,7 +34,7 @@ else
 fi
 
 # Check 4: GitHub CLI authentication
-if gh auth status 2>&1 | grep -q "✓ Logged in"; then
+if gh auth status >/dev/null 2>&1; then
   echo "✅ GitHub CLI authenticated"
 else
   echo "❌ GitHub CLI not authenticated (run: gh auth login)"
