@@ -2,6 +2,7 @@ import React, { memo, useMemo, useCallback } from 'react';
 import { ResponsiveLine } from '@nivo/line';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+
 interface PerformanceData {
   id: string;
   data: Array<{
