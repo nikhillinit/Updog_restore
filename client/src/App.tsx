@@ -34,7 +34,6 @@ import NotFound from "@/pages/not-found";
 import EnhancedPortfolioAnalytics from "@/components/portfolio/enhanced-portfolio-analytics";
 import CustomFields from "@/pages/CustomFields";
 import InvestmentsTable from "@/pages/investments-table";
-import InvestmentsPage from "@/pages/investments";
 import CapTables from "@/pages/CapTables";
 import CashManagement from "@/pages/cash-management";
 import SensitivityAnalysisPage from "@/pages/sensitivity-analysis";
@@ -157,8 +156,7 @@ function Router() {
       <Route path="/investments/:id" component={(props) => <ProtectedRoute component={InvestmentDetail} {...props} />} />
       <Route path="/custom-fields" component={(props) => <ProtectedRoute component={CustomFields} {...props} />} />
       <Route path="/investments-table" component={(props) => <ProtectedRoute component={InvestmentsTable} {...props} />} />
-      <Route path="/investments" component={(props) => <ProtectedRoute component={InvestmentsPage} {...props} />} />
-      <Route path="/investments/company/:id" component={(props) => <ProtectedRoute component={InvestmentsPage} {...props} />} />
+      <Route path="/investments/company/:id" component={(props) => <ProtectedRoute component={Investments} {...props} />} />
       <Route path="/cap-tables" component={(props) => <ProtectedRoute component={CapTables} {...props} />} />
       <Route path="/kpi-manager" component={(props) => <ProtectedRoute component={KPIManager} {...props} />} />
       <Route path="/kpi-submission" component={KPISubmission} />
