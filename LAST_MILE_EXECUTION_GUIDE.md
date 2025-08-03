@@ -1,203 +1,163 @@
 # 🎯 **Last-Mile Execution Guide: 30-Minute Migration**
 
-**Total keyboard time**: ≈ 30 minutes spread across 2 working days  
-**Success criteria**: Binary pass/fail gates at every step  
-**Edge cases**: All handled with guardrails
+Everything framed as *bite-size actions* you can paste into a terminal or ticketing tool.  
+Total planned **keyboard time ≈ 30 minutes** spread across two working days.
 
 ---
 
-## 0️⃣ **One-Time Prep** (~3 min – do once per workstation)
+## 0  One-Time Prep (~3 min – do once per workstation)
 
 ```bash
 # Shell profile — copy/paste once
 cat <<'EOS' >> ~/.bash_aliases    # or ~/.zshrc
-alias preflight='./scripts/pre-migration-check.sh && npm ci --prefer-offline && gh auth status'
-alias stress='./scripts/stress-summary.sh'
-alias migrate='bash ./scripts/async-migrate.sh'
+alias preflight='dev:preflight'   # runs git clean + gh auth + npm ci
+alias stress='scripts/stress-summary.sh'
+alias migrate='bash scripts/async-migrate.sh'
 EOS
 source ~/.bash_aliases
 ```
 
-✅ **Success Gate**: Aliases work without error when sourced
-
 ---
 
-## 1️⃣ **Kick-off Block A** (~10 min)
+## 1  Kick-off Block A (~10 min)
 
 | Step | Command | Success Gate |
-|------|---------|--------------|
-| 1.1 | `preflight` | All ✅ printed |
-| 1.2 | `migrate async/hotpath-1 client/src/pages/fund-setup.tsx workers/cohort-worker.ts` | Opens PR in browser, template checklist visible |
-| 1.3 | Click **Merge** once Guardian badge turns green | PR auto-squashed; Guardian yellow → green |
+| ---- | ------- | ------------ |
+| 1.1  | `preflight` | All ✅ printed |
+| 1.2  | `migrate fund-setup.tsx cohort-worker.ts` | Opens PR in browser, template checklist visible |
+| 1.3  | Click **Merge** once Guardian badge turns green | PR auto-squashed; Guardian yellow → green |
 
-> 🔄 **Behind the scenes**: `.async-migration-active` included automatically, bench & stress start
-
----
-
-## 2️⃣ **Guardian Background Work**
-
-**Duration**: ~8 min CI + overnight stress  
-**Keyboard time**: **0 minutes**  
-**Monitoring**: Email notification **only if failure** or auto-rollback
+> Behind the scenes: `.async-migration-active` is already included, bench & stress start automatically.
 
 ---
 
-## 3️⃣ **Morning Block B** (~5 min)
+## 2  Guardian Background Work
+
+*Duration:* ~8 min CI + overnight stress; **no keyboard time**.  
+You'll get an e-mail **only if** a check fails or auto-rollback fires—no dashboard babysitting.
+
+---
+
+## 3  Morning Block B (~5 min)
 
 ```bash
 stress          # auto-detects last night's folder
 ```
 
-**Decision Tree**:
+*Decision tree*
 
 | Condition | Action |
-|-----------|--------|
-| P95 **> 400ms** at any concurrency ≤ 8 | 🛑 Stop. Investigate before more PRs |
-| P95 ≤ 300ms @ C = 8 | Run auto-tune one-liner (5s) |
-| Else | ✅ Continue - no action needed |
-
-**Auto-tune one-liner** (if P95 < 300ms):
-```bash
-git checkout -b perf/tune && \
-sed -i.bak 's/= 4/= 6/' client/src/utils/resilientLimit.ts && \
-git commit -am "perf: auto-tune concurrency (P95 < 300ms)" && \
-gh pr create --fill --label perf-tune && gh pr merge --squash
-```
+| --------- | ------ |
+| P95 **> 400 ms** at any concurrency ≤ 8 | Stop. Investigate hot loop before more PRs. |
+| P95 ≤ 300 ms @ C = 8 | `auto-tune-concurrency` one-liner *(5 s)* |
+| Else | Do nothing |
 
 ---
 
-## 4️⃣ **Afternoon Block C** (~15 min)
+## 4  Afternoon Block C (~15 min)
 
-### **4.1 Second Migration** (5 min)
-```bash
-migrate async/hotpath-2 client/src/components/charts/*.tsx services/SlackService.ts
-```
-✅ **Success**: PR merged with Guardian green
+1. **Second migration**
 
-### **4.2 Immediate Rollback Drill** (5 min)
-```bash
-./scripts/verify-rollback.sh    # waits ~5 min
-```
-✅ **Success**: Branch `rollback/auto-*` appears → Guardian green again
+   ```bash
+   migrate charts/*.tsx slackService.ts
+   ```
 
-### **4.3 Final Hot-Path Check** (5 min)
-```bash
-# If this was the final hot-path file
-git rm .async-migration-active
-git commit -m "chore: disable async bench"
-git push && gh pr create --fill --merge --squash
-```
-✅ **Success**: Benchmarking disabled, no more overhead
+   Confirm PR merged green.
 
----
+2. **Immediate rollback drill**
 
-## 5️⃣ **Evening Block D** (~3 min total)
+   ```bash
+   ./scripts/verify-rollback.sh    # waits ~5 min
+   ```
 
-| Automated | Manual |
-|-----------|--------|
-| ✅ ESLint warn → error (scheduled workflow) | GitHub UI: Settings → Branches → **Require Guardian** (20s) |
+   > Pass criteria: branch `rollback/auto-…` appears → Guardian green again.
 
-**Manual step**: GitHub → Settings → Branches → main → Add rule:
-- ☑️ Require status checks to pass
-- Search: "Guardian" → Select
-- Save
+3. **If this was the final hot-path file**
 
-✅ **Success**: Rule appears in branch protection list
+   ```bash
+   git rm .async-migration-active
+   git commit -m "chore: disable async bench"
+   git push && gh pr create --fill --merge --squash
+   ```
 
 ---
 
-## 6️⃣ **Day +3: CODEOWNERS Protection** (30s verification)
+## 5  Evening Block D (~3 min total)
 
-Verify in GitHub UI under Settings → Code owners:
+*This is now fully automated via the scheduled workflow and CODEOWNERS PR.*
+
+| Already automated | Manual |
+| ----------------- | ------ |
+| ESLint warn → error (`promote-eslint.yml`) | GitHub UI: Settings → Branches → **Require Guardian** check (20 s) |
+
+---
+
+## 6  Day +3 — CODEOWNERS Protection
+
+The PR created by the one-liner is already merged. Verify in UI that:
+
 ```
 /.perf-budget.json  @<your-handle>
 ```
 
-✅ **Success**: CODEOWNERS rule visible and active
+appears under *Code owners*. (30 s)
 
 ---
 
-## 7️⃣ **Passive → GA** (7 days automated monitoring)
+## 7  Passive → GA
 
-**Duration**: 7 × 24h of Guardian green  
-**Active monitoring**: **None** - notifications only on:
-- `error_rate ≥ 1%`
-- Performance budget breach  
-- `circuitBreaker.trips > 0`
+*Duration:* 7 × 24 h of Guardian green.  
+You only respond if:
+
+* `error_rate` ≥ 1 %  
+* perf-budget breach  
+* circuitBreaker.trips > 0  
+
+Both conditions trigger GitHub notifications by default.
 
 ---
 
-## 8️⃣ **GA Tag Block E** (~2 min)
+## 8  GA Tag Block E (~2 min)
 
 ```bash
 git pull origin main
 git tag -a v1.0-ga -m "Async migration GA $(date +%F)"
 git push origin v1.0-ga
-gh release create v1.0-ga --generate-notes --title "🎯 Async Hardening GA"
-```
-
-✅ **Success**: Release page generated automatically
-
----
-
-## 9️⃣ **Post-GA Polish** (Optional 5 min)
-
-### **Migration Badge** (2 min)
-```bash
-MIGRATIONS=$(curl -s /healthz | jq -r .async_foreach_replacements_total || echo "0")
-sed -i "1i ![Migrations](https://img.shields.io/badge/Async_Migrations-${MIGRATIONS}-brightgreen)" README.md
-git commit -am "docs: migration progress badge" && git push
-```
-
-### **Dry-Run Rollback Demo** (3 min)
-```bash
-git checkout -b test/rollback-drill
-echo 'throw new Error("drill test")' >> test-rollback.js
-git add test-rollback.js && git commit -m "test: rollback drill"
-git push -u origin HEAD
-
-# Wait 15 min for Guardian to create rollback/auto-* branch
-# Then cleanup: git checkout main && git branch -D test/rollback-drill
+gh release create v1.0-ga --generate-notes
 ```
 
 ---
 
-## 🛡️ **Edge-Case Guardrails Recap**
+## 9  Post-GA (Optional 5-minute polish)
 
-| Guard | Triggers On | Saves You From |
-|-------|-------------|----------------|
-| **GitHub auth check** | `preflight` fails early | Rollback branch push failure |
-| **OS notification guard** | `command -v osascript` | Linux CI breakage |
-| **Non-enterprise PR merge** | `--auto` flag dropped | CLI error on consumer accounts |
-| **Scheduled ESLint** | Laptop sleep/session close | Background job death |
+* Add badge snippet to README  
+* Run **dry-run rollback** on a throw-away branch for the incident-playbook demo  
+* Capture a screenshot of the green Guardian badge for your release notes  
 
 ---
 
-## 🚀 **Start Command**
+### Edge-Case Guardrails Recap
+
+| Guard | How it triggers | Your save |
+| ----- | --------------- | --------- |
+| **GitHub auth** | preflight exits early | avoids rollback branch push failure |
+| **OS notification guard** | `command -v osascript` check | Linux CI safe |
+| **Non-enterprise PR merge** | `--auto` flag dropped | no CLI error |
+| **Laptop sleep** | ESLint promotion scheduled in CI | rule promotion guaranteed |
+
+---
+
+## You're Good to Ship
+
+* 30 minutes total typing  
+* Zero vendor lock-in  
+* Rollback proven *before* prod traffic  
+* Metrics + breaker + cost all enforced by Guardian  
+
+**Next literal keystroke:**
 
 ```bash
 preflight
 ```
 
-**Expected output**: `🚀 Ready for 30-minute migration!`
-
-Once you see this, you're officially in execution mode.
-
----
-
-## 📊 **Final Metrics**
-
-| Metric | Value |
-|--------|-------|
-| **Total keyboard time** | 30 minutes |
-| **Vendor lock-in** | Zero |
-| **Manual error points** | 1 (GitHub UI branch protection) |
-| **Rollback validation** | Proven before production |
-| **Cross-platform** | Linux/Mac/Windows compatible |
-| **Cost overhead** | Guardian enforced automatically |
-
-**This is production-ready excellence.** 🏆
-
----
-
-*Next literal keystroke: `preflight`*
+Once that prints **"🚀 Ready for 30-minute migration!"** you're officially in execution mode.
