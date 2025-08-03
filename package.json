@@ -20,6 +20,8 @@
     "orchestrator": "tsx scripts/orchestrate.ts",
     "workers:dev": "tsx --watch scripts/orchestrate.ts",
     "bench": "tsx scripts/bench-engine.ts",
+    "bench:load": "vitest bench tests/load --reporter=verbose",
+    "smart-fix": "node scripts/smart-fix.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",

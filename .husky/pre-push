@@ -1,0 +1,31 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Smart pre-push hook: only run benchmarks for main/perf branches or async-heavy changes
+current_branch=$(git branch --show-current)
+
+# Check if current branch should trigger benchmarks
+should_benchmark=false
+
+if [[ "$current_branch" =~ (main|perf) ]]; then
+  should_benchmark=true
+  echo "🔍 Main/perf branch detected - running performance checks..."
+elif git diff --name-only origin/main..HEAD | grep -E "(worker|async|batch)" > /dev/null; then
+  should_benchmark=true
+  echo "🔍 Async-heavy changes detected - running performance checks..."
+fi
+
+if [ "$should_benchmark" = true ]; then
+  echo "⏱️  Running quick performance benchmark..."
+  npm run bench:load -- --reporter=verbose --run --config.test.timeout=30000
+  
+  if [ $? -ne 0 ]; then
+    echo "❌ Performance benchmark failed - push aborted"
+    echo "💡 Run 'npm run bench:load' locally to debug"
+    exit 1
+  fi
+  
+  echo "✅ Performance check passed"
+else
+  echo "⚡ Skipping performance checks (no async-heavy changes detected)"
+fi

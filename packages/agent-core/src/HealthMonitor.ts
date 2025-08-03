@@ -1,13 +1,12 @@
 import { MetricsCollector } from './MetricsCollector';
-import { SlackNotifier, SlackConfig } from './SlackNotifier';
 import { Logger } from './Logger';
+import { ETagLogger } from './ETagLogger';
 
 export interface HealthCheckConfig {
   checkInterval?: number; // milliseconds
   failureThreshold?: number;
   recoveryThreshold?: number;
   alertCooldown?: number; // milliseconds
-  slack?: SlackConfig;
 }
 
 export interface AgentHealth {
@@ -24,10 +23,9 @@ export interface AgentHealth {
 }
 
 export class HealthMonitor {
-  private config: Required<HealthCheckConfig>;
+  private config: HealthCheckConfig;
   private agentHealth: Map<string, AgentHealth> = new Map();
   private metrics: MetricsCollector;
-  private slack?: SlackNotifier;
   private logger: Logger;
   private intervalId?: NodeJS.Timeout;
 
@@ -45,10 +43,6 @@ export class HealthMonitor {
       level: 'info',
       agent: 'health-monitor',
     });
-
-    if (config.slack) {
-      this.slack = new SlackNotifier(config.slack);
-    }
   }
 
   start(): void {
@@ -64,7 +58,7 @@ export class HealthMonitor {
 
     this.intervalId = setInterval(() => {
       this.performHealthCheck();
-    }, this.config.checkInterval);
+    }, this.config.checkInterval!);
   }
 
   stop(): void {
@@ -111,7 +105,7 @@ export class HealthMonitor {
 
     // Update status based on consecutive failures
     const previousStatus = health.status;
-    if (health.consecutiveFailures >= this.config.failureThreshold) {
+    if (health.consecutiveFailures >= this.config.failureThreshold!) {
       health.status = 'unhealthy';
     } else if (health.consecutiveFailures > 0) {
       health.status = 'degraded';
@@ -129,12 +123,12 @@ export class HealthMonitor {
     for (const health of this.agentHealth.values()) {
       // Check if agent has been inactive
       const timeSinceLastSeen = now - health.lastSeen;
-      const isStale = timeSinceLastSeen > this.config.checkInterval * 2;
+      const isStale = timeSinceLastSeen > this.config.checkInterval! * 2;
 
       if (isStale && health.status !== 'unhealthy') {
         const previousStatus = health.status;
         health.status = 'unhealthy';
-        health.consecutiveFailures = this.config.failureThreshold;
+        health.consecutiveFailures = this.config.failureThreshold!;
         
         this.logger.warn('Agent appears inactive', {
           agentName: health.agentName,
@@ -175,7 +169,7 @@ export class HealthMonitor {
     const now = Date.now();
     
     // Check if we should send an alert (respect cooldown)
-    const shouldAlert = now - health.lastAlert > this.config.alertCooldown;
+    const shouldAlert = now - health.lastAlert > this.config.alertCooldown!;
     
     if (health.status !== previousStatus && shouldAlert) {
       this.logger.info('Agent status changed', {
@@ -185,26 +179,7 @@ export class HealthMonitor {
         consecutiveFailures: health.consecutiveFailures,
       });
 
-      if (this.slack) {
-        if (health.status === 'unhealthy') {
-          await this.slack.sendAlert({
-            severity: 'critical',
-            title: 'Agent Health Critical',
-            message: `Agent "${health.agentName}" is unhealthy with ${health.consecutiveFailures} consecutive failures`,
-            agentName: health.agentName,
-            timestamp: new Date().toISOString(),
-            context: {
-              consecutiveFailures: health.consecutiveFailures,
-              lastSeen: new Date(health.lastSeen).toISOString(),
-              metrics: health.metrics,
-            },
-          });
-        } else if (health.status === 'healthy' && previousStatus !== 'healthy') {
-          await this.slack.sendRecoveryAlert(health.agentName, 'health-check');
-        }
-
-        health.lastAlert = now;
-      }
+      health.lastAlert = now;
     }
   }
 
@@ -229,6 +204,10 @@ export class HealthMonitor {
       stats[health.status]++;
       stats.total++;
     }
+    
+    // Generate ETag for health status caching
+    const etag = ETagLogger.from(JSON.stringify(stats));
+    this.logger.debug('Generated health status cache key', { stats, etag });
     
     return stats;
   }
