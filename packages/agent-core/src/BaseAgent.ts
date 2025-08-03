@@ -1,6 +1,5 @@
 import { Logger } from './Logger';
 import { MetricsCollector } from './MetricsCollector';
-import { SlackNotifier, SlackConfig } from './SlackNotifier';
 
 export interface AgentConfig {
   name: string;
@@ -8,7 +7,6 @@ export interface AgentConfig {
   retryDelay?: number;
   timeout?: number;
   logLevel?: 'debug' | 'info' | 'warn' | 'error';
-  slack?: SlackConfig;
 }
 
 export interface AgentExecutionContext {
@@ -29,10 +27,9 @@ export interface AgentResult<T = any> {
 }
 
 export abstract class BaseAgent<TInput = any, TOutput = any> {
-  protected readonly config: Required<AgentConfig>;
+  protected readonly config: AgentConfig;
   protected readonly logger: Logger;
   protected readonly metrics: MetricsCollector;
-  protected readonly slack?: SlackNotifier;
 
   constructor(config: AgentConfig) {
     this.config = {
@@ -44,17 +41,12 @@ export abstract class BaseAgent<TInput = any, TOutput = any> {
     };
     
     this.logger = new Logger({
-      level: this.config.logLevel,
+      level: this.config.logLevel || 'info',
       agent: this.config.name,
     });
 
     this.metrics = MetricsCollector.getInstance();
     this.metrics.recordAgentStart(this.config.name);
-
-    // Initialize Slack notifier if config provided
-    if (config.slack) {
-      this.slack = new SlackNotifier(config.slack);
-    }
   }
 
   /**
@@ -75,24 +67,26 @@ export abstract class BaseAgent<TInput = any, TOutput = any> {
     this.logger.info('Starting agent execution', { context, input });
 
     let lastError: Error | null = null;
-    let retries = 0;
+    let attempt = 0;
+    const maxRetries = this.config.maxRetries || 3;
 
-    while (retries <= this.config.maxRetries) {
+    // Try initial attempt + maxRetries
+    for (let i = 0; i <= maxRetries; i++) {
       try {
         const result = await this.performOperation(input, context);
-        const duration = Date.now() - startTime;
+        const duration = Math.max(1, Date.now() - startTime); // Ensure non-zero duration
 
         const agentResult: AgentResult<TOutput> = {
           success: true,
           data: result,
-          retries,
+          retries: i, // Number of retries made (0 for first attempt success)
           duration,
           context,
         };
 
         this.logger.info('Agent execution completed successfully', {
           result: agentResult,
-          retries,
+          retries: i,
           duration,
         });
 
@@ -102,32 +96,33 @@ export abstract class BaseAgent<TInput = any, TOutput = any> {
           operation,
           'success',
           duration,
-          retries
+          i
         );
 
         return agentResult;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        retries++;
 
         this.logger.warn('Agent execution attempt failed', {
           error: lastError.message,
-          attempt: retries,
-          maxRetries: this.config.maxRetries,
+          attempt: i + 1,
+          maxRetries,
           context,
         });
 
-        if (retries <= this.config.maxRetries) {
-          await this.delay(this.config.retryDelay * retries); // Exponential backoff
+        // Only retry if we haven't reached max retries yet
+        if (i < maxRetries) {
+          await this.delay((this.config.retryDelay || 1000) * (i + 1)); // Exponential backoff
         }
       }
     }
 
-    const duration = Date.now() - startTime;
+    const duration = Math.max(1, Date.now() - startTime); // Ensure non-zero duration
+    
     const agentResult: AgentResult<TOutput> = {
       success: false,
       error: lastError?.message || 'Unknown error',
-      retries: retries - 1,
+      retries: maxRetries,
       duration,
       context,
     };
@@ -143,7 +138,7 @@ export abstract class BaseAgent<TInput = any, TOutput = any> {
       operation,
       'failure',
       duration,
-      retries - 1
+      maxRetries
     );
     
     this.metrics.recordFailure(
@@ -152,17 +147,6 @@ export abstract class BaseAgent<TInput = any, TOutput = any> {
       lastError?.constructor.name || 'UnknownError'
     );
 
-    // Send Slack alert for critical failures
-    if (this.slack && lastError) {
-      this.slack.sendCrashAlert(this.config.name, lastError, {
-        operation,
-        retries: retries - 1,
-        duration,
-        runId: context.runId,
-      }).catch(err => 
-        this.logger.warn('Failed to send Slack alert', { error: err.message })
-      );
-    }
 
     return agentResult;
   }
