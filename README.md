@@ -10,6 +10,13 @@ This repository contains the POVC Fund-Modeling Platform, a sophisticated applic
 * Interactive Monte-Carlo risk engine for real-time exploration.
 * Construction vs. Current variance tracking to surface strategy drift.
 
+## Performance Status
+
+[![Async Migration](https://img.shields.io/badge/async_migration-baseline_established-green)](./ASYNC_HARDENING_OPTIMIZATION_EVALUATION.md)
+[![Performance Baseline](https://img.shields.io/badge/perf_baseline-automated-blue)](https://github.com/nikhillinit/Updog_restore/actions/workflows/perf-baseline.yml)
+[![Benchmark Trend](https://img.shields.io/badge/benchmark_tracking-active-success)](https://github.com/nikhillinit/Updog_restore/tree/gh-pages/dev/bench)
+[![ESLint Rules](https://img.shields.io/badge/eslint_async-enforced-orange)](./eslint-rules/no-async-array-methods.js)
+
 ## Core Technology Stack
 
 * **Backend:** Node.js, Fastify, NATS

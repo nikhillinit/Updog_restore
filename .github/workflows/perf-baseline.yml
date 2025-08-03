@@ -1,0 +1,87 @@
+name: Performance Baseline
+
+on:
+  push:
+    paths:
+      - 'client/src/utils/async-*.ts'
+      - '**/*worker*.ts'
+      - 'tests/load/**'
+  workflow_dispatch:
+    inputs:
+      size:
+        description: 'Benchmark size (1000, 10000, 50000)'
+        required: false
+        default: '10000'
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        size: [1000, 10000, 50000]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run benchmarks
+        run: |
+          npm run bench -- --reporter=json > perf-${{ matrix.size }}.json
+        env:
+          BENCHMARK_SIZE: ${{ matrix.size }}
+          
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v3
+        with:
+          name: perf-baseline-${{ matrix.size }}
+          path: perf-${{ matrix.size }}.json
+          retention-days: 30
+          
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'vitest'
+          output-file-path: perf-${{ matrix.size }}.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          comment-on-alert: true
+          comment-always: false
+          alert-threshold: '20%'
+          fail-on-alert: true
+          benchmark-data-dir-path: 'dev/bench'
+          
+  summary:
+    runs-on: ubuntu-latest
+    needs: benchmark
+    if: always()
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        
+      - name: Generate summary
+        run: |
+          echo "## Performance Baseline Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Size | Status | Artifacts |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|-----------|" >> $GITHUB_STEP_SUMMARY
+          
+          for size in 1000 10000 50000; do
+            if [[ -f "perf-baseline-${size}/perf-${size}.json" ]]; then
+              echo "| ${size} | ✅ Complete | [Download](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| ${size} | ❌ Failed | - |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "View detailed benchmark trends: [Performance Dashboard](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/tree/gh-pages/dev/bench)" >> $GITHUB_STEP_SUMMARY

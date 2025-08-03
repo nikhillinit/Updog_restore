@@ -6,6 +6,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
+    include: ['**/*.{test,spec,bench}.?(c|m)[jt]s?(x)'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
