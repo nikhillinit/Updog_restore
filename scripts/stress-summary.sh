@@ -1,18 +1,38 @@
 #!/usr/bin/env bash
 # -------------------------------------------------------------
 # Stress test summary - compare before/after results
+# Auto-detects latest date folder or uses provided date
 # -------------------------------------------------------------
 set -euo pipefail
 
-# Find the latest stress test results
-LATEST_DIR=$(find .stress -name "20*" -type d | sort | tail -1)
-if [ -z "$LATEST_DIR" ]; then
-  echo "⚠️  No stress results found. Run graduated-stress.sh first."
-  exit 1
+# Auto-detect latest date or use provided argument
+if [ $# -gt 0 ]; then
+  DATE="$1"
+  LATEST_DIR=".stress/$DATE"
+else
+  LATEST_DIR=$(find .stress -name "20*" -type d 2>/dev/null | sort | tail -1)
+  if [ -z "$LATEST_DIR" ]; then
+    echo "⚠️  No stress results found. Run graduated-stress.sh first."
+    exit 1
+  fi
+  DATE=$(basename "$LATEST_DIR")
 fi
 
-LATEST_DATE=$(basename "$LATEST_DIR")
-echo "Using results from: $LATEST_DATE"
+echo "📊 Stress Test Results for: $DATE"
+echo "=================================="
+
+# Quick summary table
+printf "%-12s %-8s %-8s %-10s %-8s\n" "Concurrency" "P95_ms" "Avg_ms" "RPS" "Errors"
+for f in "$LATEST_DIR"/stress-c*.json; do
+  if [ -f "$f" ]; then
+    C=$(basename "$f" | sed -E 's/[^0-9]//g')
+    P95=$(jq -r '.latency.p95 // 0' "$f")
+    AVG=$(jq -r '.latency.mean // 0' "$f")
+    RPS=$(jq -r '.requests.average // 0' "$f")
+    ERR=$(jq -r '.errors // 0' "$f")
+    printf "c=%-10s %-8s %-8s %-10s %-8s\n" "$C" "$P95" "$AVG" "$RPS" "$ERR"
+  fi
+done
 
 # Create comparison using jq
 echo "📊 Stress Test Comparison"
@@ -22,7 +42,7 @@ echo "========================"
 PREV_DIR=$(find .stress -name "20*" -type d | sort | tail -2 | head -1)
 if [ -n "$PREV_DIR" ] && [ "$PREV_DIR" != "$LATEST_DIR" ]; then
   PREV_DATE=$(basename "$PREV_DIR")
-  echo "Comparing $PREV_DATE → $LATEST_DATE"
+  echo "Comparing $PREV_DATE → $DATE"
   jq -s '
     sort_by(.concurrency // .c) |
     (["Concurrency", "P95_Before", "P95_After", "Delta_ms", "Delta_%"] | @tsv),
