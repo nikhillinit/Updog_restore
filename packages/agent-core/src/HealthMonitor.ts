@@ -1,5 +1,6 @@
 import { MetricsCollector } from './MetricsCollector';
 import { Logger } from './Logger';
+import { ETagLogger } from './ETagLogger';
 
 export interface HealthCheckConfig {
   checkInterval?: number; // milliseconds
@@ -203,6 +204,10 @@ export class HealthMonitor {
       stats[health.status]++;
       stats.total++;
     }
+    
+    // Generate ETag for health status caching
+    const etag = ETagLogger.from(JSON.stringify(stats));
+    this.logger.debug('Generated health status cache key', { stats, etag });
     
     return stats;
   }

@@ -2,6 +2,7 @@ export { BaseAgent } from './BaseAgent';
 export { Logger } from './Logger';
 export { MetricsCollector } from './MetricsCollector';
 export { HealthMonitor } from './HealthMonitor';
+export { ETagLogger } from './ETagLogger';
 
 export type {
   AgentConfig,

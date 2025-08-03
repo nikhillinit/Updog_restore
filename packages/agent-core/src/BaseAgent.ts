@@ -1,5 +1,6 @@
 import { Logger } from './Logger';
 import { MetricsCollector } from './MetricsCollector';
+import { ETagLogger } from './ETagLogger';
 
 export interface AgentConfig {
   name: string;
@@ -84,10 +85,14 @@ export abstract class BaseAgent<TInput = any, TOutput = any> {
           context,
         };
 
+        // Generate ETag for caching
+        const etag = ETagLogger.from(JSON.stringify(result));
+        
         this.logger.info('Agent execution completed successfully', {
           result: agentResult,
           retries: i,
           duration,
+          etag,
         });
 
         // Record metrics
