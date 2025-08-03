@@ -1,0 +1,11 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "@slack/*"
+      - dependency-name: "husky"
+      - dependency-name: "@types/node"
+        versions: [">=19"]
