@@ -72,7 +72,8 @@ export default [
       'no-debugger': 'warn',
       'no-undef': 'off', // TypeScript handles this better
       // Replace no-restricted-syntax with our custom rule that has autofix
-      'custom/no-async-array-methods': 'error',
+      // Progressive rollout: warn → error (promotes to error at T+1 evening)
+      'custom/no-async-array-methods': 'warn',
     },
     settings: {
       'import/resolver': {
