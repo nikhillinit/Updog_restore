@@ -1,0 +1,126 @@
+# --------------------------------------------------------------------
+# Guardian – one cron, one runner, all background hygiene
+# --------------------------------------------------------------------
+# • Runs every 15 min  ➜  canary health, cost check
+# • At 03:00 UTC      ➜  nightly test + coverage
+# • Manual dispatch   ➜  ad‑hoc run
+# --------------------------------------------------------------------
+name: Guardian
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # every 15 minutes
+  workflow_dispatch:
+
+concurrency:
+  group: guardian
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Canary + Cost + Tests
+        id: canary
+        env:
+          GH_TOKEN: ${{ github.token }}   # for gh api
+        run: |
+          set -euo pipefail
+          echo "⏰  Guardian run $(date -u +%F\ %T) UTC"
+
+          # -----------------------------
+          # 1. Canary health probe
+          # -----------------------------
+          ERROR_RATE=0
+          if ./scripts/canary-check.sh ; then
+            echo "✅ Canary healthy"
+            ERROR_RATE=$(cat .canary-metrics 2>/dev/null | grep error_rate | cut -d'=' -f2 || echo "0")
+          else
+            echo "::warning:: Canary unhealthy – rollout held"
+            ERROR_RATE=5  # Assume high error rate on canary failure
+          fi
+          echo "error_rate=$ERROR_RATE" >> $GITHUB_OUTPUT
+
+          # -----------------------------
+          # 2. CI‑minutes budget
+          # -----------------------------
+          MIN=$(gh api /user/metrics/github-actions -q '.minutes_used')
+          THRESHOLD=1800   # tweak as desired
+          if [ "$MIN" -gt "$THRESHOLD" ]; then
+            echo "::warning:: CI minutes high ($MIN / $THRESHOLD)"
+          else
+            echo "💰 CI minutes OK ($MIN)"
+          fi
+
+          # -----------------------------
+          # 2b. Async benchmark (if migration active)
+          # -----------------------------
+          if [ -f .async-migration-active ]; then
+            echo "📊 Running async benchmarks..."
+            npm ci --ignore-scripts
+            node --experimental-json-modules ./scripts/bench-async.js > bench-result.txt
+            ./scripts/perf-compare.sh
+            
+            # Performance budget check
+            if [ -f bench-result.json ] && [ -f .perf-budget.json ]; then
+              CURRENT_P95=$(jq '.p95_ms // 0' bench-result.json)
+              BUDGET_P95=$(jq '.p95Max // 400' .perf-budget.json)
+              if (( $(echo "$CURRENT_P95 > $BUDGET_P95" | bc -l) )); then
+                echo "::error::P95 latency $CURRENT_P95ms exceeds budget $BUDGET_P95ms"
+                exit 1
+              else
+                echo "✅ P95 latency $CURRENT_P95ms within budget $BUDGET_P95ms"
+              fi
+            fi
+          fi
+
+          # -----------------------------
+          # 3. Nightly full test (03 UTC)
+          # -----------------------------
+          if [ "$(date -u +%H)" = "03" ]; then
+            echo "🧪 Running nightly tests..."
+            npm ci --ignore-scripts
+            npm test -- --coverage
+            
+            # Graduated stress test
+            if [ -x ./scripts/graduated-stress.sh ]; then
+              echo "🔬 Running graduated stress test..."
+              ./scripts/graduated-stress.sh || echo "::warning::Stress test failed"
+            fi
+          fi
+
+      - name: Conditional rollback
+        if: ${{ always() && github.ref == 'refs/heads/main' && steps.canary.outputs.error_rate > '5' }}
+        run: |
+          echo "🔥 Error rate high (${{ steps.canary.outputs.error_rate }}%) – rolling back latest async commits"
+          git config --global user.name 'Guardian Bot'
+          git config --global user.email 'guardian@github.com'
+          git checkout -b rollback/auto-${{ github.run_id }}
+          ./rollback-async.sh
+          git push -u origin HEAD
+          
+          # Create issue for tracking
+          gh issue create \
+            --title "Auto-rollback triggered (run #${{ github.run_id }})" \
+            --body "Error rate exceeded 5% threshold. Rollback branch: rollback/auto-${{ github.run_id }}"
+
+      - name: Cleanup migration marker
+        if: success() && github.ref == 'refs/heads/main'
+        run: |
+          if [ -f .async-migration-active ]; then
+            rm .async-migration-active
+            git config --global user.name 'Guardian Bot'
+            git config --global user.email 'guardian@github.com'
+            git add .async-migration-active
+            git commit -m "chore: async migration complete" || true
+            git push
+          fi

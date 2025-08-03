@@ -12,6 +12,7 @@ This repository contains the POVC Fund-Modeling Platform, a sophisticated applic
 
 ## Performance Status
 
+[![Guardian](https://github.com/nikhillinit/Updog_restore/actions/workflows/guardian.yml/badge.svg)](https://github.com/nikhillinit/Updog_restore/actions/workflows/guardian.yml)
 [![Async Migration](https://img.shields.io/badge/dynamic/json?url=https://gist.githubusercontent.com/raw/28e11ae43a0f276ed3f9e22c0202101e/progress.json&query=$.migration&label=async%20migration&color=blue)](./ASYNC_HARDENING_OPTIMIZATION_EVALUATION.md)
 [![Performance Baseline](https://img.shields.io/badge/perf_baseline-automated-blue)](https://github.com/nikhillinit/Updog_restore/actions/workflows/perf-baseline.yml)
 [![Benchmark Trend](https://img.shields.io/badge/benchmark_tracking-active-success)](https://github.com/nikhillinit/Updog_restore/tree/gh-pages/dev/bench)
@@ -26,35 +27,49 @@ This repository contains the POVC Fund-Modeling Platform, a sophisticated applic
 * **Testing:** Playwright (E2E), k6 (Performance)
 * **Observability:** SigNoz, Prometheus
 
-## Getting Started
+## Quick Start
 
-1. **Clone the repository:**
+```bash
+# 1. Clone and install
+git clone https://github.com/nikhillinit/Updog_restore.git
+cd Updog_restore
+npm install
 
-   ```bash
-   git clone <repository_url>
-   cd povc-platform
-   ```
-2. **Install dependencies:**
+# 2. Database setup
+npm run db:push        # Push schema to DB
+npm run db:studio      # Optional: Browse data
 
-   ```bash
-   npm install
-   ```
-3. **Configure environment:**
+# 3. Development
+npm run dev            # Full stack (client + API)
+npm run test           # Run test suite
+```
 
-   ```bash
-   cp .env.example .env
-   # Edit .env with your local configuration details
-   ```
-4. **Run database migrations:**
+**Single-command startup:**
+```bash
+./pilot.sh             # Zero-config development environment
+```
 
-   ```bash
-   npm run db:migrate
-   ```
-5. **Start the development server:**
+## File Map - Key Components
 
-   ```bash
-   npm run dev
-   ```
+```
+server/
+├── routes.ts          # API endpoints + new /healthz endpoint
+├── health.ts          # Health check utilities
+└── metrics.ts         # Prometheus metrics
+
+client/src/
+├── lib/fund-calc.ts   # Monte Carlo + IRR/MOIC calculations (NEW)
+├── components/charts/ # Nivo chart components (async-hardened)
+└── pages/fund-setup.tsx # Main fund configuration UI
+
+scripts/
+├── canary-check.sh    # Auto-promotion based on error rates
+├── pilot.sh           # One-command dev environment
+└── debug.sh           # Development debugging tools
+
+tests/utils/
+└── async-iteration.test.ts # 27 passing async hardening tests
+```
 
 ## Usage
 
