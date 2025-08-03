@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Sprint G2C Master Checklist
 **Use this as your primary coordination document**
 
@@ -205,3 +206,6 @@
 - [ ] **Set up burn-down tracking** in sprint board for daily updates
 
 **Status:** ⚡ Ready to execute - all planning documents created and ready for implementation.
+=======
+# Sprint G2C – master checklist
+>>>>>>> 41cc163 (chore: restore full Sprint G2C docs and remove accidental stubs)

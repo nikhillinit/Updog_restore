@@ -5,6 +5,9 @@
 import { safeArray } from './array-safety';
 import { logger } from '../../../lib/logger';
 
+// Compile-time flag for metrics collection - dead-stripped in production builds
+const withMetrics: boolean = typeof import.meta !== 'undefined' && import.meta.env.MODE !== 'production';
+
 export interface ProcessingOptions {
   parallel?: boolean;
   batchSize?: number;
@@ -120,8 +123,14 @@ export async function forEachAsync<T>(
 ): Promise<void> {
   if (!Array.isArray(items)) return;
   
+  const start = withMetrics ? performance.now() : 0;
+  
   for (let i = 0; i < items.length; i++) {
     await callback(items[i], i, items);
+  }
+  
+  if (withMetrics && items.length > 100) {
+    console.info(`[async-metrics] forEachAsync: ${items.length} items in ${(performance.now() - start).toFixed(1)}ms`);
   }
 }
 
@@ -140,12 +149,15 @@ export async function mapAsync<T, R>(
   
   if (!Array.isArray(items)) return [];
   
+  const start = withMetrics ? performance.now() : 0;
+  let results: R[];
+  
   if (parallel && batchSize >= items.length) {
     // Process all items in parallel
-    return Promise.all(items.map(callback));
+    results = await Promise.all(items.map(callback));
   } else if (parallel) {
     // Process in batches
-    const results: R[] = [];
+    results = [];
     
     for (let i = 0; i < items.length; i += batchSize) {
       const batch = items.slice(i, i + batchSize);
@@ -159,17 +171,21 @@ export async function mapAsync<T, R>(
         await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
       }
     }
-    
-    return results;
   } else {
     // Sequential processing
-    const results: R[] = [];
+    results = [];
     for (let i = 0; i < items.length; i++) {
       const result = await callback(items[i], i, items);
       results.push(result);
     }
-    return results;
   }
+  
+  if (withMetrics && items.length > 100) {
+    const mode = parallel ? 'parallel' : 'sequential';
+    console.info(`[async-metrics] mapAsync (${mode}): ${items.length} items in ${(performance.now() - start).toFixed(1)}ms`);
+  }
+  
+  return results;
 }
 
 
@@ -218,6 +234,40 @@ export async function reduceAsync<T, R>(
     accumulator = await reducer(accumulator, items[i], i, items);
   }
   return accumulator;
+}
+
+/**
+ * Some with async predicate
+ */
+export async function someAsync<T>(
+  items: T[],
+  predicate: (item: T, index: number, array: T[]) => Promise<boolean>
+): Promise<boolean> {
+  if (!Array.isArray(items)) return false;
+  
+  for (let i = 0; i < items.length; i++) {
+    if (await predicate(items[i], i, items)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Every with async predicate
+ */
+export async function everyAsync<T>(
+  items: T[],
+  predicate: (item: T, index: number, array: T[]) => Promise<boolean>
+): Promise<boolean> {
+  if (!Array.isArray(items)) return true;
+  
+  for (let i = 0; i < items.length; i++) {
+    if (!(await predicate(items[i], i, items))) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // Example usage patterns
