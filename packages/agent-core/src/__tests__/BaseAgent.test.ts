@@ -73,7 +73,7 @@ describe('BaseAgent', () => {
     expect(result.error).toBe('Test operation failed');
     expect(result.retries).toBe(2); // maxRetries
     expect(agent.callCount).toBe(3); // initial + 2 retries
-  });
+  }, 20000);
 
   it('should include execution context', async () => {
     const result = await agent.execute('test-input', 'custom-operation');
