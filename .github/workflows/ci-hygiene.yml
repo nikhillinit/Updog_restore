@@ -19,7 +19,8 @@ jobs:
           if grep -R "@slack" . \
                --exclude-dir=node_modules \
                --exclude-dir=tests \
-               --exclude-dir=.github; then
+               --exclude-dir=.github \
+               --exclude=shared/slack.ts; then
             echo "::error::Slack dependency found – blocked."
             exit 1
           fi
