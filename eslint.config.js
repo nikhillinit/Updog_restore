@@ -21,6 +21,11 @@ export default [
       'scripts/ai-tools/**',
       '.next/**',
       'coverage/**',
+      '**/*.md',
+      '**/*.yml',
+      '**/*.yaml',
+      '.github/**',
+      '.specstory/**',
     ],
   },
   {

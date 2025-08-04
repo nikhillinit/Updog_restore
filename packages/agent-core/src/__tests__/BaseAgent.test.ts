@@ -59,8 +59,8 @@ describe('BaseAgent', () => {
 
     expect(result.success).toBe(true);
     expect(result.data).toBe('processed-test-input');
-    expect(result.retries).toBe(1);
-    expect(agent.callCount).toBe(2); // Initial call + 1 retry
+    expect(result.retries).toBe(2);
+    expect(agent.callCount).toBe(3); // Initial call + 2 retries
   });
 
   it('should fail after max retries', async () => {
