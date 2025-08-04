@@ -23,7 +23,11 @@ export default function pLimit(concurrency: number) {
         active++;
         task().then(res, rej).finally(next);
       };
-      (active < concurrency) ? execute() : queue.push(execute);
+      if (active < concurrency) {
+        execute();
+      } else {
+        queue.push(execute);
+      }
     });
 
   return run;

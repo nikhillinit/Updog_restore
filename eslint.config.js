@@ -11,6 +11,19 @@ import noAsyncArrayMethods from './eslint-rules/no-async-array-methods.js';
 export default [
   js.configs.recommended,
   {
+    ignores: [
+      'dist/**',
+      'build/**',
+      'node_modules/**',
+      '*.min.js',
+      'docs/references/attached_assets/**',
+      'repo/BMAD-METHOD/**',
+      'scripts/ai-tools/**',
+      '.next/**',
+      'coverage/**',
+    ],
+  },
+  {
     files: ['**/*.{ts,tsx,js,jsx}'],
     languageOptions: {
       parser: typescriptParser,
