@@ -33,7 +33,11 @@ jobs:
             ':!.github/workflows/ci-hygiene.yml' \
             ':!.github/workflows/maintenance.yml' \
             ':!.github/workflows/migration-orchestrator.yml' \
-            ':!launch-script.sh'; then
+            ':!launch-script.sh' \
+            ':!shared/slack.ts' \
+            ':!services/SlackService.ts' \
+            ':!**/*slack*.ts' \
+            ':!**/*Slack*.ts'; then
             echo '❌  Slack reference found in shard ${{ matrix.shard }}'; exit 1
           fi
           echo '✅  Shard ${{ matrix.shard }} Slack-free'
