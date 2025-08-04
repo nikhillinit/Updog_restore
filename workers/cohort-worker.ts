@@ -11,7 +11,7 @@ const connection = {
 // refactor(async): Replace forEach with controlled concurrency + circuit breaker
 const processCohortCompanies = async (companies: any[]) => {
   const limit = resilientLimit({
-    concurrency: 3,       // Max 3 concurrent company analyses
+    concurrency: 2,       // Max 2 concurrent company analyses
     maxFailures: 3,       // Circuit breaker after 3 failures
     resetOnSuccess: true  // Reset failure count on success
   });

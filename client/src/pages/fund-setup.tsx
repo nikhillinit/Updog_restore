@@ -333,7 +333,7 @@ export default function FundSetup() {
   // refactor(async): Replace forEach with controlled concurrency + circuit breaker
   const processPortfolioAllocations = async (allocations: any[]) => {
     const limit = resilientLimit({ 
-      concurrency: 4,      // Max 4 concurrent validations
+      concurrency: 3,      // Max 3 concurrent validations
       maxFailures: 3,      // Circuit breaker after 3 failures
       resetOnSuccess: true // Reset failure count on success
     });
