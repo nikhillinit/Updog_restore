@@ -118,4 +118,8 @@ export default [
       },
     },
   },
+  {
+    files: ['.github/workflows/**/*.yml', '**/*.md'],
+    rules: { 'local/no-slack-refs': 'off' }
+  },
 ];
