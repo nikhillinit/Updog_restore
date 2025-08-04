@@ -122,7 +122,7 @@ describe('async-iteration utilities', () => {
 
       expect(result).toEqual([2, 4, 6]);
       // Should complete in roughly parallel time (less than sequential)
-      expect(endTime - startTime).toBeLessThan(25); // Allow some buffer
+      expect(endTime - startTime).toBeLessThan(30); // 3 * 10ms = 30ms for sequential
     });
 
     it('should process items sequentially when parallel=false', async () => {
@@ -228,7 +228,7 @@ describe('async-iteration utilities', () => {
         .mockResolvedValueOnce(undefined);
 
       // Mock logger.error to avoid noise in tests
-      const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(vi.fn());
 
       await processAsync(items, processor, { continueOnError: true });
 

@@ -46,12 +46,12 @@ describe('BaseAgent', () => {
 
   it('should retry on failure and succeed', async () => {
     agent.shouldFail = true;
-    
-    // Use fake timers for deterministic test behavior
     const executePromise = agent.execute('test-input');
+
+    // First attempt fails, advance timer for first retry
+    await vi.advanceTimersByTimeAsync(10);
     
-    // Fast-forward timers and make second attempt succeed
-    await vi.runOnlyPendingTimersAsync();
+    // Second attempt will now succeed
     agent.shouldFail = false;
     await vi.runAllTimersAsync();
 
@@ -60,20 +60,22 @@ describe('BaseAgent', () => {
     expect(result.success).toBe(true);
     expect(result.data).toBe('processed-test-input');
     expect(result.retries).toBe(1);
-    expect(agent.callCount).toBe(2);
+    expect(agent.callCount).toBe(2); // Initial call + 1 retry
   });
 
   it('should fail after max retries', async () => {
     agent.shouldFail = true;
 
-    const result = await agent.execute('test-input');
+    const executePromise = agent.execute('test-input');
+    await vi.runAllTimersAsync(); // Let all retries happen
+    const result = await executePromise;
 
     expect(result.success).toBe(false);
     expect(result.data).toBeUndefined();
     expect(result.error).toBe('Test operation failed');
     expect(result.retries).toBe(2); // maxRetries
     expect(agent.callCount).toBe(3); // initial + 2 retries
-  }, 20000);
+  });
 
   it('should include execution context', async () => {
     const result = await agent.execute('test-input', 'custom-operation');
