@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { db, pool } from './db';
 import { healthStatus } from './metrics';
 import { getEnv } from './env';
+import { getBreakerTrips } from '../client/src/utils/resilientLimit';
 
 interface HealthComponent {
   name: string;
@@ -15,6 +16,9 @@ interface HealthResponse {
   timestamp: string;
   uptime: number;
   version: string;
+  circuitBreaker: {
+    trips: number;
+  };
   components: HealthComponent[];
 }
 
@@ -87,6 +91,9 @@ async function performHealthCheck(): Promise<HealthResponse> {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     version: process.env.npm_package_version || 'unknown',
+    circuitBreaker: {
+      trips: getBreakerTrips()
+    },
     components,
   };
 }
@@ -104,6 +111,9 @@ export async function healthCheck(req: Request, res: Response) {
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       version: process.env.npm_package_version || 'unknown',
+      circuitBreaker: {
+        trips: getBreakerTrips()
+      },
       components: [{
         name: 'health_check',
         status: 'unhealthy',

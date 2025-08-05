@@ -120,7 +120,7 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
           />
         );
 
-      case 'tags':
+      case 'tags': {
         const tags = (value as string[]) || [];
         return (
           <div className="space-y-2">
@@ -155,6 +155,7 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
             </div>
           </div>
         );
+      }
 
       case 'color':
         return (
