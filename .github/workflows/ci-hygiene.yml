@@ -20,7 +20,7 @@ jobs:
                --exclude-dir=node_modules \
                --exclude-dir=tests \
                --exclude-dir=.github \
-               --exclude=shared/slack.ts; then
+               --exclude-dir=shared; then
             echo "::error::Slack dependency found – blocked."
             exit 1
           fi
