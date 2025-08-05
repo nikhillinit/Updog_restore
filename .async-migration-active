@@ -1,0 +1,5 @@
+Migration Phase 1: fund-setup.tsx and cohort-worker.ts
+Start: 2025-08-03 11:00:00 UTC
+Files: client/src/pages/fund-setup.tsx, workers/cohort-worker.ts
+Target: Batched async patterns with pLimit(4) concurrency
+Metrics: async_foreach_replacements_total counter tracking

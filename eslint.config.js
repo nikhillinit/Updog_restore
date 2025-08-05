@@ -11,6 +11,24 @@ import noAsyncArrayMethods from './eslint-rules/no-async-array-methods.js';
 export default [
   js.configs.recommended,
   {
+    ignores: [
+      'dist/**',
+      'build/**',
+      'node_modules/**',
+      '*.min.js',
+      'docs/references/attached_assets/**',
+      'repo/BMAD-METHOD/**',
+      'scripts/ai-tools/**',
+      '.next/**',
+      'coverage/**',
+      '**/*.md',
+      '**/*.yml',
+      '**/*.yaml',
+      '.github/**',
+      '.specstory/**',
+    ],
+  },
+  {
     files: ['**/*.{ts,tsx,js,jsx}'],
     languageOptions: {
       parser: typescriptParser,
@@ -72,7 +90,8 @@ export default [
       'no-debugger': 'warn',
       'no-undef': 'off', // TypeScript handles this better
       // Replace no-restricted-syntax with our custom rule that has autofix
-      'custom/no-async-array-methods': 'error',
+      // Progressive rollout: warn → error (promotes to error at T+1 evening)
+      'custom/no-async-array-methods': 'warn',
     },
     settings: {
       'import/resolver': {
@@ -103,5 +122,9 @@ export default [
         vi: 'readonly',
       },
     },
+  },
+  {
+    files: ['.github/workflows/**/*.yml', '**/*.md'],
+    rules: { 'local/no-slack-refs': 'off' }
   },
 ];

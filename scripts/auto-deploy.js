@@ -43,7 +43,7 @@ class AutoDeploySystem {
     const chokidar = require('chokidar');
     
     const watcher = chokidar.watch('.', {
-      ignored: /(^|[\/\\])\../, // ignore dotfiles
+      ignored: /(^|[/\\])\../, // ignore dotfiles
       persistent: true
     });
 

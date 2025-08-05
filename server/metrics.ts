@@ -122,5 +122,12 @@ export const natsBridgeMessages = new promClient.Counter({
   labelNames: ['direction', 'type'], // direction: in/out, type: event/subscribe/etc
 });
 
+// Async migration metrics
+export const asyncRepl = new promClient.Counter({
+  name: 'async_foreach_replacements_total',
+  help: 'Number of legacy forEach conversions to async patterns',
+  labelNames: ['file'], // track which file was migrated
+});
+
 // Export registry for metrics endpoint
 export const register = promClient.register;

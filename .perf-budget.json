@@ -1,0 +1,11 @@
+{
+  "hotPaths": {
+    "fund-setup.tsx": 150,
+    "cohort-worker.ts": 200,
+    "reserve-worker.ts": 180,
+    "pacing-worker.ts": 175
+  },
+  "p95Max": 400,
+  "heapDeltaMax": 15,
+  "errorRateMax": 1
+}

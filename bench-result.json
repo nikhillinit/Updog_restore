@@ -1,0 +1,30 @@
+{
+  "timestamp": "2025-08-04T07:21:32.868Z",
+  "hotPaths": {
+    "fund-setup.tsx": {
+      "baseline": 150,
+      "current": 18,
+      "delta_pct": -88
+    },
+    "cohort-worker.ts": {
+      "baseline": 200,
+      "current": 14,
+      "delta_pct": -93
+    },
+    "reserve-worker.ts": {
+      "baseline": 180,
+      "current": 15,
+      "delta_pct": -92
+    },
+    "pacing-worker.ts": {
+      "baseline": 175,
+      "current": 15,
+      "delta_pct": -91
+    }
+  },
+  "p95_ms": 18,
+  "memory": {
+    "heap_used_mb": 4,
+    "external_mb": 2
+  }
+}

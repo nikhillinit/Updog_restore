@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * Smart ESLint migration helper that batches fixes by dependency depth
@@ -173,11 +173,11 @@ function chunkArray(array, size) {
   return chunks;
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(error => {
     console.error('❌ Smart fix failed:', error);
     process.exit(1);
   });
 }
 
-module.exports = { calculateDepths, groupByDepth, chunkArray };
+export { calculateDepths, groupByDepth, chunkArray };

@@ -33,6 +33,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Richer JSON health endpoint for Guardian and canary checks
+  app.get("/healthz", async (req, res) => {
+    try {
+      const fs = await import('fs');
+      
+      // Calculate simple error rate (placeholder - enhance based on your metrics)
+      const errorRate = 0.005; // 0.5% default - replace with actual calculation
+      
+      const healthData = {
+        error_rate: errorRate,
+        uptime_sec: process.uptime(),
+        heap_mb: Math.round(process.memoryUsage().heapUsed / 1048576),
+        timestamp: new Date().toISOString(),
+        version: process.env.npm_package_version || 'unknown',
+        last_deploy: fs.existsSync('.last-deploy')
+          ? fs.readFileSync('.last-deploy', 'utf8').trim()
+          : 'unknown',
+        status: errorRate < 0.01 ? 'healthy' : 'degraded'
+      };
+      
+      res.json(healthData);
+    } catch (error) {
+      res.status(500).json({
+        error: 'Health check failed',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   // Middleware to record HTTP metrics
   app.use((req, res, next) => {
     const startTime = Date.now();

@@ -26,12 +26,12 @@ All notable changes to the POVC Fund Model project are documented in this file.
 
 ### New Files
 - `lib/slack-batch-api.js` - Core batching engine with caching
-- `lib/slack-etag-cache.ts` - ETag-based cache implementation  
+- `lib/etag-cache.ts` - ETag-based cache implementation  
 - `lib/slack-observability-hook.js` - Prometheus metrics collection
 - `services/slackService.ts` - High-level service interface
 - `examples/slack-batch-usage.js` - Integration examples and best practices
 - `docs/slack-batch-api-guide.md` - Comprehensive API documentation
-- `docs/slack-etag-integration.md` - Caching implementation guide
+- `docs/etag-integration.md` - Caching implementation guide
 
 ### Migration Notes
 - **Breaking Change**: Legacy `SlackClient` replaced with `SlackBatchAPI`
