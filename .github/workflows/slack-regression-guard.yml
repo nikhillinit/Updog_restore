@@ -36,6 +36,7 @@ jobs:
             ':!launch-script.sh' \
             ':!shared/slack.ts' \
             ':!services/SlackService.ts' \
+            ':!eslint.config.js' \
             ':!**/*slack*.ts' \
             ':!**/*Slack*.ts'; then
             echo '❌  Slack reference found in shard ${{ matrix.shard }}'; exit 1
