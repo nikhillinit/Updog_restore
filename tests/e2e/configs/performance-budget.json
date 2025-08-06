@@ -1,0 +1,53 @@
+{
+  "budgets": {
+    "homepage": {
+      "loadTime": 3000,
+      "fcp": 1500,
+      "lcp": 2500,
+      "cls": 0.1,
+      "fid": 100,
+      "bundleSize": 2097152,
+      "imageSize": 1048576
+    },
+    "dashboard": {
+      "loadTime": 3000,
+      "fcp": 1500,
+      "lcp": 3000,
+      "cls": 0.15,
+      "fid": 100,
+      "bundleSize": 3145728,
+      "imageSize": 1048576
+    },
+    "portfolio": {
+      "loadTime": 4000,
+      "fcp": 1800,
+      "lcp": 3500,
+      "cls": 0.2,
+      "fid": 100,
+      "bundleSize": 3145728,
+      "imageSize": 2097152
+    }
+  },
+  "thresholds": {
+    "good": {
+      "lcp": 2500,
+      "cls": 0.1,
+      "fid": 100
+    },
+    "needsImprovement": {
+      "lcp": 4000,
+      "cls": 0.25,
+      "fid": 300
+    }
+  },
+  "accessibility": {
+    "maxViolations": {
+      "critical": 0,
+      "serious": 2,
+      "moderate": 5,
+      "minor": 10
+    },
+    "requiredTags": ["wcag2a", "wcag2aa", "wcag21aa"],
+    "skipRules": []
+  }
+}
