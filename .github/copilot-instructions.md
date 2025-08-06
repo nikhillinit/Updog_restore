@@ -5,8 +5,8 @@ Configuration for AI behavior when interacting with Codacy's MCP Server
 ## using any tool that accepts the arguments: `provider`, `organization`, or `repository`
 - ALWAYS use:
  - provider: gh
- - organization: RaiAnsar
- - repository: claude_code-multi-AI-MCP
+ - organization: nikhillinit
+ - repository: Updog_restore
 - Avoid calling `git remote -v` unless really necessary
 
 ## After ANY successful `edit_file` or `reapply` operation
