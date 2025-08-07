@@ -1,3 +1,4 @@
+import { mapAsync } from "../../utils/async-iteration";
 import { Worker } from 'bullmq';
 import { logger } from '../lib/logger';
 import { resilientLimit } from '../client/src/utils/resilientLimit';
@@ -21,7 +22,7 @@ const processCohortCompanies = async (companies: any[]) => {
   
   try {
     const results = await Promise.all(
-      companies.map(company => 
+      await mapAsync(companies, company => 
         limit(async () => {
           // Simulate cohort analysis per company
           await new Promise(resolve => setTimeout(resolve, 100));
@@ -32,8 +33,7 @@ const processCohortCompanies = async (companies: any[]) => {
             analysisComplete: true,
             processedAt: new Date().toISOString()
           };
-        })
-      )
+        }))
     );
     
     // Track successful async forEach replacement

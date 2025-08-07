@@ -7,6 +7,7 @@ import type {
   MarketConditionExtended 
 } from '@shared/types';
 import { PacingInputSchema, PacingOutputSchema } from '@shared/types';
+import { map, reduce } from '@/utils/array-safety';
 
 // =============================================================================
 // CONFIGURATION & VALIDATION
@@ -90,7 +91,7 @@ function calculateMLBasedPacing(input: PacingInput): PacingOutput[] {
   const ruleBased = calculateRuleBasedPacing(input);
   
   // Simulate ML enhancement with trend analysis
-  return ruleBased.map((item, index) => {
+  return map(ruleBased, (item, index) => {
     // ML adjusts based on simulated market trends and fund performance
     const trendAdjustment = 0.85 + (Math.random() * 0.3); // 0.85 to 1.15
     const mlEnhancedDeployment = item.deployment * trendAdjustment;
@@ -133,7 +134,7 @@ export function generatePacingSummary(input: PacingInput): PacingSummary {
   const deployments = PacingEngine(input);
   
   const totalQuarters = deployments.length;
-  const totalDeployment = deployments.reduce((sum, d) => sum + d.deployment, 0);
+  const totalDeployment = reduce(deployments, (sum, d) => sum + d.deployment, 0);
   const avgQuarterlyDeployment = totalQuarters > 0 ? totalDeployment / totalQuarters : 0;
   
   return {

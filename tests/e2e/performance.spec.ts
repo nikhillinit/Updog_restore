@@ -1,3 +1,4 @@
+import { mapAsync } from "../../client/src/lib";
 import { test, expect } from '@playwright/test';
 
 test.describe('Performance Tests', () => {
@@ -241,7 +242,7 @@ test.describe('Performance Tests', () => {
     if (images.length > 0) {
       // Measure image load performance
       const imageLoadTimes = await Promise.all(
-        images.map(async (img) => {
+        await mapAsync(images, async (img) => {
           const startTime = Date.now();
           
           try {

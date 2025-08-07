@@ -1,7 +1,15 @@
-import React, { memo, useMemo, useCallback } from 'react';
-import { ResponsivePie } from '@nivo/pie';
+import React from 'react';
+import { Pie } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+} from 'chart.js';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+// Register Chart.js components
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 interface AllocationData {
   id: string;
@@ -16,70 +24,46 @@ interface NivoAllocationPieProps {
   height?: number;
 }
 
-const NivoAllocationPie = memo(function NivoAllocationPie({ 
+export default function NivoAllocationPie({ 
   title, 
   data, 
   height = 400 
 }: NivoAllocationPieProps) {
-  // Memoize expensive calculations
-  const totalValue = useMemo(
-    () => data.reduce((sum, d) => sum + d.value, 0),
-    [data]
-  );
-  
-  // Memoize tooltip component to prevent re-renders
-  const TooltipComponent = useCallback(({ datum }: { datum: any }) => (
-    <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-      <div className="font-semibold" style={{ color: datum.color }}>
-        {datum.label}
-      </div>
-      <div className="text-sm text-gray-600">
-        ${(datum.value / 1000000).toFixed(1)}M ({((datum.value / totalValue) * 100).toFixed(1)}%)
-      </div>
-    </div>
-  ), [totalValue]);
-  
-  // Memoize chart configuration
-  const chartConfig = useMemo(() => ({
-    margin: { top: 40, right: 80, bottom: 80, left: 80 },
-    innerRadius: 0.5,
-    padAngle: 0.7,
-    cornerRadius: 3,
-    activeOuterRadiusOffset: 8,
-    borderWidth: 1,
-    borderColor: '#ffffff',
-    arcLinkLabelsSkipAngle: 10,
-    arcLinkLabelsTextColor: '#333333',
-    arcLinkLabelsThickness: 2,
-    arcLinkLabelsColor: { from: 'color' },
-    arcLabelsSkipAngle: 10,
-    arcLabelsTextColor: '#ffffff',
-    colors: ['#2563eb', '#dc2626', '#16a34a', '#ca8a04', '#7c3aed', '#ea580c'],
-    animate: true,
-    motionConfig: 'gentle' as const,
-    legends: [{
-      anchor: 'bottom' as const,
-      direction: 'row' as const,
-      justify: false,
-      translateX: 0,
-      translateY: 56,
-      itemsSpacing: 0,
-      itemWidth: 100,
-      itemHeight: 18,
-      itemTextColor: '#999',
-      itemDirection: 'left-to-right' as const,
-      itemOpacity: 1,
-      symbolSize: 18,
-      symbolShape: 'circle' as const,
-      effects: [{
-        on: 'hover' as const,
-        style: {
-          itemTextColor: '#000'
-        }
-      }]
-    }]
-  }), []);
-  
+  const labels = data.map(d => d.label);
+  const values = data.map(d => d.value);
+  const colors = ['#2563eb', '#dc2626', '#16a34a', '#ca8a04', '#7c3aed', '#ea580c'];
+
+  const chartData = {
+    labels,
+    datasets: [
+      {
+        data: values,
+        backgroundColor: colors.slice(0, data.length),
+        borderColor: colors.slice(0, data.length).map(color => color + '80'),
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context: any) {
+            const total = values.reduce((sum, val) => sum + val, 0);
+            const percentage = ((context.parsed / total) * 100).toFixed(1);
+            return `${context.label}: $${(context.parsed / 1000000).toFixed(1)}M (${percentage}%)`;
+          },
+        },
+      },
+    },
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -87,15 +71,9 @@ const NivoAllocationPie = memo(function NivoAllocationPie({
       </CardHeader>
       <CardContent>
         <div style={{ height: `${height}px` }}>
-          <ResponsivePie
-            data={data}
-            {...chartConfig}
-            tooltip={TooltipComponent}
-          />
+          <Pie data={chartData} options={options} />
         </div>
       </CardContent>
     </Card>
   );
-});
-
-export default NivoAllocationPie;
+}

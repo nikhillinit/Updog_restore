@@ -2,7 +2,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+// Chart libraries removed for bundle optimization
+const ChartPlaceholder = ({ title, height = "h-80" }: { title: string; height?: string }) => (
+  <div className={`${height} bg-gray-50 rounded-lg flex flex-col items-center justify-center`}>
+    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+      <Calculator className="h-8 w-8 text-gray-400" />
+    </div>
+    <p className="text-gray-500 font-medium">{title}</p>
+    <p className="text-gray-400 text-sm mt-1">Chart placeholder - data available via API</p>
+  </div>
+);
 import { useState } from "react";
 import { Calculator, TrendingUp, DollarSign, Target } from "lucide-react";
 import DualForecastDashboard from '@/components/dashboard/dual-forecast-dashboard';
@@ -127,19 +136,7 @@ export default function FinancialModeling() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={projectionData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="year" stroke="#666" fontSize={12} />
-                  <YAxis stroke="#666" fontSize={12} />
-                  <Tooltip formatter={(value, name) => [`$${value}M`, name === 'investment' ? 'Investment' : name === 'exits' ? 'Exits' : 'NAV']} />
-                  <Area type="monotone" dataKey="nav" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
-                  <Area type="monotone" dataKey="investment" stackId="2" stroke="#10b981" fill="#10b981" />
-                  <Area type="monotone" dataKey="exits" stackId="2" stroke="#f59e0b" fill="#f59e0b" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            <ChartPlaceholder title="Fund Projection Model Area Chart" />
           </CardContent>
         </Card>
 
@@ -164,19 +161,7 @@ export default function FinancialModeling() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={cohortData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="cohort" stroke="#666" fontSize={12} />
-                  <YAxis stroke="#666" fontSize={12} />
-                  <Tooltip formatter={(value) => [`$${value}M`, 'Value']} />
-                  <Bar dataKey="invested" fill="#94a3b8" name="Invested" />
-                  <Bar dataKey="currentValue" fill="#3b82f6" name="Current Value" />
-                  <Bar dataKey="projectedValue" fill="#06b6d4" name="Projected Value" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <ChartPlaceholder title="Cohort Analysis Bar Chart" />
           </CardContent>
         </Card>
       </div>
