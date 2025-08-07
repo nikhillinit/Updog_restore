@@ -383,17 +383,35 @@ export default function FundSetup() {
   const isFormValid = fundData.name && fundData.totalCommittedCapital && parseFloat(fundData.totalCommittedCapital) > 0;
   const canProceed = currentStep === 'fund-basics' ? isFormValid : true;
 
+  const completedSteps = WIZARD_STEPS.slice(0, currentStepIndex).map(step => step.id);
+
   return (
-    <div className="min-h-screen bg-gray-50 overflow-y-auto">
-      <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-20">
-        {/* Header */}
-        <div className="text-center mb-8 pt-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Building2 className="h-8 w-8 text-white" />
+    <div className="min-h-screen bg-pov-gray overflow-y-auto">
+      {/* Premium Header */}
+      <div className="bg-pov-white border-b border-pov-gray/30">
+        <div className="max-w-6xl mx-auto px-6 py-8">
+          <div className="text-center">
+            <div className="w-20 h-20 bg-gradient-to-br from-pov-charcoal to-pov-beige rounded-full flex items-center justify-center mx-auto mb-6 shadow-elevated">
+              <Building2 className="h-10 w-10 text-pov-white" />
+            </div>
+            <h1 className="font-inter font-bold text-4xl text-pov-charcoal mb-3">
+              Fund Construction Wizard
+            </h1>
+            <p className="font-poppins text-lg text-gray-600 max-w-2xl mx-auto">
+              Configure your venture capital fund with institutional-grade precision and professional standards
+            </p>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 break-words">Press On Ventures Construction Wizard</h1>
-          <p className="text-gray-600">Set up your fund with essential information</p>
         </div>
+      </div>
+
+      {/* Wizard Progress */}
+      <WizardProgress
+        steps={WIZARD_STEPS}
+        currentStep={currentStep}
+        completedSteps={completedSteps}
+      />
+
+      <div className="max-w-6xl mx-auto px-6 py-8">
 
         {/* Progress Bar */}
         <div className="mb-12">
