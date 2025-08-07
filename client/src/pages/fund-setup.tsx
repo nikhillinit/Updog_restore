@@ -605,46 +605,46 @@ export default function FundSetup() {
             {/* Other steps content would continue here... */}
 
             {/* Navigation Buttons */}
-            <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
-              <Button 
-                variant="outline" 
+            <div className="flex justify-between items-center mt-8 pt-6 border-t border-pov-gray/30">
+              <Button
+                variant="outline"
                 onClick={handleBack}
                 disabled={currentStep === 'fund-basics'}
-                className="flex items-center space-x-2"
+                className="flex items-center space-x-2 border-pov-charcoal/20 hover:bg-pov-charcoal hover:text-pov-white transition-all duration-200"
               >
                 <ArrowLeft className="h-4 w-4" />
                 <span>Back</span>
               </Button>
 
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-4">
                 {canSkipStep() && currentStep !== 'review' && (
-                  <Button 
+                  <Button
                     variant="ghost"
                     onClick={handleNext}
-                    className="text-gray-600 hover:text-gray-800"
+                    className="text-gray-600 hover:text-pov-charcoal hover:bg-pov-beige/20 transition-all duration-200"
                   >
                     Skip for now
                   </Button>
                 )}
-                
+
                 {currentStep !== 'review' ? (
-                  <Button 
+                  <Button
                     onClick={handleNext}
                     disabled={!canProceed}
-                    className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+                    className="flex items-center space-x-2 bg-pov-charcoal hover:bg-pov-charcoal/90 text-pov-white shadow-elevated hover:shadow-lg transition-all duration-200 disabled:opacity-50"
                   >
-                    <span>Next</span>
+                    <span>Continue</span>
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 ) : (
-                  <Button 
-                    onClick={handleSave} 
+                  <Button
+                    onClick={handleSave}
                     disabled={createFundMutation.isPending}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    className="bg-gradient-to-r from-pov-charcoal to-pov-beige hover:from-pov-charcoal/90 hover:to-pov-beige/90 text-pov-white shadow-elevated hover:shadow-lg transition-all duration-200"
                   >
                     {createFundMutation.isPending ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <div className="flex items-center gap-3">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-pov-white"></div>
                         <span>Creating Fund...</span>
                       </div>
                     ) : (
