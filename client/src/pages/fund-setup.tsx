@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { WizardProgress } from "@/components/wizard/WizardProgress";
 import { FinancialInput } from "@/components/wizard/FinancialInput";
 import { PremiumCard } from "@/components/ui/PremiumCard";
+import { POVBrandHeader } from "@/components/ui/POVLogo";
 
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
