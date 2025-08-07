@@ -467,9 +467,27 @@ export default function FundSetup() {
 
                       <div className="space-y-3">
                         <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
-                          Evergreen Fund?
+                          Fund End Date
                         </label>
-                        <div className="flex items-center space-x-3 h-12">
+                        <Input
+                          type="date"
+                          value={fundData.endDate}
+                          onChange={(e) => handleInputChange('endDate', e.target.value)}
+                          disabled={fundData.isEvergreen}
+                          className={`h-12 rounded-2xl w-full ${
+                            fundData.isEvergreen ? 'bg-pov-gray text-charcoal-400 cursor-not-allowed' : ''
+                          }`}
+                          style={{ border: '1px solid #E0D8D1' }}
+                          min={fundData.startDate}
+                        />
+                      </div>
+
+                      {/* Bottom Row */}
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-3">
+                          <label className="font-poppins text-xs font-medium uppercase tracking-widest" style={{ color: '#4A4A4A' }}>
+                            Evergreen Fund?
+                          </label>
                           <Switch
                             checked={fundData.isEvergreen}
                             onCheckedChange={(checked) => {
@@ -487,48 +505,34 @@ export default function FundSetup() {
                         </div>
                       </div>
 
-                      {/* Bottom Row */}
                       <div className="space-y-3">
                         <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
-                          Fund End Date
+                          Fund Term
                         </label>
-                        <Input
-                          type="date"
-                          value={fundData.endDate}
-                          onChange={(e) => handleInputChange('endDate', e.target.value)}
-                          disabled={fundData.isEvergreen}
-                          className={`h-12 rounded-2xl w-full ${
-                            fundData.isEvergreen ? 'bg-pov-gray text-charcoal-400 cursor-not-allowed' : ''
-                          }`}
-                          style={{ border: '1px solid #E0D8D1' }}
-                          min={fundData.startDate}
-                        />
-                      </div>
-
-                      <div className="space-y-3">
-                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
-                          Investment Horizon (Years)
-                        </label>
-                        <Input
-                          type="number"
-                          min="1"
-                          max="20"
-                          value={fundData.investmentHorizonYears}
-                          onChange={(e) => handleInputChange('investmentHorizonYears', e.target.value)}
-                          placeholder="5"
-                          className="h-12 rounded-2xl w-full"
-                          style={{ border: '1px solid #E0D8D1' }}
-                        />
+                        <div className="h-12 rounded-2xl w-full bg-pov-gray flex items-center px-4" style={{ border: '1px solid #E0D8D1' }}>
+                          <span className="text-charcoal-600 font-poppins text-sm">
+                            {(() => {
+                              if (!fundData.startDate || !fundData.endDate || fundData.isEvergreen) {
+                                return fundData.isEvergreen ? 'Evergreen' : 'Set dates to calculate';
+                              }
+                              const start = new Date(fundData.startDate);
+                              const end = new Date(fundData.endDate);
+                              const years = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+                              return `${years} years`;
+                            })()}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Commitments Section - 1×3 Row */}
+                  {/* Commitments Section - 2×2 Grid */}
                   <div style={{ marginBottom: '16px' }}>
                     <h4 className="font-poppins text-xs font-medium uppercase tracking-widest mb-3" style={{ color: '#4A4A4A' }}>
                       Commitments
                     </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: '12px' }}>
+                    <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: '12px' }}>
+                      {/* Top Row */}
                       <div className="space-y-3">
                         <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
                           Total Committed Capital
@@ -549,6 +553,24 @@ export default function FundSetup() {
                         </div>
                       </div>
 
+                      <div className="space-y-3">
+                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                          Capital Call Frequency
+                        </label>
+                        <Select value={fundData.capitalCallFrequency} onValueChange={(value) => handleInputChange('capitalCallFrequency', value)}>
+                          <SelectTrigger className="h-12 rounded-2xl w-full" style={{ border: '1px solid #E0D8D1' }}>
+                            <SelectValue placeholder="Select frequency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Upfront">Upfront</SelectItem>
+                            <SelectItem value="Quarterly">Quarterly</SelectItem>
+                            <SelectItem value="Semi-Annually">Semi-Annually</SelectItem>
+                            <SelectItem value="Annually">Annually</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Bottom Row */}
                       <div className="space-y-3">
                         <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
                           GP Commitment %
