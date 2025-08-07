@@ -1,13 +1,8 @@
-import { useState } from "react";
-import { usePortfolioCompanies } from "@/hooks/use-fund-data";
-import { useFundContext } from "@/contexts/FundContext";
-import PortfolioTable from "@/components/portfolio/portfolio-table";
-import InvestmentsTable from "@/components/portfolio/investments-table";
-import MOICAnalysis from "@/components/portfolio/moic-analysis";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Plus, TrendingUp, Building, DollarSign, BarChart3, Building2, Download, Settings, Calculator } from "lucide-react";
+import ModernPortfolio from "./portfolio-modern";
+
+export default function Portfolio() {
+  return <ModernPortfolio />;
+}
 import PortfolioCostValueChart from "@/components/charts/portfolio-cost-value-chart";
 
 const sectorDistribution = [
