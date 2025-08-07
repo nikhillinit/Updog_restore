@@ -6,6 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { WizardProgress } from "@/components/wizard/WizardProgress";
+import { FinancialInput } from "@/components/wizard/FinancialInput";
+import { PremiumCard } from "@/components/ui/PremiumCard";
 
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -26,13 +29,13 @@ import type { Fund } from "@/contexts/FundContext";
 type WizardStep = 'fund-basics' | 'committed-capital' | 'investment-strategy' | 'exit-recycling' | 'waterfall' | 'advanced-settings' | 'review';
 
 const WIZARD_STEPS: { id: WizardStep; label: string; description: string; icon: string }[] = [
-  { id: 'fund-basics', label: 'Fund Name, Currency and Life', description: 'Some basic facts on your fund', icon: 'F' },
-  { id: 'committed-capital', label: 'Committed Capital', description: 'The total capital committed from Limited and General Partners', icon: 'C' },
-  { id: 'investment-strategy', label: 'Investment Strategy', description: 'Define stages, sectors, and capital allocation', icon: 'I' },
-  { id: 'exit-recycling', label: 'Exit Recycling', description: 'Configure exit proceeds recycling', icon: 'E' },
-  { id: 'waterfall', label: 'Waterfall', description: 'Set distribution waterfall and carry terms', icon: 'W' },
-  { id: 'advanced-settings', label: 'Advanced Settings', description: 'Traditional fund or SPV', icon: 'A' },
-  { id: 'review', label: 'Review', description: 'Review and create fund', icon: 'R' },
+  { id: 'fund-basics', label: 'Fund Basics', description: 'Name, currency, and fund lifecycle', icon: '1' },
+  { id: 'committed-capital', label: 'Capital Structure', description: 'LP/GP commitments and capital calls', icon: '2' },
+  { id: 'investment-strategy', label: 'Investment Strategy', description: 'Stages, sectors, and allocations', icon: '3' },
+  { id: 'exit-recycling', label: 'Exit Recycling', description: 'Proceeds recycling configuration', icon: '4' },
+  { id: 'waterfall', label: 'Waterfall & Carry', description: 'Distribution terms and carry structure', icon: '5' },
+  { id: 'advanced-settings', label: 'Advanced Settings', description: 'Fund structure and expenses', icon: '6' },
+  { id: 'review', label: 'Review & Create', description: 'Final review and fund creation', icon: '✓' },
 ];
 
 // Helper function to convert database fund to context fund type
