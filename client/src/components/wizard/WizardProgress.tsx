@@ -19,12 +19,12 @@ export function WizardProgress({ steps, currentStep, completedSteps }: WizardPro
   const progress = ((currentIndex + 1) / steps.length) * 100;
 
   return (
-    <div className="bg-pov-white border-b border-pov-gray px-6 py-4">
+    <div className="px-6 py-6">
       {/* Progress Bar */}
       <div className="relative mb-6">
-        <div className="h-2 bg-pov-gray rounded-full overflow-hidden">
-          <div 
-            className="h-2 bg-gradient-to-r from-pov-beige to-pov-charcoal rounded-full transition-all duration-300 ease-out"
+        <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
+          <div
+            className="h-3 bg-gradient-to-r from-slate-600 to-slate-900 rounded-full transition-all duration-300 ease-out shadow-sm"
             style={{ width: `${progress}%` }}
           />
         </div>
