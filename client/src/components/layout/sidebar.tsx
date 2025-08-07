@@ -85,16 +85,16 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
         )}
       </div>
       
-      <nav className="flex-1 p-4 overflow-y-auto custom-scrollbar">
+      <nav className="flex-1 p-4 overflow-y-auto custom-scrollbar bg-slate-50">
         {needsSetup ? (
-          <div className="bg-pov-beige/30 border border-pov-beige rounded-lg p-4 mb-6">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
             <div className="flex items-center space-x-2 mb-2">
-              <Plus className="h-4 w-4 text-pov-charcoal" />
-              <span className="font-poppins text-sm font-medium text-pov-charcoal">Setup Required</span>
+              <Plus className="h-4 w-4 text-amber-700" />
+              <span className="font-poppins text-sm font-medium text-amber-800">Setup Required</span>
             </div>
-            <p className="font-poppins text-xs text-gray-600 mb-3">Configure your fund to access all features</p>
+            <p className="font-poppins text-xs text-amber-600 mb-3">Configure your fund to access all features</p>
             <Link href="/fund-setup">
-              <button className="w-full bg-pov-charcoal text-pov-white px-3 py-2 rounded-md text-sm font-medium hover:bg-pov-charcoal/90 transition-all duration-200">
+              <button className="w-full bg-amber-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-amber-700 transition-all duration-200">
                 Start Fund Setup
               </button>
             </Link>
@@ -116,10 +116,10 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
                     className={cn(
                       "w-full flex items-center space-x-3 px-3 py-2.5 text-left rounded-lg transition-all duration-200 font-poppins",
                       isDisabled
-                        ? "text-gray-400 cursor-not-allowed bg-gray-50"
+                        ? "text-gray-400 cursor-not-allowed bg-gray-100"
                         : isActive
-                          ? "bg-pov-charcoal text-pov-white shadow-sm"
-                          : "text-gray-700 hover:bg-pov-beige/20 hover:text-pov-charcoal"
+                          ? "bg-slate-900 text-white shadow-md"
+                          : "text-slate-700 hover:bg-white hover:text-slate-900 hover:shadow-sm"
                     )}
                   >
                     <Icon className="h-4 w-4 flex-shrink-0" />
