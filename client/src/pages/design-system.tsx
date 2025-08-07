@@ -30,7 +30,7 @@ export default function DesignSystem() {
   ];
 
   return (
-    <div className="min-h-screen bg-pov-gray">
+    <div className="min-h-screen bg-slate-100">
       <POVBrandHeader
         title="Design System"
         subtitle="Premium venture capital fund modeling platform with institutional-grade design standards"
@@ -38,11 +38,13 @@ export default function DesignSystem() {
       />
 
       {/* Wizard Progress Showcase */}
-      <WizardProgress 
-        steps={sampleSteps} 
-        currentStep="strategy" 
-        completedSteps={['basics', 'capital']}
-      />
+      <div className="bg-white border-b border-gray-200">
+        <WizardProgress
+          steps={sampleSteps}
+          currentStep="strategy"
+          completedSteps={['basics', 'capital']}
+        />
+      </div>
 
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
