@@ -45,13 +45,17 @@ app.use((req, res, next) => {
   
   const server = await registerRoutes(app);
   
-  // Initialize NATS WebSocket bridge (optional for development)
-  const natsBridge = new NatsBridge(server);
-  try {
-    await natsBridge.connect();
-    console.log('✅ NATS WebSocket bridge initialized');
-  } catch (error) {
-    console.log('⚠️  NATS connection failed, continuing without real-time features:', error.message);
+  // Initialize NATS WebSocket bridge (skip in development without NATS_URL)
+  if (process.env.NATS_URL) {
+    const natsBridge = new NatsBridge(server);
+    try {
+      await natsBridge.connect();
+      console.log('✅ NATS WebSocket bridge initialized');
+    } catch (error) {
+      console.log('⚠️  NATS connection failed, continuing without real-time features:', error.message);
+    }
+  } else {
+    console.log('⚠️  NATS_URL not set, skipping real-time features for development');
   }
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
