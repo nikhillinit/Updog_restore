@@ -562,6 +562,29 @@ export default function FundSetup() {
                           />
                           <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-charcoal-600 font-medium">%</span>
                         </div>
+                        {/* Calculated Commitments */}
+                        {fundData.totalCommittedCapital && fundData.gpCommitmentPercent && (
+                          <div className="space-y-1 text-xs text-charcoal-600 font-poppins">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-2 h-2 rounded-full bg-charcoal-400"></div>
+                              <span>GP Commitment is ${(() => {
+                                const total = parseFloat(fundData.totalCommittedCapital.replace(/,/g, '')) || 0;
+                                const gpPercent = parseFloat(fundData.gpCommitmentPercent) || 0;
+                                const gpAmount = (total * gpPercent / 100);
+                                return gpAmount.toLocaleString();
+                              })()}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <div className="w-2 h-2 rounded-full bg-charcoal-400"></div>
+                              <span>LP Commitment is ${(() => {
+                                const total = parseFloat(fundData.totalCommittedCapital.replace(/,/g, '')) || 0;
+                                const gpPercent = parseFloat(fundData.gpCommitmentPercent) || 0;
+                                const lpAmount = (total * (100 - gpPercent) / 100);
+                                return lpAmount.toLocaleString();
+                              })()}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="space-y-3">
@@ -586,25 +609,106 @@ export default function FundSetup() {
                     </div>
                   </div>
 
-                  {/* Capital Close Schedule - Full Width Block */}
+                  {/* Optional Commitment Schedule */}
                   <div>
-                    <h4 className="font-poppins text-xs font-medium uppercase tracking-widest mb-3" style={{ color: '#4A4A4A' }}>
-                      Capital Close Schedule
-                    </h4>
-                    <div className="bg-pov-gray rounded-2xl p-4 flex items-center justify-between">
-                      {/* Sparkline representation */}
-                      <div className="flex items-center space-x-2">
-                        <div className="w-3 h-8 bg-pov-charcoal rounded-sm"></div>
-                        <div className="w-3 h-6 bg-charcoal-400 rounded-sm"></div>
-                        <div className="w-3 h-7 bg-charcoal-400 rounded-sm"></div>
-                        <div className="w-3 h-5 bg-charcoal-400 rounded-sm"></div>
-                        <div className="w-3 h-4 bg-charcoal-300 rounded-sm"></div>
-                        <div className="w-3 h-3 bg-charcoal-300 rounded-sm"></div>
+                    <button
+                      className="flex items-center space-x-2 mb-3 text-pov-charcoal hover:text-charcoal-700 transition-colors duration-200"
+                      onClick={() => setFundData(prev => ({ ...prev, showCommitmentSchedule: !prev.showCommitmentSchedule }))}
+                    >
+                      <svg
+                        className={`w-4 h-4 transition-transform duration-200 ${
+                          fundData.showCommitmentSchedule ? 'rotate-90' : ''
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                      <span className="font-poppins text-sm font-medium">
+                        Optional: Define Timing of LP Commitment Closes
+                      </span>
+                    </button>
+
+                    {fundData.showCommitmentSchedule && (
+                      <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                        <div className="mb-4">
+                          <h5 className="font-poppins text-xs font-medium uppercase tracking-widest mb-3" style={{ color: '#4A4A4A' }}>
+                            LP Commitment Schedule
+                            <button className="ml-2 text-charcoal-500 hover:text-charcoal-700">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            </button>
+                          </h5>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="border-b border-slate-300">
+                                <th className="text-left py-2 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Month</th>
+                                <th className="text-left py-2 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Calendar Month</th>
+                                <th className="text-left py-2 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">% of this LP's Entire Commitment</th>
+                                <th className="text-left py-2 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Amount Committed</th>
+                                <th className="w-8"></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(fundData.lpCommitmentCloses || [{ month: 1, percentage: 50, calendarMonth: 'Jan 2024' }, { month: 2, percentage: 50, calendarMonth: 'Feb 2024' }]).map((close, index) => (
+                                <tr key={index} className="border-b border-slate-200">
+                                  <td className="py-3 px-3">
+                                    <Input
+                                      type="number"
+                                      value={close.month || index + 1}
+                                      className="w-16 h-8 text-sm rounded-lg"
+                                      style={{ border: '1px solid #E0D8D1' }}
+                                      readOnly
+                                    />
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <span className="text-sm text-charcoal-600 font-poppins">
+                                      {close.calendarMonth || `Jan 202${4 + index}`}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <div className="flex items-center space-x-2">
+                                      <Input
+                                        type="number"
+                                        value={close.percentage || 50}
+                                        className="w-20 h-8 text-sm rounded-lg"
+                                        style={{ border: '1px solid #E0D8D1' }}
+                                      />
+                                      <span className="text-sm text-charcoal-600">%</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <button className="px-3 py-1 text-sm text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-poppins">
+                                      Enter Amount
+                                    </button>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    {index > 0 && (
+                                      <button className="text-red-500 hover:text-red-700">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="mt-4">
+                          <button className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-pov-charcoal text-sm font-poppins font-medium rounded-lg transition-all duration-200">
+                            Add Close
+                          </button>
+                        </div>
                       </div>
-                      <button className="px-4 py-2 bg-beige-100 hover:bg-gradient-to-r hover:from-beige-200 hover:to-beige-300 text-pov-charcoal text-sm font-poppins font-medium rounded-xl transition-all duration-200">
-                        Add close
-                      </button>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
