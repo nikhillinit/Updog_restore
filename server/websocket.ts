@@ -38,12 +38,15 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
   });
 
   // Redis pub/sub for distributing events across multiple server instances
-  const pubClient = redis.duplicate();
-  const subClient = redis.duplicate();
+  const pubClient = typeof redis === 'object' && 'duplicate' in redis ? redis.duplicate() : redis;
+  const subClient = typeof redis === 'object' && 'duplicate' in redis ? redis.duplicate() : redis;
 
   // Subscribe to Redis channels for event distribution
-  subClient.subscribe('fund:events');
-  subClient.on('message', async (channel, message) => {
+  if ('subscribe' in subClient) {
+    subClient.subscribe('fund:events');
+  }
+  if ('on' in subClient) {
+    subClient.on('message', async (channel: string, message: string) => {
     try {
       const data = JSON.parse(message);
       const { fundId, eventType, event } = data;
@@ -68,7 +71,8 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
     } catch (error) {
       logger.error('WebSocket Redis message error:', error);
     }
-  });
+    });
+  }
 
   // WebSocket connection handling
   io.on('connection', (socket: Socket) => {
@@ -207,7 +211,9 @@ export async function publishFundEvent(
       event,
     });
 
-    await redis.publish('fund:events', message);
+    if ('publish' in redis) {
+      await redis.publish('fund:events', message);
+    }
   } catch (error) {
     logger.error('Failed to publish fund event', {
       fundId,

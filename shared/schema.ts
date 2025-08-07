@@ -39,6 +39,10 @@ export const fundSnapshots = pgTable("fund_snapshots", {
   calcVersion: varchar("calc_version", { length: 20 }).notNull(),
   correlationId: varchar("correlation_id", { length: 36 }).notNull(),
   metadata: jsonb("metadata"), // Additional calculation metadata
+  snapshotTime: timestamp("snapshot_time").notNull(),
+  eventCount: integer("event_count").default(0),
+  stateHash: varchar("state_hash", { length: 64 }),
+  state: jsonb("state"), // Snapshot state data
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   lookupIdx: index("fund_snapshots_lookup_idx").on(table.fundId, table.type, table.createdAt.desc()),
@@ -52,6 +56,10 @@ export const fundEvents = pgTable("fund_events", {
   payload: jsonb("payload"), // Event data
   userId: integer("user_id").references(() => users.id),
   correlationId: varchar("correlation_id", { length: 36 }),
+  eventTime: timestamp("event_time").notNull(),
+  operation: varchar("operation", { length: 50 }),
+  entityType: varchar("entity_type", { length: 50 }),
+  metadata: jsonb("metadata"), // Additional event metadata
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   fundEventIdx: index("fund_events_fund_idx").on(table.fundId, table.createdAt.desc()),
@@ -417,3 +425,34 @@ export const pacingHistory = pgTable("pacing_history", {
 }, (table) => ({
   fundQuarterUnique: unique("unique_fund_quarter").on(table.fundId, table.quarter)
 }));
+
+// Timeline-specific types for better TypeScript inference
+export interface TimelineRecord {
+  id: number;
+  fundId: number;
+  eventTime: Date;
+  snapshotTime?: Date;
+  operation?: string;
+  entityType?: string;
+  eventType?: string;
+  type?: string;
+  metadata?: any;
+  payload?: any;
+  state?: any;
+  eventCount?: number;
+  stateHash?: string;
+  createdAt: Date;
+}
+
+export interface TimelineEvent extends FundEvent {
+  eventTime: Date;
+  operation: string | null;
+  entityType: string | null;
+}
+
+export interface TimelineSnapshot extends FundSnapshot {
+  snapshotTime: Date;
+  state: any;
+  eventCount: number | null;
+  stateHash: string | null;
+}

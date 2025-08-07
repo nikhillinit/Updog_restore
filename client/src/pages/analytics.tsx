@@ -2,11 +2,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  ScatterChart, Scatter, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
-  ComposedChart, Area, AreaChart
-} from 'recharts';
+// Chart libraries removed for bundle optimization
+const ChartPlaceholder = ({ title, height = "h-80" }: { title: string; height?: string }) => (
+  <div className={`${height} bg-gray-50 rounded-lg flex flex-col items-center justify-center`}>
+    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+      <BarChart3 className="h-8 w-8 text-gray-400" />
+    </div>
+    <p className="text-gray-500 font-medium">{title}</p>
+    <p className="text-gray-400 text-sm mt-1">Chart placeholder - data available via API</p>
+  </div>
+);
 import { useState } from "react";
 import { useFundContext } from "@/contexts/FundContext";
 import ReserveAllocationChart from "@/components/charts/reserve-allocation-chart";
@@ -203,19 +208,7 @@ export default function Analytics() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={performanceMetrics}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="metric" stroke="#666" fontSize={12} />
-                      <YAxis stroke="#666" fontSize={12} />
-                      <Tooltip formatter={(value, name) => [value, name === 'current' ? 'Fund' : name === 'benchmark' ? 'Benchmark' : 'Target']} />
-                      <Bar dataKey="current" fill="#3b82f6" name="Fund" />
-                      <Bar dataKey="benchmark" fill="#94a3b8" name="Benchmark" />
-                      <Bar dataKey="target" fill="#10b981" name="Target" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                <ChartPlaceholder title="Performance vs Benchmarks Bar Chart" />
               </CardContent>
             </Card>
 
@@ -226,20 +219,7 @@ export default function Analytics() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={quarterlyMetrics}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="quarter" stroke="#666" fontSize={12} />
-                      <YAxis yAxisId="left" stroke="#666" fontSize={12} />
-                      <YAxis yAxisId="right" orientation="right" stroke="#666" fontSize={12} />
-                      <Tooltip />
-                      <Bar yAxisId="left" dataKey="deploymentRate" fill="#06b6d4" name="Deployment %" />
-                      <Line yAxisId="right" type="monotone" dataKey="irr" stroke="#3b82f6" strokeWidth={3} name="IRR %" />
-                      <Line yAxisId="right" type="monotone" dataKey="multiple" stroke="#10b981" strokeWidth={3} name="Multiple" />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
+                <ChartPlaceholder title="Quarterly Trends Composed Chart" />
               </CardContent>
             </Card>
           </div>
@@ -251,24 +231,7 @@ export default function Analytics() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ScatterChart data={sectorPerformance}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="irr" type="number" domain={['dataMin', 'dataMax']} name="IRR %" stroke="#666" fontSize={12} />
-                    <YAxis dataKey="multiple" type="number" domain={['dataMin', 'dataMax']} name="Multiple" stroke="#666" fontSize={12} />
-                    <Tooltip 
-                      cursor={{ strokeDasharray: '3 3' }}
-                      formatter={(value, name, props) => [
-                        value, 
-                        name === 'irr' ? 'IRR %' : 'Multiple',
-                        props.payload.sector
-                      ]}
-                    />
-                    <Scatter dataKey="totalInvested" fill="#3b82f6" />
-                  </ScatterChart>
-                </ResponsiveContainer>
-              </div>
+              <ChartPlaceholder title="Sector Performance Scatter Chart" />
             </CardContent>
           </Card>
         </TabsContent>
@@ -282,18 +245,7 @@ export default function Analytics() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={riskMetrics}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="category" fontSize={11} />
-                      <PolarRadiusAxis angle={0} domain={[0, 10]} fontSize={11} />
-                      <Radar name="Fund" dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
-                      <Radar name="Benchmark" dataKey="benchmark" stroke="#94a3b8" fill="transparent" strokeDasharray="3 3" />
-                      <Tooltip />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
+                <ChartPlaceholder title="Risk Assessment Radar Chart" />
               </CardContent>
             </Card>
 
@@ -334,20 +286,7 @@ export default function Analytics() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={cohortComparison}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="vintage" stroke="#666" fontSize={12} />
-                    <YAxis stroke="#666" fontSize={12} label={{ value: 'IRR %', angle: -90, position: 'insideLeft' }} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="year1" stroke="#3b82f6" strokeWidth={2} name="Year 1 IRR" />
-                    <Line type="monotone" dataKey="year2" stroke="#06b6d4" strokeWidth={2} name="Year 2 IRR" />
-                    <Line type="monotone" dataKey="year3" stroke="#10b981" strokeWidth={2} name="Year 3 IRR" />
-                    <Line type="monotone" dataKey="year4" stroke="#f59e0b" strokeWidth={2} name="Year 4 IRR" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              <ChartPlaceholder title="Vintage Year Cohort Line Chart" />
             </CardContent>
           </Card>
 

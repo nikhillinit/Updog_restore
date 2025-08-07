@@ -1,3 +1,4 @@
+import { mapAsync } from "@/lib";
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -343,7 +344,7 @@ export default function FundSetup() {
     
     try {
       const results = await Promise.all(
-        allocations.map(allocation => 
+        await mapAsync(allocations, allocation => 
           limit(async () => {
             // Simulate async validation/processing
             await new Promise(resolve => setTimeout(resolve, 50));
@@ -352,8 +353,7 @@ export default function FundSetup() {
               validated: true,
               processedAt: new Date().toISOString()
             };
-          })
-        )
+          }))
       );
       
       // Track successful async forEach replacement

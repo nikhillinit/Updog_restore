@@ -7,6 +7,7 @@ import type {
   EngineConfig 
 } from '@shared/types';
 import { CohortInputSchema, CohortOutputSchema } from '@shared/types';
+import { map, reduce } from '@/utils/array-safety';
 
 // =============================================================================
 // CONFIGURATION & VALIDATION
@@ -128,7 +129,7 @@ function calculateMLBasedCohortMetrics(input: CohortInput): CohortOutput {
   };
   
   // Enhanced company valuations with ML insights
-  const enhancedCompanies = baseOutput.companies.map(company => ({
+  const enhancedCompanies = map(baseOutput.companies, company => ({
     ...company,
     valuation: Math.round(company.valuation * mlAdjustment)
   }));
@@ -173,11 +174,11 @@ export function generateCohortSummary(input: CohortInput): CohortSummary {
   
   const totalCompanies = cohortOutput.companies.length;
   const avgValuation = totalCompanies > 0 
-    ? cohortOutput.companies.reduce((sum, company) => sum + company.valuation, 0) / totalCompanies
+    ? reduce(cohortOutput.companies, (sum, company) => sum + company.valuation, 0) / totalCompanies
     : 0;
   
   // Calculate stage distribution
-  const stageDistribution = cohortOutput.companies.reduce((acc, company) => {
+  const stageDistribution = reduce(cohortOutput.companies, (acc, company) => {
     acc[company.stage] = (acc[company.stage] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
@@ -220,17 +221,18 @@ export function compareCohorts(cohorts: CohortInput[]): {
     throw new Error('At least one cohort required for comparison');
   }
   
-  const cohortSummaries = cohorts.map(generateCohortSummary);
+  const cohortSummaries = map(cohorts, generateCohortSummary);
   
-  // Find best performing cohort by IRR
-  const bestPerforming = cohortSummaries.reduce((best, current) => 
-    current.performance.irr > best.performance.irr ? current : best
+  // Find best performing cohort by IRR  
+  const bestPerforming = reduce(cohortSummaries.slice(1), (best, current) =>
+    current.performance.irr > best.performance.irr ? current : best,
+    cohortSummaries[0]
   );
   
   // Calculate aggregate metrics
-  const avgIRR = cohortSummaries.reduce((sum, cohort) => sum + cohort.performance.irr, 0) / cohortSummaries.length;
-  const avgMultiple = cohortSummaries.reduce((sum, cohort) => sum + cohort.performance.multiple, 0) / cohortSummaries.length;
-  const totalCompanies = cohortSummaries.reduce((sum, cohort) => sum + cohort.totalCompanies, 0);
+  const avgIRR = reduce(cohortSummaries, (sum, cohort) => sum + cohort.performance.irr, 0) / cohortSummaries.length;
+  const avgMultiple = reduce(cohortSummaries, (sum, cohort) => sum + cohort.performance.multiple, 0) / cohortSummaries.length;
+  const totalCompanies = reduce(cohortSummaries, (sum, cohort) => sum + cohort.totalCompanies, 0);
   
   return {
     cohorts: cohortSummaries,

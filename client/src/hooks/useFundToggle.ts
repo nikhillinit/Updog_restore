@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { api } from '@/lib/api';
+import { api } from '@/lib';
 
 // Local state for UI toggle
 interface ToggleStore {
@@ -42,14 +42,14 @@ export function useFundToggle(fundId: number) {
     queryKey: ['fund', fundId, 'construction'],
     queryFn: () => api.get<FundStateResponse>(`/funds/${fundId}/state/construction`),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
   const currentQuery = useQuery({
     queryKey: ['fund', fundId, 'current'],
     queryFn: () => api.get<FundStateResponse>(`/funds/${fundId}/state/current`),
     staleTime: 1 * 60 * 1000, // 1 minute (more frequent updates)
-    cacheTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Toggle mutation with optimistic updates

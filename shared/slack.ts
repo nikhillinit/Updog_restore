@@ -23,7 +23,9 @@ if (process.env.SLACK_WEBHOOK_URL || process.env.SLACK_TOKEN) {
     .then(({ IncomingWebhook }) => {
       const url = process.env.SLACK_WEBHOOK_URL ?? '';
       const webhook = new IncomingWebhook(url);
-      postImpl = (payload) => webhook.send(payload);
+      postImpl = async (payload) => {
+        await webhook.send(payload);
+      };
     })
     .catch((err) =>
       console.warn('[slack] failed to init webhook, continuing as no‑op', err),

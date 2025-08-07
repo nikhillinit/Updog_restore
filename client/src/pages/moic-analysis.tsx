@@ -7,20 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell
-} from "recharts";
+// Chart libraries removed for bundle optimization
+const ChartPlaceholder = ({ title, height = "h-96" }: { title: string; height?: string }) => (
+  <div className={`${height} bg-gray-50 rounded-lg flex flex-col items-center justify-center`}>
+    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+      <BarChart3 className="h-8 w-8 text-gray-400" />
+    </div>
+    <p className="text-gray-500 font-medium">{title}</p>
+    <p className="text-gray-400 text-sm mt-1">Chart placeholder - data available via API</p>
+  </div>
+);
 import { 
   TrendingUp, 
   TrendingDown,
@@ -319,30 +315,7 @@ export default function MOICAnalysisPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-96">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData.sort((a, b) => b.exitMOICOnPlannedReserves - a.exitMOICOnPlannedReserves)}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="name" 
-                  angle={-45}
-                  textAnchor="end"
-                  height={100}
-                />
-                <YAxis 
-                  label={{ value: 'MOIC (x)', angle: -90, position: 'insideLeft' }}
-                />
-                <Tooltip 
-                  formatter={(value: number) => [`${value.toFixed(2)}x`, 'Exit MOIC on Planned Reserves']}
-                />
-                <Bar 
-                  dataKey="exitMOICOnPlannedReserves"
-                  fill="#3b82f6"
-                  name="Exit MOIC on Planned Reserves"
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <ChartPlaceholder title="Expected Exit MOIC Analysis Bar Chart" />
         </CardContent>
       </Card>
 

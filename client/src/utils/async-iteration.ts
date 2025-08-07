@@ -6,7 +6,7 @@ import { safeArray } from './array-safety';
 import { logger } from '../../../lib/logger';
 
 // Compile-time flag for metrics collection - dead-stripped in production builds
-const withMetrics: boolean = typeof import.meta !== 'undefined' && import.meta.env.MODE !== 'production';
+const withMetrics: boolean = process.env.NODE_ENV !== 'production';
 
 export interface ProcessingOptions {
   parallel?: boolean;

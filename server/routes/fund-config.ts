@@ -1,4 +1,4 @@
-import type { Express, Request } from "express";
+import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { db } from "../db";
 import { funds, fundConfigs, fundEvents, fundSnapshots } from "@shared/schema";
@@ -32,7 +32,7 @@ const draftConfigSchema = z.object({
 
 export function registerFundConfigRoutes(app: Express) {
   // Save draft configuration
-  app.put("/api/funds/:id/draft", async (req: AuthenticatedRequest, res) => {
+  app.put("/api/funds/:id/draft", async (req: AuthenticatedRequest, res: Response) => {
     try {
       const fundId = parseInt(req.params.id);
       
@@ -90,6 +90,7 @@ export function registerFundConfigRoutes(app: Express) {
       await db.insert(fundEvents).values({
         fundId,
         eventType: 'DRAFT_SAVED',
+        eventTime: new Date(),
         payload: { version: nextVersion },
         userId: req.user?.id ? parseInt(req.user.id) : null,
         correlationId: uuidv4(),
@@ -111,7 +112,7 @@ export function registerFundConfigRoutes(app: Express) {
   });
 
   // Get latest draft
-  app.get("/api/funds/:id/draft", async (req, res) => {
+  app.get("/api/funds/:id/draft", async (req: Request, res: Response) => {
     try {
       const fundId = parseInt(req.params.id);
       
@@ -142,7 +143,7 @@ export function registerFundConfigRoutes(app: Express) {
   });
 
   // Publish configuration
-  app.post("/api/funds/:id/publish", async (req: AuthenticatedRequest, res) => {
+  app.post("/api/funds/:id/publish", async (req: AuthenticatedRequest, res: Response) => {
     try {
       const fundId = parseInt(req.params.id);
       const correlationId = uuidv4();
@@ -187,6 +188,7 @@ export function registerFundConfigRoutes(app: Express) {
       await db.insert(fundEvents).values({
         fundId,
         eventType: 'PUBLISHED',
+        eventTime: new Date(),
         payload: { 
           version: published.version,
           config: published.config 
@@ -211,6 +213,7 @@ export function registerFundConfigRoutes(app: Express) {
       await db.insert(fundEvents).values({
         fundId,
         eventType: 'CALC_TRIGGERED',
+        eventTime: new Date(),
         payload: { 
           engines: ['reserve', 'pacing', 'cohort'],
           correlationId 
@@ -236,7 +239,7 @@ export function registerFundConfigRoutes(app: Express) {
   });
 
   // Get fund reserves (from snapshots)
-  app.get("/api/funds/:id/reserves", async (req, res) => {
+  app.get("/api/funds/:id/reserves", async (req: Request, res: Response) => {
     try {
       const fundId = parseInt(req.params.id);
       

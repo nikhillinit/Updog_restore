@@ -1,3 +1,4 @@
+import { mapAsync } from "../../client/src/lib";
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
@@ -115,7 +116,7 @@ test.describe('Accessibility Tests', () => {
         
         // Check heading levels don't skip (no h3 without h2, etc.)
         const headingLevels = await Promise.all(
-          headings.map(async (heading) => {
+          await mapAsync(headings, async (heading) => {
             const tagName = await heading.evaluate(el => el.tagName.toLowerCase());
             return parseInt(tagName.charAt(1));
           })
