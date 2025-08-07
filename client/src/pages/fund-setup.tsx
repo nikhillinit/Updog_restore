@@ -387,7 +387,7 @@ export default function FundSetup() {
   const completedSteps = WIZARD_STEPS.slice(0, currentStepIndex).map(step => step.id);
 
   return (
-    <div className="min-h-screen bg-pov-gray overflow-y-auto">
+    <div className="min-h-screen bg-slate-100 overflow-y-auto">
       <POVBrandHeader
         title="Fund Construction Wizard"
         subtitle="Configure your venture capital fund with institutional-grade precision and professional standards"
@@ -395,11 +395,13 @@ export default function FundSetup() {
       />
 
       {/* Wizard Progress */}
-      <WizardProgress
-        steps={WIZARD_STEPS}
-        currentStep={currentStep}
-        completedSteps={completedSteps}
-      />
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <WizardProgress
+          steps={WIZARD_STEPS}
+          currentStep={currentStep}
+          completedSteps={completedSteps}
+        />
+      </div>
 
       <div className="max-w-6xl mx-auto px-6 py-8">
 
