@@ -161,8 +161,8 @@ export default function ModernPortfolio() {
   };
 
   return (
-    <div className="min-h-screen bg-pov-gray">
-      <POVBrandHeader 
+    <div className="min-h-screen bg-slate-100">
+      <POVBrandHeader
         title="Portfolio"
         subtitle="Monitor and analyze your portfolio companies performance"
         variant="light"
