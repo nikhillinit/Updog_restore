@@ -379,6 +379,93 @@ export default function FundSetup() {
     return currentStep === 'advanced-settings'; // Only advanced settings can be skipped
   };
 
+  // LP Class management functions
+  const resetLPClassForm = () => {
+    setLPClassForm({
+      name: '',
+      totalCommitment: '',
+      numberOfLPs: '',
+      managementFee: '2.0',
+      carriedInterest: '20.0',
+      preferredReturn: '8.0',
+      sideLetterProvisions: ''
+    });
+    setEditingLPClass(null);
+  };
+
+  const openAddLPClassModal = () => {
+    resetLPClassForm();
+    setIsLPClassModalOpen(true);
+  };
+
+  const openEditLPClassModal = (lpClass: LPClass) => {
+    setLPClassForm({
+      name: lpClass.name,
+      totalCommitment: lpClass.totalCommitment.toString(),
+      numberOfLPs: lpClass.numberOfLPs.toString(),
+      managementFee: lpClass.managementFee.toString(),
+      carriedInterest: lpClass.carriedInterest.toString(),
+      preferredReturn: lpClass.preferredReturn.toString(),
+      sideLetterProvisions: lpClass.sideLetterProvisions || ''
+    });
+    setEditingLPClass(lpClass);
+    setIsLPClassModalOpen(true);
+  };
+
+  const saveLPClass = () => {
+    const newClass: LPClass = {
+      id: editingLPClass?.id || `lp-class-${Date.now()}`,
+      name: lpClassForm.name,
+      totalCommitment: parseFloat(lpClassForm.totalCommitment) || 0,
+      numberOfLPs: parseInt(lpClassForm.numberOfLPs) || 0,
+      managementFee: parseFloat(lpClassForm.managementFee) || 0,
+      carriedInterest: parseFloat(lpClassForm.carriedInterest) || 0,
+      preferredReturn: parseFloat(lpClassForm.preferredReturn) || 0,
+      sideLetterProvisions: lpClassForm.sideLetterProvisions
+    };
+
+    if (editingLPClass) {
+      // Update existing class
+      const updatedClasses = fundData.lpClasses.map(cls =>
+        cls.id === editingLPClass.id ? newClass : cls
+      );
+      setFundData(prev => ({ ...prev, lpClasses: updatedClasses }));
+    } else {
+      // Add new class
+      setFundData(prev => ({ ...prev, lpClasses: [...prev.lpClasses, newClass] }));
+    }
+
+    setIsLPClassModalOpen(false);
+    resetLPClassForm();
+  };
+
+  const deleteLPClass = (classId: string) => {
+    const updatedClasses = fundData.lpClasses.filter(cls => cls.id !== classId);
+    setFundData(prev => ({ ...prev, lpClasses: updatedClasses }));
+  };
+
+  // Calculate summary metrics
+  const calculateSummaryMetrics = () => {
+    const totalLPCommitment = fundData.lpClasses.reduce((sum, cls) => sum + cls.totalCommitment, 0);
+    const gpCommitment = parseFloat(fundData.totalCommittedCapital.replace(/,/g, '')) * (parseFloat(fundData.gpCommitmentPercent) / 100) || 0;
+    const totalFundSize = totalLPCommitment + gpCommitment;
+    const totalLPCount = fundData.lpClasses.reduce((sum, cls) => sum + cls.numberOfLPs, 0);
+
+    // Weighted averages
+    const weightedManagementFee = fundData.lpClasses.reduce((sum, cls) =>
+      sum + (cls.managementFee * cls.totalCommitment), 0) / (totalLPCommitment || 1);
+    const weightedCarriedInterest = fundData.lpClasses.reduce((sum, cls) =>
+      sum + (cls.carriedInterest * cls.totalCommitment), 0) / (totalLPCommitment || 1);
+
+    return {
+      totalFundSize,
+      numberOfClasses: fundData.lpClasses.length,
+      totalLPCount,
+      blendedManagementFee: weightedManagementFee,
+      blendedCarriedInterest: weightedCarriedInterest
+    };
+  };
+
   // refactor(async): Replace forEach with controlled concurrency + circuit breaker
   const processPortfolioAllocations = async (allocations: any[]) => {
     const limit = resilientLimit({ 
