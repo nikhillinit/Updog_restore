@@ -214,45 +214,70 @@ export default function DesignSystem() {
             {/* Logo Variations */}
             <div>
               <h4 className="font-inter font-semibold text-lg text-pov-charcoal mb-6">Logo Variations</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Dark logo on light background */}
-                <div className="bg-pov-white border border-pov-gray rounded-lg p-8 text-center">
-                  <img
-                    src="https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Fe1a58a42f58349eba6b0681054118e7a?format=webp&width=800"
-                    alt="POV Logo - Dark on Light"
-                    className="h-12 mx-auto mb-3"
-                  />
-                  <p className="font-poppins text-sm text-gray-600">Primary - Dark on Light</p>
+              {/* Logo and Icon Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Icon Variations */}
+                <div className="space-y-6">
+                  <h5 className="font-inter font-semibold text-sm text-pov-charcoal">Icon Only</h5>
+
+                  <div className="bg-pov-white border border-pov-gray rounded-lg p-6 text-center">
+                    <img
+                      src="https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Fbe1ff0f489c346bb87e5a21a3de55ae4?format=webp&width=800"
+                      alt="POV Icon - Dark"
+                      className="h-12 w-12 mx-auto mb-3 object-contain"
+                    />
+                    <p className="font-poppins text-xs text-gray-600">Dark Icon</p>
+                  </div>
+
+                  <div className="bg-pov-beige rounded-lg p-6 text-center">
+                    <img
+                      src="https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Fa02554ba930546fa8bb20213ec027712?format=webp&width=800"
+                      alt="POV Icon - Light"
+                      className="h-12 w-12 mx-auto mb-3 object-contain"
+                    />
+                    <p className="font-poppins text-xs text-pov-charcoal/70">Light Icon</p>
+                  </div>
+
+                  <div className="bg-pov-charcoal rounded-lg p-6 text-center">
+                    <img
+                      src="https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2F832e7518a4a94541bf981160d3e94afd?format=webp&width=800"
+                      alt="POV Icon - White"
+                      className="h-12 w-12 mx-auto mb-3 object-contain"
+                    />
+                    <p className="font-poppins text-xs text-pov-white/80">White Icon</p>
+                  </div>
                 </div>
 
-                {/* Light logo on dark background */}
-                <div className="bg-pov-charcoal rounded-lg p-8 text-center">
-                  <img
-                    src="https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Fe1a58a42f58349eba6b0681054118e7a?format=webp&width=800"
-                    alt="POV Logo - Light on Dark"
-                    className="h-12 mx-auto mb-3 filter invert"
-                  />
-                  <p className="font-poppins text-sm text-pov-white/80">Inverse - Light on Dark</p>
-                </div>
+                {/* Full Logo Variations */}
+                <div className="md:col-span-2 space-y-6">
+                  <h5 className="font-inter font-semibold text-sm text-pov-charcoal">Full Logo</h5>
 
-                {/* Logo on beige background */}
-                <div className="bg-pov-beige rounded-lg p-8 text-center">
-                  <img
-                    src="https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Fe1a58a42f58349eba6b0681054118e7a?format=webp&width=800"
-                    alt="POV Logo - On Brand Beige"
-                    className="h-12 mx-auto mb-3 opacity-90"
-                  />
-                  <p className="font-poppins text-sm text-pov-charcoal/80">Brand - On Beige Background</p>
-                </div>
+                  <div className="bg-pov-white border border-pov-gray rounded-lg p-8 text-center">
+                    <img
+                      src="https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2F2e9c074662e8408c8bf0fd2e6f62254f?format=webp&width=800"
+                      alt="POV Logo - Dark on Light"
+                      className="h-12 mx-auto mb-3 object-contain"
+                    />
+                    <p className="font-poppins text-sm text-gray-600">Primary - Dark Logo on Light Background</p>
+                  </div>
 
-                {/* Monochrome variation */}
-                <div className="bg-gray-100 border border-gray-200 rounded-lg p-8 text-center">
-                  <img
-                    src="https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Fe1a58a42f58349eba6b0681054118e7a?format=webp&width=800"
-                    alt="POV Logo - Monochrome"
-                    className="h-12 mx-auto mb-3 grayscale opacity-75"
-                  />
-                  <p className="font-poppins text-sm text-gray-600">Monochrome - Low contrast</p>
+                  <div className="bg-pov-beige rounded-lg p-8 text-center">
+                    <img
+                      src="https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Ff49ea40289bd4c9f935555b532cb6506?format=webp&width=800"
+                      alt="POV Logo - Light on Beige"
+                      className="h-12 mx-auto mb-3 object-contain"
+                    />
+                    <p className="font-poppins text-sm text-pov-charcoal/80">Secondary - Light Logo on Brand Background</p>
+                  </div>
+
+                  <div className="bg-pov-charcoal rounded-lg p-8 text-center">
+                    <img
+                      src="https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Fb3de3760e5924b7caf12011c893cbadd?format=webp&width=800"
+                      alt="POV Logo - White on Dark"
+                      className="h-12 mx-auto mb-3 object-contain"
+                    />
+                    <p className="font-poppins text-sm text-pov-white/80">Inverse - White Logo on Dark Background</p>
+                  </div>
                 </div>
               </div>
             </div>
