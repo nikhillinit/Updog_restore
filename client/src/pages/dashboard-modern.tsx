@@ -95,8 +95,8 @@ export default function ModernDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-pov-gray">
-      <POVBrandHeader 
+    <div className="min-h-screen bg-slate-100">
+      <POVBrandHeader
         title="Dashboard"
         subtitle="Real-time fund performance and portfolio analytics"
         variant="light"
