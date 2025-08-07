@@ -82,6 +82,19 @@ export default function FundSetup() {
   const queryClient = useQueryClient();
   const { setCurrentFund } = useFundContext();
   const [currentStep, setCurrentStep] = useState<WizardStep>('fund-basics');
+
+  // LP Class modal state
+  const [isLPClassModalOpen, setIsLPClassModalOpen] = useState(false);
+  const [editingLPClass, setEditingLPClass] = useState<LPClass | null>(null);
+  const [lpClassForm, setLPClassForm] = useState({
+    name: '',
+    totalCommitment: '',
+    numberOfLPs: '',
+    managementFee: '2.0',
+    carriedInterest: '20.0',
+    preferredReturn: '8.0',
+    sideLetterProvisions: ''
+  });
   
   const [fundData, setFundData] = useState({
     // Fund Basics
