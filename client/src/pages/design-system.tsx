@@ -31,32 +31,11 @@ export default function DesignSystem() {
 
   return (
     <div className="min-h-screen bg-pov-gray">
-      {/* Press On Ventures Header */}
-      <div className="bg-pov-white border-b border-pov-gray/30">
-        <div className="max-w-6xl mx-auto px-6 py-12">
-          <div className="text-center">
-            {/* POV Logo */}
-            <div className="mb-8">
-              <img
-                src="https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Fe1a58a42f58349eba6b0681054118e7a?format=webp&width=800"
-                alt="Press On Ventures"
-                className="h-20 mx-auto mb-6"
-              />
-            </div>
-            <h1 className="font-inter font-bold text-4xl text-pov-charcoal mb-4 tracking-tight">
-              Design System
-            </h1>
-            <p className="font-poppins text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              Premium venture capital fund modeling platform with institutional-grade design standards
-            </p>
-            <div className="mt-6 flex items-center justify-center space-x-2 text-sm text-gray-500">
-              <div className="w-2 h-2 bg-pov-beige rounded-full"></div>
-              <span className="font-poppins">Enterprise-grade components and patterns</span>
-              <div className="w-2 h-2 bg-pov-beige rounded-full"></div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <POVBrandHeader
+        title="Design System"
+        subtitle="Premium venture capital fund modeling platform with institutional-grade design standards"
+        variant="light"
+      />
 
       {/* Wizard Progress Showcase */}
       <WizardProgress 
