@@ -185,7 +185,8 @@ export default function FundSetup() {
     fundLife: "10",
     investmentPeriod: "5",
     status: "active",
-    deployedCapital: 0
+    deployedCapital: 0,
+    showCommitmentSchedule: false
   });
 
   const createFundMutation = useMutation<Fund, Error, any>({
