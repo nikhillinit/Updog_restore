@@ -871,8 +871,216 @@ export default function FundSetup() {
               </div>
             )}
 
-            {/* Rest of the component is the same... */}
-            {/* Other steps content would continue here... */}
+            {/* Capital Structure Step */}
+            {currentStep === 'committed-capital' && (
+              <div className="space-y-6">
+                {/* Summary Metrics Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {(() => {
+                    const metrics = calculateSummaryMetrics();
+                    return (
+                      <>
+                        <PremiumCard className="p-4">
+                          <div className="text-center">
+                            <h3 className="font-inter font-bold text-2xl text-pov-charcoal">
+                              ${metrics.totalFundSize.toLocaleString()}
+                            </h3>
+                            <p className="text-sm text-charcoal-600 font-poppins">Total Fund Size</p>
+                          </div>
+                        </PremiumCard>
+                        <PremiumCard className="p-4">
+                          <div className="text-center">
+                            <h3 className="font-inter font-bold text-2xl text-pov-charcoal">
+                              {metrics.numberOfClasses}
+                            </h3>
+                            <p className="text-sm text-charcoal-600 font-poppins">LP Classes</p>
+                          </div>
+                        </PremiumCard>
+                        <PremiumCard className="p-4">
+                          <div className="text-center">
+                            <h3 className="font-inter font-bold text-2xl text-pov-charcoal">
+                              {metrics.totalLPCount}
+                            </h3>
+                            <p className="text-sm text-charcoal-600 font-poppins">Total LPs</p>
+                          </div>
+                        </PremiumCard>
+                        <PremiumCard className="p-4">
+                          <div className="text-center">
+                            <h3 className="font-inter font-bold text-2xl text-pov-charcoal">
+                              {metrics.blendedManagementFee.toFixed(1)}%
+                            </h3>
+                            <p className="text-sm text-charcoal-600 font-poppins">Blended Mgmt Fee</p>
+                          </div>
+                        </PremiumCard>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* LP Classes Management Section */}
+                <PremiumCard title="LP Classes" className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="font-inter font-bold text-xl text-pov-charcoal">LP Classes</h3>
+                    <Button
+                      onClick={openAddLPClassModal}
+                      className="flex items-center space-x-2 bg-pov-charcoal hover:bg-pov-charcoal/90 text-white rounded-2xl h-10 px-4 transition-all duration-200"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="font-poppins font-medium">Add LP Class</span>
+                    </Button>
+                  </div>
+
+                  {/* LP Classes Table */}
+                  {fundData.lpClasses.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-charcoal-200">
+                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Class</th>
+                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Commitment</th>
+                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">LPs</th>
+                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Mgmt Fee</th>
+                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Carry</th>
+                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Pref Return</th>
+                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {fundData.lpClasses.map((lpClass) => (
+                            <tr key={lpClass.id} className="border-b border-charcoal-100">
+                              <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.name}</td>
+                              <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">${lpClass.totalCommitment.toLocaleString()}</td>
+                              <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.numberOfLPs}</td>
+                              <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.managementFee}%</td>
+                              <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.carriedInterest}%</td>
+                              <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.preferredReturn}%</td>
+                              <td className="py-3 px-3">
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={() => openEditLPClassModal(lpClass)}
+                                    className="text-blue-600 hover:text-blue-800"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => deleteLPClass(lpClass.id)}
+                                    className="text-red-600 hover:text-red-800"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {/* Footer Row with Totals */}
+                          <tr className="bg-slate-50 border-t-2 border-charcoal-300">
+                            <td className="py-3 px-3 font-poppins text-sm font-medium text-charcoal-700">Totals</td>
+                            <td className="py-3 px-3 font-poppins text-sm font-medium text-charcoal-700">
+                              ${fundData.lpClasses.reduce((sum, cls) => sum + cls.totalCommitment, 0).toLocaleString()}
+                            </td>
+                            <td className="py-3 px-3 font-poppins text-sm font-medium text-charcoal-700">
+                              {fundData.lpClasses.reduce((sum, cls) => sum + cls.numberOfLPs, 0)}
+                            </td>
+                            <td className="py-3 px-3 font-poppins text-sm font-medium text-charcoal-700">
+                              {calculateSummaryMetrics().blendedManagementFee.toFixed(1)}%
+                            </td>
+                            <td className="py-3 px-3 font-poppins text-sm font-medium text-charcoal-700">
+                              {calculateSummaryMetrics().blendedCarriedInterest.toFixed(1)}%
+                            </td>
+                            <td className="py-3 px-3"></td>
+                            <td className="py-3 px-3"></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-charcoal-500">
+                      <Building2 className="w-12 h-12 mx-auto mb-4 text-charcoal-300" />
+                      <p className="font-poppins text-lg mb-2">No LP Classes Yet</p>
+                      <p className="font-poppins text-sm">Add your first LP class to get started</p>
+                    </div>
+                  )}
+                </PremiumCard>
+
+                {/* GP Commitment Section */}
+                <PremiumCard title="GP Commitment" className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                        GP Commitment %
+                      </label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={fundData.gpCommitmentPercent}
+                          onChange={(e) => handleInputChange('gpCommitmentPercent', e.target.value)}
+                          placeholder="2.0"
+                          className="h-12 rounded-2xl w-full pr-8"
+                          style={{ border: '1px solid #E0D8D1' }}
+                        />
+                        <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-charcoal-600 font-medium">%</span>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                        GP Commitment Amount
+                      </label>
+                      <div className="h-12 rounded-2xl w-full bg-pov-gray flex items-center px-4" style={{ border: '1px solid #E0D8D1' }}>
+                        <span className="text-charcoal-600 font-poppins text-sm">
+                          ${(() => {
+                            const totalLP = fundData.lpClasses.reduce((sum, cls) => sum + cls.totalCommitment, 0);
+                            const gpPercent = parseFloat(fundData.gpCommitmentPercent) || 0;
+                            const gpAmount = (totalLP / (100 - gpPercent)) * gpPercent;
+                            return gpAmount.toLocaleString();
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </PremiumCard>
+
+                {/* Capital Call Schedule Builder */}
+                <PremiumCard title="Capital Call Schedule" className="p-6">
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                          Call Frequency
+                        </label>
+                        <Select
+                          value={fundData.capitalCallFrequency}
+                          onValueChange={(value) => handleInputChange('capitalCallFrequency', value)}
+                        >
+                          <SelectTrigger className="h-12 rounded-2xl w-full" style={{ border: '1px solid #E0D8D1' }}>
+                            <SelectValue placeholder="Select frequency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Quarterly">Quarterly</SelectItem>
+                            <SelectItem value="Semi-Annual">Semi-Annual</SelectItem>
+                            <SelectItem value="Annual">Annual</SelectItem>
+                            <SelectItem value="As Needed">As Needed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {fundData.capitalCallFrequency !== 'As Needed' && (
+                      <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                        <h5 className="font-poppins text-xs font-medium uppercase tracking-widest mb-3" style={{ color: '#4A4A4A' }}>
+                          Projected Call Schedule
+                        </h5>
+                        <div className="text-center py-8 text-charcoal-500">
+                          <p className="font-poppins text-sm">Capital call schedule will be generated based on frequency and LP classes</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </PremiumCard>
+              </div>
+            )}
 
         </WizardContainer>
 
