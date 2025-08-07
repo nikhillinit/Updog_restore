@@ -1,3 +1,4 @@
+import React, { Suspense } from 'react';
 import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -20,15 +21,15 @@ import InvestmentDetail from "@/pages/investment-detail";
 import Planning from "@/pages/planning";
 import KPIManager from "@/pages/kpi-manager";
 import KPISubmission from "@/pages/kpi-submission";
-import ForecastingPage from "@/pages/forecasting";
-import ScenarioBuilderPage from "@/pages/scenario-builder";
-import MOICAnalysisPage from "@/pages/moic-analysis";
-import ReturnTheFundPage from "@/pages/return-the-fund";
-import PartialSalesPage from "@/pages/partial-sales";
-import FinancialModeling from "@/pages/financial-modeling";
-import Performance from "@/pages/performance";
-import Analytics from "@/pages/analytics";
-import Reports from "@/pages/reports";
+const ForecastingPage = React.lazy(() => import("@/pages/forecasting"));
+const ScenarioBuilderPage = React.lazy(() => import("@/pages/scenario-builder"));
+const MOICAnalysisPage = React.lazy(() => import("@/pages/moic-analysis"));
+const ReturnTheFundPage = React.lazy(() => import("@/pages/return-the-fund"));
+const PartialSalesPage = React.lazy(() => import("@/pages/partial-sales"));
+const FinancialModeling = React.lazy(() => import("@/pages/financial-modeling"));
+const Performance = React.lazy(() => import("@/pages/performance"));
+const Analytics = React.lazy(() => import("@/pages/analytics"));
+const Reports = React.lazy(() => import("@/pages/reports"));
 import AllocationManagerPage from "@/pages/allocation-manager";
 import NotFound from "@/pages/not-found";
 import EnhancedPortfolioAnalytics from "@/components/portfolio/enhanced-portfolio-analytics";
@@ -147,35 +148,37 @@ function ProtectedRoute({ component: Component, ...props }: any) {
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={HomeRoute} />
-      <Route path="/fund-setup" component={FundSetup} />
-      <Route path="/dashboard" component={(props) => <ProtectedRoute component={Dashboard} {...props} />} />
-      <Route path="/portfolio" component={(props) => <ProtectedRoute component={Portfolio} {...props} />} />
-      <Route path="/investments" component={(props) => <ProtectedRoute component={Investments} {...props} />} />
-      <Route path="/investments/:id" component={(props) => <ProtectedRoute component={InvestmentDetail} {...props} />} />
-      <Route path="/custom-fields" component={(props) => <ProtectedRoute component={CustomFields} {...props} />} />
-      <Route path="/investments-table" component={(props) => <ProtectedRoute component={InvestmentsTable} {...props} />} />
-      <Route path="/investments/company/:id" component={(props) => <ProtectedRoute component={Investments} {...props} />} />
-      <Route path="/cap-tables" component={(props) => <ProtectedRoute component={CapTables} {...props} />} />
-      <Route path="/kpi-manager" component={(props) => <ProtectedRoute component={KPIManager} {...props} />} />
-      <Route path="/kpi-submission" component={KPISubmission} />
-      <Route path="/allocation-manager" component={() => <AllocationManagerPage />} />
-      <Route path="/planning" component={(props) => <ProtectedRoute component={Planning} {...props} />} />
-      <Route path="/forecasting" component={(props) => <ProtectedRoute component={ForecastingPage} {...props} />} />
-      <Route path="/scenario-builder" component={(props) => <ProtectedRoute component={ScenarioBuilderPage} {...props} />} />
-      <Route path="/moic-analysis" component={(props) => <ProtectedRoute component={MOICAnalysisPage} {...props} />} />
-      <Route path="/return-the-fund" component={(props) => <ProtectedRoute component={ReturnTheFundPage} {...props} />} />
-      <Route path="/partial-sales" component={(props) => <ProtectedRoute component={PartialSalesPage} {...props} />} />
-      <Route path="/financial-modeling" component={(props) => <ProtectedRoute component={FinancialModeling} {...props} />} />
-      <Route path="/performance" component={(props) => <ProtectedRoute component={Performance} {...props} />} />
-      <Route path="/analytics" component={(props) => <ProtectedRoute component={Analytics} {...props} />} />
-      <Route path="/portfolio-analytics" component={(props) => <ProtectedRoute component={EnhancedPortfolioAnalytics} {...props} />} />
-      <Route path="/cash-management" component={(props) => <ProtectedRoute component={CashManagement} {...props} />} />
-      <Route path="/sensitivity-analysis" component={(props) => <ProtectedRoute component={SensitivityAnalysisPage} {...props} />} />
-      <Route path="/reports" component={(props) => <ProtectedRoute component={Reports} {...props} />} />
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense fallback={<div>Loading…</div>}>
+      <Switch>
+        <Route path="/" component={HomeRoute} />
+        <Route path="/fund-setup" component={FundSetup} />
+        <Route path="/dashboard" component={(props) => <ProtectedRoute component={Dashboard} {...props} />} />
+        <Route path="/portfolio" component={(props) => <ProtectedRoute component={Portfolio} {...props} />} />
+        <Route path="/investments" component={(props) => <ProtectedRoute component={Investments} {...props} />} />
+        <Route path="/investments/:id" component={(props) => <ProtectedRoute component={InvestmentDetail} {...props} />} />
+        <Route path="/custom-fields" component={(props) => <ProtectedRoute component={CustomFields} {...props} />} />
+        <Route path="/investments-table" component={(props) => <ProtectedRoute component={InvestmentsTable} {...props} />} />
+        <Route path="/investments/company/:id" component={(props) => <ProtectedRoute component={Investments} {...props} />} />
+        <Route path="/cap-tables" component={(props) => <ProtectedRoute component={CapTables} {...props} />} />
+        <Route path="/kpi-manager" component={(props) => <ProtectedRoute component={KPIManager} {...props} />} />
+        <Route path="/kpi-submission" component={KPISubmission} />
+        <Route path="/allocation-manager" component={() => <AllocationManagerPage />} />
+        <Route path="/planning" component={(props) => <ProtectedRoute component={Planning} {...props} />} />
+        <Route path="/forecasting" component={(props) => <ProtectedRoute component={ForecastingPage} {...props} />} />
+        <Route path="/scenario-builder" component={(props) => <ProtectedRoute component={ScenarioBuilderPage} {...props} />} />
+        <Route path="/moic-analysis" component={(props) => <ProtectedRoute component={MOICAnalysisPage} {...props} />} />
+        <Route path="/return-the-fund" component={(props) => <ProtectedRoute component={ReturnTheFundPage} {...props} />} />
+        <Route path="/partial-sales" component={(props) => <ProtectedRoute component={PartialSalesPage} {...props} />} />
+        <Route path="/financial-modeling" component={(props) => <ProtectedRoute component={FinancialModeling} {...props} />} />
+        <Route path="/performance" component={(props) => <ProtectedRoute component={Performance} {...props} />} />
+        <Route path="/analytics" component={(props) => <ProtectedRoute component={Analytics} {...props} />} />
+        <Route path="/portfolio-analytics" component={(props) => <ProtectedRoute component={EnhancedPortfolioAnalytics} {...props} />} />
+        <Route path="/cash-management" component={(props) => <ProtectedRoute component={CashManagement} {...props} />} />
+        <Route path="/sensitivity-analysis" component={(props) => <ProtectedRoute component={SensitivityAnalysisPage} {...props} />} />
+        <Route path="/reports" component={(props) => <ProtectedRoute component={Reports} {...props} />} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 
