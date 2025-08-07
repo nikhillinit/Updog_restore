@@ -68,8 +68,8 @@ export function POVIcon({
 }
 
 // Brand-compliant header component
-export function POVBrandHeader({ 
-  title, 
+export function POVBrandHeader({
+  title,
   subtitle,
   showLogo = true,
   variant = 'light' // light background by default
@@ -80,34 +80,34 @@ export function POVBrandHeader({
   variant?: 'light' | 'dark' | 'beige';
 }) {
   const backgroundClasses = {
-    light: 'bg-pov-white text-pov-charcoal border-pov-gray/30',
-    dark: 'bg-pov-charcoal text-pov-white border-pov-charcoal',
-    beige: 'bg-pov-beige text-pov-charcoal border-pov-beige'
+    light: 'bg-white text-slate-900 border-gray-300',
+    dark: 'bg-slate-900 text-white border-slate-700',
+    beige: 'bg-slate-50 text-slate-900 border-slate-300'
   };
 
   const logoVariant = variant === 'dark' ? 'white' : 'dark';
 
   return (
-    <div className={`border-b ${backgroundClasses[variant]}`}>
-      <div className="max-w-6xl mx-auto px-6 py-12">
+    <div className={`border-b-2 shadow-lg ${backgroundClasses[variant]}`}>
+      <div className="max-w-6xl mx-auto px-6 py-16">
         <div className="text-center">
           {showLogo && (
             <div className="mb-8">
               <POVLogo variant={logoVariant} size="lg" />
             </div>
           )}
-          <h1 className="font-inter font-bold text-4xl mb-4 tracking-tight">
+          <h1 className="font-inter font-bold text-5xl mb-6 tracking-tight">
             {title}
           </h1>
           {subtitle && (
-            <p className="font-poppins text-xl max-w-3xl mx-auto leading-relaxed opacity-80">
+            <p className="font-poppins text-xl max-w-4xl mx-auto leading-relaxed text-slate-600">
               {subtitle}
             </p>
           )}
-          <div className="mt-6 flex items-center justify-center space-x-2 text-sm opacity-60">
-            <div className={`w-2 h-2 rounded-full ${variant === 'dark' ? 'bg-pov-beige' : 'bg-pov-beige'}`}></div>
+          <div className="mt-8 flex items-center justify-center space-x-3 text-sm text-slate-500">
+            <div className="w-2 h-2 rounded-full bg-slate-400"></div>
             <span className="font-poppins">Powered by Press On Ventures</span>
-            <div className={`w-2 h-2 rounded-full ${variant === 'dark' ? 'bg-pov-beige' : 'bg-pov-beige'}`}></div>
+            <div className="w-2 h-2 rounded-full bg-slate-400"></div>
           </div>
         </div>
       </div>
