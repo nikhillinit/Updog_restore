@@ -186,7 +186,11 @@ export default function FundSetup() {
     investmentPeriod: "5",
     status: "active",
     deployedCapital: 0,
-    showCommitmentSchedule: false
+    showCommitmentSchedule: false,
+    lpCommitmentCloses: [
+      { month: 1, percentage: 50, calendarMonth: 'Jan 2024' },
+      { month: 2, percentage: 50, calendarMonth: 'Feb 2024' }
+    ]
   });
 
   const createFundMutation = useMutation<Fund, Error, any>({
