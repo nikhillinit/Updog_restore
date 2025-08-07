@@ -4,17 +4,23 @@ import path from 'path';
 import { visualizer } from 'rollup-plugin-visualizer';
 import virtual from 'vite-plugin-virtual';
 
-// Proper winston mock that includes the format property
+// Comprehensive winston mock
 const winstonMock = `
 export const format = {
-  combine: () => ({}),
+  combine: (...args) => ({}),
   timestamp: () => ({}),
   errors: () => ({}),
   splat: () => ({}),
   json: () => ({}),
   simple: () => ({}),
   colorize: () => ({}),
-  printf: () => ({})
+  printf: (fn) => ({}),
+  metadata: () => ({}),
+  align: () => ({}),
+  cli: () => ({}),
+  padLevels: () => ({}),
+  prettyPrint: () => ({}),
+  uncolorize: () => ({})
 };
 
 export const transports = {
@@ -22,6 +28,12 @@ export const transports = {
     constructor(options) {}
   },
   File: class File {
+    constructor(options) {}
+  },
+  Http: class Http {
+    constructor(options) {}
+  },
+  Stream: class Stream {
     constructor(options) {}
   }
 };
@@ -33,17 +45,132 @@ export const createLogger = (options) => ({
   debug: () => {},
   verbose: () => {},
   silly: () => {},
-  log: () => {}
+  log: () => {},
+  add: () => {},
+  remove: () => {},
+  clear: () => {},
+  close: () => {},
+  on: () => {},
+  child: () => createLogger()
 });
 
-export default { format, transports, createLogger };
+export const addColors = () => {};
+export const Logger = createLogger;
+export const Container = class Container {
+  constructor() {
+    this.loggers = new Map();
+  }
+  add(id, options) {
+    const logger = createLogger(options);
+    this.loggers.set(id, logger);
+    return logger;
+  }
+  get(id) {
+    return this.loggers.get(id);
+  }
+  has(id) {
+    return this.loggers.has(id);
+  }
+};
+
+const container = new Container();
+export { container };
+
+export default { 
+  format, 
+  transports, 
+  createLogger, 
+  addColors, 
+  Logger,
+  Container,
+  container
+};
+`;
+
+// Comprehensive prom-client mock
+const promClientMock = `
+export const register = {
+  metrics: () => Promise.resolve(''),
+  contentType: 'text/plain',
+  clear: () => {},
+  getMetricsAsJSON: () => [],
+  getSingleMetric: () => undefined,
+  registerMetric: () => {},
+  removeSingleMetric: () => {},
+  getSingleMetricAsString: () => ''
+};
+
+export class Counter {
+  constructor(config) {
+    this.name = config.name;
+  }
+  inc(labels, value) {}
+  reset() {}
+  get() { return { values: [] }; }
+  remove() {}
+}
+
+export class Gauge {
+  constructor(config) {
+    this.name = config.name;
+  }
+  set(labels, value) {}
+  inc(labels, value) {}
+  dec(labels, value) {}
+  setToCurrentTime() {}
+  startTimer() { return () => {}; }
+  reset() {}
+  get() { return { values: [] }; }
+  remove() {}
+}
+
+export class Histogram {
+  constructor(config) {
+    this.name = config.name;
+  }
+  observe(labels, value) {}
+  startTimer() { return () => {}; }
+  reset() {}
+  get() { return { values: [] }; }
+  remove() {}
+}
+
+export class Summary {
+  constructor(config) {
+    this.name = config.name;
+  }
+  observe(labels, value) {}
+  startTimer() { return () => {}; }
+  reset() {}
+  get() { return { values: [] }; }
+  remove() {}
+}
+
+export const collectDefaultMetrics = (config) => {};
+export const Registry = class Registry {
+  constructor() {}
+  registerMetric() {}
+  clear() {}
+  metrics() { return Promise.resolve(''); }
+  getMetricsAsJSON() { return []; }
+};
+
+export default { 
+  register, 
+  Counter, 
+  Gauge, 
+  Histogram, 
+  Summary, 
+  collectDefaultMetrics,
+  Registry
+};
 `;
 
 export default defineConfig({
   plugins: [
     virtual({ 
-      "prom-client": "export default {}", 
-      "winston": winstonMock
+      "winston": winstonMock,
+      "prom-client": promClientMock
     }), 
     react(), 
     visualizer({ filename: "stats.html", gzipSize: true })
@@ -52,6 +179,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
+    sourcemap: process.env.NODE_ENV === 'development',
     rollupOptions: { 
       input: path.resolve(import.meta.dirname, 'client/index.html'),
       output: {
@@ -68,4 +196,7 @@ export default defineConfig({
       '@assets': path.resolve(import.meta.dirname, 'assets'),
     },
   },
+  optimizeDeps: {
+    exclude: ['winston', 'prom-client']
+  }
 });
