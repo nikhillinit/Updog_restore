@@ -560,19 +560,19 @@ export default function FundSetup() {
                       {/* Cashless GP Contribution % */}
                       <div className="space-y-3">
                         <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
-                          Cashless GP Contribution %
+                          Capital Call Frequency
                         </label>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.1"
-                          value={fundData.cashlessGPPercent}
-                          onChange={(e) => handleInputChange('cashlessGPPercent', e.target.value)}
-                          placeholder="0"
-                          className="h-12 rounded-2xl w-full"
-                          style={{ border: '1px solid #E0D8D1' }}
-                        />
+                        <Select value={fundData.capitalCallFrequency} onValueChange={(value) => handleInputChange('capitalCallFrequency', value)}>
+                          <SelectTrigger className="h-12 rounded-2xl w-full" style={{ border: '1px solid #E0D8D1' }}>
+                            <SelectValue placeholder="Select frequency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Upfront">Upfront</SelectItem>
+                            <SelectItem value="Quarterly">Quarterly</SelectItem>
+                            <SelectItem value="Semi-Annually">Semi-Annually</SelectItem>
+                            <SelectItem value="Annually">Annually</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   </div>
