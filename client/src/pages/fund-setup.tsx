@@ -575,6 +575,27 @@ export default function FundSetup() {
                     <h4 className="font-poppins text-xs font-medium uppercase tracking-widest mb-3" style={{ color: '#4A4A4A' }}>
                       Timeline
                     </h4>
+                    {/* Evergreen Toggle - Above the grid */}
+                    <div className="flex items-center space-x-3 mb-4">
+                      <label className="font-poppins text-xs font-medium uppercase tracking-widest" style={{ color: '#4A4A4A' }}>
+                        Evergreen Fund?
+                      </label>
+                      <Switch
+                        checked={fundData.isEvergreen}
+                        onCheckedChange={(checked) => {
+                          handleInputChange('isEvergreen', checked);
+                          if (checked) {
+                            handleInputChange('hasEndDate', false);
+                            handleInputChange('endDate', '');
+                          }
+                        }}
+                        className="w-10 h-5 data-[state=checked]:bg-pov-charcoal"
+                      />
+                      <span className="text-sm font-poppins text-charcoal-600">
+                        {fundData.isEvergreen ? 'ON' : 'OFF'}
+                      </span>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: '12px' }}>
                       {/* Top Row */}
                       <div className="space-y-3">
@@ -609,25 +630,22 @@ export default function FundSetup() {
 
                       {/* Bottom Row */}
                       <div className="space-y-3">
-                        <div className="flex items-center space-x-3">
-                          <label className="font-poppins text-xs font-medium uppercase tracking-widest" style={{ color: '#4A4A4A' }}>
-                            Evergreen Fund?
-                          </label>
-                          <Switch
-                            checked={fundData.isEvergreen}
-                            onCheckedChange={(checked) => {
-                              handleInputChange('isEvergreen', checked);
-                              if (checked) {
-                                handleInputChange('hasEndDate', false);
-                                handleInputChange('endDate', '');
-                              }
-                            }}
-                            className="w-10 h-5 data-[state=checked]:bg-pov-charcoal"
-                          />
-                          <span className="text-sm font-poppins text-charcoal-600">
-                            {fundData.isEvergreen ? 'ON' : 'OFF'}
-                          </span>
-                        </div>
+                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                          Investment Horizon (Years)
+                        </label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max={fundData.lifeYears || 20}
+                          value={fundData.investmentHorizonYears}
+                          onChange={(e) => handleInputChange('investmentHorizonYears', e.target.value)}
+                          placeholder="5"
+                          className="h-12 rounded-2xl w-full"
+                          style={{ border: '1px solid #E0D8D1' }}
+                        />
+                        <p className="text-xs text-charcoal-500 font-poppins">
+                          Period for making new investments (typically 3-5 years)
+                        </p>
                       </div>
 
                       <div className="space-y-3">
