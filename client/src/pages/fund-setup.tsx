@@ -575,8 +575,8 @@ export default function FundSetup() {
                     <h4 className="font-poppins text-xs font-medium uppercase tracking-widest mb-3" style={{ color: '#4A4A4A' }}>
                       Timeline
                     </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: '12px' }}>
-                      {/* First Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: '12px' }}>
+                      {/* Top Row */}
                       <div className="space-y-3">
                         <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
                           Fund Start Date
@@ -605,25 +605,6 @@ export default function FundSetup() {
                           style={{ border: '1px solid #E0D8D1' }}
                           min={fundData.startDate}
                         />
-                      </div>
-
-                      <div className="space-y-3">
-                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
-                          Investment Horizon (Years)
-                        </label>
-                        <Input
-                          type="number"
-                          min="1"
-                          max={fundData.lifeYears || 20}
-                          value={fundData.investmentHorizonYears}
-                          onChange={(e) => handleInputChange('investmentHorizonYears', e.target.value)}
-                          placeholder="5"
-                          className="h-12 rounded-2xl w-full"
-                          style={{ border: '1px solid #E0D8D1' }}
-                        />
-                        <p className="text-xs text-charcoal-500 font-poppins">
-                          Period for making new investments (typically 3-5 years)
-                        </p>
                       </div>
 
                       {/* Bottom Row */}
