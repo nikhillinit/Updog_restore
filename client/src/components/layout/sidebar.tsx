@@ -94,9 +94,9 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
         )}
       </div>
       
-      <nav className="flex-1 p-4 overflow-y-auto custom-scrollbar bg-slate-50">
-        {needsSetup ? (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+      <nav className="flex-1 p-2 overflow-y-auto custom-scrollbar bg-slate-50">
+        {needsSetup && isHovered && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 transition-all duration-300">
             <div className="flex items-center space-x-2 mb-2">
               <Plus className="h-4 w-4 text-amber-700" />
               <span className="font-poppins text-sm font-medium text-amber-800">Setup Required</span>
@@ -108,7 +108,7 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
               </button>
             </Link>
           </div>
-        ) : null}
+        )}
 
         <ul className="space-y-1">
           {navigationItems.map((item) => {
@@ -122,8 +122,10 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
                   <button
                     disabled={isDisabled}
                     onClick={() => !isDisabled && onModuleChange(item.id)}
+                    title={!isHovered ? item.label : undefined}
                     className={cn(
-                      "w-full flex items-center space-x-3 px-3 py-2.5 text-left rounded-lg transition-all duration-200 font-poppins",
+                      "w-full flex items-center rounded-lg transition-all duration-200 font-poppins relative group",
+                      isHovered ? "space-x-3 px-3 py-2.5" : "justify-center p-2.5",
                       isDisabled
                         ? "text-gray-400 cursor-not-allowed bg-gray-100"
                         : isActive
@@ -131,10 +133,19 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
                           : "text-slate-700 hover:bg-white hover:text-slate-900 hover:shadow-sm"
                     )}
                   >
-                    <Icon className="h-4 w-4 flex-shrink-0" />
-                    <span className={cn("text-sm", isActive && "font-medium")}>
-                      {item.label}
-                    </span>
+                    <Icon className="h-5 w-5 flex-shrink-0" />
+                    {isHovered && (
+                      <span className={cn("text-sm whitespace-nowrap", isActive && "font-medium")}>
+                        {item.label}
+                      </span>
+                    )}
+
+                    {/* Tooltip for collapsed state */}
+                    {!isHovered && (
+                      <div className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                        {item.label}
+                      </div>
+                    )}
                   </button>
                 </Link>
               </li>
