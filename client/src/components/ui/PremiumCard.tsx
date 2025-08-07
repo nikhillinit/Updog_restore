@@ -21,11 +21,11 @@ export function PremiumCard({
   loading = false
 }: PremiumCardProps) {
   const cardClasses = cn(
-    "bg-pov-white rounded-lg transition-all duration-200 ease-out",
+    "bg-white rounded-xl transition-all duration-200 ease-out",
     {
-      'shadow-card hover:shadow-elevated border border-pov-gray/50': variant === 'default',
-      'shadow-elevated border-2 border-pov-beige bg-gradient-to-br from-pov-white to-pov-beige/10': variant === 'highlight',
-      'border-2 border-pov-gray shadow-sm hover:shadow-card': variant === 'outlined',
+      'shadow-lg hover:shadow-xl border border-gray-200/80': variant === 'default',
+      'shadow-xl border-2 border-slate-300 bg-gradient-to-br from-white to-slate-50': variant === 'highlight',
+      'border-2 border-gray-300 shadow-md hover:shadow-lg': variant === 'outlined',
     },
     className
   );
