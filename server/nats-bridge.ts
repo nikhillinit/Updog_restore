@@ -60,9 +60,9 @@ export class NatsBridge {
       this.nc = await connect({
         servers: process.env.NATS_URL || 'nats://localhost:4222',
         reconnect: true,
-        maxReconnectAttempts: -1,
+        maxReconnectAttempts: 3,
         reconnectTimeWait: 1000,
-        timeout: 30000,
+        timeout: 5000, // Reduced timeout for development
       });
 
       logger.info('NATS connected', { url: this.nc.getServer() });
