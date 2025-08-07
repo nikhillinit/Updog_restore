@@ -224,6 +224,60 @@ export default function DesignSystem() {
           </div>
         </PremiumCard>
 
+        {/* Brand Identity Showcase */}
+        <PremiumCard
+          title="Press On Ventures Brand Identity"
+          subtitle="Official logo variations and brand applications"
+        >
+          <div className="space-y-8">
+            {/* Logo Variations */}
+            <div>
+              <h4 className="font-inter font-semibold text-lg text-pov-charcoal mb-6">Logo Variations</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Dark logo on light background */}
+                <div className="bg-pov-white border border-pov-gray rounded-lg p-8 text-center">
+                  <img
+                    src="https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Fe1a58a42f58349eba6b0681054118e7a?format=webp&width=800"
+                    alt="POV Logo - Dark on Light"
+                    className="h-12 mx-auto mb-3"
+                  />
+                  <p className="font-poppins text-sm text-gray-600">Primary - Dark on Light</p>
+                </div>
+
+                {/* Light logo on dark background */}
+                <div className="bg-pov-charcoal rounded-lg p-8 text-center">
+                  <img
+                    src="https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Fe1a58a42f58349eba6b0681054118e7a?format=webp&width=800"
+                    alt="POV Logo - Light on Dark"
+                    className="h-12 mx-auto mb-3 filter invert"
+                  />
+                  <p className="font-poppins text-sm text-pov-white/80">Inverse - Light on Dark</p>
+                </div>
+
+                {/* Logo on beige background */}
+                <div className="bg-pov-beige rounded-lg p-8 text-center">
+                  <img
+                    src="https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Fe1a58a42f58349eba6b0681054118e7a?format=webp&width=800"
+                    alt="POV Logo - On Brand Beige"
+                    className="h-12 mx-auto mb-3 opacity-90"
+                  />
+                  <p className="font-poppins text-sm text-pov-charcoal/80">Brand - On Beige Background</p>
+                </div>
+
+                {/* Monochrome variation */}
+                <div className="bg-gray-100 border border-gray-200 rounded-lg p-8 text-center">
+                  <img
+                    src="https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Fe1a58a42f58349eba6b0681054118e7a?format=webp&width=800"
+                    alt="POV Logo - Monochrome"
+                    className="h-12 mx-auto mb-3 grayscale opacity-75"
+                  />
+                  <p className="font-poppins text-sm text-gray-600">Monochrome - Low contrast</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </PremiumCard>
+
         {/* Color Palette */}
         <PremiumCard
           title="Brand Color Palette"
@@ -234,21 +288,25 @@ export default function DesignSystem() {
               <div className="w-16 h-16 bg-pov-charcoal rounded-lg mx-auto mb-3 shadow-sm"></div>
               <h4 className="font-poppins font-medium text-sm text-pov-charcoal">Charcoal</h4>
               <p className="font-mono text-xs text-gray-600">#292929</p>
+              <p className="font-poppins text-xs text-gray-500 mt-1">Primary brand color</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 bg-pov-beige rounded-lg mx-auto mb-3 shadow-sm"></div>
               <h4 className="font-poppins font-medium text-sm text-pov-charcoal">Beige</h4>
               <p className="font-mono text-xs text-gray-600">#E0D8D1</p>
+              <p className="font-poppins text-xs text-gray-500 mt-1">Secondary accent</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 bg-pov-success rounded-lg mx-auto mb-3 shadow-sm"></div>
               <h4 className="font-poppins font-medium text-sm text-pov-charcoal">Success</h4>
               <p className="font-mono text-xs text-gray-600">#10B981</p>
+              <p className="font-poppins text-xs text-gray-500 mt-1">Positive metrics</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 bg-pov-error rounded-lg mx-auto mb-3 shadow-sm"></div>
               <h4 className="font-poppins font-medium text-sm text-pov-charcoal">Error</h4>
               <p className="font-mono text-xs text-gray-600">#EF4444</p>
+              <p className="font-poppins text-xs text-gray-500 mt-1">Alerts & warnings</p>
             </div>
           </div>
         </PremiumCard>
