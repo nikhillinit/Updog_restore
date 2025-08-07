@@ -104,14 +104,14 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const currentModule = moduleConfig[activeModule as keyof typeof moduleConfig] || moduleConfig['fund-setup'];
 
   return (
-    <div className="flex flex-col min-h-screen bg-white font-poppins text-charcoal">
+    <div className="flex flex-col min-h-screen bg-slate-50 font-poppins text-charcoal">
       <DynamicFundHeader />
       <div className="flex flex-1">
-        <Sidebar 
-          activeModule={activeModule} 
+        <Sidebar
+          activeModule={activeModule}
           onModuleChange={setActiveModule}
         />
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto bg-slate-50">
           {children}
         </main>
       </div>
