@@ -86,26 +86,26 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
       
       <nav className="flex-1 p-4 overflow-y-auto custom-scrollbar">
         {needsSetup ? (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <div className="bg-pov-beige/30 border border-pov-beige rounded-lg p-4 mb-6">
             <div className="flex items-center space-x-2 mb-2">
-              <Plus className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-medium text-blue-800">Setup Required</span>
+              <Plus className="h-4 w-4 text-pov-charcoal" />
+              <span className="font-poppins text-sm font-medium text-pov-charcoal">Setup Required</span>
             </div>
-            <p className="text-xs text-blue-600 mb-3">Configure your fund to access all features</p>
+            <p className="font-poppins text-xs text-gray-600 mb-3">Configure your fund to access all features</p>
             <Link href="/fund-setup">
-              <button className="w-full bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">
+              <button className="w-full bg-pov-charcoal text-pov-white px-3 py-2 rounded-md text-sm font-medium hover:bg-pov-charcoal/90 transition-all duration-200">
                 Start Fund Setup
               </button>
             </Link>
           </div>
         ) : null}
-        
-        <ul className="space-y-2">
+
+        <ul className="space-y-1">
           {navigationItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeModule === item.id;
             const isDisabled = needsSetup && item.id !== 'fund-setup';
-            
+
             return (
               <li key={item.id}>
                 <Link href={`/${item.id}`}>
@@ -113,16 +113,16 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
                     disabled={isDisabled}
                     onClick={() => !isDisabled && onModuleChange(item.id)}
                     className={cn(
-                      "w-full flex items-center space-x-3 px-4 py-3 text-left rounded-lg transition-colors",
-                      isDisabled 
+                      "w-full flex items-center space-x-3 px-3 py-2.5 text-left rounded-lg transition-all duration-200 font-poppins",
+                      isDisabled
                         ? "text-gray-400 cursor-not-allowed bg-gray-50"
                         : isActive
-                          ? "povc-bg-primary-light text-blue-700 border border-blue-200"
-                          : "text-gray-700 hover:bg-gray-50"
+                          ? "bg-pov-charcoal text-pov-white shadow-sm"
+                          : "text-gray-700 hover:bg-pov-beige/20 hover:text-pov-charcoal"
                     )}
                   >
-                    <Icon className="h-5 w-5" />
-                    <span className={cn("font-medium", isActive && "font-semibold")}>
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <span className={cn("text-sm", isActive && "font-medium")}>
                       {item.label}
                     </span>
                   </button>
