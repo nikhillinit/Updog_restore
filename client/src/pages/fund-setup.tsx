@@ -1084,6 +1084,136 @@ export default function FundSetup() {
 
         </WizardContainer>
 
+        {/* LP Class Modal */}
+        <Dialog open={isLPClassModalOpen} onOpenChange={setIsLPClassModalOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="font-inter font-bold text-xl text-pov-charcoal">
+                {editingLPClass ? 'Edit LP Class' : 'Add New LP Class'}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-6 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                    Class Name *
+                  </label>
+                  <Input
+                    type="text"
+                    value={lpClassForm.name}
+                    onChange={(e) => setLPClassForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g., Class A - Strategic Partners"
+                    className="h-12 rounded-2xl w-full"
+                    style={{ border: '1px solid #E0D8D1' }}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                    Number of LPs *
+                  </label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={lpClassForm.numberOfLPs}
+                    onChange={(e) => setLPClassForm(prev => ({ ...prev, numberOfLPs: e.target.value }))}
+                    placeholder="10"
+                    className="h-12 rounded-2xl w-full"
+                    style={{ border: '1px solid #E0D8D1' }}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                    Total Commitment *
+                  </label>
+                  <FinancialInput
+                    label=""
+                    value={lpClassForm.totalCommitment}
+                    onChange={(value) => setLPClassForm(prev => ({ ...prev, totalCommitment: value }))}
+                    type="currency"
+                    placeholder="50000000"
+                    className="h-12 rounded-2xl"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                    Management Fee %
+                  </label>
+                  <FinancialInput
+                    label=""
+                    value={lpClassForm.managementFee}
+                    onChange={(value) => setLPClassForm(prev => ({ ...prev, managementFee: value }))}
+                    type="percentage"
+                    placeholder="2.0"
+                    className="h-12 rounded-2xl"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                    Carried Interest %
+                  </label>
+                  <FinancialInput
+                    label=""
+                    value={lpClassForm.carriedInterest}
+                    onChange={(value) => setLPClassForm(prev => ({ ...prev, carriedInterest: value }))}
+                    type="percentage"
+                    placeholder="20.0"
+                    className="h-12 rounded-2xl"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                    Preferred Return %
+                  </label>
+                  <FinancialInput
+                    label=""
+                    value={lpClassForm.preferredReturn}
+                    onChange={(value) => setLPClassForm(prev => ({ ...prev, preferredReturn: value }))}
+                    type="percentage"
+                    placeholder="8.0"
+                    className="h-12 rounded-2xl"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                  Side Letter Provisions (Optional)
+                </label>
+                <Textarea
+                  value={lpClassForm.sideLetterProvisions}
+                  onChange={(e) => setLPClassForm(prev => ({ ...prev, sideLetterProvisions: e.target.value }))}
+                  placeholder="Enter any special provisions, fee arrangements, or terms specific to this LP class..."
+                  className="min-h-[100px] rounded-2xl"
+                  style={{ border: '1px solid #E0D8D1' }}
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="space-x-3">
+              <Button
+                variant="outline"
+                onClick={() => setIsLPClassModalOpen(false)}
+                className="border-charcoal-300 text-charcoal-600 hover:bg-charcoal-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={saveLPClass}
+                disabled={!lpClassForm.name || !lpClassForm.totalCommitment || !lpClassForm.numberOfLPs}
+                className="bg-pov-charcoal hover:bg-pov-charcoal/90 text-white"
+              >
+                {editingLPClass ? 'Update Class' : 'Add Class'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Sticky Footer Bar */}
         <div className="fixed bottom-0 left-0 right-0 bg-charcoal-100 border-t border-charcoal-200 shadow-lg z-50">
           <div className="max-w-6xl mx-auto px-6 py-4">
