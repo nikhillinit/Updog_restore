@@ -36,8 +36,8 @@ export function POVLogo({
   );
 }
 
-// Simplified icon version for smaller spaces
-export function POVIcon({ 
+// Icon-only version for smaller spaces
+export function POVIcon({
   variant = 'dark',
   size = 'md',
   className = ''
@@ -49,20 +49,20 @@ export function POVIcon({
     xl: 'w-12 h-12'
   };
 
-  const colorClasses = {
-    dark: 'text-pov-charcoal',
-    light: 'text-gray-400',
-    white: 'text-pov-white'
+  // Official Press On Ventures icon assets
+  const iconVariants = {
+    dark: "https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Fbe1ff0f489c346bb87e5a21a3de55ae4?format=webp&width=800", // Black icon
+    light: "https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Fa02554ba930546fa8bb20213ec027712?format=webp&width=800", // Beige icon
+    white: "https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2F832e7518a4a94541bf981160d3e94afd?format=webp&width=800" // White icon
   };
 
   return (
-    <div className={`${sizeClasses[size]} ${colorClasses[variant]} ${className}`}>
-      {/* Simplified POV icon - letter U with arrows */}
-      <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
-        <path d="M12 2L9 5v6c0 1.66 1.34 3 3 3s3-1.34 3-3V5l-3-3z"/>
-        <path d="M6 8v6c0 3.31 2.69 6 6 6s6-2.69 6-6V8l-2 2v4c0 2.21-1.79 4-4 4s-4-1.79-4-4v-4l-2-2z"/>
-        <path d="M4 6l2 2M20 6l-2 2"/>
-      </svg>
+    <div className={`${sizeClasses[size]} ${className}`}>
+      <img
+        src={iconVariants[variant]}
+        alt="Press On Ventures"
+        className="w-full h-full object-contain transition-opacity duration-200 hover:opacity-90"
+      />
     </div>
   );
 }
