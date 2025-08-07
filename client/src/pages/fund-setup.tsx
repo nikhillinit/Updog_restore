@@ -440,20 +440,22 @@ export default function FundSetup() {
           <CardContent className="p-4 sm:p-6 lg:p-8 max-h-none overflow-visible">
             {/* Fund Basics Step */}
             {currentStep === 'fund-basics' && (
-              <div className="space-y-8">
-                {/* Fund Name */}
-                <div className="space-y-3">
-                  <Label htmlFor="fundName" className="text-base font-medium text-gray-900">
-                    Fund Name
-                  </Label>
-                  <Input
-                    id="fundName"
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left Column */}
+                <div className="space-y-6">
+                  <FinancialInput
+                    label="Fund Name"
                     value={fundData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    placeholder=""
-                    className="h-11 border-gray-300"
+                    onChange={(value) => handleInputChange('name', value)}
+                    type="text"
+                    placeholder="Enter your fund name"
+                    required
+                    description="The official name of your venture capital fund"
                   />
                 </div>
+
+                {/* Right Column */}
+                <div className="space-y-6"></div>
 
                 {/* Fund Currency */}
                 <div className="space-y-3">
