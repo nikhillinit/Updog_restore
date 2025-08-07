@@ -291,6 +291,9 @@ export default function DesignSystem() {
             </div>
           </div>
         </PremiumCard>
+
+        {/* Brand Compliance Showcase */}
+        <BrandComplianceShowcase />
       </div>
     </div>
   );
