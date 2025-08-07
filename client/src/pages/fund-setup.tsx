@@ -430,150 +430,180 @@ export default function FundSetup() {
                   </div>
                 </div>
 
-                {/* Fund Timeline & Commitments - Single Card with 2×3 Grid */}
+                {/* Fund Timeline & Commitments - Re-architected */}
                 <div className="bg-white rounded-2xl shadow-sm" style={{ padding: '16px' }}>
-                  <h3 className="font-inter font-bold text-2xl text-pov-charcoal mb-5">
-                    Fund Timeline & Commitments
-                  </h3>
-
-                  {/* 2×3 Grid */}
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Row 1: Fund Start Date | Evergreen Fund toggle | Total Committed Capital */}
-                    <div className="space-y-3">
-                      <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
-                        Fund Start Date
-                      </label>
-                      <Input
-                        type="date"
-                        value={fundData.startDate}
-                        onChange={(e) => handleInputChange('startDate', e.target.value)}
-                        className="h-12 rounded-2xl w-full"
-                        style={{ border: '1px solid #E0D8D1' }}
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
-                        Evergreen Fund?
-                      </label>
-                      <div className="flex items-center h-12">
-                        <Switch
-                          checked={fundData.isEvergreen}
-                          onCheckedChange={(checked) => handleInputChange('isEvergreen', checked)}
-                          className="w-10 h-5 data-[state=checked]:bg-pov-charcoal"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
-                        Total Committed Capital
-                      </label>
-                      <Input
-                        type="text"
-                        value={fundData.totalCommittedCapital}
-                        onChange={(e) => handleInputChange('totalCommittedCapital', e.target.value)}
-                        placeholder="$100,000,000"
-                        className="h-12 rounded-2xl w-full"
-                        style={{ border: '1px solid #E0D8D1' }}
-                      />
-                    </div>
-
-                    {/* Row 2: Fund Life | Investment Horizon | GP Commitment % */}
-                    <div className="space-y-3">
-                      <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
-                        Fund Life (Years)
-                      </label>
-                      <Input
-                        type="number"
-                        min="3"
-                        max="20"
-                        value={fundData.lifeYears}
-                        onChange={(e) => handleInputChange('lifeYears', e.target.value)}
-                        placeholder="10"
-                        className={`h-12 rounded-2xl w-full ${
-                          fundData.hasEndDate && fundData.startDate && fundData.endDate
-                            ? 'bg-pov-gray cursor-not-allowed'
-                            : ''
-                        }`}
-                        style={{ border: '1px solid #E0D8D1' }}
-                        readOnly={Boolean(fundData.hasEndDate && fundData.startDate && fundData.endDate)}
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
-                        Investment Horizon (Years)
-                      </label>
-                      <Input
-                        type="number"
-                        min="1"
-                        max={fundData.lifeYears || 20}
-                        value={fundData.investmentHorizonYears}
-                        onChange={(e) => handleInputChange('investmentHorizonYears', e.target.value)}
-                        placeholder="5"
-                        className="h-12 rounded-2xl w-full"
-                        style={{ border: '1px solid #E0D8D1' }}
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
-                        GP Commitment %
-                      </label>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        value={fundData.gpCommitmentPercent}
-                        onChange={(e) => handleInputChange('gpCommitmentPercent', e.target.value)}
-                        placeholder="2.0"
-                        className="h-12 rounded-2xl w-full"
-                        style={{ border: '1px solid #E0D8D1' }}
-                      />
-                    </div>
+                  {/* Section Heading */}
+                  <div className="mb-4">
+                    <h3 className="font-inter font-bold" style={{ fontSize: '20px', color: '#292929' }}>
+                      Fund Timeline & Commitments
+                    </h3>
+                    <div className="h-px bg-charcoal-400 w-full mt-2"></div>
                   </div>
 
-                  {/* Optional Mini-Schedule Row */}
-                  <div className="mt-8 pt-6 border-t border-beige-200">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {/* Capital Close Schedule */}
+                  {/* Timeline Section - 2×2 Grid */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <h4 className="font-poppins text-xs font-medium uppercase tracking-widest mb-3" style={{ color: '#4A4A4A' }}>
+                      Timeline
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: '12px' }}>
+                      {/* Top Row */}
                       <div className="space-y-3">
                         <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
-                          Capital Close Schedule
+                          Fund Start Date
                         </label>
-                        <div className="bg-pov-gray rounded-2xl p-4 h-12 flex items-center justify-between">
-                          {/* Simple sparkline representation */}
-                          <div className="flex items-center space-x-1">
-                            <div className="w-2 h-6 bg-pov-charcoal rounded-sm"></div>
-                            <div className="w-2 h-4 bg-charcoal-300 rounded-sm"></div>
-                            <div className="w-2 h-5 bg-charcoal-300 rounded-sm"></div>
-                            <div className="w-2 h-3 bg-charcoal-300 rounded-sm"></div>
-                          </div>
-                          <button className="text-pov-charcoal text-sm font-poppins font-medium hover:text-charcoal-700">
-                            Add close
-                          </button>
+                        <Input
+                          type="date"
+                          value={fundData.startDate}
+                          onChange={(e) => handleInputChange('startDate', e.target.value)}
+                          className="h-12 rounded-2xl w-full"
+                          style={{ border: '1px solid #E0D8D1' }}
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                          Evergreen Fund?
+                        </label>
+                        <div className="flex items-center space-x-3 h-12">
+                          <Switch
+                            checked={fundData.isEvergreen}
+                            onCheckedChange={(checked) => {
+                              handleInputChange('isEvergreen', checked);
+                              if (checked) {
+                                handleInputChange('hasEndDate', false);
+                                handleInputChange('endDate', '');
+                              }
+                            }}
+                            className="w-10 h-5 data-[state=checked]:bg-pov-charcoal"
+                          />
+                          <span className="text-sm font-poppins text-charcoal-600">
+                            {fundData.isEvergreen ? 'ON' : 'OFF'}
+                          </span>
                         </div>
                       </div>
 
-                      {/* Cashless GP Contribution % */}
+                      {/* Bottom Row */}
                       <div className="space-y-3">
                         <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
-                          Capital Call Frequency
+                          Fund End Date
                         </label>
-                        <Select value={fundData.capitalCallFrequency} onValueChange={(value) => handleInputChange('capitalCallFrequency', value)}>
-                          <SelectTrigger className="h-12 rounded-2xl w-full" style={{ border: '1px solid #E0D8D1' }}>
-                            <SelectValue placeholder="Select frequency" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Upfront">Upfront</SelectItem>
-                            <SelectItem value="Quarterly">Quarterly</SelectItem>
-                            <SelectItem value="Semi-Annually">Semi-Annually</SelectItem>
-                            <SelectItem value="Annually">Annually</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Input
+                          type="date"
+                          value={fundData.endDate}
+                          onChange={(e) => handleInputChange('endDate', e.target.value)}
+                          disabled={fundData.isEvergreen}
+                          className={`h-12 rounded-2xl w-full ${
+                            fundData.isEvergreen ? 'bg-pov-gray text-charcoal-400 cursor-not-allowed' : ''
+                          }`}
+                          style={{ border: '1px solid #E0D8D1' }}
+                          min={fundData.startDate}
+                        />
                       </div>
+
+                      <div className="space-y-3">
+                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                          Investment Horizon (Years)
+                        </label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="20"
+                          value={fundData.investmentHorizonYears}
+                          onChange={(e) => handleInputChange('investmentHorizonYears', e.target.value)}
+                          placeholder="5"
+                          className="h-12 rounded-2xl w-full"
+                          style={{ border: '1px solid #E0D8D1' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Commitments Section - 1×3 Row */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <h4 className="font-poppins text-xs font-medium uppercase tracking-widest mb-3" style={{ color: '#4A4A4A' }}>
+                      Commitments
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: '12px' }}>
+                      <div className="space-y-3">
+                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                          Total Committed Capital
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-charcoal-600 font-medium">$</span>
+                          <Input
+                            type="text"
+                            value={fundData.totalCommittedCapital.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/,/g, '');
+                              handleInputChange('totalCommittedCapital', value);
+                            }}
+                            placeholder="100,000,000"
+                            className="h-12 rounded-2xl w-full pl-8"
+                            style={{ border: '1px solid #E0D8D1' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                          GP Commitment %
+                        </label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={fundData.gpCommitmentPercent}
+                            onChange={(e) => handleInputChange('gpCommitmentPercent', e.target.value)}
+                            placeholder="2.0"
+                            className="h-12 rounded-2xl w-full pr-8"
+                            style={{ border: '1px solid #E0D8D1' }}
+                          />
+                          <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-charcoal-600 font-medium">%</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                          Cashless GP Contribution %
+                        </label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={fundData.cashlessGPPercent}
+                            onChange={(e) => handleInputChange('cashlessGPPercent', e.target.value)}
+                            placeholder="0"
+                            className="h-12 rounded-2xl w-full pr-8"
+                            style={{ border: '1px solid #E0D8D1' }}
+                          />
+                          <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-charcoal-600 font-medium">%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Capital Close Schedule - Full Width Block */}
+                  <div>
+                    <h4 className="font-poppins text-xs font-medium uppercase tracking-widest mb-3" style={{ color: '#4A4A4A' }}>
+                      Capital Close Schedule
+                    </h4>
+                    <div className="bg-pov-gray rounded-2xl p-4 flex items-center justify-between">
+                      {/* Sparkline representation */}
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-8 bg-pov-charcoal rounded-sm"></div>
+                        <div className="w-3 h-6 bg-charcoal-400 rounded-sm"></div>
+                        <div className="w-3 h-7 bg-charcoal-400 rounded-sm"></div>
+                        <div className="w-3 h-5 bg-charcoal-400 rounded-sm"></div>
+                        <div className="w-3 h-4 bg-charcoal-300 rounded-sm"></div>
+                        <div className="w-3 h-3 bg-charcoal-300 rounded-sm"></div>
+                      </div>
+                      <button className="px-4 py-2 bg-beige-100 hover:bg-gradient-to-r hover:from-beige-200 hover:to-beige-300 text-pov-charcoal text-sm font-poppins font-medium rounded-xl transition-all duration-200">
+                        Add close
+                      </button>
                     </div>
                   </div>
                 </div>
