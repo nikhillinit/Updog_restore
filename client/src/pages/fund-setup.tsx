@@ -677,6 +677,11 @@ export default function FundSetup() {
                                       <Input
                                         type="number"
                                         value={close.percentage || 50}
+                                        onChange={(e) => {
+                                          const newCloses = [...(fundData.lpCommitmentCloses || [{ month: 1, percentage: 50, calendarMonth: 'Jan 2024' }, { month: 2, percentage: 50, calendarMonth: 'Feb 2024' }])];
+                                          newCloses[index] = { ...newCloses[index], percentage: parseInt(e.target.value) || 0 };
+                                          handleInputChange('lpCommitmentCloses', newCloses);
+                                        }}
                                         className="w-20 h-8 text-sm rounded-lg"
                                         style={{ border: '1px solid #E0D8D1' }}
                                       />
