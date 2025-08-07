@@ -1,0 +1,98 @@
+import React from 'react';
+import { cn } from "@/lib/utils";
+
+interface PremiumCardProps {
+  title?: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  className?: string;
+  headerActions?: React.ReactNode;
+  variant?: 'default' | 'highlight' | 'outlined';
+  loading?: boolean;
+}
+
+export function PremiumCard({
+  title,
+  subtitle,
+  children,
+  className = '',
+  headerActions,
+  variant = 'default',
+  loading = false
+}: PremiumCardProps) {
+  const cardClasses = cn(
+    "bg-pov-white rounded-lg transition-all duration-200 ease-out",
+    {
+      'shadow-card hover:shadow-elevated border border-pov-gray/50': variant === 'default',
+      'shadow-elevated border-2 border-pov-beige bg-gradient-to-br from-pov-white to-pov-beige/10': variant === 'highlight',
+      'border-2 border-pov-gray shadow-sm hover:shadow-card': variant === 'outlined',
+    },
+    className
+  );
+
+  if (loading) {
+    return (
+      <div className={cardClasses}>
+        <div className="p-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-pov-gray rounded w-1/3"></div>
+            <div className="space-y-2">
+              <div className="h-3 bg-pov-gray rounded"></div>
+              <div className="h-3 bg-pov-gray rounded w-5/6"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cardClasses}>
+      {(title || subtitle || headerActions) && (
+        <div className="px-6 py-4 border-b border-pov-gray/30">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              {title && (
+                <h3 className="font-inter font-bold text-lg text-pov-charcoal leading-tight">
+                  {title}
+                </h3>
+              )}
+              {subtitle && (
+                <p className="font-poppins text-sm text-gray-600">
+                  {subtitle}
+                </p>
+              )}
+            </div>
+            {headerActions && (
+              <div className="flex items-center space-x-2">
+                {headerActions}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
+      <div className="p-6">
+        <div className="font-poppins text-gray-700">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Loading skeleton variant
+export function PremiumCardSkeleton({ className = '' }: { className?: string }) {
+  return (
+    <div className={cn("bg-pov-white rounded-lg shadow-card border border-pov-gray/50 p-6", className)}>
+      <div className="animate-pulse space-y-4">
+        <div className="h-4 bg-pov-gray rounded w-1/3"></div>
+        <div className="space-y-2">
+          <div className="h-3 bg-pov-gray rounded"></div>
+          <div className="h-3 bg-pov-gray rounded w-5/6"></div>
+          <div className="h-3 bg-pov-gray rounded w-4/6"></div>
+        </div>
+      </div>
+    </div>
+  );
+}
