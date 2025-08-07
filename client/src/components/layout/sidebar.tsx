@@ -64,21 +64,21 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
   const { needsSetup, currentFund } = useFundContext();
 
   return (
-    <aside className="w-64 bg-pov-white shadow-elevated border-r border-pov-gray/20 flex-shrink-0 flex flex-col">
-      <div className="p-6 border-b border-pov-gray/20">
+    <aside className="w-64 bg-white shadow-lg border-r border-gray-200 flex-shrink-0 flex flex-col">
+      <div className="p-6 border-b border-gray-200 bg-slate-900">
         <div className="flex items-center space-x-3 mb-4">
-          <POVIcon variant="dark" size="lg" />
+          <POVIcon variant="white" size="lg" />
           <div className="flex-1 min-w-0">
-            <h1 className="font-inter font-bold text-lg text-pov-charcoal">Updawg</h1>
-            <p className="font-poppins text-xs text-gray-500">Fund Management</p>
+            <h1 className="font-inter font-bold text-lg text-white">Updawg</h1>
+            <p className="font-poppins text-xs text-slate-300">Fund Management</p>
           </div>
         </div>
         {currentFund && (
-          <div className="bg-pov-beige/20 rounded-lg p-3">
-            <p className="font-poppins font-medium text-sm text-pov-charcoal truncate">
+          <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+            <p className="font-poppins font-medium text-sm text-white truncate">
               {currentFund.name}
             </p>
-            <p className="font-mono text-xs text-gray-600 mt-1">
+            <p className="font-mono text-xs text-slate-300 mt-1">
               ${(currentFund.size / 1000000).toFixed(0)}M Fund
             </p>
           </div>
