@@ -28,6 +28,7 @@ interface SidebarProps {
 
 const navigationItems = [
   { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+  { id: 'design-system', label: 'Design System', icon: Activity },
   { id: 'portfolio', label: 'Portfolio', icon: Building2 },
   { id: 'investments', label: 'Investments', icon: TrendingUp },
   { id: 'investments-table', label: 'Investments Table', icon: TrendingUp },
