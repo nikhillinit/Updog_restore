@@ -6,6 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { PremiumCard } from "@/components/ui/PremiumCard";
 import { FinancialInput } from "@/components/wizard/FinancialInput";
 import { POVLogo } from "@/components/ui/POVLogo";
 import { WizardHeader } from "@/components/wizard/WizardHeader";
@@ -17,7 +20,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useFundContext } from "@/contexts/FundContext";
-import { CheckCircle, Circle, ArrowRight, ArrowLeft, Building2 } from "lucide-react";
+import { CheckCircle, Circle, ArrowRight, ArrowLeft, Building2, Plus, Edit2, Trash2, X } from "lucide-react";
 import { resilientLimit } from "@/utils/resilientLimit";
 import { asyncRepl } from "../../../server/metrics";
 import BudgetCreator from "@/components/budget/budget-creator";
@@ -29,6 +32,25 @@ import type { Fund as DatabaseFund } from "@shared/schema";
 import type { Fund } from "@/contexts/FundContext";
 
 type WizardStep = 'fund-basics' | 'committed-capital' | 'investment-strategy' | 'exit-recycling' | 'waterfall' | 'advanced-settings' | 'review';
+
+interface LPClass {
+  id: string;
+  name: string;
+  totalCommitment: number;
+  numberOfLPs: number;
+  managementFee: number;
+  carriedInterest: number;
+  preferredReturn: number;
+  sideLetterProvisions?: string;
+}
+
+interface CapitalCall {
+  id: string;
+  callNumber: number;
+  date: string;
+  percentage: number;
+  amounts: { [classId: string]: number };
+}
 
 const WIZARD_STEPS: { id: WizardStep; label: string; description: string; icon: string }[] = [
   { id: 'fund-basics', label: 'Fund Basics', description: 'Name, currency, and fund lifecycle', icon: '1' },
