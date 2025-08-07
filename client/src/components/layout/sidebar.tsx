@@ -60,21 +60,30 @@ const chartCategories = [
 
 export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) {
   const [isChartsExpanded, setIsChartsExpanded] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const [location, setLocation] = useLocation();
   const { needsSetup, currentFund } = useFundContext();
 
   return (
-    <aside className="w-64 bg-white shadow-lg border-r border-gray-200 flex-shrink-0 flex flex-col">
-      <div className="p-6 border-b border-gray-200 bg-slate-900">
-        <div className="flex items-center space-x-3 mb-4">
-          <POVIcon variant="white" size="lg" />
-          <div className="flex-1 min-w-0">
-            <h1 className="font-inter font-bold text-lg text-white">Updawg</h1>
-            <p className="font-poppins text-xs text-slate-300">Fund Management</p>
+    <aside
+      className={`bg-white shadow-lg border-r border-gray-200 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out ${
+        isHovered ? 'w-64' : 'w-16'
+      }`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="p-3 border-b border-gray-200 bg-slate-900">
+        <div className="flex items-center mb-4">
+          <div className="flex items-center justify-center w-10 h-10">
+            <POVIcon variant="white" size="md" />
+          </div>
+          <div className={`ml-3 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'} overflow-hidden`}>
+            <h1 className="font-inter font-bold text-lg text-white whitespace-nowrap">Updawg</h1>
+            <p className="font-poppins text-xs text-slate-300 whitespace-nowrap">Fund Management</p>
           </div>
         </div>
-        {currentFund && (
-          <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+        {currentFund && isHovered && (
+          <div className="bg-slate-800 rounded-lg p-3 border border-slate-700 transition-all duration-300">
             <p className="font-poppins font-medium text-sm text-white truncate">
               {currentFund.name}
             </p>
