@@ -212,7 +212,10 @@ export default function FundSetup() {
     lpCommitmentCloses: [
       { month: 1, percentage: 50, calendarMonth: 'Jan 2024' },
       { month: 2, percentage: 50, calendarMonth: 'Feb 2024' }
-    ]
+    ],
+    lpClasses: [] as LPClass[],
+    capitalCalls: [] as CapitalCall[],
+    capitalCallFrequency: 'Quarterly'
   });
 
   const createFundMutation = useMutation<Fund, Error, any>({
