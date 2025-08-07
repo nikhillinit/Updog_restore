@@ -20,51 +20,27 @@ export function OctagonalPowerIcon({
     lg: 'w-16 h-16'
   };
 
-  // Create octagonal clip path
-  const octagonClipPath = "polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)";
-
-  const getStateStyles = () => {
+  const getStateClasses = () => {
     switch (state) {
       case 'active':
-        return {
-          background: '#292929', // charcoal
-          color: '#FFFFFF',
-          border: '2px solid #292929'
-        };
+        return 'bg-pov-charcoal text-white border-2 border-pov-charcoal';
       case 'upcoming':
-        return {
-          background: '#E0D8D1', // beige
-          color: '#292929',
-          border: '2px solid #292929'
-        };
+        return 'bg-pov-beige text-pov-charcoal border-2 border-pov-charcoal';
       case 'completed':
-        return {
-          background: '#FFFFFF',
-          color: '#292929',
-          border: '2px solid #292929'
-        };
+        return 'bg-white text-pov-charcoal border-2 border-pov-charcoal';
       default:
-        return {
-          background: '#F2F2F2',
-          color: '#808080',
-          border: '2px solid #C0C0C0'
-        };
+        return 'bg-pov-gray text-charcoal-500 border-2 border-charcoal-300';
     }
   };
 
-  const styles = getStateStyles();
-
   return (
-    <div 
+    <div
       className={cn(
-        "flex items-center justify-center font-inter font-bold text-sm transition-all duration-200",
+        "flex items-center justify-center font-inter font-bold text-sm transition-all duration-200 rounded-full",
         sizeClasses[size],
+        getStateClasses(),
         className
       )}
-      style={{
-        ...styles,
-        clipPath: octagonClipPath
-      }}
     >
       {state === 'completed' ? (
         <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
