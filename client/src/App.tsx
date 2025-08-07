@@ -15,6 +15,7 @@ import DynamicFundHeader from "@/components/layout/dynamic-fund-header";
 // Page components
 import Dashboard from "@/pages/dashboard";
 import FundSetup from "@/pages/fund-setup";
+import DesignSystem from "@/pages/design-system";
 import Portfolio from "@/pages/portfolio";
 import Investments from "@/pages/investments";
 import InvestmentDetail from "@/pages/investment-detail";
@@ -152,6 +153,7 @@ function Router() {
       <Switch>
         <Route path="/" component={HomeRoute} />
         <Route path="/fund-setup" component={FundSetup} />
+        <Route path="/design-system" component={DesignSystem} />
         <Route path="/dashboard" component={(props) => <ProtectedRoute component={Dashboard} {...props} />} />
         <Route path="/portfolio" component={(props) => <ProtectedRoute component={Portfolio} {...props} />} />
         <Route path="/investments" component={(props) => <ProtectedRoute component={Investments} {...props} />} />
