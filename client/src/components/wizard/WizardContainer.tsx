@@ -29,7 +29,7 @@ export function WizardContainer({
   return (
     <div className={containerClasses}>
       {(title || subtitle || headerActions) && (
-        <div className="px-8 py-6 border-b border-charcoal-200/30">
+        <div className="px-8 py-6 pb-0 border-b border-charcoal-200/30">
           <div className="flex items-start justify-between">
             <div className="space-y-2">
               {title && (
@@ -55,7 +55,7 @@ export function WizardContainer({
         </div>
       )}
 
-      <div className="p-8">
+      <div className="px-8 pb-8">
         <div className="font-poppins text-charcoal-700">
           {children}
         </div>
