@@ -413,49 +413,12 @@ export default function FundSetup() {
 
       <div className="max-w-6xl mx-auto px-6 py-8">
 
-        {/* Progress Bar */}
-        <div className="mb-12">
-          <div className="flex items-center justify-between">
-            {WIZARD_STEPS.map((step, index) => (
-              <div key={step.id} className="flex-1 relative">
-                <div className={`flex items-center ${index < WIZARD_STEPS.length - 1 ? 'w-full' : ''}`}>
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                      index <= currentStepIndex
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-300 text-gray-600'
-                    }`}
-                  >
-                    {step.icon}
-                  </div>
-                  {index < WIZARD_STEPS.length - 1 && (
-                    <div
-                      className={`flex-1 h-1 mx-4 ${
-                        index < currentStepIndex ? 'bg-blue-600' : 'bg-gray-300'
-                      }`}
-                    />
-                  )}
-                </div>
-                <div className="absolute top-12 left-0 right-0 text-center">
-                  <p className="text-sm font-medium text-gray-900">{step.label}</p>
-                  <p className="text-xs text-gray-500 mt-1">{step.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Step Content */}
-        <Card className="shadow-lg border-0 mt-16">
-          <CardHeader className="bg-white border-b border-gray-200 rounded-t-lg">
-            <CardTitle className="text-lg sm:text-xl font-semibold text-gray-900 break-words">
-              {WIZARD_STEPS[currentStepIndex].label}
-            </CardTitle>
-            <p className="text-gray-600 text-sm mt-1">
-              {WIZARD_STEPS[currentStepIndex].description}
-            </p>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6 lg:p-8 max-h-none overflow-visible">
+        <PremiumCard
+          title={WIZARD_STEPS[currentStepIndex].label}
+          subtitle={WIZARD_STEPS[currentStepIndex].description}
+          variant="highlight"
+          className="mb-8"
+        >
             {/* Fund Basics Step */}
             {currentStep === 'fund-basics' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -691,8 +654,7 @@ export default function FundSetup() {
                 )}
               </div>
             </div>
-          </CardContent>
-        </Card>
+        </PremiumCard>
       </div>
     </div>
   );
