@@ -6,8 +6,8 @@ interface POVLogoProps {
   className?: string;
 }
 
-export function POVLogo({ 
-  variant = 'dark', 
+export function POVLogo({
+  variant = 'dark',
   size = 'md',
   className = ''
 }: POVLogoProps) {
@@ -18,13 +18,17 @@ export function POVLogo({
     xl: 'h-20'
   };
 
-  // For now, using the style guide image. In production, you'd use SVG versions
-  const logoSrc = "https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Fe1a58a42f58349eba6b0681054118e7a?format=webp&width=800";
+  // Official Press On Ventures brand assets
+  const logoVariants = {
+    dark: "https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2F2e9c074662e8408c8bf0fd2e6f62254f?format=webp&width=800", // Black text logo
+    light: "https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Ff49ea40289bd4c9f935555b532cb6506?format=webp&width=800", // Beige text logo
+    white: "https://cdn.builder.io/api/v1/image/assets%2Fad9cb6f2f4a54f5aa9ea2c391202901f%2Fb3de3760e5924b7caf12011c893cbadd?format=webp&width=800" // White text logo
+  };
 
   return (
     <div className={`flex items-center justify-center ${className}`}>
-      <img 
-        src={logoSrc}
+      <img
+        src={logoVariants[variant]}
         alt="Press On Ventures"
         className={`${sizeClasses[size]} object-contain transition-opacity duration-200 hover:opacity-90`}
       />
