@@ -15,14 +15,9 @@ export function WizardHeader({ title, subtitle }: WizardHeaderProps) {
           <POVLogo variant="dark" size="lg" />
         </div>
 
-        {/* Centered wizard title and subtitle */}
-        <div className="text-center">
-          <h1 className="font-inter font-bold text-4xl text-pov-charcoal mb-2 tracking-tight">
-            {title}
-          </h1>
-          <p className="font-poppins text-base leading-relaxed text-charcoal-600 max-w-2xl mx-auto">
-            {subtitle}
-          </p>
+        {/* Centered wizard title */}
+        <div className="text-center pb-2 font-normal text-4xl leading-10 tracking-tight font-inter">
+          {title}
         </div>
       </div>
     </div>
