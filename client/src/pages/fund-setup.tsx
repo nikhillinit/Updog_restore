@@ -39,8 +39,6 @@ interface LPClass {
   totalCommitment: number;
   numberOfLPs: number;
   managementFee: number;
-  carriedInterest: number;
-  preferredReturn: number;
   sideLetterProvisions?: string;
 }
 
