@@ -444,15 +444,12 @@ export default function FundSetup() {
     // Weighted averages
     const weightedManagementFee = fundData.lpClasses.reduce((sum, cls) =>
       sum + (cls.managementFee * cls.totalCommitment), 0) / (totalLPCommitment || 1);
-    const weightedCarriedInterest = fundData.lpClasses.reduce((sum, cls) =>
-      sum + (cls.carriedInterest * cls.totalCommitment), 0) / (totalLPCommitment || 1);
 
     return {
       totalFundSize,
       numberOfClasses: fundData.lpClasses.length,
       totalLPCount,
-      blendedManagementFee: weightedManagementFee,
-      blendedCarriedInterest: weightedCarriedInterest
+      blendedManagementFee: weightedManagementFee
     };
   };
 
