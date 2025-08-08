@@ -1157,34 +1157,6 @@ export default function FundSetup() {
                     className="h-12 rounded-2xl"
                   />
                 </div>
-
-                <div className="space-y-3">
-                  <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
-                    Carried Interest %
-                  </label>
-                  <FinancialInput
-                    label=""
-                    value={lpClassForm.carriedInterest}
-                    onChange={(value) => setLPClassForm(prev => ({ ...prev, carriedInterest: value }))}
-                    type="percentage"
-                    placeholder="20.0"
-                    className="h-12 rounded-2xl"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
-                    Preferred Return %
-                  </label>
-                  <FinancialInput
-                    label=""
-                    value={lpClassForm.preferredReturn}
-                    onChange={(value) => setLPClassForm(prev => ({ ...prev, preferredReturn: value }))}
-                    type="percentage"
-                    placeholder="8.0"
-                    className="h-12 rounded-2xl"
-                  />
-                </div>
               </div>
 
               <div className="space-y-3">
