@@ -942,41 +942,43 @@ export default function FundSetup() {
                         <thead>
                           <tr className="border-b border-charcoal-200">
                             <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Class</th>
-                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Commitment</th>
+                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">LP Commitment</th>
+                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Commit %</th>
                             <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">LPs</th>
                             <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Mgmt Fee</th>
-                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Carry</th>
-                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Pref Return</th>
                             <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Actions</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {fundData.lpClasses.map((lpClass) => (
-                            <tr key={lpClass.id} className="border-b border-charcoal-100">
-                              <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.name}</td>
-                              <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">${lpClass.totalCommitment.toLocaleString()}</td>
-                              <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.numberOfLPs}</td>
-                              <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.managementFee}%</td>
-                              <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.carriedInterest}%</td>
-                              <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.preferredReturn}%</td>
-                              <td className="py-3 px-3">
-                                <div className="flex space-x-2">
-                                  <button
-                                    onClick={() => openEditLPClassModal(lpClass)}
-                                    className="text-blue-600 hover:text-blue-800"
-                                  >
-                                    <Edit2 className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => deleteLPClass(lpClass.id)}
-                                    className="text-red-600 hover:text-red-800"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
+                          {fundData.lpClasses.map((lpClass) => {
+                            const totalLPCommitment = fundData.lpClasses.reduce((sum, cls) => sum + cls.totalCommitment, 0);
+                            const commitPercent = totalLPCommitment > 0 ? ((lpClass.totalCommitment / totalLPCommitment) * 100).toFixed(2) : '0.00';
+                            return (
+                              <tr key={lpClass.id} className="border-b border-charcoal-100">
+                                <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.name}</td>
+                                <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">${lpClass.totalCommitment.toLocaleString()}</td>
+                                <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{commitPercent}%</td>
+                                <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.numberOfLPs}</td>
+                                <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.managementFee}%</td>
+                                <td className="py-3 px-3">
+                                  <div className="flex space-x-2">
+                                    <button
+                                      onClick={() => openEditLPClassModal(lpClass)}
+                                      className="text-blue-600 hover:text-blue-800"
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => deleteLPClass(lpClass.id)}
+                                      className="text-red-600 hover:text-red-800"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
                           {/* Footer Row with Totals */}
                           <tr className="bg-slate-50 border-t-2 border-charcoal-300">
                             <td className="py-3 px-3 font-poppins text-sm font-medium text-charcoal-700">Totals</td>
