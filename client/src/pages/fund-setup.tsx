@@ -382,8 +382,6 @@ export default function FundSetup() {
       totalCommitment: '',
       numberOfLPs: '',
       managementFee: '2.0',
-      carriedInterest: '20.0',
-      preferredReturn: '8.0',
       sideLetterProvisions: ''
     });
     setEditingLPClass(null);
