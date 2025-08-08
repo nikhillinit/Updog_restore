@@ -411,8 +411,6 @@ export default function FundSetup() {
       totalCommitment: parseFloat(lpClassForm.totalCommitment) || 0,
       numberOfLPs: parseInt(lpClassForm.numberOfLPs) || 0,
       managementFee: parseFloat(lpClassForm.managementFee) || 0,
-      carriedInterest: parseFloat(lpClassForm.carriedInterest) || 0,
-      preferredReturn: parseFloat(lpClassForm.preferredReturn) || 0,
       sideLetterProvisions: lpClassForm.sideLetterProvisions
     };
 
