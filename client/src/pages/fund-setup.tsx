@@ -398,8 +398,6 @@ export default function FundSetup() {
       totalCommitment: lpClass.totalCommitment.toString(),
       numberOfLPs: lpClass.numberOfLPs.toString(),
       managementFee: lpClass.managementFee.toString(),
-      carriedInterest: lpClass.carriedInterest.toString(),
-      preferredReturn: lpClass.preferredReturn.toString(),
       sideLetterProvisions: lpClass.sideLetterProvisions || ''
     });
     setEditingLPClass(lpClass);
