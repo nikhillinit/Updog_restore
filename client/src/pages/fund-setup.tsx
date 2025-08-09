@@ -378,8 +378,7 @@ export default function FundSetup() {
     setLPClassForm({
       name: '',
       totalCommitment: '',
-      numberOfLPs: '',
-      managementFee: '2.0',
+      excludedFromManagementFees: true,
       sideLetterProvisions: ''
     });
     setEditingLPClass(null);
