@@ -393,8 +393,7 @@ export default function FundSetup() {
     setLPClassForm({
       name: lpClass.name,
       totalCommitment: lpClass.totalCommitment.toString(),
-      numberOfLPs: lpClass.numberOfLPs.toString(),
-      managementFee: lpClass.managementFee.toString(),
+      excludedFromManagementFees: lpClass.excludedFromManagementFees,
       sideLetterProvisions: lpClass.sideLetterProvisions || ''
     });
     setEditingLPClass(lpClass);
