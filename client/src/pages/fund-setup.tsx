@@ -896,17 +896,17 @@ export default function FundSetup() {
                         <PremiumCard className="p-4">
                           <div className="text-center">
                             <h3 className="font-inter font-bold text-2xl text-pov-charcoal">
-                              {metrics.totalLPCount}
+                              {metrics.excludedFromFees}
                             </h3>
-                            <p className="text-sm text-charcoal-600 font-poppins">Total LPs</p>
+                            <p className="text-sm text-charcoal-600 font-poppins">Excluded from Fees</p>
                           </div>
                         </PremiumCard>
                         <PremiumCard className="p-4">
                           <div className="text-center">
                             <h3 className="font-inter font-bold text-2xl text-pov-charcoal">
-                              {metrics.blendedManagementFee.toFixed(1)}%
+                              {metrics.includedInFees}
                             </h3>
-                            <p className="text-sm text-charcoal-600 font-poppins">Blended Mgmt Fee</p>
+                            <p className="text-sm text-charcoal-600 font-poppins">Included in Fees</p>
                           </div>
                         </PremiumCard>
                       </>
