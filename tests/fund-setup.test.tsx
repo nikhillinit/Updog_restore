@@ -35,10 +35,8 @@ describe('FundSetup - Committed Capital Step', () => {
     // Navigate to committed-capital step by checking for the specific step content
     // Since the component starts on fund-basics, we need to check if accordions are gone
     
-    // Check that accordion-specific text/buttons are NOT present
-    expect(screen.queryByText('Optional: Define Timing of LP Commitment Closes')).not.toBeInTheDocument();
-    expect(screen.queryByText('▶')).not.toBeInTheDocument();
-    expect(screen.queryByText('▼')).not.toBeInTheDocument();
+    // Check that the commitment schedule section is now always visible
+    expect(screen.getByText('Optional: Define Timing of LP Commitment Closes')).toBeInTheDocument();
   });
 
   it('should have cashless GP commitment input with 0% default', () => {
@@ -87,14 +85,14 @@ describe('FundSetup - Committed Capital Step', () => {
       </TestWrapper>
     );
 
-    // Check that we don't have the old accordion structure
-    expect(screen.queryByRole('button', { name: /Optional: Define Timing of LP Commitment Closes/i })).not.toBeInTheDocument();
+    // Check that the commitment schedule is now always visible (not in accordion)
+    expect(screen.getByText('Optional: Define Timing of LP Commitment Closes')).toBeInTheDocument();
     expect(screen.queryByText('What % of the GP Commit is Cashless?')).not.toBeInTheDocument();
     
-    // The component should render without the old accordion buttons
-    const accordionButtons = screen.queryAllByRole('button').filter(button => 
+    // The component should render without the old accordion expansion arrows
+    const accordionArrows = screen.queryAllByRole('button').filter(button => 
       button.textContent?.includes('▶') || button.textContent?.includes('▼')
     );
-    expect(accordionButtons).toHaveLength(0);
+    expect(accordionArrows).toHaveLength(0);
   });
 });

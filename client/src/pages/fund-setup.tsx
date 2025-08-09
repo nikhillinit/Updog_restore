@@ -216,13 +216,8 @@ export default function FundSetup() {
     status: "active",
     deployedCapital: 0,
     showCommitmentSchedule: false,
-    lpCommitmentCloses: [
-      { month: 1, percentage: 50, calendarMonth: 'Jan 2024' },
-      { month: 2, percentage: 50, calendarMonth: 'Feb 2024' }
-    ],
     lpClasses: [] as LPClass[],
-    capitalCalls: [] as CapitalCall[],
-    capitalCallFrequency: 'Quarterly'
+    capitalCalls: [] as CapitalCall[]
   });
 
   const createFundMutation = useMutation<Fund, Error, any>({
@@ -518,7 +513,6 @@ export default function FundSetup() {
           title={WIZARD_STEPS[currentStepIndex].label}
           subtitle={WIZARD_STEPS[currentStepIndex].description}
           className="mb-8"
-          style={{ margin: '24px' }}
         >
             {/* Fund Basics Step */}
             {currentStep === 'fund-basics' && (
@@ -819,7 +813,7 @@ export default function FundSetup() {
                                   </td>
                                   <td className="py-3 px-3">
                                     <span className="text-sm text-charcoal-600 font-poppins">
-                                      {close.calendarMonth || `Jan 202${4 + index}`}
+                                      {`Jan 202${4 + index}`}
                                     </span>
                                   </td>
                                   <td className="py-3 px-3">
@@ -830,7 +824,7 @@ export default function FundSetup() {
                                         onChange={(e) => {
                                           const newCloses = [...(fundData.lpCommitmentCloses || [{ month: 1, percentage: 50, calendarMonth: 'Jan 2024' }, { month: 2, percentage: 50, calendarMonth: 'Feb 2024' }])];
                                           newCloses[index] = { ...newCloses[index], percentage: parseInt(e.target.value) || 0 };
-                                          handleInputChange('lpCommitmentCloses', newCloses);
+                                          setFundData(prev => ({ ...prev, lpCommitmentCloses: newCloses }));
                                         }}
                                         className="w-20 h-8 text-sm rounded-lg"
                                         style={{ border: '1px solid #E0D8D1' }}
