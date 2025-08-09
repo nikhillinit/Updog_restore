@@ -33,7 +33,7 @@
     "test:coverage": "vitest run --coverage",
     "test:quick": "vitest run --exclude='**/api/**'",
     "test:integration": "cross-env DATABASE_URL=postgresql://postgres:postgres@localhost:5432/povc_test vitest run --config vitest.integration.config.ts",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test -c playwright.config.ts",
     "test:e2e:smoke": "playwright test --project=smoke",
     "test:e2e:core": "playwright test --project=core",
     "test:e2e:extended": "playwright test --project=extended",
@@ -60,7 +60,8 @@
     "test:types": "tsc --noEmit",
     "test:lint": "eslint . --max-warnings 0",
     "qa:checklist": "node scripts/qa-open.js",
-    "dev:qa": "concurrently -k \"npm:dev\" \"sleep 3 && cross-env QA_BASE=http://localhost:5173 npm run qa:checklist\""
+    "dev:qa": "concurrently -k \"npm:dev\" \"sleep 3 && cross-env QA_BASE=http://localhost:5173 npm run qa:checklist\"",
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

@@ -1,2 +1,6 @@
-*.sh text eol=lf
 *.ps1 text eol=crlf
+*.sh  text eol=lf
+
+# Exclude generated reports from source exports
+playwright-report/ export-ignore
+test-results/     export-ignore
