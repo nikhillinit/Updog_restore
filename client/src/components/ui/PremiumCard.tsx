@@ -50,21 +50,21 @@ export function PremiumCard({
     <div className={cardClasses}>
       {(title || subtitle || headerActions) && (
         <div className="px-6 py-4 border-b border-gray-200 bg-slate-50">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
               {title && (
                 <h3 className="font-inter font-bold text-lg text-slate-900 leading-tight">
                   {title}
                 </h3>
               )}
               {subtitle && (
-                <p className="font-poppins text-sm text-slate-600">
+                <p className="font-poppins text-sm text-slate-600 mt-1">
                   {subtitle}
                 </p>
               )}
             </div>
             {headerActions && (
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 ml-4">
                 {headerActions}
               </div>
             )}
