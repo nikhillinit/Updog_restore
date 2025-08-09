@@ -46,6 +46,8 @@
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
     "test:all": "npm-run-all --parallel test:unit test:types test:lint && npm run test:smoke",
+    "e2e:wizard": "cross-env E2E_WIZARD=1 E2E_WIZARD_URL=/fund-setup playwright test tests/e2e/reserves.smoke.spec.ts",
+    "e2e:wizard:headed": "cross-env E2E_WIZARD=1 E2E_WIZARD_URL=/fund-setup playwright test tests/e2e/reserves.smoke.spec.ts --headed",
     "playwright:install": "playwright install",
     "ai": "node scripts/ai-tools/index.js",
     "ai:metrics": "node scripts/ai-tools/metrics-server.js",
