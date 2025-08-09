@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TactycAllocationUI from "@/components/allocation/tactyc-allocation-ui";
 import SectorProfileBuilder from "@/components/allocation/sector-profile-builder";
+import { computeReservesFromGraduation, type FundDataForReserves } from "@/core/reserves/computeReservesFromGraduation";
 import { 
   ArrowLeft, 
   Plus, 
@@ -78,14 +79,27 @@ export default function AllocationManager() {
       const stagePercentage = stage.name === "Pre-Seed" ? 0.27 : stage.name === "Seed" ? 0.40 : 0.33;
       const stageCapital = totalInvestableCapital * stagePercentage;
       
-      // Calculate follow-on requirements based on graduation rates (NOT arbitrary percentages)
-      const followOnMultiplier = stage.graduationRate * stage.followOnParticipation;
-      const followOnCapital = stageCapital * followOnMultiplier * 0.67; // 67% reserve ratio auto-calculated
-      const initialCapital = stageCapital - followOnCapital;
-      
       // CRITICAL: Precise decimal deals calculation to deploy ALL capital
-      const exactNumberOfDeals = initialCapital / stage.avgCheckSize;
-      const reserveRatio = (followOnCapital / stageCapital) * 100;
+      const exactNumberOfDeals = stageCapital / stage.avgCheckSize;
+      
+      // Calculate follow-on requirements using graduation-driven reserves engine
+      const fundData: FundDataForReserves = {
+        totalCommitment: stageCapital,
+        targetCompanies: Math.round(exactNumberOfDeals),
+        avgCheckSize: stage.avgCheckSize,
+        deploymentPacePerYear: Math.round(exactNumberOfDeals / 2.5), // 2.5 year deployment
+        graduationRates: {
+          seedToA: { graduate: 35, fail: 45, remain: 20, months: 18 },
+          aToB: { graduate: 50, fail: 30, remain: 20, months: 24 },
+          bToC: { graduate: 60, fail: 25, remain: 15, months: 18 }
+        },
+        followOnChecks: { A: 800000, B: 1500000, C: 2500000 }
+      };
+      
+      const reservesResult = computeReservesFromGraduation(fundData);
+      const followOnCapital = reservesResult.totalReserves;
+      const initialCapital = stageCapital - followOnCapital;
+      const reserveRatio = reservesResult.reserveRatioPct;
       
       // Build MOIC from granular market assumptions, not fixed exit multiples
       const expectedMOIC = (
@@ -109,8 +123,7 @@ export default function AllocationManager() {
         status: 'active' as const,
         graduationRate: stage.graduationRate,
         exitRate: stage.exitRate,
-        avgCheckSize: stage.avgCheckSize,
-        followOnMultiplier: followOnMultiplier
+        avgCheckSize: stage.avgCheckSize
       };
     });
 
