@@ -1034,9 +1034,9 @@ export default function FundSetup() {
                       <div className="h-12 rounded-2xl w-full bg-pov-gray flex items-center px-4" style={{ border: '1px solid #E0D8D1' }}>
                         <span className="text-charcoal-600 font-poppins text-sm">
                           ${(() => {
-                            const totalLP = fundData.lpClasses.reduce((sum, cls) => sum + cls.totalCommitment, 0);
+                            const totalCommittedCapital = parseFloat(fundData.totalCommittedCapital.replace(/,/g, '')) || 0;
                             const gpPercent = parseFloat(fundData.gpCommitmentPercent) || 0;
-                            const gpAmount = (totalLP / (100 - gpPercent)) * gpPercent;
+                            const gpAmount = (totalCommittedCapital * gpPercent / 100);
                             return gpAmount.toLocaleString();
                           })()}
                         </span>
