@@ -1179,7 +1179,7 @@ export default function FundSetup() {
               </Button>
               <Button
                 onClick={saveLPClass}
-                disabled={!lpClassForm.name || !lpClassForm.totalCommitment || !lpClassForm.numberOfLPs}
+                disabled={!lpClassForm.name || !lpClassForm.totalCommitment}
                 className="bg-pov-charcoal hover:bg-pov-charcoal/90 text-white"
               >
                 {editingLPClass ? 'Update Class' : 'Add Class'}
