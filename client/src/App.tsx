@@ -24,6 +24,7 @@ import KPIManager from "@/pages/kpi-manager";
 import KPISubmission from "@/pages/kpi-submission";
 const ForecastingPage = React.lazy(() => import("@/pages/forecasting"));
 const ScenarioBuilderPage = React.lazy(() => import("@/pages/scenario-builder"));
+const ReservesDemo = React.lazy(() => import("@/pages/reserves-demo"));
 const MOICAnalysisPage = React.lazy(() => import("@/pages/moic-analysis"));
 const ReturnTheFundPage = React.lazy(() => import("@/pages/return-the-fund"));
 const PartialSalesPage = React.lazy(() => import("@/pages/partial-sales"));
@@ -168,6 +169,7 @@ function Router() {
         <Route path="/planning" component={(props) => <ProtectedRoute component={Planning} {...props} />} />
         <Route path="/forecasting" component={(props) => <ProtectedRoute component={ForecastingPage} {...props} />} />
         <Route path="/scenario-builder" component={(props) => <ProtectedRoute component={ScenarioBuilderPage} {...props} />} />
+        <Route path="/reserves-demo" component={(props) => <ProtectedRoute component={ReservesDemo} {...props} />} />
         <Route path="/moic-analysis" component={(props) => <ProtectedRoute component={MOICAnalysisPage} {...props} />} />
         <Route path="/return-the-fund" component={(props) => <ProtectedRoute component={ReturnTheFundPage} {...props} />} />
         <Route path="/partial-sales" component={(props) => <ProtectedRoute component={PartialSalesPage} {...props} />} />
