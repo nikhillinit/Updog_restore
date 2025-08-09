@@ -5,7 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FundProvider, useFundContext } from "@/contexts/FundContext";
-import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ErrorBoundary } from "./components/ui/error-boundary";
 
 // Layout components
 import Sidebar from "@/components/layout/sidebar";
