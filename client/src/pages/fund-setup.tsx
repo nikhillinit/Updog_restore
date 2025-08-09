@@ -86,8 +86,7 @@ export default function FundSetup() {
   const [lpClassForm, setLPClassForm] = useState({
     name: '',
     totalCommitment: '',
-    numberOfLPs: '',
-    managementFee: '2.0',
+    excludedFromManagementFees: true,
     sideLetterProvisions: ''
   });
   
