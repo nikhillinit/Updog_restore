@@ -5,7 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FundProvider, useFundContext } from "@/contexts/FundContext";
-import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ErrorBoundary } from "./components/ui/error-boundary";
 
 // Layout components
 import Sidebar from "@/components/layout/sidebar";
@@ -15,6 +15,7 @@ import DynamicFundHeader from "@/components/layout/dynamic-fund-header";
 // Page components
 import Dashboard from "@/pages/dashboard";
 import FundSetup from "@/pages/fund-setup";
+import DesignSystem from "@/pages/design-system";
 import Portfolio from "@/pages/portfolio";
 import Investments from "@/pages/investments";
 import InvestmentDetail from "@/pages/investment-detail";
@@ -103,14 +104,14 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const currentModule = moduleConfig[activeModule as keyof typeof moduleConfig] || moduleConfig['fund-setup'];
 
   return (
-    <div className="flex flex-col min-h-screen bg-white font-poppins text-charcoal">
+    <div className="flex flex-col min-h-screen bg-slate-50 font-poppins text-charcoal">
       <DynamicFundHeader />
       <div className="flex flex-1">
-        <Sidebar 
-          activeModule={activeModule} 
+        <Sidebar
+          activeModule={activeModule}
           onModuleChange={setActiveModule}
         />
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto bg-slate-50">
           {children}
         </main>
       </div>
@@ -152,6 +153,7 @@ function Router() {
       <Switch>
         <Route path="/" component={HomeRoute} />
         <Route path="/fund-setup" component={FundSetup} />
+        <Route path="/design-system" component={DesignSystem} />
         <Route path="/dashboard" component={(props) => <ProtectedRoute component={Dashboard} {...props} />} />
         <Route path="/portfolio" component={(props) => <ProtectedRoute component={Portfolio} {...props} />} />
         <Route path="/investments" component={(props) => <ProtectedRoute component={Investments} {...props} />} />

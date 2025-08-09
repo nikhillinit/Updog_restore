@@ -1,5 +1,5 @@
-import TactycDashboard from "@/components/dashboard/tactyc-dashboard";
+import ModernDashboard from "./dashboard-modern";
 
 export default function Dashboard() {
-  return <TactycDashboard />;
+  return <ModernDashboard />;
 }
