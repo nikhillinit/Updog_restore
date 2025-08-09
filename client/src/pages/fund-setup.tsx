@@ -86,7 +86,7 @@ export default function FundSetup() {
   const [lpClassForm, setLPClassForm] = useState({
     name: '',
     totalCommitment: '',
-    excludedFromManagementFees: true,
+    excludedFromManagementFees: false,
     sideLetterProvisions: ''
   });
   
@@ -378,7 +378,7 @@ export default function FundSetup() {
     setLPClassForm({
       name: '',
       totalCommitment: '',
-      excludedFromManagementFees: true,
+      excludedFromManagementFees: false,
       sideLetterProvisions: ''
     });
     setEditingLPClass(null);
@@ -917,9 +917,10 @@ export default function FundSetup() {
                 </div>
 
                 {/* LP Classes Management Section */}
-                <PremiumCard title="LP Classes" className="p-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-inter font-bold text-xl text-pov-charcoal">LP Classes</h3>
+                <PremiumCard
+                  title="LP Classes"
+                  className="p-6"
+                  headerActions={
                     <Button
                       onClick={openAddLPClassModal}
                       className="flex items-center space-x-2 bg-pov-charcoal hover:bg-pov-charcoal/90 text-white rounded-2xl h-10 px-4 transition-all duration-200"
@@ -927,7 +928,8 @@ export default function FundSetup() {
                       <Plus className="w-4 h-4" />
                       <span className="font-poppins font-medium">Add LP Class</span>
                     </Button>
-                  </div>
+                  }
+                >
 
                   {/* LP Classes Table */}
                   {fundData.lpClasses.length > 0 ? (
@@ -944,8 +946,8 @@ export default function FundSetup() {
                         </thead>
                         <tbody>
                           {fundData.lpClasses.map((lpClass) => {
-                            const totalLPCommitment = fundData.lpClasses.reduce((sum, cls) => sum + cls.totalCommitment, 0);
-                            const commitPercent = totalLPCommitment > 0 ? ((lpClass.totalCommitment / totalLPCommitment) * 100).toFixed(2) : '0.00';
+                            const totalCommittedCapital = parseFloat(fundData.totalCommittedCapital.replace(/,/g, '')) || 0;
+                            const commitPercent = totalCommittedCapital > 0 ? ((lpClass.totalCommitment / totalCommittedCapital) * 100).toFixed(2) : '0.00';
                             return (
                               <tr key={lpClass.id} className="border-b border-charcoal-100">
                                 <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.name}</td>
