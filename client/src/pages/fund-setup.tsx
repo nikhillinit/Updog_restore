@@ -405,8 +405,7 @@ export default function FundSetup() {
       id: editingLPClass?.id || `lp-class-${Date.now()}`,
       name: lpClassForm.name,
       totalCommitment: parseFloat(lpClassForm.totalCommitment) || 0,
-      numberOfLPs: parseInt(lpClassForm.numberOfLPs) || 0,
-      managementFee: parseFloat(lpClassForm.managementFee) || 0,
+      excludedFromManagementFees: lpClassForm.excludedFromManagementFees,
       sideLetterProvisions: lpClassForm.sideLetterProvisions
     };
 
