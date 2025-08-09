@@ -102,7 +102,7 @@ export default function GraduationReservesDemo() {
   const formatPercent = (value: number) => `${value.toFixed(1)}%`;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="demo-root">
       {/* Header */}
       <Card>
         <CardHeader>
@@ -170,7 +170,7 @@ export default function GraduationReservesDemo() {
                 </div>
                 <div className="bg-green-50 p-4 rounded-lg">
                   <div className="text-sm font-medium text-green-600">Reserve Ratio</div>
-                  <div className="text-2xl font-bold text-green-900">
+                  <div className="text-2xl font-bold text-green-900" data-testid="demo-ratio">
                     {formatPercent(result.reserveRatioPct)}
                   </div>
                 </div>
