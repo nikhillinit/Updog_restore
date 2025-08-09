@@ -936,8 +936,7 @@ export default function FundSetup() {
                             <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Class</th>
                             <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">LP Commitment</th>
                             <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Commit %</th>
-                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">LPs</th>
-                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Mgmt Fee</th>
+                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Fee Status</th>
                             <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Actions</th>
                           </tr>
                         </thead>
@@ -950,8 +949,15 @@ export default function FundSetup() {
                                 <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.name}</td>
                                 <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">${lpClass.totalCommitment.toLocaleString()}</td>
                                 <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{commitPercent}%</td>
-                                <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.numberOfLPs}</td>
-                                <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.managementFee}%</td>
+                                <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">
+                                  <span className={`px-2 py-1 rounded-full text-xs ${
+                                    lpClass.excludedFromManagementFees
+                                      ? 'bg-amber-100 text-amber-800'
+                                      : 'bg-green-100 text-green-800'
+                                  }`}>
+                                    {lpClass.excludedFromManagementFees ? 'Excluded' : 'Included'}
+                                  </span>
+                                </td>
                                 <td className="py-3 px-3">
                                   <div className="flex space-x-2">
                                     <button
