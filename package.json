@@ -4,8 +4,7 @@
   "type": "module",
   "license": "MIT",
   "engines": {
-    "node": "20.11.x",
-    "npm": "10.x"
+    "node": ">=18"
   },
   "scripts": {
     "dev": "concurrently -k \"npm run dev:client\" \"npm run dev:api\"",
@@ -46,13 +45,22 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
-    "test:all": "npm run test && npm run test:e2e:smoke && npm run test:e2e:core",
+    "test:all": "npm-run-all --parallel test:unit test:types test:lint && npm run test:smoke",
     "playwright:install": "playwright install",
     "ai": "node scripts/ai-tools/index.js",
     "ai:metrics": "node scripts/ai-tools/metrics-server.js",
     "generate:golden": "tsx scripts/generate-golden-fixture.ts",
     "bundle:report": "vite build --mode production --config vite.config.ts && echo 'dist/public/assets/*.js' && dir dist\\public\\assets\\*.js /b",
-    "bundle:check": "npm run bundle:report 2>&1 | findstr /R \".*\\.js.*kB\\|.*\\.js.*MB\" | powershell -NoProfile -Command \"$input | ForEach-Object { if($_ -match '([0-9,]+\\.[0-9]+)\\s+(kB|MB)') { $size=[double]$matches[1]; $unit=$matches[2]; $sizeMB = if($unit -eq 'MB') { $size } else { $size / 1024 }; if($sizeMB -gt 0.35) { Write-Host 'Bundle size exceeded:' $sizeMB 'MB (limit: 0.35MB)'; exit 1 } else { Write-Host 'Bundle size OK:' $sizeMB 'MB' } } }\""
+    "bundle:check": "npm run bundle:report 2>&1 | findstr /R \".*\\.js.*kB\\|.*\\.js.*MB\" | powershell -NoProfile -Command \"$input | ForEach-Object { if($_ -match '([0-9,]+\\.[0-9]+)\\s+(kB|MB)') { $size=[double]$matches[1]; $unit=$matches[2]; $sizeMB = if($unit -eq 'MB') { $size } else { $size / 1024 }; if($sizeMB -gt 0.35) { Write-Host 'Bundle size exceeded:' $sizeMB 'MB (limit: 0.35MB)'; exit 1 } else { Write-Host 'Bundle size OK:' $sizeMB 'MB' } } }\"",
+    "prepare": "husky install",
+    "pre-push": "./scripts/validate-pr.sh",
+    "pretest:smoke": "playwright install --with-deps",
+    "test:unit": "vitest run \"**/__tests__/**/*.(spec|test).ts?(x)\" --passWithNoTests=false",
+    "test:smoke": "playwright test tests/e2e/basic-smoke.spec.ts",
+    "test:types": "tsc --noEmit",
+    "test:lint": "eslint . --max-warnings 0",
+    "qa:checklist": "node scripts/qa-open.js",
+    "dev:qa": "concurrently -k \"npm:dev\" \"sleep 3 && cross-env QA_BASE=http://localhost:5173 npm run qa:checklist\""
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -176,8 +184,11 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "globals": "^16.3.0",
+    "husky": "^9.1.7",
     "jest": "^30.0.5",
     "jsdom": "^26.1.0",
+    "npm-run-all": "^4.1.5",
+    "open": "^10.2.0",
     "postcss": "^8.4.47",
     "rollup-plugin-visualizer": "^6.0.3",
     "tailwindcss": "^3.4.17",
