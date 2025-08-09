@@ -987,10 +987,7 @@ export default function FundSetup() {
                               100.00%
                             </td>
                             <td className="py-3 px-3 font-poppins text-sm font-medium text-charcoal-700">
-                              {fundData.lpClasses.reduce((sum, cls) => sum + cls.numberOfLPs, 0)}
-                            </td>
-                            <td className="py-3 px-3 font-poppins text-sm font-medium text-charcoal-700">
-                              {calculateSummaryMetrics().blendedManagementFee.toFixed(1)}%
+                              {calculateSummaryMetrics().excludedFromFees}E / {calculateSummaryMetrics().includedInFees}I
                             </td>
                             <td className="py-3 px-3"></td>
                           </tr>
