@@ -37,8 +37,7 @@ interface LPClass {
   id: string;
   name: string;
   totalCommitment: number;
-  numberOfLPs: number;
-  managementFee: number;
+  excludedFromManagementFees: boolean;
   sideLetterProvisions?: string;
 }
 
