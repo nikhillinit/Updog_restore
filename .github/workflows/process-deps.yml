@@ -1,0 +1,33 @@
+name: Process Dependabot Windows Helper
+on:
+  schedule:
+    - cron: '30 14 * * *'   # 9:30 AM CT (14:30 UTC)
+    - cron: '30 2 * * *'    # 9:30 PM CT (02:30 UTC next day)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  manage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PowerShell
+        shell: bash
+        run: |
+          # Update package lists
+          sudo apt-get update
+          
+          # Install PowerShell
+          wget -q https://packages.microsoft.com/keys/microsoft.asc -O- | sudo apt-key add -
+          sudo add-apt-repository "deb [arch=amd64] https://packages.microsoft.com/repos/microsoft-ubuntu-$(lsb_release -cs)-prod $(lsb_release -cs) main"
+          sudo apt-get update
+          sudo apt-get install -y powershell
+
+      - name: Merge passing Dependabot PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pwsh -File scripts/manage-dependabot.ps1 -Action merge-all
