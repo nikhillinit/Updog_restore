@@ -1,5 +1,5 @@
 import pLimit from './pLimit';
-import { logger } from '../../../lib/logger';
+import { logger } from '../lib/logger';
 
 export interface ResilientLimitOptions {
   concurrency?: number;

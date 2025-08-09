@@ -6,13 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { PremiumCard } from "@/components/ui/PremiumCard";
+import { FinancialInput } from "@/components/wizard/FinancialInput";
+import { POVLogo } from "@/components/ui/POVLogo";
+import { WizardHeader } from "@/components/wizard/WizardHeader";
+import { WizardProgressRedesigned } from "@/components/wizard/WizardProgressRedesigned";
+import { WizardContainer, WizardSectionHeading, WizardInputLabel } from "@/components/wizard/WizardContainer";
 
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useFundContext } from "@/contexts/FundContext";
-import { CheckCircle, Circle, ArrowRight, ArrowLeft, Building2 } from "lucide-react";
+import { CheckCircle, Circle, ArrowRight, ArrowLeft, Building2, Plus, Edit2, Trash2, X } from "lucide-react";
 import { resilientLimit } from "@/utils/resilientLimit";
 import { asyncRepl } from "../../../server/metrics";
 import BudgetCreator from "@/components/budget/budget-creator";
@@ -25,14 +33,30 @@ import type { Fund } from "@/contexts/FundContext";
 
 type WizardStep = 'fund-basics' | 'committed-capital' | 'investment-strategy' | 'exit-recycling' | 'waterfall' | 'advanced-settings' | 'review';
 
+interface LPClass {
+  id: string;
+  name: string;
+  totalCommitment: number;
+  excludedFromManagementFees: boolean;
+  sideLetterProvisions?: string;
+}
+
+interface CapitalCall {
+  id: string;
+  callNumber: number;
+  date: string;
+  percentage: number;
+  amounts: { [classId: string]: number };
+}
+
 const WIZARD_STEPS: { id: WizardStep; label: string; description: string; icon: string }[] = [
-  { id: 'fund-basics', label: 'Fund Name, Currency and Life', description: 'Some basic facts on your fund', icon: 'F' },
-  { id: 'committed-capital', label: 'Committed Capital', description: 'The total capital committed from Limited and General Partners', icon: 'C' },
-  { id: 'investment-strategy', label: 'Investment Strategy', description: 'Define stages, sectors, and capital allocation', icon: 'I' },
-  { id: 'exit-recycling', label: 'Exit Recycling', description: 'Configure exit proceeds recycling', icon: 'E' },
-  { id: 'waterfall', label: 'Waterfall', description: 'Set distribution waterfall and carry terms', icon: 'W' },
-  { id: 'advanced-settings', label: 'Advanced Settings', description: 'Traditional fund or SPV', icon: 'A' },
-  { id: 'review', label: 'Review', description: 'Review and create fund', icon: 'R' },
+  { id: 'fund-basics', label: 'Fund Basics', description: 'Name, currency, and fund lifecycle', icon: '1' },
+  { id: 'committed-capital', label: 'Capital Structure', description: 'LP/GP commitments and capital calls', icon: '2' },
+  { id: 'investment-strategy', label: 'Investment Strategy', description: 'Stages, sectors, and allocations', icon: '3' },
+  { id: 'exit-recycling', label: 'Exit Recycling', description: 'Proceeds recycling configuration', icon: '4' },
+  { id: 'waterfall', label: 'Waterfall & Carry', description: 'Distribution terms and carry structure', icon: '5' },
+  { id: 'advanced-settings', label: 'Advanced Settings', description: 'Fund structure and expenses', icon: '6' },
+  { id: 'review', label: 'Review & Create', description: 'Final review and fund creation', icon: '✓' },
 ];
 
 // Helper function to convert database fund to context fund type
@@ -55,6 +79,16 @@ export default function FundSetup() {
   const queryClient = useQueryClient();
   const { setCurrentFund } = useFundContext();
   const [currentStep, setCurrentStep] = useState<WizardStep>('fund-basics');
+
+  // LP Class modal state
+  const [isLPClassModalOpen, setIsLPClassModalOpen] = useState(false);
+  const [editingLPClass, setEditingLPClass] = useState<LPClass | null>(null);
+  const [lpClassForm, setLPClassForm] = useState({
+    name: '',
+    totalCommitment: '',
+    excludedFromManagementFees: false,
+    sideLetterProvisions: ''
+  });
   
   const [fundData, setFundData] = useState({
     // Fund Basics
@@ -180,7 +214,15 @@ export default function FundSetup() {
     fundLife: "10",
     investmentPeriod: "5",
     status: "active",
-    deployedCapital: 0
+    deployedCapital: 0,
+    showCommitmentSchedule: false,
+    lpCommitmentCloses: [
+      { month: 1, percentage: 50, calendarMonth: 'Jan 2024' },
+      { month: 2, percentage: 50, calendarMonth: 'Feb 2024' }
+    ],
+    lpClasses: [] as LPClass[],
+    capitalCalls: [] as CapitalCall[],
+    capitalCallFrequency: 'Quarterly'
   });
 
   const createFundMutation = useMutation<Fund, Error, any>({
@@ -331,6 +373,80 @@ export default function FundSetup() {
     return currentStep === 'advanced-settings'; // Only advanced settings can be skipped
   };
 
+  // LP Class management functions
+  const resetLPClassForm = () => {
+    setLPClassForm({
+      name: '',
+      totalCommitment: '',
+      excludedFromManagementFees: false,
+      sideLetterProvisions: ''
+    });
+    setEditingLPClass(null);
+  };
+
+  const openAddLPClassModal = () => {
+    resetLPClassForm();
+    setIsLPClassModalOpen(true);
+  };
+
+  const openEditLPClassModal = (lpClass: LPClass) => {
+    setLPClassForm({
+      name: lpClass.name,
+      totalCommitment: lpClass.totalCommitment.toString(),
+      excludedFromManagementFees: lpClass.excludedFromManagementFees,
+      sideLetterProvisions: lpClass.sideLetterProvisions || ''
+    });
+    setEditingLPClass(lpClass);
+    setIsLPClassModalOpen(true);
+  };
+
+  const saveLPClass = () => {
+    const newClass: LPClass = {
+      id: editingLPClass?.id || `lp-class-${Date.now()}`,
+      name: lpClassForm.name,
+      totalCommitment: parseFloat(lpClassForm.totalCommitment) || 0,
+      excludedFromManagementFees: lpClassForm.excludedFromManagementFees,
+      sideLetterProvisions: lpClassForm.sideLetterProvisions
+    };
+
+    if (editingLPClass) {
+      // Update existing class
+      const updatedClasses = fundData.lpClasses.map(cls =>
+        cls.id === editingLPClass.id ? newClass : cls
+      );
+      setFundData(prev => ({ ...prev, lpClasses: updatedClasses }));
+    } else {
+      // Add new class
+      setFundData(prev => ({ ...prev, lpClasses: [...prev.lpClasses, newClass] }));
+    }
+
+    setIsLPClassModalOpen(false);
+    resetLPClassForm();
+  };
+
+  const deleteLPClass = (classId: string) => {
+    const updatedClasses = fundData.lpClasses.filter(cls => cls.id !== classId);
+    setFundData(prev => ({ ...prev, lpClasses: updatedClasses }));
+  };
+
+  // Calculate summary metrics
+  const calculateSummaryMetrics = () => {
+    const totalLPCommitment = fundData.lpClasses.reduce((sum, cls) => sum + cls.totalCommitment, 0);
+    const totalCommittedCapital = parseFloat(fundData.totalCommittedCapital.replace(/,/g, '')) || 0;
+    // Use the total committed capital from Fund Basics as the official fund size
+    const totalFundSize = totalCommittedCapital;
+    const excludedFromFees = fundData.lpClasses.filter(cls => cls.excludedFromManagementFees).length;
+    const includedInFees = fundData.lpClasses.filter(cls => !cls.excludedFromManagementFees).length;
+
+    return {
+      totalFundSize,
+      totalLPCommitment,
+      numberOfClasses: fundData.lpClasses.length,
+      excludedFromFees,
+      includedInFees
+    };
+  };
+
   // refactor(async): Replace forEach with controlled concurrency + circuit breaker
   const processPortfolioAllocations = async (allocations: any[]) => {
     const limit = resilientLimit({ 
@@ -380,284 +496,754 @@ export default function FundSetup() {
   const isFormValid = fundData.name && fundData.totalCommittedCapital && parseFloat(fundData.totalCommittedCapital) > 0;
   const canProceed = currentStep === 'fund-basics' ? isFormValid : true;
 
+  const completedSteps = WIZARD_STEPS.slice(0, currentStepIndex).map(step => step.id);
+
   return (
-    <div className="min-h-screen bg-gray-50 overflow-y-auto">
-      <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-20">
-        {/* Header */}
-        <div className="text-center mb-8 pt-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Building2 className="h-8 w-8 text-white" />
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 break-words">Press On Ventures Construction Wizard</h1>
-          <p className="text-gray-600">Set up your fund with essential information</p>
-        </div>
+    <div className="min-h-screen bg-slate-100 overflow-y-auto">
+      {/* Header with Logo Lockup and Centered Title */}
+      <WizardHeader
+        title="Fund Construction Wizard"
+        subtitle="Configure your venture capital fund with institutional-grade precision and professional standards"
+      />
 
-        {/* Progress Bar */}
-        <div className="mb-12">
-          <div className="flex items-center justify-between">
-            {WIZARD_STEPS.map((step, index) => (
-              <div key={step.id} className="flex-1 relative">
-                <div className={`flex items-center ${index < WIZARD_STEPS.length - 1 ? 'w-full' : ''}`}>
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                      index <= currentStepIndex
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-300 text-gray-600'
-                    }`}
-                  >
-                    {step.icon}
-                  </div>
-                  {index < WIZARD_STEPS.length - 1 && (
-                    <div
-                      className={`flex-1 h-1 mx-4 ${
-                        index < currentStepIndex ? 'bg-blue-600' : 'bg-gray-300'
-                      }`}
-                    />
-                  )}
-                </div>
-                <div className="absolute top-12 left-0 right-0 text-center">
-                  <p className="text-sm font-medium text-gray-900">{step.label}</p>
-                  <p className="text-xs text-gray-500 mt-1">{step.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Wizard Progress with Octagonal Icons */}
+      <WizardProgressRedesigned
+        steps={WIZARD_STEPS}
+        currentStep={currentStep}
+        completedSteps={completedSteps}
+      />
 
-        {/* Step Content */}
-        <Card className="shadow-lg border-0 mt-16">
-          <CardHeader className="bg-white border-b border-gray-200 rounded-t-lg">
-            <CardTitle className="text-lg sm:text-xl font-semibold text-gray-900 break-words">
-              {WIZARD_STEPS[currentStepIndex].label}
-            </CardTitle>
-            <p className="text-gray-600 text-sm mt-1">
-              {WIZARD_STEPS[currentStepIndex].description}
-            </p>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6 lg:p-8 max-h-none overflow-visible">
+      <div className="max-w-6xl mx-auto px-6 py-8 pb-32">
+        <WizardContainer
+          title={WIZARD_STEPS[currentStepIndex].label}
+          subtitle={WIZARD_STEPS[currentStepIndex].description}
+          className="mb-8"
+          style={{ margin: '24px' }}
+        >
             {/* Fund Basics Step */}
             {currentStep === 'fund-basics' && (
-              <div className="space-y-8">
-                {/* Fund Name */}
-                <div className="space-y-3">
-                  <Label htmlFor="fundName" className="text-base font-medium text-gray-900">
-                    Fund Name
-                  </Label>
-                  <Input
-                    id="fundName"
-                    value={fundData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    placeholder=""
-                    className="h-11 border-gray-300"
-                  />
+              <div className="space-y-6">
+                {/* Fund Name - Full Width */}
+                <div className="bg-white rounded-2xl shadow-sm p-6">
+                  <div className="space-y-3">
+                    <label className="font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-widest block">
+                      Fund Name *
+                    </label>
+                    <Input
+                      value={fundData.name}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
+                      placeholder="Enter your fund name"
+                      className="h-12 border-beige-300 rounded-2xl focus:border-pov-charcoal transition-colors w-full"
+                    />
+                    <p className="text-xs text-charcoal-500 font-poppins">
+                      The official name of your venture capital fund
+                    </p>
+                  </div>
                 </div>
 
-                {/* Fund Currency */}
-                <div className="space-y-3">
-                  <Label className="text-base font-medium text-gray-900">
-                    Fund Currency
-                  </Label>
-                  <Select value={fundData.currency} onValueChange={(value) => handleInputChange('currency', value)}>
-                    <SelectTrigger className="h-11 border-gray-300">
-                      <SelectValue placeholder="United States Dollar ($)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="USD">United States Dollar ($)</SelectItem>
-                      <SelectItem value="EUR">Euro (€)</SelectItem>
-                      <SelectItem value="GBP">British Pound (£)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* Fund Timeline & Commitments - Re-architected */}
+                <div className="bg-white rounded-2xl shadow-sm" style={{ padding: '16px' }}>
+                  {/* Section Heading */}
+                  <div className="mb-4">
+                    <h3 className="font-inter font-bold" style={{ fontSize: '20px', color: '#292929' }}>
+                      Fund Timeline & Commitments
+                    </h3>
+                    <div className="h-px bg-charcoal-400 w-full mt-2"></div>
+                  </div>
 
-                {/* Fund Start Date */}
-                <div className="space-y-3">
-                  <Label className="text-base font-medium text-gray-900">
-                    Fund Start Date
-                  </Label>
-                  <Input
-                    type="date"
-                    value={fundData.startDate}
-                    onChange={(e) => handleInputChange('startDate', e.target.value)}
-                    className="h-11 border-gray-300"
-                  />
-                </div>
-
-                {/* Fund End Date */}
-                <div className="space-y-3">
-                  <Label className="text-base font-medium text-gray-900">
-                    Fund End Date
-                  </Label>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="hasEndDate"
-                        checked={fundData.hasEndDate}
-                        onChange={(e) => {
-                          handleInputChange('hasEndDate', e.target.checked);
-                          if (!e.target.checked) {
-                            // Clear the calculated life years when switching to evergreen
-                            setFundData(prev => ({ ...prev, lifeYears: 10 }));
+                  {/* Timeline Section - 2×2 Grid */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <h4 className="font-poppins text-xs font-medium uppercase tracking-widest mb-3" style={{ color: '#4A4A4A' }}>
+                      Timeline
+                    </h4>
+                    {/* Evergreen Toggle - Above the grid */}
+                    <div className="flex items-center space-x-3 mb-4">
+                      <label className="font-poppins text-xs font-medium uppercase tracking-widest" style={{ color: '#4A4A4A' }}>
+                        Evergreen Fund?
+                      </label>
+                      <Switch
+                        checked={fundData.isEvergreen}
+                        onCheckedChange={(checked) => {
+                          handleInputChange('isEvergreen', checked);
+                          if (checked) {
+                            handleInputChange('hasEndDate', false);
+                            handleInputChange('endDate', '');
                           }
                         }}
-                        className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                        className="w-10 h-5 data-[state=checked]:bg-pov-charcoal"
                       />
-                      <Label htmlFor="hasEndDate" className="text-sm text-gray-700">
-                        Fund has end date
-                      </Label>
+                      <span className="text-sm font-poppins text-charcoal-600">
+                        {fundData.isEvergreen ? 'ON' : 'OFF'}
+                      </span>
                     </div>
-                    {fundData.hasEndDate && (
-                      <Input
-                        type="date"
-                        value={fundData.endDate}
-                        onChange={(e) => handleInputChange('endDate', e.target.value)}
-                        className="h-11 border-gray-300 w-full min-w-0"
-                        min={fundData.startDate}
-                      />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: '12px' }}>
+                      {/* Top Row */}
+                      <div className="space-y-3">
+                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                          Fund Start Date
+                        </label>
+                        <Input
+                          type="date"
+                          value={fundData.startDate}
+                          onChange={(e) => handleInputChange('startDate', e.target.value)}
+                          className="h-12 rounded-2xl w-full"
+                          style={{ border: '1px solid #E0D8D1' }}
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                          Fund End Date
+                        </label>
+                        <Input
+                          type="date"
+                          value={fundData.endDate}
+                          onChange={(e) => handleInputChange('endDate', e.target.value)}
+                          disabled={fundData.isEvergreen}
+                          className={`h-12 rounded-2xl w-full ${
+                            fundData.isEvergreen ? 'bg-pov-gray text-charcoal-400 cursor-not-allowed' : ''
+                          }`}
+                          style={{ border: '1px solid #E0D8D1' }}
+                          min={fundData.startDate}
+                        />
+                      </div>
+
+                      {/* Bottom Row */}
+                      <div className="space-y-3">
+                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                          Investment Horizon (Years)
+                        </label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max={fundData.lifeYears || 20}
+                          value={fundData.investmentHorizonYears}
+                          onChange={(e) => handleInputChange('investmentHorizonYears', e.target.value)}
+                          placeholder="5"
+                          className="h-12 rounded-2xl w-full"
+                          style={{ border: '1px solid #E0D8D1' }}
+                        />
+                        <p className="text-xs text-charcoal-500 font-poppins">
+                          Period for making new investments (typically 3-5 years)
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                          Fund Term
+                        </label>
+                        <div className="h-12 rounded-2xl w-full bg-pov-gray flex items-center px-4" style={{ border: '1px solid #E0D8D1' }}>
+                          <span className="text-charcoal-600 font-poppins text-sm">
+                            {(() => {
+                              if (!fundData.startDate || !fundData.endDate || fundData.isEvergreen) {
+                                return fundData.isEvergreen ? 'Evergreen' : 'Set dates to calculate';
+                              }
+                              const start = new Date(fundData.startDate);
+                              const end = new Date(fundData.endDate);
+                              const years = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+                              return `${years} years`;
+                            })()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Commitments Section - 2×2 Grid */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <h4 className="font-poppins text-xs font-medium uppercase tracking-widest mb-3" style={{ color: '#4A4A4A' }}>
+                      Commitments
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: '12px' }}>
+                      {/* Top Row */}
+                      <div className="space-y-3">
+                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                          Total Committed Capital
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-charcoal-600 font-medium">$</span>
+                          <Input
+                            type="text"
+                            value={fundData.totalCommittedCapital.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/,/g, '');
+                              handleInputChange('totalCommittedCapital', value);
+                            }}
+                            placeholder="100,000,000"
+                            className="h-12 rounded-2xl w-full pl-8"
+                            style={{ border: '1px solid #E0D8D1' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                          Capital Call Frequency
+                        </label>
+                        <Select value={fundData.capitalCallFrequency} onValueChange={(value) => handleInputChange('capitalCallFrequency', value)}>
+                          <SelectTrigger className="h-12 rounded-2xl w-full" style={{ border: '1px solid #E0D8D1' }}>
+                            <SelectValue placeholder="Select frequency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Upfront">Upfront</SelectItem>
+                            <SelectItem value="Quarterly">Quarterly</SelectItem>
+                            <SelectItem value="Semi-Annually">Semi-Annually</SelectItem>
+                            <SelectItem value="Annually">Annually</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Bottom Row */}
+                      <div className="space-y-3">
+                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                          GP Commitment %
+                        </label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={fundData.gpCommitmentPercent}
+                            onChange={(e) => handleInputChange('gpCommitmentPercent', e.target.value)}
+                            placeholder="2.0"
+                            className="h-12 rounded-2xl w-full pr-8"
+                            style={{ border: '1px solid #E0D8D1' }}
+                          />
+                          <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-charcoal-600 font-medium">%</span>
+                        </div>
+                        {/* Calculated Commitments */}
+                        {fundData.totalCommittedCapital && fundData.gpCommitmentPercent && (
+                          <div className="space-y-1 text-xs text-charcoal-600 font-poppins">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-2 h-2 rounded-full bg-charcoal-400"></div>
+                              <span>GP Commitment is ${(() => {
+                                const total = parseFloat(fundData.totalCommittedCapital.replace(/,/g, '')) || 0;
+                                const gpPercent = parseFloat(fundData.gpCommitmentPercent) || 0;
+                                const gpAmount = (total * gpPercent / 100);
+                                return gpAmount.toLocaleString();
+                              })()}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <div className="w-2 h-2 rounded-full bg-charcoal-400"></div>
+                              <span>LP Commitment is ${(() => {
+                                const total = parseFloat(fundData.totalCommittedCapital.replace(/,/g, '')) || 0;
+                                const gpPercent = parseFloat(fundData.gpCommitmentPercent) || 0;
+                                const lpAmount = (total * (100 - gpPercent) / 100);
+                                return lpAmount.toLocaleString();
+                              })()}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                          Cashless GP Contribution %
+                        </label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={fundData.cashlessGPPercent}
+                            onChange={(e) => handleInputChange('cashlessGPPercent', e.target.value)}
+                            placeholder="0"
+                            className="h-12 rounded-2xl w-full pr-8"
+                            style={{ border: '1px solid #E0D8D1' }}
+                          />
+                          <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-charcoal-600 font-medium">%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Optional Commitment Schedule */}
+                  <div>
+                    <button
+                      className="flex items-center space-x-2 mb-3 text-pov-charcoal hover:text-charcoal-700 transition-colors duration-200"
+                      onClick={() => setFundData(prev => ({ ...prev, showCommitmentSchedule: !prev.showCommitmentSchedule }))}
+                    >
+                      <svg
+                        className={`w-4 h-4 transition-transform duration-200 ${
+                          fundData.showCommitmentSchedule ? 'rotate-90' : ''
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                      <span className="font-poppins text-sm font-medium">
+                        Optional: Define Timing of LP Commitment Closes
+                      </span>
+                    </button>
+
+                    {fundData.showCommitmentSchedule && (
+                      <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                        <div className="mb-4">
+                          <h5 className="font-poppins text-xs font-medium uppercase tracking-widest mb-3" style={{ color: '#4A4A4A' }}>
+                            LP Commitment Schedule
+                            <button className="ml-2 text-charcoal-500 hover:text-charcoal-700">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            </button>
+                          </h5>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="border-b border-slate-300">
+                                <th className="text-left py-2 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Month</th>
+                                <th className="text-left py-2 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Calendar Month</th>
+                                <th className="text-left py-2 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">% of this LP's Entire Commitment</th>
+                                <th className="text-left py-2 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Amount Committed</th>
+                                <th className="w-8"></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(fundData.lpCommitmentCloses || [{ month: 1, percentage: 50, calendarMonth: 'Jan 2024' }, { month: 2, percentage: 50, calendarMonth: 'Feb 2024' }]).map((close, index) => (
+                                <tr key={index} className="border-b border-slate-200">
+                                  <td className="py-3 px-3">
+                                    <Input
+                                      type="number"
+                                      value={close.month || index + 1}
+                                      className="w-16 h-8 text-sm rounded-lg"
+                                      style={{ border: '1px solid #E0D8D1' }}
+                                      readOnly
+                                    />
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <span className="text-sm text-charcoal-600 font-poppins">
+                                      {close.calendarMonth || `Jan 202${4 + index}`}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <div className="flex items-center space-x-2">
+                                      <Input
+                                        type="number"
+                                        value={close.percentage || 50}
+                                        onChange={(e) => {
+                                          const newCloses = [...(fundData.lpCommitmentCloses || [{ month: 1, percentage: 50, calendarMonth: 'Jan 2024' }, { month: 2, percentage: 50, calendarMonth: 'Feb 2024' }])];
+                                          newCloses[index] = { ...newCloses[index], percentage: parseInt(e.target.value) || 0 };
+                                          handleInputChange('lpCommitmentCloses', newCloses);
+                                        }}
+                                        className="w-20 h-8 text-sm rounded-lg"
+                                        style={{ border: '1px solid #E0D8D1' }}
+                                      />
+                                      <span className="text-sm text-charcoal-600">%</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <button className="px-3 py-1 text-sm text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-poppins">
+                                      Enter Amount
+                                    </button>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    {index > 0 && (
+                                      <button className="text-red-500 hover:text-red-700">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="mt-4">
+                          <button className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-pov-charcoal text-sm font-poppins font-medium rounded-lg transition-all duration-200">
+                            Add Close
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
-                  {fundData.hasEndDate && fundData.startDate && fundData.endDate && (
-                    <p className="text-sm text-gray-600">
-                      Fund life: {(() => {
-                        const start = new Date(fundData.startDate);
-                        const end = new Date(fundData.endDate);
-                        const years = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
-                        return years;
-                      })()} years
-                    </p>
-                  )}
-                </div>
-
-                {/* Capital Call Frequency */}
-                <div className="space-y-3">
-                  <Label className="text-base font-medium text-gray-900">
-                    How often will you call capital?
-                  </Label>
-                  <Select value={fundData.capitalCallFrequency} onValueChange={(value) => handleInputChange('capitalCallFrequency', value)}>
-                    <SelectTrigger className="h-11 border-gray-300">
-                      <SelectValue placeholder="Monthly" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Monthly">Monthly</SelectItem>
-                      <SelectItem value="Quarterly">Quarterly</SelectItem>
-                      <SelectItem value="Semi-Annually">Semi-Annually</SelectItem>
-                      <SelectItem value="Annually">Annually</SelectItem>
-                      <SelectItem value="Upfront">Upfront</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Evergreen Toggle */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="evergreen-toggle" className="text-base font-medium text-gray-900">
-                      Ever-green fund?
-                    </Label>
-                    <Switch
-                      id="evergreen-toggle"
-                      checked={fundData.isEvergreen}
-                      onCheckedChange={(checked) => handleInputChange('isEvergreen', checked)}
-                    />
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    Evergreen funds have no fixed life and can invest indefinitely
-                  </p>
-                </div>
-
-                {/* Conditional Fund Life - Only show for closed-end funds */}
-                {!fundData.isEvergreen && (
-                  <div className="space-y-3">
-                    <Label htmlFor="fundLife" className="text-base font-medium text-gray-900">
-                      Fund Life (Years)
-                    </Label>
-                    <Input
-                      id="fundLife"
-                      type="number"
-                      min="3"
-                      max="20"
-                      value={fundData.lifeYears}
-                      onChange={(e) => handleInputChange('lifeYears', e.target.value)}
-                      className={`h-11 border-gray-300 ${
-                        fundData.hasEndDate && fundData.startDate && fundData.endDate 
-                          ? 'bg-gray-100 cursor-not-allowed' 
-                          : ''
-                      }`}
-                      placeholder="10"
-                      readOnly={Boolean(fundData.hasEndDate && fundData.startDate && fundData.endDate)}
-                    />
-                    <p className="text-sm text-gray-600">
-                      {fundData.hasEndDate && fundData.startDate && fundData.endDate 
-                        ? 'Automatically calculated from start and end dates'
-                        : 'Total fund duration (typically 10-12 years)'}
-                    </p>
-                  </div>
-                )}
-
-                {/* Investment Horizon */}
-                <div className="space-y-3">
-                  <Label htmlFor="investmentHorizon" className="text-base font-medium text-gray-900">
-                    Investment Horizon (Years)
-                  </Label>
-                  <Input
-                    id="investmentHorizon"
-                    type="number"
-                    min="1"
-                    max={fundData.lifeYears || 20}
-                    value={fundData.investmentHorizonYears}
-                    onChange={(e) => handleInputChange('investmentHorizonYears', e.target.value)}
-                    className="h-11 border-gray-300"
-                    placeholder="5"
-                  />
-                  <p className="text-sm text-gray-600">
-                    Period for making new investments (typically 3-5 years)
-                  </p>
                 </div>
               </div>
             )}
 
-            {/* Rest of the component is the same... */}
-            {/* Other steps content would continue here... */}
+            {/* Capital Structure Step */}
+            {currentStep === 'committed-capital' && (
+              <div className="space-y-6">
+                {/* Summary Metrics Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {(() => {
+                    const metrics = calculateSummaryMetrics();
+                    return (
+                      <>
+                        <PremiumCard className="p-4">
+                          <div className="text-center">
+                            <h3 className="font-inter font-bold text-2xl text-pov-charcoal">
+                              ${metrics.totalFundSize.toLocaleString()}
+                            </h3>
+                            <p className="text-sm text-charcoal-600 font-poppins">Total Fund Size</p>
+                          </div>
+                        </PremiumCard>
+                        <PremiumCard className="p-4">
+                          <div className="text-center">
+                            <h3 className="font-inter font-bold text-2xl text-pov-charcoal">
+                              {metrics.numberOfClasses}
+                            </h3>
+                            <p className="text-sm text-charcoal-600 font-poppins">LP Classes</p>
+                          </div>
+                        </PremiumCard>
+                        <PremiumCard className="p-4">
+                          <div className="text-center">
+                            <h3 className="font-inter font-bold text-2xl text-pov-charcoal">
+                              {metrics.excludedFromFees}
+                            </h3>
+                            <p className="text-sm text-charcoal-600 font-poppins">Excluded from Fees</p>
+                          </div>
+                        </PremiumCard>
+                        <PremiumCard className="p-4">
+                          <div className="text-center">
+                            <h3 className="font-inter font-bold text-2xl text-pov-charcoal">
+                              {metrics.includedInFees}
+                            </h3>
+                            <p className="text-sm text-charcoal-600 font-poppins">Included in Fees</p>
+                          </div>
+                        </PremiumCard>
+                      </>
+                    );
+                  })()}
+                </div>
 
-            {/* Navigation Buttons */}
-            <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
-              <Button 
-                variant="outline" 
-                onClick={handleBack}
-                disabled={currentStep === 'fund-basics'}
-                className="flex items-center space-x-2"
+                {/* LP Classes Management Section */}
+                <PremiumCard
+                  title="LP Classes"
+                  className="p-6"
+                  headerActions={
+                    <Button
+                      onClick={openAddLPClassModal}
+                      className="flex items-center space-x-2 bg-pov-charcoal hover:bg-pov-charcoal/90 text-white rounded-2xl h-10 px-4 transition-all duration-200"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="font-poppins font-medium">Add LP Class</span>
+                    </Button>
+                  }
+                >
+                  {/* LP Classes Table */}
+                  {fundData.lpClasses.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-charcoal-200">
+                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Class</th>
+                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">LP Commitment</th>
+                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Commit %</th>
+                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Fee Status</th>
+                            <th className="text-left py-3 px-3 font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-wider">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {fundData.lpClasses.map((lpClass) => {
+                            const totalCommittedCapital = parseFloat(fundData.totalCommittedCapital.replace(/,/g, '')) || 0;
+                            const commitPercent = totalCommittedCapital > 0 ? ((lpClass.totalCommitment / totalCommittedCapital) * 100).toFixed(2) : '0.00';
+                            return (
+                              <tr key={lpClass.id} className="border-b border-charcoal-100">
+                                <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{lpClass.name}</td>
+                                <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">${lpClass.totalCommitment.toLocaleString()}</td>
+                                <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">{commitPercent}%</td>
+                                <td className="py-3 px-3 font-poppins text-sm text-charcoal-700">
+                                  <span className={`px-2 py-1 rounded-full text-xs ${
+                                    lpClass.excludedFromManagementFees
+                                      ? 'bg-amber-100 text-amber-800'
+                                      : 'bg-green-100 text-green-800'
+                                  }`}>
+                                    {lpClass.excludedFromManagementFees ? 'Excluded' : 'Included'}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-3">
+                                  <div className="flex space-x-2">
+                                    <button
+                                      onClick={() => openEditLPClassModal(lpClass)}
+                                      className="text-blue-600 hover:text-blue-800"
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => deleteLPClass(lpClass.id)}
+                                      className="text-red-600 hover:text-red-800"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {/* Footer Row with Totals */}
+                          <tr className="bg-slate-50 border-t-2 border-charcoal-300">
+                            <td className="py-3 px-3 font-poppins text-sm font-medium text-charcoal-700">Totals</td>
+                            <td className="py-3 px-3 font-poppins text-sm font-medium text-charcoal-700">
+                              ${fundData.lpClasses.reduce((sum, cls) => sum + cls.totalCommitment, 0).toLocaleString()}
+                            </td>
+                            <td className="py-3 px-3 font-poppins text-sm font-medium text-charcoal-700">
+                              100.00%
+                            </td>
+                            <td className="py-3 px-3 font-poppins text-sm font-medium text-charcoal-700">
+                              {calculateSummaryMetrics().excludedFromFees}E / {calculateSummaryMetrics().includedInFees}I
+                            </td>
+                            <td className="py-3 px-3"></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-charcoal-500">
+                      <Building2 className="w-12 h-12 mx-auto mb-4 text-charcoal-300" />
+                      <p className="font-poppins text-lg mb-2">No LP Classes Yet</p>
+                      <p className="font-poppins text-sm">Add your first LP class to get started</p>
+                    </div>
+                  )}
+                </PremiumCard>
+
+                {/* GP Commitment Section */}
+                <PremiumCard title="GP Commitment" className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                        GP Commitment %
+                      </label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={fundData.gpCommitmentPercent}
+                          onChange={(e) => handleInputChange('gpCommitmentPercent', e.target.value)}
+                          placeholder="2.0"
+                          className="h-12 rounded-2xl w-full pr-8"
+                          style={{ border: '1px solid #E0D8D1' }}
+                        />
+                        <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-charcoal-600 font-medium">%</span>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                        GP Commitment Amount
+                      </label>
+                      <div className="h-12 rounded-2xl w-full bg-pov-gray flex items-center px-4" style={{ border: '1px solid #E0D8D1' }}>
+                        <span className="text-charcoal-600 font-poppins text-sm">
+                          ${(() => {
+                            const totalCommittedCapital = parseFloat(fundData.totalCommittedCapital.replace(/,/g, '')) || 0;
+                            const gpPercent = parseFloat(fundData.gpCommitmentPercent) || 0;
+                            const gpAmount = (totalCommittedCapital * gpPercent / 100);
+                            return gpAmount.toLocaleString();
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </PremiumCard>
+
+                {/* Capital Call Schedule Builder */}
+                <PremiumCard title="Capital Call Schedule" className="p-6">
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                          Call Frequency
+                        </label>
+                        <Select
+                          value={fundData.capitalCallFrequency}
+                          onValueChange={(value) => handleInputChange('capitalCallFrequency', value)}
+                        >
+                          <SelectTrigger className="h-12 rounded-2xl w-full" style={{ border: '1px solid #E0D8D1' }}>
+                            <SelectValue placeholder="Select frequency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Quarterly">Quarterly</SelectItem>
+                            <SelectItem value="Semi-Annual">Semi-Annual</SelectItem>
+                            <SelectItem value="Annual">Annual</SelectItem>
+                            <SelectItem value="As Needed">As Needed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {fundData.capitalCallFrequency !== 'As Needed' && (
+                      <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                        <h5 className="font-poppins text-xs font-medium uppercase tracking-widest mb-3" style={{ color: '#4A4A4A' }}>
+                          Projected Call Schedule
+                        </h5>
+                        <div className="text-center py-8 text-charcoal-500">
+                          <p className="font-poppins text-sm">Capital call schedule will be generated based on frequency and LP classes</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </PremiumCard>
+              </div>
+            )}
+
+        </WizardContainer>
+
+        {/* LP Class Modal */}
+        <Dialog open={isLPClassModalOpen} onOpenChange={setIsLPClassModalOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="font-inter font-bold text-xl text-pov-charcoal">
+                {editingLPClass ? 'Edit LP Class' : 'Add New LP Class'}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-6 py-4">
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                    Class Name *
+                  </label>
+                  <Input
+                    type="text"
+                    value={lpClassForm.name}
+                    onChange={(e) => setLPClassForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g., Class A - Strategic Partners"
+                    className="h-12 rounded-2xl w-full"
+                    style={{ border: '1px solid #E0D8D1' }}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                    Total Commitment *
+                  </label>
+                  <FinancialInput
+                    label=""
+                    value={lpClassForm.totalCommitment}
+                    onChange={(value) => setLPClassForm(prev => ({ ...prev, totalCommitment: value }))}
+                    type="currency"
+                    placeholder="50000000"
+                    className="h-12 rounded-2xl"
+                  />
+                  {/* Show commitment percentage */}
+                  {lpClassForm.totalCommitment && (
+                    <p className="text-xs text-charcoal-500 font-poppins">
+                      {(() => {
+                        const currentCommitment = parseFloat(lpClassForm.totalCommitment) || 0;
+                        const totalCommittedCapital = parseFloat(fundData.totalCommittedCapital.replace(/,/g, '')) || 0;
+                        const commitPercent = totalCommittedCapital > 0 ? ((currentCommitment / totalCommittedCapital) * 100).toFixed(2) : '0.00';
+                        return `${commitPercent}% of total committed capital`;
+                      })()}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="font-poppins text-xs font-medium uppercase tracking-widest" style={{ color: '#4A4A4A' }}>
+                      Excluded from Management Fees
+                    </label>
+                    <Switch
+                      checked={lpClassForm.excludedFromManagementFees}
+                      onCheckedChange={(checked) => setLPClassForm(prev => ({ ...prev, excludedFromManagementFees: checked }))}
+                      className="w-10 h-5 data-[state=checked]:bg-pov-charcoal"
+                    />
+                  </div>
+                  <p className="text-xs text-charcoal-500 font-poppins">
+                    {lpClassForm.excludedFromManagementFees
+                      ? 'This LP class will not pay management fees'
+                      : 'This LP class will pay standard management fees'
+                    }
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
+                  Side Letter Provisions (Optional)
+                </label>
+                <Textarea
+                  value={lpClassForm.sideLetterProvisions}
+                  onChange={(e) => setLPClassForm(prev => ({ ...prev, sideLetterProvisions: e.target.value }))}
+                  placeholder="Enter any special provisions, fee arrangements, or terms specific to this LP class..."
+                  className="min-h-[100px] rounded-2xl"
+                  style={{ border: '1px solid #E0D8D1' }}
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="space-x-3">
+              <Button
+                variant="outline"
+                onClick={() => setIsLPClassModalOpen(false)}
+                className="border-charcoal-300 text-charcoal-600 hover:bg-charcoal-50"
               >
-                <ArrowLeft className="h-4 w-4" />
-                <span>Back</span>
+                Cancel
               </Button>
+              <Button
+                onClick={saveLPClass}
+                disabled={!lpClassForm.name || !lpClassForm.totalCommitment}
+                className="bg-pov-charcoal hover:bg-pov-charcoal/90 text-white"
+              >
+                {editingLPClass ? 'Update Class' : 'Add Class'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-              <div className="flex items-center space-x-3">
+        {/* Sticky Footer Bar */}
+        <div className="fixed bottom-0 left-0 right-0 bg-charcoal-100 border-t border-charcoal-200 shadow-lg z-50">
+          <div className="max-w-6xl mx-auto px-6 py-4">
+            <div className="flex justify-between items-center">
+              {/* Left side - Step indicator and Save draft */}
+              <div className="flex items-center space-x-6">
+                <span className="text-charcoal-600 font-poppins text-sm font-medium">
+                  Step {currentStepIndex + 1} of {WIZARD_STEPS.length}
+                </span>
+                <button className="text-charcoal-500 hover:text-pov-charcoal text-sm font-poppins transition-colors duration-200">
+                  Save draft
+                </button>
+              </div>
+
+              {/* Right side - Navigation buttons */}
+              <div className="flex items-center space-x-4">
+                <Button
+                  variant="ghost"
+                  onClick={handleBack}
+                  disabled={currentStep === 'fund-basics'}
+                  className="flex items-center space-x-2 border border-pov-charcoal text-pov-charcoal hover:bg-pov-charcoal hover:text-white rounded-2xl h-12 px-6 transition-all duration-200 font-poppins font-medium"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Back</span>
+                </Button>
+
                 {canSkipStep() && currentStep !== 'review' && (
-                  <Button 
+                  <Button
                     variant="ghost"
                     onClick={handleNext}
-                    className="text-gray-600 hover:text-gray-800"
+                    className="text-charcoal-500 hover:text-pov-charcoal hover:bg-pov-beige/20 transition-all duration-200 font-poppins font-medium rounded-2xl h-12 px-6"
                   >
                     Skip for now
                   </Button>
                 )}
-                
+
                 {currentStep !== 'review' ? (
-                  <Button 
+                  <Button
                     onClick={handleNext}
                     disabled={!canProceed}
-                    className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+                    className="flex items-center space-x-2 bg-pov-charcoal hover:bg-gradient-to-r hover:from-pov-charcoal hover:to-pov-beige text-white rounded-2xl h-12 px-8 shadow-elevated hover:shadow-lg transition-all duration-200 disabled:opacity-50 font-poppins font-medium"
                   >
                     <span>Next</span>
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 ) : (
-                  <Button 
-                    onClick={handleSave} 
+                  <Button
+                    onClick={handleSave}
                     disabled={createFundMutation.isPending}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    className="bg-pov-charcoal hover:bg-gradient-to-r hover:from-pov-charcoal hover:to-pov-beige text-white rounded-2xl h-12 px-8 shadow-elevated hover:shadow-lg transition-all duration-200 font-poppins font-medium"
                   >
                     {createFundMutation.isPending ? (
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-3">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                         <span>Creating Fund...</span>
                       </div>
@@ -668,8 +1254,8 @@ export default function FundSetup() {
                 )}
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

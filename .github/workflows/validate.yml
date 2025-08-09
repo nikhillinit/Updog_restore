@@ -1,0 +1,28 @@
+name: validate
+on:
+  pull_request:
+    branches: [ai_main_23984511d18b, main]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Unit/lint/types
+        run: npm run test:all
+
+      - name: Build
+        run: npm run build
+
+      - name: Demo smoke
+        run: |
+          npx playwright install --with-deps
+          npx playwright test tests/e2e/reserves-demo.smoke.spec.ts

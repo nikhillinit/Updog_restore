@@ -11,11 +11,21 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       colors: {
+        // POV Brand Colors
+        pov: {
+          charcoal: '#292929',
+          white: '#FFFFFF',
+          gray: '#F2F2F2',
+          beige: '#E0D8D1',
+          success: '#10B981',
+          error: '#EF4444',
+          warning: '#F59E0B',
+        },
         // Target UI theme colors
         charcoal: {
           DEFAULT: "#292929",
           50: "#f8f8f8",
-          100: "#f0f0f0", 
+          100: "#f0f0f0",
           200: "#e0e0e0",
           300: "#c0c0c0",
           400: "#a0a0a0",
