@@ -432,13 +432,15 @@ export default function FundSetup() {
   // Calculate summary metrics
   const calculateSummaryMetrics = () => {
     const totalLPCommitment = fundData.lpClasses.reduce((sum, cls) => sum + cls.totalCommitment, 0);
-    const gpCommitment = parseFloat(fundData.totalCommittedCapital.replace(/,/g, '')) * (parseFloat(fundData.gpCommitmentPercent) / 100) || 0;
-    const totalFundSize = totalLPCommitment + gpCommitment;
+    const totalCommittedCapital = parseFloat(fundData.totalCommittedCapital.replace(/,/g, '')) || 0;
+    // Use the total committed capital from Fund Basics as the official fund size
+    const totalFundSize = totalCommittedCapital;
     const excludedFromFees = fundData.lpClasses.filter(cls => cls.excludedFromManagementFees).length;
     const includedInFees = fundData.lpClasses.filter(cls => !cls.excludedFromManagementFees).length;
 
     return {
       totalFundSize,
+      totalLPCommitment,
       numberOfClasses: fundData.lpClasses.length,
       excludedFromFees,
       includedInFees
