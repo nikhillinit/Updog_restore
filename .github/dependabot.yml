@@ -1,11 +1,59 @@
 version: 2
 updates:
+  # Morning run - catch overnight releases
   - package-ecosystem: npm
     directory: "/"
     schedule:
-      interval: weekly
+      interval: daily
+      time: "09:00"
+      timezone: "America/Chicago"
+    open-pull-requests-limit: 3
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+      tooling:
+        patterns: ["@types/*", "eslint*", "vitest*", "playwright*", "husky*"]
+      build:
+        patterns: ["vite*", "typescript", "tslib"]
+      ui:
+        patterns: ["react*", "@vitejs/*"]
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automerge-candidate"
     ignore:
-      - dependency-name: "@slack/*"
-      - dependency-name: "husky"
-      - dependency-name: "@types/node"
-        versions: [">=19"]
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        versions: ["5.6.x"]
+
+  # Evening run - catch daytime releases
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: daily
+      time: "21:00"
+      timezone: "America/Chicago"
+    open-pull-requests-limit: 3
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+      tooling:
+        patterns: ["@types/*", "eslint*", "vitest*", "playwright*", "husky*"]
+      build:
+        patterns: ["vite*", "typescript", "tslib"]
+      ui:
+        patterns: ["react*", "@vitejs/*"]
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automerge-candidate"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        versions: ["5.6.x"]
