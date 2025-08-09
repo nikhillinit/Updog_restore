@@ -434,17 +434,14 @@ export default function FundSetup() {
     const totalLPCommitment = fundData.lpClasses.reduce((sum, cls) => sum + cls.totalCommitment, 0);
     const gpCommitment = parseFloat(fundData.totalCommittedCapital.replace(/,/g, '')) * (parseFloat(fundData.gpCommitmentPercent) / 100) || 0;
     const totalFundSize = totalLPCommitment + gpCommitment;
-    const totalLPCount = fundData.lpClasses.reduce((sum, cls) => sum + cls.numberOfLPs, 0);
-
-    // Weighted averages
-    const weightedManagementFee = fundData.lpClasses.reduce((sum, cls) =>
-      sum + (cls.managementFee * cls.totalCommitment), 0) / (totalLPCommitment || 1);
+    const excludedFromFees = fundData.lpClasses.filter(cls => cls.excludedFromManagementFees).length;
+    const includedInFees = fundData.lpClasses.filter(cls => !cls.excludedFromManagementFees).length;
 
     return {
       totalFundSize,
       numberOfClasses: fundData.lpClasses.length,
-      totalLPCount,
-      blendedManagementFee: weightedManagementFee
+      excludedFromFees,
+      includedInFees
     };
   };
 
