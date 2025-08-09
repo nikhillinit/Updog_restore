@@ -115,3 +115,12 @@ ts-boolean-errors.txt
 #Ignore vscode AI rules
 .github\copilot-instructions.md
 .vercel
+
+# Test artifacts
+playwright-report/
+test-results/
+coverage/
+
+# Local scratch
+Updog_restore-main/
+.specstory/
