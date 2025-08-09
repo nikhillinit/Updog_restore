@@ -1095,7 +1095,7 @@ export default function FundSetup() {
             </DialogHeader>
 
             <div className="space-y-6 py-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-6">
                 <div className="space-y-3">
                   <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
                     Class Name *
@@ -1105,21 +1105,6 @@ export default function FundSetup() {
                     value={lpClassForm.name}
                     onChange={(e) => setLPClassForm(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="e.g., Class A - Strategic Partners"
-                    className="h-12 rounded-2xl w-full"
-                    style={{ border: '1px solid #E0D8D1' }}
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
-                    Number of LPs *
-                  </label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={lpClassForm.numberOfLPs}
-                    onChange={(e) => setLPClassForm(prev => ({ ...prev, numberOfLPs: e.target.value }))}
-                    placeholder="10"
                     className="h-12 rounded-2xl w-full"
                     style={{ border: '1px solid #E0D8D1' }}
                   />
@@ -1137,20 +1122,36 @@ export default function FundSetup() {
                     placeholder="50000000"
                     className="h-12 rounded-2xl"
                   />
+                  {/* Show commitment percentage */}
+                  {lpClassForm.totalCommitment && (
+                    <p className="text-xs text-charcoal-500 font-poppins">
+                      {(() => {
+                        const currentCommitment = parseFloat(lpClassForm.totalCommitment) || 0;
+                        const totalCommittedCapital = parseFloat(fundData.totalCommittedCapital.replace(/,/g, '')) || 0;
+                        const commitPercent = totalCommittedCapital > 0 ? ((currentCommitment / totalCommittedCapital) * 100).toFixed(2) : '0.00';
+                        return `${commitPercent}% of total committed capital`;
+                      })()}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-3">
-                  <label className="font-poppins text-xs font-medium uppercase tracking-widest block" style={{ color: '#4A4A4A' }}>
-                    Management Fee %
-                  </label>
-                  <FinancialInput
-                    label=""
-                    value={lpClassForm.managementFee}
-                    onChange={(value) => setLPClassForm(prev => ({ ...prev, managementFee: value }))}
-                    type="percentage"
-                    placeholder="2.0"
-                    className="h-12 rounded-2xl"
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="font-poppins text-xs font-medium uppercase tracking-widest" style={{ color: '#4A4A4A' }}>
+                      Excluded from Management Fees
+                    </label>
+                    <Switch
+                      checked={lpClassForm.excludedFromManagementFees}
+                      onCheckedChange={(checked) => setLPClassForm(prev => ({ ...prev, excludedFromManagementFees: checked }))}
+                      className="w-10 h-5 data-[state=checked]:bg-pov-charcoal"
+                    />
+                  </div>
+                  <p className="text-xs text-charcoal-500 font-poppins">
+                    {lpClassForm.excludedFromManagementFees
+                      ? 'This LP class will not pay management fees'
+                      : 'This LP class will pay standard management fees'
+                    }
+                  </p>
                 </div>
               </div>
 
