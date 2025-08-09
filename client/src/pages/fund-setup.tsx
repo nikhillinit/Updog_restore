@@ -930,7 +930,6 @@ export default function FundSetup() {
                     </Button>
                   }
                 >
-
                   {/* LP Classes Table */}
                   {fundData.lpClasses.length > 0 ? (
                     <div className="overflow-x-auto">
