@@ -6,45 +6,37 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
-import type { Stage, SectorProfile, Allocation, InvestmentStrategy } from "@shared/types";
+import { useFundStore } from "@/stores/useFundStore";
+import type { Stage, SectorProfile, Allocation } from "@shared/types";
 
-interface InvestmentStrategyStepProps {
-  data: InvestmentStrategy;
-  onChange: (data: InvestmentStrategy) => void;
-}
-
-export default function InvestmentStrategyStep({ data, onChange }: InvestmentStrategyStepProps) {
+export default function InvestmentStrategyStep() {
+  const data = useFundStore(state => state.toInvestmentStrategy());
+  const storeAddStage = useFundStore(state => state.addStage);
+  const storeRemoveStage = useFundStore(state => state.removeStage);
+  const storeUpdateStageName = useFundStore(state => state.updateStageName);
+  const storeUpdateStageRate = useFundStore(state => state.updateStageRate);
+  const fromInvestmentStrategy = useFundStore(state => state.fromInvestmentStrategy);
+  const { allValid } = useFundStore(state => state.stageValidation());
   const [activeTab, setActiveTab] = useState("stages");
 
   const addStage = () => {
-    const newStage: Stage = {
-      id: `stage-${Date.now()}`,
-      name: '',
-      graduationRate: 0,
-      exitRate: 0,
-    };
-    onChange({
-      ...data,
-      stages: [...data.stages, newStage]
-    });
+    storeAddStage();
   };
 
   const updateStage = (index: number, updates: Partial<Stage>) => {
-    const updatedStages = data.stages.map((stage, i) => 
-      i === index ? { ...stage, ...updates } : stage
-    );
-    onChange({
-      ...data,
-      stages: updatedStages
-    });
+    if ('name' in updates && updates.name !== undefined) {
+      storeUpdateStageName(index, updates.name);
+    }
+    if ('graduationRate' in updates || 'exitRate' in updates) {
+      storeUpdateStageRate(index, {
+        graduate: updates.graduationRate,
+        exit: updates.exitRate
+      });
+    }
   };
 
   const removeStage = (index: number) => {
-    const updatedStages = data.stages.filter((_, i) => i !== index);
-    onChange({
-      ...data,
-      stages: updatedStages
-    });
+    storeRemoveStage(index);
   };
 
   const addSectorProfile = () => {
@@ -54,7 +46,7 @@ export default function InvestmentStrategyStep({ data, onChange }: InvestmentStr
       targetPercentage: 0,
       description: '',
     };
-    onChange({
+    fromInvestmentStrategy({
       ...data,
       sectorProfiles: [...data.sectorProfiles, newSector]
     });
@@ -64,7 +56,7 @@ export default function InvestmentStrategyStep({ data, onChange }: InvestmentStr
     const updatedSectors = data.sectorProfiles.map((sector, i) => 
       i === index ? { ...sector, ...updates } : sector
     );
-    onChange({
+    fromInvestmentStrategy({
       ...data,
       sectorProfiles: updatedSectors
     });
@@ -72,7 +64,7 @@ export default function InvestmentStrategyStep({ data, onChange }: InvestmentStr
 
   const removeSectorProfile = (index: number) => {
     const updatedSectors = data.sectorProfiles.filter((_, i) => i !== index);
-    onChange({
+    fromInvestmentStrategy({
       ...data,
       sectorProfiles: updatedSectors
     });
@@ -85,7 +77,7 @@ export default function InvestmentStrategyStep({ data, onChange }: InvestmentStr
       percentage: 0,
       description: '',
     };
-    onChange({
+    fromInvestmentStrategy({
       ...data,
       allocations: [...data.allocations, newAllocation]
     });
@@ -95,7 +87,7 @@ export default function InvestmentStrategyStep({ data, onChange }: InvestmentStr
     const updatedAllocations = data.allocations.map((allocation, i) => 
       i === index ? { ...allocation, ...updates } : allocation
     );
-    onChange({
+    fromInvestmentStrategy({
       ...data,
       allocations: updatedAllocations
     });
@@ -103,7 +95,7 @@ export default function InvestmentStrategyStep({ data, onChange }: InvestmentStr
 
   const removeAllocation = (index: number) => {
     const updatedAllocations = data.allocations.filter((_, i) => i !== index);
-    onChange({
+    fromInvestmentStrategy({
       ...data,
       allocations: updatedAllocations
     });
@@ -149,7 +141,7 @@ export default function InvestmentStrategyStep({ data, onChange }: InvestmentStr
                     </Button>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="space-y-2">
                       <Label>Stage Name</Label>
                       <Input
@@ -166,6 +158,7 @@ export default function InvestmentStrategyStep({ data, onChange }: InvestmentStr
                         max="100"
                         value={stage.graduationRate}
                         onChange={(e) => updateStage(index, { graduationRate: parseFloat(e.target.value) || 0 })}
+                        disabled={index === data.stages.length - 1}
                       />
                       {index === data.stages.length - 1 && stage.graduationRate > 0 && (
                         <p className="text-sm text-red-500">Last stage must have 0% graduation rate</p>
@@ -183,6 +176,14 @@ export default function InvestmentStrategyStep({ data, onChange }: InvestmentStr
                       {(stage.graduationRate + stage.exitRate) > 100 && (
                         <p className="text-sm text-red-500">Graduation + Exit rates cannot exceed 100%</p>
                       )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Remain (%)</Label>
+                      <div className="p-2 bg-gray-50 rounded h-10 flex items-center">
+                        <span className="text-gray-700">
+                          {Math.max(0, 100 - stage.graduationRate - stage.exitRate)}%
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
