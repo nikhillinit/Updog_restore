@@ -128,7 +128,7 @@ export default function InvestmentStrategyStep() {
             </CardHeader>
             <CardContent className="space-y-4">
               {data.stages.map((stage, index) => (
-                <div key={stage.id} className="border rounded-lg p-4 space-y-4">
+                <div key={stage.id} className="border rounded-lg p-4 space-y-4" data-testid={`stage-${index}`}>
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium">Stage {index + 1}</h3>
                     <Button
@@ -145,6 +145,7 @@ export default function InvestmentStrategyStep() {
                     <div className="space-y-2">
                       <Label>Stage Name</Label>
                       <Input
+                        data-testid={`stage-${index}-name`}
                         value={stage.name}
                         onChange={(e) => updateStage(index, { name: e.target.value })}
                         placeholder="e.g., Seed, Series A"
@@ -153,6 +154,7 @@ export default function InvestmentStrategyStep() {
                     <div className="space-y-2">
                       <Label>Graduation Rate (%)</Label>
                       <Input
+                        data-testid={`stage-${index}-graduate`}
                         type="number"
                         min="0"
                         max="100"
@@ -167,6 +169,7 @@ export default function InvestmentStrategyStep() {
                     <div className="space-y-2">
                       <Label>Exit Rate (%)</Label>
                       <Input
+                        data-testid={`stage-${index}-exit`}
                         type="number"
                         min="0"
                         max="100"
@@ -180,7 +183,7 @@ export default function InvestmentStrategyStep() {
                     <div className="space-y-2">
                       <Label>Remain (%)</Label>
                       <div className="p-2 bg-gray-50 rounded h-10 flex items-center">
-                        <span className="text-gray-700">
+                        <span className="text-gray-700" data-testid={`stage-${index}-remain`}>
                           {Math.max(0, 100 - stage.graduationRate - stage.exitRate)}%
                         </span>
                       </div>
