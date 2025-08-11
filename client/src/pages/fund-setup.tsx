@@ -100,7 +100,6 @@ export default function FundSetup() {
     isEvergreen: false,
     lifeYears: 10,
     investmentHorizonYears: 5,
-    capitalCallFrequency: "Monthly",
     
     // Committed Capital
     totalCommittedCapital: "100000000",
@@ -108,10 +107,6 @@ export default function FundSetup() {
     gpCommitment: "2",
     gpCommitmentAmount: "2000000",
     lpCommitmentAmount: "98000000",
-    lpCommitmentCloses: [
-      { month: 1, percentage: 100 }
-    ],
-    
     // Investment Parameters
     investmentStage: "seed",
     followOnStrategy: "maintain_ownership",
@@ -518,7 +513,6 @@ export default function FundSetup() {
           title={WIZARD_STEPS[currentStepIndex].label}
           subtitle={WIZARD_STEPS[currentStepIndex].description}
           className="mb-8"
-          style={{ margin: '24px' }}
         >
             {/* Fund Basics Step */}
             {currentStep === 'fund-basics' && (
@@ -830,7 +824,7 @@ export default function FundSetup() {
                                         onChange={(e) => {
                                           const newCloses = [...(fundData.lpCommitmentCloses || [{ month: 1, percentage: 50, calendarMonth: 'Jan 2024' }, { month: 2, percentage: 50, calendarMonth: 'Feb 2024' }])];
                                           newCloses[index] = { ...newCloses[index], percentage: parseInt(e.target.value) || 0 };
-                                          handleInputChange('lpCommitmentCloses', newCloses);
+                                          handleComplexDataChange('lpCommitmentCloses', newCloses);
                                         }}
                                         className="w-20 h-8 text-sm rounded-lg"
                                         style={{ border: '1px solid #E0D8D1' }}
@@ -1083,6 +1077,97 @@ export default function FundSetup() {
                     )}
                   </div>
                 </PremiumCard>
+              </div>
+            )}
+
+            {/* Investment Strategy Step */}
+            {currentStep === 'investment-strategy' && (
+              <InvestmentStrategyStep />
+            )}
+
+            {/* Exit Recycling Step */}
+            {currentStep === 'exit-recycling' && (
+              <ExitRecyclingStep
+                data={fundData.exitRecycling}
+                onChange={(data) => handleComplexDataChange('exitRecycling', data)}
+              />
+            )}
+
+            {/* Waterfall Step */}
+            {currentStep === 'waterfall' && (
+              <WaterfallStep
+                data={fundData.waterfall}
+                onChange={(data) => handleComplexDataChange('waterfall', data)}
+              />
+            )}
+
+            {/* Advanced Settings Step */}
+            {currentStep === 'advanced-settings' && (
+              <div className="space-y-6">
+                <div className="bg-white rounded-2xl shadow-sm p-6">
+                  <div className="space-y-3">
+                    <label className="font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-widest block">
+                      Vehicle Structure
+                    </label>
+                    <select
+                      value={fundData.vehicleStructure}
+                      onChange={(e) => handleInputChange('vehicleStructure', e.target.value)}
+                      className="h-12 border-beige-300 rounded-2xl focus:border-pov-charcoal transition-colors w-full px-3"
+                    >
+                      <option value="traditional_fund">Traditional Fund</option>
+                      <option value="spv">Special Purpose Vehicle</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-sm p-6">
+                  <div className="space-y-3">
+                    <label className="font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-widest block">
+                      Management Fee Structure
+                    </label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="5"
+                        step="0.1"
+                        value={fundData.feeStructure}
+                        onChange={(e) => handleInputChange('feeStructure', e.target.value)}
+                        placeholder="2.0"
+                        className="h-12 rounded-2xl w-full pr-8"
+                        style={{ border: '1px solid #E0D8D1' }}
+                      />
+                      <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-charcoal-600 font-medium">%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Review Step */}
+            {currentStep === 'review' && (
+              <div className="space-y-6">
+                <div className="bg-white rounded-2xl shadow-sm p-6">
+                  <h3 className="font-inter font-bold text-xl text-pov-charcoal mb-4">Fund Summary</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-widest">Fund Name</label>
+                      <p className="text-lg font-medium text-charcoal-700">{fundData.name}</p>
+                    </div>
+                    <div>
+                      <label className="font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-widest">Total Size</label>
+                      <p className="text-lg font-medium text-charcoal-700">${parseFloat(fundData.totalCommittedCapital.replace(/,/g, '')).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <label className="font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-widest">Management Fee</label>
+                      <p className="text-lg font-medium text-charcoal-700">{fundData.feeStructure}%</p>
+                    </div>
+                    <div>
+                      <label className="font-poppins text-xs font-medium text-charcoal-600 uppercase tracking-widest">Investment Strategy</label>
+                      <p className="text-lg font-medium text-charcoal-700">{fundData.investmentStrategy.stages.length} stages defined</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
