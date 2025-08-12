@@ -1,5 +1,8 @@
 import { mapAsync } from "@/lib";
 import React, { useState, useEffect } from 'react';
+import { createFund } from '@/services/funds';
+import { toFundCreationPayload } from '@/core/reserves/adapter/toEngineGraduationRates';
+import { useFundStore } from '@/stores/useFundStore';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -478,13 +481,34 @@ export default function FundSetup() {
   };
 
   const handleSave = async () => {
-    // Process allocations with controlled concurrency before saving
-    if (fundData.allocations?.length) {
-      const processedAllocations = await processPortfolioAllocations(fundData.allocations);
-      const enhancedFundData = { ...fundData, allocations: processedAllocations };
-      createFundMutation.mutate(enhancedFundData);
-    } else {
-      createFundMutation.mutate(fundData);
+    try {
+      // Get current state from the fund store
+      const storeState = useFundStore.getState();
+      
+      // Create payload using the centralized adapter
+      const payload = toFundCreationPayload(storeState);
+      
+      // Process allocations with controlled concurrency if needed
+      if (fundData.allocations?.length) {
+        const processedAllocations = await processPortfolioAllocations(fundData.allocations);
+        payload.basics = { ...payload.basics, allocations: processedAllocations };
+      }
+      
+      // Call the service with built-in feedback
+      const fund = await createFund(payload);
+      
+      // Simple success feedback (upgrade to toast later)
+      alert('✅ Fund saved successfully!');
+      
+      // Update context and navigate
+      setCurrentFund(fund);
+      queryClient.invalidateQueries({ queryKey: ['/api/funds'] });
+      setLocation('/dashboard');
+      
+    } catch (error) {
+      console.error('Fund creation failed:', error);
+      // Simple error feedback (upgrade to toast later)
+      alert('❌ Failed to save fund. Please try again.');
     }
   };
 

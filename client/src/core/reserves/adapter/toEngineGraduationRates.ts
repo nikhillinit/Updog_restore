@@ -1,3 +1,6 @@
+import { clampPct, clampInt } from '../../lib/coerce';
+import type { useFundStore } from '../../stores/useFundStore';
+
 export interface Stage {
   id: string;
   name: string;
@@ -37,4 +40,28 @@ export function toEngineGraduationRates(stages: Stage[]): EngineRates {
     };
   }
   return out;
+}
+
+/**
+ * Creates a fund creation payload from the store state
+ * Belt-and-suspenders validation before API (store already clamps)
+ */
+export function toFundCreationPayload(state: ReturnType<typeof useFundStore.getState>) {
+  // Belt-and-suspenders validation before API (store already clamps)
+  const stages = state.stages.map((r) => ({
+    name: r.name.trim(),
+    graduate: clampPct(r.graduate),
+    exit: clampPct(r.exit),
+    months: clampInt(r.months, 1, 120),
+  }));
+
+  return {
+    basics: {
+      // Add any basic fund info here when available
+      // For now, leaving empty or with defaults
+    },
+    stages,
+    followOnChecks: state.followOnChecks,
+    modelVersion: 'reserves-ev1',
+  };
 }
