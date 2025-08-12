@@ -1,5 +1,5 @@
 // client/src/services/funds.ts
-import { logFeature, logError } from '../lib/telemetry';
+import { emitTelemetry } from '../lib/telemetry';
 
 export interface FundCreatePayload {
   // keep aligned with your backend
@@ -10,25 +10,40 @@ export interface FundCreatePayload {
 }
 
 export async function createFund(payload: FundCreatePayload) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 10000);
+
   try {
     const res = await fetch('/api/funds', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+      signal: ctrl.signal,
     });
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      throw new Error(`HTTP ${res.status} ${res.statusText}${body ? ` — ${body}` : ''}`);
+      emitTelemetry({
+        category: 'fund',
+        event: 'create_failed',
+        ok: false,
+        meta: { status: res.status, body }
+      });
+      throw new Error(`Create fund failed: ${res.status} ${body}`);
     }
-    const data = await res.json();
-    logFeature('fund_created', {
-      stages: payload.stages.length,
-      modelVersion: payload.modelVersion,
+
+    const json = await res.json();
+    emitTelemetry({
+      category: 'fund',
+      event: 'created',
+      ok: true,
+      meta: {
+        stages: payload.stages.length,
+        modelVersion: payload.modelVersion ?? 'reserves-ev1',
+      }
     });
-    return data;
-  } catch (err) {
-    logError(err as Error, { context: 'fund_create_failed' });
-    throw err;
+    return json;
+  } finally {
+    clearTimeout(t);
   }
 }

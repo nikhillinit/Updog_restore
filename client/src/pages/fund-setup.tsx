@@ -2,6 +2,7 @@ import { mapAsync } from "@/lib";
 import React, { useState, useEffect } from 'react';
 import { createFund } from '@/services/funds';
 import { toFundCreationPayload } from '@/core/reserves/adapter/toEngineGraduationRates';
+import { toast } from '@/lib/toast';
 import { useFundStore } from '@/stores/useFundStore';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
