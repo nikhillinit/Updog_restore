@@ -44,7 +44,8 @@
       "Cucumber Studio",
       "Socket",
       "Socket",
-      "Playwright"
+      "Playwright",
+      "Bash(npm ci:*)"
     ],
     "deny": []
   }

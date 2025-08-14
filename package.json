@@ -57,7 +57,7 @@
     "pre-push": "./scripts/validate-pr.sh",
     "pretest:smoke": "playwright install --with-deps",
     "test:unit": "vitest run --passWithNoTests=false",
-    "test:smoke": "playwright test tests/e2e/basic-smoke.spec.ts",
+    "test:smoke:e2e": "playwright test tests/e2e/basic-smoke.spec.ts",
     "test:types": "tsc --noEmit",
     "test:lint": "eslint . --max-warnings 0",
     "qa:checklist": "node scripts/qa-open.js",
