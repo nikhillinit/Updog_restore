@@ -182,7 +182,7 @@ export async function startCreateFund(
       throw Object.assign(err ?? new Error('Create fund failed'), { aborted, hash, durationMs });
     } finally {
       cleanup();
-      inflight.delete(hash);
+      inflight.delete(hash); // ensure cleanup on success AND failure/abort
     }
   };
 

@@ -45,7 +45,11 @@
       "Socket",
       "Socket",
       "Playwright",
-      "Bash(npm ci:*)"
+      "Bash(npm ci:*)",
+      "Bash(gh pr edit:*)",
+      "Bash(gh label:*)",
+      "Bash(gh pr view:*)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": []
   }

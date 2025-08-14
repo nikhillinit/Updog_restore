@@ -203,7 +203,6 @@
     "vitest": "^3.2.4"
   },
   "optionalDependencies": {
-    "@slack/webhook": "^7.0.5",
     "bufferutil": "^4.0.8"
   }
 }
