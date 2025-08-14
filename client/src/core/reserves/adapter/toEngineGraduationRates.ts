@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { clampPct, clampInt } from '../../lib/coerce';
 import type { useFundStore } from '../../stores/useFundStore';
 
@@ -11,6 +12,18 @@ interface Stage {
 
 interface EngineRates {
   [key: string]: {
+=======
+export interface Stage {
+  id: string;
+  name: string;
+  graduate: number; // %
+  exit: number;     // %
+  months: number;   // int >= 1
+}
+
+export interface EngineRates {
+  [transitionId: string]: {
+>>>>>>> origin/main
     graduate: number;
     fail: number;
     remain: number;
@@ -19,6 +32,7 @@ interface EngineRates {
 }
 
 /**
+<<<<<<< HEAD
  * Creates a fund creation payload from the store state
  * NOTE: We already clamp in the store for UX. We keep this adapter clamp as a final
  * belt-and-suspenders safety net before hitting the API. Do not add further coercion elsewhere.
@@ -40,6 +54,8 @@ export function toFundCreationPayload(state: ReturnType<typeof useFundStore.getS
 }
 
 /**
+=======
+>>>>>>> origin/main
  * Converts user-defined stages into engine transitions.
  * Treats "exit" as non-follow-on bucket (like "fail") for reserves budgeting.
  * Transition key format: `${from.id}__to__${to.id}`

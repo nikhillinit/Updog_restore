@@ -1,6 +1,7 @@
 /**
  * Safe, opt-in telemetry for migrations and feature usage
  * 
+<<<<<<< HEAD
  * Enhanced with ring buffer storage and live updates:
  * - Limited to 200 events max (prevents localStorage bloat)
  * - CustomEvent dispatch for same-tab live updates
@@ -10,6 +11,11 @@
  * - logMigration({ fromVersion: 'legacy', stages: 3 })
  * - logFeature('fundStore', { action: 'init' })
  * - readTelemetry() // Get all events for dashboard
+=======
+ * Usage:
+ * - logMigration({ fromVersion: 'legacy', stages: 3 })
+ * - logFeature('fundStore', { action: 'init' })
+>>>>>>> origin/main
  * 
  * Control via env vars:
  * - VITE_TRACK_MIGRATIONS=1 enables migration logging
@@ -18,6 +24,7 @@
 
 type LogLevel = 'info' | 'warn' | 'error';
 
+<<<<<<< HEAD
 export interface TelemetryEvent {
   t: number; // timestamp as number for smaller storage
   category: string;
@@ -29,6 +36,15 @@ export interface TelemetryEvent {
 const STORAGE_KEY = '__telemetry_events';
 const MAX_EVENTS = 200;
 
+=======
+interface TelemetryEvent {
+  timestamp: string;
+  category: string;
+  event: string;
+  data?: Record<string, unknown>;
+}
+
+>>>>>>> origin/main
 const getEnvFlag = (name: string): boolean => {
   try {
     return (import.meta as any).env?.[name] === '1';
@@ -37,6 +53,7 @@ const getEnvFlag = (name: string): boolean => {
   }
 };
 
+<<<<<<< HEAD
 /**
  * Emit telemetry event to ring buffer with live updates
  */
@@ -81,6 +98,33 @@ export function readTelemetry(): TelemetryEvent[] {
     return [];
   }
 }
+=======
+const createEvent = (category: string, event: string, data?: Record<string, unknown>): TelemetryEvent => ({
+  timestamp: new Date().toISOString(),
+  category,
+  event,
+  data
+});
+
+const safeLog = (level: LogLevel, event: TelemetryEvent) => {
+  if (typeof console === 'undefined') return;
+  
+  const message = `[${event.category}] ${event.event}`;
+  const payload = event.data ? JSON.stringify(event.data) : '';
+  
+  switch (level) {
+    case 'info':
+      console.info(message, payload);
+      break;
+    case 'warn':
+      console.warn(message, payload);
+      break;
+    case 'error':
+      console.error(message, payload);
+      break;
+  }
+};
+>>>>>>> origin/main
 
 /**
  * Log migration events (localStorage upgrades, schema changes, etc.)
@@ -89,17 +133,26 @@ export function readTelemetry(): TelemetryEvent[] {
 export const logMigration = (data: Record<string, unknown>) => {
   if (!getEnvFlag('VITE_TRACK_MIGRATIONS')) return;
   
+<<<<<<< HEAD
   emitTelemetry({
     category: 'migration',
     event: 'upgrade',
     ok: true,
     meta: data
   });
+=======
+  const event = createEvent('migration', 'upgrade', data);
+  safeLog('info', event);
+>>>>>>> origin/main
   
   // Hook for analytics/monitoring (extend as needed)
   if (typeof window !== 'undefined' && (window as any).__analytics) {
     try {
+<<<<<<< HEAD
       (window as any).__analytics.track('Migration', { category: 'migration', event: 'upgrade', data });
+=======
+      (window as any).__analytics.track('Migration', event);
+>>>>>>> origin/main
     } catch (e) {
       // Fail silently - analytics should never break the app
     }
@@ -113,17 +166,26 @@ export const logMigration = (data: Record<string, unknown>) => {
 export const logFeature = (feature: string, data?: Record<string, unknown>) => {
   if (!getEnvFlag('VITE_TRACK_FEATURES')) return;
   
+<<<<<<< HEAD
   emitTelemetry({
     category: 'feature',
     event: feature,
     ok: true,
     meta: data
   });
+=======
+  const event = createEvent('feature', feature, data);
+  safeLog('info', event);
+>>>>>>> origin/main
   
   // Hook for analytics/monitoring (extend as needed)
   if (typeof window !== 'undefined' && (window as any).__analytics) {
     try {
+<<<<<<< HEAD
       (window as any).__analytics.track('Feature', { feature, data });
+=======
+      (window as any).__analytics.track('Feature', event);
+>>>>>>> origin/main
     } catch (e) {
       // Fail silently - analytics should never break the app
     }
@@ -135,6 +197,7 @@ export const logFeature = (feature: string, data?: Record<string, unknown>) => {
  * Always logs to console, but respects telemetry flags for external reporting
  */
 export const logError = (error: Error, context?: Record<string, unknown>) => {
+<<<<<<< HEAD
   emitTelemetry({
     category: 'error',
     event: error.name,
@@ -146,11 +209,25 @@ export const logError = (error: Error, context?: Record<string, unknown>) => {
     }
   });
   
+=======
+  const event = createEvent('error', error.name, {
+    message: error.message,
+    stack: error.stack,
+    ...context
+  });
+  
+  safeLog('error', event);
+  
+>>>>>>> origin/main
   // Report to external services only if telemetry is enabled
   if (getEnvFlag('VITE_TRACK_MIGRATIONS') || getEnvFlag('VITE_TRACK_FEATURES')) {
     if (typeof window !== 'undefined' && (window as any).__analytics) {
       try {
+<<<<<<< HEAD
         (window as any).__analytics.track('Error', { error: error.name, context });
+=======
+        (window as any).__analytics.track('Error', event);
+>>>>>>> origin/main
       } catch (e) {
         // Fail silently - analytics should never break the app
       }

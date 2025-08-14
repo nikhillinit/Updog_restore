@@ -52,7 +52,7 @@
     "ai:metrics": "node scripts/ai-tools/metrics-server.js",
     "generate:golden": "tsx scripts/generate-golden-fixture.ts",
     "bundle:report": "vite build --mode production --config vite.config.ts && echo 'dist/public/assets/*.js' && dir dist\\public\\assets\\*.js /b",
-    "bundle:check": "npm run bundle:report 2>&1 | findstr /R \".*\\.js.*kB\\|.*\\.js.*MB\" | powershell -NoProfile -Command \"$input | ForEach-Object { if($_ -match '([0-9,]+\\.[0-9]+)\\s+(kB|MB)') { $size=[double]$matches[1]; $unit=$matches[2]; $sizeMB = if($unit -eq 'MB') { $size } else { $size / 1024 }; if($sizeMB -gt 0.35) { Write-Host 'Bundle size exceeded:' $sizeMB 'MB (limit: 0.35MB)'; exit 1 } else { Write-Host 'Bundle size OK:' $sizeMB 'MB' } } }\"",
+    "bundle:check": "node scripts/bundle-check.cjs --dir=dist --maxKB=350",
     "prepare": "husky install",
     "pre-push": "./scripts/validate-pr.sh",
     "pretest:smoke": "playwright install --with-deps",
