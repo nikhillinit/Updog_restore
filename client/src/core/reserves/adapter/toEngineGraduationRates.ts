@@ -1,5 +1,5 @@
-import { clampPct, clampInt } from '../../lib/coerce';
-import type { useFundStore } from '../../stores/useFundStore';
+import { clampPct, clampInt } from '@/lib/coerce';
+import type { useFundStore } from '@/stores/useFundStore';
 
 export interface Stage {
   id: string;
