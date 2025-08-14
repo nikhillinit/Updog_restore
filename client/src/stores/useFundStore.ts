@@ -43,6 +43,16 @@ const generateStableId = (): string => {
   return `stage-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
 
+/**
+ * Business rules (canonical):
+ * - Percentages are clamped to [0, 100].
+ * - Last stage `graduate` is always 0.
+ * - Remain is derived: remain = 100 - (graduate + exit). Never persisted.
+ * - Months are integers ≥ 1.
+ * - graduate + exit must be ≤ 100 for each stage.
+ * 
+ * Any consumer should rely on these invariants.
+ */
 export const useFundStore = create<StrategySlice>()(
   persist(
     (set, get) => ({

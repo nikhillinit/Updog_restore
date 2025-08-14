@@ -1,6 +1,6 @@
 import { mapAsync } from "@/lib";
-import React, { useState, useEffect } from 'react';
-import { createFund } from '@/services/funds';
+import { useState, useEffect, useRef } from 'react';
+import { startCreateFund, cancelCreateFund, computeCreateFundHash } from '@/services/funds';
 import { toFundCreationPayload } from '@/core/reserves/adapter/toEngineGraduationRates';
 import { toast } from '@/lib/toast';
 import { useFundStore } from '@/stores/useFundStore';
@@ -481,7 +481,12 @@ export default function FundSetup() {
     }
   };
 
+  const [saving, setSaving] = useState(false);
+  
   const handleSave = async () => {
+    if (saving) return; // UI re-entrancy guard
+    setSaving(true);
+    
     try {
       // Get current state from the fund store
       const storeState = useFundStore.getState();
@@ -495,21 +500,24 @@ export default function FundSetup() {
         payload.basics = { ...payload.basics, allocations: processedAllocations };
       }
       
-      // Call the service with built-in feedback
-      const fund = await createFund(payload);
-      
-      // Simple success feedback (upgrade to toast later)
-      alert('✅ Fund saved successfully!');
+      // Use the new service with toast feedback and idempotency
+      const { createFundWithToast } = await import('@/services/funds');
+      const fund = await createFundWithToast(payload, 'reuse');
       
       // Update context and navigate
       setCurrentFund(fund);
       queryClient.invalidateQueries({ queryKey: ['/api/funds'] });
       setLocation('/dashboard');
       
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        // UX-friendly: don't treat cancellations as failures
+        console.info('Save cancelled:', error.message);
+        return;
+      }
       console.error('Fund creation failed:', error);
-      // Simple error feedback (upgrade to toast later)
-      alert('❌ Failed to save fund. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
