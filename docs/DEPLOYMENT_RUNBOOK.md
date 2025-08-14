@@ -148,6 +148,43 @@ curl -s https://yourapp.com/health | jq '.store_type'  # Should show "legacy"
 - 🚨 Critical console errors
 - 🚨 Kill-switch usage: >20 users
 
+## API Configuration & Idempotency
+
+### Idempotency Settings
+The fund creation API uses request idempotency to prevent duplicate operations:
+
+**TTL & Storage:**
+- **Default TTL:** 24 hours for idempotency keys
+- **Storage:** PostgreSQL table `idempotency_store` 
+- **Cleanup:** Automated via cron job (daily cleanup of expired keys)
+
+**Environment Scoping:**
+- Keys are namespaced per environment (e.g., `prod|fund-create|<hash>`)
+- Client hash includes environment mode to prevent cross-env collisions
+- Server validates idempotency keys against current environment
+
+**Conflict Handling:**
+- Same key + same body → 200 with `Idempotency-Status: replayed`
+- Same key + different body → 409 with clear JSON error payload
+- Failed requests are not cached (can be retried with same key)
+
+**Client Behavior on 409:**
+Users should review their input and either:
+1. Use a different request (generates new idempotency key)
+2. Wait for the original request to complete if still processing
+
+### Server Response Headers
+```
+Idempotency-Key: <client-provided-key>
+Idempotency-Status: created|replayed|conflict
+```
+
+### Monitoring
+Track these metrics for idempotency health:
+- `fund_create_conflict` (409 responses per minute)
+- `idempotency_cache_hit_rate` 
+- `idempotency_storage_size` (number of active keys)
+
 ## Files and Scripts Reference
 
 ### Key Scripts

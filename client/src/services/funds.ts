@@ -55,7 +55,9 @@ function fnv1a(input: string): string {
 }
 
 export function computeCreateFundHash(payload: Json): string {
-  return fnv1a(stableStringify(payload));
+  // Add environment namespace to avoid cross-env collisions
+  const namespace = (import.meta.env.MODE || 'unknown-env') + '|fund-create|';
+  return fnv1a(namespace + stableStringify(payload));
 }
 
 // ---------- Compose timeout + external AbortSignal ----------
@@ -142,6 +144,17 @@ export async function startCreateFund(
   const { signal, controller, cleanup } = composeSignal(timeoutMs, opts.signal);
 
   const exec = async (): Promise<CreateFundResult> => {
+    // Track attempt
+    if (useTelemetry) {
+      try {
+        (Telemetry as any).track?.('fund_create_attempt', {
+          hash,
+          model_version: finalized.basics?.modelVersion,
+          env: import.meta.env.MODE,
+        });
+      } catch {}
+    }
+    
     try {
       const res = await fetch(endpoint, {
         method,
@@ -156,11 +169,15 @@ export async function startCreateFund(
       const durationMs = Math.round(performance.now() - startedAt);
       if (useTelemetry) {
         try {
-          (Telemetry as any).track?.('fund_create_attempt', {
-            ok: res.ok,
+          const eventName = res.ok ? 'fund_create_success' : 'fund_create_failure';
+          const idempotencyStatus = res.headers.get('Idempotency-Status') || 'created';
+          (Telemetry as any).track?.(eventName, {
             status: res.status,
             durationMs,
             hash,
+            idempotency_status: idempotencyStatus,
+            model_version: finalized.basics?.modelVersion,
+            env: import.meta.env.MODE,
           });
         } catch {}
       }
@@ -170,11 +187,14 @@ export async function startCreateFund(
       const durationMs = Math.round(performance.now() - startedAt);
       if (useTelemetry) {
         try {
-          (Telemetry as any).track?.('fund_create_error', {
+          (Telemetry as any).track?.('fund_create_failure', {
             aborted,
             message: String(err?.message ?? err),
             durationMs,
             hash,
+            idempotency_status: 'error',
+            model_version: finalized.basics?.modelVersion,
+            env: import.meta.env.MODE,
           });
         } catch {}
       }
