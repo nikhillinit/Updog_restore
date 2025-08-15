@@ -1,13 +1,24 @@
-import type { RequestHandler, Response } from 'express';
+import type { RequestHandler, Response as ExResponse } from 'express-serve-static-core';
 
-// Generic Route helper to avoid repeating Express generics in every handler.
-// Usage:
-//   type Params = { id: string }; type Res = UserDTO; type Body = never; type Query = never;
-//   export const getUser: Route<Params, Res, Body, Query> = async (req, res, next) => { ... }
-export type Route<Params = any, Res = any, Body = any, Query = any> =
-  RequestHandler<Params, Res, Body, Query>;
+// Generic route helper — matches Express v4/v5 type shapes without locking to one.
+export type Route<
+  Params = Record<string, string>,
+  ResBody = any,
+  ReqBody = any,
+  ReqQuery = any,
+  Locals extends Record<string, unknown> = Record<string, unknown>
+> = RequestHandler<Params, ResBody, ReqBody, ReqQuery, Locals>;
 
-export const ok = <T>(res: Response<T>, body: T) => res.status(200).json(body);
-export const created = <T>(res: Response<T>, body: T) => res.status(201).json(body);
-export const badRequest = (res: Response, message: string) => 
-  res.status(400).json({ error: 'Bad Request', message });
+// Small response helpers without Response<T> generics (cross-version safe).
+export function ok<T>(res: ExResponse, body: T) {
+  return res.status(200).json(body as any);
+}
+export function created<T>(res: ExResponse, body: T) {
+  return res.status(201).json(body as any);
+}
+export function noContent(res: ExResponse) {
+  return res.status(204).end();
+}
+export function badRequest(res: ExResponse, message = 'Bad Request') {
+  return res.status(400).json({ message });
+}

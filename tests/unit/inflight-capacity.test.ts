@@ -22,11 +22,14 @@ const {
 } = await import('../../client/src/services/funds');
 
 describe('In-flight Capacity Management', () => {
-  beforeEach(() => {
-    // Clear any existing in-flight requests
-    while (cancelCreateFund('dummy-hash')) {
-      // Keep canceling until all are cleared
-    }
+  beforeEach(async () => {
+    // Clear any existing in-flight requests by canceling all possible hashes
+    // This is a brute force approach but works for tests
+    const testHashes = ['test-hash-1', 'test-hash-2', 'test-hash-3'];
+    testHashes.forEach(hash => cancelCreateFund(hash));
+    
+    // Wait a tick for any cleanup to complete
+    await new Promise(resolve => setTimeout(resolve, 0));
     
     // Reset fetch mock
     (global.fetch as any).mockReset();
@@ -51,6 +54,9 @@ describe('In-flight Capacity Management', () => {
     
     // Start request (don't await yet)
     const promise = startCreateFund(payload);
+    
+    // Wait for next tick to allow inflight registration
+    await new Promise(resolve => setTimeout(resolve, 0));
     
     // Should be in-flight
     expect(isCreateFundInFlight(hash)).toBe(true);
@@ -86,13 +92,17 @@ describe('In-flight Capacity Management', () => {
     const promise2 = startCreateFund(payload);
     const promise3 = startCreateFund(payload);
     
-    // All should return the same promise
+    // All should return the same promise (reference equality for deduplication)
     expect(promise1).toBe(promise2);
     expect(promise2).toBe(promise3);
     
     // Only one fetch call should be made
-    await Promise.all([promise1, promise2, promise3]);
+    const [result1, result2, result3] = await Promise.all([promise1, promise2, promise3]);
     expect(fetchCallCount).toBe(1);
+    
+    // Results should be identical
+    expect(result1.hash).toBe(result2.hash);
+    expect(result2.hash).toBe(result3.hash);
   });
 
   it('should allow different requests concurrently', async () => {
@@ -118,6 +128,9 @@ describe('In-flight Capacity Management', () => {
     // Start different requests
     const promise1 = startCreateFund(payload1);
     const promise2 = startCreateFund(payload2);
+    
+    // Wait for next tick to allow inflight registration
+    await new Promise(resolve => setTimeout(resolve, 0));
     
     // Should be different promises
     expect(promise1).not.toBe(promise2);
@@ -182,6 +195,9 @@ describe('In-flight Capacity Management', () => {
     
     // Start request
     const promise = startCreateFund(payload);
+    
+    // Wait for next tick to allow inflight registration
+    await new Promise(resolve => setTimeout(resolve, 0));
     
     // Should be in-flight
     expect(isCreateFundInFlight(hash)).toBe(true);

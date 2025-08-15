@@ -16,8 +16,8 @@ export function rateLimitDetailed(opts?: { store?: Store }): RateLimitRequestHan
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
     store: opts?.store, // Injected store (undefined => memory store)
     keyGenerator: (req: Request) => {
-      const ip = req.ip || '127.0.0.1';
-      return `${ip}:health-detailed`;
+      // Use library's IPv6-safe key generator
+      return `${ipKeyGenerator(req)}:health-detailed`;
     },
     skip: (req: Request) => {
       // Allow on-call to bypass with a valid health key
