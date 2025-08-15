@@ -1,5 +1,5 @@
 // Rate limiter for /health/detailed using express-rate-limit with Redis store
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import type { Request, Response } from 'express';
 import { sendApiError, createErrorBody } from '../lib/apiError';
 
@@ -32,10 +32,7 @@ export function rateLimitDetailed() {
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
     store: redisStore || undefined, // Use Redis store if available, fallback to memory
-    keyGenerator: (req: Request) => {
-      // Use express-rate-limit's built-in IP key generator for IPv6 safety
-      return req.ip || req.connection.remoteAddress || 'unknown';
-    },
+    keyGenerator: (req: Request) => ipKeyGenerator(req) ?? 'unknown',
     skip: (req: Request) => {
       // Allow on-call to bypass with a valid health key
       const healthKey = process.env.HEALTH_KEY;

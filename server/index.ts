@@ -11,6 +11,7 @@ import { shutdownGuard } from './middleware/shutdownGuard';
 import { sendApiError, createErrorBody } from "./lib/apiError";
 import { setReady } from "./health/state";
 import { getCache, closeCache } from "./cache/index.js";
+import { config, getVersion, getDefaultLabels } from "./config/index.js";
 import type { Socket } from 'net';
 
 const app = express();

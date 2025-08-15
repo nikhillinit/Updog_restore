@@ -10,50 +10,8 @@ export interface Cache {
   close(): Promise<void>;
 }
 
-class MemoryCache implements Cache {
-  private data = new Map<string, { value: string; expires?: number }>();
-  private cleanupInterval: NodeJS.Timeout;
-
-  constructor() {
-    // Clean up expired entries every 5 minutes
-    this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);
-  }
-
-  async get(key: string): Promise<string | null> {
-    const entry = this.data.get(key);
-    if (!entry) return null;
-    
-    if (entry.expires && Date.now() > entry.expires) {
-      this.data.delete(key);
-      return null;
-    }
-    
-    return entry.value;
-  }
-
-  async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
-    const expires = ttlSeconds ? Date.now() + (ttlSeconds * 1000) : undefined;
-    this.data.set(key, { value, expires });
-  }
-
-  async del(key: string): Promise<void> {
-    this.data.delete(key);
-  }
-
-  async close(): Promise<void> {
-    clearInterval(this.cleanupInterval);
-    this.data.clear();
-  }
-
-  private cleanup() {
-    const now = Date.now();
-    for (const [key, entry] of this.data.entries()) {
-      if (entry.expires && now > entry.expires) {
-        this.data.delete(key);
-      }
-    }
-  }
-}
+// Use the bounded memory cache implementation
+import { BoundedMemoryCache } from './memory.js';
 
 class RedisCache implements Cache {
   constructor(private redis: any) {}
@@ -95,8 +53,8 @@ export async function buildCache(): Promise<Cache> {
   
   // Explicit memory cache mode
   if (!url || url.startsWith('memory://')) {
-    console.log('[cache] Using in-memory cache (development mode)');
-    return new MemoryCache();
+    console.log('[cache] Using bounded in-memory cache (development mode)');
+    return new BoundedMemoryCache();
   }
 
   try {
@@ -138,8 +96,8 @@ export async function buildCache(): Promise<Cache> {
     return new RedisCache(redis);
 
   } catch (error) {
-    throttledWarn(`Redis unavailable, falling back to memory cache: ${(error as Error).message}`);
-    return new MemoryCache();
+    throttledWarn(`Redis unavailable, falling back to bounded memory cache: ${(error as Error).message}`);
+    return new BoundedMemoryCache();
   }
 }
 

@@ -9,7 +9,7 @@
   },
   "packageManager": "npm@10.9.2",
   "scripts": {
-    "dev": "npm run dev:infra && concurrently -k \"npm run dev:client\" \"npm run dev:api\"",
+    "dev": "concurrently -k \"npm run dev:client\" \"npm run dev:api\"",
     "dev:quick": "cross-env NODE_ENV=development REDIS_URL=memory:// npm run dev:api",
     "dev:full": "npm run dev:infra && npm run dev",
     "dev:infra": "docker compose -f docker-compose.dev.yml up -d --wait",

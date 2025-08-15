@@ -8,13 +8,13 @@ import { z } from 'zod';
 const envSchema = z.object({
   // Core environment
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
-  PORT: z.coerce.number().default(5000),
+  PORT: z.coerce.number().int().positive().default(5000),
   
   // Database
   DATABASE_URL: z.string().min(1).default('postgresql://mock:mock@localhost:5432/mock'),
   
-  // Cache & Queue
-  REDIS_URL: z.string().default('memory://'),
+  // Cache & Queue - explicit scheme validation
+  REDIS_URL: z.string().url().or(z.literal('memory://')).default('memory://'),
   
   // Security & CORS
   CORS_ORIGIN: z.string().default('http://localhost:5173,http://localhost:5174,http://localhost:5175'),
@@ -49,12 +49,18 @@ const envSchema = z.object({
   npm_package_version: z.string().optional(),
   RELEASE: z.string().optional(),
   GIT_SHA: z.string().optional(),
+  APP_VERSION: z.string().default('dev'),
 });
 
-// Validate and export configuration
-function validateConfig() {
-  try {
-    const config = envSchema.parse(process.env);
+// Validate and export configuration with fail-fast behavior
+export function loadEnv() {
+  const parsed = envSchema.safeParse(process.env);
+  if (!parsed.success) {
+    console.error('❌ Invalid configuration:', parsed.error.format());
+    process.exit(1);
+  }
+  
+  const config = parsed.data;
     
     // Additional validation for production
     if (config.NODE_ENV === 'production') {
@@ -73,7 +79,7 @@ function validateConfig() {
       }
       
       // Validate Redis URL format in production
-      if (config.REDIS_URL.startsWith('memory://')) {
+      if (config.REDIS_URL === 'memory://') {
         throw new Error('Redis memory cache not allowed in production');
       }
     }
@@ -93,22 +99,9 @@ function validateConfig() {
     }
     
     return config;
-    
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      console.error('[config] Configuration validation failed:');
-      error.errors.forEach(err => {
-        console.error(`  - ${err.path.join('.')}: ${err.message}`);
-      });
-    } else {
-      console.error('[config] Configuration error:', (error as Error).message);
-    }
-    
-    process.exit(1);
-  }
 }
 
-export const config = validateConfig();
+export const config = loadEnv();
 
 // Helper functions
 export function isDevelopment() {
