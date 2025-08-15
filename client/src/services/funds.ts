@@ -79,11 +79,26 @@ function composeSignal(timeoutMs: number, external?: AbortSignal) {
   return { signal: ctrl.signal, controller: ctrl, cleanup };
 }
 
-// ---------- In-flight de-duplication registry ----------
-const inflight = new Map<
-  string,
-  { promise: Promise<CreateFundResult>; controllers: AbortController[]; startedAt: number }
->();
+// ---------- In-flight de-duplication registry (in-flight only, no cache) ----------
+// Purpose: Prevent duplicate requests while in-flight. Server handles post-completion idempotency.
+const IDEMPOTENCY_MAX = Number(import.meta.env.VITE_IDEMPOTENCY_MAX || 200);
+
+type InflightEntry = {
+  promise: Promise<CreateFundResult>;
+  controllers: AbortController[];
+  startedAt: number;
+};
+
+const inflight = new Map<string, InflightEntry>();
+
+// Ensure we don't exceed capacity (throw if at limit)
+function assertInflightCapacity() {
+  if (inflight.size >= IDEMPOTENCY_MAX) {
+    const err = new Error('Too many concurrent requests; please retry shortly.');
+    (err as any).code = 'CAPACITY_EXCEEDED';
+    throw err;
+  }
+}
 
 export function isCreateFundInFlight(hash: string) {
   return inflight.has(hash);
@@ -202,13 +217,31 @@ export async function startCreateFund(
       throw Object.assign(err ?? new Error('Create fund failed'), { aborted, hash, durationMs });
     } finally {
       cleanup();
-      inflight.delete(hash); // ensure cleanup on success AND failure/abort
+      inflight.delete(hash); // Simply delete when done
     }
   };
 
   const promise = exec();
-  inflight.set(hash, { promise, controllers: [controller], startedAt });
+  assertInflightCapacity(); // Throw if at capacity
+  inflight.set(hash, { 
+    promise, 
+    controllers: [controller], 
+    startedAt
+  });
   return promise;
+}
+
+// ---------- Toast throttling for capacity hits ----------
+let lastCapacityToast = 0;
+const TOAST_THROTTLE_MS = 10_000; // One toast every 10 seconds max
+
+function maybeToastCapacity() {
+  const now = Date.now();
+  if (now - lastCapacityToast > TOAST_THROTTLE_MS) {
+    lastCapacityToast = now;
+    return true;
+  }
+  return false;
 }
 
 // ---------- Convenience wrappers for backward compatibility ----------
@@ -236,6 +269,21 @@ export async function createFundWithToast(payload: Json, options?: CreateFundOpt
   } catch (err: any) {
     if (err?.aborted) {
       toast('⚠️ Save cancelled', 'info');
+    } else if (err?.code === 'CAPACITY_EXCEEDED') {
+      // Throttled user-friendly capacity hit message
+      const showToast = maybeToastCapacity();
+      if (showToast) {
+        toast('⚠️ You have too many concurrent operations. Please wait a moment and try again.', 'warning');
+      }
+      // Always track capacity hit for observability
+      try {
+        (Telemetry as any).track?.('client_capacity_hit', {
+          route: '/api/funds',
+          concurrent: inflight.size,
+          env: import.meta.env.MODE,
+          throttled: !showToast
+        });
+      } catch {}
     } else {
       toast('❌ Network error saving fund', 'error');
     }

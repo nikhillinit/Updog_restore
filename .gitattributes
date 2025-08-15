@@ -1,2 +1,38 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Scripts - always LF for cross-platform compatibility
 *.sh text eol=lf
+*.mjs text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+
+# Windows scripts - CRLF
 *.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Config files - LF
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+.env* text eol=lf
+
+# Documentation - LF
+*.md text eol=lf
+LICENSE text eol=lf
+README text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary

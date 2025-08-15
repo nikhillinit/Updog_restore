@@ -1,41 +1,83 @@
-// client/src/lib/telemetry.ts
-// Simple telemetry for fund creation tracking
+/**
+ * Telemetry utilities with correlation and version tracking
+ */
 
-interface TelemetryEvent {
-  name: string;
-  properties: Record<string, any>;
-  timestamp: string;
-}
-
-// In-memory store for development (replace with real analytics in production)
-const events: TelemetryEvent[] = [];
-
-export function track(eventName: string, properties: Record<string, any> = {}) {
-  const event: TelemetryEvent = {
-    name: eventName,
-    properties: {
-      ...properties,
-      userAgent: navigator.userAgent,
-      url: window.location.href,
-    },
-    timestamp: new Date().toISOString(),
-  };
+// Generate or retrieve session ID
+export function getOrCreateSessionId(): string {
+  const key = 'telemetry_session_id';
+  let sessionId = localStorage.getItem(key);
   
-  events.push(event);
-  
-  // Log to console in development
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Telemetry]', eventName, properties);
+  if (!sessionId) {
+    sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    localStorage.setItem(key, sessionId);
   }
   
-  // In production, send to analytics service
-  // Example: analytics.track(eventName, properties);
+  return sessionId;
 }
 
-export function getEvents() {
-  return [...events];
+// Generate request ID for correlation
+export function generateRequestId(): string {
+  return `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
-export function clearEvents() {
-  events.length = 0;
+// Base telemetry context for all events
+export function baseTelemetryContext() {
+  return {
+    env: import.meta.env.MODE || 'development',
+    app_version: import.meta.env.VITE_APP_VERSION || 'unknown',
+    git_sha: import.meta.env.VITE_GIT_SHA || 'unknown',
+    session_id: getOrCreateSessionId(),
+    timestamp: new Date().toISOString(),
+    user_agent: navigator.userAgent,
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight
+    }
+  };
 }
+
+// Track telemetry event
+export function track(eventName: string, properties: Record<string, any> = {}) {
+  const event = {
+    event: eventName,
+    ...baseTelemetryContext(),
+    properties
+  };
+  
+  // Log to console in development
+  if (import.meta.env.DEV) {
+    console.log('[Telemetry]', event);
+  }
+  
+  // TODO: Send to analytics service in production
+  // fetch('/api/telemetry', { method: 'POST', body: JSON.stringify(event) })
+  
+  return event;
+}
+
+// Track fund creation with idempotency status
+export function trackFundCreation(status: 'attempt' | 'success' | 'failure' | 'conflict', details?: any) {
+  return track(`fund_create_${status}`, {
+    idempotency_status: status,
+    request_id: generateRequestId(),
+    ...details
+  });
+}
+
+// Track API errors with correlation
+export function trackApiError(endpoint: string, error: any, requestId?: string) {
+  return track('api_error', {
+    endpoint,
+    error_message: error.message || String(error),
+    error_code: error.code,
+    request_id: requestId || generateRequestId(),
+    status_code: error.response?.status
+  });
+}
+
+// Export for use in API calls
+export const TELEMETRY_HEADERS = {
+  'X-Session-ID': getOrCreateSessionId(),
+  'X-App-Version': import.meta.env.VITE_APP_VERSION || 'unknown',
+  'X-Git-SHA': import.meta.env.VITE_GIT_SHA || 'unknown'
+};

@@ -5,9 +5,13 @@ import {
   type InsertFundMetrics, type InsertActivity, type InsertUser
 } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export interface IStorage {
+  // Health check methods
+  ping(): Promise<boolean>;
+  isRedisHealthy?(): Promise<boolean>;
+  
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -69,6 +73,16 @@ export class MemStorage implements IStorage {
 
     // Initialize with sample data
     this.initializeSampleData();
+  }
+
+  async ping(): Promise<boolean> {
+    // In-memory storage is always available
+    return true;
+  }
+
+  async isRedisHealthy(): Promise<boolean> {
+    // Redis is optional, return false for in-memory storage
+    return false;
   }
 
   private initializeSampleData() {
@@ -392,6 +406,22 @@ export class MemStorage implements IStorage {
 
 // DatabaseStorage implementation using Drizzle ORM
 export class DatabaseStorage implements IStorage {
+  async ping(): Promise<boolean> {
+    try {
+      // Lightweight O(1) database connectivity check using Drizzle sql template
+      await db.execute(sql`SELECT 1`);
+      return true;
+    } catch (error) {
+      console.error('Database ping failed:', error);
+      return false;
+    }
+  }
+
+  async isRedisHealthy(): Promise<boolean> {
+    // Redis is optional - return false for database-only storage
+    return false;
+  }
+
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;

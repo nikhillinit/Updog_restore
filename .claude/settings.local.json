@@ -49,7 +49,10 @@
       "Bash(gh pr edit:*)",
       "Bash(gh label:*)",
       "Bash(gh pr view:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(timeout:*)",
+      "Bash(npm:*)",
+      "Bash(npm i:*)"
     ],
     "deny": []
   }

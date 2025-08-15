@@ -1,59 +1,68 @@
+version: '3.8'
 
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
+    container_name: povc_postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: povc_fund
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: povc_dev
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    mem_reservation: 512m
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - povc_network
 
   redis:
     image: redis:7-alpine
+    container_name: povc_redis
+    restart: unless-stopped
     ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
+      - "127.0.0.1:6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
-      timeout: 5s
+      timeout: 3s
       retries: 5
+    networks:
+      - povc_network
 
-  # Optional: PostgreSQL admin UI
-  pgadmin:
-    image: dpage/pgadmin4
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@povc.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+  adminer:
+    image: adminer
+    container_name: povc_adminer
+    restart: unless-stopped
     ports:
-      - "5050:80"
-    depends_on:
-      - postgres
-    profiles:
-      - tools
-
-  # Optional: Redis UI
-  redis-commander:
-    image: rediscommander/redis-commander:latest
+      - "127.0.0.1:8080:8080"
     environment:
-      REDIS_HOSTS: local:redis:6379
-    ports:
-      - "8081:8081"
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: pepa-linha
     depends_on:
-      - redis
-    profiles:
-      - tools
+      postgres:
+        condition: service_healthy
+    mem_limit: 256m
+    cpus: "0.5"
+    networks:
+      - povc_network
 
 volumes:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
+
+networks:
+  povc_network:
+    driver: bridge
