@@ -31,9 +31,10 @@ export async function createRateLimitStore(): Promise<Store | undefined> {
       client,
       prefix: 'rl:',
       // Don't block on Redis errors
-      sendCommand: async (...args: string[]) => {
+      sendCommand: async (command: string, ...args: string[]): Promise<string | number | null> => {
         try {
-          return await client.call(...args);
+          const result = await client.call(command, ...args);
+          return result as string | number | null;
         } catch (error) {
           console.error('Rate limit Redis error:', error);
           return null;  // Fail open
@@ -41,7 +42,7 @@ export async function createRateLimitStore(): Promise<Store | undefined> {
       }
     });
   } catch (error) {
-    console.error('⚠️ Rate limit Redis unavailable:', error.message);
+    console.error('⚠️ Rate limit Redis unavailable:', error instanceof Error ? error.message : 'Unknown error');
     return undefined;  // Fall back to memory store
   }
 }

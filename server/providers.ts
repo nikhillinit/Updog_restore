@@ -52,7 +52,7 @@ export async function buildProviders(cfg: ReturnType<typeof import('./config/ind
       
       await client.connect();
       rateLimitStore = new RedisStore({
-        sendCommand: (...args: string[]) => client.call(args[0], ...args.slice(1)),
+        sendCommand: (command: string, ...args: string[]) => client.call(command, ...args),
       });
       console.log('[providers] Redis rate limit store enabled');
     } catch (error) {

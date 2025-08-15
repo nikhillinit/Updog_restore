@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -29,7 +29,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/health", healthCheck);
   app.get("/api/health/ready", readinessCheck);
   app.get("/api/health/live", livenessCheck);
-  app.get("/metrics", async (req, res) => {
+  app.get("/metrics", async (req: Request, res: Response) => {
     try {
       res.set('Content-Type', metricsRegister.contentType);
       const metrics = await metricsRegister.metrics();
@@ -40,7 +40,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Richer JSON health endpoint for Guardian and canary checks
-  app.get("/healthz", async (req, res) => {
+  app.get("/healthz", async (req: Request, res: Response) => {
     // Prevent intermediary caching
     res.set('Cache-Control', 'no-store, max-age=0');
     res.set('Pragma', 'no-cache');
@@ -95,7 +95,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Readiness probe - checks if service can handle traffic
   // Returns 200 only when all critical dependencies are ready
-  app.get("/readyz", async (req, res) => {
+  app.get("/readyz", async (req: Request, res: Response) => {
     // Prevent intermediary caching
     res.set('Cache-Control', 'no-store, max-age=0');
     res.set('Pragma', 'no-cache');
@@ -144,7 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Detailed health endpoint for diagnostics (protected + rate limited)
-  app.get("/health/detailed", rateLimitDetailed(), async (req, res) => {
+  app.get("/health/detailed", rateLimitDetailed(), async (req: Request, res: Response) => {
     // Protect sensitive health details
     const healthKey = process.env.HEALTH_KEY;
     if (healthKey && req.get('X-Health-Key') !== healthKey) {
@@ -189,7 +189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Middleware to record HTTP metrics
-  app.use((req, res, next) => {
+  app.use((req: Request, res: Response, next: NextFunction) => {
     const startTime = Date.now();
     
     res.on('finish', () => {
@@ -201,7 +201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Fund routes - Type-safe error responses
-  app.get("/api/funds", async (req, res) => {
+  app.get("/api/funds", async (req: Request, res: Response) => {
     try {
       const funds = await storage.getAllFunds();
       res.json(funds);
@@ -214,7 +214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/funds/:id", async (req, res) => {
+  app.get("/api/funds/:id", async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
       const id = parseInt(idParam, 10);
@@ -245,7 +245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/funds", async (req, res) => {
+  app.post("/api/funds", async (req: Request, res: Response) => {
     try {
       // For now, validate only the basic fund fields that can be stored
       // TODO: Add support for storing investment strategy, exit recycling, and waterfall
@@ -291,7 +291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Portfolio company routes - Type-safe with query validation
-  app.get("/api/portfolio-companies", async (req, res) => {
+  app.get("/api/portfolio-companies", async (req: Request, res: Response) => {
     try {
       const fundIdQuery = req.query.fundId;
       let fundId: number | undefined = undefined;
@@ -319,7 +319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/portfolio-companies/:id", async (req, res) => {
+  app.get("/api/portfolio-companies/:id", async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
       const id = parseInt(idParam, 10);
@@ -350,7 +350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/portfolio-companies", async (req, res) => {
+  app.post("/api/portfolio-companies", async (req: Request, res: Response) => {
     try {
       const result = insertPortfolioCompanySchema.safeParse(req.body);
       if (!result.success) {
@@ -373,7 +373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Fund metrics routes - Type-safe parameter validation
-  app.get("/api/fund-metrics/:fundId", async (req, res) => {
+  app.get("/api/fund-metrics/:fundId", async (req: Request, res: Response) => {
     try {
       const fundIdParam = req.params.fundId;
       const fundId = parseInt(fundIdParam, 10);
@@ -398,7 +398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Activity routes - Type-safe query parameter handling
-  app.get("/api/activities", async (req, res) => {
+  app.get("/api/activities", async (req: Request, res: Response) => {
     try {
       const fundIdQuery = req.query.fundId;
       let fundId: number | undefined = undefined;
@@ -426,7 +426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/activities", async (req, res) => {
+  app.post("/api/activities", async (req: Request, res: Response) => {
     try {
       const result = insertActivitySchema.safeParse(req.body);
       if (!result.success) {
@@ -449,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard summary route - Type-safe with comprehensive validation
-  app.get("/api/dashboard-summary/:fundId", async (req, res) => {
+  app.get("/api/dashboard-summary/:fundId", async (req: Request, res: Response) => {
     try {
       const fundIdParam = req.params.fundId;
       const fundId = parseInt(fundIdParam, 10);
@@ -538,7 +538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/investments/:id", async (req, res) => {
+  app.get("/api/investments/:id", async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
       const id = parseInt(idParam, 10);
@@ -569,7 +569,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/investments", async (req, res) => {
+  app.post("/api/investments", async (req: Request, res: Response) => {
     try {
       // Note: Investment schema validation should be added here
       // For now, trust storage layer to handle validation
@@ -593,7 +593,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Investment rounds routes - Type-safe parameter validation
-  app.post("/api/investments/:id/rounds", async (req, res) => {
+  app.post("/api/investments/:id/rounds", async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
       const investmentId = parseInt(idParam, 10);
@@ -626,7 +626,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Performance cases routes - Type-safe parameter validation
-  app.post("/api/investments/:id/cases", async (req, res) => {
+  app.post("/api/investments/:id/cases", async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
       const investmentId = parseInt(idParam, 10);
@@ -659,7 +659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reserve Engine routes - Type-safe with comprehensive error handling
-  app.get("/api/reserves/:fundId", async (req, res) => {
+  app.get("/api/reserves/:fundId", async (req: Request, res: Response) => {
     try {
       const fundIdParam = req.params.fundId;
       const fundId = parseInt(fundIdParam, 10);
@@ -711,7 +711,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Pacing Engine routes - Type-safe with query parameter support
-  app.get("/api/pacing/summary", async (req, res) => {
+  app.get("/api/pacing/summary", async (req: Request, res: Response) => {
     try {
       // Extract and validate query parameters
       const fundSizeParam = req.query.fundSize as string;
@@ -749,7 +749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Cohort Engine routes - Type-safe vintage cohort analysis (SCAFFOLD)
-  app.get("/api/cohorts/analysis", async (req, res) => {
+  app.get("/api/cohorts/analysis", async (req: Request, res: Response) => {
     try {
       // Extract and validate query parameters
       const fundIdQuery = req.query.fundId;
@@ -827,6 +827,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const timelineRouter = await import('./routes/timeline.js');
   app.use('/api/timeline', timelineRouter.default);
 
-  const httpServer = createServer(app);
+  const httpServer = createServer(app as any);
   return httpServer;
 }

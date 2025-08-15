@@ -15,15 +15,20 @@ export function rateLimitDetailed(opts?: { store?: Store }): RateLimitRequestHan
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
     store: opts?.store, // Injected store (undefined => memory store)
-    keyGenerator: (req: Request) => ipKeyGenerator(req) ?? 'unknown',
+    keyGenerator: (req: Request) => {
+      const ip = req.ip || '127.0.0.1';
+      return `${ip}:health-detailed`;
+    },
     skip: (req: Request) => {
       // Allow on-call to bypass with a valid health key
       const healthKey = process.env.HEALTH_KEY;
       return Boolean(healthKey && req.get('X-Health-Key') === healthKey);
     },
     handler: (req: Request, res: Response) => {
-      const seconds = req.rateLimit?.resetTime
-        ? Math.max(1, Math.ceil((req.rateLimit.resetTime.getTime() - Date.now()) / 1000))
+      // Express-rate-limit v7+ adds rateLimit property to the request
+      const resetTime = (req as any).rateLimit?.resetTime;
+      const seconds = resetTime
+        ? Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 1000))
         : 60;
       res.setHeader('Retry-After', String(seconds));
       sendApiError(res, 429, createErrorBody('Too Many Requests', (req as any).requestId, 'RATE_LIMITED'));

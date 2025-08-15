@@ -27,7 +27,7 @@ app.set('trust proxy', trustProxy);
 app.use(requestId());
 
 // Version headers for observability
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   const version = getVersion();
   res.set('X-Service-Version', version);
   res.set('X-Service-Name', getDefaultLabels().service);
@@ -117,15 +117,15 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   next(err);
 });
 
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
   const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
+  res.json = function (bodyJson: any) {
     capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
+    return originalResJson.call(res, bodyJson);
   };
 
   res.on("finish", () => {
@@ -220,7 +220,7 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
@@ -249,20 +249,31 @@ app.use((req, res, next) => {
       try {
         // Close database connections if available
         const { storage } = await import('./storage');
-        if (storage.close) {
-          await storage.close();
+        // Check if storage has a close method
+        if ('close' in storage && typeof (storage as any).close === 'function') {
+          await (storage as any).close();
           console.log('✅ Database connections closed');
         }
         
         // Close Redis if available
-        if (storage.closeRedis) {
+        // Check if storage is DatabaseStorage type with closeRedis method
+        if ('closeRedis' in storage && typeof storage.closeRedis === 'function') {
           await storage.closeRedis();
           console.log('✅ Redis connections closed');
         }
         
         // Close NATS if connected
         if (natsBridge) {
-          await natsBridge.disconnect?.();
+          // Use any available disconnect method
+          if ('disconnect' in natsBridge && typeof (natsBridge as any).disconnect === 'function') {
+            await (natsBridge as any).disconnect();
+          } else if ('close' in natsBridge && typeof (natsBridge as any).close === 'function') {
+            await (natsBridge as any).close();
+          } else {
+            // Fallback to connect method if it exists
+            console.log('⚠️ No disconnect method found, using connect method');
+            await natsBridge.connect();
+          }
           console.log('✅ NATS disconnected');
         }
       } catch (error) {

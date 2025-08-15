@@ -94,7 +94,7 @@ export class NatsBridge {
 
       // Handle ping/pong for connection health
       const pingInterval = setInterval(() => {
-        if (ws.readyState === ws.OPEN) {
+        if (ws.readyState === WebSocket.OPEN) {
           ws.ping();
         }
       }, 30000);

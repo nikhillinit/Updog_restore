@@ -41,7 +41,7 @@ pool.on('connect', (client) => {
 
 // Monitor pool health
 pool.on('error', (err, client) => {
-  logger.error({ err, database: dbName }, 'Database pool error');
+  logger.error('Database pool error', { err, database: dbName });
 });
 
 // Export pool metrics
@@ -58,9 +58,9 @@ export function getPoolMetrics() {
 export async function closePool() {
   try {
     await pool.end();
-    logger.info({ database: dbName }, 'Database pool closed');
+    logger.info('Database pool closed', { database: dbName });
   } catch (error) {
-    logger.error({ error, database: dbName }, 'Error closing database pool');
+    logger.error('Error closing database pool', { error, database: dbName });
   }
 }
 

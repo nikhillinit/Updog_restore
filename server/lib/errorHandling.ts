@@ -419,7 +419,7 @@ export class ErrorCircuitBreaker {
         { ...context, component: 'circuit-breaker' }
       );
 
-      if (handlingResult.action === 'retry' && this.state !== 'open') {
+      if (handlingResult.action === 'retry' && (this.state === 'closed' || this.state === 'half-open')) {
         // Could implement retry logic here
       }
 
