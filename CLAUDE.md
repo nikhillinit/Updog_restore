@@ -99,3 +99,4 @@ This is a web-based venture-capital fund modeling and reporting platform built a
 - **Repository**: `nikhillinit/Updog_restore` on GitHub
 - **Auto-analysis**: Runs on all file edits and dependency changes
 - **Security**: Trivy scanning for vulnerabilities in dependencies
+- memory
