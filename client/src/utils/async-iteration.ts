@@ -63,7 +63,7 @@ export async function processAsync<T>(
         await processor(items[i], i);
       } catch (error) {
         if (!continueOnError) throw error;
-        logger.error(`Processing error at index ${i}:`, error);
+        logger.error(`Processing error at index ${i}:`, error as Error);
       }
     }
   }
@@ -102,7 +102,7 @@ async function processBatches<T>(
       }
     } catch (error) {
       if (!continueOnError) throw error;
-      logger.error(`Batch processing error starting at index ${batchStart}:`, error);
+      logger.error(`Batch processing error starting at index ${batchStart}:`, error as Error);
     }
     
     // Add delay between batches if specified

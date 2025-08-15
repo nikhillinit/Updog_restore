@@ -1,15 +1,16 @@
 /// <reference types="vite/client" />
 
-interface ImportMeta {
-  readonly env: {
-    MODE: string;
-    BASE_URL: string;
-    PROD: boolean;
-    DEV: boolean;
-    SSR: boolean;
-    VITE_APP_VERSION: string;
-    VITE_GIT_SHA: string;
-    VITE_BUILD_TIME: string;
-    [key: string]: string | boolean | undefined;
-  };
+interface ImportMetaEnv {
+  readonly MODE: string;
+  readonly BASE_URL: string;
+  readonly PROD: boolean;
+  readonly DEV: boolean;
+  readonly SSR: boolean;
+  readonly VITE_APP_VERSION: string;
+  readonly VITE_GIT_SHA: string;
+  readonly VITE_BUILD_TIME: string;
+  readonly [key: string]: string | boolean | undefined;
 }
+
+// No need to redefine ImportMeta as it's already defined in vite/client
+// and it will use the extended ImportMetaEnv type

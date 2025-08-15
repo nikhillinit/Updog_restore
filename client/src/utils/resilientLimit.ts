@@ -38,13 +38,18 @@ export function resilientLimit(options: ResilientLimitOptions = {}) {
         
         if (consecutiveFailures >= maxFailures) {
           breakerTrips++;
-          logger.error('Circuit breaker tripped', { 
-            consecutiveFailures,
-            maxFailures,
-            totalTrips: breakerTrips,
-            error: error instanceof Error ? error.message : String(error)
-          });
-          throw new Error(`Migration halted - too many failures (${consecutiveFailures}/${maxFailures})`);
+          // Create a custom error object
+          const circuitBreakerError = new Error(`Migration halted - too many failures (${consecutiveFailures}/${maxFailures})`);
+          
+          // Log the error with relevant information
+          logger.error('Circuit breaker tripped: ' + 
+            (error instanceof Error ? error.message : String(error)));
+          
+          // Track the number of trips separately
+          console.warn(`Circuit breaker tripped ${breakerTrips} times`);
+          
+          // Throw the custom error
+          throw circuitBreakerError;
         }
         
         logger.warn('Task failed in resilient limit', {

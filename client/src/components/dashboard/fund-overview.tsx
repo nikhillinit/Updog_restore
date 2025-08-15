@@ -157,7 +157,12 @@ export default function FundOverview() {
                     outerRadius={90} 
                     paddingAngle={2} 
                     dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={(props) => {
+                      // Handle the case where props.percent might be undefined
+                      const percent = props.percent ?? 0;
+                      const name = props.name ?? '';
+                      return `${name} ${(percent * 100).toFixed(0)}%`;
+                    }}
                     labelLine={false}
                   >
                     {pieChartData.map((entry, index) => (

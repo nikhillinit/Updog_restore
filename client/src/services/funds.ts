@@ -14,6 +14,7 @@ export interface CreateFundOptions {
   signal?: AbortSignal;         // optional external signal
   dedupe?: boolean;             // default: true
   telemetry?: boolean;          // default: true
+  reuseExisting?: boolean;      // default: false - reuse existing fund if found
 }
 
 export interface CreateFundResult {
@@ -273,7 +274,7 @@ export async function createFundWithToast(payload: Json, options?: CreateFundOpt
       // Throttled user-friendly capacity hit message
       const showToast = maybeToastCapacity();
       if (showToast) {
-        toast('⚠️ You have too many concurrent operations. Please wait a moment and try again.', 'warning');
+        toast('⚠️ You have too many concurrent operations. Please wait a moment and try again.', 'info');
       }
       // Always track capacity hit for observability
       try {

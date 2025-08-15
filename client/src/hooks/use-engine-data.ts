@@ -13,11 +13,11 @@ export function useReserveData(fundId: number) {
         const response = await fetch(`/api/reserves/${fundId}`);
         
         if (!response.ok) {
-          const errorData: ApiError = await response.json();
+          const errorData = await response.json() as ApiError;
           throw new Error(errorData.message || errorData.error || `HTTP ${response.status}`);
         }
         
-        const result: ReserveSummary = await response.json();
+        const result = await response.json() as ReserveSummary;
         setData(result);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch reserve data');
@@ -46,11 +46,11 @@ export function usePacingData() {
         const response = await fetch('/api/pacing/summary');
         
         if (!response.ok) {
-          const errorData: ApiError = await response.json();
+          const errorData = await response.json() as ApiError;
           throw new Error(errorData.message || errorData.error || `HTTP ${response.status}`);
         }
         
-        const result: PacingSummary = await response.json();
+        const result = await response.json() as PacingSummary;
         setData(result);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch pacing data');
