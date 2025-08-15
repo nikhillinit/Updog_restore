@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { deferred } from '../helpers/deferred';
 
 // Mock import.meta.env
 vi.stubGlobal('import', {
@@ -42,27 +43,36 @@ describe('In-flight Capacity Management', () => {
 
   it('should track in-flight requests', async () => {
     const payload = { name: 'Test Fund', size: 1000000 };
-    const hash = computeCreateFundHash(payload);
+    // Need to compute hash on finalized payload to match what startCreateFund uses
+    const finalizedPayload = { ...payload, modelVersion: 'reserves-ev1' };
+    const hash = computeCreateFundHash(finalizedPayload);
     
-    // Mock successful response
-    (global.fetch as any).mockResolvedValue({
+    // Create a controlled deferred promise
+    const deferredRequest = deferred();
+    (global.fetch as any).mockReturnValue(deferredRequest.promise);
+    
+    // Start request (don't await yet) with longer hold for observability
+    const promise = startCreateFund(payload, { holdForMs: 50 });
+    
+    // Should be in-flight immediately (synchronous registration)
+    expect(isCreateFundInFlight(hash)).toBe(true);
+    
+    // Resolve the fetch
+    deferredRequest.resolve({
       ok: true,
       status: 201,
       headers: new Map(),
       json: async () => ({ id: 1, ...payload })
     });
     
-    // Start request (don't await yet)
-    const promise = startCreateFund(payload);
-    
-    // Wait for next tick to allow inflight registration
-    await new Promise(resolve => setTimeout(resolve, 0));
-    
-    // Should be in-flight
-    expect(isCreateFundInFlight(hash)).toBe(true);
-    
     // Wait for completion
     await promise;
+    
+    // Should still be in-flight due to holdForMs
+    expect(isCreateFundInFlight(hash)).toBe(true);
+    
+    // Wait for cleanup delay
+    await new Promise(resolve => setTimeout(resolve, 60));
     
     // Should no longer be in-flight
     expect(isCreateFundInFlight(hash)).toBe(false);
@@ -70,35 +80,40 @@ describe('In-flight Capacity Management', () => {
 
   it('should deduplicate concurrent identical requests', async () => {
     const payload = { name: 'Test Fund', size: 1000000 };
-    const hash = computeCreateFundHash(payload);
+    const finalizedPayload = { ...payload, modelVersion: 'reserves-ev1' };
+    const hash = computeCreateFundHash(finalizedPayload);
     
+    // Create controlled deferred promise that we control resolution timing
+    const deferredRequest = deferred();
     let fetchCallCount = 0;
     (global.fetch as any).mockImplementation(() => {
       fetchCallCount++;
-      return new Promise(resolve => {
-        setTimeout(() => {
-          resolve({
-            ok: true,
-            status: 201,
-            headers: new Map(),
-            json: async () => ({ id: 1, ...payload })
-          });
-        }, 100);
-      });
+      return deferredRequest.promise;
     });
     
-    // Start multiple identical requests
+    // Start multiple identical requests simultaneously - don't pass any options
     const promise1 = startCreateFund(payload);
     const promise2 = startCreateFund(payload);
     const promise3 = startCreateFund(payload);
+    
     
     // All should return the same promise (reference equality for deduplication)
     expect(promise1).toBe(promise2);
     expect(promise2).toBe(promise3);
     
-    // Only one fetch call should be made
-    const [result1, result2, result3] = await Promise.all([promise1, promise2, promise3]);
+    // Only one fetch call should be made (deduplication worked)
     expect(fetchCallCount).toBe(1);
+    
+    // Resolve the deferred request after confirming deduplication
+    deferredRequest.resolve({
+      ok: true,
+      status: 201,
+      headers: new Map(),
+      json: async () => ({ id: 1, ...payload })
+    });
+    
+    // Wait for all to complete
+    const [result1, result2, result3] = await Promise.all([promise1, promise2, promise3]);
     
     // Results should be identical
     expect(result1.hash).toBe(result2.hash);
@@ -109,35 +124,48 @@ describe('In-flight Capacity Management', () => {
     const payload1 = { name: 'Fund 1', size: 1000000 };
     const payload2 = { name: 'Fund 2', size: 2000000 };
     
-    const hash1 = computeCreateFundHash(payload1);
-    const hash2 = computeCreateFundHash(payload2);
+    const finalizedPayload1 = { ...payload1, modelVersion: 'reserves-ev1' };
+    const finalizedPayload2 = { ...payload2, modelVersion: 'reserves-ev1' };
+    const hash1 = computeCreateFundHash(finalizedPayload1);
+    const hash2 = computeCreateFundHash(finalizedPayload2);
     
     expect(hash1).not.toBe(hash2);
     
+    // Create separate deferred promises for each request
+    const deferred1 = deferred();
+    const deferred2 = deferred();
     let fetchCallCount = 0;
+    
     (global.fetch as any).mockImplementation(() => {
       fetchCallCount++;
-      return Promise.resolve({
-        ok: true,
-        status: 201,
-        headers: new Map(),
-        json: async () => ({ id: fetchCallCount })
-      });
+      return fetchCallCount === 1 ? deferred1.promise : deferred2.promise;
     });
     
-    // Start different requests
-    const promise1 = startCreateFund(payload1);
-    const promise2 = startCreateFund(payload2);
-    
-    // Wait for next tick to allow inflight registration
-    await new Promise(resolve => setTimeout(resolve, 0));
+    // Start different requests with hold time for observability
+    const promise1 = startCreateFund(payload1, { holdForMs: 50 });
+    const promise2 = startCreateFund(payload2, { holdForMs: 50 });
     
     // Should be different promises
     expect(promise1).not.toBe(promise2);
     
-    // Both should be in-flight
+    // Both should be in-flight immediately
     expect(isCreateFundInFlight(hash1)).toBe(true);
     expect(isCreateFundInFlight(hash2)).toBe(true);
+    
+    // Resolve both requests
+    deferred1.resolve({
+      ok: true,
+      status: 201,
+      headers: new Map(),
+      json: async () => ({ id: 1 })
+    });
+    
+    deferred2.resolve({
+      ok: true,
+      status: 201,
+      headers: new Map(),
+      json: async () => ({ id: 2 })
+    });
     
     await Promise.all([promise1, promise2]);
     
@@ -150,14 +178,23 @@ describe('In-flight Capacity Management', () => {
     const originalMax = import.meta.env.VITE_IDEMPOTENCY_MAX;
     import.meta.env.VITE_IDEMPOTENCY_MAX = '3';
     
-    // Create promises that don't resolve immediately
-    const hangingPromises: Promise<any>[] = [];
+    // Create deferred promises for controlled resolution
+    const deferredRequests = [deferred(), deferred(), deferred()];
+    let fetchCallIndex = 0;
+    
     (global.fetch as any).mockImplementation(() => {
-      return new Promise(() => {}); // Never resolves
+      const currentDeferred = deferredRequests[fetchCallIndex++];
+      return currentDeferred ? currentDeferred.promise : Promise.resolve({
+        ok: true,
+        status: 201,
+        headers: new Map(),
+        json: async () => ({ id: 999 })
+      });
     });
     
     try {
-      // Fill up capacity
+      // Fill up capacity with controlled promises
+      const hangingPromises: Promise<any>[] = [];
       for (let i = 0; i < 3; i++) {
         const payload = { name: `Fund ${i}`, size: 1000000 * i };
         hangingPromises.push(
@@ -165,41 +202,44 @@ describe('In-flight Capacity Management', () => {
         );
       }
       
-      // Next request should throw
-      const payload = { name: 'Fund 4', size: 4000000 };
-      await expect(startCreateFund(payload)).rejects.toThrow('Too many concurrent requests');
-    } finally {
-      // Clean up
-      import.meta.env.VITE_IDEMPOTENCY_MAX = originalMax;
+      // Wait a tick to ensure all requests are registered
+      await new Promise(resolve => setTimeout(resolve, 0));
       
-      // Cancel all hanging requests
-      for (let i = 0; i < 3; i++) {
-        const hash = computeCreateFundHash({ name: `Fund ${i}`, size: 1000000 * i });
-        cancelCreateFund(hash);
-      }
+      // Next request should throw synchronously due to capacity limit
+      const payload = { name: 'Fund 4', size: 4000000 };
+      expect(() => startCreateFund(payload)).toThrow('Too many concurrent requests');
+      
+    } finally {
+      // Clean up by resolving all deferred promises
+      deferredRequests.forEach((d, i) => {
+        if (d) {
+          d.resolve({
+            ok: true,
+            status: 201,
+            headers: new Map(),
+            json: async () => ({ id: i })
+          });
+        }
+      });
+      
+      // Restore original value
+      import.meta.env.VITE_IDEMPOTENCY_MAX = originalMax;
     }
   });
 
   it('should support manual cancellation', async () => {
     const payload = { name: 'Test Fund', size: 1000000 };
-    const hash = computeCreateFundHash(payload);
+    const finalizedPayload = { ...payload, modelVersion: 'reserves-ev1' };
+    const hash = computeCreateFundHash(finalizedPayload);
     
-    // Mock fetch that takes time
-    (global.fetch as any).mockImplementation(() => {
-      return new Promise((resolve, reject) => {
-        setTimeout(() => {
-          reject(new Error('Should have been cancelled'));
-        }, 1000);
-      });
-    });
+    // Create a controlled deferred promise that won't resolve
+    const deferredRequest = deferred();
+    (global.fetch as any).mockReturnValue(deferredRequest.promise);
     
-    // Start request
-    const promise = startCreateFund(payload);
+    // Start request with hold time for observability
+    const promise = startCreateFund(payload, { holdForMs: 50 });
     
-    // Wait for next tick to allow inflight registration
-    await new Promise(resolve => setTimeout(resolve, 0));
-    
-    // Should be in-flight
+    // Should be in-flight immediately
     expect(isCreateFundInFlight(hash)).toBe(true);
     
     // Cancel it
@@ -209,7 +249,7 @@ describe('In-flight Capacity Management', () => {
     // Should throw abort error
     await expect(promise).rejects.toThrow();
     
-    // Should no longer be in-flight
+    // Should no longer be in-flight after cancellation
     expect(isCreateFundInFlight(hash)).toBe(false);
     
     // Second cancel should return false
