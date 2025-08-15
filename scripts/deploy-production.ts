@@ -116,11 +116,13 @@ class ProductionDeployment {
     // Initialize distributed tracing
     this.tracer = new DeploymentTracer(this.deployment.id, version);
     
-    // Initialize circuit breaker
+    // Initialize circuit breaker with Redis persistence
     this.circuitBreaker = new DeploymentCircuitBreaker({
       failureThreshold: Number(process.env.CIRCUIT_BREAKER_THRESHOLD || 3),
       resetTimeout: Number(process.env.CIRCUIT_BREAKER_RESET_TIMEOUT || 3600000),
-      halfOpenTests: 1
+      halfOpenTests: 1,
+      redisUrl: process.env.REDIS_URL,
+      persistenceKey: 'deployment-circuit-breaker'
     });
     
     // Initialize SLO validator
@@ -221,6 +223,9 @@ class ProductionDeployment {
     const preflightSpan = this.tracer.startPreflight();
     console.log('✈️  Preflight Checks\n');
     
+    // Hard gates for external dependencies
+    await this.validateExternalDependencies();
+
     const checks = [
       {
         name: 'Git tag exists',
@@ -274,6 +279,107 @@ class ProductionDeployment {
       tracer.finishSpan(preflightSpan.id, 'failed', { error: error instanceof Error ? error.message : 'Unknown error' });
       throw error;
     }
+  }
+
+  private async validateExternalDependencies() {
+    console.log('🔍 Validating External Dependencies\n');
+    
+    const dependencies = [
+      {
+        name: 'Database Connection',
+        test: async () => {
+          // Test database connectivity
+          if (process.env.DATABASE_URL) {
+            const { Pool } = await import('pg');
+            const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+            await pool.query('SELECT 1');
+            await pool.end();
+          } else {
+            throw new Error('DATABASE_URL environment variable not set');
+          }
+        }
+      },
+      {
+        name: 'Redis Connection',
+        test: async () => {
+          // Test Redis connectivity
+          if (process.env.REDIS_URL) {
+            const { default: Redis } = await import('ioredis');
+            const redis = new Redis(process.env.REDIS_URL);
+            await redis.ping();
+            await redis.quit();
+          } else {
+            throw new Error('REDIS_URL environment variable not set');
+          }
+        }
+      },
+      {
+        name: 'Error Tracking DSN',
+        test: async () => {
+          // Test error tracking service reachability
+          if (process.env.ERROR_TRACKING_DSN) {
+            try {
+              // Parse DSN to extract host
+              const url = new URL(process.env.ERROR_TRACKING_DSN);
+              const response = await fetch(`${url.protocol}//${url.host}/api/0/`, {
+                method: 'HEAD',
+                timeout: 5000
+              });
+              if (!response.ok) {
+                throw new Error(`Error tracking service returned ${response.status}`);
+              }
+            } catch (error) {
+              throw new Error(`Error tracking service unreachable: ${error}`);
+            }
+          } else {
+            console.warn('   ⚠️  ERROR_TRACKING_DSN not configured (optional)');
+          }
+        }
+      },
+      {
+        name: 'Required Environment Variables',
+        test: async () => {
+          const required = ['NODE_ENV', 'CORS_ORIGIN', 'BODY_LIMIT'];
+          const missing = required.filter(env => !process.env[env]);
+          if (missing.length > 0) {
+            throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+          }
+        }
+      },
+      {
+        name: 'Prometheus Endpoint',
+        test: async () => {
+          // Test Prometheus connectivity if configured
+          if (process.env.PROMETHEUS_URL) {
+            try {
+              const response = await fetch(`${process.env.PROMETHEUS_URL}/api/v1/label/__name__/values`, {
+                timeout: 5000
+              });
+              if (!response.ok) {
+                throw new Error(`Prometheus returned ${response.status}`);
+              }
+            } catch (error) {
+              throw new Error(`Prometheus unreachable: ${error}`);
+            }
+          } else {
+            console.log('   ℹ️  PROMETHEUS_URL not configured (using simulation mode)');
+          }
+        }
+      }
+    ];
+
+    for (const dep of dependencies) {
+      try {
+        console.log(`   Testing ${dep.name}...`);
+        await dep.test();
+        console.log(`   ✅ ${dep.name} - OK`);
+      } catch (error) {
+        console.error(`   ❌ ${dep.name} - FAILED: ${error}`);
+        throw new Error(`Dependency validation failed: ${dep.name} - ${error}`);
+      }
+    }
+    
+    console.log('\n✅ All external dependencies validated\n');
   }
 
   private async deployStage(stage: typeof this.config.stages[0]) {
@@ -468,11 +574,10 @@ class ProductionDeployment {
     await sleep(1000);
   }
 
-  private updateConfidence(score: number, weight: number = 0.1) {
-    // Exponential moving average with decay
-    const decay = 0.9;
-    this.confidence = (this.confidence * decay) + (score * weight * (1 - decay));
-    this.confidence = Math.max(0.1, Math.min(0.95, this.confidence)); // Clamp
+  private updateConfidence(score: number, alpha: number = 0.2) {
+    // Simple exponential moving average: new = α * score + (1 - α) * old
+    this.confidence = alpha * score + (1 - alpha) * this.confidence;
+    this.confidence = Math.max(0.1, Math.min(0.95, this.confidence)); // Clamp between 10% and 95%
   }
 
   private loadDeploymentHistory() {

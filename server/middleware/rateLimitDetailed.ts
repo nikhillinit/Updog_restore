@@ -1,7 +1,29 @@
-// Rate limiter for /health/detailed using express-rate-limit
+// Rate limiter for /health/detailed using express-rate-limit with Redis store
 import rateLimit from 'express-rate-limit';
 import type { Request, Response } from 'express';
 import { sendApiError, createErrorBody } from '../lib/apiError';
+
+// Initialize Redis store for rate limiting across replicas
+let redisStore: any = null;
+
+// Initialize Redis store if available
+if (process.env.REDIS_URL) {
+  try {
+    // Dynamic import will be resolved at module load time
+    import('rate-limit-redis').then(async ({ default: RedisStore }) => {
+      const { default: Redis } = await import('ioredis');
+      const redis = new Redis(process.env.REDIS_URL!);
+      redisStore = new RedisStore({
+        sendCommand: (...args: string[]) => redis.call(...args),
+      });
+      console.log('📊 Rate limiting using Redis store for cluster consistency');
+    }).catch(error => {
+      console.warn('Failed to initialize Redis store for rate limiting, using memory store:', error);
+    });
+  } catch (error) {
+    console.warn('Redis store initialization error:', error);
+  }
+}
 
 export function rateLimitDetailed() {
   return rateLimit({
@@ -9,6 +31,13 @@ export function rateLimitDetailed() {
     max: 30, // 30 requests per minute
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    store: redisStore || undefined, // Use Redis store if available, fallback to memory
+    keyGenerator: (req: Request) => {
+      // IPv6-safe key generation using forwarded IP or connection IP
+      const forwarded = req.ip || req.connection.remoteAddress || 'unknown';
+      // Normalize IPv6 addresses by removing IPv4-mapped prefix
+      return forwarded.replace(/^::ffff:/, '');
+    },
     skip: (req: Request) => {
       // Allow on-call to bypass with a valid health key
       const healthKey = process.env.HEALTH_KEY;
