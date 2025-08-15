@@ -1,8 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { visualizer } from 'rollup-plugin-visualizer';
 import virtual from 'vite-plugin-virtual';
+import { execSync } from 'child_process';
 
 // Comprehensive winston mock
 const winstonMock = `
@@ -166,6 +169,27 @@ export default {
 };
 `;
 
+// Get build-time values using native file operations
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
+
+const getGitSha = () => {
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim();
+  } catch {
+    return 'unknown';
+  }
+};
+
+const getAppVersion = () => {
+  try {
+    const packagePath = path.join(rootDir, 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+    return pkg.version || 'unknown';
+  } catch {
+    return '1.3.2';
+  }
+};
+
 export default defineConfig({
   plugins: [
     virtual({ 
@@ -175,6 +199,11 @@ export default defineConfig({
     react(), 
     visualizer({ filename: "stats.html", gzipSize: true })
   ],
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(getAppVersion()),
+    'import.meta.env.VITE_GIT_SHA': JSON.stringify(process.env.GITHUB_SHA || getGitSha()),
+    'import.meta.env.VITE_BUILD_TIME': JSON.stringify(new Date().toISOString())
+  },
   root: path.resolve(import.meta.dirname, 'client'),
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
