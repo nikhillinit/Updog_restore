@@ -15,6 +15,10 @@ const envSchema = z.object({
   
   // Cache & Queue - explicit scheme validation
   REDIS_URL: z.string().url().or(z.literal('memory://')).default('memory://'),
+  RATE_LIMIT_REDIS_URL: z.string().url().or(z.literal('memory://')).optional(),
+  QUEUE_REDIS_URL: z.string().url().or(z.literal('memory://')).optional(),
+  SESSION_REDIS_URL: z.string().url().or(z.literal('memory://')).optional(),
+  ENABLE_QUEUES: z.enum(['0','1']).default('0'),
   
   // Security & CORS
   CORS_ORIGIN: z.string().default('http://localhost:5173,http://localhost:5174,http://localhost:5175'),

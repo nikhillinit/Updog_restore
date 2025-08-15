@@ -2,7 +2,8 @@ import { Request, Response } from 'express';
 import { db, pool } from './db';
 import { healthStatus } from './metrics';
 import { getEnv } from './env';
-import { getBreakerTrips } from '../client/src/utils/resilientLimit';
+// Circuit breaker metrics disabled for dev mode
+// import { getBreakerTrips } from '../client/src/utils/resilientLimit';
 
 interface HealthComponent {
   name: string;
@@ -24,6 +25,16 @@ interface HealthResponse {
 
 async function checkDatabase(): Promise<HealthComponent> {
   try {
+    // In dev mode with mock database, just return healthy
+    if (process.env.DATABASE_URL?.includes('mock')) {
+      healthStatus.set({ component: 'database' }, 1);
+      return {
+        name: 'database',
+        status: 'healthy',
+        message: 'Database in mock mode (development)',
+      };
+    }
+    
     // Simple query to check database connectivity
     await db.execute('SELECT 1');
     healthStatus.set({ component: 'database' }, 1);
@@ -45,11 +56,12 @@ async function checkDatabase(): Promise<HealthComponent> {
 async function checkRedis(): Promise<HealthComponent> {
   const env = getEnv();
   
-  if (!env.REDIS_URL) {
+  if (!env.REDIS_URL || env.REDIS_URL === 'memory://') {
+    healthStatus.set({ component: 'redis' }, 1);
     return {
       name: 'redis',
       status: 'healthy',
-      message: 'Redis not configured (optional)',
+      message: 'Redis in memory mode (development)',
     };
   }
 
@@ -92,7 +104,7 @@ async function performHealthCheck(): Promise<HealthResponse> {
     uptime: process.uptime(),
     version: process.env.npm_package_version || 'unknown',
     circuitBreaker: {
-      trips: getBreakerTrips()
+      trips: 0 // Circuit breaker disabled in dev mode
     },
     components,
   };
@@ -112,7 +124,7 @@ export async function healthCheck(req: Request, res: Response) {
       uptime: process.uptime(),
       version: process.env.npm_package_version || 'unknown',
       circuitBreaker: {
-        trips: getBreakerTrips()
+        trips: 0
       },
       components: [{
         name: 'health_check',

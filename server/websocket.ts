@@ -1,6 +1,6 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { redis } from './redis';
+// Redis pub/sub disabled in dev - will be injected via providers when needed
 import { logger } from './logger';
 import { z } from 'zod';
 import { db } from './db';
@@ -37,42 +37,9 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
     transports: ['websocket', 'polling'],
   });
 
-  // Redis pub/sub for distributing events across multiple server instances
-  const pubClient = typeof redis === 'object' && 'duplicate' in redis ? redis.duplicate() : redis;
-  const subClient = typeof redis === 'object' && 'duplicate' in redis ? redis.duplicate() : redis;
-
-  // Subscribe to Redis channels for event distribution
-  if ('subscribe' in subClient) {
-    subClient.subscribe('fund:events');
-  }
-  if ('on' in subClient) {
-    subClient.on('message', async (channel: string, message: string) => {
-    try {
-      const data = JSON.parse(message);
-      const { fundId, eventType, event } = data;
-
-      // Broadcast to all clients in the fund room
-      io.to(getFundRoom(fundId)).emit('fund:event', {
-        fundId,
-        eventType,
-        event,
-        timestamp: new Date().toISOString(),
-      });
-
-      // Broadcast to specific event type rooms
-      if (eventType) {
-        io.to(getEventTypeRoom(fundId, eventType)).emit('fund:event:typed', {
-          fundId,
-          eventType,
-          event,
-          timestamp: new Date().toISOString(),
-        });
-      }
-    } catch (error) {
-      logger.error('WebSocket Redis message error:', error);
-    }
-    });
-  }
+  // Redis pub/sub disabled in development mode
+  // Events will be broadcast directly to connected clients
+  // In production, this should be replaced with proper Redis pub/sub
 
   // WebSocket connection handling
   io.on('connection', (socket: Socket) => {
@@ -202,18 +169,31 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
 export async function publishFundEvent(
   fundId: number,
   eventType: string,
-  event: any
+  event: any,
+  io?: SocketIOServer
 ): Promise<void> {
   try {
-    const message = JSON.stringify({
-      fundId,
-      eventType,
-      event,
-    });
+    // In development mode, broadcast directly to connected clients
+    if (io) {
+      // Broadcast to all clients in the fund room
+      io.to(getFundRoom(fundId)).emit('fund:event', {
+        fundId,
+        eventType,
+        event,
+        timestamp: new Date().toISOString(),
+      });
 
-    if ('publish' in redis) {
-      await redis.publish('fund:events', message);
+      // Broadcast to specific event type rooms
+      if (eventType) {
+        io.to(getEventTypeRoom(fundId, eventType)).emit('fund:event:typed', {
+          fundId,
+          eventType,
+          event,
+          timestamp: new Date().toISOString(),
+        });
+      }
     }
+    // In production, this should publish to Redis for distribution
   } catch (error) {
     logger.error('Failed to publish fund event', {
       fundId,

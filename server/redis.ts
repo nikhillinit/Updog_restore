@@ -2,7 +2,7 @@ import Redis from 'ioredis';
 import { logger } from './logger';
 
 // Create Redis client or mock
-export const redis = process.env.REDIS_URL === 'mock' ? {
+export const redis = (process.env.REDIS_URL === 'mock' || process.env.REDIS_URL === 'memory://') ? {
   // Mock Redis client implementation
   connect: () => Promise.resolve(),
   on: () => {},
@@ -24,7 +24,7 @@ export const redis = process.env.REDIS_URL === 'mock' ? {
   }),
 } : new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 
-if (process.env.REDIS_URL !== 'mock') {
+if (process.env.REDIS_URL !== 'mock' && process.env.REDIS_URL !== 'memory://') {
   // Handle connection events for real Redis client
   redis.on('error', (err: Error) => {
     logger.error('Redis Client Error', err);

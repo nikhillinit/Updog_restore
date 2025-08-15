@@ -10,11 +10,11 @@
   "packageManager": "npm@10.9.2",
   "scripts": {
     "dev": "concurrently -k \"npm run dev:client\" \"npm run dev:api\"",
-    "dev:quick": "cross-env NODE_ENV=development REDIS_URL=memory:// npm run dev:api",
+    "dev:quick": "cross-env NODE_ENV=development REDIS_URL=memory:// ENABLE_QUEUES=0 tsx server/bootstrap.ts",
     "dev:full": "npm run dev:infra && npm run dev",
     "dev:infra": "docker compose -f docker-compose.dev.yml up -d --wait",
     "dev:client": "vite",
-    "dev:api": "cross-env NODE_ENV=development tsx server/index.ts",
+    "dev:api": "tsx server/bootstrap.ts",
     "dev:worker:reserve": "tsx workers/reserve-worker.ts",
     "dev:worker:pacing": "tsx workers/pacing-worker.ts",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
@@ -78,7 +78,8 @@
     "deploy:prod": "npm run deploy:gate && npm run deploy:rollout && npm run deploy:monitor 30 0.5",
     "dev:env": "node scripts/dev-env.mjs",
     "dev:docker": "docker-compose up -d && npm run dev",
-    "dev:clean": "docker-compose down -v"
+    "dev:clean": "docker-compose down -v",
+    "circuit-breaker": "tsx scripts/circuit-breaker-cli.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

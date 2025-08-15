@@ -1,37 +1,20 @@
-// Rate limiter for /health/detailed using express-rate-limit with Redis store
+/**
+ * DI-Friendly Rate Limiter for /health/detailed
+ * Accepts injected store instead of creating Redis connections at import time
+ */
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import type { Request, Response } from 'express';
-import { sendApiError, createErrorBody } from '../lib/apiError';
+import type { RateLimitRequestHandler } from 'express-rate-limit';
+import type { Store } from 'express-rate-limit';
+import { sendApiError, createErrorBody } from '../lib/apiError.js';
 
-// Initialize Redis store for rate limiting across replicas
-let redisStore: any = null;
-
-// Initialize Redis store if available
-if (process.env.REDIS_URL) {
-  try {
-    // Dynamic import will be resolved at module load time
-    import('rate-limit-redis').then(async ({ default: RedisStore }) => {
-      const { default: Redis } = await import('ioredis');
-      const redis = new Redis(process.env.REDIS_URL!);
-      redisStore = new RedisStore({
-        sendCommand: (...args: string[]) => redis.call(...args),
-      });
-      console.log('📊 Rate limiting using Redis store for cluster consistency');
-    }).catch(error => {
-      console.warn('Failed to initialize Redis store for rate limiting, using memory store:', error);
-    });
-  } catch (error) {
-    console.warn('Redis store initialization error:', error);
-  }
-}
-
-export function rateLimitDetailed() {
+export function rateLimitDetailed(opts?: { store?: Store }): RateLimitRequestHandler {
   return rateLimit({
     windowMs: 60_000, // 1 minute
     max: 30, // 30 requests per minute
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-    store: redisStore || undefined, // Use Redis store if available, fallback to memory
+    store: opts?.store, // Injected store (undefined => memory store)
     keyGenerator: (req: Request) => ipKeyGenerator(req) ?? 'unknown',
     skip: (req: Request) => {
       // Allow on-call to bypass with a valid health key

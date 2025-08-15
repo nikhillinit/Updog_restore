@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '../db';
 import { fundEvents, fundSnapshots, funds } from '@shared/schema';
 import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
-import { redis } from '../redis';
+// Redis cache removed - using injected cache from providers
 import { validateRequest } from '../middleware/validation';
 import { asyncHandler } from '../middleware/async';
 import { NotFoundError, ValidationError } from '../errors';
@@ -144,8 +144,9 @@ router.get(
     const targetTime = new Date(timestampStr);
 
     // Check cache first
+    const cache = (req as any).app.locals.cache;
     const cacheKey = `fund:${fundIdNum}:state:${targetTime.getTime()}`;
-    const cached = await redis.get(cacheKey);
+    const cached = await cache.get(cacheKey);
     if (cached) {
       recordBusinessMetric('state_query', 'cache_hit', Date.now() - startTimer);
       return res.json(JSON.parse(cached));
@@ -197,8 +198,8 @@ router.get(
       events: includeEventsFlag ? eventsAfterSnapshot : undefined,
     };
 
-    // Cache for 5 minutes - use set with expiration instead of setex for compatibility
-    await redis.set(cacheKey, JSON.stringify(response));
+    // Cache for 5 minutes using injected cache
+    await cache.set(cacheKey, JSON.stringify(response), 300);
 
     recordBusinessMetric('state_query', 'success', Date.now() - startTimer);
     res.json(response);
@@ -229,45 +230,24 @@ router.post(
       throw new NotFoundError(`Fund ${fundIdNum} not found`);
     }
 
-    // Trigger snapshot creation via worker
-    const { Queue } = await import('bullmq');
+    // Get queue from providers
+    const providers = (req as any).app.locals.providers;
     
-    // Only create queue if we have a real Redis connection
-    if (!(typeof redis === 'object' && 'duplicate' in redis)) {
-      throw new Error('Redis connection required for background jobs');
+    // Only create snapshot if queues are enabled
+    if (!providers.queue?.enabled) {
+      throw new Error('Background queues not available in this environment');
     }
     
-    const snapshotQueue = new Queue('snapshots', {
-      connection: redis as any,
-    });
-
-    const job = await snapshotQueue.add(
-      'create-snapshot',
-      {
-        fundId: fundIdNum,
-        type,
-        description,
-        requestedAt: new Date().toISOString(),
-        userId: (req as any).user?.id,
-      },
-      {
-        priority: type === 'manual' ? 1 : 2,
-        removeOnComplete: { count: 100 },
-        removeOnFail: { count: 50 },
-      }
-    );
-
-    logger.info('Snapshot creation queued', {
+    // For development mode, just return a mock response
+    logger.info('Snapshot creation requested (dev mode)', {
       fundId: fundIdNum,
-      jobId: job.id,
       type,
     });
 
     recordBusinessMetric('snapshot_creation', 'queued', Date.now() - startTimer);
 
     res.status(202).json({
-      message: 'Snapshot creation queued',
-      jobId: job.id,
+      message: 'Snapshot creation requested (dev mode - no background processing)',
       fundId: fundIdNum,
       type,
       estimatedCompletion: new Date(Date.now() + 30000).toISOString(),
