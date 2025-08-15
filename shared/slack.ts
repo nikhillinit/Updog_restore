@@ -19,6 +19,7 @@ let postImpl: (payload: SlackPayload) => Promise<void> = async () => {
 
 if (process.env.SLACK_WEBHOOK_URL || process.env.SLACK_TOKEN) {
   // Lazy load only when needed so CI + local dev don't need the dependency.
+  // Gracefully handle missing @slack/webhook package
   import('@slack/webhook')
     .then(({ IncomingWebhook }) => {
       const url = process.env.SLACK_WEBHOOK_URL ?? '';
@@ -27,9 +28,12 @@ if (process.env.SLACK_WEBHOOK_URL || process.env.SLACK_TOKEN) {
         await webhook.send(payload);
       };
     })
-    .catch((err) =>
-      console.warn('[slack] failed to init webhook, continuing as no‑op', err),
-    );
+    .catch((err) => {
+      // Package not installed or import failed - continue as no-op
+      if (process.env.NODE_ENV === 'production' && process.env.SLACK_WEBHOOK_URL) {
+        console.warn('[slack] @slack/webhook not installed, Slack notifications disabled');
+      }
+    });
 }
 
 /**

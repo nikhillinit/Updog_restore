@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { allocate100 } from '../core/utils/allocate100';
+import { clampPct, clampInt } from '../lib/coerce';
 import type { Stage, SectorProfile, Allocation, InvestmentStrategy } from '@shared/types';
 
 export type StrategyStage = {
@@ -32,7 +33,6 @@ type StrategySlice = {
 };
 
 // helper functions
-const clampPct = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 const enforceLast = (rows: StrategyStage[]) =>
   rows.map((r, i) => (i === rows.length - 1 ? { ...r, graduate: 0 } : r));
 
@@ -43,6 +43,16 @@ const generateStableId = (): string => {
   return `stage-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
 
+/**
+ * Business rules (canonical):
+ * - Percentages are clamped to [0, 100].
+ * - Last stage `graduate` is always 0.
+ * - Remain is derived: remain = 100 - (graduate + exit). Never persisted.
+ * - Months are integers ≥ 1.
+ * - graduate + exit must be ≤ 100 for each stage.
+ * 
+ * Any consumer should rely on these invariants.
+ */
 export const useFundStore = create<StrategySlice>()(
   persist(
     (set, get) => ({
@@ -90,7 +100,7 @@ export const useFundStore = create<StrategySlice>()(
         const isLast = idx === stages.length - 1;
         const gradRaw = isLast ? 0 : clampPct(patch.graduate ?? r.graduate);
         const exitRaw = clampPct(patch.exit ?? r.exit);
-        const months = Math.max(1, Math.round(patch.months ?? r.months));
+        const months = clampInt(patch.months ?? r.months, 1, 120);
 
         const [graduate, exit] = allocate100(gradRaw, exitRaw);
         stages[idx] = { ...r, graduate, exit, months };

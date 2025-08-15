@@ -44,12 +44,7 @@
       "Cucumber Studio",
       "Socket",
       "Socket",
-      "Playwright",
-      "Bash(npm ci:*)",
-      "Bash(gh pr edit:*)",
-      "Bash(gh label:*)",
-      "Bash(gh pr view:*)",
-      "Bash(npm uninstall:*)"
+      "Playwright"
     ],
     "deny": []
   }

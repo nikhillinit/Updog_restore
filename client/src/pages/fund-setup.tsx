@@ -1,5 +1,9 @@
 import { mapAsync } from "@/lib";
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { startCreateFund, cancelCreateFund, computeCreateFundHash } from '@/services/funds';
+import { toFundCreationPayload } from '@/core/reserves/adapter/toEngineGraduationRates';
+import { toast } from '@/lib/toast';
+import { useFundStore } from '@/stores/useFundStore';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -477,14 +481,43 @@ export default function FundSetup() {
     }
   };
 
+  const [saving, setSaving] = useState(false);
+  
   const handleSave = async () => {
-    // Process allocations with controlled concurrency before saving
-    if (fundData.allocations?.length) {
-      const processedAllocations = await processPortfolioAllocations(fundData.allocations);
-      const enhancedFundData = { ...fundData, allocations: processedAllocations };
-      createFundMutation.mutate(enhancedFundData);
-    } else {
-      createFundMutation.mutate(fundData);
+    if (saving) return; // UI re-entrancy guard
+    setSaving(true);
+    
+    try {
+      // Get current state from the fund store
+      const storeState = useFundStore.getState();
+      
+      // Create payload using the centralized adapter
+      const payload = toFundCreationPayload(storeState);
+      
+      // Process allocations with controlled concurrency if needed
+      if (fundData.allocations?.length) {
+        const processedAllocations = await processPortfolioAllocations(fundData.allocations);
+        payload.basics = { ...payload.basics, allocations: processedAllocations };
+      }
+      
+      // Use the new service with toast feedback and idempotency
+      const { createFundWithToast } = await import('@/services/funds');
+      const fund = await createFundWithToast(payload, 'reuse');
+      
+      // Update context and navigate
+      setCurrentFund(fund);
+      queryClient.invalidateQueries({ queryKey: ['/api/funds'] });
+      setLocation('/dashboard');
+      
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        // UX-friendly: don't treat cancellations as failures
+        console.info('Save cancelled:', error.message);
+        return;
+      }
+      console.error('Fund creation failed:', error);
+    } finally {
+      setSaving(false);
     }
   };
 

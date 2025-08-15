@@ -42,6 +42,13 @@ This is a web-based venture-capital fund modeling and reporting platform built a
 - **cheatsheets/**: Detailed guides and workflows
 - **Commands**: `/log-change`, `/log-decision`, `/create-cheatsheet [topic]`
 
+### Claude Code Development Commands
+- `/test-smart` - Intelligent test selection based on file changes
+- `/fix-auto` - Automated repair of lint, format, and simple test failures
+- `/deploy-check` - Pre-deployment validation (build, bundle, smoke, idempotency)
+- `/perf-guard` - Performance regression detection with bundle analysis
+- `/dev-start` - Optimized development environment setup
+
 ## Architecture
 - **Frontend (`/client`)**: React SPA with feature-based component organization, custom hooks, and analytical engines (ReserveEngine, PacingEngine, CohortEngine)
 - **Backend (`/server`)**: Express.js API with Zod validation, modular routes, and storage abstraction layer

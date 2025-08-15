@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["flags", "thresholds", "killSwitches", "telemetry"],
+  "properties": {
+    "flags": {
+      "type": "object",
+      "properties": {
+        "useFundStore": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "rollout": { "type": "number", "minimum": 0, "maximum": 100 }
+          }
+        }
+      }
+    },
+    "thresholds": {
+      "type": "object",
+      "properties": {
+        "errorScore": { "type": "number", "minimum": 1, "maximum": 100 },
+        "consecutiveHighScore": { "type": "number", "minimum": 1, "maximum": 10 }
+      }
+    },
+    "killSwitches": {
+      "type": "object",
+      "properties": { "emergencyRollback": { "type": "boolean" } }
+    },
+    "telemetry": {
+      "type": "object",
+      "properties": { "trackMigrations": { "type": "boolean" } }
+    },
+    "version": { "type": "string" }
+  }
+}

@@ -1,7 +1,8 @@
 #!/usr/bin/env pwsh
 param(
   [Parameter(Mandatory=$true)][int]$PR,
-  [switch]$RunE2E # Adds 'e2e' label to trigger label-gated workflow
+  [switch]$RunE2E, # Adds 'e2e' label to trigger label-gated workflow
+  [switch]$NoMerge # Skip auto-merge; just prep PR for manual merge
 )
 $ErrorActionPreference = "Stop"
 
@@ -38,13 +39,17 @@ if ($info.isDraft -eq $true) {
   Write-Host "✅ PR is ready for review." -ForegroundColor Green
 }
 
-# Attempt to enable auto-merge (squash)
-Write-Host "🔄 Enabling auto-merge (squash)..." -ForegroundColor Cyan
-try {
-  gh pr merge $PR --squash --auto | Out-Null
-  Write-Host "✅ Auto-merge enabled (squash)." -ForegroundColor Green
-} catch {
-  Write-Warning "Couldn't enable auto-merge (branch protection or permissions?). You can enable manually in the UI."
+# Attempt to enable auto-merge (squash) - unless NoMerge is set
+if (-not $NoMerge) {
+  Write-Host "🔄 Enabling auto-merge (squash)..." -ForegroundColor Cyan
+  try {
+    gh pr merge $PR --squash --auto | Out-Null
+    Write-Host "✅ Auto-merge enabled (squash)." -ForegroundColor Green
+  } catch {
+    Write-Warning "Couldn't enable auto-merge (branch protection or permissions?). You can enable manually in the UI."
+  }
+} else {
+  Write-Host "⏸️ Skipping auto-merge (NoMerge flag set). Enable manually after validation." -ForegroundColor Yellow
 }
 
 # Open PR in browser

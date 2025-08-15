@@ -19,6 +19,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Fund routes
+  const fundRoutes = await import('./routes/funds.js');
+  app.use('/api', fundRoutes.default);
+
   // Health check and metrics routes
   app.get("/api/health", healthCheck);
   app.get("/api/health/ready", readinessCheck);
