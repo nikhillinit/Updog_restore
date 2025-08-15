@@ -15,18 +15,22 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
-    ['html'],
     ['line'],
+    ['html', { open: 'never', outputFolder: 'playwright-report' }],
+    ['github'],
     ['json', { outputFile: 'test-results/results.json' }],
     ['junit', { outputFile: 'test-results/junit.xml' }]
   ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.BASE_URL || 'http://localhost:5000',
+    baseURL: process.env.BASE_URL || (process.env.CI ? 'http://127.0.0.1:4173' : 'http://localhost:5000'),
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
+    
+    /* Headless mode in CI */
+    headless: !!process.env.CI,
     
     /* Take screenshot on failure */
     screenshot: 'only-on-failure',
@@ -119,12 +123,14 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: process.env.BASE_URL?.startsWith('http') ? undefined : {
-    command: 'npm run dev',
-    url: 'http://localhost:5000',
+    command: process.env.CI
+      ? 'npm run preview -- --port=4173 --host=127.0.0.1'
+      : 'npm run dev',
+    url: process.env.CI ? 'http://127.0.0.1:4173' : 'http://localhost:5000',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
     env: {
-      PORT: '5000',
+      PORT: process.env.CI ? '4173' : '5000',
     },
   },
 

@@ -19,16 +19,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22.16.0'
           cache: 'npm'
       - name: Install
         id: install
         run: npm ci --prefer-offline --no-audit
-      - name: Smoke (reserves + store)
+      - name: Smoke (reserves + store + adapter)
         id: smoke
         run: |
           npx vitest run client/src/core/reserves --reporter=dot --run
           npx vitest run client/src/stores/useFundStore --reporter=dot --run
+          npx vitest run client/src/core/reserves/adapter/__tests__/finalizePayload.spec.ts --reporter=dot --run
 
   test:
     runs-on: ubuntu-latest
@@ -37,7 +38,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22.16.0'
           cache: 'npm'
       - name: Install
         run: npm ci --prefer-offline --no-audit
@@ -50,6 +51,9 @@ jobs:
       - name: Build
         id: build
         run: npm run build
+      - name: Bundle Check
+        id: bundle-check
+        run: npm run bundle:check
 
   e2e:
     runs-on: ubuntu-latest
@@ -59,13 +63,61 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22.16.0'
           cache: 'npm'
       - run: npm ci --prefer-offline --no-audit
       - run: npx playwright install --with-deps
+      - name: Start API server
+        run: npm run dev:api &
+      - name: Wait for API health
+        run: npx wait-on http://localhost:5000/api/health --timeout 60000
+      - name: Fund Setup Happy Path
+        id: e2e-happy
+        run: npx playwright test tests/e2e/fund-setup.happy.spec.ts
+        env:
+          CI: 'true'
+          PLAYWRIGHT_WORKERS: 2
+          PLAYWRIGHT_HTML_REPORT: 'never'
+          TZ: 'UTC'
       - name: Playwright migration E2E
         id: e2e
         run: E2E_WIZARD=1 npx playwright test tests/e2e/localstorage-migration.spec.ts
+        env:
+          CI: 'true'
+          PLAYWRIGHT_WORKERS: 2
+          PLAYWRIGHT_HTML_REPORT: 'never'
+          TZ: 'UTC'
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-results
+          path: |
+            **/test-results/**
+            **/playwright-report/**
+
+  bmda-repair-on-fail:
+    runs-on: ubuntu-latest
+    needs: [smoke, test]
+    if: failure()
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - name: BMAD Test Repair (limited)
+        run: npm run ai repair --max-repairs 3
+        continue-on-error: true
+      - name: Comment on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const head = context.payload.pull_request;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: head.number,
+              body: "🤖 **BMAD Test Repair attempted** - Check logs for auto-repair results"
+            });
 
   comment:
     runs-on: ubuntu-latest
