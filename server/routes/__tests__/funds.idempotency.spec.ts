@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 app.use(idempotency);
 
-app.post('/api/test', (req, res) => {
+app.post('/api/test', (req: Request, res: Response) => {
   res.json({ id: 'test-fund', timestamp: Date.now() });
 });
 

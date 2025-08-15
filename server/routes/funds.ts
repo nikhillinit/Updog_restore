@@ -20,13 +20,17 @@ const CreateFundSchema = z.object({
   }),
 });
 
-router.post('/funds', idempotency, async (req, res) => {
+router.post('/funds', idempotency, async (req: Request, res: Response) => {
   const parsed = CreateFundSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.format() });
+  if (!parsed.success) {
+    res.status(400);
+    return res.json({ error: parsed.error.format() });
+  }
 
   // TODO: persist fund with Drizzle
   const fundId = 'fund_' + Math.random().toString(36).slice(2);
-  return res.status(201).json({ id: fundId });
+  res.status(201);
+  return res.json({ id: fundId });
 });
 
 export default router;
