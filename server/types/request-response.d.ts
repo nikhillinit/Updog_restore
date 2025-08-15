@@ -1,8 +1,8 @@
 import { IncomingMessage, ServerResponse } from 'http';
 
-declare global {
+// Use a namespace to avoid conflicts with global types
+declare namespace ExpressCustom {
   interface Request extends IncomingMessage {
-    method: string;
     path: string;
     route?: { path: string };
     params: Record<string, string>;
@@ -14,7 +14,6 @@ declare global {
   }
 
   interface Response extends ServerResponse {
-    statusCode: number;
     json: {
       (body: any): Response;
       (): Response;
@@ -33,3 +32,8 @@ declare global {
     (err?: any): void;
   }
 }
+
+// Export the types for use in other files
+export type Request = ExpressCustom.Request;
+export type Response = ExpressCustom.Response;
+export type NextFunction = ExpressCustom.NextFunction;

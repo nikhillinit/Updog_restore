@@ -1,6 +1,7 @@
-import { Router, Request, Response } from 'express';
+import { Router } from 'express';
 import { idempotency } from '../middleware/idempotency';
 import { z } from 'zod';
+import { Request, Response } from '../types/request-response';
 
 const router = Router();
 
