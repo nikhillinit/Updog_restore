@@ -91,6 +91,55 @@ async function exec(command: string): Promise<{ success: boolean; output?: strin
 // Sleep helper
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Statistical analysis for canary deployments
+interface StatisticalTest {
+  pValue: number;
+  significant: boolean;
+  confidenceLevel: number;
+  effect: 'positive' | 'negative' | 'neutral';
+}
+
+function twoProportionZTest(
+  successes1: number, total1: number, 
+  successes2: number, total2: number,
+  alpha: number = 0.05
+): StatisticalTest {
+  if (total1 === 0 || total2 === 0) {
+    return { pValue: 1.0, significant: false, confidenceLevel: 1 - alpha, effect: 'neutral' };
+  }
+
+  const p1 = successes1 / total1;
+  const p2 = successes2 / total2;
+  const pooledP = (successes1 + successes2) / (total1 + total2);
+  
+  if (pooledP === 0 || pooledP === 1) {
+    return { pValue: 1.0, significant: false, confidenceLevel: 1 - alpha, effect: 'neutral' };
+  }
+
+  const se = Math.sqrt(pooledP * (1 - pooledP) * (1/total1 + 1/total2));
+  const z = Math.abs(p1 - p2) / se;
+  
+  // Two-tailed p-value approximation
+  const pValue = 2 * (1 - normalCDF(Math.abs(z)));
+  
+  const effect = p1 > p2 ? 'positive' : p1 < p2 ? 'negative' : 'neutral';
+  
+  return {
+    pValue,
+    significant: pValue < alpha,
+    confidenceLevel: 1 - alpha,
+    effect
+  };
+}
+
+function normalCDF(x: number): number {
+  // Approximation of standard normal CDF
+  const t = 1 / (1 + 0.2316419 * Math.abs(x));
+  const d = 0.3989423 * Math.exp(-x * x / 2);
+  const prob = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  return x > 0 ? 1 - prob : prob;
+}
+
 // Main deployment class
 class ProductionDeployment {
   private config: DeploymentConfig;

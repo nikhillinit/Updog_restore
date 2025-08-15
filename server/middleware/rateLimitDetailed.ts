@@ -33,10 +33,8 @@ export function rateLimitDetailed() {
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
     store: redisStore || undefined, // Use Redis store if available, fallback to memory
     keyGenerator: (req: Request) => {
-      // IPv6-safe key generation using forwarded IP or connection IP
-      const forwarded = req.ip || req.connection.remoteAddress || 'unknown';
-      // Normalize IPv6 addresses by removing IPv4-mapped prefix
-      return forwarded.replace(/^::ffff:/, '');
+      // Use express-rate-limit's built-in IP key generator for IPv6 safety
+      return req.ip || req.connection.remoteAddress || 'unknown';
     },
     skip: (req: Request) => {
       // Allow on-call to bypass with a valid health key
