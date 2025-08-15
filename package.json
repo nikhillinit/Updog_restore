@@ -21,7 +21,8 @@
     "preview": "vite preview",
     "vercel-build": "vite build",
     "start": "cross-env NODE_ENV=production node dist/index.js",
-    "check": "tsc --project tsconfig.nocheck.json",
+    "check": "tsc --noEmit --pretty false --extendedDiagnostics",
+    "check:fast": "tsc --project tsconfig.nocheck.json",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
     "fix:types": "npm run check && npm run lint:fix",
@@ -233,7 +234,9 @@
     "vite": "^5.4.19",
     "vite-plugin-virtual": "^0.4.0",
     "vitest": "^3.2.4",
-    "wait-on": "^8.0.4"
+    "vitest-canvas-mock": "^0.3.3",
+    "wait-on": "^8.0.4",
+    "whatwg-fetch": "^3.6.20"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
