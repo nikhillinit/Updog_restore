@@ -60,7 +60,7 @@ export async function setupVite(app: Express, server: Server) {
         `src="/src/main.tsx?v=${nanoid()}"`,
       );
       const page = await vite.transformIndexHtml(url, template);
-      res.status(200);
+      res.statusCode = 200;
       res.set({ "Content-Type": "text/html" });
       res.end(page);
     } catch (e) {

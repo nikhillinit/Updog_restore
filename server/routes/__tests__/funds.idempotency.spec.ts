@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { idempotency } from '../../middleware/idempotency';
 
 // Mock Express app with idempotency middleware

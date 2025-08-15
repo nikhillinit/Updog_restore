@@ -13,7 +13,7 @@ declare global {
     // Augment the existing Request interface instead of extending it
     interface Request {
       user?: AuthenticatedUser;
-      requestId?: string;
+      requestId: string;
     }
   }
 }

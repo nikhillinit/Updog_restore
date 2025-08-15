@@ -190,12 +190,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Middleware to record HTTP metrics
-  app.use((req: Request, res: Response, next: NextFunction) => {
+  app.use((req: Request, res: Response, next: (err?: any) => void) => {
     const startTime = Date.now();
     
     res.on('finish', () => {
       const duration = (Date.now() - startTime) / 1000;
-      recordHttpMetrics(req.method, req.route?.path || req.path, res.statusCode, duration);
+      recordHttpMetrics(req.method || 'UNKNOWN', req.route?.path || req.path || 'unknown', res.statusCode, duration);
     });
     
     next();
