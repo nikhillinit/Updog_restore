@@ -510,7 +510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Investment routes - Type-safe with query validation
-  app.get("/api/investments", async (req, res) => {
+  app.get("/api/investments", async (req: Request, res: Response) => {
     try {
       const fundIdQuery = req.query.fundId;
       let fundId: number | undefined = undefined;

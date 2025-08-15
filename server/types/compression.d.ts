@@ -1,5 +1,6 @@
 declare module 'compression' {
-  import { RequestHandler } from 'express';
+  // Define RequestHandler inline instead of importing from express
+  type RequestHandler = (req: any, res: any, next: (err?: any) => void) => void;
   
   interface CompressionOptions {
     threshold?: number;
