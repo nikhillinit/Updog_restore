@@ -12,7 +12,7 @@ export const api = {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
-    return response.json();
+    return response.json() as unknown as T;
   },
 
   async post<T>(url: string, data?: any): Promise<T> {
@@ -29,6 +29,6 @@ export const api = {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
-    return response.json();
+    return response.json() as unknown as T;
   }
 };

@@ -506,7 +506,7 @@ export default function FundSetup() {
       const fund = await createFundWithToast(payload, { reuseExisting: true });
       
       // Update context and navigate
-      setCurrentFund(fund as Fund);
+      setCurrentFund(fund as unknown as Fund);
       queryClient.invalidateQueries({ queryKey: ['/api/funds'] });
       setLocation('/dashboard');
       
