@@ -26,7 +26,15 @@ app.set('trust proxy', trustProxy);
 // Request ID MUST be first for correlation on all paths
 app.use(requestId());
 
-// Shutdown guard MUST be second to reject early (pre-parse)
+// Version headers for observability
+app.use((req, res, next) => {
+  const version = getVersion();
+  res.set('X-Service-Version', version);
+  res.set('X-Service-Name', getDefaultLabels().service);
+  next();
+});
+
+// Shutdown guard MUST be after version headers
 app.use(shutdownGuard());
 
 // Security and performance middleware
@@ -123,7 +131,10 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      const version = getVersion();
+      const labels = getDefaultLabels();
+      
+      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms [v${version}]`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
@@ -132,7 +143,18 @@ app.use((req, res, next) => {
         logLine = logLine.slice(0, 79) + "…";
       }
 
-      log(logLine);
+      // Include version in structured logs
+      console.log(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: 'info',
+        msg: logLine,
+        ...labels,
+        method: req.method,
+        path,
+        statusCode: res.statusCode,
+        duration,
+        requestId: (req as any).requestId
+      }));
     }
   });
 

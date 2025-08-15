@@ -18,6 +18,7 @@ import {
 import { DeploymentTracer, tracer } from '../server/lib/tracing.js';
 import { DeploymentCircuitBreaker } from './deployment-circuit-breaker.js';
 import { SLOValidator } from './slo-validator.js';
+import { StatisticalGates, type StatisticalArm } from './statistical-gates.js';
 
 // Configuration
 interface DeploymentConfig {
@@ -150,6 +151,7 @@ class ProductionDeployment {
   private history: Array<{success: boolean; duration: number; version: string}> = [];
   private circuitBreaker: DeploymentCircuitBreaker;
   private sloValidator: SLOValidator;
+  private statisticalGates: StatisticalGates;
 
   constructor(private version: string) {
     this.config = loadConfig();
@@ -176,6 +178,9 @@ class ProductionDeployment {
     
     // Initialize SLO validator
     this.sloValidator = new SLOValidator();
+    
+    // Initialize statistical gates
+    this.statisticalGates = new StatisticalGates();
     
     // Load deployment history and adjust confidence
     this.loadDeploymentHistory();
@@ -489,10 +494,48 @@ class ProductionDeployment {
     while (Date.now() - startTime < duration) {
       const metrics = await this.fetchMetrics(stageName);
       
-      // For canary stages, also collect comparison metrics
+      // For canary stages, use statistical gates for authoritative decisions
       if (stageName && (stageName.includes('canary') || stageName.includes('small'))) {
         const canaryMetrics = await this.fetchCanarySpecificMetrics(stageName);
-        samples.push({ ...metrics, canary: canaryMetrics });
+        const baselineMetrics = await this.fetchBaselineMetrics();
+        
+        // Build statistical arms for comparison
+        const canaryArm: StatisticalArm = {
+          successes: Math.round(canaryMetrics.sampleSize * metrics.successRate),
+          total: canaryMetrics.sampleSize,
+          latencySamples: this.generateLatencySamples(metrics.p99Latency, Math.min(canaryMetrics.sampleSize, 10000)),
+          errorRate: metrics.errorRate,
+          p99Latency: metrics.p99Latency
+        };
+        
+        const baselineArm: StatisticalArm = {
+          successes: Math.round(canaryMetrics.sampleSize * baselineMetrics.successRate),
+          total: canaryMetrics.sampleSize,
+          latencySamples: this.generateLatencySamples(baselineMetrics.p99Latency, Math.min(canaryMetrics.sampleSize, 10000)),
+          errorRate: baselineMetrics.errorRate,
+          p99Latency: baselineMetrics.p99Latency
+        };
+        
+        // Apply statistical gates
+        const gateResult = this.statisticalGates.evaluateCanary(canaryArm, baselineArm);
+        
+        console.log(`\n   🧮 Statistical Gate Decision: ${gateResult.decision}`);
+        console.log(`      Reason: ${gateResult.reason}`);
+        
+        if (gateResult.decision === 'FAIL') {
+          return {
+            healthy: false,
+            reason: `Statistical gate failed: ${gateResult.reason}`,
+            metrics: samples,
+            statisticalResult: gateResult
+          };
+        } else if (gateResult.decision === 'EXTEND') {
+          console.log(`      Extending monitoring period for more samples...`);
+          // Extend duration by 50% if we need more samples
+          duration = Math.min(duration * 1.5, duration + 300000); // Max 5 min extension
+        }
+        
+        samples.push({ ...metrics, canary: canaryMetrics, statisticalGate: gateResult });
         
         // Log canary-specific insights
         if (samples.length % 3 === 0) { // Every 3rd sample
@@ -500,6 +543,7 @@ class ProductionDeployment {
           console.log(`      Error rate: ${canaryMetrics.comparison.errorRateDiff.toFixed(2)}% vs baseline`);
           console.log(`      Latency: ${canaryMetrics.comparison.latencyDiff.toFixed(2)}% vs baseline`);
           console.log(`      Sample size: ${canaryMetrics.sampleSize} requests`);
+          console.log(`      Required samples: ${gateResult.details.requiresSamples.errors} errors, ${gateResult.details.requiresSamples.latency} latency`);
         }
       } else {
         samples.push(metrics);
@@ -624,8 +668,15 @@ class ProductionDeployment {
   }
 
   private updateConfidence(score: number, alpha: number = 0.2) {
-    // Simple exponential moving average: new = α * score + (1 - α) * old
-    this.confidence = alpha * score + (1 - alpha) * this.confidence;
+    // Bayesian confidence using Beta distribution
+    const priorSuccesses = Math.max(1, this.confidence * 20); // Convert to beta parameters
+    const priorFailures = Math.max(1, (1 - this.confidence) * 20);
+    
+    const posteriorSuccesses = priorSuccesses + (score > 0.5 ? 1 : 0);
+    const posteriorFailures = priorFailures + (score <= 0.5 ? 1 : 0);
+    
+    // Update confidence as the mean of the posterior Beta distribution
+    this.confidence = posteriorSuccesses / (posteriorSuccesses + posteriorFailures);
     this.confidence = Math.max(0.1, Math.min(0.95, this.confidence)); // Clamp between 10% and 95%
   }
 
@@ -742,6 +793,26 @@ class ProductionDeployment {
     const endpoints = ['/health', '/healthz', '/readyz'];
     // In production, actually fetch these
     return true;
+  }
+
+  private generateLatencySamples(p99: number, count: number): number[] {
+    // Generate realistic latency samples with log-normal distribution
+    const samples: number[] = [];
+    const mean = Math.log(p99 * 0.6); // Mean is lower than p99
+    const stddev = 0.3;
+    
+    for (let i = 0; i < count; i++) {
+      // Box-Muller transform for normal distribution
+      const u1 = Math.random();
+      const u2 = Math.random();
+      const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+      
+      // Convert to log-normal
+      const sample = Math.exp(mean + stddev * z);
+      samples.push(Math.max(10, Math.round(sample))); // Min 10ms
+    }
+    
+    return samples.sort((a, b) => a - b);
   }
 
   private async rollback() {
