@@ -12,7 +12,7 @@ export const api = {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
-    return response.json() as Promise<T>;
+    return response.json();
   },
 
   async post<T>(url: string, data?: any): Promise<T> {
@@ -29,6 +29,6 @@ export const api = {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
-    return response.json() as Promise<T>;
+    return response.json();
   }
 };
