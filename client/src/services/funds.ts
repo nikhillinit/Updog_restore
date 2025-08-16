@@ -241,6 +241,16 @@ async function executeCreateFund(
   }
 }
 
+// ---------- New singleflight implementation (gradual migration) ----------
+// Re-export new implementation if feature flag is enabled
+export { 
+  createFund as createFundV2,
+  getFund as getFundV2,
+  listFunds as listFundsV2,
+  updateFund as updateFundV2,
+  deleteFund as deleteFundV2
+} from './funds-v2';
+
 // ---------- Toast throttling for capacity hits ----------
 let lastCapacityToast = 0;
 const TOAST_THROTTLE_MS = 10_000; // One toast every 10 seconds max
