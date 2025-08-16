@@ -1,0 +1,30 @@
+name: Deploy (staging)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'npm'
+      - name: Install
+        run: npm ci --legacy-peer-deps
+      - name: Build
+        run: npm run build --if-present
+      # TODO: replace with your actual staging deploy step (e.g., Cloud Run, ECS, Fly.io, etc.)
+      - name: Deploy (placeholder)
+        run: |
+          echo "Deploying to staging…"
+          echo "Replace this step with your platform's CLI/API."
