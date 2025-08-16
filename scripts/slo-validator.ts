@@ -129,14 +129,46 @@ export class SLOValidator {
   }
 
   private async fetchErrorRateForWindow(windowMs: number, version: string): Promise<number> {
-    // In production, this would query your metrics backend
-    // For simulation, return realistic error rates with some variance
+    // In production, query Prometheus with version-specific filters:
+    // Example queries:
+    // 5m:  rate(http_requests_total{code!~"2..",version="v1.3.2"}[5m]) / rate(http_requests_total{version="v1.3.2"}[5m])
+    // 1h:  rate(http_requests_total{code!~"2..",version="v1.3.2"}[1h]) / rate(http_requests_total{version="v1.3.2"}[1h])
+    // 6h:  rate(http_requests_total{code!~"2..",version="v1.3.2"}[6h]) / rate(http_requests_total{version="v1.3.2"}[6h])
     
+    const windowMinutes = Math.floor(windowMs / 60000);
+    
+    if (process.env.PROMETHEUS_URL) {
+      try {
+        return await this.queryPrometheusErrorRate(version, `${windowMinutes}m`);
+      } catch (error) {
+        console.warn(`Failed to query Prometheus for error rate (${version}, ${windowMinutes}m):`, error);
+      }
+    }
+    
+    // Fallback to simulation for development/testing
     const baseErrorRate = 0.0005; // 0.05% base error rate
     const variance = Math.random() * 0.0003; // ±0.015% variance
     const deploymentPenalty = version.includes('canary') ? 0.0002 : 0; // Slight increase for canary
     
     return Math.max(0, baseErrorRate + variance + deploymentPenalty);
+  }
+
+  private async queryPrometheusErrorRate(version: string, window: string): Promise<number> {
+    // Query Prometheus for version-specific error rate
+    const query = `
+      rate(http_requests_total{code!~"2..",version="${version}"}[${window}]) /
+      rate(http_requests_total{version="${version}"}[${window}])
+    `;
+    
+    const response = await fetch(`${process.env.PROMETHEUS_URL}/api/v1/query?query=${encodeURIComponent(query)}`);
+    const data = await response.json();
+    
+    if (data.status === 'success' && data.data.result.length > 0) {
+      const errorRate = parseFloat(data.data.result[0].value[1]);
+      return isNaN(errorRate) ? 0 : errorRate;
+    }
+    
+    return 0; // No data available
   }
 
   private determineOverallSeverity(burnRates: BurnRateResult[]): 'ok' | 'warning' | 'critical' {

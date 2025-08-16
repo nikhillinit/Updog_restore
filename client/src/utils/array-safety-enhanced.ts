@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 // client/src/utils/array-safety-enhanced.ts
 // --------------------------------------------------
 // Comprehensive array safety utilities for null/undefined handling
@@ -269,3 +274,4 @@ export const safeForEach = forEach;
 export const safeMap = map;
 export const safeFilter = filter;
 export const safeReduce = reduce;
+

@@ -1,0 +1,413 @@
+diff --git a/package.json b/package.json
+index 0000000..1111111 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,22 @@
+ {
+   "name": "povc-app",
+   "version": "0.0.0",
++  "scripts": {
++    "check": "tsc --noEmit --pretty false --extendedDiagnostics",
++    "lint": "eslint .",
++    "lint:fix": "eslint . --fix",
++    "test": "vitest run",
++    "test:watch": "vitest",
++    "dev:api": "cross-env NODE_ENV=development node --require tsconfig-paths/register --loader tsx server/bootstrap.ts"
++  },
++  "dependencies": {
++    "express": "^4.19.2",
++    "zod": "^3.23.8"
++  },
++  "devDependencies": {
++    "prom-client": "^15.1.2",
++    "supertest": "^7.0.0",
++    "@types/supertest": "^6.0.2"
++  }
+ }
+ 
+diff --git a/server/config.ts b/server/config.ts
+new file mode 100644
+index 0000000..2222222
+--- /dev/null
++++ b/server/config.ts
+@@ -0,0 +1,29 @@
++import { z } from 'zod';
++
++const Env = z.object({
++  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
++  PORT: z.coerce.number().int().positive().default(5000),
++  CLIENT_URL: z.string().url().default('http://localhost:5173'),
++  REDIS_URL: z.string().url().optional(),
++  APP_VERSION: z.string().default(process.env.npm_package_version || '0.0.1')
++});
++
++export type AppConfig = z.infer<typeof Env>;
++
++export const config: AppConfig = Env.parse({
++  NODE_ENV: process.env.NODE_ENV,
++  PORT: process.env.PORT,
++  CLIENT_URL: process.env.CLIENT_URL,
++  REDIS_URL: process.env.REDIS_URL,
++  APP_VERSION: process.env.APP_VERSION
++});
+diff --git a/server/errors.ts b/server/errors.ts
+new file mode 100644
+index 0000000..3333333
+--- /dev/null
++++ b/server/errors.ts
+@@ -0,0 +1,33 @@
++interface ViteDevServerLike {
++  ssrFixStacktrace(e: unknown): void;
++}
++
++export function errorHandler(vite?: ViteDevServerLike) {
++  // eslint-disable-next-line @typescript-eslint/no-unused-vars
++  return (err: any, _req: any, res: any, _next: any) => {
++    if (vite?.ssrFixStacktrace) {
++      try { vite.ssrFixStacktrace(err); } catch {}
++    }
++    const status = typeof err?.statusCode === 'number'
++      ? err.statusCode
++      : typeof err?.status === 'number'
++        ? err.status
++        : 500;
++    const expose = status < 500;
++    res.status(status).json({
++      code: err?.code || (status >= 500 ? 'INTERNAL_ERROR' : 'BAD_REQUEST'),
++      message: expose ? (err?.message || 'Error') : 'Internal Server Error',
++      ...(err?.field ? { field: err.field } : {}),
++      ts: new Date().toISOString(),
++      requestId: _req?.requestId || _req?.id
++    });
++  };
++}
+diff --git a/server/lib/hash.ts b/server/lib/hash.ts
+new file mode 100644
+index 0000000..4444444
+--- /dev/null
++++ b/server/lib/hash.ts
+@@ -0,0 +1,14 @@
++import crypto from 'node:crypto';
++
++export function stableStringify(obj: unknown): string {
++  if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
++    const keys = Object.keys(obj as any).sort();
++    const o: any = {};
++    for (const k of keys) o[k] = (obj as any)[k];
++    return JSON.stringify(o);
++  }
++  return JSON.stringify(obj);
++}
++
++export function hashPayload(obj: unknown): string {
++  return crypto.createHash('sha256').update(stableStringify(obj)).digest('hex').slice(0, 32);
++}
+diff --git a/server/lib/idempotency.ts b/server/lib/idempotency.ts
+new file mode 100644
+index 0000000..5555555
+--- /dev/null
++++ b/server/lib/idempotency.ts
+@@ -0,0 +1,51 @@
++export type Status = 'in-progress' | 'succeeded' | 'failed';
++
++export interface IdemRecord<T = unknown> {
++  status: Status;
++  result?: T;
++  error?: string;
++  updatedAt: number;
++  ttlMs: number;
++}
++
++export interface IdempotencyStore {
++  get<T = unknown>(key: string): Promise<IdemRecord<T> | undefined>;
++  set<T = unknown>(key: string, rec: IdemRecord<T>): Promise<void>;
++  del(key: string): Promise<void>;
++}
++
++// In-memory store with TTL GC (sufficient for single-process dev/test)
++export function memoryStore(): IdempotencyStore {
++  const m = new Map<string, IdemRecord>();
++  const gc = () => {
++    const now = Date.now();
++    for (const [k, v] of m) if (now - v.updatedAt > v.ttlMs) m.delete(k);
++  };
++  setInterval(gc, 10_000).unref();
++  return {
++    async get(key) { return m.get(key); },
++    async set(key, rec) { m.set(key, rec); },
++    async del(key) { m.delete(key); }
++  };
++}
++
++// (Optional) Hook up a Redis-backed store implementing IdempotencyStore in production.
+diff --git a/server/lib/inflight-server.ts b/server/lib/inflight-server.ts
+new file mode 100644
+index 0000000..6666666
+--- /dev/null
++++ b/server/lib/inflight-server.ts
+@@ -0,0 +1,45 @@
++import { IdempotencyStore } from './idempotency';
++
++export async function getOrStart<T>(
++  store: IdempotencyStore,
++  key: string,
++  worker: (signal: AbortSignal) => Promise<T>,
++  ttlMs = 60_000
++): Promise<{ status: 'joined' | 'created'; promise: Promise<T> }> {
++  const existing = await store.get<T>(key);
++  if (existing?.status === 'succeeded') {
++    return { status: 'joined', promise: Promise.resolve(existing.result as T) };
++  }
++  if (existing?.status === 'in-progress') {
++    // In a Redis-backed impl, you would return a shared promise via pub/sub or an operation endpoint.
++    return { status: 'joined', promise: Promise.reject(new Error('in-progress')) };
++  }
++
++  const controller = new AbortController();
++  await store.set(key, { status: 'in-progress', updatedAt: Date.now(), ttlMs });
++
++  const p = (async () => {
++    try {
++      const out = await worker(controller.signal);
++      await store.set(key, { status: 'succeeded', result: out, updatedAt: Date.now(), ttlMs });
++      return out;
++    } catch (e: any) {
++      await store.set(key, { status: 'failed', error: String(e?.message ?? e), updatedAt: Date.now(), ttlMs });
++      throw e;
++    }
++  })();
++
++  return { status: 'created', promise: p };
++}
+diff --git a/server/metrics.ts b/server/metrics.ts
+new file mode 100644
+index 0000000..7777777
+--- /dev/null
++++ b/server/metrics.ts
+@@ -0,0 +1,33 @@
++import client from 'prom-client';
++import { Router } from 'express';
++
++export const register = new client.Registry();
++client.collectDefaultMetrics({ register });
++
++export const calcDurationMs = new client.Histogram({
++  name: 'fund_calc_duration_ms',
++  help: 'Duration of fund calculations in ms',
++  buckets: [50, 100, 200, 500, 1000, 2000, 5000, 10000]
++});
++register.registerMetric(calcDurationMs);
++
++export const httpRequests = new client.Counter({
++  name: 'http_requests_total',
++  help: 'Total HTTP requests',
++  labelNames: ['route', 'method', 'code'] as const
++});
++register.registerMetric(httpRequests);
++
++export const metricsRouter = Router();
++metricsRouter.get('/metrics', async (_req, res) => {
++  res.set('Content-Type', register.contentType);
++  res.end(await register.metrics());
++});
+diff --git a/server/routes/health.ts b/server/routes/health.ts
+new file mode 100644
+index 0000000..8888888
+--- /dev/null
++++ b/server/routes/health.ts
+@@ -0,0 +1,27 @@
++import { Router } from 'express';
++
++const router = Router();
++
++router.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));
++router.get('/healthz', (_req, res) => res.status(200).json({ status: 'ok' }));
++router.get('/readyz', (_req, res) => res.status(200).json({ status: 'ready' }));
++
++// Simple inflight/uptime snapshot; extend as needed.
++router.get('/health/inflight', (_req, res) => {
++  res.json({
++    uptime: process.uptime(),
++    memory: process.memoryUsage()
++  });
++});
++
++export default router;
+diff --git a/server/core/enhanced-fund-model.ts b/server/core/enhanced-fund-model.ts
+new file mode 100644
+index 0000000..9999999
+--- /dev/null
++++ b/server/core/enhanced-fund-model.ts
+@@ -0,0 +1,32 @@
++// Minimal placeholder so the endpoint compiles.
++// Wire to your real model once ready.
++export type FundModelInput = Record<string, unknown>;
++export type FundModelResult = { result: Record<string, unknown> };
++
++export class EnhancedFundModel {
++  constructor(private input: FundModelInput) {}
++
++  async calculate(_opts?: { signal?: AbortSignal; onProgress?: (p: number) => void }): Promise<FundModelResult> {
++    const started = Date.now();
++    // Simulate some work
++    await new Promise((r) => setTimeout(r, 50));
++    return {
++      result: {
++        tvpi: 2.5,
++        input: this.input,
++        durationMs: Date.now() - started
++      }
++    };
++  }
++}
+diff --git a/server/routes/funds.ts b/server/routes/funds.ts
+new file mode 100644
+index 0000000..aaaaaaa
+--- /dev/null
++++ b/server/routes/funds.ts
+@@ -0,0 +1,58 @@
++import { Router } from 'express';
++import { z } from 'zod';
++import { hashPayload } from '../lib/hash';
++import { memoryStore } from '../lib/idempotency';
++import { getOrStart } from '../lib/inflight-server';
++import { EnhancedFundModel } from '../core/enhanced-fund-model';
++import { calcDurationMs } from '../metrics';
++
++// If you add Redis later, swap memoryStore() for a Redis-backed IdempotencyStore.
++const idem = memoryStore();
++const router = Router();
++
++// Example DTO/domain guard (replace with your real shared/schema.ts)
++const FundDTO = z.object({
++  fundSize: z.coerce.number().positive().int().default(100_000_000)
++});
++type FundDTO = z.infer<typeof FundDTO>;
++
++router.post('/api/funds/calculate', async (req, res, next) => {
++  try {
++    const dto = FundDTO.parse(req.body as FundDTO);
++    const idemHeader = String(req.header('Idempotency-Key') || '');
++    const key = idemHeader || `calc:${hashPayload(dto)}`;
++
++    const endTimer = calcDurationMs.startTimer();
++    const { status, promise } = await getOrStart(idem, key, async (_signal) => {
++      const model = new EnhancedFundModel(dto);
++      const out = await model.calculate();
++      return out;
++    }, 60_000);
++
++    if (status === 'created') {
++      res.setHeader('Idempotency-Status', 'created');
++      const result = await promise;
++      endTimer();
++      return res.status(201).json(result);
++    } else {
++      res.setHeader('Idempotency-Status', 'joined');
++      // For memory-only store, we can't await another process' promise; in Redis impl you would.
++      // Return 202 to signal "check back soon" or poll an operations endpoint.
++      endTimer();
++      return res.status(202).json({ status: 'in-progress', key });
++    }
++  } catch (err) {
++    next(err);
++  }
++});
++
++export default router;
+diff --git a/server/bootstrap.ts b/server/bootstrap.ts
+index bbbbbbb..ccccccc 100644
+--- a/server/bootstrap.ts
++++ b/server/bootstrap.ts
+@@ -1,10 +1,38 @@
+-import http from 'http';
+-import express from 'express';
+-// ... your existing imports
++import http from 'http';
++import express from 'express';
++import healthRouter from './routes/health';
++import fundsRouter from './routes/funds';
++import { metricsRouter } from './metrics';
++import { config } from './config';
++import { errorHandler } from './errors';
+ 
+ export async function bootstrap() {
+-  const app = express();
+-  // existing mount
+-  const server = http.createServer(app);
+-  return server.listen(5000);
++  const app = express();
++
++  // Core hardening
++  app.set('trust proxy', true);
++  app.use(express.json({ limit: '1mb' }));
++
++  // Routes first
++  app.use(healthRouter);
++  app.use(fundsRouter);
++  app.use(metricsRouter); // exposes /metrics
++
++  // (Your Vite dev setup can be mounted here in development, if applicable)
++
++  // Final error handler
++  app.use(errorHandler());
++
++  const server = http.createServer(app);
++  server.listen(config.PORT, () => {
++    // eslint-disable-next-line no-console
++    console.log(`[server] listening on http://localhost:${config.PORT} (${config.NODE_ENV})`);
++  });
++  return server;
+ }
+ 
+ if (require.main === module) {
+   bootstrap();
+ }
+diff --git a/tests/integration/fund-calculation.test.ts b/tests/integration/fund-calculation.test.ts
+new file mode 100644
+index 0000000..eeeeeee
+--- /dev/null
++++ b/tests/integration/fund-calculation.test.ts
+@@ -0,0 +1,53 @@
++import request from 'supertest';
++import { afterAll, beforeAll, describe, expect, it } from 'vitest';
++import { bootstrap } from '../../server/bootstrap';
++
++let server: any;
++
++beforeAll(async () => {
++  server = await bootstrap();
++});
++
++afterAll(async () => {
++  await new Promise<void>((res) => server.close(() => res()));
++});
++
++describe('Fund calculation endpoint', () => {
++  it('deduplicates concurrent requests via Idempotency-Key', async () => {
++    const payload = { fundSize: 100_000_000 };
++    const key = 'itest-key-123';
++
++    const r = await Promise.all([
++      request(server).post('/api/funds/calculate').set('Idempotency-Key', key).send(payload),
++      request(server).post('/api/funds/calculate').set('Idempotency-Key', key).send(payload),
++      request(server).post('/api/funds/calculate').set('Idempotency-Key', key).send(payload)
++    ]);
++
++    const created = r.filter(x => x.headers['idempotency-status'] === 'created');
++    expect(created.length).toBe(1);
++    r.forEach(x => expect([200,201,202]).toContain(x.status));
++  });
++
++  it('returns 201 with result on first calculation without key, subsequent returns 202 joined/in-progress', async () => {
++    const payload = { fundSize: 50_000_000 };
++
++    const first = await request(server).post('/api/funds/calculate').send(payload);
++    expect(first.headers['idempotency-status']).toBe('created');
++    expect(first.status).toBe(201);
++
++    const again = await request(server).post('/api/funds/calculate').send(payload);
++    expect(['joined','created']).toContain(again.headers['idempotency-status']);
++    expect([200,202,201]).toContain(again.status);
++  });
++});

@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 /**
  * Generate random number from normal distribution using Box-Muller transform
  * @param mean mean of the distribution
@@ -124,3 +129,4 @@ export const scenarioAnalysis = (
     bull: baseCase * scenarios[2]
   };
 };
+

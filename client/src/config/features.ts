@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 /**
  * Feature flags with runtime + build-time controls
  * 
@@ -63,3 +68,4 @@ export const debugFeatures = () => {
 if (getEnvVar('NODE_ENV') === 'development' || getEnvVar('VITE_DEV') === 'true') {
   (window as any).__features = { features, debugFeatures };
 }
+

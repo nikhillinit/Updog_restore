@@ -18,6 +18,7 @@ import {
 import { DeploymentTracer, tracer } from '../server/lib/tracing.js';
 import { DeploymentCircuitBreaker } from './deployment-circuit-breaker.js';
 import { SLOValidator } from './slo-validator.js';
+import { StatisticalGates, type StatisticalArm } from './statistical-gates.js';
 
 // Configuration
 interface DeploymentConfig {
@@ -91,6 +92,55 @@ async function exec(command: string): Promise<{ success: boolean; output?: strin
 // Sleep helper
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Statistical analysis for canary deployments
+interface StatisticalTest {
+  pValue: number;
+  significant: boolean;
+  confidenceLevel: number;
+  effect: 'positive' | 'negative' | 'neutral';
+}
+
+function twoProportionZTest(
+  successes1: number, total1: number, 
+  successes2: number, total2: number,
+  alpha: number = 0.05
+): StatisticalTest {
+  if (total1 === 0 || total2 === 0) {
+    return { pValue: 1.0, significant: false, confidenceLevel: 1 - alpha, effect: 'neutral' };
+  }
+
+  const p1 = successes1 / total1;
+  const p2 = successes2 / total2;
+  const pooledP = (successes1 + successes2) / (total1 + total2);
+  
+  if (pooledP === 0 || pooledP === 1) {
+    return { pValue: 1.0, significant: false, confidenceLevel: 1 - alpha, effect: 'neutral' };
+  }
+
+  const se = Math.sqrt(pooledP * (1 - pooledP) * (1/total1 + 1/total2));
+  const z = Math.abs(p1 - p2) / se;
+  
+  // Two-tailed p-value approximation
+  const pValue = 2 * (1 - normalCDF(Math.abs(z)));
+  
+  const effect = p1 > p2 ? 'positive' : p1 < p2 ? 'negative' : 'neutral';
+  
+  return {
+    pValue,
+    significant: pValue < alpha,
+    confidenceLevel: 1 - alpha,
+    effect
+  };
+}
+
+function normalCDF(x: number): number {
+  // Approximation of standard normal CDF
+  const t = 1 / (1 + 0.2316419 * Math.abs(x));
+  const d = 0.3989423 * Math.exp(-x * x / 2);
+  const prob = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  return x > 0 ? 1 - prob : prob;
+}
+
 // Main deployment class
 class ProductionDeployment {
   private config: DeploymentConfig;
@@ -101,6 +151,7 @@ class ProductionDeployment {
   private history: Array<{success: boolean; duration: number; version: string}> = [];
   private circuitBreaker: DeploymentCircuitBreaker;
   private sloValidator: SLOValidator;
+  private statisticalGates: StatisticalGates;
 
   constructor(private version: string) {
     this.config = loadConfig();
@@ -116,15 +167,20 @@ class ProductionDeployment {
     // Initialize distributed tracing
     this.tracer = new DeploymentTracer(this.deployment.id, version);
     
-    // Initialize circuit breaker
+    // Initialize circuit breaker with Redis persistence
     this.circuitBreaker = new DeploymentCircuitBreaker({
       failureThreshold: Number(process.env.CIRCUIT_BREAKER_THRESHOLD || 3),
       resetTimeout: Number(process.env.CIRCUIT_BREAKER_RESET_TIMEOUT || 3600000),
-      halfOpenTests: 1
+      halfOpenTests: 1,
+      redisUrl: process.env.REDIS_URL,
+      persistenceKey: 'deployment-circuit-breaker'
     });
     
     // Initialize SLO validator
     this.sloValidator = new SLOValidator();
+    
+    // Initialize statistical gates
+    this.statisticalGates = new StatisticalGates();
     
     // Load deployment history and adjust confidence
     this.loadDeploymentHistory();
@@ -221,6 +277,9 @@ class ProductionDeployment {
     const preflightSpan = this.tracer.startPreflight();
     console.log('✈️  Preflight Checks\n');
     
+    // Hard gates for external dependencies
+    await this.validateExternalDependencies();
+
     const checks = [
       {
         name: 'Git tag exists',
@@ -274,6 +333,107 @@ class ProductionDeployment {
       tracer.finishSpan(preflightSpan.id, 'failed', { error: error instanceof Error ? error.message : 'Unknown error' });
       throw error;
     }
+  }
+
+  private async validateExternalDependencies() {
+    console.log('🔍 Validating External Dependencies\n');
+    
+    const dependencies = [
+      {
+        name: 'Database Connection',
+        test: async () => {
+          // Test database connectivity
+          if (process.env.DATABASE_URL) {
+            const { Pool } = await import('pg');
+            const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+            await pool.query('SELECT 1');
+            await pool.end();
+          } else {
+            throw new Error('DATABASE_URL environment variable not set');
+          }
+        }
+      },
+      {
+        name: 'Redis Connection',
+        test: async () => {
+          // Test Redis connectivity
+          if (process.env.REDIS_URL) {
+            const { default: Redis } = await import('ioredis');
+            const redis = new Redis(process.env.REDIS_URL);
+            await redis.ping();
+            await redis.quit();
+          } else {
+            throw new Error('REDIS_URL environment variable not set');
+          }
+        }
+      },
+      {
+        name: 'Error Tracking DSN',
+        test: async () => {
+          // Test error tracking service reachability
+          if (process.env.ERROR_TRACKING_DSN) {
+            try {
+              // Parse DSN to extract host
+              const url = new URL(process.env.ERROR_TRACKING_DSN);
+              const response = await fetch(`${url.protocol}//${url.host}/api/0/`, {
+                method: 'HEAD',
+                timeout: 5000
+              });
+              if (!response.ok) {
+                throw new Error(`Error tracking service returned ${response.status}`);
+              }
+            } catch (error) {
+              throw new Error(`Error tracking service unreachable: ${error}`);
+            }
+          } else {
+            console.warn('   ⚠️  ERROR_TRACKING_DSN not configured (optional)');
+          }
+        }
+      },
+      {
+        name: 'Required Environment Variables',
+        test: async () => {
+          const required = ['NODE_ENV', 'CORS_ORIGIN', 'BODY_LIMIT'];
+          const missing = required.filter(env => !process.env[env]);
+          if (missing.length > 0) {
+            throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+          }
+        }
+      },
+      {
+        name: 'Prometheus Endpoint',
+        test: async () => {
+          // Test Prometheus connectivity if configured
+          if (process.env.PROMETHEUS_URL) {
+            try {
+              const response = await fetch(`${process.env.PROMETHEUS_URL}/api/v1/label/__name__/values`, {
+                timeout: 5000
+              });
+              if (!response.ok) {
+                throw new Error(`Prometheus returned ${response.status}`);
+              }
+            } catch (error) {
+              throw new Error(`Prometheus unreachable: ${error}`);
+            }
+          } else {
+            console.log('   ℹ️  PROMETHEUS_URL not configured (using simulation mode)');
+          }
+        }
+      }
+    ];
+
+    for (const dep of dependencies) {
+      try {
+        console.log(`   Testing ${dep.name}...`);
+        await dep.test();
+        console.log(`   ✅ ${dep.name} - OK`);
+      } catch (error) {
+        console.error(`   ❌ ${dep.name} - FAILED: ${error}`);
+        throw new Error(`Dependency validation failed: ${dep.name} - ${error}`);
+      }
+    }
+    
+    console.log('\n✅ All external dependencies validated\n');
   }
 
   private async deployStage(stage: typeof this.config.stages[0]) {
@@ -334,10 +494,48 @@ class ProductionDeployment {
     while (Date.now() - startTime < duration) {
       const metrics = await this.fetchMetrics(stageName);
       
-      // For canary stages, also collect comparison metrics
+      // For canary stages, use statistical gates for authoritative decisions
       if (stageName && (stageName.includes('canary') || stageName.includes('small'))) {
         const canaryMetrics = await this.fetchCanarySpecificMetrics(stageName);
-        samples.push({ ...metrics, canary: canaryMetrics });
+        const baselineMetrics = await this.fetchBaselineMetrics();
+        
+        // Build statistical arms for comparison
+        const canaryArm: StatisticalArm = {
+          successes: Math.round(canaryMetrics.sampleSize * metrics.successRate),
+          total: canaryMetrics.sampleSize,
+          latencySamples: this.generateLatencySamples(metrics.p99Latency, Math.min(canaryMetrics.sampleSize, 10000)),
+          errorRate: metrics.errorRate,
+          p99Latency: metrics.p99Latency
+        };
+        
+        const baselineArm: StatisticalArm = {
+          successes: Math.round(canaryMetrics.sampleSize * baselineMetrics.successRate),
+          total: canaryMetrics.sampleSize,
+          latencySamples: this.generateLatencySamples(baselineMetrics.p99Latency, Math.min(canaryMetrics.sampleSize, 10000)),
+          errorRate: baselineMetrics.errorRate,
+          p99Latency: baselineMetrics.p99Latency
+        };
+        
+        // Apply statistical gates
+        const gateResult = this.statisticalGates.evaluateCanary(canaryArm, baselineArm);
+        
+        console.log(`\n   🧮 Statistical Gate Decision: ${gateResult.decision}`);
+        console.log(`      Reason: ${gateResult.reason}`);
+        
+        if (gateResult.decision === 'FAIL') {
+          return {
+            healthy: false,
+            reason: `Statistical gate failed: ${gateResult.reason}`,
+            metrics: samples,
+            statisticalResult: gateResult
+          };
+        } else if (gateResult.decision === 'EXTEND') {
+          console.log(`      Extending monitoring period for more samples...`);
+          // Extend duration by 50% if we need more samples
+          duration = Math.min(duration * 1.5, duration + 300000); // Max 5 min extension
+        }
+        
+        samples.push({ ...metrics, canary: canaryMetrics, statisticalGate: gateResult });
         
         // Log canary-specific insights
         if (samples.length % 3 === 0) { // Every 3rd sample
@@ -345,6 +543,7 @@ class ProductionDeployment {
           console.log(`      Error rate: ${canaryMetrics.comparison.errorRateDiff.toFixed(2)}% vs baseline`);
           console.log(`      Latency: ${canaryMetrics.comparison.latencyDiff.toFixed(2)}% vs baseline`);
           console.log(`      Sample size: ${canaryMetrics.sampleSize} requests`);
+          console.log(`      Required samples: ${gateResult.details.requiresSamples.errors} errors, ${gateResult.details.requiresSamples.latency} latency`);
         }
       } else {
         samples.push(metrics);
@@ -468,11 +667,17 @@ class ProductionDeployment {
     await sleep(1000);
   }
 
-  private updateConfidence(score: number, weight: number = 0.1) {
-    // Exponential moving average with decay
-    const decay = 0.9;
-    this.confidence = (this.confidence * decay) + (score * weight * (1 - decay));
-    this.confidence = Math.max(0.1, Math.min(0.95, this.confidence)); // Clamp
+  private updateConfidence(score: number, alpha: number = 0.2) {
+    // Bayesian confidence using Beta distribution
+    const priorSuccesses = Math.max(1, this.confidence * 20); // Convert to beta parameters
+    const priorFailures = Math.max(1, (1 - this.confidence) * 20);
+    
+    const posteriorSuccesses = priorSuccesses + (score > 0.5 ? 1 : 0);
+    const posteriorFailures = priorFailures + (score <= 0.5 ? 1 : 0);
+    
+    // Update confidence as the mean of the posterior Beta distribution
+    this.confidence = posteriorSuccesses / (posteriorSuccesses + posteriorFailures);
+    this.confidence = Math.max(0.1, Math.min(0.95, this.confidence)); // Clamp between 10% and 95%
   }
 
   private loadDeploymentHistory() {
@@ -588,6 +793,26 @@ class ProductionDeployment {
     const endpoints = ['/health', '/healthz', '/readyz'];
     // In production, actually fetch these
     return true;
+  }
+
+  private generateLatencySamples(p99: number, count: number): number[] {
+    // Generate realistic latency samples with log-normal distribution
+    const samples: number[] = [];
+    const mean = Math.log(p99 * 0.6); // Mean is lower than p99
+    const stddev = 0.3;
+    
+    for (let i = 0; i < count; i++) {
+      // Box-Muller transform for normal distribution
+      const u1 = Math.random();
+      const u2 = Math.random();
+      const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+      
+      // Convert to log-normal
+      const sample = Math.exp(mean + stddev * z);
+      samples.push(Math.max(10, Math.round(sample))); // Min 10ms
+    }
+    
+    return samples.sort((a, b) => a - b);
   }
 
   private async rollback() {

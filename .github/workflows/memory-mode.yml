@@ -1,0 +1,26 @@
+name: CI (Memory Mode)
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ feat/*, fix/*, chore/* ]
+
+jobs:
+  memory-mode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - name: Install deps (CI)
+        run: npm ci --ignore-scripts
+      - name: Type Check
+        run: npm run check
+      - name: Verify Memory Mode (no Redis)
+        run: npm run verify:no-redis
+      - name: Tests (memory mode)
+        run: npm run test:memory

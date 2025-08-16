@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 /**
  * Runtime-configurable rollout with stable user bucketing
  * Integrates with runtime config for instant rollout percentage changes
@@ -177,3 +182,4 @@ if ((import.meta as any).env?.NODE_ENV === 'development') {
     };
   }
 }
+

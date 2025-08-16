@@ -52,7 +52,23 @@
       "Bash(npm uninstall:*)",
       "Bash(timeout:*)",
       "Bash(npm:*)",
-      "Bash(npm i:*)"
+      "Bash(npm i:*)",
+      "Bash(tsx scripts/fix-critical-issues.ts:*)",
+      "Bash(npx tsx:*)",
+      "Bash(REDIS_URL=memory:// npm run circuit-breaker status)",
+      "Bash(REDIS_URL=memory:// tsx scripts/circuit-breaker-cli.ts status)",
+      "Bash(REDIS_URL=memory:// npx tsx scripts/circuit-breaker-cli.ts status)",
+      "Bash(REDIS_URL=memory:// npx tsx scripts/circuit-breaker-cli.ts help)",
+      "Bash(REDIS_URL=memory:// npx vitest run tests/integration/dev-memory-mode.test.ts)",
+      "Bash(PORT=5001 REDIS_URL=memory:// ENABLE_QUEUES=0 tsx server/bootstrap.ts)",
+      "Bash(PORT=5001 REDIS_URL=memory:// ENABLE_QUEUES=0 npx tsx server/bootstrap.ts)",
+      "Bash(PORT=5003 REDIS_URL=memory:// ENABLE_QUEUES=0 npx tsx server/bootstrap.ts)",
+      "Bash(PORT=5004 REDIS_URL=memory:// ENABLE_QUEUES=0 npx tsx server/bootstrap.ts)",
+      "Bash(git apply:*)",
+      "Bash(touch:*)",
+      "Bash(rg:*)",
+      "Bash(git grep:*)",
+      "Bash(gh run view:*)"
     ],
     "deny": []
   }

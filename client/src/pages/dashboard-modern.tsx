@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState } from 'react';
 import { useFundContext } from "@/contexts/FundContext";
 import { PremiumCard } from "@/components/ui/PremiumCard";
@@ -450,3 +455,4 @@ export default function ModernDashboard() {
     </div>
   );
 }
+

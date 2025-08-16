@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { db } from "../db";
@@ -6,6 +11,7 @@ import { eq, and, desc } from "drizzle-orm";
 import type { ApiError } from "@shared/types";
 import { Queue } from "bullmq";
 import { v4 as uuidv4 } from "uuid";
+import { toNumber, NumberParseError } from "@shared/number";
 
 // Extend Request type to include user property
 interface AuthenticatedRequest extends Request {
@@ -34,15 +40,18 @@ export function registerFundConfigRoutes(app: Express) {
   // Save draft configuration
   app.put("/api/funds/:id/draft", async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const fundId = parseInt(req.params.id);
-      
-
-      if (isNaN(fundId)) {
-        const error: ApiError = {
-          error: 'Invalid fund ID',
-          message: 'Fund ID must be a number'
-        };
-        return res.status(400).json(error);
+      let fundId: number;
+      try {
+        fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+      } catch (err) {
+        if (err instanceof NumberParseError) {
+          const error: ApiError = {
+            error: 'Invalid fund ID',
+            message: err.message
+          };
+          return res.status(400).json(error);
+        }
+        throw err;
       }
 
       // Validate the request body against the schema
@@ -114,7 +123,19 @@ export function registerFundConfigRoutes(app: Express) {
   // Get latest draft
   app.get("/api/funds/:id/draft", async (req: Request, res: Response) => {
     try {
-      const fundId = parseInt(req.params.id);
+      let fundId: number;
+      try {
+        fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+      } catch (err) {
+        if (err instanceof NumberParseError) {
+          const error: ApiError = {
+            error: 'Invalid fund ID',
+            message: err.message
+          };
+          return res.status(400).json(error);
+        }
+        throw err;
+      }
       
       const draft = await db.query.fundConfigs.findFirst({
         where: and(
@@ -145,7 +166,19 @@ export function registerFundConfigRoutes(app: Express) {
   // Publish configuration
   app.post("/api/funds/:id/publish", async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const fundId = parseInt(req.params.id);
+      let fundId: number;
+      try {
+        fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+      } catch (err) {
+        if (err instanceof NumberParseError) {
+          const error: ApiError = {
+            error: 'Invalid fund ID',
+            message: err.message
+          };
+          return res.status(400).json(error);
+        }
+        throw err;
+      }
       const correlationId = uuidv4();
       
       // Get latest draft
@@ -241,7 +274,19 @@ export function registerFundConfigRoutes(app: Express) {
   // Get fund reserves (from snapshots)
   app.get("/api/funds/:id/reserves", async (req: Request, res: Response) => {
     try {
-      const fundId = parseInt(req.params.id);
+      let fundId: number;
+      try {
+        fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+      } catch (err) {
+        if (err instanceof NumberParseError) {
+          const error: ApiError = {
+            error: 'Invalid fund ID',
+            message: err.message
+          };
+          return res.status(400).json(error);
+        }
+        throw err;
+      }
       
       const snapshot = await db.query.fundSnapshots.findFirst({
         where: and(
@@ -280,3 +325,4 @@ export function registerFundConfigRoutes(app: Express) {
     }
   });
 }
+

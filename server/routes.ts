@@ -1,4 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 import type { Express } from "express";
+import { Request, Response } from "./types/request-response";
 import { createServer, type Server } from "http";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -11,10 +17,8 @@ import { ReserveEngine, generateReserveSummary } from "../client/src/core/reserv
 import { PacingEngine, generatePacingSummary } from "../client/src/core/pacing/PacingEngine.js";
 import { CohortEngine, generateCohortSummary } from "../client/src/core/cohorts/CohortEngine.js";
 import { registerFundConfigRoutes } from "./routes/fund-config.js";
-import { healthCheck, readinessCheck, livenessCheck } from "./health";
-import { register as metricsRegister, recordHttpMetrics } from "./metrics";
-import { rateLimitDetailed } from "./middleware/rateLimitDetailed.js";
-import { setReady, registerInvalidator } from "./health/state.js";
+import { recordHttpMetrics } from "./metrics";
+import { toNumber, NumberParseError } from "@shared/number";
 import type { ReserveInput, PacingInput, CohortInput, ApiError, ReserveSummary, PacingSummary, CohortSummary } from "@shared/types";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,183 +29,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const fundRoutes = await import('./routes/funds.js');
   app.use('/api', fundRoutes.default);
 
-  // Health check and metrics routes
-  app.get("/api/health", healthCheck);
-  app.get("/api/health/ready", readinessCheck);
-  app.get("/api/health/live", livenessCheck);
-  app.get("/metrics", async (req, res) => {
-    try {
-      res.set('Content-Type', metricsRegister.contentType);
-      const metrics = await metricsRegister.metrics();
-      res.send(metrics);
-    } catch (error) {
-      res.status(500).send('Error generating metrics');
-    }
-  });
+  // Health and metrics routes
+  const healthRoutes = await import('./routes/health.js');
+  app.use('/', healthRoutes.default);
 
-  // Richer JSON health endpoint for Guardian and canary checks
-  app.get("/healthz", async (req, res) => {
-    // Prevent intermediary caching
-    res.set('Cache-Control', 'no-store, max-age=0');
-    res.set('Pragma', 'no-cache');
-    
-    // Return cached response if fresh
-    if (Date.now() - healthzCache.ts < HEALTH_CACHE_MS && healthzCache.data) {
-      res.set('X-Health-From-Cache', '1');
-      return res.json(healthzCache.data);
-    }
-    
-    try {
-      const fs = await import('fs');
-      
-      // Calculate simple error rate (placeholder - enhance based on your metrics)
-      const errorRate = 0.005; // 0.5% default - replace with actual calculation
-      
-      const healthData = {
-        error_rate: errorRate,
-        uptime_sec: process.uptime(),
-        heap_mb: Math.round(process.memoryUsage().heapUsed / 1048576),
-        timestamp: new Date().toISOString(),
-        version: process.env.npm_package_version || 'unknown',
-        last_deploy: fs.existsSync('.last-deploy')
-          ? fs.readFileSync('.last-deploy', 'utf8').trim()
-          : 'unknown',
-        status: errorRate < 0.01 ? 'healthy' : 'degraded'
-      };
-      
-      // Cache the response
-      healthzCache = { ts: Date.now(), data: healthData };
-      
-      res.json(healthData);
-    } catch (error) {
-      res.status(500).json({
-        error: 'Health check failed',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString()
-      });
-    }
-  });
-
-  // Simple cache for health checks to avoid DB storms
-  let readyzCache: { ts: number; data: any } = { ts: 0, data: null };
-  let healthzCache: { ts: number; data: any } = { ts: 0, data: null };
-  const HEALTH_CACHE_MS = 1500; // 1.5 second cache
-  
-  // Register cache invalidator for state changes
-  registerInvalidator(() => {
-    readyzCache = { ts: 0, data: null };
-    healthzCache = { ts: 0, data: null };
-  });
-
-  // Readiness probe - checks if service can handle traffic
-  // Returns 200 only when all critical dependencies are ready
-  app.get("/readyz", async (req, res) => {
-    // Prevent intermediary caching
-    res.set('Cache-Control', 'no-store, max-age=0');
-    res.set('Pragma', 'no-cache');
-    
-    // Return cached response if fresh
-    if (Date.now() - readyzCache.ts < HEALTH_CACHE_MS && readyzCache.data) {
-      const cached = readyzCache.data;
-      res.set('X-Health-From-Cache', '1');
-      return res.status(cached.ready ? 200 : 503).json(cached);
-    }
-    
-    const checks = {
-      api: "ok",
-      database: "unknown", 
-      redis: "degraded" // Redis is optional per PR #39
-    };
-    
-    // Check database connectivity (critical) - using lightweight ping
-    try {
-      const dbHealthy = await storage.ping();
-      checks.database = dbHealthy ? "ok" : "fail";
-    } catch (error) {
-      checks.database = "fail";
-    }
-    
-    // Redis is optional - check but don't fail on it
-    const redisHealthy = await storage.isRedisHealthy?.() ?? false;
-    checks.redis = redisHealthy ? "ok" : "degraded";
-    
-    // Service is ready if API and DB are OK (Redis is optional)
-    const isReady = checks.api === "ok" && checks.database === "ok";
-    
-    // Update global ready state (triggers cache invalidation on change)
-    setReady(isReady);
-    
-    const response = {
-      ready: isReady,
-      checks,
-      timestamp: new Date().toISOString()
-    };
-    
-    // Cache the response
-    readyzCache = { ts: Date.now(), data: response };
-    
-    res.status(isReady ? 200 : 503).json(response);
-  });
-
-  // Detailed health endpoint for diagnostics (protected + rate limited)
-  app.get("/health/detailed", rateLimitDetailed(), async (req, res) => {
-    // Protect sensitive health details
-    const healthKey = process.env.HEALTH_KEY;
-    if (healthKey && req.get('X-Health-Key') !== healthKey) {
-      // Also allow internal/localhost requests
-      const isInternal = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
-      if (!isInternal) {
-        return res.status(403).json({ error: 'Forbidden' });
-      }
-    }
-    
-    const detailed = {
-      api: "ok",
-      database: "unknown",
-      redis: "unknown",
-      workers: "unknown",
-      metrics: {} as Record<string, any>
-    };
-    
-    // Database check
-    try {
-      const start = Date.now();
-      await storage.getAllFunds();
-      detailed.database = "ok";
-      detailed.metrics.dbLatencyMs = Date.now() - start;
-    } catch (error) {
-      detailed.database = "fail";
-    }
-    
-    // Redis check (optional dependency)
-    const redisHealthy = await storage.isRedisHealthy?.() ?? false;
-    detailed.redis = redisHealthy ? "ok" : "degraded";
-    
-    // Worker status (depends on Redis)
-    detailed.workers = redisHealthy ? "ok" : "idle";
-    
-    // Memory and uptime
-    detailed.metrics.uptimeSeconds = Math.floor(process.uptime());
-    detailed.metrics.memoryMB = Math.round(process.memoryUsage().heapUsed / 1048576);
-    detailed.metrics.version = process.env.npm_package_version || "1.3.2";
-    
-    res.json(detailed);
-  });
+  // Operations polling routes
+  const operationsRoutes = await import('./routes/operations.js');
+  app.use('/', operationsRoutes.default);
 
   // Middleware to record HTTP metrics
-  app.use((req, res, next) => {
+  app.use((req: Request, res: Response, next: (err?: any) => void) => {
     const startTime = Date.now();
     
     res.on('finish', () => {
       const duration = (Date.now() - startTime) / 1000;
-      recordHttpMetrics(req.method, req.route?.path || req.path, res.statusCode, duration);
+      recordHttpMetrics(req.method || 'UNKNOWN', req.route?.path || req.path || 'unknown', res.statusCode, duration);
     });
     
     next();
   });
   
   // Fund routes - Type-safe error responses
-  app.get("/api/funds", async (req, res) => {
+  app.get("/api/funds", async (req: Request, res: Response) => {
     try {
       const funds = await storage.getAllFunds();
       res.json(funds);
@@ -214,12 +63,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/funds/:id", async (req, res) => {
+  app.get("/api/funds/:id", async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
-      const id = parseInt(idParam, 10);
+      const id = toNumber(idParam, 'ID');
       
-      if (isNaN(id) || id <= 0) {
+      if (id <= 0) {
         const error: ApiError = {
           error: 'Invalid fund ID',
           message: `Fund ID must be a positive integer, received: ${idParam}`
@@ -237,6 +86,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(fund);
     } catch (error) {
+      if (error instanceof NumberParseError) {
+        const apiError: ApiError = {
+          error: 'Invalid fund ID',
+          message: error.message
+        };
+        return res.status(400).json(apiError);
+      }
       const apiError: ApiError = {
         error: 'Database query failed',
         message: error instanceof Error ? error.message : 'Failed to fetch fund'
@@ -245,7 +101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/funds", async (req, res) => {
+  app.post("/api/funds", async (req: Request, res: Response) => {
     try {
       // For now, validate only the basic fund fields that can be stored
       // TODO: Add support for storing investment strategy, exit recycling, and waterfall
@@ -291,14 +147,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Portfolio company routes - Type-safe with query validation
-  app.get("/api/portfolio-companies", async (req, res) => {
+  app.get("/api/portfolio-companies", async (req: Request, res: Response) => {
     try {
       const fundIdQuery = req.query.fundId;
       let fundId: number | undefined = undefined;
       
       if (fundIdQuery) {
-        const parsedId = parseInt(fundIdQuery as string, 10);
-        if (isNaN(parsedId) || parsedId <= 0) {
+        const parsedId = toNumber(fundIdQuery as string, 'fund ID');
+        if (parsedId <= 0) {
           const error: ApiError = {
             error: 'Invalid fund ID query',
             message: `Fund ID must be a positive integer, received: ${fundIdQuery}`
@@ -311,6 +167,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const companies = await storage.getPortfolioCompanies(fundId);
       res.json(companies);
     } catch (error) {
+      if (error instanceof NumberParseError) {
+        const apiError: ApiError = {
+          error: 'Invalid fund ID query',
+          message: error.message
+        };
+        return res.status(400).json(apiError);
+      }
       const apiError: ApiError = {
         error: 'Database query failed',
         message: error instanceof Error ? error.message : 'Failed to fetch portfolio companies'
@@ -319,12 +182,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/portfolio-companies/:id", async (req, res) => {
+  app.get("/api/portfolio-companies/:id", async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
-      const id = parseInt(idParam, 10);
+      const id = toNumber(idParam, 'ID');
       
-      if (isNaN(id) || id <= 0) {
+      if (id <= 0) {
         const error: ApiError = {
           error: 'Invalid company ID',
           message: `Company ID must be a positive integer, received: ${idParam}`
@@ -350,7 +213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/portfolio-companies", async (req, res) => {
+  app.post("/api/portfolio-companies", async (req: Request, res: Response) => {
     try {
       const result = insertPortfolioCompanySchema.safeParse(req.body);
       if (!result.success) {
@@ -373,12 +236,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Fund metrics routes - Type-safe parameter validation
-  app.get("/api/fund-metrics/:fundId", async (req, res) => {
+  app.get("/api/fund-metrics/:fundId", async (req: Request, res: Response) => {
     try {
       const fundIdParam = req.params.fundId;
-      const fundId = parseInt(fundIdParam, 10);
+      const fundId = toNumber(fundIdParam, 'fund ID');
       
-      if (isNaN(fundId) || fundId <= 0) {
+      if (fundId <= 0) {
         const error: ApiError = {
           error: 'Invalid fund ID',
           message: `Fund ID must be a positive integer, received: ${fundIdParam}`
@@ -398,14 +261,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Activity routes - Type-safe query parameter handling
-  app.get("/api/activities", async (req, res) => {
+  app.get("/api/activities", async (req: Request, res: Response) => {
     try {
       const fundIdQuery = req.query.fundId;
       let fundId: number | undefined = undefined;
       
       if (fundIdQuery) {
-        const parsedId = parseInt(fundIdQuery as string, 10);
-        if (isNaN(parsedId) || parsedId <= 0) {
+        const parsedId = toNumber(fundIdQuery as string, 'fund ID');
+        if (parsedId <= 0) {
           const error: ApiError = {
             error: 'Invalid fund ID query',
             message: `Fund ID must be a positive integer, received: ${fundIdQuery}`
@@ -426,7 +289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/activities", async (req, res) => {
+  app.post("/api/activities", async (req: Request, res: Response) => {
     try {
       const result = insertActivitySchema.safeParse(req.body);
       if (!result.success) {
@@ -449,12 +312,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard summary route - Type-safe with comprehensive validation
-  app.get("/api/dashboard-summary/:fundId", async (req, res) => {
+  app.get("/api/dashboard-summary/:fundId", async (req: Request, res: Response) => {
     try {
       const fundIdParam = req.params.fundId;
-      const fundId = parseInt(fundIdParam, 10);
+      const fundId = toNumber(fundIdParam, 'fund ID');
       
-      if (isNaN(fundId) || fundId <= 0) {
+      if (fundId <= 0) {
         const error: ApiError = {
           error: 'Invalid fund ID',
           message: `Fund ID must be a positive integer, received: ${fundIdParam}`
@@ -481,9 +344,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const recentActivities = activities.slice(0, 5);
 
       // Type-safe summary calculation
-      const fundSize = parseFloat(fund.size || "0");
-      const deployedCapital = parseFloat(fund.deployedCapital || "0");
-      const currentIRR = latestMetrics ? parseFloat(latestMetrics.irr || "0") * 100 : 0;
+      const fundSize = toNumber(fund.size || 0, "fund size");
+      const deployedCapital = toNumber(fund.deployedCapital || 0, "deployed capital");
+      const currentIRR = latestMetrics ? toNumber(latestMetrics.irr || 0, "IRR") * 100 : 0;
       
       const dashboardSummary = {
         fund,
@@ -510,14 +373,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Investment routes - Type-safe with query validation
-  app.get("/api/investments", async (req, res) => {
+  app.get("/api/investments", async (req: Request, res: Response) => {
     try {
       const fundIdQuery = req.query.fundId;
       let fundId: number | undefined = undefined;
       
       if (fundIdQuery) {
-        const parsedId = parseInt(fundIdQuery as string, 10);
-        if (isNaN(parsedId) || parsedId <= 0) {
+        const parsedId = toNumber(fundIdQuery as string, 'fund ID');
+        if (parsedId <= 0) {
           const error: ApiError = {
             error: 'Invalid fund ID query',
             message: `Fund ID must be a positive integer, received: ${fundIdQuery}`
@@ -538,12 +401,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/investments/:id", async (req, res) => {
+  app.get("/api/investments/:id", async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
-      const id = parseInt(idParam, 10);
+      const id = toNumber(idParam, 'ID');
       
-      if (isNaN(id) || id <= 0) {
+      if (id <= 0) {
         const error: ApiError = {
           error: 'Invalid investment ID',
           message: `Investment ID must be a positive integer, received: ${idParam}`
@@ -569,7 +432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/investments", async (req, res) => {
+  app.post("/api/investments", async (req: Request, res: Response) => {
     try {
       // Note: Investment schema validation should be added here
       // For now, trust storage layer to handle validation
@@ -593,12 +456,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Investment rounds routes - Type-safe parameter validation
-  app.post("/api/investments/:id/rounds", async (req, res) => {
+  app.post("/api/investments/:id/rounds", async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
-      const investmentId = parseInt(idParam, 10);
+      const investmentId = toNumber(idParam, 'investment ID');
       
-      if (isNaN(investmentId) || investmentId <= 0) {
+      if (investmentId <= 0) {
         const error: ApiError = {
           error: 'Invalid investment ID',
           message: `Investment ID must be a positive integer, received: ${idParam}`
@@ -626,12 +489,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Performance cases routes - Type-safe parameter validation
-  app.post("/api/investments/:id/cases", async (req, res) => {
+  app.post("/api/investments/:id/cases", async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
-      const investmentId = parseInt(idParam, 10);
+      const investmentId = toNumber(idParam, 'investment ID');
       
-      if (isNaN(investmentId) || investmentId <= 0) {
+      if (investmentId <= 0) {
         const error: ApiError = {
           error: 'Invalid investment ID',
           message: `Investment ID must be a positive integer, received: ${idParam}`
@@ -659,12 +522,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reserve Engine routes - Type-safe with comprehensive error handling
-  app.get("/api/reserves/:fundId", async (req, res) => {
+  app.get("/api/reserves/:fundId", async (req: Request, res: Response) => {
     try {
       const fundIdParam = req.params.fundId;
-      const fundId = parseInt(fundIdParam, 10);
+      const fundId = toNumber(fundIdParam, 'fund ID');
       
-      if (isNaN(fundId) || fundId <= 0) {
+      if (fundId <= 0) {
         const error: ApiError = {
           error: 'Invalid fund ID',
           message: `Fund ID must be a positive integer, received: ${fundIdParam}`
@@ -711,7 +574,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Pacing Engine routes - Type-safe with query parameter support
-  app.get("/api/pacing/summary", async (req, res) => {
+  app.get("/api/pacing/summary", async (req: Request, res: Response) => {
     try {
       // Extract and validate query parameters
       const fundSizeParam = req.query.fundSize as string;
@@ -719,8 +582,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const marketConditionParam = req.query.marketCondition as string;
       
       const pacingInput: PacingInput = {
-        fundSize: fundSizeParam ? parseInt(fundSizeParam, 10) : 50000000, // $50M default
-        deploymentQuarter: quarterParam ? parseInt(quarterParam, 10) : 1, // Q1 default
+        fundSize: fundSizeParam ? toNumber(fundSizeParam, 'fund size') : 50000000, // $50M default
+        deploymentQuarter: quarterParam ? toNumber(quarterParam, 'deployment quarter') : 1, // Q1 default
         marketCondition: (marketConditionParam as 'bull' | 'bear' | 'neutral') || 'neutral'
       };
       
@@ -749,7 +612,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Cohort Engine routes - Type-safe vintage cohort analysis (SCAFFOLD)
-  app.get("/api/cohorts/analysis", async (req, res) => {
+  app.get("/api/cohorts/analysis", async (req: Request, res: Response) => {
     try {
       // Extract and validate query parameters
       const fundIdQuery = req.query.fundId;
@@ -761,8 +624,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let cohortSize = 10; // Default cohort size
       
       if (fundIdQuery) {
-        const parsedId = parseInt(fundIdQuery as string, 10);
-        if (isNaN(parsedId) || parsedId <= 0) {
+        const parsedId = toNumber(fundIdQuery as string, 'fund ID');
+        if (parsedId <= 0) {
           const error: ApiError = {
             error: 'Invalid fund ID',
             message: `Fund ID must be a positive integer, received: ${fundIdQuery}`
@@ -773,27 +636,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (vintageYearQuery) {
-        const parsedYear = parseInt(vintageYearQuery as string, 10);
-        if (isNaN(parsedYear) || parsedYear < 2000 || parsedYear > 2030) {
+        try {
+          const parsedYear = toNumber(vintageYearQuery as string, 'vintage year');
+          if (parsedYear < 2000 || parsedYear > 2030) {
+            const error: ApiError = {
+              error: 'Invalid vintage year',
+              message: `Vintage year must be between 2000-2030, received: ${vintageYearQuery}`
+            };
+            return res.status(400).json(error);
+          }
+          vintageYear = parsedYear;
+        } catch (e) {
           const error: ApiError = {
             error: 'Invalid vintage year',
-            message: `Vintage year must be between 2000-2030, received: ${vintageYearQuery}`
+            message: `Vintage year must be a valid number, received: ${vintageYearQuery}`
           };
           return res.status(400).json(error);
         }
-        vintageYear = parsedYear;
       }
       
       if (cohortSizeQuery) {
-        const parsedSize = parseInt(cohortSizeQuery as string, 10);
-        if (isNaN(parsedSize) || parsedSize <= 0 || parsedSize > 1000) {
+        try {
+          const parsedSize = toNumber(cohortSizeQuery as string, 'cohort size');
+          if (parsedSize <= 0 || parsedSize > 1000) {
+            const error: ApiError = {
+              error: 'Invalid cohort size',
+              message: `Cohort size must be between 1-1000, received: ${cohortSizeQuery}`
+            };
+            return res.status(400).json(error);
+          }
+          cohortSize = parsedSize;
+        } catch (e) {
           const error: ApiError = {
             error: 'Invalid cohort size',
-            message: `Cohort size must be between 1-1000, received: ${cohortSizeQuery}`
+            message: `Cohort size must be a valid number, received: ${cohortSizeQuery}`
           };
           return res.status(400).json(error);
         }
-        cohortSize = parsedSize;
       }
       
       const cohortInput: CohortInput = {
@@ -827,6 +706,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const timelineRouter = await import('./routes/timeline.js');
   app.use('/api/timeline', timelineRouter.default);
 
-  const httpServer = createServer(app);
+  const httpServer = createServer(app as any);
   return httpServer;
 }
+

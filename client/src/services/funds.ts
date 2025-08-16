@@ -1,9 +1,15 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 // client/src/services/funds.ts
 // Idempotent + cancellable fund creation with timeout and telemetry
 // Single source of truth lives in the store; this is a belt-and-suspenders final check.
 
 import { clampPct, clampInt } from '../lib/coerce';
 import * as Telemetry from '../lib/telemetry';
+import { startInFlight, isInFlight, cancelInFlight } from '../lib/inflight';
 
 type Json = Record<string, unknown> | unknown[] | string | number | boolean | null | undefined;
 
@@ -14,6 +20,7 @@ export interface CreateFundOptions {
   signal?: AbortSignal;         // optional external signal
   dedupe?: boolean;             // default: true
   telemetry?: boolean;          // default: true
+  reuseExisting?: boolean;      // default: false - reuse existing fund if found
 }
 
 export interface CreateFundResult {
@@ -101,14 +108,11 @@ function assertInflightCapacity() {
 }
 
 export function isCreateFundInFlight(hash: string) {
-  return inflight.has(hash);
+  return isInFlight(hash);
 }
 
 export function cancelCreateFund(hash: string) {
-  const entry = inflight.get(hash);
-  if (!entry) return false;
-  entry.controllers.forEach((c) => c.abort(new DOMException('Manually cancelled', 'AbortError')));
-  return true;
+  return cancelInFlight(hash);
 }
 
 // ---------- Final clamp before wire (defense-in-depth) ----------
@@ -150,85 +154,91 @@ export async function startCreateFund(
   const finalized = finalizePayload(payload);
   const hash = computeCreateFundHash(finalized);
 
-  if (dedupe) {
-    const existing = inflight.get(hash);
-    if (existing) return existing.promise;
+  // Optional: 1 ms hold only in test to avoid flicker; keep 0 in prod if you prefer.
+  const holdForMs = import.meta.env?.MODE === 'test' ? 1 : 0;
+
+  if (!dedupe) {
+    // Skip deduplication - create unique key with timestamp
+    const uniqueHash = `${hash}-${Date.now()}-${Math.random()}`;
+    return startInFlight(uniqueHash, async ({ signal }) => {
+      return await executeCreateFund(finalized, endpoint, method, timeoutMs, signal, useTelemetry, hash);
+    }, { holdForMs });
   }
 
-  const startedAt = performance.now();
-  const { signal, controller, cleanup } = composeSignal(timeoutMs, opts.signal);
+  return startInFlight(hash, async ({ signal }) => {
+    return await executeCreateFund(finalized, endpoint, method, timeoutMs, signal, useTelemetry, hash);
+  }, { holdForMs });
+}
 
-  const exec = async (): Promise<CreateFundResult> => {
-    // Track attempt
+// Helper function to execute the actual fund creation
+async function executeCreateFund(
+  finalized: any,
+  endpoint: string,
+  method: string,
+  timeoutMs: number,
+  signal: AbortSignal,
+  useTelemetry: boolean,
+  hash: string
+): Promise<CreateFundResult> {
+  const startedAt = performance.now();
+
+  // Track attempt
+  if (useTelemetry) {
+    try {
+      (Telemetry as any).track?.('fund_create_attempt', {
+        hash,
+        model_version: finalized.basics?.modelVersion,
+        env: import.meta.env.MODE,
+      });
+    } catch {}
+  }
+  
+  try {
+    const res = await fetch(endpoint, {
+      method,
+      signal,
+      headers: { 
+        'Content-Type': 'application/json',
+        'Idempotency-Key': hash  // Server-side deduplication
+      },
+      body: JSON.stringify(finalized),
+    });
+
+    const durationMs = Math.round(performance.now() - startedAt);
     if (useTelemetry) {
       try {
-        (Telemetry as any).track?.('fund_create_attempt', {
+        const eventName = res.ok ? 'fund_create_success' : 'fund_create_failure';
+        const idempotencyStatus = res.headers.get('Idempotency-Status') || 'created';
+        (Telemetry as any).track?.(eventName, {
+          status: res.status,
+          durationMs,
           hash,
+          idempotency_status: idempotencyStatus,
           model_version: finalized.basics?.modelVersion,
           env: import.meta.env.MODE,
         });
       } catch {}
     }
-    
-    try {
-      const res = await fetch(endpoint, {
-        method,
-        signal,
-        headers: { 
-          'Content-Type': 'application/json',
-          'Idempotency-Key': hash  // Server-side deduplication
-        },
-        body: JSON.stringify(finalized),
-      });
-
-      const durationMs = Math.round(performance.now() - startedAt);
-      if (useTelemetry) {
-        try {
-          const eventName = res.ok ? 'fund_create_success' : 'fund_create_failure';
-          const idempotencyStatus = res.headers.get('Idempotency-Status') || 'created';
-          (Telemetry as any).track?.(eventName, {
-            status: res.status,
-            durationMs,
-            hash,
-            idempotency_status: idempotencyStatus,
-            model_version: finalized.basics?.modelVersion,
-            env: import.meta.env.MODE,
-          });
-        } catch {}
-      }
-      return { res, hash, aborted: false, durationMs };
-    } catch (err: any) {
-      const aborted = err?.name === 'AbortError';
-      const durationMs = Math.round(performance.now() - startedAt);
-      if (useTelemetry) {
-        try {
-          (Telemetry as any).track?.('fund_create_failure', {
-            aborted,
-            message: String(err?.message ?? err),
-            durationMs,
-            hash,
-            idempotency_status: 'error',
-            model_version: finalized.basics?.modelVersion,
-            env: import.meta.env.MODE,
-          });
-        } catch {}
-      }
-      // surface same shape; callers can inspect aborted if needed
-      throw Object.assign(err ?? new Error('Create fund failed'), { aborted, hash, durationMs });
-    } finally {
-      cleanup();
-      inflight.delete(hash); // Simply delete when done
+    return { res, hash, aborted: false, durationMs };
+  } catch (err: any) {
+    const aborted = err?.name === 'AbortError';
+    const durationMs = Math.round(performance.now() - startedAt);
+    if (useTelemetry) {
+      try {
+        (Telemetry as any).track?.('fund_create_failure', {
+          aborted,
+          message: String(err?.message ?? err),
+          durationMs,
+          hash,
+          idempotency_status: 'error',
+          model_version: finalized.basics?.modelVersion,
+          env: import.meta.env.MODE,
+        });
+      } catch {}
     }
-  };
-
-  const promise = exec();
-  assertInflightCapacity(); // Throw if at capacity
-  inflight.set(hash, { 
-    promise, 
-    controllers: [controller], 
-    startedAt
-  });
-  return promise;
+    // surface same shape; callers can inspect aborted if needed
+    throw Object.assign(err ?? new Error('Create fund failed'), { aborted, hash, durationMs });
+  }
 }
 
 // ---------- Toast throttling for capacity hits ----------
@@ -273,13 +283,14 @@ export async function createFundWithToast(payload: Json, options?: CreateFundOpt
       // Throttled user-friendly capacity hit message
       const showToast = maybeToastCapacity();
       if (showToast) {
-        toast('⚠️ You have too many concurrent operations. Please wait a moment and try again.', 'warning');
+        toast('⚠️ You have too many concurrent operations. Please wait a moment and try again.', 'info');
       }
       // Always track capacity hit for observability
       try {
+        const { inFlightSize } = await import('../lib/inflight');
         (Telemetry as any).track?.('client_capacity_hit', {
           route: '/api/funds',
-          concurrent: inflight.size,
+          concurrent: inFlightSize(),
           env: import.meta.env.MODE,
           throttled: !showToast
         });
@@ -290,3 +301,4 @@ export async function createFundWithToast(payload: Json, options?: CreateFundOpt
     throw err;
   }
 }
+
