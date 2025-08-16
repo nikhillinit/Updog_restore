@@ -23,40 +23,51 @@ jobs:
         run: npm ci --legacy-peer-deps
       - name: Build
         run: npm run build --if-present
-      # Deploy to staging environment
-      # Option 1: Google Cloud Run
-      - name: Deploy to staging
+
+      # ===== GCP Auth (Workload Identity Federation preferred) =====
+      - name: Google Auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT }}
+
+      - name: Configure Docker auth
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build & Push Container
         env:
-          STAGING_URL: ${{ secrets.STAGING_URL }}
-          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/fund-calc/fund-calc:${{ github.sha }}
         run: |
-          # Example: Deploy to Cloud Run
-          # gcloud run deploy fund-calc-staging \
-          #   --image gcr.io/${{ secrets.GCP_PROJECT }}/fund-calc:${{ github.sha }} \
-          #   --platform managed \
-          #   --region us-central1 \
-          #   --allow-unauthenticated \
-          #   --set-env-vars="NODE_ENV=staging,REDIS_URL=${{ secrets.STAGING_REDIS_URL }}"
-          
-          # Example: Deploy to Vercel
-          # npx vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
-          
-          # Example: Deploy to Railway
-          # railway up --environment staging
-          
-          # Example: Deploy via webhook
-          curl -X POST ${{ secrets.STAGING_DEPLOY_WEBHOOK }} \
-            -H "Authorization: Bearer ${{ secrets.DEPLOY_KEY }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"version\":\"${{ github.sha }}\",\"branch\":\"main\"}"
-          
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      - name: Deploy to Cloud Run (staging)
+        env:
+          IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/fund-calc/fund-calc:${{ github.sha }}
+        run: |
+          gcloud run deploy ${{ secrets.GCP_SERVICE_NAME }} \
+            --image "$IMAGE" \
+            --platform managed \
+            --region ${{ secrets.GCP_REGION }} \
+            --allow-unauthenticated \
+            --set-env-vars NODE_ENV=staging,ENABLE_METRICS=1,REDIS_URL=${{ secrets.STAGING_REDIS_URL }} \
+            --update-secrets METRICS_KEY=metrics-key:latest,HEALTH_KEY=health-key:latest
+
       - name: Verify staging deployment
         run: |
-          # Wait for deployment to be ready
-          sleep 30
+          # Warm-up period
+          sleep 15
           
-          # Health check
-          curl -f --retry 5 --retry-delay 10 \
-            ${{ secrets.STAGING_URL }}/healthz || exit 1
+          # Liveness check
+          curl -fsSL ${{ secrets.STAGING_URL }}/healthz
           
-          echo "Staging deployment successful!"
+          # Metrics with auth (first 5 lines to verify it works)
+          curl -fsSL -H "Authorization: Bearer ${{ secrets.METRICS_KEY }}" \
+            ${{ secrets.STAGING_URL }}/metrics | head -n 5
+          
+          echo "Staging deployment looks healthy."

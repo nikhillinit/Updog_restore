@@ -1,47 +1,37 @@
-/**
- * Authentication middleware for metrics endpoint
- */
 import type { Request, Response, NextFunction } from 'express';
 
+/**
+ * Authentication middleware for /metrics.
+ * Supports either:
+ *  - Bearer token via METRICS_KEY, or
+ *  - IP allowlist via METRICS_ALLOW_FROM (comma-separated exact IPs)
+ *
+ * In production, if neither is set, deny by default.
+ */
 export function authenticateMetrics(req: Request, res: Response, next: NextFunction) {
-  // Option 1: Bearer token authentication
-  const authHeader = req.headers.authorization;
   const metricsKey = process.env.METRICS_KEY;
-  
-  if (metricsKey && authHeader && typeof authHeader === 'string') {
-    const [type, token] = authHeader.split(' ');
-    if (type === 'Bearer' && token === metricsKey) {
-      return next();
+  const allowFrom = (process.env.METRICS_ALLOW_FROM ?? '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  // Best-effort IP (trust proxy should be set at app level if behind LB)
+  const xff = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim();
+  const callerIp = xff || req.ip;
+
+  if (allowFrom.length && callerIp && allowFrom.includes(callerIp)) return next();
+
+  if (metricsKey) {
+    const auth = req.headers.authorization;
+    if (typeof auth === 'string') {
+      const [scheme, token] = auth.split(' ');
+      if (scheme === 'Bearer' && token === metricsKey) return next();
     }
   }
-  
-  // Option 2: IP allowlist for internal monitoring
-  const allowedIPs = (process.env.METRICS_ALLOWED_IPS || '').split(',').filter(Boolean);
-  const clientIP = req.ip || req.socket.remoteAddress || '';
-  
-  if (allowedIPs.length > 0) {
-    // Check if client IP is in allowlist
-    const isAllowed = allowedIPs.some(allowed => {
-      // Handle both direct IPs and CIDR ranges
-      return clientIP === allowed || 
-             clientIP === `::ffff:${allowed}` ||
-             (clientIP === '127.0.0.1' && allowed === 'localhost');
-    });
-    
-    if (isAllowed) {
-      return next();
-    }
+
+  // Deny by default in production
+  if (process.env.NODE_ENV === 'production' || metricsKey || allowFrom.length) {
+    return res.status(403).json({ error: 'Forbidden' });
   }
-  
-  // Option 3: Allow localhost in development
-  if (process.env.NODE_ENV === 'development' && 
-      (clientIP === '127.0.0.1' || clientIP === '::1' || clientIP === '::ffff:127.0.0.1')) {
-    return next();
-  }
-  
-  // Reject unauthorized access
-  res.status(403).json({ 
-    error: 'Forbidden',
-    message: 'Metrics access requires authentication'
-  });
+  next(); // Allow in dev if no auth configured
 }

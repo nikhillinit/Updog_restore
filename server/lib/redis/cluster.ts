@@ -2,6 +2,7 @@
  * Redis connection helper (single/cluster aware)
  */
 import { parseRedisConfig } from '../../config/redis';
+import * as fs from 'fs';
 
 export interface RedisConn {
   conn: any; // RedisClientType or RedisClusterType
@@ -21,19 +22,34 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
       throw new Error('Redis cluster mode requires nodes');
     }
     
-    // TLS configuration for production
     const tlsEnabled = cfg.tls || false;
+    const socketOptions: any = {
+      reconnectStrategy: (retries: number) => Math.min(1000 * retries, 5000),
+      connectTimeout: 5000
+    };
+
+    // Add TLS configuration if enabled
+    if (tlsEnabled) {
+      socketOptions.tls = true;
+      if (process.env.REDIS_CA_PATH) {
+        socketOptions.ca = fs.readFileSync(process.env.REDIS_CA_PATH);
+      }
+      if (process.env.REDIS_CERT_PATH) {
+        socketOptions.cert = fs.readFileSync(process.env.REDIS_CERT_PATH);
+      }
+      if (process.env.REDIS_KEY_PATH) {
+        socketOptions.key = fs.readFileSync(process.env.REDIS_KEY_PATH);
+      }
+      if (process.env.REDIS_SERVERNAME) {
+        socketOptions.servername = process.env.REDIS_SERVERNAME;
+      }
+    }
     
     const cluster = createCluster({
       rootNodes: cfg.nodes.map(node => ({ 
         url: `redis${tlsEnabled ? 's' : ''}://${node}` 
       })),
-      defaults: {
-        socket: {
-          reconnectStrategy: (retries: number) => Math.min(1000 * retries, 5000),
-          connectTimeout: 5000
-        }
-      }
+      defaults: { socket: socketOptions }
     });
 
     cluster.on('error', (err: any) => {
@@ -52,13 +68,32 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
   }
 
   // Single node
+  const socketOptions: any = {
+    reconnectStrategy: (retries: number) => Math.min(1000 * retries, 5000),
+    connectTimeout: 5000,
+    keepAlive: 1
+  };
+
+  // Add TLS if URL starts with rediss://
+  if (cfg.url?.startsWith('rediss://')) {
+    socketOptions.tls = true;
+    if (process.env.REDIS_CA_PATH) {
+      socketOptions.ca = fs.readFileSync(process.env.REDIS_CA_PATH);
+    }
+    if (process.env.REDIS_CERT_PATH) {
+      socketOptions.cert = fs.readFileSync(process.env.REDIS_CERT_PATH);
+    }
+    if (process.env.REDIS_KEY_PATH) {
+      socketOptions.key = fs.readFileSync(process.env.REDIS_KEY_PATH);
+    }
+    if (process.env.REDIS_SERVERNAME) {
+      socketOptions.servername = process.env.REDIS_SERVERNAME;
+    }
+  }
+
   const client = createClient({
     url: cfg.url,
-    socket: {
-      reconnectStrategy: (retries: number) => Math.min(1000 * retries, 5000),
-      connectTimeout: 5000,
-      keepAlive: 1
-    }
+    socket: socketOptions
   });
 
   client.on('error', (err: any) => {
