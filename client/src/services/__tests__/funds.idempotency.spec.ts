@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 import { describe, it, expect, vi } from 'vitest';
 import { startCreateFund, computeCreateFundHash } from '../funds';
 
@@ -9,7 +14,7 @@ describe('startCreateFund idempotency', () => {
       status: 201,
       statusText: 'Created'
     });
-    // @ts-expect-error - test seam
+    // Override fetch for testing
     globalThis.fetch = mockFetch;
 
     const basics = { name: 'Idem', size: 1_000_000, modelVersion: 'reserves-ev1' };

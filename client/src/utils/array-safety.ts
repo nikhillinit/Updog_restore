@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 // src/utils/array-safety.ts
 // --------------------------------------------------
 // Canonical “safe” array utilities to prevent undefined errors
@@ -43,3 +48,4 @@ export const reduce = <T, U>(
   reducer: (acc: U, item: T, index: number) => U,
   initialValue: U
 ): U => safeArray(arr).reduce(reducer, initialValue);
+

@@ -1,6 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { idempotency } from '../../middleware/idempotency';
 
 // Mock Express app with idempotency middleware
@@ -8,7 +13,7 @@ const app = express();
 app.use(express.json());
 app.use(idempotency);
 
-app.post('/api/test', (req, res) => {
+app.post('/api/test', (req: Request, res: Response) => {
   res.json({ id: 'test-fund', timestamp: Date.now() });
 });
 

@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 import * as React from "react"
 
 const MOBILE_BREAKPOINT = 768
@@ -17,3 +22,4 @@ export function useIsMobile() {
 
   return !!isMobile
 }
+

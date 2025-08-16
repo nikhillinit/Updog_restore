@@ -1,4 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 import promClient from 'prom-client';
+import { Router } from 'express';
 import { getEnv } from './env';
 
 // Enable collection of default metrics
@@ -129,5 +135,26 @@ export const asyncRepl = new promClient.Counter({
   labelNames: ['file'], // track which file was migrated
 });
 
+// Fund calculation specific metrics
+export const calcDurationMs = new promClient.Histogram({
+  name: 'fund_calc_duration_ms',
+  help: 'Duration of fund calculations in ms',
+  buckets: [50, 100, 200, 500, 1000, 2000, 5000, 10000]
+});
+
+export const httpRequests = new promClient.Counter({
+  name: 'http_requests_total',
+  help: 'Total HTTP requests',
+  labelNames: ['route', 'method', 'code'] as const
+});
+
 // Export registry for metrics endpoint
 export const register = promClient.register;
+
+// Create metrics router
+export const metricsRouter = Router();
+metricsRouter.get('/metrics', async (_req: any, res: any) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
+});
+

@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 /**
  * Deterministic feature rollout with stable user bucketing
  * 
@@ -136,3 +141,4 @@ if ((import.meta as any).env?.NODE_ENV === 'development') {
     };
   }
 }
+

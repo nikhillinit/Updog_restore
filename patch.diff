@@ -1,0 +1,288 @@
+diff --git a/package.json b/package.json
+index 1111111..2222222 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,54 @@
+ {
+   "name": "your-app",
+   "version": "0.0.0",
++  "scripts": {
++    "check": "tsc --noEmit --pretty false --extendedDiagnostics",
++    "lint": "eslint .",
++    "lint:fix": "eslint . --fix",
++    "test": "vitest run",
++    "test:watch": "vitest",
++    "dev:client": "vite",
++    "dev:api": "cross-env NODE_ENV=development node --require tsconfig-paths/register --loader tsx server/bootstrap.ts",
++    "dev:quick": "run-p -l dev:api dev:client",
++    "dev:wait": "wait-on -t 5000 http://localhost:5000/health",
++    "kill-ports": "kill-port 5000 5173 || true",
++    "prepare": "husky install"
++  },
++  "lint-staged": {
++    "*.{ts,tsx,js}": ["eslint --fix", "prettier --write"],
++    "*.md": ["prettier --write"]
++  },
++  "devDependencies": {
++    "@testing-library/jest-dom": "^6.4.2",
++    "@types/node": "^20.12.12",
++    "concurrently": "^8.2.2",
++    "cross-env": "^7.0.3",
++    "husky": "^9.0.11",
++    "jsdom": "^24.1.0",
++    "kill-port": "^2.0.1",
++    "lint-staged": "^15.2.2",
++    "npm-run-all": "^4.1.5",
++    "prettier": "^3.3.2",
++    "tsconfig-paths": "^4.2.0",
++    "tsx": "^4.16.0",
++    "vitest": "^1.6.0",
++    "vitest-canvas-mock": "^0.3.3",
++    "wait-on": "^7.2.0",
++    "whatwg-fetch": "^3.6.20"
++  }
+ }
+
+diff --git a/tsconfig.json b/tsconfig.json
+index 3333333..4444444 100644
+--- a/tsconfig.json
++++ b/tsconfig.json
+@@ -1,11 +1,24 @@
+ {
+   "compilerOptions": {
+-    "target": "ES2021",
+-    "module": "ESNext",
+-    "moduleResolution": "Node",
+-    "jsx": "react-jsx",
+-    "baseUrl": ".",
+-    "paths": { "@/*": ["./*"] }
++    "target": "ES2021",
++    "module": "ESNext",
++    "moduleResolution": "Node",
++    "jsx": "react-jsx",
++    "baseUrl": ".",
++    "paths": { "@/*": ["./*"] },
++    "strict": true,
++    "noUncheckedIndexedAccess": true,
++    "exactOptionalPropertyTypes": true,
++    "noImplicitOverride": true,
++    "incremental": true,
++    "tsBuildInfoFile": ".tsbuildinfo",
++    "types": ["vitest/globals"]
+   },
+   "include": ["./"]
+ }
+
+diff --git a/server/tsconfig.json b/server/tsconfig.json
+new file mode 100644
+index 0000000..5555555
+--- /dev/null
++++ b/server/tsconfig.json
+@@ -0,0 +1,13 @@
++{
++  "extends": "../tsconfig.json",
++  "compilerOptions": {
++    "composite": true,
++    "incremental": true,
++    "tsBuildInfoFile": "./.tsbuildinfo",
++    "outDir": "../dist/server"
++  },
++  "include": ["**/*.ts"],
++  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
++}
+
+diff --git a/vitest.config.ts b/vitest.config.ts
+new file mode 100644
+index 0000000..6666666
+--- /dev/null
++++ b/vitest.config.ts
+@@ -0,0 +1,20 @@
++import { defineConfig } from 'vitest/config';
++
++export default defineConfig({
++  test: {
++    environment: 'jsdom',
++    setupFiles: ['./tests/setup.ts'],
++    testTimeout: 10000,
++    hookTimeout: 10000,
++    isolate: true,
++    globals: true
++  }
++});
+
+diff --git a/tests/setup.ts b/tests/setup.ts
+new file mode 100644
+index 0000000..7777777
+--- /dev/null
++++ b/tests/setup.ts
+@@ -0,0 +1,5 @@
++import '@testing-library/jest-dom';
++import 'whatwg-fetch';
++// Provides HTMLCanvasElement mocks for Chart-like libs without native node-canvas.
++import 'vitest-canvas-mock';
+
+diff --git a/shared/booleans.ts b/shared/booleans.ts
+new file mode 100644
+index 0000000..8888888
+--- /dev/null
++++ b/shared/booleans.ts
+@@ -0,0 +1,27 @@
++import { z } from 'zod';
++/**
++ * zBooleanish accepts common boolean representations from HTTP/query/form inputs
++ * and normalizes to a strict boolean. Use ONLY at the DTO/request boundary.
++ */
++export const zBooleanish = z.preprocess((v) => {
++  if (typeof v === 'boolean') return v;
++  if (typeof v === 'number') return v !== 0;
++  if (typeof v === 'string') {
++    const s = v.trim().toLowerCase();
++    if (['true', '1', 'yes', 'y', 'on'].includes(s)) return true;
++    if (['false', '0', 'no', 'n', 'off'].includes(s)) return false;
++  }
++  return v;
++}, z.boolean());
++
++// Example DTO/domain split you can adopt in shared/schema.ts:
++// export const UpdateFlagsDTO = z.object({ enabled: zBooleanish });
++// export type UpdateFlagsDTO = z.infer<typeof UpdateFlagsDTO>;
++// export const UpdateFlags = z.object({ enabled: z.boolean() });
++// export type UpdateFlags = z.infer<typeof UpdateFlags>;
++// export const toDomainFlags = (dto: UpdateFlagsDTO): UpdateFlags => UpdateFlags.parse(dto);
+
+diff --git a/shared/number.ts b/shared/number.ts
+new file mode 100644
+index 0000000..9999999 100644
+--- /dev/null
++++ b/shared/number.ts
+@@ -0,0 +1,13 @@
++import { z } from 'zod';
++/**
++ * Accepts strings like "42" from query/body and coerces to a finite number.
++ * Use at request boundaries. Prefer this over raw Number() calls.
++ */
++export const zNumberish = z.coerce.number().refine(Number.isFinite, 'Must be a finite number');
++
++export const toNumber = (v: unknown, label = 'value'): number => {
++  const n = typeof v === 'number' ? v : Number(v);
++  if (!Number.isFinite(n)) throw new TypeError(`${label} must be a finite number`);
++  return n;
++};
+
+diff --git a/server/http.ts b/server/http.ts
+new file mode 100644
+index 0000000..aaaaaaa
+--- /dev/null
++++ b/server/http.ts
+@@ -0,0 +1,17 @@
++import type { RequestHandler, Response } from 'express';
++
++// Generic Route helper to avoid repeating Express generics in every handler.
++// Usage:
++//   type Params = { id: string }; type Res = UserDTO; type Body = never; type Query = never;
++//   export const getUser: Route<Params, Res, Body, Query> = async (req, res, next) => { ... }
++export type Route<Params = any, Res = any, Body = any, Query = any> =
++  RequestHandler<Params, Res, Body, Query>;
++
++export const ok = <T>(res: Response<T>, body: T) => res.status(200).json(body);
+
+diff --git a/server/vite.ts b/server/vite.ts
+new file mode 100644
+index 0000000..bbbbbbb
+--- /dev/null
++++ b/server/vite.ts
+@@ -0,0 +1,49 @@
++import type { Express } from 'express';
++import { createServer as createViteServer } from 'vite';
++import { promises as fs } from 'fs';
++
++/**
++ * Proper Vite middleware setup for SPA + HMR, to be invoked from bootstrap.
++ * Mount API routes BEFORE calling this; mount this as the final middleware.
++ */
++export async function setupVite(app: Express, server?: any) {
++  if (!server) {
++    console.warn('[vite] Server instance needed for HMR');
++    return null;
++  }
++
++  const vite = await createViteServer({
++    server: {
++      middlewareMode: true,
++      hmr: { server, path: '/vite-hmr',
++        host: process.env.HMR_HOST || undefined,
++        clientPort: process.env.HMR_CLIENT_PORT ? Number(process.env.HMR_CLIENT_PORT) : undefined
++      }
++    },
++    appType: 'spa'
++  });
++
++  // Attach Vite middlewares last so it doesn't swallow /api/* routes.
++  app.use(vite.middlewares);
++
++  // Optional SPA fallback using transformIndexHtml; call ssrFixStacktrace only in catch.
++  app.use('*', async (req, res, next) => {
++    try {
++      const html = await fs.readFile('index.html', 'utf-8');
++      const transformed = await vite.transformIndexHtml(req.originalUrl, html);
++      res.status(200).set({ 'Content-Type': 'text/html' }).end(transformed);
++    } catch (e: any) {
++      vite.ssrFixStacktrace(e);
++      next(e);
++    }
++  });
++
++  if (server?.address) {
++    try {
++      // eslint-disable-next-line no-console
++      console.log('✅ Vite HMR connected to server:', server.address());
++    } catch { /* no-op for non-net servers */ }
++  }
++
++  return vite;
++}
+
+diff --git a/scripts/verify-hot-reload.sh b/scripts/verify-hot-reload.sh
+new file mode 100755
+index 0000000..ccccccc
+--- /dev/null
++++ b/scripts/verify-hot-reload.sh
+@@ -0,0 +1,30 @@
++#!/usr/bin/env bash
++set -euo pipefail
++echo "Starting dev server for HMR verification..."
++npm run dev:quick & PID=$!
++trap "kill $PID" EXIT
++
++echo "Waiting for /health ..."
++npx wait-on -t 8000 http://localhost:5000/health
++
++TSFILE="server/health.ts"
++if [ ! -f "$TSFILE" ]; then
++  echo "Warning: $TSFILE not found; skipping mutation step."
++  curl -s http://localhost:5000/health >/dev/null
++  exit 0
++fi
++
++echo "Mutating ${TSFILE} to trigger HMR..."
++cp "$TSFILE" "${TSFILE}.bak"
++if sed --version >/dev/null 2>&1; then
++  sed -i 's/HEALTH_OK/HEALTH_OK_2/' "$TSFILE" || true
++else
++  perl -pi -e 's/HEALTH_OK/HEALTH_OK_2/' "$TSFILE"
++fi
++
++sleep 1
++curl -s http://localhost:5000/health | grep -q "healthy" && echo "✅ Hot reload working"
++mv "${TSFILE}.bak" "$TSFILE"
+
+diff --git a/.husky/pre-commit b/.husky/pre-commit
+new file mode 100755
+index 0000000..ddddddd
+--- /dev/null
++++ b/.husky/pre-commit
+@@ -0,0 +1,5 @@
++#!/usr/bin/env sh
++. "$(dirname -- "$0")/_/husky.sh"
++
++npx lint-staged

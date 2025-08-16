@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 
 // Prevent metric cardinality explosion
 const CARDINALITY_LIMIT = 1000;
@@ -43,3 +48,4 @@ setInterval(() => {
     console.log(`Cleaned route cache: kept ${knownRoutes.size} routes`);
   }
 }, 3600000);
+

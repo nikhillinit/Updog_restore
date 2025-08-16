@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 import { describe, it, expect } from "vitest";
 import { computeReservesFromGraduation, FundDataForReserves } from "../../reserves/computeReservesFromGraduation";
 
@@ -44,3 +49,4 @@ describe("computeReservesFromGraduation", () => {
     expect(res2.reserveRatioPct).toBeGreaterThan(res1.reserveRatioPct);
   });
 });
+

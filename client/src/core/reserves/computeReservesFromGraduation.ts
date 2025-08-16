@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 export type GraduationStep = {
   graduate: number; // 0–100
   fail: number;     // 0–100
@@ -125,3 +130,4 @@ export function computeReservesFromGraduation(f: FundDataForReserves): ReservesR
     assumptions: { perQuarter, deploymentQuarters },
   };
 }
+

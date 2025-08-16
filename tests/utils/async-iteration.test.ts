@@ -12,7 +12,7 @@ import {
   findAsync,
   ProcessingOptions
 } from '../../client/src/utils/async-iteration';
-import { logger } from '../../lib/logger';
+import { logger } from '../../client/src/lib/logger';
 
 describe('async-iteration utilities', () => {
   beforeEach(() => {

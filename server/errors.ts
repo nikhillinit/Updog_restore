@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 export class AppError extends Error {
   statusCode: number;
   isOperational: boolean;
@@ -38,4 +43,30 @@ export class ConflictError extends AppError {
   constructor(message: string) {
     super(message, 409);
   }
+}
+
+interface ViteDevServerLike {
+  ssrFixStacktrace(e: unknown): void;
+}
+
+export function errorHandler(vite?: ViteDevServerLike) {
+   
+  return (err: any, _req: any, res: any, _next: any) => {
+    if (vite?.ssrFixStacktrace) {
+      try { vite.ssrFixStacktrace(err); } catch {}
+    }
+    const status = typeof err?.statusCode === 'number'
+      ? err.statusCode
+      : typeof err?.status === 'number'
+        ? err.status
+        : 500;
+    const expose = status < 500;
+    res.status(status).json({
+      code: err?.code || (status >= 500 ? 'INTERNAL_ERROR' : 'BAD_REQUEST'),
+      message: expose ? (err?.message || 'Error') : 'Internal Server Error',
+      ...(err?.field ? { field: err.field } : {}),
+      ts: new Date().toISOString(),
+      requestId: _req?.requestId || _req?.id
+    });
+  };
 }

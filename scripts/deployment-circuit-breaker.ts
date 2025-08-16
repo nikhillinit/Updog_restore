@@ -7,6 +7,14 @@ export interface CircuitBreakerConfig {
   failureThreshold: number;
   resetTimeout: number;
   halfOpenTests: number;
+  redisUrl?: string;
+  persistenceKey?: string;
+}
+
+interface CircuitBreakerState {
+  state: 'closed' | 'open' | 'half-open';
+  failures: number;
+  lastFailureTime: number;
 }
 
 export class DeploymentCircuitBreaker {
@@ -14,14 +22,66 @@ export class DeploymentCircuitBreaker {
   private failures = 0;
   private lastFailureTime = 0;
   private readonly config: CircuitBreakerConfig;
+  private redis?: any; // Redis client for persistence
 
   constructor(config: Partial<CircuitBreakerConfig> = {}) {
     this.config = {
       failureThreshold: 3,
       resetTimeout: 3600000, // 1 hour
       halfOpenTests: 1,
+      persistenceKey: 'deployment-circuit-breaker',
       ...config
     };
+    
+    // Initialize Redis if URL provided
+    if (this.config.redisUrl) {
+      this.initializeRedis();
+    }
+  }
+
+  private async initializeRedis() {
+    try {
+      const Redis = (await import('ioredis')).default;
+      this.redis = new Redis(this.config.redisUrl!);
+      await this.loadState();
+    } catch (error) {
+      console.warn('Failed to initialize Redis for circuit breaker persistence:', error);
+    }
+  }
+
+  private async loadState() {
+    if (!this.redis) return;
+    
+    try {
+      const data = await this.redis.get(this.config.persistenceKey);
+      if (data) {
+        const state: CircuitBreakerState = JSON.parse(data);
+        this.state = state.state;
+        this.failures = state.failures;
+        this.lastFailureTime = state.lastFailureTime;
+        console.log(`🔄 Loaded circuit breaker state: ${this.state} (${this.failures} failures)`);
+      }
+    } catch (error) {
+      console.warn('Failed to load circuit breaker state from Redis:', error);
+    }
+  }
+
+  private async saveState() {
+    if (!this.redis) return;
+    
+    try {
+      const state: CircuitBreakerState = {
+        state: this.state,
+        failures: this.failures,
+        lastFailureTime: this.lastFailureTime
+      };
+      
+      // Set TTL to reset timeout so state expires naturally
+      const ttlSeconds = Math.ceil(this.config.resetTimeout / 1000);
+      await this.redis.setex(this.config.persistenceKey!, ttlSeconds, JSON.stringify(state));
+    } catch (error) {
+      console.warn('Failed to save circuit breaker state to Redis:', error);
+    }
   }
 
   async executeDeployment<T>(deployFn: () => Promise<T>): Promise<T> {
@@ -44,6 +104,7 @@ export class DeploymentCircuitBreaker {
         this.state = 'closed';
         this.failures = 0;
         console.log('✅ Circuit breaker closed - deployments re-enabled');
+        await this.saveState();
       }
 
       return result;
@@ -55,6 +116,7 @@ export class DeploymentCircuitBreaker {
       if (this.failures >= this.config.failureThreshold) {
         this.state = 'open';
         console.error(`🚨 Circuit breaker OPEN after ${this.failures} failures`);
+        await this.saveState();
 
         // Alert team
         await this.alertTeam({
@@ -64,6 +126,8 @@ export class DeploymentCircuitBreaker {
           willResetAt: new Date(this.lastFailureTime + this.config.resetTimeout),
           error: error instanceof Error ? error.message : String(error)
         });
+      } else {
+        await this.saveState();
       }
 
       throw error;
@@ -83,17 +147,19 @@ export class DeploymentCircuitBreaker {
   }
 
   // Manual circuit management
-  reset() {
+  async reset() {
     this.state = 'closed';
     this.failures = 0;
     this.lastFailureTime = 0;
     console.log('🔧 Circuit breaker manually reset');
+    await this.saveState();
   }
 
-  forceOpen() {
+  async forceOpen() {
     this.state = 'open';
     this.lastFailureTime = Date.now();
     console.log('🚨 Circuit breaker manually opened');
+    await this.saveState();
   }
 
   private async alertTeam(alert: {
