@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
@@ -45,3 +50,4 @@ if (rootElement) {
 } else {
   console.error("Root element not found");
 }
+

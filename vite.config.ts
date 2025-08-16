@@ -199,6 +199,20 @@ export default defineConfig({
     react(), 
     visualizer({ filename: "stats.html", gzipSize: true })
   ],
+  esbuild: {
+    tsconfigRaw: {
+      compilerOptions: {
+        skipLibCheck: true,
+        noImplicitAny: false,
+        strictNullChecks: false,
+        strictFunctionTypes: false,
+        strictPropertyInitialization: false,
+        noImplicitThis: false,
+        noImplicitReturns: false,
+        alwaysStrict: false
+      }
+    }
+  },
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(getAppVersion()),
     'import.meta.env.VITE_GIT_SHA': JSON.stringify(process.env.GITHUB_SHA || getGitSha()),

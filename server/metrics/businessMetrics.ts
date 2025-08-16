@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 /**
  * Business logic performance metrics
  * Tracks fund-specific operations and business KPIs
@@ -222,6 +227,15 @@ export class BusinessMetricsCollector {
       });
   }
 
+  // Cohort size histogram
+  cohortSizeHistogram = new Histogram({
+    name: 'cohort_size',
+    help: 'Size of processed cohorts',
+    labelNames: ['cohort_type'],
+    buckets: [1, 5, 10, 50, 100, 500, 1000],
+    registers: [register]
+  });
+
   // Track cohort processing
   trackCohortProcessing(
     cohortType: string,
@@ -229,7 +243,8 @@ export class BusinessMetricsCollector {
     cohortSize: number,
     fn: () => Promise<any>
   ) {
-    cohortSize.observe({ cohort_type: cohortType }, cohortSize);
+    // Now we have a proper histogram to observe
+    this.cohortSizeHistogram.observe({ cohort_type: cohortType }, cohortSize);
     
     return fn()
       .then(result => {

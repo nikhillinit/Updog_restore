@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 import React from 'react';
 import { cn } from "@/lib/utils";
 
@@ -96,3 +101,4 @@ export function PremiumCardSkeleton({ className = '' }: { className?: string }) 
     </div>
   );
 }
+

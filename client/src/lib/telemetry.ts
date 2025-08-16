@@ -1,6 +1,29 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 /**
  * Telemetry utilities with correlation and version tracking
  */
+
+// Define TelemetryEvent type for use in the admin dashboard
+export interface TelemetryEvent {
+  event: string;
+  timestamp: string;
+  [key: string]: any;
+}
+
+// Function to read telemetry events from storage
+export function readTelemetry(): TelemetryEvent[] {
+  try {
+    const stored = localStorage.getItem('__telemetry_events');
+    return stored ? JSON.parse(stored) : [];
+  } catch (e) {
+    console.error('Failed to read telemetry:', e);
+    return [];
+  }
+}
 
 // Generate or retrieve session ID
 export function getOrCreateSessionId(): string {

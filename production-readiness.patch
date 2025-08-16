@@ -1,0 +1,390 @@
+diff --git a/package.json b/package.json
+index 6b2b9a3..21bf3f6 100644
+--- a/package.json
++++ b/package.json
+@@ -10,6 +10,14 @@
+   "packageManager": "npm@10.9.2",
+   "scripts": {
+     "dev": "concurrently -k \"npm run dev:client\" \"npm run dev:api\"",
++    "dev:memory": "cross-env REDIS_URL=memory:// ENABLE_QUEUES=0 npm run dev:api",
++    "test:memory": "cross-env REDIS_URL=memory:// npm test",
++    "debug:redis": "tsx scripts/redis/health.ts",
++    "deploy:staging": "echo \"Triggering staging deploy via GitHub Actions (see .github/workflows/deploy-staging.yml)\"",
++    "metrics:local": "cross-env ENABLE_METRICS=1 tsx server/observability/metrics-demo.ts",
++    "verify:no-redis": "tsx scripts/verify-no-redis.ts",
++
+     "dev:client": "vite",
+     "dev:api": "cross-env NODE_ENV=development tsx server/index.ts",
+     "dev:worker:reserve": "tsx workers/reserve-worker.ts",
+@@ -28,6 +36,7 @@
+     "db:migrate": "drizzle-kit migrate",
+     "db:studio": "drizzle-kit studio"
+   },
++  "dependencies": { "prom-client": "^14.2.0" },
+   "devDependencies": {
+     // … keep your existing dev deps
+   }
+ }
+diff --git a/server/config/features.ts b/server/config/features.ts
+new file mode 100644
+index 0000000..c9c0a2b
+--- /dev/null
++++ b/server/config/features.ts
+@@ -0,0 +1,60 @@
++/**
++ * Feature flags (side-effect free).
++ * Normalizes boolean env flags and exposes a clean FEATURES bag.
++ */
++export function flag(v: unknown, def = false): boolean {
++  if (v == null) return def;
++  const s = String(v).trim().toLowerCase();
++  return ['1', 'true', 'yes', 'y', 'on'].includes(s);
++}
++
++export const FEATURES = {
++  // Redis enabled whenever not explicitly in memory mode
++  redis: (process.env.REDIS_URL ?? 'memory://') !== 'memory://',
++  queues: flag(process.env.ENABLE_QUEUES, false),
++  sessions: flag(process.env.ENABLE_SESSIONS, false),
++  metrics: flag(process.env.ENABLE_METRICS, true), // enable locally by default
++  statGating: flag(process.env.ENABLE_STAT_GATING, false),
++};
++
++export type FeatureBag = typeof FEATURES;
+diff --git a/server/config/redis.ts b/server/config/redis.ts
+new file mode 100644
+index 0000000..8a2d8c0
+--- /dev/null
++++ b/server/config/redis.ts
+@@ -0,0 +1,35 @@
++/**
++ * Redis connection configuration parser
++ */
++export interface RedisConfig {
++  mode: 'memory' | 'single' | 'cluster';
++  url?: string;
++  nodes?: string[];
++  tls?: boolean;
++}
++
++export function parseRedisConfig(): RedisConfig {
++  const raw = process.env.REDIS_URL ?? 'memory://';
++  if (raw === 'memory://') {
++    return { mode: 'memory' };
++  }
++
++  const isClusterScheme = raw.startsWith('redis+cluster://');
++  if (!isClusterScheme) {
++    return { mode: 'single', url: raw };
++  }
++
++  // Cluster – nodes can be in URL or in REDIS_CLUSTER_NODES
++  const tls = String(raw).startsWith('rediss+cluster://');
++  let nodes: string[] = [];
++  
++  if (process.env.REDIS_CLUSTER_NODES) {
++    nodes = process.env.REDIS_CLUSTER_NODES.split(',').map(n => n.trim());
++  } else {
++    // Extract from URL if present
++    const url = new URL(raw);
++    if (url.hostname) nodes = [`${url.hostname}:${url.port || 6379}`];
++  }
++
++  return { mode: 'cluster', nodes, tls };
++}
+diff --git a/server/lib/redis/cluster.ts b/server/lib/redis/cluster.ts
+new file mode 100644
+index 0000000..d8b52c0
+--- /dev/null
++++ b/server/lib/redis/cluster.ts
+@@ -0,0 +1,78 @@
++/**
++ * Redis connection helper (single/cluster aware)
++ */
++import { parseRedisConfig } from '../../config/redis';
++
++export interface RedisConn {
++  conn: any; // RedisClientType or RedisClusterType
++  mode: 'single' | 'cluster';
++  describe(): string;
++  close(): Promise<void>;
++}
++
++export async function connectRedis(): Promise<RedisConn | undefined> {
++  const cfg = parseRedisConfig();
++  if (cfg.mode === 'memory') return undefined;
++
++  const { createClient, createCluster } = await import('redis');
++
++  if (cfg.mode === 'cluster') {
++    if (!cfg.nodes?.length) {
++      throw new Error('Redis cluster mode requires nodes');
++    }
++    
++    const cluster = createCluster({
++      rootNodes: cfg.nodes.map(node => ({ url: `redis${cfg.tls ? 's' : ''}://${node}` })),
++      defaults: {
++        socket: {
++          reconnectStrategy: (retries: number) => Math.min(1000 * retries, 5000),
++          connectTimeout: 5000,
++        }
++      }
++    });
++
++    cluster.on('error', (err: any) => {
++      // eslint-disable-next-line no-console
++      console.error('[redis-cluster] error:', err?.message);
++    });
++
++    await cluster.connect();
++    
++    return {
++      conn: cluster,
++      mode: 'cluster',
++      describe: () => `cluster(${cfg.nodes!.join(',')})`,
++      close: () => cluster.quit()
++    };
++  }
++
++  // Single node
++  const client = createClient({
++    url: cfg.url,
++    socket: {
++      reconnectStrategy: (retries: number) => Math.min(1000 * retries, 5000),
++      connectTimeout: 5000,
++      keepAlive: 1,
++    }
++  });
++
++  client.on('error', (err: any) => {
++    // eslint-disable-next-line no-console
++    console.error('[redis] error:', err?.message);
++  });
++
++  await client.connect();
++
++  return {
++    conn: client,
++    mode: 'single',
++    describe: () => `single(${cfg.url})`,
++    close: () => client.quit()
++  };
++}
++
++export async function pingRedis(conn: any): Promise<{ ok: boolean; latencyMs?: number; error?: string }> {
++  try {
++    const start = Date.now();
++    await conn.ping();
++    return { ok: true, latencyMs: Date.now() - start };
++  } catch (err) {
++    return { ok: false, error: (err as Error)?.message };
++  }
++}
+diff --git a/server/observability/metrics.ts b/server/observability/metrics.ts
+new file mode 100644
+index 0000000..6b4c1a2
+--- /dev/null
++++ b/server/observability/metrics.ts
+@@ -0,0 +1,86 @@
++/**
++ * Prometheus metrics for production observability
++ */
++import * as client from 'prom-client';
++import type { Request, Response, NextFunction } from 'express';
++import { FEATURES } from '../config/features';
++import type { RedisConn } from '../lib/redis/cluster';
++import { pingRedis } from '../lib/redis/cluster';
++
++// Initialize default metrics
++client.collectDefaultMetrics();
++
++// Custom metrics
++export const httpDuration = new client.Histogram({
++  name: 'http_request_duration_ms',
++  help: 'HTTP request duration in milliseconds',
++  labelNames: ['method', 'path', 'status'],
++  buckets: [1, 5, 15, 50, 100, 200, 500, 1000, 2000, 5000]
++});
++
++export const cacheHits = new client.Counter({
++  name: 'cache_hits_total',
++  help: 'Cache hits',
++});
++
++export const cacheMisses = new client.Counter({
++  name: 'cache_misses_total',
++  help: 'Cache misses',
++});
++
++export const redisUp = new client.Gauge({
++  name: 'redis_up',
++  help: 'Redis up (1) / down (0)',
++});
++
++export const redisLatency = new client.Gauge({
++  name: 'redis_latency_ms',
++  help: 'Redis ping latency in ms',
++});
++
++export function withRequestMetrics() {
++  return (req: Request, res: Response, next: NextFunction) => {
++    if (!FEATURES.metrics) return next();
++    const stop = httpDuration.startTimer({ method: req.method, path: req.route?.path ?? req.path });
++    res.on('finish', () => stop({ status: String(res.statusCode) }));
++    next();
++  };
++}
++
++export function installMetricsRoute(app: import('express').Express) {
++  if (!FEATURES.metrics) return;
++  app.get('/metrics', async (_req, res) => {
++    res.setHeader('Content-Type', client.register.contentType);
++    res.end(await client.register.metrics());
++  });
++}
++
++export function startRedisHealthProbe(conn?: RedisConn) {
++  if (!FEATURES.metrics || !conn) return;
++  // eslint-disable-next-line @typescript-eslint/no-misused-promises
++  const t = setInterval(async () => {
++    const res = await pingRedis(conn.conn);
++    if (res.ok) {
++      redisUp.set(1);
++      if (typeof res.latencyMs === 'number') redisLatency.set(res.latencyMs);
++    } else {
++      redisUp.set(0);
++    }
++  }, 5000);
++  t.unref?.();
++}
+diff --git a/server/observability/metrics-demo.ts b/server/observability/metrics-demo.ts
+new file mode 100644
+index 0000000..b90a5d2
+--- /dev/null
++++ b/server/observability/metrics-demo.ts
+@@ -0,0 +1,35 @@
++#!/usr/bin/env tsx
++/**
++ * Local metrics demo server (for quick /metrics smoke testing)
++ */
++import express from 'express';
++import { withRequestMetrics, installMetricsRoute } from './metrics';
++
++const app = express();
++app.use(withRequestMetrics());
++
++app.get('/ping', (_req, res) => res.json({ ok: true }));
++installMetricsRoute(app);
++
++const port = Number(process.env.PORT ?? 7071);
++app.listen(port, () => {
++  // eslint-disable-next-line no-console
++  console.log(`[metrics-demo] listening on :${port}`);
++});
+diff --git a/scripts/redis/health.ts b/scripts/redis/health.ts
+new file mode 100755
+index 0000000..f3f43c1
+--- /dev/null
++++ b/scripts/redis/health.ts
+@@ -0,0 +1,83 @@
++#!/usr/bin/env tsx
++/* eslint-disable no-console */
++import { connectRedis, pingRedis } from '../../server/lib/redis/cluster';
++import { parseRedisConfig } from '../../server/config/redis';
++
++(async () => {
++  const cfg = parseRedisConfig();
++  console.log('[debug:redis] config:', cfg);
++
++  if (cfg.mode === 'memory') {
++    console.log('REDIS_URL=memory:// — nothing to check.');
++    process.exit(0);
++  }
++  try {
++    const conn = await connectRedis();
++    console.log('[debug:redis] connected:', conn?.describe());
++    const res = await pingRedis(conn!.conn);
++    console.log('[debug:redis] ping:', res);
++    await conn?.close();
++    process.exit(res.ok ? 0 : 2);
++  } catch (err) {
++    console.error('[debug:redis] failed:', (err as Error)?.message);
++    process.exit(1);
++  }
++})();
+diff --git a/.github/workflows/ci-memory.yml b/.github/workflows/ci-memory.yml
+new file mode 100644
+index 0000000..e4c1a61
+--- /dev/null
++++ b/.github/workflows/ci-memory.yml
+@@ -0,0 +1,66 @@
++name: CI (memory mode)
++
++on:
++  pull_request:
++    branches: [ main, develop ]
++  workflow_dispatch: {}
++
++jobs:
++  memory-mode:
++    runs-on: ubuntu-latest
++    timeout-minutes: 15
++    steps:
++      - name: Checkout
++        uses: actions/checkout@v4
++
++      - name: Setup Node
++        uses: actions/setup-node@v4
++        with:
++          node-version: '20'
++          cache: 'npm'
++
++      - name: Install
++        run: npm ci --ignore-scripts
++
++      - name: Type check
++        run: npm run check
++
++      - name: Unit/Integration (memory mode)
++        env:
++          REDIS_URL: memory://
++        run: npm test --if-present
++
++      - name: Verify no Redis usage in logs
++        run: npm run verify:no-redis --if-present
+diff --git a/.github/workflows/deploy-staging.yml b/.github/workflows/deploy-staging.yml
+new file mode 100644
+index 0000000..a6abf77
+--- /dev/null
++++ b/.github/workflows/deploy-staging.yml
+@@ -0,0 +1,58 @@
++name: Deploy (staging)
++
++on:
++  push:
++    branches: [ main ]
++  workflow_dispatch: {}
++
++jobs:
++  deploy-staging:
++    runs-on: ubuntu-latest
++    permissions:
++      contents: read
++      id-token: write
++    steps:
++      - name: Checkout
++        uses: actions/checkout@v4
++      - name: Setup Node
++        uses: actions/setup-node@v4
++        with:
++          node-version: '20'
++          cache: 'npm'
++      - name: Install
++        run: npm ci --ignore-scripts
++      - name: Build
++        run: npm run build --if-present
++      # TODO: replace with your actual staging deploy step (e.g., Cloud Run, ECS, Fly.io, etc.)
++      - name: Deploy (placeholder)
++        run: |
++          echo "Deploying to staging…"
++          echo "Replace this step with your platform's CLI/API."

@@ -19,24 +19,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.16.0'
+          node-version-file: '.nvmrc'
           cache: 'npm'
-      - name: Enable corepack for consistent npm version
-        run: corepack enable
       - name: Validate lockfile
         run: |
-          # Save current lockfile
-          cp package-lock.json package-lock.json.orig
-          # Run npm install to check if lockfile changes
-          npm install --package-lock-only --ignore-scripts
-          # Check if lockfile was modified
-          if ! diff -q package-lock.json package-lock.json.orig > /dev/null; then
-            echo "::error::package-lock.json is out of sync with package.json"
-            echo "::error::Run 'npm install' locally and commit the updated lockfile"
-            exit 1
-          fi
-          # Restore original for npm ci
-          mv package-lock.json.orig package-lock.json
+          npm ci --ignore-scripts
+          git diff --exit-code -- package-lock.json
       - name: Install
         id: install
         run: npm ci --prefer-offline --no-audit

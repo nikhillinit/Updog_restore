@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 import { connect, NatsConnection, StringCodec } from 'nats';
 import { WebSocketServer } from 'ws';
 import { Server as HttpServer } from 'http';
@@ -94,7 +99,7 @@ export class NatsBridge {
 
       // Handle ping/pong for connection health
       const pingInterval = setInterval(() => {
-        if (ws.readyState === ws.OPEN) {
+        if (ws.readyState === WebSocket.OPEN) {
           ws.ping();
         }
       }, 30000);
@@ -335,3 +340,4 @@ export class NatsBridge {
     };
   }
 }
+

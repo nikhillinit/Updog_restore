@@ -1,0 +1,14 @@
+version: "3.8"
+services:
+  redis:
+    image: redis:7
+    ports: ["6379:6379"]
+
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.6.0
+    command: ["-host=0.0.0.0", "-config", "/config/toxics.json"]
+    ports:
+      - "8474:8474"      # admin API
+      - "6380:6380"      # proxy port for redis
+    volumes:
+      - ./toxics.json:/config/toxics.json:ro
