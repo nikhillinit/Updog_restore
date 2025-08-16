@@ -119,28 +119,68 @@ async function buildCache(redisUrl: string): Promise<Cache> {
       connectTimeout: 1000
     });
     
-    // Test connection
+    // Test connection with explicit ping
     await redis.connect();
     await redis.ping();
     
-    console.log('[providers] Redis cache enabled');
+    console.log('[providers] Redis cache enabled and verified');
+    
+    // Add error recovery wrapper with circuit breaker behavior
+    let circuitOpen = false;
+    let lastError: Date | null = null;
+    
+    const withCircuitBreaker = async <T>(operation: () => Promise<T>, fallback: T): Promise<T> => {
+      // Reset circuit after 30 seconds
+      if (circuitOpen && lastError && Date.now() - lastError.getTime() > 30000) {
+        circuitOpen = false;
+        console.log('[providers] Circuit breaker reset, retrying Redis operations');
+      }
+      
+      if (circuitOpen) {
+        return fallback;
+      }
+      
+      try {
+        return await operation();
+      } catch (err) {
+        lastError = new Date();
+        circuitOpen = true;
+        console.warn('[providers] Redis operation failed, circuit opened for 30s', { error: (err as Error).message });
+        return fallback;
+      }
+    };
     
     return {
       async get(key: string): Promise<string | null> {
-        return (await redis.get(key)) ?? null;
+        return withCircuitBreaker(
+          async () => (await redis.get(key)) ?? null,
+          null
+        );
       },
       async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
-        if (ttlSeconds) {
-          await redis.setex(key, ttlSeconds, value);
-        } else {
-          await redis.set(key, value);
-        }
+        await withCircuitBreaker(
+          async () => {
+            if (ttlSeconds) {
+              await redis.setex(key, ttlSeconds, value);
+            } else {
+              await redis.set(key, value);
+            }
+          },
+          undefined
+        );
       },
       async del(key: string): Promise<void> {
-        await redis.del(key);
+        await withCircuitBreaker(
+          async () => { await redis.del(key); },
+          undefined
+        );
       },
       async close(): Promise<void> {
-        await redis.quit();
+        try {
+          await redis.quit();
+        } catch (err) {
+          console.warn('[providers] Redis close failed', { error: (err as Error).message });
+        }
       }
     };
   } catch (error) {

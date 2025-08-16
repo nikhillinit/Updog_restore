@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "concurrently -k \"npm run dev:client\" \"npm run dev:api\"",
     "dev:quick": "cross-env NODE_ENV=development REDIS_URL=memory:// ENABLE_QUEUES=0 tsx server/bootstrap.ts",
+    "dev:memory": "cross-env REDIS_URL=memory:// ENABLE_QUEUES=0 npm run dev:api",
     "dev:full": "npm run dev:infra && npm run dev",
     "dev:infra": "docker compose -f docker-compose.dev.yml up -d --wait",
     "dev:client": "vite",
@@ -37,6 +38,8 @@
     "bench:load": "vitest bench tests/load --reporter=verbose",
     "smart-fix": "node scripts/smart-fix.js",
     "test": "vitest run",
+    "test:memory": "cross-env REDIS_URL=memory:// npm test",
+    "verify:no-redis": "tsx scripts/verify-no-redis.ts",
     "test:smart": "node scripts/test-smart.mjs",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",

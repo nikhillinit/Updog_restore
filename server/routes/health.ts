@@ -24,9 +24,27 @@ registerInvalidator(() => {
   healthzCache = { ts: 0, data: null };
 });
 
-// Basic health check
-router.get('/health', healthCheck);
-router.get('/api/health', healthCheck);
+// Basic health check with mode and version
+router.get('/health', (req: Request, res: Response) => {
+  const providers = req.app.locals.providers as any;
+  const mode = providers?.mode || (process.env.REDIS_URL === 'memory://' ? 'memory' : 'redis');
+  res.json({
+    status: 'ok',
+    version: process.env.npm_package_version || '1.3.2',
+    mode,
+    ts: new Date().toISOString()
+  });
+});
+router.get('/api/health', (req: Request, res: Response) => {
+  const providers = req.app.locals.providers as any;
+  const mode = providers?.mode || (process.env.REDIS_URL === 'memory://' ? 'memory' : 'redis');
+  res.json({
+    status: 'ok',
+    version: process.env.npm_package_version || '1.3.2',
+    mode,
+    ts: new Date().toISOString()
+  });
+});
 router.get('/api/health/ready', readinessCheck);
 router.get('/api/health/live', livenessCheck);
 
