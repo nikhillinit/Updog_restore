@@ -1,9 +1,9 @@
+#!/usr/bin/env tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-#!/usr/bin/env tsx
 /**
  * Bootstrap Entrypoint - Ensures env + providers are settled before any Redis access
  * Eliminates side-effect imports that auto-connect to Redis
