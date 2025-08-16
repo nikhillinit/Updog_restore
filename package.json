@@ -37,6 +37,8 @@
     "bench:load": "vitest bench tests/load --reporter=verbose",
     "smart-fix": "node scripts/smart-fix.js",
     "test": "vitest run",
+    "test:memory": "cross-env NODE_ENV=test REDIS_URL=memory:// ENABLE_QUEUES=0 vitest run",
+    "test:ci": "cross-env CI=1 NODE_ENV=test REDIS_URL=memory:// ENABLE_QUEUES=0 vitest run --reporter=verbose",
     "test:smart": "node scripts/test-smart.mjs",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",

@@ -14,31 +14,34 @@ vi.stubGlobal('import', {
 // Mock fetch
 global.fetch = vi.fn();
 
-// Now import after mocking
-const { 
-  startCreateFund, 
-  isCreateFundInFlight, 
-  cancelCreateFund,
-  computeCreateFundHash 
-} = await import('../../client/src/services/funds');
-
 describe('In-flight Capacity Management', () => {
+  let startCreateFund: any;
+  let isCreateFundInFlight: any;
+  let cancelCreateFund: any;
+  let computeCreateFundHash: any;
+
   beforeEach(async () => {
-    // Clear any existing in-flight requests by canceling all possible hashes
-    // This is a brute force approach but works for tests
-    const testHashes = ['test-hash-1', 'test-hash-2', 'test-hash-3'];
-    testHashes.forEach(hash => cancelCreateFund(hash));
+    // Clear modules to reset in-flight map
+    vi.resetModules();
+    
+    // Re-import the module to get fresh state
+    const fundsModule = await import('../../client/src/services/funds');
+    startCreateFund = fundsModule.startCreateFund;
+    isCreateFundInFlight = fundsModule.isCreateFundInFlight;
+    cancelCreateFund = fundsModule.cancelCreateFund;
+    computeCreateFundHash = fundsModule.computeCreateFundHash;
     
     // Wait a tick for any cleanup to complete
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise(resolve => setTimeout(resolve, 10));
     
     // Reset fetch mock
     (global.fetch as any).mockReset();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     // Clean up any hanging requests
     vi.clearAllTimers();
+    await new Promise(resolve => setTimeout(resolve, 10));
   });
 
   it('should track in-flight requests', async () => {
@@ -91,10 +94,10 @@ describe('In-flight Capacity Management', () => {
       return deferredRequest.promise;
     });
     
-    // Start multiple identical requests simultaneously - don't pass any options
-    const promise1 = startCreateFund(payload);
-    const promise2 = startCreateFund(payload);
-    const promise3 = startCreateFund(payload);
+    // Start multiple identical requests simultaneously - use short holdForMs to ensure they overlap
+    const promise1 = startCreateFund(payload, { holdForMs: 100 });
+    const promise2 = startCreateFund(payload, { holdForMs: 100 });
+    const promise3 = startCreateFund(payload, { holdForMs: 100 });
     
     
     // All should return the same promise (reference equality for deduplication)
@@ -174,67 +177,55 @@ describe('In-flight Capacity Management', () => {
   });
 
   it('should throw when capacity is exceeded', async () => {
-    // Mock VITE_IDEMPOTENCY_MAX to a low value for testing
-    const originalMax = import.meta.env.VITE_IDEMPOTENCY_MAX;
-    import.meta.env.VITE_IDEMPOTENCY_MAX = '3';
+    // Use a simpler test approach - create a few hanging promises and test capacity
+    const { startInFlight } = await import('../../client/src/lib/inflight');
     
-    // Create deferred promises for controlled resolution
-    const deferredRequests = [deferred(), deferred(), deferred()];
-    let fetchCallIndex = 0;
-    
-    (global.fetch as any).mockImplementation(() => {
-      const currentDeferred = deferredRequests[fetchCallIndex++];
-      return currentDeferred ? currentDeferred.promise : Promise.resolve({
-        ok: true,
-        status: 201,
-        headers: new Map(),
-        json: async () => ({ id: 999 })
-      });
-    });
+    // The default capacity is 200, so we'll create that many hanging promises
+    const promises: Promise<any>[] = [];
+    const resolvers: Array<() => void> = [];
     
     try {
-      // Fill up capacity with controlled promises
-      const hangingPromises: Promise<any>[] = [];
-      for (let i = 0; i < 3; i++) {
-        const payload = { name: `Fund ${i}`, size: 1000000 * i };
-        hangingPromises.push(
-          startCreateFund(payload).catch(() => {}) // Ignore errors
-        );
+      // Fill up to capacity with controlled promises
+      for (let i = 0; i < 200; i++) {
+        const promise = startInFlight(`test-capacity-${i}`, async () => {
+          return new Promise((resolve) => {
+            resolvers.push(resolve as () => void);
+          });
+        });
+        promises.push(promise.catch(() => {})); // Ignore errors
       }
       
-      // Wait a tick to ensure all requests are registered
-      await new Promise(resolve => setTimeout(resolve, 0));
-      
-      // Next request should throw synchronously due to capacity limit
-      const payload = { name: 'Fund 4', size: 4000000 };
-      expect(() => startCreateFund(payload)).toThrow('Too many concurrent requests');
+      // Now try one more request - it should throw because we're at capacity
+      expect(() => {
+        startInFlight(`test-capacity-overflow`, async () => {
+          return Promise.resolve();
+        });
+      }).toThrow('Too many concurrent requests');
       
     } finally {
-      // Clean up by resolving all deferred promises
-      deferredRequests.forEach((d, i) => {
-        if (d) {
-          d.resolve({
-            ok: true,
-            status: 201,
-            headers: new Map(),
-            json: async () => ({ id: i })
-          });
-        }
-      });
-      
-      // Restore original value
-      import.meta.env.VITE_IDEMPOTENCY_MAX = originalMax;
+      // Clean up by resolving all promises
+      resolvers.forEach(r => r());
+      await Promise.all(promises);
+      await new Promise(resolve => setTimeout(resolve, 10));
     }
-  });
+  }, 30000); // Give this test more time
 
   it('should support manual cancellation', async () => {
     const payload = { name: 'Test Fund', size: 1000000 };
     const finalizedPayload = { ...payload, modelVersion: 'reserves-ev1' };
     const hash = computeCreateFundHash(finalizedPayload);
     
-    // Create a controlled deferred promise that won't resolve
+    // Create a controlled deferred promise that will reject when aborted
     const deferredRequest = deferred();
-    (global.fetch as any).mockReturnValue(deferredRequest.promise);
+    (global.fetch as any).mockImplementation((url: string, opts: any) => {
+      // Listen for abort signal
+      if (opts?.signal) {
+        opts.signal.addEventListener('abort', () => {
+          deferredRequest.reject(new DOMException('The operation was aborted', 'AbortError'));
+        });
+      }
+      return deferredRequest.promise;
+    });
     
     // Start request with hold time for observability
     const promise = startCreateFund(payload, { holdForMs: 50 });
@@ -247,7 +238,10 @@ describe('In-flight Capacity Management', () => {
     expect(cancelled).toBe(true);
     
     // Should throw abort error
-    await expect(promise).rejects.toThrow();
+    await expect(promise).rejects.toThrow('aborted');
+    
+    // Wait for cleanup
+    await new Promise(resolve => setTimeout(resolve, 60));
     
     // Should no longer be in-flight after cancellation
     expect(isCreateFundInFlight(hash)).toBe(false);

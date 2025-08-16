@@ -30,7 +30,7 @@ export function inFlightSize() {
 /**
  * Start (or join) an in-flight operation.
  * - Registers synchronously (before any await)
- * - Returns existing promise if already in flight
+ * - Returns existing promise if already in flight (maintains strict reference equality)
  * - Cleans up in finally; can delay deletion with holdForMs for test observability
  */
 export function startInFlight<T>(
@@ -39,7 +39,10 @@ export function startInFlight<T>(
   opts: { holdForMs?: number } = {}
 ): Promise<T> {
   const existing = inflight.get(key);
-  if (existing) return existing.promise;
+  if (existing) {
+    // Return the exact same promise instance for deduplication
+    return existing.promise as Promise<T>;
+  }
 
   // Check capacity before starting
   if (inflight.size >= CAPACITY_MAX) {
@@ -51,7 +54,7 @@ export function startInFlight<T>(
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : ({} as any);
   
   // Create the promise first so we can register synchronously.
-  const p = (async () => {
+  const p: Promise<T> = (async () => {
     try {
       return await worker({ signal: (controller as AbortController).signal });
     } finally {
@@ -61,6 +64,7 @@ export function startInFlight<T>(
     }
   })();
 
+  // Store with proper typing
   inflight.set(key, { promise: p, startedAt: Date.now(), abort: controller });
   return p;
 }

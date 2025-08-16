@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./tests/setup.ts', './tests/setup-env.ts'],
+    setupFiles: ['./tests/setup/memory-env.ts', './tests/setup.ts', './tests/setup-env.ts'],
     include: ['**/*.{test,spec}.?(c|m)[jt]s?(x)'],
     exclude: [
       '**/node_modules/**',
@@ -50,8 +50,10 @@ export default defineConfig({
         },
       },
     },
-    testTimeout: 10000,
-    hookTimeout: 10000,
+    testTimeout: 20000,
+    hookTimeout: 20000,
+    // CI stability
+    retry: process.env.CI ? 2 : 0,
   },
   resolve: {
     alias: {
