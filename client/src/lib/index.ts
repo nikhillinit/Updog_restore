@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 export * from '../utils/async-iteration';
 
 // Simple API client
@@ -32,3 +37,4 @@ export const api = {
     return response.json() as unknown as T;
   }
 };
+

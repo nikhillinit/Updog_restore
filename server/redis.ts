@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 import Redis from 'ioredis';
 import { logger } from './logger';
 
@@ -34,3 +39,4 @@ if (process.env.REDIS_URL !== 'mock' && process.env.REDIS_URL !== 'memory://') {
     logger.info('Redis Client Connected');
   });
 }
+

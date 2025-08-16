@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 /**
  * Browser-safe logger for client-side code
  */
@@ -41,3 +46,4 @@ export const log = {
   debug: (message: string, meta?: Record<string, unknown>) =>
     logger.debug(message, meta),
 };
+

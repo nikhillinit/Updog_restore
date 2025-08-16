@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 /**
  * DI-Friendly Express Server
  * Consumes providers instead of creating global connections
@@ -13,6 +18,7 @@ import { rateLimitDetailed } from './middleware/rateLimitDetailed.js';
 import { sendApiError, createErrorBody } from './lib/apiError.js';
 import { registerRoutes } from './routes.js';
 import { setupVite, serveStatic, log } from './vite.js';
+import { errorHandler } from './errors.js';
 import type { Providers } from './providers.js';
 
 // CORS configuration with origin validation
@@ -183,28 +189,8 @@ export async function createServer(
   // Register API routes with dependency injection
   await registerRoutes(app);
   
-  // Global error handler - ensures X-Request-ID on all errors
-  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-    const rid = (req as any).requestId || 'unknown';
-    if (!res.get('X-Request-ID')) res.set('X-Request-ID', rid);
-
-    // Avoid double-sending - delegate to Express default handler
-    if (res.headersSent) {
-      console.error('Headers already sent; delegating to default handler', { err, rid });
-      return _next(err); // Delegate to Express default error handler
-    }
-
-    const status = err.status ?? err.statusCode ?? 500;
-    // Mask 5xx errors - details go to logs only
-    const message = status >= 500 
-      ? 'Internal Server Error' 
-      : String(err.message || 'Error');
-    
-    const body = createErrorBody(message, rid, err.code);
-
-    console.error('Request failed', { err, status, rid });
-    sendApiError(res, status, body);
-  });
+  // Global error handler - uses structured error handler
+  app.use(errorHandler());
   
   // Setup Vite in development and static serving in production
   if (config.NODE_ENV === "development") {

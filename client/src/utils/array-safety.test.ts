@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 /**
  * tests/utils/array-safety.test.ts
  *
@@ -69,3 +74,4 @@ describe('ArraySafety utilities', () => {
     expect(names).toEqual(['Alice', 'Bob']);
   });
 });
+

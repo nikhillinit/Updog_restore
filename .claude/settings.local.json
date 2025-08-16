@@ -65,7 +65,9 @@
       "Bash(PORT=5003 REDIS_URL=memory:// ENABLE_QUEUES=0 npx tsx server/bootstrap.ts)",
       "Bash(PORT=5004 REDIS_URL=memory:// ENABLE_QUEUES=0 npx tsx server/bootstrap.ts)",
       "Bash(git apply:*)",
-      "Bash(touch:*)"
+      "Bash(touch:*)",
+      "Bash(rg:*)",
+      "Bash(git grep:*)"
     ],
     "deny": []
   }

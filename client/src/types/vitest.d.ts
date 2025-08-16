@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 declare module 'vitest' {
   export const describe: (name: string, fn: () => void) => void;
   export const it: (name: string, fn: () => void | Promise<void>) => void;

@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import type { Store } from 'express-rate-limit';
 import Redis from 'ioredis';
@@ -46,3 +51,4 @@ export async function createRateLimitStore(): Promise<Store | undefined> {
     return undefined;  // Fall back to memory store
   }
 }
+

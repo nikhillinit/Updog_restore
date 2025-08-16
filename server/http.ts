@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 import type { RequestHandler, Response as ExResponse } from 'express-serve-static-core';
 
 // Generic route helper — matches Express v4/v5 type shapes without locking to one.

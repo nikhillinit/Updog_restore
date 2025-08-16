@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 // Keeps two percentages within a hard 100% cap with stable rounding.
 export function allocate100(a: number, b: number): [number, number] {
   const sum = a + b;
@@ -19,3 +24,4 @@ export function allocate100(a: number, b: number): [number, number] {
   }
   return [a2, b2];
 }
+

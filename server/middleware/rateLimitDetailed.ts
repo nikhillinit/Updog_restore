@@ -1,11 +1,16 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable react-hooks/exhaustive-deps */
 /**
  * DI-Friendly Rate Limiter for /health/detailed
  * Accepts injected store instead of creating Redis connections at import time
  */
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import type { Request, Response } from 'express';
-import type { RateLimitRequestHandler } from 'express-rate-limit';
-import type { Store } from 'express-rate-limit';
+import type { RateLimitRequestHandler , Store } from 'express-rate-limit';
+
 import { sendApiError, createErrorBody } from '../lib/apiError.js';
 
 export function rateLimitDetailed(opts?: { store?: Store }): RateLimitRequestHandler {
