@@ -23,8 +23,40 @@ jobs:
         run: npm ci --legacy-peer-deps
       - name: Build
         run: npm run build --if-present
-      # TODO: replace with your actual staging deploy step (e.g., Cloud Run, ECS, Fly.io, etc.)
-      - name: Deploy (placeholder)
+      # Deploy to staging environment
+      # Option 1: Google Cloud Run
+      - name: Deploy to staging
+        env:
+          STAGING_URL: ${{ secrets.STAGING_URL }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
         run: |
-          echo "Deploying to staging…"
-          echo "Replace this step with your platform's CLI/API."
+          # Example: Deploy to Cloud Run
+          # gcloud run deploy fund-calc-staging \
+          #   --image gcr.io/${{ secrets.GCP_PROJECT }}/fund-calc:${{ github.sha }} \
+          #   --platform managed \
+          #   --region us-central1 \
+          #   --allow-unauthenticated \
+          #   --set-env-vars="NODE_ENV=staging,REDIS_URL=${{ secrets.STAGING_REDIS_URL }}"
+          
+          # Example: Deploy to Vercel
+          # npx vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
+          
+          # Example: Deploy to Railway
+          # railway up --environment staging
+          
+          # Example: Deploy via webhook
+          curl -X POST ${{ secrets.STAGING_DEPLOY_WEBHOOK }} \
+            -H "Authorization: Bearer ${{ secrets.DEPLOY_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"version\":\"${{ github.sha }}\",\"branch\":\"main\"}"
+          
+      - name: Verify staging deployment
+        run: |
+          # Wait for deployment to be ready
+          sleep 30
+          
+          # Health check
+          curl -f --retry 5 --retry-delay 10 \
+            ${{ secrets.STAGING_URL }}/healthz || exit 1
+          
+          echo "Staging deployment successful!"

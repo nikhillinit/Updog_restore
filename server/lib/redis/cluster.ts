@@ -21,12 +21,17 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
       throw new Error('Redis cluster mode requires nodes');
     }
     
+    // TLS configuration for production
+    const tlsEnabled = cfg.tls || false;
+    
     const cluster = createCluster({
-      rootNodes: cfg.nodes.map(node => ({ url: `redis${cfg.tls ? 's' : ''}://${node}` })),
+      rootNodes: cfg.nodes.map(node => ({ 
+        url: `redis${tlsEnabled ? 's' : ''}://${node}` 
+      })),
       defaults: {
         socket: {
           reconnectStrategy: (retries: number) => Math.min(1000 * retries, 5000),
-          connectTimeout: 5000,
+          connectTimeout: 5000
         }
       }
     });
@@ -52,7 +57,7 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
     socket: {
       reconnectStrategy: (retries: number) => Math.min(1000 * retries, 5000),
       connectTimeout: 5000,
-      keepAlive: 1,
+      keepAlive: 1
     }
   });
 

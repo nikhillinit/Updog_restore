@@ -24,7 +24,53 @@ registerInvalidator(() => {
   healthzCache = { ts: 0, data: null };
 });
 
-// Basic health check with mode and version
+// Liveness check (unauthenticated, minimal)
+router.get('/healthz', (_req: Request, res: Response) => {
+  // Simple liveness check - is the process running?
+  res.status(200).json({ status: 'ok' });
+});
+
+// Readiness check (authenticated, detailed)
+router.get('/readyz', (req: Request, res: Response) => {
+  // Check if we should expose detailed info
+  const healthKey = process.env.HEALTH_KEY;
+  const authHeader = req.headers['x-health-key'] || req.headers.authorization;
+  const isAuthenticated = !healthKey || authHeader === healthKey || authHeader === `Bearer ${healthKey}`;
+  
+  // Basic readiness for unauthenticated requests
+  if (!isAuthenticated) {
+    const providers = req.app.locals.providers as any;
+    const isReady = providers?.cache !== undefined;
+    return res.status(isReady ? 200 : 503).json({ 
+      ready: isReady 
+    });
+  }
+  
+  // Detailed readiness for authenticated requests
+  const providers = req.app.locals.providers as any;
+  const mode = providers?.mode || (process.env.REDIS_URL === 'memory://' ? 'memory' : 'redis');
+  const cache = req.app.locals.cache as any;
+  
+  const response = {
+    ready: true,
+    mode,
+    version: process.env.npm_package_version || '1.3.2',
+    checks: {
+      cache: cache ? 'ok' : 'unavailable',
+      providers: providers ? 'ok' : 'unavailable'
+    },
+    ts: new Date().toISOString()
+  };
+  
+  // If any critical component is down, mark as not ready
+  if (!cache || !providers) {
+    response.ready = false;
+  }
+  
+  res.status(response.ready ? 200 : 503).json(response);
+});
+
+// Legacy health endpoints (for backward compatibility)
 router.get('/health', (req: Request, res: Response) => {
   const providers = req.app.locals.providers as any;
   const mode = providers?.mode || (process.env.REDIS_URL === 'memory://' ? 'memory' : 'redis');

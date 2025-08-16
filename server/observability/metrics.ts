@@ -49,7 +49,11 @@ export function withRequestMetrics() {
 
 export function installMetricsRoute(app: import('express').Express) {
   if (!FEATURES.metrics) return;
-  app.get('/metrics', async (_req: Request, res: Response) => {
+  
+  // Import auth middleware
+  const { authenticateMetrics } = require('../middleware/auth-metrics');
+  
+  app.get('/metrics', authenticateMetrics, async (_req: Request, res: Response) => {
     res.setHeader('Content-Type', client.register.contentType);
     res.send(await client.register.metrics());
   });
