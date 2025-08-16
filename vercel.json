@@ -1,17 +1,7 @@
 {
   "buildCommand": "npm run build",
-  "installCommand": "npm ci",
-  "functions": {
-    "api/*.ts": { "runtime": "nodejs20.x" }
-  },
-  "github": {
-    "enabled": true,
-    "autoAlias": false
-  },
-  "git": {
-    "deploymentEnabled": {
-      "main": true
-    }
-  },
-  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ]; then echo 'Skipping preview build'; exit 0; fi"
+  "installCommand": "npm ci --ignore-scripts",
+  "framework": null,
+  "ignoreCommand": "bash -lc 'if [ \"$VERCEL_GIT_PULL_REQUEST_ID\" != \"\" ] && [ \"$VERCEL_ENV\" != \"production\" ]; then echo Skip PR build; exit 0; else exit 1; fi'",
+  "env": { "NODE_VERSION": "20.15.1" }
 }
