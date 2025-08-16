@@ -14,12 +14,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.16.0'
+          node-version-file: '.nvmrc'
           cache: 'npm'
-      - name: Enable corepack for consistent npm version
-        run: corepack enable
-      - name: Install
-        run: npm ci --legacy-peer-deps
+      - name: Install deps (CI)
+        run: npm ci --ignore-scripts
       - name: Type Check
         run: npm run check
       - name: Verify Memory Mode (no Redis)
