@@ -1,0 +1,19 @@
+name: ci-breaker
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci || npm i
+      - run: npm run -s lint || true
+      - run: npm test --workspaces --if-present -- --ci
+      - name: List bundle files (if present)
+        run: ls -R
