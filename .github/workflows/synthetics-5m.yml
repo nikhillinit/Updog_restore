@@ -1,0 +1,18 @@
+name: synthetics-5m
+on:
+  pull_request: { branches: [ main ] }
+  schedule: [ { cron: "*/5 * * * *" } ]
+env:
+  SYNTHETIC_URL: ${{ secrets.SYNTHETIC_URL }}
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: GET / smoke
+        run: |
+          if [ -z "${SYNTHETIC_URL}" ]; then
+            echo "::error ::SYNTHETIC_URL is not set"; exit 1
+          fi
+          code=$(curl -s -o /dev/null -w "%{http_code}" "${SYNTHETIC_URL}/")
+          echo "GET / -> $code"
+          test $code -ge 200 -a $code -lt 400
