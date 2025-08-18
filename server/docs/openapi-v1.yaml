@@ -1,0 +1,264 @@
+openapi: 3.0.3
+info:
+  title: Updog API (v1 - Deprecated)
+  version: 1.0.0
+  description: |
+    **⚠️ DEPRECATED**: This API version is deprecated and will be sunset on 2025-12-01.
+    Please migrate to [API v2](/docs/v2) for continued support.
+    
+    The Updog API provides programmatic access to venture capital fund modeling and reporting capabilities.
+  contact:
+    name: API Support
+    email: api@updog.example
+  license:
+    name: Proprietary
+servers:
+  - url: https://api.updog.example/v1
+    description: Production (v1)
+  - url: http://localhost:5000/api/v1
+    description: Development (v1)
+
+tags:
+  - name: Funds
+    description: Fund management operations
+  - name: Simulations
+    description: Monte Carlo simulations
+  - name: Health
+    description: Health and readiness checks
+
+paths:
+  /ready:
+    get:
+      summary: Readiness probe
+      description: Check if the service is ready to handle requests
+      tags: [Health]
+      deprecated: true
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ready:
+                    type: boolean
+                  version:
+                    type: string
+        '503':
+          description: Service not ready
+
+  /health:
+    get:
+      summary: Health check
+      description: Basic health status
+      tags: [Health]
+      deprecated: true
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, degraded, fail]
+
+  /funds:
+    get:
+      summary: List funds
+      description: Retrieve a list of all funds
+      tags: [Funds]
+      deprecated: true
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of funds
+          headers:
+            Deprecation:
+              schema:
+                type: string
+                example: "true"
+            Sunset:
+              schema:
+                type: string
+                example: "2025-12-01"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  funds:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Fund'
+                  total:
+                    type: integer
+
+    post:
+      summary: Create fund
+      description: Create a new fund
+      tags: [Funds]
+      deprecated: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FundInput'
+      responses:
+        '201':
+          description: Fund created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Fund'
+
+  /funds/{id}:
+    get:
+      summary: Get fund
+      description: Retrieve a specific fund by ID
+      tags: [Funds]
+      deprecated: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Fund details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Fund'
+        '404':
+          description: Fund not found
+
+  /simulations:
+    post:
+      summary: Run simulation
+      description: Execute Monte Carlo simulation
+      tags: [Simulations]
+      deprecated: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimulationInput'
+      responses:
+        '200':
+          description: Simulation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationResult'
+
+components:
+  schemas:
+    Fund:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        size:
+          type: number
+          minimum: 0
+        vintage:
+          type: integer
+        status:
+          type: string
+          enum: [active, closed, liquidated]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    FundInput:
+      type: object
+      required:
+        - name
+        - size
+      properties:
+        name:
+          type: string
+        size:
+          type: number
+          minimum: 1000000
+        vintage:
+          type: integer
+        strategy:
+          type: string
+
+    SimulationInput:
+      type: object
+      required:
+        - fundId
+        - scenarios
+      properties:
+        fundId:
+          type: string
+        scenarios:
+          type: integer
+          minimum: 100
+          maximum: 10000
+        seed:
+          type: integer
+
+    SimulationResult:
+      type: object
+      properties:
+        moic:
+          type: number
+        irr:
+          type: number
+        tvpi:
+          type: number
+        dpi:
+          type: number
+        percentiles:
+          type: object
+          properties:
+            p10:
+              type: number
+            p25:
+              type: number
+            p50:
+              type: number
+            p75:
+              type: number
+            p90:
+              type: number
+
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    
+    BearerAuth:
+      type: http
+      scheme: bearer
+
+security:
+  - ApiKey: []
+  - BearerAuth: []
