@@ -1,0 +1,11 @@
+openapi: 3.0.3
+info:
+  title: Updog API (v2 - Current)
+  version: 2.0.0
+paths:
+  /ready:
+    get:
+      summary: Readiness probe
+      responses:
+        '200':
+          description: OK
