@@ -1,16 +1,24 @@
 # Chaos Engineering Tests
 
-Chaos testing validates system resilience under failure conditions using Toxiproxy to inject faults.
+Chaos testing validates system resilience under failure and data corruption conditions.
 
 ## Overview
 
 These tests simulate various failure scenarios:
+
+### Network Chaos (via Toxiproxy)
 - Network latency (500ms+ delays)
 - Connection failures
 - Network partitions
 - Packet loss
 - Bandwidth limitations
 - Service degradation
+
+### Engine Chaos (WASM Fault Injection)
+- NaN/Infinity injection into calculations
+- Extreme value mutations
+- Non-finite guard validation
+- Correlation ID tracking for failures
 
 ## Setup
 
@@ -40,6 +48,18 @@ npm run test:chaos
 
 # Run specific test file
 npm run test:chaos -- tests/chaos/postgres-latency.test.ts
+```
+
+### Engine Fault Injection Tests
+```bash
+# Run with default 50% fault rate
+npm run test:chaos:wasm
+
+# Run with custom fault rate
+ENGINE_FAULT_RATE=0.7 npm run test:chaos:wasm
+
+# Run with deterministic seed
+ENGINE_FAULT_RATE=0.3 ENGINE_FAULT_SEED=42 npm run test:chaos:wasm
 ```
 
 ### Individual Scenarios

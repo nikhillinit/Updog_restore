@@ -69,6 +69,7 @@
     "test:baseline": "k6 run -e BASE_URL=http://localhost:5000 -e RATE=5 -e DURATION=2m -e VUS=20 tests/k6/k6-baseline.js",
     "test:chaos": "vitest run tests/chaos",
     "test:chaos:pg": "vitest run tests/chaos/postgres-latency.test.ts",
+    "test:chaos:wasm": "vitest run tests/chaos/wasm-fault.integration.test.ts",
     "test:staging": "./scripts/smoke.sh",
     "chaos:start": "docker-compose -f docker-compose.chaos.yml up -d",
     "chaos:stop": "docker-compose -f docker-compose.chaos.yml down",
