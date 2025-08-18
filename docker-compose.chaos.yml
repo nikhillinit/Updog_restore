@@ -1,0 +1,100 @@
+version: '3.9'
+
+services:
+  # Toxiproxy control server
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.5.0
+    ports:
+      - "8474:8474"  # Toxiproxy API
+    networks:
+      - chaos-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8474/version"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Real PostgreSQL instance
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: updog_test
+    ports:
+      - "5432:5432"
+    networks:
+      - chaos-net
+    volumes:
+      - postgres-chaos-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # PostgreSQL proxy with fault injection
+  postgres-proxy:
+    image: ghcr.io/shopify/toxiproxy:2.5.0
+    depends_on:
+      toxiproxy:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5433:5433"  # Proxy port for PG connections
+    networks:
+      - chaos-net
+    environment:
+      UPSTREAM_HOST: postgres
+      UPSTREAM_PORT: 5432
+      LISTEN_PORT: 5433
+    entrypoint: >
+      sh -c "
+      sleep 3 &&
+      /go/bin/toxiproxy-cli -h toxiproxy:8474 create postgres-proxy \
+        --listen 0.0.0.0:5433 \
+        --upstream postgres:5432 &&
+      tail -f /dev/null
+      "
+
+  # Redis for testing circuit breaker with cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - chaos-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Redis proxy for chaos testing
+  redis-proxy:
+    image: ghcr.io/shopify/toxiproxy:2.5.0
+    depends_on:
+      toxiproxy:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "6380:6380"  # Proxy port for Redis connections
+    networks:
+      - chaos-net
+    entrypoint: >
+      sh -c "
+      sleep 3 &&
+      /go/bin/toxiproxy-cli -h toxiproxy:8474 create redis-proxy \
+        --listen 0.0.0.0:6380 \
+        --upstream redis:6379 &&
+      tail -f /dev/null
+      "
+
+networks:
+  chaos-net:
+    driver: bridge
+
+volumes:
+  postgres-chaos-data:
