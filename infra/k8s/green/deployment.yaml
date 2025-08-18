@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: updog-green }
+spec:
+  replicas: 3
+  selector: { matchLabels: { app: updog, color: green } }
+  template:
+    metadata: { labels: { app: updog, color: green } }
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/your-org/updog:green
+          ports: [ { containerPort: 3000 } ]
