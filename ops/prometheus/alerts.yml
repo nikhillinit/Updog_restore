@@ -1,0 +1,10 @@
+groups:
+- name: slo-burn
+  rules:
+  - record: job:slo_error_budget_burn_rate_1h
+    expr: (sum(rate(http_requests_failed_total[1h])) / sum(rate(http_requests_total[1h]))) / (1 - 0.999)
+  - alert: SLOErrorBudgetBurnFast
+    expr: job:slo_error_budget_burn_rate_1h > 14.4
+    for: 5m
+    labels: { severity: critical }
+    annotations: { summary: "SLO burn >14.4x over 1h" }
