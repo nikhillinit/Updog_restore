@@ -1,10 +1,10 @@
 // server/middleware/correlation.ts
 import { randomUUID } from 'crypto';
-import { FastifyRequest, FastifyReply } from 'fastify';
+import { Request, Response, NextFunction } from 'express';
 
-export function correlation(req: FastifyRequest, reply: FastifyReply, done: any) {
+export function correlation(req: Request, res: Response, next: NextFunction) {
   const id = (req.headers['x-correlation-id'] as string) || randomUUID();
   (req as any).correlationId = id;
-  reply.header('x-correlation-id', id);
-  done();
+  res.header('x-correlation-id', id);
+  next();
 }

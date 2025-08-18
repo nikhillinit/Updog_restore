@@ -98,6 +98,10 @@
     "dev:docker": "docker-compose up -d && npm run dev",
     "dev:clean": "docker-compose down -v",
     "circuit-breaker": "tsx scripts/circuit-breaker-cli.ts",
+    "pgcron:schedule": "psql \"$DATABASE_URL\" -f scripts/sql/schedule_pg_cron_cleanup.sql",
+    "pgcron:unschedule": "psql \"$DATABASE_URL\" -f scripts/sql/unschedule_pg_cron_cleanup.sql",
+    "pgcron:status": "psql \"$DATABASE_URL\" -c \"SELECT * FROM maintenance.audit_cleanup_status();\"",
+    "audit:cleanup": "psql \"$DATABASE_URL\" -c \"CALL maintenance.cleanup_audit(NOW(), 1000, '10 milliseconds');\"",
     "lint:disable-warnings": "eslint . --ext .ts,.tsx,.js,.jsx --rule '@typescript-eslint/no-explicit-any: off' --rule '@typescript-eslint/no-unused-vars: off' --rule 'no-console: off' --rule 'react/no-unescaped-entities: off' --rule 'react-hooks/exhaustive-deps: off' --no-error-on-unmatched-pattern"
   },
   "dependencies": {

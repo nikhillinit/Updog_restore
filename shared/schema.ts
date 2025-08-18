@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, decimal, timestamp, jsonb, varchar, index, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, decimal, timestamp, jsonb, varchar, index, unique, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -456,3 +456,36 @@ export interface TimelineSnapshot extends FundSnapshot {
   eventCount: number | null;
   stateHash: string | null;
 }
+
+// Audit log table for comprehensive activity tracking with 7-year retention
+export const auditLog = pgTable("audit_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: integer("user_id").references(() => users.id),
+  action: varchar("action", { length: 50 }).notNull(),
+  entityType: varchar("entity_type", { length: 50 }),
+  entityId: uuid("entity_id"),
+  changes: jsonb("changes"),
+  ipAddress: text("ip_address"), // INET type handled as text in TypeScript
+  userAgent: text("user_agent"),
+  correlationId: varchar("correlation_id", { length: 36 }),
+  sessionId: varchar("session_id", { length: 64 }),
+  requestPath: text("request_path"),
+  httpMethod: varchar("http_method", { length: 10 }),
+  statusCode: integer("status_code"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  // retention_until is a generated column, not managed by Drizzle directly
+}, (table) => ({
+  retentionIdx: index("idx_audit_retention").on(table.createdAt), // Index on created_at for retention queries
+  correlationIdx: index("idx_audit_correlation").on(table.correlationId),
+  userActionIdx: index("idx_audit_user_action").on(table.userId, table.action, table.createdAt.desc()),
+}));
+
+// Insert schema for audit log
+export const insertAuditLogSchema = createInsertSchema(auditLog).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Types
+export type AuditLog = typeof auditLog.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;

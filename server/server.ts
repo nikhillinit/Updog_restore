@@ -15,6 +15,8 @@ import cors from 'cors';
 import { requestId } from './middleware/requestId.js';
 import { shutdownGuard } from './middleware/shutdownGuard.js';
 import { rateLimitDetailed } from './middleware/rateLimitDetailed.js';
+import { correlation } from './middleware/correlation.js';
+import { engineGuardExpress } from './middleware/engineGuardExpress.js';
 import { sendApiError, createErrorBody } from './lib/apiError.js';
 import { registerRoutes } from './routes.js';
 import { setupVite, serveStatic, log } from './vite.js';
@@ -59,6 +61,12 @@ export async function createServer(
   
   // Request ID MUST be first for correlation on all paths
   app.use(requestId());
+  
+  // Correlation ID for tracing
+  app.use(correlation);
+  
+  // Engine guards for NaN/Infinity sanitization and fault injection
+  app.use(engineGuardExpress());
   
   // Version headers for observability
   app.use((req: Request, res: Response, next: NextFunction) => {
