@@ -1,0 +1,13 @@
+openapi: 3.0.3
+info:
+  title: Updog API (v1 - Deprecated)
+  version: 1.0.0
+  description: |
+    v1 is deprecated. Sunset on 2025-12-01.
+paths:
+  /ready:
+    get:
+      summary: Readiness probe
+      responses:
+        '200':
+          description: OK

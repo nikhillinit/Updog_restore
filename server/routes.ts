@@ -706,6 +706,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const timelineRouter = await import('./routes/timeline.js');
   app.use('/api/timeline', timelineRouter.default);
 
+  // Admin routes for engine management (non-prod only)
+  const { engineAdminRoutes } = await import('./routes/admin/engine.js');
+  app.use('/api/admin/engine', engineAdminRoutes);
+
   const httpServer = createServer(app as any);
   return httpServer;
 }

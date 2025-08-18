@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import client from 'prom-client';
+import { calcGuardBad, calcGuardEvents } from '../metrics/calcGuards.js';
 
 // Create metrics router
 export const metricsRouter = Router();
