@@ -32,6 +32,13 @@ Brief description of changes made in this PR.
 - [ ] New and existing unit tests pass locally with my changes
 - [ ] Performance benchmarks show no regressions (>20% slower)
 
+### Reserves v1.1 Specific (if applicable)
+- [ ] Conservation invariant maintained (allocated + remaining = available)
+- [ ] Exit MOIC ranking verified
+- [ ] Cap policies tested
+- [ ] Quarter-based calculations accurate
+- [ ] Bundle size optimized (dynamic imports for export libs)
+
 ## Checklist
 
 - [ ] My code follows the style guidelines of this project
