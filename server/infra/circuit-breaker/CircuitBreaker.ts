@@ -136,7 +136,7 @@ export class CircuitBreaker<T> {
       ? this.failureTimes.length >= this.effectiveFailureThreshold
       : this.failures >= this.effectiveFailureThreshold;
 
-    if (shouldOpen && (this.state === 'CLOSED' || this.state === 'HALF_OPEN'))) {
+    if (shouldOpen && (this.state === 'CLOSED' || this.state === 'HALF_OPEN')) {
       await this.transitionState(['CLOSED', 'HALF_OPEN'], 'OPEN', 'failure threshold reached');
     }
   }
