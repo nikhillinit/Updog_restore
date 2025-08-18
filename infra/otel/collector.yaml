@@ -1,0 +1,35 @@
+receivers:
+  otlp:
+    protocols: { http: {}, grpc: {} }
+
+processors:
+  batch: {}
+  tailsampling:
+    decision_wait: 5s
+    num_traces: 25000
+    expected_new_traces_per_sec: 1000
+    policies:
+      - name: baseline-rate
+        type: probabilistic
+        probabilistic: { sampling_percentage: 1 }
+      - name: sample-errors
+        type: status_code
+        status_code: { status_codes: [ERROR] }
+      - name: sample-slow
+        type: latency
+        latency: { threshold_ms: 750 }
+      - name: sample-critical
+        type: string_attribute
+        string_attribute:
+          key: http.target
+          values: ["/api/simulate"]
+          sampling_rate: 0.1
+
+exporters:
+  otlp:
+    endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+
+service:
+  pipelines:
+    traces: { receivers: [otlp], processors: [batch, tailsampling], exporters: [otlp] }
+    metrics: { receivers: [otlp], processors: [batch], exporters: [otlp] }

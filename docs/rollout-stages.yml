@@ -1,0 +1,6 @@
+stages:
+  internal:    { percentage: 0.1,  duration: "2h",  users: employees_only }
+  power_users: { percentage: 1,    duration: "12h", users: beta_program }
+  free_tier:   { percentage: 10,   duration: "24h" }
+  pro_tier:    { percentage: 10,   duration: "24h" }
+  enterprise:  { percentage: 5,    duration: "48h", manual_approval: true }

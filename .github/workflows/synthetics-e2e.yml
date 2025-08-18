@@ -1,0 +1,16 @@
+name: synthetics-e2e
+on:
+  pull_request: { branches: [ main ] }
+  schedule: [ { cron: '*/10 * * * *' } ]
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci
+      - run: npx playwright install --with-deps
+      - name: Run E2E Wizard Flow
+        env: { BASE_URL: ${{ secrets.SYNTHETIC_URL }} }
+        run: npx playwright test tests/synthetics/wizard.e2e.spec.ts --reporter=line

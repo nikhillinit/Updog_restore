@@ -1,0 +1,12 @@
+merge_method: squash
+max_parallel: 3
+required_status_checks:
+  - test
+  - build
+  - security
+  - openapi-diff
+  - readiness-probe
+  - synthetics-5m
+group_rules:
+  - pattern: '^feat|^refactor'
+  - pattern: '^sec|^fix|^ops'

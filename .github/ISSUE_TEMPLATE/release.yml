@@ -1,0 +1,25 @@
+name: Release Train 2025-08-18
+description: Template for governed rollout train
+title: "Release: 2025-08-18"
+labels: [release-train]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Week-0 gates** must pass before Week-1 starts.
+  - type: checkboxes
+    id: gates
+    attributes:
+      label: Week-0 Gates
+      options:
+        - label: Merge queue enabled & required checks set
+        - label: Dashboards & PagerDuty wired (test page OK)
+        - label: OpenAPI diff workflow passing
+        - label: Readiness & synthetics passing
+        - label: Perf baseline workflow ready
+        - label: SAST/DAST scheduled
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Links to dashboards and artifacts

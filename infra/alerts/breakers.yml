@@ -1,0 +1,18 @@
+groups:
+- name: breakers
+  rules:
+  - alert: CircuitBreakerOpen
+    expr: sum by(service,breaker)(breaker_state{state="OPEN"}) > 0
+    for: 2m
+    labels: { severity: page }
+    annotations:
+      summary: "Breaker OPEN ({{ $labels.service }} / {{ $labels.breaker }})"
+
+- name: error-budget
+  rules:
+  - alert: ErrorBudgetBurn
+    expr: (rate(http_requests_failed_total[1h]) / rate(http_requests_total[1h])) > 0.05
+    for: 5m
+    labels: { severity: page }
+    annotations:
+      summary: "Error budget burn >5x SLO"
