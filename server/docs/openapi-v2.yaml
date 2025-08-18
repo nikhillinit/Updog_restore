@@ -1,0 +1,634 @@
+openapi: 3.0.3
+info:
+  title: Updog API (v2 - Current)
+  version: 2.0.0
+  description: |
+    The Updog API v2 provides enhanced venture capital fund modeling and reporting capabilities
+    with improved performance, security, and reliability features.
+    
+    ## What's New in v2
+    - Idempotency support with `Idempotency-Key` header
+    - Request deduplication for identical operations
+    - Enhanced rate limiting with tiered limits
+    - Circuit breaker protection for external services
+    - Improved error responses with detailed codes
+    - WebSocket support for real-time updates
+    
+  contact:
+    name: API Support
+    email: api@updog.example
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.updog.example/v2
+    description: Production
+  - url: https://staging-api.updog.example/v2
+    description: Staging
+  - url: http://localhost:5000/api/v2
+    description: Development
+
+tags:
+  - name: Funds
+    description: Fund management operations
+  - name: Simulations
+    description: Monte Carlo simulations and analysis
+  - name: Portfolios
+    description: Portfolio construction and optimization
+  - name: Reports
+    description: Reporting and analytics
+  - name: Health
+    description: Health, readiness, and metrics
+
+paths:
+  /readyz:
+    get:
+      summary: Kubernetes readiness probe
+      description: Detailed readiness check for load balancer
+      tags: [Health]
+      operationId: getReadiness
+      responses:
+        '200':
+          description: Service ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+        '503':
+          description: Service not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+
+  /healthz:
+    get:
+      summary: Kubernetes liveness probe
+      description: Simple liveness check
+      tags: [Health]
+      operationId: getLiveness
+      responses:
+        '200':
+          description: Service alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      description: Metrics in Prometheus format
+      tags: [Health]
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /funds:
+    get:
+      summary: List funds
+      description: Retrieve paginated list of funds with filtering
+      tags: [Funds]
+      operationId: listFunds
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, closed, liquidated]
+        - name: vintage
+          in: query
+          schema:
+            type: integer
+        - name: minSize
+          in: query
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Fund list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FundList'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+    post:
+      summary: Create fund
+      description: Create a new fund with idempotency support
+      tags: [Funds]
+      operationId: createFund
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FundCreateRequest'
+      responses:
+        '201':
+          description: Fund created
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /api/v2/funds/123e4567-e89b-12d3-a456-426614174000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Fund'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /funds/{id}:
+    get:
+      summary: Get fund details
+      description: Retrieve detailed information about a specific fund
+      tags: [Funds]
+      operationId: getFund
+      parameters:
+        - $ref: '#/components/parameters/FundId'
+      responses:
+        '200':
+          description: Fund details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FundDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Update fund
+      description: Partial update of fund properties
+      tags: [Funds]
+      operationId: updateFund
+      parameters:
+        - $ref: '#/components/parameters/FundId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FundUpdateRequest'
+      responses:
+        '200':
+          description: Fund updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Fund'
+
+    delete:
+      summary: Delete fund
+      description: Soft delete a fund
+      tags: [Funds]
+      operationId: deleteFund
+      parameters:
+        - $ref: '#/components/parameters/FundId'
+      responses:
+        '204':
+          description: Fund deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /simulations:
+    post:
+      summary: Run simulation
+      description: Execute Monte Carlo simulation with caching
+      tags: [Simulations]
+      operationId: runSimulation
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimulationRequest'
+      responses:
+        '200':
+          description: Simulation complete
+          headers:
+            X-Request-Dedup:
+              schema:
+                type: string
+                description: Indicates if response was deduplicated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationResponse'
+        '202':
+          description: Simulation queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationJob'
+
+  /simulations/{id}/status:
+    get:
+      summary: Get simulation status
+      description: Check status of async simulation
+      tags: [Simulations]
+      operationId: getSimulationStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Simulation status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationStatus'
+
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      description: Unique key for exactly-once processing
+      schema:
+        type: string
+        format: uuid
+        
+    FundId:
+      name: id
+      in: path
+      required: true
+      description: Fund identifier
+      schema:
+        type: string
+        format: uuid
+        
+    LimitParam:
+      name: limit
+      in: query
+      description: Maximum items to return
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+        
+    OffsetParam:
+      name: offset
+      in: query
+      description: Number of items to skip
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+  schemas:
+    Fund:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        size:
+          type: number
+          minimum: 0
+        vintage:
+          type: integer
+        status:
+          type: string
+          enum: [active, closed, liquidated]
+        strategy:
+          type: string
+          enum: [seed, early, growth, late]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    FundDetail:
+      allOf:
+        - $ref: '#/components/schemas/Fund'
+        - type: object
+          properties:
+            reserves:
+              type: number
+            deployed:
+              type: number
+            realized:
+              type: number
+            unrealized:
+              type: number
+            metrics:
+              $ref: '#/components/schemas/FundMetrics'
+
+    FundMetrics:
+      type: object
+      properties:
+        moic:
+          type: number
+        irr:
+          type: number
+        tvpi:
+          type: number
+        dpi:
+          type: number
+        rvpi:
+          type: number
+
+    FundList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Fund'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+        hasMore:
+          type: boolean
+
+    FundCreateRequest:
+      type: object
+      required:
+        - name
+        - size
+        - vintage
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        size:
+          type: number
+          minimum: 1000000
+        vintage:
+          type: integer
+          minimum: 2000
+          maximum: 2050
+        strategy:
+          type: string
+          enum: [seed, early, growth, late]
+        targetMultiple:
+          type: number
+          minimum: 1
+          maximum: 10
+
+    FundUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+          enum: [active, closed, liquidated]
+        targetMultiple:
+          type: number
+
+    SimulationRequest:
+      type: object
+      required:
+        - fundId
+        - scenarios
+      properties:
+        fundId:
+          type: string
+          format: uuid
+        scenarios:
+          type: integer
+          minimum: 100
+          maximum: 100000
+          default: 10000
+        seed:
+          type: integer
+          description: Seed for reproducible results
+        parameters:
+          $ref: '#/components/schemas/SimulationParameters'
+
+    SimulationParameters:
+      type: object
+      properties:
+        deploymentPeriod:
+          type: integer
+          minimum: 4
+          maximum: 40
+        reserveRatio:
+          type: number
+          minimum: 0
+          maximum: 0.75
+        managementFee:
+          type: number
+          minimum: 0
+          maximum: 0.05
+        carryPercentage:
+          type: number
+          minimum: 0
+          maximum: 0.5
+
+    SimulationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        fundId:
+          type: string
+        scenarios:
+          type: integer
+        results:
+          $ref: '#/components/schemas/SimulationResults'
+        cached:
+          type: boolean
+        computeTime:
+          type: number
+
+    SimulationResults:
+      type: object
+      properties:
+        moic:
+          $ref: '#/components/schemas/StatisticalSummary'
+        irr:
+          $ref: '#/components/schemas/StatisticalSummary'
+        tvpi:
+          $ref: '#/components/schemas/StatisticalSummary'
+        dpi:
+          $ref: '#/components/schemas/StatisticalSummary'
+
+    StatisticalSummary:
+      type: object
+      properties:
+        mean:
+          type: number
+        median:
+          type: number
+        stdDev:
+          type: number
+        min:
+          type: number
+        max:
+          type: number
+        percentiles:
+          type: object
+          properties:
+            p10:
+              type: number
+            p25:
+              type: number
+            p50:
+              type: number
+            p75:
+              type: number
+            p90:
+              type: number
+
+    SimulationJob:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, completed, failed]
+        statusUrl:
+          type: string
+        estimatedTime:
+          type: integer
+
+    SimulationStatus:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, completed, failed]
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        result:
+          $ref: '#/components/schemas/SimulationResponse'
+        error:
+          type: string
+
+    ReadinessResponse:
+      type: object
+      properties:
+        ready:
+          type: boolean
+        checks:
+          type: object
+          properties:
+            database:
+              type: string
+              enum: [ok, fail]
+            redis:
+              type: string
+              enum: [ok, degraded, fail]
+            api:
+              type: string
+              enum: [ok, fail]
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+        details:
+          type: object
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+            
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+            
+    Conflict:
+      description: Conflict with existing resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+            
+    RateLimitExceeded:
+      description: Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication
+      
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT bearer token
+      
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.updog.example/oauth/authorize
+          tokenUrl: https://auth.updog.example/oauth/token
+          scopes:
+            read:funds: Read fund data
+            write:funds: Create and update funds
+            run:simulations: Execute simulations
+            admin: Full administrative access
+
+security:
+  - ApiKey: []
+  - BearerAuth: []
+  - OAuth2: [read:funds]
