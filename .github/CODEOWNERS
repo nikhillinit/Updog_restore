@@ -1,0 +1,41 @@
+# CODEOWNERS for Reserves v1.1 Implementation
+# This file defines who should review specific parts of the codebase
+
+# Default owners for everything
+* @nikhillinit
+
+# Core calculation engine - requires careful review
+/client/src/lib/reserves-v11.ts @nikhillinit
+/client/src/lib/quarter-time.ts @nikhillinit
+/shared/types/reserves-v11.ts @nikhillinit
+
+# Adapters and data transformation
+/client/src/adapters/ @nikhillinit
+/client/src/schemas/ @nikhillinit
+
+# UI Components
+/client/src/components/wizard/ReserveStep.tsx @nikhillinit
+/client/src/components/reserves/ @nikhillinit
+
+# Infrastructure and observability
+/client/src/metrics/ @nikhillinit
+/client/src/lib/feature-flags.ts @nikhillinit
+/client/src/engines/ @nikhillinit
+
+# Testing
+/tests/unit/reserves-*.test.ts @nikhillinit
+/tests/perf/ @nikhillinit
+/tests/integration/ @nikhillinit
+
+# CI/CD
+/.github/workflows/ci-reserves-v11.yml @nikhillinit
+/.github/workflows/canary-gate.yml @nikhillinit
+
+# Documentation
+/docs/reserves/ @nikhillinit
+/docs/ROLLBACK_TRIGGERS.md @nikhillinit
+/docs/INCIDENT_RESPONSE.md @nikhillinit
+
+# Server-side implementation
+/server/routes/reserves.ts @nikhillinit
+/server/plugins/reserves-metrics.plugin.ts @nikhillinit
