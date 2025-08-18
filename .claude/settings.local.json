@@ -68,8 +68,16 @@
       "Bash(touch:*)",
       "Bash(rg:*)",
       "Bash(git grep:*)",
-      "Bash(gh run view:*)"
+      "Bash(gh run view:*)",
+      "Bash(UNZIP_DIR=/tmp/updog_scaffolds)",
+      "Bash(unzip:*)",
+      "Bash(echo \"Bundle unpacked successfully to $UNZIP_DIR\")",
+      "Bash(cat:*)"
     ],
-    "deny": []
+    "deny": [],
+    "additionalDirectories": [
+      "C:\\mnt\\c\\dev",
+      "C:\\tmp"
+    ]
   }
 }
