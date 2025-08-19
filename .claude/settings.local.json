@@ -72,7 +72,10 @@
       "Bash(UNZIP_DIR=/tmp/updog_scaffolds)",
       "Bash(unzip:*)",
       "Bash(echo \"Bundle unpacked successfully to $UNZIP_DIR\")",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(echo:*)",
+      "Bash(export UNZIP_DIR=/tmp/updog_scaffolds)",
+      "Bash(rsync:*)"
     ],
     "deny": [],
     "additionalDirectories": [
