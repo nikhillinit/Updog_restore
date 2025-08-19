@@ -76,7 +76,8 @@
       "Bash(echo:*)",
       "Bash(export UNZIP_DIR=/tmp/updog_scaffolds)",
       "Bash(rsync:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(git cherry-pick:*)"
     ],
     "deny": [],
     "additionalDirectories": [
