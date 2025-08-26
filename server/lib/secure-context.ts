@@ -5,7 +5,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { db } from './db.js';
+import { db } from '../db.js';
 import { sql } from 'drizzle-orm';
 
 export interface UserContext {
