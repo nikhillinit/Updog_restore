@@ -124,3 +124,7 @@ coverage/
 # Local scratch
 Updog_restore-main/
 .specstory/
+
+
+#Ignore vscode AI rules
+.github\instructions\codacy.instructions.md
