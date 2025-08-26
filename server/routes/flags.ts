@@ -1,33 +1,55 @@
 /**
  * Feature Flag API Routes
- * Client-safe flag exposure and admin management
+ * Production-grade flag management with security and versioning
  */
 
 import { Router, Request, Response } from 'express';
-import { getClientFlags, updateFlag, getFlagHistory, getCacheStatus, activateKillSwitch } from '../lib/flags.js';
+import { getClientFlags, getFlagsVersion, getFlagsHash, updateFlag, getFlagHistory, getCacheStatus, activateKillSwitch } from '../lib/flags.js';
+import { requireAuth, requireRole, type AuthenticatedRequest } from '../lib/auth/jwt.js';
 import { z } from 'zod';
 
 export const flagsRouter = Router();
 
 /**
- * GET /api/flags - Client-safe flags only
+ * GET /api/flags - Client-safe flags with ETag support
  */
 flagsRouter.get('/', async (req: Request, res: Response) => {
   try {
-    const clientFlags = await getClientFlags();
+    // Extract user context for targeting (optional)
+    const userId = req.headers['x-user-id'] as string;
+    const userContext = userId ? { id: userId } : undefined;
     
-    res.json({
-      flags: clientFlags,
-      timestamp: new Date().toISOString(),
+    const result = await getClientFlags(userContext);
+    const timestamp = new Date().toISOString();
+    
+    // ETag support for conditional requests
+    const etag = `W/"${result.hash}"`;
+    res.setHeader('ETag', etag);
+    res.setHeader('Cache-Control', 'max-age=15, must-revalidate');
+    
+    // Handle conditional GET
+    if (req.headers['if-none-match'] === etag) {
+      return res.status(304).end();
+    }
+    
+    const response = {
+      flags: result.flags,
+      version: result.version,
+      timestamp,
       _meta: {
-        note: 'Only flags marked exposeToClient=true are included'
+        note: 'Only flags marked exposeToClient=true are included',
+        hash: result.hash
       }
-    });
+    };
+    
+    res.json(response);
   } catch (error) {
     console.error('Error fetching client flags:', error);
     res.status(500).json({ 
       error: 'Failed to fetch flags',
-      flags: {} // Safe fallback
+      flags: {}, // Safe fallback
+      version: '0',
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -51,36 +73,35 @@ flagsRouter.get('/status', async (req: Request, res: Response) => {
   }
 });
 
-// Admin routes (protected)
+// Admin routes with JWT authentication and RBAC
 const adminRouter = Router();
 
+// Apply authentication to all admin routes
+adminRouter.use(requireAuth());
+
 /**
- * Simple auth middleware for admin routes
+ * GET /api/admin/flags - Get all flags with version for admin
  */
-adminRouter.use((req: Request, res: Response, next) => {
-  // In production, use proper authentication
-  const authHeader = req.headers.authorization;
-  const isLocal = req.ip === '127.0.0.1' || req.ip === '::1';
-  const isDev = process.env.NODE_ENV === 'development';
-  
-  if (isDev && isLocal) {
-    next();
-    return;
+adminRouter.get('/', requireRole('flag_read'), async (req: Request, res: Response) => {
+  try {
+    const version = await getFlagsVersion();
+    const hash = await getFlagsHash();
+    const snapshot = await getFlags();
+    
+    res.json({
+      version,
+      hash,
+      flags: snapshot.flags,
+      environment: snapshot.environment,
+      timestamp: new Date().toISOString(),
+      _meta: {
+        note: 'Admin view - includes all flags regardless of exposeToClient'
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching admin flags:', error);
+    res.status(500).json({ error: 'Failed to fetch admin flags' });
   }
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'Authorization required' });
-    return;
-  }
-  
-  // In production, validate JWT or API key here
-  const token = authHeader.replace('Bearer ', '');
-  if (token !== process.env.FLAG_ADMIN_TOKEN) {
-    res.status(403).json({ error: 'Invalid token' });
-    return;
-  }
-  
-  next();
 });
 
 const updateFlagSchema = z.object({
@@ -95,40 +116,78 @@ const updateFlagSchema = z.object({
       percentage: z.number().min(0).max(100).optional()
     }))
   }).optional(),
-  actor: z.string().min(1),
-  reason: z.string().optional()
+  reason: z.string().min(1, 'Reason is required for audit trail'),
+  dryRun: z.boolean().optional()
 });
 
 /**
- * POST /api/admin/flags/:key - Update flag
+ * PATCH /api/admin/flags/:key - Update flag with versioning
  */
-adminRouter.post('/:key', async (req: Request, res: Response) => {
+adminRouter.patch('/:key', requireRole('flag_admin'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { key } = req.params;
     const validation = updateFlagSchema.safeParse(req.body);
     
     if (!validation.success) {
-      res.status(400).json({ 
-        error: 'Invalid request', 
+      return res.status(400).json({ 
+        error: 'invalid_request', 
         issues: validation.error.issues 
       });
-      return;
     }
     
-    const { actor, reason, ...updates } = validation.data;
+    // Version-based concurrency control
+    const expectedVersion = req.headers['if-match'] as string;
+    if (!expectedVersion) {
+      return res.status(400).json({
+        error: 'version_required',
+        message: 'If-Match header with current version required'
+      });
+    }
     
-    await updateFlag(key, updates, actor, reason);
+    const currentVersion = await getFlagsVersion();
+    if (expectedVersion !== currentVersion) {
+      return res.status(409).json({
+        error: 'version_conflict',
+        message: 'Flag version has changed since last read',
+        currentVersion,
+        expectedVersion
+      });
+    }
+    
+    const { reason, dryRun, ...updates } = validation.data;
+    
+    // Dry run support
+    if (dryRun) {
+      // TODO: Preview changes without committing
+      return res.json({
+        dryRun: true,
+        preview: {
+          key,
+          updates,
+          actor: req.user.email,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+    
+    await updateFlag(key, updates, req.user, reason);
+    
+    const newVersion = await getFlagsVersion();
     
     res.json({ 
       success: true, 
       key,
+      version: newVersion,
       message: `Flag '${key}' updated successfully`,
       timestamp: new Date().toISOString()
     });
     
   } catch (error) {
     console.error('Error updating flag:', error);
-    res.status(500).json({ error: error.message || 'Failed to update flag' });
+    res.status(500).json({ 
+      error: 'update_failed',
+      message: error.message || 'Failed to update flag' 
+    });
   }
 });
 

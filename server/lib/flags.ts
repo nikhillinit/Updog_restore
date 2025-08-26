@@ -1,11 +1,12 @@
 /**
  * Feature Flag Provider
- * Production-grade flag system with TTL, kill switch, and audit trail
+ * Production-grade flag system with TTL, versioning, and audit integrity
  */
 
 import { createHash } from 'crypto';
-import { flagChanges, type FlagChange, type NewFlagChange } from '../../shared/schemas/flags.js';
+import { flagChanges, flagsState, type FlagChange, type NewFlagChange, type FlagState, type NewFlagState } from '../../shared/schemas/flags.js';
 import { db } from '../db.js';
+import { eq, desc } from 'drizzle-orm';
 
 export interface FlagValue {
   enabled: boolean;
@@ -38,17 +39,43 @@ interface FlagMetadata {
   };
 }
 
+export interface FlagSnapshot {
+  version: string;
+  flags: FlagMap;
+  hash: string;
+  timestamp: number;
+  environment: string;
+}
+
+export interface UserContext {
+  id: string;
+  email?: string;
+  attributes?: Record<string, string>;
+}
+
 // Cache configuration
 const TTL_MS = 30_000; // 30 seconds
-const CACHE_KEY = 'flags:v1';
+const LKG_TTL_MS = 5 * 60 * 1000; // 5 minutes Last Known Good
+const ENVIRONMENT = process.env.NODE_ENV || 'development';
+const CACHE_KEY = `flags:v1:${ENVIRONMENT}`;
 const INVALIDATION_KEY = 'flags:changed';
 
-// Global state
-let cache: { ts: number; flags: FlagMap; hash: string } = { 
+// Global state with versioning and LKG
+let cache: { 
+  ts: number; 
+  flags: FlagMap; 
+  hash: string; 
+  version: string;
+  environment: string;
+} = { 
   ts: 0, 
   flags: {}, 
-  hash: '' 
+  hash: '',
+  version: '0',
+  environment: ENVIRONMENT
 };
+
+let lastKnownGood: FlagSnapshot | null = null;
 
 // Kill switch - disables ALL non-essential flags
 const disabledAll = process.env.FLAGS_DISABLED_ALL === '1';
@@ -60,18 +87,80 @@ const defaultFlags: FlagMap = {
 };
 
 /**
- * Load flags from Redis/KV store
+ * Generate monotonic version string
  */
-async function loadFlagsFromStore(): Promise<FlagMap | null> {
+function generateVersion(): string {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 8)}`;
+}
+
+/**
+ * Compute deterministic hash for user bucketing
+ */
+function murmur3_32(key: string): number {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) {
+    h = Math.imul(h ^ key.charCodeAt(i), 0x9e3779b9);
+    h = h ^ (h >>> 16);
+  }
+  return Math.abs(h);
+}
+
+/**
+ * Check if user is in percentage bucket (deterministic)
+ */
+export function inBucket(userId: string, percent: number): boolean {
+  const h = murmur3_32(userId) % 10000; // 0..9999
+  return h < percent * 100; // e.g., 0.25 -> 2500
+}
+
+/**
+ * Evaluate targeting rules for a flag
+ */
+function evaluateTargeting(flag: FlagValue, userContext?: UserContext): boolean {
+  if (!flag.targeting?.enabled || !userContext) {
+    return flag.enabled;
+  }
+
+  for (const rule of flag.targeting.rules) {
+    if (rule.attribute === 'userId' && rule.operator === 'in_bucket' && rule.percentage) {
+      if (inBucket(userContext.id, rule.percentage)) {
+        return true;
+      }
+    }
+    // Add more targeting rules as needed
+  }
+
+  return flag.enabled;
+}
+
+/**
+ * Load flags from store with version tracking
+ */
+async function loadFlagsFromStore(): Promise<FlagSnapshot | null> {
   try {
-    // For now, use environment-specific defaults
-    // In production, this would fetch from Upstash Redis or similar KV store
-    const env = process.env.NODE_ENV || 'development';
-    
-    // Environment-specific overrides
+    // Try to load from database first
+    const latestState = await db.select()
+      .from(flagsState)
+      .where(eq(flagsState.environment, ENVIRONMENT))
+      .orderBy(desc(flagsState.createdAt))
+      .limit(1);
+
+    if (latestState.length > 0) {
+      const state = latestState[0];
+      return {
+        version: state.version,
+        flags: state.flags as FlagMap,
+        hash: state.flagsHash,
+        timestamp: state.createdAt.getTime(),
+        environment: state.environment
+      };
+    }
+
+    // Fallback to environment defaults
+    const version = generateVersion();
     const envFlags: FlagMap = {
       'wizard.v1': { 
-        enabled: env === 'development', 
+        enabled: ENVIRONMENT === 'development', 
         exposeToClient: true 
       },
       'reserves.v1_1': { 
@@ -79,8 +168,26 @@ async function loadFlagsFromStore(): Promise<FlagMap | null> {
         exposeToClient: false 
       }
     };
+
+    const flagsJson = JSON.stringify(envFlags);
+    const hash = createHash('sha256').update(flagsJson).digest('hex').substring(0, 16);
+
+    // Store initial state
+    await db.insert(flagsState).values({
+      version,
+      flagsHash: hash,
+      flags: envFlags,
+      environment: ENVIRONMENT
+    }).onConflictDoNothing();
+
+    return {
+      version,
+      flags: envFlags,
+      hash,
+      timestamp: Date.now(),
+      environment: ENVIRONMENT
+    };
     
-    return envFlags;
   } catch (error) {
     console.error('Failed to load flags from store:', error);
     return null;
@@ -88,74 +195,124 @@ async function loadFlagsFromStore(): Promise<FlagMap | null> {
 }
 
 /**
- * Get current flags with caching and fallback
+ * Get current flags with versioning and Last Known Good fallback
  */
-export async function getFlags(): Promise<FlagMap> {
+export async function getFlags(): Promise<FlagSnapshot> {
   // Kill switch - return empty flags (all disabled)
   if (disabledAll) {
     console.warn('FLAGS_DISABLED_ALL is active - all flags disabled');
-    return {};
+    return {
+      version: cache.version,
+      flags: {},
+      hash: '',
+      timestamp: Date.now(),
+      environment: ENVIRONMENT
+    };
   }
   
   const now = Date.now();
   
   // Check if cache is still valid
   if (now - cache.ts <= TTL_MS && Object.keys(cache.flags).length > 0) {
-    return cache.flags;
+    return {
+      version: cache.version,
+      flags: cache.flags,
+      hash: cache.hash,
+      timestamp: cache.ts,
+      environment: cache.environment
+    };
   }
   
   // Try to load fresh flags
-  const freshFlags = await loadFlagsFromStore();
+  const freshSnapshot = await loadFlagsFromStore();
   
-  if (freshFlags) {
-    const flagsJson = JSON.stringify(freshFlags);
-    const hash = createHash('sha256').update(flagsJson).digest('hex').substring(0, 8);
-    
+  if (freshSnapshot) {
     cache = {
       ts: now,
-      flags: freshFlags,
-      hash
+      flags: freshSnapshot.flags,
+      hash: freshSnapshot.hash,
+      version: freshSnapshot.version,
+      environment: freshSnapshot.environment
     };
     
-    console.log(`Flags updated: ${Object.keys(freshFlags).length} flags, hash: ${hash}`);
-    return freshFlags;
+    // Update Last Known Good
+    lastKnownGood = freshSnapshot;
+    
+    console.log(`Flags updated: ${Object.keys(freshSnapshot.flags).length} flags, version: ${freshSnapshot.version}, hash: ${freshSnapshot.hash}`);
+    return freshSnapshot;
   }
   
-  // Fallback to defaults if store is unreachable
-  console.warn('Using default flags - store unavailable');
-  return defaultFlags;
+  // Use Last Known Good if available and not too old
+  if (lastKnownGood && (now - lastKnownGood.timestamp <= LKG_TTL_MS)) {
+    console.warn(`Using Last Known Good flags (${Math.round((now - lastKnownGood.timestamp) / 1000)}s old)`);
+    return lastKnownGood;
+  }
+  
+  // Final fallback to defaults
+  console.warn('Using default flags - store unavailable and LKG expired');
+  const version = generateVersion();
+  const flagsJson = JSON.stringify(defaultFlags);
+  const hash = createHash('sha256').update(flagsJson).digest('hex').substring(0, 16);
+  
+  return {
+    version,
+    flags: defaultFlags,
+    hash,
+    timestamp: now,
+    environment: ENVIRONMENT
+  };
 }
 
 /**
- * Check if a specific flag is enabled
+ * Check if a specific flag is enabled with targeting
  */
-export async function isEnabled(key: string, context?: Record<string, any>): Promise<boolean> {
-  const flags = await getFlags();
-  const flag = flags[key];
+export async function isEnabled(key: string, userContext?: UserContext): Promise<boolean> {
+  const snapshot = await getFlags();
+  const flag = snapshot.flags[key];
   
   if (!flag) {
     console.warn(`Flag '${key}' not found, defaulting to false`);
     return false;
   }
   
-  // Simple enabled check (targeting rules would go here)
-  return flag.enabled;
+  // Evaluate targeting rules
+  return evaluateTargeting(flag, userContext);
 }
 
 /**
  * Get flags safe for client exposure
  */
-export async function getClientFlags(): Promise<Record<string, boolean>> {
-  const flags = await getFlags();
+export async function getClientFlags(userContext?: UserContext): Promise<{ flags: Record<string, boolean>; version: string; hash: string }> {
+  const snapshot = await getFlags();
   const clientFlags: Record<string, boolean> = {};
   
-  for (const [key, flag] of Object.entries(flags)) {
+  for (const [key, flag] of Object.entries(snapshot.flags)) {
     if (flag.exposeToClient) {
-      clientFlags[key] = flag.enabled;
+      clientFlags[key] = evaluateTargeting(flag, userContext);
     }
   }
   
-  return clientFlags;
+  return {
+    flags: clientFlags,
+    version: snapshot.version,
+    hash: snapshot.hash
+  };
+}
+
+/**
+ * Get current flags hash for ETag support
+ */
+export async function getFlagsHash(): Promise<string> {
+  const snapshot = await getFlags();
+  return snapshot.hash;
+}
+
+/**
+ * Get current flags version for concurrency control
+ */
+export async function getFlagsVersion(): Promise<string> {
+  const snapshot = await getFlags();
+  return snapshot.version;
 }
 
 /**
