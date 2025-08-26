@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import swaggerUi from 'swagger-ui-express';
 import { reservesV1Router } from './routes/v1/reserves.js';
 import { swaggerSpec } from './config/swagger.js';
+import { cspDirectives, buildCSPHeader, securityHeaders } from './config/csp.js';
 
 export function makeApp() {
   const app = express();
@@ -13,8 +14,35 @@ export function makeApp() {
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
 
-  // Security headers
-  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+  // Security headers with custom CSP
+  const isReportOnly = process.env.CSP_REPORT_ONLY === '1';
+  const cspHeader = buildCSPHeader(cspDirectives);
+  
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: {
+      directives: false, // Disable helmet's CSP to use our custom one
+    },
+    hsts: {
+      maxAge: securityHeaders.hsts.maxAge,
+      includeSubDomains: securityHeaders.hsts.includeSubDomains,
+      preload: securityHeaders.hsts.preload
+    }
+  }));
+  
+  // Apply custom CSP header
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const headerName = isReportOnly ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
+    res.setHeader(headerName, cspHeader);
+    
+    // Additional security headers
+    res.setHeader('Referrer-Policy', securityHeaders.referrerPolicy);
+    res.setHeader('X-Content-Type-Options', securityHeaders.xContentTypeOptions);
+    res.setHeader('X-Frame-Options', securityHeaders.xFrameOptions);
+    res.setHeader('X-XSS-Protection', securityHeaders.xXSSProtection);
+    
+    next();
+  });
 
   // Strict CORS (no wildcards in prod)
   const allow = (process.env.ALLOWED_ORIGINS || '')
