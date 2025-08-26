@@ -4,6 +4,7 @@
  */
 
 import { Router, Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { getClientFlags, getFlags, getFlagsVersion, getFlagsHash, updateFlag, getFlagHistory, getCacheStatus, activateKillSwitch } from '../lib/flags.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../lib/auth/jwt.js';
 import { z } from 'zod';
@@ -76,7 +77,30 @@ flagsRouter.get('/status', async (req: Request, res: Response) => {
 // Admin routes with JWT authentication and RBAC
 const adminRouter = Router();
 
-// Apply authentication to all admin routes
+// Rate limiting for admin operations (stricter than client routes)
+const adminRateLimit = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // 10 requests per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'rate_limit_exceeded',
+    message: 'Too many admin requests. Limit: 10 per minute.'
+  }
+});
+
+// Security headers for admin routes
+adminRouter.use((req: Request, res: Response, next) => {
+  // Never cache admin responses
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  next();
+});
+
+// Apply rate limiting and authentication to all admin routes
+adminRouter.use(adminRateLimit);
 adminRouter.use(requireAuth());
 
 /**

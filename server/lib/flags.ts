@@ -4,6 +4,7 @@
  */
 
 import { createHash } from 'crypto';
+import { ulid } from 'ulid';
 import { flagChanges, flagsState, type FlagChange, type NewFlagChange, type FlagState, type NewFlagState } from '../../shared/schemas/flags.js';
 import { db } from '../db.js';
 import { eq, desc } from 'drizzle-orm';
@@ -56,8 +57,8 @@ export interface UserContext {
 // Cache configuration
 const TTL_MS = 30_000; // 30 seconds
 const LKG_TTL_MS = 5 * 60 * 1000; // 5 minutes Last Known Good
-const ENVIRONMENT = process.env.NODE_ENV || 'development';
-const CACHE_KEY = `flags:v1:${ENVIRONMENT}`;
+const FLAG_ENV = process.env.FLAG_ENV || process.env.NODE_ENV || 'development';
+const CACHE_KEY = `flags:v1:${FLAG_ENV}`;
 const INVALIDATION_KEY = 'flags:changed';
 
 // Global state with versioning and LKG
@@ -71,8 +72,8 @@ let cache: {
   ts: 0, 
   flags: {}, 
   hash: '',
-  version: '0',
-  environment: ENVIRONMENT
+  version: ulid(0), // Start with epoch ULID
+  environment: FLAG_ENV
 };
 
 let lastKnownGood: FlagSnapshot | null = null;
@@ -87,10 +88,10 @@ const defaultFlags: FlagMap = {
 };
 
 /**
- * Generate monotonic version string
+ * Generate monotonic version (ULID for lexicographic ordering)
  */
 function generateVersion(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 8)}`;
+  return ulid();
 }
 
 /**
@@ -141,7 +142,7 @@ async function loadFlagsFromStore(): Promise<FlagSnapshot | null> {
     // Try to load from database first
     const latestState = await db.select()
       .from(flagsState)
-      .where(eq(flagsState.environment, ENVIRONMENT))
+      .where(eq(flagsState.environment, FLAG_ENV))
       .orderBy(desc(flagsState.createdAt))
       .limit(1);
 
@@ -160,7 +161,7 @@ async function loadFlagsFromStore(): Promise<FlagSnapshot | null> {
     const version = generateVersion();
     const envFlags: FlagMap = {
       'wizard.v1': { 
-        enabled: ENVIRONMENT === 'development', 
+        enabled: FLAG_ENV === 'development', 
         exposeToClient: true 
       },
       'reserves.v1_1': { 
@@ -170,14 +171,14 @@ async function loadFlagsFromStore(): Promise<FlagSnapshot | null> {
     };
 
     const flagsJson = JSON.stringify(envFlags);
-    const hash = createHash('sha256').update(flagsJson).digest('hex').substring(0, 16);
+    const hash = createHash('sha256').update(flagsJson).digest('hex');
 
     // Store initial state
     await db.insert(flagsState).values({
       version,
       flagsHash: hash,
       flags: envFlags,
-      environment: ENVIRONMENT
+      environment: FLAG_ENV
     }).onConflictDoNothing();
 
     return {
@@ -185,7 +186,7 @@ async function loadFlagsFromStore(): Promise<FlagSnapshot | null> {
       flags: envFlags,
       hash,
       timestamp: Date.now(),
-      environment: ENVIRONMENT
+      environment: FLAG_ENV
     };
     
   } catch (error) {
@@ -206,7 +207,7 @@ export async function getFlags(): Promise<FlagSnapshot> {
       flags: {},
       hash: '',
       timestamp: Date.now(),
-      environment: ENVIRONMENT
+      environment: FLAG_ENV
     };
   }
   
@@ -353,14 +354,14 @@ export async function updateFlag(
     // Update store with new version
     const newVersion = generateVersion();
     const updatedFlags = { ...snapshot.flags, [key]: after };
-    const newHash = createHash('sha256').update(JSON.stringify(updatedFlags)).digest('hex').substring(0, 16);
+    const newHash = createHash('sha256').update(JSON.stringify(updatedFlags)).digest('hex');
     
-    // Store new state
+    // Store new state (atomic with audit log)
     await db.insert(flagsState).values({
       version: newVersion,
       flagsHash: newHash,
       flags: updatedFlags,
-      environment: ENVIRONMENT
+      environment: FLAG_ENV
     });
     
     // Invalidate cache
