@@ -250,10 +250,12 @@ describe('Quarter-Based Time Utilities', () => {
   
   describe('Date to Quarter Conversion', () => {
     it('should convert dates to correct quarters', () => {
-      expect(dateToQuarter(new Date('2024-01-15'))).toEqual({ year: 2024, quarter: 1 });
-      expect(dateToQuarter(new Date('2024-04-01'))).toEqual({ year: 2024, quarter: 2 });
-      expect(dateToQuarter(new Date('2024-07-31'))).toEqual({ year: 2024, quarter: 3 });
-      expect(dateToQuarter(new Date('2024-12-31'))).toEqual({ year: 2024, quarter: 4 });
+      // Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Oct-Dec
+      // Using explicit UTC dates to avoid timezone issues
+      expect(dateToQuarter(new Date(2024, 0, 15))).toEqual({ year: 2024, quarter: 1 }); // Jan 15
+      expect(dateToQuarter(new Date(2024, 3, 1))).toEqual({ year: 2024, quarter: 2 });  // Apr 1
+      expect(dateToQuarter(new Date(2024, 6, 31))).toEqual({ year: 2024, quarter: 3 }); // Jul 31
+      expect(dateToQuarter(new Date(2024, 11, 31))).toEqual({ year: 2024, quarter: 4 }); // Dec 31
     });
   });
   
