@@ -1,18 +1,18 @@
 {
-  "captureDate": "2025-08-26T19:09:41.861Z",
+  "captureDate": "2025-08-26T19:23:10.520Z",
   "api": {
     "routes": {
       "/healthz": {
-        "p50": null,
-        "p95": null,
-        "p99": null,
-        "sampleSize": 0
+        "p50": 1.8894999999999982,
+        "p95": 90.70089999999999,
+        "p99": 90.70089999999999,
+        "sampleSize": 10
       },
       "/readyz": {
-        "p50": null,
-        "p95": null,
-        "p99": null,
-        "sampleSize": 0
+        "p50": 0.8933999999999855,
+        "p95": 1.5500000000000114,
+        "p99": 1.5500000000000114,
+        "sampleSize": 10
       },
       "/api/v1/reserves/calculate": {
         "p50": null,

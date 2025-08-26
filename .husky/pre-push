@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-. "$(dirname "$0")/_/husky.sh"
 
 # Robust check for docs-only commits
 UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo "")

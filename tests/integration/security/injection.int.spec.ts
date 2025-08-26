@@ -1,8 +1,7 @@
 import { expect, test } from 'vitest';
 
-test.skip('basic SQLi probe does not expose raw errors', async () => {
-  // Skip this test in unit test runs - it requires a running server
-  // This should be run as part of integration tests with the server running
+test('basic SQLi probe does not expose raw errors', async () => {
+  // Integration test - requires a running server
   
   const BASE = process.env.BASE_URL || 'http://localhost:3000';
   
