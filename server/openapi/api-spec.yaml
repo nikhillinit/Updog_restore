@@ -1,0 +1,605 @@
+openapi: 3.0.3
+info:
+  title: POVC Fund Platform API
+  version: 1.0.0
+  description: Production-grade venture capital fund modeling and reserve calculation platform
+  contact:
+    name: API Support
+    email: api-support@povc.fund
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:5000/api
+    description: Development server
+  - url: https://api.povc.fund/api
+    description: Production server
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IfMatchHeader:
+      in: header
+      name: If-Match
+      schema:
+        type: string
+      required: true
+      description: ETag value for optimistic concurrency control
+    
+    IfNoneMatchHeader:
+      in: header
+      name: If-None-Match
+      schema:
+        type: string
+      required: false
+      description: ETag value for conditional GET
+    
+    IdempotencyKeyHeader:
+      in: header
+      name: Idempotency-Key
+      schema:
+        type: string
+      required: true
+      description: Unique key for idempotent request processing
+    
+    FundId:
+      in: path
+      name: fundId
+      schema:
+        type: string
+        format: uuid
+      required: true
+      description: Fund identifier
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error context
+        retryAfter:
+          type: integer
+          description: Seconds to wait before retry
+
+    ReserveCalculationInput:
+      type: object
+      required:
+        - fundId
+        - portfolioCompanies
+        - fundMetrics
+        - configuration
+      properties:
+        fundId:
+          type: string
+          format: uuid
+        portfolioCompanies:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortfolioCompany'
+        fundMetrics:
+          $ref: '#/components/schemas/FundMetrics'
+        configuration:
+          $ref: '#/components/schemas/ReserveConfiguration'
+        scenarioType:
+          type: string
+          enum: [conservative, moderate, aggressive]
+          default: moderate
+
+    PortfolioCompany:
+      type: object
+      required:
+        - id
+        - name
+        - invested
+        - currentValue
+        - stage
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        invested:
+          type: number
+          format: double
+          minimum: 0
+        currentValue:
+          type: number
+          format: double
+          minimum: 0
+        stage:
+          type: string
+          enum: [seed, seriesA, seriesB, seriesC, growth, late]
+        metadata:
+          type: object
+          additionalProperties: true
+
+    FundMetrics:
+      type: object
+      required:
+        - totalCommitted
+        - totalCalled
+        - remainingCapital
+      properties:
+        totalCommitted:
+          type: number
+          format: double
+          minimum: 0
+        totalCalled:
+          type: number
+          format: double
+          minimum: 0
+        totalDistributed:
+          type: number
+          format: double
+          minimum: 0
+        remainingCapital:
+          type: number
+          format: double
+          minimum: 0
+        netAssetValue:
+          type: number
+          format: double
+        managementFees:
+          type: number
+          format: double
+        carriedInterest:
+          type: number
+          format: double
+
+    ReserveConfiguration:
+      type: object
+      properties:
+        reserveMultiple:
+          type: number
+          format: double
+          minimum: 0.5
+          maximum: 3.0
+          default: 1.5
+        maxReservePercentage:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          default: 50
+        engineVersion:
+          type: string
+          enum: [v1.0, v1.1, v1.2]
+          default: v1.1
+        mode:
+          type: string
+          enum: [rules, ml, hybrid]
+          default: rules
+
+    ReserveCalculationResult:
+      type: object
+      required:
+        - fundId
+        - calculationId
+        - timestamp
+        - allocations
+        - summary
+        - hash
+      properties:
+        fundId:
+          type: string
+          format: uuid
+        calculationId:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompanyAllocation'
+        summary:
+          $ref: '#/components/schemas/ReserveSummary'
+        hash:
+          type: string
+          description: Deterministic hash of calculation for caching
+        metadata:
+          type: object
+          additionalProperties: true
+        approvalRequired:
+          type: boolean
+        approvalId:
+          type: string
+          format: uuid
+
+    CompanyAllocation:
+      type: object
+      required:
+        - companyId
+        - recommendedReserve
+        - confidence
+      properties:
+        companyId:
+          type: string
+          format: uuid
+        recommendedReserve:
+          type: number
+          format: double
+          minimum: 0
+        confidence:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        rationale:
+          type: string
+
+    ReserveSummary:
+      type: object
+      required:
+        - totalReserves
+        - reservePercentage
+        - riskScore
+      properties:
+        totalReserves:
+          type: number
+          format: double
+          minimum: 0
+        reservePercentage:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+        riskScore:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+        recommendations:
+          type: array
+          items:
+            type: string
+
+    Approval:
+      type: object
+      required:
+        - id
+        - strategyId
+        - status
+        - requiredSignatures
+        - signatures
+        - createdAt
+        - expiresAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        strategyId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, approved, denied, expired]
+        requiredSignatures:
+          type: integer
+          minimum: 1
+        signatures:
+          type: array
+          items:
+            $ref: '#/components/schemas/Signature'
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+
+    Signature:
+      type: object
+      required:
+        - partnerId
+        - timestamp
+      properties:
+        partnerId:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+
+    FeatureFlags:
+      type: object
+      additionalProperties:
+        type: boolean
+      example:
+        wizard.v1: true
+        reserves.v1_1: true
+        ml.enabled: false
+
+paths:
+  /reserves/calculate:
+    post:
+      summary: Calculate optimal reserve allocations
+      operationId: calculateReserves
+      tags:
+        - Reserves
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReserveCalculationInput'
+      responses:
+        '200':
+          description: Successful calculation
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Entity tag for caching
+            X-Idempotency-Key:
+              schema:
+                type: string
+              description: Idempotency key used
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReserveCalculationResult'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '428':
+          description: Precondition Required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Service temporarily unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /reserves/calculate-protected:
+    post:
+      summary: Calculate reserves with approval guard
+      operationId: calculateReservesProtected
+      tags:
+        - Reserves
+      parameters:
+        - $ref: '#/components/parameters/IfMatchHeader'
+        - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReserveCalculationInput'
+      responses:
+        '200':
+          description: Calculation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReserveCalculationResult'
+        '403':
+          description: Approval required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  approvalRequired:
+                    type: boolean
+                  approvalId:
+                    type: string
+        '412':
+          description: Precondition Failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /funds/{fundId}/reserves:
+    get:
+      summary: Get fund reserve history
+      operationId: getFundReserves
+      tags:
+        - Reserves
+      parameters:
+        - $ref: '#/components/parameters/FundId'
+        - $ref: '#/components/parameters/IfNoneMatchHeader'
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Reserve history
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReserveCalculationResult'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '304':
+          description: Not Modified
+        '404':
+          description: Fund not found
+
+  /flags:
+    get:
+      summary: Get feature flags for current user
+      operationId: getFlags
+      tags:
+        - Configuration
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatchHeader'
+        - in: query
+          name: fundId
+          schema:
+            type: string
+            format: uuid
+          required: false
+      responses:
+        '200':
+          description: Feature flags
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureFlags'
+        '304':
+          description: Not Modified
+
+  /approvals/{approvalId}:
+    get:
+      summary: Get approval details
+      operationId: getApproval
+      tags:
+        - Approvals
+      parameters:
+        - in: path
+          name: approvalId
+          schema:
+            type: string
+            format: uuid
+          required: true
+      responses:
+        '200':
+          description: Approval details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+        '404':
+          description: Approval not found
+
+    post:
+      summary: Sign an approval
+      operationId: signApproval
+      tags:
+        - Approvals
+      parameters:
+        - in: path
+          name: approvalId
+          schema:
+            type: string
+            format: uuid
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                partnerId:
+                  type: string
+                  format: uuid
+                metadata:
+                  type: object
+      responses:
+        '200':
+          description: Signature added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+        '400':
+          description: Invalid signature
+        '403':
+          description: Not authorized to sign
+        '409':
+          description: Already signed or expired
+
+  /metrics:
+    get:
+      summary: Prometheus metrics endpoint
+      operationId: getMetrics
+      tags:
+        - Monitoring
+      security: []
+      responses:
+        '200':
+          description: Prometheus metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /healthz:
+    get:
+      summary: Health check endpoint
+      operationId: healthCheck
+      tags:
+        - Monitoring
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy]
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
