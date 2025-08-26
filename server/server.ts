@@ -17,10 +17,15 @@ import { shutdownGuard } from './middleware/shutdownGuard.js';
 import { rateLimitDetailed } from './middleware/rateLimitDetailed.js';
 import { correlation } from './middleware/correlation.js';
 import { engineGuardExpress } from './middleware/engineGuardExpress.js';
+import { requireSecureContext } from './lib/secure-context.js';
+import { withRLSTransaction } from './middleware/with-rls-transaction.js';
+import { requireIfMatch, handlePreconditionError } from './lib/http-preconditions.js';
+import { withIdempotency } from './lib/idempotency.js';
 import { sendApiError, createErrorBody } from './lib/apiError.js';
 import { registerRoutes } from './routes.js';
 import { setupVite, serveStatic, log } from './vite.js';
 import { errorHandler } from './errors.js';
+import { metricsRouter } from './routes/metrics-endpoint.js';
 import type { Providers } from './providers.js';
 
 // CORS configuration with origin validation
@@ -194,8 +199,73 @@ export async function createServer(
   // Rate limiter: pass store; undefined => memory store (no redis)
   app.use('/health/detailed', rateLimitDetailed({ store: providers.rateLimitStore }));
   
+  // Metrics endpoint (public, no auth required)
+  app.use('/metrics', metricsRouter);
+  
+  // Apply authentication and RLS middleware to protected routes
+  // Note: Some routes like /healthz and /metrics are public
+  app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+    // Skip auth for public endpoints
+    const publicPaths = ['/api/health', '/api/healthz', '/api/readyz', '/api-docs'];
+    if (publicPaths.some(path => req.path.startsWith(path))) {
+      return next();
+    }
+    
+    // For development, you might want to bypass auth - remove this in production!
+    if (config.NODE_ENV === 'development' && !process.env.REQUIRE_AUTH) {
+      // Mock context for development
+      (req as any).context = {
+        userId: 'dev-user',
+        email: 'dev@example.com',
+        role: 'admin',
+        orgId: 'dev-org',
+        fundId: req.params.fundId || req.query.fundId as string
+      };
+      return next();
+    }
+    
+    // Apply secure context for production
+    requireSecureContext(req, res, next);
+  });
+  
+  // Apply RLS transaction middleware to protected data routes
+  app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+    // Skip for public endpoints
+    const publicPaths = ['/api/health', '/api/healthz', '/api/readyz', '/api-docs', '/api/flags'];
+    if (publicPaths.some(path => req.path.startsWith(path))) {
+      return next();
+    }
+    
+    // Skip for GET requests that don't need transactions (optional)
+    // For maximum security, you might want transactions on all routes
+    const requiresTransaction = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) ||
+                               req.path.includes('/funds') ||
+                               req.path.includes('/reserves') ||
+                               req.path.includes('/portfolio');
+    
+    if (requiresTransaction && (req as any).context) {
+      return withRLSTransaction()(req, res, next);
+    }
+    
+    next();
+  });
+  
+  // Apply idempotency middleware to mutation endpoints
+  app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+    if (['POST', 'PUT', 'PATCH'].includes(req.method) && 
+        (req.path.includes('/reserves/calculate') || 
+         req.path.includes('/funds') ||
+         req.path.includes('/investments'))) {
+      return withIdempotency()(req, res, next);
+    }
+    next();
+  });
+  
   // Register API routes with dependency injection
   await registerRoutes(app);
+  
+  // Precondition error handler
+  app.use(handlePreconditionError);
   
   // Global error handler - uses structured error handler
   app.use(errorHandler());

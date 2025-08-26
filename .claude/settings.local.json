@@ -81,7 +81,13 @@
       "Bash(gh pr list:*)",
       "Bash(gh issue list:*)",
       "Bash(chmod:*)",
-      "Bash(BASE_URL=http://localhost:3001 npm run flags:test-propagation)"
+      "Bash(BASE_URL=http://localhost:3001 npm run flags:test-propagation)",
+      "Bash(find:*)",
+      "Bash(test:*)",
+      "Bash(export NODE_ENV=production)",
+      "Bash(export VITE_API_BASE_URL=http://localhost:5000)",
+      "Bash(dir:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "additionalDirectories": [

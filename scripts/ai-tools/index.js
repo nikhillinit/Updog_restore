@@ -172,16 +172,50 @@ async function main() {
         console.log(`Max repairs: ${maxRepairs}`);
         console.log(`Draft PR: ${options.draftPR ? 'yes' : 'no'}`);
         
-        // In a real implementation, we would:
-        // 1. Import and instantiate TestRepairAgent
-        // 2. Run agent.execute() with proper input
-        // 3. Handle results and create PR if requested
-        
-        console.log('⚠️  Test repair agent implementation pending integration');
-        console.log('✅ Agent class completed in packages/test-repair-agent/');
-        
-        // Placeholder for actual implementation
-        process.exit(0);
+        try {
+          // Dynamically import TestRepairAgent
+          const { TestRepairAgent } = await import('../../packages/test-repair-agent/src/TestRepairAgent.js');
+          
+          // Create agent instance
+          const agent = new TestRepairAgent({
+            logLevel: options.verbose ? 'debug' : 'info',
+            maxRetries: 1,
+            timeout: 180000 // 3 minutes
+          });
+          
+          // Execute repair
+          const result = await agent.execute({
+            projectRoot: PROJECT_ROOT,
+            testPattern: pattern,
+            maxRepairs: options.maxRepairs,
+            draftPR: options.draftPR
+          });
+          
+          // Display results
+          console.log('\n=== Test Repair Results ===');
+          console.log(`Failures found: ${result.failures.length}`);
+          console.log(`Repairs attempted: ${result.repairs.length}`);
+          console.log(`Successful repairs: ${result.repairs.filter(r => r.success).length}`);
+          
+          if (result.prUrl) {
+            console.log(`\n✅ Draft PR created: ${result.prUrl}`);
+          }
+          
+          if (options.verbose) {
+            console.log('\nDetailed results:');
+            console.log(JSON.stringify(result, null, 2));
+          }
+          
+          // Exit with appropriate code
+          const hasFailures = result.failures.length > result.repairs.filter(r => r.success).length;
+          process.exit(hasFailures ? 1 : 0);
+        } catch (error) {
+          console.error('[AI-TOOLS] Test repair agent failed:', error.message);
+          if (options.verbose) {
+            console.error(error.stack);
+          }
+          process.exit(1);
+        }
         break;
       }
 
