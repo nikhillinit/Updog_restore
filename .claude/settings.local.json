@@ -80,7 +80,8 @@
       "Bash(git cherry-pick:*)",
       "Bash(gh pr list:*)",
       "Bash(gh issue list:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(BASE_URL=http://localhost:3001 npm run flags:test-propagation)"
     ],
     "deny": [],
     "additionalDirectories": [
