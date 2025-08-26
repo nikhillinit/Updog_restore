@@ -29,6 +29,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const fundRoutes = await import('./routes/funds.js');
   app.use('/api', fundRoutes.default);
 
+  // Feature flags routes
+  const flagsRoutes = await import('./routes/flags.js');
+  app.use('/api/flags', flagsRoutes.flagsRouter);
+
   // Health and metrics routes
   const healthRoutes = await import('./routes/health.js');
   app.use('/', healthRoutes.default);

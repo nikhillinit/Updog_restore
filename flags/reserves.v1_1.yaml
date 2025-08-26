@@ -1,0 +1,14 @@
+key: reserves.v1_1
+default: false
+description: Enable Reserves v1.1 with extra remain pass and enhanced diagnostics
+owner: backend-team@povc.fund
+risk: medium
+expiresAt: 2025-12-31
+exposeToClient: false
+targeting:
+  enabled: false
+  rules: []
+environments:
+  development: false
+  staging: false
+  production: false

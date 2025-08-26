@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import crypto from 'node:crypto';
 import swaggerUi from 'swagger-ui-express';
 import { reservesV1Router } from './routes/v1/reserves.js';
+import { flagsRouter } from './routes/flags.js';
 import { swaggerSpec } from './config/swagger.js';
 import { cspDirectives, buildCSPHeader, securityHeaders } from './config/csp.js';
 
@@ -100,6 +101,9 @@ export function makeApp() {
     res.send(swaggerSpec);
   });
 
+  // Feature flags API
+  app.use('/api/flags', flagsRouter);
+  
   // Versioned API
   app.use('/api/v1/reserves', reservesV1Router);
 

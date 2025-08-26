@@ -1,0 +1,14 @@
+key: wizard.v1
+default: false
+description: Enable the new 4-step Fund Setup Wizard
+owner: frontend-team@povc.fund
+risk: low
+expiresAt: 2025-12-31
+exposeToClient: true
+targeting:
+  enabled: false
+  rules: []
+environments:
+  development: true
+  staging: false
+  production: false
