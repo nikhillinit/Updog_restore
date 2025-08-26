@@ -4,7 +4,7 @@
  */
 
 import { db } from './db.js';
-import { reserveApprovals, approvalSignatures } from '@shared/schemas/reserve-approvals.js';
+import { reserveApprovals, approvalSignatures, partners } from '@shared/schemas/reserve-approvals.js';
 import { eq, and, gte, sql } from 'drizzle-orm';
 import crypto from 'crypto';
 import { 
@@ -98,12 +98,14 @@ export async function verifyApproval(
       };
     }
 
-    // Get signatures
+    // Get signatures with proper partner information
     const signatures = await db.select({
+      partnerId: partners.partner_id,
       partnerEmail: approvalSignatures.partnerEmail,
       approvedAt: approvalSignatures.approvedAt
     })
       .from(approvalSignatures)
+      .innerJoin(partners, eq(approvalSignatures.partner_id, partners.id))
       .where(eq(approvalSignatures.approvalId, approval.id));
 
     // Validate minimum approvals
@@ -118,10 +120,10 @@ export async function verifyApproval(
 
     // Validate distinct partners if required
     if (requireDistinctPartners) {
-      // Enhanced validation: check both email and partner ID uniqueness
+      // Enhanced validation: check actual partner ID uniqueness from partners table
       const validation = validateDistinctSigners(
         signatures.map(s => ({ 
-          partnerId: s.partnerEmail.split('@')[0], // Extract ID from email
+          partnerId: s.partnerId, // Use actual partner_id from partners table
           partnerEmail: s.partnerEmail 
         }))
       );
