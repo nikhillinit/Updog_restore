@@ -50,3 +50,41 @@ export function validateReserveInput(raw: unknown) {
   if (issues.length) return { ok:false as const, status:422, issues };
   return { ok:true as const, data:v };
 }
+
+// Dual approval system for reserve strategy changes
+export const ReserveStrategyApprovalSchema = z.object({
+  id: z.string().uuid(),
+  strategyId: z.string(),
+  requestedBy: z.string().email(),
+  requestedAt: z.date(),
+  changes: z.object({
+    action: z.enum(['create', 'update', 'delete']),
+    strategyData: z.record(z.unknown()),
+    reason: z.string().min(10),
+    impact: z.object({
+      affectedFunds: z.array(z.string()),
+      estimatedAmount: z.number(),
+      riskLevel: z.enum(['low', 'medium', 'high'])
+    })
+  }),
+  approvals: z.array(z.object({
+    partnerEmail: z.string().email(),
+    approvedAt: z.date(),
+    signature: z.string(), // Digital signature or approval token
+    ipAddress: z.string().ip(),
+    userAgent: z.string().optional()
+  })),
+  status: z.enum(['pending', 'approved', 'rejected', 'expired']),
+  expiresAt: z.date(),
+  metadata: z.object({
+    calculationHash: z.string().optional(), // For determinism verification
+    auditTrail: z.array(z.object({
+      timestamp: z.date(),
+      action: z.string(),
+      actor: z.string().email(),
+      details: z.record(z.unknown())
+    }))
+  })
+});
+
+export type ReserveStrategyApproval = z.infer<typeof ReserveStrategyApprovalSchema>;
