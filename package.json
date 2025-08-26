@@ -110,7 +110,7 @@
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
-    "@neondatabase/serverless": "^0.10.4",
+    "@neondatabase/serverless": "^1.0.1",
     "@nivo/line": "^0.99.0",
     "@nivo/scatterplot": "^0.99.0",
     "@notionhq/client": "^4.0.1",
