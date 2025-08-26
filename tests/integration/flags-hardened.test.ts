@@ -4,14 +4,13 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { generateDevToken } from '../../server/lib/auth/jwt.js';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
 
-// Test JWT tokens
-const adminToken = generateDevToken('test-admin', 'admin@test.com', ['flag_admin']);
-const readToken = generateDevToken('test-reader', 'reader@test.com', ['flag_read']);
-const userToken = generateDevToken('test-user', 'user@test.com', ['user']);
+// Test JWT tokens (simplified for testing)
+const adminToken = 'dev-admin-token';
+const readToken = 'dev-read-token';
+const userToken = 'dev-user-token';
 
 describe('Hardened Flag System', () => {
   beforeAll(async () => {

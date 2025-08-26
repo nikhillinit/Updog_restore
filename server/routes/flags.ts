@@ -4,7 +4,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { getClientFlags, getFlagsVersion, getFlagsHash, updateFlag, getFlagHistory, getCacheStatus, activateKillSwitch } from '../lib/flags.js';
+import { getClientFlags, getFlags, getFlagsVersion, getFlagsHash, updateFlag, getFlagHistory, getCacheStatus, activateKillSwitch } from '../lib/flags.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../lib/auth/jwt.js';
 import { z } from 'zod';
 
