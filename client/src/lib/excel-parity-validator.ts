@@ -1,0 +1,332 @@
+/**
+ * Excel Parity Validator
+ * Validates that our calculations match Excel reference implementations
+ * within acceptable tolerance levels
+ */
+
+import { ConstrainedReserveEngine } from '@shared/core/reserves/ConstrainedReserveEngine';
+
+export interface ParityDataset {
+  name: string;
+  description: string;
+  input: {
+    companies: Company[];
+    availableReserves: number;
+    policies: StagePolicy[];
+    constraints?: ReserveConstraints;
+  };
+  expectedOutput: {
+    totalAllocated: number;
+    allocations: Array<{
+      companyId: string;
+      allocation: number;
+    }>;
+  };
+  tolerance: number; // Acceptable drift percentage (e.g., 0.01 for 1%)
+}
+
+export interface ParityValidationResult {
+  name: string;
+  passed: boolean;
+  drift: number; // Actual drift percentage
+  details: {
+    expectedTotal: number;
+    actualTotal: number;
+    difference: number;
+    companyMismatches: Array<{
+      companyId: string;
+      expected: number;
+      actual: number;
+      drift: number;
+    }>;
+  };
+}
+
+export class ExcelParityValidator {
+  private datasets: ParityDataset[] = [];
+  private engine: ConstrainedReserveEngine;
+
+  constructor() {
+    this.engine = new ConstrainedReserveEngine();
+    this.loadBuiltInDatasets();
+  }
+
+  /**
+   * Add a custom dataset for validation
+   */
+  addDataset(dataset: ParityDataset): void {
+    this.datasets.push(dataset);
+  }
+
+  /**
+   * Load built-in test datasets
+   */
+  private loadBuiltInDatasets(): void {
+    // Basic seed portfolio test
+    this.datasets.push({
+      name: 'seed_portfolio_basic',
+      description: 'Basic seed portfolio with 3 companies',
+      input: {
+        companies: [
+          {
+            id: 'c1',
+            name: 'TechCo',
+            stage: 'seed',
+            invested: 1000000,
+            ownership: 0.15,
+            currentValuation: 5000000,
+          },
+          {
+            id: 'c2',
+            name: 'BioStartup',
+            stage: 'seed',
+            invested: 500000,
+            ownership: 0.10,
+            currentValuation: 2000000,
+          },
+          {
+            id: 'c3',
+            name: 'AIVenture',
+            stage: 'seed',
+            invested: 750000,
+            ownership: 0.12,
+            currentValuation: 3000000,
+          },
+        ],
+        availableReserves: 5000000,
+        policies: [
+          {
+            stage: 'seed',
+            reserveMultiple: 2.0,
+            weight: 1.0,
+            maxInvestment: 2000000,
+          },
+        ],
+        constraints: {
+          minCheckSize: 100000,
+          maxPerCompany: 2000000,
+        },
+      },
+      expectedOutput: {
+        totalAllocated: 4500000, // Expected from Excel calculation
+        allocations: [
+          { companyId: 'c1', allocation: 2000000 },
+          { companyId: 'c2', allocation: 1000000 },
+          { companyId: 'c3', allocation: 1500000 },
+        ],
+      },
+      tolerance: 0.01, // 1% tolerance
+    });
+
+    // Mixed stage portfolio test
+    this.datasets.push({
+      name: 'mixed_stage_portfolio',
+      description: 'Portfolio with companies at different stages',
+      input: {
+        companies: [
+          {
+            id: 'd1',
+            name: 'EarlyCo',
+            stage: 'preseed',
+            invested: 250000,
+            ownership: 0.20,
+          },
+          {
+            id: 'd2',
+            name: 'GrowthCo',
+            stage: 'series_a',
+            invested: 3000000,
+            ownership: 0.08,
+            currentValuation: 15000000,
+          },
+          {
+            id: 'd3',
+            name: 'MatureCo',
+            stage: 'series_b',
+            invested: 5000000,
+            ownership: 0.05,
+            currentValuation: 50000000,
+          },
+        ],
+        availableReserves: 10000000,
+        policies: [
+          {
+            stage: 'preseed',
+            reserveMultiple: 3.0,
+            weight: 0.8,
+          },
+          {
+            stage: 'series_a',
+            reserveMultiple: 1.5,
+            weight: 1.2,
+          },
+          {
+            stage: 'series_b',
+            reserveMultiple: 1.0,
+            weight: 1.0,
+          },
+        ],
+        constraints: {
+          minCheckSize: 100000,
+          maxPerStage: {
+            preseed: 1000000,
+            series_a: 5000000,
+            series_b: 5000000,
+          },
+        },
+      },
+      expectedOutput: {
+        totalAllocated: 9750000,
+        allocations: [
+          { companyId: 'd1', allocation: 750000 },
+          { companyId: 'd2', allocation: 4500000 },
+          { companyId: 'd3', allocation: 4500000 }, // Limited by remaining reserves
+        ],
+      },
+      tolerance: 0.015, // 1.5% tolerance
+    });
+  }
+
+  /**
+   * Validate all datasets
+   */
+  async validateAll(): Promise<{
+    passed: number;
+    failed: number;
+    results: ParityValidationResult[];
+    overallPassRate: number;
+  }> {
+    const results: ParityValidationResult[] = [];
+
+    for (const dataset of this.datasets) {
+      const result = await this.validateDataset(dataset);
+      results.push(result);
+    }
+
+    const passed = results.filter(r => r.passed).length;
+    const failed = results.filter(r => !r.passed).length;
+
+    return {
+      passed,
+      failed,
+      results,
+      overallPassRate: passed / (passed + failed),
+    };
+  }
+
+  /**
+   * Validate a single dataset
+   */
+  async validateDataset(dataset: ParityDataset): Promise<ParityValidationResult> {
+    const { input, expectedOutput, tolerance } = dataset;
+
+    // Run calculation
+    const result = this.engine.calculate(
+      input.companies,
+      input.availableReserves,
+      input.policies,
+      input.constraints || {}
+    );
+
+    // Compare totals
+    const actualTotal = result.totalAllocated;
+    const expectedTotal = expectedOutput.totalAllocated;
+    const totalDifference = Math.abs(actualTotal - expectedTotal);
+    const totalDrift = expectedTotal !== 0 ? totalDifference / expectedTotal : 0;
+
+    // Compare individual allocations
+    const companyMismatches: Array<{
+      companyId: string;
+      expected: number;
+      actual: number;
+      drift: number;
+    }> = [];
+
+    for (const expectedAlloc of expectedOutput.allocations) {
+      const actualAlloc = result.allocations.find(
+        a => a.companyId === expectedAlloc.companyId
+      );
+      
+      const actual = actualAlloc?.allocation || 0;
+      const expected = expectedAlloc.allocation;
+      const difference = Math.abs(actual - expected);
+      const drift = expected !== 0 ? difference / expected : 0;
+
+      if (drift > tolerance) {
+        companyMismatches.push({
+          companyId: expectedAlloc.companyId,
+          expected,
+          actual,
+          drift,
+        });
+      }
+    }
+
+    const passed = totalDrift <= tolerance && companyMismatches.length === 0;
+
+    return {
+      name: dataset.name,
+      passed,
+      drift: totalDrift,
+      details: {
+        expectedTotal,
+        actualTotal,
+        difference: totalDifference,
+        companyMismatches,
+      },
+    };
+  }
+
+  /**
+   * Generate a detailed parity report
+   */
+  generateReport(results: ParityValidationResult[]): string {
+    const lines: string[] = [];
+    
+    lines.push('Excel Parity Validation Report');
+    lines.push('=' .repeat(50));
+    lines.push('');
+
+    for (const result of results) {
+      lines.push(`Dataset: ${result.name}`);
+      lines.push(`Status: ${result.passed ? '✅ PASSED' : '❌ FAILED'}`);
+      lines.push(`Drift: ${(result.drift * 100).toFixed(2)}%`);
+      
+      if (!result.passed) {
+        lines.push('Details:');
+        lines.push(`  Expected Total: $${result.details.expectedTotal.toLocaleString()}`);
+        lines.push(`  Actual Total: $${result.details.actualTotal.toLocaleString()}`);
+        lines.push(`  Difference: $${result.details.difference.toLocaleString()}`);
+        
+        if (result.details.companyMismatches.length > 0) {
+          lines.push('  Company Mismatches:');
+          for (const mismatch of result.details.companyMismatches) {
+            lines.push(`    ${mismatch.companyId}:`);
+            lines.push(`      Expected: $${mismatch.expected.toLocaleString()}`);
+            lines.push(`      Actual: $${mismatch.actual.toLocaleString()}`);
+            lines.push(`      Drift: ${(mismatch.drift * 100).toFixed(2)}%`);
+          }
+        }
+      }
+      
+      lines.push('');
+    }
+
+    const summary = results.reduce(
+      (acc, r) => ({
+        passed: acc.passed + (r.passed ? 1 : 0),
+        failed: acc.failed + (r.passed ? 0 : 1),
+      }),
+      { passed: 0, failed: 0 }
+    );
+
+    lines.push('Summary');
+    lines.push('-'.repeat(50));
+    lines.push(`Total Tests: ${results.length}`);
+    lines.push(`Passed: ${summary.passed}`);
+    lines.push(`Failed: ${summary.failed}`);
+    lines.push(`Pass Rate: ${((summary.passed / results.length) * 100).toFixed(1)}%`);
+
+    return lines.join('\n');
+  }
+}

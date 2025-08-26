@@ -94,6 +94,67 @@ class ReservesMetrics {
     });
   }
   
+  recordRecovery(strategy: string, success: boolean): void {
+    this.addEvent({
+      type: 'recovery',
+      value: strategy,
+      metadata: { success },
+      timestamp: Date.now()
+    });
+  }
+  
+  recordPerformanceMetric(metric: string, value: number, unit?: string): void {
+    this.addEvent({
+      type: 'performance',
+      value: value,
+      metadata: { metric, unit },
+      timestamp: Date.now()
+    });
+  }
+  
+  recordCacheHit(cacheKey: string): void {
+    this.addEvent({
+      type: 'cache_hit',
+      value: cacheKey,
+      timestamp: Date.now()
+    });
+  }
+  
+  recordCacheMiss(cacheKey: string): void {
+    this.addEvent({
+      type: 'cache_miss',
+      value: cacheKey,
+      timestamp: Date.now()
+    });
+  }
+  
+  recordBatchProcessing(size: number, duration: number): void {
+    this.addEvent({
+      type: 'batch_processing',
+      value: size,
+      metadata: { duration },
+      timestamp: Date.now()
+    });
+  }
+  
+  recordRolloutStage(stage: string, percentage: number): void {
+    this.addEvent({
+      type: 'rollout_stage',
+      value: stage,
+      metadata: { percentage },
+      timestamp: Date.now()
+    });
+  }
+  
+  recordRollback(reason: string, fromVersion: string, toVersion: string): void {
+    this.addEvent({
+      type: 'rollback',
+      value: reason,
+      metadata: { fromVersion, toVersion },
+      timestamp: Date.now()
+    });
+  }
+  
   recordError(error: string): void {
     this.addEvent({
       type: 'error',
