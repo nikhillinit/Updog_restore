@@ -1,0 +1,523 @@
+openapi: 3.0.0
+info:
+  title: Reserves v1.1 Parallel Implementation API
+  version: 1.1.0
+  description: Contract-first API specification for parallel development
+
+servers:
+  - url: http://localhost:5000/api
+    description: Development server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Row version for optimistic concurrency control
+    
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Unique key for idempotent operations
+    
+    XOrgId:
+      name: X-Org-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Organization context for RLS
+    
+    XFundId:
+      name: X-Fund-Id
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Fund context for flag resolution
+
+  schemas:
+    # Step 2: Concurrency
+    ConflictError:
+      type: object
+      properties:
+        error:
+          type: string
+          enum: [CONFLICT]
+        code:
+          type: string
+          enum: [VERSION_MISMATCH, FUND_BUSY, IDEMPOTENCY_CONFLICT]
+        currentVersion:
+          type: string
+        message:
+          type: string
+
+    # Step 3: Multi-tenancy
+    FeatureFlags:
+      type: object
+      properties:
+        flags:
+          type: object
+          additionalProperties: true
+        resolution:
+          type: object
+          properties:
+            user:
+              type: object
+            fund:
+              type: object
+            org:
+              type: object
+            global:
+              type: object
+        version:
+          type: string
+        etag:
+          type: string
+
+    # Step 4: Versioning
+    CalculationVersion:
+      type: object
+      properties:
+        version:
+          type: string
+          pattern: '^\d+\.\d+\.\d+$'
+        engineType:
+          type: string
+          enum: [reserves, pacing, cohort]
+        status:
+          type: string
+          enum: [active, deprecated, sunset]
+        wasmSha256:
+          type: string
+        migrationAvailable:
+          type: boolean
+
+    # Step 5: PII Protection
+    EncryptedField:
+      type: object
+      properties:
+        encrypted:
+          type: boolean
+          const: true
+        masked:
+          type: string
+          description: Masked value for display
+        canDecrypt:
+          type: boolean
+
+    # Step 6: Audit
+    AuditEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        actor:
+          type: string
+        fundId:
+          type: integer
+        calcVersion:
+          type: string
+        inputHash:
+          type: string
+        flagsHash:
+          type: string
+        metadata:
+          type: object
+
+    # Approval System
+    ApprovalRequest:
+      type: object
+      required:
+        - strategyId
+        - action
+        - reason
+        - riskLevel
+      properties:
+        strategyId:
+          type: string
+        action:
+          type: string
+          enum: [create, update, delete]
+        strategyData:
+          type: object
+        reason:
+          type: string
+          minLength: 10
+        riskLevel:
+          type: string
+          enum: [low, medium, high]
+        estimatedAmount:
+          type: number
+
+    ApprovalResponse:
+      type: object
+      properties:
+        approvalId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, approved, rejected, expired]
+        requiredSignatures:
+          type: integer
+        currentSignatures:
+          type: integer
+        expiresAt:
+          type: string
+          format: date-time
+
+paths:
+  # ==========================================================
+  # CONCURRENCY ENDPOINTS (Step 2)
+  # ==========================================================
+  
+  /funds/{fundId}/config:
+    patch:
+      summary: Update fund configuration with optimistic locking
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+        - name: fundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Successfully updated
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: New row version
+        '409':
+          description: Conflict - version mismatch or fund busy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictError'
+
+  # ==========================================================
+  # MULTI-TENANCY ENDPOINTS (Step 3)
+  # ==========================================================
+  
+  /flags:
+    get:
+      summary: Get resolved feature flags for current context
+      parameters:
+        - $ref: '#/components/parameters/XOrgId'
+        - $ref: '#/components/parameters/XFundId'
+        - name: If-None-Match
+          in: header
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Flags resolved hierarchically
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                default: 'private, max-age=15, must-revalidate'
+            Vary:
+              schema:
+                type: string
+                default: 'X-Org-Id, X-Fund-Id, X-User-Id'
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureFlags'
+        '304':
+          description: Not modified
+
+  /admin/flags/{key}:
+    patch:
+      summary: Update feature flag value
+      security:
+        - BearerAuth: [admin]
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scope:
+                  type: string
+                  enum: [global, org, fund, user]
+                scopeId:
+                  type: string
+                value:
+                  type: any
+                rolloutPercentage:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+      responses:
+        '200':
+          description: Flag updated
+        '409':
+          description: Concurrent modification
+
+  # ==========================================================
+  # VERSIONING ENDPOINTS (Step 4)
+  # ==========================================================
+  
+  /calc-versions:
+    get:
+      summary: List available calculation versions
+      parameters:
+        - name: engineType
+          in: query
+          schema:
+            type: string
+            enum: [reserves, pacing, cohort]
+        - name: includeDeprecated
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: List of versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalculationVersion'
+
+  /reserves/calculate:
+    post:
+      summary: Calculate reserves with versioning and protection
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XOrgId'
+        - name: version
+          in: query
+          schema:
+            type: string
+            pattern: '^\d+\.\d+\.\d+$'
+          description: Specific version to use
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Calculation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: object
+                  metadata:
+                    type: object
+                    properties:
+                      version:
+                        type: string
+                      wasmSha256:
+                        type: string
+                      executionTimeMs:
+                        type: integer
+                      deterministic:
+                        type: boolean
+                      approvalId:
+                        type: string
+        '409':
+          description: Fund busy or idempotency conflict
+        '428':
+          description: Approval required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalResponse'
+
+  /reserves/compare:
+    post:
+      summary: Compare results across versions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                params:
+                  type: object
+                versions:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Comparison results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: object
+                  differences:
+                    type: array
+                  recommendation:
+                    type: string
+
+  # ==========================================================
+  # APPROVAL ENDPOINTS
+  # ==========================================================
+  
+  /approvals:
+    post:
+      summary: Create approval request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalRequest'
+      responses:
+        '201':
+          description: Approval request created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalResponse'
+
+  /approvals/{approvalId}/sign:
+    post:
+      summary: Add signature to approval
+      parameters:
+        - name: approvalId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                signature:
+                  type: string
+      responses:
+        '200':
+          description: Signature added
+        '409':
+          description: Already signed by this partner
+
+  # ==========================================================
+  # AUDIT ENDPOINTS (Step 6)
+  # ==========================================================
+  
+  /audit/events:
+    get:
+      summary: Query audit trail
+      security:
+        - BearerAuth: [admin]
+      parameters:
+        - name: fundId
+          in: query
+          schema:
+            type: integer
+        - name: entityId
+          in: query
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Audit events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditEvent'
+
+  /audit/compliance-report:
+    get:
+      summary: Generate compliance report
+      security:
+        - BearerAuth: [admin]
+      parameters:
+        - name: period
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [monthly, quarterly, annual]
+      responses:
+        '200':
+          description: Compliance report
+          content:
+            application/json:
+              schema:
+                type: object
+
+  # ==========================================================
+  # METRICS ENDPOINT (Step 7)
+  # ==========================================================
+  
+  /metrics:
+    get:
+      summary: Prometheus metrics endpoint
+      responses:
+        '200':
+          description: Metrics in Prometheus format
+          content:
+            text/plain:
+              schema:
+                type: string

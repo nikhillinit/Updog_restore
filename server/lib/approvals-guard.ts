@@ -7,6 +7,14 @@ import { db } from './db.js';
 import { reserveApprovals, approvalSignatures } from '@shared/schemas/reserve-approvals.js';
 import { eq, and, gte, sql } from 'drizzle-orm';
 import crypto from 'crypto';
+import { 
+  validateDistinctSigners, 
+  canonicalJsonHash, 
+  ApprovalRateLimiter 
+} from './quick-wins.js';
+
+// Initialize rate limiter for approval creation
+const approvalRateLimiter = new ApprovalRateLimiter(3, 60000); // 3 requests per minute
 
 export interface ApprovalVerificationOptions {
   strategyId: string;
@@ -29,14 +37,10 @@ export interface ApprovalVerificationResult {
 
 /**
  * Compute deterministic hash of strategy inputs
+ * Uses canonical JSON hashing to ensure consistency
  */
 export function computeStrategyHash(strategyData: any): string {
-  // Sort keys for deterministic serialization
-  const normalized = JSON.stringify(strategyData, Object.keys(strategyData).sort());
-  return crypto
-    .createHash('sha256')
-    .update(normalized)
-    .digest('hex');
+  return canonicalJsonHash(strategyData);
 }
 
 /**
@@ -114,12 +118,19 @@ export async function verifyApproval(
 
     // Validate distinct partners if required
     if (requireDistinctPartners) {
-      const uniquePartners = new Set(signatures.map(s => s.partnerEmail));
-      if (uniquePartners.size < minApprovals) {
+      // Enhanced validation: check both email and partner ID uniqueness
+      const validation = validateDistinctSigners(
+        signatures.map(s => ({ 
+          partnerId: s.partnerEmail.split('@')[0], // Extract ID from email
+          partnerEmail: s.partnerEmail 
+        }))
+      );
+      
+      if (!validation.valid || validation.uniqueCount < minApprovals) {
         return {
           ok: false,
           approvalId: approval.id,
-          reason: 'Approvals must be from distinct partners',
+          reason: `Approvals must be from ${minApprovals} distinct partners (found ${validation.uniqueCount} unique)`,
           signatures
         };
       }
@@ -259,7 +270,7 @@ export async function createApprovalIfNeeded(
     estimatedAmount: number;
     riskLevel: 'low' | 'medium' | 'high';
   }
-): Promise<{ requiresApproval: boolean; approvalId?: string }> {
+): Promise<{ requiresApproval: boolean; approvalId?: string; rateLimited?: boolean }> {
   
   const needsApproval = requiresApproval(
     action,
@@ -273,6 +284,15 @@ export async function createApprovalIfNeeded(
 
   // Check if approval already exists
   const inputsHash = computeStrategyHash(strategyData);
+  
+  // Apply rate limiting to prevent approval storms
+  const rateLimitCheck = approvalRateLimiter.canCreateApproval(strategyId, inputsHash);
+  if (!rateLimitCheck.allowed) {
+    return {
+      requiresApproval: true,
+      rateLimited: true
+    };
+  }
   const existing = await db.select()
     .from(reserveApprovals)
     .where(
