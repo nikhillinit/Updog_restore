@@ -101,3 +101,4 @@ This is a web-based venture-capital fund modeling and reporting platform built a
 - **Security**: Trivy scanning for vulnerabilities in dependencies
 - memory
 - memory
+- memory

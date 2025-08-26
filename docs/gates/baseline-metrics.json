@@ -1,0 +1,64 @@
+{
+  "captureDate": "2025-08-26T19:09:41.861Z",
+  "api": {
+    "routes": {
+      "/healthz": {
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "sampleSize": 0
+      },
+      "/readyz": {
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "sampleSize": 0
+      },
+      "/api/v1/reserves/calculate": {
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "sampleSize": 0
+      },
+      "/api/v1/reserves/config": {
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "sampleSize": 0
+      }
+    },
+    "global": {
+      "errorRate": null,
+      "availability": null
+    }
+  },
+  "frontend": {
+    "lighthouse": {
+      "LCP": null,
+      "INP": null,
+      "TTI": null,
+      "CLS": null
+    },
+    "bundleSize": {
+      "js": null,
+      "css": null,
+      "total": null
+    }
+  },
+  "infrastructure": {
+    "testFlakeRate": 0.02,
+    "ciDuration": {
+      "p50": null,
+      "p95": null
+    },
+    "deploymentTime": null
+  },
+  "database": {
+    "connectionPoolSize": 10,
+    "queryPerformance": {
+      "p50": null,
+      "p95": null,
+      "p99": null
+    }
+  }
+}
