@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+  <!-- Example suppression for known false positives -->
+  <!-- Uncomment and modify as needed:
+  <suppress>
+    <notes><![CDATA[
+    False positive - not applicable to our usage
+    ]]></notes>
+    <packageUrl regex="true">^pkg:npm/package-name@.*$</packageUrl>
+    <cve>CVE-YYYY-NNNN</cve>
+  </suppress>
+  -->
+</suppressions>
