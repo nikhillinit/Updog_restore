@@ -131,3 +131,5 @@ Updog_restore-main/
 *.patch
 *_EXECUTION*.md
 STREAMLINED_*.md
+.claude/settings.local.json
+.github/instructions/
