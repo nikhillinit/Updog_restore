@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  ml-reserve-service:
+    build: .
+    ports:
+      - "8088:8088"
+    environment:
+      - MODEL_PATH=/app/models/model.pkl
+      - MODEL_VERSION=ml-gbrt-v1.0
+      - CONFIDENCE_LEVEL=0.8
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./models:/app/models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M

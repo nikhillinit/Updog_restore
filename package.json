@@ -53,6 +53,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:quick": "vitest run --exclude='**/api/**'",
+    "backtest": "tsx scripts/backtest.ts",
     "test:smoke": "playwright test tests/smoke/wizard.spec.ts",
     "test:smoke:old": "vitest run client/src/core/reserves/adapter/__tests__/finalizePayload.spec.ts --reporter=dot",
     "test:integration:old": "cross-env DATABASE_URL=postgresql://postgres:postgres@localhost:5432/povc_test vitest run --config vitest.integration.config.ts",
