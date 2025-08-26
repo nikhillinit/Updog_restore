@@ -128,3 +128,6 @@ Updog_restore-main/
 
 #Ignore vscode AI rules
 .github\instructions\codacy.instructions.md
+*.patch
+*_EXECUTION*.md
+STREAMLINED_*.md
