@@ -116,16 +116,19 @@ async function captureAPIMetrics() {
 }
 
 async function captureFrontendMetrics() {
-  // These would normally come from Lighthouse CI
-  // Placeholder values for now
+  // These require Lighthouse CI or actual frontend measurement
   return {
     lighthouse: {
+      status: 'unavailable',
+      reason: 'requires_lighthouse_ci',
       LCP: null, // Largest Contentful Paint
       INP: null, // Interaction to Next Paint
       TTI: null, // Time to Interactive
       CLS: null  // Cumulative Layout Shift
     },
     bundleSize: {
+      status: 'unavailable',
+      reason: 'requires_build_process',
       js: null,
       css: null,
       total: null

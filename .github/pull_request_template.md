@@ -1,14 +1,19 @@
 ## Description
+<!-- Brief description of the changes in this PR -->
 
-Brief description of changes made in this PR.
+## Type of Change
+- [ ] Bug fix (non-breaking change which fixes an issue)
+- [ ] New feature (non-breaking change which adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] Performance optimization
+- [ ] Security fix
+- [ ] Documentation update
 
 ## Performance Impact
-
 <!-- If this PR touches async-heavy code paths, paste `npm run bench:load` output here -->
-
 - [ ] **Benchmarks run**: <!-- benchmark-action will update this -->
 - [ ] **Memory impact**: <!-- check for any significant memory changes -->
-- [ ] **Async patterns used**: <!-- count of new async utilities adopted -->
+- [ ] **Bundle size checked**: <!-- for frontend changes -->
 
 ### Migration Progress (if applicable)
 <!-- auto-filled by smart-fix.js -->
@@ -25,12 +30,28 @@ Brief description of changes made in this PR.
 - [ ] Async iteration migration
 - [ ] Documentation update
 
-## Testing
+## Quality Checklist
 
-- [ ] Tests pass locally with my changes
-- [ ] I have added tests that prove my fix is effective or that my feature works
-- [ ] New and existing unit tests pass locally with my changes
+### Testing
+- [ ] Unit tests added/updated (`npm run test:unit`)
+- [ ] Integration tests added/updated (if API change) (`npm run test:integration`)
+- [ ] Tests pass locally
 - [ ] Performance benchmarks show no regressions (>20% slower)
+
+### Code Quality
+- [ ] TypeScript checks pass (`npm run check`)
+- [ ] ESLint passes (`npm run lint`)
+- [ ] No console.log or debug statements left
+
+### UI/UX (if applicable)
+- [ ] Synthetics selectors updated (if UI change) - [Test ID conventions](client/src/lib/testIds.ts)
+- [ ] Responsive design tested
+- [ ] Accessibility checked (keyboard navigation, ARIA labels)
+
+### Security
+- [ ] Security headers unaffected or [updated tests](scripts/check-security-headers.mjs)
+- [ ] No secrets or credentials in code
+- [ ] Input validation implemented
 
 ### Reserves v1.1 Specific (if applicable)
 - [ ] Conservation invariant maintained (allocated + remaining = available)

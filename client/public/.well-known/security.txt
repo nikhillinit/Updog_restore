@@ -1,0 +1,29 @@
+# Security Policy
+# https://securitytxt.org/
+
+Contact: security@povc.fund
+Expires: 2026-08-26T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://povc.fund/.well-known/security.txt
+
+# Reporting
+# Please report security vulnerabilities to security@povc.fund
+# We aim to respond within 48 hours
+# For details, see https://github.com/nikhillinit/Updog_restore/blob/main/SECURITY.md
+
+# Bug Bounty
+# We currently do not offer a bug bounty program
+
+# Encryption
+# PGP key available upon request to security@povc.fund
+
+# Acknowledgments
+# Security researchers who help us maintain platform security
+# will be acknowledged at https://povc.fund/security/thanks
+
+# Policy
+Policy: https://github.com/nikhillinit/Updog_restore/blob/main/SECURITY.md
+
+# Hiring
+# We're always looking for security-minded engineers
+# https://povc.fund/careers
