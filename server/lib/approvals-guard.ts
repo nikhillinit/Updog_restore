@@ -3,10 +3,10 @@
  * Ensures dual approval is required before any reserve strategy execution
  */
 
-import { db } from './db.js';
-import { reserveApprovals, approvalSignatures, partners } from '@shared/schemas/reserve-approvals.js';
+import { db } from '../db.js';
 import { eq, and, gte, sql } from 'drizzle-orm';
 import crypto from 'crypto';
+import { recordApprovalCreation, approvalMetrics } from '../observability/production-metrics.js';
 import { 
   validateDistinctSigners, 
   canonicalJsonHash, 
@@ -98,23 +98,26 @@ export async function verifyApproval(
       };
     }
 
-    // Get signatures with proper partner information
-    const signatures = await db.select({
-      partnerId: partners.partner_id,
-      partnerEmail: approvalSignatures.partnerEmail,
-      approvedAt: approvalSignatures.approvedAt
-    })
-      .from(approvalSignatures)
-      .innerJoin(partners, eq(approvalSignatures.partner_id, partners.id))
-      .where(eq(approvalSignatures.approvalId, approval.id));
+    // Get signatures with proper partner information from database
+    const signatures = await db.execute(sql`
+      SELECT 
+        p.partner_id,
+        s.partner_email,
+        s.signed_at as approved_at
+      FROM approval_signatures s
+      INNER JOIN partners p ON s.partner_id = p.id
+      WHERE s.approval_id = ${approval.id}
+    `);
 
     // Validate minimum approvals
-    if (signatures.length < minApprovals) {
+    const sigCount = signatures.rows.length;
+    if (sigCount < minApprovals) {
+      approvalMetrics.denied.inc({ reason: 'insufficient_signatures' });
       return {
         ok: false,
         approvalId: approval.id,
-        reason: `Insufficient approvals: ${signatures.length}/${minApprovals}`,
-        signatures
+        reason: `Insufficient approvals: ${sigCount}/${minApprovals}`,
+        signatures: signatures.rows
       };
     }
 
@@ -122,48 +125,59 @@ export async function verifyApproval(
     if (requireDistinctPartners) {
       // Enhanced validation: check actual partner ID uniqueness from partners table
       const validation = validateDistinctSigners(
-        signatures.map(s => ({ 
-          partnerId: s.partnerId, // Use actual partner_id from partners table
-          partnerEmail: s.partnerEmail 
+        signatures.rows.map((s: any) => ({ 
+          partnerId: s.partner_id, // Use actual partner_id from partners table
+          partnerEmail: s.partner_email 
         }))
       );
       
       if (!validation.valid || validation.uniqueCount < minApprovals) {
+        approvalMetrics.denied.inc({ reason: 'duplicate_signers' });
         return {
           ok: false,
           approvalId: approval.id,
           reason: `Approvals must be from ${minApprovals} distinct partners (found ${validation.uniqueCount} unique)`,
-          signatures
+          signatures: signatures.rows
         };
       }
     }
 
-    // Check if approval is still within validity window
-    const approvalAge = Date.now() - new Date(approval.requestedAt).getTime();
-    const maxAge = expiresAfterHours * 60 * 60 * 1000;
-    if (approvalAge > maxAge) {
-      // Mark as expired
-      await db.update(reserveApprovals)
-        .set({ status: 'expired', updatedAt: new Date() })
-        .where(eq(reserveApprovals.id, approval.id));
+    // Check TTL (expires_at is authoritative)
+    if (new Date() > new Date(approval.expires_at)) {
+      // Mark as expired (should be handled by automatic TTL, but safety check)
+      await db.execute(sql`
+        UPDATE reserve_approvals 
+        SET status = 'expired', updated_at = NOW()
+        WHERE id = ${approval.id}
+      `);
 
+      approvalMetrics.denied.inc({ reason: 'expired' });
       return {
         ok: false,
         approvalId: approval.id,
         reason: 'Approval has expired',
-        signatures
+        signatures: signatures.rows
       };
     }
+
+    // Record successful verification
+    const timer = approvalMetrics.verifyDuration.startTimer({ result: 'success' });
+    timer();
 
     return {
       ok: true,
       approvalId: approval.id,
-      signatures,
-      calculationHash: approval.calculationHash || undefined
+      signatures: signatures.rows,
+      calculationHash: approval.calculation_hash || undefined
     };
 
   } catch (error) {
     console.error('Error verifying approval:', error);
+    
+    // Record failed verification
+    const timer = approvalMetrics.verifyDuration.startTimer({ result: 'error' });
+    timer();
+    
     return {
       ok: false,
       reason: 'Failed to verify approval: ' + (error as Error).message

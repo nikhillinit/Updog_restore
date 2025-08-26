@@ -21,9 +21,11 @@ export interface RateLimiterConfig {
 
 /**
  * Redis-backed approval rate limiter
- * Uses sliding window algorithm for accurate rate limiting
+ * Uses atomic Lua scripts for race-condition-free rate limiting
  */
 export class RedisApprovalRateLimiter {
+  private tokenBucketScript: string;
+  private slidingWindowScript: string;
   private redis: RedisClientType;
   private connected: boolean = false;
   
@@ -31,12 +33,79 @@ export class RedisApprovalRateLimiter {
     private config: RateLimiterConfig = {
       maxRequests: 3,
       windowMs: 60000, // 1 minute default
-      keyPrefix: 'ratelimit'
+      keyPrefix: 'rl' // Namespace keys properly
     }
   ) {
     this.redis = createClient({
-      url: config.redisUrl || process.env.REDIS_URL || 'redis://localhost:6379'
+      url: config.redisUrl || process.env.REDIS_URL || 'redis://localhost:6379',
+      socket: {
+        connectTimeout: 5000,
+        commandTimeout: 2000
+      },
+      retryStrategy: (times: number) => {
+        if (times > 3) return null; // Stop retrying
+        return Math.min(times * 100, 3000);
+      }
     });
+    
+    // Atomic token bucket Lua script
+    this.tokenBucketScript = `
+      local key = KEYS[1]
+      local now = tonumber(ARGV[1])
+      local window = tonumber(ARGV[2])
+      local limit = tonumber(ARGV[3])
+      local ttl = tonumber(ARGV[4])
+      
+      local bucket = redis.call('HMGET', key, 'count', 'reset_time')
+      local count = tonumber(bucket[1]) or 0
+      local reset_time = tonumber(bucket[2]) or now
+      
+      -- Reset bucket if window expired
+      if now >= reset_time then
+        count = 0
+        reset_time = now + window
+      end
+      
+      if count >= limit then
+        -- Rate limited
+        return {0, 0, reset_time}
+      else
+        -- Allow request
+        count = count + 1
+        redis.call('HMSET', key, 'count', count, 'reset_time', reset_time)
+        redis.call('EXPIRE', key, ttl)
+        return {1, limit - count, reset_time}
+      end
+    `;
+    
+    // Sliding window Lua script (more accurate)
+    this.slidingWindowScript = `
+      local key = KEYS[1]
+      local now = tonumber(ARGV[1])
+      local window = tonumber(ARGV[2])
+      local limit = tonumber(ARGV[3])
+      local identifier = ARGV[4]
+      
+      local window_start = now - window
+      
+      -- Remove expired entries
+      redis.call('ZREMRANGEBYSCORE', key, '-inf', window_start)
+      
+      -- Count current entries
+      local current = redis.call('ZCARD', key)
+      
+      if current >= limit then
+        -- Find reset time (oldest entry + window)
+        local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
+        local reset_at = oldest[2] and (tonumber(oldest[2]) + window) or (now + window)
+        return {0, 0, reset_at}
+      else
+        -- Add current request
+        redis.call('ZADD', key, now, identifier)
+        redis.call('EXPIRE', key, math.ceil(window / 1000))
+        return {1, limit - current - 1, now + window}
+      end
+    `;
     
     this.redis.on('error', (err) => {
       console.error('Redis rate limiter error:', err);
@@ -65,73 +134,66 @@ export class RedisApprovalRateLimiter {
   
   /**
    * Check if approval creation is allowed
-   * Uses sliding window with Redis sorted sets
+   * Uses atomic Lua scripts to prevent race conditions
    */
   async canCreateApproval(
     strategyId: string, 
     inputsHash: string
   ): Promise<RateLimitResult> {
     if (!this.connected) {
-      await this.connect();
+      try {
+        await this.connect();
+      } catch (error) {
+        // Fallback: allow but log error
+        console.error('Redis connection failed, allowing request:', error);
+        return {
+          allowed: true,
+          remaining: this.config.maxRequests - 1,
+          resetAt: Date.now() + this.config.windowMs
+        };
+      }
     }
     
     const key = `${this.config.keyPrefix}:approval:${strategyId}:${inputsHash}`;
     const now = Date.now();
-    const windowStart = now - this.config.windowMs;
+    const ttl = Math.ceil(this.config.windowMs / 1000);
+    const identifier = `${now}-${Math.random().toString(36).substr(2, 9)}`;
     
-    // Use Redis pipeline for atomic operations
-    const pipeline = this.redis.multi();
-    
-    // Remove old entries outside the window
-    pipeline.zRemRangeByScore(key, '-inf', windowStart.toString());
-    
-    // Count current entries in the window
-    pipeline.zCard(key);
-    
-    // Add current timestamp if under limit (conditional)
-    pipeline.zAdd(key, { 
-      score: now, 
-      value: `${now}-${Math.random()}` // Unique value to handle concurrent requests
-    });
-    
-    // Set expiry on the key
-    pipeline.expire(key, Math.ceil(this.config.windowMs / 1000));
-    
-    const results = await pipeline.exec();
-    
-    // Extract count from pipeline results
-    const currentCount = (results[1] as number) || 0;
-    
-    if (currentCount >= this.config.maxRequests) {
-      // Get oldest entry to calculate reset time
-      const oldestEntries = await this.redis.zRange(key, 0, 0, { 
-        BY: 'SCORE',
-        REV: false 
-      });
+    try {
+      // Use sliding window for accuracy
+      const result = await this.redis.eval(
+        this.slidingWindowScript,
+        {
+          keys: [key],
+          arguments: [
+            now.toString(),
+            this.config.windowMs.toString(), 
+            this.config.maxRequests.toString(),
+            identifier
+          ]
+        }
+      ) as [number, number, number];
       
-      const oldestTimestamp = oldestEntries.length > 0 
-        ? parseInt(oldestEntries[0].split('-')[0])
-        : now;
+      const [allowed, remaining, resetAt] = result;
       
-      const resetAt = oldestTimestamp + this.config.windowMs;
-      const retryAfter = Math.ceil((resetAt - now) / 1000); // seconds
+      return {
+        allowed: allowed === 1,
+        remaining,
+        resetAt,
+        retryAfter: allowed === 0 ? Math.ceil((resetAt - now) / 1000) : undefined
+      };
       
-      // Remove the entry we just added since it's over limit
-      await this.redis.zRem(key, `${now}-${Math.random()}`);
+    } catch (error) {
+      console.error('Redis rate limit check failed:', error);
       
+      // Fallback policy: deny for safety on approval creation
       return {
         allowed: false,
         remaining: 0,
-        resetAt,
-        retryAfter
+        resetAt: now + this.config.windowMs,
+        retryAfter: Math.ceil(this.config.windowMs / 1000)
       };
     }
-    
-    return {
-      allowed: true,
-      remaining: this.config.maxRequests - currentCount - 1,
-      resetAt: now + this.config.windowMs
-    };
   }
   
   /**
@@ -186,7 +248,9 @@ export class RedisApprovalRateLimiter {
  * Only use when Redis is not available
  */
 export class InMemoryRateLimiter {
-  private storage = new Map<string, number[]>();
+  private storage = new Map<string, { timestamps: number[]; lastCleanup: number }>();
+  private readonly maxStorageSize = 1000;
+  private readonly cleanupInterval = 60000; // 1 minute
   
   constructor(
     private maxRequests: number = 3,
@@ -197,18 +261,18 @@ export class InMemoryRateLimiter {
     strategyId: string, 
     inputsHash: string
   ): RateLimitResult {
-    const key = `approval:${strategyId}:${inputsHash}`;
+    const key = `rl:approval:${strategyId}:${inputsHash}`;
     const now = Date.now();
     const windowStart = now - this.windowMs;
     
-    // Get existing timestamps
-    let timestamps = this.storage.get(key) || [];
+    // Get existing data
+    let data = this.storage.get(key) || { timestamps: [], lastCleanup: now };
     
     // Filter out expired timestamps
-    timestamps = timestamps.filter(t => t > windowStart);
+    data.timestamps = data.timestamps.filter(t => t > windowStart);
     
-    if (timestamps.length >= this.maxRequests) {
-      const oldestTimestamp = Math.min(...timestamps);
+    if (data.timestamps.length >= this.maxRequests) {
+      const oldestTimestamp = Math.min(...data.timestamps);
       const resetAt = oldestTimestamp + this.windowMs;
       
       return {
@@ -220,29 +284,31 @@ export class InMemoryRateLimiter {
     }
     
     // Add current timestamp
-    timestamps.push(now);
-    this.storage.set(key, timestamps);
+    data.timestamps.push(now);
+    data.lastCleanup = now;
+    this.storage.set(key, data);
     
-    // Clean up old keys periodically
-    if (this.storage.size > 1000) {
-      this.cleanup();
+    // Periodic cleanup
+    if (this.storage.size > this.maxStorageSize || 
+        now - data.lastCleanup > this.cleanupInterval) {
+      this.cleanup(now);
     }
     
     return {
       allowed: true,
-      remaining: this.maxRequests - timestamps.length,
+      remaining: this.maxRequests - data.timestamps.length,
       resetAt: now + this.windowMs
     };
   }
   
-  private cleanup(): void {
-    const now = Date.now();
-    for (const [key, timestamps] of this.storage.entries()) {
-      const validTimestamps = timestamps.filter(t => t > now - this.windowMs);
+  private cleanup(now: number = Date.now()): void {
+    for (const [key, data] of this.storage.entries()) {
+      const validTimestamps = data.timestamps.filter(t => t > now - this.windowMs);
       if (validTimestamps.length === 0) {
         this.storage.delete(key);
       } else {
-        this.storage.set(key, validTimestamps);
+        data.timestamps = validTimestamps;
+        data.lastCleanup = now;
       }
     }
   }

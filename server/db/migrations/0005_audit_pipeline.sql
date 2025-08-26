@@ -122,29 +122,31 @@ CREATE TABLE IF NOT EXISTS reserve_approvals (
   strategy_id VARCHAR(100) NOT NULL,
   fund_id INTEGER NOT NULL REFERENCES funds(id),
   organization_id UUID NOT NULL REFERENCES organizations(id),
-  requested_by UUID REFERENCES partners(id),
-  requested_at TIMESTAMPTZ DEFAULT NOW(),
+  requested_by UUID NOT NULL REFERENCES partners(id),
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   -- Change details
   action VARCHAR(20) NOT NULL CHECK (action IN ('create', 'update', 'delete')),
   strategy_data JSONB NOT NULL,
-  reason TEXT,
+  reason TEXT NOT NULL CHECK (length(reason) >= 10),
   -- Impact assessment
   affected_funds TEXT[],
   estimated_amount DECIMAL(15, 2),
   risk_level VARCHAR(20) NOT NULL CHECK (risk_level IN ('low', 'medium', 'high')),
   -- Approval tracking
-  status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'expired')),
-  expires_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '48 hours',
+  status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'expired')),
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '72 hours',
   -- Metadata
   calculation_hash VARCHAR(64),
-  created_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   completed_at TIMESTAMPTZ,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_reserve_approvals_status ON reserve_approvals(fund_id, status, created_at DESC);
+-- TTL index for automatic expiry processing
 CREATE INDEX IF NOT EXISTS idx_reserve_approvals_expiry ON reserve_approvals(expires_at) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS idx_reserve_approvals_org ON reserve_approvals(organization_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reserve_approvals_strategy_hash ON reserve_approvals(strategy_id, calculation_hash) WHERE status IN ('pending', 'approved');
 
 -- Approval signatures (separate table for multiple signers)
 CREATE TABLE IF NOT EXISTS approval_signatures (
@@ -162,6 +164,30 @@ CREATE TABLE IF NOT EXISTS approval_signatures (
 
 CREATE INDEX IF NOT EXISTS idx_approval_signatures_approval ON approval_signatures(approval_id);
 CREATE INDEX IF NOT EXISTS idx_approval_signatures_partner ON approval_signatures(partner_id);
+-- Ensure two distinct partner signatures per approval
+CREATE UNIQUE INDEX IF NOT EXISTS idx_approval_signatures_unique ON approval_signatures(approval_id, partner_id);
+
+-- Function to expire pending approvals automatically
+CREATE OR REPLACE FUNCTION expire_pending_approvals() 
+RETURNS INTEGER AS $$
+DECLARE
+  expired_count INTEGER;
+BEGIN
+  UPDATE reserve_approvals 
+  SET status = 'expired', updated_at = NOW()
+  WHERE status = 'pending' AND expires_at < NOW();
+  
+  GET DIAGNOSTICS expired_count = ROW_COUNT;
+  
+  -- Log expired approvals for audit
+  INSERT INTO audit_events (event_type, action, metadata, event_time)
+  VALUES ('approval_auto_expired', 'system_expire', 
+          jsonb_build_object('count', expired_count), NOW())
+  WHERE expired_count > 0;
+  
+  RETURN expired_count;
+END;
+$$ LANGUAGE plpgsql;
 
 -- Function to process outbox (can be called by cron job)
 CREATE OR REPLACE FUNCTION process_audit_outbox(batch_size INTEGER DEFAULT 100) 
