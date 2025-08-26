@@ -17,6 +17,8 @@ import { logger } from '../lib/logger';
 import { performanceMonitor } from '../observability/metrics';
 import { validateApiKey } from '../middleware/auth';
 import { requestId } from '../middleware/requestId';
+import { requireApproval, computeStrategyHash, createApprovalIfNeeded, verifyApproval } from '../lib/approvals-guard.js';
+import { requireAuth } from '../lib/auth/jwt.js';
 
 // Import the reserve engine (would be a server-side implementation)
 // For now, we'll create a mock that delegates to the client-side engine
@@ -220,6 +222,7 @@ const router = Router();
 
 // Apply middleware
 router.use(requestId);
+router.use(requireAuth()); // Require authentication for all routes
 router.use(reserveCalculationLimiter);
 
 /**
@@ -227,7 +230,7 @@ router.use(reserveCalculationLimiter);
  * Calculate optimal reserve allocation
  */
 router.post('/calculate', 
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request & { user?: any; approval?: any }, res: Response, next: NextFunction) => {
     const startTime = Date.now();
     const correlationId = (req as any).id;
 
@@ -240,11 +243,66 @@ router.post('/calculate',
 
       const { body: input, query: options } = validatedRequest;
 
+      // Compute impact assessment for approval check
+      const totalAmount = input.availableReserves;
+      const affectedFunds = input.portfolio.map(c => c.id);
+      const riskLevel = totalAmount > 5000000 ? 'high' : 
+                         totalAmount > 1000000 ? 'medium' : 'low';
+
+      // Check if approval is needed for high-impact changes
+      const strategyId = `reserve-calc-${correlationId}`;
+      const approvalCheck = await createApprovalIfNeeded(
+        strategyId,
+        'update',
+        input,
+        'Reserve calculation requested',
+        req.user?.email || 'unknown',
+        {
+          affectedFunds,
+          estimatedAmount: totalAmount,
+          riskLevel
+        }
+      );
+
+      if (approvalCheck.requiresApproval) {
+        // Verify approval exists and is valid
+        const inputsHash = computeStrategyHash(input);
+        const verification = await verifyApproval({
+          strategyId,
+          inputsHash,
+          minApprovals: 2
+        });
+
+        if (!verification.ok) {
+          return res.status(403).json({
+            error: 'approval_required',
+            message: verification.reason,
+            approvalId: approvalCheck.approvalId,
+            details: {
+              strategyId,
+              inputsHash,
+              riskLevel,
+              estimatedAmount: totalAmount,
+              affectedFunds: affectedFunds.length
+            },
+            correlationId
+          });
+        }
+
+        // Attach approval to request for audit trail
+        req.approval = {
+          id: verification.approvalId,
+          signatures: verification.signatures
+        };
+      }
+
       logger.info('Reserve calculation request received', {
         correlationId,
         portfolioSize: input.portfolio.length,
         availableReserves: input.availableReserves,
         scenarioType: input.scenarioType,
+        requiresApproval: approvalCheck.requiresApproval,
+        approvalId: req.approval?.id,
         options,
       });
 
@@ -277,6 +335,10 @@ router.post('/calculate',
           correlationId,
           processingTime: duration,
           timestamp: new Date().toISOString(),
+          approval: req.approval ? {
+            id: req.approval.id,
+            signatures: req.approval.signatures
+          } : undefined,
         },
       });
 
@@ -511,5 +573,75 @@ router.use((error: any, req: Request, res: Response, next: NextFunction) => {
     correlationId,
   });
 });
+
+/**
+ * POST /api/reserves/calculate-protected
+ * Protected endpoint that always requires dual approval
+ */
+router.post('/calculate-protected',
+  requireApproval({ minApprovals: 2 }),
+  heavyCalculationLimiter,
+  async (req: Request & { approval?: any }, res: Response, next: NextFunction) => {
+    const startTime = Date.now();
+    const correlationId = (req as any).id;
+
+    try {
+      // Validate request
+      const validatedRequest = ReserveCalculationRequestSchema.parse({
+        body: req.body,
+        query: req.query,
+      });
+
+      const { body: input } = validatedRequest;
+
+      logger.info('Protected reserve calculation initiated', {
+        correlationId,
+        portfolioSize: input.portfolio.length,
+        availableReserves: input.availableReserves,
+        approvalId: req.approval.id,
+        signatures: req.approval.signatures.length,
+      });
+
+      // Perform calculation with approval verified
+      const result = await reserveEngine.calculateOptimalReserveAllocation(input);
+
+      const duration = Date.now() - startTime;
+
+      logger.info('Protected reserve calculation completed', {
+        correlationId,
+        duration,
+        approvalId: req.approval.id,
+      });
+
+      res.json({
+        success: true,
+        data: result,
+        metadata: {
+          correlationId,
+          processingTime: duration,
+          timestamp: new Date().toISOString(),
+          protected: true,
+          approval: {
+            id: req.approval.id,
+            signatures: req.approval.signatures,
+            calculationHash: req.approval.calculationHash,
+          },
+        },
+      });
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      
+      logger.error('Protected reserve calculation failed', {
+        correlationId,
+        error: error.message,
+        duration,
+        approvalId: req.approval?.id,
+      });
+
+      next(error);
+    }
+  }
+);
 
 export default router;
