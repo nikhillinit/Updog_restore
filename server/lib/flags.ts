@@ -321,28 +321,47 @@ export async function getFlagsVersion(): Promise<string> {
 export async function updateFlag(
   key: string,
   updates: Partial<FlagValue>,
-  actor: string,
-  reason?: string
+  user: { sub: string; email: string; ip: string; userAgent: string },
+  reason: string
 ): Promise<void> {
-  const currentFlags = await getFlags();
-  const before = currentFlags[key] || null;
+  const snapshot = await getFlags();
+  const before = snapshot.flags[key] || null;
   const after = { ...before, ...updates };
+  
+  // Generate change hash
+  const changeData = JSON.stringify({ before, after, actor: user.sub, timestamp: Date.now() });
+  const changeHash = createHash('sha256').update(changeData).digest('hex').substring(0, 16);
   
   // Log the change
   const change: NewFlagChange = {
     key,
     before: before ? JSON.parse(JSON.stringify(before)) : null,
     after: JSON.parse(JSON.stringify(after)),
-    actor,
-    reason: reason || 'Manual update'
+    actorSub: user.sub,
+    actorEmail: user.email,
+    ip: user.ip,
+    userAgent: user.userAgent,
+    reason,
+    changeHash,
+    version: snapshot.version
   };
   
   try {
     await db.insert(flagChanges).values(change);
-    console.log(`Flag '${key}' updated by ${actor}: ${JSON.stringify(updates)}`);
+    console.log(`Flag '${key}' updated by ${user.email}: ${JSON.stringify(updates)}`);
     
-    // Update store (in production, this would update Redis and publish invalidation)
-    currentFlags[key] = after;
+    // Update store with new version
+    const newVersion = generateVersion();
+    const updatedFlags = { ...snapshot.flags, [key]: after };
+    const newHash = createHash('sha256').update(JSON.stringify(updatedFlags)).digest('hex').substring(0, 16);
+    
+    // Store new state
+    await db.insert(flagsState).values({
+      version: newVersion,
+      flagsHash: newHash,
+      flags: updatedFlags,
+      environment: ENVIRONMENT
+    });
     
     // Invalidate cache
     cache.ts = 0;
