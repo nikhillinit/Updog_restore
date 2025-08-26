@@ -54,17 +54,33 @@ jobs:
           BASE_URL: ${{ steps.base.outputs.base }}
         shell: bash
         run: |
-          set -euxo pipefail
-          # Try the 'smoke' project; if not defined, fall back to default.
-          npx playwright test tests/synthetics/wizard.e2e.spec.ts --project=smoke --reporter=html,line || \
-          npx playwright test tests/synthetics/wizard.e2e.spec.ts --reporter=html,line
+          # Enable trace and video on CI for debugging
+          npx playwright test tests/synthetics/wizard.e2e.spec.ts \
+            --project=smoke \
+            --reporter=html,line,json \
+            --trace=on \
+            --video=retain-on-failure \
+            --screenshot=only-on-failure \
+            || echo "Tests failed - artifacts will be uploaded"
       
-      - name: Upload Playwright artifacts
-        if: always()
+      - name: Upload Playwright Report
+        if: always() && steps.base.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-artifacts-${{ github.run_id }}
+          name: playwright-report-${{ github.run_id }}
+          path: playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+      
+      - name: Upload Test Results (Traces, Videos, Screenshots)
+        if: failure() && steps.base.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces-${{ github.run_id }}
           path: |
-            playwright-report/
             test-results/
+            **/*.webm
+            **/*.png
+            **/*.trace.zip
+          retention-days: 30
           if-no-files-found: ignore

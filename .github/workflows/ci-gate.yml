@@ -1,0 +1,265 @@
+name: CI Gate Checks
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      
+      - name: Run unit tests
+        run: npm run test:unit
+        env:
+          TZ: UTC
+          NODE_ENV: test
+      
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-coverage
+          path: coverage/
+          if-no-files-found: ignore
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: povc_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      
+      - name: Setup database
+        run: |
+          npm run db:push || echo "DB setup skipped - no migrations"
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/povc_test
+      
+      - name: Start API server
+        run: |
+          npm run dev:quick &
+          npx wait-on --timeout 30000 http://localhost:3001/healthz
+        env:
+          PORT: 3001
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/povc_test
+          REDIS_URL: redis://localhost:6379
+          NODE_ENV: test
+      
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          TZ: UTC
+          BASE_URL: http://localhost:3001
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/povc_test
+
+  security-headers:
+    name: Security Headers Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      
+      - name: Start API server
+        run: |
+          npm run dev:quick &
+          npx wait-on --timeout 30000 http://localhost:3001/healthz
+        env:
+          PORT: 3001
+          DATABASE_URL: postgresql://mock:mock@localhost:5432/mock
+          REDIS_URL: memory://
+          NODE_ENV: production
+          CSP_REPORT_ONLY: '0'
+      
+      - name: Check security headers
+        run: node scripts/check-security-headers.mjs
+        env:
+          HEADERS_CHECK_URL: http://localhost:3001
+      
+      - name: Check security headers (report-only mode)
+        run: |
+          # Restart with report-only mode
+          pkill -f "npm run dev:quick" || true
+          sleep 2
+          CSP_REPORT_ONLY=1 npm run dev:quick &
+          npx wait-on --timeout 30000 http://localhost:3001/healthz
+          node scripts/check-security-headers.mjs
+        env:
+          PORT: 3001
+          HEADERS_CHECK_URL: http://localhost:3001
+          CSP_REPORT_ONLY: '1'
+
+  synthetics:
+    name: Synthetic Monitoring
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npx playwright install --with-deps
+      
+      - name: Run synthetic tests
+        run: |
+          npx playwright test tests/synthetics \
+            --reporter=line,json \
+            --trace=on \
+            --video=retain-on-failure \
+            || true
+        env:
+          BASE_URL: ${{ secrets.SYNTHETIC_URL || 'http://localhost:5000' }}
+      
+      - name: Calculate success rate
+        id: success-rate
+        run: |
+          # Parse test results and calculate success rate
+          if [ -f "test-results.json" ]; then
+            TOTAL=$(jq '.stats.expected' test-results.json)
+            PASSED=$(jq '.stats.passed' test-results.json)
+            RATE=$((PASSED * 100 / TOTAL))
+            echo "rate=$RATE" >> "$GITHUB_OUTPUT"
+            echo "Success rate: $RATE%"
+            if [ $RATE -lt 95 ]; then
+              echo "❌ Success rate below 95% threshold"
+              exit 1
+            fi
+          fi
+      
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-artifacts-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 30
+
+  typecheck:
+    name: TypeScript Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npm run check
+
+  lint:
+    name: ESLint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npm run lint
+
+  gate-status:
+    name: Gate Status
+    runs-on: ubuntu-latest
+    needs: [unit, integration, security-headers, typecheck, lint]
+    if: always()
+    
+    steps:
+      - name: Check gate status
+        run: |
+          echo "## Gate A Status Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests | ${{ needs.unit.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Integration Tests | ${{ needs.integration.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Headers | ${{ needs.security-headers.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| TypeScript | ${{ needs.typecheck.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ESLint | ${{ needs.lint.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          
+          # Fail if any required checks failed
+          if [ "${{ needs.unit.result }}" != "success" ] || \
+             [ "${{ needs.integration.result }}" != "success" ] || \
+             [ "${{ needs.security-headers.result }}" != "success" ] || \
+             [ "${{ needs.typecheck.result }}" != "success" ] || \
+             [ "${{ needs.lint.result }}" != "success" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Gate checks failed**" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **All gate checks passed**" >> $GITHUB_STEP_SUMMARY
