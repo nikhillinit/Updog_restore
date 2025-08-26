@@ -1,0 +1,25 @@
+---
+# Hadolint configuration for POVC Fund Platform
+# See: https://github.com/hadolint/hadolint#configure
+
+# Rules to ignore (with justification)
+ignored:
+  # DL3008: Pin versions in apt get install (Alpine uses apk)
+  - DL3008
+  # DL3009: Delete apt-get cache (Alpine uses apk)
+  - DL3009
+
+# Rules to treat as warnings instead of errors
+warning:
+  # DL3059: Multiple consecutive RUN instructions
+  - DL3059
+
+# Additional configuration
+strict-labels: false
+disable-ignore-pragma: false
+
+# Trusted registries
+trusted-registries:
+  - docker.io
+  - gcr.io
+  - quay.io

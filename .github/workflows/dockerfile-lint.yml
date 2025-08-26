@@ -1,0 +1,38 @@
+name: Dockerfile Security Linting
+
+on:
+  pull_request:
+    paths:
+      - 'Dockerfile*'
+      - '.github/workflows/dockerfile-lint.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile*'
+
+jobs:
+  hadolint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          format: sarif
+          output-file: hadolint-results.sarif
+          no-fail: false
+          
+      - name: Upload Hadolint results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: hadolint-results.sarif
+          category: hadolint
+          
+      - name: Hadolint summary
+        if: failure()
+        run: |
+          echo "❌ Dockerfile security issues found. Check the Security tab for details."
+          echo "Visit https://github.com/hadolint/hadolint#rules for rule documentation."

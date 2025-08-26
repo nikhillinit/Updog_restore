@@ -2,7 +2,9 @@ import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import crypto from 'node:crypto';
+import swaggerUi from 'swagger-ui-express';
 import { reservesV1Router } from './routes/v1/reserves.js';
+import { swaggerSpec } from './config/swagger.js';
 
 export function makeApp() {
   const app = express();
@@ -56,11 +58,63 @@ export function makeApp() {
   });
   app.use(rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true }));
 
+  // API Documentation
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customSiteTitle: 'POVC Fund Platform API',
+    customfavIcon: '/favicon.ico',
+    customCss: '.swagger-ui .topbar { display: none }',
+    explorer: true
+  }));
+  
+  // OpenAPI spec endpoint
+  app.get('/api-docs.json', (_req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+  });
+
   // Versioned API
   app.use('/api/v1/reserves', reservesV1Router);
 
-  // Health/Ready
+  /**
+   * @swagger
+   * /healthz:
+   *   get:
+   *     summary: Health check endpoint
+   *     description: Returns the health status of the service
+   *     tags: [Health]
+   *     responses:
+   *       200:
+   *         description: Service is healthy
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 status:
+   *                   type: string
+   *                   example: ok
+   */
   app.get('/healthz', (_req: Request, res: Response) => res.json({ status: 'ok' }));
+  
+  /**
+   * @swagger
+   * /readyz:
+   *   get:
+   *     summary: Readiness check endpoint
+   *     description: Returns the readiness status of the service
+   *     tags: [Health]
+   *     responses:
+   *       200:
+   *         description: Service is ready
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok:
+   *                   type: boolean
+   *                   example: true
+   */
   app.get('/readyz', (_req: Request, res: Response) => res.json({ ok: true }));
 
   // 404 + error handler

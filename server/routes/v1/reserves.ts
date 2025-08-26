@@ -5,6 +5,54 @@ import { ConstrainedReserveEngine } from '../../../shared/core/reserves/Constrai
 export const reservesV1Router = Router();
 const engine = new ConstrainedReserveEngine();
 
+/**
+ * @swagger
+ * /api/v1/reserves/calculate:
+ *   post:
+ *     summary: Calculate reserve allocations
+ *     description: |
+ *       Calculates optimal reserve allocations based on input constraints.
+ *       Uses the ConstrainedReserveEngine to distribute reserves across
+ *       categories while respecting priority and conservation rules.
+ *     tags: [Reserves]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ReserveInput'
+ *           example:
+ *             totalReserve: 1000000
+ *             allocations:
+ *               - category: "Follow-on investments"
+ *                 amount: 600000
+ *                 priority: 1
+ *               - category: "New investments"
+ *                 amount: 300000
+ *                 priority: 2
+ *               - category: "Operating expenses"
+ *                 amount: 100000
+ *                 priority: 3
+ *     responses:
+ *       200:
+ *         description: Successfully calculated reserve allocations
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ReserveOutput'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ValidationError'
+ *       500:
+ *         description: Internal server error or conservation failure
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 reservesV1Router.post('/calculate', (req, res) => {
   const rid = (req as any).rid;
   try {
@@ -26,6 +74,32 @@ reservesV1Router.post('/calculate', (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/v1/reserves/config:
+ *   get:
+ *     summary: Get reserve configuration
+ *     description: |
+ *       Returns configuration information for the reserves service,
+ *       including health check endpoints and service URLs.
+ *     tags: [Reserves]
+ *     responses:
+ *       200:
+ *         description: Reserve service configuration
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 /healthz:
+ *                   type: string
+ *                   description: Health check endpoint URL
+ *                   example: "http://localhost:3001"
+ *                 /readyz:
+ *                   type: string
+ *                   description: Readiness check endpoint URL
+ *                   example: "http://localhost:3001"
+ */
 reservesV1Router.get('/config', (_req, res) => {
   res.json({
     '/healthz': 'http://localhost:3001',
