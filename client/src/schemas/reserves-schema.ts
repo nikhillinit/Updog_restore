@@ -24,7 +24,7 @@ export const CompanySchema = z.object({
     .max(1, 'Ownership cannot exceed 100%')
     .optional(),
   metadata: z.record(z.unknown()).optional()
-});
+}).strict();
 
 // Cap policy schemas
 export const FixedCapPolicySchema = z.object({
@@ -33,7 +33,7 @@ export const FixedCapPolicySchema = z.object({
     .min(0, 'Cap percentage cannot be negative')
     .max(10, 'Cap percentage exceeds reasonable bounds (1000%)')
     .optional()
-});
+}).strict();
 
 export const StageBasedCapPolicySchema = z.object({
   kind: z.literal('stage_based'),
@@ -45,7 +45,7 @@ export const StageBasedCapPolicySchema = z.object({
     z.string(),
     z.number().min(0).max(10)
   ).optional()
-});
+}).strict();
 
 export const CustomCapPolicySchema = z.object({
   kind: z.literal('custom'),
@@ -53,7 +53,7 @@ export const CustomCapPolicySchema = z.object({
     .args(CompanySchema)
     .returns(z.number())
     .optional()
-});
+}).strict();
 
 export const CapPolicySchema = z.discriminatedUnion('kind', [
   FixedCapPolicySchema,
@@ -70,7 +70,7 @@ export const ReservesConfigSchema = z.object({
   remain_passes: z.union([z.literal(0), z.literal(1)]),
   cap_policy: CapPolicySchema,
   audit_level: z.enum(['basic', 'detailed', 'debug'])
-});
+}).strict();
 
 // Reserves input schema
 export const ReservesInputSchema = z.object({
@@ -85,7 +85,7 @@ export const ReservesInputSchema = z.object({
     .int('Quarter index must be an integer')
     .min(1900 * 4, 'Quarter index before year 1900')
     .max(2100 * 4 + 3, 'Quarter index after year 2100')
-});
+}).strict();
 
 // Allocation decision schema
 export const AllocationDecisionSchema = z.object({
@@ -102,7 +102,7 @@ export const AllocationDecisionSchema = z.object({
     .int()
     .positive()
     .max(10)
-});
+}).strict();
 
 // Reserves output schema
 export const ReservesOutputSchema = z.object({
@@ -117,8 +117,8 @@ export const ReservesOutputSchema = z.object({
     max_iterations: z.number().int().positive(),
     conservation_check: z.boolean(),
     exit_moic_ranking: z.array(z.string())
-  })
-});
+  }).strict()
+}).strict();
 
 // Reserves result schema
 export const ReservesResultSchema = z.object({
@@ -130,8 +130,8 @@ export const ReservesResultSchema = z.object({
     duration_ms: z.number().nonnegative(),
     company_count: z.number().int().nonnegative(),
     policy_type: z.string()
-  }).optional()
-});
+  }).strict().optional()
+}).strict();
 
 // Type exports
 export type Company = z.infer<typeof CompanySchema>;
