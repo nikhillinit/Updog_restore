@@ -446,12 +446,12 @@ jobs:
             !dist/**/*.map
           retention-days: 7
 
-  # Conditional: Security tests (label or input triggered)
+  # Conditional: Security tests (label or input triggered)  
   security-tests:
     name: Security Tests
     needs: [changes, setup]
     if: |
-      contains(github.event.pull_request.labels.*.name, 'run:security') ||
+      contains(fromJson(toJson(github.event.pull_request.labels)).*.name, 'run:security') ||
       github.event.inputs.enable_security == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -519,10 +519,15 @@ jobs:
         image: prom/prometheus:latest
         ports:
           - 9090:9090
+        options: >-
+          --mount type=bind,source=${{ github.workspace }}/monitoring/prometheus.yml,target=/etc/prometheus/prometheus.yml,readonly
+          --mount type=bind,source=${{ github.workspace }}/monitoring/alerts,target=/etc/prometheus/alerts,readonly
       alertmanager:
         image: prom/alertmanager:latest
         ports:
           - 9093:9093
+        options: >-
+          --mount type=bind,source=${{ github.workspace }}/monitoring/alertmanager.yml,target=/etc/alertmanager/alertmanager.yml,readonly
     steps:
       - uses: actions/checkout@v4
       
@@ -578,11 +583,21 @@ jobs:
           node scripts/flags-guard.mjs
         continue-on-error: true
       
+      - name: Check for perf budget changes
+        id: perf-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            **/*.perf-budget.json
+            **/perf-budget.*
+      
       - name: Performance budget guard
         id: perf-guard
-        if: contains(github.event.pull_request.files.*.filename, '.perf-budget.json')
+        if: steps.perf-files.outputs.any_changed == 'true'
         run: |
-          if [[ ! "${{ contains(github.event.pull_request.labels.*.name, 'approved:perf-budget-change') }}" == "true" ]]; then
+          LABELS='${{ toJson(github.event.pull_request.labels) }}'
+          HAS_APPROVAL=$(echo "$LABELS" | jq -r 'map(select(.name == "approved:perf-budget-change")) | length > 0')
+          if [[ "$HAS_APPROVAL" != "true" ]]; then
             echo "❌ Performance budget changes require 'approved:perf-budget-change' label"
             exit 1
           fi
