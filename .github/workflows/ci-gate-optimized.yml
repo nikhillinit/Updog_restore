@@ -11,8 +11,41 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Determine if this is a docs-only change
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - '**/*.ts'
+              - '**/*.tsx'
+              - '**/*.js'
+              - '**/*.jsx'
+              - 'package*.json'
+              - '.github/workflows/**'
+              - 'server/**'
+              - 'client/**'
+              - 'shared/**'
+              - 'scripts/**'
+              - 'tests/**'
+            docs:
+              - '**/*.md'
+              - 'docs/**'
+              - '.github/*.md'
+              - '!CHANGELOG.md'
+
   # Phase 1: Setup and compile TypeScript once
   setup:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: Setup & Build Cache
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -62,7 +95,8 @@ jobs:
   # Phase 2: Parallel type checking and linting
   check:
     name: Check ${{ matrix.job }}
-    needs: setup
+    needs: [changes, setup]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
@@ -113,7 +147,8 @@ jobs:
   # Phase 3: Parallel test execution
   test:
     name: Test ${{ matrix.group }}
-    needs: check
+    needs: [changes, check]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
