@@ -47,9 +47,10 @@ describe('In-flight Request Tracking', () => {
     const registry = new InflightRegistry();
     const hash = 'test-hash-123';
     
-    // Create a promise that resolves after delay
+    // Create a promise that resolves immediately
+    let resolvePromise: any;
     const promise = new Promise(resolve => {
-      setTimeout(() => resolve('done'), 10);
+      resolvePromise = resolve;
     });
     
     registry.add(hash, promise);
@@ -57,11 +58,12 @@ describe('In-flight Request Tracking', () => {
     // Should be in-flight
     expect(registry.isInFlight(hash)).toBe(true);
     
-    // Wait for completion
-    await promise;
+    // Resolve the promise
+    resolvePromise('done');
     
-    // Small delay for cleanup
-    await new Promise(resolve => setTimeout(resolve, 1));
+    // Wait for promise to complete and cleanup to happen
+    await promise;
+    await new Promise(resolve => setTimeout(resolve, 10));
     
     // Should no longer be in-flight
     expect(registry.isInFlight(hash)).toBe(false);
