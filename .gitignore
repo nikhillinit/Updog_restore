@@ -83,6 +83,9 @@ replit.nix
 # TypeScript cache
 *.tsbuildinfo
 
+# Build statistics
+stats.html
+
 # Parcel cache
 .cache
 .parcel-cache
