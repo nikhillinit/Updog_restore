@@ -67,8 +67,9 @@ describe('Health Endpoint Cache TTL', () => {
     const response1 = await request(app).get('/readyz');
     const timestamp1 = response1.body.timestamp;
     
-    // Advance time past TTL (1500ms)
-    vi.advanceTimersByTime(1600);
+    // Advance time past TTL (1500ms) with async handling
+    await vi.advanceTimersByTimeAsync(1600);
+    await Promise.resolve(); // flush microtasks
     
     // Second request - should generate new response
     const response2 = await request(app).get('/readyz');

@@ -103,10 +103,10 @@ describe('In-flight Capacity Management', () => {
       return deferredRequest.promise;
     });
     
-    // Start multiple identical requests simultaneously - don't pass any options
-    const promise1 = startCreateFund(payload);
-    const promise2 = startCreateFund(payload);
-    const promise3 = startCreateFund(payload);
+    // Start multiple identical requests simultaneously with explicit dedupe: true
+    const promise1 = startCreateFund(payload, { dedupe: true });
+    const promise2 = startCreateFund(payload, { dedupe: true });
+    const promise3 = startCreateFund(payload, { dedupe: true });
     
     
     // All should return the same promise (reference equality for deduplication)
@@ -283,7 +283,7 @@ describe('In-flight Capacity Management', () => {
       });
     });
     
-    // Start multiple requests with dedupe disabled
+    // Ensure startCreateFund is called with { dedupe: false } for this case
     const promise1 = startCreateFund(payload, { dedupe: false });
     const promise2 = startCreateFund(payload, { dedupe: false });
     

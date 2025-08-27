@@ -193,7 +193,11 @@ const getAppVersion = () => {
 
 export default defineConfig({
   plugins: [
-    tsconfigPaths({ projects: ['./client/tsconfig.json'] }),
+    // Use absolute path so Vite doesn't ever look for "client/client/tsconfig.json"
+    tsconfigPaths({
+      projects: [path.resolve(import.meta.dirname, 'client/tsconfig.json')],
+      // ignoreConfigErrors: true // (optional) uncomment if a transient parse error blocks local runs
+    }),
     virtual({ 
       "winston": winstonMock,
       "prom-client": promClientMock

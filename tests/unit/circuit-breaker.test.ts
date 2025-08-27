@@ -141,20 +141,21 @@ describe('CircuitBreakerCache', () => {
       await mockFallbackStore.set('test', 'fallback-value');
 
       // Open the circuit
-      await circuitBreaker.get('test');
-      await circuitBreaker.get('test');
-      await circuitBreaker.get('test');
+      await circuitBreaker.get('test'); // fail #1
+      await circuitBreaker.get('test'); // fail #2
+      await circuitBreaker.get('test'); // fail #3 -> OPEN
 
       expect(circuitBreaker.getCircuitState().state).toBe('open');
 
-      // Fast-forward time
-      vi.advanceTimersByTime(1100);
+      // Fast-forward time beyond reset timeout
+      await vi.advanceTimersByTimeAsync(1100); // > openTimeoutMs
+      await Promise.resolve(); // flush microtasks
 
       // Fix the backing store and set value directly
       mockBackingStore.setFailureMode(false);
       await mockBackingStore.set('test', 'recovered-value');
 
-      // Next request should transition to half-open and succeed
+      // Next single request should transition to HALF-OPEN (1 allowed in-flight)
       const result = await circuitBreaker.get<string>('test');
       expect(result).toBe('recovered-value');
       expect(circuitBreaker.getCircuitState().state).toBe('closed');
