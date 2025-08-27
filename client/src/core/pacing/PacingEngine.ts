@@ -42,7 +42,7 @@ function validatePacingOutput(output: unknown): PacingOutput {
 
 // Algorithm mode detection
 function isAlgorithmModeEnabled(): boolean {
-  return process.env.ALG_PACING?.toLowerCase() === 'true' || process.env.NODE_ENV === 'development';
+  return process.env['ALG_PACING']?.toLowerCase() === 'true' || process.env['NODE_ENV'] === 'development';
 }
 
 // Enhanced rule-based pacing with market condition adjustments
