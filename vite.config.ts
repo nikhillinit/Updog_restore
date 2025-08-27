@@ -234,6 +234,11 @@ export default defineConfig({
       output: {
         manualChunks: {
           'vendor-core': ['react', 'react-dom', 'zustand'],
+          'vendor-charts': ['recharts'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-forms': ['react-hook-form', 'zod'],
+          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
+          'vendor-utils': ['date-fns', 'clsx', 'tailwind-merge']
         },
       }
     }
