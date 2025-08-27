@@ -87,7 +87,8 @@
       "Bash(export NODE_ENV=production)",
       "Bash(export VITE_API_BASE_URL=http://localhost:5000)",
       "Bash(dir:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(git reset:*)"
     ],
     "deny": [],
     "additionalDirectories": [
