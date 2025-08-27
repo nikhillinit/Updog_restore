@@ -78,7 +78,7 @@ export class DeterministicReserveEngine {
       startTime,
       deterministicSeed: this.generateDeterministicHash(input),
       featureFlags: this.featureFlags,
-      debugMode: process.env.NODE_ENV === 'development',
+      debugMode: process.env['NODE_ENV'] === 'development',
     };
 
     try {

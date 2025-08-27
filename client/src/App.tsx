@@ -17,14 +17,15 @@ import Sidebar from "@/components/layout/sidebar";
 // import Header from "@/components/layout/header"; // Unused - removed
 import DynamicFundHeader from "@/components/layout/dynamic-fund-header";
 
-// Page components
-import Dashboard from "@/pages/dashboard";
+// Page components - Heavy routes lazy loaded for bundle optimization
+const Dashboard = React.lazy(() => import("@/pages/dashboard"));
+const Portfolio = React.lazy(() => import("@/pages/portfolio"));
+const Investments = React.lazy(() => import("@/pages/investments"));
+const Planning = React.lazy(() => import("@/pages/planning"));
+// Keep these eager-loaded as they're critical path
 import FundSetup from "@/pages/fund-setup";
 import DesignSystem from "@/pages/design-system";
-import Portfolio from "@/pages/portfolio";
-import Investments from "@/pages/investments";
 import InvestmentDetail from "@/pages/investment-detail";
-import Planning from "@/pages/planning";
 import KPIManager from "@/pages/kpi-manager";
 import KPISubmission from "@/pages/kpi-submission";
 const ForecastingPage = React.lazy(() => import("@/pages/forecasting"));

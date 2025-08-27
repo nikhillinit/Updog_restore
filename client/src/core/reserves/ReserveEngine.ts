@@ -21,7 +21,7 @@ import { map, reduce } from '@/utils/array-safety';
 
 /** Algorithm mode detection with type safety */
 function isAlgorithmModeEnabled(): boolean {
-  return process.env.ALG_RESERVE?.toLowerCase() === 'true' || process.env.NODE_ENV === 'development';
+  return process.env['ALG_RESERVE']?.toLowerCase() === 'true' || process.env['NODE_ENV'] === 'development';
 }
 
 /** Validate and parse reserve input with Zod */
