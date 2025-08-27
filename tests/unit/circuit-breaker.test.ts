@@ -118,7 +118,7 @@ describe('CircuitBreakerCache', () => {
       await circuitBreaker.get('test3');
 
       const state = circuitBreaker.getCircuitState();
-      expect(state.state).toBe('OPEN');
+      expect(state.state).toBe('open');
       expect(state.failures).toBe(3);
     });
 
@@ -144,7 +144,7 @@ describe('CircuitBreakerCache', () => {
       await circuitBreaker.get('test');
       await circuitBreaker.get('test');
 
-      expect(circuitBreaker.getCircuitState().state).toBe('OPEN');
+      expect(circuitBreaker.getCircuitState().state).toBe('open');
 
       // Fast-forward time
       vi.advanceTimersByTime(1100);
@@ -156,7 +156,7 @@ describe('CircuitBreakerCache', () => {
       // Next request should transition to half-open and succeed
       const result = await circuitBreaker.get<string>('test');
       expect(result).toBe('recovered-value');
-      expect(circuitBreaker.getCircuitState().state).toBe('CLOSED');
+      expect(circuitBreaker.getCircuitState().state).toBe('closed');
     });
 
     it('should reset failure count on success in closed state', async () => {

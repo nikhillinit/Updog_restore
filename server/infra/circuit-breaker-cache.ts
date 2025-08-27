@@ -254,6 +254,8 @@ export class CircuitBreakerCache implements Cache {
     state: string;
     failures: number;
     successes: number;
+    requestCount: number;
+    successCount: number;
     isHealthy: boolean;
     uptime: number;
   } {
@@ -263,6 +265,8 @@ export class CircuitBreakerCache implements Cache {
       state: this.state,
       failures: this.failures,
       successes: this.successes,
+      requestCount: this.failures + this.successes,
+      successCount: this.successes,
       isHealthy: this.state !== 'open',
       uptime: this.lastSuccessTime > 0 ? now - this.lastSuccessTime : 0
     };

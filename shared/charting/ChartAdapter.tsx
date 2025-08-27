@@ -441,7 +441,9 @@ export function createMigrationWrapper<T extends React.ComponentType<any>>(
 ) {
   return React.forwardRef<any, React.ComponentProps<T>>((props, ref) => {
     const useAdapted = options.enableFeatureFlag 
-      ? process.env.NODE_ENV === 'development' || localStorage.getItem('use-adapted-charts') === 'true'
+      ? (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
+          ? (window.localStorage.getItem('use-adapted-charts') === 'true')
+          : process.env['NODE_ENV'] === 'development')
       : true;
 
     if (options.logMigrationEvents) {
@@ -452,16 +454,19 @@ export function createMigrationWrapper<T extends React.ComponentType<any>>(
 
     try {
       if (useAdapted) {
+        // @ts-expect-error - Polymorphic forwardRef compatibility issue
         return <AdaptedComponent {...props} ref={ref} />;
       }
     } catch (error) {
       if (options.fallbackToOriginal) {
         console.warn(`Chart Migration: ${componentName} adapted version failed, falling back to legacy`, error);
+        // @ts-expect-error - Polymorphic forwardRef compatibility issue
         return <LegacyComponent {...props} ref={ref} />;
       }
       throw error;
     }
 
+    // @ts-expect-error - Polymorphic forwardRef compatibility issue
     return <LegacyComponent {...props} ref={ref} />;
   });
 }

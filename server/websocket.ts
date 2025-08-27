@@ -34,8 +34,8 @@ function getEventTypeRoom(fundId: number, eventType: string): string {
 export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
   const io = new SocketIOServer(httpServer, {
     cors: {
-      origin: process.env.NODE_ENV === 'production' 
-        ? process.env.FRONTEND_URL 
+      origin: process.env['NODE_ENV'] === 'production' 
+        ? process.env['FRONTEND_URL'] 
         : 'http://localhost:5173',
       methods: ['GET', 'POST'],
     },
