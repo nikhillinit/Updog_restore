@@ -235,8 +235,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, 'client/src'),
+      '@/core': path.resolve(import.meta.dirname, 'client/src/core'),
+      '@/lib': path.resolve(import.meta.dirname, 'client/src/lib'),
       '@shared': path.resolve(import.meta.dirname, 'shared'),
       '@assets': path.resolve(import.meta.dirname, 'assets'),
+      '@server': path.resolve(import.meta.dirname, 'server'),
     },
   },
   optimizeDeps: {
