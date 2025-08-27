@@ -176,12 +176,12 @@ export class ReservesErrorBoundary {
       const recoveredResult = await this.attemptRecovery(error as Error, context);
       
       if (recoveredResult) {
-        metrics.recordRecovery(context.operation, 'success');
+        metrics.recordRecovery(context.operation, true);
         return recoveredResult;
       }
       
       // Recovery failed - return error result
-      metrics.recordRecovery(context.operation, 'failure');
+      metrics.recordRecovery(context.operation, false);
       
       return {
         ok: false,

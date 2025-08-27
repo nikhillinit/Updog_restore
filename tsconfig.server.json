@@ -9,8 +9,10 @@
     "noEmitOnError": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": false,
+    "composite": true,
+    "tsBuildInfoFile": "./.tsbuildinfo.server"
   },
   "include": ["server/**/*", "shared/**/*"],
-  "exclude": ["client/**/*", "node_modules"]
+  "exclude": ["client/**/*", "**/*.test.ts", "**/*.test.tsx", "node_modules", "dist"]
 }

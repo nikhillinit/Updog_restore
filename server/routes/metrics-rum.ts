@@ -133,8 +133,20 @@ metricsRumRouter.get('/metrics/rum', (req: Request, res: Response) => {
   });
 });
 
+// Counter for synthetic beacon tracking
+const syntheticBeaconCounter = new client.Counter({
+  name: 'rum_synthetic_beacons_total',
+  help: 'Total synthetic beacons received for health monitoring',
+  labelNames: ['source'],
+  registers: [rumRegistry],
+});
+
 // Health check for RUM endpoint
 metricsRumRouter.get('/metrics/rum/health', async (req: Request, res: Response) => {
+  // Track synthetic health check
+  const source = req.get('X-Synthetic-Source') || 'health-check';
+  syntheticBeaconCounter.labels({ source }).inc();
+  
   // Get metrics as string and parse to count total
   const metricsText = await rumRegistry.metrics();
   const totalMatch = metricsText.match(/rum_metrics_received_total\{[^}]*\}\s+(\d+)/g);
@@ -146,10 +158,16 @@ metricsRumRouter.get('/metrics/rum/health', async (req: Request, res: Response) 
     });
   }
   
+  // Get synthetic beacon count
+  const syntheticCount = await syntheticBeaconCounter.get();
+  const syntheticTotal = syntheticCount.values.reduce((sum, v) => sum + (v.value || 0), 0);
+  
   res.json({
     status: 'healthy',
     metrics_received: totalReceived,
+    synthetic_beacons: syntheticTotal,
     uptime: process.uptime(),
+    timestamp: Date.now(),
   });
 });
 
