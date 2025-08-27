@@ -5,6 +5,7 @@
  */
 
 import { ConstrainedReserveEngine } from '@shared/core/reserves/ConstrainedReserveEngine';
+import type { Company, StagePolicy, ReserveConstraints } from '@/types/domain-min';
 
 export interface ParityDataset {
   name: string;

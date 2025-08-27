@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./.tsbuildinfo.client",
+    "jsx": "react-jsx",
+    "types": ["vite/client", "node"]
+  },
+  "include": ["client/**/*", "shared/**/*"],
+  "exclude": ["server/**/*", "**/*.test.ts", "**/*.test.tsx"]
+}

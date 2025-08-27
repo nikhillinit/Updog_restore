@@ -1,0 +1,123 @@
+groups:
+  - name: rum_web_vitals
+    interval: 30s
+    rules:
+      # LCP (Largest Contentful Paint) Alerts
+      - alert: LCPBudgetFastBurn
+        expr: histogram_quantile(0.75, sum by (le) (rate(web_vitals_lcp_bucket[2m]))) > 2.5
+        for: 2m
+        labels:
+          severity: page
+          team: frontend
+        annotations:
+          summary: "LCP p75 > 2.5s (fast burn)"
+          description: "Page load performance degrading rapidly. LCP p75: {{ $value | humanizeDuration }}"
+          runbook: "https://docs.example.com/runbooks/web-vitals#lcp"
+      
+      - alert: LCPBudgetSlowBurn
+        expr: histogram_quantile(0.75, sum by (le) (rate(web_vitals_lcp_bucket[1h]))) > 2.5
+        for: 1h
+        labels:
+          severity: ticket
+          team: frontend
+        annotations:
+          summary: "LCP p75 > 2.5s (sustained)"
+          description: "Sustained page load degradation. LCP p75: {{ $value | humanizeDuration }}"
+          runbook: "https://docs.example.com/runbooks/web-vitals#lcp"
+      
+      # Mobile-specific LCP
+      - alert: LCPMobileFastBurn
+        expr: histogram_quantile(0.75, sum by (le) (rate(web_vitals_lcp_bucket{device="mobile"}[2m]))) > 3.0
+        for: 2m
+        labels:
+          severity: page
+          team: frontend
+          device: mobile
+        annotations:
+          summary: "Mobile LCP p75 > 3s (fast burn)"
+          description: "Mobile page load degrading. LCP p75: {{ $value | humanizeDuration }}"
+      
+      # INP (Interaction to Next Paint) Alerts
+      - alert: INPBudgetFastBurn
+        expr: histogram_quantile(0.75, sum by (le) (rate(web_vitals_inp_bucket[2m]))) > 200
+        for: 2m
+        labels:
+          severity: page
+          team: frontend
+        annotations:
+          summary: "INP p75 > 200ms (fast burn)"
+          description: "Page interactivity degrading. INP p75: {{ $value }}ms"
+          runbook: "https://docs.example.com/runbooks/web-vitals#inp"
+      
+      - alert: INPBudgetSlowBurn
+        expr: histogram_quantile(0.75, sum by (le) (rate(web_vitals_inp_bucket[1h]))) > 200
+        for: 1h
+        labels:
+          severity: ticket
+          team: frontend
+        annotations:
+          summary: "INP p75 > 200ms (sustained)"
+          description: "Sustained interactivity issues. INP p75: {{ $value }}ms"
+      
+      # CLS (Cumulative Layout Shift) Alerts
+      - alert: CLSBudgetExceeded
+        expr: histogram_quantile(0.95, sum by (le) (rate(web_vitals_cls_bucket[5m]))) > 0.1
+        for: 10m
+        labels:
+          severity: ticket
+          team: frontend
+        annotations:
+          summary: "CLS p95 > 0.1"
+          description: "Layout stability issues detected. CLS p95: {{ $value | humanize }}"
+          runbook: "https://docs.example.com/runbooks/web-vitals#cls"
+  
+  - name: rum_ingestion
+    interval: 30s
+    rules:
+      # Ingestion health
+      - alert: RUMIngestRejectRatioHigh
+        expr: |
+          rate(rum_ingest_rejected_total[10m]) / 
+          (rate(rum_ingest_total{status="success"}[10m]) + rate(rum_ingest_rejected_total[10m])) > 0.01
+        for: 10m
+        labels:
+          severity: ticket
+          team: platform
+        annotations:
+          summary: "RUM beacon rejection rate > 1%"
+          description: "High rejection rate: {{ $value | humanizePercentage }}. Check schema, origin, or cardinality limits."
+          runbook: "https://docs.example.com/runbooks/rum#high-rejection"
+      
+      # Cardinality explosion
+      - alert: RUMCardinalityCritical
+        expr: rum_dropped_cardinality_total > 100
+        for: 5m
+        labels:
+          severity: page
+          team: platform
+        annotations:
+          summary: "RUM cardinality budget exceeded"
+          description: "Label cardinality limits being hit. Dimension: {{ $labels.dimension }}"
+          runbook: "https://docs.example.com/runbooks/rum#cardinality"
+      
+      # Origin validation failures
+      - alert: RUMOriginMismatchHigh
+        expr: rate(rum_ingest_rejected_total{reason="origin_mismatch"}[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "High rate of RUM origin mismatches"
+          description: "Potential CSRF or misconfiguration. Rate: {{ $value | humanize }}/s"
+      
+      # Replay attack detection
+      - alert: RUMStaleTimestampHigh
+        expr: rate(rum_ingest_rejected_total{reason="stale_timestamp"}[5m]) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "High rate of stale RUM beacons"
+          description: "Potential replay attack or clock skew. Rate: {{ $value | humanize }}/s"

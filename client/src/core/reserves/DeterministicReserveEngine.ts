@@ -160,11 +160,12 @@ export class DeterministicReserveEngine {
         );
       }
 
-      logger.error('Reserve calculation failed', {
+      const errorDetails = {
         errorMessage: error instanceof Error ? error.message : String(error),
         duration,
         input: this.sanitizeForLogging(input),
-      });
+      };
+      logger.error('Reserve calculation failed', errorDetails);
 
       throw new ReserveCalculationError(
         `Reserve calculation failed: ${error instanceof Error ? error.message : String(error)}`,

@@ -4,6 +4,23 @@
 # Default owners for everything
 * @nikhillinit
 
+# Performance budget protection - requires product and DX lead approval
+/.perf-budget.json @nikhillinit @product @dx-lead
+
+# Feature flags governance - requires product and tech lead approval  
+/flags/ @nikhillinit @product @tech-lead
+/flags/* @nikhillinit @product @tech-lead
+
+# Security-sensitive paths
+/server/auth/ @nikhillinit @security @backend-lead
+/server/rum/ @nikhillinit @security @platform
+/migrations/ @nikhillinit @backend-lead @database-admin
+
+# Agent system
+/packages/agent-core/ @nikhillinit @dx-lead @platform
+/packages/test-repair-agent/ @nikhillinit @dx-lead
+/scripts/ai-tools/ @nikhillinit @dx-lead
+
 # Core calculation engine - requires careful review
 /client/src/lib/reserves-v11.ts @nikhillinit
 /client/src/lib/quarter-time.ts @nikhillinit

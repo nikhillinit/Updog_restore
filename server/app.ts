@@ -21,9 +21,7 @@ export function makeApp() {
   
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
-    contentSecurityPolicy: {
-      directives: false, // Disable helmet's CSP to use our custom one
-    },
+    contentSecurityPolicy: false, // Disable helmet's CSP to use our custom one
     hsts: {
       maxAge: securityHeaders.hsts.maxAge,
       includeSubDomains: securityHeaders.hsts.includeSubDomains,

@@ -104,8 +104,8 @@ export class PerformanceMonitor {
     // Check for alerts
     this.checkThresholds(metric);
     
-    // Report to external metrics system
-    metrics.recordPerformanceMetric(name, value, unit, context);
+    // Report to external metrics system (only 3 params supported)
+    metrics.recordPerformanceMetric(name, value, unit);
   }
   
   /**
