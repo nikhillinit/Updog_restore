@@ -10,9 +10,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default [
-  js.configs.recommended,
+  // Global ignores should be first
   {
-    files: ["**/*.ts", "**/*.tsx"],
     ignores: [
       "dist/**", 
       "coverage/**", 
@@ -26,16 +25,46 @@ export default [
       "auto-discovery/**",
       "workers/**",
       "types/**",
-      "tools/**"
-    ],
+      "tools/**",
+      "**/*.gen.ts",
+      "**/*.d.ts",
+      ".next/**",
+      "umd/**",
+      "lib/**",
+      "es6/**",
+      ".tscache",
+      ".tsbuildinfo*",
+      "packages/*/dist/**",
+      "packages/*/build/**",
+      "ml-service/dist/**"
+    ]
+  },
+  js.configs.recommended,
+  {
+    files: ["**/*.js", "**/*.ts", "**/*.tsx"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        project: ["./client/tsconfig.json", "./server/tsconfig.json"],
-        tsconfigRootDir: __dirname,
+        // Remove project references for performance
+        // project: ["./client/tsconfig.json", "./server/tsconfig.json"],
+        // tsconfigRootDir: __dirname,
         ecmaVersion: "latest",
         sourceType: "module",
         ecmaFeatures: { jsx: true }
+      },
+      globals: {
+        console: "readonly",
+        process: "readonly",
+        Buffer: "readonly",
+        window: "readonly",
+        document: "readonly",
+        localStorage: "readonly",
+        sessionStorage: "readonly",
+        navigator: "readonly",
+        crypto: "readonly",
+        __dirname: "readonly",
+        require: "readonly",
+        performance: "readonly"
       }
     },
     plugins: { 

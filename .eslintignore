@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+coverage/
+**/*.gen.ts
+**/*.d.ts
+.next/
+umd/
+lib/
+es6/
+.tscache
+.tsbuildinfo*
+packages/*/dist/
+packages/*/build/
+ml-service/dist/
+tools/eslint-plugin-rls/dist/
