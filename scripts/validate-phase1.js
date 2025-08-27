@@ -4,9 +4,9 @@
  * Runs all validation steps in parallel where possible for fast feedback
  */
 
-const { spawn, execSync } = require('child_process');
-const path = require('path');
-const fs = require('fs');
+import { spawn, execSync } from 'child_process';
+import path from 'path';
+import fs from 'fs';
 
 const colors = {
   green: '\x1b[32m',

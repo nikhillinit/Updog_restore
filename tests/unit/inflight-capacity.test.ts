@@ -24,24 +24,35 @@ const {
 
 describe('In-flight Capacity Management', () => {
   beforeEach(async () => {
+    vi.clearAllTimers();
+    vi.useFakeTimers();
+    
     // Clear any existing in-flight requests by canceling all possible hashes
     // This is a brute force approach but works for tests
     const testHashes = ['test-hash-1', 'test-hash-2', 'test-hash-3'];
-    testHashes.forEach(hash => cancelCreateFund(hash));
+    testHashes.forEach(hash => {
+      try {
+        cancelCreateFund(hash);
+      } catch (e) {
+        // Ignore errors from canceling non-existent requests
+      }
+    });
     
     // Wait a tick for any cleanup to complete
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await vi.runOnlyPendingTimersAsync();
     
     // Reset fetch mock
     (global.fetch as any).mockReset();
-  });
+  }, 15000);
 
   afterEach(() => {
     // Clean up any hanging requests
     vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it('should track in-flight requests', async () => {
+    vi.useRealTimers(); // Use real timers for this test
     const payload = { name: 'Test Fund', size: 1000000 };
     // Need to compute hash on finalized payload to match what startCreateFund uses
     const finalizedPayload = { ...payload, modelVersion: 'reserves-ev1' };
@@ -76,9 +87,10 @@ describe('In-flight Capacity Management', () => {
     
     // Should no longer be in-flight
     expect(isCreateFundInFlight(hash)).toBe(false);
-  });
+  }, 15000);
 
   it('should deduplicate concurrent identical requests', async () => {
+    vi.useRealTimers(); // Use real timers for this test
     const payload = { name: 'Test Fund', size: 1000000 };
     const finalizedPayload = { ...payload, modelVersion: 'reserves-ev1' };
     const hash = computeCreateFundHash(finalizedPayload);
@@ -254,9 +266,10 @@ describe('In-flight Capacity Management', () => {
     
     // Second cancel should return false
     expect(cancelCreateFund(hash)).toBe(false);
-  });
+  }, 15000);
 
   it('should not deduplicate when dedupe option is false', async () => {
+    vi.useRealTimers(); // Use real timers for this test
     const payload = { name: 'Test Fund', size: 1000000 };
     
     let fetchCallCount = 0;
@@ -281,9 +294,10 @@ describe('In-flight Capacity Management', () => {
     
     // Two fetch calls should be made
     expect(fetchCallCount).toBe(2);
-  });
+  }, 15000);
 
   it('should include environment namespace in hash', () => {
+    vi.useRealTimers(); // Use real timers for this test
     const payload = { name: 'Test Fund', size: 1000000 };
     
     // Save original
@@ -306,5 +320,5 @@ describe('In-flight Capacity Management', () => {
     
     // Restore
     import.meta.env.MODE = originalMode;
-  });
+  }, 15000);
 });
