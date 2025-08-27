@@ -215,14 +215,14 @@ export default defineConfig({
   },
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(getAppVersion()),
-    'import.meta.env.VITE_GIT_SHA': JSON.stringify(process.env.GITHUB_SHA || getGitSha()),
+    'import.meta.env.VITE_GIT_SHA': JSON.stringify(process.env['GITHUB_SHA'] || getGitSha()),
     'import.meta.env.VITE_BUILD_TIME': JSON.stringify(new Date().toISOString())
   },
   root: path.resolve(import.meta.dirname, 'client'),
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
-    sourcemap: process.env.NODE_ENV === 'development',
+    sourcemap: process.env['NODE_ENV'] === 'development',
     rollupOptions: { 
       input: path.resolve(import.meta.dirname, 'client/index.html'),
       output: {
