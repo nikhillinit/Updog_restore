@@ -45,13 +45,14 @@ interface SAFENoteEditorProps {
 export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePerShare }: SAFENoteEditorProps) {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingInstrument, setEditingInstrument] = useState<SAFENote | null>(null);
+  const defaultDate = new Date().toISOString().split('T')[0];
   const [formData, setFormData] = useState<Partial<SAFENote>>({
     type: 'safe',
     principal: 0,
     valuationCap: 0,
     discount: 0.20,
     holderName: '',
-    investmentDate: new Date().toISOString().split('T')[0],
+    ...(defaultDate && { investmentDate: defaultDate }),
     mostFavoredNation: true,
     proRataRights: true,
   });
@@ -67,21 +68,22 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
       discount: formData.discount,
       interestRate: formData.interestRate,
       maturityDate: formData.maturityDate,
-      holderName: formData.holderName,
-      investmentDate: formData.investmentDate || new Date().toISOString().split('T')[0],
+      holderName: formData.holderName!,
+      investmentDate: formData.investmentDate!,
       mostFavoredNation: formData.mostFavoredNation,
       proRataRights: formData.proRataRights,
     };
 
     onSafesNotesChange([...safesNotes, newInstrument]);
     setShowAddDialog(false);
+    const resetDate = new Date().toISOString().split('T')[0];
     setFormData({
       type: 'safe',
       principal: 0,
       valuationCap: 0,
       discount: 0.20,
       holderName: '',
-      investmentDate: new Date().toISOString().split('T')[0],
+      ...(resetDate && { investmentDate: resetDate }),
       mostFavoredNation: true,
       proRataRights: true,
     });
@@ -105,13 +107,14 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
     onSafesNotesChange(updatedInstruments);
     setShowAddDialog(false);
     setEditingInstrument(null);
+    const resetDate = new Date().toISOString().split('T')[0];
     setFormData({
       type: 'safe',
       principal: 0,
       valuationCap: 0,
       discount: 0.20,
       holderName: '',
-      investmentDate: new Date().toISOString().split('T')[0],
+      ...(resetDate && { investmentDate: resetDate }),
       mostFavoredNation: true,
       proRataRights: true,
     });
@@ -288,7 +291,7 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
           </DialogHeader>
           
           <div className="space-y-6">
-            <Tabs value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value as 'safe' | 'note' })}>
+            <Tabs value={formData.type ?? 'safe'} onValueChange={(value) => setFormData({ ...formData, type: value as 'safe' | 'note' })}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="safe">SAFE</TabsTrigger>
                 <TabsTrigger value="note">Convertible Note</TabsTrigger>

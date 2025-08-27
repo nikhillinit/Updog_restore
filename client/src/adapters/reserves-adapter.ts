@@ -73,12 +73,12 @@ export function adaptCompany(existing: ExistingCompany): Company {
     name,
     invested_cents,
     exit_moic_bps,
-    stage: existing.stage,
-    sector: existing.sector,
     ownership_pct,
+    ...(existing.stage !== undefined && { stage: existing.stage }),
+    ...(existing.sector !== undefined && { sector: existing.sector }),
     metadata: {
-      original_id: existing.id,
-      source: 'adapter'
+      source: 'adapter',
+      ...(existing.id !== undefined && { original_id: existing.id })
     }
   };
 }
