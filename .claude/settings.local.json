@@ -89,7 +89,8 @@
       "Bash(dir:*)",
       "Bash(git log:*)",
       "Bash(git reset:*)",
-      "Bash(gh run list:*)"
+      "Bash(gh run list:*)",
+      "Bash(npx yaml-lint:*)"
     ],
     "deny": [],
     "additionalDirectories": [

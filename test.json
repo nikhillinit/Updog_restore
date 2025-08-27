@@ -1,0 +1,25 @@
+{
+  "vendor": 45816,
+  "main": 583365,
+  "runtime": 0,
+  "styles": 0,
+  "total": 723045,
+  "files": {
+    "analytics-Trs4b-aC.js": 55125,
+    "financial-modeling-CdhgjBOx.js": 3116,
+    "forecasting-DdgdnMb_.js": 9940,
+    "funds-X9eE8mvi.js": 2181,
+    "index-D47vQlyZ.css": 15163,
+    "index-pjaT3C6f.js": 568202,
+    "moic-analysis-Bn0egnyr.js": 2324,
+    "partial-sales-Dkcj9qMP.js": 2990,
+    "performance-Bvl06WNH.js": 2541,
+    "reports-C3ziqlvj.js": 5924,
+    "reserves-demo-CJszYbcX.js": 3604,
+    "return-the-fund-BaUA2tC5.js": 2946,
+    "scenario-builder-LIFgFcIX.js": 2824,
+    "toast-CPj2iYxV.js": 349,
+    "vendor-core-8cbTzU2-.js": 45816
+  },
+  "timestamp": "2025-08-27T04:07:29.723Z"
+}

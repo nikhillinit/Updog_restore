@@ -79,18 +79,44 @@ export const metricsRumRouter = Router();
 
 // Import guards
 import { rumPrivacyGuard } from './metrics-rum.guard.js';
+import { rumV2Enhancement, rumCircuitBreaker } from './metrics-rum-v2.js';
 
 // Apply privacy guard to all RUM routes
 metricsRumRouter.use(rumPrivacyGuard);
 
+// Apply v2 enhancements if enabled
+metricsRumRouter.use(rumV2Enhancement);
+
 // Accept RUM metrics from browser
-metricsRumRouter.post('/metrics/rum', express.json({ limit: '10kb' }), (req: Request, res: Response) => {
+metricsRumRouter.post('/metrics/rum', express.json({ limit: '10kb' }), async (req: Request, res: Response) => {
   try {
     const { name, value, rating, navigationType, pathname, timestamp } = req.body || {};
     
     // Validate required fields
     if (!name || typeof value !== 'number') {
       return res.status(400).json({ error: 'Invalid metric data' });
+    }
+    
+    // If RUM v2 is enabled, use enhanced processing
+    if (process.env.ENABLE_RUM_V2 === '1' && (req as any).rumV2) {
+      try {
+        const processed = await rumCircuitBreaker.execute(async () => {
+          return (req as any).rumV2.processMetric(name, value, {
+            pathname,
+            rating,
+            navigationType,
+            timestamp: timestamp || Date.now()
+          });
+        });
+        
+        if (!processed) {
+          // Metric was rejected by v2 validation
+          return res.status(204).end();
+        }
+      } catch (circuitError) {
+        console.error('[RUM v2] Circuit breaker triggered:', circuitError);
+        // Fall through to legacy processing
+      }
     }
     
     // Sanitize pathname to prevent cardinality explosion

@@ -121,3 +121,118 @@ groups:
         annotations:
           summary: "High rate of stale RUM beacons"
           description: "Potential replay attack or clock skew. Rate: {{ $value | humanize }}/s"
+  
+  # SLO Burn Rate Rules (Multi-Window Multi-Burn-Rate)
+  - name: slo_burn_rates
+    interval: 30s
+    rules:
+      # LCP SLO: 75% of page loads < 2.5s
+      - alert: LCPSLOFastBurn
+        expr: |
+          (
+            1 - (
+              increase(web_vitals_lcp_bucket{le="2500"}[5m]) /
+              increase(web_vitals_lcp_count[5m])
+            )
+          ) > (1 - 0.75) * 14.4
+        for: 5m
+        labels:
+          severity: page
+          slo: lcp_p75_2500ms
+          burn_rate: fast
+          team: frontend
+        annotations:
+          summary: "LCP SLO fast burn (14.4x in 5m)"
+          description: "LCP SLO burning 14.4x faster than budget. Will exhaust error budget in 1 hour at this rate."
+          dashboard: "https://grafana.example.com/d/rum-slo"
+      
+      - alert: LCPSLOSlowBurn
+        expr: |
+          (
+            1 - (
+              increase(web_vitals_lcp_bucket{le="2500"}[1h]) /
+              increase(web_vitals_lcp_count[1h])
+            )
+          ) > (1 - 0.75) * 1
+        for: 1h
+        labels:
+          severity: ticket
+          slo: lcp_p75_2500ms
+          burn_rate: slow
+          team: frontend
+        annotations:
+          summary: "LCP SLO slow burn (1x in 1h)"
+          description: "LCP SLO burning at 1x rate. Will exhaust monthly error budget in 30 days."
+      
+      # INP SLO: 75% of interactions < 200ms
+      - alert: INPSLOFastBurn
+        expr: |
+          (
+            1 - (
+              increase(web_vitals_inp_bucket{le="200"}[5m]) /
+              increase(web_vitals_inp_count[5m])
+            )
+          ) > (1 - 0.75) * 14.4
+        for: 5m
+        labels:
+          severity: page
+          slo: inp_p75_200ms
+          burn_rate: fast
+          team: frontend
+        annotations:
+          summary: "INP SLO fast burn (14.4x in 5m)"
+          description: "Interaction responsiveness burning error budget 14.4x faster."
+      
+      - alert: INPSLOSlowBurn
+        expr: |
+          (
+            1 - (
+              increase(web_vitals_inp_bucket{le="200"}[1h]) /
+              increase(web_vitals_inp_count[1h])
+            )
+          ) > (1 - 0.75) * 1
+        for: 1h
+        labels:
+          severity: ticket
+          slo: inp_p75_200ms
+          burn_rate: slow
+          team: frontend
+        annotations:
+          summary: "INP SLO slow burn (1x in 1h)"
+          description: "Sustained INP degradation at 1x burn rate."
+      
+      # API Latency SLO: 95% of requests < 500ms
+      - alert: APISLOFastBurn
+        expr: |
+          (
+            1 - (
+              histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{le="0.5"}[5m])) /
+              rate(http_request_duration_seconds_count[5m])
+            )
+          ) > (1 - 0.95) * 14.4
+        for: 5m
+        labels:
+          severity: page
+          slo: api_p95_500ms
+          burn_rate: fast
+          team: backend
+        annotations:
+          summary: "API SLO fast burn (14.4x in 5m)"
+          description: "API latency burning error budget rapidly."
+      
+      # RUM Ingestion SLO: 99% success rate
+      - alert: RUMIngestionSLOBurn
+        expr: |
+          (
+            rate(rum_ingest_rejected_total[5m]) /
+            (rate(rum_ingest_total[5m]) + rate(rum_ingest_rejected_total[5m]))
+          ) > 0.01 * 14.4
+        for: 5m
+        labels:
+          severity: page
+          slo: rum_ingestion_99
+          burn_rate: fast
+          team: platform
+        annotations:
+          summary: "RUM ingestion SLO burn (>1% reject rate)"
+          description: "RUM beacon rejection burning error budget."
