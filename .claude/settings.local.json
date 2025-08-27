@@ -91,7 +91,9 @@
       "Bash(git reset:*)",
       "Bash(gh run list:*)",
       "Bash(npx yaml-lint:*)",
-      "Bash(git diff:*)"
+      "Bash(git diff:*)",
+      "Bash(npx eslint:*)",
+      "Bash(time npm run lint)"
     ],
     "deny": [],
     "additionalDirectories": [

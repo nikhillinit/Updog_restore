@@ -205,7 +205,7 @@ export default function CapTableCalculator() {
     // Add option pool increase if any
     if (optionPoolIncrease > 0) {
       const optionPoolIndex = proForma.findIndex(sh => sh.type === 'option-pool');
-      if (optionPoolIndex >= 0) {
+      if (optionPoolIndex >= 0 && proForma[optionPoolIndex]) {
         proForma[optionPoolIndex].shares += optionPoolIncrease;
       }
     }

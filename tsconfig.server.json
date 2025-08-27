@@ -14,5 +14,14 @@
     "tsBuildInfoFile": "./.tsbuildinfo.server"
   },
   "include": ["server/**/*", "shared/**/*"],
-  "exclude": ["client/**/*", "**/*.test.ts", "**/*.test.tsx", "node_modules", "dist"]
+  "exclude": [
+    "client/**/*",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "node_modules",
+    "dist",
+    "node_modules/**/@types/**",
+    "node_modules/**/dist/**",
+    "node_modules/**/*.d.ts"
+  ]
 }

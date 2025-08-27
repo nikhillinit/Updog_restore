@@ -168,8 +168,8 @@ export const AdaptedLineChart: React.FC<LineChartProps> = ({
         {...chartProps}
         data={data}
         margin={mergedConfig.margin}
-        className={className}
-        style={mergedConfig.responsive ? undefined : style}
+        {...(className && { className })}
+        {...(!mergedConfig.responsive && style && { style })}
       >
         {mergedConfig.grid && <CartesianGrid strokeDasharray="3 3" />}
         <XAxis 
@@ -240,8 +240,8 @@ export const AdaptedAreaChart: React.FC<AreaChartProps> = ({
         {...chartProps}
         data={data}
         margin={mergedConfig.margin}
-        className={className}
-        style={mergedConfig.responsive ? undefined : style}
+        {...(className && { className })}
+        {...(!mergedConfig.responsive && style && { style })}
       >
         {mergedConfig.grid && <CartesianGrid strokeDasharray="3 3" />}
         <XAxis dataKey={xKey} />
@@ -301,17 +301,17 @@ export const AdaptedBarChart: React.FC<BarChartProps> = ({
         {...chartProps}
         data={data}
         margin={mergedConfig.margin}
-        className={className}
-        style={mergedConfig.responsive ? undefined : style}
+        {...(className && { className })}
+        {...(!mergedConfig.responsive && style && { style })}
         layout={horizontal ? 'horizontal' : 'vertical'}
       >
         {mergedConfig.grid && <CartesianGrid strokeDasharray="3 3" />}
         <XAxis 
-          dataKey={horizontal ? undefined : xKey}
+          {...(!horizontal && xKey ? { dataKey: xKey } : {})}
           type={horizontal ? 'number' : 'category'}
         />
         <YAxis 
-          dataKey={horizontal ? yKey : undefined}
+          {...(horizontal && yKey ? { dataKey: yKey } : {})}
           type={horizontal ? 'category' : 'number'}
         />
         {mergedConfig.tooltip && <Tooltip />}
@@ -365,8 +365,8 @@ export const AdaptedScatterChart: React.FC<ScatterChartProps> = ({
         {...chartProps}
         data={data}
         margin={mergedConfig.margin}
-        className={className}
-        style={mergedConfig.responsive ? undefined : style}
+        {...(className && { className })}
+        {...(!mergedConfig.responsive && style && { style })}
       >
         {mergedConfig.grid && <CartesianGrid strokeDasharray="3 3" />}
         <XAxis dataKey={xKey} type="number" />
@@ -400,8 +400,8 @@ export const AdaptedPieChart: React.FC<PieChartProps> = ({
     <ChartComponent {...(mergedConfig.responsive ? {} : { style })}>
       <PieChart
         {...chartProps}
-        className={className}
-        style={mergedConfig.responsive ? undefined : style}
+        {...(className && { className })}
+        {...(!mergedConfig.responsive && style && { style })}
       >
         <Pie
           data={data}

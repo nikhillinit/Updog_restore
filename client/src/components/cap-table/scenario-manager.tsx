@@ -86,7 +86,7 @@ export default function ScenarioManager({ scenarios, onScenariosChange, investme
       totalSAFEs: data.totalSAFEs || 0,
       totalNotes: data.totalNotes || 0,
       dilution: data.dilution || 0,
-      description: data.description
+      ...(data.description !== undefined && { description: data.description })
     };
 
     onScenariosChange([...scenarios, newScenario]);
