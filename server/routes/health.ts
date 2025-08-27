@@ -10,18 +10,18 @@ import { rateLimitDetailed } from '../middleware/rateLimitDetailed';
 import { setReady, registerInvalidator } from '../health/state';
 import { register as metricsRegister } from '../metrics';
 import type { Request, Response } from '../types/request-response';
+import { TTLCache, MemoryKV } from '../lib/ttl-cache';
 
 const router = Router();
 
-// Simple cache for health checks to avoid DB storms
-let readyzCache: { ts: number; data: any } = { ts: 0, data: null };
-let healthzCache: { ts: number; data: any } = { ts: 0, data: null };
+// TTL cache for health checks to avoid DB storms
+const memoryKV = new MemoryKV();
+const healthCache = new TTLCache<any>(memoryKV);
 const HEALTH_CACHE_MS = 1500; // 1.5 second cache
 
 // Register cache invalidator for state changes
 registerInvalidator(() => {
-  readyzCache = { ts: 0, data: null };
-  healthzCache = { ts: 0, data: null };
+  memoryKV.clear();
 });
 
 // Liveness check (unauthenticated, minimal)
@@ -95,15 +95,18 @@ router.get('/api/health/ready', readinessCheck);
 router.get('/api/health/live', livenessCheck);
 
 // Richer JSON health endpoint for Guardian and canary checks
-router.get('/healthz', async (req: Request, res: Response) => {
+router.get('/health/detailed-json', async (req: Request, res: Response) => {
   // Prevent intermediary caching
   res.set('Cache-Control', 'no-store, max-age=0');
   res.set('Pragma', 'no-cache');
   
-  // Return cached response if fresh
-  if (Date.now() - healthzCache.ts < HEALTH_CACHE_MS && healthzCache.data) {
+  // Check cache first
+  const cached = await healthCache.get('healthz');
+  if (cached) {
     res.set('X-Health-From-Cache', '1');
-    return res.json(healthzCache.data);
+    const ttlMs = await healthCache.ttlMs('healthz');
+    res.set('X-Health-TTL-Remaining', ttlMs.toString());
+    return res.json(cached);
   }
   
   try {
@@ -124,8 +127,10 @@ router.get('/healthz', async (req: Request, res: Response) => {
       status: errorRate < 0.01 ? 'healthy' : 'degraded'
     };
     
-    // Cache the response
-    healthzCache = { ts: Date.now(), data: healthData };
+    // Cache with deterministic TTL
+    await healthCache.set('healthz', healthData, HEALTH_CACHE_MS);
+    const ttlMs = await healthCache.ttlMs('healthz');
+    res.set('X-Health-TTL-Set', ttlMs.toString());
     
     res.json(healthData);
   } catch (error) {
@@ -144,10 +149,12 @@ router.get('/readyz', async (req: Request, res: Response) => {
   res.set('Cache-Control', 'no-store, max-age=0');
   res.set('Pragma', 'no-cache');
   
-  // Return cached response if fresh
-  if (Date.now() - readyzCache.ts < HEALTH_CACHE_MS && readyzCache.data) {
-    const cached = readyzCache.data;
+  // Check cache first
+  const cached = await healthCache.get('readyz');
+  if (cached) {
     res.set('X-Health-From-Cache', '1');
+    const ttlMs = await healthCache.ttlMs('readyz');
+    res.set('X-Health-TTL-Remaining', ttlMs.toString());
     return res.status(cached.ready ? 200 : 503).json(cached);
   }
   
@@ -181,8 +188,10 @@ router.get('/readyz', async (req: Request, res: Response) => {
     timestamp: new Date().toISOString()
   };
   
-  // Cache the response
-  readyzCache = { ts: Date.now(), data: response };
+  // Cache with deterministic TTL
+  await healthCache.set('readyz', response, HEALTH_CACHE_MS);
+  const ttlMs = await healthCache.ttlMs('readyz');
+  res.set('X-Health-TTL-Set', ttlMs.toString());
   
   res.status(isReady ? 200 : 503).json(response);
 });

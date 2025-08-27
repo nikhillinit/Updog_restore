@@ -1,9 +1,11 @@
 import type { Cache } from './cache';
 
 export interface CircuitBreakerConfig {
-  failureThreshold: number;
-  resetTimeout: number;
+  failureThreshold: number;       // e.g., 3
+  resetTimeout: number;           // ms until OPEN => HALF-OPEN (e.g., 1000)
   monitoringPeriod: number;
+  successThreshold?: number;      // successes required in HALF-OPEN to close (default 1)
+  halfOpenMaxConcurrent?: number; // concurrent probes allowed in HALF-OPEN (default 1)
 }
 
 // Factory function to create cache with optional Upstash support
@@ -63,7 +65,7 @@ export async function createBreakerCache(
     resetTimeout: 60000,
     monitoringPeriod: 300000,
     ...config
-  });
+  }, Date.now);
 }
 
 export class CircuitBreakerCache implements Cache {
@@ -71,9 +73,9 @@ export class CircuitBreakerCache implements Cache {
   private failures = 0;
   private successes = 0;
   private lastFailureTime = 0;
-  private lastSuccessTime = Date.now();
-  private halfOpenRequests = 0;
-  private maxHalfOpenRequests = 1;
+  private lastSuccessTime: number;
+  private halfOpenInFlight = 0;
+  private openedAt = 0;
   
   constructor(
     private backingStore: Cache,
@@ -82,60 +84,115 @@ export class CircuitBreakerCache implements Cache {
       failureThreshold: 10,
       resetTimeout: 60000,
       monitoringPeriod: 300000
-    }
-  ) {}
+    },
+    private getCurrentTime: () => number = Date.now
+  ) {
+    this.lastSuccessTime = this.getCurrentTime();
+  }
+
+  private get maxHalfOpen(): number {
+    return this.config.halfOpenMaxConcurrent ?? 1;
+  }
+  private get halfOpenSuccessTarget(): number {
+    return this.config.successThreshold ?? 1;
+  }
+
+  private toOpen(now: number) {
+    this.state = 'open';
+    this.openedAt = now;
+    this.halfOpenInFlight = 0;
+    this.lastFailureTime = now;
+  }
+
+  private toHalfOpen() {
+    this.state = 'half-open';
+    this.failures = 0;
+    this.successes = 0;
+    this.halfOpenInFlight = 0;
+  }
   
   async get<T>(key: string): Promise<T | undefined> {
-    if (this.shouldUseBackingStore()) {
+    const now = this.getCurrentTime();
+
+    // If OPEN, see if the window has elapsed; if yes, move to HALF-OPEN before any early return.
+    if (this.state === 'open') {
+      if (now - this.openedAt >= this.config.resetTimeout) {
+        this.toHalfOpen();
+      }
+    }
+
+    // HALF-OPEN: allow exactly `maxHalfOpen` probes to the primary; others get fallback.
+    if (this.state === 'half-open') {
+      if (this.halfOpenInFlight >= this.maxHalfOpen) {
+        return this.fallbackStore.get<T>(key);
+      }
+      this.halfOpenInFlight++;
       try {
-        const result = await this.executeWithCircuitBreaker(() => this.backingStore.get<T>(key));
-        return result;
-      } catch (error) {
-        // Fall back to fallback store
-        try {
-          return await this.fallbackStore.get<T>(key);
-        } catch {
-          return undefined;
+        const v = await this.backingStore.get<T>(key);
+        // Treat undefined as a valid value; success means "primary responded without throwing"
+        this.successes++;
+        this.lastSuccessTime = now;
+        if (this.successes >= this.halfOpenSuccessTarget) {
+          // Primary looks healthy again
+          this.state = 'closed';
+          this.failures = 0;
+          this.successes = 0;
         }
-      }
-    } else {
-      // Circuit is open, use fallback
-      try {
-        return await this.fallbackStore.get<T>(key);
+        return v;
       } catch {
-        return undefined;
+        // Probe failed -> go back to OPEN and serve fallback
+        this.failures++;
+        this.toOpen(now);
+        return this.fallbackStore.get<T>(key);
+      } finally {
+        this.halfOpenInFlight = Math.max(0, this.halfOpenInFlight - 1);
       }
+    }
+
+    // Still OPEN and within the window? Serve fallback (no probing here).
+    if (this.state === 'open') {
+      return this.fallbackStore.get<T>(key);
+    }
+
+    // CLOSED: primary first, fallback on error
+    try {
+      const v = await this.backingStore.get<T>(key);
+      this.failures = 0;
+      this.successes++;
+      this.lastSuccessTime = now;
+      return v;
+    } catch {
+      this.failures++;
+      this.lastFailureTime = now;
+      if (this.failures >= this.config.failureThreshold) this.toOpen(now);
+      return this.fallbackStore.get<T>(key);
     }
   }
   
   async set<T>(key: string, value: T, options?: { ttl?: number }): Promise<void> {
-    if (this.shouldUseBackingStore()) {
-      try {
-        await this.executeWithCircuitBreaker(() => this.backingStore.set(key, value, options?.ttl));
-        // Also update fallback for consistency
-        await this.fallbackStore.set(key, value, options?.ttl).catch(() => {});
-      } catch (error) {
-        // Fall back to fallback store only
-        await this.fallbackStore.set(key, value, options?.ttl);
-      }
-    } else {
-      // Circuit is open, use fallback only
-      await this.fallbackStore.set(key, value, options?.ttl);
+    // Always try to write to both stores to maintain consistency
+    const promises = [];
+    
+    if (this.state === 'closed') {
+      promises.push(this.backingStore.set(key, value, options?.ttl).catch(() => {}));
     }
+    promises.push(this.fallbackStore.set(key, value, options?.ttl).catch(() => {}));
+    
+    await Promise.all(promises);
   }
   
   async delete(key: string): Promise<boolean> {
     let deleted = false;
     
-    if (this.shouldUseBackingStore()) {
+    // Try both stores
+    if (this.state === 'closed') {
       try {
-        deleted = await this.executeWithCircuitBreaker(() => this.backingStore.delete(key));
+        deleted = await this.backingStore.delete(key);
       } catch {
         // Continue to fallback
       }
     }
     
-    // Always try to delete from fallback too
     try {
       const fallbackDeleted = await this.fallbackStore.delete(key);
       deleted = deleted || fallbackDeleted;
@@ -147,23 +204,18 @@ export class CircuitBreakerCache implements Cache {
   }
   
   async keys(): Promise<string[]> {
-    if (this.shouldUseBackingStore()) {
+    if (this.state === 'closed') {
       try {
-        return await this.executeWithCircuitBreaker(() => this.backingStore.keys());
+        return await this.backingStore.keys();
       } catch {
         // Fall back to fallback store
-        try {
-          return await this.fallbackStore.keys();
-        } catch {
-          return [];
-        }
       }
-    } else {
-      try {
-        return await this.fallbackStore.keys();
-      } catch {
-        return [];
-      }
+    }
+    
+    try {
+      return await this.fallbackStore.keys();
+    } catch {
+      return [];
     }
   }
   
@@ -171,85 +223,12 @@ export class CircuitBreakerCache implements Cache {
     // Clear both stores regardless of circuit state
     const promises = [];
     
-    if (this.shouldUseBackingStore()) {
-      try {
-        promises.push(this.executeWithCircuitBreaker(() => this.backingStore.clear()));
-      } catch {
-        // Ignore errors during clear
-      }
-    }
-    
+    promises.push(this.backingStore.clear().catch(() => {}));
     promises.push(this.fallbackStore.clear().catch(() => {}));
     
     await Promise.all(promises);
   }
   
-  private shouldUseBackingStore(): boolean {
-    const now = Date.now();
-    
-    switch (this.state) {
-      case 'closed':
-        return true;
-        
-      case 'open':
-        // Check if reset timeout has elapsed
-        if (now - this.lastFailureTime > this.config.resetTimeout) {
-          this.state = 'half-open';
-          this.halfOpenRequests = 0;
-          return true;
-        }
-        return false;
-        
-      case 'half-open':
-        // Limit concurrent requests in half-open state
-        return this.halfOpenRequests < this.maxHalfOpenRequests;
-        
-      default:
-        return true;
-    }
-  }
-  
-  private async executeWithCircuitBreaker<T>(operation: () => Promise<T>): Promise<T> {
-    if (this.state === 'half-open') {
-      this.halfOpenRequests++;
-    }
-    
-    try {
-      const result = await operation();
-      this.onSuccess();
-      return result;
-    } catch (error) {
-      this.onFailure();
-      throw error;
-    } finally {
-      if (this.state === 'half-open') {
-        this.halfOpenRequests--;
-      }
-    }
-  }
-  
-  private onSuccess(): void {
-    this.failures = 0;
-    this.successes++;
-    this.lastSuccessTime = Date.now();
-    
-    if (this.state === 'half-open') {
-      // After successful requests in half-open, transition back to closed
-      this.state = 'closed';
-      this.successes = 0;
-    }
-  }
-  
-  private onFailure(): void {
-    this.failures++;
-    this.lastFailureTime = Date.now();
-    
-    if (this.failures >= this.config.failureThreshold) {
-      this.state = 'open';
-    }
-  }
-  
-  // Metrics and state methods for monitoring
   getState(): {
     state: string;
     failures: number;
@@ -259,8 +238,7 @@ export class CircuitBreakerCache implements Cache {
     isHealthy: boolean;
     uptime: number;
   } {
-    const now = Date.now();
-    
+    const now = this.getCurrentTime();
     return {
       state: this.state,
       failures: this.failures,
@@ -281,6 +259,6 @@ export class CircuitBreakerCache implements Cache {
     this.state = 'closed';
     this.failures = 0;
     this.successes = 0;
-    this.halfOpenRequests = 0;
+    this.halfOpenInFlight = 0;
   }
 }
