@@ -135,7 +135,12 @@
     "pgcron:unschedule": "psql \"$DATABASE_URL\" -f scripts/sql/unschedule_pg_cron_cleanup.sql",
     "pgcron:status": "psql \"$DATABASE_URL\" -c \"SELECT * FROM maintenance.audit_cleanup_status();\"",
     "audit:cleanup": "psql \"$DATABASE_URL\" -c \"CALL maintenance.cleanup_audit(NOW(), 1000, '10 milliseconds');\"",
-    "lint:disable-warnings": "eslint . --ext .ts,.tsx,.js,.jsx --rule '@typescript-eslint/no-explicit-any: off' --rule '@typescript-eslint/no-unused-vars: off' --rule 'no-console: off' --rule 'react/no-unescaped-entities: off' --rule 'react-hooks/exhaustive-deps: off' --no-error-on-unmatched-pattern"
+    "lint:disable-warnings": "eslint . --ext .ts,.tsx,.js,.jsx --rule '@typescript-eslint/no-explicit-any: off' --rule '@typescript-eslint/no-unused-vars: off' --rule 'no-console: off' --rule 'react/no-unescaped-entities: off' --rule 'react-hooks/exhaustive-deps: off' --no-error-on-unmatched-pattern",
+    "validate:architecture": "depcruise --include-only \"^(client|shared|server)\" --config .dependency-cruiser.cjs .",
+    "validate:full": "npm run validate:architecture && npm run build && npm run test:unit && npm run check",
+    "validate:fast": "npm run validate:architecture && npm run lint && npm run check:fast",
+    "validate:phase1": "node scripts/validate-phase1.js",
+    "validate:phase1:ps": "powershell -ExecutionPolicy Bypass -File scripts/validate-phase1.ps1"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -289,6 +294,7 @@
     "axe-playwright": "^2.1.0",
     "concurrently": "^9.2.0",
     "cross-env": "^7.0.3",
+    "dependency-cruiser": "^17.0.1",
     "drizzle-kit": "^0.30.4",
     "esbuild": "^0.25.0",
     "eslint": "^8.57.1",
@@ -316,6 +322,7 @@
     "typescript": "^5.6.3",
     "vite": "^5.4.19",
     "vite-plugin-virtual": "^0.4.0",
+    "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.4",
     "vitest-canvas-mock": "^0.3.3",
     "wait-on": "^8.0.4",

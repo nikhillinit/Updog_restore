@@ -31,7 +31,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useFundContext } from "@/contexts/FundContext";
 import { CheckCircle, Circle, ArrowRight, ArrowLeft, Building2, Plus, Edit2, Trash2, X } from "lucide-react";
 import { resilientLimit } from "@/utils/resilientLimit";
-import { asyncRepl } from "../../../server/metrics";
+// Removed server import - use shared types or client-side metrics instead
+// import { asyncRepl } from "../../../server/metrics";
 import BudgetCreator from "@/components/budget/budget-creator";
 import InvestmentStrategyStep from "./InvestmentStrategyStep";
 import ExitRecyclingStep from "./ExitRecyclingStep";
@@ -477,7 +478,7 @@ export default function FundSetup() {
       );
       
       // Track successful async forEach replacement
-      asyncRepl.inc({ file: 'fund-setup.tsx' }, migrationCount);
+      // asyncRepl.inc({ file: 'fund-setup.tsx' }, migrationCount); // Removed server dependency
       
       return results;
     } catch (error) {

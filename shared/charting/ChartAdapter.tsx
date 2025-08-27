@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { polymorphicForwardRef, type PolymorphicProps } from './polymorphic';
 import { 
   LineChart, 
   Line, 
@@ -433,43 +434,52 @@ export interface MigrationOptions {
   logMigrationEvents?: boolean;
 }
 
-export function createMigrationWrapper<T extends React.ComponentType<any>>(
-  LegacyComponent: T,
-  AdaptedComponent: T,
-  componentName: string,
-  options: MigrationOptions = {}
-) {
-  return React.forwardRef<any, React.ComponentProps<T>>((props, ref) => {
-    const useAdapted = options.enableFeatureFlag 
-      ? (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
-          ? (window.localStorage.getItem('use-adapted-charts') === 'true')
-          : process.env['NODE_ENV'] === 'development')
-      : true;
+export const createMigrationWrapper = polymorphicForwardRef<'div', {
+  LegacyComponent: React.ComponentType<any>;
+  AdaptedComponent: React.ComponentType<any>;
+  componentName: string;
+  options?: MigrationOptions;
+}>(function MigrationWrapper<T extends React.ElementType = 'div'>({
+  LegacyComponent,
+  AdaptedComponent,
+  componentName,
+  options = {},
+  as,
+  ...props
+}: PolymorphicProps<T, {
+  LegacyComponent: React.ComponentType<any>;
+  AdaptedComponent: React.ComponentType<any>;
+  componentName: string;
+  options?: MigrationOptions;
+}>, ref) {
+  const useAdapted = options.enableFeatureFlag 
+    ? (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
+        ? (window.localStorage.getItem('use-adapted-charts') === 'true')
+        : process.env.NODE_ENV === 'development')
+    : true;
 
-    if (options.logMigrationEvents) {
-      React.useEffect(() => {
-        console.log(`Chart Migration: ${componentName} using ${useAdapted ? 'adapted' : 'legacy'} version`);
-      }, [useAdapted]);
+  if (options.logMigrationEvents) {
+    React.useEffect(() => {
+      console.log(`Chart Migration: ${componentName} using ${useAdapted ? 'adapted' : 'legacy'} version`);
+    }, [useAdapted, componentName]);
+  }
+
+  const Component = as || 'div';
+
+  try {
+    if (useAdapted) {
+      return <AdaptedComponent {...(props as any)} ref={ref} />;
     }
-
-    try {
-      if (useAdapted) {
-        // @ts-expect-error - Polymorphic forwardRef compatibility issue
-        return <AdaptedComponent {...props} ref={ref} />;
-      }
-    } catch (error) {
-      if (options.fallbackToOriginal) {
-        console.warn(`Chart Migration: ${componentName} adapted version failed, falling back to legacy`, error);
-        // @ts-expect-error - Polymorphic forwardRef compatibility issue
-        return <LegacyComponent {...props} ref={ref} />;
-      }
-      throw error;
+  } catch (error) {
+    if (options.fallbackToOriginal) {
+      console.warn(`Chart Migration: ${componentName} adapted version failed, falling back to legacy`, error);
+      return <LegacyComponent {...(props as any)} ref={ref} />;
     }
+    throw error;
+  }
 
-    // @ts-expect-error - Polymorphic forwardRef compatibility issue
-    return <LegacyComponent {...props} ref={ref} />;
-  });
-}
+  return <LegacyComponent {...(props as any)} ref={ref} />;
+});
 
 // Export unified chart components
 export const UnifiedLineChart = AdaptedLineChart;

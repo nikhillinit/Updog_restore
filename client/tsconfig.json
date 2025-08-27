@@ -1,15 +1,15 @@
 {
   "extends": "../tsconfig.json",
-  "include": ["src/**/*", "../shared/**/*"],
-  "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
   "compilerOptions": {
-    "jsx": "react-jsx",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "types": ["vite/client"],
-    "baseUrl": ".",
+    "baseUrl": "../",
     "paths": {
-      "@/*": ["src/*"],
-      "@shared/*": ["../shared/*"]
-    }
-  }
+      "@/*": ["client/src/*"],
+      "@/core/*": ["client/src/core/*"],
+      "@/lib/*": ["client/src/lib/*"],
+      "@shared/*": ["shared/*"]
+    },
+    "jsx": "react-jsx",
+    "types": ["vite/client"]
+  },
+  "include": ["client/src", "shared", "types"]
 }
