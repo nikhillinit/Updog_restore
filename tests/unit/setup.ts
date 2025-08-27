@@ -19,6 +19,42 @@ vi.mock('fs', () => ({
 // Mock network calls
 global.fetch = vi.fn();
 
+// Mock browser APIs for client-side tests
+Object.defineProperty(global, 'localStorage', {
+  value: {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+    key: vi.fn(),
+    length: 0
+  },
+  writable: true
+});
+
+Object.defineProperty(global, 'sessionStorage', {
+  value: {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+    key: vi.fn(),
+    length: 0
+  },
+  writable: true
+});
+
+// Mock window object for client-side tests
+Object.defineProperty(global, 'window', {
+  value: {
+    localStorage: global.localStorage,
+    sessionStorage: global.sessionStorage,
+    location: { origin: 'http://localhost:3000' },
+    navigator: { userAgent: 'test-agent' }
+  },
+  writable: true
+});
+
 // Setup console suppression for cleaner test output
 const originalConsole = { ...console };
 beforeAll(() => {
