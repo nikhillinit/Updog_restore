@@ -25,7 +25,7 @@ export default defineConfig({
     testTimeout: 20000,
     hookTimeout: 20000,
     teardownTimeout: 5000,
-    setupFiles: ['tests/unit/setup.ts', 'tests/setup/reserves-setup.ts'],
+    setupFiles: ['tests/test-infrastructure.ts', 'tests/unit/setup.ts', 'tests/setup/reserves-setup.ts'],
     globals: true,
     clearMocks: true,
     restoreMocks: true,
