@@ -173,6 +173,13 @@ async function main() {
         console.log(`Draft PR: ${options.draftPR ? 'yes' : 'no'}`);
         
         try {
+          // Import metrics collection
+          const { collectBMADMetrics, saveBMADMetrics } = await import('./bmad-metrics.js');
+          
+          // Start metrics collection
+          const metricsCollector = collectBMADMetrics();
+          const startTime = Date.now();
+          
           // Dynamically import TestRepairAgent
           const { TestRepairAgent } = await import('../../packages/test-repair-agent/src/TestRepairAgent.js');
           
@@ -191,11 +198,34 @@ async function main() {
             draftPR: options.draftPR
           });
           
+          // Collect metrics
+          const duration = Date.now() - startTime;
+          const metrics = {
+            timestamp: new Date().toISOString(),
+            repo: process.env.GITHUB_REPOSITORY || 'local',
+            pattern: pattern || 'all',
+            maxRepairs,
+            failuresFound: result.failures.length,
+            repairsAttempted: result.repairs.length,
+            repairsSuccessful: result.repairs.filter(r => r.success).length,
+            prCreated: !!result.prUrl,
+            prUrl: result.prUrl,
+            duration,
+            timeSavedSeconds: result.repairs.filter(r => r.success).length * 600, // Estimate 10 min per fix
+          };
+          
+          // Update Prometheus metrics
+          metricsCollector.recordRepair(metrics);
+          
+          // Save metrics to file for CI
+          await saveBMADMetrics(metrics, metricsCollector);
+          
           // Display results
           console.log('\n=== Test Repair Results ===');
           console.log(`Failures found: ${result.failures.length}`);
           console.log(`Repairs attempted: ${result.repairs.length}`);
           console.log(`Successful repairs: ${result.repairs.filter(r => r.success).length}`);
+          console.log(`Time saved: ~${Math.round(metrics.timeSavedSeconds / 60)} minutes`);
           
           if (result.prUrl) {
             console.log(`\n✅ Draft PR created: ${result.prUrl}`);
@@ -204,6 +234,8 @@ async function main() {
           if (options.verbose) {
             console.log('\nDetailed results:');
             console.log(JSON.stringify(result, null, 2));
+            console.log('\nMetrics collected:');
+            console.log(JSON.stringify(metrics, null, 2));
           }
           
           // Exit with appropriate code
