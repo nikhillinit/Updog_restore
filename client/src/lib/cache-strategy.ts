@@ -60,4 +60,26 @@ export class CalculationCache<TInput, TData> {
     }
     this.cache.set(k, { data, ts: Date.now() });
   }
+
+  // Clear all cached data - useful for tests and manual cache management
+  clear(): void {
+    this.cache.clear();
+  }
+
+  // Get cache statistics
+  getStats() {
+    return {
+      size: this.cache.size,
+      maxSize: this.maxSize,
+      ttlMs: this.ttlMs
+    };
+  }
 }
+
+// Export a singleton instance for global cache clearing in tests
+export const globalCalculationCache = new CalculationCache<any, any>();
+
+// Export function for clearing all caches (used in tests)
+export const clearCache = () => {
+  globalCalculationCache.clear();
+};

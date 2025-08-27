@@ -5,6 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { visualizer } from 'rollup-plugin-visualizer';
 import virtual from 'vite-plugin-virtual';
+import tsconfigPaths from 'vite-tsconfig-paths';
 import { execSync } from 'child_process';
 
 // Comprehensive winston mock
@@ -192,6 +193,7 @@ const getAppVersion = () => {
 
 export default defineConfig({
   plugins: [
+    tsconfigPaths({ projects: ['./client/tsconfig.json'] }),
     virtual({ 
       "winston": winstonMock,
       "prom-client": promClientMock
@@ -233,16 +235,16 @@ export default defineConfig({
     }
   },
   resolve: {
+    conditions: ["browser", "import", "module", "default"],
     alias: {
       '@': path.resolve(import.meta.dirname, 'client/src'),
       '@/core': path.resolve(import.meta.dirname, 'client/src/core'),
       '@/lib': path.resolve(import.meta.dirname, 'client/src/lib'),
       '@shared': path.resolve(import.meta.dirname, 'shared'),
       '@assets': path.resolve(import.meta.dirname, 'assets'),
-      '@server': path.resolve(import.meta.dirname, 'server'),
     },
   },
   optimizeDeps: {
-    exclude: ['winston', 'prom-client']
+    exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser']
   }
 });

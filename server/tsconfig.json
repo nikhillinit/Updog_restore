@@ -1,17 +1,17 @@
 {
   "extends": "../tsconfig.json",
-  "include": ["**/*", "../shared/**/*", "../client/src/core/**/*"],
-  "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
   "compilerOptions": {
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "target": "ES2022",
-    "lib": ["ES2022"],
-    "types": ["node"],
+    "baseUrl": "../",
     "paths": {
-      "@shared/*": ["../shared/*"],
-      "@/*": ["../client/src/*"]
+      "@server/*": ["server/*"],
+      "@shared/*": ["shared/*"]
     },
-    "allowSyntheticDefaultImports": true
-  }
+    "outDir": "../dist/server",
+    "noEmit": false,
+    "typeRoots": ["../types", "../node_modules/@types"],
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "skipLibCheck": true
+  },
+  "include": ["server", "shared", "../types"]
 }
