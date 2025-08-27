@@ -1,0 +1,33 @@
+// This file intentionally contains RLS violations for testing the ESLint rule
+// DO NOT IMPORT OR USE THIS CODE - IT IS FOR TESTING ONLY
+// Rename to .ts to test that ESLint catches violations
+
+import { db } from '../../server/db.js';
+
+// VIOLATION: Direct db.select without RLS context
+export async function badQuery() {
+  const result = await db.select().from('funds');
+  return result;
+}
+
+// VIOLATION: Direct db.transaction without executeWithContext
+export async function badTransaction() {
+  return await db.transaction(async (tx) => {
+    await tx.insert({ name: 'test' }).into('funds');
+  });
+}
+
+// VIOLATION: Direct client.query
+export async function badClientQuery(client: any) {
+  const result = await client.query('SELECT * FROM funds');
+  return result;
+}
+
+// This would be correct usage (commented out to show violations):
+// import { executeWithContext } from '../lib/secure-context.js';
+// 
+// export async function goodQuery(context: UserContext) {
+//   return await executeWithContext(context, async (tx) => {
+//     return await tx.select().from('funds');
+//   });
+// }

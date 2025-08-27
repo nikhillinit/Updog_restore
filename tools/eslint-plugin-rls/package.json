@@ -1,0 +1,8 @@
+{
+  "name": "eslint-plugin-rls",
+  "version": "1.0.0",
+  "description": "ESLint plugin to enforce Row-Level Security patterns",
+  "main": "index.js",
+  "keywords": ["eslint", "eslintplugin", "security", "rls"],
+  "license": "MIT"
+}
