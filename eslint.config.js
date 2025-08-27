@@ -1,3 +1,5 @@
+import rlsPlugin from './tools/eslint-plugin-rls/index.js';
+
 export default [
   {
     files: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
@@ -12,12 +14,22 @@ export default [
       "auto-discovery/**",
       "check-db.js",
       "workers/**",
-      "types/**"
+      "types/**",
+      "tools/**"
     ],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": "off",
       "no-console": "off"
+    }
+  },
+  {
+    files: ["server/routes/**/*.ts", "server/routes/**/*.js"],
+    plugins: {
+      rls: rlsPlugin
+    },
+    rules: {
+      "rls/enforce-rls-transaction": "error"
     }
   }
 ];
