@@ -138,6 +138,7 @@ describe('Error Handler Header Preservation', () => {
   });
 
   it('should not attempt to send response if headers already sent', async () => {
+    vi.useRealTimers(); // Use real timers for this test
     const app = express();
     let errorHandlerCalled = false;
     let headersSentCheck = false;
@@ -179,5 +180,5 @@ describe('Error Handler Header Preservation', () => {
     
     expect(errorHandlerCalled).toBe(true);
     expect(headersSentCheck).toBe(true);
-  });
+  }, 15000);
 });

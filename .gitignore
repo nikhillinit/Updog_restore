@@ -82,6 +82,7 @@ replit.nix
 
 # TypeScript cache
 *.tsbuildinfo
+.tsbuildinfo.*
 
 # Build statistics
 stats.html

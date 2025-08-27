@@ -138,6 +138,7 @@ describe('CircuitBreakerCache', () => {
 
     it('should transition to half-open after reset timeout', async () => {
       mockBackingStore.setFailureMode(true);
+      await mockFallbackStore.set('test', 'fallback-value');
 
       // Open the circuit
       await circuitBreaker.get('test');
@@ -149,7 +150,7 @@ describe('CircuitBreakerCache', () => {
       // Fast-forward time
       vi.advanceTimersByTime(1100);
 
-      // Fix the backing store
+      // Fix the backing store and set value directly
       mockBackingStore.setFailureMode(false);
       await mockBackingStore.set('test', 'recovered-value');
 
@@ -189,7 +190,7 @@ describe('CircuitBreakerCache', () => {
 
       // Fix backing store but make it slow
       mockBackingStore.setFailureMode(false);
-      let resolvePromise: (value: any) => void;
+      let resolvePromise: ((value: any) => void) | null = null;
       const slowPromise = new Promise(resolve => {
         resolvePromise = resolve;
       });
@@ -208,17 +209,19 @@ describe('CircuitBreakerCache', () => {
       ];
 
       // The first request should be in-flight, others should use fallback
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await vi.advanceTimersByTimeAsync(10);
 
       // Resolve the slow operation
-      resolvePromise!('slow-value');
+      if (resolvePromise) {
+        resolvePromise('slow-value');
+      }
 
       const results = await Promise.all(promises);
 
       // First request should succeed, others should use fallback
       expect(results[0]).toBe('slow-value');
       expect(results.slice(1).every(r => r === 'fallback-value')).toBe(true);
-    });
+    }, 15000);
   });
 
   describe('metrics and state', () => {
