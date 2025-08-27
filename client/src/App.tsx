@@ -14,7 +14,7 @@ import { ErrorBoundary } from "./components/ui/error-boundary";
 
 // Layout components
 import Sidebar from "@/components/layout/sidebar";
-import Header from "@/components/layout/header";
+// import Header from "@/components/layout/header"; // Unused - removed
 import DynamicFundHeader from "@/components/layout/dynamic-fund-header";
 
 // Page components
