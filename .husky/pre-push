@@ -1,40 +1,19 @@
 #!/usr/bin/env bash
 
-# Robust check for docs-only commits
-UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo "")
-if [ -z "$UPSTREAM" ]; then
-  # No upstream - check staged files
-  CHANGED=$(git diff --cached --name-only)
-else
-  # Has upstream - check changes since upstream
-  CHANGED=$(git diff --name-only "$UPSTREAM"...HEAD 2>/dev/null || git diff --cached --name-only)
-fi
-
-# Skip heavy checks for docs-only changes
-if echo "$CHANGED" | grep -qE '^(docs/|README|CHANGELOG|LICENSE|.*\.(md|txt))$'; then
-  echo "📚 Docs-only changes detected - skipping heavy checks"
-  exit 0
-fi
+# Fast pre-push checks: type check + unit tests only
 
 echo "🔍 Running pre-push checks..."
 
-# Fast checks that prevent bad pushes
-echo "  → Smoke tests..."
-npm run test:smoke --silent || {
-  echo "❌ Smoke tests failed"
-  exit 1
-}
-
-echo "  → Bundle size check..."
-npm run bundle:check --silent || {
-  echo "❌ Bundle exceeds 350KB limit"
-  exit 1
-}
-
 echo "  → Type checking..."
-npx tsc --noEmit || {
+npm run check || {
   echo "❌ TypeScript errors detected"
   exit 1
 }
 
-echo "✅ All pre-push checks passed!"
+echo "  → Unit tests..."
+npm run test:ci || {
+  echo "❌ Unit tests failed"
+  exit 1
+}
+
+echo "✅ Pre-push checks passed!"
