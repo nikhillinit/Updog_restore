@@ -140,7 +140,10 @@
     "validate:full": "npm run validate:architecture && npm run build && npm run test:unit && npm run check",
     "validate:fast": "npm run validate:architecture && npm run lint && npm run check:fast",
     "validate:phase1": "node scripts/validate-phase1.js",
-    "validate:phase1:ps": "powershell -ExecutionPolicy Bypass -File scripts/validate-phase1.ps1"
+    "validate:phase1:ps": "powershell -ExecutionPolicy Bypass -File scripts/validate-phase1.ps1",
+    "test:main": "vitest -c vitest.config.unit.ts run",
+    "test:quarantine": "vitest -c vitest.config.quarantine.ts run",
+    "test:ci": "vitest -c vitest.config.unit.ts run"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
