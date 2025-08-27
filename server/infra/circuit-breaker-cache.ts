@@ -6,6 +6,66 @@ export interface CircuitBreakerConfig {
   monitoringPeriod: number;
 }
 
+// Factory function to create cache with optional Upstash support
+export async function createBreakerCache(
+  fallbackStore: Cache,
+  config?: Partial<CircuitBreakerConfig>
+): Promise<CircuitBreakerCache> {
+  let backingStore: Cache = fallbackStore;
+  
+  // Check for Upstash configuration
+  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    try {
+      // Lazy import Upstash if available
+      const { Redis } = await import('@upstash/redis').catch(() => ({ Redis: null }));
+      
+      if (Redis) {
+        const redis = new Redis({
+          url: process.env.UPSTASH_REDIS_REST_URL,
+          token: process.env.UPSTASH_REDIS_REST_TOKEN,
+        });
+        
+        // Create Upstash-backed cache
+        backingStore = {
+          async get<T>(key: string): Promise<T | undefined> {
+            const raw = await redis.get(`cb:${key}`);
+            return raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw as T) : undefined;
+          },
+          async set<T>(key: string, value: T, ttl?: number): Promise<void> {
+            const ttlSeconds = ttl ? Math.ceil(ttl / 1000) : 300; // Default 5 min
+            await redis.set(`cb:${key}`, JSON.stringify(value), { ex: ttlSeconds });
+          },
+          async delete(key: string): Promise<boolean> {
+            const result = await redis.del(`cb:${key}`);
+            return result > 0;
+          },
+          async keys(): Promise<string[]> {
+            const keys = await redis.keys('cb:*');
+            return keys.map(k => k.replace('cb:', ''));
+          },
+          async clear(): Promise<void> {
+            const keys = await redis.keys('cb:*');
+            if (keys.length > 0) {
+              await redis.del(...keys);
+            }
+          }
+        };
+        
+        console.log('Circuit breaker using Upstash Redis cache');
+      }
+    } catch (error) {
+      console.warn('Failed to initialize Upstash cache, falling back to memory:', error);
+    }
+  }
+  
+  return new CircuitBreakerCache(backingStore, fallbackStore, {
+    failureThreshold: 10,
+    resetTimeout: 60000,
+    monitoringPeriod: 300000,
+    ...config
+  });
+}
+
 export class CircuitBreakerCache implements Cache {
   private state: 'closed' | 'open' | 'half-open' = 'closed';
   private failures = 0;
