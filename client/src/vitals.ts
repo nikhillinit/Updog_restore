@@ -70,24 +70,20 @@ function sendToAnalytics(metric: VitalMetric) {
 
   // Send to Sentry as custom measurement (if privacy allows)
   if (window.Sentry && isTelemetryAllowed()) {
-    const transaction = Sentry.getCurrentHub().getScope()?.getTransaction();
-    if (transaction) {
-      transaction.setMeasurement(`webvital.${metric.name.toLowerCase()}`, metric.value, 'millisecond');
-    }
-    
-    // Also send as a custom metric for dashboards
-    Sentry.metrics.distribution(
-      `web_vitals.${metric.name.toLowerCase()}`,
-      metric.value,
-      {
-        tags: {
-          pathname: window.location.pathname,
-          rating: metric.rating,
-          navigationType: metric.navigationType || 'unknown',
-        },
-        unit: metric.name === 'CLS' ? 'none' : 'millisecond',
-      }
-    );
+    // Use span API for measurements in v10+
+    Sentry.withScope((scope) => {
+      scope.setMeasurement(`webvital.${metric.name.toLowerCase()}`, metric.value);
+      
+      // Also send as breadcrumb for observability
+      Sentry.addBreadcrumb({
+        message: `Web Vital: ${metric.name.toLowerCase()}`,
+        level: 'info',
+        data: {
+          value: metric.value,
+          rating: metric.rating
+        }
+      });
+    });
   }
 
   // Send to backend RUM endpoint
