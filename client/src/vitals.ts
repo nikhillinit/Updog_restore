@@ -1,0 +1,166 @@
+import { onLCP, onINP, onCLS, onFCP, onTTFB, Metric } from 'web-vitals';
+import * as Sentry from '@sentry/react';
+
+interface VitalMetric extends Metric {
+  navigationType?: string;
+}
+
+/**
+ * Send Core Web Vitals to monitoring backends
+ */
+function sendToAnalytics(metric: VitalMetric) {
+  // Get or create correlation ID
+  const cid = sessionStorage.getItem('cid') || crypto.randomUUID();
+  if (!sessionStorage.getItem('cid')) {
+    sessionStorage.setItem('cid', cid);
+  }
+  
+  const body = {
+    name: metric.name,
+    value: metric.value,
+    rating: metric.rating,
+    delta: metric.delta,
+    id: metric.id,
+    navigationType: metric.navigationType,
+    pathname: window.location.pathname,
+    timestamp: new Date().toISOString(),
+    release: import.meta.env.VITE_GIT_SHA || 'unknown',
+    env: import.meta.env.MODE,
+    cid,
+  };
+
+  // Send to Sentry as custom measurement
+  if (window.Sentry) {
+    const transaction = Sentry.getCurrentHub().getScope()?.getTransaction();
+    if (transaction) {
+      transaction.setMeasurement(`webvital.${metric.name.toLowerCase()}`, metric.value, 'millisecond');
+    }
+    
+    // Also send as a custom metric for dashboards
+    Sentry.metrics.distribution(
+      `web_vitals.${metric.name.toLowerCase()}`,
+      metric.value,
+      {
+        tags: {
+          pathname: window.location.pathname,
+          rating: metric.rating,
+          navigationType: metric.navigationType || 'unknown',
+        },
+        unit: metric.name === 'CLS' ? 'none' : 'millisecond',
+      }
+    );
+  }
+
+  // Send to backend RUM endpoint
+  if (navigator.sendBeacon) {
+    const url = '/metrics/rum';
+    const blob = new Blob([JSON.stringify(body)], { type: 'application/json' });
+    navigator.sendBeacon(url, blob);
+  } else {
+    // Fallback for older browsers
+    fetch('/metrics/rum', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      keepalive: true,
+    }).catch(console.error);
+  }
+
+  // Log to console in development
+  if (import.meta.env.DEV) {
+    console.log(`[Web Vital] ${metric.name}:`, metric.value, metric.rating);
+  }
+}
+
+/**
+ * Initialize Web Vitals collection
+ */
+export function startVitals() {
+  // Core Web Vitals
+  onLCP(sendToAnalytics);  // Largest Contentful Paint
+  onINP(sendToAnalytics);  // Interaction to Next Paint (replaces FID)
+  onCLS(sendToAnalytics);  // Cumulative Layout Shift
+  
+  // Additional metrics
+  onFCP(sendToAnalytics);  // First Contentful Paint
+  onTTFB(sendToAnalytics); // Time to First Byte
+  
+  // Custom performance marks
+  if (window.performance && window.performance.mark) {
+    // Mark when React app is interactive
+    window.addEventListener('load', () => {
+      window.performance.mark('app-interactive');
+      
+      // Measure time to interactive
+      window.performance.measure('time-to-interactive', 'navigationStart', 'app-interactive');
+      const measure = window.performance.getEntriesByName('time-to-interactive')[0];
+      
+      if (measure) {
+        sendToAnalytics({
+          name: 'TTI',
+          value: measure.duration,
+          rating: measure.duration < 3800 ? 'good' : measure.duration < 7300 ? 'needs-improvement' : 'poor',
+          id: `tti-${Date.now()}`,
+          entries: [],
+          navigationType: 'navigate',
+        } as VitalMetric);
+      }
+    });
+  }
+  
+  // Monitor long tasks
+  if ('PerformanceObserver' in window) {
+    try {
+      const observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          // Report tasks longer than 50ms as potential issues
+          if (entry.duration > 50) {
+            Sentry.addBreadcrumb({
+              category: 'performance',
+              message: `Long task detected: ${entry.duration}ms`,
+              level: entry.duration > 100 ? 'warning' : 'info',
+              data: {
+                duration: entry.duration,
+                startTime: entry.startTime,
+                name: entry.name,
+              },
+            });
+          }
+        }
+      });
+      
+      observer.observe({ entryTypes: ['longtask'] });
+    } catch (e) {
+      console.warn('Long task observer not supported:', e);
+    }
+  }
+  
+  console.log('Web Vitals monitoring initialized');
+}
+
+/**
+ * Get current Web Vitals snapshot (for debugging)
+ */
+export function getVitalsSnapshot() {
+  const vitals: Record<string, number | null> = {
+    lcp: null,
+    inp: null,
+    cls: null,
+    fcp: null,
+    ttfb: null,
+  };
+  
+  // Collect current values (note: these are cumulative)
+  onLCP((metric) => { vitals.lcp = metric.value; }, { reportAllChanges: false });
+  onINP((metric) => { vitals.inp = metric.value; }, { reportAllChanges: false });
+  onCLS((metric) => { vitals.cls = metric.value; }, { reportAllChanges: false });
+  onFCP((metric) => { vitals.fcp = metric.value; }, { reportAllChanges: false });
+  onTTFB((metric) => { vitals.ttfb = metric.value; }, { reportAllChanges: false });
+  
+  return vitals;
+}
+
+// Expose for debugging in console
+if (import.meta.env.DEV) {
+  (window as any).getVitalsSnapshot = getVitalsSnapshot;
+}
