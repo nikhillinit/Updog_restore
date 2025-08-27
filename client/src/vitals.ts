@@ -6,9 +6,48 @@ interface VitalMetric extends Metric {
 }
 
 /**
+ * Check if telemetry is allowed based on privacy settings
+ */
+function isTelemetryAllowed(): boolean {
+  // Check DNT header respect
+  if (navigator.doNotTrack === '1') {
+    return false;
+  }
+  
+  // Check user opt-out preference
+  const privacySettings = localStorage.getItem('privacy-settings');
+  if (privacySettings) {
+    try {
+      const settings = JSON.parse(privacySettings);
+      if (settings.telemetryOptOut === true) {
+        return false;
+      }
+    } catch (e) {
+      // Invalid settings, allow by default
+    }
+  }
+  
+  // Check if RUM v2 is enabled and should validate
+  if (import.meta.env.VITE_ENABLE_RUM_V2 === '1') {
+    // Additional v2 checks can go here
+    return true;
+  }
+  
+  return true;
+}
+
+/**
  * Send Core Web Vitals to monitoring backends
  */
 function sendToAnalytics(metric: VitalMetric) {
+  // Privacy check - short circuit if telemetry disabled
+  if (!isTelemetryAllowed()) {
+    if (import.meta.env.DEV) {
+      console.log('[Web Vital] Telemetry disabled by privacy settings');
+    }
+    return;
+  }
+  
   // Get or create correlation ID
   const cid = sessionStorage.getItem('cid') || crypto.randomUUID();
   if (!sessionStorage.getItem('cid')) {
@@ -23,14 +62,14 @@ function sendToAnalytics(metric: VitalMetric) {
     id: metric.id,
     navigationType: metric.navigationType,
     pathname: window.location.pathname,
-    timestamp: new Date().toISOString(),
+    timestamp: Date.now(), // Use numeric timestamp for v2 validation
     release: import.meta.env.VITE_GIT_SHA || 'unknown',
     env: import.meta.env.MODE,
     cid,
   };
 
-  // Send to Sentry as custom measurement
-  if (window.Sentry) {
+  // Send to Sentry as custom measurement (if privacy allows)
+  if (window.Sentry && isTelemetryAllowed()) {
     const transaction = Sentry.getCurrentHub().getScope()?.getTransaction();
     if (transaction) {
       transaction.setMeasurement(`webvital.${metric.name.toLowerCase()}`, metric.value, 'millisecond');

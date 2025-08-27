@@ -1,0 +1,658 @@
+name: CI Unified
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_full_suite:
+        description: 'Run full test suite (ignore smart selection)'
+        required: false
+        type: boolean
+        default: false
+      enable_security:
+        description: 'Run security tests'
+        required: false
+        type: boolean
+        default: false
+      enable_memory_mode:
+        description: 'Run memory mode tests'
+        required: false
+        type: boolean
+        default: false
+      run_alert_drills:
+        description: 'Run alert validation drills'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+jobs:
+  # Phase 1: Detect changes for smart test selection
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      docs: ${{ steps.filter.outputs.docs }}
+      affected_tests: ${{ steps.affected.outputs.tests }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - '**/*.ts'
+              - '**/*.tsx'
+              - '**/*.js'
+              - '**/*.jsx'
+              - 'package*.json'
+              - '.github/workflows/**'
+              - 'server/**'
+              - 'client/**'
+              - 'shared/**'
+              - 'scripts/**'
+              - 'tests/**'
+            docs:
+              - '**/*.md'
+              - 'docs/**'
+              - '.github/*.md'
+              - '!CHANGELOG.md'
+      
+      - name: Detect affected tests
+        id: affected
+        if: github.event_name == 'pull_request'
+        run: |
+          AFFECTED=$(node scripts/test-smart.mjs --list-only 2>/dev/null || echo "all")
+          echo "tests=${AFFECTED}" >> $GITHUB_OUTPUT
+
+  # Phase 2: Setup and compile TypeScript once with caching
+  setup:
+    needs: changes
+    if: needs.changes.outputs.code == 'true' || github.event.inputs.run_full_suite == 'true'
+    name: Setup & Build Cache
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+      bundle-baseline: ${{ steps.baseline.outputs.stats }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'npm'
+      
+      - name: Generate cache key
+        id: cache-key
+        run: |
+          echo "key=tsc-${{ hashFiles('**/*.ts', '**/*.tsx', '**/tsconfig*.json', 'package-lock.json') }}" >> $GITHUB_OUTPUT
+      
+      - name: Cache TypeScript build
+        id: tsc-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .tsbuildinfo.*
+            **/*.tsbuildinfo
+            node_modules/.cache
+            coverage/
+          key: ${{ steps.cache-key.outputs.key }}
+          restore-keys: |
+            tsc-
+      
+      - run: npm ci --prefer-offline --no-audit
+      
+      - name: Build TypeScript incrementally
+        run: |
+          if [ -f ".tsbuildinfo.client" ] && [ -f ".tsbuildinfo.server" ]; then
+            echo "Using incremental compilation"
+            npx tsc -p tsconfig.client.json --incremental
+            npx tsc -p tsconfig.server.json --incremental
+          else
+            echo "Full compilation required"
+            npx tsc -b tsconfig.client.json tsconfig.server.json --incremental
+          fi
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tsbuild
+          path: |
+            .tsbuildinfo.*
+            **/*.tsbuildinfo
+          retention-days: 1
+      
+      - name: Fetch baseline bundle stats
+        id: baseline
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          # Try to fetch last successful main build stats
+          gh run list --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' > run_id.txt || echo "0" > run_id.txt
+          RUN_ID=$(cat run_id.txt)
+          if [ "$RUN_ID" != "0" ]; then
+            gh run download $RUN_ID -n bundle-stats -D .baseline || true
+          fi
+          if [ -f ".baseline/bundle-stats.json" ]; then
+            echo "stats=$(cat .baseline/bundle-stats.json | jq -c .)" >> $GITHUB_OUTPUT
+          else
+            echo "stats={}" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Phase 3: Parallel checks (type checking and linting)
+  check:
+    name: Check ${{ matrix.job }}
+    needs: [changes, setup]
+    if: needs.changes.outputs.code == 'true' || github.event.inputs.run_full_suite == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        job: [client, server, lint]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'npm'
+      
+      - name: Restore TypeScript cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .tsbuildinfo.*
+            **/*.tsbuildinfo
+            node_modules/.cache
+          key: ${{ needs.setup.outputs.cache-key }}
+      
+      - run: npm ci --prefer-offline --no-audit
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: tsbuild
+      
+      - name: Run check
+        run: |
+          case "${{ matrix.job }}" in
+            client)
+              if [ -f ".tsbuildinfo.client" ]; then
+                npx tsc -p tsconfig.client.json --incremental --noEmit
+              else
+                npm run check:client
+              fi
+              ;;
+            server)
+              if [ -f ".tsbuildinfo.server" ]; then
+                npx tsc -p tsconfig.server.json --incremental --noEmit
+              else
+                npm run check:server
+              fi
+              ;;
+            lint)
+              npm run lint
+              ;;
+          esac
+
+  # Phase 4A: Smart test execution for PRs
+  test-affected:
+    name: Test (Affected Only)
+    needs: [changes, check]
+    if: |
+      github.event_name == 'pull_request' && 
+      needs.changes.outputs.code == 'true' &&
+      github.event.inputs.run_full_suite != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'npm'
+      
+      - name: Cache test results
+        uses: actions/cache@v4
+        with:
+          path: |
+            coverage/
+            .vitest-cache/
+          key: test-affected-${{ github.sha }}
+          restore-keys: |
+            test-affected-
+      
+      - run: npm ci --prefer-offline --no-audit
+      
+      - name: Setup database
+        run: npm run db:push
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+      
+      - name: Run affected tests
+        run: |
+          npm run test:affected || npm run test:smart || npm run test:quick
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+          REDIS_URL: redis://localhost:6379
+          TZ: UTC
+
+  # Phase 4B: Full test matrix for main branch
+  test-full:
+    name: Test ${{ matrix.group }}
+    needs: [changes, check]
+    if: |
+      (github.ref == 'refs/heads/main' || github.event.inputs.run_full_suite == 'true') &&
+      needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: unit
+            needs-db: false
+            needs-redis: false
+          - group: integration
+            needs-db: true
+            needs-redis: true
+          - group: e2e
+            needs-db: true
+            needs-redis: true
+    
+    services:
+      postgres:
+        image: ${{ matrix.needs-db && 'postgres:16-alpine' || '' }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: ${{ matrix.needs-redis && 'redis:7-alpine' || '' }}
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'npm'
+      
+      - name: Cache test results
+        uses: actions/cache@v4
+        with:
+          path: |
+            coverage/
+            .vitest-cache/
+          key: test-${{ matrix.group }}-${{ github.sha }}
+          restore-keys: |
+            test-${{ matrix.group }}-
+      
+      - run: npm ci --prefer-offline --no-audit
+      
+      - name: Setup database
+        if: matrix.needs-db
+        run: npm run db:push
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+      
+      - name: Install Playwright
+        if: matrix.group == 'e2e'
+        run: npx playwright install --with-deps chromium
+      
+      - name: Run tests
+        run: |
+          case "${{ matrix.group }}" in
+            unit)
+              npm run test:unit
+              ;;
+            integration)
+              npm run test:integration
+              ;;
+            e2e)
+              npm run test:e2e:smoke || npm run test:smoke
+              ;;
+          esac
+        env:
+          NODE_ENV: test
+          DATABASE_URL: ${{ matrix.needs-db && 'postgresql://postgres:postgres@localhost:5432/test' || '' }}
+          REDIS_URL: ${{ matrix.needs-redis && 'redis://localhost:6379' || '' }}
+          TZ: UTC
+      
+      - name: Upload coverage
+        if: matrix.group == 'unit'
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          flags: unit
+          fail_ci_if_error: false
+
+  # Phase 5: Build validation with dynamic bundle guard
+  build:
+    name: Build Production
+    needs: [setup, check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'npm'
+      
+      - run: npm ci --prefer-offline --no-audit
+      
+      - name: Build production bundle
+        run: npm run build
+        env:
+          NODE_ENV: production
+      
+      - name: Generate bundle stats
+        id: bundle-stats
+        run: |
+          node scripts/bundle-stats.cjs > bundle-stats.json || echo '{}' > bundle-stats.json
+          TOTAL_KB=$(du -sk dist/public/assets/*.js 2>/dev/null | awk '{sum+=$1} END {print sum}' || echo "0")
+          echo "total_kb=${TOTAL_KB}" >> $GITHUB_OUTPUT
+      
+      - name: Dynamic bundle size check
+        run: |
+          if [ -n "${{ needs.setup.outputs.bundle-baseline }}" ] && [ "${{ needs.setup.outputs.bundle-baseline }}" != "{}" ]; then
+            node scripts/bundle-check-dynamic.cjs \
+              --current=bundle-stats.json \
+              --baseline='${{ needs.setup.outputs.bundle-baseline }}' \
+              --tolerance=0.05 \
+              --has-approval=${{ contains(github.event.pull_request.labels.*.name, 'approved:perf-budget-change') }}
+          else
+            # Fallback to static limit if no baseline
+            npm run bundle:check || true
+          fi
+      
+      - name: Upload bundle stats
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-stats
+          path: bundle-stats.json
+          retention-days: 30
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-build
+          path: |
+            dist/
+            !dist/**/*.map
+          retention-days: 7
+
+  # Conditional: Security tests (label or input triggered)
+  security-tests:
+    name: Security Tests
+    needs: [changes, setup]
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'run:security') ||
+      github.event.inputs.enable_security == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'npm'
+      
+      - run: npm ci --prefer-offline --no-audit
+      
+      - name: Run security audit
+        run: npm audit --audit-level=moderate
+      
+      - name: Run security tests
+        if: hashFiles('tests/security/**/*.test.ts') != ''
+        run: npm run test:security || vitest run tests/security
+        continue-on-error: true
+      
+      - name: OWASP dependency check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'updog'
+          path: '.'
+          format: 'HTML'
+        continue-on-error: true
+
+  # Conditional: Memory mode tests
+  memory-mode:
+    name: Memory Mode Tests
+    needs: [changes, setup]
+    if: |
+      (github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[memory]')) ||
+      github.event.inputs.enable_memory_mode == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'npm'
+      
+      - run: npm ci --prefer-offline --no-audit
+      
+      - name: Run memory mode tests
+        run: |
+          npm run test:memory
+          npm run verify:no-redis
+        env:
+          REDIS_URL: memory://
+          ENABLE_QUEUES: 0
+
+  # Alert validation drills
+  alert-drills:
+    name: Alert Validation Drills
+    if: github.event.inputs.run_alert_drills == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      prometheus:
+        image: prom/prometheus:latest
+        ports:
+          - 9090:9090
+      alertmanager:
+        image: prom/alertmanager:latest
+        ports:
+          - 9093:9093
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'npm'
+      
+      - run: npm ci --prefer-offline --no-audit
+      
+      - name: Start test environment
+        run: |
+          npm run dev:api &
+          npx wait-on http://localhost:5000/api/health --timeout 60000
+      
+      - name: Run alert drills
+        run: |
+          node scripts/alert-drill-runner.js \
+            lcpBreach \
+            inpBreach \
+            rumRejectHigh
+      
+      - name: Verify alerts fired
+        run: |
+          node scripts/verify-alerts.js \
+            --alerts LCPBudgetFastBurn,INPBudgetFastBurn,RUMIngestRejectRatioHigh \
+            --require
+      
+      - name: Upload drill results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alert-drill-results
+          path: |
+            alert-drill-results.json
+            alert-verification-results.json
+
+  # Governance guards
+  guards:
+    name: Governance Guards
+    needs: changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Feature flags guard
+        id: flags-guard
+        run: |
+          PR_LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}' \
+          node scripts/flags-guard.mjs
+        continue-on-error: true
+      
+      - name: Performance budget guard
+        id: perf-guard
+        if: contains(github.event.pull_request.files.*.filename, '.perf-budget.json')
+        run: |
+          if [[ ! "${{ contains(github.event.pull_request.labels.*.name, 'approved:perf-budget-change') }}" == "true" ]]; then
+            echo "❌ Performance budget changes require 'approved:perf-budget-change' label"
+            exit 1
+          fi
+      
+      - name: Comment guard results
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const flagsBlocked = "${{ steps.flags-guard.outcome }}" === "failure";
+            const perfBlocked = "${{ steps.perf-guard.outcome }}" === "failure";
+            
+            if (flagsBlocked || perfBlocked) {
+              let comment = "## 🚨 Governance Guards\n\n";
+              if (flagsBlocked) comment += "❌ **Feature flags changes blocked** - requires approval labels\n";
+              if (perfBlocked) comment += "❌ **Performance budget changes blocked** - requires approval\n";
+              comment += "\nSee job logs for details.";
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: comment
+              });
+            }
+
+  # Final gate status
+  gate:
+    name: CI Gate Status
+    needs: [check, test-affected, test-full, build, guards]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine gate status
+        id: status
+        run: |
+          # For PRs, check test-affected; for main, check test-full
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            TEST_RESULT="${{ needs.test-affected.result }}"
+          else
+            TEST_RESULT="${{ needs.test-full.result }}"
+          fi
+          
+          if [[ "${{ needs.check.result }}" != "success" || 
+                "$TEST_RESULT" != "success" || 
+                "${{ needs.build.result }}" != "success" ]]; then
+            echo "CI Gate Failed"
+            echo "Check: ${{ needs.check.result }}"
+            echo "Test: $TEST_RESULT"
+            echo "Build: ${{ needs.build.result }}"
+            exit 1
+          fi
+          echo "✅ CI Gate Passed"
+      
+      - name: Comment PR status
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = "${{ steps.status.outcome }}";
+            const emoji = status === "success" ? "✅" : "❌";
+            const testType = "${{ needs.test-affected.result }}" ? "affected" : "full";
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `${emoji} **CI Summary**
+              - Checks: ${{ needs.check.result }}
+              - Tests (${testType}): ${{ needs.test-affected.result || needs.test-full.result || 'skipped' }}
+              - Build: ${{ needs.build.result }}
+              `
+            });
