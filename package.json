@@ -108,7 +108,7 @@
     "api:types": "openapi-typescript server/openapi/api-spec.yaml -o shared/api-types.gen.ts",
     "api:lint": "redocly lint server/openapi/api-spec.yaml",
     "api:build": "npm run api:lint && npm run api:types",
-    "prepare": "husky install",
+    "prepare": "husky",
     "pre-push": "./scripts/validate-pr.sh",
     "pretest:smoke": "playwright install --with-deps",
     "test:smoke:e2e": "playwright test tests/e2e/basic-smoke.spec.ts",
