@@ -1,0 +1,107 @@
+name: PR Tests (Main Workspace)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run check || npm run typecheck || true
+        
+      - name: Lint
+        run: npm run lint || true
+
+      - name: Unit tests (main workspace)
+        run: |
+          npm run test:ci || npm run test:unit || npm test
+        env:
+          CI: true
+
+      - name: Generate stability report
+        if: always()
+        run: |
+          if [ -f "reports/junit-main.xml" ]; then
+            node scripts/ci/junit-summary.mjs
+          else
+            echo "No JUnit report found, skipping stability summary"
+          fi
+        env:
+          JUNIT_PATH: reports/junit-main.xml
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports-${{ github.run_number }}
+          path: |
+            reports/**
+            coverage/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Comment test results
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'reports/junit-main.xml';
+            if (!fs.existsSync(path)) return;
+            
+            const xml = fs.readFileSync(path, 'utf8');
+            const total = (xml.match(/<testcase/g) || []).length;
+            const failures = (xml.match(/<failure/g) || []).length;
+            const passed = total - failures;
+            const passRate = total > 0 ? ((passed / total) * 100).toFixed(1) : '0';
+            
+            const status = failures === 0 ? '✅' : '❌';
+            const summary = `${status} **Test Results:** ${passed}/${total} passed (${passRate}%)`;
+            
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+            
+            const botComment = comments.find(c => 
+              c.user.type === 'Bot' && c.body.includes('Test Results:')
+            );
+            
+            const body = `### ${summary}\n\n_Updated: ${new Date().toISOString()}_`;
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }
