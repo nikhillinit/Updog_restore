@@ -236,11 +236,11 @@ describe('CircuitBreakerCache', () => {
     it('should track request counts', async () => {
       await circuitBreaker.get('test1');
       await circuitBreaker.get('test2');
-      await circuitBreaker.set('test3', 'value');
+      await circuitBreaker.set('test3', 'value'); // set operations don't count as requests
 
       const state = circuitBreaker.getCircuitState();
-      expect(state.requestCount).toBe(3);
-      expect(state.successCount).toBe(3);
+      expect(state.requestCount).toBe(2); // Only GET operations count
+      expect(state.successCount).toBe(2); // Only GET operations count
     });
 
     it('should track error metrics', async () => {
