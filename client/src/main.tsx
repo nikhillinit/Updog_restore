@@ -6,6 +6,8 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import { initSentry } from "./sentry";
+import { startVitals } from "./vitals";
 
 // Emergency rollback failsafe - provides backdoor even if env vars are stuck
 function checkEmergencyRollback() {
@@ -43,6 +45,13 @@ function checkEmergencyRollback() {
 
 // Check for emergency rollback before app initialization
 checkEmergencyRollback();
+
+// Initialize monitoring in production
+if (import.meta.env.PROD) {
+  initSentry();
+  // Start Web Vitals collection after app mounts
+  requestIdleCallback(() => startVitals());
+}
 
 const rootElement = document.getElementById("root");
 if (rootElement) {

@@ -199,8 +199,16 @@ export async function createServer(
   // Rate limiter: pass store; undefined => memory store (no redis)
   app.use('/health/detailed', rateLimitDetailed({ store: providers.rateLimitStore }));
   
-  // Metrics endpoint (public, no auth required)
+  // Metrics endpoints (public, no auth required)
   app.use('/metrics', metricsRouter);
+  
+  // RUM metrics endpoint (public, for browser telemetry)
+  const { metricsRumRouter } = await import('./routes/metrics-rum.js');
+  const { rumOriginGuard, rumSamplingGuard, rumLimiter } = await import('./routes/metrics-rum.guard.js');
+  
+  // Apply guards in order: origin check -> rate limit -> sampling -> privacy (in router)
+  app.use('/metrics/rum', rumOriginGuard, rumLimiter, rumSamplingGuard);
+  app.use(metricsRumRouter);
   
   // Apply authentication and RLS middleware to protected routes
   // Note: Some routes like /healthz and /metrics are public
