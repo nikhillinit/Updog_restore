@@ -73,9 +73,13 @@ describe('CircuitBreakerCache', () => {
   let mockBackingStore: MockCache;
   let mockFallbackStore: MockCache;
   let circuitBreaker: CircuitBreakerCache;
+  let mockTime: number;
+  
+  const getMockTime = () => mockTime;
 
   beforeEach(() => {
     vi.useFakeTimers();
+    mockTime = Date.now(); // Capture current time
     mockBackingStore = new MockCache();
     mockFallbackStore = new MockCache();
     circuitBreaker = new CircuitBreakerCache(
@@ -85,7 +89,8 @@ describe('CircuitBreakerCache', () => {
         failureThreshold: 3,
         resetTimeout: 1000,
         monitoringPeriod: 5000
-      }
+      },
+      getMockTime  // Use our manual time function
     );
   });
 
@@ -149,6 +154,7 @@ describe('CircuitBreakerCache', () => {
 
       // Fast-forward time beyond reset timeout
       await vi.advanceTimersByTimeAsync(1100); // > openTimeoutMs
+      mockTime += 1100; // Advance our manual mock time
       await Promise.resolve(); // flush microtasks
 
       // Fix the backing store and set value directly
@@ -188,6 +194,7 @@ describe('CircuitBreakerCache', () => {
 
       // Fast-forward time to enable half-open
       vi.advanceTimersByTime(1100);
+      mockTime += 1100; // Advance our manual mock time
 
       // Fix backing store but make it slow
       mockBackingStore.setFailureMode(false);
