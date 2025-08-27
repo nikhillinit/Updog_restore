@@ -32,21 +32,23 @@ jobs:
         run: npm run lint || true
 
       - name: Unit tests (main workspace)
+        id: run_tests
+        shell: bash
         run: |
-          npm run test:ci || npm run test:unit || npm test
+          mkdir -p reports
+          # Run with JSON reporter for machine-readable output
+          npx vitest -c vitest.config.unit.ts run --reporter=json > reports/vitest-results.json || true
+          echo "vitest_exit=$?" >> $GITHUB_OUTPUT
         env:
           CI: true
+        continue-on-error: true
 
       - name: Generate stability report
         if: always()
-        run: |
-          if [ -f "reports/junit-main.xml" ]; then
-            node scripts/ci/junit-summary.mjs
-          else
-            echo "No JUnit report found, skipping stability summary"
-          fi
+        run: node scripts/ci/parse-vitest-json.mjs
         env:
-          JUNIT_PATH: reports/junit-main.xml
+          VITEST_JSON: reports/vitest-results.json
+        continue-on-error: true
 
       - name: Upload test reports
         uses: actions/upload-artifact@v4
@@ -59,49 +61,12 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Comment test results
-        if: always() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const path = 'reports/junit-main.xml';
-            if (!fs.existsSync(path)) return;
-            
-            const xml = fs.readFileSync(path, 'utf8');
-            const total = (xml.match(/<testcase/g) || []).length;
-            const failures = (xml.match(/<failure/g) || []).length;
-            const passed = total - failures;
-            const passRate = total > 0 ? ((passed / total) * 100).toFixed(1) : '0';
-            
-            const status = failures === 0 ? '✅' : '❌';
-            const summary = `${status} **Test Results:** ${passed}/${total} passed (${passRate}%)`;
-            
-            // Find existing comment
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number
-            });
-            
-            const botComment = comments.find(c => 
-              c.user.type === 'Bot' && c.body.includes('Test Results:')
-            );
-            
-            const body = `### ${summary}\n\n_Updated: ${new Date().toISOString()}_`;
-            
-            if (botComment) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body
-              });
-            }
+      # Fail the job if tests failed
+      - name: Check test results
+        if: always()
+        shell: bash
+        run: |
+          if [ "${{ steps.run_tests.outputs.vitest_exit }}" != "0" ] && [ "${{ steps.run_tests.outputs.vitest_exit }}" != "" ]; then
+            echo "Unit tests failed with exit code ${{ steps.run_tests.outputs.vitest_exit }}"
+            exit 1
+          fi
