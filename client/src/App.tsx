@@ -22,12 +22,12 @@ const Dashboard = React.lazy(() => import("@/pages/dashboard"));
 const Portfolio = React.lazy(() => import("@/pages/portfolio"));
 const Investments = React.lazy(() => import("@/pages/investments"));
 const Planning = React.lazy(() => import("@/pages/planning"));
-// Keep these eager-loaded as they're critical path
-import FundSetup from "@/pages/fund-setup";
-import DesignSystem from "@/pages/design-system";
-import InvestmentDetail from "@/pages/investment-detail";
-import KPIManager from "@/pages/kpi-manager";
-import KPISubmission from "@/pages/kpi-submission";
+// Lazy load non-critical routes for bundle optimization
+const FundSetup = React.lazy(() => import("@/pages/fund-setup"));
+const DesignSystem = React.lazy(() => import("@/pages/design-system"));
+const InvestmentDetail = React.lazy(() => import("@/pages/investment-detail"));
+const KPIManager = React.lazy(() => import("@/pages/kpi-manager"));
+const KPISubmission = React.lazy(() => import("@/pages/kpi-submission"));
 const ForecastingPage = React.lazy(() => import("@/pages/forecasting"));
 const ScenarioBuilderPage = React.lazy(() => import("@/pages/scenario-builder"));
 const ReservesDemo = React.lazy(() => import("@/pages/reserves-demo"));
@@ -38,14 +38,14 @@ const FinancialModeling = React.lazy(() => import("@/pages/financial-modeling"))
 const Performance = React.lazy(() => import("@/pages/performance"));
 const Analytics = React.lazy(() => import("@/pages/analytics"));
 const Reports = React.lazy(() => import("@/pages/reports"));
-import AllocationManagerPage from "@/pages/allocation-manager";
-import NotFound from "@/pages/not-found";
-import EnhancedPortfolioAnalytics from "@/components/portfolio/enhanced-portfolio-analytics";
-import CustomFields from "@/pages/CustomFields";
-import InvestmentsTable from "@/pages/investments-table";
-import CapTables from "@/pages/CapTables";
-import CashManagement from "@/pages/cash-management";
-import SensitivityAnalysisPage from "@/pages/sensitivity-analysis";
+const AllocationManagerPage = React.lazy(() => import("@/pages/allocation-manager"));
+const NotFound = React.lazy(() => import("@/pages/not-found"));
+const EnhancedPortfolioAnalytics = React.lazy(() => import("@/components/portfolio/enhanced-portfolio-analytics"));
+const CustomFields = React.lazy(() => import("@/pages/CustomFields"));
+const InvestmentsTable = React.lazy(() => import("@/pages/investments-table"));
+const CapTables = React.lazy(() => import("@/pages/CapTables"));
+const CashManagement = React.lazy(() => import("@/pages/cash-management"));
+const SensitivityAnalysisPage = React.lazy(() => import("@/pages/sensitivity-analysis"));
 
 const moduleConfig = {
   dashboard: {

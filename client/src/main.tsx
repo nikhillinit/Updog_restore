@@ -6,7 +6,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
-import { startVitals } from "./vitals";
+// Vitals loaded dynamically in production
 
 // Emergency rollback failsafe - provides backdoor even if env vars are stuck
 function checkEmergencyRollback() {
@@ -56,7 +56,9 @@ if (import.meta.env.PROD) {
     });
   }
   // Start Web Vitals collection after app mounts
-  requestIdleCallback(() => startVitals());
+  requestIdleCallback(() => {
+    import('./vitals').then(({ startVitals }) => startVitals());
+  });
 }
 
 const rootElement = document.getElementById("root");
