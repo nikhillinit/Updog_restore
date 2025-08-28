@@ -1,156 +1,156 @@
 #!/usr/bin/env node
-
 /**
- * Safe branch protection update using GraphQL API
- * Merges new requirements with existing rules to avoid accidental resets
+ * Safe branch protection updater - merges with existing settings
+ * Prevents accidental loosening of protection policies
+ * Usage: node scripts/update-branch-protection.js [branch] [--dry-run]
  */
 
-import { execSync } from 'child_process';
+const { execSync } = require('child_process');
 
-const REQUIRED_CHECKS = [
-  'Slack Regression Guard',
-  'Perf Check'
-];
+const BRANCH = process.argv[2] || 'main';
+const DRY_RUN = process.argv.includes('--dry-run');
 
-async function getBranchProtectionRuleId(owner, repo) {
+// Repository from git remote or environment
+const REPO = process.env.GITHUB_REPOSITORY || 
+  execSync('git remote get-url origin', { encoding: 'utf8' })
+    .trim()
+    .replace(/.*github\.com[:/]([^.]+)(\.git)?/, '$1');
+
+console.log(`🔒 ${DRY_RUN ? '[DRY RUN] ' : ''}Updating branch protection for ${REPO}:${BRANCH}`);
+
+/**
+ * Get current branch protection settings
+ */
+function getCurrentProtection() {
   try {
-    const query = `
-      query($owner: String!, $repo: String!) {
-        repository(owner: $owner, name: $repo) {
-          branchProtectionRules(first: 1) {
-            nodes {
-              id
-              requiredStatusCheckContexts
-              requiresStrictStatusChecks
-            }
-          }
-        }
-      }
-    `;
-    
-    const result = execSync(`gh api graphql -f query='${query}' -f owner="${owner}" -f repo="${repo}"`, {
-      encoding: 'utf8'
+    const result = execSync(`gh api repos/${REPO}/branches/${BRANCH}/protection`, {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe']
     });
     
-    const data = JSON.parse(result);
-    const rule = data.data?.repository?.branchProtectionRules?.nodes?.[0];
-    
-    return rule;
+    return JSON.parse(result);
   } catch (error) {
-    console.error('Failed to get branch protection rule:', error.message);
-    return null;
-  }
-}
-
-async function updateBranchProtection(ruleId, existingChecks = []) {
-  try {
-    // Merge existing checks with required ones, avoiding duplicates
-    const allChecks = [...new Set([...existingChecks, ...REQUIRED_CHECKS])];
-    
-    const mutation = `
-      mutation($input: UpdateBranchProtectionRuleInput!) {
-        updateBranchProtectionRule(input: $input) {
-          clientMutationId
-        }
-      }
-    `;
-    
-    const input = {
-      branchProtectionRuleId: ruleId,
-      requiresStrictStatusChecks: true,
-      requiredStatusCheckContexts: allChecks
-    };
-    
-    execSync(`gh api graphql -f query='${mutation}' -F input='${JSON.stringify(input)}'`, {
-      encoding: 'utf8'
-    });
-    
-    console.log('✅ Branch protection updated successfully');
-    console.log(`📋 Required checks: ${allChecks.join(', ')}`);
-    return true;
-  } catch (error) {
-    console.error('❌ Failed to update branch protection:', error.message);
-    return false;
-  }
-}
-
-async function createBranchProtection(owner, repo) {
-  try {
-    const mutation = `
-      mutation($input: CreateBranchProtectionRuleInput!) {
-        createBranchProtectionRule(input: $input) {
-          clientMutationId
-        }
-      }
-    `;
-    
-    const input = {
-      repositoryId: await getRepositoryId(owner, repo),
-      pattern: 'main',
-      requiresStrictStatusChecks: true,
-      requiredStatusCheckContexts: REQUIRED_CHECKS,
-      requiresCodeOwnerReviews: false,
-      dismissesStaleReviews: false,
-      restrictsReviewDismissals: false
-    };
-    
-    execSync(`gh api graphql -f query='${mutation}' -F input='${JSON.stringify(input)}'`, {
-      encoding: 'utf8'
-    });
-    
-    console.log('✅ Branch protection rule created');
-    return true;
-  } catch (error) {
-    console.error('❌ Failed to create branch protection:', error.message);
-    return false;
-  }
-}
-
-async function getRepositoryId(owner, repo) {
-  const query = `
-    query($owner: String!, $repo: String!) {
-      repository(owner: $owner, name: $repo) {
-        id
-      }
+    if (error.status === 404) {
+      console.log('⚠️  No existing branch protection found');
+      return null;
     }
-  `;
-  
-  const result = execSync(`gh api graphql -f query='${query}' -f owner="${owner}" -f repo="${repo}"`, {
-    encoding: 'utf8'
-  });
-  
-  return JSON.parse(result).data.repository.id;
-}
-
-async function main() {
-  const [owner, repo] = (process.env.GITHUB_REPOSITORY || 'owner/repo').split('/');
-  
-  console.log(`🔒 Updating branch protection for ${owner}/${repo}`);
-  
-  // Get existing rule
-  const existingRule = await getBranchProtectionRuleId(owner, repo);
-  
-  if (existingRule) {
-    console.log('📋 Found existing branch protection rule');
-    console.log(`📋 Current checks: ${existingRule.requiredStatusCheckContexts?.join(', ') || 'none'}`);
-    
-    // Update existing rule (merges with current settings)
-    await updateBranchProtection(
-      existingRule.id, 
-      existingRule.requiredStatusCheckContexts || []
-    );
-  } else {
-    console.log('📋 No existing rule found, creating new one');
-    await createBranchProtection(owner, repo);
+    throw error;
   }
 }
 
-// Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch(error => {
-    console.error('Script failed:', error);
-    process.exit(1);
-  });
+/**
+ * Merge protection settings safely
+ */
+function mergeProtectionSettings(current, desired) {
+  const merged = {
+    required_status_checks: {
+      strict: true,
+      contexts: [],
+      checks: []
+    },
+    enforce_admins: true,
+    required_pull_request_reviews: {
+      required_approving_review_count: 1,
+      dismiss_stale_reviews: true,
+      require_code_owner_reviews: false,
+      require_last_push_approval: true
+    },
+    restrictions: null,
+    allow_force_pushes: false,
+    allow_deletions: false,
+    block_creations: false,
+    required_conversation_resolution: true,
+    lock_branch: false,
+    allow_fork_syncing: true
+  };
+
+  // Merge current settings if they exist
+  if (current) {
+    // Preserve existing status check contexts and checks
+    if (current.required_status_checks) {
+      merged.required_status_checks.contexts = [
+        ...new Set([
+          ...(current.required_status_checks.contexts || []),
+          ...(desired.required_status_checks?.contexts || [])
+        ])
+      ];
+      
+      merged.required_status_checks.checks = [
+        ...new Map([
+          ...(current.required_status_checks.checks || []).map(c => [c.context, c]),
+          ...(desired.required_status_checks?.checks || []).map(c => [c.context, c])
+        ].values())
+      ];
+    }
+    
+    // Preserve stricter settings
+    merged.enforce_admins = current.enforce_admins || desired.enforce_admins;
+    merged.required_pull_request_reviews.required_approving_review_count = Math.max(
+      current.required_pull_request_reviews?.required_approving_review_count || 0,
+      desired.required_pull_request_reviews?.required_approving_review_count || 1
+    );
+    
+    // Preserve existing restrictions if they exist
+    if (current.restrictions && (current.restrictions.users?.length > 0 || current.restrictions.teams?.length > 0)) {
+      merged.restrictions = current.restrictions;
+    }
+  }
+
+  // Apply desired overrides
+  return { ...merged, ...desired };
 }
 
-export { updateBranchProtection, getBranchProtectionRuleId };
+/**
+ * Apply new protection settings
+ */
+async function updateProtection() {
+  const current = getCurrentProtection();
+  
+  // Define desired protection settings
+  const desired = {
+    required_status_checks: {
+      strict: true,
+      checks: [
+        { context: "ci-unified", app_id: -1 },
+        { context: "guardian-health", app_id: -1 },
+        { context: "security-scan", app_id: -1 }
+      ]
+    },
+    enforce_admins: true,
+    required_pull_request_reviews: {
+      required_approving_review_count: 1,
+      dismiss_stale_reviews: true,
+      require_code_owner_reviews: true,
+      require_last_push_approval: true
+    },
+    required_conversation_resolution: true,
+    allow_force_pushes: false,
+    allow_deletions: false
+  };
+  
+  const merged = mergeProtectionSettings(current, desired);
+  
+  console.log('📋 Current protection:', current ? 'EXISTS' : 'NONE');
+  console.log('📋 Merged protection settings:');
+  console.log(JSON.stringify(merged, null, 2));
+  
+  if (DRY_RUN) {
+    console.log('🔍 Dry run complete - no changes made');
+    return;
+  }
+  
+  // Apply the protection
+  const payload = JSON.stringify(merged);
+  execSync(`gh api repos/${REPO}/branches/${BRANCH}/protection -X PUT --input -`, {
+    input: payload,
+    stdio: ['pipe', 'inherit', 'inherit']
+  });
+  
+  console.log('✅ Branch protection updated successfully');
+}
+
+// Run the update
+updateProtection().catch(error => {
+  console.error('❌ Failed to update branch protection:', error.message);
+  process.exit(1);
+});

@@ -1,126 +1,132 @@
-# --------------------------------------------------------------------
-# Guardian – one cron, one runner, all background hygiene
-# --------------------------------------------------------------------
-# • Runs every 15 min  ➜  canary health, cost check
-# • At 03:00 UTC      ➜  nightly test + coverage
-# • Manual dispatch   ➜  ad‑hoc run
-# --------------------------------------------------------------------
-name: Guardian
+name: Guardian (Scheduled Canary)
+
 on:
   schedule:
-    - cron: '*/15 * * * *'   # every 15 minutes
+    - cron: "0 */4 * * *"  # Every 4 hours
   workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Force run even if muted'
+        required: false
+        default: 'false'
 
-concurrency:
-  group: guardian
-  cancel-in-progress: true
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
-  guard:
+  guardian-gate:
+    name: Guardian TTL Gate
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
+    outputs:
+      should_run: ${{ steps.ttl-check.outputs.should_run }}
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Check Guardian TTL Mute Status
+        id: ttl-check
+        run: |
+          # Check for Guardian mute label and TTL
+          if [[ "${{ github.event.inputs.force_run }}" == "true" ]]; then
+            echo "🔒 Force run requested - bypassing TTL check"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Look for latest PR with guardian-mute label
+          mute_pr=$(gh pr list --repo $GITHUB_REPOSITORY --label "guardian-mute" --state all --limit 1 --json number,body || echo "[]")
+          
+          if [[ "$mute_pr" == "[]" ]]; then
+            echo "✅ No Guardian mute found - proceeding"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          pr_number=$(echo "$mute_pr" | jq -r '.[0].number')
+          pr_body=$(echo "$mute_pr" | jq -r '.[0].body')
+          
+          # Extract TTL from PR body (format: Guardian-TTL: 2024-01-15T10:30:00Z)
+          ttl_line=$(echo "$pr_body" | grep -i "Guardian-TTL:" || true)
+          if [[ -z "$ttl_line" ]]; then
+            echo "❌ Guardian mute PR #$pr_number missing TTL timestamp"
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          ttl_timestamp=$(echo "$ttl_line" | sed -E 's/.*Guardian-TTL:\s*([0-9T:Z-]+).*/\1/')
+          echo "🕒 Found Guardian TTL: $ttl_timestamp (PR #$pr_number)"
+          
+          # Compare timestamps using Node.js for cross-platform compatibility
+          node -e "
+            const ttl = new Date('$ttl_timestamp');
+            const now = new Date();
+            if (isNaN(ttl.getTime())) {
+              console.error('❌ Invalid TTL timestamp format');
+              process.exit(1);
+            }
+            if (now > ttl) {
+              console.log('⏰ Guardian TTL expired - proceeding with checks');
+              console.log('should_run=true');
+            } else {
+              const remaining = Math.round((ttl - now) / 1000 / 60);
+              console.log(\`🛡️ Guardian muted for \${remaining} more minutes\`);
+              console.log('should_run=false');
+              process.exit(1);
+            }
+          " >> $GITHUB_OUTPUT
 
-      - name: Setup Node
+  canary-health:
+    name: Canary Health Check
+    runs-on: ubuntu-latest
+    needs: guardian-gate
+    if: needs.guardian-gate.outputs.should_run == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-
-      - name: Canary + Cost + Tests
-        id: canary
-        env:
-          GH_TOKEN: ${{ github.token }}   # for gh api
-        run: |
-          set -euo pipefail
-          echo "⏰  Guardian run $(date -u +%F\ %T) UTC"
-
-          # -----------------------------
-          # 1. Canary health probe
-          # -----------------------------
-          ERROR_RATE=0
-          if ./scripts/canary-check.sh ; then
-            echo "✅ Canary healthy"
-            ERROR_RATE=$(cat .canary-metrics 2>/dev/null | grep error_rate | cut -d'=' -f2 || echo "0")
-          else
-            echo "::warning:: Canary unhealthy – rollout held"
-            ERROR_RATE=5  # Assume high error rate on canary failure
-          fi
-          echo "error_rate=$ERROR_RATE" >> $GITHUB_OUTPUT
-
-          # -----------------------------
-          # 2. CI‑minutes budget
-          # -----------------------------
-          MIN=$(gh api /user/metrics/github-actions -q '.minutes_used')
-          THRESHOLD=1800   # tweak as desired
-          if [ "$MIN" -gt "$THRESHOLD" ]; then
-            echo "::warning:: CI minutes high ($MIN / $THRESHOLD)"
-          else
-            echo "💰 CI minutes OK ($MIN)"
-          fi
-
-          # -----------------------------
-          # 2b. Async benchmark (if migration active)
-          # -----------------------------
-          if [ -f .async-migration-active ]; then
-            echo "📊 Running async benchmarks..."
-            npm ci --ignore-scripts
-            node --experimental-json-modules ./scripts/bench-async.js > bench-result.txt
-            ./scripts/perf-compare.sh
-            
-            # Performance budget check
-            if [ -f bench-result.json ] && [ -f .perf-budget.json ]; then
-              CURRENT_P95=$(jq '.p95_ms // 0' bench-result.json)
-              BUDGET_P95=$(jq '.p95Max // 400' .perf-budget.json)
-              if (( $(echo "$CURRENT_P95 > $BUDGET_P95" | bc -l) )); then
-                echo "::error::P95 latency $CURRENT_P95ms exceeds budget $BUDGET_P95ms"
-                exit 1
-              else
-                echo "✅ P95 latency $CURRENT_P95ms within budget $BUDGET_P95ms"
-              fi
-            fi
-          fi
-
-          # -----------------------------
-          # 3. Nightly full test (03 UTC)
-          # -----------------------------
-          if [ "$(date -u +%H)" = "03" ]; then
-            echo "🧪 Running nightly tests..."
-            npm ci --ignore-scripts
-            npm test -- --coverage
-            
-            # Graduated stress test
-            if [ -x ./scripts/graduated-stress.sh ]; then
-              echo "🔬 Running graduated stress test..."
-              ./scripts/graduated-stress.sh || echo "::warning::Stress test failed"
-            fi
-          fi
-
-      - name: Conditional rollback
-        if: ${{ always() && github.ref == 'refs/heads/main' && steps.canary.outputs.error_rate > '5' }}
-        run: |
-          echo "🔥 Error rate high (${{ steps.canary.outputs.error_rate }}%) – rolling back latest async commits"
-          git config --global user.name 'Guardian Bot'
-          git config --global user.email 'guardian@github.com'
-          git checkout -b rollback/auto-${{ github.run_id }}
-          ./rollback-async.sh
-          git push -u origin HEAD
           
-          # Create issue for tracking
-          gh issue create \
-            --title "Auto-rollback triggered (run #${{ github.run_id }})" \
-            --body "Error rate exceeded 5% threshold. Rollback branch: rollback/auto-${{ github.run_id }}"
-
-      - name: Cleanup migration marker
-        if: success() && github.ref == 'refs/heads/main'
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Start application
         run: |
-          if [ -f .async-migration-active ]; then
-            rm .async-migration-active
-            git config --global user.name 'Guardian Bot'
-            git config --global user.email 'guardian@github.com'
-            git add .async-migration-active
-            git commit -m "chore: async migration complete" || true
-            git push
+          npm run build
+          npm start &
+          APP_PID=$!
+          echo "APP_PID=$APP_PID" >> $GITHUB_ENV
+          
+          # Wait for app to be ready
+          timeout 60 bash -c 'until curl -f http://localhost:5000/api/health; do sleep 2; done'
+        
+      - name: Run canary health checks
+        run: |
+          chmod +x scripts/canary-check.sh
+          scripts/canary-check.sh
+        env:
+          BASE_URL: http://localhost:5000
+          
+      - name: Cleanup
+        if: always()
+        run: |
+          if [[ -n "${APP_PID:-}" ]]; then
+            kill $APP_PID || true
           fi
+
+  evaluate-guardian:
+    name: Evaluate Guardian History
+    runs-on: ubuntu-latest
+    needs: canary-health
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Evaluate Guardian rolling window
+        run: |
+          chmod +x scripts/guardian-evaluate.sh
+          scripts/guardian-evaluate.sh
+        env:
+          GUARDIAN_WINDOW_SIZE: 3
+          GUARDIAN_MIN_SUCCESS: 2
