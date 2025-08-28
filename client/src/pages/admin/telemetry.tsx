@@ -47,17 +47,17 @@ export default function TelemetryDashboard() {
 
   // Calculate stats
   const now = Date.now();
-  const last24h = events.filter(e => now - e.t < 24 * 60 * 60 * 1000);
-  const lastHour = events.filter(e => now - e.t < 60 * 60 * 1000);
+  const last24h = events.filter(e => now - e['t'] < 24 * 60 * 60 * 1000);
+  const lastHour = events.filter(e => now - e['t'] < 60 * 60 * 1000);
   
-  const migrations = events.filter(e => e.category === 'migration');
-  const errors = events.filter(e => e.category === 'error');
-  const features = events.filter(e => e.category === 'feature');
+  const migrations = events.filter(e => e['category'] === 'migration');
+  const errors = events.filter(e => e['category'] === 'error');
+  const features = events.filter(e => e['category'] === 'feature');
   
-  const migrationSuccess = migrations.filter(e => e.ok !== false).length;
-  const migrationErrors = migrations.filter(e => e.ok === false).length;
+  const migrationSuccess = migrations.filter(e => e['ok'] !== false).length;
+  const migrationErrors = migrations.filter(e => e['ok'] === false).length;
   
-  const recentErrors = errors.filter(e => now - e.t < 60 * 60 * 1000);
+  const recentErrors = errors.filter(e => now - e['t'] < 60 * 60 * 1000);
   const errorRate = lastHour.length > 0 ? (recentErrors.length / lastHour.length) * 100 : 0;
 
   return (
@@ -121,31 +121,31 @@ export default function TelemetryDashboard() {
           ) : (
             <div className="divide-y divide-gray-200">
               {events.slice(-20).reverse().map((event, idx) => (
-                <div key={`${event.t}-${idx}`} className="px-6 py-4 hover:bg-gray-50">
+                <div key={`${event['t']}-${idx}`} className="px-6 py-4 hover:bg-gray-50">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div className={`w-2 h-2 rounded-full ${
-                        event.category === 'error' ? 'bg-red-500' :
-                        event.category === 'migration' ? 'bg-blue-500' :
+                        event['category'] === 'error' ? 'bg-red-500' :
+                        event['category'] === 'migration' ? 'bg-blue-500' :
                         'bg-green-500'
                       }`} />
                       <span className="font-medium text-gray-900">
-                        [{event.category}] {event.event}
+                        [{event['category']}] {event.event}
                       </span>
-                      {event.ok === false && (
+                      {event['ok'] === false && (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                           Failed
                         </span>
                       )}
                     </div>
                     <div className="text-sm text-gray-500">
-                      {new Date(event.t).toLocaleTimeString()}
+                      {new Date(event['t']).toLocaleTimeString()}
                     </div>
                   </div>
-                  {event.meta && Object.keys(event.meta).length > 0 && (
+                  {event['meta'] && Object.keys(event['meta']).length > 0 && (
                     <div className="mt-2 text-sm text-gray-600 ml-5">
                       <pre className="whitespace-pre-wrap">
-                        {JSON.stringify(event.meta, null, 2)}
+                        {JSON.stringify(event['meta'], null, 2)}
                       </pre>
                     </div>
                   )}

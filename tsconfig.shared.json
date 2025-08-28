@@ -4,7 +4,7 @@
     "composite": true,
     "tsBuildInfoFile": "./.tsbuildinfo.shared",
     "strict": true,
-    "noUncheckedIndexedAccess": false,  // Phase 2 - enable after boundary fix
+    "noUncheckedIndexedAccess": false,  // Phase 2 - enable after client adapters fixed
     "exactOptionalPropertyTypes": false,  // Phase 3 - enable after chart consolidation
     "noPropertyAccessFromIndexSignature": true,
     "skipLibCheck": true

@@ -4,17 +4,70 @@
  * within acceptable tolerance levels
  */
 
-import { ConstrainedReserveEngine } from '@shared/core/reserves/ConstrainedReserveEngine';
+// import { ConstrainedReserveEngine } from '@shared/core/reserves/ConstrainedReserveEngine';
 import type { Company, StagePolicy, ReserveConstraints } from '@/types/domain-min';
+
+// Extended Company type for parity validation
+interface ParityCompany extends Company {
+  invested?: number;
+  ownership?: number;
+  currentValuation?: number;
+}
+
+// Extended StagePolicy for parity validation
+interface ParityStagePolicy extends Omit<StagePolicy, 'max_check_size_cents' | 'reserve_ratio'> {
+  reserveMultiple?: number;
+  weight?: number;
+  maxInvestment?: number;
+  max_check_size_cents?: number;
+  reserve_ratio?: number;
+}
+
+// Extended constraints for parity
+interface ParityConstraints {
+  minCheckSize?: number;
+  maxPerCompany?: number;
+  min_reserve_cents?: number;
+  max_reserve_cents?: number;
+  target_reserve_months?: number;
+  max_concentration_percent?: number;
+}
+
+// Normalize input to match expected types
+function toCompany(input: ParityCompany): Company {
+  return {
+    id: input.id,
+    name: input.name,
+    stage: input.stage,
+    allocated: input.allocated
+  };
+}
+
+function toStagePolicy(input: ParityStagePolicy): StagePolicy {
+  return {
+    stage: input.stage,
+    max_check_size_cents: input.max_check_size_cents ?? (input.maxInvestment ? input.maxInvestment * 100 : 0),
+    reserve_ratio: input.reserve_ratio ?? input.reserveMultiple ?? 1.0
+  };
+}
+
+function toConstraints(input: ParityConstraints): ReserveConstraints {
+  return {
+    min_reserve_cents: input.min_reserve_cents ?? (input.minCheckSize ? input.minCheckSize * 100 : 0),
+    max_reserve_cents: input.max_reserve_cents ?? (input.maxPerCompany ? input.maxPerCompany * 100 : 0),
+    target_reserve_months: input.target_reserve_months ?? 18,
+    max_concentration_percent: input.max_concentration_percent ?? 20
+  };
+}
 
 export interface ParityDataset {
   name: string;
   description: string;
   input: {
-    companies: Company[];
+    companies: ParityCompany[];
     availableReserves: number;
-    policies: StagePolicy[];
-    constraints?: ReserveConstraints;
+    policies: ParityStagePolicy[];
+    constraints?: ParityConstraints;
   };
   expectedOutput: {
     totalAllocated: number;
@@ -73,7 +126,7 @@ export class ExcelParityValidator {
             id: 'c1',
             name: 'TechCo',
             stage: 'seed',
-            invested: 1000000,
+            invested: 1000000, // Parity-specific field
             ownership: 0.15,
             currentValuation: 5000000,
           },
@@ -81,7 +134,7 @@ export class ExcelParityValidator {
             id: 'c2',
             name: 'BioStartup',
             stage: 'seed',
-            invested: 500000,
+            invested: 500000, // Parity-specific field
             ownership: 0.10,
             currentValuation: 2000000,
           },
@@ -89,7 +142,7 @@ export class ExcelParityValidator {
             id: 'c3',
             name: 'AIVenture',
             stage: 'seed',
-            invested: 750000,
+            invested: 750000, // Parity-specific field
             ownership: 0.12,
             currentValuation: 3000000,
           },
