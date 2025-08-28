@@ -34,6 +34,30 @@ Commands:
     --draft-pr            Create draft PR with repairs
     --verbose             Show detailed output
 
+  bundle-analyze          Analyze current bundle composition
+    --format <type>       Output format (json|text)
+    --output <file>       Save output to file
+    
+  bundle-optimize         Run bundle optimization agent  
+    --target <kb>         Target bundle size in KB (default: 400)
+    --strategy <type>     Optimization strategy (safe|balanced|aggressive)
+    --preserve            Preserve functionality (run tests)
+    
+  deps-analyze            Analyze dependencies for optimization
+    --unused              Check for unused dependencies
+    --heavy               Check for heavy dependencies
+    --duplicates          Check for duplicate dependencies
+    
+  routes-optimize         Optimize route loading
+    --analyze-usage       Analyze route usage patterns
+    --implement           Apply optimizations
+    --preserve <routes>   Routes to keep eagerly loaded
+    
+  bundle-orchestrate      Run full optimization pipeline
+    --target <kb>         Target bundle size in KB
+    --strategy <type>     Strategy (safe|balanced|aggressive)
+    --dry-run            Preview changes without applying
+
   status                  Show current project status
   
   metrics                 Show agent metrics endpoint
@@ -253,6 +277,72 @@ async function main() {
 
       case 'status': {
         await getProjectStatus();
+        break;
+      }
+
+      case 'bundle-analyze': {
+        const { spawn } = await import('child_process');
+        const formatArg = commandArgs.find(arg => arg.startsWith('--format'));
+        const outputArg = commandArgs.find(arg => arg.startsWith('--output'));
+        
+        const args = ['scripts/ai-tools/bundle-analyzer.mjs', 'analyze'];
+        if (formatArg) args.push('--format', formatArg.split('=')[1] || 'json');
+        if (outputArg) args.push('--output', outputArg.split('=')[1]);
+        
+        const child = spawn('node', args, { stdio: 'inherit' });
+        child.on('exit', code => process.exit(code));
+        break;
+      }
+
+      case 'bundle-optimize': {
+        const { spawn } = await import('child_process');
+        const targetArg = commandArgs.find(arg => arg.startsWith('--target'));
+        const strategyArg = commandArgs.find(arg => arg.startsWith('--strategy'));
+        
+        const args = ['scripts/ai-tools/bundle-analyzer.mjs', 'optimize'];
+        if (targetArg) args.push('--target', targetArg.split('=')[1] || '400');
+        if (strategyArg) args.push('--strategy', strategyArg.split('=')[1] || 'balanced');
+        if (commandArgs.includes('--preserve')) args.push('--preserve');
+        
+        const child = spawn('node', args, { stdio: 'inherit' });
+        child.on('exit', code => process.exit(code));
+        break;
+      }
+
+      case 'deps-analyze': {
+        const { spawn } = await import('child_process');
+        const args = ['scripts/ai-tools/bundle-analyzer.mjs', 'deps'];
+        if (commandArgs.includes('--verbose')) args.push('--verbose');
+        
+        const child = spawn('node', args, { stdio: 'inherit' });
+        child.on('exit', code => process.exit(code));
+        break;
+      }
+
+      case 'routes-optimize': {
+        const { spawn } = await import('child_process');
+        const args = ['scripts/ai-tools/bundle-analyzer.mjs', 'routes'];
+        if (commandArgs.includes('--analyze-usage')) args.push('--analyze-usage');
+        if (commandArgs.includes('--implement')) args.push('--apply');
+        if (commandArgs.includes('--verbose')) args.push('--verbose');
+        
+        const child = spawn('node', args, { stdio: 'inherit' });
+        child.on('exit', code => process.exit(code));
+        break;
+      }
+
+      case 'bundle-orchestrate': {
+        const { spawn } = await import('child_process');
+        const targetArg = commandArgs.find(arg => arg.startsWith('--target'));
+        const strategyArg = commandArgs.find(arg => arg.startsWith('--strategy'));
+        
+        const args = ['scripts/ai-tools/orchestrate-bundle-optimization.mjs'];
+        if (targetArg) args.push('--target', targetArg.split('=')[1] || '400');
+        if (strategyArg) args.push('--strategy', strategyArg.split('=')[1] || 'balanced');
+        if (commandArgs.includes('--dry-run')) args.push('--dry-run');
+        
+        const child = spawn('node', args, { stdio: 'inherit' });
+        child.on('exit', code => process.exit(code));
         break;
       }
 
