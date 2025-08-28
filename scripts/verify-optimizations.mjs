@@ -28,14 +28,26 @@ let primarySize = 0;
 
 for (const chunk of allChunks) {
   const content = readFileSync(chunk, 'utf8');
+  const filename = path.basename(chunk);
   
-  // React signatures
-  if (/react\.production\.min|Scheduler|__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED/.test(content)) {
+  // React signatures - very specific to React
+  if (/react\.production\.min|__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED|ReactCurrentDispatcher|ReactCurrentBatchConfig/.test(content)) {
     anyReactCode = true;
+    console.log(`   ⚠️  React detected in: ${filename}`);
   }
   
-  // Preact signatures  
-  if (/preact\/compat|preact\/jsx-runtime|preact\/hooks|options\.vnode/.test(content)) {
+  // Preact signatures - look for multiple indicators
+  const preactIndicators = [
+    /preact\/compat/,
+    /preact\/jsx-runtime/,
+    /preact\/hooks/,
+    /options\.vnode/,
+    /__u\s*&&\s*__u\(/,  // Preact's unmount hook
+    /options\._diff/,     // Preact's diff hook
+    /\/\*\*\s*@license\s*preact/i
+  ];
+  
+  if (preactIndicators.some(pattern => pattern.test(content))) {
     anyPreactCode = true;
     
     // Track largest preact chunk
@@ -46,10 +58,17 @@ for (const chunk of allChunks) {
     }
   }
   
-  // Also check for vendor-react chunks
-  if (chunk.includes('vendor-react')) {
+  // Check for vendor-preact or vendor-react chunks
+  if (chunk.includes('vendor-preact')) {
     const size = readFileSync(chunk).length / 1024;
-    console.log(`   📦 vendor-react size: ${size.toFixed(1)} KB`);
+    console.log(`   ✅ vendor-preact found: ${size.toFixed(1)} KB`);
+    anyPreactCode = true;
+    primaryChunk = chunk;
+    primarySize = size;
+  } else if (chunk.includes('vendor-react')) {
+    const size = readFileSync(chunk).length / 1024;
+    console.log(`   ⚠️  vendor-react found: ${size.toFixed(1)} KB`);
+    anyReactCode = true;
     primaryChunk = chunk;
     primarySize = size;
   }

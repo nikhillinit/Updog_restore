@@ -17,14 +17,23 @@ const ChartPlaceholder = ({ title, height = "h-80" }: { title: string; height?: 
     <p className="text-gray-400 text-sm mt-1">Chart placeholder - data available via API</p>
   </div>
 );
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useFundContext } from "@/contexts/FundContext";
-import ReserveAllocationChart from "@/components/charts/reserve-allocation-chart";
-import PacingTimelineChart from "@/components/charts/pacing-timeline-chart";
 import { 
   TrendingUp, TrendingDown, BarChart3, PieChart, Activity, 
   Target, Calendar, Filter, Download 
 } from "lucide-react";
+
+// Lazy load chart components to prevent Recharts from loading in analytics chunk
+const ReserveAllocationChart = lazy(() => import("@/components/charts/reserve-allocation-chart"));
+const PacingTimelineChart = lazy(() => import("@/components/charts/pacing-timeline-chart"));
+
+// Chart loading skeleton
+const ChartSkeleton = () => (
+  <div className="animate-pulse">
+    <div className="h-80 bg-gray-200 rounded-lg"></div>
+  </div>
+);
 
 // Sample analytics data
 const performanceMetrics = [
@@ -197,10 +206,14 @@ export default function Analytics() {
           {/* Engine-Powered Reserve Allocations */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="lg:col-span-1">
-              <ReserveAllocationChart fundId={currentFund?.id || 1} />
+              <Suspense fallback={<ChartSkeleton />}>
+                <ReserveAllocationChart fundId={currentFund?.id || 1} />
+              </Suspense>
             </div>
             <div className="lg:col-span-1">
-              <PacingTimelineChart />
+              <Suspense fallback={<ChartSkeleton />}>
+                <PacingTimelineChart />
+              </Suspense>
             </div>
           </div>
 

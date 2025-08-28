@@ -4,7 +4,7 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import React from 'react';
-import { format } from 'date-fns';
+import { format } from 'date-fns/format';
 import { cn } from '@/lib/utils';
 
 // Chart libraries removed for bundle optimization

@@ -5,7 +5,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowUp, FileCheck, TrendingUp } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns/formatDistanceToNow";
 
 interface Activity {
   id: number;

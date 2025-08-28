@@ -1,20 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
 import React from 'react';
-import { Pie } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  ArcElement,
-  Tooltip,
-  Legend,
-} from 'chart.js';
+import { PieChart } from 'recharts/es6/chart/PieChart';
+import { Pie } from 'recharts/es6/polar/Pie';
+import { Cell } from 'recharts/es6/component/Cell';
+import { ResponsiveContainer } from 'recharts/es6/component/ResponsiveContainer';
+import { Tooltip } from 'recharts/es6/component/Tooltip';
+import { Legend } from 'recharts/es6/component/Legend';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-// Register Chart.js components
-ChartJS.register(ArcElement, Tooltip, Legend);
 
 interface AllocationData {
   id: string;
@@ -29,45 +20,38 @@ interface NivoAllocationPieProps {
   height?: number;
 }
 
+const COLORS = ['#2563eb', '#dc2626', '#16a34a', '#ca8a04', '#7c3aed', '#ea580c'];
+
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0];
+    const total = payload[0].payload.total || 0;
+    const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0';
+    return (
+      <div className="bg-white p-2 border border-gray-200 rounded shadow-lg">
+        <p className="font-semibold">{data.name}</p>
+        <p className="text-sm">
+          ${(data.value / 1000000).toFixed(1)}M ({percentage}%)
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function NivoAllocationPie({ 
   title, 
   data, 
   height = 400 
 }: NivoAllocationPieProps) {
-  const labels = data.map(d => d.label);
-  const values = data.map(d => d.value);
-  const colors = ['#2563eb', '#dc2626', '#16a34a', '#ca8a04', '#7c3aed', '#ea580c'];
-
-  const chartData = {
-    labels,
-    datasets: [
-      {
-        data: values,
-        backgroundColor: colors.slice(0, data.length),
-        borderColor: colors.slice(0, data.length).map(color => color + '80'),
-        borderWidth: 1,
-      },
-    ],
-  };
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom' as const,
-      },
-      tooltip: {
-        callbacks: {
-          label: function(context: any) {
-            const total = values.reduce((sum, val) => sum + val, 0);
-            const percentage = ((context.parsed / total) * 100).toFixed(1);
-            return `${context.label}: $${(context.parsed / 1000000).toFixed(1)}M (${percentage}%)`;
-          },
-        },
-      },
-    },
-  };
+  // Transform data for Recharts
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+  const chartData = data.map((item, index) => ({
+    name: item.label,
+    value: item.value,
+    total: total,
+    fill: item.color || COLORS[index % COLORS.length]
+  }));
 
   return (
     <Card>
@@ -75,11 +59,30 @@ export default function NivoAllocationPie({
         <CardTitle className="text-lg font-semibold">{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div style={{ height: `${height}px` }}>
-          <Pie data={chartData} options={options} />
-        </div>
+        <ResponsiveContainer width="100%" height={height}>
+          <PieChart>
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="50%"
+              labelLine={false}
+              label={({ name, value }) => {
+                const percentage = ((value / total) * 100).toFixed(1);
+                return `${name}: ${percentage}%`;
+              }}
+              outerRadius={80}
+              fill="#8884d8"
+              dataKey="value"
+            >
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.fill} />
+              ))}
+            </Pie>
+            <Tooltip content={<CustomTooltip />} />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
       </CardContent>
     </Card>
   );
 }
-

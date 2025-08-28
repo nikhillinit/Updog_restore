@@ -197,35 +197,55 @@ const sentryOn = !!process.env.VITE_SENTRY_DSN;
 const sentryNoop = path.resolve(import.meta.dirname, 'client/src/monitoring/noop.ts');
 
 // Force Preact alias before any other resolution logic
-function forcePreactAlias() {
+function forcePreactAlias(): import('vite').Plugin {
   return {
     name: 'force-preact-alias',
-    enforce: 'pre' as const,
-    resolveId(source: string) {
+    enforce: 'pre',
+    resolveId(source) {
       if (!preactOn) return null;
-
-      // jsx runtimes
+      
+      if (source === 'react') return this.resolve('preact/compat', undefined, { skipSelf: true });
+      if (source === 'react-dom') return this.resolve('preact/compat', undefined, { skipSelf: true });
+      if (source === 'react-dom/client') return this.resolve('preact/compat', undefined, { skipSelf: true });
       if (source === 'react/jsx-runtime' || source === 'react/jsx-dev-runtime') {
         return this.resolve('preact/jsx-runtime', undefined, { skipSelf: true });
       }
-
-      // react-dom variants
-      if (source === 'react-dom/client' || source === 'react-dom/test-utils' || source === 'react-dom') {
-        return this.resolve('preact/compat', undefined, { skipSelf: true });
-      }
-
-      if (source === 'react') {
-        return this.resolve('preact/compat', undefined, { skipSelf: true });
-      }
-
       return null;
-    }
+    },
+  };
+}
+
+// Forbid React in Preact builds - fail the build if React is detected
+function forbidReactInPreactBuild(): import('vite').Plugin {
+  const REACT_PATH = /\/node_modules\/react(\/|$)/;
+  return {
+    name: 'forbid-react-in-preact-build',
+    enforce: 'post',
+    generateBundle(_, bundle) {
+      if (!preactOn) return;
+      
+      for (const [fileName, chunk] of Object.entries(bundle)) {
+        if (chunk.type === 'chunk') {
+          // Check for React signatures in code
+          if (chunk.code.includes('__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED') ||
+              chunk.code.includes('react.production.min')) {
+            this.error(`React found in Preact build in ${fileName}. Check aliases/pre-bundling.`);
+          }
+          
+          // Check module paths
+          if ('facadeModuleId' in chunk && chunk.facadeModuleId && REACT_PATH.test(chunk.facadeModuleId)) {
+            this.error(`React module found in Preact build: ${chunk.facadeModuleId}`);
+          }
+        }
+      }
+    },
   };
 }
 
 export default defineConfig({
   plugins: [
-    forcePreactAlias(),
+    preactOn && forcePreactAlias(),
+    preactOn && forbidReactInPreactBuild(),
     // Use absolute path so Vite doesn't ever look for "client/client/tsconfig.json"
     tsconfigPaths({
       projects: [path.resolve(import.meta.dirname, 'client/tsconfig.json')],
@@ -238,7 +258,7 @@ export default defineConfig({
     // Conditional React/Preact plugin
     preactOn ? preact({ devToolsInProd: false }) : react(),
     visualizer({ filename: "stats.html", gzipSize: true })
-  ],
+  ].filter(Boolean),
   esbuild: {
     tsconfigRaw: {
       compilerOptions: {
@@ -265,9 +285,11 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: process.env['NODE_ENV'] === 'development',
     minify: 'terser',
+    target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari13.1'],
+    cssMinify: 'lightningcss',
     terserOptions: {
       compress: {
-        passes: 2,
+        passes: 3,
         pure_getters: true,
         reduce_funcs: true,
         dead_code: true,
@@ -277,13 +299,37 @@ export default defineConfig({
         pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.trace'],
         conditionals: true,
         evaluate: true,
+        join_vars: true,
+        loops: true,
+        reduce_vars: true,
+        sequences: true,
+        side_effects: false,
+        switches: true,
+        hoist_funs: true,
+        hoist_props: true,
+        if_return: true,
+        inline: 3,
+        keep_fargs: false,
+        negate_iife: true,
+        properties: true,
+        collapse_vars: true,
+        comparisons: true,
+        computed_props: true,
+        arguments: true,
       },
       mangle: {
         toplevel: true,
         safari10: false,
+        properties: {
+          regex: /^_/
+        }
       },
       format: {
         comments: false,
+        ascii_only: true,
+        beautify: false,
+        braces: false,
+        semicolons: false,
       },
     },
     reportCompressedSize: false,
@@ -295,38 +341,62 @@ export default defineConfig({
           // Sentry dynamic loading
           if (id.includes('node_modules/@sentry')) return 'sentry';
           
-          // Don't split d3 separately - let it stay with recharts
-          // if (id.includes('node_modules/d3')) return 'vendor-d3';
+          // Force ALL d3 modules into vendor-charts to prevent duplication
+          if (/(?:^|[/\\])node_modules[/\\](d3|d3-[^/\\]+)[/\\]/.test(id)) return 'vendor-charts';
+          
+          // Recharts also goes to vendor-charts
+          if (id.includes('node_modules/recharts')) return 'vendor-charts';
+          
+          // Separate large dependencies
           if (id.includes('node_modules/nivo')) return 'vendor-nivo';
-          if (id.includes('node_modules/lodash')) return 'vendor-lodash';
+          if (id.includes('node_modules/lodash')) return 'vendor-utils';
           if (id.includes('node_modules/@dnd-kit')) return 'vendor-dnd';
           if (id.includes('node_modules/xlsx')) return 'vendor-excel';
           
-          // Combine all recharts into one chunk
-          if (id.includes('node_modules/recharts')) return 'vendor-charts';
-          
           // Core React/Preact ecosystem
-          if (preactOn && id.includes('node_modules/preact')) return 'vendor-preact';
+          if (preactOn) {
+            if (id.includes('node_modules/preact')) return 'vendor-preact';
+          } else {
+            if (id.includes('node_modules/react-dom')) return 'vendor-react';
+            if (id.includes('node_modules/react')) return 'vendor-react';
+          }
           
-          // Guard against old react mappings when not using preact
-          if (!preactOn && id.includes('node_modules/react-dom')) return 'vendor-react';
-          if (!preactOn && id.includes('node_modules/react')) return 'vendor-react';
-          if (id.includes('node_modules/zustand')) return 'vendor-state';
-          
-          // Data fetching & forms
+          // Split state management and data fetching
+          if (id.includes('node_modules/zustand')) return 'vendor-utils';
           if (id.includes('node_modules/@tanstack')) return 'vendor-query';
           if (id.includes('node_modules/react-hook-form')) return 'vendor-forms';
           if (id.includes('node_modules/zod')) return 'vendor-forms';
           
-          // UI components
-          if (id.includes('node_modules/@radix-ui')) return 'vendor-ui';
-          if (id.includes('node_modules/@headlessui')) return 'vendor-ui';
+          // Split UI more granularly 
+          if (id.includes('node_modules/@radix-ui/react-dialog') || 
+              id.includes('node_modules/@radix-ui/react-popover') || 
+              id.includes('node_modules/@radix-ui/react-dropdown')) return 'vendor-ui-overlay';
+          if (id.includes('node_modules/@radix-ui')) return 'vendor-ui-core';
+          if (id.includes('node_modules/@headlessui')) return 'vendor-ui-core';
           
-          // Utils
-          if (id.includes('node_modules/date-fns')) return 'vendor-date';
+          // Utils and styling
+          if (id.includes('node_modules/date-fns')) return 'vendor-utils';
           if (id.includes('node_modules/clsx') || id.includes('tailwind-merge')) return 'vendor-style';
+          if (id.includes('node_modules/lucide-react')) return 'vendor-icons';
           
-          // Don't create vendor-misc - let small deps stay with their importers
+          // Animation libraries
+          if (id.includes('node_modules/framer-motion') || id.includes('node_modules/@react-spring')) return 'vendor-animation';
+          
+          // Bundle small utils with main chunk for better performance
+          if (id.includes('node_modules') && 
+              !id.includes('react') && 
+              !id.includes('radix') && 
+              !id.includes('recharts') &&
+              !id.includes('tanstack') &&
+              !id.includes('zod') &&
+              !id.includes('date-fns') &&
+              !id.includes('lodash') &&
+              !id.includes('framer') &&
+              !id.includes('lucide') &&
+              !id.includes('nivo')) {
+            // Check file size heuristically - if likely small, don't chunk
+            return undefined; // Let small deps stay with main
+          }
         },
       }
     }
@@ -356,8 +426,8 @@ export default defineConfig({
   },
   optimizeDeps: {
     exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser', '@sentry/browser', '@sentry/react']
-      .concat(preactOn ? ['react', 'react-dom'] : ['preact', 'preact/compat']),
-    include: preactOn ? ['preact', 'preact/compat'] : [],
+      .concat(preactOn ? ['react', 'react-dom', 'react/jsx-runtime'] : ['preact', 'preact/compat']),
+    include: preactOn ? ['preact', 'preact/compat', 'preact/jsx-runtime'] : [],
     esbuildOptions: preactOn ? { define: { 'process.env.NODE_ENV': '"production"' } } : {}
   }
 });
