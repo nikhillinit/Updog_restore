@@ -42,10 +42,8 @@ export function polymorphicForwardRef<
     ref: ForwardedRef<Element>
   ) => ReactNode
 ) {
-  return forwardRef(render) as unknown as
-    <T extends ElementType = DefaultTag>(
-      props: PolymorphicProps<T, ExtraProps> & { ref?: ForwardedRef<Element> }
-    ) => ReactNode;
+  // Simplified type assertion to work with strict mode
+  return forwardRef(render as any) as any;
 }
 
 /**

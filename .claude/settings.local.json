@@ -98,7 +98,9 @@
       "Bash(git worktree remove:*)",
       "Bash(git branch:*)",
       "Read(C:\\dev\\updog_components_wt\\client\\src\\components\\ui/**)",
-      "Bash(npx vite build:*)"
+      "Bash(npx vite build:*)",
+      "Bash(git switch:*)",
+      "Bash(tsc:*)"
     ],
     "deny": [],
     "additionalDirectories": [

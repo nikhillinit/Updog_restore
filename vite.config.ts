@@ -229,17 +229,58 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
     sourcemap: process.env['NODE_ENV'] === 'development',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.trace'],
+      },
+    },
+    reportCompressedSize: false,
+    chunkSizeWarningLimit: 500,
     rollupOptions: { 
       input: path.resolve(import.meta.dirname, 'client/index.html'),
       output: {
-        manualChunks: {
-          'vendor-core': ['react', 'react-dom', 'zustand'],
-          'vendor-charts': ['recharts'],
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-forms': ['react-hook-form', 'zod'],
-          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
-          'vendor-utils': ['date-fns', 'clsx', 'tailwind-merge'],
-          'sentry': ['@sentry/react']  // Isolated Sentry chunk
+        manualChunks(id) {
+          // Sentry dynamic loading
+          if (id.includes('node_modules/@sentry')) return 'sentry';
+          
+          // Split large libraries first
+          if (id.includes('node_modules/d3')) return 'vendor-d3';
+          if (id.includes('node_modules/nivo')) return 'vendor-nivo';
+          if (id.includes('node_modules/lodash')) return 'vendor-lodash';
+          if (id.includes('node_modules/@dnd-kit')) return 'vendor-dnd';
+          if (id.includes('node_modules/xlsx')) return 'vendor-excel';
+          
+          // Split Recharts more granularly
+          if (id.includes('node_modules/recharts')) {
+            if (id.includes('recharts/es6/cartesian')) return 'charts-cartesian';
+            if (id.includes('recharts/es6/polar')) return 'charts-polar';
+            if (id.includes('recharts/es6/component')) return 'charts-components';
+            if (id.includes('recharts/es6/shape')) return 'charts-shapes';
+            return 'charts-core';
+          }
+          
+          // Core React ecosystem
+          if (id.includes('node_modules/react-dom')) return 'vendor-react';
+          if (id.includes('node_modules/react')) return 'vendor-react';
+          if (id.includes('node_modules/zustand')) return 'vendor-state';
+          
+          // Data fetching & forms
+          if (id.includes('node_modules/@tanstack')) return 'vendor-query';
+          if (id.includes('node_modules/react-hook-form')) return 'vendor-forms';
+          if (id.includes('node_modules/zod')) return 'vendor-forms';
+          
+          // UI components
+          if (id.includes('node_modules/@radix-ui')) return 'vendor-ui';
+          if (id.includes('node_modules/@headlessui')) return 'vendor-ui';
+          
+          // Utils
+          if (id.includes('node_modules/date-fns')) return 'vendor-date';
+          if (id.includes('node_modules/clsx') || id.includes('tailwind-merge')) return 'vendor-style';
+          
+          // Don't create vendor-misc - let small deps stay with their importers
         },
       }
     }
