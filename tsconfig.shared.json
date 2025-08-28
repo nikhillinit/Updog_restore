@@ -3,11 +3,16 @@
   "compilerOptions": {
     "composite": true,
     "tsBuildInfoFile": "./.tsbuildinfo.shared",
+    "outDir": "./dist/shared",
+    "rootDir": "./shared",
     "strict": true,
-    "noUncheckedIndexedAccess": false,  // Phase 2 - enable after client adapters fixed
+    "noUncheckedIndexedAccess": true,  // Enabled for strict shared module
     "exactOptionalPropertyTypes": false,  // Phase 3 - enable after chart consolidation
     "noPropertyAccessFromIndexSignature": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true
   },
   "include": ["shared/**/*"],
   "exclude": ["**/*.test.ts", "**/*.test.tsx", "node_modules"]

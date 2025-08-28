@@ -157,15 +157,13 @@ export const AdaptedLineChart: React.FC<LineChartProps> = ({
     );
   };
 
-  const ChartComponent = mergedConfig.responsive ? ResponsiveContainer : 'div';
-  const chartProps = mergedConfig.responsive 
-    ? { width: '100%', height: mergedConfig.height }
-    : { width: mergedConfig.width, height: mergedConfig.height };
+  const numericHeight = typeof mergedConfig.height === 'number' ? mergedConfig.height : 300;
+  const numericWidth = typeof mergedConfig.width === 'number' ? mergedConfig.width : 600;
 
-  return (
-    <ChartComponent {...(mergedConfig.responsive ? {} : { style })}>
-      <LineChart
-        {...chartProps}
+  const chart = (
+    <LineChart
+      width={numericWidth}
+      height={numericHeight}
         data={data}
         margin={mergedConfig.margin}
         {...(className && { className })}
@@ -185,8 +183,17 @@ export const AdaptedLineChart: React.FC<LineChartProps> = ({
         {mergedConfig.legend && series && series.length > 1 && <Legend />}
         {renderLines()}
       </LineChart>
-    </ChartComponent>
   );
+
+  if (mergedConfig.responsive) {
+    return (
+      <ResponsiveContainer width="100%" height={numericHeight}>
+        {chart}
+      </ResponsiveContainer>
+    );
+  }
+
+  return <div style={style}>{chart}</div>;
 };
 
 export const AdaptedAreaChart: React.FC<AreaChartProps> = ({
@@ -229,29 +236,36 @@ export const AdaptedAreaChart: React.FC<AreaChartProps> = ({
     );
   };
 
-  const ChartComponent = mergedConfig.responsive ? ResponsiveContainer : 'div';
-  const chartProps = mergedConfig.responsive 
-    ? { width: '100%', height: mergedConfig.height }
-    : { width: mergedConfig.width, height: mergedConfig.height };
+  const numericHeight = typeof mergedConfig.height === 'number' ? mergedConfig.height : 300;
+  const numericWidth = typeof mergedConfig.width === 'number' ? mergedConfig.width : 600;
 
-  return (
-    <ChartComponent {...(mergedConfig.responsive ? {} : { style })}>
-      <AreaChart
-        {...chartProps}
-        data={data}
-        margin={mergedConfig.margin}
-        {...(className && { className })}
-        {...(!mergedConfig.responsive && style && { style })}
-      >
-        {mergedConfig.grid && <CartesianGrid strokeDasharray="3 3" />}
-        <XAxis dataKey={xKey} />
-        <YAxis />
-        {mergedConfig.tooltip && <Tooltip />}
-        {mergedConfig.legend && series && series.length > 1 && <Legend />}
-        {renderAreas()}
-      </AreaChart>
-    </ChartComponent>
+  const chart = (
+    <AreaChart
+      width={numericWidth}
+      height={numericHeight}
+      data={data}
+      margin={mergedConfig.margin}
+      {...(className && { className })}
+      {...(!mergedConfig.responsive && style && { style })}
+    >
+      {mergedConfig.grid && <CartesianGrid strokeDasharray="3 3" />}
+      <XAxis dataKey={xKey} />
+      <YAxis />
+      {mergedConfig.tooltip && <Tooltip />}
+      {mergedConfig.legend && series && series.length > 1 && <Legend />}
+      {renderAreas()}
+    </AreaChart>
   );
+
+  if (mergedConfig.responsive) {
+    return (
+      <ResponsiveContainer width="100%" height={numericHeight}>
+        {chart}
+      </ResponsiveContainer>
+    );
+  }
+
+  return <div style={style}>{chart}</div>;
 };
 
 export const AdaptedBarChart: React.FC<BarChartProps> = ({
@@ -288,38 +302,43 @@ export const AdaptedBarChart: React.FC<BarChartProps> = ({
     );
   };
 
-  const ChartComponent = mergedConfig.responsive ? ResponsiveContainer : 'div';
-  const chartProps = mergedConfig.responsive 
-    ? { width: '100%', height: mergedConfig.height }
-    : { width: mergedConfig.width, height: mergedConfig.height };
+  const numericHeight = typeof mergedConfig.height === 'number' ? mergedConfig.height : 300;
+  const numericWidth = typeof mergedConfig.width === 'number' ? mergedConfig.width : 600;
 
-  const ChartType = horizontal ? BarChart : BarChart; // Same component, different layout
-
-  return (
-    <ChartComponent {...(mergedConfig.responsive ? {} : { style })}>
-      <ChartType
-        {...chartProps}
-        data={data}
-        margin={mergedConfig.margin}
-        {...(className && { className })}
-        {...(!mergedConfig.responsive && style && { style })}
-        layout={horizontal ? 'horizontal' : 'vertical'}
-      >
-        {mergedConfig.grid && <CartesianGrid strokeDasharray="3 3" />}
-        <XAxis 
-          {...(!horizontal && xKey ? { dataKey: xKey } : {})}
-          type={horizontal ? 'number' : 'category'}
-        />
-        <YAxis 
-          {...(horizontal && yKey ? { dataKey: yKey } : {})}
-          type={horizontal ? 'category' : 'number'}
-        />
-        {mergedConfig.tooltip && <Tooltip />}
-        {mergedConfig.legend && series && series.length > 1 && <Legend />}
-        {renderBars()}
-      </ChartType>
-    </ChartComponent>
+  const chart = (
+    <BarChart
+      width={numericWidth}
+      height={numericHeight}
+      data={data}
+      margin={mergedConfig.margin}
+      {...(className && { className })}
+      {...(!mergedConfig.responsive && style && { style })}
+      layout={horizontal ? 'horizontal' : 'vertical'}
+    >
+      {mergedConfig.grid && <CartesianGrid strokeDasharray="3 3" />}
+      <XAxis 
+        {...(!horizontal && xKey ? { dataKey: xKey } : {})}
+        type={horizontal ? 'number' : 'category'}
+      />
+      <YAxis 
+        {...(horizontal && yKey ? { dataKey: yKey } : {})}
+        type={horizontal ? 'category' : 'number'}
+      />
+      {mergedConfig.tooltip && <Tooltip />}
+      {mergedConfig.legend && series && series.length > 1 && <Legend />}
+      {renderBars()}
+    </BarChart>
   );
+
+  if (mergedConfig.responsive) {
+    return (
+      <ResponsiveContainer width="100%" height={numericHeight}>
+        {chart}
+      </ResponsiveContainer>
+    );
+  }
+
+  return <div style={style}>{chart}</div>;
 };
 
 export const AdaptedScatterChart: React.FC<ScatterChartProps> = ({
@@ -354,29 +373,36 @@ export const AdaptedScatterChart: React.FC<ScatterChartProps> = ({
     );
   };
 
-  const ChartComponent = mergedConfig.responsive ? ResponsiveContainer : 'div';
-  const chartProps = mergedConfig.responsive 
-    ? { width: '100%', height: mergedConfig.height }
-    : { width: mergedConfig.width, height: mergedConfig.height };
+  const numericHeight = typeof mergedConfig.height === 'number' ? mergedConfig.height : 300;
+  const numericWidth = typeof mergedConfig.width === 'number' ? mergedConfig.width : 600;
 
-  return (
-    <ChartComponent {...(mergedConfig.responsive ? {} : { style })}>
-      <ScatterChart
-        {...chartProps}
-        data={data}
-        margin={mergedConfig.margin}
-        {...(className && { className })}
-        {...(!mergedConfig.responsive && style && { style })}
-      >
-        {mergedConfig.grid && <CartesianGrid strokeDasharray="3 3" />}
-        <XAxis dataKey={xKey} type="number" />
-        <YAxis dataKey={yKey} type="number" />
-        {mergedConfig.tooltip && <Tooltip cursor={{ strokeDasharray: '3 3' }} />}
-        {mergedConfig.legend && series && series.length > 1 && <Legend />}
-        {renderScatters()}
-      </ScatterChart>
-    </ChartComponent>
+  const chart = (
+    <ScatterChart
+      width={numericWidth}
+      height={numericHeight}
+      data={data}
+      margin={mergedConfig.margin}
+      {...(className && { className })}
+      {...(!mergedConfig.responsive && style && { style })}
+    >
+      {mergedConfig.grid && <CartesianGrid strokeDasharray="3 3" />}
+      <XAxis dataKey={xKey} type="number" />
+      <YAxis dataKey={yKey} type="number" />
+      {mergedConfig.tooltip && <Tooltip cursor={{ strokeDasharray: '3 3' }} />}
+      {mergedConfig.legend && series && series.length > 1 && <Legend />}
+      {renderScatters()}
+    </ScatterChart>
   );
+
+  if (mergedConfig.responsive) {
+    return (
+      <ResponsiveContainer width="100%" height={numericHeight}>
+        {chart}
+      </ResponsiveContainer>
+    );
+  }
+
+  return <div style={style}>{chart}</div>;
 };
 
 export const AdaptedPieChart: React.FC<PieChartProps> = ({
@@ -391,40 +417,47 @@ export const AdaptedPieChart: React.FC<PieChartProps> = ({
 }) => {
   const mergedConfig = { ...DEFAULT_CONFIG, ...config };
 
-  const ChartComponent = mergedConfig.responsive ? ResponsiveContainer : 'div';
-  const chartProps = mergedConfig.responsive 
-    ? { width: '100%', height: mergedConfig.height }
-    : { width: mergedConfig.width, height: mergedConfig.height };
+  const numericHeight = typeof mergedConfig.height === 'number' ? mergedConfig.height : 300;
+  const numericWidth = typeof mergedConfig.width === 'number' ? mergedConfig.width : 600;
 
-  return (
-    <ChartComponent {...(mergedConfig.responsive ? {} : { style })}>
-      <PieChart
-        {...chartProps}
-        {...(className && { className })}
-        {...(!mergedConfig.responsive && style && { style })}
+  const chart = (
+    <PieChart
+      width={numericWidth}
+      height={numericHeight}
+      {...(className && { className })}
+      {...(!mergedConfig.responsive && style && { style })}
+    >
+      <Pie
+        data={data}
+        cx="50%"
+        cy="50%"
+        innerRadius={innerRadius}
+        outerRadius={outerRadius}
+        paddingAngle={2}
+        dataKey={valueKey}
+        nameKey={labelKey}
       >
-        <Pie
-          data={data}
-          cx="50%"
-          cy="50%"
-          innerRadius={innerRadius}
-          outerRadius={outerRadius}
-          paddingAngle={2}
-          dataKey={valueKey}
-          nameKey={labelKey}
-        >
-          {data.map((entry, index) => (
-            <Cell 
-              key={`cell-${index}`} 
-              fill={mergedConfig.colors[index % mergedConfig.colors.length]} 
-            />
-          ))}
-        </Pie>
-        {mergedConfig.tooltip && <Tooltip />}
-        {mergedConfig.legend && <Legend />}
-      </PieChart>
-    </ChartComponent>
+        {data.map((entry, index) => (
+          <Cell 
+            key={`cell-${index}`} 
+            fill={mergedConfig.colors[index % mergedConfig.colors.length]} 
+          />
+        ))}
+      </Pie>
+      {mergedConfig.tooltip && <Tooltip />}
+      {mergedConfig.legend && <Legend />}
+    </PieChart>
   );
+
+  if (mergedConfig.responsive) {
+    return (
+      <ResponsiveContainer width="100%" height={numericHeight}>
+        {chart}
+      </ResponsiveContainer>
+    );
+  }
+
+  return <div style={style}>{chart}</div>;
 };
 
 // Migration utilities
@@ -451,11 +484,11 @@ export const createMigrationWrapper = polymorphicForwardRef<'div', {
   AdaptedComponent: React.ComponentType<any>;
   componentName: string;
   options?: MigrationOptions;
-}>, ref) {
+}>, ref: React.ForwardedRef<Element>) {
   const useAdapted = options.enableFeatureFlag 
     ? (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
         ? (window.localStorage.getItem('use-adapted-charts') === 'true')
-        : process.env.NODE_ENV === 'development')
+        : process.env['NODE_ENV'] === 'development')
     : true;
 
   if (options.logMigrationEvents) {
@@ -488,15 +521,4 @@ export const UnifiedBarChart = AdaptedBarChart;
 export const UnifiedScatterChart = AdaptedScatterChart;
 export const UnifiedPieChart = AdaptedPieChart;
 
-// Export types for consumers
-export type {
-  ChartDataPoint,
-  ChartSeries,
-  ChartConfig,
-  BaseChartProps,
-  LineChartProps,
-  AreaChartProps,
-  BarChartProps,
-  ScatterChartProps,
-  PieChartProps
-};
+// Types are already exported from chart-adapter-config module
