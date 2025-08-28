@@ -1,4 +1,4 @@
-import { defineConfig, type PluginOption } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import preact from '@preact/preset-vite';
 import path from 'path';
@@ -223,8 +223,18 @@ export default defineConfig({
     // Conditional React/Preact plugin
     usePreact ? preact({ devtoolsInProd: false }) : react(),
     visualizer({ filename: "stats.html", gzipSize: true })
-  ].filter(Boolean) as PluginOption[],
+  ].filter(Boolean) as Plugin[],
   esbuild: {
+    legalComments: 'none', // Remove all legal comments
+    // Remove only non-critical console calls
+    pure: ['console.log', 'console.info', 'console.debug', 'console.trace'],
+    // Always drop debugger statements
+    drop: ['debugger'],
+    minifyIdentifiers: true,
+    minifySyntax: true, 
+    minifyWhitespace: true,
+    treeShaking: true,
+    target: 'esnext',
     tsconfigRaw: {
       compilerOptions: {
         skipLibCheck: true,
@@ -242,66 +252,36 @@ export default defineConfig({
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(getAppVersion()),
     'import.meta.env.VITE_GIT_SHA': JSON.stringify(process.env['GITHUB_SHA'] || getGitSha()),
     'import.meta.env.VITE_BUILD_TIME': JSON.stringify(new Date().toISOString()),
-    '__SENTRY__': JSON.stringify(Boolean(process.env['VITE_SENTRY_DSN']))
+    '__SENTRY__': JSON.stringify(Boolean(process.env['VITE_SENTRY_DSN'])),
+    '__DEV__': 'false', // Strip dev-only blocks
+    'process.env.DEBUG': 'false', // Strip debug blocks
+    'process.env.NODE_ENV': JSON.stringify('production') // Ensure production mode
   },
   root: path.resolve(import.meta.dirname, 'client'),
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
     sourcemap: process.env['NODE_ENV'] === 'development',
-    minify: 'terser',
-    target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari13.1'],
+    minify: 'esbuild',
+    target: 'esnext', // Most aggressive target
     cssMinify: 'lightningcss',
-    terserOptions: {
-      compress: {
-        passes: 3,
-        pure_getters: true,
-        reduce_funcs: true,
-        dead_code: true,
-        unused: true,
-        drop_console: true,
-        drop_debugger: true,
-        pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.trace'],
-        conditionals: true,
-        evaluate: true,
-        join_vars: true,
-        loops: true,
-        reduce_vars: true,
-        sequences: true,
-        side_effects: false,
-        switches: true,
-        hoist_funs: true,
-        hoist_props: true,
-        if_return: true,
-        inline: 3,
-        keep_fargs: false,
-        negate_iife: true,
-        properties: true,
-        collapse_vars: true,
-        comparisons: true,
-        computed_props: true,
-        arguments: true,
-      },
-      mangle: {
-        toplevel: true,
-        safari10: false,
-        properties: {
-          regex: /^_/
-        }
-      },
-      format: {
-        comments: false,
-        ascii_only: true,
-        beautify: false,
-        braces: false,
-        semicolons: false,
-      },
-    },
     reportCompressedSize: false,
     chunkSizeWarningLimit: 500,
     rollupOptions: { 
       input: path.resolve(import.meta.dirname, 'client/index.html'),
+      treeshake: {
+        moduleSideEffects: 'no-external',
+        propertyReadSideEffects: false,
+      },
       output: {
+        // Aggressive output settings
+        compact: true,
+        generatedCode: {
+          arrowFunctions: true,
+          constBindings: true,
+          objectShorthand: true,
+        },
+        minifyInternalExports: true,
         manualChunks(id) {
           // Sentry dynamic loading
           if (id.includes('node_modules/@sentry')) return 'sentry';
