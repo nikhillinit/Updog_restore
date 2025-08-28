@@ -1,5 +1,4 @@
 import { onLCP, onINP, onCLS, onFCP, onTTFB, Metric } from 'web-vitals';
-import * as Sentry from '@sentry/react';
 
 interface VitalMetric extends Metric {
   navigationType?: string;
