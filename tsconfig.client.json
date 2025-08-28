@@ -10,6 +10,6 @@
     "noUncheckedIndexedAccess": false,  // Temporarily relaxed for UI code
     "noPropertyAccessFromIndexSignature": true  // Keep for safety
   },
-  "include": ["client/**/*", "shared/**/*"],
+  "include": ["client/**/*"],
   "exclude": ["server/**/*", "**/*.test.ts", "**/*.test.tsx"]
 }
