@@ -15,9 +15,9 @@ let totalInflight = 0;
 const waiters: Array<() => void> = [];
 
 const MAX_INFLIGHT =
-  Number(import.meta.env.VITE_MAX_INFLIGHT ?? '6'); // default capacity
+  Number(import.meta.env['VITE_MAX_INFLIGHT'] ?? '6'); // default capacity
 const DEFAULT_TIMEOUT_MS =
-  Number(import.meta.env.VITE_INFLIGHT_TIMEOUT_MS ?? '15000');
+  Number(import.meta.env['VITE_INFLIGHT_TIMEOUT_MS'] ?? '15000');
 
 function ns() {
   return (import.meta.env.MODE ?? 'development') as string;
