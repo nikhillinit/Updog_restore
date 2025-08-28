@@ -191,6 +191,8 @@ const getAppVersion = () => {
   }
 };
 
+const usePreact = process.env.PREACT === '1' || process.env.NODE_ENV === 'production';
+
 export default defineConfig({
   plugins: [
     // Use absolute path so Vite doesn't ever look for "client/client/tsconfig.json"
@@ -235,6 +237,18 @@ export default defineConfig({
         drop_console: true,
         drop_debugger: true,
         pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.trace'],
+        passes: 2,
+        dead_code: true,
+        conditionals: true,
+        evaluate: true,
+        unused: true,
+      },
+      mangle: {
+        toplevel: true,
+        safari10: false,
+      },
+      format: {
+        comments: false,
       },
     },
     reportCompressedSize: false,
@@ -246,21 +260,15 @@ export default defineConfig({
           // Sentry dynamic loading
           if (id.includes('node_modules/@sentry')) return 'sentry';
           
-          // Split large libraries first
-          if (id.includes('node_modules/d3')) return 'vendor-d3';
+          // Don't split d3 separately - let it stay with recharts
+          // if (id.includes('node_modules/d3')) return 'vendor-d3';
           if (id.includes('node_modules/nivo')) return 'vendor-nivo';
           if (id.includes('node_modules/lodash')) return 'vendor-lodash';
           if (id.includes('node_modules/@dnd-kit')) return 'vendor-dnd';
           if (id.includes('node_modules/xlsx')) return 'vendor-excel';
           
-          // Split Recharts more granularly
-          if (id.includes('node_modules/recharts')) {
-            if (id.includes('recharts/es6/cartesian')) return 'charts-cartesian';
-            if (id.includes('recharts/es6/polar')) return 'charts-polar';
-            if (id.includes('recharts/es6/component')) return 'charts-components';
-            if (id.includes('recharts/es6/shape')) return 'charts-shapes';
-            return 'charts-core';
-          }
+          // Combine all recharts into one chunk
+          if (id.includes('node_modules/recharts')) return 'vendor-charts';
           
           // Core React ecosystem
           if (id.includes('node_modules/react-dom')) return 'vendor-react';
@@ -293,6 +301,12 @@ export default defineConfig({
       '@/lib': path.resolve(import.meta.dirname, 'client/src/lib'),
       '@shared': path.resolve(import.meta.dirname, 'shared'),
       '@assets': path.resolve(import.meta.dirname, 'assets'),
+      ...(usePreact ? {
+        'react': 'preact/compat',
+        'react-dom/test-utils': 'preact/test-utils',
+        'react-dom': 'preact/compat',
+        'react/jsx-runtime': 'preact/jsx-runtime'
+      } : {})
     },
   },
   optimizeDeps: {
