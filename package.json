@@ -29,7 +29,7 @@
     "check:client": "tsc -p tsconfig.client.json --noEmit",
     "check:shared": "tsc -p tsconfig.shared.json --noEmit",
     "check:server": "tsc -p tsconfig.server.json --noEmit",
-    "build:types": "tsc -b tsconfig.shared.json tsconfig.client.json",
+    "build:types": "tsc -b tsconfig.shared.json",
     "bundle:report": "node scripts/size-report.mjs",
     "check:fast": "tsc --project tsconfig.nocheck.json",
     "lint": "eslint . --max-warnings 0 --cache --cache-location node_modules/.cache/eslint",
