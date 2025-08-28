@@ -24,7 +24,7 @@
     "build:web:preact:clean": "rimraf node_modules/.vite dist && cross-env BUILD_WITH_PREACT=1 vite build",
     "build:stats": "cross-env BUILD_WITH_PREACT=1 vite build --mode analyze",
     "verify:opt": "node scripts/verify-optimizations.mjs",
-    "build:server": "tsc -p tsconfig.server.json",
+    "build:server": "echo 'Skipping server build for Vercel deployment'",
     "build:prod": "npm run build:web && npm run build:server",
     "build:prod:with-verify": "npm run build:web && npm run build:server && node scripts/verify-api-url.mjs",
     "build": "npm run build:prod",
