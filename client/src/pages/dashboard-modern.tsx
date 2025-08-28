@@ -14,7 +14,7 @@ import { YAxis } from 'recharts/es6/cartesian/YAxis';
 import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
 import { Tooltip } from 'recharts/es6/component/Tooltip';
 import { ResponsiveContainer } from 'recharts/es6/component/ResponsiveContainer';
-import { PieChart } from 'recharts/es6/chart/PieChart';
+import { PieChart as RechartsPieChart } from 'recharts/es6/chart/PieChart';
 import { Pie } from 'recharts/es6/polar/Pie';
 import { Cell } from 'recharts/es6/component/Cell';
 import React, { useState } from 'react';
