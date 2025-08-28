@@ -145,7 +145,7 @@ export const ChartTooltip = React.forwardRef<
       >
         {!nestLabel ? tooltipLabel : null}
         <div className="grid gap-1.5">
-          {payload.map((item, index) => {
+          {payload.map((item: any, index: number) => {
             const key = `${nameKey || item.name || item.dataKey || "value"}`
             const itemConfig = getPayloadConfigFromPayload(config, item, key)
             const indicatorColor = color || item.fill || item.color
@@ -262,7 +262,7 @@ export const ChartLegend = React.forwardRef<
 
   return (
     <Legend
-      ref={ref}
+      ref={ref as any}
       className={cn(
         "flex flex-wrap items-center justify-center gap-4 text-xs",
         className
@@ -276,11 +276,12 @@ ChartLegend.displayName = "ChartLegend"
 
 export const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<"div"> &
-    Pick<React.ComponentProps<typeof Legend>, "payload" | "verticalAlign"> & {
-      hideIcon?: boolean
-      nameKey?: string
-    }
+  React.ComponentProps<"div"> & {
+    payload?: any
+    verticalAlign?: "top" | "bottom"
+    hideIcon?: boolean
+    nameKey?: string
+  }
 >(({ className, hideIcon = false, payload, verticalAlign = "bottom", nameKey }, ref) => {
   const { config } = useChart()
 
@@ -298,7 +299,7 @@ export const ChartLegendContent = React.forwardRef<
         className
       )}
     >
-      {payload.map((item) => {
+      {payload.map((item: any) => {
         const key = `${nameKey || item.dataKey || "value"}`
         const itemConfig = getPayloadConfigFromPayload(config, item, key)
 
@@ -343,7 +344,7 @@ const RechartsDispatcher = React.forwardRef<any, any & { component: string }>((p
     return null;
   }
   
-  return <Component ref={ref} {...rest} />;
+  return <Component ref={ref} {...rest as any} />;
 });
 
 export default RechartsDispatcher;
