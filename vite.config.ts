@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import preact from '@preact/preset-vite';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -191,7 +192,9 @@ const getAppVersion = () => {
   }
 };
 
-const usePreact = process.env.PREACT === '1' || process.env.NODE_ENV === 'production';
+const preactOn = process.env.BUILD_WITH_PREACT === '1';
+const sentryOn = !!process.env.VITE_SENTRY_DSN;
+const sentryNoop = path.resolve(import.meta.dirname, 'client/src/monitoring/noop.ts');
 
 export default defineConfig({
   plugins: [
@@ -204,7 +207,8 @@ export default defineConfig({
       "winston": winstonMock,
       "prom-client": promClientMock
     }), 
-    react(), 
+    // Conditional React/Preact plugin
+    preactOn ? preact({ devToolsInProd: false }) : react(),
     visualizer({ filename: "stats.html", gzipSize: true })
   ],
   esbuild: {
@@ -224,7 +228,8 @@ export default defineConfig({
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(getAppVersion()),
     'import.meta.env.VITE_GIT_SHA': JSON.stringify(process.env['GITHUB_SHA'] || getGitSha()),
-    'import.meta.env.VITE_BUILD_TIME': JSON.stringify(new Date().toISOString())
+    'import.meta.env.VITE_BUILD_TIME': JSON.stringify(new Date().toISOString()),
+    '__SENTRY__': JSON.stringify(Boolean(process.env.VITE_SENTRY_DSN))
   },
   root: path.resolve(import.meta.dirname, 'client'),
   build: {
@@ -234,14 +239,16 @@ export default defineConfig({
     minify: 'terser',
     terserOptions: {
       compress: {
+        passes: 2,
+        pure_getters: true,
+        reduce_funcs: true,
+        dead_code: true,
+        unused: true,
         drop_console: true,
         drop_debugger: true,
         pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.trace'],
-        passes: 2,
-        dead_code: true,
         conditionals: true,
         evaluate: true,
-        unused: true,
       },
       mangle: {
         toplevel: true,
@@ -295,21 +302,31 @@ export default defineConfig({
   },
   resolve: {
     conditions: ["browser", "import", "module", "default"],
-    alias: {
-      '@': path.resolve(import.meta.dirname, 'client/src'),
-      '@/core': path.resolve(import.meta.dirname, 'client/src/core'),
-      '@/lib': path.resolve(import.meta.dirname, 'client/src/lib'),
-      '@shared': path.resolve(import.meta.dirname, 'shared'),
-      '@assets': path.resolve(import.meta.dirname, 'assets'),
-      ...(usePreact ? {
-        'react': 'preact/compat',
-        'react-dom/test-utils': 'preact/test-utils',
-        'react-dom': 'preact/compat',
-        'react/jsx-runtime': 'preact/jsx-runtime'
-      } : {})
-    },
+    alias: [
+      // Preact aliases (when enabled)
+      preactOn && { find: 'react', replacement: 'preact/compat' },
+      preactOn && { find: 'react-dom/test-utils', replacement: 'preact/test-utils' },
+      preactOn && { find: 'react-dom', replacement: 'preact/compat' },
+      preactOn && { find: 'react/jsx-runtime', replacement: 'preact/jsx-runtime' },
+      preactOn && { find: 'react/jsx-dev-runtime', replacement: 'preact/jsx-runtime' },
+      preactOn && { find: /^react\/jsx-dev-runtime$/, replacement: 'preact/jsx-runtime' },
+      
+      // Sentry no-op (when disabled)
+      !sentryOn && { find: /^@sentry\//, replacement: sentryNoop },
+      
+      // Path aliases
+      { find: '@', replacement: path.resolve(import.meta.dirname, 'client/src') },
+      { find: '@/core', replacement: path.resolve(import.meta.dirname, 'client/src/core') },
+      { find: '@/lib', replacement: path.resolve(import.meta.dirname, 'client/src/lib') },
+      { find: '@shared', replacement: path.resolve(import.meta.dirname, 'shared') },
+      { find: '@assets', replacement: path.resolve(import.meta.dirname, 'assets') },
+    ].filter(Boolean) as any,
+    dedupe: preactOn ? ['react', 'react-dom', 'preact', 'preact/compat'] : [],
   },
   optimizeDeps: {
-    exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser']
+    exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser', '@sentry/browser', '@sentry/react']
+      .concat(preactOn ? ['react', 'react-dom'] : ['preact', 'preact/compat']),
+    include: preactOn ? ['preact', 'preact/compat'] : [],
+    esbuildOptions: preactOn ? { define: { 'process.env.NODE_ENV': '"production"' } } : {}
   }
 });

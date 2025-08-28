@@ -3,11 +3,16 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
+import { PieChart } from 'recharts/es6/chart/PieChart';
+import { Pie } from 'recharts/es6/polar/Pie';
+import { Cell } from 'recharts/es6/component/Cell';
+import { ResponsiveContainer } from 'recharts/es6/component/ResponsiveContainer';
+import { Legend } from 'recharts/es6/component/Legend';
+import { Tooltip } from 'recharts/es6/component/Tooltip';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { MoreHorizontal, TrendingUp, Building2, DollarSign, Users } from 'lucide-react';
 
 // Sample concentration data by different metrics

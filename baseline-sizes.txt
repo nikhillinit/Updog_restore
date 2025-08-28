@@ -1,0 +1,5 @@
+[2m../dist/public/[22m[36massets/planning-Dzu5JuWc.js                       [39m[1m[2m 76.01 kB[22m[1m[22m
+[2m../dist/public/[22m[36massets/vendor-ui-BKsHP-9-.js                      [39m[1m[2m133.80 kB[22m[1m[22m
+[2m../dist/public/[22m[36massets/vendor-react-HJETjtlY.js                   [39m[1m[2m182.73 kB[22m[1m[22m
+[2m../dist/public/[22m[36massets/vendor-charts-mIjF3ZTZ.js                  [39m[1m[2m390.15 kB[22m[1m[22m
+[32m✓ built in 9.80s[39m

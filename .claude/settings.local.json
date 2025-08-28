@@ -100,7 +100,14 @@
       "Read(C:\\dev\\updog_components_wt\\client\\src\\components\\ui/**)",
       "Bash(npx vite build:*)",
       "Bash(git switch:*)",
-      "Bash(tsc:*)"
+      "Bash(tsc:*)",
+      "Bash(unset VITE_SENTRY_DSN)",
+      "Bash(PREACT=1 npm run build:web)",
+      "Bash(npx cross-env:*)",
+      "Bash(set PREACT=1)",
+      "Bash(set BUILD_WITH_PREACT=1)",
+      "Bash(set VITE_SENTRY_DSN=)",
+      "Bash(cross-env:*)"
     ],
     "deny": [],
     "additionalDirectories": [
