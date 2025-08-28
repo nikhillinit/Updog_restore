@@ -238,7 +238,8 @@ export default defineConfig({
           'vendor-query': ['@tanstack/react-query'],
           'vendor-forms': ['react-hook-form', 'zod'],
           'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
-          'vendor-utils': ['date-fns', 'clsx', 'tailwind-merge']
+          'vendor-utils': ['date-fns', 'clsx', 'tailwind-merge'],
+          'sentry': ['@sentry/react']  // Isolated Sentry chunk
         },
       }
     }

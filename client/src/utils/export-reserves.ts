@@ -21,6 +21,19 @@ export interface ExportData {
   timestamp?: Date;
 }
 
+// Helper functions for type-safe numeric conversions
+function toNumber(value: any): number {
+  return Number(value ?? 0);
+}
+
+function toCents(value: any): number {
+  return Math.round(toNumber(value) * 100);
+}
+
+function toPercent(value: any): string {
+  return toNumber(value).toFixed(2) + '%';
+}
+
 /**
  * Export reserves data to CSV format
  */
@@ -57,62 +70,62 @@ async function exportToCSV(data: ExportData, options: ExportOptions): Promise<vo
     // Add summary rows if requested
     if (options.includeSummary) {
       rows.push({
-        Rank: '',
+        Rank: 0,
         'Company ID': 'SUMMARY',
         'Company Name': '',
         Stage: '',
         Sector: '',
-        'Initial Investment': '',
-        'Exit MOIC': '',
-        'Reserve Allocation': '',
+        'Initial Investment': 0,
+        'Exit MOIC': 0,
+        'Reserve Allocation': 0,
         'Reserve %': '',
-        'Cap Amount': '',
-        'Allocation Pass': '',
+        'Cap Amount': 0,
+        'Allocation Pass': 0,
         Reason: ''
       });
       
       rows.push({
-        Rank: '',
+        Rank: 0,
         'Company ID': 'Total Available',
-        'Company Name': data.output.metadata.total_available_cents / 100,
+        'Company Name': String(data.output.metadata.total_available_cents / 100),
         Stage: '',
         Sector: '',
-        'Initial Investment': '',
-        'Exit MOIC': '',
-        'Reserve Allocation': '',
+        'Initial Investment': 0,
+        'Exit MOIC': 0,
+        'Reserve Allocation': 0,
         'Reserve %': '',
-        'Cap Amount': '',
-        'Allocation Pass': '',
+        'Cap Amount': 0,
+        'Allocation Pass': 0,
         Reason: ''
       });
       
       rows.push({
-        Rank: '',
+        Rank: 0,
         'Company ID': 'Total Allocated',
-        'Company Name': data.output.metadata.total_allocated_cents / 100,
+        'Company Name': String(data.output.metadata.total_allocated_cents / 100),
         Stage: '',
         Sector: '',
-        'Initial Investment': '',
-        'Exit MOIC': '',
-        'Reserve Allocation': '',
+        'Initial Investment': 0,
+        'Exit MOIC': 0,
+        'Reserve Allocation': 0,
         'Reserve %': '',
-        'Cap Amount': '',
-        'Allocation Pass': '',
+        'Cap Amount': 0,
+        'Allocation Pass': 0,
         Reason: ''
       });
       
       rows.push({
-        Rank: '',
+        Rank: 0,
         'Company ID': 'Remaining',
-        'Company Name': data.output.remaining_cents / 100,
+        'Company Name': String(data.output.remaining_cents / 100),
         Stage: '',
         Sector: '',
-        'Initial Investment': '',
-        'Exit MOIC': '',
-        'Reserve Allocation': '',
+        'Initial Investment': 0,
+        'Exit MOIC': 0,
+        'Reserve Allocation': 0,
         'Reserve %': '',
-        'Cap Amount': '',
-        'Allocation Pass': '',
+        'Cap Amount': 0,
+        'Allocation Pass': 0,
         Reason: ''
       });
     }
