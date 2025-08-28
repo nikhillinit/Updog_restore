@@ -31,7 +31,7 @@ import {
   Info,
   AlertCircle
 } from "lucide-react";
-import { format } from "date-fns";
+import { format } from "date-fns/format";
 import FundLiquidationWarnings from "@/components/investment/fund-liquidation-warnings";
 import ExitProceedsRecycling from "@/components/recycling/exit-proceeds-recycling";
 

@@ -23,7 +23,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format } from 'date-fns/format';
 import { CalendarIcon, Tag, X } from 'lucide-react';
 import { CustomField } from './custom-fields-manager';
 
