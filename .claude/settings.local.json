@@ -110,7 +110,10 @@
       "Bash(cross-env:*)",
       "Bash(rimraf:*)",
       "Bash(npx source-map-explorer:*)",
-      "Bash(gh pr create:*)"
+      "Bash(gh pr create:*)",
+      "Bash(scripts/verify-migrations.sh:*)",
+      "Bash(scripts/guardian-evaluate.sh:*)",
+      "Bash(gh api:*)"
     ],
     "deny": [],
     "additionalDirectories": [
