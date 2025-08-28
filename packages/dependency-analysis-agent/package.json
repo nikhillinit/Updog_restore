@@ -1,0 +1,21 @@
+{
+  "name": "@updog/dependency-analysis-agent",
+  "version": "1.0.0",
+  "description": "Intelligent dependency management and optimization agent",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@updog/agent-core": "workspace:*",
+    "depcheck": "^1.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  }
+}
