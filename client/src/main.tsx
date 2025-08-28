@@ -6,7 +6,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
-import { initSentry } from "./sentry";
 import { startVitals } from "./vitals";
 
 // Emergency rollback failsafe - provides backdoor even if env vars are stuck
@@ -48,7 +47,14 @@ checkEmergencyRollback();
 
 // Initialize monitoring in production
 if (import.meta.env.PROD) {
-  initSentry();
+  // Code-split Sentry - only load when DSN is configured
+  if (import.meta.env.VITE_SENTRY_DSN) {
+    import('./sentry').then(({ initSentry }) => {
+      initSentry();
+    }).catch(err => {
+      console.warn('Failed to load Sentry:', err);
+    });
+  }
   // Start Web Vitals collection after app mounts
   requestIdleCallback(() => startVitals());
 }

@@ -259,7 +259,7 @@ export class PerformanceMonitor {
       recommendations.push('Investigate error patterns and improve error handling');
     }
     
-    if (summary.averages.memory_used > this.thresholds.memoryUsage.warning) {
+    if (summary.averages['memory_used'] > this.thresholds.memoryUsage.warning) {
       recommendations.push('Monitor memory usage - consider implementing memory optimization');
     }
     

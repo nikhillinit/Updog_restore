@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./.tsbuildinfo.shared",
+    "strict": true,
+    "noUncheckedIndexedAccess": false,  // Phase 2 - enable after boundary fix
+    "exactOptionalPropertyTypes": false,  // Phase 3 - enable after chart consolidation
+    "noPropertyAccessFromIndexSignature": true,
+    "skipLibCheck": true
+  },
+  "include": ["shared/**/*"],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx", "node_modules"]
+}
