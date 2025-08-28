@@ -109,7 +109,8 @@
       "Bash(set VITE_SENTRY_DSN=)",
       "Bash(cross-env:*)",
       "Bash(rimraf:*)",
-      "Bash(npx source-map-explorer:*)"
+      "Bash(npx source-map-explorer:*)",
+      "Bash(gh pr create:*)"
     ],
     "deny": [],
     "additionalDirectories": [
