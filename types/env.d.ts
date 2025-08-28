@@ -29,6 +29,8 @@ declare namespace NodeJS {
     GITHUB_SHA?: string;
     GITHUB_TOKEN?: string;
     VERCEL_URL?: string;
+    BUILD_WITH_PREACT?: '1' | '0' | 'true' | 'false';
+    VITE_SENTRY_DSN?: string;
     
     // Security
     SESSION_SECRET?: string;
