@@ -10,40 +10,69 @@ import path from 'path';
 
 console.log('🔍 Verifying bundle optimizations...\n');
 
-// 1. Verify Preact replacement
+// 1. Verify Preact replacement with positive/negative assertions
 console.log('1️⃣ Checking Preact substitution:');
-const reactChunks = await glob('dist/public/assets/vendor-react*.js');
-if (reactChunks.length > 0) {
-  const reactChunk = reactChunks[0];
-  const content = readFileSync(reactChunk, 'utf8');
-  const hasPreact = content.includes('preact');
-  const hasReactProd = content.includes('react.production.min');
-  const hasReactDev = content.includes('react.development');
+
+const preactChunks = await glob('dist/public/assets/*preact*.js');
+const reactChunks = await glob('dist/public/assets/*react*.js');
+const allChunks = await glob('dist/public/assets/*.js');
+
+console.log(`   📦 Chunks named preact: ${preactChunks.length}`);
+console.log(`   📦 Chunks named react: ${reactChunks.length}`);
+
+// Check all chunks for React/Preact signatures
+let anyReactCode = false;
+let anyPreactCode = false;
+let primaryChunk = null;
+let primarySize = 0;
+
+for (const chunk of allChunks) {
+  const content = readFileSync(chunk, 'utf8');
   
-  if (hasPreact && !hasReactProd && !hasReactDev) {
-    console.log('   ✅ Preact successfully replaced React');
-  } else if (hasPreact && (hasReactProd || hasReactDev)) {
-    console.log('   ⚠️  Both Preact and React detected (alias issue)');
-  } else if (!hasPreact) {
-    console.log('   ❌ Preact not found, React still in use');
+  // React signatures
+  if (/react\.production\.min|Scheduler|__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED/.test(content)) {
+    anyReactCode = true;
   }
   
-  // Check file size
-  const stats = readFileSync(reactChunk).length / 1024;
-  console.log(`   📦 vendor-react size: ${stats.toFixed(1)} KB`);
-  if (stats < 150) {
-    console.log('   ✅ Size indicates Preact (< 150KB)');
-  } else {
-    console.log('   ⚠️  Size indicates React (> 150KB)');
+  // Preact signatures  
+  if (/preact\/compat|preact\/jsx-runtime|preact\/hooks|options\.vnode/.test(content)) {
+    anyPreactCode = true;
+    
+    // Track largest preact chunk
+    const size = readFileSync(chunk).length / 1024;
+    if (size > primarySize) {
+      primaryChunk = chunk;
+      primarySize = size;
+    }
   }
+  
+  // Also check for vendor-react chunks
+  if (chunk.includes('vendor-react')) {
+    const size = readFileSync(chunk).length / 1024;
+    console.log(`   📦 vendor-react size: ${size.toFixed(1)} KB`);
+    primaryChunk = chunk;
+    primarySize = size;
+  }
+}
+
+if (anyPreactCode && !anyReactCode) {
+  console.log('   ✅ Preact successfully replaced React');
+  console.log(`   📦 Primary chunk size: ${primarySize.toFixed(1)} KB`);
+  if (primarySize < 50) {
+    console.log('   ✅ Size indicates Preact (< 50KB for compat)');
+  }
+} else if (anyPreactCode && anyReactCode) {
+  console.log('   ⚠️  Both Preact and React detected (incomplete alias)');
+} else if (!anyPreactCode && anyReactCode) {
+  console.log('   ❌ React still present, Preact not detected');
+  console.log(`   📦 Primary chunk size: ${primarySize.toFixed(1)} KB (React)`);
 } else {
-  console.log('   ❌ No vendor-react chunk found');
+  console.log('   ⚠️  Neither React nor Preact clearly detected');
 }
 
 // 2. Verify Sentry exclusion
 console.log('\n2️⃣ Checking Sentry exclusion:');
 const sentryChunks = await glob('dist/public/assets/*sentry*.js');
-const allChunks = await glob('dist/public/assets/*.js');
 
 if (sentryChunks.length === 0) {
   console.log('   ✅ No dedicated Sentry chunks');

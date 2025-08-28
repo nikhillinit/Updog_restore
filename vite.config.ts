@@ -196,8 +196,36 @@ const preactOn = process.env.BUILD_WITH_PREACT === '1';
 const sentryOn = !!process.env.VITE_SENTRY_DSN;
 const sentryNoop = path.resolve(import.meta.dirname, 'client/src/monitoring/noop.ts');
 
+// Force Preact alias before any other resolution logic
+function forcePreactAlias() {
+  return {
+    name: 'force-preact-alias',
+    enforce: 'pre' as const,
+    resolveId(source: string) {
+      if (!preactOn) return null;
+
+      // jsx runtimes
+      if (source === 'react/jsx-runtime' || source === 'react/jsx-dev-runtime') {
+        return this.resolve('preact/jsx-runtime', undefined, { skipSelf: true });
+      }
+
+      // react-dom variants
+      if (source === 'react-dom/client' || source === 'react-dom/test-utils' || source === 'react-dom') {
+        return this.resolve('preact/compat', undefined, { skipSelf: true });
+      }
+
+      if (source === 'react') {
+        return this.resolve('preact/compat', undefined, { skipSelf: true });
+      }
+
+      return null;
+    }
+  };
+}
+
 export default defineConfig({
   plugins: [
+    forcePreactAlias(),
     // Use absolute path so Vite doesn't ever look for "client/client/tsconfig.json"
     tsconfigPaths({
       projects: [path.resolve(import.meta.dirname, 'client/tsconfig.json')],
@@ -277,9 +305,12 @@ export default defineConfig({
           // Combine all recharts into one chunk
           if (id.includes('node_modules/recharts')) return 'vendor-charts';
           
-          // Core React ecosystem
-          if (id.includes('node_modules/react-dom')) return 'vendor-react';
-          if (id.includes('node_modules/react')) return 'vendor-react';
+          // Core React/Preact ecosystem
+          if (preactOn && id.includes('node_modules/preact')) return 'vendor-preact';
+          
+          // Guard against old react mappings when not using preact
+          if (!preactOn && id.includes('node_modules/react-dom')) return 'vendor-react';
+          if (!preactOn && id.includes('node_modules/react')) return 'vendor-react';
           if (id.includes('node_modules/zustand')) return 'vendor-state';
           
           // Data fetching & forms
@@ -303,13 +334,13 @@ export default defineConfig({
   resolve: {
     conditions: ["browser", "import", "module", "default"],
     alias: [
-      // Preact aliases (when enabled)
-      preactOn && { find: 'react', replacement: 'preact/compat' },
-      preactOn && { find: 'react-dom/test-utils', replacement: 'preact/test-utils' },
-      preactOn && { find: 'react-dom', replacement: 'preact/compat' },
-      preactOn && { find: 'react/jsx-runtime', replacement: 'preact/jsx-runtime' },
-      preactOn && { find: 'react/jsx-dev-runtime', replacement: 'preact/jsx-runtime' },
+      // --- Preact swap (comprehensive regex patterns) ---
+      preactOn && { find: /^react\/jsx-runtime$/, replacement: 'preact/jsx-runtime' },
       preactOn && { find: /^react\/jsx-dev-runtime$/, replacement: 'preact/jsx-runtime' },
+      preactOn && { find: /^react-dom\/client$/, replacement: 'preact/compat' },
+      preactOn && { find: /^react-dom\/test-utils$/, replacement: 'preact/test-utils' },
+      preactOn && { find: /^react-dom$/, replacement: 'preact/compat' },
+      preactOn && { find: /^react$/, replacement: 'preact/compat' },
       
       // Sentry no-op (when disabled)
       !sentryOn && { find: /^@sentry\//, replacement: sentryNoop },
