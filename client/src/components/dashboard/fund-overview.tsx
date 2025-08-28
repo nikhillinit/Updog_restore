@@ -3,12 +3,21 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
+import { ResponsiveContainer } from 'recharts/es6/component/ResponsiveContainer';
+import { AreaChart } from 'recharts/es6/chart/AreaChart';
+import { Area } from 'recharts/es6/cartesian/Area';
+import { XAxis } from 'recharts/es6/cartesian/XAxis';
+import { YAxis } from 'recharts/es6/cartesian/YAxis';
+import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
+import { Tooltip } from 'recharts/es6/component/Tooltip';
+import { PieChart } from 'recharts/es6/chart/PieChart';
+import { Pie } from 'recharts/es6/polar/Pie';
+import { Cell } from 'recharts/es6/component/Cell';
 import React from 'react';
 import { DashboardCard } from './DashboardCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFundContext } from '@/contexts/FundContext';
 import { DollarSign, BarChart3, Users, TrendingUp } from 'lucide-react';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
 
 // Sample data matching target UI
 const areaChartData = [

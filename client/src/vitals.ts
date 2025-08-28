@@ -1,4 +1,5 @@
 import { onLCP, onINP, onCLS, onFCP, onTTFB, Metric } from 'web-vitals';
+import { Sentry } from '@/monitoring';
 
 interface VitalMetric extends Metric {
   navigationType?: string;

@@ -3,6 +3,17 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
+import { LineChart } from 'recharts/es6/chart/LineChart';
+import { Line } from 'recharts/es6/cartesian/Line';
+import { XAxis } from 'recharts/es6/cartesian/XAxis';
+import { YAxis } from 'recharts/es6/cartesian/YAxis';
+import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
+import { ResponsiveContainer } from 'recharts/es6/component/ResponsiveContainer';
+import { Tooltip } from 'recharts/es6/component/Tooltip';
+import { BarChart } from 'recharts/es6/chart/BarChart';
+import { Bar } from 'recharts/es6/cartesian/Bar';
+import { AreaChart } from 'recharts/es6/chart/AreaChart';
+import { Area } from 'recharts/es6/cartesian/Area';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +26,6 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, BarChart, Bar, AreaChart, Area } from 'recharts';
 import { Play, Settings, Download, RefreshCw, TrendingUp, TrendingDown, AlertTriangle, Info, Target, Zap } from 'lucide-react';
 
 // Independent Variables (Fund Construction Parameters)

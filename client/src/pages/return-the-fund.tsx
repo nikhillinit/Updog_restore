@@ -3,6 +3,18 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
+import { BarChart } from 'recharts/es6/chart/BarChart';
+import { Bar } from 'recharts/es6/cartesian/Bar';
+import { XAxis } from 'recharts/es6/cartesian/XAxis';
+import { YAxis } from 'recharts/es6/cartesian/YAxis';
+import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
+import { Tooltip } from 'recharts/es6/component/Tooltip';
+import { ResponsiveContainer } from 'recharts/es6/component/ResponsiveContainer';
+import { LineChart } from 'recharts/es6/chart/LineChart';
+import { Line } from 'recharts/es6/cartesian/Line';
+import { ComposedChart } from 'recharts/es6/chart/ComposedChart';
+import { Area } from 'recharts/es6/cartesian/Area';
+import { AreaChart } from 'recharts/es6/chart/AreaChart';
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,20 +25,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  ComposedChart,
-  Area,
-  AreaChart
-} from "recharts";
 import { 
   TrendingUp, 
   TrendingDown,

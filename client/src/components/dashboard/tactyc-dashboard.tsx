@@ -3,6 +3,20 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
+import { BarChart } from 'recharts/es6/chart/BarChart';
+import { Bar } from 'recharts/es6/cartesian/Bar';
+import { XAxis } from 'recharts/es6/cartesian/XAxis';
+import { YAxis } from 'recharts/es6/cartesian/YAxis';
+import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
+import { ResponsiveContainer } from 'recharts/es6/component/ResponsiveContainer';
+import { LineChart } from 'recharts/es6/chart/LineChart';
+import { Line } from 'recharts/es6/cartesian/Line';
+import { PieChart } from 'recharts/es6/chart/PieChart';
+import { Pie } from 'recharts/es6/polar/Pie';
+import { Cell } from 'recharts/es6/component/Cell';
+import { AreaChart } from 'recharts/es6/chart/AreaChart';
+import { Area } from 'recharts/es6/cartesian/Area';
+import { ComposedChart } from 'recharts/es6/chart/ComposedChart';
 import { useState } from "react";
 import { useFundContext } from "@/contexts/FundContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +26,6 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area, ComposedChart } from "recharts";
 import { TrendingUp, Building2, DollarSign, Target, Calendar, Users, ArrowUpRight, ArrowDownRight, Info } from "lucide-react";
 import PortfolioConcentration from "./portfolio-concentration";
 
