@@ -130,3 +130,7 @@ declare module 'recharts/es6/cartesian/ReferenceDot' {
 declare module 'recharts/es6/polar/RadialBar' {
   export { RadialBar } from 'recharts';
 }
+
+declare module 'recharts/es6/cartesian/ErrorBar' {
+  export { ErrorBar } from 'recharts';
+}
