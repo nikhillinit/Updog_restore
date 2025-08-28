@@ -67,7 +67,7 @@ export default function NivoAllocationPie({
               cy="50%"
               labelLine={false}
               label={({ name, value }) => {
-                const percentage = ((value / total) * 100).toFixed(1);
+                const percentage = value ? ((value / total) * 100).toFixed(1) : '0';
                 return `${name}: ${percentage}%`;
               }}
               outerRadius={80}

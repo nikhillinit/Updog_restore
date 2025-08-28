@@ -134,3 +134,27 @@ declare module 'recharts/es6/polar/RadialBar' {
 declare module 'recharts/es6/cartesian/ErrorBar' {
   export { ErrorBar } from 'recharts';
 }
+
+declare module 'recharts/es6/shape/Cross' {
+  export { Cross } from 'recharts';
+}
+
+declare module 'recharts/es6/shape/Curve' {
+  export { Curve } from 'recharts';
+}
+
+declare module 'recharts/es6/shape/Dot' {
+  export { Dot } from 'recharts';
+}
+
+declare module 'recharts/es6/shape/Polygon' {
+  export { Polygon } from 'recharts';
+}
+
+declare module 'recharts/es6/shape/Rectangle' {
+  export { Rectangle } from 'recharts';
+}
+
+declare module 'recharts/es6/shape/Sector' {
+  export { Sector } from 'recharts';
+}
