@@ -107,7 +107,9 @@
       "Bash(set PREACT=1)",
       "Bash(set BUILD_WITH_PREACT=1)",
       "Bash(set VITE_SENTRY_DSN=)",
-      "Bash(cross-env:*)"
+      "Bash(cross-env:*)",
+      "Bash(rimraf:*)",
+      "Bash(npx source-map-explorer:*)"
     ],
     "deny": [],
     "additionalDirectories": [
