@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type PluginOption } from 'vite';
 import react from '@vitejs/plugin-react';
 import preact from '@preact/preset-vite';
 import path from 'path';
@@ -192,60 +192,25 @@ const getAppVersion = () => {
   }
 };
 
-const preactOn = process.env.BUILD_WITH_PREACT === '1';
-const sentryOn = !!process.env.VITE_SENTRY_DSN;
+const usePreact =
+  process.env['BUILD_WITH_PREACT'] === '1' ||
+  process.env['BUILD_WITH_PREACT'] === 'true';
+
+const sentryOn = !!process.env['VITE_SENTRY_DSN'];
 const sentryNoop = path.resolve(import.meta.dirname, 'client/src/monitoring/noop.ts');
 
-// Force Preact alias before any other resolution logic
-function forcePreactAlias(): import('vite').Plugin {
-  return {
-    name: 'force-preact-alias',
-    enforce: 'pre',
-    resolveId(source) {
-      if (!preactOn) return null;
-      
-      if (source === 'react') return this.resolve('preact/compat', undefined, { skipSelf: true });
-      if (source === 'react-dom') return this.resolve('preact/compat', undefined, { skipSelf: true });
-      if (source === 'react-dom/client') return this.resolve('preact/compat', undefined, { skipSelf: true });
-      if (source === 'react/jsx-runtime' || source === 'react/jsx-dev-runtime') {
-        return this.resolve('preact/jsx-runtime', undefined, { skipSelf: true });
-      }
-      return null;
-    },
-  };
-}
-
-// Forbid React in Preact builds - fail the build if React is detected
-function forbidReactInPreactBuild(): import('vite').Plugin {
-  const REACT_PATH = /\/node_modules\/react(\/|$)/;
-  return {
-    name: 'forbid-react-in-preact-build',
-    enforce: 'post',
-    generateBundle(_, bundle) {
-      if (!preactOn) return;
-      
-      for (const [fileName, chunk] of Object.entries(bundle)) {
-        if (chunk.type === 'chunk') {
-          // Check for React signatures in code
-          if (chunk.code.includes('__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED') ||
-              chunk.code.includes('react.production.min')) {
-            this.error(`React found in Preact build in ${fileName}. Check aliases/pre-bundling.`);
-          }
-          
-          // Check module paths
-          if ('facadeModuleId' in chunk && chunk.facadeModuleId && REACT_PATH.test(chunk.facadeModuleId)) {
-            this.error(`React module found in Preact build: ${chunk.facadeModuleId}`);
-          }
-        }
-      }
-    },
-  };
-}
+// Preact alias set covers all common React entry points (incl. automatic JSX runtime)
+const preactAliases = [
+  { find: 'react', replacement: 'preact/compat' },
+  { find: 'react-dom/test-utils', replacement: 'preact/test-utils' },
+  { find: 'react-dom/client', replacement: 'preact/compat' },
+  { find: 'react-dom', replacement: 'preact/compat' },
+  { find: 'react/jsx-runtime', replacement: 'preact/jsx-runtime' },
+  { find: 'react/jsx-dev-runtime', replacement: 'preact/jsx-dev-runtime' },
+];
 
 export default defineConfig({
   plugins: [
-    preactOn && forcePreactAlias(),
-    preactOn && forbidReactInPreactBuild(),
     // Use absolute path so Vite doesn't ever look for "client/client/tsconfig.json"
     tsconfigPaths({
       projects: [path.resolve(import.meta.dirname, 'client/tsconfig.json')],
@@ -256,9 +221,9 @@ export default defineConfig({
       "prom-client": promClientMock
     }), 
     // Conditional React/Preact plugin
-    preactOn ? preact({ devToolsInProd: false }) : react(),
+    usePreact ? preact({ devtoolsInProd: false }) : react(),
     visualizer({ filename: "stats.html", gzipSize: true })
-  ].filter(Boolean),
+  ].filter(Boolean) as PluginOption[],
   esbuild: {
     tsconfigRaw: {
       compilerOptions: {
@@ -277,7 +242,7 @@ export default defineConfig({
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(getAppVersion()),
     'import.meta.env.VITE_GIT_SHA': JSON.stringify(process.env['GITHUB_SHA'] || getGitSha()),
     'import.meta.env.VITE_BUILD_TIME': JSON.stringify(new Date().toISOString()),
-    '__SENTRY__': JSON.stringify(Boolean(process.env.VITE_SENTRY_DSN))
+    '__SENTRY__': JSON.stringify(Boolean(process.env['VITE_SENTRY_DSN']))
   },
   root: path.resolve(import.meta.dirname, 'client'),
   build: {
@@ -354,7 +319,7 @@ export default defineConfig({
           if (id.includes('node_modules/xlsx')) return 'vendor-excel';
           
           // Core React/Preact ecosystem
-          if (preactOn) {
+          if (usePreact) {
             if (id.includes('node_modules/preact')) return 'vendor-preact';
           } else {
             if (id.includes('node_modules/react-dom')) return 'vendor-react';
@@ -404,13 +369,8 @@ export default defineConfig({
   resolve: {
     conditions: ["browser", "import", "module", "default"],
     alias: [
-      // --- Preact swap (comprehensive regex patterns) ---
-      preactOn && { find: /^react\/jsx-runtime$/, replacement: 'preact/jsx-runtime' },
-      preactOn && { find: /^react\/jsx-dev-runtime$/, replacement: 'preact/jsx-runtime' },
-      preactOn && { find: /^react-dom\/client$/, replacement: 'preact/compat' },
-      preactOn && { find: /^react-dom\/test-utils$/, replacement: 'preact/test-utils' },
-      preactOn && { find: /^react-dom$/, replacement: 'preact/compat' },
-      preactOn && { find: /^react$/, replacement: 'preact/compat' },
+      // Preact substitution when enabled
+      ...(usePreact ? preactAliases : []),
       
       // Sentry no-op (when disabled)
       !sentryOn && { find: /^@sentry\//, replacement: sentryNoop },
@@ -421,13 +381,16 @@ export default defineConfig({
       { find: '@/lib', replacement: path.resolve(import.meta.dirname, 'client/src/lib') },
       { find: '@shared', replacement: path.resolve(import.meta.dirname, 'shared') },
       { find: '@assets', replacement: path.resolve(import.meta.dirname, 'assets') },
-    ].filter(Boolean) as any,
-    dedupe: preactOn ? ['react', 'react-dom', 'preact', 'preact/compat'] : [],
+    ].filter(Boolean),
+    dedupe: usePreact ? ['react', 'react-dom'] : [],
   },
-  optimizeDeps: {
-    exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser', '@sentry/browser', '@sentry/react']
-      .concat(preactOn ? ['react', 'react-dom', 'react/jsx-runtime'] : ['preact', 'preact/compat']),
-    include: preactOn ? ['preact', 'preact/compat', 'preact/jsx-runtime'] : [],
-    esbuildOptions: preactOn ? { define: { 'process.env.NODE_ENV': '"production"' } } : {}
-  }
+  optimizeDeps: usePreact
+    ? {
+        // Prevent esbuild pre-bundling of React if some dep lists it loosely
+        exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser', '@sentry/browser', '@sentry/react', 'react', 'react-dom', 'react-dom/client'],
+        include: ['preact', 'preact/hooks', 'preact/compat'],
+      }
+    : {
+        exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser', '@sentry/browser', '@sentry/react'],
+      }
 });

@@ -509,7 +509,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createInvestment(insertInvestment: InsertInvestment): Promise<Investment> {
-    const [investment] = await db
+    const result = await db
       .insert(investments)
       .values({
         fundId: insertInvestment.fundId || null,
@@ -522,6 +522,10 @@ export class DatabaseStorage implements IStorage {
         dealTags: insertInvestment.dealTags || null
       })
       .returning();
+    const investment = result[0];
+    if (!investment) {
+      throw new Error('Failed to create investment');
+    }
     return investment;
   }
 
@@ -560,7 +564,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFundMetrics(insertMetrics: InsertFundMetrics): Promise<FundMetrics> {
-    const [metrics] = await db
+    const result = await db
       .insert(fundMetrics)
       .values({
         ...insertMetrics,
@@ -571,6 +575,10 @@ export class DatabaseStorage implements IStorage {
         tvpi: insertMetrics.tvpi || null
       })
       .returning();
+    const metrics = result[0];
+    if (!metrics) {
+      throw new Error('Failed to create fund metrics');
+    }
     return metrics;
   }
 
@@ -582,7 +590,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createActivity(insertActivity: InsertActivity): Promise<Activity> {
-    const [activity] = await db
+    const result = await db
       .insert(activities)
       .values({
         ...insertActivity,
@@ -592,12 +600,16 @@ export class DatabaseStorage implements IStorage {
         amount: insertActivity.amount || null
       })
       .returning();
+    const activity = result[0];
+    if (!activity) {
+      throw new Error('Failed to create activity');
+    }
     return activity;
   }
 }
 
 // Use DatabaseStorage when DATABASE_URL is available, otherwise use MemStorage
-export const storage = process.env.DATABASE_URL 
+export const storage = process.env['DATABASE_URL'] 
   ? new DatabaseStorage() 
   : new MemStorage();
 
