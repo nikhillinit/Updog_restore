@@ -113,7 +113,9 @@
       "Bash(gh pr create:*)",
       "Bash(scripts/verify-migrations.sh:*)",
       "Bash(scripts/guardian-evaluate.sh:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr comment:*)"
     ],
     "deny": [],
     "additionalDirectories": [
