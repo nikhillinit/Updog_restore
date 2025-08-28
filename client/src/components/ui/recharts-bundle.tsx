@@ -267,6 +267,7 @@ export const ChartLegend = React.forwardRef<
         "flex flex-wrap items-center justify-center gap-4 text-xs",
         className
       )}
+      content={ChartLegendContent as any}
       {...props}
     />
   )
