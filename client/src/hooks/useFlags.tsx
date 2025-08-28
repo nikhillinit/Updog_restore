@@ -101,7 +101,7 @@ export function FlagDebugPanel() {
   const { data: flags, isLoading: flagsLoading } = useFlags();
   const { data: status, isLoading: statusLoading } = useFlagStatus();
   
-  if (process.env.NODE_ENV !== 'development') {
+  if (process.env['NODE_ENV'] !== 'development') {
     return null;
   }
   

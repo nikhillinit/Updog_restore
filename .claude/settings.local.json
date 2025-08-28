@@ -93,12 +93,17 @@
       "Bash(npx yaml-lint:*)",
       "Bash(git diff:*)",
       "Bash(npx eslint:*)",
-      "Bash(time npm run lint)"
+      "Bash(time npm run lint)",
+      "Bash(git worktree:*)",
+      "Bash(git worktree remove:*)",
+      "Bash(git branch:*)",
+      "Read(C:\\dev\\updog_components_wt\\client\\src\\components\\ui/**)"
     ],
     "deny": [],
     "additionalDirectories": [
       "C:\\mnt\\c\\dev",
-      "C:\\tmp"
+      "C:\\tmp",
+      "C:\\dev\\updog_components_wt"
     ]
   }
 }

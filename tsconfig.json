@@ -8,10 +8,10 @@
     "target": "ES2020",
     "module": "ESNext",
     "strict": true,
-    "noUncheckedIndexedAccess": false,  // Temporarily relaxed - re-enable gradually
+    "noUncheckedIndexedAccess": true,  // Re-enabled for base (shared/server)
     "exactOptionalPropertyTypes": false, // TODO: Re-enable after chart library consolidation (316 errors)",
     "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": false,  // Temporarily relaxed while fixing bracket access
+    "noPropertyAccessFromIndexSignature": true,  // Re-enabled for base
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
