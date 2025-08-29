@@ -14,9 +14,9 @@ export interface IdemRecord<T = unknown> {
 }
 
 export interface IdempotencyStore {
-  get<T = unknown>(key: string): Promise<IdemRecord<T> | undefined>;
-  set<T = unknown>(key: string, rec: IdemRecord<T>): Promise<void>;
-  del(key: string): Promise<void>;
+  get<T = unknown>(_key: string): Promise<IdemRecord<T> | undefined>;
+  set<T = unknown>(_key: string, _rec: IdemRecord<T>): Promise<void>;
+  del(_key: string): Promise<void>;
 }
 
 // In-memory store with TTL GC (sufficient for single-process dev/test)

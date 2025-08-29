@@ -172,7 +172,7 @@ const DISTRIBUTION_TYPES = [
 ];
 
 // Sample sensitivity analysis data
-const generateSensitivityData = (input1: string, input2: string, output: string) => {
+const generateSensitivityData = (_input1: string, _input2: string, _output: string) => {
   const data = [];
   for (let i = 0; i <= 10; i++) {
     for (let j = 0; j <= 10; j++) {
@@ -207,7 +207,7 @@ export default function SensitivityAnalysis() {
   const [isRunning, setIsRunning] = useState(false);
   const [activeTab, setActiveTab] = useState('two-way');
   const [monteCarloIterations, setMonteCarloIterations] = useState(1000);
-  const [variableDistributions, setVariableDistributions] = useState<Record<string, any>>({});
+  const [_variableDistributions, _setVariableDistributions] = useState<Record<string, any>>({});
 
   const runSensitivityAnalysis = () => {
     setIsRunning(true);

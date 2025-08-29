@@ -71,7 +71,7 @@ type StartOpts = {
 
 export async function startInFlight<T>(
   hash: string,
-  worker: (ctx: { signal: AbortSignal }) => Promise<T>,
+  worker: (_ctx: { signal: AbortSignal }) => Promise<T>,
   opts: StartOpts = {}
 ): Promise<T> {
   const key = nsKey(hash);

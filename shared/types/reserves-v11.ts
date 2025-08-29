@@ -22,7 +22,7 @@ export interface CapPolicy {
   kind: 'fixed_percent' | 'stage_based' | 'custom';
   default_percent?: number;  // Default cap as percentage of initial investment
   stage_caps?: Record<string, number>;
-  custom_fn?: (company: Company) => number;
+  custom_fn?: (_company: Company) => number;
 }
 
 export interface ReservesInput {

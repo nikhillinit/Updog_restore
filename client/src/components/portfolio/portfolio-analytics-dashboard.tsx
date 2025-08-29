@@ -215,7 +215,7 @@ const SAMPLE_COMPANIES: PortfolioCompany[] = [
 export default function PortfolioAnalyticsDashboard() {
   const { currentFund } = useFundContext();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedView, setSelectedView] = useState<string>('all-views');
+  const [_selectedView, _setSelectedView] = useState<string>('all-views');
   const [savedViews, setSavedViews] = useState<AnalyticsView[]>([]);
   const [currentChart, setCurrentChart] = useState<ChartConfig>({
     type: 'bar',

@@ -11,7 +11,7 @@ export type FundModelResult = { result: Record<string, unknown> };
 export class EnhancedFundModel {
   constructor(private input: FundModelInput) {}
 
-  async calculate(_opts?: { signal?: AbortSignal; onProgress?: (p: number) => void }): Promise<FundModelResult> {
+  async calculate(_opts?: { signal?: AbortSignal; onProgress?: (_p: number) => void }): Promise<FundModelResult> {
     const started = Date.now();
     // Simulate some work
     await new Promise((r) => setTimeout(r, 50));

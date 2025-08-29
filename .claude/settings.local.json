@@ -121,7 +121,8 @@
       "Read(c:\\dev\\Updog_restore\\client\\src\\components\\investments/**)",
       "Read(c:\\dev\\Updog_restore\\client\\src\\components\\investments/**)",
       "Read(c:\\dev\\Updog_restore\\client\\src\\components\\investments/**)",
-      "Read(c:\\dev\\Updog_restore\\client\\src\\components\\investments/**)"
+      "Read(c:\\dev\\Updog_restore\\client\\src\\components\\investments/**)",
+      "Read(c:\\dev\\Updog_restore\\scripts/**)"
     ],
     "deny": [],
     "additionalDirectories": [

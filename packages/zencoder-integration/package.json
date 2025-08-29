@@ -1,0 +1,22 @@
+{
+  "name": "@povc/zencoder-integration",
+  "version": "1.0.0",
+  "description": "Zencoder AI integration for automated code fixes",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@povc/agent-core": "workspace:*",
+    "axios": "^1.6.2",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.4",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.4"
+  }
+}

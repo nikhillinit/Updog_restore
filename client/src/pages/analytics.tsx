@@ -74,7 +74,7 @@ const cohortComparison = [
 
 export default function Analytics() {
   const [timeRange, setTimeRange] = useState('12m');
-  const [selectedMetric, setSelectedMetric] = useState('irr');
+  const [_selectedMetric, _setSelectedMetric] = useState('irr');
   const [activeTab, setActiveTab] = useState('performance');
   const { currentFund, isLoading } = useFundContext();
 

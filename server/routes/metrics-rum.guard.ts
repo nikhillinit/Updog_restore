@@ -61,7 +61,7 @@ export const rumLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: 'Too many metrics sent, please try again later',
-  skip: (req) => {
+  skip: (_req) => {
     // Skip rate limiting in development
     return process.env.NODE_ENV === 'development';
   },

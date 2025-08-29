@@ -260,8 +260,8 @@ export class ShadowIntelligence {
     
     if (v11Total > v1Total) return 'increased_allocation';
     if (v11Total < v1Total) return 'decreased_allocation';
-    if (v11.data.allocations.length > v1.data.allocations.length) return 'more_companies_funded';
-    if (v11.data.allocations.length < v1.data.allocations.length) return 'fewer_companies_funded';
+    if (v11.data.allocations.length > v1.data.allocations.length) return 'morecompanies_funded';
+    if (v11.data.allocations.length < v1.data.allocations.length) return 'fewercompanies_funded';
     
     return 'rebalanced_allocation';
   }

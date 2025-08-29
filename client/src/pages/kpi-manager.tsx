@@ -79,7 +79,7 @@ export default function KPIManager() {
   // Sample data based on Tactyc screenshots
   const companies = ["AlphaTech", "Amplio", "CatalystLabs", "Cybrosys Technologies", "DigitalWave"];
   
-  const [kpis] = useState<KPI[]>([
+  const [_kpis] = useState<KPI[]>([
     {
       id: "arr",
       name: "ARR",
@@ -646,7 +646,7 @@ export default function KPIManager() {
                     { company: "CatalystLabs", status: "Sent", updated: "Dec 18, 2023", color: "blue" },
                     { company: "Cybrosys Technologies", status: "Completed", updated: "Dec 20, 2023", color: "green" },
                     { company: "DigitalWave", status: "Pending Update", updated: "Dec 10, 2023", color: "yellow" }
-                  ].map((request, index) => (
+                  ].map((request, _index) => (
                     <div key={request.company} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
                       <div className="flex items-center space-x-4">
                         <Checkbox />

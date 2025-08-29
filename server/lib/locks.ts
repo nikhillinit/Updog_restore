@@ -3,7 +3,7 @@
  * Prevents race conditions at fund/org level
  */
 
-import { sql } from 'drizzle-orm';
+import { _sql } from 'drizzle-orm';
 import crypto from 'crypto';
 import { RLSRequest } from '../middleware/with-rls-transaction.js';
 

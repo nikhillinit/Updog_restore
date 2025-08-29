@@ -51,7 +51,7 @@ export default function IRRSummary({ className }: IRRSummaryProps) {
   ];
 
   // Calculate IRR from realized cash flows only
-  const calculateRealizedIRR = (realizedCashFlows: number[], investmentDates: Date[], realizationDates: Date[]): number => {
+  const calculateRealizedIRR = (_realizedCashFlows: number[], _investmentDates: Date[], _realizationDates: Date[]): number => {
     // Simplified IRR calculation for realized-only cash flows
     // In practice, this would use a more sophisticated IRR algorithm (Newton-Raphson method)
     

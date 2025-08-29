@@ -15,7 +15,7 @@ import { formatQuarter, getCurrentQuarter } from '@/lib/quarter-time';
 
 interface ReserveStepProps {
   fund: any; // Your existing fund type
-  onComplete: (reserveConfig: any) => void;
+  onComplete: (_reserveConfig: any) => void;
   onBack?: () => void;
 }
 

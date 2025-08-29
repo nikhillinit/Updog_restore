@@ -82,8 +82,8 @@ const SAMPLE_CAP_TABLE_SCENARIOS: CapTableScenario[] = [
 
 export default function CapTables() {
   const { currentFund } = useFundContext();
-  const [scenarios, setScenarios] = useState<CapTableScenario[]>(SAMPLE_CAP_TABLE_SCENARIOS);
-  const [selectedScenario, setSelectedScenario] = useState<CapTableScenario | null>(null);
+  const [scenarios, _setScenarios] = useState<CapTableScenario[]>(SAMPLE_CAP_TABLE_SCENARIOS);
+  const [_selectedScenario, setSelectedScenario] = useState<CapTableScenario | null>(null);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');

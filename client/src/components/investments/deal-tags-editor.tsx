@@ -13,7 +13,7 @@ import { X, Plus, Search, Tag } from 'lucide-react';
 
 interface DealTagsEditorProps {
   selectedTags: string[];
-  onTagsChange: (tags: string[]) => void;
+  onTagsChange: (_tags: string[]) => void;
   className?: string;
 }
 

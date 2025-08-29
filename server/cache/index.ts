@@ -9,9 +9,9 @@
  */
 
 export interface Cache {
-  get(key: string): Promise<string | null>;
-  set(key: string, value: string, ttlSeconds?: number): Promise<void>;
-  del(key: string): Promise<void>;
+  get(_key: string): Promise<string | null>;
+  set(_key: string, value: string, ttlSeconds?: number): Promise<void>;
+  del(_key: string): Promise<void>;
   close(): Promise<void>;
 }
 

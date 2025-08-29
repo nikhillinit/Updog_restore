@@ -352,7 +352,7 @@ export default function MOICAnalysis() {
                       label={{ value: 'Expected MOIC', angle: -90, position: 'insideLeft' }}
                     />
                     <Tooltip 
-                      formatter={(value, name, props) => {
+                      formatter={(value, name, _props) => {
                         if (name === 'expectedMOIC') return [`${value}x`, 'Expected MOIC on Reserves'];
                         return [value, name];
                       }}

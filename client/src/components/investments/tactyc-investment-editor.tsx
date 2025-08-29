@@ -212,8 +212,8 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
     activeCase: 'base-case'
   });
 
-  const [editingRound, setEditingRound] = useState<string | null>(null);
-  const [showAddRound, setShowAddRound] = useState(false);
+  const [_editingRound, setEditingRound] = useState<string | null>(null);
+  const [_showAddRound, setShowAddRound] = useState(false);
   const [showFutureRounds, setShowFutureRounds] = useState(false);
   const [showExitEditor, setShowExitEditor] = useState(false);
   const [isEditMode, setIsEditMode] = useState(true); // Start in edit mode for new investments

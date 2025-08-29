@@ -16,7 +16,7 @@ import { Percent, Calendar, Info } from "lucide-react";
 
 interface OwnershipUpdateDialogProps {
   isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (_open: boolean) => void;
   investment?: {
     id: string;
     company: string;

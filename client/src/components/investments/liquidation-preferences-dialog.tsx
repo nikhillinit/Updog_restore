@@ -17,7 +17,7 @@ import { Info, DollarSign, TrendingDown, AlertTriangle } from "lucide-react";
 
 interface LiquidationPreferencesDialogProps {
   isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (_open: boolean) => void;
   investment?: {
     id: string;
     company: string;

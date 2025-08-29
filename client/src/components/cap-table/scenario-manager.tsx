@@ -36,13 +36,13 @@ interface CapTableScenario {
 
 interface ScenarioManagerProps {
   scenarios: CapTableScenario[];
-  onScenariosChange: (scenarios: CapTableScenario[]) => void;
+  onScenariosChange: (_scenarios: CapTableScenario[]) => void;
   investmentId?: string;
 }
 
 export default function ScenarioManager({ scenarios, onScenariosChange, investmentId }: ScenarioManagerProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [selectedScenario, setSelectedScenario] = useState<CapTableScenario | null>(null);
+  const [_selectedScenario, _setSelectedScenario] = useState<CapTableScenario | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
