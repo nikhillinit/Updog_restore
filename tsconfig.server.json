@@ -24,11 +24,15 @@
     "types", 
     "server/**/*", 
     "shared/**/*",
+    "lib/**/*",
     "client/src/core/**/*",
     "client/src/lib/**/*",
     "client/src/utils/**/*",
     "client/src/schemas/**/*",
     "client/src/metrics/**/*",
+    "client/src/stores/**/*",
+    "client/src/types/**/*",
+    "client/src/monitoring/**/*",
     "vite.config.ts"
   ],
   "exclude": [
