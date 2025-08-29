@@ -166,7 +166,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        job: [client, server, lint]
+        job: [client, server, shared, lint, unit-fast]
     steps:
       - uses: actions/checkout@v4
       
@@ -208,8 +208,18 @@ jobs:
                 npm run check:server
               fi
               ;;
+            shared)
+              if [ -f ".tsbuildinfo.shared" ]; then
+                npx tsc -p tsconfig.shared.json --incremental --noEmit
+              else
+                npm run check:shared
+              fi
+              ;;
             lint)
               npm run lint
+              ;;
+            unit-fast)
+              npm run test:unit -- --bail --reporter=dot || npm run test:quick
               ;;
           esac
 
