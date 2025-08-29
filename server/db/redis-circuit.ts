@@ -2,7 +2,7 @@
  * Redis client with circuit breaker protection
  * Provides resilient cache access with automatic failure handling
  */
-import { Redis } from 'ioredis';
+import Redis from 'ioredis';
 import { CircuitBreaker } from '../infra/circuit-breaker/CircuitBreaker';
 import { breakerRegistry } from '../infra/circuit-breaker/breaker-registry';
 
@@ -57,7 +57,7 @@ const redisBreakerConfig = {
 };
 
 // Create circuit breaker for Redis operations
-const redisBreaker = new CircuitBreaker('redis', redisBreakerConfig);
+// Create a properly typed circuit breaker for Redis operations\nconst redisBreaker = new CircuitBreaker<any>(redisBreakerConfig, async () => {}, async () => {});
 
 // Register with the breaker registry for monitoring
 breakerRegistry.register('redis', redisBreaker);
@@ -280,7 +280,11 @@ export async function del(key: string): Promise<void> {
     }
     
     // Try Redis with circuit breaker
-    await redisBreaker.execute(() => redis.del(key));
+    await redisBreaker.run(async () => redis.del(key), async () => {
+      // Memory cache already cleared, so operation succeeds
+      console.warn(`[Redis] Failed to delete from Redis: ${key}`);
+      return 0;
+    });
   } catch (err) {
     error = err as Error;
     // Memory cache already cleared, so operation succeeds
@@ -328,7 +332,11 @@ export async function incr(key: string): Promise<number> {
       return await redis.incr(key);
     }
     
-    return await redisBreaker.execute(() => redis.incr(key));
+    return await redisBreaker.run(async () => redis.incr(key), async () => {
+      console.error(`[Redis] Failed to increment ${key}`);
+      // Return 0 as fallback
+      return 0;
+    });
   } catch (error) {
     console.error(`[Redis] Failed to increment ${key}:`, error);
     // Return 0 as fallback
@@ -450,3 +458,16 @@ export default {
   closeRedis,
   getCacheMetrics,
 };
+
+
+
+
+
+
+
+/**
+ * Get circuit breaker stats
+ */
+export function getStats() {
+  return redisBreaker.getMetrics();
+}
