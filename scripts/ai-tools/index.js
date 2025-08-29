@@ -34,6 +34,15 @@ Commands:
     --draft-pr            Create draft PR with repairs
     --verbose             Show detailed output
 
+  zencoder <task>         AI-powered code fixes with Zencoder
+    typescript            Fix TypeScript compilation errors
+    test                  Fix failing tests
+    eslint                Fix ESLint violations
+    deps                  Update vulnerable dependencies
+    --max-fixes N         Maximum fixes to apply (default: 10)
+    --files <list>        Comma-separated list of target files
+    --verbose             Show detailed output
+
   bundle-analyze          Analyze current bundle composition
     --format <type>       Output format (json|text)
     --output <file>       Save output to file
@@ -72,6 +81,9 @@ Examples:
   npm run ai patch fix.patch --dry-run  # Validate git patch
   npm run ai repair                   # Repair all failing tests
   npm run ai repair "portfolio" --draft-pr  # Repair tests and create PR
+  npm run ai zencoder typescript     # Fix TypeScript errors
+  npm run ai zencoder eslint --max-fixes=20  # Fix up to 20 ESLint issues
+  npm run ai zencoder test --files=src/auth.test.ts  # Fix specific test file
   npm run ai status                  # Show project status
   npm run ai metrics                 # Show metrics endpoint
 
@@ -272,6 +284,67 @@ async function main() {
           }
           process.exit(1);
         }
+        break;
+      }
+
+      case 'zencoder': {
+        const subCommand = commandArgs[0];
+        if (!subCommand) {
+          console.error('Error: zencoder requires a subcommand');
+          console.log('Usage: npm run ai zencoder <typescript|test|eslint|deps> [options]');
+          process.exit(1);
+        }
+
+        const { ZencoderAgent } = await import('../../packages/zencoder-integration/dist/index.js');
+        const agent = new ZencoderAgent({
+          logLevel: commandArgs.includes('--verbose') ? 'debug' : 'info',
+        });
+
+        const taskMap = {
+          'typescript': 'typescript-fix',
+          'test': 'test-fix',
+          'eslint': 'eslint-fix',
+          'deps': 'dependency-update',
+        };
+
+        const task = taskMap[subCommand];
+        if (!task) {
+          console.error(`Unknown zencoder subcommand: ${subCommand}`);
+          process.exit(1);
+        }
+
+        const maxFixesArg = commandArgs.find(arg => arg.startsWith('--max-fixes'));
+        const maxFixes = maxFixesArg ? parseInt(maxFixesArg.split('=')[1] || '10') : 10;
+        
+        const targetFilesArg = commandArgs.find(arg => arg.startsWith('--files'));
+        const targetFiles = targetFilesArg ? targetFilesArg.split('=')[1].split(',') : undefined;
+
+        console.log(`[ZENCODER] Starting ${task} analysis...`);
+        const result = await agent.execute({
+          projectRoot: PROJECT_ROOT,
+          task,
+          targetFiles,
+          maxFixes,
+        });
+
+        console.log('\n=== Zencoder Results ===');
+        console.log(`Task: ${result.task}`);
+        console.log(`Files analyzed: ${result.filesAnalyzed}`);
+        console.log(`Files fixed: ${result.filesFixed}`);
+        console.log(`Time: ${result.timeMs}ms`);
+        
+        if (result.fixes.length > 0) {
+          console.log('\nFixes applied:');
+          result.fixes.forEach(fix => {
+            const status = fix.applied ? '✅' : '❌';
+            console.log(`  ${status} ${fix.file}: ${fix.issue}`);
+            if (!fix.applied && fix.error) {
+              console.log(`     Error: ${fix.error}`);
+            }
+          });
+        }
+
+        process.exit(result.filesFixed > 0 ? 0 : 1);
         break;
       }
 
