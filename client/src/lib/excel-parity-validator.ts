@@ -4,7 +4,7 @@
  * within acceptable tolerance levels
  */
 
-// import { ConstrainedReserveEngine } from '@shared/core/reserves/ConstrainedReserveEngine';
+import { ConstrainedReserveEngine } from '@/core/reserves/ConstrainedReserveEngine';
 import type { Company, StagePolicy, ReserveConstraints } from '@/types/domain-min';
 
 // Extended Company type for parity validation
