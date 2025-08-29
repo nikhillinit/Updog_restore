@@ -1,5 +1,6 @@
 import fp from 'fastify-plugin';
 import { register, collectDefaultMetrics } from 'prom-client';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 
 collectDefaultMetrics({ register });
 
@@ -12,8 +13,8 @@ async function gatherBusinessMetrics() {
   };
 }
 
-async function plugin(fastify: unknown) {
-  fastify.get('/metrics', async (_req: unknown, reply: any) => {
+async function plugin(fastify: FastifyInstance) {
+  fastify.get('/metrics', async (_req: FastifyRequest, reply: FastifyReply) => {
     reply.header('Content-Type', register.contentType);
     return register.metrics();
   });
