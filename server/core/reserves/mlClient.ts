@@ -219,7 +219,7 @@ export class MlClient {
       .map(([factor, importance]) => ({
         factor,
         importance: Math.abs(importance as number),
-        direction: (importance as number) >= 0 ? 'positive' : 'negative',
+        direction: ((importance as number) >= 0 ? 'positive' : 'negative') as 'positive' | 'negative',
       }))
       .sort((a, b) => b.importance - a.importance)
       .slice(0, 5); // Top 5 factors
