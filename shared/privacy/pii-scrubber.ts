@@ -5,7 +5,7 @@ const patterns: Record<string, RegExp> = {
   email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g
 };
 
-export function scrubPII(value: any): any {
+export function scrubPII(value: unknown): any {
   if (value == null) return value;
   if (typeof value === 'string') {
     return Object.values(patterns).reduce((s, re) => s.replace(re, '[REDACTED]'), value);

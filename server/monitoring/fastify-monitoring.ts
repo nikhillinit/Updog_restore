@@ -12,8 +12,8 @@ async function gatherBusinessMetrics() {
   };
 }
 
-async function plugin(fastify: any) {
-  fastify.get('/metrics', async (_req: any, reply: any) => {
+async function plugin(fastify: unknown) {
+  fastify.get('/metrics', async (_req: unknown, reply: any) => {
     reply.header('Content-Type', register.contentType);
     return register.metrics();
   });
