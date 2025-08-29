@@ -297,7 +297,7 @@ export class AutomatedRolloutOrchestrator {
     await this.sendAlert('EMERGENCY_ROLLBACK', 'Critical failure in reserves v1.1 rollout');
     
     // Record
-    metrics.recordRollback('emergency', this.currentStage);
+    metrics.recordRollback('emergency', String(this.currentStage), '0');
   }
   
   private async stagedRollback(targetPercent: number): Promise<void> {
@@ -306,7 +306,7 @@ export class AutomatedRolloutOrchestrator {
     await this.applyRolloutConfig('reserves_v11', { percent: targetPercent });
     
     // Record
-    metrics.recordRollback('staged', this.currentStage, targetPercent);
+    metrics.recordRollback('staged', String(this.currentStage), String(targetPercent));
   }
   
   private async applyRolloutConfig(flagName: string, config: any): Promise<void> {
@@ -336,7 +336,7 @@ export class AutomatedRolloutOrchestrator {
     };
     
     // Store for analysis
-    localStorage.setItem(`rollout_stage_${stage.name}`, String(JSON.stringify(record)));
+    localStorage.setItem(`rollout_stage_${stage.name}`, JSON.stringify(record));
   }
   
   private async generateFinalReport(): Promise<void> {
@@ -361,7 +361,7 @@ export class AutomatedRolloutOrchestrator {
     console.log('Final Report:', report);
     
     // Store report
-    localStorage.setItem('rollout_final_report', String(JSON.stringify(report)));
+    localStorage.setItem('rollout_final_report', JSON.stringify(report));
   }
   
   private async generateFailureReport(stage: RolloutStage, metrics: RolloutMetrics): Promise<void> {
