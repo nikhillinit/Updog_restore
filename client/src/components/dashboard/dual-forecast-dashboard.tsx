@@ -33,7 +33,7 @@ export default function DualForecastDashboard() {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
-  const { data: fundMetrics } = useQuery({
+  const { data: _fundMetrics } = useQuery({
     queryKey: ['/api/fund-metrics/1'],
     refetchInterval: 60000, // Refresh every minute
   });

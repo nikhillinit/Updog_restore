@@ -5,7 +5,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../db.js';
-import { sql } from 'drizzle-orm';
+import { _sql } from 'drizzle-orm';
 import { UserContext } from '../lib/secure-context.js';
 import { Pool } from 'pg';
 
@@ -50,12 +50,12 @@ export function withRLSTransaction() {
       // Set RLS context using LOCAL (scoped to this transaction)
       await client.query(`
         SELECT 
-          set_config('app.current_user', $1, true),
-          set_config('app.current_email', $2, true),
-          set_config('app.current_org', $3, true),
-          set_config('app.current_fund', $4, true),
-          set_config('app.current_role', $5, true),
-          set_config('app.current_partner', $6, true)
+          setconfig('app.current_user', $1, true),
+          setconfig('app.current_email', $2, true),
+          setconfig('app.current_org', $3, true),
+          setconfig('app.current_fund', $4, true),
+          setconfig('app.current_role', $5, true),
+          setconfig('app.current_partner', $6, true)
       `, [userId, email, orgId, fundId || '', role, partnerId || '']);
 
       // Set safety timeouts to prevent long-running queries
@@ -149,7 +149,7 @@ export async function verifyRLSContext(req: RLSRequest): Promise<{
  */
 export async function executeInRLSContext<T>(
   req: RLSRequest,
-  queryFn: (client: any) => Promise<T>
+  queryFn: (_client: any) => Promise<T>
 ): Promise<T> {
   if (!req.pgClient) {
     throw new Error('No active RLS transaction - ensure withRLSTransaction middleware is applied');

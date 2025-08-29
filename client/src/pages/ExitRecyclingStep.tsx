@@ -14,7 +14,7 @@ import type { ExitRecycling } from "@shared/types";
 
 interface ExitRecyclingStepProps {
   data: ExitRecycling;
-  onChange: (data: ExitRecycling) => void;
+  onChange: (_data: ExitRecycling) => void;
 }
 
 export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepProps) {

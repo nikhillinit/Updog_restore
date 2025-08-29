@@ -46,7 +46,7 @@ export class ConflictError extends AppError {
 }
 
 interface ViteDevServerLike {
-  ssrFixStacktrace(e: unknown): void;
+  ssrFixStacktrace(_e: unknown): void;
 }
 
 export function errorHandler(vite?: ViteDevServerLike) {

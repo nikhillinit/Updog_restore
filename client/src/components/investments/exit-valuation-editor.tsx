@@ -15,10 +15,10 @@ import { TrendingUp, Calendar, DollarSign, FileText } from "lucide-react";
 
 interface ExitValuationEditorProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (_open: boolean) => void;
   currentValuation: number;
   currentDate: string;
-  onUpdateExit: (valuation: number, date: string, notes: string, multiple: string) => void;
+  onUpdateExit: (_valuation: number, _date: string, _notes: string, _multiple: string) => void;
 }
 
 const exitMultiples = [

@@ -1,7 +1,7 @@
 export interface KV {
-  get<T>(k: string): Promise<T | undefined>;
-  set<T>(k: string, v: T, ttlMs?: number): Promise<void>;
-  delete(k: string): Promise<boolean>;
+  get<T>(_k: string): Promise<T | undefined>;
+  set<T>(_k: string, _v: T, ttlMs?: number): Promise<void>;
+  delete(_k: string): Promise<boolean>;
 }
 
 type Wrapped<T> = { v: T; x: number }; // value + expiresAtMs

@@ -36,7 +36,7 @@ interface ExpenseCategory {
 
 interface BudgetCreatorProps {
   fundSize?: number;
-  onBudgetCreate?: (budget: ExpenseCategory[]) => void;
+  onBudgetCreate?: (_budget: ExpenseCategory[]) => void;
   className?: string;
 }
 

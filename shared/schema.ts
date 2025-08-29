@@ -15,7 +15,7 @@ export const funds = pgTable("funds", {
 });
 
 // Fund configuration storage (hybrid approach)
-export const fundConfigs = pgTable("fund_configs", {
+export const fundConfigs = pgTable("fundconfigs", {
   id: serial("id").primaryKey(),
   fundId: integer("fund_id").references(() => funds.id).notNull(),
   version: integer("version").notNull().default(1),
@@ -27,7 +27,7 @@ export const fundConfigs = pgTable("fund_configs", {
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
   fundVersionUnique: unique().on(table.fundId, table.version),
-  fundVersionIdx: index("fund_configs_fund_version_idx").on(table.fundId, table.version),
+  fundVersionIdx: index("fundconfigs_fund_version_idx").on(table.fundId, table.version),
 }));
 
 // Fund snapshots for CQRS pattern
@@ -65,7 +65,7 @@ export const fundEvents = pgTable("fund_events", {
   fundEventIdx: index("fund_events_fund_idx").on(table.fundId, table.createdAt.desc()),
 }));
 
-export const portfolioCompanies = pgTable("portfolio_companies", {
+export const portfolioCompanies = pgTable("portfoliocompanies", {
   id: serial("id").primaryKey(),
   fundId: integer("fund_id").references(() => funds.id),
   name: text("name").notNull(),
@@ -97,7 +97,7 @@ export const fundMetrics = pgTable("fund_metrics", {
   id: serial("id").primaryKey(),
   fundId: integer("fund_id").references(() => funds.id),
   metricDate: timestamp("metric_date").notNull(),
-  totalValue: decimal("total_value", { precision: 15, scale: 2 }).notNull(),
+  totalValue: decimal("totalvalue", { precision: 15, scale: 2 }).notNull(),
   irr: decimal("irr", { precision: 5, scale: 4 }),
   multiple: decimal("multiple", { precision: 5, scale: 2 }),
   dpi: decimal("dpi", { precision: 5, scale: 2 }),
@@ -327,7 +327,7 @@ export const customFields = pgTable("custom_fields", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const customFieldValues = pgTable("custom_field_values", {
+export const customFieldValues = pgTable("custom_fieldvalues", {
   id: serial("id").primaryKey(),
   fieldId: integer("field_id").references(() => customFields.id),
   investmentId: integer("investment_id").references(() => portfolioCompanies.id),

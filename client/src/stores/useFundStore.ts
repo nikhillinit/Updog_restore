@@ -25,16 +25,16 @@ type StrategySlice = {
 
   // Stage management
   addStage: () => void;
-  removeStage: (idx: number) => void;
-  updateStageName: (idx: number, name: string) => void;
-  updateStageRate: (idx: number, patch: Partial<Pick<StrategyStage, 'graduate'|'exit'|'months'>>) => void;
+  removeStage: (_idx: number) => void;
+  updateStageName: (_idx: number, _name: string) => void;
+  updateStageRate: (_idx: number, _patch: Partial<Pick<StrategyStage, 'graduate'|'exit'|'months'>>) => void;
 
   // Selector-like helper
   stageValidation: () => { allValid: boolean; errorsByRow: (string | null)[] };
 
   // Conversion utilities
   toInvestmentStrategy: () => InvestmentStrategy;
-  fromInvestmentStrategy: (strategy: InvestmentStrategy) => void;
+  fromInvestmentStrategy: (_strategy: InvestmentStrategy) => void;
 };
 
 // helper functions
@@ -174,7 +174,7 @@ export const useFundStore = create<StrategySlice>()(
         followOnChecks: s.followOnChecks,
         modelVersion: 'reserves-ev1',
       }),
-      migrate: (state: any, v: number) => {
+      migrate: (state: any, _v: number) => {
         state.stages = (state.stages ?? []).map((r: any) => ({ months: 12, ...r }));
         return state;
       }

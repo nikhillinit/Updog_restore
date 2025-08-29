@@ -28,7 +28,7 @@ export interface ProcessingOptions {
  */
 export async function processAsync<T>(
   items: T[],
-  processor: (item: T, index: number) => Promise<void>,
+  processor: (_item: T, _index: number) => Promise<void>,
   options: ProcessingOptions = {}
 ): Promise<void> {
   const { 
@@ -79,7 +79,7 @@ export async function processAsync<T>(
  */
 async function processBatches<T>(
   items: T[],
-  processor: (item: T, index: number) => Promise<void>,
+  processor: (_item: T, _index: number) => Promise<void>,
   batchSize: number,
   delay: number,
   continueOnError: boolean
@@ -124,7 +124,7 @@ async function processBatches<T>(
  */
 export async function forEachAsync<T>(
   items: T[],
-  callback: (item: T, index: number, array: T[]) => Promise<void>
+  callback: (_item: T, _index: number, _array: T[]) => Promise<void>
 ): Promise<void> {
   if (!Array.isArray(items)) return;
   
@@ -147,7 +147,7 @@ export async function forEachAsync<T>(
  */
 export async function mapAsync<T, R>(
   items: T[],
-  callback: (item: T, index: number, array: T[]) => Promise<R>,
+  callback: (_item: T, _index: number, _array: T[]) => Promise<R>,
   options: Omit<ProcessingOptions, 'continueOnError'> = {}
 ): Promise<R[]> {
   const { parallel = true, batchSize = 10, delayBetweenBatches = 0 } = options;
@@ -199,7 +199,7 @@ export async function mapAsync<T, R>(
  */
 export async function filterAsync<T>(
   items: T[],
-  predicate: (item: T, index: number, array: T[]) => Promise<boolean>
+  predicate: (_item: T, _index: number, _array: T[]) => Promise<boolean>
 ): Promise<T[]> {
   if (!Array.isArray(items)) return [];
   
@@ -212,7 +212,7 @@ export async function filterAsync<T>(
  */
 export async function findAsync<T>(
   items: T[],
-  predicate: (item: T, index: number, array: T[]) => Promise<boolean>
+  predicate: (_item: T, _index: number, _array: T[]) => Promise<boolean>
 ): Promise<T | undefined> {
   if (!Array.isArray(items)) return undefined;
   
@@ -229,7 +229,7 @@ export async function findAsync<T>(
  */
 export async function reduceAsync<T, R>(
   items: T[],
-  reducer: (accumulator: R, currentValue: T, currentIndex: number, array: T[]) => Promise<R>,
+  reducer: (_accumulator: R, _currentValue: T, _currentIndex: number, _array: T[]) => Promise<R>,
   initialValue: R
 ): Promise<R> {
   if (!Array.isArray(items)) return initialValue;
@@ -246,7 +246,7 @@ export async function reduceAsync<T, R>(
  */
 export async function someAsync<T>(
   items: T[],
-  predicate: (item: T, index: number, array: T[]) => Promise<boolean>
+  predicate: (_item: T, _index: number, _array: T[]) => Promise<boolean>
 ): Promise<boolean> {
   if (!Array.isArray(items)) return false;
   
@@ -263,7 +263,7 @@ export async function someAsync<T>(
  */
 export async function everyAsync<T>(
   items: T[],
-  predicate: (item: T, index: number, array: T[]) => Promise<boolean>
+  predicate: (_item: T, _index: number, _array: T[]) => Promise<boolean>
 ): Promise<boolean> {
   if (!Array.isArray(items)) return true;
   
@@ -278,17 +278,17 @@ export async function everyAsync<T>(
 // Example usage patterns
 export const examples = {
   // Sequential processing (safest)
-  sequential: async <T>(items: T[], processor: (item: T) => Promise<void>) => {
+  sequential: async <T>(items: T[], processor: (_item: T) => Promise<void>) => {
     await forEachAsync(items, processor);
   },
 
   // Parallel processing (fastest)
-  parallel: async <T>(items: T[], processor: (item: T) => Promise<void>) => {
+  parallel: async <T>(items: T[], processor: (_item: T) => Promise<void>) => {
     await processAsync(items, processor, { parallel: true });
   },
 
   // Batched processing (balanced)
-  batched: async <T>(items: T[], processor: (item: T) => Promise<void>) => {
+  batched: async <T>(items: T[], processor: (_item: T) => Promise<void>) => {
     await processAsync(items, processor, { 
       parallel: true, 
       batchSize: 5, 
@@ -297,7 +297,7 @@ export const examples = {
   },
 
   // Error-resilient processing
-  resilient: async <T>(items: T[], processor: (item: T) => Promise<void>) => {
+  resilient: async <T>(items: T[], processor: (_item: T) => Promise<void>) => {
     await processAsync(items, processor, { 
       parallel: true, 
       continueOnError: true 

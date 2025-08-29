@@ -19,7 +19,7 @@ export const safeArray = <T>(arr?: T[] | null): T[] =>
  */
 export const forEach = <T>(
   arr: T[] | undefined | null,
-  callback: (item: T, index: number) => void
+  callback: (_item: T, _index: number) => void
 ): void => {
   safeArray(arr).forEach(callback);
 };
@@ -29,7 +29,7 @@ export const forEach = <T>(
  */
 export const map = <T, U>(
   arr: T[] | undefined | null,
-  callback: (item: T, index: number) => U
+  callback: (_item: T, _index: number) => U
 ): U[] => safeArray(arr).map(callback);
 
 /**
@@ -37,7 +37,7 @@ export const map = <T, U>(
  */
 export const filter = <T>(
   arr: T[] | undefined | null,
-  predicate: (item: T, index: number) => boolean
+  predicate: (_item: T, _index: number) => boolean
 ): T[] => safeArray(arr).filter(predicate);
 
 /**
@@ -45,7 +45,7 @@ export const filter = <T>(
  */
 export const reduce = <T, U>(
   arr: T[] | undefined | null,
-  reducer: (acc: U, item: T, index: number) => U,
+  reducer: (_acc: U, _item: T, _index: number) => U,
   initialValue: U
 ): U => safeArray(arr).reduce(reducer, initialValue);
 

@@ -13,7 +13,7 @@ import type { Waterfall } from "@shared/types";
 
 interface WaterfallStepProps {
   data: Waterfall;
-  onChange: (data: Waterfall) => void;
+  onChange: (_data: Waterfall) => void;
 }
 
 export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {

@@ -19,23 +19,23 @@ declare const __SENTRY__: boolean;
 
 // Type definitions for when Sentry is excluded
 interface MockScope {
-  setMeasurement: (key: string, value: number) => void;
-  setTag: (key: string, value: string) => void;
-  setContext: (key: string, value: any) => void;
-  setUser: (user: any) => void;
-  setLevel: (level: string) => void;
+  setMeasurement: (_key: string, value: number) => void;
+  setTag: (_key: string, value: string) => void;
+  setContext: (_key: string, value: any) => void;
+  setUser: (_user: any) => void;
+  setLevel: (_level: string) => void;
 }
 
 interface MockSentry {
   init: (options?: any) => void;
-  captureException: (error: any, context?: any) => string;
-  captureMessage: (message: string, level?: string) => string;
-  addBreadcrumb: (breadcrumb: any) => void;
-  withScope: (callback: (scope: MockScope) => void) => void;
-  setUser: (user: any) => void;
-  setTag: (key: string, value: string) => void;
-  setContext: (key: string, value: any) => void;
-  configureScope: (callback: (scope: MockScope) => void) => void;
+  captureException: (_error: any, context?: any) => string;
+  captureMessage: (_message: string, level?: string) => string;
+  addBreadcrumb: (_breadcrumb: any) => void;
+  withScope: (_callback: (_scope: MockScope) => void) => void;
+  setUser: (_user: any) => void;
+  setTag: (_key: string, value: string) => void;
+  setContext: (_key: string, value: any) => void;
+  configureScope: (_callback: (_scope: MockScope) => void) => void;
   browserTracingIntegration: () => any;
   replayIntegration: (options?: any) => any;
 }
@@ -93,7 +93,7 @@ if (typeof __SENTRY__ !== 'undefined' && __SENTRY__ && !isDNT && !isOptedOut) {
         replaysOnErrorSampleRate: 1.0,
         
         // Privacy: Scrub sensitive data
-        beforeSend(event, hint) {
+        beforeSend(event, _hint) {
           // Remove PII from URLs
           if (event.request?.url) {
             event.request.url = event.request.url.replace(/\/users\/\d+/g, '/users/[id]');

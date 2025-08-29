@@ -22,7 +22,7 @@ export interface Fund {
 
 interface FundContextType {
   currentFund: Fund | null;
-  setCurrentFund: (fund: Fund | null) => void;
+  setCurrentFund: (_fund: Fund | null) => void;
   isLoading: boolean;
   needsSetup: boolean;
   fundId: number | null;

@@ -10,16 +10,16 @@
 
 export interface ConcurrencyManager {
   // Optimistic concurrency control
-  checkRowVersion(fundId: number, expectedVersion: string): Promise<boolean>;
-  updateWithVersion(fundId: number, data: any, currentVersion: string): Promise<{ success: boolean; newVersion?: string; conflict?: boolean }>;
+  checkRowVersion(_fundId: number, _expectedVersion: string): Promise<boolean>;
+  updateWithVersion(_fundId: number, _data: any, _currentVersion: string): Promise<{ success: boolean; newVersion?: string; conflict?: boolean }>;
   
   // Advisory locking for calculations
-  acquireCalcLock(fundId: number, timeout?: number): Promise<{ acquired: boolean; lockId?: string }>;
-  releaseCalcLock(lockId: string): Promise<void>;
+  acquireCalcLock(_fundId: number, timeout?: number): Promise<{ acquired: boolean; lockId?: string }>;
+  releaseCalcLock(_lockId: string): Promise<void>;
   
   // Idempotency handling
-  checkIdempotency(key: string): Promise<{ exists: boolean; result?: any }>;
-  storeIdempotentResult(key: string, fundId: number, paramsHash: string, result: any): Promise<void>;
+  checkIdempotency(_key: string): Promise<{ exists: boolean; result?: any }>;
+  storeIdempotentResult(_key: string, _fundId: number, _paramsHash: string, _result: any): Promise<void>;
 }
 
 // ============================================================
@@ -28,15 +28,15 @@ export interface ConcurrencyManager {
 
 export interface TenancyManager {
   // RLS context setting
-  setTenantContext(tx: any, orgId: string, fundId?: string): Promise<void>;
-  clearTenantContext(tx: any): Promise<void>;
+  setTenantContext(_tx: any, _orgId: string, fundId?: string): Promise<void>;
+  clearTenantContext(_tx: any): Promise<void>;
   
   // Hierarchical flag resolution
   resolveFlags(userId?: string, fundId?: string, orgId?: string): Promise<Record<string, any>>;
-  getFlagValue(key: string, context: FlagContext): Promise<any>;
+  getFlagValue(_key: string, _context: FlagContext): Promise<any>;
   
   // Cache management
-  getCacheHeaders(orgId: string, fundId?: string, userId?: string): Record<string, string>;
+  getCacheHeaders(_orgId: string, fundId?: string, userId?: string): Record<string, string>;
 }
 
 export interface FlagContext {
@@ -52,15 +52,15 @@ export interface FlagContext {
 
 export interface VersionManager {
   // Version selection
-  getActiveVersion(engineType: string): Promise<string>;
-  getWasmBinary(version: string, engineType: string): Promise<Buffer>;
+  getActiveVersion(_engineType: string): Promise<string>;
+  getWasmBinary(_version: string, _engineType: string): Promise<Buffer>;
   
   // Migration handling
-  migrateParams(fromVersion: string, toVersion: string, params: any): Promise<any>;
-  canRunVersion(version: string): Promise<{ allowed: boolean; reason?: string }>;
+  migrateParams(_fromVersion: string, _toVersion: string, _params: any): Promise<any>;
+  canRunVersion(_version: string): Promise<{ allowed: boolean; reason?: string }>;
   
   // A/B testing
-  runComparison(engineType: string, params: any, versions: string[]): Promise<ComparisonResult>;
+  runComparison(_engineType: string, _params: any, _versions: string[]): Promise<ComparisonResult>;
 }
 
 export interface ComparisonResult {
@@ -75,15 +75,15 @@ export interface ComparisonResult {
 
 export interface EncryptionManager {
   // Envelope encryption
-  encryptField(value: string, orgId: string): Promise<EncryptedField>;
-  decryptField(encrypted: EncryptedField, requesterRole: string): Promise<string | null>;
+  encryptField(value: string, _orgId: string): Promise<EncryptedField>;
+  decryptField(_encrypted: EncryptedField, _requesterRole: string): Promise<string | null>;
   
   // Key rotation
-  rotateOrgKeys(orgId: string): Promise<{ rotated: number; failed: number }>;
+  rotateOrgKeys(_orgId: string): Promise<{ rotated: number; failed: number }>;
   
   // Access control
-  canAccessPII(userId: string, field: string, purpose: string): Promise<boolean>;
-  logPIIAccess(userId: string, field: string, entityId: string): Promise<void>;
+  canAccessPII(_userId: string, _field: string, _purpose: string): Promise<boolean>;
+  logPIIAccess(_userId: string, _field: string, _entityId: string): Promise<void>;
 }
 
 export interface EncryptedField {
@@ -100,16 +100,16 @@ export interface EncryptedField {
 
 export interface AuditManager {
   // Synchronous DB audit
-  logCalculation(event: CalcAuditEvent): Promise<void>;
-  logApproval(event: ApprovalAuditEvent): Promise<void>;
+  logCalculation(_event: CalcAuditEvent): Promise<void>;
+  logApproval(_event: ApprovalAuditEvent): Promise<void>;
   
   // Async streaming
-  queueForStream(event: AuditEvent): Promise<void>;
+  queueForStream(_event: AuditEvent): Promise<void>;
   processOutbox(): Promise<{ processed: number; failed: number }>;
   
   // Compliance queries
-  getAuditTrail(entityId: string, startDate?: Date): Promise<AuditEvent[]>;
-  generateComplianceReport(orgId: string, period: string): Promise<any>;
+  getAuditTrail(_entityId: string, startDate?: Date): Promise<AuditEvent[]>;
+  generateComplianceReport(_orgId: string, _period: string): Promise<any>;
 }
 
 export interface CalcAuditEvent {
@@ -217,12 +217,12 @@ export class ReservesV11System {
     }
   }
   
-  private hashParams(params: any): string {
+  private hashParams(_params: any): string {
     // Implement stable JSON stringify and SHA-256 hash
     return 'hash_placeholder';
   }
   
-  private async runWasmCalculation(wasm: Buffer, params: any, flags: any): Promise<any> {
+  private async runWasmCalculation(_wasm: Buffer, _params: any, _flags: any): Promise<any> {
     // Placeholder for actual WASM execution
     return { success: true };
   }
@@ -250,7 +250,7 @@ export class QuickWins {
   }
   
   // Rate limiting
-  static async rateLimit(key: string, maxRequests: number, windowMs: number): Promise<boolean> {
+  static async rateLimit(_key: string, _maxRequests: number, _windowMs: number): Promise<boolean> {
     // Simple in-memory rate limiter (replace with Redis in production)
     const now = Date.now();
     // Implementation would track requests per key

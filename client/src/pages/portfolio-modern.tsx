@@ -47,7 +47,7 @@ export default function ModernPortfolio() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterSector, setFilterSector] = useState('all');
-  const [activeView, setActiveView] = useState('overview');
+  const [_activeView, _setActiveView] = useState('overview');
 
   // Sample portfolio data
   const portfolioCompanies: Portfolio[] = [

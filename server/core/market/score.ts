@@ -176,7 +176,7 @@ export class MarketScoreComputer {
     });
   }
 
-  private generateInterpretation(score: number, indicators: MarketIndicators, riskLevel: string): string {
+  private generateInterpretation(score: number, _indicators: MarketIndicators, _riskLevel: string): string {
     if (score >= 0.75) {
       return 'Favorable market conditions for venture investments. Strong IPO activity and manageable volatility.';
     } else if (score >= 0.6) {

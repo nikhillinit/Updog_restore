@@ -64,7 +64,7 @@ export function requireIfMatch() {
  * Middleware that checks If-None-Match for caching
  * Returns 304 Not Modified if content hasn't changed
  */
-export function checkIfNoneMatch(getCurrentETag: (req: Request) => string | Promise<string>) {
+export function checkIfNoneMatch(getCurrentETag: (_req: Request) => string | Promise<string>) {
   return async (req: PreconditionRequest, res: Response, next: NextFunction) => {
     const ifNoneMatch = req.headers['if-none-match'] as string | undefined;
     
@@ -152,7 +152,7 @@ export function rowVersionETag(rowVersion: string | number | Date): string {
  * Middleware to handle conditional requests (If-Match and If-None-Match)
  */
 export function conditionalRequest(options: {
-  getETag: (req: Request) => string | Promise<string>;
+  getETag: (_req: Request) => string | Promise<string>;
   requireMatch?: boolean;
 }) {
   return async (req: PreconditionRequest, res: Response, next: NextFunction) => {

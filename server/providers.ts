@@ -189,7 +189,7 @@ async function buildCache(redisUrl: string): Promise<Cache> {
   }
 }
 
-async function buildQueue(cfg: any): Promise<{ enabled: boolean; close(): Promise<void> }> {
+async function buildQueue(_cfg: any): Promise<{ enabled: boolean; close(): Promise<void> }> {
   // Placeholder for queue implementation
   // Only implement if you need queues right now
   return {

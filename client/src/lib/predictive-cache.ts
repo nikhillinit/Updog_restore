@@ -27,8 +27,8 @@ interface BatchRequest {
   key: string;
   input: ReservesInput;
   config: ReservesConfig;
-  resolver: (result: ReservesResult) => void;
-  rejecter: (error: Error) => void;
+  resolver: (_result: ReservesResult) => void;
+  rejecter: (_error: Error) => void;
 }
 
 export class IntelligentReservesCache {
@@ -56,7 +56,7 @@ export class IntelligentReservesCache {
   
   async get(
     key: string,
-    calculator: (input: ReservesInput, config: ReservesConfig) => Promise<ReservesResult>,
+    calculator: (_input: ReservesInput, config: ReservesConfig) => Promise<ReservesResult>,
     input: ReservesInput,
     config: ReservesConfig
   ): Promise<ReservesResult> {
@@ -250,7 +250,7 @@ export class IntelligentReservesCache {
     }
   }
   
-  private recordAccess(key: string, isHit: boolean): void {
+  private recordAccess(key: string, _isHit: boolean): void {
     // Update access sequence
     this.accessSequence.push(key);
     if (this.accessSequence.length > this.SEQUENCE_LENGTH) {

@@ -7,8 +7,8 @@
  * Feature flags with runtime + build-time controls
  * 
  * Runtime overrides (highest priority):
- * - Query param: ?ff_useFundStore=0|1
- * - LocalStorage: localStorage.setItem('ff_useFundStore', '0'|'1')
+ * - Query param: ?ffuseFundStore=0|1
+ * - LocalStorage: localStorage.setItem('ffuseFundStore', '0'|'1')
  * 
  * Build-time default:
  * - VITE_USE_FUND_STORE env var (defaults to true)
@@ -43,8 +43,8 @@ export const features = {
    * Use centralized FundStore vs legacy context
    * 
    * Kill switch:
-   * - URL: ?ff_useFundStore=0
-   * - Code: localStorage.setItem('ff_useFundStore', '0')
+   * - URL: ?ffuseFundStore=0
+   * - Code: localStorage.setItem('ffuseFundStore', '0')
    */
   useFundStore:
     getRuntimeFlag('useFundStore') ??

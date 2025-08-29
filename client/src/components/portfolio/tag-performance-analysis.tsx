@@ -230,7 +230,7 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
                   />
                   <YAxis fontSize={12} />
                   <Tooltip 
-                    formatter={(value, name) => [getChartData().find(d => d.value === value)?.display || value, getMetricLabel()]}
+                    formatter={(value, _name) => [getChartData().find(d => d.value === value)?.display || value, getMetricLabel()]}
                   />
                   <Bar dataKey="value" fill="#3b82f6" />
                 </BarChart>
@@ -250,7 +250,7 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value, name) => [getChartData().find(d => d.value === value)?.display || value, getMetricLabel()]} />
+                  <Tooltip formatter={(value, _name) => [getChartData().find(d => d.value === value)?.display || value, getMetricLabel()]} />
                 </PieChart>
               )}
             </ResponsiveContainer>

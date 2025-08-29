@@ -89,7 +89,7 @@ export default function GraduationReservesDemo() {
   const result = computeReservesFromGraduation(currentScenario.fundData);
   
   // Calculate comparison data for all scenarios
-  const comparisonData = scenarios.map((scenario, index) => {
+  const comparisonData = scenarios.map((scenario, _index) => {
     const scenarioResult = computeReservesFromGraduation(scenario.fundData);
     return {
       name: scenario.name,

@@ -235,7 +235,7 @@ export class ExcelParityValidator {
           webAppCompany.invested
         ),
         this.compareMetric(
-          `${companyPrefix}current_value`,
+          `${companyPrefix}currentvalue`,
           excelCompany.currentValue,
           webAppCompany.currentValue
         ),
@@ -287,7 +287,7 @@ export class ExcelParityValidator {
       // Compare quarterly metrics
       comparisons.push(
         this.compareMetric(
-          `${quarterPrefix}nav_value`,
+          `${quarterPrefix}navvalue`,
           excelQuarter.navValue,
           webAppQuarter.navValue
         ),

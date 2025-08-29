@@ -27,7 +27,7 @@ interface CapTableIntegrationProps {
 
 export default function CapTableIntegration({ investment }: CapTableIntegrationProps) {
   const [showFullCalculator, setShowFullCalculator] = useState(false);
-  const [scenarios, setScenarios] = useState([
+  const [scenarios, _setScenarios] = useState([
     {
       id: '1',
       name: 'Series A Modeling',

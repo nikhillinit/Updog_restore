@@ -137,7 +137,7 @@ export async function setDatabaseContext(
  */
 export async function executeWithContext<T>(
   context: UserContext,
-  queryFn: (tx: any) => Promise<T>
+  queryFn: (_tx: any) => Promise<T>
 ): Promise<T> {
   return await db.transaction(async (tx) => {
     // Set RLS context
@@ -242,7 +242,7 @@ export async function resolveFlags(
  * Get cache headers for flags endpoint
  * Ensures proper cache isolation
  */
-export function getFlagsCacheHeaders(context: UserContext): Record<string, string> {
+export function getFlagsCacheHeaders(_context: UserContext): Record<string, string> {
   const headers: Record<string, string> = {
     'Cache-Control': 'private, max-age=15, must-revalidate',
     'Surrogate-Control': 'no-store', // Prevent CDN caching

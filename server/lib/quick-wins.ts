@@ -144,7 +144,7 @@ export interface WorkerGuard {
 }
 
 export function createGuardedWorker(config: WorkerGuard): {
-  execute: (data: any) => Promise<any>;
+  execute: (_data: any) => Promise<any>;
   cleanup: () => void;
 } {
   let timeoutId: NodeJS.Timeout | null = null;

@@ -36,7 +36,7 @@ export interface CustomField {
 
 interface CustomFieldsManagerProps {
   fields: CustomField[];
-  onFieldsChange: (fields: CustomField[]) => void;
+  onFieldsChange: (_fields: CustomField[]) => void;
   className?: string;
 }
 

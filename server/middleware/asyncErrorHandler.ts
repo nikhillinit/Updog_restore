@@ -6,7 +6,7 @@
 
 import { Queue } from 'bullmq';
 import type { Request, Response, NextFunction } from 'express';
-import { sendApiError, createErrorBody, httpCodeToAppCode } from '../lib/apiError';
+import { sendApiError, _createErrorBody, httpCodeToAppCode } from '../lib/apiError';
 
 // Only create queue if Redis is available
 let errorQueue: Queue | null = null;
@@ -57,7 +57,7 @@ export function captureErrorAsync(error: Error, context: any) {
  * Async error handler middleware
  */
 export function asyncErrorHandler() {
-  return (err: any, req: Request, res: Response, next: NextFunction) => {
+  return (err: any, req: Request, res: Response, _next: NextFunction) => {
     const context = {
       requestId: (req as any).requestId,
       method: req.method,

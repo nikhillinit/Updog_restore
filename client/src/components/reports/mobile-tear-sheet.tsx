@@ -83,7 +83,7 @@ interface MobileTearSheetProps {
       color: string;
     }[];
   };
-  onCommentaryUpdate: (newCommentary: string) => void;
+  onCommentaryUpdate: (_newCommentary: string) => void;
   onExport: () => void;
 }
 
