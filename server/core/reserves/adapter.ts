@@ -5,7 +5,7 @@
 
 import { eq, and } from 'drizzle-orm';
 import { reserveDecisions } from '../../db/schema/reserves.js';
-import { db } from '../../db/client.js';
+import { db } from '../../db.js';
 import { 
   ReserveEnginePort, 
   PortfolioCompany, 
@@ -94,11 +94,11 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
           break;
       }
     } catch (error) {
-      logger.warn('Primary engine failed, falling back to rules', {
+      logger.warn({
         companyId: company.id,
         engineMode,
         error: error instanceof Error ? error.message : String(error),
-      });
+      }, 'Primary engine failed, falling back to rules');
 
       if (this.config.fallbackOnError) {
         decision = await this.runRulesEngine(company, market, opts);
@@ -122,10 +122,10 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
     // Log decision to database if enabled
     if (this.config.logAllDecisions) {
       await this.logDecision(company, market, decision, opts).catch(error => {
-        logger.error('Failed to log reserve decision', { 
+        logger.error({ 
           companyId: company.id, 
           error: error instanceof Error ? error.message : String(error) 
-        });
+        }, 'Failed to log reserve decision');
       });
     }
 
@@ -208,8 +208,8 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
       prediction: {
         recommendedReserve: result.inputSummary.totalAllocated,
         notes: [
-          `Rules-based allocation using ${result.algorithmVersion}`,
-          `Conservation check: ${result.validationResults.conservationValid ? 'PASS' : 'FAIL'}`,
+          'Rules-based allocation using deterministic engine',
+          `Allocation efficiency: ${(result.inputSummary?.allocationEfficiency || 0).toFixed(1)}%`,
         ],
         confidence: {
           low: result.inputSummary.totalAllocated * 0.9,
@@ -220,14 +220,14 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
       explanation: {
         method: 'rules',
         details: {
-          allocationLogic: result.allocationResults.allocationReasoning,
-          riskFactors: result.riskAnalysis?.factors || [],
-          stagePolicies: result.inputSummary.stagePoliciesApplied,
+          allocationLogic: 'Deterministic allocation based on company metrics',
+          riskFactors: result.riskAnalysis?.keyRiskFactors || [],
+          stagePolicies: 'Stage-based allocation policies applied',
         },
-        rulesFired: result.allocationResults.allocationReasoning?.map(r => r.description) || [],
+        rulesFired: result.riskAnalysis?.riskMitigationActions || [],
       },
       engineType: 'rules',
-      engineVersion: result.algorithmVersion,
+      engineVersion: 'deterministic-1.0',
     };
 
     return decision;
@@ -338,8 +338,8 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
     decision: ReserveDecision,
     opts: ReserveEngineOptions
   ): Promise<void> {
-    const periodStart = opts.periodStart || market.asOfDate;
-    const periodEnd = opts.periodEnd || market.asOfDate;
+    const periodStart = opts.periodStart || new Date(market.asOfDate);
+    const periodEnd = opts.periodEnd || new Date(market.asOfDate);
 
     await db.insert(reserveDecisions).values({
       fundId: company.fundId,
