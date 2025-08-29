@@ -122,7 +122,8 @@
       "Read(c:\\dev\\Updog_restore\\client\\src\\components\\investments/**)",
       "Read(c:\\dev\\Updog_restore\\client\\src\\components\\investments/**)",
       "Read(c:\\dev\\Updog_restore\\client\\src\\components\\investments/**)",
-      "Read(c:\\dev\\Updog_restore\\scripts/**)"
+      "Read(c:\\dev\\Updog_restore\\scripts/**)",
+      "Bash(PORT=5001 REDIS_URL=memory:// ENABLE_QUEUES=0 npm run dev)"
     ],
     "deny": [],
     "additionalDirectories": [
