@@ -234,15 +234,35 @@ export const financialProjections = pgTable("financial_projections", {
 });
 
 // Insert schemas
-export const insertFundSchema = createInsertSchema(funds);
+export const insertFundSchema = createInsertSchema(funds).omit({
+  id: true,
+  createdAt: true
+}).extend({
+  size: z.number().positive(),
+  deployedCapital: z.number().nonnegative(),
+  managementFee: z.number().min(0).max(1),  // decimal between 0 and 1 (e.g., 0.02 for 2%)
+  carryPercentage: z.number().min(0).max(1), // decimal between 0 and 1 (e.g., 0.20 for 20%)
+});
 
-export const insertPortfolioCompanySchema = createInsertSchema(portfolioCompanies);
+export const insertPortfolioCompanySchema = createInsertSchema(portfolioCompanies).omit({
+  id: true,
+  createdAt: true
+});
 
-export const insertInvestmentSchema = createInsertSchema(investments);
+export const insertInvestmentSchema = createInsertSchema(investments).omit({
+  id: true,
+  createdAt: true
+});
 
-export const insertFundMetricsSchema = createInsertSchema(fundMetrics);
+export const insertFundMetricsSchema = createInsertSchema(fundMetrics).omit({
+  id: true,
+  createdAt: true
+});
 
-export const insertActivitySchema = createInsertSchema(activities);
+export const insertActivitySchema = createInsertSchema(activities).omit({
+  id: true,
+  createdAt: true
+});
 
 // Users table
 export const users = pgTable("users", {
@@ -251,21 +271,48 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
 });
 
-export const insertUserSchema = createInsertSchema(users);
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true
+});
 
 // Pipeline Insert Schemas
-export const insertDealOpportunitySchema = createInsertSchema(dealOpportunities);
+export const insertDealOpportunitySchema = createInsertSchema(dealOpportunities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
 
-export const insertPipelineStageSchema = createInsertSchema(pipelineStages);
+export const insertPipelineStageSchema = createInsertSchema(pipelineStages).omit({
+  id: true,
+  createdAt: true
+});
 
-export const insertDueDiligenceItemSchema = createInsertSchema(dueDiligenceItems);
+export const insertDueDiligenceItemSchema = createInsertSchema(dueDiligenceItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
 
-export const insertScoringModelSchema = createInsertSchema(scoringModels);
+export const insertScoringModelSchema = createInsertSchema(scoringModels).omit({
+  id: true,
+  createdAt: true,
+  scoredAt: true
+});
 
-export const insertPipelineActivitySchema = createInsertSchema(pipelineActivities);
+export const insertPipelineActivitySchema = createInsertSchema(pipelineActivities).omit({
+  id: true,
+  createdAt: true
+});
 
-export const insertMarketResearchSchema = createInsertSchema(marketResearch);
-export const insertFinancialProjectionSchema = createInsertSchema(financialProjections);
+export const insertMarketResearchSchema = createInsertSchema(marketResearch).omit({
+  id: true,
+  createdAt: true,
+  researchDate: true
+});
+export const insertFinancialProjectionSchema = createInsertSchema(financialProjections).omit({
+  id: true,
+  createdAt: true
+});
 
 // Custom fields schema
 export const customFields = pgTable("custom_fields", {
@@ -287,51 +334,68 @@ export const customFieldValues = pgTable("custom_fieldvalues", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertCustomFieldSchema = createInsertSchema(customFields);
-export const insertCustomFieldValueSchema = createInsertSchema(customFieldValues);
-export const insertFundConfigSchema = createInsertSchema(fundConfigs);
-export const insertFundSnapshotSchema = createInsertSchema(fundSnapshots);
-export const insertFundEventSchema = createInsertSchema(fundEvents);
+export const insertCustomFieldSchema = createInsertSchema(customFields).omit({
+  id: true,
+  createdAt: true
+});
+export const insertCustomFieldValueSchema = createInsertSchema(customFieldValues).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+export const insertFundConfigSchema = createInsertSchema(fundConfigs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+export const insertFundSnapshotSchema = createInsertSchema(fundSnapshots).omit({
+  id: true,
+  createdAt: true
+});
+export const insertFundEventSchema = createInsertSchema(fundEvents).omit({
+  id: true,
+  createdAt: true
+});
 
 // Core Type Exports
 export type Fund = typeof funds.$inferSelect;
-export type InsertFund = typeof funds.$inferInsert;
+export type InsertFund = z.infer<typeof insertFundSchema>;
 export type PortfolioCompany = typeof portfolioCompanies.$inferSelect;
-export type InsertPortfolioCompany = typeof portfolioCompanies.$inferInsert;
+export type InsertPortfolioCompany = z.infer<typeof insertPortfolioCompanySchema>;
 export type Investment = typeof investments.$inferSelect;
-export type InsertInvestment = typeof investments.$inferInsert;
+export type InsertInvestment = z.infer<typeof insertInvestmentSchema>;
 export type FundMetrics = typeof fundMetrics.$inferSelect;
-export type InsertFundMetrics = typeof fundMetrics.$inferInsert;
+export type InsertFundMetrics = z.infer<typeof insertFundMetricsSchema>;
 export type Activity = typeof activities.$inferSelect;
-export type InsertActivity = typeof activities.$inferInsert;
+export type InsertActivity = z.infer<typeof insertActivitySchema>;
 export type User = typeof users.$inferSelect;
-export type InsertUser = typeof users.$inferInsert;
+export type InsertUser = z.infer<typeof insertUserSchema>;
 export type CustomField = typeof customFields.$inferSelect;
-export type InsertCustomField = typeof customFields.$inferInsert;
+export type InsertCustomField = z.infer<typeof insertCustomFieldSchema>;
 export type CustomFieldValue = typeof customFieldValues.$inferSelect;
-export type InsertCustomFieldValue = typeof customFieldValues.$inferInsert;
+export type InsertCustomFieldValue = z.infer<typeof insertCustomFieldValueSchema>;
 export type FundConfig = typeof fundConfigs.$inferSelect;
-export type InsertFundConfig = typeof fundConfigs.$inferInsert;
+export type InsertFundConfig = z.infer<typeof insertFundConfigSchema>;
 export type FundSnapshot = typeof fundSnapshots.$inferSelect;
-export type InsertFundSnapshot = typeof fundSnapshots.$inferInsert;
+export type InsertFundSnapshot = z.infer<typeof insertFundSnapshotSchema>;
 export type FundEvent = typeof fundEvents.$inferSelect;
-export type InsertFundEvent = typeof fundEvents.$inferInsert;
+export type InsertFundEvent = z.infer<typeof insertFundEventSchema>;
 
 // Pipeline Type Exports
 export type DealOpportunity = typeof dealOpportunities.$inferSelect;
-export type InsertDealOpportunity = typeof dealOpportunities.$inferInsert;
+export type InsertDealOpportunity = z.infer<typeof insertDealOpportunitySchema>;
 export type PipelineStage = typeof pipelineStages.$inferSelect;
-export type InsertPipelineStage = typeof pipelineStages.$inferInsert;
+export type InsertPipelineStage = z.infer<typeof insertPipelineStageSchema>;
 export type DueDiligenceItem = typeof dueDiligenceItems.$inferSelect;
-export type InsertDueDiligenceItem = typeof dueDiligenceItems.$inferInsert;
+export type InsertDueDiligenceItem = z.infer<typeof insertDueDiligenceItemSchema>;
 export type ScoringModel = typeof scoringModels.$inferSelect;
-export type InsertScoringModel = typeof scoringModels.$inferInsert;
+export type InsertScoringModel = z.infer<typeof insertScoringModelSchema>;
 export type PipelineActivity = typeof pipelineActivities.$inferSelect;
-export type InsertPipelineActivity = typeof pipelineActivities.$inferInsert;
+export type InsertPipelineActivity = z.infer<typeof insertPipelineActivitySchema>;
 export type MarketResearch = typeof marketResearch.$inferSelect;
-export type InsertMarketResearch = typeof marketResearch.$inferInsert;
+export type InsertMarketResearch = z.infer<typeof insertMarketResearchSchema>;
 export type FinancialProjection = typeof financialProjections.$inferSelect;
-export type InsertFinancialProjection = typeof financialProjections.$inferInsert;
+export type InsertFinancialProjection = z.infer<typeof insertFinancialProjectionSchema>;
 
 export const reserveStrategies = pgTable("reserve_strategies", {
   id: serial("id").primaryKey(),
@@ -410,9 +474,12 @@ export const auditLog = pgTable("audit_log", {
 }));
 
 // Insert schema for audit log
-export const insertAuditLogSchema = createInsertSchema(auditLog);
+export const insertAuditLogSchema = createInsertSchema(auditLog).omit({
+  id: true,
+  createdAt: true
+});
 
 // Types
 export type AuditLog = typeof auditLog.$inferSelect;
-export type InsertAuditLog = typeof auditLog.$inferInsert;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 
