@@ -19,7 +19,7 @@ export function isSafeArray<T>(value: T[] | null | undefined): value is T[] {
  */
 export function forEach<T>(
   array: T[] | null | undefined,
-  callback: (item: T, index: number, array: T[]) => void,
+  callback: (_item: T, _index: number, _array: T[]) => void,
   thisArg?: any
 ): void {
   if (!isSafeArray(array)) {
@@ -37,7 +37,7 @@ export function forEach<T>(
  */
 export function map<T, R>(
   array: T[] | null | undefined,
-  callback: (item: T, index: number, array: T[]) => R,
+  callback: (_item: T, _index: number, _array: T[]) => R,
   thisArg?: any
 ): R[] {
   if (!isSafeArray(array)) return [];
@@ -49,7 +49,7 @@ export function map<T, R>(
  */
 export function filter<T>(
   array: T[] | null | undefined,
-  predicate: (item: T, index: number, array: T[]) => boolean,
+  predicate: (_item: T, _index: number, _array: T[]) => boolean,
   thisArg?: any
 ): T[] {
   if (!isSafeArray(array)) return [];
@@ -61,7 +61,7 @@ export function filter<T>(
  */
 export function reduce<T, R>(
   array: T[] | null | undefined,
-  callback: (acc: R, item: T, index: number, array: T[]) => R,
+  callback: (_acc: R, _item: T, _index: number, _array: T[]) => R,
   initialValue: R
 ): R {
   if (!isSafeArray(array)) return initialValue;
@@ -73,7 +73,7 @@ export function reduce<T, R>(
  */
 export function find<T>(
   array: T[] | null | undefined,
-  predicate: (item: T, index: number, array: T[]) => boolean,
+  predicate: (_item: T, _index: number, _array: T[]) => boolean,
   thisArg?: any
 ): T | undefined {
   if (!isSafeArray(array)) return undefined;
@@ -85,7 +85,7 @@ export function find<T>(
  */
 export function some<T>(
   array: T[] | null | undefined,
-  predicate: (item: T, index: number, array: T[]) => boolean,
+  predicate: (_item: T, _index: number, _array: T[]) => boolean,
   thisArg?: any
 ): boolean {
   if (!isSafeArray(array)) return false;
@@ -97,7 +97,7 @@ export function some<T>(
  */
 export function every<T>(
   array: T[] | null | undefined,
-  predicate: (item: T, index: number, array: T[]) => boolean,
+  predicate: (_item: T, _index: number, _array: T[]) => boolean,
   thisArg?: any
 ): boolean {
   if (!isSafeArray(array)) return true; // Empty array behavior
@@ -138,32 +138,32 @@ export function at<T>(
 export class SafeArray<T> {
   constructor(private array: T[] | null | undefined) {}
   
-  forEach(callback: (item: T, index: number) => void): SafeArray<T> {
+  forEach(callback: (_item: T, _index: number) => void): SafeArray<T> {
     forEach(this.array, callback);
     return this;
   }
   
-  map<R>(callback: (item: T, index: number) => R): SafeArray<R> {
+  map<R>(callback: (_item: T, _index: number) => R): SafeArray<R> {
     return new SafeArray(map(this.array, callback));
   }
   
-  filter(predicate: (item: T, index: number) => boolean): SafeArray<T> {
+  filter(predicate: (_item: T, _index: number) => boolean): SafeArray<T> {
     return new SafeArray(filter(this.array, predicate));
   }
   
-  reduce<R>(callback: (acc: R, item: T) => R, initial: R): R {
+  reduce<R>(callback: (_acc: R, _item: T) => R, initial: R): R {
     return reduce(this.array, callback, initial);
   }
   
-  find(predicate: (item: T, index: number) => boolean): T | undefined {
+  find(predicate: (_item: T, _index: number) => boolean): T | undefined {
     return find(this.array, predicate);
   }
   
-  some(predicate: (item: T, index: number) => boolean): boolean {
+  some(predicate: (_item: T, _index: number) => boolean): boolean {
     return some(this.array, predicate);
   }
   
-  every(predicate: (item: T, index: number) => boolean): boolean {
+  every(predicate: (_item: T, _index: number) => boolean): boolean {
     return every(this.array, predicate);
   }
   
@@ -196,8 +196,8 @@ export function safe<T>(array: T[] | null | undefined): SafeArray<T> {
  */
 export function forEachNested<T, U>(
   array: T[] | null | undefined,
-  nestedGetter: (item: T) => U[] | null | undefined,
-  callback: (parent: T, child: U, parentIndex: number, childIndex: number) => void
+  nestedGetter: (_item: T) => U[] | null | undefined,
+  callback: (_parent: T, _child: U, _parentIndex: number, _childIndex: number) => void
 ): void {
   forEach(array, (parent, parentIndex) => {
     forEach(nestedGetter(parent), (child, childIndex) => {
@@ -211,7 +211,7 @@ export function forEachNested<T, U>(
  */
 export function forEachWithMetrics<T>(
   array: T[] | null | undefined,
-  callback: (item: T, index: number) => void,
+  callback: (_item: T, _index: number) => void,
   metricName?: string
 ): void {
   const start = performance.now();
@@ -228,7 +228,7 @@ export function forEachWithMetrics<T>(
  */
 export async function forEachAsync<T>(
   array: T[] | null | undefined,
-  callback: (item: T, index: number) => Promise<void>
+  callback: (_item: T, _index: number) => Promise<void>
 ): Promise<void> {
   if (!isSafeArray(array)) return;
   
@@ -242,7 +242,7 @@ export async function forEachAsync<T>(
  */
 export async function forEachParallel<T>(
   array: T[] | null | undefined,
-  callback: (item: T, index: number) => Promise<void>,
+  callback: (_item: T, _index: number) => Promise<void>,
   concurrency: number = 10
 ): Promise<void> {
   if (!isSafeArray(array)) return;

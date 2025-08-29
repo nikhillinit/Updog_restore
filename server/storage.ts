@@ -18,34 +18,34 @@ export interface IStorage {
   isRedisHealthy?(): Promise<boolean>;
   
   // User methods
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getUser(_id: number): Promise<User | undefined>;
+  getUserByUsername(_username: string): Promise<User | undefined>;
+  createUser(_user: InsertUser): Promise<User>;
   
   // Fund methods
   getAllFunds(): Promise<Fund[]>;
-  getFund(id: number): Promise<Fund | undefined>;
-  createFund(fund: InsertFund): Promise<Fund>;
+  getFund(_id: number): Promise<Fund | undefined>;
+  createFund(_fund: InsertFund): Promise<Fund>;
   
   // Portfolio methods
   getPortfolioCompanies(fundId?: number): Promise<PortfolioCompany[]>;
-  getPortfolioCompany(id: number): Promise<PortfolioCompany | undefined>;
-  createPortfolioCompany(company: InsertPortfolioCompany): Promise<PortfolioCompany>;
+  getPortfolioCompany(_id: number): Promise<PortfolioCompany | undefined>;
+  createPortfolioCompany(_company: InsertPortfolioCompany): Promise<PortfolioCompany>;
   
   // Investment methods
   getInvestments(fundId?: number): Promise<Investment[]>;
-  getInvestment(id: number): Promise<Investment | undefined>;
-  createInvestment(investment: any): Promise<Investment>;
-  addInvestmentRound(investmentId: number, round: any): Promise<any>;
-  addPerformanceCase(investmentId: number, performanceCase: any): Promise<any>;
+  getInvestment(_id: number): Promise<Investment | undefined>;
+  createInvestment(_investment: any): Promise<Investment>;
+  addInvestmentRound(_investmentId: number, _round: any): Promise<any>;
+  addPerformanceCase(_investmentId: number, _performanceCase: any): Promise<any>;
   
   // Metrics methods
-  getFundMetrics(fundId: number): Promise<FundMetrics[]>;
-  createFundMetrics(metrics: InsertFundMetrics): Promise<FundMetrics>;
+  getFundMetrics(_fundId: number): Promise<FundMetrics[]>;
+  createFundMetrics(_metrics: InsertFundMetrics): Promise<FundMetrics>;
   
   // Activity methods
   getActivities(fundId?: number): Promise<Activity[]>;
-  createActivity(activity: InsertActivity): Promise<Activity>;
+  createActivity(_activity: InsertActivity): Promise<Activity>;
 }
 
 export class MemStorage implements IStorage {

@@ -39,7 +39,7 @@ import {
   Save,
   X
 } from 'lucide-react';
-import TearSheetCustomization from './tearsheet-customization';
+import _TearSheetCustomization from './tearsheet-customization';
 
 interface TearSheet {
   id: string;

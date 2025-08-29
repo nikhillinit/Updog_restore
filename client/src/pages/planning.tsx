@@ -69,7 +69,7 @@ export default function Planning() {
   const [showFMVDialog, setShowFMVDialog] = useState(false);
   const [selectedRound, setSelectedRound] = useState<InvestmentRound | null>(null);
   const [filterRounds, setFilterRounds] = useState("next-4");
-  const [showCaseDialog, setShowCaseDialog] = useState(false);
+  const [_showCaseDialog, setShowCaseDialog] = useState(false);
 
   // Mock data for demonstration
   const investmentCases: InvestmentCase[] = [

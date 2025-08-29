@@ -8,7 +8,7 @@
  * Integrates with runtime config for instant rollout percentage changes
  * 
  * Priority order:
- * 1. URL params (?ff_useFundStore=0|1 for hard override)
+ * 1. URL params (?ffuseFundStore=0|1 for hard override)
  * 2. localStorage (persistent override)  
  * 3. Emergency rollback flag (from runtime config)
  * 4. Runtime config rollout percentage
@@ -159,8 +159,8 @@ export async function debugRuntimeRollout() {
         userId: userId.substring(0, 8) + '...',
         bucket,
         'runtime %': config.flags.useFundStore?.rollout ?? 'default',
-        'url override': new URLSearchParams(window.location.search).get('ff_useFundStore') ?? 'none',
-        'localStorage override': localStorage.getItem('ff_useFundStore') ?? 'none', 
+        'url override': new URLSearchParams(window.location.search).get('ffuseFundStore') ?? 'none',
+        'localStorage override': localStorage.getItem('ffuseFundStore') ?? 'none', 
         'emergency rollback': config.killSwitches.emergencyRollback,
         enabled
       }

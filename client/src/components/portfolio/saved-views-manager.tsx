@@ -60,10 +60,10 @@ interface AnalyticsView {
 
 interface SavedViewsManagerProps {
   views: AnalyticsView[];
-  onViewLoad: (view: AnalyticsView) => void;
-  onViewSave: (view: Omit<AnalyticsView, 'id' | 'createdAt' | 'lastModified'>) => void;
-  onViewUpdate: (id: string, view: Partial<AnalyticsView>) => void;
-  onViewDelete: (id: string) => void;
+  onViewLoad: (_view: AnalyticsView) => void;
+  onViewSave: (_view: Omit<AnalyticsView, 'id' | 'createdAt' | 'lastModified'>) => void;
+  onViewUpdate: (_id: string, _view: Partial<AnalyticsView>) => void;
+  onViewDelete: (_id: string) => void;
   currentView?: Partial<AnalyticsView>;
 }
 

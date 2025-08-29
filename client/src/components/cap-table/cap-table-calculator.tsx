@@ -116,11 +116,11 @@ const SAMPLE_SAFES_NOTES: SAFENote[] = [
 ];
 
 export default function CapTableCalculator() {
-  const [currentCapTable, setCurrentCapTable] = useState<Shareholder[]>(SAMPLE_CAP_TABLE);
+  const [currentCapTable, _setCurrentCapTable] = useState<Shareholder[]>(SAMPLE_CAP_TABLE);
   const [safesNotes, setSafesNotes] = useState<SAFENote[]>(SAMPLE_SAFES_NOTES);
   const [proFormaCapTable, setProFormaCapTable] = useState<Shareholder[]>([]);
-  const [showAddShareholder, setShowAddShareholder] = useState(false);
-  const [showAddSAFE, setShowAddSAFE] = useState(false);
+  const [_showAddShareholder, _setShowAddShareholder] = useState(false);
+  const [_showAddSAFE, _setShowAddSAFE] = useState(false);
   const [consolidate, setConsolidate] = useState(true);
   
   // Next Round Parameters

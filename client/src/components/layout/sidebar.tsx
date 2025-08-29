@@ -28,7 +28,7 @@ import {
 
 interface SidebarProps {
   activeModule: string;
-  onModuleChange: (module: string) => void;
+  onModuleChange: (_module: string) => void;
 }
 
 const navigationItems = [
@@ -66,7 +66,7 @@ const chartCategories = [
 export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) {
   const [isChartsExpanded, setIsChartsExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [location, setLocation] = useLocation();
+  const [_location, _setLocation] = useLocation();
   const { needsSetup, currentFund } = useFundContext();
 
   return (

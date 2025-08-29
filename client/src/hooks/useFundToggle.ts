@@ -12,8 +12,8 @@ import { api } from '@/lib';
 interface ToggleStore {
   mode: 'construction' | 'current';
   isTransitioning: boolean;
-  setMode: (mode: 'construction' | 'current') => void;
-  setTransitioning: (transitioning: boolean) => void;
+  setMode: (_mode: 'construction' | 'current') => void;
+  setTransitioning: (_transitioning: boolean) => void;
 }
 
 const useToggleStore = create<ToggleStore>()(subscribeWithSelector((set) => ({

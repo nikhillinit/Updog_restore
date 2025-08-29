@@ -364,7 +364,7 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
     });
   }
 
-  private updateMetrics(latencyMs: number, errors: number): void {
+  private updateMetrics(latencyMs: number, _errors: number): void {
     // Update rolling average latency
     const totalLatency = this.metrics.avgLatencyMs * (this.metrics.totalRequests - 1) + latencyMs;
     this.metrics.avgLatencyMs = totalLatency / this.metrics.totalRequests;

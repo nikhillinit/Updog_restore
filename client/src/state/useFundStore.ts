@@ -17,10 +17,10 @@ interface FundState {
   stageValidation: () => Record<string, boolean>;
   
   // Actions
-  setName: (name: string) => void;
-  setTotalCommittedCapital: (amount: string) => void;
-  setFundType: (type: string) => void;
-  setVintage: (year: number) => void;
+  setName: (_name: string) => void;
+  setTotalCommittedCapital: (_amount: string) => void;
+  setFundType: (_type: string) => void;
+  setVintage: (_year: number) => void;
 }
 
 export const useFundStore = create<FundState>((set, get) => ({

@@ -45,7 +45,7 @@ pool.on('connect', (client) => {
 });
 
 // Monitor pool health
-pool.on('error', (err, client) => {
+pool.on('error', (err, _client) => {
   logger.error('Database pool error', { err, database: dbName });
 });
 

@@ -132,11 +132,11 @@ export class ExcelParityValidator {
     } catch (error) {
       const duration = Date.now() - startTime;
       
-      logger.error('Excel parity validation failed', {
-        error: error.message,
-        duration,
-        config: this.config,
-      });
+      logger.error(
+        'Excel parity validation failed',
+        error instanceof Error ? error : new Error(String(error)),
+        { duration, config: this.config }
+      );
 
       throw error;
     }
@@ -235,7 +235,7 @@ export class ExcelParityValidator {
           webAppCompany.invested
         ),
         this.compareMetric(
-          `${companyPrefix}current_value`,
+          `${companyPrefix}currentvalue`,
           excelCompany.currentValue,
           webAppCompany.currentValue
         ),
@@ -287,7 +287,7 @@ export class ExcelParityValidator {
       // Compare quarterly metrics
       comparisons.push(
         this.compareMetric(
-          `${quarterPrefix}nav_value`,
+          `${quarterPrefix}navvalue`,
           excelQuarter.navValue,
           webAppQuarter.navValue
         ),
@@ -610,7 +610,10 @@ export async function validateFundParity(
     const result = await validator.validateParity(mockExcelInput, mockWebAppInput);
     return result.overallParity.passesParityTest;
   } catch (error) {
-    logger.error('Fund parity validation failed', { error });
+    logger.error(
+      'Fund parity validation failed',
+      error instanceof Error ? error : new Error(String(error))
+    );
     return false;
   }
 }

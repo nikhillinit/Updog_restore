@@ -38,7 +38,7 @@ interface SAFENote {
 
 interface SAFENoteEditorProps {
   safesNotes: SAFENote[];
-  onSafesNotesChange: (safesNotes: SAFENote[]) => void;
+  onSafesNotesChange: (_safesNotes: SAFENote[]) => void;
   pricePerShare?: number;
 }
 

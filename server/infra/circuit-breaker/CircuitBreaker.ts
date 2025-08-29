@@ -208,7 +208,7 @@ export class CircuitBreaker<T> {
   }
 
   // Public API
-  onStateChange(listener: (e: StateChangeEvent) => void) { this.emitter.on('stateChange', listener); }
+  onStateChange(listener: (_e: StateChangeEvent) => void) { this.emitter.on('stateChange', listener); }
   getState(): CircuitState { return this.state; }
   getMetrics() {
     const successRate = this.totalRequests ? this.successCount / this.totalRequests : 0;

@@ -28,7 +28,7 @@ interface TimelineEvent {
 interface TimelineSliderProps {
   events: TimelineEvent[];
   currentTime: Date;
-  onTimeChange: (time: Date) => void;
+  onTimeChange: (_time: Date) => void;
   width?: number;
   height?: number;
   className?: string;

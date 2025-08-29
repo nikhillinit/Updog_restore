@@ -4,9 +4,9 @@
  */
 
 export interface KV {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem(key: string): void;
+  getItem(_key: string): string | null;
+  setItem(_key: string, value: string): void;
+  removeItem(_key: string): void;
   clear(): void;
 }
 
@@ -86,7 +86,7 @@ export class TypedStorage<T = any> {
     this.storage.removeItem(this.key);
   }
   
-  update(fn: (current: T | null) => T): void {
+  update(fn: (_current: T | null) => T): void {
     const current = this.get();
     this.set(fn(current));
   }

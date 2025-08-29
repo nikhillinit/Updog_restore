@@ -33,7 +33,7 @@ import { CheckCircle, Circle, ArrowRight, ArrowLeft, Building2, Plus, Edit2, Tra
 import { resilientLimit } from "@/utils/resilientLimit";
 // Removed server import - use shared types or client-side metrics instead
 // import { asyncRepl } from "../../../server/metrics";
-import BudgetCreator from "@/components/budget/budget-creator";
+import _BudgetCreator from "@/components/budget/budget-creator";
 import InvestmentStrategyStep from "./InvestmentStrategyStep";
 import ExitRecyclingStep from "./ExitRecyclingStep";
 import WaterfallStep from "./WaterfallStep";

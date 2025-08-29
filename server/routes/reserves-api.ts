@@ -15,7 +15,7 @@ import {
 } from '@shared/schemas/reserves-schemas';
 import { logger } from '../lib/logger';
 import { performanceMonitor } from '../observability/metrics';
-import { validateApiKey } from '../middleware/auth';
+import { _validateApiKey } from '../middleware/auth';
 import { requestId } from '../middleware/requestId';
 import { requireApproval, computeStrategyHash, createApprovalIfNeeded, verifyApproval } from '../lib/approvals-guard.js';
 import { requireAuth } from '../lib/auth/jwt.js';
@@ -23,7 +23,7 @@ import { requireAuth } from '../lib/auth/jwt.js';
 // Import the reserve engine (would be a server-side implementation)
 // For now, we'll create a mock that delegates to the client-side engine
 interface ReserveEngineInterface {
-  calculateOptimalReserveAllocation(input: ReserveAllocationInput): Promise<ReserveCalculationResult>;
+  calculateOptimalReserveAllocation(_input: ReserveAllocationInput): Promise<ReserveCalculationResult>;
 }
 
 // Rate limiting configuration
@@ -383,7 +383,7 @@ router.post('/validate-parity',
     try {
       // Validate request
       const validatedRequest = ParityValidationRequestSchema.parse({ body: req.body });
-      const { excelData, webAppData, tolerance = 0.01 } = validatedRequest.body;
+      const { _excelData, _webAppData, tolerance = 0.01 } = validatedRequest.body;
 
       logger.info('Parity validation request received', {
         correlationId,
@@ -510,7 +510,7 @@ router.get('/config', (req: Request, res: Response) => {
 });
 
 // Error handling middleware
-router.use((error: any, req: Request, res: Response, next: NextFunction) => {
+router.use((error: any, req: Request, res: Response, _next: NextFunction) => {
   const correlationId = (req as any).id;
 
   // Handle validation errors

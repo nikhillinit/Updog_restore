@@ -17,7 +17,7 @@ import { DollarSign, Calendar, TrendingUp, Info, Plus } from "lucide-react";
 
 interface NewRoundDialogProps {
   isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (_open: boolean) => void;
   investment?: {
     id: string;
     company: string;

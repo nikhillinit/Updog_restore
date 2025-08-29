@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 interface AddEventDropdownProps {
-  onSelectEvent: (eventType: string) => void;
+  onSelectEvent: (_eventType: string) => void;
   isOpen: boolean;
   onToggle: () => void;
   investment?: {

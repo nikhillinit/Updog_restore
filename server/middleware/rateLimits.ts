@@ -202,7 +202,7 @@ export const simulationCostLimiter = new CostBasedRateLimiter(
 /**
  * Middleware for cost-based rate limiting
  */
-export function costBasedRateLimit(getCost: (req: Request) => number) {
+export function costBasedRateLimit(getCost: (_req: Request) => number) {
   return async (req: Request, res: Response, next: Function) => {
     const key = (req as any).user?.id || req.ip || 'unknown';
     const cost = getCost(req);

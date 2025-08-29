@@ -12,7 +12,7 @@ import { idem } from '../shared/idempotency-instance';
 import { getOrStart } from '../lib/inflight-server';
 import { EnhancedFundModel } from '../core/enhanced-fund-model';
 import { calcDurationMs } from '../metrics';
-import { FundConfigDTO, toDomainFundConfig } from '@shared/dto';
+import { _FundConfigDTO, _toDomainFundConfig } from '@shared/dto';
 
 const router = Router();
 

@@ -1,14 +1,14 @@
 // Canary migration skeleton with shadow and cutover (wire actual clients)
-export interface Migration { up(db:any):Promise<void>; down?(db:any):Promise<void>; }
+export interface Migration { up(_db:any):Promise<void>; down?(_db:any):Promise<void>; }
 interface DriftReport { mismatchRate:number; p95LatencyIncrease:number; details?:string; }
 export class ShadowProxy {
   constructor(public opts:{primary:any, shadow:any, compareResults:boolean}) {}
-  async runFor(duration:string):Promise<DriftReport> { return { mismatchRate:0, p95LatencyIncrease:1.0 }; }
+  async runFor(_duration:string):Promise<DriftReport> { return { mismatchRate:0, p95LatencyIncrease:1.0 }; }
 }
 export class CanaryMigrationCoordinator {
-  async cloneDatabase(src:string, name:string):Promise<any> { return {}; }
-  async atomicSwitch(primary:any, canary:any):Promise<void> {}
-  async cleanup(db:any) {}
+  async cloneDatabase(_src:string, _name:string):Promise<any> { return {}; }
+  async atomicSwitch(_primary:any, _canary:any):Promise<void> {}
+  async cleanup(_db:any) {}
   async executeSafely(migration:Migration, productionDb?:any) {
     const canaryDb = await this.cloneDatabase('production','canary');
     await migration.up(canaryDb);

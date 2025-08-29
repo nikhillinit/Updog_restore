@@ -69,7 +69,7 @@ export function createPolymorphicComponent<
 export function hasProperty<T extends ElementType, K extends string>(
   Component: T,
   propName: K
-): Component is T & { [P in K]: any } {
+): Component is T & { [_P in K]: any } {
   // This is a runtime check - in practice you'd implement based on your needs
   return true; // Simplified for type-level usage
 }

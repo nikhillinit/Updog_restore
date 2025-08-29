@@ -13,8 +13,8 @@ declare module 'express' {
   interface Request {
     correlationId?: string;
     guard?: {
-      sanitizeResponse: (data: any) => any;
-      injectFaults: <T>(fn: () => T | Promise<T>) => Promise<T>;
+      sanitizeResponse: (_data: any) => any;
+      injectFaults: <T>(_fn: () => T | Promise<T>) => Promise<T>;
     }
   }
 }

@@ -27,8 +27,8 @@ interface BatchRequest {
   key: string;
   input: ReservesInput;
   config: ReservesConfig;
-  resolver: (result: ReservesResult) => void;
-  rejecter: (error: Error) => void;
+  resolver: (_result: ReservesResult) => void;
+  rejecter: (_error: Error) => void;
 }
 
 export class IntelligentReservesCache {
@@ -56,7 +56,7 @@ export class IntelligentReservesCache {
   
   async get(
     key: string,
-    calculator: (input: ReservesInput, config: ReservesConfig) => Promise<ReservesResult>,
+    calculator: (_input: ReservesInput, config: ReservesConfig) => Promise<ReservesResult>,
     input: ReservesInput,
     config: ReservesConfig
   ): Promise<ReservesResult> {
@@ -67,7 +67,7 @@ export class IntelligentReservesCache {
       const cached = this.getFromCache(key);
       if (cached) {
         this.recordAccess(key, true);
-        metrics.recordCacheHit('reserves', performance.now() - startTime);
+        metrics.recordCacheHit(key);
         
         // Trigger predictive prefetch
         this.triggerPrefetch(key, calculator, input, config);
@@ -79,7 +79,7 @@ export class IntelligentReservesCache {
       const result = await this.addToBatch(key, input, config, calculator);
       
       this.recordAccess(key, false);
-      metrics.recordCacheMiss('reserves', performance.now() - startTime);
+      metrics.recordCacheMiss(key);
       
       return result;
       
@@ -195,8 +195,10 @@ export class IntelligentReservesCache {
     const ttl = this.calculateAdaptiveTTL(key);
     
     // Store in cache with metadata
-    const cacheEntry = {
-      data: result,
+    const cacheEntry: CacheEntry = {
+      key,
+      value,
+      timestamp: Date.now(),
       accessCount: 0,
       lastAccess: Date.now(),
       ttl
@@ -248,7 +250,7 @@ export class IntelligentReservesCache {
     }
   }
   
-  private recordAccess(key: string, isHit: boolean): void {
+  private recordAccess(key: string, _isHit: boolean): void {
     // Update access sequence
     this.accessSequence.push(key);
     if (this.accessSequence.length > this.SEQUENCE_LENGTH) {

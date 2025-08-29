@@ -48,8 +48,8 @@ interface OptimalReservesRankingProps {
 }
 
 export default function OptimalReservesRanking({ className }: OptimalReservesRankingProps) {
-  const [sortBy, setSortBy] = useState<'rank' | 'moic' | 'planned' | 'deployed'>('rank');
-  const [filterStage, setFilterStage] = useState<string>('all');
+  const [_sortBy, _setSortBy] = useState<'rank' | 'moic' | 'planned' | 'deployed'>('rank');
+  const [filterStage, _setFilterStage] = useState<string>('all');
 
   // Calculate Follow-On MOIC using Tactyc methodology
   const calculateFollowOnMOIC = (cases: PerformanceCase[]): number => {

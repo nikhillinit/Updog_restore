@@ -139,7 +139,7 @@ const availableMetrics: MetricCategory[] = [
 
 type ColumnConfigurationDialogProps = {
   selectedColumns: string[];
-  onColumnsChange: (columns: string[]) => void;
+  onColumnsChange: (_columns: string[]) => void;
 };
 
 export default function ColumnConfigurationDialog({ selectedColumns, onColumnsChange }: ColumnConfigurationDialogProps) {

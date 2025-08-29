@@ -59,7 +59,7 @@ interface OwnershipData {
 
 export default function ReturnTheFundPage() {
   const [selectedInvestment, setSelectedInvestment] = useState<string>("series-a");
-  const [selectedRound, setSelectedRound] = useState<string>("series-b");
+  const [selectedRound, _setSelectedRound] = useState<string>("series-b");
   const [reserveAmount, setReserveAmount] = useState<number[]>([375000]);
   const [activeTab, setActiveTab] = useState<'construction' | 'portfolio' | 'reserves'>('construction');
 

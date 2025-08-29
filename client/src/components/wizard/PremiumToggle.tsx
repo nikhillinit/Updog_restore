@@ -11,7 +11,7 @@ interface PremiumToggleProps {
   label: string;
   description?: string;
   checked: boolean;
-  onChange: (checked: boolean) => void;
+  onChange: (_checked: boolean) => void;
   className?: string;
   disabled?: boolean;
 }

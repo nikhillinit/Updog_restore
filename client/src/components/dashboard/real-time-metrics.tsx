@@ -18,7 +18,7 @@ interface MetricItem {
 
 export default function RealTimeMetrics() {
   const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [isLive, setIsLive] = useState(true);
+  const [isLive, _setIsLive] = useState(true);
 
   useEffect(() => {
     const interval = setInterval(() => {

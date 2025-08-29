@@ -27,7 +27,7 @@ interface TearSheetField {
 }
 
 interface TearSheetCustomizationProps {
-  onFieldsChange?: (fields: TearSheetField[]) => void;
+  onFieldsChange?: (_fields: TearSheetField[]) => void;
 }
 
 const DEFAULT_TEARSHEET_FIELDS: TearSheetField[] = [

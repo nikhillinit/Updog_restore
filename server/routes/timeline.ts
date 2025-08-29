@@ -224,7 +224,7 @@ router.post(
   asyncHandler(async (req, res) => {
     const startTimer = Date.now();
     const fundIdNum = parseInt(req.params.fundId, 10);
-    const { type, description } = req.body;
+    const { type, _description } = req.body;
 
     // Verify fund exists
     const fund = await db.query.funds.findFirst({

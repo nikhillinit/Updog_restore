@@ -15,9 +15,9 @@ declare global {
       // Make requestId optional to avoid conflicts with other declarations
       requestId: string;
       log?: {
-        info: (obj: any, msg?: string) => void;
-        error: (obj: any, msg?: string) => void;
-        warn: (obj: any, msg?: string) => void;
+        info: (_obj: any, msg?: string) => void;
+        error: (_obj: any, msg?: string) => void;
+        warn: (_obj: any, msg?: string) => void;
       };
     }
   }

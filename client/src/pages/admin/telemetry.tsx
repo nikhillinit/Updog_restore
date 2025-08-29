@@ -23,7 +23,7 @@ export default function TelemetryDashboard() {
 
   useEffect(() => {
     // Listen for new telemetry events (same tab)
-    const onTelemetryAppend = (e: CustomEvent) => {
+    const onTelemetryAppend = (_e: CustomEvent) => {
       setEvents(readTelemetry());
       setLastUpdate(Date.now());
     };

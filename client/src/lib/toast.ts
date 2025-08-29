@@ -34,7 +34,7 @@ export async function withToast<T>(
   messages: {
     pending?: string;
     success?: string;
-    error?: string | ((err: Error) => string);
+    error?: string | ((_err: Error) => string);
   } = {}
 ): Promise<T> {
   const {

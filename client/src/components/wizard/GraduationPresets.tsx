@@ -62,7 +62,7 @@ const PRESETS: GraduationPreset[] = [
 ];
 
 interface GraduationPresetsProps {
-  onSelectPreset: (rates: number[]) => void;
+  onSelectPreset: (_rates: number[]) => void;
   disabled?: boolean;
 }
 

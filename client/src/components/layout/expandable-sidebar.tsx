@@ -31,7 +31,7 @@ import { Separator } from "@/components/ui/separator";
 
 interface ExpandableSidebarProps {
   activeModule: string;
-  onModuleChange: (module: string) => void;
+  onModuleChange: (_module: string) => void;
 }
 
 const NAVIGATION_STRUCTURE = {
@@ -80,7 +80,7 @@ export default function ExpandableSidebar({ activeModule, onModuleChange }: Expa
     fund: true,
     tools: true
   });
-  const [location, setLocation] = useLocation();
+  const [_location, _setLocation] = useLocation();
   const { needsSetup, currentFund } = useFundContext();
 
   const toggleSection = (sectionKey: string) => {

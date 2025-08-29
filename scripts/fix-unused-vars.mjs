@@ -1,324 +1,377 @@
 #!/usr/bin/env node
 
-/**
- * Script to automatically remove unused variables and imports from TypeScript/JavaScript files
- * This handles the 1458 no-unused-vars errors reported by ESLint
- */
-
-import { promises as fs } from 'fs';
-import path from 'path';
 import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const projectRoot = path.resolve(__dirname, '..');
 
-// Configuration
-const CONFIG = {
-  extensions: ['.ts', '.tsx', '.js', '.jsx'],
-  excludeDirs: ['node_modules', 'dist', '.git', 'coverage'],
-  batchSize: 10, // Process files in batches to avoid memory issues
-  dryRun: process.argv.includes('--dry-run'),
-  verbose: process.argv.includes('--verbose'),
+// Categories of unused variables
+const CATEGORIES = {
+  IMPORTS: 'Unused imports',
+  DESTRUCTURED: 'Unused destructured variables',
+  DECLARED: 'Unused declared variables',
+  FUNCTION_PARAMS: 'Unused function parameters',
+  CATCH_PARAMS: 'Unused catch parameters',
+  REACT_PROPS: 'Unused React props',
+  REACT_HOOKS: 'Unused React hooks',
+  OTHER: 'Other unused variables'
 };
 
-// Patterns to identify and remove unused items
-const PATTERNS = {
-  // Import patterns
-  unusedImport: /^import\s+(?:type\s+)?{([^}]+)}\s+from\s+['"][^'"]+['"];?\s*$/gm,
-  unusedDefaultImport: /^import\s+(\w+)\s+from\s+['"][^'"]+['"];?\s*$/gm,
-  unusedNamespaceImport: /^import\s+\*\s+as\s+(\w+)\s+from\s+['"][^'"]+['"];?\s*$/gm,
-  mixedImport: /^import\s+(\w+),\s*{([^}]+)}\s+from\s+['"][^'"]+['"];?\s*$/gm,
+// Patterns to identify false positives
+const FALSE_POSITIVE_PATTERNS = [
+  // React components that might be used in JSX
+  { pattern: /^[A-Z][A-Za-z0-9]*$/, category: 'React component' },
   
-  // Variable patterns
-  unusedConst: /^\s*const\s+(\w+)\s*=\s*[^;]+;?\s*$/gm,
-  unusedLet: /^\s*let\s+(\w+)\s*=\s*[^;]+;?\s*$/gm,
-  unusedDestructuring: /^\s*const\s*{([^}]+)}\s*=\s*[^;]+;?\s*$/gm,
-  unusedArrayDestructuring: /^\s*const\s*\[([^\]]+)\]\s*=\s*[^;]+;?\s*$/gm,
+  // Common React hooks
+  { pattern: /^use[A-Z]/, category: 'React hook' },
   
-  // Function parameter patterns (for callbacks)
-  unusedParams: /\(([^)]*)\)\s*=>/g,
-  unusedFunctionParams: /function\s*\w*\s*\(([^)]*)\)/g,
-};
+  // Event handlers
+  { pattern: /^(on|handle)[A-Z]/, category: 'Event handler' },
+  
+  // Type imports
+  { pattern: /^[A-Z][A-Za-z0-9]*Type$/, category: 'Type import' },
+  
+  // Common utility functions that might be used for side effects
+  { pattern: /^(init|setup|register|configure|load)[A-Z]/, category: 'Setup function' },
+  
+  // Debugging variables
+  { pattern: /^(debug|log|trace|console)/i, category: 'Debug variable' }
+];
 
-/**
- * Parse ESLint output to get list of unused variables
- */
-async function getUnusedVars() {
+// Variables that should never be removed
+const CRITICAL_VARIABLES = [
+  'React', 
+  'useState', 
+  'useEffect', 
+  'useCallback', 
+  'useMemo', 
+  'useRef',
+  'useContext',
+  'useReducer',
+  'Fragment',
+  'Suspense',
+  'ErrorBoundary',
+  'memo',
+  'forwardRef'
+];
+
+async function main() {
+  const args = process.argv.slice(2);
+  const dryRun = args.includes('--dry-run');
+  const verbose = args.includes('--verbose');
+  const fix = args.includes('--fix');
+  const analyze = args.includes('--analyze') || !fix;
+  
+  console.log('🔍 Analyzing ESLint unused variables issues...');
+  
+  // Find TypeScript files
+  const tsFiles = findTypeScriptFiles();
+  console.log(`Found ${tsFiles.length} TypeScript files to analyze`);
+  
+  // Collect ESLint errors
+  const allErrors = [];
+  const fileErrors = {};
+  
+  for (const file of tsFiles) {
+    try {
+      const result = runEslintOnFile(file);
+      if (result.errors.length > 0) {
+        allErrors.push(...result.errors);
+        fileErrors[file] = result.errors;
+      }
+    } catch (error) {
+      console.error(`Error analyzing ${file}:`, error.message);
+    }
+  }
+  
+  // Filter for unused variables
+  const unusedVarsErrors = allErrors.filter(error => 
+    error.ruleId === 'no-unused-vars' || 
+    error.ruleId === '@typescript-eslint/no-unused-vars'
+  );
+  
+  console.log(`\n📊 Found ${unusedVarsErrors.length} unused variable issues out of ${allErrors.length} total ESLint errors`);
+  
+  if (analyze) {
+    // Categorize unused variables
+    const categorizedVars = categorizeUnusedVars(unusedVarsErrors);
+    
+    // Analyze for false positives
+    const { safeToRemove, potentialFalsePositives } = analyzeFalsePositives(unusedVarsErrors);
+    
+    // Print analysis
+    printAnalysis(categorizedVars, safeToRemove, potentialFalsePositives, verbose);
+  }
+  
+  if (fix) {
+    // Fix unused variables
+    fixUnusedVars(fileErrors, dryRun);
+  }
+}
+
+function findTypeScriptFiles() {
+  const output = execSync('git ls-files "*.ts" "*.tsx"', { 
+    cwd: projectRoot,
+    encoding: 'utf8' 
+  });
+  
+  return output.split('\n')
+    .filter(Boolean)
+    .map(file => path.join(projectRoot, file));
+}
+
+function runEslintOnFile(filePath) {
   try {
-    // Run ESLint and capture output
-    const output = execSync('npm run lint -- --format json', { 
-      encoding: 'utf-8',
-      maxBuffer: 50 * 1024 * 1024 // 50MB buffer for large output
+    const relativePath = path.relative(projectRoot, filePath);
+    const output = execSync(`npx eslint "${relativePath}" --format json`, {
+      cwd: projectRoot,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'ignore']
     });
     
     const results = JSON.parse(output);
-    const unusedVars = new Map(); // filename -> Set of unused variable names
     
-    for (const file of results) {
-      if (file.messages.length === 0) continue;
-      
-      const unused = new Set();
-      for (const message of file.messages) {
-        if (message.ruleId === 'no-unused-vars') {
-          // Extract variable name from message
-          const match = message.message.match(/'([^']+)'/);
-          if (match) {
-            unused.add(match[1]);
-          }
-        }
-      }
-      
-      if (unused.size > 0) {
-        unusedVars.set(file.filePath, unused);
-      }
+    if (results.length === 0) {
+      return { errors: [] };
     }
     
-    return unusedVars;
+    const errors = results[0].messages.map(msg => ({
+      ...msg,
+      filePath: relativePath
+    }));
+    
+    return { errors };
   } catch (error) {
-    // ESLint exits with error code when there are lint errors
-    // Parse the output anyway
-    const output = error.stdout?.toString() || error.output?.[1]?.toString() || '[]';
+    // If ESLint exits with error code, parse the JSON output
     try {
+      const output = error.stdout;
       const results = JSON.parse(output);
-      const unusedVars = new Map();
       
-      for (const file of results) {
-        if (file.messages.length === 0) continue;
-        
-        const unused = new Set();
-        for (const message of file.messages) {
-          if (message.ruleId === 'no-unused-vars') {
-            const match = message.message.match(/'([^']+)'/);
-            if (match) {
-              unused.add(match[1]);
-            }
-          }
-        }
-        
-        if (unused.size > 0) {
-          unusedVars.set(file.filePath, unused);
-        }
+      if (results.length === 0) {
+        return { errors: [] };
       }
       
-      return unusedVars;
+      const relativePath = path.relative(projectRoot, filePath);
+      const errors = results[0].messages.map(msg => ({
+        ...msg,
+        filePath: relativePath
+      }));
+      
+      return { errors };
     } catch (parseError) {
-      console.error('Failed to parse ESLint output:', parseError);
-      return new Map();
+      console.error(`Failed to parse ESLint output for ${filePath}`);
+      return { errors: [] };
     }
   }
 }
 
-/**
- * Remove unused imports from file content
- */
-function removeUnusedImports(content, unusedVars) {
-  let modified = content;
+function categorizeUnusedVars(errors) {
+  const categories = {
+    [CATEGORIES.IMPORTS]: [],
+    [CATEGORIES.DESTRUCTURED]: [],
+    [CATEGORIES.DECLARED]: [],
+    [CATEGORIES.FUNCTION_PARAMS]: [],
+    [CATEGORIES.CATCH_PARAMS]: [],
+    [CATEGORIES.REACT_PROPS]: [],
+    [CATEGORIES.REACT_HOOKS]: [],
+    [CATEGORIES.OTHER]: []
+  };
   
-  // Handle named imports
-  modified = modified.replace(PATTERNS.unusedImport, (match, imports) => {
-    const importList = imports.split(',').map(i => i.trim());
-    const usedImports = importList.filter(imp => {
-      const name = imp.split(/\s+as\s+/).pop().trim();
-      return !unusedVars.has(name);
-    });
+  for (const error of errors) {
+    const message = error.message;
+    const varName = message.match(/'([^']+)'/)?.[1] || 'unknown';
     
-    if (usedImports.length === 0) {
-      return ''; // Remove entire import
-    } else if (usedImports.length < importList.length) {
-      return match.replace(imports, usedImports.join(', '));
+    if (message.includes('import')) {
+      categories[CATEGORIES.IMPORTS].push({ ...error, varName });
+    } else if (message.includes('destructured')) {
+      categories[CATEGORIES.DESTRUCTURED].push({ ...error, varName });
+    } else if (message.includes('assigned a value but never used')) {
+      categories[CATEGORIES.DECLARED].push({ ...error, varName });
+    } else if (message.includes('function parameter')) {
+      categories[CATEGORIES.FUNCTION_PARAMS].push({ ...error, varName });
+    } else if (message.includes('catch parameter')) {
+      categories[CATEGORIES.CATCH_PARAMS].push({ ...error, varName });
+    } else if (varName.startsWith('props.') || varName === 'props') {
+      categories[CATEGORIES.REACT_PROPS].push({ ...error, varName });
+    } else if (varName.startsWith('use')) {
+      categories[CATEGORIES.REACT_HOOKS].push({ ...error, varName });
+    } else {
+      categories[CATEGORIES.OTHER].push({ ...error, varName });
     }
-    return match;
-  });
+  }
   
-  // Handle default imports
-  modified = modified.replace(PATTERNS.unusedDefaultImport, (match, name) => {
-    return unusedVars.has(name) ? '' : match;
-  });
-  
-  // Handle namespace imports
-  modified = modified.replace(PATTERNS.unusedNamespaceImport, (match, name) => {
-    return unusedVars.has(name) ? '' : match;
-  });
-  
-  // Handle mixed imports (default + named)
-  modified = modified.replace(PATTERNS.mixedImport, (match, defaultImport, namedImports) => {
-    const namedList = namedImports.split(',').map(i => i.trim());
-    const usedNamed = namedList.filter(imp => {
-      const name = imp.split(/\s+as\s+/).pop().trim();
-      return !unusedVars.has(name);
-    });
-    
-    const defaultUsed = !unusedVars.has(defaultImport);
-    
-    if (!defaultUsed && usedNamed.length === 0) {
-      return ''; // Remove entire import
-    } else if (!defaultUsed) {
-      return match.replace(/^\s*import\s+\w+,\s*{/, 'import {');
-    } else if (usedNamed.length === 0) {
-      return match.replace(/,\s*{[^}]+}/, '');
-    } else if (usedNamed.length < namedList.length) {
-      return match.replace(namedImports, usedNamed.join(', '));
-    }
-    return match;
-  });
-  
-  return modified;
+  return categories;
 }
 
-/**
- * Remove unused variables from file content
- */
-function removeUnusedVariables(content, unusedVars) {
-  let modified = content;
+function analyzeFalsePositives(errors) {
+  const safeToRemove = [];
+  const potentialFalsePositives = [];
   
-  // Remove unused const declarations
-  modified = modified.replace(PATTERNS.unusedConst, (match, name) => {
-    return unusedVars.has(name) ? '' : match;
-  });
-  
-  // Remove unused let declarations
-  modified = modified.replace(PATTERNS.unusedLet, (match, name) => {
-    return unusedVars.has(name) ? '' : match;
-  });
-  
-  // Handle destructuring
-  modified = modified.replace(PATTERNS.unusedDestructuring, (match, destructured) => {
-    const vars = destructured.split(',').map(v => v.trim());
-    const usedVars = vars.filter(v => {
-      const name = v.split(':').pop().trim();
-      return !unusedVars.has(name);
-    });
+  for (const error of errors) {
+    const message = error.message;
+    const varName = message.match(/'([^']+)'/)?.[1] || 'unknown';
     
-    if (usedVars.length === 0) {
-      return ''; // Remove entire declaration
-    } else if (usedVars.length < vars.length) {
-      return match.replace(destructured, usedVars.join(', '));
+    // Check if it's a critical variable
+    if (CRITICAL_VARIABLES.includes(varName)) {
+      potentialFalsePositives.push({
+        ...error,
+        varName,
+        reason: 'Critical React/framework variable'
+      });
+      continue;
     }
-    return match;
-  });
+    
+    // Check against false positive patterns
+    let isFalsePositive = false;
+    for (const { pattern, category } of FALSE_POSITIVE_PATTERNS) {
+      if (pattern.test(varName)) {
+        potentialFalsePositives.push({
+          ...error,
+          varName,
+          reason: category
+        });
+        isFalsePositive = true;
+        break;
+      }
+    }
+    
+    if (!isFalsePositive) {
+      safeToRemove.push({
+        ...error,
+        varName
+      });
+    }
+  }
   
-  return modified;
+  return { safeToRemove, potentialFalsePositives };
 }
 
-/**
- * Prefix unused parameters with underscore
- */
-function prefixUnusedParameters(content, unusedVars) {
-  let modified = content;
+function printAnalysis(categorizedVars, safeToRemove, potentialFalsePositives, verbose) {
+  console.log('\n📋 Unused Variables Analysis:');
   
-  // Arrow functions
-  modified = modified.replace(PATTERNS.unusedParams, (match, params) => {
-    const paramList = params.split(',').map(p => p.trim());
-    const updatedParams = paramList.map(param => {
-      const name = param.split(/[:\s=]/, 1)[0].trim();
-      if (unusedVars.has(name) && !name.startsWith('_')) {
-        return param.replace(name, '_' + name);
+  // Print categories
+  for (const [category, errors] of Object.entries(categorizedVars)) {
+    if (errors.length > 0) {
+      console.log(`\n${category}: ${errors.length}`);
+      
+      if (verbose) {
+        const topFiles = getTopFiles(errors, 5);
+        console.log('  Top files:');
+        topFiles.forEach(({ file, count }) => {
+          console.log(`    ${file}: ${count}`);
+        });
+        
+        const examples = errors.slice(0, 3);
+        console.log('  Examples:');
+        examples.forEach(error => {
+          console.log(`    ${error.filePath}:${error.line} - ${error.varName}`);
+        });
       }
-      return param;
-    });
-    return '(' + updatedParams.join(', ') + ') =>';
-  });
+    }
+  }
   
-  // Regular functions
-  modified = modified.replace(PATTERNS.unusedFunctionParams, (match, params) => {
-    const paramList = params.split(',').map(p => p.trim());
-    const updatedParams = paramList.map(param => {
-      const name = param.split(/[:\s=]/, 1)[0].trim();
-      if (unusedVars.has(name) && !name.startsWith('_')) {
-        return param.replace(name, '_' + name);
-      }
-      return param;
-    });
-    return match.replace(params, updatedParams.join(', '));
-  });
+  // Print false positives analysis
+  console.log(`\n🔍 False Positives Analysis:`);
+  console.log(`  Safe to remove: ${safeToRemove.length}`);
+  console.log(`  Potential false positives: ${potentialFalsePositives.length}`);
   
-  return modified;
+  if (verbose) {
+    console.log('\n  False positive categories:');
+    const reasonCounts = {};
+    potentialFalsePositives.forEach(fp => {
+      reasonCounts[fp.reason] = (reasonCounts[fp.reason] || 0) + 1;
+    });
+    
+    Object.entries(reasonCounts)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([reason, count]) => {
+        console.log(`    ${reason}: ${count}`);
+      });
+  }
+  
+  console.log('\n💡 Recommendations:');
+  console.log('  1. Safe to automatically fix: Unused imports, destructured variables, and declared variables');
+  console.log('  2. Manual review needed: Function parameters, React props, and potential false positives');
+  console.log('  3. Run with --fix to automatically fix safe issues');
 }
 
-/**
- * Process a single file
- */
-async function processFile(filePath, unusedVars) {
-  try {
-    const content = await fs.readFile(filePath, 'utf-8');
-    let modified = content;
+function getTopFiles(errors, limit) {
+  const fileCounts = {};
+  
+  errors.forEach(error => {
+    fileCounts[error.filePath] = (fileCounts[error.filePath] || 0) + 1;
+  });
+  
+  return Object.entries(fileCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([file, count]) => ({ file, count }));
+}
+
+function fixUnusedVars(fileErrors, dryRun) {
+  console.log(`\n🔧 ${dryRun ? 'Would fix' : 'Fixing'} unused variables in ${Object.keys(fileErrors).length} files...`);
+  
+  let fixedCount = 0;
+  
+  for (const [filePath, errors] of Object.entries(fileErrors)) {
+    const unusedVarsErrors = errors.filter(error => 
+      error.ruleId === 'no-unused-vars' || 
+      error.ruleId === '@typescript-eslint/no-unused-vars'
+    );
     
-    // Apply fixes
-    modified = removeUnusedImports(modified, unusedVars);
-    modified = removeUnusedVariables(modified, unusedVars);
-    modified = prefixUnusedParameters(modified, unusedVars);
+    if (unusedVarsErrors.length === 0) continue;
     
-    // Clean up multiple blank lines
-    modified = modified.replace(/\n\n\n+/g, '\n\n');
-    
-    if (modified !== content) {
-      if (!CONFIG.dryRun) {
-        await fs.writeFile(filePath, modified, 'utf-8');
+    // Filter out potential false positives
+    const safeErrors = unusedVarsErrors.filter(error => {
+      const message = error.message;
+      const varName = message.match(/'([^']+)'/)?.[1] || 'unknown';
+      
+      // Skip critical variables
+      if (CRITICAL_VARIABLES.includes(varName)) {
+        return false;
       }
+      
+      // Skip potential false positives
+      for (const { pattern } of FALSE_POSITIVE_PATTERNS) {
+        if (pattern.test(varName)) {
+          return false;
+        }
+      }
+      
       return true;
+    });
+    
+    if (safeErrors.length === 0) continue;
+    
+    console.log(`  ${dryRun ? 'Would fix' : 'Fixing'} ${safeErrors.length} issues in ${filePath}`);
+    
+    if (!dryRun) {
+      try {
+        execSync(`npx eslint "${filePath}" --fix`, {
+          cwd: projectRoot,
+          stdio: 'ignore'
+        });
+        fixedCount++;
+      } catch (error) {
+        console.error(`    Failed to fix ${filePath}: ${error.message}`);
+      }
     }
-    return false;
-  } catch (error) {
-    console.error(`Error processing ${filePath}:`, error.message);
-    return false;
+  }
+  
+  console.log(`\n✅ ${dryRun ? 'Would have fixed' : 'Fixed'} issues in ${fixedCount} files`);
+  
+  if (dryRun) {
+    console.log('\n💡 Run without --dry-run to apply fixes');
   }
 }
 
-/**
- * Main execution
- */
-async function main() {
-  console.log('🔍 Analyzing codebase for unused variables...');
-  
-  const unusedVarsMap = await getUnusedVars();
-  
-  if (unusedVarsMap.size === 0) {
-    console.log('✅ No unused variables found!');
-    return;
-  }
-  
-  console.log(`Found ${unusedVarsMap.size} files with unused variables`);
-  
-  if (CONFIG.dryRun) {
-    console.log('🏃 DRY RUN MODE - No files will be modified');
-  }
-  
-  let processedCount = 0;
-  let modifiedCount = 0;
-  
-  for (const [filePath, unusedVars] of unusedVarsMap) {
-    if (CONFIG.verbose) {
-      console.log(`Processing ${filePath} (${unusedVars.size} unused vars)`);
-    }
-    
-    const modified = await processFile(filePath, unusedVars);
-    if (modified) {
-      modifiedCount++;
-    }
-    processedCount++;
-    
-    if (processedCount % CONFIG.batchSize === 0) {
-      console.log(`Progress: ${processedCount}/${unusedVarsMap.size} files processed`);
-    }
-  }
-  
-  console.log('\n📊 Summary:');
-  console.log(`  Files analyzed: ${unusedVarsMap.size}`);
-  console.log(`  Files modified: ${modifiedCount}`);
-  
-  if (!CONFIG.dryRun && modifiedCount > 0) {
-    console.log('\n🔧 Running ESLint to verify fixes...');
-    try {
-      execSync('npm run lint', { stdio: 'inherit' });
-      console.log('✅ All lint errors fixed!');
-    } catch (error) {
-      console.log('⚠️  Some lint errors remain. Run `npm run lint` to see details.');
-    }
-  }
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch(error => {
+    console.error('❌ Error:', error);
+    process.exit(1);
+  });
 }
-
-// Execute
-main().catch(console.error);
-
-export { processFile, removeUnusedImports, removeUnusedVariables };

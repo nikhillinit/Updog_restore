@@ -53,7 +53,7 @@ interface ForecastStep {
 }
 
 export default function AllocationModeling({ fundData }: AllocationModelingProps) {
-  const [activeStep, setActiveStep] = useState(0);
+  const [_activeStep, _setActiveStep] = useState(0);
 
   // Sample allocation data based on Tactyc methodology
   const allocations: Allocation[] = [
@@ -231,7 +231,7 @@ export default function AllocationModeling({ fundData }: AllocationModelingProps
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {forecastSteps.map((step, index) => (
+            {forecastSteps.map((step, _index) => (
               <div key={step.step} className="flex items-start space-x-4">
                 <div className={`
                   w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium

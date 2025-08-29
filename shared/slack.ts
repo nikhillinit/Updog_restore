@@ -13,7 +13,7 @@ export interface SlackPayload {
   [key: string]: unknown;
 }
 
-let postImpl: (payload: SlackPayload) => Promise<void> = async () => {
+let postImpl: (_payload: SlackPayload) => Promise<void> = async () => {
   /* no‑op */
 };
 
@@ -28,7 +28,7 @@ if (process.env['SLACK_WEBHOOK_URL'] || process.env['SLACK_TOKEN']) {
         await webhook.send(payload);
       };
     })
-    .catch((err) => {
+    .catch((_err) => {
       // Package not installed or import failed - continue as no-op
       if (process.env['NODE_ENV'] === 'production' && process.env['SLACK_WEBHOOK_URL']) {
         console.warn('[slack] @slack/webhook not installed, Slack notifications disabled');

@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import LiquidationPreferencesDialog from "@/components/investments/liquidation-preferences-dialog";
 import PerformanceCaseTabs from "@/components/investments/performance-case-tabs";
-import CapTableCalculator from "@/components/cap-table/cap-table-calculator";
+import _CapTableCalculator from "@/components/cap-table/cap-table-calculator";
 import CapTableIntegration from "@/components/investments/cap-table-integration";
 
 const roundSchema = z.object({

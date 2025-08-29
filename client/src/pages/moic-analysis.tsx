@@ -62,8 +62,8 @@ interface MOICComparison {
 
 export default function MOICAnalysisPage() {
   const [selectedCompany, setSelectedCompany] = useState<string>("all");
-  const [selectedView, setSelectedView] = useState<'table' | 'chart' | 'comparison'>('table');
-  const [selectedMOICType, setSelectedMOICType] = useState<string>("exitMOICOnPlannedReserves");
+  const [_selectedView, _setSelectedView] = useState<'table' | 'chart' | 'comparison'>('table');
+  const [_selectedMOICType, _setSelectedMOICType] = useState<string>("exitMOICOnPlannedReserves");
 
   // Sample MOIC data based on your documentation
   const moicData: MOICMetric[] = [

@@ -14,7 +14,7 @@ export interface SingleFlightOptions {
   holdForMs?: number;
   defaultTimeout?: number;
   maxRetries?: number;
-  onEvict?: (key: string, reason: 'capacity' | 'timeout' | 'error') => void;
+  onEvict?: (_key: string, _reason: 'capacity' | 'timeout' | 'error') => void;
 }
 
 export interface SingleFlightStats {
@@ -88,7 +88,7 @@ export function createEnhancedSingleFlight(opts: SingleFlightOptions = {}) {
 
   function execute<T>(
     key: string,
-    worker: (signal: AbortSignal) => Promise<T>,
+    worker: (_signal: AbortSignal) => Promise<T>,
     options: { timeout?: number; retries?: number } = {}
   ): Promise<T> {
     stats.totalRequests++;

@@ -77,7 +77,7 @@ export default function ForecastingPage() {
 
     // Fund-Level Aggregation from Deal-Level Forecasts
     const totalExpectedProceeds = portfolioCompanies.reduce((sum, co) => sum + co.expectedProceeds, 0);
-    const totalInvested = portfolioCompanies.reduce((sum, co) => sum + 4500000, 0); // Sample invested amounts
+    const totalInvested = portfolioCompanies.reduce((sum, _co) => sum + 4500000, 0); // Sample invested amounts
     const fundLevelMOIC = totalExpectedProceeds / totalInvested;
     
     return {

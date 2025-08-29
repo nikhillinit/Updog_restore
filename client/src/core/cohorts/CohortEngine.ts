@@ -46,7 +46,7 @@ function validateCohortOutput(output: unknown): CohortOutput {
 // =============================================================================
 
 /** Generate mock portfolio companies for a cohort */
-function generateMockCompanies(cohortSize: number, vintageYear: number) {
+function generateMockCompanies(cohortSize: number, _vintageYear: number) {
   const sectors = ['SaaS', 'Fintech', 'Healthcare', 'Analytics', 'Infrastructure', 'Enterprise'];
   const stages = ['Seed', 'Series A', 'Series B', 'Series C'];
   const companyPrefixes = ['Tech', 'Data', 'Cloud', 'Smart', 'Digital', 'Next'];

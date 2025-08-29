@@ -96,7 +96,7 @@ function calculateMLBasedPacing(input: PacingInput): PacingOutput[] {
   const ruleBased = calculateRuleBasedPacing(input);
   
   // Simulate ML enhancement with trend analysis
-  return map(ruleBased, (item, index) => {
+  return map(ruleBased, (item, _index) => {
     // ML adjusts based on simulated market trends and fund performance
     const trendAdjustment = 0.85 + (Math.random() * 0.3); // 0.85 to 1.15
     const mlEnhancedDeployment = item.deployment * trendAdjustment;

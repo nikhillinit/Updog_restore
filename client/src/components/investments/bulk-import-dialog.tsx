@@ -12,7 +12,7 @@ import { Upload, Download, FileSpreadsheet, AlertCircle } from "lucide-react";
 
 interface BulkImportDialogProps {
   isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (_open: boolean) => void;
 }
 
 export default function BulkImportDialog({ isOpen, onOpenChange }: BulkImportDialogProps) {

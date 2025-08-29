@@ -17,8 +17,8 @@ export interface ErrorContext {
 
 export interface RecoveryStrategy {
   name: string;
-  canRecover: (error: Error, context: ErrorContext) => boolean;
-  recover: (error: Error, context: ErrorContext) => Promise<ReservesResult | null>;
+  canRecover: (_error: Error, _context: ErrorContext) => boolean;
+  recover: (_error: Error, _context: ErrorContext) => Promise<ReservesResult | null>;
   priority: number;
 }
 

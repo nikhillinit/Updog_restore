@@ -13,7 +13,7 @@ import { Calendar, Info } from "lucide-react";
 
 interface FutureRoundsBuilderProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (_open: boolean) => void;
   onBuildRounds: (config: FutureRoundsConfig) => void;
 }
 

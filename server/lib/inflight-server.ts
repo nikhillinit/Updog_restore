@@ -8,7 +8,7 @@ import { IdempotencyStore } from './idempotency';
 export async function getOrStart<T>(
   store: IdempotencyStore,
   key: string,
-  worker: (signal: AbortSignal) => Promise<T>,
+  worker: (_signal: AbortSignal) => Promise<T>,
   ttlMs = 60_000
 ): Promise<{ status: 'joined' | 'created'; promise: Promise<T> }> {
   const existing = await store.get<T>(key);

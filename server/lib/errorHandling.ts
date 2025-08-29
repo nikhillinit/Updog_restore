@@ -23,7 +23,7 @@ import {
   isRateLimitError,
   isValidationError
 } from '../types/errors.js';
-import { sendApiError, createErrorBody, httpCodeToAppCode } from './apiError.js';
+import { _sendApiError, createErrorBody, _httpCodeToAppCode } from './apiError.js';
 import { businessMetrics } from '../metrics/businessMetrics.js';
 import { tracer } from './tracing.js';
 
@@ -115,7 +115,7 @@ export class UnifiedErrorHandler {
 
   // Express middleware wrapper
   middleware() {
-    return async (err: any, req: Request, res: Response, next: NextFunction) => {
+    return async (err: any, req: Request, res: Response, _next: NextFunction) => {
       const context: Partial<ErrorContext> = {
         requestId: (req as any).requestId,
         userId: (req as any).user?.id,

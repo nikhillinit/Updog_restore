@@ -3,7 +3,7 @@
 // Enhanced Fund Model with centralized array safety
 // Line 22 specifically addressed with null-safe forEach operations
 
-import { forEach, forEachNested, map, filter, safe } from '../utils/array-safety';
+import { forEach, forEachNested, _map, _filter, safe } from '../utils/array-safety';
 
 /**
  * Enhanced Fund Model with comprehensive null-safe array operations
@@ -230,51 +230,51 @@ export class EnhancedFundModel {
   }
   
   // Processing methods for individual components
-  private processFundingRound(round: any, company: any): void {
+  private processFundingRound(_round: any, _company: any): void {
     // Implementation details...
   }
   
-  private processExitEvent(exitEvent: any, company: any): void {
+  private processExitEvent(_exitEvent: any, _company: any): void {
     // Implementation details...
   }
   
-  private processBoardMember(member: any, company: any): void {
+  private processBoardMember(_member: any, _company: any): void {
     // Implementation details...
   }
   
-  private processInvestmentMetric(metric: any, investment: any): void {
+  private processInvestmentMetric(_metric: any, _investment: any): void {
     // Implementation details...
   }
   
-  private processCoInvestor(coInvestor: any, investment: any): void {
+  private processCoInvestor(_coInvestor: any, _investment: any): void {
     // Implementation details...
   }
   
-  private processLPAllocation(allocation: any, call: any): void {
+  private processLPAllocation(_allocation: any, _call: any): void {
     // Implementation details...
   }
   
-  private processDistributionAllocation(allocation: any, distribution: any): void {
+  private processDistributionAllocation(_allocation: any, _distribution: any): void {
     // Implementation details...
   }
   
-  private processTaxImplication(taxItem: any, distribution: any): void {
+  private processTaxImplication(_taxItem: any, _distribution: any): void {
     // Implementation details...
   }
   
-  private processBenchmarkDataPoint(dataPoint: any, benchmark: any, index: number): void {
+  private processBenchmarkDataPoint(_dataPoint: any, _benchmark: any, _index: number): void {
     // Implementation details...
   }
   
-  private processTimelineEvent(event: any, index: number): void {
+  private processTimelineEvent(_event: any, _index: number): void {
     // Implementation details...
   }
   
-  private processEventDocument(document: any, event: any): void {
+  private processEventDocument(_document: any, _event: any): void {
     // Implementation details...
   }
   
-  private processEventParticipant(participant: any, event: any): void {
+  private processEventParticipant(_participant: any, _event: any): void {
     // Implementation details...
   }
 }

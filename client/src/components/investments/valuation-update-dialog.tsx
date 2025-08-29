@@ -12,7 +12,7 @@ import { TrendingUp, Calendar, Info } from "lucide-react";
 
 interface ValuationUpdateDialogProps {
   isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (_open: boolean) => void;
   investment?: {
     id: string;
     company: string;
