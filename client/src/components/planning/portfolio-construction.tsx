@@ -353,7 +353,7 @@ export default function PortfolioConstruction() {
                   </div>
                   <Slider
                     value={[params.fundSize]}
-                    onValueChange={([value]) => updateParam('fundSize', value)}
+                    onValueChange={([value]) => updateParam('fundSize', value ?? 0)}
                     min={50000}
                     max={250000}
                     step={10000}
@@ -368,7 +368,7 @@ export default function PortfolioConstruction() {
                   </div>
                   <Slider
                     value={[params.managementFee]}
-                    onValueChange={([value]) => updateParam('managementFee', value)}
+                    onValueChange={([value]) => updateParam('managementFee', value ?? 0)}
                     min={1.6}
                     max={2.4}
                     step={0.1}
@@ -383,7 +383,7 @@ export default function PortfolioConstruction() {
                   </div>
                   <Slider
                     value={[params.initialCheckSize]}
-                    onValueChange={([value]) => updateParam('initialCheckSize', value)}
+                    onValueChange={([value]) => updateParam('initialCheckSize', value ?? 0)}
                     min={800}
                     max={1200}
                     step={50}
@@ -398,7 +398,7 @@ export default function PortfolioConstruction() {
                   </div>
                   <Slider
                     value={[params.followOnReserve]}
-                    onValueChange={([value]) => updateParam('followOnReserve', value)}
+                    onValueChange={([value]) => updateParam('followOnReserve', value ?? 0)}
                     min={0}
                     max={100}
                     step={5}
@@ -454,7 +454,7 @@ export default function PortfolioConstruction() {
                   </div>
                   <Slider
                     value={[params.seedRoundSize]}
-                    onValueChange={([value]) => updateParam('seedRoundSize', value)}
+                    onValueChange={([value]) => updateParam('seedRoundSize', value ?? 0)}
                     min={1600}
                     max={2400}
                     step={50}

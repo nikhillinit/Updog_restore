@@ -164,7 +164,8 @@ export default function CashManagementDashboard() {
         id: Math.random().toString(36).substr(2, 9),
         ...newTransaction,
         amount: parseFloat(newTransaction.amount),
-        status: 'pending'
+        status: 'pending',
+        date: newTransaction.date || new Date().toISOString().split('T')[0]
       };
       setTransactions([transaction, ...transactions]);
       setShowAddTransaction(false);

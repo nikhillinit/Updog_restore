@@ -145,7 +145,7 @@ export default function GraduationRateStrategy() {
       // Calculate current ownership (diluted from previous rounds)
       let currentOwnership = initialOwnership;
       for (let i = 0; i < index; i++) {
-        currentOwnership *= (1 - baseGraduationRates[i].dilution);
+        currentOwnership *= (1 - (baseGraduationRates[i]?.dilution ?? 0));
       }
       
       // Calculate pro-rata amount needed to maintain ownership
@@ -203,7 +203,7 @@ export default function GraduationRateStrategy() {
         let currentOwnership = initialOwnership;
         
         for (let j = 0; j < index; j++) {
-          currentOwnership *= (1 - randomizedRates[j].dilution);
+          currentOwnership *= (1 - (randomizedRates[j]?.dilution ?? 0));
         }
         
         const proRataAmount = (round.avgRoundSize * currentOwnership) / 100;
