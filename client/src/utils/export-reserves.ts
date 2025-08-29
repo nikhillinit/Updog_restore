@@ -161,8 +161,8 @@ async function exportToExcel(data: ExportData, options: ExportOptions): Promise<
   const timer = metrics.startTimer('export.excel');
   
   try {
-    // Dynamic import of xlsx
-    const XLSX = await import('xlsx');
+    // Dynamic import of xlsx with type assertion for compatibility
+    const XLSX = await import('xlsx') as any;
     
     // Create workbook
     const wb = XLSX.utils.book_new();

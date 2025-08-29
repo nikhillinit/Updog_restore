@@ -132,11 +132,11 @@ export class ExcelParityValidator {
     } catch (error) {
       const duration = Date.now() - startTime;
       
-      logger.error('Excel parity validation failed', {
-        message: error instanceof Error ? error.message : String(error),
-        duration,
-        config: this.config,
-      });
+      logger.error(
+        'Excel parity validation failed',
+        error instanceof Error ? error : new Error(String(error)),
+        { duration, config: this.config }
+      );
 
       throw error;
     }
@@ -610,9 +610,10 @@ export async function validateFundParity(
     const result = await validator.validateParity(mockExcelInput, mockWebAppInput);
     return result.overallParity.passesParityTest;
   } catch (error) {
-    logger.error('Fund parity validation failed', { 
-      message: error instanceof Error ? error.message : String(error) 
-    });
+    logger.error(
+      'Fund parity validation failed',
+      error instanceof Error ? error : new Error(String(error))
+    );
     return false;
   }
 }
