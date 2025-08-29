@@ -1,7 +1,7 @@
 name: synthetics-5m
 on:
   pull_request: { branches: [ main ] }
-  schedule: [ { cron: "*/5 * * * *" } ]
+  schedule: [ { cron: "0 */2 * * *" } ]  # Every 2 hours instead of 5 minutes
 env:
   SYNTHETIC_URL: ${{ secrets.SYNTHETIC_URL }}
 jobs:

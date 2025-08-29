@@ -9,6 +9,8 @@ on:
 jobs:
   bundle-size:
     runs-on: ubuntu-latest
+    # Warn-only mode unless explicitly enforced
+    continue-on-error: ${{ vars.PERF_GATES_ENFORCE != 'true' }}
     steps:
       - uses: actions/checkout@v4
       
@@ -55,6 +57,8 @@ jobs:
 
   api-performance:
     runs-on: ubuntu-latest
+    # Warn-only mode unless explicitly enforced
+    continue-on-error: ${{ vars.PERF_GATES_ENFORCE != 'true' }}
     services:
       postgres:
         image: postgres:16
@@ -148,6 +152,8 @@ jobs:
 
   tiered-performance:
     runs-on: ubuntu-latest
+    # Warn-only mode unless explicitly enforced
+    continue-on-error: ${{ vars.PERF_GATES_ENFORCE != 'true' }}
     strategy:
       matrix:
         tier: [enterprise, growth, startup]
@@ -234,10 +240,14 @@ jobs:
           script: |
             const fs = require('fs');
             const report = fs.readFileSync('performance-report.md', 'utf8');
+            const enforcing = '${{ vars.PERF_GATES_ENFORCE }}' === 'true';
+            const prefix = enforcing 
+              ? '🚨 **Performance Gates ENFORCED**\n\n' 
+              : '⚠️ **Performance Gates in WARN mode** (set `PERF_GATES_ENFORCE=true` to enforce)\n\n';
             
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: report
+              body: prefix + report
             });

@@ -10,6 +10,9 @@
   "packageManager": "npm@10.9.2",
   "scripts": {
     "dev": "concurrently -k \"npm run dev:client\" \"npm run dev:api\"",
+    "dev:parallel": "concurrently -k -n \"CLIENT,API,WORKER-R,WORKER-P,METRICS\" -c \"cyan,green,yellow,magenta,blue\" \"npm run dev:client\" \"npm run dev:api\" \"npm run dev:worker:reserve\" \"npm run dev:worker:pacing\" \"npm run metrics:local\"",
+    "dev:fast": "concurrently -k -n \"TYPE,LINT,TEST\" -c \"cyan,yellow,green\" \"npm run check:fast\" \"npm run lint:affected\" \"npm run test:quick\"",
+    "test:parallel": "concurrently -k -n \"UNIT,LINT,TYPE\" \"npm run test:unit\" \"npm run lint\" \"npm run check:fast\"",
     "dev:quick": "cross-env NODE_ENV=development REDIS_URL=memory:// ENABLE_QUEUES=0 tsx server/bootstrap.ts",
     "dev:memory": "cross-env REDIS_URL=memory:// ENABLE_QUEUES=0 npm run dev:api",
     "dev:full": "npm run dev:infra && npm run dev",
