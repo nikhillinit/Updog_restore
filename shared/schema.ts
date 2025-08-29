@@ -234,20 +234,35 @@ export const financialProjections = pgTable("financial_projections", {
 });
 
 // Insert schemas
-export const insertFundSchema = createInsertSchema(funds).omit(["id", "createdAt"]).extend({
+export const insertFundSchema = createInsertSchema(funds).omit({
+  id: true,
+  createdAt: true
+}).extend({
   size: z.number().positive(),
   deployedCapital: z.number().nonnegative(),
   managementFee: z.number().min(0).max(1),  // decimal between 0 and 1 (e.g., 0.02 for 2%)
   carryPercentage: z.number().min(0).max(1), // decimal between 0 and 1 (e.g., 0.20 for 20%)
 });
 
-export const insertPortfolioCompanySchema = createInsertSchema(portfolioCompanies).omit(["id", "createdAt"]);
+export const insertPortfolioCompanySchema = createInsertSchema(portfolioCompanies).omit({
+  id: true,
+  createdAt: true
+});
 
-export const insertInvestmentSchema = createInsertSchema(investments).omit(["id", "createdAt"]);
+export const insertInvestmentSchema = createInsertSchema(investments).omit({
+  id: true,
+  createdAt: true
+});
 
-export const insertFundMetricsSchema = createInsertSchema(fundMetrics).omit(["id", "createdAt"]);
+export const insertFundMetricsSchema = createInsertSchema(fundMetrics).omit({
+  id: true,
+  createdAt: true
+});
 
-export const insertActivitySchema = createInsertSchema(activities).omit(["id", "createdAt"]);
+export const insertActivitySchema = createInsertSchema(activities).omit({
+  id: true,
+  createdAt: true
+});
 
 // Users table
 export const users = pgTable("users", {
@@ -262,18 +277,43 @@ export const insertUserSchema = createInsertSchema(users).pick({
 });
 
 // Pipeline Insert Schemas
-export const insertDealOpportunitySchema = createInsertSchema(dealOpportunities).omit(["id", "createdAt", "updatedAt"]);
+export const insertDealOpportunitySchema = createInsertSchema(dealOpportunities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
 
-export const insertPipelineStageSchema = createInsertSchema(pipelineStages).omit(["id", "createdAt"]);
+export const insertPipelineStageSchema = createInsertSchema(pipelineStages).omit({
+  id: true,
+  createdAt: true
+});
 
-export const insertDueDiligenceItemSchema = createInsertSchema(dueDiligenceItems).omit(["id", "createdAt", "updatedAt"]);
+export const insertDueDiligenceItemSchema = createInsertSchema(dueDiligenceItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
 
-export const insertScoringModelSchema = createInsertSchema(scoringModels).omit(["id", "createdAt", "scoredAt"]);
+export const insertScoringModelSchema = createInsertSchema(scoringModels).omit({
+  id: true,
+  createdAt: true,
+  scoredAt: true
+});
 
-export const insertPipelineActivitySchema = createInsertSchema(pipelineActivities).omit(["id", "createdAt"]);
+export const insertPipelineActivitySchema = createInsertSchema(pipelineActivities).omit({
+  id: true,
+  createdAt: true
+});
 
-export const insertMarketResearchSchema = createInsertSchema(marketResearch).omit(["id", "createdAt", "researchDate"]);
-export const insertFinancialProjectionSchema = createInsertSchema(financialProjections).omit(["id", "createdAt"]);
+export const insertMarketResearchSchema = createInsertSchema(marketResearch).omit({
+  id: true,
+  createdAt: true,
+  researchDate: true
+});
+export const insertFinancialProjectionSchema = createInsertSchema(financialProjections).omit({
+  id: true,
+  createdAt: true
+});
 
 // Custom fields schema
 export const customFields = pgTable("custom_fields", {
@@ -295,11 +335,28 @@ export const customFieldValues = pgTable("custom_fieldvalues", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertCustomFieldSchema = createInsertSchema(customFields).omit(["id", "createdAt"]);
-export const insertCustomFieldValueSchema = createInsertSchema(customFieldValues).omit(["id", "createdAt", "updatedAt"]);
-export const insertFundConfigSchema = createInsertSchema(fundConfigs).omit(["id", "createdAt", "updatedAt"]);
-export const insertFundSnapshotSchema = createInsertSchema(fundSnapshots).omit(["id", "createdAt"]);
-export const insertFundEventSchema = createInsertSchema(fundEvents).omit(["id", "createdAt"]);
+export const insertCustomFieldSchema = createInsertSchema(customFields).omit({
+  id: true,
+  createdAt: true
+});
+export const insertCustomFieldValueSchema = createInsertSchema(customFieldValues).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+export const insertFundConfigSchema = createInsertSchema(fundConfigs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+export const insertFundSnapshotSchema = createInsertSchema(fundSnapshots).omit({
+  id: true,
+  createdAt: true
+});
+export const insertFundEventSchema = createInsertSchema(fundEvents).omit({
+  id: true,
+  createdAt: true
+});
 
 // Core Type Exports
 export type Fund = typeof funds.$inferSelect;
@@ -418,7 +475,10 @@ export const auditLog = pgTable("audit_log", {
 }));
 
 // Insert schema for audit log
-export const insertAuditLogSchema = createInsertSchema(auditLog).omit(["id", "createdAt"]);
+export const insertAuditLogSchema = createInsertSchema(auditLog).omit({
+  id: true,
+  createdAt: true
+});
 
 // Types
 export type AuditLog = typeof auditLog.$inferSelect;
