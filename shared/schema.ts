@@ -241,10 +241,7 @@ export const insertFundSchema = createInsertSchema(funds).omit(["id", "createdAt
   carryPercentage: z.number().min(0).max(1), // decimal between 0 and 1 (e.g., 0.20 for 20%)
 });
 
-export const insertPortfolioCompanySchema = createInsertSchema(portfolioCompanies).omit([
-  "id",
-  "createdAt",
-});
+export const insertPortfolioCompanySchema = createInsertSchema(portfolioCompanies).omit(["id", "createdAt"]);
 
 export const insertInvestmentSchema = createInsertSchema(investments).omit(["id", "createdAt"]);
 
@@ -265,44 +262,18 @@ export const insertUserSchema = createInsertSchema(users).pick({
 });
 
 // Pipeline Insert Schemas
-export const insertDealOpportunitySchema = createInsertSchema(dealOpportunities).omit([
-  "id",
-  "createdAt",
-  "updatedAt",
-});
+export const insertDealOpportunitySchema = createInsertSchema(dealOpportunities).omit(["id", "createdAt", "updatedAt"]);
 
-export const insertPipelineStageSchema = createInsertSchema(pipelineStages).omit([
-  "id",
-  "createdAt",
-});
+export const insertPipelineStageSchema = createInsertSchema(pipelineStages).omit(["id", "createdAt"]);
 
-export const insertDueDiligenceItemSchema = createInsertSchema(dueDiligenceItems).omit([
-  "id",
-  "createdAt",
-  "updatedAt",
-});
+export const insertDueDiligenceItemSchema = createInsertSchema(dueDiligenceItems).omit(["id", "createdAt", "updatedAt"]);
 
-export const insertScoringModelSchema = createInsertSchema(scoringModels).omit([
-  "id",
-  "createdAt",
-  "scoredAt",
-});
+export const insertScoringModelSchema = createInsertSchema(scoringModels).omit(["id", "createdAt", "scoredAt"]);
 
-export const insertPipelineActivitySchema = createInsertSchema(pipelineActivities).omit([
-  "id",
-  "createdAt",
-});
+export const insertPipelineActivitySchema = createInsertSchema(pipelineActivities).omit(["id", "createdAt"]);
 
-export const insertMarketResearchSchema = createInsertSchema(marketResearch).omit([
-  "id",
-  "createdAt",
-  "researchDate",
-});
-
-export const insertFinancialProjectionSchema = createInsertSchema(financialProjections).omit([
-  "id",
-  "createdAt",
-});
+export const insertMarketResearchSchema = createInsertSchema(marketResearch).omit(["id", "createdAt", "researchDate"]);
+export const insertFinancialProjectionSchema = createInsertSchema(financialProjections).omit(["id", "createdAt"]);
 
 // Custom fields schema
 export const customFields = pgTable("custom_fields", {
@@ -324,33 +295,11 @@ export const customFieldValues = pgTable("custom_fieldvalues", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertCustomFieldSchema = createInsertSchema(customFields).omit([
-  "id",
-  "createdAt",
-});
-
-export const insertCustomFieldValueSchema = createInsertSchema(customFieldValues).omit([
-  "id",
-  "createdAt",
-  "updatedAt",
-});
-
-// Insert schemas for new tables
-export const insertFundConfigSchema = createInsertSchema(fundConfigs).omit([
-  "id",
-  "createdAt",
-  "updatedAt",
-});
-
-export const insertFundSnapshotSchema = createInsertSchema(fundSnapshots).omit([
-  "id",
-  "createdAt",
-});
-
-export const insertFundEventSchema = createInsertSchema(fundEvents).omit([
-  "id",
-  "createdAt",
-});
+export const insertCustomFieldSchema = createInsertSchema(customFields).omit(["id", "createdAt"]);
+export const insertCustomFieldValueSchema = createInsertSchema(customFieldValues).omit(["id", "createdAt", "updatedAt"]);
+export const insertFundConfigSchema = createInsertSchema(fundConfigs).omit(["id", "createdAt", "updatedAt"]);
+export const insertFundSnapshotSchema = createInsertSchema(fundSnapshots).omit(["id", "createdAt"]);
+export const insertFundEventSchema = createInsertSchema(fundEvents).omit(["id", "createdAt"]);
 
 // Core Type Exports
 export type Fund = typeof funds.$inferSelect;
@@ -469,10 +418,7 @@ export const auditLog = pgTable("audit_log", {
 }));
 
 // Insert schema for audit log
-export const insertAuditLogSchema = createInsertSchema(auditLog).omit([
-  "id",
-  "createdAt",
-});
+export const insertAuditLogSchema = createInsertSchema(auditLog).omit(["id", "createdAt"]);
 
 // Types
 export type AuditLog = typeof auditLog.$inferSelect;
