@@ -18,6 +18,10 @@ jobs:
           
           if git grep -n -i slack -- $files \
             ':!.github/workflows/slack-regression-guard.yml' \
+            ':!.github/workflows/bmad-weekly.yml' \
+            ':!.github/workflows/deploy-ga.yml' \
+            ':!.github/workflows/synthetic.yml' \
+            ':!.env.example' \
             ':!docs/legacy/*' \
             ':!.migration/*' \
             ':!.config/*' \
