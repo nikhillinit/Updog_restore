@@ -123,7 +123,20 @@
       "Read(c:\\dev\\Updog_restore\\client\\src\\components\\investments/**)",
       "Read(c:\\dev\\Updog_restore\\client\\src\\components\\investments/**)",
       "Read(c:\\dev\\Updog_restore\\scripts/**)",
-      "Bash(PORT=5001 REDIS_URL=memory:// ENABLE_QUEUES=0 npm run dev)"
+      "Bash(PORT=5001 REDIS_URL=memory:// ENABLE_QUEUES=0 npm run dev)",
+      "Bash(git fetch:*)",
+      "Bash(perl:*)",
+      "Bash(__NEW_LINE__ sed -i '265,269c\\\nexport const insertDealOpportunitySchema = createInsertSchema(dealOpportunities).omit([\"\"id\"\", \"\"createdAt\"\", \"\"updatedAt\"\"]);' shared/schema.ts)",
+      "Bash(__NEW_LINE__ sed -i '267,271c\\\nexport const insertPipelineStageSchema = createInsertSchema(pipelineStages).omit([\"\"id\"\", \"\"createdAt\"\"]);' shared/schema.ts)",
+      "Bash(__NEW_LINE__ sed -i '269,273c\\\nexport const insertDueDiligenceItemSchema = createInsertSchema(dueDiligenceItems).omit([\"\"id\"\", \"\"createdAt\"\", \"\"updatedAt\"\"]);' shared/schema.ts)",
+      "Bash(__NEW_LINE__ sed -i '271,275c\\\nexport const insertScoringModelSchema = createInsertSchema(scoringModels).omit([\"\"id\"\", \"\"createdAt\"\", \"\"scoredAt\"\"]);' shared/schema.ts)",
+      "Bash(__NEW_LINE__ sed -i '273,277c\\\nexport const insertPipelineActivitySchema = createInsertSchema(pipelineActivities).omit([\"\"id\"\", \"\"createdAt\"\"]);' shared/schema.ts)",
+      "Bash(python:*)",
+      "Bash(__NEW_LINE__ sed -i '244s/.*/export const insertPortfolioCompanySchema = createInsertSchema(portfolioCompanies).omit([\"\"id\"\", \"\"createdAt\"\"]);/' shared/schema.ts)",
+      "Bash(__NEW_LINE__ sed -i '245,247d' shared/schema.ts)",
+      "Bash(__NEW_LINE__ sed -i '265s/.*/export const insertDealOpportunitySchema = createInsertSchema(dealOpportunities).omit([\"\"id\"\", \"\"createdAt\"\", \"\"updatedAt\"\"]);/' shared/schema.ts)",
+      "Bash(__NEW_LINE__ sed -i '266,269d' shared/schema.ts)",
+      "Bash(gh pr merge:*)"
     ],
     "deny": [],
     "additionalDirectories": [

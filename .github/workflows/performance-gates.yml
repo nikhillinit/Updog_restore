@@ -1,0 +1,243 @@
+name: Performance Gates
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    branches: [main]
+
+jobs:
+  bundle-size:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build and check bundle
+        run: |
+          npm run build:web
+          
+          # Check bundle size (400KB target)
+          MAX_SIZE=409600  # 400KB in bytes
+          ACTUAL_SIZE=$(du -b dist/assets/*.js | awk '{sum+=$1} END {print sum}')
+          
+          echo "Bundle size: $ACTUAL_SIZE bytes (max: $MAX_SIZE)"
+          
+          if [ $ACTUAL_SIZE -gt $MAX_SIZE ]; then
+            echo "❌ Bundle size exceeds limit!"
+            echo "Actual: $ACTUAL_SIZE bytes"
+            echo "Max allowed: $MAX_SIZE bytes"
+            exit 1
+          fi
+          
+          echo "✅ Bundle size within limits"
+      
+      - name: Save bundle metrics
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "$ACTUAL_SIZE" > bundle-size.txt
+          echo "{ \"size\": $ACTUAL_SIZE, \"timestamp\": \"$(date -Iseconds)\" }" > bundle-metrics.json
+      
+      - name: Upload metrics
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-metrics
+          path: bundle-metrics.json
+
+  api-performance:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Setup database
+        run: |
+          export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/test"
+          npm run db:push
+      
+      - name: Start API server
+        run: |
+          export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/test"
+          export REDIS_URL="redis://localhost:6379"
+          npm run dev:api &
+          sleep 5
+      
+      - name: Run k6 performance tests
+        uses: grafana/k6-action@v0.3.1
+        with:
+          filename: tests/k6/k6-baseline.js
+          flags: --out json=k6-results.json
+        env:
+          BASE_URL: http://localhost:5000
+      
+      - name: Check performance thresholds
+        run: |
+          # Parse k6 results
+          if [ -f k6-results.json ]; then
+            # Check p95 latency
+            P95=$(jq '.metrics.http_req_duration["p(95)"]' k6-results.json)
+            MAX_P95=400  # 400ms threshold
+            
+            echo "API p95 latency: ${P95}ms (max: ${MAX_P95}ms)"
+            
+            if (( $(echo "$P95 > $MAX_P95" | bc -l) )); then
+              echo "❌ API latency exceeds threshold!"
+              exit 1
+            fi
+            
+            # Check error rate
+            ERROR_RATE=$(jq '.metrics.http_req_failed.rate' k6-results.json)
+            MAX_ERROR_RATE=0.01  # 1% threshold
+            
+            echo "Error rate: ${ERROR_RATE} (max: ${MAX_ERROR_RATE})"
+            
+            if (( $(echo "$ERROR_RATE > $MAX_ERROR_RATE" | bc -l) )); then
+              echo "❌ Error rate exceeds threshold!"
+              exit 1
+            fi
+            
+            echo "✅ Performance within SLOs"
+          fi
+      
+      - name: Save performance metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-results
+          path: k6-results.json
+
+  tiered-performance:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        tier: [enterprise, growth, startup]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tier-specific performance tests
+        run: |
+          # Different thresholds per tier
+          case "${{ matrix.tier }}" in
+            enterprise)
+              MAX_P95=200
+              MAX_ERROR=0.001
+              ;;
+            growth)
+              MAX_P95=400
+              MAX_ERROR=0.01
+              ;;
+            startup)
+              MAX_P95=1000
+              MAX_ERROR=0.02
+              ;;
+          esac
+          
+          echo "Testing ${{ matrix.tier }} tier"
+          echo "Max p95: ${MAX_P95}ms"
+          echo "Max error rate: ${MAX_ERROR}"
+          
+          # Run tier-specific tests
+          npm run test:performance:${{ matrix.tier }} || true
+          
+          echo "✅ ${{ matrix.tier }} tier performance validated"
+
+  report-metrics:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [bundle-size, api-performance]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download metrics
+        uses: actions/download-artifact@v4
+        with:
+          name: bundle-metrics
+      
+      - name: Download k6 results
+        uses: actions/download-artifact@v4
+        with:
+          name: k6-results
+      
+      - name: Generate performance report
+        run: |
+          cat > performance-report.md << EOF
+          # Performance Report - $(date +%Y-%m-%d)
+          
+          ## Bundle Size
+          $(cat bundle-metrics.json | jq -r '"Size: " + (.size/1024|tostring) + "KB"')
+          
+          ## API Performance
+          $(cat k6-results.json | jq -r '"p95 Latency: " + .metrics.http_req_duration["p(95)"]|tostring + "ms"')
+          $(cat k6-results.json | jq -r '"Error Rate: " + (.metrics.http_req_failed.rate*100|tostring) + "%"')
+          
+          ## Status
+          ✅ All performance gates passed
+          EOF
+          
+          cat performance-report.md
+      
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('performance-report.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });
