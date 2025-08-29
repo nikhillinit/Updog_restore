@@ -67,7 +67,7 @@ export class IntelligentReservesCache {
       const cached = this.getFromCache(key);
       if (cached) {
         this.recordAccess(key, true);
-        metrics.recordCacheHit('reserves', performance.now() - startTime);
+        metrics.recordCacheHit(key);
         
         // Trigger predictive prefetch
         this.triggerPrefetch(key, calculator, input, config);
@@ -79,7 +79,7 @@ export class IntelligentReservesCache {
       const result = await this.addToBatch(key, input, config, calculator);
       
       this.recordAccess(key, false);
-      metrics.recordCacheMiss('reserves', performance.now() - startTime);
+      metrics.recordCacheMiss(key);
       
       return result;
       
@@ -195,8 +195,10 @@ export class IntelligentReservesCache {
     const ttl = this.calculateAdaptiveTTL(key);
     
     // Store in cache with metadata
-    const cacheEntry = {
-      data: result,
+    const cacheEntry: CacheEntry = {
+      key,
+      value,
+      timestamp: Date.now(),
       accessCount: 0,
       lastAccess: Date.now(),
       ttl
