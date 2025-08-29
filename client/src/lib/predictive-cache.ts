@@ -195,14 +195,7 @@ export class IntelligentReservesCache {
     const ttl = this.calculateAdaptiveTTL(key);
     
     // Store in cache
-    this.cache.set(key, {
-      key,
-      value,
-      timestamp: Date.now(),
-      accessCount: 0,
-      lastAccess: Date.now(),
-      ttl
-    });
+    this.cache.set(key, result);
     
     // Manage cache size
     if (this.cache.size > this.MAX_CACHE_SIZE) {

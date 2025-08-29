@@ -83,7 +83,7 @@ export default function TelemetryDashboard() {
           <div className="text-2xl font-bold text-green-600">{features.length}</div>
           <div className="text-gray-600">Feature Events</div>
           <div className="text-sm text-gray-500 mt-1">
-            Last 24h: {last24h.filter(e => e.category === 'feature').length}
+            Last 24h: {last24h.filter(e => e['category'] === 'feature').length}
           </div>
         </div>
         

@@ -31,6 +31,8 @@ interface ParityConstraints {
   max_reserve_cents?: number;
   target_reserve_months?: number;
   max_concentration_percent?: number;
+
+  maxPerStage?: Record<string, number>;
 }
 
 // Normalize input to match expected types
@@ -275,12 +277,12 @@ export class ExcelParityValidator {
     const { input, expectedOutput, tolerance } = dataset;
 
     // Run calculation
-    const result = this.engine.calculate(
-      input.companies,
-      input.availableReserves,
-      input.policies,
-      input.constraints || {}
-    );
+    const result = this.engine.calculate({
+      companies: input.companies.map(c => toCompany(c)),
+      availableReserves: input.availableReserves,
+      stagePolicies: input.policies.map(p => toStagePolicy(p)),
+      constraints: input.constraints || {}
+    });
 
     // Compare totals
     const actualTotal = result.totalAllocated;
@@ -296,19 +298,19 @@ export class ExcelParityValidator {
       drift: number;
     }> = [];
 
-    for (const expectedAlloc of expectedOutput.allocations) {
+    for (const expectedAlloc of expectedOutput.allocateds) {
       const actualAlloc = result.allocations.find(
-        a => a.companyId === expectedAlloc.companyId
+        a => a.id === expectedAlloc.id
       );
       
-      const actual = actualAlloc?.allocation || 0;
-      const expected = expectedAlloc.allocation;
+      const actual = actualAlloc?.allocated || 0;
+      const expected = expectedAlloc.allocated;
       const difference = Math.abs(actual - expected);
       const drift = expected !== 0 ? difference / expected : 0;
 
       if (drift > tolerance) {
         companyMismatches.push({
-          companyId: expectedAlloc.companyId,
+          companyId: expectedAlloc.id,
           expected,
           actual,
           drift,
@@ -355,7 +357,7 @@ export class ExcelParityValidator {
         if (result.details.companyMismatches.length > 0) {
           lines.push('  Company Mismatches:');
           for (const mismatch of result.details.companyMismatches) {
-            lines.push(`    ${mismatch.companyId}:`);
+            lines.push(`    ${mismatch.id}:`);
             lines.push(`      Expected: $${mismatch.expected.toLocaleString()}`);
             lines.push(`      Actual: $${mismatch.actual.toLocaleString()}`);
             lines.push(`      Drift: ${(mismatch.drift * 100).toFixed(2)}%`);

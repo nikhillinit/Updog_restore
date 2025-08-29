@@ -336,7 +336,7 @@ export class AutomatedRolloutOrchestrator {
     };
     
     // Store for analysis
-    localStorage.setItem(`rollout_stage_${stage.name}`, JSON.stringify(record));
+    localStorage.setItem(`rollout_stage_${stage.name}`, String(JSON.stringify(record)));
   }
   
   private async generateFinalReport(): Promise<void> {
@@ -361,7 +361,7 @@ export class AutomatedRolloutOrchestrator {
     console.log('Final Report:', report);
     
     // Store report
-    localStorage.setItem('rollout_final_report', JSON.stringify(report));
+    localStorage.setItem('rollout_final_report', String(JSON.stringify(report)));
   }
   
   private async generateFailureReport(stage: RolloutStage, metrics: RolloutMetrics): Promise<void> {

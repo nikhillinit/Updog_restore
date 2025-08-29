@@ -241,7 +241,9 @@ export class ReservesErrorBoundary {
     const allocations = validCompanies.map((company, index) => ({
       company_id: company.id,
       planned_cents: allocationPerCompany + (index === 0 ? remainder : 0),
-      iteration: 1
+      iteration: 1,
+      reason: 'Equal allocation in recovery mode',
+      cap_cents: allocationPerCompany + (index === 0 ? remainder : 0)
     }));
     
     return {
@@ -255,11 +257,7 @@ export class ReservesErrorBoundary {
           conservation_check: true,
           exit_moic_ranking: validCompanies.map(c => c.id),
           max_iterations: 1,
-          audit_trail: [{
-            operation: 'simplified_calculation',
-            timestamp: new Date().toISOString(),
-            details: { companies: validCompanies.length, method: 'equal_allocation' }
-          }]
+          companies_funded: validCompanies.length
         }
       },
       warnings: ['Simplified calculation used - results may not reflect optimal allocation']

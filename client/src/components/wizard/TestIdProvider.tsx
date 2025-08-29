@@ -62,8 +62,8 @@ export function withTestId<P extends { 'data-testid'?: string }>(
   testId: string
 ) {
   return React.forwardRef<any, P>((props, ref) => {
-    return <Component {...props} data-testid={testId} ref={ref} />;
-  });
+      return <Component {...(props as P)} ref={ref} />;
+    });
 }
 
 /**

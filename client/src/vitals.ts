@@ -139,7 +139,7 @@ export function startVitals() {
           id: `tti-${Date.now()}`,
           entries: [],
           navigationType: 'navigate',
-        } as VitalMetric);
+        } as unknown as VitalMetric);
       }
     });
   }

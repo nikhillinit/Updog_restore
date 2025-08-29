@@ -1,3 +1,11 @@
+// Custom error class for Excel parity
+class ExcelParityError extends Error {
+  constructor(message: string, public originalError?: unknown) {
+    super(message);
+    this.name = 'ExcelParityError';
+  }
+}
+
 /**
  * Excel Parity System
  * Validates web application results against Excel/Google Sheets benchmarks
