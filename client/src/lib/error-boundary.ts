@@ -125,11 +125,7 @@ export class ReservesErrorBoundary {
                 conservation_check: true,
                 exit_moic_ranking: [],
                 max_iterations: 1,
-                audit_trail: [{
-                  operation: 'conservative_estimate_recovery',
-                  timestamp: new Date().toISOString(),
-                  details: { error: error.message }
-                }]
+                companies_funded: 0
               }
             },
             warnings: [
@@ -185,7 +181,7 @@ export class ReservesErrorBoundary {
       
       return {
         ok: false,
-        error: {
+        error: JSON.stringify({
           code: 'CALCULATION_FAILED',
           message: (error as Error).message,
           details: {
@@ -193,7 +189,7 @@ export class ReservesErrorBoundary {
             timestamp: context.timestamp.toISOString(),
             recoveryAttempted: true
           }
-        },
+        }),
         warnings: [
           'Calculation failed and recovery unsuccessful',
           'Please check input data and try again',

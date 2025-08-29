@@ -1,8 +1,9 @@
 import { onLCP, onINP, onCLS, onFCP, onTTFB, Metric } from 'web-vitals';
 import { Sentry } from '@/monitoring';
 
-interface VitalMetric extends Metric {
+interface VitalMetric extends Omit<Metric, 'navigationType'> {
   navigationType?: string;
+  delta: number;
 }
 
 /**
@@ -69,7 +70,7 @@ function sendToAnalytics(metric: VitalMetric) {
   };
 
   // Send to Sentry as custom measurement (if privacy allows)
-  if (window.Sentry && isTelemetryAllowed()) {
+  if ((window as any).Sentry && isTelemetryAllowed()) {
     // Use span API for measurements in v10+
     Sentry.withScope((scope) => {
       scope.setMeasurement(`webvital.${metric.name.toLowerCase()}`, metric.value);
@@ -186,11 +187,11 @@ export function getVitalsSnapshot() {
   };
   
   // Collect current values (note: these are cumulative)
-  onLCP((metric) => { vitals.lcp = metric.value; }, { reportAllChanges: false });
-  onINP((metric) => { vitals.inp = metric.value; }, { reportAllChanges: false });
-  onCLS((metric) => { vitals.cls = metric.value; }, { reportAllChanges: false });
-  onFCP((metric) => { vitals.fcp = metric.value; }, { reportAllChanges: false });
-  onTTFB((metric) => { vitals.ttfb = metric.value; }, { reportAllChanges: false });
+  onLCP((metric) => { vitals['lcp'] = metric.value; }, { reportAllChanges: false });
+  onINP((metric) => { vitals['inp'] = metric.value; }, { reportAllChanges: false });
+  onCLS((metric) => { vitals['cls'] = metric.value; }, { reportAllChanges: false });
+  onFCP((metric) => { vitals['fcp'] = metric.value; }, { reportAllChanges: false });
+  onTTFB((metric) => { vitals['ttfb'] = metric.value; }, { reportAllChanges: false });
   
   return vitals;
 }

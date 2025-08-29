@@ -115,7 +115,13 @@
       "Bash(scripts/guardian-evaluate.sh:*)",
       "Bash(gh api:*)",
       "Bash(gh pr checks:*)",
-      "Bash(gh pr comment:*)"
+      "Bash(gh pr comment:*)",
+      "Read(c:\\dev\\Updog_restore\\client\\src\\components\\investments/**)",
+      "Read(c:\\dev\\Updog_restore\\client\\src\\components\\investments/**)",
+      "Read(c:\\dev\\Updog_restore\\client\\src\\components\\investments/**)",
+      "Read(c:\\dev\\Updog_restore\\client\\src\\components\\investments/**)",
+      "Read(c:\\dev\\Updog_restore\\client\\src\\components\\investments/**)",
+      "Read(c:\\dev\\Updog_restore\\client\\src\\components\\investments/**)"
     ],
     "deny": [],
     "additionalDirectories": [

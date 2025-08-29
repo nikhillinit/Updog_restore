@@ -252,21 +252,26 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
     }));
   };
 
-  const generateFutureRounds = (config: any) => {
+  const generateFutureRounds = (config: any): InvestmentRound[] => {
     // Sample future rounds generation based on sector profile
     const baseGraduationRate = config.graduationRate === 'sector-based' ? 65 : 
                               config.graduationRate === 'high' ? 85 :
                               config.graduationRate === 'medium' ? 65 : 45;
     
-    const futureRounds = [];
-    const roundSequence = ['Series A', 'Series B', 'Series C', 'Series D'];
+    const futureRounds: InvestmentRound[] = [];
+    const roundSequence: string[] = ['Series A', 'Series B', 'Series C', 'Series D'];
     let currentDate = new Date(config.nextRoundDate);
     
     for (let i = 0; i < roundSequence.length; i++) {
+      const roundName = roundSequence[i];
+      if (!roundName) continue; // This should never happen, but satisfies TypeScript
+      
+      const dateStr = currentDate.toISOString().split('T')[0] || '';
+      
       futureRounds.push({
-        id: roundSequence[i].toLowerCase().replace(/\s+/g, '-'),
-        type: roundSequence[i],
-        date: currentDate.toISOString().split('T')[0],
+        id: roundName.toLowerCase().replace(/\s+/g, '-'),
+        type: roundName,
+        date: dateStr,
         amount: 0, // To be filled by pro-rata participation
         preMoneyValuation: 25000000 * Math.pow(2.5, i), // Sample escalating valuations
         postMoneyValuation: 35000000 * Math.pow(2.5, i),
