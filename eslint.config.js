@@ -36,7 +36,11 @@ export default [
       ".tsbuildinfo*",
       "packages/*/dist/**",
       "packages/*/build/**",
-      "ml-service/dist/**"
+      "ml-service/dist/**",
+      "check-db.js",
+      "client/rum/**",
+      "vitest.config.*.ts",
+      "vitest.config.ts"
     ]
   },
   js.configs.recommended,
@@ -45,9 +49,9 @@ export default [
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        // Remove project references for performance
-        // project: ["./client/tsconfig.json", "./server/tsconfig.json"],
-        // tsconfigRootDir: __dirname,
+        // Use dedicated ESLint tsconfig to avoid parsing issues
+        project: "./tsconfig.eslint.json",
+        tsconfigRootDir: __dirname,
         ecmaVersion: "latest",
         sourceType: "module",
         ecmaFeatures: { jsx: true }
