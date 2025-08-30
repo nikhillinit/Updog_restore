@@ -213,7 +213,7 @@ export async function transactionWithBreaker<T>(
     return transaction(callback);
   }
   
-  return dbBreaker.execute(() => transaction(callback));
+  return dbBreaker.run(() => transaction(callback), async () => { throw new Error('Database circuit open during transaction'); });
 }
 
 /**
@@ -306,8 +306,18 @@ export async function queryWithRetry<T = any>(
   params?: any[],
   options?: Parameters<typeof withBackoff>[1]
 ): Promise<QueryResult<T>> {
-  return withBackoff(() => query<T>(text, params), options);
+  return withBackoff(async () => query<T>(text, params), options);
 }
 
 // Export types for external use
 export type { QueryResult, PoolClient } from 'pg';
+
+
+
+/**
+ * Get circuit breaker stats
+ */
+export function getStats() {
+  return dbBreaker.getMetrics();
+}
+
