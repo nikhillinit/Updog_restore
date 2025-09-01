@@ -4,7 +4,7 @@
  */
 
 import { eq, and } from 'drizzle-orm';
-import { reserveDecisions } from '../../db/schema/reserves.js';
+import { reserveDecisions, reserveEngineType } from '@schema';
 import { db } from '../../db.js';
 import { 
   ReserveEnginePort, 
@@ -149,8 +149,8 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
     if (!this.config.useMl) return 'rules';
 
     // Check explicit mode override in options
-    if (opts.flags?.engineMode) {
-      return opts.flags.engineMode as 'ml' | 'rules' | 'hybrid';
+    if (opts.flags?.['engineMode']) {
+      return opts.flags['engineMode'] as 'ml' | 'rules' | 'hybrid';
     }
 
     // A/B testing logic
@@ -338,15 +338,20 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
     decision: ReserveDecision,
     opts: ReserveEngineOptions
   ): Promise<void> {
-    const periodStart = opts.periodStart || new Date(market.asOfDate);
-    const periodEnd = opts.periodEnd || new Date(market.asOfDate);
+    // Convert to date strings for the date columns
+    const periodStartDate = opts.periodStart 
+      ? new Date(opts.periodStart) 
+      : new Date(market.asOfDate);
+    const periodEndDate = opts.periodEnd 
+      ? new Date(opts.periodEnd) 
+      : new Date(market.asOfDate);
 
-    await db.insert(reserveDecisions).values({
+    const insertData = {
       fundId: company.fundId,
       companyId: company.id,
       decisionTs: new Date(),
-      periodStart,
-      periodEnd,
+      periodStart: periodStartDate.toISOString().split('T')[0]!, // date type expects YYYY-MM-DD
+      periodEnd: periodEndDate.toISOString().split('T')[0]!, // date type expects YYYY-MM-DD
       engineType: decision.engineType,
       engineVersion: decision.engineVersion,
       requestId: opts.requestId || null,
@@ -361,7 +366,9 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
       explanation: decision.explanation || null,
       latencyMs: decision.latencyMs || null,
       userId: opts.userId || null,
-    });
+    };
+    
+    await db.insert(reserveDecisions).values(insertData);
   }
 
   private updateMetrics(latencyMs: number, _errors: number): void {

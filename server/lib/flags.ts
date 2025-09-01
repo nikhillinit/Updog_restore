@@ -5,7 +5,7 @@
 
 import { createHash } from 'crypto';
 import { ulid } from 'ulid';
-import { flagChanges, flagsState, type FlagChange, type NewFlagChange, type _FlagState, type _NewFlagState } from '../../shared/schemas/flags.js';
+import { flagChanges, flagsState, type FlagChange, type NewFlagChange, type FlagState, type NewFlagState } from '../../shared/schemas/flags.js';
 import { db } from '../db.js';
 import { eq, desc } from 'drizzle-orm';
 
@@ -260,7 +260,7 @@ export async function getFlags(): Promise<FlagSnapshot> {
     flags: defaultFlags,
     hash,
     timestamp: now,
-    environment: ENVIRONMENT
+    environment: process.env.NODE_ENV || 'development'
   };
 }
 
@@ -334,7 +334,7 @@ export async function updateFlag(
   const changeHash = createHash('sha256').update(changeData).digest('hex').substring(0, 16);
   
   // Log the change
-  const change: NewFlagChange = {
+  const change = {
     key,
     before: before ? JSON.parse(JSON.stringify(before)) : null,
     after: JSON.parse(JSON.stringify(after)),
@@ -406,5 +406,4 @@ export function getCacheStatus(): { age: number; hash: string; flagCount: number
   };
 }
 
-// Import statement fix
-import { eq, desc } from 'drizzle-orm';
+// Duplicate import removed - eq and desc are already imported at the top

@@ -5,7 +5,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../db.js';
-import { _sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { UserContext } from '../lib/secure-context.js';
 import { Pool } from 'pg';
 

@@ -1,6 +1,9 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
+    // Express/Node.js APIs use dot notation by design (app.disable, process.env, res.setHeader, etc.)
+    // This setting allows idiomatic Express code while maintaining type safety for actual issues
+    "noPropertyAccessFromIndexSignature": false,
     "baseUrl": "../",
     "paths": {
       "@server/*": ["server/*"],

@@ -4,7 +4,7 @@
  */
 import rateLimit from 'express-rate-limit';
 import RedisStore from 'rate-limit-redis';
-import { Redis } from 'ioredis';
+import Redis from 'ioredis';
 import type { Request, Response } from 'express';
 import { sendApiError, createErrorBody } from '../lib/apiError.js';
 

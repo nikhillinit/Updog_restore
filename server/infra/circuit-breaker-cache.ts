@@ -1,4 +1,10 @@
-import type { Cache } from './cache';
+interface Cache<T = string> {
+  get<K = T>(key: string): Promise<K | null>;
+  set<K = T>(key: string, value: K, ttl?: number): Promise<void>;
+  delete(key: string): Promise<boolean>;
+  keys(pattern?: string): Promise<string[]>;
+  clear(): Promise<void>;
+}
 
 export interface CircuitBreakerConfig {
   failureThreshold: number;       // e.g., 3

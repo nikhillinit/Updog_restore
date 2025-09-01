@@ -6,6 +6,98 @@
 import { metrics } from '../../lib/metrics';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
+import { Histogram, Counter, Gauge } from 'prom-client';
+
+// Create LP-specific metrics
+const lpEngagementScore = new Histogram({
+  name: 'lp_engagement_score',
+  help: 'LP engagement score',
+  labelNames: ['action', 'lpId'],
+  buckets: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+});
+
+const lowEngagementAlerts = new Counter({
+  name: 'low_engagement_alerts',
+  help: 'Count of low engagement alerts',
+  labelNames: ['lpId']
+});
+
+const lpNps = new Gauge({
+  name: 'lp_nps',
+  help: 'LP Net Promoter Score',
+  labelNames: ['lpId']
+});
+
+const dealVelocity = new Histogram({
+  name: 'deal_velocity_days',
+  help: 'Time from deal sourcing to close in days',
+  labelNames: ['fund'],
+  buckets: [7, 14, 30, 60, 90, 120, 180]
+});
+
+// Additional metrics for LP reporting
+const reportGenerationCost = new Gauge({
+  name: 'report_generation_cost_dollars',
+  help: 'Estimated cost of report generation in dollars',
+  labelNames: ['fundId', 'complexity']
+});
+
+const operationDurationByTier = new Histogram({
+  name: 'operation_duration_by_tier',
+  help: 'Operation duration by customer tier',
+  labelNames: ['tier', 'operation'],
+  buckets: [0.1, 0.5, 1, 2, 5, 10, 30]
+});
+
+const enterpriseRevenueAtRisk = new Gauge({
+  name: 'enterprise_revenue_at_risk',
+  help: 'Enterprise revenue at risk',
+  labelNames: ['customerId', 'reason']
+});
+
+const endpointDuration = new Histogram({
+  name: 'endpoint_duration',
+  help: 'Endpoint duration by tier',
+  labelNames: ['tier', 'endpoint'],
+  buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5]
+});
+
+const enterpriseSloViolations = new Counter({
+  name: 'enterprise_slo_violations',
+  help: 'Count of enterprise SLO violations',
+  labelNames: ['customerId']
+});
+
+const sloViolationRevenueImpact = new Gauge({
+  name: 'slo_violation_revenue_impact',
+  help: 'Revenue impact of SLO violations',
+  labelNames: ['customerId']
+});
+
+const reportStageMetrics = new Histogram({
+  name: 'report_stage_duration_ms',
+  help: 'Report generation stage duration',
+  labelNames: ['stage', 'reportId'],
+  buckets: [10, 50, 100, 500, 1000, 5000, 10000]
+});
+
+const reportBottlenecks = new Counter({
+  name: 'report_bottlenecks',
+  help: 'Count of report generation bottlenecks',
+  labelNames: ['stage', 'fundId']
+});
+
+const dataIntegrityRisks = new Counter({
+  name: 'data_integrity_risks',
+  help: 'Count of data integrity risks',
+  labelNames: ['fundId', 'severity']
+});
+
+const customerHealthScore = new Gauge({
+  name: 'customer_health_score',
+  help: 'Customer health score',
+  labelNames: ['lpId', 'riskLevel']
+});
 
 export interface BusinessContext {
   userId: string;
@@ -20,14 +112,11 @@ export class LPBusinessMetrics {
   static async recordLPEngagement(lpId: string, action: string) {
     const engagement = await this.calculateEngagementScore(lpId);
     
-    metrics.histogram('lp_engagement_score', engagement, {
-      action,
-      lpId
-    });
+    lpEngagementScore.observe({ action, lpId }, engagement);
     
     // Alert if engagement drops
     if (engagement < 0.3) {
-      metrics.counter('low_engagement_alerts', 1, { lpId });
+      lowEngagementAlerts.inc({ lpId });
     }
   }
   
@@ -41,11 +130,11 @@ export class LPBusinessMetrics {
     const complexityScore = params.lpCount * params.dataPoints;
     const estimatedCost = this.calculateComputeCost(complexityScore);
     
-    metrics.gauge('report_generation_cost_dollars', estimatedCost, {
+    reportGenerationCost.set({
       reportType: params.reportType,
       fundId: params.fundId.toString(),
       complexity: this.getComplexityTier(complexityScore)
-    });
+    }, estimatedCost);
     
     return { complexityScore, estimatedCost };
   }
@@ -53,18 +142,17 @@ export class LPBusinessMetrics {
   // Operational intelligence
   static recordOperationalMetrics(context: BusinessContext) {
     // Record operation with full business context
-    metrics.histogram('operation_duration_by_tier', Date.now(), {
-      orgTier: context.orgTier,
-      operationType: context.operationType,
-      fundSize: this.getFundSizeTier(context.fundSize)
-    });
+    operationDurationByTier.observe({
+      tier: context.orgTier,
+      operation: context.operationType
+    }, Date.now());
     
     // Track revenue at risk
     if (context.orgTier === 'enterprise') {
-      metrics.gauge('enterprise_revenue_at_risk', context.estimatedValue, {
-        userId: context.userId,
-        operationType: context.operationType
-      });
+      enterpriseRevenueAtRisk.set({
+        customerId: context.userId,
+        reason: context.operationType
+      }, context.estimatedValue);
     }
     
     // Customer success correlation
@@ -83,23 +171,21 @@ export class LPBusinessMetrics {
     const sloTarget = slos[tier] || 1000;
     const sloViolation = duration > sloTarget;
     
-    metrics.histogram(`endpoint_duration_${tier}`, duration, {
-      endpoint,
-      sloViolation: sloViolation.toString()
-    });
+    endpointDuration.observe({
+      tier,
+      endpoint
+    }, duration / 1000); // Convert to seconds
     
     if (sloViolation && tier === 'enterprise') {
-      metrics.counter('enterprise_slo_violations', 1, {
-        endpoint,
-        overage: (duration - sloTarget).toString()
+      enterpriseSloViolations.inc({
+        customerId: endpoint // Using endpoint as a proxy for customer context
       });
       
       // Calculate revenue impact
       const revenueImpact = await this.calculateRevenueImpact(tier, duration - sloTarget);
-      metrics.gauge('slo_violation_revenue_impact', revenueImpact, {
-        tier,
-        endpoint
-      });
+      sloViolationRevenueImpact.set({
+        customerId: endpoint
+      }, revenueImpact);
     }
   }
   
@@ -115,7 +201,7 @@ export class LPBusinessMetrics {
     // Record stage timings
     const recordStage = (stage: keyof typeof stages, duration: number) => {
       stages[stage] = duration;
-      metrics.histogram(`report_stage_${stage}_ms`, duration, { reportId });
+      reportStageMetrics.observe({ stage, reportId }, duration);
     };
     
     return {
@@ -123,12 +209,7 @@ export class LPBusinessMetrics {
       complete: () => {
         const totalTime = Object.values(stages).reduce((a, b) => a + b, 0);
         
-        metrics.histogram('report_generation_total_ms', totalTime, {
-          reportId,
-          dataFetchPct: ((stages.dataFetch / totalTime) * 100).toFixed(1),
-          processingPct: ((stages.processing / totalTime) * 100).toFixed(1),
-          renderingPct: ((stages.rendering / totalTime) * 100).toFixed(1)
-        });
+        reportStageMetrics.observe({ stage: 'total', reportId }, totalTime);
         
         // Identify bottlenecks
         const bottleneck = Object.entries(stages).reduce((a, b) => 
@@ -136,9 +217,9 @@ export class LPBusinessMetrics {
         );
         
         if (bottleneck[1] > totalTime * 0.5) {
-          metrics.counter('report_bottlenecks', 1, {
+          reportBottlenecks.inc({
             stage: bottleneck[0],
-            reportId
+            fundId: reportId // Using reportId as a proxy for fundId
           });
         }
       }
@@ -165,9 +246,9 @@ export class LPBusinessMetrics {
     }
     
     if (risks.length > 0) {
-      metrics.counter('data_integrity_risks', risks.length, {
-        operation,
-        risks: risks.join(',')
+      dataIntegrityRisks.inc({
+        fundId: operation, // Using operation as a proxy for context
+        severity: risks.length > 2 ? 'high' : 'medium'
       });
     }
     
@@ -229,12 +310,13 @@ export class LPBusinessMetrics {
       supportTickets: 0.1
     };
     
-    metrics.gauge('customer_health_score', 
-      Object.values(healthFactors).reduce((a, b) => a + b, 0), 
+    const healthScore = Object.values(healthFactors).reduce((a, b) => a + b, 0);
+    customerHealthScore.set(
       {
-        userId: context.userId,
-        orgTier: context.orgTier
-      }
+        lpId: context.userId,
+        riskLevel: healthScore < 0.5 ? 'high' : healthScore < 0.8 ? 'medium' : 'low'
+      },
+      healthScore
     );
   }
 }
