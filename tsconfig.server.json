@@ -24,6 +24,7 @@
     "types", 
     "server/**/*", 
     "shared/**/*",
+    "schema/src/**/*",
     "lib/**/*",
     "client/src/core/**/*",
     "client/src/lib/**/*",

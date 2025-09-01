@@ -23,7 +23,7 @@ import {
   isRateLimitError,
   isValidationError
 } from '../types/errors.js';
-import { _sendApiError, createErrorBody, _httpCodeToAppCode } from './apiError.js';
+import { sendApiError, createErrorBody, httpCodeToAppCode } from './apiError.js';
 import { businessMetrics } from '../metrics/businessMetrics.js';
 import { tracer } from './tracing.js';
 

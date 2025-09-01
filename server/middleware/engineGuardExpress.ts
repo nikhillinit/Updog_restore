@@ -34,11 +34,13 @@ export function engineGuardExpress() {
           calcGuardEvents.inc({ route: routePath, correlation: correlationId });
           
           // Log the issue but don't throw - return sanitized data
-          console.warn(`[Engine Guard] Sanitized non-finite values at ${guardResult.path}`, {
+          // TypeScript needs explicit type narrowing here
+          const failureResult = guardResult as { ok: false; path: string; value: unknown; reason: string };
+          console.warn(`[Engine Guard] Sanitized non-finite values at ${failureResult.path}`, {
             correlationId,
             route: routePath,
-            reason: guardResult.reason,
-            value: typeof guardResult.value === 'number' ? String(guardResult.value) : '[complex]'
+            reason: failureResult.reason,
+            value: typeof failureResult.value === 'number' ? String(failureResult.value) : '[complex]'
           });
           
           // For now, return null to avoid returning corrupted data

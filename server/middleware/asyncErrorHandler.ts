@@ -6,7 +6,7 @@
 
 import { Queue } from 'bullmq';
 import type { Request, Response, NextFunction } from 'express';
-import { sendApiError, _createErrorBody, httpCodeToAppCode } from '../lib/apiError';
+import { sendApiError, createErrorBody, httpCodeToAppCode } from '../lib/apiError';
 
 // Only create queue if Redis is available
 let errorQueue: Queue | null = null;
