@@ -511,16 +511,7 @@ export class DatabaseStorage implements IStorage {
   async createInvestment(insertInvestment: InsertInvestment): Promise<Investment> {
     const result = await db
       .insert(investments)
-      .values({
-        fundId: insertInvestment.fundId || null,
-        companyId: insertInvestment.companyId || null,
-        investmentDate: insertInvestment.investmentDate,
-        amount: insertInvestment.amount,
-        round: insertInvestment.round,
-        ownershipPercentage: insertInvestment.ownershipPercentage || null,
-        valuationAtInvestment: insertInvestment.valuationAtInvestment || null,
-        dealTags: insertInvestment.dealTags || null
-      })
+      .values(insertInvestment)
       .returning();
     const investment = result[0];
     if (!investment) {
@@ -566,14 +557,7 @@ export class DatabaseStorage implements IStorage {
   async createFundMetrics(insertMetrics: InsertFundMetrics): Promise<FundMetrics> {
     const result = await db
       .insert(fundMetrics)
-      .values({
-        ...insertMetrics,
-        fundId: insertMetrics.fundId || null,
-        irr: insertMetrics.irr || null,
-        multiple: insertMetrics.multiple || null,
-        dpi: insertMetrics.dpi || null,
-        tvpi: insertMetrics.tvpi || null
-      })
+      .values(insertMetrics)
       .returning();
     const metrics = result[0];
     if (!metrics) {
@@ -592,13 +576,7 @@ export class DatabaseStorage implements IStorage {
   async createActivity(insertActivity: InsertActivity): Promise<Activity> {
     const result = await db
       .insert(activities)
-      .values({
-        ...insertActivity,
-        description: insertActivity.description || null,
-        fundId: insertActivity.fundId || null,
-        companyId: insertActivity.companyId || null,
-        amount: insertActivity.amount || null
-      })
+      .values(insertActivity)
       .returning();
     const activity = result[0];
     if (!activity) {

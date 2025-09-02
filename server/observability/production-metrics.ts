@@ -11,8 +11,7 @@ const register = new client.Registry();
 // Add default Node.js metrics
 client.collectDefaultMetrics({ 
   register,
-  prefix: 'reserves_',
-  timeout: 5000
+  prefix: 'reserves_'
 });
 
 // ============================================================

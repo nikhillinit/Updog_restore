@@ -225,10 +225,7 @@ export class RedisApprovalRateLimiter {
     
     // Get count and oldest
     const count = await this.redis.zCard(key);
-    const oldest = await this.redis.zRange(key, 0, 0, { 
-      BY: 'SCORE',
-      REV: false 
-    });
+    const oldest = await this.redis.zRange(key, 0, 0);
     
     return {
       count,

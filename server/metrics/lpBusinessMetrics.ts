@@ -131,7 +131,6 @@ export class LPBusinessMetrics {
     const estimatedCost = this.calculateComputeCost(complexityScore);
     
     reportGenerationCost.set({
-      reportType: params.reportType,
       fundId: params.fundId.toString(),
       complexity: this.getComplexityTier(complexityScore)
     }, estimatedCost);
@@ -267,7 +266,7 @@ export class LPBusinessMetrics {
         AND created_at > NOW() - INTERVAL '30 days'
     `);
     
-    const { active_days, total_actions } = result.rows[0];
+    const { active_days, total_actions } = result.rows[0] as { active_days: number; total_actions: number };
     return Math.min(1, (active_days * 0.1 + total_actions * 0.01));
   }
   

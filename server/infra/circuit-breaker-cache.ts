@@ -175,14 +175,14 @@ export class CircuitBreakerCache implements Cache {
     }
   }
   
-  async set<T>(key: string, value: T, options?: { ttl?: number }): Promise<void> {
+  async set<T>(key: string, value: T, ttl?: number): Promise<void> {
     // Always try to write to both stores to maintain consistency
     const promises = [];
     
     if (this.state === 'closed') {
-      promises.push(this.backingStore.set(key, value, options?.ttl).catch(() => {}));
+      promises.push(this.backingStore.set(key, value, ttl).catch(() => {}));
     }
-    promises.push(this.fallbackStore.set(key, value, options?.ttl).catch(() => {}));
+    promises.push(this.fallbackStore.set(key, value, ttl).catch(() => {}));
     
     await Promise.all(promises);
   }
