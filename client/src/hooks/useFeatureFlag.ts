@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import React from 'react';
 import featureConfig from '../config/features.json';
 
 type FeatureFlagName = keyof typeof featureConfig;
@@ -74,8 +75,8 @@ export function FeatureFlag({
   const isEnabled = useFeatureFlag(flag);
   
   if (isEnabled) {
-    return <>{children}</>;
+    return React.createElement(React.Fragment, null, children);
   }
   
-  return <>{fallback}</>;
+  return React.createElement(React.Fragment, null, fallback);
 }
