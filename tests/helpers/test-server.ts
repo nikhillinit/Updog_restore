@@ -1,64 +1,80 @@
-import type { Server } from 'http';
-import type { Express } from 'express';
+/**
+ * Enhanced Test Server Factory
+ * Creates isolated test server instances
+ */
 
-let servers: Map<string, Server> = new Map();
+import { Express } from 'express';
+import { Server } from 'http';
+
+interface TestServerOptions {
+  port?: number;
+  timeout?: number;
+}
+
+export interface TestServer {
+  app: Express;
+  server: Server;
+  port: number;
+  close: () => Promise<void>;
+}
 
 /**
- * Gets an available port for testing
+ * Create isolated test server
  */
-export async function getPort(): Promise<number> {
-  // Dynamic import to avoid issues if get-port isn't installed
+export async function createTestServer(port?: number, options: TestServerOptions = {}): Promise<TestServer> {
+  // Dynamic import to avoid circular dependencies during compilation issues
+  let app: Express;
+  
   try {
-    const getPortModule = await import('get-port');
-    return await getPortModule.default();
+    const appModule = await import('../../server/app.js');
+    app = appModule.app || appModule.default;
   } catch {
-    // Fallback to random port in range
-    return Math.floor(Math.random() * (65535 - 49152) + 49152);
-  }
-}
-
-/**
- * Starts a test server on an ephemeral port
- */
-export async function startTestServer(
-  app: Express, 
-  name: string = 'default'
-): Promise<{ port: number; baseURL: string; server: Server }> {
-  const port = await getPort();
-  
-  return new Promise((resolve, reject) => {
-    const server = app.listen(port, '127.0.0.1', () => {
-      servers.set(name, server);
-      resolve({
-        port,
-        baseURL: `http://127.0.0.1:${port}`,
-        server
-      });
-    });
+    // Fallback for development
+    const express = await import('express');
+    app = express.default();
     
-    server.on('error', reject);
-  });
-}
-
-/**
- * Stops a test server
- */
-export async function stopTestServer(name: string = 'default'): Promise<void> {
-  const server = servers.get(name);
-  if (!server) return;
-  
-  return new Promise((resolve) => {
-    server.close(() => {
-      servers.delete(name);
-      resolve();
+    // Basic health endpoint for tests
+    app.get('/health', (req, res) => {
+      res.json({ status: 'ok', test: true });
     });
+  }
+
+  return new Promise((resolve, reject) => {
+    const actualPort = port || 0; // Use 0 for automatic assignment
+    const server = app.listen(actualPort, () => {
+      const address = server.address();
+      const finalPort = typeof address === 'string' ? parseInt(address) : address?.port || 3333;
+      
+      const testServer: TestServer = {
+        app,
+        server,
+        port: finalPort,
+        close: () => new Promise((closeResolve) => {
+          server.close(() => closeResolve());
+        })
+      };
+      
+      resolve(testServer);
+    });
+
+    server.on('error', (err) => {
+      reject(new Error(`Test server failed to start: ${err.message}`));
+    });
+
+    // Set timeout for server operations
+    if (options.timeout) {
+      server.timeout = options.timeout;
+    }
   });
 }
 
 /**
- * Stops all test servers
+ * Create multiple isolated test servers for parallel testing
  */
-export async function stopAllTestServers(): Promise<void> {
-  const promises = Array.from(servers.keys()).map(name => stopTestServer(name));
-  await Promise.all(promises);
+export async function createTestServerCluster(count: number): Promise<TestServer[]> {
+  const servers = await Promise.all(
+    Array(count).fill(null).map(() => createTestServer())
+  );
+  
+  return servers;
 }

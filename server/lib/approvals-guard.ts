@@ -168,7 +168,7 @@ export async function verifyApproval(
     return {
       ok: true,
       approvalId: approval.id,
-      signatures: signatures.rows,
+      signatures: signatures.rows as Array<{ partnerEmail: string; approvedAt: Date; }>,
       calculationHash: approval.calculationHash || undefined
     };
 
