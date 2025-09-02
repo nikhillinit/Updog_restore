@@ -194,7 +194,7 @@ export function registerFundConfigRoutes(app: Express) {
 
       // Mark previous published versions as not current (simplified)
       await db.update(fundConfigs)
-        .set({ publishedAt: null })
+        .set({ isPublished: false })
         .where(and(
           eq(fundConfigs.fundId, fundId),
           eq(fundConfigs.isPublished, true)
@@ -203,7 +203,7 @@ export function registerFundConfigRoutes(app: Express) {
       // Publish the draft (simplified)
       const [published] = await db.update(fundConfigs)
         .set({
-          publishedAt: new Date()
+          isPublished: true
         })
         .where(eq(fundConfigs.id, draft.id))
         .returning();
