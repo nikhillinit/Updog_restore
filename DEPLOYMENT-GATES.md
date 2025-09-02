@@ -101,9 +101,7 @@ git commit -m "feat: Enable Green Scoreboard and Guardian monitoring
 - Add 5-gate quality system
 - Implement Guardian canary with TTL mute
 - Add bundle size tracking
-- Configure automated PR comments
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+- Configure automated PR comments"
 
 # Push to trigger workflows
 git push origin feat/enable-gates
