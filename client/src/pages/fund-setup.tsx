@@ -1354,6 +1354,7 @@ export default function FundSetup() {
 
                 {currentStep !== 'review' ? (
                   <Button
+                    data-testid="wizard-next-button"
                     onClick={handleNext}
                     disabled={!canProceed}
                     className="flex items-center space-x-2 bg-pov-charcoal hover:bg-gradient-to-r hover:from-pov-charcoal hover:to-pov-beige text-white rounded-2xl h-12 px-8 shadow-elevated hover:shadow-lg transition-all duration-200 disabled:opacity-50 font-poppins font-medium"
@@ -1363,6 +1364,7 @@ export default function FundSetup() {
                   </Button>
                 ) : (
                   <Button
+                    data-testid="wizard-submit-button"
                     onClick={handleSave}
                     disabled={createFundMutation.isPending}
                     className="bg-pov-charcoal hover:bg-gradient-to-r hover:from-pov-charcoal hover:to-pov-beige text-white rounded-2xl h-12 px-8 shadow-elevated hover:shadow-lg transition-all duration-200 font-poppins font-medium"

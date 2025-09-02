@@ -49,6 +49,7 @@ export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepP
               </p>
             </div>
             <Switch
+              data-testid="step-4-recycling-enabled"
               checked={data.enabled}
               onCheckedChange={(checked) => handleChange('enabled', checked)}
             />
@@ -62,6 +63,7 @@ export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepP
                   <Label className="text-base font-medium">Recycle Percentage (%)</Label>
                   <div className="relative">
                     <Input
+                      data-testid="step-4-recycle-percentage"
                       type="number"
                       min="0"
                       max="100"
