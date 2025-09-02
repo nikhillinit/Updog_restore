@@ -1,0 +1,112 @@
+{
+  "timestamp": "2025-09-02T21:02:14.985Z",
+  "typeScriptErrors": {
+    "total": 25,
+    "byCategory": {
+      "schemaInfer": [],
+      "importExport": [
+        "server/routes/metrics-rum.ts(91,47): error TS2339: Property 'json' does not exist on type 'typeof import(\"express\")'.\r",
+        "server/routes/metrics.ts(3,10): error TS2724: '\"../metrics/calcGuards.js\"' has no exported member named '_calcGuardBad'. Did you mean 'calcGuardBad'?\r",
+        "server/routes/metrics.ts(3,25): error TS2724: '\"../metrics/calcGuards.js\"' has no exported member named '_calcGuardEvents'. Did you mean 'calcGuardEvents'?\r",
+        "server/routes/reserves-api.ts(17,10): error TS2305: Module '\"../observability/metrics\"' has no exported member 'performanceMonitor'.\r",
+        "server/routes/reserves-api.ts(18,33): error TS2307: Cannot find module '../middleware/auth' or its corresponding type declarations.\r",
+        "server/routes/reserves.ts(15,10): error TS2305: Module '\"../metrics\"' has no exported member 'metrics'.\r",
+        "server/routes/v1/reserve-approvals.ts(6,18): error TS2724: '\"express\"' has no exported member named '_Request'. Did you mean 'Request'?\r",
+        "server/routes/v1/reserve-approvals.ts(10,20): error TS2307: Cannot find module '../../lib/db.js' or its corresponding type declarations.\r",
+        "server/routes/v1/reserve-approvals.ts(12,19): error TS2724: '\"drizzle-orm\"' has no exported member named '_lte'. Did you mean 'lte'?\r"
+      ],
+      "middlewareTypes": [
+        "server/middleware/auditLog.ts(55,11): error TS2353: Object literal may only specify known properties, and 'userId' does not exist in type '{ action: string; }'.\r",
+        "server/middleware/rateLimits.ts(78,22): error TS2345: Argument of type '{ client: Redis; prefix: string; }' is not assignable to parameter of type 'RedisStoreOptions'.\r"
+      ],
+      "other": [
+        "server/lib/approvals-guard.ts(334,6): error TS2769: No overload matches this call.\r",
+        "server/routes/flags.ts(197,27): error TS2345: Argument of type '{ enabled?: boolean; exposeToClient?: boolean; targeting?: { rules?: { value?: string | string[]; attribute?: string; operator?: string; percentage?: number; }[]; enabled?: boolean; }; }' is not assignable to parameter of type 'Partial<FlagValue>'.\r",
+        "server/routes/fund-config.ts(197,16): error TS2353: Object literal may only specify known properties, and 'isPublished' does not exist in type '{ fundId?: number | SQL<unknown> | PgColumn<ColumnBaseConfig<ColumnDataType, string>, {}, {}>; config?: unknown; }'.\r",
+        "server/routes/fund-config.ts(206,11): error TS2353: Object literal may only specify known properties, and 'isPublished' does not exist in type '{ fundId?: number | SQL<unknown> | PgColumn<ColumnBaseConfig<ColumnDataType, string>, {}, {}>; config?: unknown; }'.\r",
+        "server/routes/fund-config.ts(231,35): error TS2769: No overload matches this call.\r",
+        "server/routes/metrics-rum.ts(156,13): error TS2554: Expected 0 arguments, but got 1.\r",
+        "server/routes/reserves-api.ts(386,15): error TS2339: Property '_excelData' does not exist on type '{ excelData?: { fundMetrics?: { totalCommitted?: number; totalCalled?: number; totalDistributed?: number; netAssetValue?: number; managementFees?: number; carriedInterest?: number; }; companyData?: { ...; }[]; timeline?: { ...; }[]; }; webAppData?: { ...; }; tolerance?: number; }'.\r",
+        "server/routes/reserves-api.ts(386,27): error TS2339: Property '_webAppData' does not exist on type '{ excelData?: { fundMetrics?: { totalCommitted?: number; totalCalled?: number; totalDistributed?: number; netAssetValue?: number; managementFees?: number; carriedInterest?: number; }; companyData?: { ...; }[]; timeline?: { ...; }[]; }; webAppData?: { ...; }; tolerance?: number; }'.\r",
+        "server/routes/reserves.ts(55,48): error TS2345: Argument of type '{ companies?: { name?: string; id?: string; sector?: string; stage?: string; metadata?: Record<string, unknown>; invested_cents?: number; exit_moic_bps?: number; ownership_pct?: number; }[]; fund_size_cents?: number; quarter_index?: number; }' is not assignable to parameter of type 'ReservesInput'.\r",
+        "server/routes/v1/reserves.ts(73,19): error TS2339: Property 'status' does not exist on type 'unknown'.\r",
+        "server/routes/v1/reserves.ts(73,51): error TS2339: Property 'message' does not exist on type 'unknown'.\r",
+        "server/seed-db.ts(27,43): error TS2769: No overload matches this call.\r",
+        "server/seed-demo-data.ts(13,45): error TS2769: No overload matches this call.\r",
+        "server/seed-demo-data.ts(29,41): error TS2769: No overload matches this call.\r"
+      ]
+    }
+  },
+  "ciFailures": {
+    "total": 0,
+    "byWorkflow": {
+      "auto-label.yml": "configured",
+      "bmad-weekly.yml": "configured",
+      "ci-breaker.yml": "configured",
+      "ci-gate-optimized.yml.disabled": "configured",
+      "ci-hygiene.yml": "configured",
+      "ci-memory.yml": "configured",
+      "ci-optimized.yml": "configured",
+      "ci-reserves-v11.yml": "configured",
+      "ci-unified.yml": "configured",
+      "ci.yml.disabled": "configured",
+      "codeql.yml": "configured",
+      "contract-ci.yml": "configured",
+      "deploy-ga.yml": "configured",
+      "deploy-staging.yml": "configured",
+      "dockerfile-lint.yml": "configured",
+      "green-scoreboard.yml": "configured",
+      "guardian.yml": "configured",
+      "maintenance.yml": "configured",
+      "memory-mode.yml": "configured",
+      "migration-orchestrator.yml": "configured",
+      "openapi-diff.yml": "configured",
+      "perf-baseline.yml": "configured",
+      "performance-gates.yml": "configured",
+      "post-deploy-attestation.yml": "configured",
+      "post-merge-validation.yml": "configured",
+      "pr-tests.yml": "configured",
+      "promote-eslint.yml": "configured",
+      "quarantine-check.yml": "configured",
+      "quarantine-nightly.yml": "configured",
+      "readiness-probe.yml": "configured",
+      "security-scan.yml": "configured",
+      "security-tests.yml": "configured",
+      "slack-regression-guard.yml": "configured",
+      "synthetic.yml": "configured",
+      "synthetics-5m.yml": "configured",
+      "synthetics-e2e.yml": "configured",
+      "synthetics-smart.yml": "configured",
+      "test.yml": "configured",
+      "validate-runtime-config.yml": "configured",
+      "validate.yml": "configured",
+      "zap-baseline.yml": "configured"
+    }
+  },
+  "testIssues": {
+    "flaky": [],
+    "portConflicts": [
+      "tests/evergreen-validation.test.ts - wrong location",
+      "tests/fund-basics-evergreen.test.tsx - wrong location",
+      "tests/fund-schema-updates.test.ts - wrong location",
+      "tests/fund-schema.test.ts - wrong location",
+      "tests/fund-setup.test.tsx - wrong location",
+      "tests/fund-strategy-validation.test.ts - wrong location",
+      "tests/schema-types.test.ts - wrong location",
+      "tests/smoke.test.ts - wrong location",
+      "tests/ui-conditionals.test.tsx - wrong location",
+      "tests/waterfall-step.test.tsx - wrong location"
+    ],
+    "timeouts": []
+  },
+  "baselineMetrics": {
+    "bundleSizeKB": 371.23,
+    "p95LatencyMs": {
+      "/api/funds": 250,
+      "/api/reserves": 500,
+      "/api/export": 1000
+    },
+    "guardianStatus": "needs-check",
+    "syntheticsStatus": "needs-check"
+  }
+}
