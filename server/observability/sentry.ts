@@ -17,7 +17,6 @@ if (sentryDSN) {
     // Performance monitoring
     integrations: [
       Sentry.httpIntegration(),
-      Sentry.expressIntegration(),
     ],
     
     // Privacy: Scrub sensitive data

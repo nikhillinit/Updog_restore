@@ -341,7 +341,6 @@ export async function createApprovalIfNeeded(
       estimatedAmount: Math.round(impact.estimatedAmount * 100),
       riskLevel: impact.riskLevel,
       expiresAt,
-      calculationHash: inputsHash,
       status: 'pending'
     })
     .returning();
