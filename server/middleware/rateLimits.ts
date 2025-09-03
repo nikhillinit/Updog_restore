@@ -76,9 +76,10 @@ function createRateLimiter(
 ) {
   const store = redisClient
     ? new RedisStore({
-        client: redisClient,
+        client: redisClient as any, // TODO: Add proper Redis adapter
+        sendCommand: (...args: string[]) => (redisClient as any).call(...args),
         prefix: `rl:${keyPrefix}:`
-      })
+      } as any)
     : undefined; // Falls back to memory store
   
   return rateLimit({
