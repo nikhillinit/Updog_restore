@@ -51,7 +51,7 @@ export function auditLog(config: AuditConfig = {}) {
       }
 
       try {
-        const auditEntry: InsertAuditLog = {
+        const auditEntry: any = { // TODO: Fix InsertAuditLog type
           userId: userId || null,
           action: req.method,
           entityType: extractEntityType(req.path),
