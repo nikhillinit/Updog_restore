@@ -9,6 +9,30 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Boundary enforcement rules for server/client/shared separation
+const boundaryRules = {
+  server: {
+    "no-restricted-imports": ["error", {
+      patterns: [
+        "client/src/*",
+        "../client/*",
+        "../../client/*"
+      ],
+      message: "Server code cannot import from client"
+    }]
+  },
+  client: {
+    "no-restricted-imports": ["error", {
+      patterns: [
+        "server/*",
+        "../server/*",
+        "../../server/*"
+      ],
+      message: "Client code cannot import from server"
+    }]
+  }
+};
+
 export default [
   // Global ignores should be first
   {
@@ -98,5 +122,15 @@ export default [
     settings: { 
       react: { version: "detect" } 
     }
+  },
+  // Server boundary enforcement
+  {
+    files: ["server/**/*.ts", "server/**/*.js"],
+    rules: boundaryRules.server
+  },
+  // Client boundary enforcement
+  {
+    files: ["client/**/*.ts", "client/**/*.tsx", "client/**/*.js", "client/**/*.jsx"],
+    rules: boundaryRules.client
   }
 ];

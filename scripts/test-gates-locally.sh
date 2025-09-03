@@ -69,6 +69,12 @@ BUILD_STATUS=$?
 if [ -f "scripts/size-first-load.mjs" ]; then
     FIRST_LOAD_KB=$(node scripts/size-first-load.mjs 2>/dev/null || echo "0")
     echo "First-load JS (KB): $FIRST_LOAD_KB"
+    
+    # Check for chart chunks in first-load (regression warning)
+    node scripts/size-first-load.mjs --verbose 2> /tmp/firstload.log || true
+    if grep -q "vendor-\(charts\|nivo\)" /tmp/firstload.log; then
+        echo -e "${YELLOW}  WARNING: Charts chunk detected in first-load bundle${NC}"
+    fi
 else
     FIRST_LOAD_KB=0
     echo "Warning: size-first-load.mjs not found"
