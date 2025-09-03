@@ -22,7 +22,9 @@
       "Bash(cat:*)",
       "Bash(node:*)",
       "Bash(git mv:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git push:*)",
+      "Bash(git update-index:*)"
     ],
     "deny": [],
     "ask": [],
