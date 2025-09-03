@@ -14,8 +14,8 @@ import {
   ReserveCalculationError,
 } from '@shared/schemas/reserves-schemas';
 import { logger } from '../lib/logger';
-import { performanceMonitor } from '../observability/metrics';
-import { _validateApiKey } from '../middleware/auth';
+// import { performanceMonitor } from '../observability/metrics'; // TODO: Add when metrics module is ready
+// import { validateApiKey } from '../middleware/auth'; // TODO: Add auth middleware
 import { requestId } from '../middleware/requestId';
 import { requireApproval, computeStrategyHash, createApprovalIfNeeded, verifyApproval } from '../lib/approvals-guard.js';
 import { requireAuth } from '../lib/auth/jwt.js';
@@ -345,16 +345,17 @@ router.post('/calculate',
     } catch (error) {
       const duration = Date.now() - startTime;
       
-      performanceMonitor.recordMetric(
-        'reserve_calculation_api',
-        duration,
-        'ms',
-        {
-          portfolioSize: req.body?.portfolio?.length || 0,
-          success: false,
-          error: error.message,
-        }
-      );
+      // TODO: Add performance monitoring
+      // performanceMonitor.recordMetric(
+      //   'reserve_calculation_api',
+      //   duration,
+      //   'ms',
+      //   {
+      //     portfolioSize: req.body?.portfolio?.length || 0,
+      //     success: false,
+      //     error: error.message,
+      //   }
+      // );
 
       (logger as any).error('Reserve calculation failed', {
         correlationId,

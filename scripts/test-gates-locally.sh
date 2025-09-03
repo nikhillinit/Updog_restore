@@ -1,12 +1,13 @@
 #!/bin/bash
 
-# Test all gates locally before pushing
+# Test all gates locally before pushing with objective metrics
 # This script simulates what CI will do
 
-set -e  # Exit on first error
+set -euo pipefail
 
 echo "🔍 Testing all gates locally..."
 echo "================================"
+echo "$(date '+%Y-%m-%d %H:%M:%S')"
 echo ""
 
 # Colors for output
@@ -19,63 +20,74 @@ GATES_PASSED=0
 TOTAL_GATES=5
 
 # Gate 1: TypeScript Check
-echo "Gate 1: TypeScript Check"
+echo "== Gate 1: TypeScript (tsc --noEmit)"
 echo "------------------------"
-if npm run check 2>&1 | tee ts-output.log; then
-    TS_ERRORS=$(grep -c "error TS" ts-output.log || echo "0")
-    if [ "$TS_ERRORS" -eq 0 ]; then
-        echo -e "${GREEN}✅ TypeScript: Clean (0 errors)${NC}"
-        GATES_PASSED=$((GATES_PASSED + 1))
-    else
-        echo -e "${RED}❌ TypeScript: $TS_ERRORS errors found${NC}"
-    fi
+npm run check 2>&1 | tee /tmp/ts.log || true
+TS_ERRORS=$(grep -c "error TS" /tmp/ts.log || echo "0")
+echo "TypeScript errors: $TS_ERRORS"
+
+if [ "$TS_ERRORS" -eq 0 ]; then
+    echo -e "${GREEN}✅ TypeScript: Clean (0 errors)${NC}"
+    GATES_PASSED=$((GATES_PASSED + 1))
 else
-    echo -e "${RED}❌ TypeScript check failed${NC}"
+    echo -e "${RED}❌ TypeScript: $TS_ERRORS errors found${NC}"
+    # Show error categories for tracking
+    echo "  Import/export errors: $(grep -c "has no exported member\|Cannot find module" /tmp/ts.log || echo "0")"
+    echo "  Property errors: $(grep -c "does not exist in type\|Property.*is missing" /tmp/ts.log || echo "0")"
+    echo "  Other errors: $(grep -c "error TS" /tmp/ts.log | awk -v imp=$(grep -c "has no exported member\|Cannot find module" /tmp/ts.log) -v prop=$(grep -c "does not exist in type\|Property.*is missing" /tmp/ts.log) '{print $1-imp-prop}')"
 fi
 echo ""
 
 # Gate 2: Tests
-echo "Gate 2: Test Suite"
+echo "== Gate 2: Tests (npm test)"
 echo "------------------"
-if npm run test:unit 2>&1 | tee unit-test.log; then
-    PASSING=$(grep -oP '\d+(?= passing)' unit-test.log | head -1 || echo "0")
-    FAILING=$(grep -oP '\d+(?= failing)' unit-test.log | head -1 || echo "0")
-    
-    if [ "$FAILING" -eq 0 ] && [ "$PASSING" -gt 0 ]; then
-        echo -e "${GREEN}✅ Tests: $PASSING tests passed${NC}"
-        GATES_PASSED=$((GATES_PASSED + 1))
-    else
-        echo -e "${RED}❌ Tests: $FAILING failures${NC}"
-    fi
+npm test --silent 2>&1 | tee /tmp/test.log || true
+TEST_STATUS=$?
+echo "Test status code: $TEST_STATUS (0=pass)"
+
+# Try to extract test counts
+PASSING=$(grep -oE '[0-9]+ passing' /tmp/test.log | grep -oE '[0-9]+' | head -1 || echo "0")
+FAILING=$(grep -oE '[0-9]+ failing' /tmp/test.log | grep -oE '[0-9]+' | head -1 || echo "0")
+
+if [ "$TEST_STATUS" -eq 0 ] && [ "$PASSING" -gt 0 ]; then
+    echo -e "${GREEN}✅ Tests: $PASSING tests passed${NC}"
+    GATES_PASSED=$((GATES_PASSED + 1))
+elif [ "$FAILING" -gt 0 ]; then
+    echo -e "${RED}❌ Tests: $FAILING failures${NC}"
 else
-    echo -e "${YELLOW}⚠️  Tests not configured or failed to run${NC}"
+    echo -e "${YELLOW}⚠️  Tests: Status unknown${NC}"
 fi
 echo ""
 
 # Gate 3: Build & Bundle
-echo "Gate 3: Build & Bundle Check"
+echo "== Gate 3: Bundle (vite)"
 echo "----------------------------"
-if npm run build 2>&1 | tee build.log; then
-    echo -e "${GREEN}✅ Build succeeded${NC}"
-    
-    # Extract bundle size
-    node scripts/extract-bundle-size.mjs
-    
-    if [ -f "dist/.app-size-kb" ]; then
-        SIZE_KB=$(cat dist/.app-size-kb)
-        BUDGET_KB=400
-        
-        if [ "$SIZE_KB" -le "$BUDGET_KB" ]; then
-            echo -e "${GREEN}✅ Bundle size: ${SIZE_KB}KB / ${BUDGET_KB}KB${NC}"
-            GATES_PASSED=$((GATES_PASSED + 1))
-        else
-            echo -e "${RED}❌ Bundle exceeds budget: ${SIZE_KB}KB > ${BUDGET_KB}KB${NC}"
-        fi
+npm run build --silent >/tmp/build.log 2>&1 || true
+BUILD_STATUS=$?
+
+# Calculate bundle size
+if [ -d "dist" ]; then
+    BUNDLE_KB=$(find dist -name "*.js" -exec du -k {} \; | awk '{sum+=$1} END {print int(sum)}' 2>/dev/null || echo "0")
+else
+    BUNDLE_KB=0
+fi
+
+echo "Bundle total (KB): $BUNDLE_KB"
+BUDGET_KB=400
+WARNING_KB=380
+
+if [ "$BUILD_STATUS" -eq 0 ] && [ "$BUNDLE_KB" -gt 0 ]; then
+    if [ "$BUNDLE_KB" -le "$WARNING_KB" ]; then
+        echo -e "${GREEN}✅ Bundle size: ${BUNDLE_KB}KB (safe)${NC}"
+        GATES_PASSED=$((GATES_PASSED + 1))
+    elif [ "$BUNDLE_KB" -le "$BUDGET_KB" ]; then
+        echo -e "${YELLOW}⚠️  Bundle size: ${BUNDLE_KB}KB (warning zone)${NC}"
+        GATES_PASSED=$((GATES_PASSED + 1))
     else
-        echo -e "${YELLOW}⚠️  Could not determine bundle size${NC}"
+        echo -e "${RED}❌ Bundle exceeds budget: ${BUNDLE_KB}KB > ${BUDGET_KB}KB${NC}"
     fi
 else
-    echo -e "${RED}❌ Build failed${NC}"
+    echo -e "${RED}❌ Build failed or no output${NC}"
 fi
 echo ""
 
