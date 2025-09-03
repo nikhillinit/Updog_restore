@@ -6,13 +6,13 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
-import { calculateReservesSafe } from '../../client/src/lib/reserves-v11';
+import { calculateReservesSafe } from '@shared/lib/reserves-v11';
 import { 
   ReservesInputSchema, 
   ReservesConfigSchema 
-} from '../../client/src/schemas/reserves-schema';
+} from '@shared/schemas/reserves-schemas';
 import { idempotency } from '../middleware/idempotency';
-// import { metrics } from '../metrics'; // TODO: Add metrics module
+import { metrics } from '../metrics';
 
 const router = Router();
 
@@ -33,7 +33,7 @@ router.post('/reserves/calculate', idempotency, async (req: Request, res: Respon
     const validation = CalculateReservesRequestSchema.safeParse(req.body);
     
     if (!validation.success) {
-      // metrics.recordReservesError('validation_failed'); // TODO: Add metrics
+      metrics.recordReservesError('validation_failed');
       return res.status(400).json({
         ok: false,
         error: 'Invalid request',
@@ -44,30 +44,28 @@ router.post('/reserves/calculate', idempotency, async (req: Request, res: Respon
     const { input, config, userId } = validation.data;
     
     // Record metrics
-    // TODO: Add metrics
-    // metrics.recordReservesRequest({
-    //   companyCount: input.companies.length,
-    //   reservePercent: config.reserve_bps / 100,
-    //   capPolicy: config.cap_policy.kind,
-    //   userId
-    // });
+    metrics.recordReservesRequest({
+      companyCount: input.companies.length,
+      reservePercent: config.reserve_bps / 100,
+      capPolicy: config.cap_policy.kind,
+      userId
+    });
     
     // Calculate reserves
     const result = await calculateReservesSafe(input, config);
     
     // Record calculation metrics
     const duration = Date.now() - startTime;
-    // metrics.recordReservesDuration(duration); // TODO: Add metrics
+    metrics.recordReservesDuration(duration);
     
     if (result.ok) {
-      // TODO: Add metrics
-      // metrics.recordReservesSuccess({
-      //   companiesFunded: result.data?.metadata.companies_funded || 0,
-      //   utilization: result.data ? 
-      //     (result.data.metadata.total_allocated_cents / result.data.metadata.total_available_cents) : 0
-      // });
+      metrics.recordReservesSuccess({
+        companiesFunded: result.data?.metadata.companies_funded || 0,
+        utilization: result.data ? 
+          (result.data.metadata.total_allocated_cents / result.data.metadata.total_available_cents) : 0
+      });
     } else {
-      // metrics.recordReservesError('calculation_failed'); // TODO: Add metrics
+      metrics.recordReservesError('calculation_failed');
     }
     
     // Add server metrics to response
@@ -84,7 +82,7 @@ router.post('/reserves/calculate', idempotency, async (req: Request, res: Respon
   } catch (error) {
     const duration = Date.now() - startTime;
     metrics.recordReservesError('internal_error');
-    // metrics.recordReservesDuration(duration); // TODO: Add metrics
+    metrics.recordReservesDuration(duration);
     
     console.error('Reserves calculation error:', error);
     

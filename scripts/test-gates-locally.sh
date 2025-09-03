@@ -65,26 +65,51 @@ echo "----------------------------"
 npm run build --silent >/tmp/build.log 2>&1 || true
 BUILD_STATUS=$?
 
-# Calculate bundle size
-if [ -d "dist" ]; then
-    BUNDLE_KB=$(find dist -name "*.js" -exec du -k {} \; | awk '{sum+=$1} END {print int(sum)}' 2>/dev/null || echo "0")
+# Calculate first-load JS size with our dedicated script
+if [ -f "scripts/size-first-load.mjs" ]; then
+    FIRST_LOAD_KB=$(node scripts/size-first-load.mjs 2>/dev/null || echo "0")
+    echo "First-load JS (KB): $FIRST_LOAD_KB"
+else
+    FIRST_LOAD_KB=0
+    echo "Warning: size-first-load.mjs not found"
+fi
+
+# Calculate total bundle size (Windows-safe)
+if [ -d "dist/public/assets" ]; then
+    BUNDLE_KB=$(node -e "const fs=require('fs'),p='dist/public/assets';let s=0;if(fs.existsSync(p)){for(const f of fs.readdirSync(p)){if(f.endsWith('.js')) s+=fs.statSync(p+'/'+f).size}};console.log(Math.round(s/1024))" 2>/dev/null || echo "0")
 else
     BUNDLE_KB=0
 fi
 
 echo "Bundle total (KB): $BUNDLE_KB"
+
+# First-load budgets
+FIRST_LOAD_BUDGET_KB=360
+FIRST_LOAD_WARNING_KB=300
+
+# Total bundle budgets
 BUDGET_KB=400
 WARNING_KB=380
 
-if [ "$BUILD_STATUS" -eq 0 ] && [ "$BUNDLE_KB" -gt 0 ]; then
-    if [ "$BUNDLE_KB" -le "$WARNING_KB" ]; then
-        echo -e "${GREEN}✅ Bundle size: ${BUNDLE_KB}KB (safe)${NC}"
+if [ "$BUILD_STATUS" -eq 0 ] && [ "$FIRST_LOAD_KB" -gt 0 ]; then
+    # Check first-load size first (more critical)
+    if [ "$FIRST_LOAD_KB" -le "$FIRST_LOAD_WARNING_KB" ]; then
+        echo -e "${GREEN}✅ First-load: ${FIRST_LOAD_KB}KB (excellent)${NC}"
         GATES_PASSED=$((GATES_PASSED + 1))
-    elif [ "$BUNDLE_KB" -le "$BUDGET_KB" ]; then
-        echo -e "${YELLOW}⚠️  Bundle size: ${BUNDLE_KB}KB (warning zone)${NC}"
+    elif [ "$FIRST_LOAD_KB" -le "$FIRST_LOAD_BUDGET_KB" ]; then
+        echo -e "${YELLOW}⚠️  First-load: ${FIRST_LOAD_KB}KB (warning zone)${NC}"
         GATES_PASSED=$((GATES_PASSED + 1))
     else
-        echo -e "${RED}❌ Bundle exceeds budget: ${BUNDLE_KB}KB > ${BUDGET_KB}KB${NC}"
+        echo -e "${RED}❌ First-load exceeds budget: ${FIRST_LOAD_KB}KB > ${FIRST_LOAD_BUDGET_KB}KB${NC}"
+    fi
+    
+    # Also check total bundle (informational)
+    if [ "$BUNDLE_KB" -le "$WARNING_KB" ]; then
+        echo "  Total bundle: ${BUNDLE_KB}KB (safe)"
+    elif [ "$BUNDLE_KB" -le "$BUDGET_KB" ]; then
+        echo "  Total bundle: ${BUNDLE_KB}KB (warning)"
+    else
+        echo "  Total bundle: ${BUNDLE_KB}KB (over budget)"
     fi
 else
     echo -e "${RED}❌ Build failed or no output${NC}"

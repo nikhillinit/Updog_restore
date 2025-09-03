@@ -14,12 +14,12 @@ import {
   ReserveEngineOptions,
   PredictionExplanation 
 } from './ports.js';
-import { DeterministicReserveEngine } from '../../../client/src/core/reserves/DeterministicReserveEngine.js';
-import { ConstrainedReserveEngine } from '../../../client/src/core/reserves/ConstrainedReserveEngine.js';
+import { DeterministicReserveEngine } from '@shared/core/reserves/DeterministicReserveEngine.js';
+import { ConstrainedReserveEngine } from '@shared/core/reserves/ConstrainedReserveEngine.js';
 import { MlClient } from './mlClient.js';
 import { logger } from '../../lib/logger.js';
 import { nanoid } from 'nanoid';
-import { performanceMonitor } from '../../../client/src/lib/performance-monitor.js';
+// import { performanceMonitor } from '@shared/lib/performance-monitor.js';
 
 export interface FeatureFlagConfig {
   useMl: boolean;

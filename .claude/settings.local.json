@@ -24,7 +24,11 @@
       "Bash(git mv:*)",
       "Bash(find:*)",
       "Bash(git push:*)",
-      "Bash(git update-index:*)"
+      "Bash(git update-index:*)",
+      "Bash(grep:*)",
+      "Bash(VERBOSE=1 node scripts/size-first-load.mjs)",
+      "Bash(set VERBOSE=1)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": [],

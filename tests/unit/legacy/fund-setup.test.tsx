@@ -2,8 +2,8 @@ import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import FundSetup from '../client/src/pages/fund-setup';
-import { FundProvider } from '../client/src/contexts/FundContext';
+import FundSetup from '@/pages/fund-setup';
+import { FundProvider } from '@/contexts/FundContext';
 
 // Create a test wrapper
 const createTestQueryClient = () => new QueryClient({
