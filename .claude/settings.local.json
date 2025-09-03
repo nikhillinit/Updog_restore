@@ -28,7 +28,9 @@
       "Bash(grep:*)",
       "Bash(VERBOSE=1 node scripts/size-first-load.mjs)",
       "Bash(set VERBOSE=1)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git grep:*)",
+      "Bash(./scripts/test-gates-locally.sh:*)"
     ],
     "deny": [],
     "ask": [],

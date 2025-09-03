@@ -6,22 +6,7 @@
 import { randomUUID } from 'node:crypto';
 import { Request, Response, NextFunction } from '../types/request-response';
 
-// We'll use a different approach to avoid conflicts with other declarations
-// Instead of extending the Request interface directly, we'll use a module augmentation
-// that's compatible with our other type definitions
-declare global {
-  namespace Express {
-    interface Request {
-      // Make requestId optional to avoid conflicts with other declarations
-      requestId: string;
-      log?: {
-        info: (_obj: any, msg?: string) => void;
-        error: (_obj: any, msg?: string) => void;
-        warn: (_obj: any, msg?: string) => void;
-      };
-    }
-  }
-}
+// Request interface augmentation is now centralized in types/express.d.ts
 
 /**
  * Request ID middleware for correlation across logs, telemetry, and responses

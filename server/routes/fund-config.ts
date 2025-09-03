@@ -194,7 +194,10 @@ export function registerFundConfigRoutes(app: Express) {
 
       // Mark previous published versions as not current (simplified)
       await db.update(fundConfigs)
-        .set({ isPublished: false })
+        .set({ 
+          isPublished: false,
+          updatedAt: new Date()
+        } as any)
         .where(and(
           eq(fundConfigs.fundId, fundId),
           eq(fundConfigs.isPublished, true)
@@ -203,8 +206,11 @@ export function registerFundConfigRoutes(app: Express) {
       // Publish the draft (simplified)
       const [published] = await db.update(fundConfigs)
         .set({
-          isPublished: true
-        })
+          isPublished: true,
+          isDraft: false,
+          publishedAt: new Date(),
+          updatedAt: new Date()
+        } as any)
         .where(eq(fundConfigs.id, draft.id))
         .returning();
 
@@ -236,9 +242,9 @@ export function registerFundConfigRoutes(app: Express) {
           engines: ['reserve', 'pacing', 'cohort'],
           correlationId 
         },
-        userId: req.user?.id ? parseInt(req.user.id) : null,
-        correlationId,
-      });
+        userId: req.user?.id ? parseInt(req.user.id) : undefined,
+        correlationId
+      } as any);
 
       res.json({
         success: true,
@@ -310,4 +316,3 @@ export function registerFundConfigRoutes(app: Express) {
     }
   });
 }
-

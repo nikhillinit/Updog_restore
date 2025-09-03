@@ -537,9 +537,18 @@ export const ReservesResultSchema = z.object({
   }).strict().optional()
 }).strict();
 
+// Request schema for API endpoints
+export const CalculateReservesRequestSchema = z.object({
+  input: ReservesInputSchema,
+  config: ReservesConfigSchema,
+  userId: z.string().optional(),
+  requestId: z.string().optional()
+});
+
 // Type exports for v11 compatibility
 export type Company = z.infer<typeof CompanySchema>;
 export type ReservesConfig = z.infer<typeof ReservesConfigSchema>;
 export type ReservesInput = z.infer<typeof ReservesInputSchema>;
 export type ReservesOutput = z.infer<typeof ReservesOutputSchema>;
 export type ReservesResult = z.infer<typeof ReservesResultSchema>;
+export type CalculateReservesRequest = z.infer<typeof CalculateReservesRequestSchema>;

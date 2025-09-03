@@ -13,11 +13,11 @@ export interface FlagValue {
   enabled: boolean;
   exposeToClient?: boolean;
   targeting?: {
-    enabled: boolean;
-    rules: Array<{
-      attribute: string;
-      operator: string;
-      value: string | string[];
+    enabled?: boolean;
+    rules?: Array<{
+      attribute?: string;
+      operator?: string;
+      value?: string | string[];
       percentage?: number;
     }>;
   };

@@ -13,6 +13,11 @@ declare global {
         event: string; 
         meta?: Record<string, unknown>;
       };
+      log?: {
+        info: (_obj: any, msg?: string) => void;
+        error: (_obj: any, msg?: string) => void;
+        warn: (_obj: any, msg?: string) => void;
+      };
     }
   }
 }

@@ -17,13 +17,15 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 GATES_PASSED=0
-TOTAL_GATES=5
+TOTAL_GATES=7
 
 # Gate 1: TypeScript Check
 echo "== Gate 1: TypeScript (tsc --noEmit)"
 echo "------------------------"
 npm run check 2>&1 | tee /tmp/ts.log || true
-TS_ERRORS=$(grep -c "error TS" /tmp/ts.log || echo "0")
+raw_ts_errors=$(grep -c "error TS" /tmp/ts.log 2>/dev/null || echo "0")
+TS_ERRORS=$(printf '%s' "$raw_ts_errors" | tr -cd '0-9')
+: "${TS_ERRORS:=0}"
 echo "TypeScript errors: $TS_ERRORS"
 
 if [ "$TS_ERRORS" -eq 0 ]; then
@@ -38,16 +40,65 @@ else
 fi
 echo ""
 
-# Gate 2: Tests
-echo "== Gate 2: Tests (npm test)"
+# Gate 2: ESLint (no warnings)
+echo "== Gate 2: ESLint (npx eslint . --max-warnings=0)"
+echo "----------------------------------------"
+npx eslint . --max-warnings=0 2>&1 | tee /tmp/eslint.log || true
+ESLINT_STATUS=$?
+raw_eslint_errors=$(grep -c "✖.*error" /tmp/eslint.log 2>/dev/null || echo "0")
+ESLINT_ERRORS=$(printf '%s' "$raw_eslint_errors" | tr -cd '0-9')
+: "${ESLINT_ERRORS:=0}"
+raw_eslint_warnings=$(grep -c "⚠.*warning" /tmp/eslint.log 2>/dev/null || echo "0")
+ESLINT_WARNINGS=$(printf '%s' "$raw_eslint_warnings" | tr -cd '0-9')
+: "${ESLINT_WARNINGS:=0}"
+
+echo "ESLint status: $ESLINT_STATUS"
+echo "ESLint errors: $ESLINT_ERRORS"
+echo "ESLint warnings: $ESLINT_WARNINGS"
+
+if [ "$ESLINT_STATUS" -eq 0 ]; then
+    echo -e "${GREEN}✅ ESLint: Clean (0 errors, 0 warnings)${NC}"
+    GATES_PASSED=$((GATES_PASSED + 1))
+else
+    echo -e "${RED}❌ ESLint: $ESLINT_ERRORS errors, $ESLINT_WARNINGS warnings${NC}"
+fi
+echo ""
+
+# Gate 3: Express Augmentation Drift Check
+echo "== Gate 3: Express Request Augmentation Drift"
+echo "---------------------------------------------"
+raw_augmentations=$(git grep -n "interface Request" -- types server 2>/dev/null | wc -l || echo "0")
+REQUEST_AUGMENTATIONS=$(printf '%s' "$raw_augmentations" | tr -cd '0-9')
+: "${REQUEST_AUGMENTATIONS:=0}"
+echo "Request augmentation files: $REQUEST_AUGMENTATIONS"
+
+# Should be exactly 1 (in types/express.d.ts)
+if [ "$REQUEST_AUGMENTATIONS" -eq 1 ]; then
+    echo -e "${GREEN}✅ Express Augmentation: Single source of truth${NC}"
+    GATES_PASSED=$((GATES_PASSED + 1))
+elif [ "$REQUEST_AUGMENTATIONS" -eq 0 ]; then
+    echo -e "${RED}❌ Express Augmentation: No augmentations found${NC}"
+else
+    echo -e "${RED}❌ Express Augmentation: Multiple augmentations ($REQUEST_AUGMENTATIONS)${NC}"
+    echo "  Found in:"
+    git grep -l "interface Request" -- types server | sed 's/^/    /'
+fi
+echo ""
+
+# Gate 4: Tests
+echo "== Gate 4: Tests (npm test)"
 echo "------------------"
 npm test --silent 2>&1 | tee /tmp/test.log || true
 TEST_STATUS=$?
 echo "Test status code: $TEST_STATUS (0=pass)"
 
 # Try to extract test counts
-PASSING=$(grep -oE '[0-9]+ passing' /tmp/test.log | grep -oE '[0-9]+' | head -1 || echo "0")
-FAILING=$(grep -oE '[0-9]+ failing' /tmp/test.log | grep -oE '[0-9]+' | head -1 || echo "0")
+raw_passing=$(grep -oE '[0-9]+ passing' /tmp/test.log 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo "0")
+PASSING=$(printf '%s' "$raw_passing" | tr -cd '0-9')
+: "${PASSING:=0}"
+raw_failing=$(grep -oE '[0-9]+ failing' /tmp/test.log 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo "0")
+FAILING=$(printf '%s' "$raw_failing" | tr -cd '0-9')
+: "${FAILING:=0}"
 
 if [ "$TEST_STATUS" -eq 0 ] && [ "$PASSING" -gt 0 ]; then
     echo -e "${GREEN}✅ Tests: $PASSING tests passed${NC}"
@@ -59,8 +110,8 @@ else
 fi
 echo ""
 
-# Gate 3: Build & Bundle
-echo "== Gate 3: Bundle (vite)"
+# Gate 5: Build & Bundle
+echo "== Gate 5: Bundle (vite)"
 echo "----------------------------"
 npm run build --silent >/tmp/build.log 2>&1 || true
 BUILD_STATUS=$?
@@ -122,8 +173,8 @@ else
 fi
 echo ""
 
-# Gate 4: Guardian Health Check (simulated)
-echo "Gate 4: Guardian Health (simulated)"
+# Gate 6: Guardian Health Check (simulated)
+echo "== Gate 6: Guardian Health (simulated)"
 echo "-----------------------------------"
 # Start server temporarily for health check
 npm start > /dev/null 2>&1 &
@@ -141,8 +192,8 @@ fi
 kill $SERVER_PID 2>/dev/null || true
 echo ""
 
-# Gate 5: CI Health (informational only)
-echo "Gate 5: CI Health"
+# Gate 7: CI Health (informational only)
+echo "== Gate 7: CI Health"
 echo "-----------------"
 if command -v gh &> /dev/null; then
     echo "Checking recent CI runs..."
