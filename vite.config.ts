@@ -267,6 +267,12 @@ export default defineConfig({
     cssMinify: 'lightningcss',
     reportCompressedSize: false,
     chunkSizeWarningLimit: 500,
+    modulePreload: {
+      // Only preload critical modules, not charts
+      resolveDependencies: (filename, deps, { hostId, hostType }) => {
+        return deps.filter(dep => !dep.includes('vendor-charts') && !dep.includes('vendor-nivo'));
+      }
+    },
     rollupOptions: { 
       input: path.resolve(import.meta.dirname, 'client/index.html'),
       treeshake: {
