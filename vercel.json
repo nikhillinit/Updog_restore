@@ -1,7 +1,60 @@
 {
-  "buildCommand": "npm run build",
-  "installCommand": "npm ci --ignore-scripts",
+  "version": 2,
   "framework": null,
-  "ignoreCommand": "bash -lc 'if [ \"$VERCEL_GIT_PULL_REQUEST_ID\" != \"\" ] && [ \"$VERCEL_ENV\" != \"production\" ]; then echo Skip PR build; exit 0; else exit 1; fi'",
-  "env": { "NODE_VERSION": "20.15.1" }
+
+  "buildCommand": "npm run build:web",
+  "outputDirectory": "dist/public",
+  "installCommand": "npm ci --ignore-scripts",
+
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "nodejs20.x",
+      "memory": 1536,
+      "maxDuration": 30,
+      "regions": ["iad1"],
+      "includeFiles": [
+        "server/**",
+        "shared/**",
+        "schema/**"
+      ]
+    }
+  },
+
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ],
+
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    }
+  ],
+
+  "env": {
+    "NODE_VERSION": "20.15.1",
+    "TZ": "UTC"
+  },
+
+  "github": { "silent": true },
+
+  "ignoreCommand": "bash -lc 'if [ \"$VERCEL_GIT_COMMIT_REF\" = \"main\" ] || [ \"$VERCEL_GIT_COMMIT_REF\" = \"production\" ]; then exit 1; else exit 0; fi'"
 }

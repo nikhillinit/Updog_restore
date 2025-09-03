@@ -30,7 +30,9 @@
       "Bash(set VERBOSE=1)",
       "Bash(npx tsc:*)",
       "Bash(git grep:*)",
-      "Bash(./scripts/test-gates-locally.sh:*)"
+      "Bash(./scripts/test-gates-locally.sh:*)",
+      "Bash(npx vercel:*)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": [],
     "ask": [],
