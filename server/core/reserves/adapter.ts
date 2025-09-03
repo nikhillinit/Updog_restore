@@ -133,13 +133,14 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
     this.updateMetrics(decision.latencyMs!, fallbackUsed ? 1 : 0);
 
     // Record performance monitoring
-    if (performanceMonitor) {
-      performanceMonitor.recordCalculationPerformance(
-        decision.latencyMs!,
-        1, // company count
-        !fallbackUsed
-      );
-    }
+    // TODO: Wire up performance monitoring when instrumentation is configured
+    // if (performanceMonitor) {
+    //   performanceMonitor.recordCalculationPerformance(
+    //     decision.latencyMs!,
+    //     1, // company count
+    //     !fallbackUsed
+    //   );
+    // }
 
     return decision;
   }
