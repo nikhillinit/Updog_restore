@@ -311,15 +311,16 @@ router.post('/calculate',
 
       // Track performance
       const duration = Date.now() - startTime;
-      performanceMonitor.recordMetric(
-        'reserve_calculation_api',
-        duration,
-        'ms',
-        {
-          portfolioSize: input.portfolio.length,
-          success: true,
-        }
-      );
+      // TODO: Wire up performance monitoring when instrumentation is configured
+      // performanceMonitor.recordMetric(
+      //   'reserve_calculation_api',
+      //   duration,
+      //   'ms',
+      //   {
+      //     portfolioSize: input.portfolio.length,
+      //     success: true,
+      //   }
+      // );
 
       (logger as any).info('Reserve calculation completed', {
         correlationId,
@@ -384,7 +385,7 @@ router.post('/validate-parity',
     try {
       // Validate request
       const validatedRequest = ParityValidationRequestSchema.parse({ body: req.body });
-      const { _excelData, _webAppData, tolerance = 0.01 } = validatedRequest.body;
+      const { excelData: _excelData, webAppData: _webAppData, tolerance = 0.01 } = validatedRequest.body;
 
       (logger as any).info('Parity validation request received', {
         correlationId,
