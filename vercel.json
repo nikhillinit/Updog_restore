@@ -1,51 +1,23 @@
 {
   "version": 2,
-  "framework": null,
-
   "buildCommand": "npm run build:web",
   "outputDirectory": "dist/public",
-  "installCommand": "npm ci --ignore-scripts",
-
+  "framework": null,
+  
   "functions": {
     "api/**/*.ts": {
-      "runtime": "@vercel/node@3.0.23",
-      "memory": 1536,
-      "maxDuration": 30,
-      "includeFiles": "{server/**,shared/**,schema/**,package.json,tsconfig.json}"
+      "runtime": "@vercel/node@3.0.23"
     }
   },
-
+  
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ],
-
-  "headers": [
     {
-      "source": "/assets/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" }
-      ]
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
     },
     {
-      "source": "/index.html",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-      ]
-    },
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-store" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" }
-      ]
+      "source": "/:path*",
+      "destination": "/index.html"
     }
-  ],
-
-  "env": {
-    "NODE_VERSION": "20.15.1"
-  },
-
-  "github": { "silent": true }
+  ]
 }
