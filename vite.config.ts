@@ -289,39 +289,26 @@ export default defineConfig({
           objectShorthand: true,
         },
         minifyInternalExports: true,
-        manualChunks(id) {
-          // Sentry dynamic loading
-          if (id.includes('node_modules/@sentry')) return 'sentry';
-          
-          // Core React/Preact ecosystem + state + charts together
-          // FIX: Keep React, state management, and charts in same chunk to prevent TDZ errors
-          if (usePreact) {
-            if (id.includes('node_modules/preact')) return 'vendor-preact';
-          } else {
-            if (id.includes('node_modules/react-dom')) return 'vendor-react';
-            if (id.includes('node_modules/react')) return 'vendor-react';
-          }
-          
-          // REMOVED: Manual chart/state chunking to fix TDZ "Cannot access 'zu' before initialization"
-          // Let Vite handle React + zustand + charts together to maintain proper initialization order
-          
-          // Only split truly independent large libraries to avoid TDZ issues
-          // Keep most dependencies together with React/state/charts via splitVendorChunkPlugin
-          
-          // Large independent libraries (no React dependencies)
-          if (id.includes('node_modules/lodash')) return 'vendor-utils';
-          if (id.includes('node_modules/date-fns')) return 'vendor-utils';
-          
-          // Let splitVendorChunkPlugin handle the rest safely
-        },
+        // REMOVED: All manual chunking to prevent TDZ "Cannot access X before initialization" errors
+        // Let Vite's default chunking handle vendor splitting safely
+        // Manual chunking can reorder module initialization and break ESM guarantees
+        manualChunks: undefined,
       }
     }
   },
   resolve: {
     conditions: ["browser", "import", "module", "default"],
     alias: [
-      // Preact substitution when enabled
-      ...(usePreact ? preactAliases : []),
+      // CRITICAL: Proper Preact aliasing for production builds (not in optimizeDeps!)
+      ...(usePreact ? [
+        { find: 'react', replacement: 'preact/compat' },
+        { find: 'react-dom', replacement: 'preact/compat' },
+        { find: 'react-dom/test-utils', replacement: 'preact/test-utils' },
+        { find: 'react-dom/client', replacement: 'preact/compat' },
+        // CRITICAL: JSX runtime aliases - missing these breaks hooks with Preact
+        { find: 'react/jsx-runtime', replacement: 'preact/jsx-runtime' },
+        { find: 'react/jsx-dev-runtime', replacement: 'preact/jsx-dev-runtime' },
+      ] : []),
       
       // Sentry no-op (when disabled)
       !sentryOn && { find: /^@sentry\//, replacement: sentryNoop },
@@ -337,16 +324,10 @@ export default defineConfig({
   },
   optimizeDeps: usePreact
     ? {
-        // Prevent esbuild pre-bundling of React if some dep lists it loosely
+        // Keep dev prebundle from pulling React by accident
         exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser', '@sentry/browser', '@sentry/react', 'react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
         include: ['preact', 'preact/hooks', 'preact/compat', 'preact/jsx-runtime'],
-        // Force all React imports to resolve to Preact
-        esbuildOptions: {
-          alias: {
-            'react': 'preact/compat',
-            'react-dom': 'preact/compat'
-          }
-        }
+        // REMOVED: esbuildOptions.alias - aliases belong in resolve.alias for production builds
       }
     : {
         exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser', '@sentry/browser', '@sentry/react'],
