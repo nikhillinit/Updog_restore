@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, type Plugin, splitVendorChunkPlugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import preact from '@preact/preset-vite';
 import path from 'path';
@@ -222,6 +222,8 @@ export default defineConfig({
     }), 
     // Conditional React/Preact plugin
     usePreact ? preact({ devtoolsInProd: false }) : react(),
+    // Add Vite's stable vendor chunk splitting (prevents TDZ issues)
+    splitVendorChunkPlugin(),
     visualizer({ filename: "stats.html", gzipSize: true })
   ].filter(Boolean) as Plugin[],
   esbuild: {
@@ -292,7 +294,8 @@ export default defineConfig({
           // Sentry dynamic loading
           if (id.includes('node_modules/@sentry')) return 'sentry';
           
-          // Core React/Preact ecosystem - MUST BE FIRST
+          // Core React/Preact ecosystem + state + charts together
+          // FIX: Keep React, state management, and charts in same chunk to prevent TDZ errors
           if (usePreact) {
             if (id.includes('node_modules/preact')) return 'vendor-preact';
           } else {
@@ -300,61 +303,17 @@ export default defineConfig({
             if (id.includes('node_modules/react')) return 'vendor-react';
           }
           
-          // Put zustand and tanstack query together as core state management
-          if (id.includes('node_modules/zustand')) return 'vendor-state';
-          if (id.includes('node_modules/@tanstack')) return 'vendor-state';
-          if (id.includes('node_modules/immer')) return 'vendor-state';
+          // REMOVED: Manual chart/state chunking to fix TDZ "Cannot access 'zu' before initialization"
+          // Let Vite handle React + zustand + charts together to maintain proper initialization order
           
-          // Chart libraries - AFTER state management
-          // Force ALL d3 modules into vendor-charts to prevent duplication
-          if (/(?:^|[/\\])node_modules[/\\](d3|d3-[^/\\]+)[/\\]/.test(id)) return 'vendor-charts';
+          // Only split truly independent large libraries to avoid TDZ issues
+          // Keep most dependencies together with React/state/charts via splitVendorChunkPlugin
           
-          // Recharts and its dependencies
-          if (id.includes('node_modules/recharts')) return 'vendor-charts';
-          if (id.includes('node_modules/victory-vendor')) return 'vendor-charts';
-          if (id.includes('node_modules/prop-types')) return 'vendor-charts';
-          if (id.includes('node_modules/classnames')) return 'vendor-charts';
-          
-          // Separate large dependencies
-          if (id.includes('node_modules/nivo')) return 'vendor-nivo';
+          // Large independent libraries (no React dependencies)
           if (id.includes('node_modules/lodash')) return 'vendor-utils';
-          if (id.includes('node_modules/@dnd-kit')) return 'vendor-dnd';
-          if (id.includes('node_modules/xlsx')) return 'vendor-excel';
-          
-          // Forms
-          if (id.includes('node_modules/react-hook-form')) return 'vendor-forms';
-          if (id.includes('node_modules/zod')) return 'vendor-forms';
-          
-          // Split UI more granularly 
-          if (id.includes('node_modules/@radix-ui/react-dialog') || 
-              id.includes('node_modules/@radix-ui/react-popover') || 
-              id.includes('node_modules/@radix-ui/react-dropdown')) return 'vendor-ui-overlay';
-          if (id.includes('node_modules/@radix-ui')) return 'vendor-ui-core';
-          if (id.includes('node_modules/@headlessui')) return 'vendor-ui-core';
-          
-          // Utils and styling
           if (id.includes('node_modules/date-fns')) return 'vendor-utils';
-          if (id.includes('node_modules/clsx') || id.includes('tailwind-merge')) return 'vendor-style';
-          if (id.includes('node_modules/lucide-react')) return 'vendor-icons';
           
-          // Animation libraries
-          if (id.includes('node_modules/framer-motion') || id.includes('node_modules/@react-spring')) return 'vendor-animation';
-          
-          // Bundle small utils with main chunk for better performance
-          if (id.includes('node_modules') && 
-              !id.includes('react') && 
-              !id.includes('radix') && 
-              !id.includes('recharts') &&
-              !id.includes('tanstack') &&
-              !id.includes('zod') &&
-              !id.includes('date-fns') &&
-              !id.includes('lodash') &&
-              !id.includes('framer') &&
-              !id.includes('lucide') &&
-              !id.includes('nivo')) {
-            // Check file size heuristically - if likely small, don't chunk
-            return undefined; // Let small deps stay with main
-          }
+          // Let splitVendorChunkPlugin handle the rest safely
         },
       }
     }
