@@ -37,7 +37,8 @@
       "WebFetch(domain:updog-restore-k309lhcrv-nikhil-bhambis-projects.vercel.app)",
       "Bash(vercel:*)",
       "WebFetch(domain:updog-restore-762ioiwqe-nikhil-bhambis-projects.vercel.app)",
-      "Bash(bash:*)"
+      "Bash(bash:*)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": [],

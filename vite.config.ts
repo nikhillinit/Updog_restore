@@ -333,13 +333,20 @@ export default defineConfig({
       { find: '@shared', replacement: path.resolve(import.meta.dirname, 'shared') },
       { find: '@assets', replacement: path.resolve(import.meta.dirname, 'assets') },
     ].filter(Boolean),
-    dedupe: usePreact ? ['react', 'react-dom'] : [],
+    dedupe: usePreact ? ['react', 'react-dom', 'react/jsx-runtime', 'react-dom/client'] : ['react', 'react-dom'],
   },
   optimizeDeps: usePreact
     ? {
         // Prevent esbuild pre-bundling of React if some dep lists it loosely
-        exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser', '@sentry/browser', '@sentry/react', 'react', 'react-dom', 'react-dom/client'],
-        include: ['preact', 'preact/hooks', 'preact/compat'],
+        exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser', '@sentry/browser', '@sentry/react', 'react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+        include: ['preact', 'preact/hooks', 'preact/compat', 'preact/jsx-runtime'],
+        // Force all React imports to resolve to Preact
+        esbuildOptions: {
+          alias: {
+            'react': 'preact/compat',
+            'react-dom': 'preact/compat'
+          }
+        }
       }
     : {
         exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser', '@sentry/browser', '@sentry/react'],
