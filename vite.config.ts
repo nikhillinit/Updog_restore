@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin, splitVendorChunkPlugin } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import preact from '@preact/preset-vite';
 import path from 'path';
@@ -222,8 +222,7 @@ export default defineConfig({
     }), 
     // Conditional React/Preact plugin
     usePreact ? preact({ devtoolsInProd: false }) : react(),
-    // Add Vite's stable vendor chunk splitting (prevents TDZ issues)
-    splitVendorChunkPlugin(),
+    // Vite's default chunking is sufficient - manual chunking removed to prevent TDZ issues
     visualizer({ filename: "stats.html", gzipSize: true })
   ].filter(Boolean) as Plugin[],
   esbuild: {
