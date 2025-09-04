@@ -292,11 +292,15 @@ export default defineConfig({
           // Sentry dynamic loading
           if (id.includes('node_modules/@sentry')) return 'sentry';
           
+          // Chart libraries and their dependencies in one chunk to prevent circular deps
           // Force ALL d3 modules into vendor-charts to prevent duplication
           if (/(?:^|[/\\])node_modules[/\\](d3|d3-[^/\\]+)[/\\]/.test(id)) return 'vendor-charts';
           
-          // Recharts also goes to vendor-charts
+          // Recharts and its dependencies
           if (id.includes('node_modules/recharts')) return 'vendor-charts';
+          if (id.includes('node_modules/victory-vendor')) return 'vendor-charts';
+          if (id.includes('node_modules/prop-types')) return 'vendor-charts';
+          if (id.includes('node_modules/classnames')) return 'vendor-charts';
           
           // Separate large dependencies
           if (id.includes('node_modules/nivo')) return 'vendor-nivo';
@@ -304,7 +308,7 @@ export default defineConfig({
           if (id.includes('node_modules/@dnd-kit')) return 'vendor-dnd';
           if (id.includes('node_modules/xlsx')) return 'vendor-excel';
           
-          // Core React/Preact ecosystem
+          // Core React/Preact ecosystem - BEFORE zustand check
           if (usePreact) {
             if (id.includes('node_modules/preact')) return 'vendor-preact';
           } else {
@@ -312,8 +316,8 @@ export default defineConfig({
             if (id.includes('node_modules/react')) return 'vendor-react';
           }
           
-          // Split state management and data fetching
-          if (id.includes('node_modules/zustand')) return 'vendor-utils';
+          // State management - put zustand in main vendor to avoid circular deps
+          if (id.includes('node_modules/zustand')) return undefined; // Let it go to default chunk
           if (id.includes('node_modules/@tanstack')) return 'vendor-query';
           if (id.includes('node_modules/react-hook-form')) return 'vendor-forms';
           if (id.includes('node_modules/zod')) return 'vendor-forms';
