@@ -32,7 +32,11 @@
       "Bash(git grep:*)",
       "Bash(./scripts/test-gates-locally.sh:*)",
       "Bash(npx vercel:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(bash scripts/test-gates-locally.sh:*)",
+      "WebFetch(domain:updog-restore-k309lhcrv-nikhil-bhambis-projects.vercel.app)",
+      "Bash(vercel:*)",
+      "WebFetch(domain:updog-restore-762ioiwqe-nikhil-bhambis-projects.vercel.app)"
     ],
     "deny": [],
     "ask": [],

@@ -1,19 +1,50 @@
+/**
+ * Database configuration with automatic serverless optimization
+ * Uses HTTP driver on Vercel, WebSocket pool elsewhere
+ */
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
 import * as schema from "@schema";
 
-neonConfig.webSocketConstructor = ws;
+// Detect if running on Vercel
+const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
 
-if (!process.env.DATABASE_URL) {
-  console.warn("DATABASE_URL not set - using mock mode for API testing");
-  process.env.DATABASE_URL = "postgresql://mock:mock@localhost:5432/mock";
+// Dynamic imports based on environment
+let db: any;
+let pool: any;
+
+if (isVercel) {
+  // Use HTTP driver for Vercel (no persistent connections)
+  const { drizzle } = require('drizzle-orm/neon-http');
+  const { neon } = require('@neondatabase/serverless');
+  
+  const DATABASE_URL = process.env.DATABASE_URL || process.env.NEON_DATABASE_URL;
+  
+  if (!DATABASE_URL) {
+    throw new Error('DATABASE_URL or NEON_DATABASE_URL environment variable is required');
+  }
+  
+  const sql = neon(DATABASE_URL);
+  db = drizzle(sql, { schema });
+  
+  // No pool in HTTP mode
+  pool = null;
+} else {
+  // Use WebSocket pool for development and traditional hosting
+  const { Pool, neonConfig } = require('@neondatabase/serverless');
+  const { drizzle } = require('drizzle-orm/neon-serverless');
+  const ws = require('ws');
+  
+  neonConfig.webSocketConstructor = ws;
+  
+  if (!process.env.DATABASE_URL) {
+    console.warn("DATABASE_URL not set - using mock mode for API testing");
+    process.env.DATABASE_URL = "postgresql://mock:mock@localhost:5432/mock";
+  }
+  
+  pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  db = drizzle({ client: pool, schema });
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle({ client: pool, schema });
+export { db, pool };

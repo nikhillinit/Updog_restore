@@ -147,6 +147,20 @@ export function makeApp() {
    */
   app.get('/readyz', (_req: Request, res: Response) => res.json({ ok: true }));
 
+  // API health endpoint for smoke tests
+  app.get('/api/health', (_req: Request, res: Response) => res.json({ 
+    ok: true,
+    status: 'healthy',
+    timestamp: new Date().toISOString()
+  }));
+
+  // API version endpoint for deployment verification
+  app.get('/api/version', (_req: Request, res: Response) => res.json({ 
+    version: process.env.npm_package_version || '1.3.2',
+    environment: process.env.NODE_ENV || 'development',
+    commit: process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_REF || 'local'
+  }));
+
   // 404 + error handler
   app.use((_req: Request, res: Response) => res.status(404).json({ error: 'not_found' }));
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => res.status(err?.status ?? 500).json({ error: 'internal', message: err?.message ?? 'unknown' }));

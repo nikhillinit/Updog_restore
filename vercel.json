@@ -8,22 +8,16 @@
 
   "functions": {
     "api/**/*.ts": {
-      "runtime": "nodejs20.x",
+      "runtime": "@vercel/node@3.0.23",
       "memory": 1536,
       "maxDuration": 30,
-      "regions": ["iad1"],
-      "includeFiles": [
-        "server/**",
-        "shared/**",
-        "schema/**"
-      ]
+      "includeFiles": "{server/**,shared/**,schema/**,package.json,tsconfig.json}"
     }
   },
 
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
 
   "headers": [
@@ -50,11 +44,8 @@
   ],
 
   "env": {
-    "NODE_VERSION": "20.15.1",
-    "TZ": "UTC"
+    "NODE_VERSION": "20.15.1"
   },
 
-  "github": { "silent": true },
-
-  "ignoreCommand": "bash -lc 'if [ \"$VERCEL_GIT_COMMIT_REF\" = \"main\" ] || [ \"$VERCEL_GIT_COMMIT_REF\" = \"production\" ]; then exit 1; else exit 0; fi'"
+  "github": { "silent": true }
 }
