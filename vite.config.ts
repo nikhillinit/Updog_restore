@@ -292,7 +292,20 @@ export default defineConfig({
           // Sentry dynamic loading
           if (id.includes('node_modules/@sentry')) return 'sentry';
           
-          // Chart libraries and their dependencies in one chunk to prevent circular deps
+          // Core React/Preact ecosystem - MUST BE FIRST
+          if (usePreact) {
+            if (id.includes('node_modules/preact')) return 'vendor-preact';
+          } else {
+            if (id.includes('node_modules/react-dom')) return 'vendor-react';
+            if (id.includes('node_modules/react')) return 'vendor-react';
+          }
+          
+          // Put zustand and tanstack query together as core state management
+          if (id.includes('node_modules/zustand')) return 'vendor-state';
+          if (id.includes('node_modules/@tanstack')) return 'vendor-state';
+          if (id.includes('node_modules/immer')) return 'vendor-state';
+          
+          // Chart libraries - AFTER state management
           // Force ALL d3 modules into vendor-charts to prevent duplication
           if (/(?:^|[/\\])node_modules[/\\](d3|d3-[^/\\]+)[/\\]/.test(id)) return 'vendor-charts';
           
@@ -308,17 +321,7 @@ export default defineConfig({
           if (id.includes('node_modules/@dnd-kit')) return 'vendor-dnd';
           if (id.includes('node_modules/xlsx')) return 'vendor-excel';
           
-          // Core React/Preact ecosystem - BEFORE zustand check
-          if (usePreact) {
-            if (id.includes('node_modules/preact')) return 'vendor-preact';
-          } else {
-            if (id.includes('node_modules/react-dom')) return 'vendor-react';
-            if (id.includes('node_modules/react')) return 'vendor-react';
-          }
-          
-          // State management - put zustand in main vendor to avoid circular deps
-          if (id.includes('node_modules/zustand')) return undefined; // Let it go to default chunk
-          if (id.includes('node_modules/@tanstack')) return 'vendor-query';
+          // Forms
           if (id.includes('node_modules/react-hook-form')) return 'vendor-forms';
           if (id.includes('node_modules/zod')) return 'vendor-forms';
           
