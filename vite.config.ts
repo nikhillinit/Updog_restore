@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import preact from '@preact/preset-vite';
 import path from 'path';
@@ -192,7 +192,7 @@ const getAppVersion = () => {
   }
 };
 
-// Moved inside defineConfig to access loadEnv
+// Configuration moved inside defineConfig to access mode parameter
 
 const sentryOn = !!process.env['VITE_SENTRY_DSN'];
 const sentryNoop = path.resolve(import.meta.dirname, 'client/src/monitoring/noop.ts');
@@ -208,11 +208,11 @@ const preactAliases = [
 ];
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
   const usePreact = 
-    env.BUILD_WITH_PREACT === '1' || 
-    env.BUILD_WITH_PREACT === 'true' || 
-    env.VITE_USE_PREACT === '1';
+    process.env.BUILD_WITH_PREACT === '1' || 
+    process.env.BUILD_WITH_PREACT === 'true' || 
+    process.env.VITE_USE_PREACT === '1' ||
+    mode === 'preact';
 
   return {
   plugins: [
