@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import preact from '@preact/preset-vite';
 import path from 'path';
@@ -192,9 +192,7 @@ const getAppVersion = () => {
   }
 };
 
-const usePreact =
-  process.env['BUILD_WITH_PREACT'] === '1' ||
-  process.env['BUILD_WITH_PREACT'] === 'true';
+// Moved inside defineConfig to access loadEnv
 
 const sentryOn = !!process.env['VITE_SENTRY_DSN'];
 const sentryNoop = path.resolve(import.meta.dirname, 'client/src/monitoring/noop.ts');
@@ -209,7 +207,14 @@ const preactAliases = [
   { find: 'react/jsx-dev-runtime', replacement: 'preact/jsx-dev-runtime' },
 ];
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const usePreact = 
+    env.BUILD_WITH_PREACT === '1' || 
+    env.BUILD_WITH_PREACT === 'true' || 
+    env.VITE_USE_PREACT === '1';
+
+  return {
   plugins: [
     // Use absolute path so Vite doesn't ever look for "client/client/tsconfig.json"
     tsconfigPaths({
@@ -262,7 +267,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
-    sourcemap: process.env['NODE_ENV'] === 'development',
+    sourcemap: true, // Always enable source maps for profiling
     minify: 'esbuild',
     target: 'esnext', // Most aggressive target
     cssMinify: 'lightningcss',
@@ -332,4 +337,5 @@ export default defineConfig({
     : {
         exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser', '@sentry/browser', '@sentry/react'],
       }
-});
+  }; // end of return object
+}); // end of defineConfig

@@ -38,7 +38,14 @@
       "Bash(vercel:*)",
       "WebFetch(domain:updog-restore-762ioiwqe-nikhil-bhambis-projects.vercel.app)",
       "Bash(bash:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(rg:*)",
+      "Bash(npm ci:*)",
+      "Bash(cross-env VITE_USE_PREACT=0 npm run build)",
+      "Bash(cross-env VITE_USE_PREACT=0 npm run build:web)",
+      "Bash(cross-env VITE_USE_PREACT=1 npm run build:web)",
+      "Bash(cmd /c:*)",
+      "Bash(npm run preview:web:*)"
     ],
     "deny": [],
     "ask": [],

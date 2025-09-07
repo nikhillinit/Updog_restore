@@ -9,6 +9,69 @@ import { allocate100 } from '../core/utils/allocate100';
 import { clampPct, clampInt } from '../lib/coerce';
 import type { Stage, SectorProfile, Allocation, InvestmentStrategy } from '@shared/types';
 
+// Development-only watchdog to prevent set() during render
+let renderPhaseGuard = false;
+let selectingPhase = false;
+const isDev = import.meta.env.DEV;
+
+const withRenderGuard = <T extends (...args: any[]) => any>(fn: T, actionName: string): T => {
+  if (!isDev) return fn;
+  
+  return ((...args: any[]) => {
+    if (renderPhaseGuard) {
+      console.error(`🚨 RENDER GUARD: Attempted to call ${actionName} during React render phase!`);
+      console.trace('Stack trace:');
+      return;
+    }
+    if (selectingPhase) {
+      console.error(`🚨 SELECT GUARD: Attempted to call ${actionName} during selector execution!`, new Error().stack);
+      return;
+    }
+    return fn(...args);
+  }) as T;
+};
+
+// Guard selector execution
+const guardSelect = <T>(fn: () => T): T => {
+  if (!isDev) return fn();
+  selectingPhase = true;
+  try {
+    return fn();
+  } finally {
+    selectingPhase = false;
+  }
+};
+
+// Export for use in components
+export const setRenderPhase = (inRender: boolean) => {
+  if (isDev) {
+    renderPhaseGuard = inRender;
+  }
+};
+
+// Export selector guard for use in components
+export const withSelectGuard = <T>(fn: () => T): T => {
+  if (!isDev) return fn();
+  return guardSelect(fn);
+};
+
+// Instrumented set function with loop detection
+const createSafeSet = (originalSet: any) => {
+  if (!isDev) return originalSet;
+  
+  return (...args: any[]) => {
+    if (renderPhaseGuard) {
+      console.error('[useFundStore] set() during render/selector', new Error().stack);
+      return;
+    }
+    if (selectingPhase) {
+      console.error('[useFundStore] set() during selector execution', new Error().stack);
+      return;
+    }
+    return originalSet(...args);
+  };
+};
+
 export type StrategyStage = {
   id: string;
   name: string;
@@ -60,7 +123,11 @@ const generateStableId = (): string => {
  */
 export const useFundStore = create<StrategySlice>()(
   persist(
-    (set, get) => ({
+    (originalSet, get) => {
+      const safeSet = createSafeSet(originalSet);
+      const set = safeSet;
+      
+      return {
       stages: [
         { id: generateStableId(), name: 'Seed', graduate: 30, exit: 20, months: 18 },
         { id: generateStableId(), name: 'Series A', graduate: 40, exit: 25, months: 24 },
@@ -78,26 +145,26 @@ export const useFundStore = create<StrategySlice>()(
       ],
       followOnChecks: { A: 800_000, B: 1_500_000, C: 2_500_000 },
 
-      addStage: () => set((s) => {
+      addStage: withRenderGuard(() => set((s: any) => {
         const id = generateStableId();
         const next = [...s.stages, { id, name: '', graduate: 0, exit: 0, months: 12 }];
         return { stages: enforceLast(next) };
-      }),
+      }), 'addStage'),
 
-      removeStage: (idx: number) => set((s) => {
-        const next = s.stages.filter((_, i) => i !== idx);
+      removeStage: withRenderGuard((idx: number) => set((s: any) => {
+        const next = s.stages.filter((_: any, i: number) => i !== idx);
         return { stages: enforceLast(next) };
-      }),
+      }), 'removeStage'),
 
-      updateStageName: (idx: number, name: string) => set((s) => {
+      updateStageName: withRenderGuard((idx: number, name: string) => set((s: any) => {
         const stages = [...s.stages];
         if (stages[idx]) {
           stages[idx] = { ...stages[idx], name };
         }
         return { stages };
-      }),
+      }), 'updateStageName'),
 
-      updateStageRate: (idx, patch) => set((s) => {
+      updateStageRate: withRenderGuard((idx, patch) => set((s: any) => {
         const stages: StrategyStage[] = [...s.stages];
         const r = stages[idx];
         if (!r) return {};
@@ -117,7 +184,7 @@ export const useFundStore = create<StrategySlice>()(
         }
 
         return { stages };
-      }),
+      }), 'updateStageRate'),
 
       stageValidation: () => {
         const { stages } = get();
@@ -145,7 +212,7 @@ export const useFundStore = create<StrategySlice>()(
         };
       },
 
-      fromInvestmentStrategy: (strategy: InvestmentStrategy) => set(() => {
+      fromInvestmentStrategy: withRenderGuard((strategy: InvestmentStrategy) => set(() => {
         const stages = strategy.stages.map(s => ({
           id: s.id,
           name: s.name,
@@ -159,8 +226,9 @@ export const useFundStore = create<StrategySlice>()(
           sectorProfiles: strategy.sectorProfiles,
           allocations: strategy.allocations
         };
-      })
-    }),
+      }), 'fromInvestmentStrategy')
+      }; // End of store object
+    },
     {
       name: 'investment-strategy',
       version: 1,

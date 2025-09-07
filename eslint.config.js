@@ -113,6 +113,12 @@ export default [
       "no-console": "off",
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
+      "no-restricted-imports": ["error", {
+        "paths": [{
+          "name": "../state/useFundStore",
+          "message": "Use '@/stores/useFundStore' only. The state/ version is deprecated."
+        }]
+      }],
       
       // Prefer modern JavaScript features
       "prefer-const": "warn",
