@@ -265,7 +265,7 @@ export default defineConfig(({ mode }) => {
   },
   root: path.resolve(import.meta.dirname, 'client'),
   build: {
-    outDir: path.resolve(import.meta.dirname, 'dist'),
+    outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
     sourcemap: true, // Always enable source maps for profiling
     minify: 'esbuild',

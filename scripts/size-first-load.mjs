@@ -6,19 +6,19 @@ import { gzipSync } from 'node:zlib';
 
 const VERBOSE = process.env.VERBOSE === '1' || process.argv.includes('--verbose');
 
-// Use dist instead of dist/public
-const dist = 'dist';
+// Use dist/public for Vercel compatibility
+const dist = 'dist/public';
 
 // Check if dist exists
 if (!fs.existsSync(dist)) {
-  console.error('❌ No dist directory found. Run "npm run build" first.');
+  console.error('❌ No dist/public directory found. Run "npm run build" first.');
   process.exit(1);
 }
 
 // Read index.html to find entry point
 const indexPath = path.join(dist, 'index.html');
 if (!fs.existsSync(indexPath)) {
-  console.error('❌ No index.html found in dist');
+  console.error('❌ No index.html found in dist/public');
   process.exit(1);
 }
 
@@ -92,8 +92,10 @@ for (const css of cssFiles) {
 const sizeKB = Math.round(totalSize / 1024);
 const gzipSizeKB = Math.round(totalGzipSize / 1024);
 
-// Write size to file for CI
-fs.writeFileSync(path.join(dist, '.app-size-kb'), sizeKB.toString());
+// Write size to file for CI (in dist root for CI compatibility)
+const distRoot = path.dirname(dist); // dist/
+fs.mkdirSync(distRoot, { recursive: true });
+fs.writeFileSync(path.join(distRoot, '.app-size-kb'), sizeKB.toString());
 
 // Output results
 if (VERBOSE) {

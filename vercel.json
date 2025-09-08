@@ -2,7 +2,18 @@
   "version": 2,
   "buildCommand": "npm run build:web",
   "outputDirectory": "dist/public",
-  "framework": null,
+  "installCommand": "npm ci",
+  "framework": "vite",
+  
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist/public"
+      }
+    }
+  ],
   
   "functions": {
     "api/**/*.ts": {
