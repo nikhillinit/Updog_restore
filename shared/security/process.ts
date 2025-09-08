@@ -51,7 +51,7 @@ export function validateUrl(url: string, allowedProtocols = ['https:', 'http:'])
     }
     return parsed;
   } catch (error) {
-    throw new Error(`Invalid URL: ${error.message}`);
+    throw new Error(`Invalid URL: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -102,7 +102,7 @@ export async function npmRunSafe(script: string, args: string[] = []) {
  * Environment-based HTTP check
  */
 export function assertHttpsInProduction(url: string): void {
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env['NODE_ENV'] === 'production') {
     const parsed = validateUrl(url, ['https:', 'http:']);
     if (parsed.protocol === 'http:') {
       throw new Error('HTTP not allowed in production');

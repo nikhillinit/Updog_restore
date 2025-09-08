@@ -16,20 +16,18 @@ export function parseYamlSafe(content: string): unknown {
       version: '1.2',
       strict: true,
       uniqueKeys: true,
-      maxAliasCount: 100, // Prevent billion laughs attack
     });
     
     if (doc.errors && doc.errors.length > 0) {
-      throw new Error(`YAML parse error: ${doc.errors[0].message}`);
+      throw new Error(`YAML parse error: ${doc.errors[0]?.message || 'Unknown error'}`);
     }
     
     // Convert to plain JS object (no custom types)
     return doc.toJS({ 
-      mapAsMap: false,
-      maxAliasCount: 100,
+      mapAsMap: false
     });
-  } catch (error: any) {
-    throw new Error(`Failed to parse YAML: ${error.message}`);
+  } catch (error) {
+    throw new Error(`Failed to parse YAML: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

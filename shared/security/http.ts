@@ -5,9 +5,9 @@
 
 import { URL } from 'url';
 
-const PROD = process.env.NODE_ENV === 'production';
+const PROD = process.env['NODE_ENV'] === 'production';
 const ALLOWED_HOSTS = new Set(
-  (process.env.ALLOWED_OUTBOUND_HOSTS || 'localhost,127.0.0.1').split(',').map(s => s.trim())
+  (process.env['ALLOWED_OUTBOUND_HOSTS'] || 'localhost,127.0.0.1').split(',').map(s => s.trim())
 );
 
 /**
@@ -62,7 +62,7 @@ export async function safeFetch(url: string, init?: RequestInit): Promise<Respon
  * CORS configuration helper
  */
 export function getCorsConfig() {
-  const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',')
+  const allowedOrigins = (process.env['CORS_ORIGINS'] || '').split(',')
     .map(s => s.trim())
     .filter(Boolean);
   
@@ -91,7 +91,7 @@ export function getCorsConfig() {
  * Express middleware for CORS
  */
 export function corsMiddleware(allowedOrigins?: string[]) {
-  const origins = allowedOrigins || (process.env.CORS_ORIGINS || '').split(',')
+  const origins = allowedOrigins || (process.env['CORS_ORIGINS'] || '').split(',')
     .map(s => s.trim())
     .filter(Boolean);
   

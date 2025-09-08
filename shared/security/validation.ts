@@ -84,7 +84,7 @@ export function validateDatabaseUrl(url: string): string {
   }
   
   // Don't allow localhost in production
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env['NODE_ENV'] === 'production') {
     if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
       throw new Error('Localhost database connections not allowed in production');
     }
@@ -121,7 +121,7 @@ export function validatePort(port: string | number): number {
   }
   
   // Warn about privileged ports
-  if (portNum < 1024 && process.env.NODE_ENV === 'production') {
+  if (portNum < 1024 && process.env['NODE_ENV'] === 'production') {
     console.warn(`Warning: Using privileged port ${portNum} in production`);
   }
   
@@ -147,7 +147,7 @@ export function sanitizeFilename(filename: string): string {
   
   // Check for reserved names (Windows)
   const reserved = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'LPT1'];
-  const nameWithoutExt = sanitized.split('.')[0].toUpperCase();
+  const nameWithoutExt = (sanitized.split('.')[0] || '').toUpperCase();
   
   if (reserved.includes(nameWithoutExt)) {
     throw new Error('Reserved filename not allowed');
