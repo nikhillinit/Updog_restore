@@ -37,6 +37,7 @@ import _BudgetCreator from "@/components/budget/budget-creator";
 import InvestmentStrategyStep from "./InvestmentStrategyStep";
 import ExitRecyclingStep from "./ExitRecyclingStep";
 import WaterfallStep from "./WaterfallStep";
+import { runSimulation } from "@/lib/fund-calc";
 import type { InvestmentStrategy, ExitRecycling, Waterfall } from "@shared/types";
 import type { Fund as DatabaseFund } from "@shared/schema";
 import type { Fund } from "@/contexts/FundContext";
@@ -312,9 +313,126 @@ export default function FundSetup() {
     setFundData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleNext = () => {
+  // Worker and abort controller refs for simulation
+  const workerRef = useRef<Worker | null>(null);
+  const currentRunIdRef = useRef<string | null>(null);
+  const [simulationResult, setSimulationResult] = useState<any>(null);
+  const [isSimulating, setIsSimulating] = useState(false);
+
+  // Feature flag for Worker usage (default ON)
+  const USE_WORKER = (import.meta.env['VITE_USE_SIMULATION_WORKER'] ?? 'true') !== 'false';
+
+  const handleNext = async () => {
     const stepOrder: WizardStep[] = ['fund-basics', 'committed-capital', 'investment-strategy', 'exit-recycling', 'waterfall', 'advanced-settings', 'review'];
     const currentIndex = stepOrder.indexOf(currentStep);
+    const nextStep = stepOrder[currentIndex + 1];
+    
+    // If transitioning from Step 2 (committed-capital) to Step 3 (investment-strategy), run simulation
+    if (currentStep === 'committed-capital' && nextStep === 'investment-strategy') {
+      // Performance mark for Step 2->3 transition
+      performance.mark('step2->3:click');
+      
+      // Cancel any in-flight simulation
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
+      
+      // Prepare simulation inputs based on current fund data
+      const simulationInputs = {
+        baseMOIC: 2.5,
+        baseIRR: 0.25,
+        initialCapital: parseFloat(fundData.totalCommittedCapital) || 100000000,
+        monteCarloRuns: 1000,
+        periods: 120,
+        growthRate: 0.015,
+        distributionRate: 0.008,
+        ...fundData // Include all fund data for simulation
+      };
+      
+      setIsSimulating(true);
+      
+      try {
+        if (USE_WORKER) {
+          // Run simulation in Worker
+          const runId = crypto.randomUUID?.() ?? String(Math.random());
+          currentRunIdRef.current = runId;
+          
+          workerRef.current = new Worker(
+            new URL('../workers/simulation.worker.ts', import.meta.url),
+            { type: 'module' }
+          );
+          
+          const result = await new Promise<any>((resolve, reject) => {
+            if (!workerRef.current) {
+              reject(new Error('Worker initialization failed'));
+              return;
+            }
+            
+            workerRef.current.onmessage = (evt: MessageEvent<any>) => {
+              const { type, runId: rid, result, error } = evt.data || {};
+              if (rid !== runId) return;
+              
+              if (type === 'result') {
+                resolve(result);
+              } else if (type === 'error') {
+                reject(new Error(error || 'Worker error'));
+              }
+              
+              // Clean up worker
+              if (workerRef.current) {
+                workerRef.current.terminate();
+                workerRef.current = null;
+              }
+            };
+            
+            workerRef.current.onerror = (e) => {
+              if (workerRef.current) {
+                workerRef.current.terminate();
+                workerRef.current = null;
+              }
+              reject(e.error || new Error('Worker crashed'));
+            };
+            
+            // Send simulation request to worker
+            workerRef.current.postMessage({
+              type: 'run',
+              runId,
+              inputs: simulationInputs,
+              seed: Date.now() // Use timestamp as seed for deterministic results
+            });
+          });
+          
+          setSimulationResult(result);
+        } else {
+          // Fallback: run simulation on main thread
+          const result = await runSimulation(simulationInputs, Date.now());
+          setSimulationResult(result);
+        }
+      } catch (error) {
+        console.error('Simulation failed:', error);
+        toast({
+          title: "Simulation Error",
+          description: "Failed to run fund simulation. Proceeding without results.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSimulating(false);
+      }
+    }
+    
+    // Prefetch next step component during idle time
+    if (nextStep === 'investment-strategy') {
+      const idle = 'requestIdleCallback' in window
+        ? (window as any).requestIdleCallback
+        : (cb: any) => setTimeout(cb, 0);
+      
+      idle(() => {
+        // Prefetch InvestmentStrategyStep component if not already loaded
+        import('./InvestmentStrategyStep').catch(console.error);
+      });
+    }
+    
     if (currentIndex < stepOrder.length - 1) {
       setCurrentStep(stepOrder[currentIndex + 1]);
     }

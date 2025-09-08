@@ -35,12 +35,24 @@ export default function InvestmentStrategyStep() {
 
   // Mount effect idempotency with one-shot init guard
   const didInitRef = useRef(false);
+  const [chartsInteractive, setChartsInteractive] = useState(false);
+  
   useEffect(() => {
     if (isMountedRef.current) {
       console.warn('⚠️  InvestmentStrategyStep: Double mount detected');
       return;
     }
     isMountedRef.current = true;
+    
+    // Performance mark for Step 3 first render
+    performance.mark('step3:first-render');
+    try {
+      performance.measure('step2->3', 'step2->3:click', 'step3:first-render');
+      const measure = performance.getEntriesByName('step2->3')[0];
+      if (measure && import.meta.env.DEV) {
+        console.log(`⚡ Step 2->3 transition: ${measure.duration.toFixed(2)}ms`);
+      }
+    } catch {}
     
     if (import.meta.env.DEV) {
       console.log('✅ InvestmentStrategyStep mounted');
@@ -55,8 +67,18 @@ export default function InvestmentStrategyStep() {
       }
     }
     
+    // Enable chart interactivity after first paint (deferred rendering)
+    const id = 'requestIdleCallback' in window
+      ? (window as any).requestIdleCallback(() => setChartsInteractive(true))
+      : setTimeout(() => setChartsInteractive(true), 0);
+    
     return () => {
       isMountedRef.current = false;
+      if ('cancelIdleCallback' in window) {
+        (window as any).cancelIdleCallback(id);
+      } else {
+        clearTimeout(id);
+      }
       if (import.meta.env.DEV) {
         console.log('🧹 InvestmentStrategyStep unmounted');
       }
