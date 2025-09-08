@@ -12,10 +12,10 @@ jobs:
     # Warn-only mode unless explicitly enforced
     continue-on-error: ${{ vars.PERF_GATES_ENFORCE != 'true' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '22.16.0'
           cache: 'npm'
@@ -50,7 +50,7 @@ jobs:
       
       - name: Upload metrics
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         with:
           name: bundle-metrics
           path: bundle-metrics.json
@@ -83,10 +83,10 @@ jobs:
           - 6379:6379
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '22.16.0'
           cache: 'npm'
@@ -145,7 +145,7 @@ jobs:
       
       - name: Save performance metrics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         with:
           name: k6-results
           path: k6-results.json
@@ -159,10 +159,10 @@ jobs:
         tier: [enterprise, growth, startup]
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '22.16.0'
           cache: 'npm'
@@ -203,15 +203,15 @@ jobs:
     needs: [bundle-size, api-performance]
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
       - name: Download metrics
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
           name: bundle-metrics
       
       - name: Download k6 results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
           name: k6-results
       
@@ -235,7 +235,7 @@ jobs:
       
       - name: Comment on PR
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
         with:
           script: |
             const fs = require('fs');

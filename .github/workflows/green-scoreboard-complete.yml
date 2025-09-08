@@ -20,11 +20,11 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
       
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '20'
           cache: 'npm'
@@ -39,15 +39,24 @@ jobs:
           # Run typecheck and capture output
           npm run check 2>&1 | tee ts-output.log || true
           
-          # Count errors
+          # Count errors safely (works even with 0 matches)
           TS_ERRORS=$(grep -c "error TS" ts-output.log || echo "0")
-          echo "errors=$TS_ERRORS" >> $GITHUB_OUTPUT
+          TS_ERRORS="${TS_ERRORS:-0}"
           
-          if [ "$TS_ERRORS" -gt 0 ]; then
-            echo "❌ TypeScript: $TS_ERRORS errors found"
-            exit 1
+          # Ensure it's a number
+          if [[ "$TS_ERRORS" =~ ^[0-9]+$ ]]; then
+            echo "errors=$TS_ERRORS" >> $GITHUB_OUTPUT
+            
+            if [ "$TS_ERRORS" -gt 0 ]; then
+              echo "❌ TypeScript: $TS_ERRORS errors found"
+              exit 1
+            else
+              echo "✅ TypeScript: Clean (0 errors)"
+            fi
           else
-            echo "✅ TypeScript: Clean (0 errors)"
+            echo "::warning::Non-numeric error count detected: $TS_ERRORS"
+            echo "errors=0" >> $GITHUB_OUTPUT
+            exit 1
           fi
       
       - name: Block new @ts-ignore
@@ -72,9 +81,9 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '20'
           cache: 'npm'
@@ -119,9 +128,9 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '20'
           cache: 'npm'
@@ -168,7 +177,7 @@ jobs:
             echo "⚠️ Could not determine bundle size"
           fi
       
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         if: always()
         with:
           name: bundle-report
@@ -183,7 +192,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
         with:
           script: |
             console.log('🔍 Checking CI health...');
@@ -226,9 +235,9 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '20'
       
@@ -254,9 +263,9 @@ jobs:
     timeout-minutes: 10
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '20'
           cache: 'npm'
@@ -292,7 +301,7 @@ jobs:
         run: |
           [[ -n "${SERVER_PID:-}" ]] && kill $SERVER_PID || true
       
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         if: always()
         with:
           name: playwright-report
@@ -332,7 +341,7 @@ jobs:
       
       - name: Post PR Comment
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
         with:
           script: |
             const gates = {
