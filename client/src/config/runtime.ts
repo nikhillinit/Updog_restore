@@ -22,7 +22,7 @@ export type RuntimeConfig = {
     emergencyRollback?: boolean;
   };
   telemetry: {
-    trackMigrations?: boolean;
+    // Reserved for future telemetry configuration
   };
   // optional: version string
   version?: string;
@@ -43,7 +43,7 @@ const DEFAULTS: RuntimeConfig = {
     emergencyRollback: false,
   },
   telemetry: {
-    trackMigrations: ((import.meta as any).env?.VITE_TRACK_MIGRATIONS ?? '1') === '1',
+    // Reserved for future telemetry configuration
   },
   version: 'ev1',
 };
@@ -74,7 +74,7 @@ export async function getRuntimeConfig(force = false): Promise<RuntimeConfig> {
       flags: { ...DEFAULTS.flags, ...(json.flags ?? {}) },
       thresholds: { ...DEFAULTS.thresholds, ...(json.thresholds ?? {}) },
       killSwitches: { ...DEFAULTS.killSwitches, ...(json.killSwitches ?? {}) },
-      telemetry: { ...DEFAULTS.telemetry, ...(json.telemetry ?? {}) },
+      telemetry: {},
     };
 
     cache = { cfg: merged, at: now };
