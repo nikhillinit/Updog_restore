@@ -265,7 +265,7 @@ export default defineConfig(({ mode }) => {
   },
   root: path.resolve(import.meta.dirname, 'client'),
   build: {
-    outDir: path.resolve(import.meta.dirname, 'dist/public'),
+    outDir: path.resolve(import.meta.dirname, 'dist'),
     emptyOutDir: true,
     sourcemap: true, // Always enable source maps for profiling
     minify: 'esbuild',
@@ -273,6 +273,7 @@ export default defineConfig(({ mode }) => {
     cssMinify: 'lightningcss',
     reportCompressedSize: false,
     chunkSizeWarningLimit: 500,
+    manifest: true, // Generate manifest for bundle analysis
     modulePreload: {
       // Only preload critical modules, not charts
       resolveDependencies: (filename, deps, { hostId, hostType }) => {

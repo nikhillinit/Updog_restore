@@ -3,6 +3,7 @@ import tsParser from '@typescript-eslint/parser';
 import ts from '@typescript-eslint/eslint-plugin';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
+import securityConfig from './eslint.security.config.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -17,8 +18,7 @@ const boundaryRules = {
         "client/src/*",
         "../client/*",
         "../../client/*"
-      ],
-      message: "Server code cannot import from client"
+      ]
     }]
   },
   client: {
@@ -27,13 +27,14 @@ const boundaryRules = {
         "server/*",
         "../server/*",
         "../../server/*"
-      ],
-      message: "Client code cannot import from server"
+      ]
     }]
   }
 };
 
 export default [
+  // Security rules
+  securityConfig,
   // Global ignores should be first
   {
     ignores: [
@@ -132,11 +133,15 @@ export default [
   // Server boundary enforcement
   {
     files: ["server/**/*.ts", "server/**/*.js"],
-    rules: boundaryRules.server
+    rules: {
+      ...boundaryRules.server
+    }
   },
   // Client boundary enforcement
   {
     files: ["client/**/*.ts", "client/**/*.tsx", "client/**/*.js", "client/**/*.jsx"],
-    rules: boundaryRules.client
+    rules: {
+      ...boundaryRules.client
+    }
   }
 ];
