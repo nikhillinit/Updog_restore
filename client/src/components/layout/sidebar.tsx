@@ -9,7 +9,6 @@ import { Link, useLocation } from "wouter";
 import { useFundContext } from "@/contexts/FundContext";
 import { POVIcon } from "@/components/ui/POVLogo";
 import { 
-  LayoutDashboard, 
   Briefcase, 
   Calculator, 
   BarChart3, 
@@ -21,7 +20,6 @@ import {
   TrendingUp,
   Building2,
   Target,
-  Calendar,
   Percent,
   DollarSign
 } from "lucide-react";

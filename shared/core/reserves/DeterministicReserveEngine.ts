@@ -15,7 +15,6 @@ import {
   type ReserveCalculationResult,
   type FeatureFlags,
   ReserveCalculationError,
-  DEFAULT_GRADUATION_MATRIX,
   DEFAULT_STAGE_STRATEGIES,
 } from '@shared/schemas/reserves-schemas';
 import { getLogger, getPerf } from '@shared/instrumentation';

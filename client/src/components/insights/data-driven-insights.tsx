@@ -10,13 +10,11 @@ import {
   TrendingUp, 
   Target, 
   Calculator, 
-  BarChart3, 
-  AlertTriangle,
+  BarChart3,
   CheckCircle,
   Activity,
   Clock,
   DollarSign,
-  Users,
   ArrowUp,
   ArrowDown
 } from "lucide-react";

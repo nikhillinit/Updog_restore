@@ -22,11 +22,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Play, Settings, Download, RefreshCw, TrendingUp, TrendingDown, AlertTriangle, Info, Target, Zap } from 'lucide-react';
+import { Play, Settings, Download, RefreshCw, TrendingUp, AlertTriangle, Target, Zap } from 'lucide-react';
 
 // Independent Variables (Fund Construction Parameters)
 const INDEPENDENT_VARIABLES = [

@@ -32,9 +32,9 @@ if (isVercel) {
   pool = null;
 } else {
   // Use WebSocket pool for development and traditional hosting
-  const { Pool, neonConfig } = require('@neondatabase/serverless');
-  const { drizzle } = require('drizzle-orm/neon-serverless');
-  const ws = require('ws');
+  const { Pool, neonConfig } = await import('@neondatabase/serverless');
+  const { drizzle } = await import('drizzle-orm/neon-serverless');
+  const ws = await import('ws');
   
   neonConfig.webSocketConstructor = ws;
   

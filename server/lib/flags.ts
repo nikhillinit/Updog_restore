@@ -5,7 +5,7 @@
 
 import { createHash } from 'crypto';
 import { ulid } from 'ulid';
-import { flagChanges, flagsState, type FlagChange, type NewFlagChange, type FlagState, type NewFlagState } from '../../shared/schemas/flags.js';
+import { flagChanges, flagsState, type FlagChange } from '../../shared/schemas/flags.js';
 import { db } from '../db.js';
 import { eq, desc } from 'drizzle-orm';
 

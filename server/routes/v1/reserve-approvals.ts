@@ -3,13 +3,12 @@
  * Requires both partners to approve changes to reserve strategies
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { z } from 'zod';
-import { v4 as uuidv4 } from 'uuid';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../../lib/auth/jwt.js';
 import { db } from '../../db';
 import { reserveApprovals, approvalSignatures, approvalAuditLog, approvalPartners } from '@shared/schemas/reserve-approvals.js';
-import { eq, and, lte, gte } from 'drizzle-orm';
+import { eq, and, gte } from 'drizzle-orm';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 

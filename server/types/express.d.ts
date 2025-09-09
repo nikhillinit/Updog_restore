@@ -3,7 +3,6 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { Request } from 'express';
 
 // Define user type separately for reuse
 interface User {

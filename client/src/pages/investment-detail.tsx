@@ -6,7 +6,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute , Link } from "wouter";
-import { useFundContext } from "@/contexts/FundContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +26,6 @@ import {
 } from "lucide-react";
 import LiquidationPreferencesDialog from "@/components/investments/liquidation-preferences-dialog";
 import PerformanceCaseTabs from "@/components/investments/performance-case-tabs";
-import _CapTableCalculator from "@/components/cap-table/cap-table-calculator";
 import CapTableIntegration from "@/components/investments/cap-table-integration";
 
 const roundSchema = z.object({

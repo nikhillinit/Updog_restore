@@ -4,7 +4,7 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { Request, Response } from 'express';
-import { db, pool } from './db';
+import { db } from './db';
 import { healthStatus } from './metrics';
 import { getEnv } from './env';
 // Circuit breaker metrics disabled for dev mode

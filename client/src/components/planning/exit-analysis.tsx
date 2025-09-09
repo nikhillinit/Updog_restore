@@ -31,8 +31,6 @@ import {
 } from "@/components/ui/table";
 import {
   TrendingUp,
-  Calculator,
-  Target,
   DollarSign,
   Percent,
   Trophy,

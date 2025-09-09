@@ -3,7 +3,6 @@
  * Translates technical metrics into business intelligence
  */
 
-import { metrics } from '../../lib/metrics';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { Histogram, Counter, Gauge } from 'prom-client';

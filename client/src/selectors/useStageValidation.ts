@@ -3,7 +3,6 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { shallow } from 'zustand/shallow';
 import { useFundStore } from '../stores/useFundStore';
 
 // ✅ Use this INSIDE React components or other custom hooks

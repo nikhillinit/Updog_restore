@@ -17,15 +17,13 @@ import { Pie } from 'recharts/es6/polar/Pie';
 import { Cell } from 'recharts/es6/component/Cell';
 import { Area } from 'recharts/es6/cartesian/Area';
 import { AreaChart } from 'recharts/es6/chart/AreaChart';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useFundContext } from '@/contexts/FundContext';
-import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -47,14 +45,10 @@ import {
   Filter,
   Download,
   Save,
-  Plus,
   BarChart3,
   LineChart as LineChartIcon,
   PieChart as PieChartIcon,
   TrendingUp,
-  Calendar,
-  Building2,
-  DollarSign,
   FileText,
   Settings,
   Share,

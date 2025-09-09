@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, Calendar, DollarSign, TrendingDown, Info } from "lucide-react";
+import { AlertTriangle, Calendar, TrendingDown, Info } from "lucide-react";
 
 interface InvestmentRound {
   id: string;

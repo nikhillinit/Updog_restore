@@ -13,7 +13,6 @@ import {
   Plus, 
   DollarSign, 
   TrendingUp, 
-  Building, 
   ArrowUpDown, 
   Banknote,
   Calculator

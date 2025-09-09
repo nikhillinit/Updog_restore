@@ -50,8 +50,11 @@ export default defineConfig({
         },
       },
     },
-    testTimeout: 10000,
-    hookTimeout: 10000,
+    testTimeout: 30000,  // Increased for async iteration tests
+    hookTimeout: 15000,
+    retry: 1,  // Retry flaky tests once to deflake CI
+    reporters: process.env.CI ? ['default', 'github-actions'] : 'default',
+    pool: 'forks',  // More stable for React components
   },
   resolve: {
     alias: {

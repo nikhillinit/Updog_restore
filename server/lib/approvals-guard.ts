@@ -5,8 +5,7 @@
 
 import { db } from '../db.js';
 import { eq, and, gte, sql } from 'drizzle-orm';
-import _crypto from 'crypto';
-import { recordApprovalCreation, approvalMetrics } from '../observability/production-metrics.js';
+import { approvalMetrics } from '../observability/production-metrics.js';
 import { 
   validateDistinctSigners, 
   canonicalJsonHash, 

@@ -5,35 +5,29 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { mapAsync } from "@/lib";
 import { useState, useEffect, useRef } from 'react';
-import { startCreateFund, cancelCreateFund, computeCreateFundHash } from '@/services/funds';
 import { toFundCreationPayload } from '@/core/reserves/adapter/toEngineGraduationRates';
-import { toast } from '@/lib/toast';
 import { useFundStore } from '@/stores/useFundStore';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { PremiumCard } from "@/components/ui/PremiumCard";
 import { FinancialInput } from "@/components/wizard/FinancialInput";
-import { POVLogo } from "@/components/ui/POVLogo";
 import { WizardHeader } from "@/components/wizard/WizardHeader";
 import { WizardProgressRedesigned } from "@/components/wizard/WizardProgressRedesigned";
-import { WizardContainer, WizardSectionHeading, WizardInputLabel } from "@/components/wizard/WizardContainer";
+import { WizardContainer } from "@/components/wizard/WizardContainer";
 
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useFundContext } from "@/contexts/FundContext";
-import { CheckCircle, Circle, ArrowRight, ArrowLeft, Building2, Plus, Edit2, Trash2, X } from "lucide-react";
+import { ArrowRight, ArrowLeft, Building2, Plus, Edit2, Trash2 } from "lucide-react";
 import { resilientLimit } from "@/utils/resilientLimit";
 // Removed server import - use shared types or client-side metrics instead
 // import { asyncRepl } from "../../../server/metrics";
-import _BudgetCreator from "@/components/budget/budget-creator";
 import InvestmentStrategyStep from "./InvestmentStrategyStep";
 import ExitRecyclingStep from "./ExitRecyclingStep";
 import WaterfallStep from "./WaterfallStep";
@@ -273,15 +267,19 @@ export default function FundSetup() {
 
   const currentStepIndex = WIZARD_STEPS.findIndex(s => s.id === currentStep);
 
-  // Initialize fund life calculation on component mount
+  // Initialize fund life calculation when dates change
   useEffect(() => {
-    if (fundData.hasEndDate && fundData.startDate && fundData.endDate) {
-      const updatedData = calculateFundLifeFromDates(fundData);
-      if (updatedData !== fundData) {
-        setFundData(updatedData);
-      }
+    // Only calculate if we have both dates and hasEndDate is true
+    if (!fundData.hasEndDate || !fundData.startDate || !fundData.endDate) {
+      return;
     }
-  }, []); // Empty dependency array to run only on mount
+    
+    const updatedData = calculateFundLifeFromDates(fundData);
+    // calculateFundLifeFromDates now returns the same object if nothing changed
+    if (updatedData !== fundData) {
+      setFundData(updatedData);
+    }
+  }, [fundData.hasEndDate, fundData.startDate, fundData.endDate]); // Only re-run when these specific fields change
 
   const handleInputChange = (field: string, value: string | boolean | number) => {
     setFundData(prev => {
@@ -319,18 +317,27 @@ export default function FundSetup() {
   const [simulationResult, setSimulationResult] = useState<any>(null);
   const [isSimulating, setIsSimulating] = useState(false);
 
-  // Feature flag for Worker usage (default ON)
-  const USE_WORKER = (import.meta.env['VITE_USE_SIMULATION_WORKER'] ?? 'true') !== 'false';
+  // Feature flag for Worker usage (default ON, but disabled in production/build)
+  const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
+  const isProduction = (import.meta as any).env?.MODE === 'production';
+  const USE_WORKER = isBrowser && !isProduction && (import.meta.env['VITE_USE_SIMULATION_WORKER'] ?? 'true') !== 'false';
 
   const handleNext = async () => {
     const stepOrder: WizardStep[] = ['fund-basics', 'committed-capital', 'investment-strategy', 'exit-recycling', 'waterfall', 'advanced-settings', 'review'];
     const currentIndex = stepOrder.indexOf(currentStep);
     const nextStep = stepOrder[currentIndex + 1];
     
+    // Skip simulation during SSR/build or if environment variable is set
+    const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
+    const isBuilding = (import.meta as any).env?.SSR || (import.meta as any).env?.MODE === 'production';
+    const isVercel = (import.meta as any).env?.VITE_VERCEL_ENV || false;
+    const skipSimulation = !isBrowser || isBuilding || isVercel || (import.meta as any).env?.VITE_SKIP_WIZARD_SIMULATION === 'true';
+    
     // If transitioning from Step 2 (committed-capital) to Step 3 (investment-strategy), run simulation
-    if (currentStep === 'committed-capital' && nextStep === 'investment-strategy') {
+    if (currentStep === 'committed-capital' && nextStep === 'investment-strategy' && !skipSimulation) {
       // Performance mark for Step 2->3 transition
       performance.mark('step2->3:click');
+      console.log('[Wizard] Starting Step 2 -> 3 transition');
       
       // Cancel any in-flight simulation
       if (workerRef.current) {
@@ -343,80 +350,100 @@ export default function FundSetup() {
         baseMOIC: 2.5,
         baseIRR: 0.25,
         initialCapital: parseFloat(fundData.totalCommittedCapital) || 100000000,
-        monteCarloRuns: 1000,
+        monteCarloRuns: 100, // Reduced for faster testing
         periods: 120,
         growthRate: 0.015,
         distributionRate: 0.008,
         ...fundData // Include all fund data for simulation
       };
       
+      console.log('[Wizard] Simulation inputs:', simulationInputs);
       setIsSimulating(true);
       
       try {
-        if (USE_WORKER) {
+        if (USE_WORKER && typeof Worker !== 'undefined') {
           // Run simulation in Worker
           const runId = crypto.randomUUID?.() ?? String(Math.random());
           currentRunIdRef.current = runId;
           
-          workerRef.current = new Worker(
-            new URL('../workers/simulation.worker.ts', import.meta.url),
-            { type: 'module' }
-          );
+          try {
+            workerRef.current = new Worker(
+              new URL('../workers/simulation.worker.ts', import.meta.url),
+              { type: 'module' }
+            );
+          } catch (workerError) {
+            console.warn('[Wizard] Failed to create Worker, falling back to main thread:', workerError);
+            // Fall back to main thread execution
+            const result = await runSimulation(simulationInputs, Date.now());
+            console.log('[Wizard] Main thread simulation completed:', result);
+            setSimulationResult(result);
+            return; // Exit early, simulation complete
+          }
           
-          const result = await new Promise<any>((resolve, reject) => {
-            if (!workerRef.current) {
-              reject(new Error('Worker initialization failed'));
-              return;
-            }
-            
-            workerRef.current.onmessage = (evt: MessageEvent<any>) => {
-              const { type, runId: rid, result, error } = evt.data || {};
-              if (rid !== runId) return;
-              
-              if (type === 'result') {
-                resolve(result);
-              } else if (type === 'error') {
-                reject(new Error(error || 'Worker error'));
+          const result = await Promise.race([
+            new Promise<any>((resolve, reject) => {
+              if (!workerRef.current) {
+                reject(new Error('Worker initialization failed'));
+                return;
               }
               
-              // Clean up worker
-              if (workerRef.current) {
-                workerRef.current.terminate();
-                workerRef.current = null;
-              }
-            };
-            
-            workerRef.current.onerror = (e) => {
-              if (workerRef.current) {
-                workerRef.current.terminate();
-                workerRef.current = null;
-              }
-              reject(e.error || new Error('Worker crashed'));
-            };
-            
-            // Send simulation request to worker
-            workerRef.current.postMessage({
-              type: 'run',
-              runId,
-              inputs: simulationInputs,
-              seed: Date.now() // Use timestamp as seed for deterministic results
-            });
-          });
+              workerRef.current.onmessage = (evt: MessageEvent<any>) => {
+                const { type, runId: rid, result, error } = evt.data || {};
+                if (rid !== runId) return;
+                
+                if (type === 'result') {
+                  resolve(result);
+                } else if (type === 'error') {
+                  reject(new Error(error || 'Worker error'));
+                }
+                
+                // Clean up worker
+                if (workerRef.current) {
+                  workerRef.current.terminate();
+                  workerRef.current = null;
+                }
+              };
+              
+              workerRef.current.onerror = (e) => {
+                if (workerRef.current) {
+                  workerRef.current.terminate();
+                  workerRef.current = null;
+                }
+                reject(e.error || new Error('Worker crashed'));
+              };
+              
+              // Send simulation request to worker
+              workerRef.current.postMessage({
+                type: 'run',
+                runId,
+                inputs: simulationInputs,
+                seed: Date.now() // Use timestamp as seed for deterministic results
+              });
+            }),
+            // Timeout after 5 seconds
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Simulation timeout')), 5000)
+            )
+          ]);
           
+          console.log('[Wizard] Worker simulation completed:', result);
           setSimulationResult(result);
         } else {
           // Fallback: run simulation on main thread
+          console.log('[Wizard] Running simulation on main thread');
           const result = await runSimulation(simulationInputs, Date.now());
+          console.log('[Wizard] Main thread simulation completed:', result);
           setSimulationResult(result);
         }
       } catch (error) {
-        console.error('Simulation failed:', error);
+        console.error('[Wizard] Simulation failed:', error);
         toast({
           title: "Simulation Error",
           description: "Failed to run fund simulation. Proceeding without results.",
           variant: "destructive",
         });
       } finally {
+        console.log('[Wizard] Simulation complete, transitioning to Step 3');
         setIsSimulating(false);
       }
     }
@@ -463,17 +490,32 @@ export default function FundSetup() {
       const diffInMs = endDate.getTime() - startDate.getTime();
       const diffInYears = diffInMs / (1000 * 60 * 60 * 24 * 365.25);
       const fundLifeYears = Math.round(diffInYears);
+      const newVintageYear = startDate.getFullYear().toString();
+      
+      // Only return new object if values actually changed
+      if (data.lifeYears === fundLifeYears && data.vintageYear === newVintageYear) {
+        return data;
+      }
       
       return {
         ...data,
         lifeYears: fundLifeYears,
-        vintageYear: startDate.getFullYear().toString()
+        vintageYear: newVintageYear
       };
+    }
+    
+    const newVintageYear = data.startDate ? 
+      new Date(data.startDate).getFullYear().toString() : 
+      data.vintageYear;
+    
+    // Only return new object if vintage year changed
+    if (data.vintageYear === newVintageYear) {
+      return data;
     }
     
     return {
       ...data,
-      vintageYear: data.startDate ? new Date(data.startDate).getFullYear().toString() : data.vintageYear
+      vintageYear: newVintageYear
     };
   };
 

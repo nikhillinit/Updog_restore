@@ -2,7 +2,6 @@
  * Redis client with circuit breaker protection
  * Provides resilient cache access with automatic failure handling
  */
-import Redis from 'ioredis';
 import { CircuitBreaker } from '../infra/circuit-breaker/CircuitBreaker';
 import { breakerRegistry } from '../infra/circuit-breaker/breaker-registry';
 import { createCacheFromEnv } from './redis-factory';

@@ -3,12 +3,8 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { LineChart } from 'recharts/es6/chart/LineChart';
-import { Line } from 'recharts/es6/cartesian/Line';
 import { AreaChart } from 'recharts/es6/chart/AreaChart';
 import { Area } from 'recharts/es6/cartesian/Area';
-import { BarChart } from 'recharts/es6/chart/BarChart';
-import { Bar } from 'recharts/es6/cartesian/Bar';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
 import { YAxis } from 'recharts/es6/cartesian/YAxis';
 import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
@@ -20,21 +16,17 @@ import { Cell } from 'recharts/es6/component/Cell';
 import React, { useState } from 'react';
 import { useFundContext } from "@/contexts/FundContext";
 import { PremiumCard } from "@/components/ui/PremiumCard";
-import { POVBrandHeader, POVIcon } from "@/components/ui/POVLogo";
+import { POVBrandHeader } from "@/components/ui/POVLogo";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   TrendingUp, 
-  TrendingDown, 
   DollarSign, 
   Target, 
-  Users, 
-  Calendar,
+  Users,
   PieChart,
-  BarChart3,
-  Activity,
   Filter,
   Download,
   Eye,

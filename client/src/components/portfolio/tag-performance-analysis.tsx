@@ -16,9 +16,8 @@ import { Cell } from 'recharts/es6/component/Cell';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tag, TrendingUp, DollarSign, Target, BarChart3 } from 'lucide-react';
+import { Tag, TrendingUp, DollarSign, Target } from 'lucide-react';
 
 interface TagPerformance {
   tag: string;

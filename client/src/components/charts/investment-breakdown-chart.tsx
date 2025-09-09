@@ -8,7 +8,6 @@ import { Pie } from 'recharts/es6/polar/Pie';
 import { Cell } from 'recharts/es6/component/Cell';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import { Tooltip } from 'recharts/es6/component/Tooltip';
-import { Legend } from 'recharts/es6/component/Legend';
 import ChartContainer from './chart-container';
 
 interface SectorData {

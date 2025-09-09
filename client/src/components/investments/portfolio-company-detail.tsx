@@ -19,14 +19,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { 
   ArrowLeft,
   Edit, 
-  Plus, 
-  MoreHorizontal,
+  Plus,
   TrendingUp,
   Target,
   Calendar,
   Building2,
-  Globe,
-  Users,
   ChevronDown,
   Activity
 } from 'lucide-react';

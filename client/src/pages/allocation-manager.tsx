@@ -4,14 +4,13 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState } from "react";
-import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TactycAllocationUI from "@/components/allocation/tactyc-allocation-ui";
 import SectorProfileBuilder from "@/components/allocation/sector-profile-builder";
 import { computeReservesFromGraduation, type FundDataForReserves } from "@/core/reserves/computeReservesFromGraduation";
+import { yearsToQuarters } from "@/lib/horizon";
 import { 
   ArrowLeft, 
   Plus, 
@@ -98,7 +97,11 @@ export default function AllocationManager() {
           aToB: { graduate: 50, fail: 30, remain: 20, months: 24 },
           bToC: { graduate: 60, fail: 25, remain: 15, months: 18 }
         },
-        followOnChecks: { A: 800000, B: 1500000, C: 2500000 }
+        followOnChecks: { A: 800000, B: 1500000, C: 2500000 },
+        horizonQuarters: yearsToQuarters(5), // Bind horizon: derive from investmentHorizonYears (default 5 years)
+        // v1.1: Enable remain pass for more realistic reserve calculations
+        remainAttempts: 1, // One extra attempt for remain companies
+        remainDelayQuarters: 2 // 2 quarters (6 months) delay before retry
       };
       
       const reservesResult = computeReservesFromGraduation(fundData);

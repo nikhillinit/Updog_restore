@@ -21,11 +21,11 @@ export default defineConfig({
       'tests/quarantine/**/*',
       '**/*.quarantine.{test,spec}.ts?(x)',
     ],
-    environment: 'node',
+    environment: 'jsdom', // Changed from 'node' to support React component testing
     testTimeout: 20000,
     hookTimeout: 20000,
     teardownTimeout: 5000,
-    setupFiles: ['tests/test-infrastructure.ts', 'tests/unit/setup.ts', 'tests/setup/reserves-setup.ts'],
+    setupFiles: ['tests/test-infrastructure.ts', 'tests/unit/setup.ts'],
     globals: true,
     clearMocks: true,
     restoreMocks: true,

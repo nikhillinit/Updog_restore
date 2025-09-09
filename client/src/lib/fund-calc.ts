@@ -150,7 +150,7 @@ export const generateTimeSeries = (
   let currentValue = initialValue;
   
   // Use seed for deterministic random if provided
-  let random = seed ? (() => {
+  const random = seed ? (() => {
     let x = seed;
     return () => {
       x = (x * 1103515245 + 12345) % 2147483648;
@@ -228,8 +228,8 @@ export const runSimulation = async (
   // Key Performance Indicators
   const kpi = {
     tvpi: (tvpiSeries[tvpiSeries.length - 1] / (inputs?.initialCapital || 100000000)).toFixed(2),
-    irr: (irrScenarios.p50 * 100).toFixed(1) + '%',
-    moic: moicScenarios.p50.toFixed(2) + 'x',
+    irr: `${(irrScenarios.p50 * 100).toFixed(1)  }%`,
+    moic: `${moicScenarios.p50.toFixed(2)  }x`,
     dpi: (dpiSeries.reduce((a, b) => a + b, 0) / (inputs?.initialCapital || 100000000)).toFixed(2)
   };
   

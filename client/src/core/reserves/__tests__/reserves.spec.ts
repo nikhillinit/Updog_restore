@@ -48,5 +48,50 @@ describe("computeReservesFromGraduation", () => {
     expect(res2.totalReserves).toBeGreaterThan(res1.totalReserves);
     expect(res2.reserveRatioPct).toBeGreaterThan(res1.reserveRatioPct);
   });
+
+  // v1.1: Remain pass functionality tests
+  it("should increase reserves with remain pass enabled", () => {
+    const baseline = computeReservesFromGraduation(base);
+    const withRemain = computeReservesFromGraduation({
+      ...base,
+      remainAttempts: 1,
+      remainDelayQuarters: 2
+    });
+    
+    expect(withRemain.valid).toBe(true);
+    expect(withRemain.totalReserves).toBeGreaterThan(baseline.totalReserves);
+    expect(withRemain.reserveRatioPct).toBeGreaterThan(baseline.reserveRatioPct);
+  });
+
+  it("should handle remain attempts with zero remain percentages", () => {
+    const noRemain = structuredClone(base);
+    noRemain.graduationRates.seedToA.remain = 0;
+    noRemain.graduationRates.aToB.remain = 0;
+    noRemain.graduationRates.bToC.remain = 0;
+    noRemain.graduationRates.seedToA.fail += 30;
+    noRemain.graduationRates.aToB.fail += 25;
+    noRemain.graduationRates.bToC.fail += 20;
+
+    const baseline = computeReservesFromGraduation(noRemain);
+    const withRemain = computeReservesFromGraduation({
+      ...noRemain,
+      remainAttempts: 1,
+      remainDelayQuarters: 2
+    });
+
+    expect(withRemain.valid).toBe(true);
+    expect(withRemain.totalReserves).toBe(baseline.totalReserves); // Should be identical when no remain companies
+  });
+
+  it("should use default values when remain configuration is missing", () => {
+    const withoutConfig = computeReservesFromGraduation(base);
+    const withDefaults = computeReservesFromGraduation({
+      ...base,
+      remainAttempts: 0, // Explicitly disabled
+      remainDelayQuarters: 2
+    });
+
+    expect(withoutConfig.totalReserves).toBe(withDefaults.totalReserves);
+  });
 });
 

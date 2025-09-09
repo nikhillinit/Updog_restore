@@ -9,13 +9,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { 
-  DeploymentError, 
-  HealthCheckError, 
-  DatabaseError, 
-  IdempotencyError, 
-  RateLimitError, 
-  ValidationError,
+import {
   isDeploymentError,
   isHealthCheckError,
   isDatabaseError,
@@ -23,7 +17,7 @@ import {
   isRateLimitError,
   isValidationError
 } from '../types/errors.js';
-import { sendApiError, createErrorBody, httpCodeToAppCode } from './apiError.js';
+import { createErrorBody } from './apiError.js';
 import { businessMetrics } from '../metrics/businessMetrics.js';
 import { tracer } from './tracing.js';
 

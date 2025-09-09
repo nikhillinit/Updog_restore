@@ -10,7 +10,6 @@ import { YAxis } from 'recharts/es6/cartesian/YAxis';
 import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
 import { Tooltip } from 'recharts/es6/component/Tooltip';
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
-import { Cell } from 'recharts/es6/component/Cell';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,8 +17,7 @@ import {
   TrendingUp,
   Download,
   Info,
-  Calculator,
-  DollarSign
+  Calculator
 } from "lucide-react";
 
 interface IRRData {

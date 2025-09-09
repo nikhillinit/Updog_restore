@@ -13,8 +13,7 @@ import type {
   ReservesInput,
   ReservesOutput,
   ReservesResult,
-  AllocationDecision,
-  CapPolicy
+  AllocationDecision
 } from '@shared/types/reserves-v11';
 
 // Helper function to calculate cap for a company

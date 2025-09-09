@@ -111,7 +111,7 @@ const formatYAxisValue = (value: number) => {
 };
 
 const formatXAxisLabel = (value: string) => {
-  const date = new Date(value + ' 1');
+  const date = new Date(`${value  } 1`);
   return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
 };
 

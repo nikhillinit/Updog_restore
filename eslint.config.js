@@ -3,6 +3,7 @@ import tsParser from '@typescript-eslint/parser';
 import ts from '@typescript-eslint/eslint-plugin';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
+import unusedImports from 'eslint-plugin-unused-imports';
 // import securityConfig from './eslint.security.config.js'; // TODO: Re-enable after fixing flat config compatibility
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -99,7 +100,8 @@ export default [
     plugins: { 
       "@typescript-eslint": ts, 
       "react": react, 
-      "react-hooks": reactHooks 
+      "react-hooks": reactHooks,
+      "unused-imports": unusedImports 
     },
     rules: {
       // Phase 1: Type safety warnings (will escalate to errors in Phase 3)
@@ -109,8 +111,21 @@ export default [
       "@typescript-eslint/no-unsafe-call": "warn",
       "@typescript-eslint/no-unsafe-return": "warn",
       
+      // Unused imports and variables
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      "unused-imports/no-unused-imports": "error",
+      "unused-imports/no-unused-vars": [
+        "warn",
+        { 
+          "vars": "all", 
+          "varsIgnorePattern": "^_",
+          "args": "after-used",
+          "argsIgnorePattern": "^_"
+        }
+      ],
+      
       // Existing rules
-      "@typescript-eslint/no-unused-vars": "off", 
       "no-console": "off",
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",

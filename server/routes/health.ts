@@ -4,7 +4,7 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { Router } from 'express';
-import { healthCheck, readinessCheck, livenessCheck } from '../health';
+import { readinessCheck, livenessCheck } from '../health';
 import { storage } from '../storage';
 import { rateLimitDetailed } from '../middleware/rateLimitDetailed';
 import { setReady, registerInvalidator } from '../health/state';

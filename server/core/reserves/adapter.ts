@@ -3,8 +3,7 @@
  * Orchestrates ML and rules engines with comprehensive logging and fallback
  */
 
-import { eq, and } from 'drizzle-orm';
-import { reserveDecisions, reserveEngineType } from '@schema';
+import { reserveDecisions } from '@schema';
 import { db } from '../../db.js';
 import { 
   ReserveEnginePort, 

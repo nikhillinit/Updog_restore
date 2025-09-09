@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { allocate100 } from '../core/utils/allocate100';
 import { clampPct, clampInt } from '../lib/coerce';
-import type { Stage, SectorProfile, Allocation, InvestmentStrategy } from '@shared/types';
+import type { SectorProfile, Allocation, InvestmentStrategy } from '@shared/types';
 
 // Development-only watchdog to prevent set() during render
 let renderPhaseGuard = false;
