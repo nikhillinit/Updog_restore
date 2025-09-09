@@ -1122,15 +1122,19 @@ export default function FundSetup() {
 
             {/* Investment Strategy Step */}
             {currentStep === 'investment-strategy' && (
-              <InvestmentStrategyStep />
+              <div data-testid="wizard-step3-container">
+                <InvestmentStrategyStep />
+              </div>
             )}
 
             {/* Exit Recycling Step */}
             {currentStep === 'exit-recycling' && (
-              <ExitRecyclingStep
-                data={fundData.exitRecycling}
-                onChange={(data) => handleComplexDataChange('exitRecycling', data)}
-              />
+              <div data-testid="wizard-step4-container">
+                <ExitRecyclingStep
+                  data={fundData.exitRecycling}
+                  onChange={(data) => handleComplexDataChange('exitRecycling', data)}
+                />
+              </div>
             )}
 
             {/* Waterfall Step */}
