@@ -75,7 +75,8 @@
       "Bash(gh issue comment:*)",
       "Bash(gh run list:*)",
       "Bash(PERF_SUMMARY_PATH=perf/test-summary.json node scripts/compare-perf.mjs)",
-      "Bash(PERF_SUMMARY_PATH=perf/test-fail.json node scripts/compare-perf.mjs)"
+      "Bash(PERF_SUMMARY_PATH=perf/test-fail.json node scripts/compare-perf.mjs)",
+      "Bash(gh pr merge:*)"
     ],
     "deny": [],
     "ask": [],
