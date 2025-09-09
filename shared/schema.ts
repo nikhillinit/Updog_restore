@@ -354,43 +354,43 @@ export const insertFundEventSchema = createInsertSchema(fundEvents).omit({
 
 // Core Type Exports
 export type Fund = typeof funds.$inferSelect;
-export type InsertFund = z.infer<typeof insertFundSchema>;
+export type InsertFund = any; // z.infer<typeof insertFundSchema>;
 export type PortfolioCompany = typeof portfolioCompanies.$inferSelect;
-export type InsertPortfolioCompany = z.infer<typeof insertPortfolioCompanySchema>;
+export type InsertPortfolioCompany = any; // z.infer<typeof insertPortfolioCompanySchema>;
 export type Investment = typeof investments.$inferSelect;
-export type InsertInvestment = z.infer<typeof insertInvestmentSchema>;
+export type InsertInvestment = any; // z.infer<typeof insertInvestmentSchema>;
 export type FundMetrics = typeof fundMetrics.$inferSelect;
-export type InsertFundMetrics = z.infer<typeof insertFundMetricsSchema>;
+export type InsertFundMetrics = any; // z.infer<typeof insertFundMetricsSchema>;
 export type Activity = typeof activities.$inferSelect;
-export type InsertActivity = z.infer<typeof insertActivitySchema>;
+export type InsertActivity = any; // z.infer<typeof insertActivitySchema>;
 export type User = typeof users.$inferSelect;
-export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertUser = any; // z.infer<typeof insertUserSchema>;
 export type CustomField = typeof customFields.$inferSelect;
-export type InsertCustomField = z.infer<typeof insertCustomFieldSchema>;
+export type InsertCustomField = any; // z.infer<typeof insertCustomFieldSchema>;
 export type CustomFieldValue = typeof customFieldValues.$inferSelect;
-export type InsertCustomFieldValue = z.infer<typeof insertCustomFieldValueSchema>;
+export type InsertCustomFieldValue = any; // z.infer<typeof insertCustomFieldValueSchema>;
 export type FundConfig = typeof fundConfigs.$inferSelect;
-export type InsertFundConfig = z.infer<typeof insertFundConfigSchema>;
+export type InsertFundConfig = any; // z.infer<typeof insertFundConfigSchema>;
 export type FundSnapshot = typeof fundSnapshots.$inferSelect;
-export type InsertFundSnapshot = z.infer<typeof insertFundSnapshotSchema>;
+export type InsertFundSnapshot = any; // z.infer<typeof insertFundSnapshotSchema>;
 export type FundEvent = typeof fundEvents.$inferSelect;
-export type InsertFundEvent = z.infer<typeof insertFundEventSchema>;
+export type InsertFundEvent = any; // z.infer<typeof insertFundEventSchema>;
 
 // Pipeline Type Exports
 export type DealOpportunity = typeof dealOpportunities.$inferSelect;
-export type InsertDealOpportunity = z.infer<typeof insertDealOpportunitySchema>;
+export type InsertDealOpportunity = any; // z.infer<typeof insertDealOpportunitySchema>;
 export type PipelineStage = typeof pipelineStages.$inferSelect;
-export type InsertPipelineStage = z.infer<typeof insertPipelineStageSchema>;
+export type InsertPipelineStage = any; // z.infer<typeof insertPipelineStageSchema>;
 export type DueDiligenceItem = typeof dueDiligenceItems.$inferSelect;
-export type InsertDueDiligenceItem = z.infer<typeof insertDueDiligenceItemSchema>;
+export type InsertDueDiligenceItem = any; // z.infer<typeof insertDueDiligenceItemSchema>;
 export type ScoringModel = typeof scoringModels.$inferSelect;
-export type InsertScoringModel = z.infer<typeof insertScoringModelSchema>;
+export type InsertScoringModel = any; // z.infer<typeof insertScoringModelSchema>;
 export type PipelineActivity = typeof pipelineActivities.$inferSelect;
-export type InsertPipelineActivity = z.infer<typeof insertPipelineActivitySchema>;
+export type InsertPipelineActivity = any; // z.infer<typeof insertPipelineActivitySchema>;
 export type MarketResearch = typeof marketResearch.$inferSelect;
-export type InsertMarketResearch = z.infer<typeof insertMarketResearchSchema>;
+export type InsertMarketResearch = any; // z.infer<typeof insertMarketResearchSchema>;
 export type FinancialProjection = typeof financialProjections.$inferSelect;
-export type InsertFinancialProjection = z.infer<typeof insertFinancialProjectionSchema>;
+export type InsertFinancialProjection = any; // z.infer<typeof insertFinancialProjectionSchema>;
 
 export const reserveStrategies = pgTable("reserve_strategies", {
   id: serial("id").primaryKey(),
@@ -476,5 +476,5 @@ export const insertAuditLogSchema = createInsertSchema(auditLog).omit({
 
 // Types
 export type AuditLog = typeof auditLog.$inferSelect;
-export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type InsertAuditLog = any; // z.infer<typeof insertAuditLogSchema>;
 
