@@ -261,11 +261,11 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
-    sourcemap: process.env['NODE_ENV'] === 'development',
+    sourcemap: false, // Disable sourcemaps to reduce bundle size and upload time
     minify: 'esbuild',
-    target: 'esnext', // Most aggressive target
+    target: 'es2020', // More compatible target for production
     cssMinify: 'lightningcss',
-    reportCompressedSize: false,
+    reportCompressedSize: false, // Skip compression size reporting for faster builds
     chunkSizeWarningLimit: 500,
     rollupOptions: { 
       input: path.resolve(import.meta.dirname, 'client/index.html'),
