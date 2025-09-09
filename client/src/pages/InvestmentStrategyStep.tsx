@@ -166,7 +166,7 @@ export default function InvestmentStrategyStep() {
   const storeUpdateStageName = useFundStore(state => state.updateStageName);
   const storeUpdateStageRate = useFundStore(state => state.updateStageRate);
   const fromInvestmentStrategy = useFundStore(state => state.fromInvestmentStrategy);
-  const { allValid } = useFundStore(state => state.stageValidation());
+  const allValid = useFundStore(state => state.stageValidation().allValid);
   const [activeTab, setActiveTab] = useState("stages");
 
   const addStage = () => {

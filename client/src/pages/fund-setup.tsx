@@ -1375,7 +1375,7 @@ export default function FundSetup() {
 
         {/* LP Class Modal */}
         <Dialog open={isLPClassModalOpen} onOpenChange={setIsLPClassModalOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle className="font-inter font-bold text-xl text-pov-charcoal">
                 {editingLPClass ? 'Edit LP Class' : 'Add New LP Class'}
