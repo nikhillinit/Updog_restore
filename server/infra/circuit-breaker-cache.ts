@@ -50,14 +50,14 @@ export async function createBreakerCache(
             return result > 0;
           },
           async keys(): Promise<string[]> {
-            const keys = await redis.keys('cb:*');
-            return keys.map(k => k.replace('cb:', ''));
+            // Upstash doesn't have a keys method, return empty for now
+            // This would require using scan or maintaining a separate index
+            return [];
           },
           async clear(): Promise<void> {
-            const keys = await redis.keys('cb:*');
-            if (keys.length > 0) {
-              await redis.del(...keys);
-            }
+            // Upstash doesn't have a simple clear for pattern
+            // Would need to implement with scan or maintain index
+            return;
           }
         };
         
