@@ -10,6 +10,8 @@ export default defineConfig({
       '@shared': path.resolve(__dirname, './shared'),
       '@assets': path.resolve(__dirname, './assets'),
       '@server': path.resolve(__dirname, './server'),
+      // Mock @upstash/redis for tests
+      '@upstash/redis': path.resolve(__dirname, './tests/mocks/upstash-redis.ts'),
     }
   },
   test: {
@@ -26,6 +28,9 @@ export default defineConfig({
     hookTimeout: 20000,
     teardownTimeout: 5000,
     setupFiles: ['tests/test-infrastructure.ts', 'tests/unit/setup.ts'],
+    env: {
+      NODE_ENV: 'test'
+    },
     globals: true,
     clearMocks: true,
     restoreMocks: true,

@@ -21,11 +21,13 @@ export async function createBreakerCache(
 ): Promise<CircuitBreakerCache> {
   let backingStore: Cache = fallbackStore;
   
-  // Check for Upstash configuration
-  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  // Check for Upstash configuration (skip in test environment)
+  if (process.env.NODE_ENV !== 'test' && 
+      process.env.UPSTASH_REDIS_REST_URL && 
+      process.env.UPSTASH_REDIS_REST_TOKEN) {
     try {
       // Lazy import Upstash if available
-      const { Redis } = await import('@upstash/redis').catch(() => ({ Redis: null }));
+      const { Redis } = await import('@upstash/redis');
       
       if (Redis) {
         const redis = new Redis({
