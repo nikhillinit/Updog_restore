@@ -85,7 +85,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.16.0'
           cache: 'npm'
           
       - name: Install dependencies
@@ -94,7 +94,7 @@ jobs:
       - name: Start application
         run: |
           npm run build
-          npm start &
+          PORT=5000 npm start &
           APP_PID=$!
           echo "APP_PID=$APP_PID" >> $GITHUB_ENV
           
