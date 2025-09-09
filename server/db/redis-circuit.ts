@@ -2,9 +2,9 @@
  * Redis client with circuit breaker protection
  * Provides resilient cache access with automatic failure handling
  */
-import { Redis } from 'ioredis';
 import { CircuitBreaker } from '../infra/circuit-breaker/CircuitBreaker';
 import { breakerRegistry } from '../infra/circuit-breaker/breaker-registry';
+import { createCacheFromEnv } from './redis-factory';
 
 // Redis connection configuration
 const redisConfig = {
@@ -23,8 +23,8 @@ const redisConfig = {
   lazyConnect: true,
 };
 
-// Create Redis client (lazy connection)
-const redis = new Redis(process.env.REDIS_URL || redisConfig);
+// Create Redis client using typed factory
+const redis = createCacheFromEnv();
 
 // Redis event handlers for monitoring
 redis.on('connect', () => {
@@ -57,7 +57,13 @@ const redisBreakerConfig = {
 };
 
 // Create circuit breaker for Redis operations
-const redisBreaker = new CircuitBreaker('redis', redisBreakerConfig);
+// Note: The CircuitBreaker constructor requires options, operation, and fallback
+// But we'll pass operations dynamically in each method call
+const redisBreaker = new CircuitBreaker<any>(
+  redisBreakerConfig,
+  async () => { throw new Error('Operation not provided'); },
+  async () => { throw new Error('Fallback not provided'); }
+);
 
 // Register with the breaker registry for monitoring
 breakerRegistry.register('redis', redisBreaker);
@@ -182,11 +188,19 @@ export async function get(key: string): Promise<string | null> {
     }
     
     // Try Redis with circuit breaker
-    const value = await redisBreaker.execute(async () => {
-      const result = await redis.get(key);
-      hit = result !== null;
-      return result;
-    });
+    const value = await redisBreaker.run(
+      async () => {
+        const result = await redis.get(key);
+        hit = result !== null;
+        return result;
+      },
+      async () => {
+        // Fallback to memory cache
+        const cachedValue = memoryCache.get(key);
+        hit = cachedValue !== null;
+        return cachedValue;
+      }
+    );
     
     return value;
   } catch (err) {
@@ -238,13 +252,19 @@ export async function set(
     }
     
     // Try Redis with circuit breaker
-    await redisBreaker.execute(async () => {
-      if (ttl) {
-        await redis.setex(key, ttl, value);
-      } else {
-        await redis.set(key, value);
+    await redisBreaker.run(
+      async () => {
+        if (ttl) {
+          await redis.setex(key, ttl, value);
+        } else {
+          await redis.set(key, value);
+        }
+      },
+      async () => {
+        // Fallback to memory cache
+        memoryCache.set(key, value, ttl);
       }
-    });
+    );
   } catch (err) {
     error = err as Error;
     fallback = true;
@@ -280,7 +300,11 @@ export async function del(key: string): Promise<void> {
     }
     
     // Try Redis with circuit breaker
-    await redisBreaker.execute(() => redis.del(key));
+    await redisBreaker.run(async () => redis.del(key), async () => {
+      // Memory cache already cleared, so operation succeeds
+      console.warn(`[Redis] Failed to delete from Redis: ${key}`);
+      return 0;
+    });
   } catch (err) {
     error = err as Error;
     // Memory cache already cleared, so operation succeeds
@@ -328,7 +352,11 @@ export async function incr(key: string): Promise<number> {
       return await redis.incr(key);
     }
     
-    return await redisBreaker.execute(() => redis.incr(key));
+    return await redisBreaker.run(async () => redis.incr(key), async () => {
+      console.error(`[Redis] Failed to increment ${key}`);
+      // Return 0 as fallback
+      return 0;
+    });
   } catch (error) {
     console.error(`[Redis] Failed to increment ${key}:`, error);
     // Return 0 as fallback
@@ -345,9 +373,10 @@ export async function expire(key: string, seconds: number): Promise<boolean> {
       return Boolean(await redis.expire(key, seconds));
     }
     
-    return await redisBreaker.execute(async () => {
-      return Boolean(await redis.expire(key, seconds));
-    });
+    return await redisBreaker.run(
+      async () => Boolean(await redis.expire(key, seconds)),
+      async () => false // Fallback: return false on circuit breaker open
+    );
   } catch (error) {
     console.error(`[Redis] Failed to set expiry for ${key}:`, error);
     return false;
@@ -450,3 +479,16 @@ export default {
   closeRedis,
   getCacheMetrics,
 };
+
+
+
+
+
+
+
+/**
+ * Get circuit breaker stats
+ */
+export function getStats() {
+  return redisBreaker.getMetrics();
+}

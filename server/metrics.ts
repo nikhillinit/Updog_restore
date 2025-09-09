@@ -5,7 +5,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import promClient from 'prom-client';
 import { Router } from 'express';
-import { _getEnv } from './env';
 
 // Enable collection of default metrics
 promClient.collectDefaultMetrics({

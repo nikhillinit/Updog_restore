@@ -4,7 +4,7 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import React from 'react';
-import { CheckCircle, Circle } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 
 interface WizardStep {
   id: string;

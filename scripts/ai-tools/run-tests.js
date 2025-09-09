@@ -89,10 +89,11 @@ class TestRunner {
 
   executeCommand(command) {
     return new Promise((resolve, reject) => {
+      // Security fix: Remove shell:true to prevent command injection
       const process = spawn(command[0], command.slice(1), {
         cwd: PROJECT_ROOT,
         stdio: 'pipe',
-        shell: true
+        shell: false // Security: Prevent command injection
       });
 
       let stdout = '';

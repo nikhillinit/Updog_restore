@@ -9,13 +9,11 @@ import { XAxis } from 'recharts/es6/cartesian/XAxis';
 import { YAxis } from 'recharts/es6/cartesian/YAxis';
 import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
 import { Tooltip } from 'recharts/es6/component/Tooltip';
-import { ResponsiveContainer } from 'recharts/es6/component/ResponsiveContainer';
+import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import { BarChart } from 'recharts/es6/chart/BarChart';
 import { Bar } from 'recharts/es6/cartesian/Bar';
-import { Legend } from 'recharts/es6/component/Legend';
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -72,7 +70,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
       other: { monthly: 10000, setup: 0 } // $1.2M over 120 months
     };
 
-    let cumulativeTotals = {
+    const cumulativeTotals = {
       legal: 0,
       administration: 0,
       tax: 0,
@@ -160,7 +158,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
       if (!currentData) return null;
 
       const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr + '-01');
+        const date = new Date(`${dateStr  }-01`);
         return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
       };
 
@@ -275,7 +273,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
                       dataKey="date" 
                       tick={{ fontSize: 12 }}
                       tickFormatter={(value) => {
-                        const date = new Date(value + '-01');
+                        const date = new Date(`${value  }-01`);
                         return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
                       }}
                     />
@@ -354,7 +352,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
                       dataKey="date" 
                       tick={{ fontSize: 12 }}
                       tickFormatter={(value) => {
-                        const date = new Date(value + '-01');
+                        const date = new Date(`${value  }-01`);
                         return date.toLocaleDateString('en-US', { month: 'short' });
                       }}
                     />

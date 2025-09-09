@@ -1,4 +1,4 @@
-import { pgTable, _serial, bigserial, date, numeric, integer, jsonb, timestamp, text, index } from 'drizzle-orm/pg-core';
+import { pgTable, bigserial, date, numeric, integer, jsonb, timestamp, text, index } from 'drizzle-orm/pg-core';
 
 export const marketIndicators = pgTable('market_indicators', {
   id: bigserial('id', { mode: 'bigint' }).primaryKey(),

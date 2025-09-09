@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { InfoIcon, AlertCircle, TrendingUp, DollarSign } from 'lucide-react';
+import { AlertCircle, TrendingUp, DollarSign } from 'lucide-react';
 import { calculateReserves } from '@/lib/reserves-v11';
 import { adaptFundToReservesInput, adaptReservesConfig } from '@/adapters/reserves-adapter';
 import { metrics, auditLog } from '@/metrics/reserves-metrics';

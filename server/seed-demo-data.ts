@@ -4,7 +4,7 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { db } from './db';
-import { reserveStrategies, pacingHistory } from '../shared/schema';
+import { reserveStrategies, pacingHistory } from '@schema';
 
 export async function seedDemoData() {
   console.log('Seeding demo data...');
@@ -23,9 +23,9 @@ export async function seedDemoData() {
       allocation: '750000.00',
       confidence: '0.85'
     }
-  ]);
+  ] as any);
 
-  // Insert pacing history
+  // Insert pacing history  
   await db.insert(pacingHistory).values([
     {
       fundId: 1,
@@ -39,7 +39,7 @@ export async function seedDemoData() {
       deploymentAmount: '1500000.00',
       marketCondition: 'neutral'
     }
-  ]);
+  ] as any);
 
   console.log('Demo data seeded successfully!');
 }

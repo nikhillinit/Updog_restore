@@ -3,13 +3,39 @@ import tsParser from '@typescript-eslint/parser';
 import ts from '@typescript-eslint/eslint-plugin';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
+import unusedImports from 'eslint-plugin-unused-imports';
+// import securityConfig from './eslint.security.config.js'; // TODO: Re-enable after fixing flat config compatibility
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Boundary enforcement rules for server/client/shared separation
+const boundaryRules = {
+  server: {
+    "no-restricted-imports": ["error", {
+      patterns: [
+        "client/src/*",
+        "../client/*",
+        "../../client/*"
+      ]
+    }]
+  },
+  client: {
+    "no-restricted-imports": ["error", {
+      patterns: [
+        "server/*",
+        "../server/*",
+        "../../server/*"
+      ]
+    }]
+  }
+};
+
 export default [
+  // Security rules
+  // securityConfig, // TODO: Re-enable after fixing flat config compatibility
   // Global ignores should be first
   {
     ignores: [
@@ -36,18 +62,22 @@ export default [
       ".tsbuildinfo*",
       "packages/*/dist/**",
       "packages/*/build/**",
-      "ml-service/dist/**"
+      "ml-service/dist/**",
+      "check-db.js",
+      "client/rum/**",
+      "vitest.config.*.ts",
+      "vitest.config.ts"
     ]
   },
   js.configs.recommended,
   {
-    files: ["**/*.js", "**/*.ts", "**/*.tsx"],
+    files: ["**/*.ts", "**/*.tsx"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        // Remove project references for performance
-        // project: ["./client/tsconfig.json", "./server/tsconfig.json"],
-        // tsconfigRootDir: __dirname,
+        // Use dedicated ESLint tsconfig to avoid parsing issues
+        project: "./tsconfig.eslint.json",
+        tsconfigRootDir: __dirname,
         ecmaVersion: "latest",
         sourceType: "module",
         ecmaFeatures: { jsx: true }
@@ -70,7 +100,8 @@ export default [
     plugins: { 
       "@typescript-eslint": ts, 
       "react": react, 
-      "react-hooks": reactHooks 
+      "react-hooks": reactHooks,
+      "unused-imports": unusedImports 
     },
     rules: {
       // Phase 1: Type safety warnings (will escalate to errors in Phase 3)
@@ -80,11 +111,30 @@ export default [
       "@typescript-eslint/no-unsafe-call": "warn",
       "@typescript-eslint/no-unsafe-return": "warn",
       
+      // Unused imports and variables
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      "unused-imports/no-unused-imports": "error",
+      "unused-imports/no-unused-vars": [
+        "warn",
+        { 
+          "vars": "all", 
+          "varsIgnorePattern": "^_",
+          "args": "after-used",
+          "argsIgnorePattern": "^_"
+        }
+      ],
+      
       // Existing rules
-      "@typescript-eslint/no-unused-vars": "off", 
       "no-console": "off",
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
+      "no-restricted-imports": ["error", {
+        "paths": [{
+          "name": "../state/useFundStore",
+          "message": "Use '@/stores/useFundStore' only. The state/ version is deprecated."
+        }]
+      }],
       
       // Prefer modern JavaScript features
       "prefer-const": "warn",
@@ -93,6 +143,20 @@ export default [
     },
     settings: { 
       react: { version: "detect" } 
+    }
+  },
+  // Server boundary enforcement
+  {
+    files: ["server/**/*.ts", "server/**/*.js"],
+    rules: {
+      ...boundaryRules.server
+    }
+  },
+  // Client boundary enforcement
+  {
+    files: ["client/**/*.ts", "client/**/*.tsx", "client/**/*.js", "client/**/*.jsx"],
+    rules: {
+      ...boundaryRules.client
     }
   }
 ];

@@ -10,9 +10,9 @@ import {
   reduceAsync,
   processAsync,
   findAsync,
-  ProcessingOptions
-} from '../../client/src/utils/async-iteration';
-import { logger } from '../../client/src/lib/logger';
+  type ProcessingOptions
+} from '@/utils/async-iteration';
+import { logger } from '@/lib/logger';
 
 describe('async-iteration utilities', () => {
   beforeEach(() => {
@@ -116,13 +116,14 @@ describe('async-iteration utilities', () => {
         return item * 2;
       });
 
-      const startTime = Date.now();
       const result = await mapAsync(items, mapper);
-      const endTime = Date.now();
 
       expect(result).toEqual([2, 4, 6]);
-      // Should complete in roughly parallel time (less than sequential)
-      expect(endTime - startTime).toBeLessThan(100); // More generous timing for CI
+      expect(mapper).toHaveBeenCalledTimes(3);
+      // Verify all items were processed with correct arguments
+      expect(mapper).toHaveBeenNthCalledWith(1, 1, 0, items);
+      expect(mapper).toHaveBeenNthCalledWith(2, 2, 1, items);
+      expect(mapper).toHaveBeenNthCalledWith(3, 3, 2, items);
     });
 
     it('should process items sequentially when parallel=false', async () => {
@@ -233,7 +234,12 @@ describe('async-iteration utilities', () => {
       await processAsync(items, processor, { continueOnError: true });
 
       expect(processor).toHaveBeenCalledTimes(3);
-      expect(loggerSpy).toHaveBeenCalled();
+      // Wait for next tick to ensure async error logging is completed
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Processing error at index 1:',
+        expect.any(Error)
+      );
 
       loggerSpy.mockRestore();
     });

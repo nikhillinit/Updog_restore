@@ -11,29 +11,19 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import FutureRoundsBuilder from "./future-rounds-builder";
 import ExitValuationEditor from "./exit-valuation-editor";
 import DealTagsEditor from "./deal-tags-editor";
 import CustomFieldsEditor from '../custom-fields/custom-fields-editor';
-import { CustomField } from '../custom-fields/custom-fields-manager';
 import { 
   Building2, 
-  DollarSign, 
-  Calendar, 
   Users, 
-  Tag, 
   Globe, 
   Edit3, 
   Plus, 
   TrendingUp,
-  ArrowUpRight,
-  ArrowDownRight,
-  Percent,
   Target,
-  BarChart3,
   Info
 } from "lucide-react";
 
@@ -260,7 +250,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
     
     const futureRounds: InvestmentRound[] = [];
     const roundSequence: string[] = ['Series A', 'Series B', 'Series C', 'Series D'];
-    let currentDate = new Date(config.nextRoundDate);
+    const currentDate = new Date(config.nextRoundDate);
     
     for (let i = 0; i < roundSequence.length; i++) {
       const roundName = roundSequence[i];
@@ -624,8 +614,8 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
                   <ul className="text-xs text-gray-500 space-y-1">
                     <li>• Sector Profile: {profileId ? sectorProfiles.find(p => p.id === profileId)?.name || 'Default' : 'Default'}</li>
                     <li>• Entry Round: {entryRound || 'Seed'}</li>
-                    <li>• Total Rounds: {activeCase.rounds.length}</li>
-                    <li>• Future Rounds: {activeCase.rounds.filter(r => new Date(r.date) > new Date()).length}</li>
+                    <li>• Total Rounds: {activeCase?.rounds?.length ?? 0}</li>
+                    <li>• Future Rounds: {activeCase?.rounds?.filter(r => new Date(r.date) > new Date())?.length ?? 0}</li>
                   </ul>
                 </div>
               </div>
@@ -687,7 +677,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
                     {formatCurrency(activeCase.exitValuation)}
                   </div>
                   <div className="text-blue-600 text-sm">Exit Valuation</div>
-                  <div className="text-blue-500 text-xs">{activeCase.exitDate}</div>
+                  <div className="text-blue-500 text-xs">{activeCase?.exitDate ?? ''}</div>
                   <div className="text-xs text-blue-400 mt-1">Click to edit</div>
                 </div>
               </CardContent>
@@ -697,7 +687,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-700">
-                    {activeCase.probability}%
+                    {activeCase?.probability ?? 0}%
                   </div>
                   <div className="text-green-600 text-sm">Probability</div>
                   <div className="text-green-500 text-xs">Of This Outcome</div>
@@ -709,7 +699,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-purple-700">
-                    {activeCase.rounds.length}
+                    {activeCase?.rounds?.length ?? 0}
                   </div>
                   <div className="text-purple-600 text-sm">Total Rounds</div>
                   <div className="text-purple-500 text-xs">Funding Events</div>
@@ -745,7 +735,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
               </Button>
             </div>
             
-            {activeCase.rounds.map((round) => (
+            {activeCase?.rounds?.map((round) => (
               <RoundCard key={round.id} round={round} />
             ))}
           </div>
@@ -763,8 +753,8 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
       <ExitValuationEditor
         open={showExitEditor}
         onOpenChange={setShowExitEditor}
-        currentValuation={activeCase.exitValuation}
-        currentDate={activeCase.exitDate}
+        currentValuation={activeCase?.exitValuation ?? 0}
+        currentDate={activeCase?.exitDate ?? ''}
         onUpdateExit={handleUpdateExitValuation}
       />
 

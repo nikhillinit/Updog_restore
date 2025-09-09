@@ -18,12 +18,11 @@ import {
   Download, 
   Search,
   TrendingUp,
-  DollarSign,
   Info
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import type { ReservesOutput, AllocationDecision, Company } from '@shared/types/reserves-v11';
+import type { ReservesOutput, Company } from '@shared/types/reserves-v11';
 
 interface ReservesTableProps {
   output: ReservesOutput;

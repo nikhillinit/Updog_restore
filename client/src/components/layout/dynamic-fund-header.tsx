@@ -10,7 +10,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { 
   TrendingUp, 
-  TrendingDown, 
   Target, 
   DollarSign, 
   Calendar,

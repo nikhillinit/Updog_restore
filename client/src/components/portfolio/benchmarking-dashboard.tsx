@@ -9,16 +9,13 @@ import { XAxis } from 'recharts/es6/cartesian/XAxis';
 import { YAxis } from 'recharts/es6/cartesian/YAxis';
 import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
 import { Tooltip } from 'recharts/es6/component/Tooltip';
-import { ResponsiveContainer } from 'recharts/es6/component/ResponsiveContainer';
+import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import { RadarChart } from 'recharts/es6/chart/RadarChart';
 import { PolarGrid } from 'recharts/es6/polar/PolarGrid';
 import { PolarAngleAxis } from 'recharts/es6/polar/PolarAngleAxis';
 import { PolarRadiusAxis } from 'recharts/es6/polar/PolarRadiusAxis';
 import { Radar } from 'recharts/es6/polar/Radar';
 import { Legend } from 'recharts/es6/component/Legend';
-import { PieChart } from 'recharts/es6/chart/PieChart';
-import { Pie } from 'recharts/es6/polar/Pie';
-import { Cell } from 'recharts/es6/component/Cell';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,11 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  BarChart3,
-  Filter,
+import {
   Search,
   Settings,
   Info

@@ -4,14 +4,8 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 // Chart libraries removed for bundle optimization
 const ChartPlaceholder = ({ title, height = "h-96" }: { title: string; height?: string }) => (
   <div className={`${height} bg-gray-50 rounded-lg flex flex-col items-center justify-center`}>
@@ -23,17 +17,12 @@ const ChartPlaceholder = ({ title, height = "h-96" }: { title: string; height?: 
   </div>
 );
 import { 
-  TrendingUp, 
-  TrendingDown,
-  DollarSign,
+  TrendingUp,
   Target,
-  Calculator,
   Info,
   Award,
   AlertTriangle,
-  BarChart3,
-  PieChart as PieChartIcon,
-  Activity
+  BarChart3
 } from "lucide-react";
 
 interface MOICMetric {

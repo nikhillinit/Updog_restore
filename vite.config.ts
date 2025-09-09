@@ -192,9 +192,7 @@ const getAppVersion = () => {
   }
 };
 
-const usePreact =
-  process.env['BUILD_WITH_PREACT'] === '1' ||
-  process.env['BUILD_WITH_PREACT'] === 'true';
+// Configuration moved inside defineConfig to access mode parameter
 
 const sentryOn = !!process.env['VITE_SENTRY_DSN'];
 const sentryNoop = path.resolve(import.meta.dirname, 'client/src/monitoring/noop.ts');
@@ -209,7 +207,14 @@ const preactAliases = [
   { find: 'react/jsx-dev-runtime', replacement: 'preact/jsx-dev-runtime' },
 ];
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const usePreact = 
+    process.env.BUILD_WITH_PREACT === '1' || 
+    process.env.BUILD_WITH_PREACT === 'true' || 
+    process.env.VITE_USE_PREACT === '1' ||
+    mode === 'preact';
+
+  return {
   plugins: [
     // Use absolute path so Vite doesn't ever look for "client/client/tsconfig.json"
     tsconfigPaths({
@@ -222,6 +227,7 @@ export default defineConfig({
     }), 
     // Conditional React/Preact plugin
     usePreact ? preact({ devtoolsInProd: false }) : react(),
+    // Vite's default chunking is sufficient - manual chunking removed to prevent TDZ issues
     visualizer({ filename: "stats.html", gzipSize: true })
   ].filter(Boolean) as Plugin[],
   esbuild: {
@@ -259,14 +265,21 @@ export default defineConfig({
   },
   root: path.resolve(import.meta.dirname, 'client'),
   build: {
-    outDir: path.resolve(import.meta.dirname, 'dist/public'),
+    outDir: path.resolve(import.meta.dirname, 'dist'),
     emptyOutDir: true,
-    sourcemap: process.env['NODE_ENV'] === 'development',
+    sourcemap: true, // Always enable source maps for profiling
     minify: 'esbuild',
     target: 'esnext', // Most aggressive target
     cssMinify: 'lightningcss',
     reportCompressedSize: false,
     chunkSizeWarningLimit: 500,
+    manifest: true, // Generate manifest for bundle analysis
+    modulePreload: {
+      // Only preload critical modules, not charts
+      resolveDependencies: (filename, deps, { hostId, hostType }) => {
+        return deps.filter(dep => !dep.includes('vendor-charts') && !dep.includes('vendor-nivo'));
+      }
+    },
     rollupOptions: { 
       input: path.resolve(import.meta.dirname, 'client/index.html'),
       treeshake: {
@@ -282,75 +295,26 @@ export default defineConfig({
           objectShorthand: true,
         },
         minifyInternalExports: true,
-        manualChunks(id) {
-          // Sentry dynamic loading
-          if (id.includes('node_modules/@sentry')) return 'sentry';
-          
-          // Force ALL d3 modules into vendor-charts to prevent duplication
-          if (/(?:^|[/\\])node_modules[/\\](d3|d3-[^/\\]+)[/\\]/.test(id)) return 'vendor-charts';
-          
-          // Recharts also goes to vendor-charts
-          if (id.includes('node_modules/recharts')) return 'vendor-charts';
-          
-          // Separate large dependencies
-          if (id.includes('node_modules/nivo')) return 'vendor-nivo';
-          if (id.includes('node_modules/lodash')) return 'vendor-utils';
-          if (id.includes('node_modules/@dnd-kit')) return 'vendor-dnd';
-          if (id.includes('node_modules/xlsx')) return 'vendor-excel';
-          
-          // Core React/Preact ecosystem
-          if (usePreact) {
-            if (id.includes('node_modules/preact')) return 'vendor-preact';
-          } else {
-            if (id.includes('node_modules/react-dom')) return 'vendor-react';
-            if (id.includes('node_modules/react')) return 'vendor-react';
-          }
-          
-          // Split state management and data fetching
-          if (id.includes('node_modules/zustand')) return 'vendor-utils';
-          if (id.includes('node_modules/@tanstack')) return 'vendor-query';
-          if (id.includes('node_modules/react-hook-form')) return 'vendor-forms';
-          if (id.includes('node_modules/zod')) return 'vendor-forms';
-          
-          // Split UI more granularly 
-          if (id.includes('node_modules/@radix-ui/react-dialog') || 
-              id.includes('node_modules/@radix-ui/react-popover') || 
-              id.includes('node_modules/@radix-ui/react-dropdown')) return 'vendor-ui-overlay';
-          if (id.includes('node_modules/@radix-ui')) return 'vendor-ui-core';
-          if (id.includes('node_modules/@headlessui')) return 'vendor-ui-core';
-          
-          // Utils and styling
-          if (id.includes('node_modules/date-fns')) return 'vendor-utils';
-          if (id.includes('node_modules/clsx') || id.includes('tailwind-merge')) return 'vendor-style';
-          if (id.includes('node_modules/lucide-react')) return 'vendor-icons';
-          
-          // Animation libraries
-          if (id.includes('node_modules/framer-motion') || id.includes('node_modules/@react-spring')) return 'vendor-animation';
-          
-          // Bundle small utils with main chunk for better performance
-          if (id.includes('node_modules') && 
-              !id.includes('react') && 
-              !id.includes('radix') && 
-              !id.includes('recharts') &&
-              !id.includes('tanstack') &&
-              !id.includes('zod') &&
-              !id.includes('date-fns') &&
-              !id.includes('lodash') &&
-              !id.includes('framer') &&
-              !id.includes('lucide') &&
-              !id.includes('nivo')) {
-            // Check file size heuristically - if likely small, don't chunk
-            return undefined; // Let small deps stay with main
-          }
-        },
+        // REMOVED: All manual chunking to prevent TDZ "Cannot access X before initialization" errors
+        // Let Vite's default chunking handle vendor splitting safely
+        // Manual chunking can reorder module initialization and break ESM guarantees
+        manualChunks: undefined,
       }
     }
   },
   resolve: {
     conditions: ["browser", "import", "module", "default"],
     alias: [
-      // Preact substitution when enabled
-      ...(usePreact ? preactAliases : []),
+      // CRITICAL: Proper Preact aliasing for production builds (not in optimizeDeps!)
+      ...(usePreact ? [
+        { find: 'react', replacement: 'preact/compat' },
+        { find: 'react-dom', replacement: 'preact/compat' },
+        { find: 'react-dom/test-utils', replacement: 'preact/test-utils' },
+        { find: 'react-dom/client', replacement: 'preact/compat' },
+        // CRITICAL: JSX runtime aliases - missing these breaks hooks with Preact
+        { find: 'react/jsx-runtime', replacement: 'preact/jsx-runtime' },
+        { find: 'react/jsx-dev-runtime', replacement: 'preact/jsx-dev-runtime' },
+      ] : []),
       
       // Sentry no-op (when disabled)
       !sentryOn && { find: /^@sentry\//, replacement: sentryNoop },
@@ -362,15 +326,17 @@ export default defineConfig({
       { find: '@shared', replacement: path.resolve(import.meta.dirname, 'shared') },
       { find: '@assets', replacement: path.resolve(import.meta.dirname, 'assets') },
     ].filter(Boolean),
-    dedupe: usePreact ? ['react', 'react-dom'] : [],
+    dedupe: usePreact ? ['react', 'react-dom', 'react/jsx-runtime', 'react-dom/client'] : ['react', 'react-dom'],
   },
   optimizeDeps: usePreact
     ? {
-        // Prevent esbuild pre-bundling of React if some dep lists it loosely
-        exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser', '@sentry/browser', '@sentry/react', 'react', 'react-dom', 'react-dom/client'],
-        include: ['preact', 'preact/hooks', 'preact/compat'],
+        // Keep dev prebundle from pulling React by accident
+        exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser', '@sentry/browser', '@sentry/react', 'react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+        include: ['preact', 'preact/hooks', 'preact/compat', 'preact/jsx-runtime'],
+        // REMOVED: esbuildOptions.alias - aliases belong in resolve.alias for production builds
       }
     : {
         exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser', '@sentry/browser', '@sentry/react'],
       }
-});
+  }; // end of return object
+}); // end of defineConfig

@@ -21,13 +21,14 @@ export async function simulationHandler(req: Request, res: Response) {
     if (!guard.ok) {
       // Log for debugging (include correlation ID if available)
       const correlationId = req.headers['x-correlation-id'] || 'unknown';
-      console.error(`[ENGINE_NONFINITE] Correlation: ${correlationId}, Path: ${guard.path}, Reason: ${guard.reason}`);
+      const failure = guard as { ok: false; path: string; value: unknown; reason: string };
+      console.error(`[ENGINE_NONFINITE] Correlation: ${correlationId}, Path: ${failure.path}, Reason: ${failure.reason}`);
       
       // Return 422 with error details
       return res.status(422).json({
         error: 'ENGINE_NONFINITE',
-        path: guard.path,
-        reason: guard.reason,
+        path: failure.path,
+        reason: failure.reason,
         correlationId,
         message: 'Calculation produced invalid numeric values'
       });
@@ -79,11 +80,12 @@ export function registerGuardedRoutes(app: any) {
     res.json = function(data: any) {
       const guard = assertFiniteDeep(data);
       if (!guard.ok) {
-        console.error(`[ENGINE_NONFINITE] Response guard triggered at ${guard.path}`);
+        const failure = guard as { ok: false; path: string; value: unknown; reason: string };
+        console.error(`[ENGINE_NONFINITE] Response guard triggered at ${failure.path}`);
         return res.status(422).json({
           error: 'ENGINE_NONFINITE',
-          path: guard.path,
-          reason: guard.reason
+          path: failure.path,
+          reason: failure.reason
         });
       }
       return originalJson.call(this, data);

@@ -3,13 +3,12 @@
  * Requires both partners to approve changes to reserve strategies
  */
 
-import { Router, _Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { z } from 'zod';
-import { v4 as uuidv4 } from 'uuid';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../../lib/auth/jwt.js';
-import { db } from '../../lib/db.js';
+import { db } from '../../db';
 import { reserveApprovals, approvalSignatures, approvalAuditLog, approvalPartners } from '@shared/schemas/reserve-approvals.js';
-import { eq, and, _lte, gte } from 'drizzle-orm';
+import { eq, and, gte } from 'drizzle-orm';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 
@@ -43,7 +42,7 @@ router.post('/', requireRole('reserve_admin'), async (req: AuthenticatedRequest,
       return res.status(400).json({ 
         error: 'validation_error', 
         issues: validation.error.issues 
-      });
+      } as any);
     }
 
     const { strategyId, action, strategyData, reason, impact } = validation.data;
@@ -58,7 +57,6 @@ router.post('/', requireRole('reserve_admin'), async (req: AuthenticatedRequest,
     const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
     
     const [approval] = await db.insert(reserveApprovals).values({
-      id: uuidv4(),
       strategyId,
       requestedBy: req.user.email,
       action,
@@ -70,7 +68,7 @@ router.post('/', requireRole('reserve_admin'), async (req: AuthenticatedRequest,
       expiresAt,
       calculationHash,
       status: 'pending'
-    }).returning();
+    } as any).returning();
     
     // Log the creation
     await db.insert(approvalAuditLog).values({
@@ -80,7 +78,7 @@ router.post('/', requireRole('reserve_admin'), async (req: AuthenticatedRequest,
       details: { reason, impact },
       ipAddress: req.ip,
       userAgent: req.headers['user-agent']
-    });
+    } as any);
     
     // Get list of partners to notify
     const partners = await db.select().from(approvalPartners).where(eq(approvalPartners.deactivated, null));
@@ -95,7 +93,7 @@ router.post('/', requireRole('reserve_admin'), async (req: AuthenticatedRequest,
       requiredApprovals: 2,
       notifiedPartners: partners.length,
       message: 'Approval request created. Both partners must approve within 72 hours.'
-    });
+    } as any);
     
   } catch (error) {
     console.error('Error creating approval request:', error);
@@ -145,7 +143,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
     res.json({
       approvals: approvalsWithSignatures,
       total: approvalsWithSignatures.length
-    });
+    } as any);
     
   } catch (error) {
     console.error('Error fetching approvals:', error);
@@ -186,7 +184,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
       canSign: await canPartnerSign(req.user.email, id),
       isExpired: approval.expiresAt < new Date(),
       isApproved: signatures.length >= 2
-    });
+    } as any);
     
   } catch (error) {
     console.error('Error fetching approval:', error);
@@ -227,7 +225,7 @@ router.post('/:id/sign', requireRole('partner'), async (req: AuthenticatedReques
     if (approval.expiresAt < new Date()) {
       // Mark as expired
       await db.update(reserveApprovals)
-        .set({ status: 'expired', updatedAt: new Date() })
+        .set({ status: 'expired', updatedAt: new Date() } as any)
         .where(eq(reserveApprovals.id, id));
       
       return res.status(400).json({ error: 'Approval has expired' });
@@ -271,7 +269,7 @@ router.post('/:id/sign', requireRole('partner'), async (req: AuthenticatedReques
       sessionId: req.session?.id,
       twoFactorVerified: verificationCode ? new Date() : null,
       verificationCode: verificationCode ? crypto.createHash('sha256').update(verificationCode).digest('hex') : null
-    });
+    } as any);
     
     // Log the signing
     await db.insert(approvalAuditLog).values({
@@ -281,7 +279,7 @@ router.post('/:id/sign', requireRole('partner'), async (req: AuthenticatedReques
       details: { verified2FA: !!verificationCode },
       ipAddress: req.ip,
       userAgent: req.headers['user-agent']
-    });
+    } as any);
     
     // Check if this completes the approval (need 2 signatures)
     const signatureCount = await db.$count(approvalSignatures, eq(approvalSignatures.approvalId, id));
@@ -289,7 +287,7 @@ router.post('/:id/sign', requireRole('partner'), async (req: AuthenticatedReques
     if (signatureCount >= 2) {
       // Mark as approved and execute
       await db.update(reserveApprovals)
-        .set({ status: 'approved', updatedAt: new Date() })
+        .set({ status: 'approved', updatedAt: new Date() } as any)
         .where(eq(reserveApprovals.id, id));
       
       await db.insert(approvalAuditLog).values({
@@ -298,7 +296,7 @@ router.post('/:id/sign', requireRole('partner'), async (req: AuthenticatedReques
         actor: 'system',
         systemGenerated: new Date(),
         details: { signatureCount }
-      });
+      } as any);
       
       // TODO: Execute the actual reserve strategy change
       await executeReserveStrategyChange(approval);
@@ -308,14 +306,14 @@ router.post('/:id/sign', requireRole('partner'), async (req: AuthenticatedReques
         message: 'Approval signed and executed',
         status: 'approved',
         executed: true
-      });
+      } as any);
     } else {
       res.json({
         success: true,
         message: 'Approval signed successfully',
         remainingApprovals: 2 - signatureCount,
         status: 'pending'
-      });
+      } as any);
     }
     
   } catch (error) {
@@ -347,7 +345,7 @@ router.post('/:id/reject', requireRole('partner'), async (req: AuthenticatedRequ
     
     // Update approval status
     await db.update(reserveApprovals)
-      .set({ status: 'rejected', updatedAt: new Date() })
+      .set({ status: 'rejected', updatedAt: new Date() } as any)
       .where(eq(reserveApprovals.id, id));
     
     // Log rejection
@@ -358,13 +356,13 @@ router.post('/:id/reject', requireRole('partner'), async (req: AuthenticatedRequ
       details: { reason },
       ipAddress: req.ip,
       userAgent: req.headers['user-agent']
-    });
+    } as any);
     
     res.json({
       success: true,
       message: 'Approval rejected',
       rejectedBy: req.user.email
-    });
+    } as any);
     
   } catch (error) {
     console.error('Error rejecting approval:', error);

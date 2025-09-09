@@ -10,10 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { 
-  ArrowRight, 
-  ArrowDown,
+  ArrowRight,
   TrendingUp,
-  Target,
   Play,
   Pause,
   RotateCcw
@@ -103,9 +101,9 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
         const newStep: FlowStep = {
           month: currentMonth,
           preSeedInvestments: fundData.monthlyInvestmentRate,
-          seedGraduations: stages[0].monthlyGraduations,
-          seriesAGraduations: stages[1].monthlyGraduations, 
-          seriesBGraduations: stages[2].monthlyGraduations,
+          seedGraduations: stages[0]?.monthlyGraduations ?? 0,
+          seriesAGraduations: stages[1]?.monthlyGraduations ?? 0, 
+          seriesBGraduations: stages[2]?.monthlyGraduations ?? 0,
           totalExits: stages.reduce((sum, stage) => sum + stage.monthlyExits, 0)
         };
         

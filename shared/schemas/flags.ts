@@ -3,7 +3,7 @@
  * Audit trail for flag changes and metadata
  */
 
-import { pgTable, text, boolean, timestamp, jsonb, uuid } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, jsonb, uuid } from 'drizzle-orm/pg-core';
 
 export const flagChanges = pgTable('flag_changes', {
   id: uuid('id').primaryKey().defaultRandom(),

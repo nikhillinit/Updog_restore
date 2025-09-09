@@ -31,14 +31,14 @@ export interface JWTClaims {
  * Extract and verify user context from JWT
  * NEVER trust X-User-Id or similar headers from client
  */
+import { getAuthToken } from './headers-helper';
+
 export function extractUserContext(req: Request): UserContext | null {
-  const authHeader = req.headers.authorization;
+  const token = getAuthToken(req.headers);
   
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!token) {
     return null;
   }
-  
-  const token = authHeader.substring(7);
   
   try {
     // Verify JWT and extract claims

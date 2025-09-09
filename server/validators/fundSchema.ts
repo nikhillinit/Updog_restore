@@ -5,9 +5,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { z } from 'zod';
 import {
-  StageSchema,
-  SectorProfileSchema,
-  AllocationSchema,
   InvestmentStrategySchema,
   ExitRecyclingSchema,
   WaterfallSchema,
@@ -46,7 +43,7 @@ export const fundSchema = CompleteFundSetupSchema
       const stages = data.investmentStrategy.stages;
       if (stages.length > 0) {
         const lastStage = stages[stages.length - 1];
-        return lastStage.graduationRate === 0;
+        return lastStage?.graduationRate === 0;
       }
       return true;
     },
@@ -142,7 +139,7 @@ export const investmentStrategySchema = InvestmentStrategySchema
     (data) => {
       if (data.stages.length > 0) {
         const lastStage = data.stages[data.stages.length - 1];
-        return lastStage.graduationRate === 0;
+        return lastStage?.graduationRate === 0;
       }
       return true;
     },

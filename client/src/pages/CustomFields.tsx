@@ -3,7 +3,7 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useFundContext } from '@/contexts/FundContext';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';

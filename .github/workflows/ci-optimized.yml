@@ -1,0 +1,289 @@
+name: Optimized CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+# Prevent concurrent runs on same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20.x'
+  CACHE_VERSION: v1
+
+jobs:
+  # Job 1: Quick validation (fast fail)
+  quick-check:
+    name: Quick Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0 # Need full history for smart detection
+
+      - name: Use Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Get changed files
+        id: changed-files
+        run: |
+          echo "files=$(git diff --name-only ${{ github.event.before }}..${{ github.sha }} | head -20)" >> $GITHUB_OUTPUT
+          echo "count=$(git diff --name-only ${{ github.event.before }}..${{ github.sha }} | wc -l)" >> $GITHUB_OUTPUT
+
+      - name: Skip if only docs changed
+        if: contains(steps.changed-files.outputs.files, '.md') && !contains(steps.changed-files.outputs.files, '.ts') && !contains(steps.changed-files.outputs.files, '.tsx')
+        run: |
+          echo "Only documentation changed, skipping CI"
+          exit 0
+
+  # Job 2: Setup and cache dependencies
+  setup:
+    name: Setup & Cache
+    runs-on: ubuntu-latest
+    needs: quick-check
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+      build-matrix: ${{ steps.build-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Generate cache key
+        id: cache-key
+        run: |
+          echo "key=node-${{ env.CACHE_VERSION }}-${{ runner.os }}-${{ hashFiles('**/package-lock.json', 'vite.config.ts', 'tsconfig*.json') }}" >> $GITHUB_OUTPUT
+
+      - name: Use Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Cache all build artifacts
+        id: cache-all
+        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a
+        with:
+          path: |
+            node_modules/.cache
+            node_modules/.vite
+            dist/.vite-cache
+            .tsbuildinfo
+            .eslintcache
+            ~/.npm
+          key: ${{ steps.cache-key.outputs.key }}
+          restore-keys: |
+            node-${{ env.CACHE_VERSION }}-${{ runner.os }}-
+
+      - name: Install dependencies
+        if: steps.cache-all.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Determine build matrix
+        id: build-matrix
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo 'matrix=["preact", "react"]' >> $GITHUB_OUTPUT
+          else
+            echo 'matrix=["preact"]' >> $GITHUB_OUTPUT
+          fi
+
+  # Job 3: Parallel type checking
+  typecheck:
+    name: Type Check (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    needs: setup
+    strategy:
+      fail-fast: true
+      matrix:
+        target: [client, server, shared]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Use Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Restore cache
+        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a
+        with:
+          path: |
+            node_modules/.cache
+            .tsbuildinfo
+          key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Type check ${{ matrix.target }}
+        run: npm run check:${{ matrix.target }}
+
+  # Job 4: Parallel linting and tests
+  test-lint:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+    needs: setup
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [lint, test-unit, test-integration]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0 # For smart test selection
+
+      - name: Use Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Restore cache
+        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a
+        with:
+          path: |
+            node_modules/.cache
+            .eslintcache
+          key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Run ${{ matrix.task }}
+        run: |
+          case "${{ matrix.task }}" in
+            lint)
+              npm run lint
+              ;;
+            test-unit)
+              npm run test:unit
+              ;;
+            test-integration)
+              npm run test:integration
+              ;;
+          esac
+
+  # Job 5: Parallel builds
+  build:
+    name: Build (${{ matrix.variant }})
+    runs-on: ubuntu-latest
+    needs: [setup, typecheck]
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJson(needs.setup.outputs.build-matrix) }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Use Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Restore cache
+        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a
+        with:
+          path: |
+            node_modules/.cache
+            node_modules/.vite
+            dist/.vite-cache
+          key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Build ${{ matrix.variant }}
+        run: |
+          if [ "${{ matrix.variant }}" == "preact" ]; then
+            npm run build:web:preact
+          else
+            npm run build:web:react
+          fi
+
+      - name: Check bundle size
+        run: |
+          npm run bundle:report || true
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
+        with:
+          name: build-${{ matrix.variant }}-${{ github.sha }}
+          path: dist/public
+          retention-days: 7
+
+  # Job 6: Smart affected tests (PR only)
+  smart-test:
+    name: Smart Tests
+    runs-on: ubuntu-latest
+    needs: setup
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Run smart test selection
+        run: npm run test:smart
+
+  # Job 7: Final validation
+  validate:
+    name: Final Validation
+    runs-on: ubuntu-latest
+    needs: [typecheck, test-lint, build]
+    if: always()
+    steps:
+      - name: Check job results
+        run: |
+          if [ "${{ needs.typecheck.result }}" != "success" ] || \
+             [ "${{ needs.test-lint.result }}" != "success" ] || \
+             [ "${{ needs.build.result }}" != "success" ]; then
+            echo "One or more jobs failed"
+            exit 1
+          fi
+          echo "All checks passed successfully!"
+
+  # Job 8: Performance monitoring (main branch only)
+  perf-check:
+    name: Performance Check
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: build-preact-${{ github.sha }}
+          path: dist/public
+
+      - name: Check performance budget
+        run: |
+          # Check if bundle size is within budget
+          BUNDLE_SIZE=$(du -sb dist/public | cut -f1)
+          MAX_SIZE=$((350 * 1024)) # 350KB from .perf-budget.json
+          
+          if [ $BUNDLE_SIZE -gt $MAX_SIZE ]; then
+            echo "Bundle size ($BUNDLE_SIZE) exceeds budget ($MAX_SIZE)"
+            exit 1
+          fi
+          
+          echo "Bundle size OK: $BUNDLE_SIZE bytes"

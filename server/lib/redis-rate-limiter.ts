@@ -39,13 +39,9 @@ export class RedisApprovalRateLimiter {
     this.redis = createClient({
       url: config.redisUrl || process.env.REDIS_URL || 'redis://localhost:6379',
       socket: {
-        connectTimeout: 5000,
-        commandTimeout: 2000
+        connectTimeout: 5000
       },
-      retryStrategy: (times: number) => {
-        if (times > 3) return null; // Stop retrying
-        return Math.min(times * 100, 3000);
-      }
+      // retryStrategy removed - not available in this Redis client version
     });
     
     // Atomic token bucket Lua script
@@ -229,10 +225,7 @@ export class RedisApprovalRateLimiter {
     
     // Get count and oldest
     const count = await this.redis.zCard(key);
-    const oldest = await this.redis.zRange(key, 0, 0, { 
-      BY: 'SCORE',
-      REV: false 
-    });
+    const oldest = await this.redis.zRange(key, 0, 0);
     
     return {
       count,

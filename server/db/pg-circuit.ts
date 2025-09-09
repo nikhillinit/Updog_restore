@@ -2,8 +2,8 @@
  * PostgreSQL connection pool with circuit breaker protection
  * Provides resilient database access with automatic failure handling
  */
-import { Pool, PoolClient, QueryResult } from 'pg';
-import { CircuitBreaker } from '../infra/circuit-breaker/CircuitBreaker';
+import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+import { TypedCircuitBreaker } from '../infra/circuit-breaker/typed-breaker';
 import { breakerRegistry } from '../infra/circuit-breaker/breaker-registry';
 
 // PostgreSQL connection pool configuration
@@ -49,7 +49,7 @@ const dbBreakerConfig = {
 };
 
 // Create circuit breaker for database operations
-const dbBreaker = new CircuitBreaker('postgres', dbBreakerConfig);
+const dbBreaker = new TypedCircuitBreaker(dbBreakerConfig);
 
 // Register with the breaker registry for monitoring
 breakerRegistry.register('postgres', dbBreaker);
@@ -105,7 +105,7 @@ export function getQueryMetrics() {
 /**
  * Internal query function without circuit breaker
  */
-async function _query<T = any>(
+async function _query<T extends QueryResultRow = any>(
   text: string,
   params?: any[]
 ): Promise<QueryResult<T>> {
@@ -133,7 +133,7 @@ async function _query<T = any>(
 /**
  * Execute a query with circuit breaker protection
  */
-export async function query<T = any>(
+export async function query<T extends QueryResultRow = any>(
   text: string,
   params?: any[]
 ): Promise<QueryResult<T>> {
@@ -142,7 +142,10 @@ export async function query<T = any>(
     return _query<T>(text, params);
   }
   
-  return dbBreaker.execute(() => _query<T>(text, params));
+  return dbBreaker.run(
+    () => _query<T>(text, params),
+    async () => ({ rows: [] as T[], command: '', rowCount: 0, oid: 0, fields: [] })
+  );
 }
 
 /**
@@ -159,7 +162,7 @@ export async function q<T = any>(
 /**
  * Execute a query and return the first row
  */
-export async function queryOne<T = any>(
+export async function queryOne<T extends QueryResultRow = any>(
   text: string,
   params?: any[]
 ): Promise<T | null> {
@@ -170,7 +173,7 @@ export async function queryOne<T = any>(
 /**
  * Execute a query and return a single value
  */
-export async function queryScalar<T = any>(
+export async function queryScalar<T extends QueryResultRow = any>(
   text: string,
   params?: any[]
 ): Promise<T | null> {
@@ -213,7 +216,7 @@ export async function transactionWithBreaker<T>(
     return transaction(callback);
   }
   
-  return dbBreaker.execute(() => transaction(callback));
+  return dbBreaker.run(() => transaction(callback), async () => { throw new Error('Database circuit open during transaction'); });
 }
 
 /**
@@ -301,13 +304,23 @@ export async function withBackoff<T>(
 /**
  * Query with automatic retry on transient failures
  */
-export async function queryWithRetry<T = any>(
+export async function queryWithRetry<T extends QueryResultRow = any>(
   text: string,
   params?: any[],
   options?: Parameters<typeof withBackoff>[1]
 ): Promise<QueryResult<T>> {
-  return withBackoff(() => query<T>(text, params), options);
+  return withBackoff(async () => query<T>(text, params), options);
 }
 
 // Export types for external use
 export type { QueryResult, PoolClient } from 'pg';
+
+
+
+/**
+ * Get circuit breaker stats
+ */
+export function getStats() {
+  return dbBreaker.getMetrics();
+}
+

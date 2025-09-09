@@ -53,7 +53,7 @@ export class MlClient {
       if (!res.ok) throw new Error(`Health check failed: ${res.status}`);
       return await res.json() as { status: string; modelLoaded: boolean };
     } catch (error) {
-      logger.error('ML service health check failed', { error: error instanceof Error ? error.message : String(error) });
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'ML service health check failed');
       throw error;
     }
   }
@@ -74,19 +74,19 @@ export class MlClient {
 
       const result = await res.json() as { modelVersion: string; rows: number };
       
-      logger.info('ML model training completed', {
+      logger.info({
         modelVersion: result.modelVersion,
         trainingRows: result.rows,
         durationMs: Date.now() - startTime,
-      });
+      }, 'ML model training completed');
 
       return result;
     } catch (error) {
-      logger.error('ML model training failed', {
+      logger.error({
         error: error instanceof Error ? error.message : String(error),
         durationMs: Date.now() - startTime,
         trainingRows: request.rows.length,
-      });
+      }, 'ML model training failed');
       throw error;
     }
   }
@@ -150,25 +150,25 @@ export class MlClient {
         latencyMs: body.latencyMs || (Date.now() - startTime),
       };
 
-      logger.debug('ML prediction completed', {
+      logger.debug({
         companyId: company.id,
         recommendedReserve: decision.prediction.recommendedReserve,
         latencyMs: decision.latencyMs,
         modelVersion: decision.engineVersion,
-      });
+      }, 'ML prediction completed');
 
       return decision;
     } catch (error) {
-      logger.error('ML prediction failed', {
+      logger.error({
         companyId: company.id,
         error: error instanceof Error ? error.message : String(error),
         latencyMs: Date.now() - startTime,
-      });
+      }, 'ML prediction failed');
       throw error;
     }
   }
 
-  private async fetchWithTimeout(path: string, options: any): Promise<Response> {
+  private async fetchWithTimeout(path: string, options: any): Promise<any> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.config.timeoutMs);
 
@@ -200,12 +200,12 @@ export class MlClient {
         if (attempt < this.config.retries) {
           const delay = this.config.backoffMs * Math.pow(2, attempt);
           await new Promise(resolve => setTimeout(resolve, delay));
-          logger.warn('Retrying ML service request', { 
+          logger.warn({ 
             attempt: attempt + 1, 
             maxRetries: this.config.retries,
             delayMs: delay,
             error: lastError.message 
-          });
+          }, 'Retrying ML service request');
         }
       }
     }
@@ -219,7 +219,7 @@ export class MlClient {
       .map(([factor, importance]) => ({
         factor,
         importance: Math.abs(importance as number),
-        direction: (importance as number) >= 0 ? 'positive' : 'negative',
+        direction: ((importance as number) >= 0 ? 'positive' : 'negative') as 'positive' | 'negative',
       }))
       .sort((a, b) => b.importance - a.importance)
       .slice(0, 5); // Top 5 factors
