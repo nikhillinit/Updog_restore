@@ -3,8 +3,21 @@ name: CI (Memory Mode)
 on:
   pull_request:
     branches: [ main, develop ]
+    paths:
+      - '**.{ts,tsx,js,jsx}'
+      - 'package*.json'
+      - '{client,server,shared}/**'
+      - '.github/workflows/memory-mode.yml'
   push:
     branches: [ feat/*, fix/*, chore/* ]
+    paths:
+      - '**.{ts,tsx,js,jsx}'
+      - 'package*.json'
+      - '{client,server,shared}/**'
+
+concurrency:
+  group: memory-mode-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   memory-mode:

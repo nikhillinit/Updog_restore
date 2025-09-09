@@ -35,7 +35,7 @@ export default defineConfig({
     clearMocks: true,
     restoreMocks: true,
     isolate: true,
-    retry: process.env.CI ? 2 : 0,
+    retry: process.env.CI_NO_RETRY ? 0 : (process.env.CI ? 2 : 0),
     reporters: process.env.CI
       ? ['default', ['junit', { outputFile: 'reports/junit-main.xml' }]]
       : ['default'],

@@ -3,10 +3,19 @@ name: PR Tests (Main Workspace)
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - '**.{ts,tsx,js,jsx}'
+      - 'package*.json'
+      - '{client,server,shared}/**'
+      - '.github/workflows/pr-tests.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: pr-tests-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
