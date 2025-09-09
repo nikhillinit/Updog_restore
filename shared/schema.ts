@@ -237,11 +237,6 @@ export const financialProjections = pgTable("financial_projections", {
 export const insertFundSchema = createInsertSchema(funds).omit({
   id: true,
   createdAt: true
-}).extend({
-  size: z.number().positive(),
-  deployedCapital: z.number().nonnegative(),
-  managementFee: z.number().min(0).max(1),  // decimal between 0 and 1 (e.g., 0.02 for 2%)
-  carryPercentage: z.number().min(0).max(1), // decimal between 0 and 1 (e.g., 0.20 for 20%)
 });
 
 export const insertPortfolioCompanySchema = createInsertSchema(portfolioCompanies).omit({

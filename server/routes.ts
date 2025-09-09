@@ -11,7 +11,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
 import { storage } from "./storage";
-import { _insertFundSchema, insertPortfolioCompanySchema, insertActivitySchema } from "@shared/schema";
+import { insertFundSchema, insertPortfolioCompanySchema, insertActivitySchema } from "@shared/schema";
 import { _fundSchema } from "./validators/fundSchema";
 import { _ReserveEngine, generateReserveSummary } from "../client/src/core/reserves/ReserveEngine.js";
 import { _PacingEngine, generatePacingSummary } from "../client/src/core/pacing/PacingEngine.js";
