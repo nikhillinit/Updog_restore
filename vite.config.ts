@@ -267,6 +267,7 @@ export default defineConfig({
     cssMinify: 'lightningcss',
     reportCompressedSize: false, // Skip compression size reporting for faster builds
     chunkSizeWarningLimit: 500,
+    manifest: process.env.CI === 'true', // Generate manifest only in CI for budget checks
     rollupOptions: { 
       input: path.resolve(import.meta.dirname, 'client/index.html'),
       treeshake: {

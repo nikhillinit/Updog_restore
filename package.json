@@ -4,8 +4,8 @@
   "type": "module",
   "license": "MIT",
   "engines": {
-    "node": ">=22.16.0 <23",
-    "npm": ">=10.9.0"
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
   },
   "packageManager": "npm@10.9.2",
   "scripts": {
@@ -45,6 +45,8 @@
     "check:server": "tsc -p tsconfig.server.json --noEmit",
     "build:types": "tsc -b tsconfig.shared.json",
     "bundle:report": "node scripts/size-report.mjs",
+    "bundle:check": "node scripts/check-budgets.cjs",
+    "ci:build": "cross-env CI=true npm run build && npm run bundle:check",
     "check:fast": "tsc --project tsconfig.fast.json",
     "check:incremental": "tsc --project tsconfig.fast.json --incremental --tsBuildInfoFile .tsbuildinfo",
     "check:watch": "tsc --project tsconfig.fast.json --watch --preserveWatchOutput",
