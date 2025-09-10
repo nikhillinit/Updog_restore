@@ -1,5 +1,6 @@
 // State utility functions for consistent normalization and comparison
 
+// Sort comparator for id-bearing records
 export const sortById = <T extends { id?: string | number }>(a: T, b: T) => {
   const aId = a.id ?? '';
   const bId = b.id ?? '';
@@ -7,34 +8,49 @@ export const sortById = <T extends { id?: string | number }>(a: T, b: T) => {
   return aId > bId ? 1 : -1;
 };
 
-export function normalizeNumber(v: any): number {
-  // Return NaN for non-numeric values to maintain consistency
+// Normalize to number; return NaN for non-finite
+export function normalizeNumber(v: unknown): number {
   if (v === '' || v === null || v === undefined) return NaN;
   const n = typeof v === 'number' ? v : Number(v);
   return Number.isFinite(n) ? n : NaN;
 }
 
+// Circular-safe, stable key order serialization
+export function stableSerialize(value: unknown): string {
+  const seen = new WeakSet<object>();
+  return JSON.stringify(value, function (_k, v) {
+    if (v && typeof v === 'object') {
+      if (seen.has(v as object)) return '[Circular]';
+      seen.add(v as object);
+      if (!Array.isArray(v)) {
+        const o: Record<string, unknown> = {};
+        for (const k of Object.keys(v as any).sort()) o[k] = (v as any)[k];
+        return o;
+      }
+    }
+    return v;
+  });
+}
+
+// Fast FNV-1a 32-bit hash for small/medium strings
+export function fnv1a32(str: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+// Robust stable hash with circular reference handling
+export function stableHash(value: unknown): string {
+  try {
+    return fnv1a32(stableSerialize(value));
+  } catch {
+    return fnv1a32(String(value));
+  }
+}
+
 // NaN-safe equality using Object.is
 // Object.is(NaN, NaN) === true, while NaN === NaN === false
 export const eq = Object.is;
-
-// For small payloads this is fine. For larger payloads,
-// swap to a stable-stringify + fast hash if needed.
-export function stableHash(value: unknown): string {
-  try {
-    return JSON.stringify(value, objectKeySorter);
-  } catch {
-    return String(value);
-  }
-}
-
-function objectKeySorter(_key: string, value: unknown) {
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    const sorted: Record<string, unknown> = {};
-    for (const k of Object.keys(value as Record<string, unknown>).sort()) {
-      sorted[k] = (value as any)[k];
-    }
-    return sorted;
-  }
-  return value;
-}

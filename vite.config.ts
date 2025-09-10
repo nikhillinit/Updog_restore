@@ -210,6 +210,7 @@ const preactAliases = [
 ];
 
 export default defineConfig({
+  base: '/', // Ensure absolute paths for assets
   plugins: [
     // Use absolute path so Vite doesn't ever look for "client/client/tsconfig.json"
     tsconfigPaths({

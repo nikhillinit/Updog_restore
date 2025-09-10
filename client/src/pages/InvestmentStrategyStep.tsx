@@ -11,19 +11,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
+import { useFundSelector } from "@/stores/useFund";
 import { useFundStore } from "@/stores/useFundStore";
-import { stableHash } from "@/utils/state-utils";
+import { signatureForStrategy } from "@/domain/strategy-signature";
+import { traceWizard } from "@/debug/wizard-trace";
 import type { Stage, SectorProfile, Allocation } from "@shared/types";
 
 export default function InvestmentStrategyStep() {
-  // Select hydrated and fromInvestmentStrategy together with shallow for stability
-  const hydrated = useFundStore(state => state.hydrated);
-  const fromInvestmentStrategy = useFundStore(state => state.fromInvestmentStrategy);
-  
-  // Fix: Use individual selectors to prevent object recreation
-  const stages = useFundStore(state => state.stages);
-  const sectorProfiles = useFundStore(state => state.sectorProfiles);
-  const allocations = useFundStore(state => state.allocations);
+  // Use safe selectors with shallow equality
+  const [hydrated, fromInvestmentStrategy] = useFundSelector(s => [s.hydrated, s.fromInvestmentStrategy]);
+  const [stages, sectorProfiles, allocations] = useFundSelector(s => [s.stages, s.sectorProfiles, s.allocations]);
   
   // Memoize the data transformation to prevent recreation on every render
   const data = React.useMemo(() => ({
@@ -55,17 +52,26 @@ export default function InvestmentStrategyStep() {
   const [activeTab, setActiveTab] = useState("stages");
   
   // Add a guarded effect to sync data with store only when necessary
-  const lastDataHash = useRef<string>('');
+  const lastSig = useRef<string>('');
   useEffect(() => {
-    if (!hydrated) return; // Don't update until store is hydrated
+    if (!hydrated) {
+      traceWizard('STEP2_NOT_HYDRATED', { hydrated }, { component: 'InvestmentStrategyStep' });
+      return; // Don't update until store is hydrated
+    }
     
-    const hash = stableHash(data);
-    if (hash === lastDataHash.current) return; // No changes, skip update
-    lastDataHash.current = hash;
+    const sig = signatureForStrategy(data);
+    traceWizard('STEP2_EFFECT_RUN', { sig, hydrated }, { component: 'InvestmentStrategyStep' });
+    
+    if (sig === lastSig.current) {
+      traceWizard('SKIP_WRITE_SAME', { sig }, { component: 'InvestmentStrategyStep' });
+      return; // No changes, skip update
+    }
+    lastSig.current = sig;
     
     // Only call if data actually changed - this syncs form data to store
+    traceWizard('WRITE_FROM_STRATEGY', { sig, prevSig: lastSig.current }, { component: 'InvestmentStrategyStep' });
     if (import.meta.env.DEV) {
-      console.debug('[InvestmentStrategyStep] Data changed, hash:', hash.substring(0, 20) + '...');
+      console.debug('[InvestmentStrategyStep] Data changed, sig:', sig.substring(0, 40) + '...');
     }
     // Note: fromInvestmentStrategy is called by parent components when needed
   }, [data, hydrated, fromInvestmentStrategy]);

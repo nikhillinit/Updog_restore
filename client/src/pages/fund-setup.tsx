@@ -37,9 +37,22 @@ import _BudgetCreator from "@/components/budget/budget-creator";
 import InvestmentStrategyStep from "./InvestmentStrategyStep";
 import ExitRecyclingStep from "./ExitRecyclingStep";
 import WaterfallStep from "./WaterfallStep";
+import StepNotFound from "./steps/StepNotFound";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import type { InvestmentStrategy, ExitRecycling, Waterfall } from "@shared/types";
 import type { Fund as DatabaseFund } from "@shared/schema";
 import type { Fund } from "@/contexts/FundContext";
+
+// Explicit step mapping with fallback to prevent import failures
+const stepComponents: Record<string, React.ComponentType<any>> = {
+  'investment-strategy': InvestmentStrategyStep,
+  'exit-recycling': ExitRecyclingStep,
+  'waterfall': WaterfallStep,
+};
+
+function loadStepComponent(stepName: string): React.ComponentType<any> {
+  return stepComponents[stepName] ?? StepNotFound;
+}
 
 type WizardStep = 'fund-basics' | 'committed-capital' | 'investment-strategy' | 'exit-recycling' | 'waterfall' | 'advanced-settings' | 'review';
 
@@ -1157,30 +1170,34 @@ export default function FundSetup() {
               </div>
             )}
 
-            {/* Investment Strategy Step */}
-            {currentStep === 'investment-strategy' && (
-              <div data-testid="wizard-step3-container">
-                <InvestmentStrategyStep />
-              </div>
-            )}
+            {/* Dynamic Step Component Rendering */}
+            {stepComponents[currentStep] && (() => {
+              const StepComponent = loadStepComponent(currentStep);
+              const stepProps = (() => {
+                switch (currentStep) {
+                  case 'exit-recycling':
+                    return {
+                      data: fundData.exitRecycling,
+                      onChange: (data: ExitRecycling) => handleComplexDataChange('exitRecycling', data)
+                    };
+                  case 'waterfall':
+                    return {
+                      data: fundData.waterfall,
+                      onChange: (data: Waterfall) => handleComplexDataChange('waterfall', data)
+                    };
+                  default:
+                    return {};
+                }
+              })();
 
-            {/* Exit Recycling Step */}
-            {currentStep === 'exit-recycling' && (
-              <div data-testid="wizard-step4-container">
-                <ExitRecyclingStep
-                  data={fundData.exitRecycling}
-                  onChange={(data) => handleComplexDataChange('exitRecycling', data)}
-                />
-              </div>
-            )}
-
-            {/* Waterfall Step */}
-            {currentStep === 'waterfall' && (
-              <WaterfallStep
-                data={fundData.waterfall}
-                onChange={(data) => handleComplexDataChange('waterfall', data)}
-              />
-            )}
+              return (
+                <ErrorBoundary fallback={<StepNotFound />}>
+                  <div data-testid={`wizard-step-${currentStep}-container`}>
+                    <StepComponent {...stepProps} />
+                  </div>
+                </ErrorBoundary>
+              );
+            })()}
 
             {/* Advanced Settings Step */}
             {currentStep === 'advanced-settings' && (

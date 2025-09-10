@@ -276,18 +276,15 @@ export const useFundStore = create<StrategySlice>()(
         return state;
       },
       onRehydrateStorage: () => (state, err) => {
-        if (err) {
-          console.error('[fund-store] rehydrate failed', err);
-        }
-        // Set hydrated flag after rehydration completes
-        state?.setHydrated(true);
+        if (err) console.error('[fund-store] rehydrate error', err);
+        state?.setHydrated(true); // flip AFTER rehydrate completes
       }
     }
   )
 );
 
 // Dev-only store tracer for debugging state updates
-if (import.meta.env.DEV && typeof window !== 'undefined' && !(window as any).__fundStoreTracer) {
+if (import.meta.env.DEV && import.meta.env['VITE_WIZARD_DEBUG'] === '1' && typeof window !== 'undefined' && !(window as any).__fundStoreTracer) {
   (window as any).__fundStoreTracer = true;
   const unsub = useFundStore.subscribe((state, prev) => {
     const changed: string[] = [];
@@ -295,8 +292,13 @@ if (import.meta.env.DEV && typeof window !== 'undefined' && !(window as any).__f
     if (state.stages !== prev.stages) changed.push('stages');
     if (state.sectorProfiles !== prev.sectorProfiles) changed.push('sectorProfiles');
     if (state.allocations !== prev.allocations) changed.push('allocations');
+    if (state.followOnChecks !== prev.followOnChecks) changed.push('followOnChecks');
     if (changed.length) {
-      console.debug('[fund-store publish]', changed.join(','), { state, prev });
+      console.debug('[fund-store publish]', changed.join(','), { 
+        changed,
+        timestamp: new Date().toISOString(),
+        perf: Math.round(performance.now())
+      });
     }
   });
   // Store unsubscribe function for cleanup if needed
