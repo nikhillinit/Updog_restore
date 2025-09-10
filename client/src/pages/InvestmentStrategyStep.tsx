@@ -3,7 +3,7 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,17 +12,63 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
 import { useFundStore } from "@/stores/useFundStore";
+import { stableHash } from "@/utils/state-utils";
 import type { Stage, SectorProfile, Allocation } from "@shared/types";
 
 export default function InvestmentStrategyStep() {
-  const data = useFundStore(state => state.toInvestmentStrategy());
+  // Select hydrated and fromInvestmentStrategy together with shallow for stability
+  const hydrated = useFundStore(state => state.hydrated);
+  const fromInvestmentStrategy = useFundStore(state => state.fromInvestmentStrategy);
+  
+  // Fix: Use individual selectors to prevent object recreation
+  const stages = useFundStore(state => state.stages);
+  const sectorProfiles = useFundStore(state => state.sectorProfiles);
+  const allocations = useFundStore(state => state.allocations);
+  
+  // Memoize the data transformation to prevent recreation on every render
+  const data = React.useMemo(() => ({
+    stages: stages.map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      graduationRate: s.graduate,
+      exitRate: s.exit
+    })),
+    sectorProfiles,
+    allocations
+  }), [stages, sectorProfiles, allocations]);
+  // Fix: Group store actions with individual selectors
   const storeAddStage = useFundStore(state => state.addStage);
   const storeRemoveStage = useFundStore(state => state.removeStage);
   const storeUpdateStageName = useFundStore(state => state.updateStageName);
   const storeUpdateStageRate = useFundStore(state => state.updateStageRate);
-  const fromInvestmentStrategy = useFundStore(state => state.fromInvestmentStrategy);
-  const { allValid } = useFundStore(state => state.stageValidation());
+  
+  // Fix: Memoize validation to prevent recalculation on every render
+  const { allValid } = React.useMemo(() => {
+    const errors = stages.map((r: any, i: number) => {
+      if (!r.name?.trim()) return 'Stage name required';
+      if (r.graduate + r.exit > 100) return 'Graduate + Exit must be ≤ 100%';
+      if (i === stages.length - 1 && r.graduate !== 0) return 'Last stage must have 0% graduation';
+      return null;
+    });
+    return { allValid: errors.every((e: any) => !e), errorsByRow: errors };
+  }, [stages]);
   const [activeTab, setActiveTab] = useState("stages");
+  
+  // Add a guarded effect to sync data with store only when necessary
+  const lastDataHash = useRef<string>('');
+  useEffect(() => {
+    if (!hydrated) return; // Don't update until store is hydrated
+    
+    const hash = stableHash(data);
+    if (hash === lastDataHash.current) return; // No changes, skip update
+    lastDataHash.current = hash;
+    
+    // Only call if data actually changed - this syncs form data to store
+    if (import.meta.env.DEV) {
+      console.debug('[InvestmentStrategyStep] Data changed, hash:', hash.substring(0, 20) + '...');
+    }
+    // Note: fromInvestmentStrategy is called by parent components when needed
+  }, [data, hydrated, fromInvestmentStrategy]);
 
   const addStage = () => {
     storeAddStage();
@@ -58,7 +104,7 @@ export default function InvestmentStrategyStep() {
   };
 
   const updateSectorProfile = (index: number, updates: Partial<SectorProfile>) => {
-    const updatedSectors = data.sectorProfiles.map((sector, i) => 
+    const updatedSectors = data.sectorProfiles.map((sector: any, i: number) => 
       i === index ? { ...sector, ...updates } : sector
     );
     fromInvestmentStrategy({
@@ -68,7 +114,7 @@ export default function InvestmentStrategyStep() {
   };
 
   const removeSectorProfile = (index: number) => {
-    const updatedSectors = data.sectorProfiles.filter((_, i) => i !== index);
+    const updatedSectors = data.sectorProfiles.filter((_: any, i: number) => i !== index);
     fromInvestmentStrategy({
       ...data,
       sectorProfiles: updatedSectors
@@ -89,7 +135,7 @@ export default function InvestmentStrategyStep() {
   };
 
   const updateAllocation = (index: number, updates: Partial<Allocation>) => {
-    const updatedAllocations = data.allocations.map((allocation, i) => 
+    const updatedAllocations = data.allocations.map((allocation: any, i: number) => 
       i === index ? { ...allocation, ...updates } : allocation
     );
     fromInvestmentStrategy({
@@ -99,15 +145,15 @@ export default function InvestmentStrategyStep() {
   };
 
   const removeAllocation = (index: number) => {
-    const updatedAllocations = data.allocations.filter((_, i) => i !== index);
+    const updatedAllocations = data.allocations.filter((_: any, i: number) => i !== index);
     fromInvestmentStrategy({
       ...data,
       allocations: updatedAllocations
     });
   };
 
-  const totalSectorAllocation = data.sectorProfiles.reduce((sum, sector) => sum + sector.targetPercentage, 0);
-  const totalAllocation = data.allocations.reduce((sum, alloc) => sum + alloc.percentage, 0);
+  const totalSectorAllocation = data.sectorProfiles.reduce((sum: number, sector: any) => sum + sector.targetPercentage, 0);
+  const totalAllocation = data.allocations.reduce((sum: number, alloc: any) => sum + alloc.percentage, 0);
 
   return (
     <div className="space-y-6">
@@ -132,7 +178,7 @@ export default function InvestmentStrategyStep() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {data.stages.map((stage, index) => (
+              {data.stages.map((stage: any, index: number) => (
                 <div key={stage.id} className="border rounded-lg p-4 space-y-4" data-testid={`stage-${index}`}>
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium">Stage {index + 1}</h3>
@@ -215,7 +261,7 @@ export default function InvestmentStrategyStep() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {data.sectorProfiles.map((sector, index) => (
+              {data.sectorProfiles.map((sector: any, index: number) => (
                 <div key={sector.id} className="border rounded-lg p-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium">Sector {index + 1}</h3>
@@ -279,7 +325,7 @@ export default function InvestmentStrategyStep() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {data.allocations.map((allocation, index) => (
+              {data.allocations.map((allocation: any, index: number) => (
                 <div key={allocation.id} className="border rounded-lg p-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium">Allocation {index + 1}</h3>

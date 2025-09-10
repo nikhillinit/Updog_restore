@@ -57,7 +57,7 @@ const redisBreakerConfig = {
 };
 
 // Create circuit breaker for Redis operations
-// Create a properly typed circuit breaker for Redis operations\nconst redisBreaker = new CircuitBreaker<any>(redisBreakerConfig, async () => {}, async () => {});
+const redisBreaker = new CircuitBreaker<any>(redisBreakerConfig, async () => {}, async () => {});
 
 // Register with the breaker registry for monitoring
 breakerRegistry.register('redis', redisBreaker);

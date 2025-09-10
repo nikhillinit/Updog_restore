@@ -282,6 +282,29 @@ export default function FundSetup() {
     }
   }, []); // Empty dependency array to run only on mount
 
+  // Handle URL parameter for direct step navigation
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const stepParam = urlParams.get('step');
+    
+    if (stepParam) {
+      const stepMapping: { [key: string]: WizardStep } = {
+        '1': 'fund-basics',
+        '2': 'committed-capital',
+        '3': 'investment-strategy',
+        '4': 'exit-recycling',
+        '5': 'waterfall',
+        '6': 'advanced-settings',
+        '7': 'review'
+      };
+      
+      const targetStep = stepMapping[stepParam];
+      if (targetStep) {
+        setCurrentStep(targetStep);
+      }
+    }
+  }, []); // Run once on mount
+
   const handleInputChange = (field: string, value: string | boolean | number) => {
     setFundData(prev => {
       // Ensure proper type handling for boolean fields
@@ -316,7 +339,14 @@ export default function FundSetup() {
     const stepOrder: WizardStep[] = ['fund-basics', 'committed-capital', 'investment-strategy', 'exit-recycling', 'waterfall', 'advanced-settings', 'review'];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex < stepOrder.length - 1) {
-      setCurrentStep(stepOrder[currentIndex + 1]);
+      const nextStep = stepOrder[currentIndex + 1];
+      setCurrentStep(nextStep);
+      
+      // Update URL to reflect current step
+      const stepNumber = currentIndex + 2; // +2 because we're moving to next step (1-indexed)
+      const url = new URL(window.location.href);
+      url.searchParams.set('step', stepNumber.toString());
+      window.history.pushState({}, '', url.toString());
     }
   };
 
@@ -324,7 +354,14 @@ export default function FundSetup() {
     const stepOrder: WizardStep[] = ['fund-basics', 'committed-capital', 'investment-strategy', 'exit-recycling', 'waterfall', 'advanced-settings', 'review'];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex > 0) {
-      setCurrentStep(stepOrder[currentIndex - 1]);
+      const prevStep = stepOrder[currentIndex - 1];
+      setCurrentStep(prevStep);
+      
+      // Update URL to reflect current step
+      const stepNumber = currentIndex; // currentIndex is already the previous step number (1-indexed)
+      const url = new URL(window.location.href);
+      url.searchParams.set('step', stepNumber.toString());
+      window.history.pushState({}, '', url.toString());
     }
   };
 

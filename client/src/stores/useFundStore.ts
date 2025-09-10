@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { allocate100 } from '../core/utils/allocate100';
 import { clampPct, clampInt } from '../lib/coerce';
+import { sortById, normalizeNumber, eq } from '../utils/state-utils';
 import type { Stage, SectorProfile, Allocation, InvestmentStrategy } from '@shared/types';
 
 export type StrategyStage = {
@@ -18,6 +19,10 @@ export type StrategyStage = {
 };
 
 type StrategySlice = {
+  // Hydration flag
+  hydrated: boolean;
+  setHydrated: (_v: boolean) => void;
+
   stages: StrategyStage[];
   sectorProfiles: SectorProfile[];
   allocations: Allocation[];
@@ -60,7 +65,15 @@ const generateStableId = (): string => {
  */
 export const useFundStore = create<StrategySlice>()(
   persist(
-    (set, get) => ({
+    (set, get) => {
+      // Cache for stageValidation to prevent object recreation
+      let cachedStagesState: StrategyStage[] | null = null;
+      let cachedValidationResult: { allValid: boolean; errorsByRow: (string | null)[] } | null = null;
+      
+      return {
+      hydrated: false,
+      setHydrated: (v) => set({ hydrated: v }),
+      
       stages: [
         { id: generateStableId(), name: 'Seed', graduate: 30, exit: 20, months: 18 },
         { id: generateStableId(), name: 'Series A', graduate: 40, exit: 25, months: 24 },
@@ -79,17 +92,29 @@ export const useFundStore = create<StrategySlice>()(
       followOnChecks: { A: 800_000, B: 1_500_000, C: 2_500_000 },
 
       addStage: () => set((s) => {
+        // Invalidate cache when stages change
+        cachedStagesState = null;
+        cachedValidationResult = null;
+        
         const id = generateStableId();
         const next = [...s.stages, { id, name: '', graduate: 0, exit: 0, months: 12 }];
         return { stages: enforceLast(next) };
       }),
 
       removeStage: (idx: number) => set((s) => {
+        // Invalidate cache when stages change
+        cachedStagesState = null;
+        cachedValidationResult = null;
+        
         const next = s.stages.filter((_, i) => i !== idx);
         return { stages: enforceLast(next) };
       }),
 
       updateStageName: (idx: number, name: string) => set((s) => {
+        // Invalidate cache when stages change
+        cachedStagesState = null;
+        cachedValidationResult = null;
+        
         const stages = [...s.stages];
         if (stages[idx]) {
           stages[idx] = { ...stages[idx], name };
@@ -98,6 +123,10 @@ export const useFundStore = create<StrategySlice>()(
       }),
 
       updateStageRate: (idx, patch) => set((s) => {
+        // Invalidate cache when stages change
+        cachedStagesState = null;
+        cachedValidationResult = null;
+        
         const stages: StrategyStage[] = [...s.stages];
         const r = stages[idx];
         if (!r) return {};
@@ -121,13 +150,27 @@ export const useFundStore = create<StrategySlice>()(
 
       stageValidation: () => {
         const { stages } = get();
+        
+        // Return cached result if stages haven't changed
+        if (cachedStagesState === stages && cachedValidationResult) {
+          return cachedValidationResult;
+        }
+        
+        // Compute new validation result
         const errors = stages.map((r: StrategyStage, i: number) => {
           if (!r.name?.trim()) return 'Stage name required';
           if (r.graduate + r.exit > 100) return 'Graduate + Exit must be ≤ 100%';
           if (i === stages.length - 1 && r.graduate !== 0) return 'Last stage must have 0% graduation';
           return null;
         });
-        return { allValid: errors.every(e => !e), errorsByRow: errors };
+        
+        const result = { allValid: errors.every(e => !e), errorsByRow: errors };
+        
+        // Cache the result
+        cachedStagesState = stages;
+        cachedValidationResult = result;
+        
+        return result;
       },
 
       // Conversion utilities to work with existing InvestmentStrategy type
@@ -145,25 +188,77 @@ export const useFundStore = create<StrategySlice>()(
         };
       },
 
-      fromInvestmentStrategy: (strategy: InvestmentStrategy) => set(() => {
-        const stages = strategy.stages.map(s => ({
+      fromInvestmentStrategy: (strategy: InvestmentStrategy) => {
+        const current = get();
+        
+        // 1) Normalize & default only when absent (use ?? not ||)
+        const mappedStages = strategy.stages.map(s => ({
           id: s.id,
           name: s.name,
-          graduate: s.graduationRate,
-          exit: s.exitRate,
-          months: 12 // Default months if not provided
+          graduate: normalizeNumber(s.graduationRate),
+          exit: normalizeNumber(s.exitRate),
+          months: (s as any).months ?? 12 // Only default when undefined/null (months not in base type)
         }));
         
-        return {
-          stages: enforceLast(stages),
-          sectorProfiles: strategy.sectorProfiles,
-          allocations: strategy.allocations
-        };
-      })
-    }),
-    {
+        // 2) Sort before compare & write (order-agnostic)
+        const newStages = enforceLast(mappedStages).sort(sortById);
+        const prevStages = current.stages.slice().sort(sortById);
+        
+        // 3) Deep equality check for stages (using NaN-safe equality)
+        const stagesEqual = 
+          prevStages.length === newStages.length &&
+          prevStages.every((a, i) => 
+            a.id === newStages[i].id &&
+            a.name === newStages[i].name &&
+            eq(a.graduate, newStages[i].graduate) &&
+            eq(a.exit, newStages[i].exit) &&
+            eq(a.months, newStages[i].months)
+          );
+        
+        // Sort and compare profiles (with normalized percentages)
+        const nextProfiles = strategy.sectorProfiles.slice().sort(sortById);
+        const prevProfiles = current.sectorProfiles.slice().sort(sortById);
+        const profilesEqual = 
+          prevProfiles.length === nextProfiles.length &&
+          prevProfiles.every((a, i) => 
+            a.id === nextProfiles[i]?.id &&
+            a.name === nextProfiles[i]?.name &&
+            eq(a.targetPercentage, normalizeNumber(nextProfiles[i]?.targetPercentage)) &&
+            a.description === nextProfiles[i]?.description
+          );
+        
+        // Sort and compare allocations (with normalized percentages)
+        const nextAllocs = strategy.allocations.slice().sort(sortById);
+        const prevAllocs = current.allocations.slice().sort(sortById);
+        const allocsEqual = 
+          prevAllocs.length === nextAllocs.length &&
+          prevAllocs.every((a, i) => 
+            a.id === nextAllocs[i]?.id &&
+            a.category === nextAllocs[i]?.category &&
+            eq(a.percentage, normalizeNumber(nextAllocs[i]?.percentage)) &&
+            a.description === nextAllocs[i]?.description
+          );
+        
+        // 4) True no-op: don't call set() if nothing changed
+        if (stagesEqual && profilesEqual && allocsEqual) {
+          return; // Early return - no state update
+        }
+        
+        // 5) Invalidate cache and publish update
+        cachedStagesState = null;
+        cachedValidationResult = null;
+        
+        set({
+          stages: newStages,
+          sectorProfiles: nextProfiles,
+          allocations: nextAllocs
+        });
+      }
+    };
+  },
+  {
       name: 'investment-strategy',
-      version: 1,
+      version: 2, // Bump version for new structure
       partialize: (s) => ({
         // Only persist primitive inputs (no derived remain)
         stages: s.stages.map((r: StrategyStage) => ({
@@ -174,11 +269,37 @@ export const useFundStore = create<StrategySlice>()(
         followOnChecks: s.followOnChecks,
         modelVersion: 'reserves-ev1',
       }),
-      migrate: (state: any, _v: number) => {
-        state.stages = (state.stages ?? []).map((r: any) => ({ months: 12, ...r }));
+      migrate: (state: any, from: number) => {
+        if (from < 2) {
+          state.stages = (state.stages ?? []).map((r: any) => ({ months: 12, ...r }));
+        }
         return state;
+      },
+      onRehydrateStorage: () => (state, err) => {
+        if (err) {
+          console.error('[fund-store] rehydrate failed', err);
+        }
+        // Set hydrated flag after rehydration completes
+        state?.setHydrated(true);
       }
     }
   )
 );
+
+// Dev-only store tracer for debugging state updates
+if (import.meta.env.DEV && typeof window !== 'undefined' && !(window as any).__fundStoreTracer) {
+  (window as any).__fundStoreTracer = true;
+  const unsub = useFundStore.subscribe((state, prev) => {
+    const changed: string[] = [];
+    if (state.hydrated !== prev.hydrated) changed.push('hydrated');
+    if (state.stages !== prev.stages) changed.push('stages');
+    if (state.sectorProfiles !== prev.sectorProfiles) changed.push('sectorProfiles');
+    if (state.allocations !== prev.allocations) changed.push('allocations');
+    if (changed.length) {
+      console.debug('[fund-store publish]', changed.join(','), { state, prev });
+    }
+  });
+  // Store unsubscribe function for cleanup if needed
+  (window as any).__unsubFundStoreTracer = unsub;
+}
 
