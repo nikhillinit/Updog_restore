@@ -1,7 +1,7 @@
 {
   "buildCommand": "npm run build",
-  "installCommand": "npm ci --ignore-scripts",
+  "installCommand": "npm ci",
   "framework": null,
   "ignoreCommand": "bash -lc 'if [ \"$VERCEL_GIT_PULL_REQUEST_ID\" != \"\" ] && [ \"$VERCEL_ENV\" != \"production\" ]; then echo Skip PR build; exit 0; else exit 1; fi'",
-  "env": { "NODE_VERSION": "20.15.1" }
+  "env": { "NODE_VERSION": "20.x" }
 }
