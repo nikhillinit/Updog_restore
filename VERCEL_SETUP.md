@@ -13,12 +13,14 @@ NODE_OPTIONS=--max-old-space-size=4096
 ```
 - **Purpose**: Prevents OOM errors during builds by increasing Node.js memory limit
 - **Environments**: Production, Preview, Development
+- **Required**: ✅ This must be set manually in Vercel dashboard
 
 ### 2. Node.js Version
 **Location**: Settings → General → Node.js Version
 
 - **Select**: `20.x`
-- **Why**: Matches our `package.json` engines requirement and `.nvmrc` file
+- **Why**: Matches our `package.json` engines requirement and `.node-version` file
+- **Required**: ✅ This must be set manually in Vercel dashboard (vercel.json cannot control runtime version)
 
 ### 3. Build & Development Settings
 **Location**: Settings → Build & Development Settings
@@ -37,13 +39,31 @@ If you want to skip PR preview builds:
 
 ## 📊 Verification Checklist
 
-After configuration, trigger a deployment with "Clear build cache" and verify:
+### Manual Configuration Steps
+1. **In Vercel Dashboard:**
+   - [ ] Set Node.js version to `20.x` (Settings → General)
+   - [ ] Add `NODE_OPTIONS=--max-old-space-size=4096` environment variable (Settings → Environment Variables)
+   - [ ] Verify build commands match vercel.json: `npm ci` and `npm run build`
 
-- [ ] Build completes without memory errors
-- [ ] No `.map` files in deployed assets
-- [ ] Upload size is ~15MB or less (previously 50MB+ with sourcemaps)
-- [ ] Deployment completes in ~1-2 minutes
-- [ ] Initial route doesn't load `vendor-charts-*.js`
+2. **Deploy with Clear Cache:**
+   - [ ] Trigger new deployment with "Clear build cache" enabled
+   - [ ] Monitor build logs for memory errors or stalls
+
+### Post-Deployment Verification
+3. **Build Performance:**
+   - [ ] Build completes without memory errors
+   - [ ] No `.map` files in deployed assets
+   - [ ] Upload size is ~15MB or less (previously 50MB+ with sourcemaps)
+   - [ ] Deployment completes in ~1-2 minutes
+
+4. **Runtime Verification:**
+   - [ ] Initial route doesn't load `vendor-charts-*.js` (verify in browser Network tab)
+   - [ ] Charts load correctly when navigating to planning page
+   - [ ] No JavaScript errors in browser console
+
+5. **Bundle Verification:**
+   - [ ] Run `curl -s https://your-app.vercel.app/_next/static/chunks/ | grep -o 'vendor-[^"]*\.js' | head -5` to verify chunk names
+   - [ ] Check browser Network tab for lazy loading of chart components
 
 ## 🔧 Local Development
 
@@ -96,23 +116,42 @@ The project includes automatic bundle size checking:
 ## 🔍 Troubleshooting
 
 ### Build Stalls or Times Out
-1. Verify `NODE_OPTIONS` is set in environment variables
-2. Clear build cache and redeploy
-3. Check that sourcemaps are disabled (VITE_SOURCEMAP not set)
+1. **Verify Manual Settings:**
+   - Check `NODE_OPTIONS=--max-old-space-size=4096` is set in Vercel environment variables
+   - Confirm Node.js version is set to `20.x` in dashboard
+2. **Clear build cache and redeploy**
+3. **Check that sourcemaps are disabled** (VITE_SOURCEMAP not set)
 
 ### Bundle Size Violations
-1. Run `npm run bundle:check` locally
-2. Use `npm run bundle:check -- --compressed` for gzip sizes
-3. Investigate with `npx vite-bundle-visualizer`
+1. **Run local checks:**
+   ```bash
+   npm run bundle:check                    # Uncompressed sizes
+   npm run bundle:check -- --compressed    # Gzip sizes
+   ```
+2. **Investigate with bundle analyzer:**
+   ```bash
+   npx vite-bundle-visualizer
+   ```
+
+### Runtime Issues
+1. **Chart Loading Problems:**
+   - Verify `vendor-charts-*.js` is NOT loaded on initial page
+   - Check browser Network tab for proper lazy loading
+   - Look for JavaScript errors in console
 
 ### Environment Drift
-1. Ensure Node version matches: local (.nvmrc) = CI = Vercel (20.x)
-2. Use `npm ci` not `npm install`
-3. Check `package-lock.json` is committed
+1. **Version Consistency:**
+   - Local: `.node-version` (20)
+   - CI: GitHub Actions (20)
+   - Vercel: Dashboard setting (20.x) ✅ **Manual**
+2. **Dependency Management:**
+   - Use `npm ci` not `npm install`
+   - Ensure `package-lock.json` is committed
 
 ## 📝 Notes
 
-- The project uses Vercel's Build Output API (`.vercel/output`)
-- Sourcemaps are disabled by default for production
-- Bundle budgets are enforced in CI via `npm run ci:build`
-- All settings in `vercel.json` should match dashboard settings
+- **Build System**: Uses Vercel's Build Output API (`.vercel/output`)
+- **Sourcemaps**: Disabled by default for production (reduces upload from 50MB to ~15MB)
+- **Bundle Budgets**: Enforced in CI via `npm run ci:build`
+- **Manual Configuration Required**: Node.js version and NODE_OPTIONS must be set in Vercel dashboard
+- **vercel.json Limitations**: Cannot control runtime Node.js version (only build commands and deployment settings)
