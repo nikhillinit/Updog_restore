@@ -261,7 +261,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
-    sourcemap: false, // Disable sourcemaps to reduce bundle size and upload time
+    sourcemap: process.env.VITE_SOURCEMAP === 'true', // Environment-driven sourcemap generation
     minify: 'esbuild',
     target: 'es2020', // More compatible target for production
     cssMinify: 'lightningcss',
