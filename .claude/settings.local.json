@@ -83,7 +83,8 @@
       "Bash(gh pr merge:*)",
       "Bash(gh pr:*)",
       "Bash(git fetch:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(npm i:*)"
     ],
     "deny": [],
     "ask": [],
