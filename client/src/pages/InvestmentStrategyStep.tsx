@@ -11,38 +11,32 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
-import { useFundStore } from "@/stores/useFundStore";
-import { signatureForStrategy } from "@/domain/strategy-signature";
-import { traceWizard } from "@/debug/wizard-trace";
+import { useFundSelector } from '@/stores/useFund';
+import { signatureForStrategy } from '@/domain/strategy-signature';
+import { traceWizard } from '@/debug/wizard-trace';
 import type { Stage, SectorProfile, Allocation } from "@shared/types";
 
 export default function InvestmentStrategyStep() {
-  // 1) Use store directly with individual selectors to avoid array recreation
-  const hydrated = useFundStore(s => s.hydrated);
-  const stages = useFundStore(s => s.stages);
-  const sectorProfiles = useFundStore(s => s.sectorProfiles);
-  const allocations = useFundStore(s => s.allocations);
-
-  // 2) Get actions once and memoize - they are stable references
-  const actions = React.useMemo(() => {
-    const state = useFundStore.getState();
-    return {
-      fromInvestmentStrategy: state.fromInvestmentStrategy,
-      addStage: state.addStage,
-      removeStage: state.removeStage,
-      updateStageName: state.updateStageName,
-      updateStageRate: state.updateStageRate,
-    };
-  }, []); // Empty deps - actions never change
+  // ✅ Pull everything via the safe wrapper; tuple + shallow keeps refs stable
+  const [
+    hydrated,
+    fromInvestmentStrategy,
+    addStage, removeStage, updateStageName, updateStageRate,
+    stages, sectorProfiles, allocations,
+  ] = useFundSelector(s => [
+    s.hydrated,
+    s.fromInvestmentStrategy,
+    s.addStage, s.removeStage, s.updateStageName, s.updateStageRate,
+    s.stages, s.sectorProfiles, s.allocations,
+  ]);
   
-  // 3) Derive UI payload from store slices (memo)
+  // Build the payload in a memo (don't recreate on each render)
   const data = React.useMemo(() => ({
     stages: stages.map((s: any) => ({
       id: s.id,
       name: s.name,
-      graduationRate: s.graduate,
+      graduationRate: s.graduate, // adapt to engine shape
       exitRate: s.exit,
-      months: s.months,
     })),
     sectorProfiles,
     allocations,
@@ -60,42 +54,36 @@ export default function InvestmentStrategyStep() {
   }, [stages]);
   const [activeTab, setActiveTab] = useState("stages");
   
-  // 5) Signature-based sync (guarded) — stabilize the action via ref
-  const fromRef = useRef(actions.fromInvestmentStrategy);
-  useEffect(() => { 
-    fromRef.current = actions.fromInvestmentStrategy; 
-  }, [actions.fromInvestmentStrategy]);
-
-  const sigRef = useRef<string>('');
-  useEffect(() => {
+  // Guarded write-back: only when hydrated and signature changes
+  const lastSig = React.useRef<string>('');
+  React.useEffect(() => {
     if (!hydrated) {
-      traceWizard('STEP3_NOT_HYDRATED', { hydrated }, { component: 'InvestmentStrategyStep' });
+      traceWizard('STEP2_NOT_HYDRATED', { hydrated }, { component: 'InvestmentStrategyStep' });
       return;
     }
+
     const sig = signatureForStrategy(data);
-    if (sig === sigRef.current) {
-      traceWizard('STEP3_SKIP_WRITE_SAME', { sig }, { component: 'InvestmentStrategyStep' });
+    if (sig === lastSig.current) {
+      traceWizard('SKIP_WRITE_SAME', { sig }, { component: 'InvestmentStrategyStep' });
       return;
     }
-    sigRef.current = sig;
-    traceWizard('STEP3_WRITE_FROM_STRATEGY', { sig }, { component: 'InvestmentStrategyStep' });
-    if (import.meta.env.DEV) {
-      console.debug('[InvestmentStrategyStep] Data changed, sig:', sig.substring(0, 40) + '...');
-    }
-    // Use ref to avoid dependency on function identity
-    // fromRef.current(data); // Note: Only call when parent needs sync
-  }, [data, hydrated]);
+
+    // Update store once per actual change
+    traceWizard('WRITE_FROM_STRATEGY', { sig, prevSig: lastSig.current }, { component: 'InvestmentStrategyStep' });
+    lastSig.current = sig;
+    fromInvestmentStrategy(data as any); // store method is idempotent now
+  }, [hydrated, data, fromInvestmentStrategy]);
 
   const handleAddStage = () => {
-    actions.addStage();
+    addStage();
   };
 
   const updateStage = (index: number, updates: Partial<Stage>) => {
     if ('name' in updates && updates.name !== undefined) {
-      actions.updateStageName(index, updates.name);
+      updateStageName(index, updates.name);
     }
     if ('graduationRate' in updates || 'exitRate' in updates) {
-      actions.updateStageRate(index, {
+      updateStageRate(index, {
         graduate: updates.graduationRate,
         exit: updates.exitRate
       });
@@ -103,7 +91,7 @@ export default function InvestmentStrategyStep() {
   };
 
   const handleRemoveStage = (index: number) => {
-    actions.removeStage(index);
+    removeStage(index);
   };
 
   const addSectorProfile = () => {
@@ -113,7 +101,7 @@ export default function InvestmentStrategyStep() {
       targetPercentage: 0,
       description: '',
     };
-    actions.fromInvestmentStrategy({
+    fromInvestmentStrategy({
       ...data,
       sectorProfiles: [...data.sectorProfiles, newSector]
     });
@@ -123,7 +111,7 @@ export default function InvestmentStrategyStep() {
     const updatedSectors = data.sectorProfiles.map((sector: any, i: number) => 
       i === index ? { ...sector, ...updates } : sector
     );
-    actions.fromInvestmentStrategy({
+    fromInvestmentStrategy({
       ...data,
       sectorProfiles: updatedSectors
     });
@@ -131,7 +119,7 @@ export default function InvestmentStrategyStep() {
 
   const removeSectorProfile = (index: number) => {
     const updatedSectors = data.sectorProfiles.filter((_: any, i: number) => i !== index);
-    actions.fromInvestmentStrategy({
+    fromInvestmentStrategy({
       ...data,
       sectorProfiles: updatedSectors
     });
@@ -144,7 +132,7 @@ export default function InvestmentStrategyStep() {
       percentage: 0,
       description: '',
     };
-    actions.fromInvestmentStrategy({
+    fromInvestmentStrategy({
       ...data,
       allocations: [...data.allocations, newAllocation]
     });
@@ -154,7 +142,7 @@ export default function InvestmentStrategyStep() {
     const updatedAllocations = data.allocations.map((allocation: any, i: number) => 
       i === index ? { ...allocation, ...updates } : allocation
     );
-    actions.fromInvestmentStrategy({
+    fromInvestmentStrategy({
       ...data,
       allocations: updatedAllocations
     });
@@ -162,7 +150,7 @@ export default function InvestmentStrategyStep() {
 
   const removeAllocation = (index: number) => {
     const updatedAllocations = data.allocations.filter((_: any, i: number) => i !== index);
-    actions.fromInvestmentStrategy({
+    fromInvestmentStrategy({
       ...data,
       allocations: updatedAllocations
     });

@@ -275,9 +275,10 @@ export const useFundStore = create<StrategySlice>()(
         }
         return state;
       },
-      onRehydrateStorage: () => (state, err) => {
+      onRehydrateStorage: () => (_state, err) => {
         if (err) console.error('[fund-store] rehydrate error', err);
-        state?.setHydrated(true); // flip AFTER rehydrate completes
+        // Flip on next microtask so subscribers see the final rehydrated values
+        Promise.resolve().then(() => useFundStore.getState().setHydrated(true));
       }
     }
   )
