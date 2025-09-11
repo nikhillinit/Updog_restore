@@ -37,7 +37,10 @@
       "Bash(git grep:*)",
       "Bash(npm run lint:*)",
       "Bash(npm run test:run:*)",
-      "Bash(npx vitest run:*)"
+      "Bash(npx vitest run:*)",
+      "Read(//c/c/**)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)"
     ],
     "deny": [],
     "ask": [],

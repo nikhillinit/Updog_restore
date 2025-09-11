@@ -11,35 +11,44 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
-import { useFundSelector } from "@/stores/useFund";
 import { useFundStore } from "@/stores/useFundStore";
 import { signatureForStrategy } from "@/domain/strategy-signature";
 import { traceWizard } from "@/debug/wizard-trace";
 import type { Stage, SectorProfile, Allocation } from "@shared/types";
 
 export default function InvestmentStrategyStep() {
-  // Use safe selectors with shallow equality
-  const [hydrated, fromInvestmentStrategy] = useFundSelector(s => [s.hydrated, s.fromInvestmentStrategy]);
-  const [stages, sectorProfiles, allocations] = useFundSelector(s => [s.stages, s.sectorProfiles, s.allocations]);
+  // 1) Use store directly with individual selectors to avoid array recreation
+  const hydrated = useFundStore(s => s.hydrated);
+  const stages = useFundStore(s => s.stages);
+  const sectorProfiles = useFundStore(s => s.sectorProfiles);
+  const allocations = useFundStore(s => s.allocations);
+
+  // 2) Get actions once and memoize - they are stable references
+  const actions = React.useMemo(() => {
+    const state = useFundStore.getState();
+    return {
+      fromInvestmentStrategy: state.fromInvestmentStrategy,
+      addStage: state.addStage,
+      removeStage: state.removeStage,
+      updateStageName: state.updateStageName,
+      updateStageRate: state.updateStageRate,
+    };
+  }, []); // Empty deps - actions never change
   
-  // Memoize the data transformation to prevent recreation on every render
+  // 3) Derive UI payload from store slices (memo)
   const data = React.useMemo(() => ({
     stages: stages.map((s: any) => ({
       id: s.id,
       name: s.name,
       graduationRate: s.graduate,
-      exitRate: s.exit
+      exitRate: s.exit,
+      months: s.months,
     })),
     sectorProfiles,
-    allocations
+    allocations,
   }), [stages, sectorProfiles, allocations]);
-  // Fix: Group store actions with individual selectors
-  const storeAddStage = useFundStore(state => state.addStage);
-  const storeRemoveStage = useFundStore(state => state.removeStage);
-  const storeUpdateStageName = useFundStore(state => state.updateStageName);
-  const storeUpdateStageRate = useFundStore(state => state.updateStageRate);
   
-  // Fix: Memoize validation to prevent recalculation on every render
+  // 4) Memoize validation to prevent recalculation on every render
   const { allValid } = React.useMemo(() => {
     const errors = stages.map((r: any, i: number) => {
       if (!r.name?.trim()) return 'Stage name required';
@@ -51,49 +60,50 @@ export default function InvestmentStrategyStep() {
   }, [stages]);
   const [activeTab, setActiveTab] = useState("stages");
   
-  // Add a guarded effect to sync data with store only when necessary
-  const lastSig = useRef<string>('');
+  // 5) Signature-based sync (guarded) — stabilize the action via ref
+  const fromRef = useRef(actions.fromInvestmentStrategy);
+  useEffect(() => { 
+    fromRef.current = actions.fromInvestmentStrategy; 
+  }, [actions.fromInvestmentStrategy]);
+
+  const sigRef = useRef<string>('');
   useEffect(() => {
     if (!hydrated) {
-      traceWizard('STEP2_NOT_HYDRATED', { hydrated }, { component: 'InvestmentStrategyStep' });
-      return; // Don't update until store is hydrated
+      traceWizard('STEP3_NOT_HYDRATED', { hydrated }, { component: 'InvestmentStrategyStep' });
+      return;
     }
-    
     const sig = signatureForStrategy(data);
-    traceWizard('STEP2_EFFECT_RUN', { sig, hydrated }, { component: 'InvestmentStrategyStep' });
-    
-    if (sig === lastSig.current) {
-      traceWizard('SKIP_WRITE_SAME', { sig }, { component: 'InvestmentStrategyStep' });
-      return; // No changes, skip update
+    if (sig === sigRef.current) {
+      traceWizard('STEP3_SKIP_WRITE_SAME', { sig }, { component: 'InvestmentStrategyStep' });
+      return;
     }
-    lastSig.current = sig;
-    
-    // Only call if data actually changed - this syncs form data to store
-    traceWizard('WRITE_FROM_STRATEGY', { sig, prevSig: lastSig.current }, { component: 'InvestmentStrategyStep' });
+    sigRef.current = sig;
+    traceWizard('STEP3_WRITE_FROM_STRATEGY', { sig }, { component: 'InvestmentStrategyStep' });
     if (import.meta.env.DEV) {
       console.debug('[InvestmentStrategyStep] Data changed, sig:', sig.substring(0, 40) + '...');
     }
-    // Note: fromInvestmentStrategy is called by parent components when needed
-  }, [data, hydrated, fromInvestmentStrategy]);
+    // Use ref to avoid dependency on function identity
+    // fromRef.current(data); // Note: Only call when parent needs sync
+  }, [data, hydrated]);
 
-  const addStage = () => {
-    storeAddStage();
+  const handleAddStage = () => {
+    actions.addStage();
   };
 
   const updateStage = (index: number, updates: Partial<Stage>) => {
     if ('name' in updates && updates.name !== undefined) {
-      storeUpdateStageName(index, updates.name);
+      actions.updateStageName(index, updates.name);
     }
     if ('graduationRate' in updates || 'exitRate' in updates) {
-      storeUpdateStageRate(index, {
+      actions.updateStageRate(index, {
         graduate: updates.graduationRate,
         exit: updates.exitRate
       });
     }
   };
 
-  const removeStage = (index: number) => {
-    storeRemoveStage(index);
+  const handleRemoveStage = (index: number) => {
+    actions.removeStage(index);
   };
 
   const addSectorProfile = () => {
@@ -103,7 +113,7 @@ export default function InvestmentStrategyStep() {
       targetPercentage: 0,
       description: '',
     };
-    fromInvestmentStrategy({
+    actions.fromInvestmentStrategy({
       ...data,
       sectorProfiles: [...data.sectorProfiles, newSector]
     });
@@ -113,7 +123,7 @@ export default function InvestmentStrategyStep() {
     const updatedSectors = data.sectorProfiles.map((sector: any, i: number) => 
       i === index ? { ...sector, ...updates } : sector
     );
-    fromInvestmentStrategy({
+    actions.fromInvestmentStrategy({
       ...data,
       sectorProfiles: updatedSectors
     });
@@ -121,7 +131,7 @@ export default function InvestmentStrategyStep() {
 
   const removeSectorProfile = (index: number) => {
     const updatedSectors = data.sectorProfiles.filter((_: any, i: number) => i !== index);
-    fromInvestmentStrategy({
+    actions.fromInvestmentStrategy({
       ...data,
       sectorProfiles: updatedSectors
     });
@@ -134,7 +144,7 @@ export default function InvestmentStrategyStep() {
       percentage: 0,
       description: '',
     };
-    fromInvestmentStrategy({
+    actions.fromInvestmentStrategy({
       ...data,
       allocations: [...data.allocations, newAllocation]
     });
@@ -144,7 +154,7 @@ export default function InvestmentStrategyStep() {
     const updatedAllocations = data.allocations.map((allocation: any, i: number) => 
       i === index ? { ...allocation, ...updates } : allocation
     );
-    fromInvestmentStrategy({
+    actions.fromInvestmentStrategy({
       ...data,
       allocations: updatedAllocations
     });
@@ -152,7 +162,7 @@ export default function InvestmentStrategyStep() {
 
   const removeAllocation = (index: number) => {
     const updatedAllocations = data.allocations.filter((_: any, i: number) => i !== index);
-    fromInvestmentStrategy({
+    actions.fromInvestmentStrategy({
       ...data,
       allocations: updatedAllocations
     });
@@ -191,7 +201,7 @@ export default function InvestmentStrategyStep() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => removeStage(index)}
+                      onClick={() => handleRemoveStage(index)}
                       className="text-red-500 hover:text-red-700"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -249,7 +259,7 @@ export default function InvestmentStrategyStep() {
                 </div>
               ))}
               
-              <Button onClick={addStage} variant="outline" className="w-full">
+              <Button onClick={handleAddStage} variant="outline" className="w-full">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Stage
               </Button>
