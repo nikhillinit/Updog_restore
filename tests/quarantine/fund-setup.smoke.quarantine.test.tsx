@@ -4,19 +4,16 @@ import { renderFundSetup } from '../utils/render-fund-setup';
 import { useConsoleCapture } from '../helpers/console-capture';
 
 /**
- * KNOWN LIMITATION: These tests are currently disabled due to fundamental 
- * incompatibilities between React DOM and both JSDOM/happy-dom environments.
+ * QUARANTINED: These tests require a real browser environment and cannot run in JSDOM/happy-dom.
  * 
  * React's internal getActiveElementDeep function uses `instanceof HTMLIFrameElement`
- * which fails in these environments because the constructor is not properly exposed.
+ * which fails in DOM simulation environments because the constructor is not properly exposed.
  * 
- * TODO: Re-enable these tests once we add Playwright for true browser testing.
- * These smoke tests verify critical functionality and should be run in a real browser.
+ * These tests have been ported to Playwright E2E tests at tests/e2e/fund-setup.spec.ts
+ * This file is kept for reference but excluded from test runs via vitest.config.ts
  */
-const ENABLE_WHEN_BROWSER_TESTING_AVAILABLE = false;
-const itSmoke = ENABLE_WHEN_BROWSER_TESTING_AVAILABLE ? it : it.skip;
 
-describe('FundSetup (smoke) - DISABLED: Requires browser environment', () => {
+describe.skip('FundSetup (smoke) - QUARANTINED: See tests/e2e/fund-setup.spec.ts', () => {
   const logs = useConsoleCapture();
 
   beforeEach(() => {
@@ -27,7 +24,7 @@ describe('FundSetup (smoke) - DISABLED: Requires browser environment', () => {
   });
 
   // Test each step individually for better isolation and clearer failure messages
-  itSmoke('renders step 2 (investment-strategy) without churn errors', () => {
+  it('renders step 2 (investment-strategy) without churn errors', () => {
     renderFundSetup('/fund-setup?step=2');
 
     const all = [...logs.error, ...logs.warn].flat().join('\n').toLowerCase();
@@ -36,7 +33,7 @@ describe('FundSetup (smoke) - DISABLED: Requires browser environment', () => {
     expect(screen.getByTestId('wizard-step-investment-strategy-container')).toBeTruthy();
   });
 
-  itSmoke('renders step 3 (exit-recycling) without churn errors', () => {
+  it('renders step 3 (exit-recycling) without churn errors', () => {
     renderFundSetup('/fund-setup?step=3');
 
     const all = [...logs.error, ...logs.warn].flat().join('\n').toLowerCase();
@@ -45,7 +42,7 @@ describe('FundSetup (smoke) - DISABLED: Requires browser environment', () => {
     expect(screen.getByTestId('wizard-step-exit-recycling-container')).toBeTruthy();
   });
 
-  itSmoke('renders step 4 (waterfall) without churn errors', () => {
+  it('renders step 4 (waterfall) without churn errors', () => {
     renderFundSetup('/fund-setup?step=4');
 
     const all = [...logs.error, ...logs.warn].flat().join('\n').toLowerCase();
@@ -54,7 +51,7 @@ describe('FundSetup (smoke) - DISABLED: Requires browser environment', () => {
     expect(screen.getByTestId('wizard-step-waterfall-container')).toBeTruthy();
   });
 
-  itSmoke('shows not-found for invalid step and warns at most once in DEV', () => {
+  it('shows not-found for invalid step and warns at most once in DEV', () => {
     renderFundSetup('/fund-setup?step=99');
     
     expect(screen.getByTestId('wizard-step-not-found-container')).toBeTruthy();
@@ -67,7 +64,7 @@ describe('FundSetup (smoke) - DISABLED: Requires browser environment', () => {
     }
   });
 
-  itSmoke('no hydration or infinite loop errors across multiple renders', () => {
+  it('no hydration or infinite loop errors across multiple renders', () => {
     // Test rendering multiple steps in sequence
     const steps = ['2', '3', '4'];
     
