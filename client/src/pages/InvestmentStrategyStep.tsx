@@ -101,7 +101,7 @@ export default function InvestmentStrategyStep() {
       targetPercentage: 0,
       description: '',
     };
-    actions.fromInvestmentStrategy({
+    fromInvestmentStrategy({
       ...data,
       sectorProfiles: [...data.sectorProfiles, newSector]
     });
@@ -111,7 +111,7 @@ export default function InvestmentStrategyStep() {
     const updatedSectors = data.sectorProfiles.map((sector: any, i: number) => 
       i === index ? { ...sector, ...updates } : sector
     );
-    actions.fromInvestmentStrategy({
+    fromInvestmentStrategy({
       ...data,
       sectorProfiles: updatedSectors
     });
@@ -119,7 +119,7 @@ export default function InvestmentStrategyStep() {
 
   const removeSectorProfile = (index: number) => {
     const updatedSectors = data.sectorProfiles.filter((_: any, i: number) => i !== index);
-    actions.fromInvestmentStrategy({
+    fromInvestmentStrategy({
       ...data,
       sectorProfiles: updatedSectors
     });
@@ -132,7 +132,7 @@ export default function InvestmentStrategyStep() {
       percentage: 0,
       description: '',
     };
-    actions.fromInvestmentStrategy({
+    fromInvestmentStrategy({
       ...data,
       allocations: [...data.allocations, newAllocation]
     });
@@ -142,7 +142,7 @@ export default function InvestmentStrategyStep() {
     const updatedAllocations = data.allocations.map((allocation: any, i: number) => 
       i === index ? { ...allocation, ...updates } : allocation
     );
-    actions.fromInvestmentStrategy({
+    fromInvestmentStrategy({
       ...data,
       allocations: updatedAllocations
     });
@@ -150,7 +150,7 @@ export default function InvestmentStrategyStep() {
 
   const removeAllocation = (index: number) => {
     const updatedAllocations = data.allocations.filter((_: any, i: number) => i !== index);
-    actions.fromInvestmentStrategy({
+    fromInvestmentStrategy({
       ...data,
       allocations: updatedAllocations
     });

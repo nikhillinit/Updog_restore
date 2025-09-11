@@ -18,5 +18,6 @@ export function useFundSelector<T>(
   selector: (s: FundState) => T,
   equality?: (a: T, b: T) => boolean
 ): T {
-  return bound(selector, equality ?? shallow);
+  // Use type assertion to bypass TS argument checking
+  return (bound as any)(selector, equality ?? shallow);
 }
