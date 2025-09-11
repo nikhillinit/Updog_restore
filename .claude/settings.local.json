@@ -75,7 +75,11 @@
       "Bash(gh issue comment:*)",
       "Bash(gh run list:*)",
       "Bash(PERF_SUMMARY_PATH=perf/test-summary.json node scripts/compare-perf.mjs)",
-      "Bash(PERF_SUMMARY_PATH=perf/test-fail.json node scripts/compare-perf.mjs)"
+      "Bash(PERF_SUMMARY_PATH=perf/test-fail.json node scripts/compare-perf.mjs)",
+      "Bash(git rm:*)",
+      "Bash(start C:devUpdog_restoretest-step3.html)",
+      "Bash(start \"C:\\dev\\Updog_restore\\test-step3.html\")",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": [],

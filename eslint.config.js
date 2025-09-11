@@ -42,11 +42,10 @@ export default [
       "dist/**", 
       "coverage/**", 
       ".vite/**", 
+      ".vercel/**",
       "node_modules/**",
       "build/**",
-      "tests/**",
-      "**/*.test.ts",
-      "**/*.test.tsx",
+      // Keep tests linted - removed "tests/**"
       "scripts/**",
       "auto-discovery/**",
       "workers/**",
@@ -63,6 +62,7 @@ export default [
       "packages/*/dist/**",
       "packages/*/build/**",
       "ml-service/dist/**",
+      "typescript-fix-agents/**",
       "check-db.js",
       "client/rum/**",
       "vitest.config.*.ts",
@@ -106,10 +106,11 @@ export default [
     rules: {
       // Phase 1: Type safety warnings (will escalate to errors in Phase 3)
       "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-unsafe-assignment": "warn",
-      "@typescript-eslint/no-unsafe-member-access": "warn",
-      "@typescript-eslint/no-unsafe-call": "warn",
-      "@typescript-eslint/no-unsafe-return": "warn",
+      // These require parserOptions.project which impacts performance
+      // "@typescript-eslint/no-unsafe-assignment": "warn",
+      // "@typescript-eslint/no-unsafe-member-access": "warn",
+      // "@typescript-eslint/no-unsafe-call": "warn",
+      // "@typescript-eslint/no-unsafe-return": "warn",
       
       // Unused imports and variables
       "no-unused-vars": "off",
@@ -139,7 +140,32 @@ export default [
       // Prefer modern JavaScript features
       "prefer-const": "warn",
       "prefer-template": "warn",
-      "prefer-nullish-coalescing": "off" // Will enable once codebase is ready
+      "prefer-nullish-coalescing": "off", // Will enable once codebase is ready
+      
+      // Prevent object-return selectors without equality functions (prevents infinite loops)
+      "no-restricted-syntax": [
+        "error",
+        {
+          // Direct useFundStore usage without equality function - encourage useFundSelector
+          "selector": "CallExpression[callee.name='useFundStore'][arguments.length=1]",
+          "message": "Pass an equality function or use useFundSelector (defaults to shallow)."
+        },
+        {
+          // Direct object literal return without equality
+          "selector": "CallExpression[callee.name='useFundStore'][arguments.0.type='ArrowFunctionExpression'][arguments.0.body.type='ObjectExpression'][arguments.length=1]",
+          "message": "Object-return selectors must pass an equality function (use useFundSelector or provide shallow/Object.is as second argument)"
+        },
+        {
+          // Object return from block statement without equality
+          "selector": "CallExpression[callee.name='useFundStore'][arguments.length=1] > ArrowFunctionExpression > BlockStatement ReturnStatement > ObjectExpression",
+          "message": "Object-return selectors must pass an equality function (use useFundSelector or provide shallow/Object.is as second argument)"
+        },
+        {
+          // Array literal return without equality (also causes identity churn)
+          "selector": "CallExpression[callee.name='useFundStore'][arguments.0.type='ArrowFunctionExpression'][arguments.0.body.type='ArrayExpression'][arguments.length=1]",
+          "message": "Array-return selectors must pass an equality function (use useFundSelector or provide shallow as second argument)"
+        }
+      ]
     },
     settings: { 
       react: { version: "detect" } 

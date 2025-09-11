@@ -156,7 +156,14 @@ function ProtectedRoute({ component: Component, ...props }: any) {
 
 function Router() {
   return (
-    <Suspense fallback={<div>Loading…</div>}>
+    <Suspense fallback={
+      <div className="flex-1 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading page...</p>
+        </div>
+      </div>
+    }>
       <Switch>
         <Route path="/" component={HomeRoute} />
         <Route path="/fund-setup" component={FundSetup} />

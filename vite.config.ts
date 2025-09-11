@@ -215,6 +215,7 @@ export default defineConfig(({ mode }) => {
     mode === 'preact';
 
   return {
+    base: '/', // Ensure absolute paths for assets
   plugins: [
     // Use absolute path so Vite doesn't ever look for "client/client/tsconfig.json"
     tsconfigPaths({
@@ -267,11 +268,11 @@ export default defineConfig(({ mode }) => {
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist'),
     emptyOutDir: true,
-    sourcemap: true, // Always enable source maps for profiling
+    sourcemap: process.env.VITE_SOURCEMAP === 'true' ? true : true, // Always enable source maps for profiling (keeping environment option)
     minify: 'esbuild',
-    target: 'esnext', // Most aggressive target
+    target: 'es2020', // More compatible target for production
     cssMinify: 'lightningcss',
-    reportCompressedSize: false,
+    reportCompressedSize: false, // Skip compression size reporting for faster builds
     chunkSizeWarningLimit: 500,
     manifest: true, // Generate manifest for bundle analysis
     modulePreload: {

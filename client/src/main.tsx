@@ -6,7 +6,11 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import { installFetchTap } from "./debug/fetch-tap";
 // Vitals loaded dynamically in production
+
+// Install fetch interceptor for debugging
+installFetchTap();
 
 // Emergency rollback failsafe - provides backdoor even if env vars are stuck
 function checkEmergencyRollback() {

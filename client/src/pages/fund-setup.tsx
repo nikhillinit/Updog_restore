@@ -5,36 +5,54 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { mapAsync } from "@/lib";
 import { useState, useEffect, useRef } from 'react';
+import { startCreateFund, cancelCreateFund, computeCreateFundHash } from '@/services/funds';
 import { toFundCreationPayload } from '@/core/reserves/adapter/toEngineGraduationRates';
+import { toast } from '@/lib/toast';
 import { useFundStore } from '@/stores/useFundStore';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { PremiumCard } from "@/components/ui/PremiumCard";
 import { FinancialInput } from "@/components/wizard/FinancialInput";
+import { POVLogo } from "@/components/ui/POVLogo";
 import { WizardHeader } from "@/components/wizard/WizardHeader";
 import { WizardProgressRedesigned } from "@/components/wizard/WizardProgressRedesigned";
-import { WizardContainer } from "@/components/wizard/WizardContainer";
+import { WizardContainer, WizardSectionHeading, WizardInputLabel } from "@/components/wizard/WizardContainer";
 
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useFundContext } from "@/contexts/FundContext";
-import { ArrowRight, ArrowLeft, Building2, Plus, Edit2, Trash2 } from "lucide-react";
+import { CheckCircle, Circle, ArrowRight, ArrowLeft, Building2, Plus, Edit2, Trash2, X } from "lucide-react";
 import { resilientLimit } from "@/utils/resilientLimit";
 // Removed server import - use shared types or client-side metrics instead
 // import { asyncRepl } from "../../../server/metrics";
+import _BudgetCreator from "@/components/budget/budget-creator";
 import InvestmentStrategyStep from "./InvestmentStrategyStep";
 import ExitRecyclingStep from "./ExitRecyclingStep";
 import WaterfallStep from "./WaterfallStep";
-import { runSimulation } from "@/lib/fund-calc";
+import StepNotFound from "./steps/StepNotFound";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import type { InvestmentStrategy, ExitRecycling, Waterfall } from "@shared/types";
 import type { Fund as DatabaseFund } from "@shared/schema";
 import type { Fund } from "@/contexts/FundContext";
+
+// Explicit step mapping with fallback to prevent import failures
+const stepComponents: Record<string, React.ComponentType<any>> = {
+  'investment-strategy': InvestmentStrategyStep,
+  'exit-recycling': ExitRecyclingStep,
+  'waterfall': WaterfallStep,
+};
+
+function loadStepComponent(stepName: string): React.ComponentType<any> {
+  return stepComponents[stepName] ?? StepNotFound;
+}
 
 type WizardStep = 'fund-basics' | 'committed-capital' | 'investment-strategy' | 'exit-recycling' | 'waterfall' | 'advanced-settings' | 'review';
 
@@ -267,19 +285,38 @@ export default function FundSetup() {
 
   const currentStepIndex = WIZARD_STEPS.findIndex(s => s.id === currentStep);
 
-  // Initialize fund life calculation when dates change
+  // Initialize fund life calculation on component mount
   useEffect(() => {
-    // Only calculate if we have both dates and hasEndDate is true
-    if (!fundData.hasEndDate || !fundData.startDate || !fundData.endDate) {
-      return;
+    if (fundData.hasEndDate && fundData.startDate && fundData.endDate) {
+      const updatedData = calculateFundLifeFromDates(fundData);
+      if (updatedData !== fundData) {
+        setFundData(updatedData);
+      }
     }
+  }, []); // Empty dependency array to run only on mount
+
+  // Handle URL parameter for direct step navigation
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const stepParam = urlParams.get('step');
     
-    const updatedData = calculateFundLifeFromDates(fundData);
-    // calculateFundLifeFromDates now returns the same object if nothing changed
-    if (updatedData !== fundData) {
-      setFundData(updatedData);
+    if (stepParam) {
+      const stepMapping: { [key: string]: WizardStep } = {
+        '1': 'fund-basics',
+        '2': 'committed-capital',
+        '3': 'investment-strategy',
+        '4': 'exit-recycling',
+        '5': 'waterfall',
+        '6': 'advanced-settings',
+        '7': 'review'
+      };
+      
+      const targetStep = stepMapping[stepParam];
+      if (targetStep) {
+        setCurrentStep(targetStep);
+      }
     }
-  }, [fundData.hasEndDate, fundData.startDate, fundData.endDate]); // Only re-run when these specific fields change
+  }, []); // Run once on mount
 
   const handleInputChange = (field: string, value: string | boolean | number) => {
     setFundData(prev => {
@@ -311,157 +348,18 @@ export default function FundSetup() {
     setFundData(prev => ({ ...prev, [field]: value }));
   };
 
-  // Worker and abort controller refs for simulation
-  const workerRef = useRef<Worker | null>(null);
-  const currentRunIdRef = useRef<string | null>(null);
-  const [simulationResult, setSimulationResult] = useState<any>(null);
-  const [isSimulating, setIsSimulating] = useState(false);
-
-  // Feature flag for Worker usage (default ON, but disabled in production/build)
-  const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
-  const isProduction = (import.meta as any).env?.MODE === 'production';
-  const USE_WORKER = isBrowser && !isProduction && (import.meta.env['VITE_USE_SIMULATION_WORKER'] ?? 'true') !== 'false';
-
-  const handleNext = async () => {
+  const handleNext = () => {
     const stepOrder: WizardStep[] = ['fund-basics', 'committed-capital', 'investment-strategy', 'exit-recycling', 'waterfall', 'advanced-settings', 'review'];
     const currentIndex = stepOrder.indexOf(currentStep);
-    const nextStep = stepOrder[currentIndex + 1];
-    
-    // Skip simulation during SSR/build or if environment variable is set
-    const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
-    const isBuilding = (import.meta as any).env?.SSR || (import.meta as any).env?.MODE === 'production';
-    const isVercel = (import.meta as any).env?.VITE_VERCEL_ENV || false;
-    const skipSimulation = !isBrowser || isBuilding || isVercel || (import.meta as any).env?.VITE_SKIP_WIZARD_SIMULATION === 'true';
-    
-    // If transitioning from Step 2 (committed-capital) to Step 3 (investment-strategy), run simulation
-    if (currentStep === 'committed-capital' && nextStep === 'investment-strategy' && !skipSimulation) {
-      // Performance mark for Step 2->3 transition
-      performance.mark('step2->3:click');
-      console.log('[Wizard] Starting Step 2 -> 3 transition');
-      
-      // Cancel any in-flight simulation
-      if (workerRef.current) {
-        workerRef.current.terminate();
-        workerRef.current = null;
-      }
-      
-      // Prepare simulation inputs based on current fund data
-      const simulationInputs = {
-        baseMOIC: 2.5,
-        baseIRR: 0.25,
-        initialCapital: parseFloat(fundData.totalCommittedCapital) || 100000000,
-        monteCarloRuns: 100, // Reduced for faster testing
-        periods: 120,
-        growthRate: 0.015,
-        distributionRate: 0.008,
-        ...fundData // Include all fund data for simulation
-      };
-      
-      console.log('[Wizard] Simulation inputs:', simulationInputs);
-      setIsSimulating(true);
-      
-      try {
-        if (USE_WORKER && typeof Worker !== 'undefined') {
-          // Run simulation in Worker
-          const runId = crypto.randomUUID?.() ?? String(Math.random());
-          currentRunIdRef.current = runId;
-          
-          try {
-            workerRef.current = new Worker(
-              new URL('../workers/simulation.worker.ts', import.meta.url),
-              { type: 'module' }
-            );
-          } catch (workerError) {
-            console.warn('[Wizard] Failed to create Worker, falling back to main thread:', workerError);
-            // Fall back to main thread execution
-            const result = await runSimulation(simulationInputs, Date.now());
-            console.log('[Wizard] Main thread simulation completed:', result);
-            setSimulationResult(result);
-            return; // Exit early, simulation complete
-          }
-          
-          const result = await Promise.race([
-            new Promise<any>((resolve, reject) => {
-              if (!workerRef.current) {
-                reject(new Error('Worker initialization failed'));
-                return;
-              }
-              
-              workerRef.current.onmessage = (evt: MessageEvent<any>) => {
-                const { type, runId: rid, result, error } = evt.data || {};
-                if (rid !== runId) return;
-                
-                if (type === 'result') {
-                  resolve(result);
-                } else if (type === 'error') {
-                  reject(new Error(error || 'Worker error'));
-                }
-                
-                // Clean up worker
-                if (workerRef.current) {
-                  workerRef.current.terminate();
-                  workerRef.current = null;
-                }
-              };
-              
-              workerRef.current.onerror = (e) => {
-                if (workerRef.current) {
-                  workerRef.current.terminate();
-                  workerRef.current = null;
-                }
-                reject(e.error || new Error('Worker crashed'));
-              };
-              
-              // Send simulation request to worker
-              workerRef.current.postMessage({
-                type: 'run',
-                runId,
-                inputs: simulationInputs,
-                seed: Date.now() // Use timestamp as seed for deterministic results
-              });
-            }),
-            // Timeout after 5 seconds
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Simulation timeout')), 5000)
-            )
-          ]);
-          
-          console.log('[Wizard] Worker simulation completed:', result);
-          setSimulationResult(result);
-        } else {
-          // Fallback: run simulation on main thread
-          console.log('[Wizard] Running simulation on main thread');
-          const result = await runSimulation(simulationInputs, Date.now());
-          console.log('[Wizard] Main thread simulation completed:', result);
-          setSimulationResult(result);
-        }
-      } catch (error) {
-        console.error('[Wizard] Simulation failed:', error);
-        toast({
-          title: "Simulation Error",
-          description: "Failed to run fund simulation. Proceeding without results.",
-          variant: "destructive",
-        });
-      } finally {
-        console.log('[Wizard] Simulation complete, transitioning to Step 3');
-        setIsSimulating(false);
-      }
-    }
-    
-    // Prefetch next step component during idle time
-    if (nextStep === 'investment-strategy') {
-      const idle = 'requestIdleCallback' in window
-        ? (window as any).requestIdleCallback
-        : (cb: any) => setTimeout(cb, 0);
-      
-      idle(() => {
-        // Prefetch InvestmentStrategyStep component if not already loaded
-        import('./InvestmentStrategyStep').catch(console.error);
-      });
-    }
-    
     if (currentIndex < stepOrder.length - 1) {
-      setCurrentStep(stepOrder[currentIndex + 1]);
+      const nextStep = stepOrder[currentIndex + 1];
+      setCurrentStep(nextStep);
+      
+      // Update URL to reflect current step
+      const stepNumber = currentIndex + 2; // +2 because we're moving to next step (1-indexed)
+      const url = new URL(window.location.href);
+      url.searchParams.set('step', stepNumber.toString());
+      window.history.pushState({}, '', url.toString());
     }
   };
 
@@ -469,7 +367,14 @@ export default function FundSetup() {
     const stepOrder: WizardStep[] = ['fund-basics', 'committed-capital', 'investment-strategy', 'exit-recycling', 'waterfall', 'advanced-settings', 'review'];
     const currentIndex = stepOrder.indexOf(currentStep);
     if (currentIndex > 0) {
-      setCurrentStep(stepOrder[currentIndex - 1]);
+      const prevStep = stepOrder[currentIndex - 1];
+      setCurrentStep(prevStep);
+      
+      // Update URL to reflect current step
+      const stepNumber = currentIndex; // currentIndex is already the previous step number (1-indexed)
+      const url = new URL(window.location.href);
+      url.searchParams.set('step', stepNumber.toString());
+      window.history.pushState({}, '', url.toString());
     }
   };
 
@@ -490,32 +395,17 @@ export default function FundSetup() {
       const diffInMs = endDate.getTime() - startDate.getTime();
       const diffInYears = diffInMs / (1000 * 60 * 60 * 24 * 365.25);
       const fundLifeYears = Math.round(diffInYears);
-      const newVintageYear = startDate.getFullYear().toString();
-      
-      // Only return new object if values actually changed
-      if (data.lifeYears === fundLifeYears && data.vintageYear === newVintageYear) {
-        return data;
-      }
       
       return {
         ...data,
         lifeYears: fundLifeYears,
-        vintageYear: newVintageYear
+        vintageYear: startDate.getFullYear().toString()
       };
-    }
-    
-    const newVintageYear = data.startDate ? 
-      new Date(data.startDate).getFullYear().toString() : 
-      data.vintageYear;
-    
-    // Only return new object if vintage year changed
-    if (data.vintageYear === newVintageYear) {
-      return data;
     }
     
     return {
       ...data,
-      vintageYear: newVintageYear
+      vintageYear: data.startDate ? new Date(data.startDate).getFullYear().toString() : data.vintageYear
     };
   };
 
@@ -1280,26 +1170,34 @@ export default function FundSetup() {
               </div>
             )}
 
-            {/* Investment Strategy Step */}
-            {currentStep === 'investment-strategy' && (
-              <InvestmentStrategyStep />
-            )}
+            {/* Dynamic Step Component Rendering */}
+            {stepComponents[currentStep] && (() => {
+              const StepComponent = loadStepComponent(currentStep);
+              const stepProps = (() => {
+                switch (currentStep) {
+                  case 'exit-recycling':
+                    return {
+                      data: fundData.exitRecycling,
+                      onChange: (data: ExitRecycling) => handleComplexDataChange('exitRecycling', data)
+                    };
+                  case 'waterfall':
+                    return {
+                      data: fundData.waterfall,
+                      onChange: (data: Waterfall) => handleComplexDataChange('waterfall', data)
+                    };
+                  default:
+                    return {};
+                }
+              })();
 
-            {/* Exit Recycling Step */}
-            {currentStep === 'exit-recycling' && (
-              <ExitRecyclingStep
-                data={fundData.exitRecycling}
-                onChange={(data) => handleComplexDataChange('exitRecycling', data)}
-              />
-            )}
-
-            {/* Waterfall Step */}
-            {currentStep === 'waterfall' && (
-              <WaterfallStep
-                data={fundData.waterfall}
-                onChange={(data) => handleComplexDataChange('waterfall', data)}
-              />
-            )}
+              return (
+                <ErrorBoundary fallback={<StepNotFound />}>
+                  <div data-testid={`wizard-step-${currentStep}-container`}>
+                    <StepComponent {...stepProps} />
+                  </div>
+                </ErrorBoundary>
+              );
+            })()}
 
             {/* Advanced Settings Step */}
             {currentStep === 'advanced-settings' && (
@@ -1375,7 +1273,7 @@ export default function FundSetup() {
 
         {/* LP Class Modal */}
         <Dialog open={isLPClassModalOpen} onOpenChange={setIsLPClassModalOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-inter font-bold text-xl text-pov-charcoal">
                 {editingLPClass ? 'Edit LP Class' : 'Add New LP Class'}
@@ -1514,7 +1412,6 @@ export default function FundSetup() {
 
                 {currentStep !== 'review' ? (
                   <Button
-                    data-testid="wizard-next-button"
                     onClick={handleNext}
                     disabled={!canProceed}
                     className="flex items-center space-x-2 bg-pov-charcoal hover:bg-gradient-to-r hover:from-pov-charcoal hover:to-pov-beige text-white rounded-2xl h-12 px-8 shadow-elevated hover:shadow-lg transition-all duration-200 disabled:opacity-50 font-poppins font-medium"
@@ -1524,7 +1421,6 @@ export default function FundSetup() {
                   </Button>
                 ) : (
                   <Button
-                    data-testid="wizard-submit-button"
                     onClick={handleSave}
                     disabled={createFundMutation.isPending}
                     className="bg-pov-charcoal hover:bg-gradient-to-r hover:from-pov-charcoal hover:to-pov-beige text-white rounded-2xl h-12 px-8 shadow-elevated hover:shadow-lg transition-all duration-200 font-poppins font-medium"
