@@ -24,10 +24,20 @@ export default defineConfig({
       '**/*.quarantine.{test,spec}.ts?(x)',
     ],
     environment: 'jsdom', // Changed from 'node' to support React component testing
+    environmentOptions: {
+      jsdom: {
+        pretendToBeVisual: true, // enable rAF/timers like a visible tab
+        resources: 'usable',     // be lenient loading resources
+      },
+    },
     testTimeout: 20000,
     hookTimeout: 20000,
     teardownTimeout: 5000,
-    setupFiles: ['tests/test-infrastructure.ts', 'tests/unit/setup.ts'],
+    setupFiles: [
+      'tests/polyfills/jsdom-constructors.ts', // ensure constructors first
+      'tests/test-infrastructure.ts',
+      'tests/unit/setup.ts'
+    ],
     env: {
       NODE_ENV: 'test'
     },
