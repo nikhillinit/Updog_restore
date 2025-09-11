@@ -1,28 +1,22 @@
 import { shallow } from 'zustand/shallow';
+import type { StoreApi, UseBoundStore } from 'zustand';
 import { useFundStore } from './useFundStore';
 
+// Infer the store state and re-cast the bound store so TS knows
+// it accepts a selector + optional equality function.
+type FundState = ReturnType<typeof useFundStore.getState>;
+const bound = useFundStore as unknown as UseBoundStore<StoreApi<FundState>>;
+
 /**
- * Safe wrapper around useFundStore that applies shallow equality by default.
- * Prevents object-return selector identity churn that causes infinite loops.
- * 
- * @example
- * // Tuple selectors (recommended)
- * const [hydrated, fromInvestmentStrategy] = useFundSelector(s => [s.hydrated, s.fromInvestmentStrategy]);
- * 
- * // Object selectors (shallow equality applied automatically)  
- * const slice = useFundSelector(s => ({ stages: s.stages, hydrated: s.hydrated }));
- * 
- * // Custom equality if needed
- * const data = useFundSelector(s => s.complexData, Object.is);
+ * Safe wrapper over useFundStore that defaults to shallow equality for
+ * object/array selectors to prevent getSnapshot churn.
+ *
+ * Prefer tuple/object selectors here:
+ * const [hydrated, stages] = useFundSelector(s => [s.hydrated, s.stages]);
  */
-export function useFundSelector<TSelected>(
-  selector: (state: any) => TSelected,
-  equality?: (a: TSelected, b: TSelected) => boolean
-): TSelected {
-  // Use type assertion to allow two arguments
-  const store = useFundStore as any;
-  if (equality) {
-    return store(selector, equality);
-  }
-  return store(selector, shallow);
+export function useFundSelector<T>(
+  selector: (s: FundState) => T,
+  equality?: (a: T, b: T) => boolean
+): T {
+  return bound(selector, equality ?? shallow);
 }

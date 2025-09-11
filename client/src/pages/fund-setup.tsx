@@ -1,49 +1,38 @@
-// client/src/pages/fund-setup.tsx
-import React from "react";
-import { useSearchParams } from "react-router-dom";
-import InvestmentStrategyStep from "./InvestmentStrategyStep";
-import ExitRecyclingStep from "./ExitRecyclingStep";
-import WaterfallStep from "./WaterfallStep";
-import StepNotFound from "./steps/StepNotFound";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
+import React from 'react';
+import { useLocation } from 'wouter';
+import InvestmentStrategyStep from './InvestmentStrategyStep';
+import ExitRecyclingStep from './ExitRecyclingStep';
+import WaterfallStep from './WaterfallStep';
+import StepNotFound from './steps/StepNotFound';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
-type StepKey =
-  | "investment-strategy"
-  | "exit-recycling"
-  | "waterfall"
-  | "not-found";
+type StepKey = 'investment-strategy' | 'exit-recycling' | 'waterfall' | 'not-found';
 
-const stepComponents: Record<string, React.ComponentType<any>> = {
-  "investment-strategy": InvestmentStrategyStep,
-  "exit-recycling": ExitRecyclingStep,
-  "waterfall": WaterfallStep,
+const STEP_COMPONENTS: Record<StepKey, React.ComponentType<any>> = {
+  'investment-strategy': InvestmentStrategyStep,
+  'exit-recycling':     ExitRecyclingStep,
+  'waterfall':          WaterfallStep,
+  'not-found':          StepNotFound,
 };
 
-function normalizeStep(value: string | null): StepKey {
-  if (!value) return "investment-strategy";
+// Map ?step=2 → investment-strategy, etc.
+const NUM_TO_KEY: Record<string, StepKey> = {
+  '2': 'investment-strategy',
+  '3': 'exit-recycling',
+  '4': 'waterfall',
+};
 
-  const v = value.toLowerCase();
-  switch (v) {
-    case "2":
-    case "investment-strategy":
-    case "investment_strategy":
-      return "investment-strategy";
-    case "3":
-    case "exit-recycling":
-    case "exit_recycling":
-      return "exit-recycling";
-    case "4":
-    case "waterfall":
-      return "waterfall";
-    default:
-      return "not-found";
-  }
+function useStepKey(): StepKey {
+  const [loc] = useLocation();
+  const search = loc.includes('?') ? loc.slice(loc.indexOf('?')) : '';
+  const params = new URLSearchParams(search);
+  const raw = params.get('step') ?? '2'; // Default to step 2
+  return NUM_TO_KEY[raw] ?? 'not-found';
 }
 
 export default function FundSetup() {
-  const [params] = useSearchParams();
-  const key = normalizeStep(params.get("step"));
-  const Step = stepComponents[key] ?? StepNotFound;
+  const key = useStepKey();
+  const Step = STEP_COMPONENTS[key] ?? StepNotFound;
 
   return (
     <ErrorBoundary>
