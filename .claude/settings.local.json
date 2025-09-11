@@ -79,7 +79,11 @@
       "Bash(git rm:*)",
       "Bash(start C:devUpdog_restoretest-step3.html)",
       "Bash(start \"C:\\dev\\Updog_restore\\test-step3.html\")",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)"
     ],
     "deny": [],
     "ask": [],

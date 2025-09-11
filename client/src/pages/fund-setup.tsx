@@ -16,7 +16,10 @@ const STEP_COMPONENTS: Record<StepKey, React.ComponentType<any>> = {
 };
 
 // Map ?step=2 → investment-strategy, etc.
-const NUM_TO_KEY: Record<string, StepKey> = {
+const VALID_STEPS = ['2', '3', '4'] as const;
+type ValidStep = typeof VALID_STEPS[number];
+
+const NUM_TO_KEY: Record<ValidStep, StepKey> = {
   '2': 'investment-strategy',
   '3': 'exit-recycling',
   '4': 'waterfall',
@@ -24,10 +27,15 @@ const NUM_TO_KEY: Record<string, StepKey> = {
 
 function useStepKey(): StepKey {
   const [loc] = useLocation();
-  const search = loc.includes('?') ? loc.slice(loc.indexOf('?')) : '';
-  const params = new URLSearchParams(search);
-  const raw = params.get('step') ?? '2'; // Default to step 2
-  return NUM_TO_KEY[raw] ?? 'not-found';
+  return React.useMemo<StepKey>(() => {
+    const qs = loc.includes('?') ? loc.slice(loc.indexOf('?')) : '';
+    const val = new URLSearchParams(qs).get('step') ?? '2';
+    if (!VALID_STEPS.includes(val as ValidStep)) {
+      console.warn(`[FundSetup] Invalid step '${val}', defaulting to not-found`);
+      return 'not-found';
+    }
+    return NUM_TO_KEY[val as ValidStep] ?? 'not-found';
+  }, [loc]);
 }
 
 export default function FundSetup() {
@@ -35,7 +43,13 @@ export default function FundSetup() {
   const Step = STEP_COMPONENTS[key] ?? StepNotFound;
 
   return (
-    <ErrorBoundary>
+    <ErrorBoundary
+      fallback={<StepNotFound />}
+      onError={(error) => {
+        // single place for step-scoped diagnostics
+        console.error(`[FundSetup] Error in step ${key}:`, error);
+      }}
+    >
       <div data-testid={`wizard-step-${key}-container`}>
         <Step />
       </div>

@@ -1,51 +1,40 @@
 import { sortById } from '@/utils/state-utils';
 
-export function signatureForStrategy(input: {
-  stages: Array<{ 
-    id: string; 
-    name: string; 
-    graduationRate?: number; 
-    graduate?: number; 
-    exitRate?: number; 
-    exit?: number; 
-    months?: number; 
-  }>;
-  sectorProfiles: Array<{ 
-    id: string; 
-    name: string; 
-    targetPercentage: number; 
-  }>;
-  allocations: Array<{ 
-    id: string; 
-    category: string; 
-    percentage: number; 
-  }>;
-}): string {
-  const st = input.stages.slice().sort(sortById).map(s => [
-    s.id, 
-    s.name, 
-    norm(s.graduationRate ?? s.graduate), 
-    norm(s.exitRate ?? s.exit), 
-    s.months ?? 12
-  ]).join('|');
-
-  const sp = input.sectorProfiles.slice().sort(sortById).map(p => [
-    p.id, 
-    p.name, 
-    norm(p.targetPercentage)
-  ]).join('|');
-
-  const al = input.allocations.slice().sort(sortById).map(a => [
-    a.id, 
-    a.category, 
-    norm(a.percentage)
-  ]).join('|');
-
-  return `st:${st}#sp:${sp}#al:${al}`;
+// Portable base64 (Node + browser)
+function toBase64Url(s: string) {
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(s, 'utf8').toString('base64url');
+  }
+  // browsers without base64url
+  // eslint-disable-next-line no-undef
+  const b64 = btoa(unescape(encodeURIComponent(s)));
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-function norm(n: any): string {
-  const x = typeof n === 'number' ? n : Number(n);
-  if (!Number.isFinite(x)) return 'NaN';      // stable NaN representation
-  return (Math.round(x * 1000) / 1000).toString(); // trim float jitter to 3 decimals
+// Small, stable hash (FNV-1a 32-bit)
+function fnv1a(str: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+  }
+  // unsigned
+  return (h >>> 0).toString(16);
+}
+
+export function signatureForStrategy(input: any): string {
+  const norm = {
+    stages: (input?.stages ?? []).map((s: any) => ({
+      id: s.id ?? '',
+      name: s.name ?? '',
+      graduate: Number.isNaN(s.graduate) ? 0 : Math.round((s.graduate ?? 0) * 1000) / 1000,
+      exit: Number.isNaN(s.exit) ? 0 : Math.round((s.exit ?? 0) * 1000) / 1000,
+      months: s.months ?? 12,
+    })).sort((a: any, b: any) => a.id.localeCompare(b.id)),
+    sectorProfiles: (input?.sectorProfiles ?? []).slice().sort(sortById),
+    allocations: (input?.allocations ?? []).slice().sort(sortById),
+  };
+  // JSON is fine after normalization; hash for compactness
+  const json = JSON.stringify(norm);
+  return `v1:${fnv1a(json)}:${toBase64Url(json).slice(0, 16)}`;
 }
