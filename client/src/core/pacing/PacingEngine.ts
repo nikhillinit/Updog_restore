@@ -8,8 +8,7 @@
 import type { 
   PacingInput, 
   PacingOutput, 
-  PacingSummary,
-  MarketConditionExtended 
+  PacingSummary 
 } from '@shared/types';
 import { PacingInputSchema, PacingOutputSchema } from '@shared/types';
 import { map, reduce } from '@/utils/array-safety';

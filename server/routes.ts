@@ -11,11 +11,10 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
 import { storage } from "./storage";
-import { insertFundSchema, insertPortfolioCompanySchema, insertActivitySchema } from "@shared/schema";
-import { _fundSchema } from "./validators/fundSchema";
-import { _ReserveEngine, generateReserveSummary } from "../client/src/core/reserves/ReserveEngine.js";
-import { _PacingEngine, generatePacingSummary } from "../client/src/core/pacing/PacingEngine.js";
-import { _CohortEngine, generateCohortSummary } from "../client/src/core/cohorts/CohortEngine.js";
+import { insertPortfolioCompanySchema, insertActivitySchema } from "@shared/schema";
+import { generateReserveSummary } from "../client/src/core/reserves/ReserveEngine.js";
+import { generatePacingSummary } from "../client/src/core/pacing/PacingEngine.js";
+import { generateCohortSummary } from "../client/src/core/cohorts/CohortEngine.js";
 import { registerFundConfigRoutes } from "./routes/fund-config.js";
 import { recordHttpMetrics } from "./metrics";
 import { toNumber, NumberParseError } from "@shared/number";
@@ -131,10 +130,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Convert to format expected by storage layer
       const basicFundData = {
         name: result.data.name,
-        size: result.data.size,
-        deployedCapital: result.data.deployedCapital || 0,
-        managementFee: result.data.managementFee,
-        carryPercentage: result.data.carryPercentage,
+        size: result.data.size.toString(),
+        deployedCapital: (result.data.deployedCapital || 0).toString(),
+        managementFee: result.data.managementFee.toString(),
+        carryPercentage: result.data.carryPercentage.toString(),
         vintageYear: result.data.vintageYear,
         status: 'active'
       };
@@ -228,7 +227,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         return res.status(400).json(error);
       }
-      const company = await storage.createPortfolioCompany(result.data);
+      const companyData = {
+        name: req.body.name,
+        sector: req.body.sector,
+        stage: req.body.stage,
+        investmentAmount: req.body.investmentAmount
+      };
+      const company = await storage.createPortfolioCompany(companyData);
       res.status(201).json(company);
     } catch (error) {
       const apiError: ApiError = {
@@ -304,7 +309,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         return res.status(400).json(error);
       }
-      const activity = await storage.createActivity(result.data);
+      const activityData = {
+        type: req.body.type,
+        title: req.body.title,
+        activityDate: new Date(req.body.activityDate)
+      };
+      const activity = await storage.createActivity(activityData);
       res.status(201).json(activity);
     } catch (error) {
       const apiError: ApiError = {

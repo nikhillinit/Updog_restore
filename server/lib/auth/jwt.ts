@@ -6,6 +6,7 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import * as jose from 'node-jose';
+import { getAuthToken } from '../headers-helper';
 
 export interface TokenClaims {
   sub: string;           // User ID
@@ -110,13 +111,18 @@ async function verifyToken(token: string): Promise<TokenClaims> {
     
     const { header, payload } = decoded;
     
+    // Type guard to ensure payload is JwtPayload
+    if (typeof payload === 'string' || !payload) {
+      throw new Error('Invalid token payload format');
+    }
+    
     // Reject dangerous algorithms
     if (header.alg === 'none') {
       throw new Error('Algorithm "none" is not allowed');
     }
     
     // Validate issuer and audience before signature verification
-    if (!payload.iss || !ALLOWED_ISSUERS.includes(payload.iss)) {
+    if (!payload.iss || !ALLOWED_ISSUERS.includes(payload.iss as string)) {
       throw new Error(`Invalid issuer: ${payload.iss}. Allowed: ${ALLOWED_ISSUERS.join(', ')}`);
     }
     
@@ -200,7 +206,7 @@ export function requireAuth() {
       return next();
     }
     
-    const token = extractToken(req.headers.authorization);
+    const token = getAuthToken(req.headers);
     if (!token) {
       return res.status(401).json({ 
         error: 'missing_token',

@@ -10,10 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { 
-  ArrowRight, 
-  ArrowDown,
+  ArrowRight,
   TrendingUp,
-  Target,
   Play,
   Pause,
   RotateCcw

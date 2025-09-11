@@ -4,7 +4,6 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import React from 'react';
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,6 +48,7 @@ export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepP
               </p>
             </div>
             <Switch
+              data-testid="step-4-recycling-enabled"
               checked={data.enabled}
               onCheckedChange={(checked) => handleChange('enabled', checked)}
             />
@@ -62,6 +62,7 @@ export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepP
                   <Label className="text-base font-medium">Recycle Percentage (%)</Label>
                   <div className="relative">
                     <Input
+                      data-testid="step-4-recycle-percentage"
                       type="number"
                       min="0"
                       max="100"

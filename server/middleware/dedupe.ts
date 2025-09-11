@@ -5,7 +5,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { redis as redisClient } from '../db/redis-circuit';
-import { singleflight } from '../infra/circuit-breaker/singleflight';
 
 interface DedupeOptions {
   ttl?: number;                    // TTL in seconds (default: 300 = 5 minutes)

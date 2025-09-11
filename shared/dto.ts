@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { zBooleanish } from './booleans';
-import { zNumberish } from './number';
 
 // HTTP DTOs with coercers for boundary parsing
 export const FundInputDTO = z.object({

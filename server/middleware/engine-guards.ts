@@ -101,26 +101,32 @@ export function assertFiniteDeep(
 
       if (o instanceof Map) {
         let i = 0;
-        for (const [k, val] of o.entries()) {
+        o.forEach((val, k) => {
           if (i++ > maxBreadth) {
-            return { ok: false, path, value: v, reason: 'too-broad' };
+            return;
           }
           stack.push({
             v: val,
             path: `${path}.(map:${String(k)})`,
             depth: depth + 1,
           });
+        });
+        if (o.size > maxBreadth) {
+          return { ok: false, path, value: v, reason: 'too-broad' };
         }
         continue;
       }
 
       if (o instanceof Set) {
         let i = 0;
-        for (const val of o.values()) {
-          if (i++ > maxBreadth) {
-            return { ok: false, path, value: v, reason: 'too-broad' };
+        o.forEach((val) => {
+          if (i < maxBreadth) {
+            stack.push({ v: val, path: `${path}.(set:${i})`, depth: depth + 1 });
           }
-          stack.push({ v: val, path: `${path}.(set:${i - 1})`, depth: depth + 1 });
+          i++;
+        });
+        if (o.size > maxBreadth) {
+          return { ok: false, path, value: v, reason: 'too-broad' };
         }
         continue;
       }
@@ -151,7 +157,9 @@ export function assertFiniteDeepOrThrow(
 ): void {
   const res = assertFiniteDeep(input, opts);
   if (!res.ok) {
-    const { path, reason, value } = res;
+    // TypeScript needs explicit type narrowing here
+    const failureResult = res as { ok: false; path: string; value: unknown; reason: GuardFailureReason };
+    const { path, reason, value } = failureResult;
     const v = typeof value === 'number' ? String(value) : '[complex]';
     throw new Error(`Non-finite guard failed at ${path} (${reason}): ${v}`);
   }

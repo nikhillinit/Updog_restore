@@ -4,7 +4,7 @@
  */
 import rateLimit from 'express-rate-limit';
 import RedisStore from 'rate-limit-redis';
-import { Redis } from 'ioredis';
+import Redis from 'ioredis';
 import type { Request, Response } from 'express';
 import { sendApiError, createErrorBody } from '../lib/apiError.js';
 
@@ -76,9 +76,10 @@ function createRateLimiter(
 ) {
   const store = redisClient
     ? new RedisStore({
-        client: redisClient,
+        client: redisClient as any, // TODO: Add proper Redis adapter
+        sendCommand: (...args: string[]) => (redisClient as any).call(...args),
         prefix: `rl:${keyPrefix}:`
-      })
+      } as any)
     : undefined; // Falls back to memory store
   
   return rateLimit({

@@ -2,6 +2,8 @@
  * Unit test setup - runs before each unit test file
  * Sets up test environment for isolated unit testing
  */
+import { vi, beforeAll, afterAll } from 'vitest';
+import '@testing-library/jest-dom';
 
 // Force UTC timezone for consistent date handling
 process.env.TZ = 'UTC';

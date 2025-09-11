@@ -1,6 +1,5 @@
-import { pgTable, text, serial, integer, boolean, decimal, timestamp, jsonb, varchar, index, unique, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, decimal, timestamp, jsonb, varchar, index, unique, uuid, date, pgEnum, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
 
 export const funds = pgTable("funds", {
   id: serial("id").primaryKey(),
@@ -354,43 +353,43 @@ export const insertFundEventSchema = createInsertSchema(fundEvents).omit({
 
 // Core Type Exports
 export type Fund = typeof funds.$inferSelect;
-export type InsertFund = any; // z.infer<typeof insertFundSchema>;
+export type InsertFund = typeof funds.$inferInsert;
 export type PortfolioCompany = typeof portfolioCompanies.$inferSelect;
-export type InsertPortfolioCompany = any; // z.infer<typeof insertPortfolioCompanySchema>;
+export type InsertPortfolioCompany = typeof portfolioCompanies.$inferInsert;
 export type Investment = typeof investments.$inferSelect;
-export type InsertInvestment = any; // z.infer<typeof insertInvestmentSchema>;
+export type InsertInvestment = typeof investments.$inferInsert;
 export type FundMetrics = typeof fundMetrics.$inferSelect;
-export type InsertFundMetrics = any; // z.infer<typeof insertFundMetricsSchema>;
+export type InsertFundMetrics = typeof fundMetrics.$inferInsert;
 export type Activity = typeof activities.$inferSelect;
-export type InsertActivity = any; // z.infer<typeof insertActivitySchema>;
+export type InsertActivity = typeof activities.$inferInsert;
 export type User = typeof users.$inferSelect;
-export type InsertUser = any; // z.infer<typeof insertUserSchema>;
+export type InsertUser = typeof users.$inferInsert;
 export type CustomField = typeof customFields.$inferSelect;
-export type InsertCustomField = any; // z.infer<typeof insertCustomFieldSchema>;
+export type InsertCustomField = typeof customFields.$inferInsert;
 export type CustomFieldValue = typeof customFieldValues.$inferSelect;
-export type InsertCustomFieldValue = any; // z.infer<typeof insertCustomFieldValueSchema>;
+export type InsertCustomFieldValue = typeof customFieldValues.$inferInsert;
 export type FundConfig = typeof fundConfigs.$inferSelect;
-export type InsertFundConfig = any; // z.infer<typeof insertFundConfigSchema>;
+export type InsertFundConfig = typeof fundConfigs.$inferInsert;
 export type FundSnapshot = typeof fundSnapshots.$inferSelect;
-export type InsertFundSnapshot = any; // z.infer<typeof insertFundSnapshotSchema>;
+export type InsertFundSnapshot = typeof fundSnapshots.$inferInsert;
 export type FundEvent = typeof fundEvents.$inferSelect;
-export type InsertFundEvent = any; // z.infer<typeof insertFundEventSchema>;
+export type InsertFundEvent = typeof fundEvents.$inferInsert;
 
 // Pipeline Type Exports
 export type DealOpportunity = typeof dealOpportunities.$inferSelect;
-export type InsertDealOpportunity = any; // z.infer<typeof insertDealOpportunitySchema>;
+export type InsertDealOpportunity = typeof dealOpportunities.$inferInsert;
 export type PipelineStage = typeof pipelineStages.$inferSelect;
-export type InsertPipelineStage = any; // z.infer<typeof insertPipelineStageSchema>;
+export type InsertPipelineStage = typeof pipelineStages.$inferInsert;
 export type DueDiligenceItem = typeof dueDiligenceItems.$inferSelect;
-export type InsertDueDiligenceItem = any; // z.infer<typeof insertDueDiligenceItemSchema>;
+export type InsertDueDiligenceItem = typeof dueDiligenceItems.$inferInsert;
 export type ScoringModel = typeof scoringModels.$inferSelect;
-export type InsertScoringModel = any; // z.infer<typeof insertScoringModelSchema>;
+export type InsertScoringModel = typeof scoringModels.$inferInsert;
 export type PipelineActivity = typeof pipelineActivities.$inferSelect;
-export type InsertPipelineActivity = any; // z.infer<typeof insertPipelineActivitySchema>;
+export type InsertPipelineActivity = typeof pipelineActivities.$inferInsert;
 export type MarketResearch = typeof marketResearch.$inferSelect;
-export type InsertMarketResearch = any; // z.infer<typeof insertMarketResearchSchema>;
+export type InsertMarketResearch = typeof marketResearch.$inferInsert;
 export type FinancialProjection = typeof financialProjections.$inferSelect;
-export type InsertFinancialProjection = any; // z.infer<typeof insertFinancialProjectionSchema>;
+export type InsertFinancialProjection = typeof financialProjections.$inferInsert;
 
 export const reserveStrategies = pgTable("reserve_strategies", {
   id: serial("id").primaryKey(),
@@ -476,5 +475,43 @@ export const insertAuditLogSchema = createInsertSchema(auditLog).omit({
 
 // Types
 export type AuditLog = typeof auditLog.$inferSelect;
-export type InsertAuditLog = any; // z.infer<typeof insertAuditLogSchema>;
+export type InsertAuditLog = typeof auditLog.$inferInsert;
+
+// Reserve Decision Tables
+export const reserveEngineType = pgEnum('reserve_engine_type', ['rules', 'ml', 'hybrid']);
+
+export const reserveDecisions = pgTable('reserve_decisions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  fundId: uuid('fund_id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  decisionTs: timestamp('decision_ts', { withTimezone: true }).notNull(),
+  periodStart: date('period_start').notNull(),
+  periodEnd: date('period_end').notNull(),
+  engineType: reserveEngineType('engine_type').notNull(),
+  engineVersion: text('engine_version').notNull(),
+  requestId: text('request_id'),
+  featureFlags: jsonb('feature_flags').notNull().default({}),
+  inputs: jsonb('inputs').notNull(),
+  prediction: jsonb('prediction').notNull(),
+  explanation: jsonb('explanation'),
+  latencyMs: integer('latency_ms'),
+  userId: uuid('user_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  uniqueDecision: uniqueIndex('ux_reserve_unique').on(
+    table.companyId, 
+    table.periodStart, 
+    table.periodEnd, 
+    table.engineType, 
+    table.engineVersion
+  ),
+  fundCompanyIdx: index('idx_reserve_fund_company').on(table.fundId, table.companyId),
+  periodIdx: index('idx_reserve_period').on(table.periodStart, table.periodEnd),
+  engineIdx: index('idx_reserve_engine').on(table.engineType, table.engineVersion),
+  inputsGinIdx: index('idx_reserve_inputs_gin').using('gin', table.inputs),
+  predictionGinIdx: index('idx_reserve_prediction_gin').using('gin', table.prediction),
+}));
+
+export type ReserveDecision = typeof reserveDecisions.$inferSelect;
+export type NewReserveDecision = typeof reserveDecisions.$inferInsert;
 

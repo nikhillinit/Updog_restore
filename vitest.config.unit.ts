@@ -10,6 +10,8 @@ export default defineConfig({
       '@shared': path.resolve(__dirname, './shared'),
       '@assets': path.resolve(__dirname, './assets'),
       '@server': path.resolve(__dirname, './server'),
+      // Mock @upstash/redis for tests
+      '@upstash/redis': path.resolve(__dirname, './tests/mocks/upstash-redis.ts'),
     }
   },
   test: {
@@ -21,11 +23,14 @@ export default defineConfig({
       'tests/quarantine/**/*',
       '**/*.quarantine.{test,spec}.ts?(x)',
     ],
-    environment: 'node',
+    environment: 'jsdom', // Changed from 'node' to support React component testing
     testTimeout: 20000,
     hookTimeout: 20000,
     teardownTimeout: 5000,
-    setupFiles: ['tests/test-infrastructure.ts', 'tests/unit/setup.ts', 'tests/setup/reserves-setup.ts'],
+    setupFiles: ['tests/test-infrastructure.ts', 'tests/unit/setup.ts'],
+    env: {
+      NODE_ENV: 'test'
+    },
     globals: true,
     clearMocks: true,
     restoreMocks: true,

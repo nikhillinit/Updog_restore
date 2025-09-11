@@ -15,10 +15,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import CapTableCalculator from '@/components/cap-table/cap-table-calculator';
-import { Plus, Search, Calculator, Download, Calendar, Building2, TrendingUp, DollarSign } from 'lucide-react';
+import { Plus, Search, Calculator, Download, Building2, TrendingUp, DollarSign } from 'lucide-react';
 
 interface CapTableScenario {
   id: string;

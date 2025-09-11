@@ -1,0 +1,170 @@
+name: Guardian (Scheduled Canary)
+
+on:
+  # Every 2 hours; adjust as needed
+  schedule:
+    - cron: "0 */2 * * *"
+  # Manual run with optional overrides
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Override BASE_URL for canary (else uses secret GUARDIAN_BASE_URL)"
+        required: false
+        default: ""
+      skip_history_check:
+        description: "Skip the window check (useful for testing)"
+        required: false
+        default: "false"
+
+# Prevent overlapping runs
+concurrency:
+  group: guardian-canary
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Setup Node
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        with:
+          node-version: "20"
+
+      - name: Resolve BASE_URL
+        id: resolve
+        shell: bash
+        run: |
+          # Prefer workflow input; fall back to secret
+          BASE_URL_INPUT="${{ github.event.inputs.base_url }}"
+          if [ -z "$BASE_URL_INPUT" ]; then
+            BASE_URL_INPUT="${{ secrets.GUARDIAN_BASE_URL }}"
+          fi
+
+          if [ -z "$BASE_URL_INPUT" ]; then
+            echo "❌ BASE_URL not provided and GUARDIAN_BASE_URL secret not set."
+            echo "Starting local server for testing..."
+            
+            # Install and build
+            npm ci
+            npm run build
+            
+            # Start server in background
+            npm start &
+            echo "SERVER_PID=$!" >> $GITHUB_ENV
+            
+            # Wait for server to be ready
+            for i in {1..30}; do
+              if curl -f http://localhost:5000/healthz 2>/dev/null; then
+                echo "✅ Local server ready"
+                break
+              fi
+              sleep 2
+            done
+            
+            BASE_URL_INPUT="http://localhost:5000"
+          fi
+
+          echo "BASE_URL=$BASE_URL_INPUT" >> "$GITHUB_ENV"
+          echo "Resolved BASE_URL=$BASE_URL_INPUT"
+
+      - name: Run Canary Check
+        id: canary
+        shell: bash
+        run: |
+          chmod +x scripts/canary-check-fixed.sh
+          
+          # Run the canary check
+          if ./scripts/canary-check-fixed.sh; then
+            echo "✅ Canary check passed"
+            echo "status=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "❌ Canary check failed"
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
+
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "${SERVER_PID:-}" ]; then
+            echo "Stopping local server (PID: $SERVER_PID)"
+            kill $SERVER_PID || true
+          fi
+
+  history:
+    runs-on: ubuntu-latest
+    needs: canary
+    if: |
+      always() && 
+      github.event.inputs.skip_history_check != 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Check Guardian Mute
+        id: mute_check
+        shell: bash
+        run: |
+          # Check if muted via repository variable
+          MUTE_UNTIL="${{ vars.GUARDIAN_MUTE_UNTIL }}"
+          
+          if [ -n "$MUTE_UNTIL" ]; then
+            NOW=$(date +%s)
+            MUTE_TIMESTAMP=$(date -d "$MUTE_UNTIL" +%s 2>/dev/null || echo "0")
+            
+            if [ "$MUTE_TIMESTAMP" -gt "$NOW" ]; then
+              echo "🔇 Guardian muted until $MUTE_UNTIL"
+              echo "muted=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            else
+              echo "⏰ Guardian mute expired"
+            fi
+          fi
+          
+          echo "muted=false" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node
+        if: steps.mute_check.outputs.muted != 'true'
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        with:
+          node-version: "20"
+
+      - name: Check Window (3 of last 5)
+        if: steps.mute_check.outputs.muted != 'true'
+        shell: bash
+        run: |
+          chmod +x tools/check-guardian-window.mjs
+          node tools/check-guardian-window.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GUARDIAN_MUTE_UNTIL: ${{ vars.GUARDIAN_MUTE_UNTIL }}
+
+      - name: Report Status
+        if: always()
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        with:
+          script: |
+            const status = '${{ needs.canary.result }}';
+            const muted = '${{ steps.mute_check.outputs.muted }}' === 'true';
+            
+            if (muted) {
+              console.log('🔇 Guardian check skipped (muted)');
+            } else if (status === 'success') {
+              console.log('✅ Guardian canary healthy');
+            } else {
+              console.log('❌ Guardian canary unhealthy');
+              core.setFailed('Guardian canary failed');
+            }

@@ -108,7 +108,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     setActiveModule(path);
   }, [location]);
 
-  const currentModule = moduleConfig[activeModule as keyof typeof moduleConfig] || moduleConfig['fund-setup'];
+  // const currentModule = moduleConfig[activeModule as keyof typeof moduleConfig] || moduleConfig['fund-setup'];
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 font-poppins text-charcoal">

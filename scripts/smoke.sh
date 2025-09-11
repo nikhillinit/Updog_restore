@@ -1,54 +1,123 @@
 #!/usr/bin/env bash
+# Production smoke tests for Vercel deployment
+# Usage: ./scripts/smoke.sh [BASE_URL]
+# Example: ./scripts/smoke.sh https://myapp.vercel.app
+
 set -euo pipefail
 
-BASE_URL="${BASE_URL:-https://staging.yourdomain.com}"
+# Get base URL from argument or environment
+BASE_URL="${1:-${BASE_URL:-http://localhost:3000}}"
 METRICS_KEY="${METRICS_KEY:-}"
 HEALTH_KEY="${HEALTH_KEY:-}"
 FUND_SIZE="${FUND_SIZE:-100000000}"
 
-echo "== Health checks =="
-curl -fsSL "$BASE_URL/healthz" | jq .
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
-if [[ -n "$HEALTH_KEY" ]]; then
-  curl -fsSL -H "X-Health-Key: $HEALTH_KEY" "$BASE_URL/readyz" | jq .
+echo "🔍 Running smoke tests against: $BASE_URL"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Track failures
+FAILED=0
+
+echo ""
+echo "🏥 Health checks"
+echo "────────────────"
+
+# Basic health check
+echo -n "Testing /healthz... "
+if curl -fsSL "$BASE_URL/healthz" | grep -q '"status":"ok"' 2>/dev/null; then
+    echo -e "${GREEN}✓${NC}"
 else
-  curl -fsSL "$BASE_URL/readyz" | jq .
+    echo -e "${RED}✗${NC}"
+    FAILED=$((FAILED + 1))
 fi
 
-echo "== Metrics check =="
-if [[ -n "$METRICS_KEY" ]]; then
-  curl -fsSL -H "Authorization: Bearer $METRICS_KEY" "$BASE_URL/metrics" | head -n 20
+# API health check  
+echo -n "Testing /api/health... "
+if curl -fsSL "$BASE_URL/api/health" | grep -q '"ok":true' 2>/dev/null; then
+    echo -e "${GREEN}✓${NC}"
 else
-  echo "(skip: METRICS_KEY not set)"
+    echo -e "${RED}✗${NC}"
+    FAILED=$((FAILED + 1))
 fi
 
-echo "== Fund calculation (async) =="
-resp_headers=$(mktemp)
-resp=$(curl -sS -D "$resp_headers" -o /dev/null -w "%{http_code}" \
-  -H 'Content-Type: application/json' \
-  -X POST "$BASE_URL/api/funds/calculate" \
-  --data "{\"fundSize\":$FUND_SIZE}")
+# Version endpoint
+echo -n "Testing /api/version... "
+if curl -fsSL "$BASE_URL/api/version" | grep -q '"version"' 2>/dev/null; then
+    echo -e "${GREEN}✓${NC}"
+else
+    echo -e "${RED}✗${NC}"
+    FAILED=$((FAILED + 1))
+fi
 
-code="$resp"
-loc=$(awk '/^[Ll]ocation:/ {print $2}' "$resp_headers" | tr -d '\r\n')
+echo ""
+echo "📦 Static Assets"
+echo "────────────────"
 
-echo "HTTP: $code"
-echo "Location: $loc"
+# Test SPA loads
+echo -n "Testing SPA index page... "
+if curl -fsSL "$BASE_URL/" | grep -q '<div id="root">' 2>/dev/null; then
+    echo -e "${GREEN}✓${NC}"
+else
+    echo -e "${RED}✗${NC}"
+    FAILED=$((FAILED + 1))
+fi
 
-if [[ "$code" == "202" && -n "$loc" ]]; then
-  echo "Polling operation..."
-  for i in $(seq 1 30); do
-    body=$(curl -fsSL "$loc")
-    status=$(echo "$body" | jq -r '.status // empty' || true)
-    echo "[$i] status=$status"
-    if [[ "$status" =~ (succeed|success|complete|done) ]]; then
-      echo "✅ Completed"
-      exit 0
+# Test assets are NOT served as HTML (filesystem handler working)
+echo -n "Testing asset serving (not HTML)... "
+# Extract an asset path from index.html
+ASSET_PATH=$(curl -sS "$BASE_URL/" 2>/dev/null | grep -o '/assets/[^"]*\.js' | head -1 || echo "")
+if [ -n "$ASSET_PATH" ]; then
+    CONTENT_TYPE=$(curl -sI "$BASE_URL$ASSET_PATH" 2>/dev/null | grep -i "content-type" | cut -d':' -f2 | tr -d '\r\n ')
+    if [[ "$CONTENT_TYPE" != *"text/html"* ]]; then
+        echo -e "${GREEN}✓${NC} (JS served correctly)"
+    else
+        echo -e "${RED}✗${NC} (filesystem handler issue!)"
+        FAILED=$((FAILED + 1))
     fi
-    sleep 1
-  done
-  echo "❌ Timed out"
-  exit 1
 else
-  echo "Non-202 response; body follow-up may be needed."
+    echo -e "${YELLOW}⚠${NC} (no assets found)"
+fi
+
+echo ""
+echo "🔒 Security Headers"
+echo "────────────────"
+
+# Check API cache headers
+echo -n "Testing API no-store header... "
+CACHE=$(curl -sI "$BASE_URL/api/health" 2>/dev/null | grep -i "cache-control" | cut -d':' -f2)
+if [[ "$CACHE" == *"no-store"* ]]; then
+    echo -e "${GREEN}✓${NC}"
+else
+    echo -e "${YELLOW}⚠${NC} (Cache-Control: $CACHE)"
+fi
+
+# Check asset cache headers if we found one
+if [ -n "$ASSET_PATH" ]; then
+    echo -n "Testing asset immutable cache... "
+    CACHE=$(curl -sI "$BASE_URL$ASSET_PATH" 2>/dev/null | grep -i "cache-control" | cut -d':' -f2)
+    if [[ "$CACHE" == *"immutable"* ]] || [[ "$CACHE" == *"max-age=31536000"* ]]; then
+        echo -e "${GREEN}✓${NC}"
+    else
+        echo -e "${YELLOW}⚠${NC} (Cache-Control: $CACHE)"
+    fi
+fi
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+if [ $FAILED -eq 0 ]; then
+    echo -e "${GREEN}✅ All smoke tests passed!${NC}"
+    echo ""
+    echo "Ready for production deployment:"
+    echo "  npx vercel --prod"
+    exit 0
+else
+    echo -e "${RED}❌ $FAILED smoke test(s) failed${NC}"
+    echo ""
+    echo "Please fix the issues before deploying."
+    exit 1
 fi

@@ -9,7 +9,7 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 import { logger } from './logger';
 import { z } from 'zod';
 import { db } from './db';
-import { fundEvents, funds } from '@shared/schema';
+import { funds } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
 // WebSocket event schemas
