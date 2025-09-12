@@ -1,0 +1,32 @@
+name: Demo CI
+on: [push, pull_request]
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build frontend
+        run: npm run build:web
+        
+      - name: Run demo tests
+        run: npm run ci:demo
+        
+      - name: Validate test coverage
+        run: |
+          TEST_OUTPUT=$(npm run test:demo 2>&1 | tail -20)
+          echo "$TEST_OUTPUT"
+          if echo "$TEST_OUTPUT" | grep -q "passed"; then
+            echo "✅ Demo tests passed"
+          else
+            echo "❌ Demo tests failed"
+            exit 1
+          fi

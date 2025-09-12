@@ -106,6 +106,8 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:quick": "vitest run --exclude='**/api/**'",
+    "test:demo": "vitest run --reporter=dot --exclude='**/(api|redis|integration)/**'",
+    "ci:demo": "cross-env DEMO_CI=1 npm run test:demo",
     "test:build-affected": "npm run test:smart && npm run build:affected",
     "backtest": "tsx scripts/backtest.ts",
     "test:smoke": "playwright test tests/smoke/wizard.spec.ts",
