@@ -16,7 +16,8 @@ export function makeApp() {
   app.set('trust proxy', 1);
 
   // Security headers with custom CSP
-  const isReportOnly = process.env.CSP_REPORT_ONLY === '1';
+  // Use bracket notation for env vars to avoid TypeScript warnings
+  const isReportOnly = process.env['CSP_REPORT_ONLY'] === '1';
   const cspHeader = buildCSPHeader(cspDirectives);
   
   app.use(helmet({
@@ -44,11 +45,11 @@ export function makeApp() {
   });
 
   // Strict CORS (no wildcards in prod)
-  const allow = (process.env.ALLOWED_ORIGINS || '')
+  const allow = (process.env['ALLOWED_ORIGINS'] || '')
     .split(',').map(s => s.trim()).filter(Boolean);
   app.use((req: Request, res: Response, next: NextFunction) => {
     const origin = req.headers.origin as string | undefined;
-    const dev = process.env.NODE_ENV !== 'production';
+    const dev = process.env['NODE_ENV'] !== 'production';
     const ok = dev || (origin && allow.includes(origin));
     if (ok && origin) {
       res.setHeader('Access-Control-Allow-Origin', origin);
@@ -156,8 +157,8 @@ export function makeApp() {
 
   // API version endpoint for deployment verification
   app.get('/api/version', (_req: Request, res: Response) => res.json({ 
-    version: process.env.npm_package_version || '1.3.2',
-    environment: process.env.NODE_ENV || 'development',
+    version: process.env['npm_package_version'] || '1.3.2',
+    environment: process.env['NODE_ENV'] || 'development',
     commit: process.env['VERCEL_GIT_COMMIT_SHA'] || process.env['COMMIT_REF'] || 'local'
   }));
 

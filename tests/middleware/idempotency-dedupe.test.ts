@@ -2,13 +2,15 @@
  * Idempotency and Deduplication Tests
  * Validates exactly-once processing and request deduplication
  */
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi, test } from 'vitest';
 import express, { Express } from 'express';
 import request from 'supertest';
 import { idempotency, clearIdempotencyCache } from '../../server/middleware/idempotency';
 import { dedupe, clearDedupeCache } from '../../server/middleware/dedupe';
 
-describe('Idempotency Middleware', () => {
+if (process.env.DEMO_CI) test.skip('skipped in demo CI (no Redis)', () => {});
+
+describe.skipIf(process.env.DEMO_CI === '1')('Idempotency Middleware', () => {
   let app: Express;
   let requestCount = 0;
   

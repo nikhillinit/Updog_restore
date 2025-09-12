@@ -4,6 +4,9 @@
  */
 import { test, expect } from '@playwright/test';
 
+// Skip in demo CI (requires full environment)
+if (process.env.DEMO_CI) test.skip();
+
 // Get configuration from environment
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
 const SMOKE_USER = process.env.SMOKE_USER || 'smoke@test.com';
