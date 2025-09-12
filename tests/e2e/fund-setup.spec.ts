@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { REACT_CHURN_PATTERNS, containsCriticalError } from '../constants/error-patterns';
+import { REACT_CHURN_PATTERNS } from '../constants/error-patterns';
 
 /**
  * E2E smoke tests for FundSetup wizard
@@ -8,24 +8,67 @@ import { REACT_CHURN_PATTERNS, containsCriticalError } from '../constants/error-
  */
 
 test.describe('FundSetup Wizard Smoke Tests', () => {
-  // Capture console errors for each test
+  // Enhanced error capture
   let consoleLogs: string[];
+  let pageErrors: string[];
+  let networkErrors: string[];
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }, testInfo) => {
     consoleLogs = [];
+    pageErrors = [];
+    networkErrors = [];
     
-    // Capture console errors and warnings
+    // Capture console errors, warnings, and debug (some libs only log there)
     page.on('console', (msg) => {
       const type = msg.type();
       if (type === 'error' || type === 'warning') {
         consoleLogs.push(`[${type}] ${msg.text()}`);
       }
+      // Include debug logs in non-CI for troubleshooting
+      if (!process.env.CI && type === 'debug') {
+        consoleLogs.push(`[debug] ${msg.text()}`);
+      }
     });
     
-    // Capture page errors
+    // Capture unhandled page errors
     page.on('pageerror', (err) => {
-      consoleLogs.push(`[pageerror] ${err.message}`);
+      pageErrors.push(err.message);
     });
+    
+    // Capture network failures (500+ errors)
+    page.on('response', (response) => {
+      if (response.status() >= 500) {
+        networkErrors.push(`HTTP ${response.status()} ${response.url()}`);
+      }
+    });
+    
+    // Expose logs to test context for better diagnostics
+    (testInfo as any)._consoleLogs = consoleLogs;
+    (testInfo as any)._pageErrors = pageErrors;
+    (testInfo as any)._networkErrors = networkErrors;
+  });
+  
+  test.afterEach(async ({}, testInfo) => {
+    // Retrieve logs from test context
+    const logs = (testInfo as any)._consoleLogs || [];
+    const errors = (testInfo as any)._pageErrors || [];
+    const network = (testInfo as any)._networkErrors || [];
+    
+    // Combine all error sources
+    const allIssues = [...errors, ...network, ...logs].join('\n');
+    
+    // Check for React churn patterns
+    if (allIssues) {
+      expect(allIssues).not.toMatch(REACT_CHURN_PATTERNS);
+    }
+    
+    // Log details on failure for debugging
+    if (testInfo.status === 'failed') {
+      console.log('Test failed with the following issues:');
+      if (errors.length) console.log('Page errors:', errors);
+      if (network.length) console.log('Network errors:', network);
+      if (logs.length) console.log('Console logs:', logs);
+    }
   });
 
   test('step 2 (investment-strategy) renders without churn errors', async ({ page }) => {
@@ -34,9 +77,7 @@ test.describe('FundSetup Wizard Smoke Tests', () => {
     // Wait for the step container to be visible
     await expect(page.locator('[data-testid="wizard-step-investment-strategy-container"]')).toBeVisible();
     
-    // Check for any React churn errors
-    const allLogs = consoleLogs.join('\n');
-    expect(allLogs).not.toMatch(REACT_CHURN_PATTERNS);
+    // Error checking is handled by afterEach hook
   });
 
   test('step 3 (exit-recycling) renders without churn errors', async ({ page }) => {
@@ -44,10 +85,6 @@ test.describe('FundSetup Wizard Smoke Tests', () => {
     
     // Wait for the step container to be visible
     await expect(page.locator('[data-testid="wizard-step-exit-recycling-container"]')).toBeVisible();
-    
-    // Check for any React churn errors
-    const allLogs = consoleLogs.join('\n');
-    expect(allLogs).not.toMatch(REACT_CHURN_PATTERNS);
   });
 
   test('step 4 (waterfall) renders without churn errors', async ({ page }) => {
@@ -55,23 +92,21 @@ test.describe('FundSetup Wizard Smoke Tests', () => {
     
     // Wait for the step container to be visible
     await expect(page.locator('[data-testid="wizard-step-waterfall-container"]')).toBeVisible();
-    
-    // Check for any React churn errors
-    const allLogs = consoleLogs.join('\n');
-    expect(allLogs).not.toMatch(REACT_CHURN_PATTERNS);
   });
 
-  test('invalid step shows not-found without errors', async ({ page }) => {
+  test('invalid step shows not-found without errors', async ({ page }, testInfo) => {
     await page.goto('/fund-setup?step=99');
     
     // Wait for the not-found container to be visible
     await expect(page.locator('[data-testid="wizard-step-not-found-container"]')).toBeVisible();
     
-    // In DEV mode, we expect at most one warning about invalid step
-    const invalidStepWarnings = consoleLogs.filter(log => 
+    // In production mode, we shouldn't see invalid step warnings
+    // (they're DEV-only warnings)
+    const logs = (testInfo as any)._consoleLogs || [];
+    const invalidStepWarnings = logs.filter((log: string) => 
       log.toLowerCase().includes('invalid step')
     );
-    expect(invalidStepWarnings.length).toBeLessThanOrEqual(1);
+    expect(invalidStepWarnings.length).toBe(0);
   });
 
   test('navigation between steps works without hydration errors', async ({ page }) => {
@@ -80,19 +115,13 @@ test.describe('FundSetup Wizard Smoke Tests', () => {
     
     for (const step of steps) {
       await page.goto(`/fund-setup?step=${step}`);
-      // Wait a moment for any React errors to surface
-      await page.waitForTimeout(100);
+      // Wait for the corresponding container to be visible
+      const containerTestId = step === '2' ? 'investment-strategy' : 
+                             step === '3' ? 'exit-recycling' : 'waterfall';
+      await expect(page.locator(`[data-testid="wizard-step-${containerTestId}-container"]`)).toBeVisible();
     }
     
-    // Check consolidated logs for any critical errors
-    const allLogs = consoleLogs.join('\n').toLowerCase();
-    
-    // These patterns indicate serious React issues
-    expect(allLogs).not.toMatch(/maximum update depth/);
-    expect(allLogs).not.toMatch(/getsnapshot.*cached/);
-    expect(allLogs).not.toMatch(/too many re-renders/);
-    expect(allLogs).not.toMatch(/hydration/);
-    expect(allLogs).not.toMatch(/act\(\)/);
+    // Error checking is handled by afterEach hook
   });
 
   test('step 2 interactive elements are functional', async ({ page }) => {
@@ -108,9 +137,7 @@ test.describe('FundSetup Wizard Smoke Tests', () => {
       await expect(stageNameInput).toHaveValue('Test Stage');
     }
     
-    // Verify no errors after interaction
-    const allLogs = consoleLogs.join('\n');
-    expect(allLogs).not.toMatch(REACT_CHURN_PATTERNS);
+    // Error checking is handled by afterEach hook
   });
 });
 

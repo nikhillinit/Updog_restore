@@ -5,8 +5,8 @@ import ExitRecyclingStep from './ExitRecyclingStep';
 import WaterfallStep from './WaterfallStep';
 import StepNotFound from './steps/StepNotFound';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-
-type StepKey = 'investment-strategy' | 'exit-recycling' | 'waterfall' | 'not-found';
+import { resolveStepKeyFromLocation, type StepKey } from './fund-setup-utils';
+import { emitWizard } from '@/lib/wizard-telemetry';
 
 const STEP_COMPONENTS: Record<StepKey, React.ComponentType<any>> = {
   'investment-strategy': InvestmentStrategyStep,
@@ -15,37 +15,34 @@ const STEP_COMPONENTS: Record<StepKey, React.ComponentType<any>> = {
   'not-found':          StepNotFound,
 };
 
-// Map ?step=2 → investment-strategy, etc.
-const VALID_STEPS = ['2', '3', '4'] as const;
-type ValidStep = typeof VALID_STEPS[number];
-
-// This line guarantees we map every ValidStep and nothing extra:
-const NUM_TO_KEY = {
-  '2': 'investment-strategy',
-  '3': 'exit-recycling',
-  '4': 'waterfall',
-} as const satisfies Record<ValidStep, Exclude<StepKey, 'not-found'>>;
-
 function useStepKey(): StepKey {
   const [loc] = useLocation();
   return React.useMemo<StepKey>(() => {
-    const qs = loc.includes('?') ? loc.slice(loc.indexOf('?')) : '';
-    const val = new URLSearchParams(qs).get('step') ?? '2';
+    const key = resolveStepKeyFromLocation(loc);
     
-    if (!VALID_STEPS.includes(val as ValidStep)) {
-      if (import.meta.env.DEV) {
-        console.warn(`[FundSetup] Invalid step '${val}', defaulting to not-found`);
-      }
-      return 'not-found';
+    if (key === 'not-found' && import.meta.env.DEV) {
+      const val = new URLSearchParams(loc.includes('?') ? loc.slice(loc.indexOf('?')) : '').get('step');
+      console.warn(`[FundSetup] Invalid step '${val}', defaulting to not-found`);
     }
     
-    return NUM_TO_KEY[val as ValidStep];
+    return key;
   }, [loc]);
 }
 
 export default function FundSetup() {
   const key = useStepKey();
   const Step = STEP_COMPONENTS[key] ?? StepNotFound;
+
+  // Emit telemetry on step load
+  React.useEffect(() => {
+    const ttfmp = performance.now();
+    emitWizard({ 
+      type: "step_loaded", 
+      step: key,
+      route: window.location.pathname + window.location.search,
+      ttfmp 
+    });
+  }, [key]);
 
   return (
     <ErrorBoundary
@@ -54,7 +51,13 @@ export default function FundSetup() {
         if (import.meta.env.DEV) {
           console.error(`[FundSetup] Error in step ${key}:`, error);
         }
-        // hook for telemetry here
+        // Emit telemetry on error
+        emitWizard({ 
+          type: "wizard_error", 
+          step: key, 
+          message: String(error),
+          stack: error instanceof Error ? error.stack?.slice(0, 500) : undefined
+        });
       }}
     >
       <div data-testid={`wizard-step-${key}-container`}>

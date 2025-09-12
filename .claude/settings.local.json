@@ -84,7 +84,12 @@
       "Bash(gh pr:*)",
       "Bash(git fetch:*)",
       "Bash(git merge:*)",
-      "Bash(npm i:*)"
+      "Bash(npm i:*)",
+      "Bash(npx playwright install:*)",
+      "Bash(npm run preview:*)",
+      "Bash(set \"BASE_URL=http://localhost:4174\")",
+      "Bash($env:BASE_URL=\"http://localhost:4174\")",
+      "Bash(BASE_URL=http://localhost:4174 npx playwright test --project=core tests/e2e/fund-setup.spec.ts)"
     ],
     "deny": [],
     "ask": [],
