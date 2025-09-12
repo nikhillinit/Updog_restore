@@ -56,6 +56,7 @@
     "lint:watch": "eslint . --max-warnings 0 --cache --cache-location node_modules/.cache/eslint --watch",
     "lint": "eslint . --max-warnings 0 --cache --cache-location node_modules/.cache/eslint",
     "lint:fix": "eslint . --fix --cache --cache-location node_modules/.cache/eslint",
+    "secret:gen": "node -e \"console.log(require('crypto').randomBytes(32).toString('base64url'))\"",
     "security:audit": "npm audit --audit-level=high",
     "security:check": "node lib/security-utils.js --check",
     "security:scan": "npm run security:audit && npm run security:check",

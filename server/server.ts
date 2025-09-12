@@ -11,6 +11,10 @@
 import express, { type Express, type Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
+import bodyParser from 'body-parser';
+import { withNonce, csp } from './security/csp';
+import { cspReportRoute } from './routes/public/csp-report';
+import { flagsRoute } from './routes/public/flags';
 import cors from 'cors';
 import { requestId } from './middleware/requestId.js';
 import { shutdownGuard } from './middleware/shutdownGuard.js';
@@ -70,6 +74,9 @@ export async function createServer(
   // Correlation ID for tracing
   app.use(correlation);
   
+  // CSP nonce generation
+  app.use(withNonce);
+  
   // Engine guards for NaN/Infinity sanitization and fault injection
   app.use(engineGuardExpress());
   
@@ -85,7 +92,10 @@ export async function createServer(
   // Shutdown guard MUST be after version headers
   app.use(shutdownGuard());
   
-  // Security and performance middleware
+  // Security and performance middleware - use our enhanced CSP instead
+  app.use(csp());
+  
+  // Additional helmet security headers (CSP handled separately)
   app.use(helmet({
     crossOriginEmbedderPolicy: false, // Allow Vite dev and dynamic imports
     contentSecurityPolicy: config.NODE_ENV === 'production' 
@@ -100,15 +110,7 @@ export async function createServer(
             "frame-ancestors": ["'none'"],
           }
         }
-      : {
-          useDefaults: true,
-          directives: {
-            "connect-src": ["'self'", "ws:", "wss:", "http://localhost:*"],
-            "img-src": ["'self'", "data:", "blob:"],
-            "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Allow HMR in dev
-            "style-src": ["'self'", "'unsafe-inline'"],
-          }
-        }
+      : false // CSP handled by our custom implementation
   }));
   
   // CORS configuration with origin validation
@@ -127,9 +129,12 @@ export async function createServer(
   
   app.use(compression());
   
-  // Body parsing with size limits
+  // Body parsing with size limits and CSP report support
   const bodyLimit = config.BODY_LIMIT;
-  app.use(express.json({ limit: bodyLimit }));
+  app.use(bodyParser.json({ 
+    limit: bodyLimit, 
+    type: ["application/json","application/csp-report"] 
+  }));
   app.use(express.urlencoded({ extended: false, limit: bodyLimit }));
   
   // Body parser error handler (now has req.requestId available)
@@ -149,6 +154,10 @@ export async function createServer(
     }
     next(err);
   });
+  
+  // Public routes (before rate limiting)
+  app.use("/api", cspReportRoute);
+  app.use("/api", flagsRoute);
   
   // Request logging middleware with version
   app.use((req: Request, res: Response, next: NextFunction) => {

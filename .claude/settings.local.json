@@ -89,7 +89,8 @@
       "Bash(npm run preview:*)",
       "Bash(set \"BASE_URL=http://localhost:4174\")",
       "Bash($env:BASE_URL=\"http://localhost:4174\")",
-      "Bash(BASE_URL=http://localhost:4174 npx playwright test --project=core tests/e2e/fund-setup.spec.ts)"
+      "Bash(BASE_URL=http://localhost:4174 npx playwright test --project=core tests/e2e/fund-setup.spec.ts)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": [],
