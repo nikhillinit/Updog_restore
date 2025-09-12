@@ -5,6 +5,8 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 // Minimal placeholder so the endpoint compiles.
 // Wire to your real model once ready.
+import { getConfig } from '../config';
+
 export type FundModelInput = Record<string, unknown>;
 export type FundModelResult = { result: Record<string, unknown> };
 
@@ -13,8 +15,14 @@ export class EnhancedFundModel {
 
   async calculate(_opts?: { signal?: AbortSignal; onProgress?: (_p: number) => void }): Promise<FundModelResult> {
     const started = Date.now();
-    // Simulate some work
-    await new Promise((r) => setTimeout(r, 50));
+    
+    // Only add artificial delay in non-demo mode
+    const { DEMO_MODE } = getConfig();
+    if (!DEMO_MODE) {
+      // Simulate some work
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    
     return {
       result: {
         tvpi: 2.5,

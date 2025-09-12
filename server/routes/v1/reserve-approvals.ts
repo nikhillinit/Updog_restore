@@ -11,6 +11,7 @@ import { reserveApprovals, approvalSignatures, approvalAuditLog, approvalPartner
 import { eq, and, gte } from 'drizzle-orm';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import { getConfig } from '../../config';
 
 const router = Router();
 
@@ -253,10 +254,16 @@ router.post('/:id/sign', requireRole('partner'), async (req: AuthenticatedReques
       calculationHash: approval.calculationHash
     };
     
+    const cfg = getConfig();
     const signature = jwt.sign(
       signatureData, 
-      process.env.JWT_SECRET || 'dev-secret',
-      { expiresIn: '7d' }
+      cfg.JWT_SECRET!,
+      { 
+        algorithm: "HS256" as jwt.Algorithm,
+        expiresIn: '7d',
+        issuer: cfg.JWT_ISSUER,
+        audience: cfg.JWT_AUDIENCE
+      }
     );
     
     // Record signature
