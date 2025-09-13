@@ -169,3 +169,6 @@ export function calculateAmericanWaterfallLedger(
     },
   };
 }
+
+// Export alias for backward compatibility
+export const calculateAmericanLedger = calculateAmericanWaterfallLedger;

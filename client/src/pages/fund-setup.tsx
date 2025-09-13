@@ -1229,7 +1229,10 @@ export default function FundSetup() {
             <div className="lg:col-span-1">
               <div className="sticky top-8">
                 <EnhancedAnalyticsPanel
-                  cashFlows={convertFundDataToCashFlows(fundData)}
+                  cashFlows={convertFundDataToCashFlows(fundData).map(cf => ({
+                    date: cf.date.toISOString().split('T')[0],
+                    amount: cf.amount
+                  }))}
                   wConfig={generateWaterfallInputs(fundData).config}
                   contributions={generateWaterfallInputs(fundData).contributions}
                   exits={generateWaterfallInputs(fundData).exits}

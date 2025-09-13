@@ -7,7 +7,7 @@
       "gpCommitted": 1000000,
       "preferredReturn": 0.08,
       "carryPercent": 0.20,
-      "catchUpPercent: 0.80,
+      "catchUpPercent": 0.80,
       "recycleLimit": 0
     },
     "proceeds": 9000000,

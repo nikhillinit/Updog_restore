@@ -9,13 +9,21 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const typeAwareFiles = [
+  'shared/**/*.{ts,tsx}',
+  'server/**/*.{ts,tsx}',
+  // keep finance/math & schema guarded
+  'client/src/lib/finance/**/*.{ts,tsx}',
+  'client/src/lib/waterfall/**/*.{ts,tsx}',
+];
+
 export default [
   // Global ignores should be first
   {
     ignores: [
-      "dist/**", 
-      "coverage/**", 
-      ".vite/**", 
+      "dist/**",
+      "coverage/**",
+      ".vite/**",
       "node_modules/**",
       "build/**",
       "tests/**",
@@ -40,14 +48,13 @@ export default [
     ]
   },
   js.configs.recommended,
+
+  // Tier A: Fast lint (no type info) across the repo
   {
     files: ["**/*.ts", "**/*.tsx"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        // Remove project references for performance
-        // project: ["./client/tsconfig.json", "./server/tsconfig.json"],
-        // tsconfigRootDir: __dirname,
         ecmaVersion: "latest",
         sourceType: "module",
         ecmaFeatures: { jsx: true }
@@ -67,32 +74,49 @@ export default [
         performance: "readonly"
       }
     },
-    plugins: { 
-      "@typescript-eslint": ts, 
-      "react": react, 
-      "react-hooks": reactHooks 
+    plugins: {
+      "@typescript-eslint": ts,
+      "react": react,
+      "react-hooks": reactHooks
     },
     rules: {
-      // Phase 1: Type safety warnings (will escalate to errors in Phase 3)
+      // Basic hygiene rules (no type info needed)
       "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "no-console": "off",
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+      "prefer-const": "warn",
+      "prefer-template": "warn"
+    },
+    settings: {
+      react: { version: "detect" }
+    }
+  },
+
+  // Tier B: Type-aware lint on critical paths
+  {
+    files: typeAwareFiles,
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: ["./tsconfig.eslint.json"],
+        tsconfigRootDir: __dirname,
+        ecmaVersion: "latest",
+        sourceType: "module",
+        ecmaFeatures: { jsx: true }
+      }
+    },
+    plugins: {
+      "@typescript-eslint": ts
+    },
+    rules: {
+      // Keep high-signal safety rules ON where it matters
       "@typescript-eslint/no-unsafe-assignment": "warn",
       "@typescript-eslint/no-unsafe-member-access": "warn",
       "@typescript-eslint/no-unsafe-call": "warn",
       "@typescript-eslint/no-unsafe-return": "warn",
-      
-      // Existing rules
-      "@typescript-eslint/no-unused-vars": "off", 
-      "no-console": "off",
-      "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
-      
-      // Prefer modern JavaScript features
-      "prefer-const": "warn",
-      "prefer-template": "warn",
-      "prefer-nullish-coalescing": "off" // Will enable once codebase is ready
-    },
-    settings: { 
-      react: { version: "detect" } 
+      "@typescript-eslint/no-unsafe-argument": "warn"
     }
   }
 ];

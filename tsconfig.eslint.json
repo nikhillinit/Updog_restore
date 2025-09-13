@@ -1,0 +1,13 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.shared.json" },
+    { "path": "./tsconfig.server.json" }
+  ],
+  "include": [
+    "shared/**/*",
+    "server/**/*",
+    "client/src/lib/finance/**/*",
+    "client/src/lib/waterfall/**/*"
+  ]
+}

@@ -80,3 +80,6 @@ export function xirrNewtonBisection(
   }
   return { irr: null, converged: false, iterations: maxIterations, method: 'bisection' };
 }
+
+// Export alias for backward compatibility
+export const xirr = xirrNewtonBisection;

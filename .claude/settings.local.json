@@ -10,7 +10,15 @@
       "Bash(npm run check:*)",
       "Bash(git commit:*)",
       "Bash(git tag:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(rg:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run build:types:*)",
+      "Bash(npm ls:*)",
+      "Bash(npm view:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm install:*)",
+      "Bash(npm docs:*)"
     ],
     "deny": [],
     "ask": [],

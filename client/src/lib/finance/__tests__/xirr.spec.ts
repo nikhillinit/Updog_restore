@@ -3,7 +3,7 @@ import { xirr } from '../xirr';
 import cases from './fixtures/xirr-cases.json';
 
 describe('XIRR Golden Vectors', () => {
-  test.each(cases)('$name', ({ cfs, expected }) => {
+  (test as any).each(cases)('$name', ({ cfs, expected }: any) => {
     const cashFlows = cfs.map(({ d, a }: any) => ({
       date: new Date(d),
       amount: a
