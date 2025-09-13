@@ -96,6 +96,23 @@ tests/utils/
 
 This project follows the **Build → Measure → Analyze → Decide (BMAD)** workflow. The latest orchestration brief, including critical checkpoints and updated phases, can be found in `docs/bmad-brief.md`.
 
+## Development Guidelines
+
+### Schema Validation Helpers
+
+We use flexible numeric validation helpers for Drizzle-Zod schemas to improve readability and consistency. See `shared/schema-helpers.ts` for available helpers:
+
+* `nonNegative()` - Values >= 0
+* `bounded01()` - Values between 0 and 1 (for decimal percentages)
+* `percent100()` - Values between 0 and 100 (for whole number percentages)
+* `positiveInt()` - Integer values >= 1
+* `yearRange(min, max)` - Valid year ranges
+* `num(opts)` - Flexible numeric validation with custom options
+
+### Dependency Management
+
+**drizzle-zod version**: We remain on `0.5.1` because current schemas and server logic are stable with this version. We will evaluate `0.8.x` in a separate branch when/if needed; benefits must outweigh migration/testing cost. Until then, please avoid bumping `drizzle-zod` in feature PRs.
+
 ## Documentation
 
 - [Schema Reference](docs/schema.md)

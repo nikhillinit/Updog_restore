@@ -1,6 +1,7 @@
 import { pgTable, text, serial, integer, boolean, decimal, timestamp, jsonb, varchar, index, unique, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "./types/zod";
+import { num, nonNegative, bounded01, positiveInt, yearRange } from "./schema-helpers";
 
 export const funds = pgTable("funds", {
   id: serial("id").primaryKey(),
@@ -233,18 +234,32 @@ export const financialProjections = pgTable("financial_projections", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Insert schemas
-export const insertFundSchema = createInsertSchema(funds).omit({
+// Insert schemas with improved numeric validation
+export const insertFundSchema = createInsertSchema(funds, {
+  size: nonNegative(),
+  deployedCapital: nonNegative(),
+  managementFee: bounded01(), // 0-1 range for percentage as decimal
+  carryPercentage: bounded01(), // 0-1 range for percentage as decimal
+  vintageYear: yearRange(1980, 2050) // Valid fund vintage years
+}).omit({
   id: true,
   createdAt: true
 });
 
-export const insertPortfolioCompanySchema = createInsertSchema(portfolioCompanies).omit({
+export const insertPortfolioCompanySchema = createInsertSchema(portfolioCompanies, {
+  investmentAmount: nonNegative(),
+  currentValuation: nonNegative(),
+  foundedYear: yearRange(1900, 2050)
+}).omit({
   id: true,
   createdAt: true
 });
 
-export const insertInvestmentSchema = createInsertSchema(investments).omit({
+export const insertInvestmentSchema = createInsertSchema(investments, {
+  amount: nonNegative(),
+  ownershipPercentage: bounded01(), // 0-1 range for ownership as decimal
+  valuationAtInvestment: nonNegative()
+}).omit({
   id: true,
   createdAt: true
 });
@@ -288,7 +303,10 @@ export const insertDueDiligenceItemSchema = createInsertSchema(dueDiligenceItems
   updatedAt: true
 });
 
-export const insertScoringModelSchema = createInsertSchema(scoringModels).omit({
+export const insertScoringModelSchema = createInsertSchema(scoringModels, {
+  score: num({ min: 1, max: 10, int: true }), // 1-10 integer scale
+  weight: bounded01() // 0-1 weight range
+}).omit({
   id: true,
   createdAt: true,
   scoredAt: true
