@@ -1,0 +1,164 @@
+[
+  {
+    "name": "Basic waterfall with no carry",
+    "cfg": {
+      "totalCommitted": 10000000,
+      "lpCommitted": 9000000,
+      "gpCommitted": 1000000,
+      "preferredReturn": 0.08,
+      "carryPercent": 0.20,
+      "catchUpPercent: 0.80,
+      "recycleLimit": 0
+    },
+    "proceeds": 9000000,
+    "expect": {
+      "lpCapitalReturned": 8100000,
+      "gpCapitalReturned": 900000,
+      "lpPreferredReturn": 0,
+      "gpPreferredReturn": 0,
+      "gpCatchUp": 0,
+      "gpCarryAccrued": 0,
+      "dpi": 0.9,
+      "tvpi": 0.9
+    }
+  },
+  {
+    "name": "Waterfall with preferred return achieved",
+    "cfg": {
+      "totalCommitted": 10000000,
+      "lpCommitted": 9000000,
+      "gpCommitted": 1000000,
+      "preferredReturn": 0.08,
+      "carryPercent": 0.20,
+      "catchUpPercent": 0.80,
+      "recycleLimit": 0
+    },
+    "proceeds": 11000000,
+    "expect": {
+      "lpCapitalReturned": 9000000,
+      "gpCapitalReturned": 1000000,
+      "lpPreferredReturn": 720000,
+      "gpPreferredReturn": 80000,
+      "gpCatchUp": 200000,
+      "gpCarryAccrued": 0,
+      "dpi": 1.08,
+      "tvpi": 1.1
+    }
+  },
+  {
+    "name": "Full waterfall with carry",
+    "cfg": {
+      "totalCommitted": 10000000,
+      "lpCommitted": 9000000,
+      "gpCommitted": 1000000,
+      "preferredReturn": 0.08,
+      "carryPercent": 0.20,
+      "catchUpPercent": 0.80,
+      "recycleLimit": 0
+    },
+    "proceeds": 15000000,
+    "expect": {
+      "lpCapitalReturned": 9000000,
+      "gpCapitalReturned": 1000000,
+      "lpPreferredReturn": 720000,
+      "gpPreferredReturn": 80000,
+      "gpCatchUp": 200000,
+      "gpCarryAccrued": 800000,
+      "dpi": 1.28,
+      "tvpi": 1.5
+    }
+  },
+  {
+    "name": "Edge case at catch-up threshold",
+    "cfg": {
+      "totalCommitted": 10000000,
+      "lpCommitted": 9000000,
+      "gpCommitted": 1000000,
+      "preferredReturn": 0.08,
+      "carryPercent": 0.20,
+      "catchUpPercent": 0.80,
+      "recycleLimit": 0
+    },
+    "proceeds": 10999999,
+    "expect": {
+      "lpCapitalReturned": 9000000,
+      "gpCapitalReturned": 1000000,
+      "lpPreferredReturn": 720000,
+      "gpPreferredReturn": 80000,
+      "gpCatchUp": 199999.8,
+      "gpCarryAccrued": 0,
+      "dpi": 1.08,
+      "tvpi": 1.1
+    }
+  },
+  {
+    "name": "Waterfall with recycling",
+    "cfg": {
+      "totalCommitted": 10000000,
+      "lpCommitted": 9000000,
+      "gpCommitted": 1000000,
+      "preferredReturn": 0.08,
+      "carryPercent": 0.20,
+      "catchUpPercent": 0.80,
+      "recycleLimit": 2000000
+    },
+    "proceeds": 12000000,
+    "expect": {
+      "lpCapitalReturned": 9000000,
+      "gpCapitalReturned": 1000000,
+      "lpPreferredReturn": 720000,
+      "gpPreferredReturn": 80000,
+      "gpCatchUp": 200000,
+      "gpCarryAccrued": 200000,
+      "recycled": 800000,
+      "dpi": 1.08,
+      "tvpi": 1.2
+    }
+  },
+  {
+    "name": "High multiple with significant carry",
+    "cfg": {
+      "totalCommitted": 10000000,
+      "lpCommitted": 9000000,
+      "gpCommitted": 1000000,
+      "preferredReturn": 0.08,
+      "carryPercent": 0.20,
+      "catchUpPercent": 0.80,
+      "recycleLimit": 0
+    },
+    "proceeds": 30000000,
+    "expect": {
+      "lpCapitalReturned": 9000000,
+      "gpCapitalReturned": 1000000,
+      "lpPreferredReturn": 720000,
+      "gpPreferredReturn": 80000,
+      "gpCatchUp": 200000,
+      "gpCarryAccrued": 3800000,
+      "dpi": 2.28,
+      "tvpi": 3.0
+    }
+  },
+  {
+    "name": "Zero proceeds",
+    "cfg": {
+      "totalCommitted": 10000000,
+      "lpCommitted": 9000000,
+      "gpCommitted": 1000000,
+      "preferredReturn": 0.08,
+      "carryPercent": 0.20,
+      "catchUpPercent": 0.80,
+      "recycleLimit": 0
+    },
+    "proceeds": 0,
+    "expect": {
+      "lpCapitalReturned": 0,
+      "gpCapitalReturned": 0,
+      "lpPreferredReturn": 0,
+      "gpPreferredReturn": 0,
+      "gpCatchUp": 0,
+      "gpCarryAccrued": 0,
+      "dpi": 0,
+      "tvpi": 0
+    }
+  }
+]
