@@ -42,6 +42,7 @@ import type { Fund as DatabaseFund } from "@shared/schema";
 import type { Fund } from "@/contexts/FundContext";
 import { EnhancedAnalyticsPanel } from "@/components/analytics/EnhancedAnalyticsPanel";
 import { convertFundDataToCashFlows, generateWaterfallInputs } from "@/lib/cashflow/generate";
+import { useAnalyticsFlag } from "@/lib/useFlag";
 
 type WizardStep = 'fund-basics' | 'committed-capital' | 'investment-strategy' | 'exit-recycling' | 'waterfall' | 'advanced-settings' | 'review';
 
@@ -91,6 +92,7 @@ export default function FundSetup() {
   const queryClient = useQueryClient();
   const { setCurrentFund } = useFundContext();
   const [currentStep, setCurrentStep] = useState<WizardStep>('fund-basics');
+  const analyticsEnabled = useAnalyticsFlag();
 
   // LP Class modal state
   const [isLPClassModalOpen, setIsLPClassModalOpen] = useState(false);
@@ -1223,16 +1225,18 @@ export default function FundSetup() {
           </div>
 
           {/* Analytics Panel - Right Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-8">
-              <EnhancedAnalyticsPanel
-                cashFlows={convertFundDataToCashFlows(fundData)}
-                wConfig={generateWaterfallInputs(fundData).config}
-                contributions={generateWaterfallInputs(fundData).contributions}
-                exits={generateWaterfallInputs(fundData).exits}
-              />
+          {analyticsEnabled && (
+            <div className="lg:col-span-1">
+              <div className="sticky top-8">
+                <EnhancedAnalyticsPanel
+                  cashFlows={convertFundDataToCashFlows(fundData)}
+                  wConfig={generateWaterfallInputs(fundData).config}
+                  contributions={generateWaterfallInputs(fundData).contributions}
+                  exits={generateWaterfallInputs(fundData).exits}
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* LP Class Modal */}

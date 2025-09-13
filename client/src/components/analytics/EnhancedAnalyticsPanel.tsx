@@ -4,14 +4,32 @@ import { nanoid } from 'nanoid';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { TrendingUp, DollarSign, BarChart3, Calculator } from 'lucide-react';
+import { workerSelfTest } from '@/lib/analytics/selftest';
+import { Badge } from '@/components/ui/badge';
 
 export function EnhancedAnalyticsPanel({ cashFlows, wConfig, contributions, exits }:{
   cashFlows: Array<{ date: string; amount: number }>;
   wConfig: any; contributions: any[]; exits: any[];
 }) {
-  const { calculateXIRR, runMonteCarlo, calculateWaterfall, progress, cancel } = useWorkerAnalytics();
+  const { calculateXIRR, runMonteCarlo, calculateWaterfall, progress, cancel, spawnWorker } = useWorkerAnalytics();
   const [metrics, setMetrics] = useState<any>({ irr: null, mc: null, wf: null });
   const [activeCalculations, setActiveCalculations] = useState<Set<string>>(new Set());
+  const [isDogfood, setIsDogfood] = useState(false);
+
+  // Check if we're in dogfood mode (dev localStorage override)
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      setIsDogfood(localStorage.getItem('dev.analytics') === '1');
+    }
+  }, []);
+
+  // Run worker self-test in dev mode on mount
+  useEffect(() => {
+    if (import.meta.env.DEV && spawnWorker) {
+      workerSelfTest(spawnWorker, { cycles: 10, verbose: false })
+        .catch(err => console.error('[Analytics] Worker self-test failed:', err));
+    }
+  }, [spawnWorker]);
 
   // XIRR
   useEffect(() => {
@@ -77,6 +95,11 @@ export function EnhancedAnalyticsPanel({ cashFlows, wConfig, contributions, exit
           <CardTitle className="text-lg font-inter flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-pov-charcoal" />
             Real-time Analytics
+            {isDogfood && (
+              <Badge variant="outline" className="ml-2 text-xs">
+                Dogfood
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">

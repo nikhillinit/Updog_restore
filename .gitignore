@@ -100,9 +100,14 @@ stats.html
 
 # TypeScript cache files
 .tscache
+.tsc-client.err
 
 # Code quality and analysis tools
 .codacy/
+
+# AI and tool logs
+**/ai-logs/**
+.local.*
 
 # Agent-generated documentation (temporary)
 AGENT_MODEL_ASSIGNMENTS.md
