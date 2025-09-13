@@ -40,6 +40,8 @@ import WaterfallStep from "./WaterfallStep";
 import type { InvestmentStrategy, ExitRecycling, Waterfall } from "@shared/types";
 import type { Fund as DatabaseFund } from "@shared/schema";
 import type { Fund } from "@/contexts/FundContext";
+import { EnhancedAnalyticsPanel } from "@/components/analytics/EnhancedAnalyticsPanel";
+import { convertFundDataToCashFlows, generateWaterfallInputs } from "@/lib/cashflow/generate";
 
 type WizardStep = 'fund-basics' | 'committed-capital' | 'investment-strategy' | 'exit-recycling' | 'waterfall' | 'advanced-settings' | 'review';
 
@@ -548,12 +550,14 @@ export default function FundSetup() {
         completedSteps={completedSteps}
       />
 
-      <div className="max-w-6xl mx-auto px-6 py-8 pb-32">
-        <WizardContainer
-          title={WIZARD_STEPS[currentStepIndex].label}
-          subtitle={WIZARD_STEPS[currentStepIndex].description}
-          className="mb-8"
-        >
+      <div className="max-w-7xl mx-auto px-6 py-8 pb-32">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="lg:col-span-3">
+            <WizardContainer
+              title={WIZARD_STEPS[currentStepIndex].label}
+              subtitle={WIZARD_STEPS[currentStepIndex].description}
+              className="mb-8"
+            >
             {/* Fund Basics Step */}
             {currentStep === 'fund-basics' && (
               <div className="space-y-6">
@@ -1215,7 +1219,21 @@ export default function FundSetup() {
               </div>
             )}
 
-        </WizardContainer>
+            </WizardContainer>
+          </div>
+
+          {/* Analytics Panel - Right Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-8">
+              <EnhancedAnalyticsPanel
+                cashFlows={convertFundDataToCashFlows(fundData)}
+                wConfig={generateWaterfallInputs(fundData).config}
+                contributions={generateWaterfallInputs(fundData).contributions}
+                exits={generateWaterfallInputs(fundData).exits}
+              />
+            </div>
+          </div>
+        </div>
 
         {/* LP Class Modal */}
         <Dialog open={isLPClassModalOpen} onOpenChange={setIsLPClassModalOpen}>
@@ -1322,7 +1340,7 @@ export default function FundSetup() {
 
         {/* Sticky Footer Bar */}
         <div className="fixed bottom-0 left-0 right-0 bg-charcoal-100 border-t border-charcoal-200 shadow-lg z-50">
-          <div className="max-w-6xl mx-auto px-6 py-4">
+          <div className="max-w-7xl mx-auto px-6 py-4">
             <div className="flex justify-between items-center">
               {/* Left side - Step indicator and Save draft */}
               <div className="flex items-center space-x-6">
