@@ -98,7 +98,9 @@
       "Bash(netstat:*)",
       "Bash(taskkill:*)",
       "Bash(git log:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(git restore:*)",
+      "Bash(gh api:*)"
     ],
     "deny": [],
     "ask": [],

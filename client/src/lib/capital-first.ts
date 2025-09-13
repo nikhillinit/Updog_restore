@@ -277,13 +277,146 @@ export function validateCapitalFirstInputs(inputs: CapitalFirstInputsV2): string
  */
 export function hasCriticalErrors(inputs: CapitalFirstInputsV2): boolean {
   if (inputs.totalCommitment <= 0) return true;
-  
+
   const allocSum = Object.values(inputs.allocationPctByStage).reduce((a, b) => a + b, 0);
   if (Math.abs(allocSum - 100) > 0.01) return true;
-  
+
   // Check for any non-positive initial checks
   return StageOrder.some(stage => {
     const check = inputs.initialCheckByStage[stage];
     return check !== undefined && check <= 0;
   });
+}
+
+/**
+ * Enhanced capital-first calculation with balance constraints and demo safety
+ * Includes comprehensive error handling and fallback values
+ */
+export function computeCapitalFirstSafe(inputs: CapitalFirstInputsV2): {
+  success: boolean;
+  result?: CapitalFirstResultV2;
+  error?: string;
+  validationErrors?: string[];
+} {
+  try {
+    // Validate inputs first
+    const validationErrors = validateCapitalFirstInputs(inputs);
+    if (validationErrors.length > 0) {
+      return { success: false, validationErrors };
+    }
+
+    // Check for critical errors that would break calculations
+    if (hasCriticalErrors(inputs)) {
+      return {
+        success: false,
+        error: 'Critical validation errors prevent calculation. Please fix allocation percentages and check sizes.'
+      };
+    }
+
+    // Run the calculation
+    const result = computeFromCapital_v2(inputs);
+
+    // Post-calculation validation
+    const hasNaN = Object.values(result.initialInvestmentsByStage).some(v => !Number.isFinite(v));
+    if (hasNaN) {
+      return {
+        success: false,
+        error: 'Calculation resulted in invalid numbers. Please check your inputs.'
+      };
+    }
+
+    // Check for reasonable results
+    if (result.impliedReserveRatioPct > 80) {
+      result.warnings.push('Reserve ratio is very high (>80%). Consider adjusting follow-on strategies.');
+    }
+
+    return { success: true, result };
+
+  } catch (error) {
+    console.error('Capital-first calculation error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown calculation error'
+    };
+  }
+}
+
+/**
+ * Calculate total capital deployed vs budget for balance checking
+ * Useful for detecting over-allocation and capital leakage
+ */
+export function calculateCapitalBalance(result: CapitalFirstResultV2): {
+  totalInitialSpend: number;
+  totalFollowOnSpend: number;
+  totalCapitalDeployed: number;
+  utilizationRate: number;
+  surplus: number;
+} {
+  const totalInitialSpend = Object.values(result.initialSpendByStage).reduce((a, b) => a + b, 0);
+  const totalFollowOnSpend = Object.values(result.followOnSpendByStage).reduce((a, b) => a + b, 0);
+  const totalCapitalDeployed = totalInitialSpend + totalFollowOnSpend;
+
+  const utilizationRate = result.grossInvestable > 0 ?
+    (totalCapitalDeployed / result.grossInvestable) * 100 : 0;
+
+  const surplus = result.grossInvestable - totalCapitalDeployed;
+
+  return {
+    totalInitialSpend,
+    totalFollowOnSpend,
+    totalCapitalDeployed,
+    utilizationRate,
+    surplus
+  };
+}
+
+/**
+ * Generate demo-safe default inputs for rapid prototyping
+ * Returns a valid configuration that works out of the box
+ */
+export function generateDemoInputs(fundSize: number = 15_000_000): CapitalFirstInputsV2 {
+  return {
+    totalCommitment: fundSize,
+    feeDragPct: 12, // Conservative estimate: 2% annual fee over 6 years
+    allocationPctByStage: {
+      preseed: 25,
+      seed: 40,
+      seriesA: 30,
+      seriesBplus: 5
+    },
+    initialCheckByStage: {
+      preseed: 250_000,
+      seed: 500_000,
+      seriesA: 1_000_000,
+      seriesBplus: 2_000_000
+    },
+    graduationPctByStage: {
+      preseed: 20,
+      seed: 35,
+      seriesA: 50,
+      seriesBplus: 0 // Final stage
+    },
+    marketByStage: {
+      preseed: { valuationPost: 3_000_000, roundSize: 1_500_000 },
+      seed: { valuationPost: 8_000_000, roundSize: 5_000_000 },
+      seriesA: { valuationPost: 25_000_000, roundSize: 15_000_000 },
+      seriesBplus: { valuationPost: 75_000_000, roundSize: 40_000_000 }
+    },
+    followOnRules: [
+      {
+        from: 'preseed',
+        to: 'seed',
+        mode: 'maintain_ownership',
+        participationPct: 80,
+        targetOwnershipPct: 8
+      },
+      {
+        from: 'seed',
+        to: 'seriesA',
+        mode: 'fixed_check',
+        participationPct: 60,
+        fixedAmount: 750_000
+      }
+    ]
+  };
 }
