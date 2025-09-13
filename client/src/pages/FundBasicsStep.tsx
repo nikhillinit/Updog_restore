@@ -23,6 +23,20 @@ export default function FundBasicsStep() {
   // Actions
   const updateFundBasics = useFundAction(s => s.updateFundBasics);
 
+  // Auto-populate with defaults for easy testing
+  React.useEffect(() => {
+    if (!fundName) {
+      updateFundBasics({
+        fundName: 'Test Fund I',
+        fundSize: 50,
+        managementFeeRate: 2.0,
+        carriedInterest: 20,
+        fundLife: 10,
+        investmentPeriod: 3
+      });
+    }
+  }, [fundName, updateFundBasics]);
+
   const handleInputChange = (field: string, value: any) => {
     updateFundBasics({ [field]: value });
   };
@@ -169,7 +183,15 @@ export default function FundBasicsStep() {
 
       <div className="flex justify-end mt-6">
         <Button 
-          onClick={() => navigate('/fund-setup?step=2')}
+          onClick={() => {
+            console.log('[FundBasics] Next button clicked, navigating to step 2');
+            console.log('[FundBasics] Current URL before navigate:', window.location.href);
+            navigate('/fund-setup?step=2');
+            // Check URL after a brief delay
+            setTimeout(() => {
+              console.log('[FundBasics] URL after navigate:', window.location.href);
+            }, 100);
+          }}
           className="flex items-center gap-2"
         >
           Next Step

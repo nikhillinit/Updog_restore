@@ -44,6 +44,40 @@ export type WaterfallTier = {
   conditionValue?: number;
 };
 
+// Fee and Expense types
+export type FeeBasis = 
+  | 'committed_capital'
+  | 'called_capital_period' 
+  | 'gross_cumulative_called'
+  | 'net_cumulative_called'
+  | 'cumulative_invested'
+  | 'fair_market_value'
+  | 'unrealized_investments';
+
+export type FeeTier = {
+  id: string;
+  name: string;
+  percentage: number;
+  feeBasis: FeeBasis;
+  startMonth: number;
+  endMonth?: number;
+  recyclingPercentage?: number; // % of fees that can be recycled
+};
+
+export type FeeProfile = {
+  id: string;
+  name: string;
+  feeTiers: FeeTier[];
+};
+
+export type FundExpense = {
+  id: string;
+  category: string;
+  monthlyAmount: number;
+  startMonth: number;
+  endMonth?: number;
+};
+
 export type FundState = {
   // Hydration flag
   hydrated: boolean;
@@ -78,6 +112,11 @@ export type FundState = {
   recyclingPeriod?: number;
   exitRecyclingRate?: number;
   mgmtFeeRecyclingRate?: number;
+  allowFutureRecycling?: boolean;
+
+  // Fees & Expenses
+  feeProfiles: FeeProfile[];
+  fundExpenses: FundExpense[];
 
   // Fund Basics actions
   updateFundBasics: (patch: Partial<Pick<FundState, 'fundName' | 'isEvergreen' | 'fundLife' | 'investmentPeriod' | 'fundSize' | 'managementFeeRate' | 'carriedInterest'>>) => void;
@@ -98,10 +137,23 @@ export type FundState = {
   updateStageRate: (idx: number, patch: Partial<Pick<StrategyStage, 'graduate'|'exit'|'months'>>) => void;
 
   // Distributions actions
-  updateDistributions: (patch: Partial<Pick<FundState, 'waterfallType' | 'recyclingEnabled' | 'recyclingType' | 'recyclingCap' | 'recyclingPeriod' | 'exitRecyclingRate' | 'mgmtFeeRecyclingRate'>>) => void;
+  updateDistributions: (patch: Partial<Pick<FundState, 'waterfallType' | 'recyclingEnabled' | 'recyclingType' | 'recyclingCap' | 'recyclingPeriod' | 'exitRecyclingRate' | 'mgmtFeeRecyclingRate' | 'allowFutureRecycling'>>) => void;
   addWaterfallTier: (tier: WaterfallTier) => void;
   updateWaterfallTier: (id: string, patch: Partial<WaterfallTier>) => void;
   removeWaterfallTier: (id: string) => void;
+
+  // Fee Profile actions
+  addFeeProfile: (profile: FeeProfile) => void;
+  updateFeeProfile: (id: string, patch: Partial<FeeProfile>) => void;
+  removeFeeProfile: (id: string) => void;
+  addFeeTier: (profileId: string, tier: FeeTier) => void;
+  updateFeeTier: (profileId: string, tierId: string, patch: Partial<FeeTier>) => void;
+  removeFeeTier: (profileId: string, tierId: string) => void;
+
+  // Fund Expense actions
+  addFundExpense: (expense: FundExpense) => void;
+  updateFundExpense: (id: string, patch: Partial<FundExpense>) => void;
+  removeFundExpense: (id: string) => void;
 
   // Selector-like helper
   stageValidation: () => { allValid: boolean; errorsByRow: (string | null)[] };
@@ -275,6 +327,26 @@ function createFundStore() {
           recyclingPeriod: undefined,
           exitRecyclingRate: 100,
           mgmtFeeRecyclingRate: 0,
+          allowFutureRecycling: false,
+
+          // Fees & Expenses defaults
+          feeProfiles: [
+            {
+              id: 'default-profile',
+              name: 'Default Fee Profile',
+              feeTiers: [
+                {
+                  id: 'tier-1',
+                  name: 'Management Fee',
+                  percentage: 2.0,
+                  feeBasis: 'committed_capital',
+                  startMonth: 1,
+                  endMonth: 120 // 10 years
+                }
+              ]
+            }
+          ],
+          fundExpenses: [],
 
           // Fund Basics actions
           updateFundBasics: (patch) => set((state) => ({ ...state, ...patch })),
@@ -325,6 +397,68 @@ function createFundStore() {
           
           removeWaterfallTier: (id) => set((state) => ({
             waterfallTiers: state.waterfallTiers.filter(tier => tier.id !== id)
+          })),
+
+          // Fee Profile actions
+          addFeeProfile: (profile) => set((state) => ({
+            feeProfiles: [...state.feeProfiles, profile]
+          })),
+
+          updateFeeProfile: (id, patch) => set((state) => ({
+            feeProfiles: state.feeProfiles.map(profile => 
+              profile.id === id ? { ...profile, ...patch } : profile
+            )
+          })),
+
+          removeFeeProfile: (id) => set((state) => ({
+            feeProfiles: state.feeProfiles.filter(profile => profile.id !== id)
+          })),
+
+          addFeeTier: (profileId, tier) => set((state) => ({
+            feeProfiles: state.feeProfiles.map(profile => 
+              profile.id === profileId 
+                ? { ...profile, feeTiers: [...profile.feeTiers, tier] }
+                : profile
+            )
+          })),
+
+          updateFeeTier: (profileId, tierId, patch) => set((state) => ({
+            feeProfiles: state.feeProfiles.map(profile => 
+              profile.id === profileId 
+                ? {
+                    ...profile,
+                    feeTiers: profile.feeTiers.map(tier => 
+                      tier.id === tierId ? { ...tier, ...patch } : tier
+                    )
+                  }
+                : profile
+            )
+          })),
+
+          removeFeeTier: (profileId, tierId) => set((state) => ({
+            feeProfiles: state.feeProfiles.map(profile => 
+              profile.id === profileId 
+                ? {
+                    ...profile,
+                    feeTiers: profile.feeTiers.filter(tier => tier.id !== tierId)
+                  }
+                : profile
+            )
+          })),
+
+          // Fund Expense actions
+          addFundExpense: (expense) => set((state) => ({
+            fundExpenses: [...state.fundExpenses, expense]
+          })),
+
+          updateFundExpense: (id, patch) => set((state) => ({
+            fundExpenses: state.fundExpenses.map(expense => 
+              expense.id === id ? { ...expense, ...patch } : expense
+            )
+          })),
+
+          removeFundExpense: (id) => set((state) => ({
+            fundExpenses: state.fundExpenses.filter(expense => expense.id !== id)
           })),
 
           addStage: () => set((s) => {
