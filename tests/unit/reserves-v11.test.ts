@@ -2,7 +2,7 @@
  * Unit tests for Reserves v1.1 calculation engine
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { calculateReservesSafe, calculateReserves } from '@/lib/reserves-v11';
 import { 
   toQuarterIndex, 

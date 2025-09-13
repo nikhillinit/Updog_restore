@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -6,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, AlertCircle } from "lucide-react";
+import { Plus, Trash2, AlertCircle, ArrowLeft, Check } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useFundSelector, useFundTuple, useFundAction } from '@/stores/useFundSelector';
 
@@ -22,6 +23,7 @@ interface WaterfallTier {
 }
 
 export default function DistributionsStep() {
+  const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("waterfall");
 
   // State
@@ -407,6 +409,28 @@ export default function DistributionsStep() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <div className="flex justify-between mt-6">
+        <Button 
+          variant="outline"
+          onClick={() => navigate('/fund-setup?step=3')}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Previous
+        </Button>
+        <Button 
+          onClick={() => {
+            // In a real app, this would save and navigate to dashboard
+            alert('Fund setup complete! Redirecting to dashboard...');
+            navigate('/dashboard');
+          }}
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+        >
+          <Check className="h-4 w-4" />
+          Complete Setup
+        </Button>
+      </div>
     </div>
   );
 }

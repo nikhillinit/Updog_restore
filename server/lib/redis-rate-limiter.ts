@@ -259,7 +259,7 @@ export class InMemoryRateLimiter {
     const windowStart = now - this.windowMs;
     
     // Get existing data
-    let data = this.storage.get(key) || { timestamps: [], lastCleanup: now };
+    const data = this.storage.get(key) || { timestamps: [], lastCleanup: now };
     
     // Filter out expired timestamps
     data.timestamps = data.timestamps.filter(t => t > windowStart);

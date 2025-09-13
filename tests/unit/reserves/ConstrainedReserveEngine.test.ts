@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { ConstrainedReserveEngine } from '../../../client/src/core/reserves/ConstrainedReserveEngine.js';
-import { toCents, fromCents } from '../../../shared/money.js';
 import type { ReserveInput } from '../../../shared/schemas.js';
 
 describe('ConstrainedReserveEngine', () => {

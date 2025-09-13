@@ -19,7 +19,7 @@ export function traceWizard(
 function sanitize(v: unknown) {
   try {
     const s = JSON.stringify(v);
-    return s && s.length > 140 ? JSON.parse(s.slice(0, 140) + '"…]"') : v;
+    return s && s.length > 140 ? JSON.parse(`${s.slice(0, 140)  }"…]"`) : v;
   } catch {
     return String(v);
   }

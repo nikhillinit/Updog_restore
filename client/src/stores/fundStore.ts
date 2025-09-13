@@ -51,14 +51,11 @@ export type FundState = {
 
   // Fund Basics
   fundName?: string;
-  fundType?: 'venture' | 'growth' | 'buyout' | 'hybrid';
   isEvergreen?: boolean;
   fundLife?: number;
   investmentPeriod?: number;
   fundSize?: number;
   managementFeeRate?: number;
-  preferredReturn?: number;
-  gpCatchUp?: number;
   carriedInterest?: number;
 
   // Capital Structure
@@ -83,7 +80,7 @@ export type FundState = {
   mgmtFeeRecyclingRate?: number;
 
   // Fund Basics actions
-  updateFundBasics: (patch: Partial<Pick<FundState, 'fundName' | 'fundType' | 'isEvergreen' | 'fundLife' | 'investmentPeriod' | 'fundSize' | 'managementFeeRate' | 'preferredReturn' | 'gpCatchUp' | 'carriedInterest'>>) => void;
+  updateFundBasics: (patch: Partial<Pick<FundState, 'fundName' | 'isEvergreen' | 'fundLife' | 'investmentPeriod' | 'fundSize' | 'managementFeeRate' | 'carriedInterest'>>) => void;
 
   // Capital Structure actions
   updateCapitalStructure: (patch: Partial<Pick<FundState, 'gpCommitment'>>) => void;
@@ -229,14 +226,11 @@ function createFundStore() {
           
           // Fund Basics defaults
           fundName: undefined,
-          fundType: 'venture',
           isEvergreen: false,
           fundLife: undefined,
           investmentPeriod: undefined,
           fundSize: undefined,
           managementFeeRate: undefined,
-          preferredReturn: undefined,
-          gpCatchUp: undefined,
           carriedInterest: undefined,
 
           // Capital Structure defaults

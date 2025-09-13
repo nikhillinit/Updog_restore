@@ -12,7 +12,7 @@ export function allocate100(a: number, b: number): [number, number] {
 
   let a2 = Math.floor(a * scale);
   let b2 = Math.floor(b * scale);
-  let remainder = 100 - (a2 + b2);
+  const remainder = 100 - (a2 + b2);
 
   const fa = a * scale - a2;
   const fb = b * scale - b2;

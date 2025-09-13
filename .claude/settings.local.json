@@ -90,7 +90,15 @@
       "Bash(set \"BASE_URL=http://localhost:4174\")",
       "Bash($env:BASE_URL=\"http://localhost:4174\")",
       "Bash(BASE_URL=http://localhost:4174 npx playwright test --project=core tests/e2e/fund-setup.spec.ts)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(timeout:*)",
+      "Bash(python:*)",
+      "mcp__ide__executeCode",
+      "Bash(start http://localhost:5173/)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)",
+      "Bash(git log:*)",
+      "Bash(npm run:*)"
     ],
     "deny": [],
     "ask": [],

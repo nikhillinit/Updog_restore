@@ -8,7 +8,7 @@ import { persist } from 'zustand/middleware';
 import { allocate100 } from '../core/utils/allocate100';
 import { clampPct, clampInt } from '../lib/coerce';
 import { sortById, normalizeNumber, eq } from '../utils/state-utils';
-import type { Stage, SectorProfile, Allocation, InvestmentStrategy } from '@shared/types';
+import type { SectorProfile, Allocation, InvestmentStrategy } from '@shared/types';
 
 export type StrategyStage = {
   id: string;

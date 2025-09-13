@@ -217,6 +217,24 @@ export default defineConfig(({ mode }) => {
   return {
     base: '/', // Ensure absolute paths for assets
   plugins: [
+    // Dev telemetry stub - always returns 204 for telemetry endpoints
+    {
+      name: 'dev-telemetry-stub',
+      configureServer(server) {
+        server.middlewares.use('/api/telemetry/wizard', async (req, res) => {
+          try {
+            let body = '';
+            for await (const chunk of req) body += chunk;
+            if (body) JSON.parse(body); // validate JSON without crashing dev
+            res.statusCode = 204;
+            res.end();
+          } catch {
+            res.statusCode = 400;
+            res.end('Bad payload');
+          }
+        });
+      }
+    },
     // Use absolute path so Vite doesn't ever look for "client/client/tsconfig.json"
     tsconfigPaths({
       projects: [path.resolve(import.meta.dirname, 'client/tsconfig.json')],

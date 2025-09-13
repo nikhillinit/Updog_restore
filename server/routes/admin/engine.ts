@@ -8,7 +8,7 @@ const router = Router();
 router.use(requireAuth(), requireRole("admin"));
 
 // Simple in-memory state for runtime engine configuration
-let engineConfig = {
+const engineConfig = {
   enabled: process.env.ENGINE_GUARD_ENABLED !== 'false',
   faultRate: parseFloat(process.env.ENGINE_FAULT_RATE || '0'),
 };

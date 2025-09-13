@@ -45,7 +45,7 @@ router.post('/funds', idempotency, async (req: any, res: any) => {
   }
 
   // TODO: persist fund with Drizzle
-  const fundId = 'fund_' + Math.random().toString(36).slice(2);
+  const fundId = `fund_${  Math.random().toString(36).slice(2)}`;
   res.status(201);
   return res.json({ id: fundId });
 });

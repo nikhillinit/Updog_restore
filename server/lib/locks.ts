@@ -13,7 +13,7 @@ export function generateLockKey(orgId: string, fundId: string): bigint {
   const combined = `${orgId}:${fundId}`;
   const hash = crypto.createHash('sha256').update(combined).digest('hex');
   // Take first 16 hex chars (64 bits) and convert to bigint
-  return BigInt('0x' + hash.substring(0, 16));
+  return BigInt(`0x${  hash.substring(0, 16)}`);
 }
 
 /**

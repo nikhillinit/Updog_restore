@@ -4,12 +4,10 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import Decimal from 'decimal.js';
 import { DeterministicReserveEngine } from '@/core/reserves/DeterministicReserveEngine';
 import {
   type PortfolioCompany,
   type ReserveAllocationInput,
-  type ReserveCalculationResult,
   DEFAULT_GRADUATION_MATRIX,
   DEFAULT_STAGE_STRATEGIES,
   ReserveCalculationError,

@@ -9,8 +9,7 @@ import {
   filterAsync,
   reduceAsync,
   processAsync,
-  findAsync,
-  type ProcessingOptions
+  findAsync
 } from '@/utils/async-iteration';
 import { logger } from '@/lib/logger';
 

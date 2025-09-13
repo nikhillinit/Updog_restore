@@ -182,7 +182,7 @@ export async function createServer(
         }
   
         if (logLine.length > 80) {
-          logLine = logLine.slice(0, 79) + "…";
+          logLine = `${logLine.slice(0, 79)  }…`;
         }
   
         // Include version in structured logs

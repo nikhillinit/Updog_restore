@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, boolean, decimal, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, decimal, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { funds } from './tables';
 
 // Deal Pipeline Tables

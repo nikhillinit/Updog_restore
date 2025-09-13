@@ -184,5 +184,16 @@ export default [
     rules: {
       ...boundaryRules.client
     }
+  },
+  // API and server files with proper tsconfig
+  {
+    files: ["api/**/*.ts", "api/**/*.js", "server/**/*.ts", "server/**/*.js"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: "./tsconfig.eslint.server.json",
+        tsconfigRootDir: __dirname
+      }
+    }
   }
 ];

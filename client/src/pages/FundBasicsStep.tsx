@@ -1,22 +1,23 @@
 import React from 'react';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { ArrowRight } from "lucide-react";
 import { useFundSelector, useFundAction } from '@/stores/useFundSelector';
 
 export default function FundBasicsStep() {
+  const [, navigate] = useLocation();
+  
   // State
   const fundName = useFundSelector(s => s.fundName);
-  const fundType = useFundSelector(s => s.fundType);
   const isEvergreen = useFundSelector(s => s.isEvergreen);
   const fundLife = useFundSelector(s => s.fundLife);
   const investmentPeriod = useFundSelector(s => s.investmentPeriod);
   const fundSize = useFundSelector(s => s.fundSize);
   const managementFeeRate = useFundSelector(s => s.managementFeeRate);
-  const preferredReturn = useFundSelector(s => s.preferredReturn);
-  const gpCatchUp = useFundSelector(s => s.gpCatchUp);
   const carriedInterest = useFundSelector(s => s.carriedInterest);
 
   // Actions
@@ -50,35 +51,15 @@ export default function FundBasicsStep() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="fund-name">Fund Name</Label>
-              <Input
-                id="fund-name"
-                value={fundName || ''}
-                onChange={(e) => handleInputChange('fundName', e.target.value)}
-                placeholder="e.g., Growth Fund III"
-                data-testid="fund-name"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="fund-type">Fund Type</Label>
-              <Select
-                value={fundType || 'venture'}
-                onValueChange={(value) => handleInputChange('fundType', value)}
-              >
-                <SelectTrigger id="fund-type" data-testid="fund-type">
-                  <SelectValue placeholder="Select fund type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="venture">Venture Capital</SelectItem>
-                  <SelectItem value="growth">Growth Equity</SelectItem>
-                  <SelectItem value="buyout">Buyout</SelectItem>
-                  <SelectItem value="hybrid">Hybrid</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="fund-name">Fund Name</Label>
+            <Input
+              id="fund-name"
+              value={fundName || ''}
+              onChange={(e) => handleInputChange('fundName', e.target.value)}
+              placeholder="e.g., Growth Fund III"
+              data-testid="fund-name"
+            />
           </div>
 
           <div className="flex items-center space-x-2 py-4 border-t">
@@ -169,41 +150,6 @@ export default function FundBasicsStep() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="preferred-return">Preferred Return (%)</Label>
-              <Input
-                id="preferred-return"
-                type="number"
-                min="0"
-                max="20"
-                step="0.1"
-                value={preferredReturn || ''}
-                onChange={(e) => handleInputChange('preferredReturn', parseFloat(e.target.value) || undefined)}
-                placeholder="e.g., 8.0"
-                data-testid="preferred-return"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="gp-catchup">GP Catch-up (%)</Label>
-              <Input
-                id="gp-catchup"
-                type="number"
-                min="0"
-                max="100"
-                step="1"
-                value={gpCatchUp || ''}
-                onChange={(e) => handleInputChange('gpCatchUp', parseFloat(e.target.value) || undefined)}
-                placeholder="e.g., 100"
-                data-testid="gp-catchup"
-              />
-              <p className="text-sm text-gray-500">
-                Percentage of distributions to GP until caught up
-              </p>
-            </div>
-            
-            <div className="space-y-2">
               <Label htmlFor="carried-interest">Carried Interest (%)</Label>
               <Input
                 id="carried-interest"
@@ -220,6 +166,16 @@ export default function FundBasicsStep() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="flex justify-end mt-6">
+        <Button 
+          onClick={() => navigate('/fund-setup?step=2')}
+          className="flex items-center gap-2"
+        >
+          Next Step
+          <ArrowRight className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }

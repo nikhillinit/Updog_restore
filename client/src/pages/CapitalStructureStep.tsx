@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, ArrowRight } from "lucide-react";
 import { useFundSelector, useFundTuple, useFundAction } from '@/stores/useFundSelector';
 
 interface LPClass {
@@ -26,6 +27,7 @@ interface LP {
 }
 
 export default function CapitalStructureStep() {
+  const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("gp-commitment");
 
   // State
@@ -356,6 +358,24 @@ export default function CapitalStructureStep() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <div className="flex justify-between mt-6">
+        <Button 
+          variant="outline"
+          onClick={() => navigate('/fund-setup?step=1')}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Previous
+        </Button>
+        <Button 
+          onClick={() => navigate('/fund-setup?step=3')}
+          className="flex items-center gap-2"
+        >
+          Next Step
+          <ArrowRight className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }

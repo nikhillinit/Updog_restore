@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { engineMetrics } from '../telemetry';
-import { getConfig } from '../config';
 
 function isFiniteDeep(v: unknown, depth = 0, seen = new WeakSet<object>()): boolean {
   if (depth > 20) return false; // bail on pathological nesting
