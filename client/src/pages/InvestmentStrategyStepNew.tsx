@@ -15,6 +15,7 @@ import { useFundTuple, useFundAction } from '@/stores/useFundSelector';
 import { signatureForStrategy } from '@/domain/strategy-signature';
 import { traceWizard } from '@/debug/wizard-trace';
 import { useRenderTracking } from '@/utils/performance-baseline';
+import CapitalFirstCalculator from '@/components/CapitalFirstCalculator';
 import type { Stage, SectorProfile, Allocation } from "@shared/types";
 
 /**
@@ -187,10 +188,11 @@ export default function InvestmentStrategyStep() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="stages">Investment Stages</TabsTrigger>
           <TabsTrigger value="sectors">Sector Profiles</TabsTrigger>
           <TabsTrigger value="allocations">Capital Allocation</TabsTrigger>
+          <TabsTrigger value="calculator">Portfolio Calculator</TabsTrigger>
         </TabsList>
 
         <TabsContent value="stages" className="space-y-4">
@@ -401,6 +403,10 @@ export default function InvestmentStrategyStep() {
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="calculator" className="space-y-4">
+          <CapitalFirstCalculator />
         </TabsContent>
       </Tabs>
     </div>
