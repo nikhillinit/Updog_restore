@@ -1,17 +1,23 @@
 import React from 'react';
 import { useLocation } from 'wouter';
+import FundBasicsStep from './FundBasicsStep';
+import CapitalStructureStep from './CapitalStructureStep';
 import InvestmentStrategyStep from './InvestmentStrategyStep';
-import ExitRecyclingStep from './ExitRecyclingStep';
-import WaterfallStep from './WaterfallStep';
+import InvestmentStrategyStepNew from './InvestmentStrategyStepNew';
+import DistributionsStep from './DistributionsStep';
 import StepNotFound from './steps/StepNotFound';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { resolveStepKeyFromLocation, type StepKey } from './fund-setup-utils';
 import { emitWizard } from '@/lib/wizard-telemetry';
 
+// Feature flag for new selector pattern migration
+const useNewSelectors = import.meta.env['VITE_NEW_SELECTORS'] === 'true';
+
 const STEP_COMPONENTS: Record<StepKey, React.ComponentType<any>> = {
-  'investment-strategy': InvestmentStrategyStep,
-  'exit-recycling':     ExitRecyclingStep,
-  'waterfall':          WaterfallStep,
+  'fund-basics':        FundBasicsStep,
+  'capital-structure':  CapitalStructureStep,
+  'investment-strategy': useNewSelectors ? InvestmentStrategyStepNew : InvestmentStrategyStep,
+  'distributions':      DistributionsStep,
   'not-found':          StepNotFound,
 };
 

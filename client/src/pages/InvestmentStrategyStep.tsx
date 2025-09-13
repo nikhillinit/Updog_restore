@@ -3,7 +3,7 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,24 +11,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
-import { useFundSelector } from '@/stores/useFund';
+import { useFundSelector, useFundTuple, useFundAction } from '@/stores/useFundSelector';
 import { signatureForStrategy } from '@/domain/strategy-signature';
 import { traceWizard } from '@/debug/wizard-trace';
 import type { Stage, SectorProfile, Allocation } from "@shared/types";
 
 export default function InvestmentStrategyStep() {
-  // ✅ Pull everything via the safe wrapper; tuple + shallow keeps refs stable
-  const [
-    hydrated,
-    fromInvestmentStrategy,
-    addStage, removeStage, updateStageName, updateStageRate,
-    stages, sectorProfiles, allocations,
-  ] = useFundSelector(s => [
-    s.hydrated,
-    s.fromInvestmentStrategy,
-    s.addStage, s.removeStage, s.updateStageName, s.updateStageRate,
-    s.stages, s.sectorProfiles, s.allocations,
-  ]);
+  // ✅ Split state from actions to prevent loops
+  // State slices with tuple + shallow equality
+  const [hydrated, stages, sectorProfiles, allocations] = useFundTuple(
+    s => [s.hydrated, s.stages, s.sectorProfiles, s.allocations]
+  );
+
+  // Actions (separate to avoid dependency issues)
+  const commit = useFundAction(s => s.fromInvestmentStrategy);
+  const addStage = useFundAction(s => s.addStage);
+  const removeStage = useFundAction(s => s.removeStage);
+  const updateStageName = useFundAction(s => s.updateStageName);
+  const updateStageRate = useFundAction(s => s.updateStageRate);
   
   // Build the payload in a memo (don't recreate on each render)
   const data = React.useMemo(() => ({
@@ -54,9 +54,19 @@ export default function InvestmentStrategyStep() {
   }, [stages]);
   const [activeTab, setActiveTab] = useState("stages");
   
+  // ✅ Use ref for action to break render loop
+  const commitRef = React.useRef(commit);
+  React.useEffect(() => { commitRef.current = commit; }, [commit]);
+
   // Guarded write-back: only when hydrated and signature changes
   const lastSig = React.useRef<string>('');
+  const loopGuard = React.useRef(0); // TEMP: circuit breaker for diagnostics
   React.useEffect(() => {
+    if (++loopGuard.current > 3) {
+      console.warn('[LOOP GUARD] Preventing excessive commits in InvestmentStrategyStep');
+      return;
+    }
+
     if (!hydrated) {
       traceWizard('STEP2_NOT_HYDRATED', { hydrated }, { component: 'InvestmentStrategyStep' });
       return;
@@ -68,11 +78,12 @@ export default function InvestmentStrategyStep() {
       return;
     }
 
-    // Update store once per actual change
+    // Update store once per actual change via ref (breaks loop)
     traceWizard('WRITE_FROM_STRATEGY', { sig, prevSig: lastSig.current }, { component: 'InvestmentStrategyStep' });
     lastSig.current = sig;
-    fromInvestmentStrategy(data as any); // store method is idempotent now
-  }, [hydrated, data, fromInvestmentStrategy]);
+    commitRef.current(data as any);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, data]); // ✅ Removed action from deps to prevent loop
 
   const handleAddStage = () => {
     addStage();
@@ -101,28 +112,28 @@ export default function InvestmentStrategyStep() {
       targetPercentage: 0,
       description: '',
     };
-    fromInvestmentStrategy({
+    commitRef.current({
       ...data,
       sectorProfiles: [...data.sectorProfiles, newSector]
-    });
+    } as any);
   };
 
   const updateSectorProfile = (index: number, updates: Partial<SectorProfile>) => {
     const updatedSectors = data.sectorProfiles.map((sector: any, i: number) => 
       i === index ? { ...sector, ...updates } : sector
     );
-    fromInvestmentStrategy({
+    commitRef.current({
       ...data,
       sectorProfiles: updatedSectors
-    });
+    } as any);
   };
 
   const removeSectorProfile = (index: number) => {
     const updatedSectors = data.sectorProfiles.filter((_: any, i: number) => i !== index);
-    fromInvestmentStrategy({
+    commitRef.current({
       ...data,
       sectorProfiles: updatedSectors
-    });
+    } as any);
   };
 
   const addAllocation = () => {
@@ -132,28 +143,28 @@ export default function InvestmentStrategyStep() {
       percentage: 0,
       description: '',
     };
-    fromInvestmentStrategy({
+    commitRef.current({
       ...data,
       allocations: [...data.allocations, newAllocation]
-    });
+    } as any);
   };
 
   const updateAllocation = (index: number, updates: Partial<Allocation>) => {
     const updatedAllocations = data.allocations.map((allocation: any, i: number) => 
       i === index ? { ...allocation, ...updates } : allocation
     );
-    fromInvestmentStrategy({
+    commitRef.current({
       ...data,
       allocations: updatedAllocations
-    });
+    } as any);
   };
 
   const removeAllocation = (index: number) => {
     const updatedAllocations = data.allocations.filter((_: any, i: number) => i !== index);
-    fromInvestmentStrategy({
+    commitRef.current({
       ...data,
       allocations: updatedAllocations
-    });
+    } as any);
   };
 
   const totalSectorAllocation = data.sectorProfiles.reduce((sum: number, sector: any) => sum + sector.targetPercentage, 0);
