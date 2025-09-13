@@ -180,7 +180,7 @@ export async function verifyApproval(
     
     return {
       ok: false,
-      reason: 'Failed to verify approval: ' + (error as Error).message
+      reason: `Failed to verify approval: ${  (error as Error).message}`
     };
   }
 }

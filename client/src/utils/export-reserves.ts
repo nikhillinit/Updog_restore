@@ -31,7 +31,7 @@ function toCents(value: any): number {
 }
 
 function toPercent(value: any): string {
-  return toNumber(value).toFixed(2) + '%';
+  return `${toNumber(value).toFixed(2)  }%`;
 }
 
 /**
@@ -59,7 +59,7 @@ async function exportToCSV(data: ExportData, options: ExportOptions): Promise<vo
         'Exit MOIC': (company?.exit_moic_bps || 0) / 10000,
         'Reserve Allocation': allocation.planned_cents / 100,
         'Reserve %': company?.invested_cents 
-          ? ((allocation.planned_cents / company.invested_cents) * 100).toFixed(2) + '%'
+          ? `${((allocation.planned_cents / company.invested_cents) * 100).toFixed(2)  }%`
           : '0%',
         'Cap Amount': allocation.cap_cents / 100,
         'Allocation Pass': allocation.iteration,
@@ -219,7 +219,7 @@ async function exportToExcel(data: ExportData, options: ExportOptions): Promise<
         { Metric: 'Remaining Reserves', Value: data.output.remaining_cents / 100 },
         { Metric: 'Companies Funded', Value: data.output.metadata.companies_funded },
         { Metric: 'Utilization %', 
-          Value: ((data.output.metadata.total_allocated_cents / data.output.metadata.total_available_cents) * 100).toFixed(2) + '%' },
+          Value: `${((data.output.metadata.total_allocated_cents / data.output.metadata.total_available_cents) * 100).toFixed(2)  }%` },
         { Metric: 'Conservation Check', Value: data.output.metadata.conservation_check ? 'Passed' : 'Warning' },
         { Metric: 'Max Iterations', Value: data.output.metadata.max_iterations },
         { Metric: 'Export Date', Value: new Date().toISOString() }
@@ -233,10 +233,10 @@ async function exportToExcel(data: ExportData, options: ExportOptions): Promise<
     // Metadata sheet
     if (options.includeMetadata && data.config) {
       const metadataData = [
-        { Parameter: 'Reserve Percentage', Value: (data.config.reserve_bps / 100) + '%' },
+        { Parameter: 'Reserve Percentage', Value: `${data.config.reserve_bps / 100  }%` },
         { Parameter: 'Remain Passes', Value: data.config.remain_passes },
         { Parameter: 'Cap Policy', Value: data.config.cap_policy?.kind || 'fixed_percent' },
-        { Parameter: 'Default Cap %', Value: (data.config.cap_policy?.default_percent * 100) + '%' },
+        { Parameter: 'Default Cap %', Value: `${data.config.cap_policy?.default_percent * 100  }%` },
         { Parameter: 'Audit Level', Value: data.config.audit_level }
       ];
       

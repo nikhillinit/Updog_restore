@@ -148,11 +148,26 @@ export const rateLimiters = {
 export class CostBasedRateLimiter {
   private points: Map<string, number> = new Map();
   private resetTimes: Map<string, number> = new Map();
+  private sweepTimer: NodeJS.Timeout;
   
   constructor(
     private maxPoints: number,
     private windowMs: number
-  ) {}
+  ) {
+    // Set up automatic cleanup
+    this.sweepTimer = setInterval(() => this.sweep(), Math.min(60_000, windowMs));
+    (this.sweepTimer as any).unref?.();
+  }
+  
+  private sweep() {
+    const now = Date.now();
+    for (const [k, reset] of this.resetTimes) {
+      if (now > reset) { 
+        this.resetTimes.delete(k); 
+        this.points.delete(k); 
+      }
+    }
+  }
   
   async consume(key: string, cost: number = 1): Promise<{ allowed: boolean; remaining: number }> {
     const now = Date.now();
@@ -191,6 +206,14 @@ export class CostBasedRateLimiter {
     
     const current = this.points.get(key) || 0;
     return Math.max(0, this.maxPoints - current);
+  }
+  
+  destroy() {
+    if (this.sweepTimer) {
+      clearInterval(this.sweepTimer);
+    }
+    this.points.clear();
+    this.resetTimes.clear();
   }
 }
 

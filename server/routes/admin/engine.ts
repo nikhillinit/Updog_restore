@@ -1,10 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import { requireAuth, requireRole } from '../../lib/auth/jwt';
 
 const router = Router();
 
+// Apply authentication and admin role requirement to all routes
+router.use(requireAuth(), requireRole("admin"));
+
 // Simple in-memory state for runtime engine configuration
-let engineConfig = {
+const engineConfig = {
   enabled: process.env.ENGINE_GUARD_ENABLED !== 'false',
   faultRate: parseFloat(process.env.ENGINE_FAULT_RATE || '0'),
 };

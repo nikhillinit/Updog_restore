@@ -1,13 +1,29 @@
 import { Request, Response, NextFunction } from 'express';
-import { assertFiniteDeep } from './engine-guards.js';
-import { calcGuardBad, calcGuardEvents } from '../metrics/calcGuards.js';
-import { withFaults } from '../engine/fault-injector.js';
-import { z } from 'zod';
+import { engineMetrics } from '../telemetry';
 
-const Env = z.object({
-  ENGINE_GUARD_ENABLED: z.coerce.boolean().default(true),
-  ENGINE_FAULT_RATE: z.coerce.number().min(0).max(1).default(0), // 0 in prod
-}).parse(process.env);
+function isFiniteDeep(v: unknown, depth = 0, seen = new WeakSet<object>()): boolean {
+  if (depth > 20) return false; // bail on pathological nesting
+  
+  // Plain numbers: only allow finite
+  if (typeof v === "number") return Number.isFinite(v);
+  
+  // Date objects: check for invalid dates (getTime() returns NaN)
+  if (v instanceof Date) return Number.isFinite(v.getTime());
+  
+  // Arrays: check all elements
+  if (Array.isArray(v)) return v.every(item => isFiniteDeep(item, depth + 1, seen));
+  
+  // Objects: check all values (with cycle detection)
+  if (v && typeof v === "object") {
+    const o = v as object;
+    if (seen.has(o)) return false;     // cycle detected -> invalid
+    seen.add(o);
+    return Object.values(o).every(val => isFiniteDeep(val, depth + 1, seen));
+  }
+  
+  // Strings, booleans, null, undefined, etc. are fine
+  return true;
+}
 
 declare module 'express' {
   interface Request {
@@ -20,52 +36,22 @@ declare module 'express' {
 }
 
 export function engineGuardExpress() {
-  return (req: Request, res: Response, next: NextFunction) => {
-    // Ensure correlationId exists (from correlation middleware)
-    const correlationId = req.correlationId || 'unknown';
-    const routePath = req.route?.path || req.path || 'unknown';
-
-    // Attach guard helpers to request
-    req.guard = {
-      sanitizeResponse: (data: any) => {
-        const guardResult = assertFiniteDeep(data);
-        if (!guardResult.ok) {
-          calcGuardBad.inc({ route: routePath, correlation: correlationId });
-          calcGuardEvents.inc({ route: routePath, correlation: correlationId });
-          
-          // Log the issue but don't throw - return sanitized data
-          // TypeScript needs explicit type narrowing here
-          const failureResult = guardResult as { ok: false; path: string; value: unknown; reason: string };
-          console.warn(`[Engine Guard] Sanitized non-finite values at ${failureResult.path}`, {
-            correlationId,
-            route: routePath,
-            reason: failureResult.reason,
-            value: typeof failureResult.value === 'number' ? String(failureResult.value) : '[complex]'
+  return (_req: Request, res: Response, next: NextFunction) => {
+    const _json = res.json.bind(res);
+    res.json = (body: any) => {
+      if (!isFiniteDeep(body)) {
+        engineMetrics.nonFinite422.inc?.();
+        return res.status(422)
+          .type("application/problem+json")
+          .send({ 
+            type: "about:blank", 
+            title: "Non-finite numeric output", 
+            status: 422, 
+            detail: "Response contained NaN/Infinity or invalid Date/nested structure; adjust inputs." 
           });
-          
-          // For now, return null to avoid returning corrupted data
-          // TODO: Implement smart sanitization that replaces NaN/Infinity with 0 or removes bad keys
-          return null;
-        }
-        return data;
-      },
-
-      injectFaults: async <T>(fn: () => T | Promise<T>): Promise<T> => {
-        if (!Env.ENGINE_GUARD_ENABLED || Env.ENGINE_FAULT_RATE <= 0) {
-          return await fn();
-        }
-        
-        // Wrap function with fault injection for testing
-        const faultWrapper = withFaults(fn, {
-          rate: Env.ENGINE_FAULT_RATE,
-          seed: parseInt(correlationId.slice(-8), 16) || 1337,
-          targetKeys: ['irr', 'moic', 'percentiles', 'median']
-        });
-        
-        return await faultWrapper();
       }
+      return _json(body);
     };
-
     next();
   };
 }

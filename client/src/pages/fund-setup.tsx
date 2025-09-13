@@ -1,51 +1,98 @@
 import React from 'react';
 import { useLocation } from 'wouter';
+import FundBasicsStep from './FundBasicsStep';
+import CapitalStructureStep from './CapitalStructureStep';
 import InvestmentStrategyStep from './InvestmentStrategyStep';
-import ExitRecyclingStep from './ExitRecyclingStep';
-import WaterfallStep from './WaterfallStep';
+import InvestmentStrategyStepNew from './InvestmentStrategyStepNew';
+import DistributionsStep from './DistributionsStep';
 import StepNotFound from './steps/StepNotFound';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { resolveStepKeyFromLocation, type StepKey } from './fund-setup-utils';
+import { emitWizard } from '@/lib/wizard-telemetry';
 
-type StepKey = 'investment-strategy' | 'exit-recycling' | 'waterfall' | 'not-found';
+// Feature flag for new selector pattern migration
+const useNewSelectors = import.meta.env['VITE_NEW_SELECTORS'] === 'true';
 
 const STEP_COMPONENTS: Record<StepKey, React.ComponentType<any>> = {
-  'investment-strategy': InvestmentStrategyStep,
-  'exit-recycling':     ExitRecyclingStep,
-  'waterfall':          WaterfallStep,
+  'fund-basics':        FundBasicsStep,
+  'capital-structure':  CapitalStructureStep,
+  'investment-strategy': useNewSelectors ? InvestmentStrategyStepNew : InvestmentStrategyStep,
+  'distributions':      DistributionsStep,
   'not-found':          StepNotFound,
 };
 
-// Map ?step=2 → investment-strategy, etc.
-const VALID_STEPS = ['2', '3', '4'] as const;
-type ValidStep = typeof VALID_STEPS[number];
-
-// This line guarantees we map every ValidStep and nothing extra:
-const NUM_TO_KEY = {
-  '2': 'investment-strategy',
-  '3': 'exit-recycling',
-  '4': 'waterfall',
-} as const satisfies Record<ValidStep, Exclude<StepKey, 'not-found'>>;
-
 function useStepKey(): StepKey {
   const [loc] = useLocation();
-  return React.useMemo<StepKey>(() => {
-    const qs = loc.includes('?') ? loc.slice(loc.indexOf('?')) : '';
-    const val = new URLSearchParams(qs).get('step') ?? '2';
+  
+  // Use window location for query params since wouter doesn't track them reliably
+  const [search, setSearch] = React.useState(window.location.search);
+  
+  // Listen for popstate events to update search params
+  React.useEffect(() => {
+    const handlePopState = () => {
+      setSearch(window.location.search);
+    };
     
-    if (!VALID_STEPS.includes(val as ValidStep)) {
-      if (import.meta.env.DEV) {
-        console.warn(`[FundSetup] Invalid step '${val}', defaulting to not-found`);
-      }
-      return 'not-found';
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+  
+  // Update search when location changes or manually check periodically in dev
+  React.useEffect(() => {
+    setSearch(window.location.search);
+    
+    // In dev, also poll for URL changes as a fallback
+    if (import.meta.env.DEV) {
+      const interval = setInterval(() => {
+        const currentSearch = window.location.search;
+        if (currentSearch !== search) {
+          console.log(`[useStepKey] Polling detected search change: '${search}' -> '${currentSearch}'`);
+          setSearch(currentSearch);
+        }
+      }, 100);
+      
+      return () => clearInterval(interval);
+    }
+  }, [loc, search]);
+  
+  // Debug: log every time this hook runs
+  if (import.meta.env.DEV) {
+    console.log(`[useStepKey] Hook called, loc='${loc}', search='${search}', window.location='${window.location.pathname}${window.location.search}'`);
+  }
+  
+  return React.useMemo<StepKey>(() => {
+    const fullLocation = window.location.pathname + search;
+    const key = resolveStepKeyFromLocation(fullLocation);
+    
+    // Debug logging
+    if (import.meta.env.DEV) {
+      const stepParam = new URLSearchParams(search).get('step');
+      console.log(`[FundSetup Debug] fullLocation='${fullLocation}', stepParam='${stepParam}', resolved key='${key}'`);
     }
     
-    return NUM_TO_KEY[val as ValidStep];
-  }, [loc]);
+    if (key === 'not-found' && import.meta.env.DEV) {
+      const val = new URLSearchParams(search).get('step');
+      console.warn(`[FundSetup] Invalid step '${val}', defaulting to not-found`);
+    }
+    
+    return key;
+  }, [loc, search]);
 }
 
 export default function FundSetup() {
   const key = useStepKey();
   const Step = STEP_COMPONENTS[key] ?? StepNotFound;
+
+  // Emit telemetry on step load
+  React.useEffect(() => {
+    const ttfmp = performance.now();
+    emitWizard({ 
+      type: "step_loaded", 
+      step: key,
+      route: window.location.pathname + window.location.search,
+      ttfmp 
+    });
+  }, [key]);
 
   return (
     <ErrorBoundary
@@ -54,7 +101,13 @@ export default function FundSetup() {
         if (import.meta.env.DEV) {
           console.error(`[FundSetup] Error in step ${key}:`, error);
         }
-        // hook for telemetry here
+        // Emit telemetry on error
+        emitWizard({ 
+          type: "wizard_error", 
+          step: key, 
+          message: String(error),
+          stack: error instanceof Error ? error.stack?.slice(0, 500) : undefined
+        });
       }}
     >
       <div data-testid={`wizard-step-${key}-container`}>

@@ -1,5 +1,13 @@
 import { Worker } from 'bullmq';
 import { logger } from '../lib/logger';
+import { getConfig } from '../server/config';
+
+// Exit early if in demo mode
+const config = getConfig();
+if (config.DEMO_MODE) {
+  console.log('[pacing-worker] DEMO_MODE=1: worker disabled');
+  process.exit(0);
+}
 
 const connection = {
   host: process.env.REDIS_HOST || 'localhost',

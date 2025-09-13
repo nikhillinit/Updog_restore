@@ -1,4 +1,18 @@
+#!/bin/sh
+
 # Pre-commit hook - TypeScript check with warnings
 echo 'Running TypeScript check...'
 npm run check || echo 'Warning: TypeScript errors present but deployment confirmed working'
 echo 'TypeScript check complete'
+
+# Check for .only in test files
+echo 'Checking for .only in tests...'
+CHANGED_TESTS=$(git diff --cached --name-only --diff-filter=ACMRT | grep -E '\.(test|spec)\.(ts|tsx|js|jsx)$' || true)
+if [ -n "$CHANGED_TESTS" ]; then
+  if grep -n --fixed-strings ".only(" $CHANGED_TESTS >/dev/null; then
+    echo '❌ Found .only in test files. Please remove before committing.'
+    echo 'To bypass: git commit --no-verify'
+    exit 1
+  fi
+fi
+echo '✓ No .only found in tests'

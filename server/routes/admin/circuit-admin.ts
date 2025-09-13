@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import type { CircuitBreaker } from '../../infra/circuit-breaker/CircuitBreaker';
 import { breakerRegistry } from '../../infra/circuit-breaker/breaker-registry';
+import { requireAuth, requireRole } from '../../lib/auth/jwt';
 
 export function circuitAdmin(breakers?: Record<string, CircuitBreaker<any>>) {
   const r = Router();
 
-  // TODO: add authz
+  // Apply authentication and admin role requirement to all routes
+  r.use(requireAuth(), requireRole("admin"));
   r.get('/state', (_req, res) => {
     // Use registry if available, fallback to passed breakers
     const states = breakers ? 

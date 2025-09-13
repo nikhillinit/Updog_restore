@@ -1,5 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Compute consistent URLs and ports
+const PREVIEW_PORT = process.env.PORT || '4173';
+const HOST = process.env.CI ? '127.0.0.1' : 'localhost';
+const PREVIEW_URL = process.env.BASE_URL ?? `http://${HOST}:${PREVIEW_PORT}`;
+
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
@@ -24,10 +29,10 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.BASE_URL || (process.env.CI ? 'http://127.0.0.1:4173' : 'http://localhost:5000'),
+    baseURL: PREVIEW_URL,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'retain-on-failure',
+    trace: 'retry-with-trace',
     
     /* Headless mode in CI */
     headless: !!process.env.CI,
@@ -57,7 +62,7 @@ export default defineConfig({
     // Core functionality tests
     {
       name: 'core',
-      testMatch: ['**/dashboard-functionality.spec.ts', '**/navigation-and-routing.spec.ts', '**/fund-setup-workflow.spec.ts'],
+      testMatch: ['**/dashboard-functionality.spec.ts', '**/navigation-and-routing.spec.ts', '**/fund-setup-workflow.spec.ts', '**/fund-setup.spec.ts'],
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['smoke'],
     },
@@ -123,15 +128,11 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: process.env.BASE_URL?.startsWith('http') ? undefined : {
-    command: process.env.CI
-      ? 'npm run preview -- --port=4173 --host=127.0.0.1'
-      : 'npm run dev',
-    url: process.env.CI ? 'http://127.0.0.1:4173' : 'http://localhost:5000',
+    command: `npm run build && npm run preview -- --port=${PREVIEW_PORT} --host=${HOST} --strictPort`,
+    url: PREVIEW_URL,
     reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-    env: {
-      PORT: process.env.CI ? '4173' : '5000',
-    },
+    timeout: 120_000,
+    env: { PORT: PREVIEW_PORT },
   },
 
   /* Global timeout for the whole test suite */

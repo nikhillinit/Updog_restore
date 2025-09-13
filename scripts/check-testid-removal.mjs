@@ -20,6 +20,8 @@ try {
 
     // Only true removed lines from hunks
     if (raw.startsWith('-') && !raw.startsWith('---')) {
+      // Skip non-client source files to avoid blocking test/mock changes
+      if (!file.startsWith('client/src/')) continue;
       removedLines.push({ file, line: raw.slice(1) });
     }
   }
