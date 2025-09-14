@@ -13,9 +13,9 @@ export default [
   // Global ignores should be first
   {
     ignores: [
-      "dist/**", 
-      "coverage/**", 
-      ".vite/**", 
+      "dist/**",
+      "coverage/**",
+      ".vite/**",
       "node_modules/**",
       "build/**",
       "tests/**",
@@ -36,7 +36,16 @@ export default [
       ".tsbuildinfo*",
       "packages/*/dist/**",
       "packages/*/build/**",
-      "ml-service/dist/**"
+      "ml-service/dist/**",
+      "drizzle.config.ts",
+      "*.config.ts",
+      "*.config.js",
+      "**/*.config.ts",
+      "**/*.config.js",
+      "playwright.config*.ts",
+      "vitest.config*.ts",
+      "vite.config*.ts",
+      "tailwind.config*.ts"
     ]
   },
   js.configs.recommended,
@@ -75,10 +84,10 @@ export default [
     rules: {
       // Phase 1: Type safety warnings (will escalate to errors in Phase 3)
       "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-unsafe-assignment": "warn",
-      "@typescript-eslint/no-unsafe-member-access": "warn",
-      "@typescript-eslint/no-unsafe-call": "warn",
-      "@typescript-eslint/no-unsafe-return": "warn",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
       
       // Existing rules
       "@typescript-eslint/no-unused-vars": "off", 

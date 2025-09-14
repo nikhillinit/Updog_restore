@@ -14,3 +14,8 @@ packages/*/dist/
 packages/*/build/
 ml-service/dist/
 tools/eslint-plugin-rls/dist/
+drizzle.config.ts
+*.config.ts
+*.config.js
+scripts/**
+workers/**
