@@ -98,7 +98,7 @@ export function generateWaterfallInputs(fundData: any) {
   const exitSchedule = fundData.exitSchedule || generateSampleExitSchedule(fundSize, 
     parseInt(fundData.lifeYears || '10'));
   
-  const exits = exitSchedule.map((exit, index) => ({
+  const exits = exitSchedule.map((exit: any, index: number) => ({
     quarter: Math.floor(exit.monthOffset / 3) || 1, // Convert months to quarters
     grossProceeds: exit.amount
   }));
