@@ -7,6 +7,7 @@ import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { idempotency } from '../middleware/idempotency';
 import { z } from 'zod';
+import { positiveInt, percent100 } from '@shared/schema-helpers';
 import { hashPayload } from '../lib/hash';
 import { idem } from '../shared/idempotency-instance';
 import { getOrStart } from '../lib/inflight-server';
@@ -24,9 +25,9 @@ const CreateFundSchema = z.object({
   strategy: z.object({
     stages: z.array(z.object({
       name: z.string().min(1),
-      graduate: z.number().min(0).max(100),
-      exit: z.number().min(0).max(100),
-      months: z.number().int().min(1),
+      graduate: percent100(),
+      exit: percent100(),
+      months: positiveInt(),
     })),
   }),
 });

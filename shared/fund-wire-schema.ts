@@ -1,13 +1,14 @@
 import { z } from 'zod';
+import { nonNegative, percent100, bounded01 } from './schema-helpers';
 
 // Enhanced follow-on rule schema for capital-first modeling
 export const FollowOnRuleSchema = z.object({
   from: z.enum(['preseed', 'seed', 'series_a', 'series_b', 'series_c', 'series_dplus']),
   to: z.enum(['preseed', 'seed', 'series_a', 'series_b', 'series_c', 'series_dplus']),
   mode: z.enum(['fixed_check', 'maintain_ownership']),
-  participationPct: z.number().min(0).max(100), // 0-100%
+  participationPct: percent100(), // 0-100%
   fixedAmount: z.number().positive().optional(), // if fixed_check mode
-  targetOwnershipPct: z.number().min(0).max(100).optional(), // if maintain_ownership mode
+  targetOwnershipPct: percent100().optional(), // if maintain_ownership mode
   nextRoundSize: z.number().positive().optional(), // for ownership calculations
 });
 
@@ -15,15 +16,15 @@ export const FollowOnRuleSchema = z.object({
 export const StageAllocationSchema = z.object({
   id: z.string(),
   category: z.string().min(1),
-  percentage: z.number().min(0).max(100),
+  percentage: percent100(),
 });
 
 // Stage progression schema with validation constraints
 export const StageSchema = z.object({
   id: z.string(),
   name: z.string().min(1),
-  graduationRate: z.number().min(0).max(100), // percentage
-  exitRate: z.number().min(0).max(100), // percentage
+  graduationRate: percent100(), // percentage
+  exitRate: percent100(), // percentage
 });
 
 // Core fund wire schema with optimistic locking
@@ -43,8 +44,8 @@ export const fundModelWireSchema = z.object({
       totalCommitment: z.number().positive(),
     }),
     fees: z.object({
-      managementFee: z.number().min(0).max(1), // decimal (e.g., 0.02 = 2%)
-      carryPercentage: z.number().min(0).max(1), // decimal (e.g., 0.20 = 20%)
+      managementFee: bounded01(), // decimal (e.g., 0.02 = 2%)
+      carryPercentage: bounded01(), // decimal (e.g., 0.20 = 20%)
     }),
     investmentStrategy: z.object({
       allocations: z.array(StageAllocationSchema),
