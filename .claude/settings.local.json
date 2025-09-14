@@ -4,7 +4,10 @@
       "Bash(gh pr:*)",
       "Bash(npm test:*)",
       "Bash(gh run list:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(git pull:*)"
     ],
     "deny": [],
     "ask": [],
