@@ -4,6 +4,43 @@
  * These helpers provide reusable, semantic validation patterns for common
  * numeric constraints in schema definitions. They return Zod schemas directly
  * for compatibility with drizzle-zod@0.5.1.
+ *
+ * ## Usage Examples
+ *
+ * **Fund Management:**
+ * ```ts
+ * const FundSchema = z.object({
+ *   managementFee: bounded01(),     // 0.00-1.00 (e.g., 0.02 = 2%)
+ *   carryPercentage: bounded01(),   // 0.00-1.00 (e.g., 0.20 = 20%)
+ *   totalCommitment: nonNegative(), // $0+
+ * });
+ * ```
+ *
+ * **Portfolio Analytics:**
+ * ```ts
+ * const CompanySchema = z.object({
+ *   graduationRate: percent100(),   // 0-100%
+ *   ownershipPct: bounded01(),      // 0.00-1.00
+ *   investedAmount: nonNegative(),  // $0+
+ *   companyId: positiveInt(),       // 1, 2, 3...
+ *   foundedYear: yearRange(1990, 2030)
+ * });
+ * ```
+ *
+ * **API Validation:**
+ * ```ts
+ * // Coercing helpers for UI forms (default)
+ * const UIFormSchema = z.object({
+ *   percentage: percent100(),       // Converts "50" → 50
+ *   amount: nonNegative(),         // Converts "100.50" → 100.50
+ * });
+ *
+ * // Strict helpers for API endpoints
+ * const APISchema = z.object({
+ *   percentage: percent100({ coerce: false }), // Rejects strings
+ *   amount: nonNegative({ coerce: false }),   // Type-strict validation
+ * });
+ * ```
  */
 
 import { z } from 'zod';
