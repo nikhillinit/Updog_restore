@@ -23,7 +23,7 @@ import { _requireIfMatch, handlePreconditionError } from './lib/http-preconditio
 import { withIdempotency } from './lib/idempotency.js';
 import { sendApiError, createErrorBody } from './lib/apiError.js';
 import { registerRoutes } from './routes.js';
-import { _setupVite, serveStatic, _log } from './vite.js';
+import { _setupVite, serveStatic, log } from './vite.js';
 import { errorHandler } from './errors.js';
 import { metricsRouter } from './routes/metrics-endpoint.js';
 import type { Providers } from './providers.js';
@@ -207,8 +207,7 @@ export async function createServer(
   const { rumOriginGuard, rumSamplingGuard, rumLimiter } = await import('./routes/metrics-rum.guard.js');
   
   // Apply guards in order: origin check -> rate limit -> sampling -> privacy (in router)
-  app.use('/metrics/rum', rumOriginGuard, rumLimiter, rumSamplingGuard);
-  app.use(metricsRumRouter);
+  app.use(rumOriginGuard, rumLimiter, rumSamplingGuard, metricsRumRouter);
   
   // Apply authentication and RLS middleware to protected routes
   // Note: Some routes like /healthz and /metrics are public

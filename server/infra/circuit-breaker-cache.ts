@@ -1,4 +1,4 @@
-import type { Cache } from './cache';
+import type { Cache } from '../cache/index';
 
 export interface CircuitBreakerConfig {
   failureThreshold: number;       // e.g., 3
