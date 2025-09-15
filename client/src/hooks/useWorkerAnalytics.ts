@@ -26,13 +26,37 @@ export function useWorkerAnalytics() {
         r(result);
       }
     };
-    return () => { workerRef.current?.terminate(); workerRef.current = null; };
+    return () => {
+      // Clean up pending promises before terminating worker
+      pending.current.forEach((resolve, id) => {
+        resolve(null); // Resolve with null instead of rejecting
+      });
+      pending.current.clear();
+      setProgress({});
+
+      workerRef.current?.terminate();
+      workerRef.current = null;
+    };
   }, []);
 
   const call = useCallback((type: WorkerType, payload: any, id: string) => {
     return new Promise((resolve) => {
       if (!workerRef.current) return resolve(null);
-      pending.current.set(id, resolve);
+
+      // Set up timeout to prevent hanging promises
+      const timeoutId = setTimeout(() => {
+        if (pending.current.has(id)) {
+          pending.current.delete(id);
+          resolve(null);
+        }
+      }, 30000); // 30 second timeout
+
+      const wrappedResolve = (result: any) => {
+        clearTimeout(timeoutId);
+        resolve(result);
+      };
+
+      pending.current.set(id, wrappedResolve);
       workerRef.current.postMessage({ id, type, payload });
     });
   }, []);
