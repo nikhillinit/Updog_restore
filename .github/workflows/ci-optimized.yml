@@ -130,7 +130,7 @@ jobs:
   test-lint:
     name: Test & Lint
     runs-on: ubuntu-latest
-    needs: setup
+    needs: [setup, typecheck]
     strategy:
       fail-fast: false
       matrix:

@@ -7,7 +7,7 @@ import InvestmentStrategyStepNew from './InvestmentStrategyStepNew';
 import DistributionsStep from './DistributionsStep';
 import StepNotFound from './steps/StepNotFound';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { resolveStepKeyFromLocation, type StepKey } from './fund-setup-utils';
+import { resolveStepKeyFromLocation, type StepKey, getStepNumber } from './fund-setup-utils';
 import { emitWizard } from '@/lib/wizard-telemetry';
 
 // Feature flag for new selector pattern migration
@@ -110,8 +110,16 @@ export default function FundSetup() {
         });
       }}
     >
-      <div data-testid={`wizard-step-${key}-container`}>
-        <Step />
+      <div
+        data-testid="fund-setup-wizard"
+        className="wizard-container"
+      >
+        <div data-testid="step-indicator" className="step-indicator mb-4">
+          Step {key !== 'not-found' ? getStepNumber(key) : '?'} of 4
+        </div>
+        <div data-testid={`wizard-step-${key}-container`}>
+          <Step />
+        </div>
       </div>
     </ErrorBoundary>
   );

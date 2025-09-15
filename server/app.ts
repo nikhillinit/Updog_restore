@@ -106,54 +106,9 @@ export function makeApp() {
   // Versioned API
   app.use('/api/v1/reserves', reservesV1Router);
 
-  /**
-   * @swagger
-   * /healthz:
-   *   get:
-   *     summary: Health check endpoint
-   *     description: Returns the health status of the service
-   *     tags: [Health]
-   *     responses:
-   *       200:
-   *         description: Service is healthy
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 status:
-   *                   type: string
-   *                   example: ok
-   */
-  app.get('/healthz', (_req: Request, res: Response) => res.json({ status: 'ok' }));
+  // Health endpoints moved to routes/health.ts to avoid duplication
   
-  /**
-   * @swagger
-   * /readyz:
-   *   get:
-   *     summary: Readiness check endpoint
-   *     description: Returns the readiness status of the service
-   *     tags: [Health]
-   *     responses:
-   *       200:
-   *         description: Service is ready
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 ok:
-   *                   type: boolean
-   *                   example: true
-   */
-  app.get('/readyz', (_req: Request, res: Response) => res.json({ ok: true }));
-
-  // API health endpoint for smoke tests
-  app.get('/api/health', (_req: Request, res: Response) => res.json({ 
-    ok: true,
-    status: 'healthy',
-    timestamp: new Date().toISOString()
-  }));
+  // Readiness and health endpoints moved to routes/health.ts to avoid duplication
 
   // API version endpoint for deployment verification
   app.get('/api/version', (_req: Request, res: Response) => res.json({ 
