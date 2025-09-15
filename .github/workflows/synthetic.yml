@@ -39,12 +39,12 @@ jobs:
         
       - name: Run smoke tests
         id: smoke
+        continue-on-error: true
         run: npx playwright test tests/smoke/wizard.spec.ts --reporter=json
         env:
           BASE_URL: ${{ secrets.PROD_BASE_URL }}
           SMOKE_USER: ${{ secrets.SMOKE_USER }}
           SMOKE_PASS: ${{ secrets.SMOKE_PASS }}
-        continue-on-error: true
         
       - name: Upload test results
         if: always()
@@ -91,7 +91,7 @@ jobs:
             });
             
       - name: Slack notification on failure
-        if: ${{ steps.smoke.outcome == 'failure' && secrets.SLACK_WEBHOOK_URL != '' }}
+        if: steps.smoke.outcome == 'failure' && secrets.SLACK_WEBHOOK_URL != ''
         run: |
           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
             -H 'Content-Type: application/json' \
@@ -108,7 +108,7 @@ jobs:
             }'
             
       - name: PagerDuty alert on failure
-        if: ${{ steps.smoke.outcome == 'failure' && secrets.PAGERDUTY_INTEGRATION_KEY != '' }}
+        if: steps.smoke.outcome == 'failure' && secrets.PAGERDUTY_INTEGRATION_KEY != ''
         run: |
           curl -X POST https://events.pagerduty.com/v2/enqueue \
             -H 'Content-Type: application/json' \
