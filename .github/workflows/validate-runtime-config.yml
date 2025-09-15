@@ -22,7 +22,7 @@ jobs:
           node-version: '22.16.0'
           
       - name: Install AJV CLI
-        run: npm install -g ajv-cli
+        run: npm ci -g ajv-cli
         
       - name: Validate runtime config schema
         run: |

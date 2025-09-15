@@ -188,7 +188,12 @@
     "validate:phase1:ps": "powershell -ExecutionPolicy Bypass -File scripts/validate-phase1.ps1",
     "test:main": "vitest run",
     "test:quarantine": "vitest -c vitest.config.quarantine.ts run",
-    "test:ci": "vitest run"
+    "test:ci": "vitest run",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js}": "eslint --fix",
+    "*.{ts,tsx}": "bash -c 'npm run check'"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -370,6 +375,7 @@
     "husky": "^9.1.7",
     "jest": "^30.0.5",
     "jsdom": "^26.1.0",
+    "lint-staged": "^16.1.6",
     "npm-run-all": "^4.1.5",
     "open": "^10.2.0",
     "openapi-typescript": "^7.9.1",

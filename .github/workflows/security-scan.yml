@@ -98,7 +98,7 @@ jobs:
       - run: npm ci
       - name: Generate SBOM
         run: |
-          npm install -g @cyclonedx/cyclonedx-npm
+          npm ci -g @cyclonedx/cyclonedx-npm
           cyclonedx-npm --output-format json --output-file sbom.cyclonedx.json
       - name: Upload SBOM
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882

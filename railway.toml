@@ -1,0 +1,19 @@
+# Railway deployment configuration for MVP
+[build]
+builder = "nixpacks"
+buildCommand = "npm run build"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "always"
+
+# Environment variables (set in Railway dashboard)
+# DATABASE_URL - provided by Railway Postgres
+# REDIS_URL - provided by Railway Redis
+# NODE_ENV=production
+# CORS_ORIGIN=https://updog-fund-platform.up.railway.app
+
+[[services]]
+name = "web"
+source = "."

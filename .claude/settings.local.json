@@ -101,7 +101,8 @@
       "Bash(npm run:*)",
       "Bash(git restore:*)",
       "Bash(gh api:*)",
-      "Bash(npx drizzle-kit up:*)"
+      "Bash(npx drizzle-kit up:*)",
+      "Bash(npx husky add:*)"
     ],
     "deny": [],
     "ask": [],
