@@ -8,7 +8,13 @@
       "Bash(git push:*)",
       "Bash(git commit:*)",
       "Bash(git pull:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(git tag:*)",
+      "Bash(npm run check:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run test:quick:*)",
+      "Bash(npm run build:types:*)",
+      "Bash(npm audit:*)"
     ],
     "deny": [],
     "ask": [],
