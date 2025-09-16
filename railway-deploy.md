@@ -27,8 +27,13 @@ railway variables set CORS_ORIGIN=https://your-domain.up.railway.app
 # DATABASE_URL and REDIS_URL are auto-set by Railway
 ```
 
-5. **Deploy**
+5. **Deploy from Working Branch**
 ```bash
+# Ensure you're on the working branch with schema fixes
+git checkout feat/schema-helpers-clean
+git status  # Verify clean working directory
+
+# Deploy from current branch
 railway up
 railway open
 ```
