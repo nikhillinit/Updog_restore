@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { nonNegative, percent100, bounded01 } from './schema-helpers';
+import { percent100, bounded01 } from './schema-helpers';
 
 // Enhanced follow-on rule schema for capital-first modeling
 export const FollowOnRuleSchema = z.object({
@@ -55,10 +55,10 @@ export const fundModelWireSchema = z.object({
   }),
 })
 .refine(
-  (data) => {
+  (data: any) => {
     // Validation: Allocation sum ≤ 100%
     const totalAllocation = data.state.investmentStrategy.allocations
-      .reduce((sum, alloc) => sum + alloc.percentage, 0);
+      .reduce((sum: any, alloc: any) => sum + alloc.percentage, 0);
     return totalAllocation <= 100.01; // Allow tiny floating point tolerance
   },
   {
@@ -69,7 +69,10 @@ export const fundModelWireSchema = z.object({
 .refine(
   (data) => {
     // Validation: Each stage graduation + exit ≤ 100%
-    return data.state.investmentStrategy.stages.every(stage =>
+    return data.state.investmentStrategy.stages.every((stage: {
+      graduationRate: number;
+      exitRate: number;
+    }) =>
       (stage.graduationRate + stage.exitRate) <= 100.01 // Floating point tolerance
     );
   },
@@ -79,7 +82,7 @@ export const fundModelWireSchema = z.object({
   }
 )
 .refine(
-  (data) => {
+  (data: any) => {
     // Validation: Last stage graduation rate must be 0
     const stages = data.state.investmentStrategy.stages;
     if (stages.length > 0) {
