@@ -114,7 +114,11 @@
       "Read(//c/Users/nikhi/Downloads/**)",
       "Bash(dir:*)",
       "Bash(unzip:*)",
-      "Bash(npx drizzle-kit:*)"
+      "Bash(npx drizzle-kit:*)",
+      "Bash(git merge-base:*)",
+      "Bash(git diff:*)",
+      "WebFetch(domain:app.codacy.com)",
+      "WebFetch(domain:vercel.com)"
     ],
     "deny": [],
     "ask": [],
