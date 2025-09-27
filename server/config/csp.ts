@@ -22,7 +22,7 @@ export const cspDirectives: CSPDirectives = {
   scriptSrc: [
     "'self'",
     // Add 'unsafe-inline' only for development - remove in production
-    ...(process.env.NODE_ENV === 'development' ? ["'unsafe-inline'"] : [])
+    ...(process.env['NODE_ENV'] === 'development' ? ["'unsafe-inline'"] : [])
   ],
   styleSrc: [
     "'self'", 
@@ -36,7 +36,7 @@ export const cspDirectives: CSPDirectives = {
   connectSrc: [
     "'self'",
     // Add development ports if needed
-    ...(process.env.NODE_ENV === 'development' ? [
+    ...(process.env['NODE_ENV'] === 'development' ? [
       "ws://localhost:*",
       "http://localhost:*",
       "https://localhost:*"
@@ -70,7 +70,7 @@ export const securityHeaders = {
   hsts: {
     maxAge: 31536000, // 1 year
     includeSubDomains: true,
-    preload: process.env.NODE_ENV === 'production'
+    preload: process.env['NODE_ENV'] === 'production'
   },
   referrerPolicy: 'strict-origin-when-cross-origin',
   xContentTypeOptions: 'nosniff',

@@ -21,23 +21,23 @@ export function withFaults<TArgs extends any[], TResult>(
   opt: FaultOptions = {},
 ): (...args: TArgs) => Promise<TResult> {
   const enabled =
-    process.env.ENGINE_FAULT_ENABLE === '1' ||
-    process.env.NODE_ENV === 'test';
+    process.env['ENGINE_FAULT_ENABLE'] === '1' ||
+    process.env['NODE_ENV'] === 'test';
 
   const rate = clamp01(
     opt.rate ??
-      (process.env.ENGINE_FAULT_RATE
-        ? Number(process.env.ENGINE_FAULT_RATE)
+      (process.env['ENGINE_FAULT_RATE']
+        ? Number(process.env['ENGINE_FAULT_RATE'])
         : 0),
   );
   const seed =
     opt.seed ??
-    (process.env.ENGINE_FAULT_SEED
-      ? Number(process.env.ENGINE_FAULT_SEED)
+    (process.env['ENGINE_FAULT_SEED']
+      ? Number(process.env['ENGINE_FAULT_SEED'])
       : 1337);
 
   const targets = (opt.targetKeys?.length ? opt.targetKeys : defaultTargets).map(
-    (s) => s.toLowerCase(),
+    (s: any) => s.toLowerCase(),
   );
 
   const rng = xorshift32(seed);
@@ -86,7 +86,7 @@ function mutateResult<T>(v: T, rate: number, rnd: Rand, targets: string[]): T {
 
     // Prefer targeted keys
     const keyLower = path.toLowerCase();
-    const isTarget = targets.some((t) => keyLower.endsWith(`.${  t}`));
+    const isTarget = targets.some((t: any) => keyLower.endsWith(`.${  t}`));
 
     if (typeof node === 'number') {
       if (rnd() < (isTarget ? Math.min(1, rate * 1.5) : rate)) {
@@ -96,7 +96,7 @@ function mutateResult<T>(v: T, rate: number, rnd: Rand, targets: string[]): T {
     }
 
     if (Array.isArray(node)) {
-      return node.map((x, i) => visit(x, `${path}[${i}]`));
+      return node.map((x: any, i: any) => visit(x, `${path}[${i}]`));
     }
 
     if (typeof node === 'object') {

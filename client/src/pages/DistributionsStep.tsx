@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, AlertCircle, ArrowLeft, Check } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useFundSelector, useFundTuple, useFundAction } from '@/stores/useFundSelector';
+import { useFundTuple, useFundAction } from '@/stores/useFundSelector';
 import type { FeeProfile, FeeTier, FundExpense, FeeBasis } from '@/stores/fundStore';
 
 interface WaterfallTier {
@@ -206,7 +206,7 @@ export default function DistributionsStep() {
 
               <div className="space-y-4 pt-4">
                 <h4 className="font-medium">Waterfall Tiers</h4>
-                {waterfallTiers.map((tier, index) => (
+                {waterfallTiers.map((tier: any, index: any) => (
                   <div key={tier.id} className="border rounded-lg p-4 space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="font-medium">{tier.name}</h3>
@@ -226,7 +226,7 @@ export default function DistributionsStep() {
                         <Label>Tier Name</Label>
                         <Input
                           value={tier.name}
-                          onChange={(e) => updateWaterfallTier(tier.id, { name: e.target.value })}
+                          onChange={(e: any) => updateWaterfallTier(tier.id, { name: e.target.value })}
                           placeholder="e.g., Preferred Return"
                         />
                       </div>
@@ -235,7 +235,7 @@ export default function DistributionsStep() {
                         <Label>Condition</Label>
                         <Select
                           value={tier.condition || 'none'}
-                          onValueChange={(value) => 
+                          onValueChange={(value: any) => 
                             updateWaterfallTier(tier.id, { condition: value as WaterfallTier['condition'] })
                           }
                         >
@@ -261,7 +261,7 @@ export default function DistributionsStep() {
                           min="0"
                           step={tier.condition === 'irr' ? "0.1" : "0.01"}
                           value={tier.conditionValue || ''}
-                          onChange={(e) => updateWaterfallTier(tier.id, { 
+                          onChange={(e: any) => updateWaterfallTier(tier.id, { 
                             conditionValue: parseFloat(e.target.value) || undefined 
                           })}
                           placeholder={tier.condition === 'irr' ? "e.g., 8.0" : "e.g., 1.5"}
@@ -277,7 +277,7 @@ export default function DistributionsStep() {
                           min="0"
                           max="100"
                           value={tier.lpSplit}
-                          onChange={(e) => {
+                          onChange={(e: any) => {
                             const lpSplit = parseFloat(e.target.value) || 0;
                             updateWaterfallTier(tier.id, { 
                               lpSplit,
@@ -319,14 +319,14 @@ export default function DistributionsStep() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {feeProfiles.map((profile) => (
+              {feeProfiles.map((profile: any) => (
                 <div key={profile.id} className="border rounded-lg p-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-2 flex-1">
                       <Label>Fee Profile Name</Label>
                       <Input
                         value={profile.name}
-                        onChange={(e) => updateFeeProfile(profile.id, { name: e.target.value })}
+                        onChange={(e: any) => updateFeeProfile(profile.id, { name: e.target.value })}
                         placeholder="e.g., Default Fee Profile"
                         className="max-w-md"
                       />
@@ -355,7 +355,7 @@ export default function DistributionsStep() {
 
                   {/* Fee Tiers */}
                   <div className="space-y-4">
-                    {profile.feeTiers.map((tier, index) => (
+                    {profile.feeTiers.map((tier: any, index: any) => (
                       <div key={tier.id} className="border-l-4 border-blue-200 pl-4 space-y-4">
                         <div className="flex items-center justify-between">
                           <h4 className="font-medium">Fee Tier {index + 1}</h4>
@@ -375,7 +375,7 @@ export default function DistributionsStep() {
                             <Label>Fee Name</Label>
                             <Input
                               value={tier.name}
-                              onChange={(e) => updateFeeTier(profile.id, tier.id, { name: e.target.value })}
+                              onChange={(e: any) => updateFeeTier(profile.id, tier.id, { name: e.target.value })}
                               placeholder="e.g., Management Fee"
                             />
                           </div>
@@ -388,7 +388,7 @@ export default function DistributionsStep() {
                               max="10"
                               step="0.1"
                               value={tier.percentage}
-                              onChange={(e) => updateFeeTier(profile.id, tier.id, { 
+                              onChange={(e: any) => updateFeeTier(profile.id, tier.id, { 
                                 percentage: parseFloat(e.target.value) || 0 
                               })}
                               placeholder="2.0"
@@ -399,7 +399,7 @@ export default function DistributionsStep() {
                             <Label>Fee Basis</Label>
                             <Select
                               value={tier.feeBasis}
-                              onValueChange={(value) => updateFeeTier(profile.id, tier.id, { 
+                              onValueChange={(value: any) => updateFeeTier(profile.id, tier.id, { 
                                 feeBasis: value as FeeBasis 
                               })}
                             >
@@ -425,7 +425,7 @@ export default function DistributionsStep() {
                               type="number"
                               min="1"
                               value={tier.startMonth}
-                              onChange={(e) => updateFeeTier(profile.id, tier.id, { 
+                              onChange={(e: any) => updateFeeTier(profile.id, tier.id, { 
                                 startMonth: parseInt(e.target.value) || 1 
                               })}
                             />
@@ -437,7 +437,7 @@ export default function DistributionsStep() {
                               type="number"
                               min="1"
                               value={tier.endMonth || ''}
-                              onChange={(e) => updateFeeTier(profile.id, tier.id, { 
+                              onChange={(e: any) => updateFeeTier(profile.id, tier.id, { 
                                 endMonth: parseInt(e.target.value) || undefined 
                               })}
                               placeholder="120"
@@ -451,7 +451,7 @@ export default function DistributionsStep() {
                               min="0"
                               max="100"
                               value={tier.recyclingPercentage || ''}
-                              onChange={(e) => updateFeeTier(profile.id, tier.id, { 
+                              onChange={(e: any) => updateFeeTier(profile.id, tier.id, { 
                                 recyclingPercentage: parseFloat(e.target.value) || undefined 
                               })}
                               placeholder="0"
@@ -483,7 +483,7 @@ export default function DistributionsStep() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {fundExpenses.map((expense) => (
+              {fundExpenses.map((expense: any) => (
                 <div key={expense.id} className="border rounded-lg p-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium">Expense: {expense.category}</h4>
@@ -502,7 +502,7 @@ export default function DistributionsStep() {
                       <Label>Expense Category</Label>
                       <Input
                         value={expense.category}
-                        onChange={(e) => updateFundExpense(expense.id, { category: e.target.value })}
+                        onChange={(e: any) => updateFundExpense(expense.id, { category: e.target.value })}
                         placeholder="e.g., Legal Fees"
                       />
                     </div>
@@ -513,7 +513,7 @@ export default function DistributionsStep() {
                         type="number"
                         min="0"
                         value={expense.monthlyAmount}
-                        onChange={(e) => updateFundExpense(expense.id, { 
+                        onChange={(e: any) => updateFundExpense(expense.id, { 
                           monthlyAmount: parseFloat(e.target.value) || 0 
                         })}
                         placeholder="10000"
@@ -526,7 +526,7 @@ export default function DistributionsStep() {
                         type="number"
                         min="1"
                         value={expense.startMonth}
-                        onChange={(e) => updateFundExpense(expense.id, { 
+                        onChange={(e: any) => updateFundExpense(expense.id, { 
                           startMonth: parseInt(e.target.value) || 1 
                         })}
                       />
@@ -538,7 +538,7 @@ export default function DistributionsStep() {
                         type="number"
                         min="1"
                         value={expense.endMonth || ''}
-                        onChange={(e) => updateFundExpense(expense.id, { 
+                        onChange={(e: any) => updateFundExpense(expense.id, { 
                           endMonth: parseInt(e.target.value) || undefined 
                         })}
                         placeholder="120"
@@ -588,7 +588,7 @@ export default function DistributionsStep() {
                     <Label htmlFor="recycling-type">Recycling Type</Label>
                     <Select
                       value={recyclingType}
-                      onValueChange={(value) => updateDistributions({ recyclingType: value as 'exits' | 'fees' | 'both' })}
+                      onValueChange={(value: any) => updateDistributions({ recyclingType: value as 'exits' | 'fees' | 'both' })}
                     >
                       <SelectTrigger id="recycling-type">
                         <SelectValue />
@@ -614,7 +614,7 @@ export default function DistributionsStep() {
                       min="0"
                       max="100"
                       value={exitRecyclingRate}
-                      onChange={(e) => updateDistributions({ 
+                      onChange={(e: any) => updateDistributions({ 
                         exitRecyclingRate: parseFloat(e.target.value) || 0 
                       })}
                       data-testid="exit-recycling-rate"
@@ -635,7 +635,7 @@ export default function DistributionsStep() {
                         max="100"
                         step="1"
                         value={recyclingCap ? (recyclingCap / fundSize) * 100 : ''}
-                        onChange={(e) => {
+                        onChange={(e: any) => {
                           const pct = parseFloat(e.target.value) || 0;
                           updateDistributions({ 
                             recyclingCap: (pct / 100) * fundSize
@@ -657,7 +657,7 @@ export default function DistributionsStep() {
                       min="0"
                       max="10"
                       value={recyclingPeriod || ''}
-                      onChange={(e) => updateDistributions({ 
+                      onChange={(e: any) => updateDistributions({ 
                         recyclingPeriod: parseFloat(e.target.value) || undefined 
                       })}
                       placeholder="3"
@@ -671,7 +671,7 @@ export default function DistributionsStep() {
                     <Switch
                       id="allow-future-recycling"
                       checked={allowFutureRecycling || false}
-                      onCheckedChange={(checked) => updateDistributions({ allowFutureRecycling: checked })}
+                      onCheckedChange={(checked: any) => updateDistributions({ allowFutureRecycling: checked })}
                     />
                     <Label htmlFor="allow-future-recycling" className="cursor-pointer">
                       Allow fund to recycle future exit proceeds ahead of time

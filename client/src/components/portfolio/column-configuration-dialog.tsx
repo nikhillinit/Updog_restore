@@ -208,7 +208,7 @@ export default function ColumnConfigurationDialog({ selectedColumns, onColumnsCh
             <Input
               placeholder="Search metrics..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e: any) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>
@@ -247,7 +247,7 @@ export default function ColumnConfigurationDialog({ selectedColumns, onColumnsCh
 
             {/* Metrics Content */}
             <div className="mt-4 flex-1 overflow-y-auto">
-              {filteredMetrics.map((category) => (
+              {filteredMetrics.map((category: any) => (
                 <TabsContent key={category.id} value={category.id} className="mt-0 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-medium">{category.name} Metrics</h3>
@@ -257,11 +257,11 @@ export default function ColumnConfigurationDialog({ selectedColumns, onColumnsCh
                   </div>
 
                   <div className="space-y-3">
-                    {category.metrics.map((metric) => (
+                    {category.metrics.map((metric: any) => (
                       <div key={metric.id} className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg">
                         <Checkbox
                           checked={metric.enabled}
-                          onCheckedChange={(checked) => handleMetricToggle(category.id, metric.id, checked as boolean)}
+                          onCheckedChange={(checked: any) => handleMetricToggle(category.id, metric.id, checked as boolean)}
                           className="mt-0.5"
                         />
                         <div className="flex-1">
@@ -284,11 +284,11 @@ export default function ColumnConfigurationDialog({ selectedColumns, onColumnsCh
                 </div>
 
                 <div className="space-y-3">
-                  {localMetrics.find(c => c.id === "other")?.metrics.map((metric) => (
+                  {localMetrics.find(c => c.id === "other")?.metrics.map((metric: any) => (
                     <div key={metric.id} className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg">
                       <Checkbox
                         checked={metric.enabled}
-                        onCheckedChange={(checked) => handleMetricToggle("other", metric.id, checked as boolean)}
+                        onCheckedChange={(checked: any) => handleMetricToggle("other", metric.id, checked as boolean)}
                         className="mt-0.5"
                       />
                       <div className="flex-1">

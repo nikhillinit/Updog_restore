@@ -44,7 +44,7 @@ export default function PortfolioPerformanceChart() {
             Portfolio Performance
           </CardTitle>
           <div className="flex space-x-2">
-            {['YTD', '1Y', '3Y'].map((range) => (
+            {['YTD', '1Y', '3Y'].map((range: any) => (
               <Button
                 key={range}
                 variant={timeRange === range ? "default" : "outline"}

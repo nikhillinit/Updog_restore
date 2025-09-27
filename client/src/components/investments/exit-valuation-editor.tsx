@@ -110,7 +110,7 @@ export default function ExitValuationEditor({
           <div className="space-y-3">
             <Label className="text-sm font-medium">Exit Multiple Framework</Label>
             <div className="grid grid-cols-2 gap-3">
-              {exitMultiples.map((multiple) => (
+              {exitMultiples.map((multiple: any) => (
                 <Button
                   key={multiple.id}
                   variant={selectedMultiple === multiple.id ? "default" : "outline"}
@@ -139,7 +139,7 @@ export default function ExitValuationEditor({
                 id="exit-valuation"
                 type="number"
                 value={exitValuation}
-                onChange={(e) => setExitValuation(Number(e.target.value))}
+                onChange={(e: any) => setExitValuation(Number(e.target.value))}
                 className="pl-10 bg-yellow-50 border-yellow-300"
                 placeholder="3000000000"
               />
@@ -160,7 +160,7 @@ export default function ExitValuationEditor({
                 id="exit-date"
                 type="date"
                 value={exitDate}
-                onChange={(e) => setExitDate(e.target.value)}
+                onChange={(e: any) => setExitDate(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -174,7 +174,7 @@ export default function ExitValuationEditor({
             <Textarea
               id="exit-notes"
               value={exitNotes}
-              onChange={(e) => setExitNotes(e.target.value)}
+              onChange={(e: any) => setExitNotes(e.target.value)}
               placeholder="Update your investment thesis, market opportunity, competitive positioning, and rationale for this exit valuation..."
               rows={4}
               className="resize-none"

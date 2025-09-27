@@ -368,7 +368,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
           <div className="mt-2">
             <Label className="text-sm text-gray-500">Co-Investors</Label>
             <div className="flex flex-wrap gap-1 mt-1">
-              {round.coInvestors.map((investor, index) => (
+              {round.coInvestors.map((investor: any, index: any) => (
                 <Badge key={index} variant="outline" className="text-xs">
                   {investor}
                 </Badge>
@@ -384,7 +384,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
     <div className="flex items-center space-x-4 mb-6">
       <Label className="text-sm font-medium">Performance Case:</Label>
       <div className="flex space-x-2">
-        {investment.performanceCases.map((case_) => (
+        {investment.performanceCases.map((case_: any) => (
           <Button
             key={case_.id}
             variant={investment.activeCase === case_.id ? "default" : "outline"}
@@ -447,7 +447,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
                   <Input
                     id="investment-name"
                     value={investment.name}
-                    onChange={(e) => setInvestment(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={(e: any) => setInvestment(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="Enter company name"
                     className="border-yellow-300 bg-yellow-50"
                   />
@@ -457,7 +457,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
                   <Input
                     id="website"
                     value={investment.url}
-                    onChange={(e) => setInvestment(prev => ({ ...prev, url: e.target.value }))}
+                    onChange={(e: any) => setInvestment(prev => ({ ...prev, url: e.target.value }))}
                     placeholder="https://company.com"
                   />
                 </div>
@@ -469,7 +469,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
                   <Input
                     id="sector"
                     value={investment.sector}
-                    onChange={(e) => setInvestment(prev => ({ ...prev, sector: e.target.value }))}
+                    onChange={(e: any) => setInvestment(prev => ({ ...prev, sector: e.target.value }))}
                     placeholder="Enter sector"
                   />
                 </div>
@@ -478,14 +478,14 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
                   <Input
                     id="geography"
                     value={investment.geography}
-                    onChange={(e) => setInvestment(prev => ({ ...prev, geography: e.target.value }))}
+                    onChange={(e: any) => setInvestment(prev => ({ ...prev, geography: e.target.value }))}
                     placeholder="Enter geography"
                   />
                 </div>
                 <div className="md:col-span-3">
                   <DealTagsEditor
                     selectedTags={investment.tags}
-                    onTagsChange={(tags) => setInvestment(prev => ({ ...prev, tags }))}
+                    onTagsChange={(tags: any) => setInvestment(prev => ({ ...prev, tags }))}
                   />
                 </div>
               </div>
@@ -496,7 +496,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
                   <Textarea
                     id="management"
                     value={investment.managementTeam.join('\n')}
-                    onChange={(e) => setInvestment(prev => ({ 
+                    onChange={(e: any) => setInvestment(prev => ({ 
                       ...prev, 
                       managementTeam: e.target.value.split('\n').filter(Boolean)
                     }))}
@@ -509,7 +509,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
                   <Textarea
                     id="partners"
                     value={investment.partners.join('\n')}
-                    onChange={(e) => setInvestment(prev => ({ 
+                    onChange={(e: any) => setInvestment(prev => ({ 
                       ...prev, 
                       partners: e.target.value.split('\n').filter(Boolean)
                     }))}
@@ -537,7 +537,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
               <div>
                 <Label className="text-sm text-gray-500">Tags</Label>
                 <div className="flex flex-wrap gap-1 mt-1">
-                  {investment.tags.length > 0 ? investment.tags.map((tag, index) => (
+                  {investment.tags.length > 0 ? investment.tags.map((tag: any, index: any) => (
                     <Badge key={index} variant="secondary" className="text-xs">
                       {tag}
                     </Badge>
@@ -654,7 +654,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
                   { fieldId: 'field-3', value: ['High Growth', 'Strategic'] },
                   { fieldId: 'field-4', value: 'Partner Network' },
                 ]}
-                onValuesChange={(values) => {
+                onValuesChange={(values: any) => {
                   console.log('Custom field values updated:', values);
                 }}
               />
@@ -674,7 +674,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-700">
-                    {formatCurrency(activeCase.exitValuation)}
+                    {formatCurrency(activeCase?.exitValuation ?? 0)}
                   </div>
                   <div className="text-blue-600 text-sm">Exit Valuation</div>
                   <div className="text-blue-500 text-xs">{activeCase?.exitDate ?? ''}</div>
@@ -709,7 +709,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
           </div>
 
           {/* Fund Date Warning */}
-          {new Date(activeCase.exitDate) > new Date('2029-12-31') && (
+          {activeCase?.exitDate && new Date(activeCase.exitDate) > new Date('2029-12-31') && (
             <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="flex items-start space-x-2">
                 <Info className="h-5 w-5 text-yellow-600 mt-0.5" />
@@ -735,7 +735,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
               </Button>
             </div>
             
-            {activeCase?.rounds?.map((round) => (
+            {activeCase?.rounds?.map((round: any) => (
               <RoundCard key={round.id} round={round} />
             ))}
           </div>
@@ -768,7 +768,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
             <div>
               <Label className="text-sm font-medium text-gray-700">Partners</Label>
               <div className="mt-2 space-y-1">
-                {investment.partners.map((partner, index) => (
+                {investment.partners.map((partner: any, index: any) => (
                   <div key={index} className="flex items-center space-x-2">
                     <Users className="h-4 w-4 text-gray-400" />
                     <span className="text-sm">{partner}</span>
@@ -780,7 +780,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
             <div>
               <Label className="text-sm font-medium text-gray-700">Board Members</Label>
               <div className="mt-2 space-y-1">
-                {investment.boardMembers.map((member, index) => (
+                {investment.boardMembers.map((member: any, index: any) => (
                   <div key={index} className="flex items-center space-x-2">
                     <Users className="h-4 w-4 text-gray-400" />
                     <span className="text-sm">{member}</span>

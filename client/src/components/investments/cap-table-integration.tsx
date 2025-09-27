@@ -150,7 +150,7 @@ export default function CapTableIntegration({ investment }: CapTableIntegrationP
 
         {scenarios.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {scenarios.map((scenario) => (
+            {scenarios.map((scenario: any) => (
               <Card key={scenario.id} className="hover:shadow-md transition-shadow cursor-pointer">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">

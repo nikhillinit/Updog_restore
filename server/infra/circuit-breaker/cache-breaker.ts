@@ -35,9 +35,9 @@ export class CacheBreakerService implements BreakerLike {
     try {
       return await this.breaker.run(
         // Primary operation
-        () => this.primaryCache.get(key),
+        () => this.primaryCache['get'](key),
         // Fallback operation
-        () => this.fallbackCache.get(key)
+        () => this.fallbackCache['get'](key)
       );
     } catch (error) {
       console.warn(`[cache-breaker] Failed to get key ${key}:`, error);
@@ -49,27 +49,27 @@ export class CacheBreakerService implements BreakerLike {
   async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
     try {
       await this.breaker.run(
-        () => this.primaryCache.set(key, value, ttlSeconds),
+        () => this.primaryCache['set'](key, value, ttlSeconds),
         // Fallback: always store in memory cache for reads
-        () => this.fallbackCache.set(key, value, ttlSeconds)
+        () => this.fallbackCache['set'](key, value, ttlSeconds)
       );
     } catch (error) {
       console.warn(`[cache-breaker] Failed to set key ${key}:`, error);
       // Always try to store in fallback for future reads
-      await this.fallbackCache.set(key, value, ttlSeconds);
+      await this.fallbackCache['set'](key, value, ttlSeconds);
     }
   }
 
   async del(key: string): Promise<void> {
     try {
       await this.breaker.run(
-        () => this.primaryCache.del(key),
-        () => this.fallbackCache.del(key)
+        () => this.primaryCache['del'](key),
+        () => this.fallbackCache['del'](key)
       );
     } catch (error) {
       console.warn(`[cache-breaker] Failed to delete key ${key}:`, error);
       // Ensure it's deleted from fallback at least
-      await this.fallbackCache.del(key);
+      await this.fallbackCache['del'](key);
     }
   }
 

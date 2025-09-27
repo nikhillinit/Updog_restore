@@ -5,5 +5,5 @@ export function classifyError(err: unknown): ErrorClass {
   const msg = (err.message || '').toLowerCase();
   const code = (err as any).code || '';
   const patterns = [/timeout/, /etimedout/, /econnreset/, /econnrefused/, /ehostunreach/, /epipe/, /network/];
-  return patterns.some((p) => p.test(msg) || p.test(String(code).toLowerCase())) ? 'system' : 'logical';
+  return patterns.some((p: any) => p.test(msg) || p.test(String(code).toLowerCase())) ? 'system' : 'logical';
 }

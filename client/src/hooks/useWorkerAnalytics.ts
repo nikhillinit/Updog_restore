@@ -16,7 +16,7 @@ export function useWorkerAnalytics() {
         setProgress(prev => ({ ...prev, [id]: p }));
         return;
       }
-      const r = pending.current.get(id);
+      const r = pending.current['get'](id);
       if (r) {
         pending.current.delete(id);
         setProgress(prev => {
@@ -28,7 +28,7 @@ export function useWorkerAnalytics() {
     };
     return () => {
       // Clean up pending promises before terminating worker
-      pending.current.forEach((resolve, id) => {
+      pending.current.forEach((resolve: any, id: any) => {
         resolve(null); // Resolve with null instead of rejecting
       });
       pending.current.clear();
@@ -40,7 +40,7 @@ export function useWorkerAnalytics() {
   }, []);
 
   const call = useCallback((type: WorkerType, payload: any, id: string) => {
-    return new Promise((resolve) => {
+    return new Promise((resolve: any) => {
       if (!workerRef.current) return resolve(null);
 
       // Set up timeout to prevent hanging promises
@@ -56,7 +56,7 @@ export function useWorkerAnalytics() {
         resolve(result);
       };
 
-      pending.current.set(id, wrappedResolve);
+      pending.current['set'](id, wrappedResolve);
       workerRef.current.postMessage({ id, type, payload });
     });
   }, []);

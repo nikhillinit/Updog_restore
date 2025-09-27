@@ -175,7 +175,7 @@ export class ProductionMonitor {
     portfolioSize: number,
     metadata: any = {}
   ): void {
-    this.calculationTimes.set(calculationId, Date.now());
+    this.calculationTimes['set'](calculationId, Date.now());
     activeCalculations.inc();
 
     monitoringEvents.recordCalculationStart(calculationId, {
@@ -198,7 +198,7 @@ export class ProductionMonitor {
     portfolioSize: number,
     result: any
   ): void {
-    const startTime = this.calculationTimes.get(calculationId);
+    const startTime = this.calculationTimes['get'](calculationId);
     if (!startTime) {
       (logger as any).warn('Calculation completion recorded without start time', { calculationId });
       return;
@@ -222,11 +222,11 @@ export class ProductionMonitor {
     if (result.portfolioMetrics) {
       portfolioMetrics
         .labels('expected_moic', result.metadata?.fundId || 'unknown')
-        .set(result.portfolioMetrics.expectedPortfolioMOIC);
+        ['set'](result.portfolioMetrics.expectedPortfolioMOIC);
 
       portfolioMetrics
         .labels('diversification', result.metadata?.fundId || 'unknown')
-        .set(result.portfolioMetrics.portfolioDiversification);
+        ['set'](result.portfolioMetrics.portfolioDiversification);
     }
 
     // Clean up
@@ -249,7 +249,7 @@ export class ProductionMonitor {
     portfolioSize: number,
     error: any
   ): void {
-    const startTime = this.calculationTimes.get(calculationId);
+    const startTime = this.calculationTimes['get'](calculationId);
     const duration = startTime ? (Date.now() - startTime) / 1000 : 0;
     const portfolioSizeBucket = this.getPortfolioSizeBucket(portfolioSize);
     const errorType = this.classifyError(error);
@@ -300,17 +300,17 @@ export class ProductionMonitor {
     // Record parity metrics
     parityValidationResults
       .labels('pass_rate', result.overallParity.passesParityTest ? 'pass' : 'fail')
-      .set(result.overallParity.parityPercentage);
+      ['set'](result.overallParity.parityPercentage);
 
     parityValidationResults
       .labels('max_drift', 'actual')
-      .set(result.overallParity.maxDrift);
+      ['set'](result.overallParity.maxDrift);
 
     // Record detailed breakdowns
     Object.entries(result.detailedBreakdown).forEach(([metric, data]: [string, any]) => {
       parityValidationResults
         .labels(`${metric}_drift`, 'actual')
-        .set(data.drift);
+        ['set'](data.drift);
     });
 
     monitoringEvents.recordParityValidation(validationId, result);
@@ -353,7 +353,7 @@ export class ProductionMonitor {
   }): void {
     Object.entries(metrics).forEach(([metricType, value]) => {
       if (value !== undefined) {
-        fundMetrics.labels(fundId, metricType).set(value);
+        fundMetrics.labels(fundId, metricType)['set'](value);
       }
     });
 
@@ -362,7 +362,7 @@ export class ProductionMonitor {
 
   // Health monitoring
   registerHealthCheck(component: string, check: () => Promise<boolean>): void {
-    this.healthChecks.set(component, check);
+    this.healthChecks['set'](component, check);
     (logger as any).info('Health check registered', { component });
   }
 
@@ -373,15 +373,15 @@ export class ProductionMonitor {
       try {
         const isHealthy = await Promise.race([
           check(),
-          new Promise<boolean>((_, reject) => 
+          new Promise<boolean>((_: any, reject: any) => 
             setTimeout(() => reject(new Error('Health check timeout')), 5000)
           ),
         ]);
         results[component] = isHealthy;
-        systemHealth.labels(component).set(isHealthy ? 1 : 0);
+        systemHealth.labels(component)['set'](isHealthy ? 1 : 0);
       } catch (error) {
         results[component] = false;
-        systemHealth.labels(component).set(0);
+        systemHealth.labels(component)['set'](0);
         (logger as any).warn('Health check failed', { component, error: error.message });
       }
     }
@@ -496,25 +496,25 @@ export class ProductionMonitor {
   }
 
   private setupEventListeners(): void {
-    monitoringEvents.on('calculation:start', (data) => {
+    monitoringEvents['on']('calculation:start', (data: any) => {
       (logger as any).debug('Calculation started event', data);
     });
 
-    monitoringEvents.on('calculation:complete', (data) => {
+    monitoringEvents['on']('calculation:complete', (data: any) => {
       (logger as any).debug('Calculation completed event', data);
     });
 
-    monitoringEvents.on('calculation:error', (data) => {
+    monitoringEvents['on']('calculation:error', (data: any) => {
       (logger as any).warn('Calculation error event', data);
     });
 
-    monitoringEvents.on('performance:budget-violation', (data) => {
+    monitoringEvents['on']('performance:budget-violation', (data: any) => {
       if (this.alertingEnabled) {
         this.sendAlert('Performance Budget Violation', data);
       }
     });
 
-    monitoringEvents.on('slo:violation', (data) => {
+    monitoringEvents['on']('slo:violation', (data: any) => {
       if (this.alertingEnabled) {
         this.sendAlert('SLO Violation', data);
       }

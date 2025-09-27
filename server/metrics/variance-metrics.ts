@@ -286,7 +286,7 @@ export function updateFundVarianceScore(
   baselineId: string,
   score: number
 ): void {
-  fundVarianceScores.labels(fundId, baselineId).set(score);
+  fundVarianceScores.labels(fundId, baselineId)['set'](score);
 }
 
 /**
@@ -321,7 +321,7 @@ export function updateDataQualityScore(
   dataSource: string,
   score: number
 ): void {
-  dataQualityScores.labels(fundId, dataSource).set(score);
+  dataQualityScores.labels(fundId, dataSource)['set'](score);
 }
 
 /**
@@ -339,7 +339,7 @@ export function recordDataValidationError(
  * Update system health score
  */
 export function updateSystemHealthScore(score: number): void {
-  systemHealthScore.set(score);
+  systemHealthScore['set'](score);
 }
 
 /**
@@ -377,7 +377,7 @@ export function createVarianceMetricsMiddleware() {
     const endpoint = req.route?.path || req.path;
     const method = req.method;
 
-    res.on('finish', () => {
+    res['on']('finish', () => {
       const duration = (Date.now() - startTime) / 1000;
       const statusCode = res.statusCode.toString();
 
@@ -401,7 +401,7 @@ export function initializeVarianceMetrics(): void {
 
   severities.forEach(severity => {
     categories.forEach(category => {
-      activeAlertsBySeverity.labels(severity, category).set(0);
+      activeAlertsBySeverity.labels(severity, category)['set'](0);
     });
   });
 
@@ -413,11 +413,11 @@ export function initializeVarianceMetrics(): void {
  */
 export function getVarianceMetricsSummary(): any {
   return {
-    reportsGenerated: varianceReportsGenerated.get(),
-    activeCalculations: activeVarianceCalculations.get(),
-    activeBaselines: totalActiveBaselines.get(),
-    alertsGenerated: alertsGenerated.get(),
-    systemHealth: systemHealthScore.get(),
+    reportsGenerated: varianceReportsGenerated['get'](),
+    activeCalculations: activeVarianceCalculations['get'](),
+    activeBaselines: totalActiveBaselines['get'](),
+    alertsGenerated: alertsGenerated['get'](),
+    systemHealth: systemHealthScore['get'](),
     timestamp: new Date().toISOString()
   };
 }

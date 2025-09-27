@@ -149,9 +149,9 @@ export default function ExitProceedsRecycling() {
     }
   };
 
-  const totalExitProceeds = exitEvents.reduce((sum, exit) => sum + exit.exitProceeds, 0);
-  const totalRecycled = exitEvents.reduce((sum, exit) => sum + exit.recycledAmount, 0);
-  const totalAvailable = exitEvents.reduce((sum, exit) => sum + exit.availableToRecycle, 0);
+  const totalExitProceeds = exitEvents.reduce((sum: any, exit: any) => sum + exit.exitProceeds, 0);
+  const totalRecycled = exitEvents.reduce((sum: any, exit: any) => sum + exit.recycledAmount, 0);
+  const totalAvailable = exitEvents.reduce((sum: any, exit: any) => sum + exit.availableToRecycle, 0);
   const recyclingEfficiency = totalExitProceeds > 0 ? (totalRecycled / totalExitProceeds) * 100 : 0;
 
   return (
@@ -184,7 +184,7 @@ export default function ExitProceedsRecycling() {
                   id="recycling-window"
                   type="number"
                   value={recyclingWindow}
-                  onChange={(e) => setRecyclingWindow(parseInt(e.target.value) || 3)}
+                  onChange={(e: any) => setRecyclingWindow(parseInt(e.target.value) || 3)}
                   className="w-20 h-8 text-center"
                   min={1}
                   max={12}
@@ -332,7 +332,7 @@ export default function ExitProceedsRecycling() {
                     </tr>
                   </thead>
                   <tbody>
-                    {exitEvents.map((exit) => (
+                    {exitEvents.map((exit: any) => (
                       <tr key={exit.id} className="border-b hover:bg-gray-50">
                         <td className="py-3 px-4 font-medium">{exit.company}</td>
                         <td className="py-3 px-4">{exit.exitDate}</td>
@@ -390,7 +390,7 @@ export default function ExitProceedsRecycling() {
                     </tr>
                   </thead>
                   <tbody>
-                    {investmentEvents.map((investment) => (
+                    {investmentEvents.map((investment: any) => (
                       <tr key={investment.id} className="border-b hover:bg-gray-50">
                         <td className="py-3 px-4 font-medium">{investment.company}</td>
                         <td className="py-3 px-4">{investment.investmentDate}</td>

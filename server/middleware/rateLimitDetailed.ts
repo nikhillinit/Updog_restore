@@ -26,8 +26,8 @@ export function rateLimitDetailed(opts?: { store?: Store }): RateLimitRequestHan
     },
     skip: (req: Request) => {
       // Allow on-call to bypass with a valid health key
-      const healthKey = process.env.HEALTH_KEY;
-      return Boolean(healthKey && req.get('X-Health-Key') === healthKey);
+      const healthKey = process.env['HEALTH_KEY'];
+      return Boolean(healthKey && req['get']('X-Health-Key') === healthKey);
     },
     handler: (req: Request, res: Response) => {
       // Express-rate-limit v7+ adds rateLimit property to the request
@@ -35,7 +35,7 @@ export function rateLimitDetailed(opts?: { store?: Store }): RateLimitRequestHan
       const seconds = resetTime
         ? Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 1000))
         : 60;
-      res.setHeader('Retry-After', String(seconds));
+      res['setHeader']('Retry-After', String(seconds));
       sendApiError(res, 429, createErrorBody('Too Many Requests', (req as any).requestId, 'RATE_LIMITED'));
     }
   });

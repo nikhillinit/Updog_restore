@@ -71,11 +71,11 @@ export function calculateAmericanWaterfallLedger(
   // Precompute cumulative paid-in per quarter
   const contribByQuarter = new Map<number, number>();
   for (const c of contributions) {
-    contribByQuarter.set(c.quarter, (contribByQuarter.get(c.quarter) ?? 0) + Math.max(0, c.amount));
+    contribByQuarter['set'](c.quarter, (contribByQuarter['get'](c.quarter) ?? 0) + Math.max(0, c.amount));
   }
 
   // Determine committed (for recycle cap)
-  const committed = contributions.reduce((s, c) => s + Math.max(0, c.amount), 0);
+  const committed = contributions.reduce((s: any, c: any) => s + Math.max(0, c.amount), 0);
 
   let paidIn = 0;
   let distributed = 0;
@@ -95,7 +95,7 @@ export function calculateAmericanWaterfallLedger(
     for (const [q, amt] of contribByQuarter) {
       if (q <= quarter && amt > 0) {
         paidIn += amt;
-        contribByQuarter.set(q, 0);
+        contribByQuarter['set'](q, 0);
       }
     }
   };
@@ -111,7 +111,7 @@ export function calculateAmericanWaterfallLedger(
     // Step 1: LP capital return (limited by outstanding)
     const outstandingCapital = Math.max(0, paidIn - distributed);
     const lpCapitalReturn = Math.min(gross, outstandingCapital);
-    let remaining = gross - lpCapitalReturn;
+    const remaining = gross - lpCapitalReturn;
 
     // Step 2: profits split after any hurdle logic
     // For simplicity, treat hurdle as a minimum return above paid-in at event time.

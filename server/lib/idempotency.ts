@@ -28,8 +28,8 @@ export function memoryStore(): IdempotencyStore {
   };
   setInterval(gc, 10_000).unref();
   return {
-    async get<T>(key: string) { return m.get(key) as IdemRecord<T> | undefined; },
-    async set<T>(key: string, rec: IdemRecord<T>) { m.set(key, rec); },
+    async get<T>(key: string) { return m['get'](key) as IdemRecord<T> | undefined; },
+    async set<T>(key: string, rec: IdemRecord<T>) { m['set'](key, rec); },
     async del(key: string) { m.delete(key); }
   };
 }
@@ -59,7 +59,7 @@ export function withIdempotency(options?: {
     
     try {
       // Check if we've seen this key before
-      const existing = await store.get(idempotencyKey);
+      const existing = await store['get'](idempotencyKey);
       
       if (existing) {
         if (existing.status === 'in-progress') {
@@ -72,13 +72,13 @@ export function withIdempotency(options?: {
         
         if (existing.status === 'succeeded' && existing.result) {
           // Return cached successful result
-          res.set('X-Idempotent-Replay', 'true');
+          res['set']('X-Idempotent-Replay', 'true');
           return res.json(existing.result);
         }
         
         if (existing.status === 'failed' && existing.error) {
           // Return cached error
-          res.set('X-Idempotent-Replay', 'true');
+          res['set']('X-Idempotent-Replay', 'true');
           return res.status(500).json({
             error: 'cached_error',
             message: existing.error
@@ -87,7 +87,7 @@ export function withIdempotency(options?: {
       }
       
       // Mark as in-progress
-      await store.set(idempotencyKey, {
+      await store['set'](idempotencyKey, {
         status: 'in-progress',
         updatedAt: Date.now(),
         ttlMs: ttl
@@ -97,7 +97,7 @@ export function withIdempotency(options?: {
       const originalJson = res.json;
       res.json = function(data: any) {
         // Store successful response
-        store.set(idempotencyKey, {
+        store['set'](idempotencyKey, {
           status: 'succeeded',
           result: data,
           updatedAt: Date.now(),

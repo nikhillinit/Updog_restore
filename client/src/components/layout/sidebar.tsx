@@ -120,7 +120,7 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
         )}
 
         <ul className="space-y-1">
-          {navigationItems.map((item) => {
+          {navigationItems.map((item: any) => {
             const Icon = item.icon;
             const isActive = activeModule === item.id;
             const isDisabled = needsSetup && item.id !== 'fund-setup';
@@ -178,7 +178,7 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
 
             {isChartsExpanded && (
               <ul className="mt-3 space-y-1">
-                {chartCategories.map((category) => (
+                {chartCategories.map((category: any) => (
                   <li key={category.id}>
                     <button className="w-full text-left px-2 py-1 text-sm text-gray-600 hover:text-slate-800 hover:bg-gray-50 rounded-md transition-colors">
                       {category.label}

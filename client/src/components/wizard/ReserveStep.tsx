@@ -168,7 +168,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
                   max="100"
                   step="1"
                   value={reservePercent}
-                  onChange={(e) => setReservePercent(Number(e.target.value))}
+                  onChange={(e: any) => setReservePercent(Number(e.target.value))}
                   className="w-20"
                   aria-label="Reserve percentage"
                 />
@@ -240,7 +240,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
                     max="200"
                     step="5"
                     value={defaultCapPercent}
-                    onChange={(e) => setDefaultCapPercent(Number(e.target.value))}
+                    onChange={(e: any) => setDefaultCapPercent(Number(e.target.value))}
                     className="w-20"
                     aria-label="Default cap percentage"
                   />
@@ -284,7 +284,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
                       min="0"
                       max="200"
                       value={cap}
-                      onChange={(e) => setStageCaps(prev => ({ ...prev, [stage]: Number(e.target.value) }))}
+                      onChange={(e: any) => setStageCaps(prev => ({ ...prev, [stage]: Number(e.target.value) }))}
                       className="w-16"
                       aria-label={`${stage} cap input`}
                     />
@@ -347,7 +347,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             <ul className="list-disc list-inside">
-              {warnings.map((warning, i) => (
+              {warnings.map((warning: any, i: any) => (
                 <li key={i}>{warning}</li>
               ))}
             </ul>
@@ -361,7 +361,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             <ul className="list-disc list-inside">
-              {errors.map((error, i) => (
+              {errors.map((error: any, i: any) => (
                 <li key={i}>{error}</li>
               ))}
             </ul>

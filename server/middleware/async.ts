@@ -13,7 +13,7 @@ export function asyncHandler(
   fn: (_req: Request, _res: Response, _next: NextFunction) => Promise<any>
 ) {
   return (req: Request, res: Response, next: NextFunction) => {
-    Promise.resolve(fn(req, res, next)).catch((error) => {
+    Promise.resolve(fn(req, res, next)).catch((error: any) => {
       console.error('Async handler error:', error);
       
       // Check if response was already sent

@@ -29,7 +29,7 @@ export function normalizeStepParam(value: string | null): ValidStep | null {
 
 export function resolveStepKeyFromLocation(loc: string): StepKey {
   const qs = loc.includes('?') ? loc.slice(loc.indexOf('?')) : '';
-  const raw = new URLSearchParams(qs).get('step');     // '' for '?step' / '?step='
+  const raw = new URLSearchParams(qs)['get']('step');     // '' for '?step' / '?step='
   const norm = normalizeStepParam(raw);
   return norm ? NUM_TO_KEY[norm] : 'not-found';
 }

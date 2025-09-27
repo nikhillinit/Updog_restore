@@ -95,11 +95,11 @@ export function buildInvestmentStrategy(inputs: StrategyInputs): InvestmentStrat
   const allocations = inputs.allocations.map(a => ({ ...a }));
 
   // Calculate totals
-  const totalSectorAllocation = sectorProfiles.reduce((sum, sector) => sum + sector.targetPercentage, 0);
-  const totalAllocation = allocations.reduce((sum, alloc) => sum + alloc.percentage, 0);
+  const totalSectorAllocation = sectorProfiles.reduce((sum: any, sector: any) => sum + sector.targetPercentage, 0);
+  const totalAllocation = allocations.reduce((sum: any, alloc: any) => sum + alloc.percentage, 0);
 
   // Validation
-  const stageValidation = stages.map((stage, i) => {
+  const stageValidation = stages.map((stage: any, i: any) => {
     if (!stage.name?.trim()) return 'Stage name required';
     if (stage.graduationRate + stage.exitRate > 100) return 'Graduate + Exit must be ≤ 100%';
     if (i === stages.length - 1 && stage.graduationRate !== 0) return 'Last stage must have 0% graduation';

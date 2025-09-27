@@ -42,7 +42,7 @@ function stableUserId(): string {
         id = crypto.randomUUID();
       } else {
         // Fallback UUID v4 generation for older browsers
-        id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c: any) => {
           const r = Math.random() * 16 | 0;
           const v = c === 'x' ? r : (r & 0x3 | 0x8);
           return v.toString(16);
@@ -113,7 +113,7 @@ export function debugRollouts() {
   const features = ['USE_FUND_STORE', 'USE_FUND_STORE_VALIDATION', 'USE_FUND_STORE_TELEMETRY'];
   
   console.table(
-    features.reduce((acc, feature) => {
+    features.reduce((acc: any, feature: any) => {
       const envKey = `VITE_${feature}_ROLLOUT`;
       const envValue = (import.meta as any).env?.[envKey];
       const bucket = getUserBucket(feature);

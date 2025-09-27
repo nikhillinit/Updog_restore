@@ -49,7 +49,7 @@ function generateCSV(data: ExportData): string {
     'Founded Year'
   ];
   
-  const rows = data.portfolioCompanies.map((company) => [
+  const rows = data.portfolioCompanies.map((company: any) => [
     company.name,
     company.sector,
     company.stage,

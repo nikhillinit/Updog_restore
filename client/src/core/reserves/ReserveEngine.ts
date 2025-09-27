@@ -140,7 +140,7 @@ export function ReserveEngine(portfolio: unknown[]): ReserveOutput[] {
   }
   
   // Validate all inputs
-  const validatedPortfolio: ReserveInput[] = map(portfolio, (company, index) => {
+  const validatedPortfolio: ReserveInput[] = map(portfolio, (company: any, index: any) => {
     try {
       return validateReserveInput(company);
     } catch (error) {
@@ -150,7 +150,7 @@ export function ReserveEngine(portfolio: unknown[]): ReserveOutput[] {
   
   const useAlgorithm = isAlgorithmModeEnabled();
   
-  return map(validatedPortfolio, (company) => {
+  return map(validatedPortfolio, (company: any) => {
     // Use ML algorithm if enabled and confidence threshold met
     if (useAlgorithm && Math.random() > 0.3) { // 70% chance of using ML in algorithm mode
       return calculateMLBasedAllocation(company);
@@ -169,9 +169,9 @@ export function ReserveEngine(portfolio: unknown[]): ReserveOutput[] {
 export function generateReserveSummary(fundId: number, portfolio: ReserveInput[]): ReserveSummary {
   const allocations = ReserveEngine(portfolio);
   
-  const totalAllocation = reduce(allocations, (sum, item) => sum + item.allocation, 0);
+  const totalAllocation = reduce(allocations, (sum: any, item: any) => sum + item.allocation, 0);
   const avgConfidence = allocations.length > 0 
-    ? reduce(allocations, (sum, item) => sum + item.confidence, 0) / allocations.length 
+    ? reduce(allocations, (sum: any, item: any) => sum + item.confidence, 0) / allocations.length 
     : 0;
   const highConfidenceCount = allocations.filter(item => item.confidence >= ConfidenceLevel.MEDIUM).length;
   

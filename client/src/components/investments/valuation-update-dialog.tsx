@@ -60,7 +60,7 @@ export default function ValuationUpdateDialog({
             <Input
               id="month"
               value={month}
-              onChange={(e) => setMonth(e.target.value)}
+              onChange={(e: any) => setMonth(e.target.value)}
               placeholder="Jul-2024"
               className="font-mono"
             />
@@ -76,7 +76,7 @@ export default function ValuationUpdateDialog({
               <Input
                 id="valuation"
                 value={newValuation}
-                onChange={(e) => setNewValuation(e.target.value)}
+                onChange={(e: any) => setNewValuation(e.target.value)}
                 className="pl-8 text-center bg-blue-50 border-blue-200 font-mono text-lg"
                 placeholder="20.00"
               />

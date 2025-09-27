@@ -153,7 +153,7 @@ export default function TactycReports() {
         <div className="animate-pulse space-y-8">
           <div className="h-20 bg-gray-200 rounded-xl"></div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {Array.from({ length: 6 }).map((_, i) => (
+            {Array.from({ length: 6 }).map((_: any, i: any) => (
               <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
             ))}
           </div>
@@ -299,7 +299,7 @@ export default function TactycReports() {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {investmentReports.map((report) => (
+              {investmentReports.map((report: any) => (
                 <ReportCard key={report.id} report={report} />
               ))}
             </div>
@@ -319,7 +319,7 @@ export default function TactycReports() {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {fundReports.map((report) => (
+              {fundReports.map((report: any) => (
                 <ReportCard key={report.id} report={report} />
               ))}
             </div>
@@ -327,7 +327,7 @@ export default function TactycReports() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredReports.map((report) => (
+          {filteredReports.map((report: any) => (
             <ReportCard key={report.id} report={report} />
           ))}
         </div>

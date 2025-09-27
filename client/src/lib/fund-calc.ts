@@ -52,7 +52,7 @@ export const quickMonteCarlo = (
   
   const results = Array.from({ length: runs }, () => 
     baseCase * (1 + randomNormal(0, sigma))
-  ).sort((a, b) => a - b);
+  ).sort((a: any, b: any) => a - b);
   
   return {
     p10: quantile(results, 0.1),
@@ -219,7 +219,7 @@ export const runSimulation = async (
   );
   
   // Calculate exits by quarter
-  const exitsByQuarter = Array.from({ length: 40 }, (_, i) => ({
+  const exitsByQuarter = Array.from({ length: 40 }, (_: any, i: any) => ({
     quarter: `Q${(i % 4) + 1} ${Math.floor(i / 4) + 2020}`,
     exits: Math.floor(Math.random() * 5) + 1,
     value: Math.random() * 50000000 + 10000000
@@ -230,7 +230,7 @@ export const runSimulation = async (
     tvpi: (tvpiSeries[tvpiSeries.length - 1] / (inputs?.initialCapital || 100000000)).toFixed(2),
     irr: `${(irrScenarios.p50 * 100).toFixed(1)  }%`,
     moic: `${moicScenarios.p50.toFixed(2)  }x`,
-    dpi: (dpiSeries.reduce((a, b) => a + b, 0) / (inputs?.initialCapital || 100000000)).toFixed(2)
+    dpi: (dpiSeries.reduce((a: any, b: any) => a + b, 0) / (inputs?.initialCapital || 100000000)).toFixed(2)
   };
   
   // Simulate some heavy nested computation

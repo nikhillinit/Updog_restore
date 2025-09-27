@@ -132,7 +132,7 @@ export default function InvestableCapitalSummary() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={allocationData} layout="horizontal">
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tickFormatter={(value) => `$${(value / 1000000).toFixed(0)}M`} />
+                  <XAxis type="number" tickFormatter={(value: any) => `$${(value / 1000000).toFixed(0)}M`} />
                   <YAxis dataKey="round" type="category" width={100} />
                   <Tooltip formatter={(value: number) => [formatCurrency(value), '']} />
                   <Bar dataKey="total" fill="#3b82f6" />
@@ -150,7 +150,7 @@ export default function InvestableCapitalSummary() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {deploymentStatus.map((item, index) => (
+              {deploymentStatus.map((item: any, index: any) => (
                 <div key={index} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">{item.category}</span>

@@ -82,7 +82,7 @@ export function GraduationPresets({ onSelectPreset, disabled = false }: Graduati
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {PRESETS.map((preset) => (
+        {PRESETS.map((preset: any) => (
           <Card 
             key={preset.id}
             className={`cursor-pointer transition-all hover:shadow-md ${
@@ -112,7 +112,7 @@ export function GraduationPresets({ onSelectPreset, disabled = false }: Graduati
                   Stage Graduation Rates
                 </div>
                 <div className="flex justify-between text-sm">
-                  {preset.rates.slice(0, 4).map((rate, index) => (
+                  {preset.rates.slice(0, 4).map((rate: any, index: any) => (
                     <div key={index} className="text-center">
                       <div className="font-medium">{rate}%</div>
                       <div className="text-xs text-muted-foreground">S{index + 1}</div>

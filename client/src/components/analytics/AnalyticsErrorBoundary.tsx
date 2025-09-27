@@ -145,7 +145,7 @@ function AnalyticsErrorFallback({ error, onRetry }: AnalyticsErrorFallbackProps)
             <div className="bg-blue-50 p-4 rounded-lg">
               <h4 className="font-medium text-blue-900 mb-2">Try these solutions:</h4>
               <ul className="space-y-1 text-sm text-blue-800">
-                {suggestions.map((suggestion, index) => (
+                {suggestions.map((suggestion: any, index: any) => (
                   <li key={index} className="flex items-start">
                     <span className="w-2 h-2 bg-blue-400 rounded-full mt-2 mr-2 flex-shrink-0" />
                     {suggestion}

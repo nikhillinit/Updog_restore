@@ -172,7 +172,7 @@ export default function KPIManager() {
           <Input
             id="kpi-name"
             value={newKPI.name || ""}
-            onChange={(e) => setNewKPI(prev => ({ ...prev, name: e.target.value }))}
+            onChange={(e: any) => setNewKPI(prev => ({ ...prev, name: e.target.value }))}
             placeholder="ARR"
             className="border-gray-300"
           />
@@ -211,7 +211,7 @@ export default function KPIManager() {
           <Input
             type="month"
             value={newKPI.startDate || ""}
-            onChange={(e) => setNewKPI(prev => ({ ...prev, startDate: e.target.value }))}
+            onChange={(e: any) => setNewKPI(prev => ({ ...prev, startDate: e.target.value }))}
             className="border-gray-300"
           />
         </div>
@@ -222,7 +222,7 @@ export default function KPIManager() {
             <Input
               type="number"
               value={newKPI.term || ""}
-              onChange={(e) => setNewKPI(prev => ({ ...prev, term: parseInt(e.target.value) }))}
+              onChange={(e: any) => setNewKPI(prev => ({ ...prev, term: parseInt(e.target.value) }))}
               className="flex-1 border-gray-300"
               placeholder="66"
             />
@@ -241,7 +241,7 @@ export default function KPIManager() {
 
         <div className="space-y-3">
           <Label>Number Format</Label>
-          <Select value={newKPI.numberFormat} onValueChange={(value) => setNewKPI(prev => ({ ...prev, numberFormat: value }))}>
+          <Select value={newKPI.numberFormat} onValueChange={(value: any) => setNewKPI(prev => ({ ...prev, numberFormat: value }))}>
             <SelectTrigger className="border-gray-300">
               <SelectValue />
             </SelectTrigger>
@@ -261,7 +261,7 @@ export default function KPIManager() {
             <Checkbox 
               id="upload-docs"
               checked={newKPI.askToUploadDocuments}
-              onCheckedChange={(checked) => setNewKPI(prev => ({ ...prev, askToUploadDocuments: !!checked }))}
+              onCheckedChange={(checked: any) => setNewKPI(prev => ({ ...prev, askToUploadDocuments: !!checked }))}
             />
             <Label htmlFor="upload-docs" className="text-sm">Ask to upload documents</Label>
           </div>
@@ -270,7 +270,7 @@ export default function KPIManager() {
             <Checkbox 
               id="show-projection"
               checked={newKPI.showFullProjectionPeriod}
-              onCheckedChange={(checked) => setNewKPI(prev => ({ ...prev, showFullProjectionPeriod: !!checked }))}
+              onCheckedChange={(checked: any) => setNewKPI(prev => ({ ...prev, showFullProjectionPeriod: !!checked }))}
             />
             <Label htmlFor="show-projection" className="text-sm">Show full projection period</Label>
           </div>
@@ -279,7 +279,7 @@ export default function KPIManager() {
             <Checkbox 
               id="hide-historicals"
               checked={newKPI.hidePastHistoricals}
-              onCheckedChange={(checked) => setNewKPI(prev => ({ ...prev, hidePastHistoricals: !!checked }))}
+              onCheckedChange={(checked: any) => setNewKPI(prev => ({ ...prev, hidePastHistoricals: !!checked }))}
             />
             <Label htmlFor="hide-historicals" className="text-sm">Hide past historicals</Label>
           </div>
@@ -550,7 +550,7 @@ export default function KPIManager() {
                     <div className="h-80 relative">
                       {/* Simple Bar Chart Implementation */}
                       <div className="flex items-end justify-between h-full space-x-4 pt-8">
-                        {["Jan 2021", "Jul 2021", "Jan 2022", "Jul 2022", "Jan 2023", "Jul 2023"].map((period, index) => {
+                        {["Jan 2021", "Jul 2021", "Jan 2022", "Jul 2022", "Jan 2023", "Jul 2023"].map((period: any, index: any) => {
                           const values = [1.9, 2.1, 2.2, 2.315, 2.4, 2.5];
                           const isProjected = index >= 5;
                           const height = (values[index] / 2.5) * 100;
@@ -645,7 +645,7 @@ export default function KPIManager() {
                     { company: "CatalystLabs", status: "Sent", updated: "Dec 18, 2023", color: "blue" },
                     { company: "Cybrosys Technologies", status: "Completed", updated: "Dec 20, 2023", color: "green" },
                     { company: "DigitalWave", status: "Pending Update", updated: "Dec 10, 2023", color: "yellow" }
-                  ].map((request, _index) => (
+                  ].map((request: any, _index: any) => (
                     <div key={request.company} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
                       <div className="flex items-center space-x-4">
                         <Checkbox />
@@ -845,7 +845,7 @@ export default function KPIManager() {
                           { company: "Synapse", round1: "-", round2: "-", round3: "-", round4: "-" },
                           { company: "Vantage", round1: "4.68x", round2: "-", round3: "-", round4: "-" },
                           { company: "Yanbal", round1: "2.49x", round2: "9.70x", round3: "7.05x", round4: "5.31x" }
-                        ].map((row, index) => (
+                        ].map((row: any, index: any) => (
                           <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                             <td className="border border-gray-300 p-3 font-medium">{row.company}</td>
                             <td className="border border-gray-300 p-3 text-center">{row.round1}</td>
@@ -919,7 +919,7 @@ export default function KPIManager() {
                       </tr>
                     </thead>
                     <tbody>
-                      {contacts.map((contact, index) => (
+                      {contacts.map((contact: any, index: any) => (
                         <tr key={index} className="border-b border-gray-100">
                           <td className="p-3">{contact.investment}</td>
                           <td className="p-3">

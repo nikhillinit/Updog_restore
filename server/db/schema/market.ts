@@ -11,8 +11,8 @@ export const marketIndicators = pgTable('market_indicators', {
   components: jsonb('components').notNull().default({}),
   source: text('source'),
   ingestedAt: timestamp('ingested_at', { withTimezone: true }).notNull().defaultNow(),
-}, (table) => ({
-  dateIdx: index('idx_market_indicators_date').on(table.asOfDate),
+}, (table: any) => ({
+  dateIdx: index('idx_market_indicators_date')['on'](table.asOfDate),
 }));
 
 export const pacingScores = pgTable('pacing_scores', {

@@ -2,6 +2,20 @@
 
 import { z } from 'zod';
 
+// Re-export unified portfolio strategy types
+export {
+  PortfolioStrategy,
+  PortfolioState,
+  CheckSizeConfig,
+  AllocationConfig,
+  ScenarioConfig,
+  PortfolioStrategySchema,
+  createPortfolioStrategy,
+  validatePortfolioStrategy,
+  updatePortfolioStrategy,
+  migrateLegacyStrategy
+} from './portfolio-strategy-schema';
+
 // =============================================================================
 // SIMULATION TYPES
 // =============================================================================

@@ -66,12 +66,12 @@ function useStepKey(): StepKey {
     
     // Debug logging
     if (import.meta.env.DEV) {
-      const stepParam = new URLSearchParams(search).get('step');
+      const stepParam = new URLSearchParams(search)['get']('step');
       console.log(`[FundSetup Debug] fullLocation='${fullLocation}', stepParam='${stepParam}', resolved key='${key}'`);
     }
     
     if (key === 'not-found' && import.meta.env.DEV) {
-      const val = new URLSearchParams(search).get('step');
+      const val = new URLSearchParams(search)['get']('step');
       console.warn(`[FundSetup] Invalid step '${val}', defaulting to not-found`);
     }
     
@@ -97,7 +97,7 @@ export default function FundSetup() {
   return (
     <ErrorBoundary
       fallback={<StepNotFound />}
-      onError={(error) => {
+      onError={(error: any) => {
         if (import.meta.env.DEV) {
           console.error(`[FundSetup] Error in step ${key}:`, error);
         }

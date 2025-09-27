@@ -114,7 +114,7 @@ export default function SectorProfileBuilder() {
   const updateRoundData = (roundIndex: number, field: keyof RoundData, value: number) => {
     setSectorProfile(prev => ({
       ...prev,
-      rounds: prev.rounds.map((round, index) => 
+      rounds: prev.rounds.map((round: any, index: any) => 
         index === roundIndex 
           ? { ...round, [field]: value }
           : round
@@ -224,7 +224,7 @@ export default function SectorProfileBuilder() {
                 </tr>
               </thead>
               <tbody>
-                {sectorProfile.rounds.map((round, index) => (
+                {sectorProfile.rounds.map((round: any, index: any) => (
                   <tr key={round.round} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <Badge className={getRoundColor(round.round)}>
@@ -235,7 +235,7 @@ export default function SectorProfileBuilder() {
                       <Input
                         type="number"
                         value={round.roundSize}
-                        onChange={(e) => updateRoundData(index, 'roundSize', parseFloat(e.target.value) || 0)}
+                        onChange={(e: any) => updateRoundData(index, 'roundSize', parseFloat(e.target.value) || 0)}
                         className="w-24 h-8 text-center bg-yellow-50 border-yellow-200"
                       />
                     </td>
@@ -243,7 +243,7 @@ export default function SectorProfileBuilder() {
                       <Input
                         type="number"
                         value={round.valuation}
-                        onChange={(e) => updateRoundData(index, 'valuation', parseFloat(e.target.value) || 0)}
+                        onChange={(e: any) => updateRoundData(index, 'valuation', parseFloat(e.target.value) || 0)}
                         className="w-32 h-8 text-center bg-yellow-50 border-yellow-200"
                       />
                     </td>
@@ -253,7 +253,7 @@ export default function SectorProfileBuilder() {
                           type="number"
                           step="0.1"
                           value={round.esop}
-                          onChange={(e) => updateRoundData(index, 'esop', parseFloat(e.target.value) || 0)}
+                          onChange={(e: any) => updateRoundData(index, 'esop', parseFloat(e.target.value) || 0)}
                           className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
                         />
                         <span className="text-xs ml-1">%</span>
@@ -265,7 +265,7 @@ export default function SectorProfileBuilder() {
                           type="number"
                           step="0.1"
                           value={round.graduationRate}
-                          onChange={(e) => updateRoundData(index, 'graduationRate', parseFloat(e.target.value) || 0)}
+                          onChange={(e: any) => updateRoundData(index, 'graduationRate', parseFloat(e.target.value) || 0)}
                           className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
                         />
                         <span className="text-xs ml-1">%</span>
@@ -277,7 +277,7 @@ export default function SectorProfileBuilder() {
                           type="number"
                           step="0.1"
                           value={round.exitRate}
-                          onChange={(e) => updateRoundData(index, 'exitRate', parseFloat(e.target.value) || 0)}
+                          onChange={(e: any) => updateRoundData(index, 'exitRate', parseFloat(e.target.value) || 0)}
                           className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
                         />
                         <span className="text-xs ml-1">%</span>
@@ -294,7 +294,7 @@ export default function SectorProfileBuilder() {
                       <Input
                         type="number"
                         value={round.exitValuation}
-                        onChange={(e) => updateRoundData(index, 'exitValuation', parseFloat(e.target.value) || 0)}
+                        onChange={(e: any) => updateRoundData(index, 'exitValuation', parseFloat(e.target.value) || 0)}
                         className="w-32 h-8 text-center bg-yellow-50 border-yellow-200"
                       />
                     </td>
@@ -302,7 +302,7 @@ export default function SectorProfileBuilder() {
                       <Input
                         type="number"
                         value={round.timeToGraduate}
-                        onChange={(e) => updateRoundData(index, 'timeToGraduate', parseFloat(e.target.value) || 0)}
+                        onChange={(e: any) => updateRoundData(index, 'timeToGraduate', parseFloat(e.target.value) || 0)}
                         className="w-20 h-8 text-center bg-yellow-50 border-yellow-200"
                       />
                     </td>

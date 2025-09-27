@@ -37,7 +37,7 @@ export class RedisApprovalRateLimiter {
     }
   ) {
     this.redis = createClient({
-      url: config.redisUrl || process.env.REDIS_URL || 'redis://localhost:6379',
+      url: config.redisUrl || process.env['REDIS_URL'] || 'redis://localhost:6379',
       socket: {
         connectTimeout: 5000
       },
@@ -103,12 +103,12 @@ export class RedisApprovalRateLimiter {
       end
     `;
     
-    this.redis.on('error', (err) => {
+    this.redis['on']('error', (err: any) => {
       console.error('Redis rate limiter error:', err);
       this.connected = false;
     });
     
-    this.redis.on('connect', () => {
+    this.redis['on']('connect', () => {
       console.log('Redis rate limiter connected');
       this.connected = true;
     });
@@ -123,7 +123,7 @@ export class RedisApprovalRateLimiter {
   
   async disconnect(): Promise<void> {
     if (this.connected) {
-      await this.redis.quit();
+      await this.redis['quit']();
       this.connected = false;
     }
   }
@@ -202,7 +202,7 @@ export class RedisApprovalRateLimiter {
     }
     
     const key = `${this.config.keyPrefix}:approval:${strategyId}:${inputsHash}`;
-    await this.redis.del(key);
+    await this.redis['del'](key);
   }
   
   /**
@@ -259,7 +259,7 @@ export class InMemoryRateLimiter {
     const windowStart = now - this.windowMs;
     
     // Get existing data
-    const data = this.storage.get(key) || { timestamps: [], lastCleanup: now };
+    const data = this.storage['get'](key) || { timestamps: [], lastCleanup: now };
     
     // Filter out expired timestamps
     data.timestamps = data.timestamps.filter(t => t > windowStart);
@@ -279,7 +279,7 @@ export class InMemoryRateLimiter {
     // Add current timestamp
     data.timestamps.push(now);
     data.lastCleanup = now;
-    this.storage.set(key, data);
+    this.storage['set'](key, data);
     
     // Periodic cleanup
     if (this.storage.size > this.maxStorageSize || 
@@ -318,8 +318,8 @@ export class InMemoryRateLimiter {
 export async function createRateLimiter(
   config?: RateLimiterConfig
 ): Promise<RedisApprovalRateLimiter | InMemoryRateLimiter> {
-  const isProduction = process.env.NODE_ENV === 'production';
-  const hasRedis = !!process.env.REDIS_URL;
+  const isProduction = process.env['NODE_ENV'] === 'production';
+  const hasRedis = !!process.env['REDIS_URL'];
   
   if (isProduction || hasRedis) {
     try {

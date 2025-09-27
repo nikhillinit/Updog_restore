@@ -25,7 +25,7 @@ export default function MetricCards({ fundData }: MetricCardsProps) {
   if (!fundData) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {Array.from({ length: 4 }).map((_, index) => (
+        {Array.from({ length: 4 }).map((_: any, index: any) => (
           <Card key={index} className="animate-pulse">
             <CardContent className="pt-6">
               <div className="h-20 bg-gray-200 rounded"></div>
@@ -93,7 +93,7 @@ export default function MetricCards({ fundData }: MetricCardsProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      {metrics.map((metric, index) => {
+      {metrics.map((metric: any, index: any) => {
         const Icon = getIcon(metric.icon);
         const iconColorClass = getIconColor(metric.color);
         

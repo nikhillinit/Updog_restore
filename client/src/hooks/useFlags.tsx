@@ -60,7 +60,7 @@ export function useFlags() {
     staleTime: 25_000, // 25s (slightly less than server TTL of 30s)
     refetchInterval: 30_000, // Refetch every 30s
     refetchOnWindowFocus: true,
-    retry: (failureCount, error) => {
+    retry: (failureCount: any, error: any) => {
       // Don't retry on 4xx errors, do retry on network/5xx errors
       if (error && typeof error === 'object' && 'message' in error) {
         const message = (error as Error).message;

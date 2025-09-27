@@ -185,7 +185,7 @@ export function ConstructionActualComparison() {
               </tr>
             </thead>
             <tbody>
-              {data.map((item, index) => (
+              {data.map((item: any, index: any) => (
                 <tr key={index} className="border-b hover:bg-gray-50">
                   <td className="p-3 font-medium">{item.entryRound}</td>
                   <td className="text-center p-3">{formatCurrency(item.constructionAverage)}</td>
@@ -254,7 +254,7 @@ export function ConstructionActualComparison() {
                 </tr>
               </thead>
               <tbody>
-                {entryRoundData.map((item, index) => (
+                {entryRoundData.map((item: any, index: any) => (
                   <tr key={index} className="border-b hover:bg-gray-50">
                     <td className="p-3 font-medium">{item.round}</td>
                     <td className="text-center p-3">{item.construction}</td>

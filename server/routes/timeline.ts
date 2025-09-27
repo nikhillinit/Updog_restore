@@ -44,13 +44,13 @@ const createSnapshotSchema = z.object({
  * GET /api/timeline/:fundId
  * Get timeline of events and snapshots for a fund
  */
-router.get(
+router['get'](
   '/:fundId',
   validateRequest({
     params: z.object({ fundId: z.coerce.number() }),
     query: timelineRangeSchema.omit({ fundId: true }),
   }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: any, res: any) => {
     const startTimer = Date.now();
     const fundIdNum = parseInt(req.params.fundId, 10);
     const startTimeStr = typeof req.query.startTime === 'string' ? req.query.startTime : undefined;
@@ -130,13 +130,13 @@ router.get(
  * GET /api/timeline/:fundId/state
  * Get fund state at a specific point in time
  */
-router.get(
+router['get'](
   '/:fundId/state',
   validateRequest({
     params: z.object({ fundId: z.coerce.number() }),
     query: pointInTimeSchema.omit({ fundId: true }),
   }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: any, res: any) => {
     const startTimer = Date.now();
     const fundIdNum = parseInt(req.params.fundId, 10);
     const timestampStr = typeof req.query.timestamp === 'string' ? req.query.timestamp : '';
@@ -151,7 +151,7 @@ router.get(
     // Check cache first
     const cache = (req as any).app.locals.cache;
     const cacheKey = `fund:${fundIdNum}:state:${targetTime.getTime()}`;
-    const cached = await cache.get(cacheKey);
+    const cached = await cache['get'](cacheKey);
     if (cached) {
       recordBusinessMetric('state_query', 'cache_hit', Date.now() - startTimer);
       return res.json(JSON.parse(cached));
@@ -204,7 +204,7 @@ router.get(
     };
 
     // Cache for 5 minutes using injected cache
-    await cache.set(cacheKey, JSON.stringify(response), 300);
+    await cache['set'](cacheKey, JSON.stringify(response), 300);
 
     recordBusinessMetric('state_query', 'success', Date.now() - startTimer);
     res.json(response);
@@ -221,7 +221,7 @@ router.post(
     params: z.object({ fundId: z.coerce.number() }),
     body: createSnapshotSchema.omit({ fundId: true }),
   }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: any, res: any) => {
     const startTimer = Date.now();
     const fundIdNum = parseInt(req.params.fundId, 10);
     const { type, _description } = req.body;
@@ -264,7 +264,7 @@ router.post(
  * GET /api/timeline/:fundId/compare
  * Compare fund states at two different times
  */
-router.get(
+router['get'](
   '/:fundId/compare',
   validateRequest({
     params: z.object({ fundId: z.coerce.number() }),
@@ -274,7 +274,7 @@ router.get(
       includeDiff: z.coerce.boolean().default(true),
     }),
   }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: any, res: any) => {
     const startTimer = Date.now();
     const { fundId } = req.params;
     const { timestamp1, timestamp2, includeDiff } = req.query;
@@ -335,7 +335,7 @@ router.get(
  * GET /api/timeline/events/latest
  * Get latest events across all funds (for admin dashboard)
  */
-router.get(
+router['get'](
   '/events/latest',
   validateRequest({
     query: z.object({
@@ -343,7 +343,7 @@ router.get(
       eventTypes: z.array(z.string()).optional(),
     }),
   }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: any, res: any) => {
     const { limit, eventTypes } = req.query;
 
     const conditions = [];

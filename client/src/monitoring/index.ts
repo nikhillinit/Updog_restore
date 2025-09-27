@@ -54,11 +54,11 @@ const noopSentry: MockSentry = {
   captureException: () => 'noop',
   captureMessage: () => 'noop',
   addBreadcrumb: () => {},
-  withScope: (callback) => callback(noopScope),
+  withScope: (callback: any) => callback(noopScope),
   setUser: () => {},
   setTag: () => {},
   setContext: () => {},
-  configureScope: (callback) => callback(noopScope),
+  configureScope: (callback: any) => callback(noopScope),
   browserTracingIntegration: () => ({}),
   replayIntegration: () => ({}),
 };
@@ -70,7 +70,7 @@ let isSentryEnabled = false;
 // Only load real Sentry if compile-time flag is true
 if (typeof __SENTRY__ !== 'undefined' && __SENTRY__ && !isDNT && !isOptedOut) {
   // Dynamic import to enable code splitting - but ONLY if flag is true
-  import(/* webpackChunkName: "sentry" */ '@sentry/browser').then((SentryModule) => {
+  import(/* webpackChunkName: "sentry" */ '@sentry/browser').then((SentryModule: any) => {
     const sentryDSN = import.meta.env.VITE_SENTRY_DSN;
     if (sentryDSN) {
       SentryModule.init({

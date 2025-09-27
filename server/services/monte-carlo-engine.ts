@@ -15,7 +15,8 @@ import { db } from '../db';
 import {
   funds,
   fundBaselines,
-  monteCarloSimulations
+  monteCarloSimulations,
+  varianceReports
 } from '@shared/schema';
 import type {
   InsertMonteCarloSimulation,
@@ -23,6 +24,8 @@ import type {
 } from '@shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
+import { toSafeNumber } from '@shared/type-safety-utils';
+import { logMonteCarloOperation, logMonteCarloError, logPerformance, PerformanceMonitor } from '../utils/logger.js';
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -338,7 +341,7 @@ export class MonteCarloEngine {
     }
 
     // Find optimal allocation (highest risk-adjusted return)
-    const optimal = allocationAnalysis.reduce((best, current) =>
+    const optimal = allocationAnalysis.reduce((best: any, current: any) =>
       current.riskAdjustedReturn > best.riskAdjustedReturn ? current : best
     );
 
@@ -426,8 +429,8 @@ export class MonteCarloEngine {
     const stageDistribution = baseline.stageDistribution as Record<string, number> || {};
 
     // Normalize distributions
-    const totalSectorCount = Object.values(sectorDistribution).reduce((sum, count) => sum + count, 0);
-    const totalStageCount = Object.values(stageDistribution).reduce((sum, count) => sum + count, 0);
+    const totalSectorCount = Object.values(sectorDistribution).reduce((sum: any, count: any) => sum + count, 0);
+    const totalStageCount = Object.values(stageDistribution).reduce((sum: any, count: any) => sum + count, 0);
 
     const sectorWeights: Record<string, number> = {};
     const stageWeights: Record<string, number> = {};
@@ -452,7 +455,7 @@ export class MonteCarloEngine {
 
   private async calibrateDistributions(fundId: number, baseline: FundBaseline): Promise<DistributionParameters> {
     // Get historical variance data
-    const varianceReports = await db.query.varianceReports.findMany({
+    const reports = await db.query.varianceReports.findMany({
       where: and(
         eq(varianceReports.fundId, fundId),
         eq(varianceReports.baselineId, baseline.id)
@@ -461,15 +464,15 @@ export class MonteCarloEngine {
       limit: 30 // Last 30 reports for calibration
     });
 
-    if (varianceReports.length < 3) {
+    if (reports.length < 3) {
       // Use default industry parameters if insufficient data
       return this.getDefaultDistributions();
     }
 
     // Extract variance patterns
-    const irrVariances = this.extractVariances(varianceReports, 'irrVariance');
-    const multipleVariances = this.extractVariances(varianceReports, 'multipleVariance');
-    const dpiVariances = this.extractVariances(varianceReports, 'dpiVariance');
+    const irrVariances = this.extractVariances(reports, 'irrVariance');
+    const multipleVariances = this.extractVariances(reports, 'multipleVariance');
+    const dpiVariances = this.extractVariances(reports, 'dpiVariance');
 
     return {
       irr: {
@@ -515,8 +518,8 @@ export class MonteCarloEngine {
   private calculateVolatility(values: number[]): number {
     if (values.length < 2) return 0;
 
-    const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
-    const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
+    const mean = values.reduce((sum: any, v: any) => sum + v, 0) / values.length;
+    const variance = values.reduce((sum: any, v: any) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
     return Math.sqrt(variance);
   }
 
@@ -597,7 +600,7 @@ export class MonteCarloEngine {
     const results: any = {};
 
     for (const metric of metrics) {
-      const values = scenarios.map(s => s[metric]).sort((a, b) => a - b);
+      const values = scenarios.map(s => s[metric]).sort((a: any, b: any) => a - b);
       results[metric] = this.createPerformanceDistribution(values);
     }
 
@@ -605,8 +608,8 @@ export class MonteCarloEngine {
   }
 
   private createPerformanceDistribution(values: number[]): PerformanceDistribution {
-    const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
-    const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
+    const mean = values.reduce((sum: any, v: any) => sum + v, 0) / values.length;
+    const variance = values.reduce((sum: any, v: any) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
     const standardDeviation = Math.sqrt(variance);
 
     const percentiles = {
@@ -690,14 +693,14 @@ export class MonteCarloEngine {
       return coverage;
     });
 
-    return coverageRatios.reduce((sum, ratio) => sum + ratio, 0) / coverageRatios.length;
+    return coverageRatios.reduce((sum: any, ratio: any) => sum + ratio, 0) / coverageRatios.length;
   }
 
   private calculateCoverageScenarios(scenarios: any[], portfolioInputs: PortfolioInputs): any {
     const coverageValues = scenarios.map(scenario => {
       const followOnNeed = Math.abs(scenario.followOnNeed);
       return Math.min(portfolioInputs.reserveRatio / Math.max(followOnNeed, 0.01), 1.0);
-    }).sort((a, b) => a - b);
+    }).sort((a: any, b: any) => a - b);
 
     return {
       p25: this.getPercentile(coverageValues, 25),
@@ -767,27 +770,33 @@ export class MonteCarloEngine {
     }
 
     // Key metrics comparison
-    const keyMetrics = [
+    const keyMetrics: Array<{
+      metric: string;
+      value: number;
+      benchmark: number;
+      status: 'above' | 'below' | 'at' | 'warning';
+      impact: 'high' | 'medium' | 'low';
+    }> = [
       {
         metric: 'Expected IRR',
-        value: performanceResults.irr.statistics.mean,
+        value: toSafeNumber(performanceResults.irr.statistics.mean),
         benchmark: 0.15,
-        status: performanceResults.irr.statistics.mean >= 0.15 ? 'above' : 'below' as const,
-        impact: 'high' as const
+        status: toSafeNumber(performanceResults.irr.statistics.mean) >= 0.15 ? 'above' : 'below',
+        impact: 'high'
       },
       {
         metric: 'Risk-Adjusted Return',
-        value: riskMetrics.sharpeRatio,
+        value: toSafeNumber(riskMetrics.sharpeRatio),
         benchmark: 1.0,
-        status: riskMetrics.sharpeRatio >= 1.0 ? 'above' : 'below' as const,
-        impact: 'high' as const
+        status: toSafeNumber(riskMetrics.sharpeRatio) >= 1.0 ? 'above' : 'below',
+        impact: 'high'
       },
       {
         metric: 'Downside Risk',
-        value: riskMetrics.probabilityOfLoss,
+        value: toSafeNumber(riskMetrics.probabilityOfLoss),
         benchmark: 0.1,
-        status: riskMetrics.probabilityOfLoss <= 0.1 ? 'above' : 'warning' as const,
-        impact: 'medium' as const
+        status: toSafeNumber(riskMetrics.probabilityOfLoss) <= 0.1 ? 'above' : 'warning',
+        impact: 'medium'
       }
     ];
 
@@ -804,15 +813,11 @@ export class MonteCarloEngine {
       fundId: results.config.fundId,
       simulationName: `Monte Carlo Simulation ${new Date().toISOString()}`,
       simulationType: 'portfolio_construction',
-      simulationEngine: 'monte-carlo-engine-v2',
-      simulationDate: new Date(),
-      monteCarloIterations: results.config.runs,
-      simulationResults: results,
-      performanceMetrics: {
-        executionTimeMs: results.executionTimeMs,
-        scenarios: results.config.runs,
-        successRate: 1.0
-      },
+      numberOfRuns: results.config.runs,
+      inputDistributions: {},
+      summaryStatistics: {},
+      percentileResults: {},
+      createdBy: 1, // TODO: Get from context
       tags: ['portfolio-construction', 'risk-analysis', 'reserve-optimization'],
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
       metadata: {
@@ -864,33 +869,32 @@ export async function exampleUsage(): Promise<void> {
   };
 
   try {
-    console.log('Running Monte Carlo simulation...');
-    const startTime = Date.now();
-
-    const results = await engine.runPortfolioSimulation(config);
-
-    console.log(`Simulation completed in ${results.executionTimeMs}ms`);
-    console.log(`Expected IRR: ${(results.irr.statistics.mean * 100).toFixed(2)}%`);
-    console.log(`Expected Multiple: ${results.multiple.statistics.mean.toFixed(2)}x`);
-    console.log(`95% Confidence Interval for IRR: ${(results.irr.confidenceIntervals.ci95[0] * 100).toFixed(1)}% - ${(results.irr.confidenceIntervals.ci95[1] * 100).toFixed(1)}%`);
-    console.log(`Optimal Reserve Ratio: ${(results.reserveOptimization.optimalReserveRatio * 100).toFixed(1)}%`);
-    console.log(`Value at Risk (5%): ${(results.riskMetrics.valueAtRisk.var5 * 100).toFixed(2)}%`);
-
-    // Print key insights
-    console.log('\nKey Recommendations:');
-    results.insights.primaryRecommendations.forEach((rec, i) => {
-      console.log(`${i + 1}. ${rec}`);
+    const perfMonitor = new PerformanceMonitor('monte_carlo_simulation', { fundId: config.fundId, runs: config.runs });
+    logMonteCarloOperation('Starting simulation', config.fundId, {
+      runs: config.runs,
+      timeHorizonYears: config.timeHorizonYears,
+      portfolioSize: config.portfolioSize
     });
 
-    if (results.insights.riskWarnings.length > 0) {
-      console.log('\nRisk Warnings:');
-      results.insights.riskWarnings.forEach((warning, i) => {
-        console.log(`${i + 1}. ${warning}`);
-      });
-    }
+    const results = await engine.runPortfolioSimulation(config);
+    const executionTime = perfMonitor.end({ simulationId: results.simulationId });
+
+    logMonteCarloOperation('Simulation completed successfully', config.fundId, {
+      simulationId: results.simulationId,
+      executionTimeMs: results.executionTimeMs,
+      expectedIRR: results.irr.statistics.mean,
+      expectedMultiple: results.multiple.statistics.mean,
+      optimalReserveRatio: results.reserveOptimization.optimalReserveRatio,
+      valueAtRisk5: results.riskMetrics.valueAtRisk.var5,
+      recommendations: results.insights.primaryRecommendations.length,
+      riskWarnings: results.insights.riskWarnings.length
+    });
 
   } catch (error) {
-    console.error('Simulation failed:', error.message);
+    logMonteCarloError('Simulation failed', config.fundId, error as Error, {
+      runs: config.runs,
+      timeHorizonYears: config.timeHorizonYears
+    });
   }
 }
 

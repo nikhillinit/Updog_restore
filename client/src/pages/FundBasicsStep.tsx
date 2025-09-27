@@ -70,7 +70,7 @@ export default function FundBasicsStep() {
             <Input
               id="fund-name"
               value={fundName || ''}
-              onChange={(e) => handleInputChange('fundName', e.target.value)}
+              onChange={(e: any) => handleInputChange('fundName', e.target.value)}
               placeholder="e.g., Growth Fund III"
               data-testid="fund-name"
             />
@@ -98,7 +98,7 @@ export default function FundBasicsStep() {
                   min="1"
                   max="20"
                   value={fundLife || ''}
-                  onChange={(e) => handleInputChange('fundLife', parseFloat(e.target.value) || undefined)}
+                  onChange={(e: any) => handleInputChange('fundLife', parseFloat(e.target.value) || undefined)}
                   placeholder="e.g., 10"
                   data-testid="fund-life"
                 />
@@ -112,7 +112,7 @@ export default function FundBasicsStep() {
                   min="1"
                   max="10"
                   value={investmentPeriod || ''}
-                  onChange={(e) => handleInputChange('investmentPeriod', parseFloat(e.target.value) || undefined)}
+                  onChange={(e: any) => handleInputChange('investmentPeriod', parseFloat(e.target.value) || undefined)}
                   placeholder="e.g., 3"
                   data-testid="investment-period"
                 />
@@ -128,7 +128,7 @@ export default function FundBasicsStep() {
               min="0"
               step="0.1"
               value={fundSize || ''}
-              onChange={(e) => handleInputChange('fundSize', parseFloat(e.target.value) || undefined)}
+              onChange={(e: any) => handleInputChange('fundSize', parseFloat(e.target.value) || undefined)}
               placeholder="e.g., 100"
               data-testid="fund-size"
             />
@@ -157,7 +157,7 @@ export default function FundBasicsStep() {
                 max="5"
                 step="0.1"
                 value={managementFeeRate || ''}
-                onChange={(e) => handleInputChange('managementFeeRate', parseFloat(e.target.value) || undefined)}
+                onChange={(e: any) => handleInputChange('managementFeeRate', parseFloat(e.target.value) || undefined)}
                 placeholder="e.g., 2.0"
                 data-testid="mgmt-fee"
               />
@@ -172,7 +172,7 @@ export default function FundBasicsStep() {
                 max="50"
                 step="1"
                 value={carriedInterest || ''}
-                onChange={(e) => handleInputChange('carriedInterest', parseFloat(e.target.value) || undefined)}
+                onChange={(e: any) => handleInputChange('carriedInterest', parseFloat(e.target.value) || undefined)}
                 placeholder="e.g., 20"
                 data-testid="carried-interest"
               />

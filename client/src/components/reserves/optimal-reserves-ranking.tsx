@@ -50,13 +50,13 @@ export default function OptimalReservesRanking({ className }: OptimalReservesRan
 
   // Calculate Follow-On MOIC using Tactyc methodology
   const calculateFollowOnMOIC = (cases: PerformanceCase[]): number => {
-    return cases.reduce((weighted, case_) => {
+    return cases.reduce((weighted: any, case_: any) => {
       return weighted + (case_.followOnMOIC * case_.probability / 100);
     }, 0);
   };
 
   const calculateProbabilityAdjustedReserves = (cases: PerformanceCase[]): number => {
-    return cases.reduce((weighted, case_) => {
+    return cases.reduce((weighted: any, case_: any) => {
       return weighted + (case_.followOnReserves * case_.probability / 100);
     }, 0);
   };
@@ -160,8 +160,8 @@ export default function OptimalReservesRanking({ className }: OptimalReservesRan
     }
   ];
 
-  const totalPlanned = reserveRankings.reduce((sum, item) => sum + item.planned, 0);
-  const totalDeployed = reserveRankings.reduce((sum, item) => sum + item.deployed, 0);
+  const totalPlanned = reserveRankings.reduce((sum: any, item: any) => sum + item.planned, 0);
+  const totalDeployed = reserveRankings.reduce((sum: any, item: any) => sum + item.deployed, 0);
   const totalReserves = totalPlanned + totalDeployed;
 
   const formatMOIC = (value: number) => `${value.toFixed(2)}x`;
@@ -278,7 +278,7 @@ export default function OptimalReservesRanking({ className }: OptimalReservesRan
                 </tr>
               </thead>
               <tbody>
-                {filteredRankings.map((ranking) => (
+                {filteredRankings.map((ranking: any) => (
                   <tr key={ranking.company} className="border-b hover:bg-gray-50">
                     <td className="p-4">
                       <div className="flex items-center space-x-2">
@@ -382,7 +382,7 @@ export default function OptimalReservesRanking({ className }: OptimalReservesRan
               <div>
                 <div className="text-sm text-blue-800">Avg Follow-on MOIC</div>
                 <div className="font-bold text-blue-900">
-                  {formatMOIC(reserveRankings.reduce((sum, r) => sum + r.followOnMOIC, 0) / reserveRankings.length)}
+                  {formatMOIC(reserveRankings.reduce((sum: any, r: any) => sum + r.followOnMOIC, 0) / reserveRankings.length)}
                 </div>
                 <div className="text-sm text-blue-700">Portfolio Average</div>
               </div>

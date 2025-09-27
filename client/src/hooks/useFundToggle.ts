@@ -16,11 +16,11 @@ interface ToggleStore {
   setTransitioning: (_transitioning: boolean) => void;
 }
 
-const useToggleStore = create<ToggleStore>()(subscribeWithSelector((set) => ({
+const useToggleStore = create<ToggleStore>()(subscribeWithSelector((set: any) => ({
   mode: 'current',
   isTransitioning: false,
-  setMode: (mode) => set({ mode }),
-  setTransitioning: (transitioning) => set({ isTransitioning: transitioning }),
+  setMode: (mode: any) => set({ mode }),
+  setTransitioning: (transitioning: any) => set({ isTransitioning: transitioning }),
 })));
 
 // API response with pre-computed delta
@@ -63,7 +63,7 @@ export function useFundToggle(fundId: number) {
       // API returns the delta for UI to render immediately
       return api.post<FundStateResponse>(`/funds/${fundId}/toggle`, { mode: newMode });
     },
-    onMutate: async (newMode) => {
+    onMutate: async (newMode: any) => {
       setTransitioning(true);
       setMode(newMode);
 
@@ -80,7 +80,7 @@ export function useFundToggle(fundId: number) {
       }
       setTransitioning(false);
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       // Update cache with new data
       queryClient.setQueryData(['fund', fundId, data.mode], data);
       setTransitioning(false);
@@ -137,8 +137,8 @@ export function useFundToggle(fundId: number) {
 
 // Subscribe to mode changes for analytics
 useToggleStore.subscribe(
-  (state) => state.mode,
-  (mode) => {
+  (state: any) => state.mode,
+  (mode: any) => {
     // Track mode changes
     if (typeof window !== 'undefined' && window.gtag) {
       window.gtag('event', 'fund_mode_toggle', {

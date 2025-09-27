@@ -165,7 +165,7 @@ export type FundState = {
 
 // Helper functions
 const enforceLast = (rows: StrategyStage[]) =>
-  rows.map((r, i) => (i === rows.length - 1 ? { ...r, graduate: 0 } : r));
+  rows.map((r: any, i: any) => (i === rows.length - 1 ? { ...r, graduate: 0 } : r));
 
 const generateStableId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -190,7 +190,7 @@ function canonicalizeStrategyInput(
   const prevById = new Map(prev.stages.map(s => [s.id, s]));
 
   const normStages = (next.stages ?? prev.stages).map(ns => {
-    const p = prevById.get(ns.id);
+    const p = prevById['get'](ns.id);
     // normalize fields to internal model
     const name = (ns.name?.trim() ?? p?.name ?? '');
     const graduate = normalizeNumber((ns as any).graduationRate ?? (ns as any).graduate ?? p?.graduate ?? 0);
@@ -218,7 +218,7 @@ function canonicalizeStrategyInput(
   const prevSPById = new Map(prev.sectorProfiles.map(sp => [sp.id, sp]));
   const normSectorProfiles = (next.sectorProfiles ?? prev.sectorProfiles)
     .map(sp => {
-      const p = prevSPById.get(sp.id);
+      const p = prevSPById['get'](sp.id);
       const name = sp.name?.trim() ?? p?.name ?? '';
       const targetPercentage = normalizeNumber(sp.targetPercentage ?? p?.targetPercentage ?? 0);
       const description = sp.description ?? p?.description ?? '';
@@ -234,7 +234,7 @@ function canonicalizeStrategyInput(
   const prevAllocById = new Map(prev.allocations.map(a => [a.id, a]));
   const normAllocations = (next.allocations ?? prev.allocations)
     .map(a => {
-      const p = prevAllocById.get(a.id);
+      const p = prevAllocById['get'](a.id);
       const category = a.category?.trim() ?? p?.category ?? '';
       const percentage = normalizeNumber(
         (a as any).percentage ?? (a as any).percent ?? p?.percentage ?? 0
@@ -272,9 +272,9 @@ function createFundStore() {
   return createStore<FundState>()(
     devtools(
       persist(
-        (set, get) => ({
+        (set: any, get: any) => ({
           hydrated: false,
-          setHydrated: (v) => set({ hydrated: v }),
+          setHydrated: (v: any) => set({ hydrated: v }),
           
           // Fund Basics defaults
           fundName: undefined,
@@ -349,72 +349,72 @@ function createFundStore() {
           fundExpenses: [],
 
           // Fund Basics actions
-          updateFundBasics: (patch) => set((state) => ({ ...state, ...patch })),
+          updateFundBasics: (patch: any) => set((state: any) => ({ ...state, ...patch })),
 
           // Capital Structure actions
-          updateCapitalStructure: (patch) => set((state) => ({ ...state, ...patch })),
+          updateCapitalStructure: (patch: any) => set((state: any) => ({ ...state, ...patch })),
           
-          addLPClass: (lpClass) => set((state) => ({
+          addLPClass: (lpClass: any) => set((state: any) => ({
             lpClasses: [...state.lpClasses, lpClass]
           })),
           
-          updateLPClass: (id, patch) => set((state) => ({
+          updateLPClass: (id: any, patch: any) => set((state: any) => ({
             lpClasses: state.lpClasses.map(cls => 
               cls.id === id ? { ...cls, ...patch } : cls
             )
           })),
           
-          removeLPClass: (id) => set((state) => ({
+          removeLPClass: (id: any) => set((state: any) => ({
             lpClasses: state.lpClasses.filter(cls => cls.id !== id)
           })),
           
-          addLP: (lp) => set((state) => ({
+          addLP: (lp: any) => set((state: any) => ({
             lps: [...state.lps, lp]
           })),
           
-          updateLP: (id, patch) => set((state) => ({
+          updateLP: (id: any, patch: any) => set((state: any) => ({
             lps: state.lps.map(lp => 
               lp.id === id ? { ...lp, ...patch } : lp
             )
           })),
           
-          removeLP: (id) => set((state) => ({
+          removeLP: (id: any) => set((state: any) => ({
             lps: state.lps.filter(lp => lp.id !== id)
           })),
 
           // Distributions actions
-          updateDistributions: (patch) => set((state) => ({ ...state, ...patch })),
+          updateDistributions: (patch: any) => set((state: any) => ({ ...state, ...patch })),
           
-          addWaterfallTier: (tier) => set((state) => ({
+          addWaterfallTier: (tier: any) => set((state: any) => ({
             waterfallTiers: [...state.waterfallTiers, tier]
           })),
           
-          updateWaterfallTier: (id, patch) => set((state) => ({
+          updateWaterfallTier: (id: any, patch: any) => set((state: any) => ({
             waterfallTiers: state.waterfallTiers.map(tier => 
               tier.id === id ? { ...tier, ...patch } : tier
             )
           })),
           
-          removeWaterfallTier: (id) => set((state) => ({
+          removeWaterfallTier: (id: any) => set((state: any) => ({
             waterfallTiers: state.waterfallTiers.filter(tier => tier.id !== id)
           })),
 
           // Fee Profile actions
-          addFeeProfile: (profile) => set((state) => ({
+          addFeeProfile: (profile: any) => set((state: any) => ({
             feeProfiles: [...state.feeProfiles, profile]
           })),
 
-          updateFeeProfile: (id, patch) => set((state) => ({
+          updateFeeProfile: (id: any, patch: any) => set((state: any) => ({
             feeProfiles: state.feeProfiles.map(profile => 
               profile.id === id ? { ...profile, ...patch } : profile
             )
           })),
 
-          removeFeeProfile: (id) => set((state) => ({
+          removeFeeProfile: (id: any) => set((state: any) => ({
             feeProfiles: state.feeProfiles.filter(profile => profile.id !== id)
           })),
 
-          addFeeTier: (profileId, tier) => set((state) => ({
+          addFeeTier: (profileId: any, tier: any) => set((state: any) => ({
             feeProfiles: state.feeProfiles.map(profile => 
               profile.id === profileId 
                 ? { ...profile, feeTiers: [...profile.feeTiers, tier] }
@@ -422,7 +422,7 @@ function createFundStore() {
             )
           })),
 
-          updateFeeTier: (profileId, tierId, patch) => set((state) => ({
+          updateFeeTier: (profileId, tierId, patch) => set((state: any) => ({
             feeProfiles: state.feeProfiles.map(profile => 
               profile.id === profileId 
                 ? {
@@ -435,7 +435,7 @@ function createFundStore() {
             )
           })),
 
-          removeFeeTier: (profileId, tierId) => set((state) => ({
+          removeFeeTier: (profileId: any, tierId: any) => set((state: any) => ({
             feeProfiles: state.feeProfiles.map(profile => 
               profile.id === profileId 
                 ? {
@@ -447,21 +447,21 @@ function createFundStore() {
           })),
 
           // Fund Expense actions
-          addFundExpense: (expense) => set((state) => ({
+          addFundExpense: (expense: any) => set((state: any) => ({
             fundExpenses: [...state.fundExpenses, expense]
           })),
 
-          updateFundExpense: (id, patch) => set((state) => ({
+          updateFundExpense: (id: any, patch: any) => set((state: any) => ({
             fundExpenses: state.fundExpenses.map(expense => 
               expense.id === id ? { ...expense, ...patch } : expense
             )
           })),
 
-          removeFundExpense: (id) => set((state) => ({
+          removeFundExpense: (id: any) => set((state: any) => ({
             fundExpenses: state.fundExpenses.filter(expense => expense.id !== id)
           })),
 
-          addStage: () => set((s) => {
+          addStage: () => set((s: any) => {
             // Invalidate cache when stages change
             cachedStagesState = null;
             cachedValidationResult = null;
@@ -471,16 +471,16 @@ function createFundStore() {
             return { stages: enforceLast(next) };
           }),
 
-          removeStage: (idx: number) => set((s) => {
+          removeStage: (idx: number) => set((s: any) => {
             // Invalidate cache when stages change
             cachedStagesState = null;
             cachedValidationResult = null;
             
-            const next = s.stages.filter((_, i) => i !== idx);
+            const next = s.stages.filter((_: any, i: any) => i !== idx);
             return { stages: enforceLast(next) };
           }),
 
-          updateStageName: (idx: number, name: string) => set((s) => {
+          updateStageName: (idx: number, name: string) => set((s: any) => {
             // Invalidate cache when stages change
             cachedStagesState = null;
             cachedValidationResult = null;
@@ -492,7 +492,7 @@ function createFundStore() {
             return { stages };
           }),
 
-          updateStageRate: (idx, patch) => set((s) => {
+          updateStageRate: (idx: any, patch: any) => set((s: any) => {
             // Invalidate cache when stages change
             cachedStagesState = null;
             cachedValidationResult = null;
@@ -558,7 +558,7 @@ function createFundStore() {
             };
           },
 
-          fromInvestmentStrategy: (strategy: InvestmentStrategy) => set((state) => {
+          fromInvestmentStrategy: (strategy: InvestmentStrategy) => set((state: any) => {
             const prevRaw = {
               stages: state.stages,
               sectorProfiles: state.sectorProfiles,
@@ -599,7 +599,7 @@ function createFundStore() {
         {
           name: 'investment-strategy',
           version: 2,
-          partialize: (s) => ({
+          partialize: (s: any) => ({
             // Only persist primitive inputs
             stages: s.stages.map((r: StrategyStage) => ({
               id: r.id, name: r.name, graduate: r.graduate, exit: r.exit, months: r.months
@@ -615,7 +615,7 @@ function createFundStore() {
             }
             return state;
           },
-          onRehydrateStorage: () => (_state, err) => {
+          onRehydrateStorage: () => (_state: any, err: any) => {
             if (err) console.error('[fund-store] rehydrate error', err);
             // Flip on next microtask so subscribers see the final rehydrated values
             Promise.resolve().then(() => fundStore.getState().setHydrated(true));
@@ -647,7 +647,7 @@ export const __canonicalizeStrategyInput = canonicalizeStrategyInput;
 
 // Dev-only store tracer for debugging state updates
 if (import.meta.env.DEV && import.meta.env['VITE_WIZARD_DEBUG'] === '1') {
-  const unsub = fundStore.subscribe((state, prev) => {
+  const unsub = fundStore.subscribe((state: any, prev: any) => {
     const changed: string[] = [];
     if (state.hydrated !== prev.hydrated) changed.push('hydrated');
     if (state.stages !== prev.stages) changed.push('stages');

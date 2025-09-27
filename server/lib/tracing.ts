@@ -43,7 +43,7 @@ class TracingService {
       status: 'active'
     };
 
-    this.spans.set(span.id, span);
+    this.spans['set'](span.id, span);
     this.activeSpans.add(span.id);
 
     this.log(span.id, 'info', `Started ${operationName}`, { spanId: span.id, parentId });
@@ -52,7 +52,7 @@ class TracingService {
   }
 
   finishSpan(spanId: string, status: 'completed' | 'failed' = 'completed', finalTags: Record<string, any> = {}) {
-    const span = this.spans.get(spanId);
+    const span = this.spans['get'](spanId);
     if (!span) {
       console.warn(`Attempted to finish unknown span: ${spanId}`);
       return;
@@ -75,7 +75,7 @@ class TracingService {
   }
 
   log(spanId: string, level: TraceSpan['logs'][0]['level'], message: string, fields?: Record<string, any>) {
-    const span = this.spans.get(spanId);
+    const span = this.spans['get'](spanId);
     if (!span) return;
 
     span.logs.push({
@@ -91,18 +91,18 @@ class TracingService {
   }
 
   addTags(spanId: string, tags: Record<string, any>) {
-    const span = this.spans.get(spanId);
+    const span = this.spans['get'](spanId);
     if (!span) return;
 
     Object.assign(span.tags, this.sanitizeTags(tags));
   }
 
   getSpan(spanId: string): TraceSpan | undefined {
-    return this.spans.get(spanId);
+    return this.spans['get'](spanId);
   }
 
   getActiveSpans(): TraceSpan[] {
-    return Array.from(this.activeSpans).map(id => this.spans.get(id)!).filter(Boolean);
+    return Array.from(this.activeSpans).map(id => this.spans['get'](id)!).filter(Boolean);
   }
 
   getAllSpans(): TraceSpan[] {
@@ -118,7 +118,7 @@ class TracingService {
       if (visited.has(spanId)) return;
       visited.add(spanId);
 
-      const span = this.spans.get(spanId);
+      const span = this.spans['get'](spanId);
       if (!span) return;
 
       trace.push(span);
@@ -132,7 +132,7 @@ class TracingService {
     };
 
     collectSpans(rootSpanId);
-    return trace.sort((a, b) => a.startTime - b.startTime);
+    return trace.sort((a: any, b: any) => a.startTime - b.startTime);
   }
 
   // Export trace data in OpenTelemetry format

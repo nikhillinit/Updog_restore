@@ -224,7 +224,7 @@ export default function InvestmentStrategyStep() {
                       <Input
                         data-testid={`stage-${index}-name`}
                         value={stage.name}
-                        onChange={(e) => updateStage(index, { name: e.target.value })}
+                        onChange={(e: any) => updateStage(index, { name: e.target.value })}
                         placeholder="e.g., Seed, Series A"
                       />
                     </div>
@@ -236,7 +236,7 @@ export default function InvestmentStrategyStep() {
                         min="0"
                         max="100"
                         value={stage.graduationRate}
-                        onChange={(e) => updateStage(index, { graduationRate: parseFloat(e.target.value) || 0 })}
+                        onChange={(e: any) => updateStage(index, { graduationRate: parseFloat(e.target.value) || 0 })}
                         disabled={index === data.stages.length - 1}
                       />
                       {index === data.stages.length - 1 && stage.graduationRate > 0 && (
@@ -251,7 +251,7 @@ export default function InvestmentStrategyStep() {
                         min="0"
                         max="100"
                         value={stage.exitRate}
-                        onChange={(e) => updateStage(index, { exitRate: parseFloat(e.target.value) || 0 })}
+                        onChange={(e: any) => updateStage(index, { exitRate: parseFloat(e.target.value) || 0 })}
                       />
                       {(stage.graduationRate + stage.exitRate) > 100 && (
                         <p className="text-sm text-red-500">Graduation + Exit rates cannot exceed 100%</p>
@@ -306,7 +306,7 @@ export default function InvestmentStrategyStep() {
                       <Label>Sector Name</Label>
                       <Input
                         value={sector.name}
-                        onChange={(e) => updateSectorProfile(index, { name: e.target.value })}
+                        onChange={(e: any) => updateSectorProfile(index, { name: e.target.value })}
                         placeholder="e.g., FinTech, HealthTech"
                       />
                     </div>
@@ -317,7 +317,7 @@ export default function InvestmentStrategyStep() {
                         min="0"
                         max="100"
                         value={sector.targetPercentage}
-                        onChange={(e) => updateSectorProfile(index, { targetPercentage: parseFloat(e.target.value) || 0 })}
+                        onChange={(e: any) => updateSectorProfile(index, { targetPercentage: parseFloat(e.target.value) || 0 })}
                       />
                     </div>
                   </div>
@@ -326,7 +326,7 @@ export default function InvestmentStrategyStep() {
                     <Label>Description (Optional)</Label>
                     <Textarea
                       value={sector.description || ''}
-                      onChange={(e) => updateSectorProfile(index, { description: e.target.value })}
+                      onChange={(e: any) => updateSectorProfile(index, { description: e.target.value })}
                       placeholder="Describe your focus and thesis for this sector"
                     />
                   </div>
@@ -370,7 +370,7 @@ export default function InvestmentStrategyStep() {
                       <Label>Category</Label>
                       <Input
                         value={allocation.category}
-                        onChange={(e) => updateAllocation(index, { category: e.target.value })}
+                        onChange={(e: any) => updateAllocation(index, { category: e.target.value })}
                         placeholder="e.g., New Investments, Reserves"
                       />
                     </div>
@@ -381,7 +381,7 @@ export default function InvestmentStrategyStep() {
                         min="0"
                         max="100"
                         value={allocation.percentage}
-                        onChange={(e) => updateAllocation(index, { percentage: parseFloat(e.target.value) || 0 })}
+                        onChange={(e: any) => updateAllocation(index, { percentage: parseFloat(e.target.value) || 0 })}
                       />
                     </div>
                   </div>
@@ -390,7 +390,7 @@ export default function InvestmentStrategyStep() {
                     <Label>Description (Optional)</Label>
                     <Textarea
                       value={allocation.description || ''}
-                      onChange={(e) => updateAllocation(index, { description: e.target.value })}
+                      onChange={(e: any) => updateAllocation(index, { description: e.target.value })}
                       placeholder="Describe this allocation category"
                     />
                   </div>

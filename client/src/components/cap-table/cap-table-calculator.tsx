@@ -125,7 +125,7 @@ export default function CapTableCalculator() {
 
   // Calculate cap table metrics
   const calculateMetrics = () => {
-    const totalShares = currentCapTable.reduce((sum, sh) => sum + sh.shares, 0);
+    const totalShares = currentCapTable.reduce((sum: any, sh: any) => sum + sh.shares, 0);
     const totalOptions = currentCapTable.find(sh => sh.type === 'option-pool')?.shares || 0;
     const fullyDilutedShares = totalShares;
     
@@ -148,7 +148,7 @@ export default function CapTableCalculator() {
   const convertSafesNotes = (pricePerShare: number) => {
     return safesNotes.map(instrument => {
       // Calculate cap-based price
-      const fullyDilutedShares = currentCapTable.reduce((sum, sh) => sum + sh.shares, 0);
+      const fullyDilutedShares = currentCapTable.reduce((sum: any, sh: any) => sum + sh.shares, 0);
       const capBasedPrice = instrument.valuationCap ? 
         instrument.valuationCap / fullyDilutedShares : Infinity;
       
@@ -206,7 +206,7 @@ export default function CapTableCalculator() {
     }
 
     // Calculate new total shares
-    const newTotalShares = proForma.reduce((sum, sh) => sum + sh.shares, 0);
+    const newTotalShares = proForma.reduce((sum: any, sh: any) => sum + sh.shares, 0);
 
     // Recalculate all percentages
     proForma = proForma.map(shareholder => ({
@@ -215,7 +215,7 @@ export default function CapTableCalculator() {
     }));
 
     // Sort by percentage (descending)
-    proForma.sort((a, b) => b.percentage - a.percentage);
+    proForma.sort((a: any, b: any) => b.percentage - a.percentage);
 
     setProFormaCapTable(proForma);
     setSafesNotes(convertedInstruments);
@@ -226,7 +226,7 @@ export default function CapTableCalculator() {
   }, [preMoneyValuation, roundSize, optionPoolIncrease, currentCapTable, safesNotes]);
 
   const metrics = calculateMetrics();
-  const totalSAFEsNotes = safesNotes.reduce((sum, inst) => sum + inst.principal, 0);
+  const totalSAFEsNotes = safesNotes.reduce((sum: any, inst: any) => sum + inst.principal, 0);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -344,7 +344,7 @@ export default function CapTableCalculator() {
                 id="pre-money"
                 type="number"
                 value={preMoneyValuation}
-                onChange={(e) => setPreMoneyValuation(Number(e.target.value))}
+                onChange={(e: any) => setPreMoneyValuation(Number(e.target.value))}
                 className="border-yellow-300 bg-yellow-50"
               />
             </div>
@@ -355,7 +355,7 @@ export default function CapTableCalculator() {
                 id="round-size"
                 type="number"
                 value={roundSize}
-                onChange={(e) => setRoundSize(Number(e.target.value))}
+                onChange={(e: any) => setRoundSize(Number(e.target.value))}
                 className="border-yellow-300 bg-yellow-50"
               />
             </div>
@@ -366,7 +366,7 @@ export default function CapTableCalculator() {
                 id="option-pool"
                 type="number"
                 value={optionPoolIncrease}
-                onChange={(e) => setOptionPoolIncrease(Number(e.target.value))}
+                onChange={(e: any) => setOptionPoolIncrease(Number(e.target.value))}
                 className="border-yellow-300 bg-yellow-50"
               />
             </div>
@@ -424,7 +424,7 @@ export default function CapTableCalculator() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentCapTable.map((shareholder) => (
+                  {currentCapTable.map((shareholder: any) => (
                     <TableRow key={shareholder.id}>
                       <TableCell className="font-medium">{shareholder.name}</TableCell>
                       <TableCell className="text-right">{formatShares(shareholder.shares)}</TableCell>
@@ -481,7 +481,7 @@ export default function CapTableCalculator() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {proFormaCapTable.map((shareholder) => (
+                  {proFormaCapTable.map((shareholder: any) => (
                     <TableRow key={shareholder.id}>
                       <TableCell className="font-medium">{shareholder.name}</TableCell>
                       <TableCell className="text-right">{formatShares(shareholder.shares)}</TableCell>
@@ -498,10 +498,10 @@ export default function CapTableCalculator() {
                   <TableRow className="border-t-2 border-gray-300">
                     <TableCell className="font-bold">Total Shares Excluding Options</TableCell>
                     <TableCell className="text-right font-bold">
-                      {formatShares(proFormaCapTable.filter(sh => sh.type !== 'option-pool').reduce((sum, sh) => sum + sh.shares, 0))}
+                      {formatShares(proFormaCapTable.filter(sh => sh.type !== 'option-pool').reduce((sum: any, sh: any) => sum + sh.shares, 0))}
                     </TableCell>
                     <TableCell className="text-right font-bold">
-                      {formatPercentage(proFormaCapTable.filter(sh => sh.type !== 'option-pool').reduce((sum, sh) => sum + sh.percentage, 0))}
+                      {formatPercentage(proFormaCapTable.filter(sh => sh.type !== 'option-pool').reduce((sum: any, sh: any) => sum + sh.percentage, 0))}
                     </TableCell>
                     <TableCell></TableCell>
                   </TableRow>
@@ -520,7 +520,7 @@ export default function CapTableCalculator() {
                   <TableRow className="border-t border-gray-300">
                     <TableCell className="font-bold">Total</TableCell>
                     <TableCell className="text-right font-bold">
-                      {formatShares(proFormaCapTable.reduce((sum, sh) => sum + sh.shares, 0))}
+                      {formatShares(proFormaCapTable.reduce((sum: any, sh: any) => sum + sh.shares, 0))}
                     </TableCell>
                     <TableCell className="text-right font-bold">100.0000%</TableCell>
                     <TableCell></TableCell>

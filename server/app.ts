@@ -12,8 +12,8 @@ export function makeApp() {
   const app = express();
 
   // Security and hardening
-  app.disable('x-powered-by');
-  app.set('trust proxy', 1);
+  app['disable']('x-powered-by');
+  app['set']('trust proxy', 1);
 
   // Security headers with custom CSP
   // Use bracket notation for env vars to avoid TypeScript warnings
@@ -33,13 +33,13 @@ export function makeApp() {
   // Apply custom CSP header
   app.use((req: Request, res: Response, next: NextFunction) => {
     const headerName = isReportOnly ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
-    res.setHeader(headerName, cspHeader);
+    res['setHeader'](headerName, cspHeader);
     
     // Additional security headers
-    res.setHeader('Referrer-Policy', securityHeaders.referrerPolicy);
-    res.setHeader('X-Content-Type-Options', securityHeaders.xContentTypeOptions);
-    res.setHeader('X-Frame-Options', securityHeaders.xFrameOptions);
-    res.setHeader('X-XSS-Protection', securityHeaders.xXSSProtection);
+    res['setHeader']('Referrer-Policy', securityHeaders.referrerPolicy);
+    res['setHeader']('X-Content-Type-Options', securityHeaders.xContentTypeOptions);
+    res['setHeader']('X-Frame-Options', securityHeaders.xFrameOptions);
+    res['setHeader']('X-XSS-Protection', securityHeaders.xXSSProtection);
     
     next();
   });
@@ -48,15 +48,15 @@ export function makeApp() {
   const allow = (process.env['ALLOWED_ORIGINS'] || '')
     .split(',').map(s => s.trim()).filter(Boolean);
   app.use((req: Request, res: Response, next: NextFunction) => {
-    const origin = req.headers.origin as string | undefined;
+    const origin = req.headers['origin'] as string | undefined;
     const dev = process.env['NODE_ENV'] !== 'production';
     const ok = dev || (origin && allow.includes(origin));
     if (ok && origin) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-      res.setHeader('Vary', 'Origin');
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Access-Control-Allow-Headers', 'content-type, authorization, x-request-id');
-      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+      res['setHeader']('Access-Control-Allow-Origin', origin);
+      res['setHeader']('Vary', 'Origin');
+      res['setHeader']('Access-Control-Allow-Credentials', 'true');
+      res['setHeader']('Access-Control-Allow-Headers', 'content-type, authorization, x-request-id');
+      res['setHeader']('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
     }
     if (req.method === 'OPTIONS') return res.sendStatus(ok ? 200 : 403);
     if (!ok && origin) return res.sendStatus(403);
@@ -81,7 +81,7 @@ export function makeApp() {
   app.use(express.json({ limit: '256kb' }));
   app.use((req: Request, res: Response, next: NextFunction) => { 
     (req as any).rid = req.headers['x-request-id'] || crypto.randomUUID(); 
-    res.setHeader('x-request-id', (req as any).rid);
+    res['setHeader']('x-request-id', (req as any).rid);
     next(); 
   });
   app.use(rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true }));
@@ -95,8 +95,8 @@ export function makeApp() {
   }));
   
   // OpenAPI spec endpoint
-  app.get('/api-docs.json', (_req: Request, res: Response) => {
-    res.setHeader('Content-Type', 'application/json');
+  app['get']('/api-docs.json', (_req: Request, res: Response) => {
+    res['setHeader']('Content-Type', 'application/json');
     res.send(swaggerSpec);
   });
 
@@ -111,7 +111,7 @@ export function makeApp() {
   // Readiness and health endpoints moved to routes/health.ts to avoid duplication
 
   // API version endpoint for deployment verification
-  app.get('/api/version', (_req: Request, res: Response) => res.json({ 
+  app['get']('/api/version', (_req: Request, res: Response) => res.json({ 
     version: process.env['npm_package_version'] || '1.3.2',
     environment: process.env['NODE_ENV'] || 'development',
     commit: process.env['VERCEL_GIT_COMMIT_SHA'] || process.env['COMMIT_REF'] || 'local'

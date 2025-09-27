@@ -218,7 +218,7 @@ export class ExcelParityValidator {
     );
 
     for (const excelCompany of excelCompanies) {
-      const webAppCompany = webAppLookup.get(excelCompany.companyName);
+      const webAppCompany = webAppLookup['get'](excelCompany.companyName);
       
       if (!webAppCompany) {
         logger.warn(`Company ${excelCompany.companyName} not found in web app data`);
@@ -275,7 +275,7 @@ export class ExcelParityValidator {
     );
 
     for (const excelQuarter of excelTimeline) {
-      const webAppQuarter = webAppLookup.get(excelQuarter.quarter);
+      const webAppQuarter = webAppLookup['get'](excelQuarter.quarter);
       
       if (!webAppQuarter) {
         logger.warn(`Quarter ${excelQuarter.quarter} not found in web app data`);
@@ -519,7 +519,7 @@ export class ExcelParityValidator {
     }
 
     const averagePassRate = history.reduce(
-      (sum, result) => sum + result.overallParity.parityPercentage,
+      (sum: any, result: any) => sum + result.overallParity.parityPercentage,
       0
     ) / history.length;
 
@@ -527,8 +527,8 @@ export class ExcelParityValidator {
     let trendDirection: 'improving' | 'declining' | 'stable' = 'stable';
     if (history.length >= 3) {
       const recent = history.slice(-3).map(r => r.overallParity.parityPercentage);
-      const isImproving = recent[2] > recent[1] && recent[1] > recent[0];
-      const isDeclining = recent[2] < recent[1] && recent[1] < recent[0];
+      const isImproving = recent[2]! > recent[1]! && recent[1]! > recent[0]!;
+      const isDeclining = recent[2]! < recent[1]! && recent[1]! < recent[0]!;
       
       if (isImproving) trendDirection = 'improving';
       else if (isDeclining) trendDirection = 'declining';

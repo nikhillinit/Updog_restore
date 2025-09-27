@@ -145,7 +145,7 @@ export default function CustomFieldsManager({ fields, onFieldsChange, className 
                 <Input
                   id="field-name"
                   value={newField.name || ''}
-                  onChange={(e) => setNewField({ ...newField, name: e.target.value })}
+                  onChange={(e: any) => setNewField({ ...newField, name: e.target.value })}
                   placeholder="e.g., Internal Status"
                 />
               </div>
@@ -153,7 +153,7 @@ export default function CustomFieldsManager({ fields, onFieldsChange, className 
                 <Label htmlFor="field-type">Field Type</Label>
                 <Select
                   value={newField.type || 'text'}
-                  onValueChange={(value) => setNewField({ ...newField, type: value as CustomField['type'] })}
+                  onValueChange={(value: any) => setNewField({ ...newField, type: value as CustomField['type'] })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -194,7 +194,7 @@ export default function CustomFieldsManager({ fields, onFieldsChange, className 
             </div>
           ) : (
             <div className="space-y-4">
-              {fields.map((field) => (
+              {fields.map((field: any) => (
                 <div key={field.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
                   <div className="flex items-center space-x-4">
                     <div>
@@ -242,7 +242,7 @@ export default function CustomFieldsManager({ fields, onFieldsChange, className 
               <div className="border rounded-lg p-4 bg-gray-50">
                 <h4 className="font-medium mb-3">Custom Fields</h4>
                 <div className="space-y-3">
-                  {fields.map((field) => (
+                  {fields.map((field: any) => (
                     <div key={field.id} className="flex items-center justify-between">
                       <span className="text-sm font-medium text-gray-700">{field.name}</span>
                       <div className="flex items-center space-x-2">

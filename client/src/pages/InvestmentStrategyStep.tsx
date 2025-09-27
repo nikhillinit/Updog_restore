@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, ArrowLeft, ArrowRight, Edit, MoveUp, MoveDown } from "lucide-react";
-import { useFundSelector, useFundTuple, useFundAction } from '@/stores/useFundSelector';
 
 // Investment Stage interface
 interface InvestmentStage {
@@ -247,7 +245,7 @@ export default function InvestmentStrategyStep() {
                 </Button>
               </div>
 
-              {sectorProfiles.map((profile) => {
+              {sectorProfiles.map((profile: any) => {
                 const isEditing = editingProfile === profile.id;
                 console.log(`Profile ${profile.id}: isEditing = ${isEditing}, editingProfile = ${editingProfile}`);
                 
@@ -288,7 +286,7 @@ export default function InvestmentStrategyStep() {
                         
                         {/* Stages Summary */}
                         <div className="grid gap-2">
-                          {profile.stages.map((stage, index) => (
+                          {profile.stages.map((stage: any, index: any) => (
                             <div key={stage.id} className="grid grid-cols-8 gap-2 text-sm py-2 border-b">
                               <div className="font-medium">{stage.name}</div>
                               <div>${stage.roundSize}M</div>
@@ -321,7 +319,7 @@ export default function InvestmentStrategyStep() {
                           <Label>Profile Name</Label>
                           <Input
                             value={profile.name}
-                            onChange={(e) => handleUpdateProfile(profile.id, { name: e.target.value })}
+                            onChange={(e: any) => handleUpdateProfile(profile.id, { name: e.target.value })}
                             placeholder="e.g., FinTech, HealthTech, Enterprise SaaS"
                           />
                         </div>
@@ -356,11 +354,11 @@ export default function InvestmentStrategyStep() {
                         </div>
 
                         {/* Stages */}
-                        {profile.stages.map((stage, stageIndex) => (
+                        {profile.stages.map((stage: any, stageIndex: any) => (
                           <div key={stage.id} className="grid grid-cols-10 gap-2 items-center py-2 border-b">
                             <Input
                               value={stage.name}
-                              onChange={(e) => handleUpdateStage(profile.id, stage.id, { name: e.target.value })}
+                              onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { name: e.target.value })}
                               placeholder="Round name"
                               className="text-sm"
                             />
@@ -370,7 +368,7 @@ export default function InvestmentStrategyStep() {
                               min="0"
                               step="0.1"
                               value={stage.roundSize}
-                              onChange={(e) => handleUpdateStage(profile.id, stage.id, { roundSize: parseFloat(e.target.value) || 0 })}
+                              onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { roundSize: parseFloat(e.target.value) || 0 })}
                               className="text-sm"
                             />
                             
@@ -379,7 +377,7 @@ export default function InvestmentStrategyStep() {
                               min="0"
                               step="1"
                               value={stage.valuation}
-                              onChange={(e) => handleUpdateStage(profile.id, stage.id, { valuation: parseFloat(e.target.value) || 0 })}
+                              onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { valuation: parseFloat(e.target.value) || 0 })}
                               className="text-sm"
                             />
                             
@@ -402,7 +400,7 @@ export default function InvestmentStrategyStep() {
                               max="50"
                               step="1"
                               value={stage.esopPct}
-                              onChange={(e) => handleUpdateStage(profile.id, stage.id, { esopPct: parseFloat(e.target.value) || 0 })}
+                              onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { esopPct: parseFloat(e.target.value) || 0 })}
                               className="text-sm"
                             />
                             
@@ -412,7 +410,7 @@ export default function InvestmentStrategyStep() {
                               max="100"
                               step="1"
                               value={stage.graduationRate}
-                              onChange={(e) => {
+                              onChange={(e: any) => {
                                 const value = parseFloat(e.target.value) || 0;
                                 if (validateStageRates(value, stage.exitRate)) {
                                   handleUpdateStage(profile.id, stage.id, { graduationRate: value });
@@ -427,7 +425,7 @@ export default function InvestmentStrategyStep() {
                               max="100"
                               step="1"
                               value={stage.exitRate}
-                              onChange={(e) => {
+                              onChange={(e: any) => {
                                 const value = parseFloat(e.target.value) || 0;
                                 if (validateStageRates(stage.graduationRate, value)) {
                                   handleUpdateStage(profile.id, stage.id, { exitRate: value });
@@ -441,7 +439,7 @@ export default function InvestmentStrategyStep() {
                               min="0"
                               step="1"
                               value={stage.exitValuation}
-                              onChange={(e) => handleUpdateStage(profile.id, stage.id, { exitValuation: parseFloat(e.target.value) || 0 })}
+                              onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { exitValuation: parseFloat(e.target.value) || 0 })}
                               className="text-sm"
                             />
                             
@@ -451,7 +449,7 @@ export default function InvestmentStrategyStep() {
                               max="120"
                               step="1"
                               value={stage.monthsToGraduate}
-                              onChange={(e) => handleUpdateStage(profile.id, stage.id, { monthsToGraduate: parseInt(e.target.value) || 12 })}
+                              onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { monthsToGraduate: parseInt(e.target.value) || 12 })}
                               className="text-sm"
                             />
                             

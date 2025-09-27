@@ -23,18 +23,18 @@ class PerformanceBaseline {
    */
   trackRender(componentName: string, renderTime: number) {
     // Get or initialize render times array
-    const times = this.renderTimes.get(componentName) || [];
+    const times = this.renderTimes['get'](componentName) || [];
     times.push(renderTime);
-    this.renderTimes.set(componentName, times);
+    this.renderTimes['set'](componentName, times);
     
     // Update metrics
-    const existing = this.metrics.get(componentName);
+    const existing = this.metrics['get'](componentName);
     const renderCount = (existing?.renderCount || 0) + 1;
     
-    this.metrics.set(componentName, {
+    this.metrics['set'](componentName, {
       componentName,
       renderCount,
-      averageRenderTime: times.reduce((a, b) => a + b, 0) / times.length,
+      averageRenderTime: times.reduce((a: any, b: any) => a + b, 0) / times.length,
       maxRenderTime: Math.max(...times),
       minRenderTime: Math.min(...times),
       timestamp: new Date().toISOString()
@@ -45,7 +45,7 @@ class PerformanceBaseline {
    * Get metrics for a specific component
    */
   getMetrics(componentName: string): RenderMetrics | undefined {
-    return this.metrics.get(componentName);
+    return this.metrics['get'](componentName);
   }
   
   /**
@@ -81,7 +81,7 @@ class PerformanceBaseline {
     const improvements: string[] = [];
     
     for (const baselineMetric of baseline) {
-      const current = this.metrics.get(baselineMetric.componentName);
+      const current = this.metrics['get'](baselineMetric.componentName);
       if (!current) continue;
       
       // Check for render count regression (>10% increase)

@@ -146,9 +146,9 @@ export default function AllocationManager() {
   const allocationResults = calculatePreciseAllocation();
   const allocations: AllocationSummary[] = allocationResults.allocations;
 
-  const totalCapitalAllocated = allocations.reduce((sum, alloc) => sum + alloc.capitalAllocated, 0);
-  const totalInitialCapital = allocations.reduce((sum, alloc) => sum + alloc.initialCapital, 0);
-  const totalFollowOnCapital = allocations.reduce((sum, alloc) => sum + alloc.followOnCapital, 0);
+  const totalCapitalAllocated = allocations.reduce((sum: any, alloc: any) => sum + alloc.capitalAllocated, 0);
+  const totalInitialCapital = allocations.reduce((sum: any, alloc: any) => sum + alloc.initialCapital, 0);
+  const totalFollowOnCapital = allocations.reduce((sum: any, alloc: any) => sum + alloc.followOnCapital, 0);
   const averageReserveRatio = (totalFollowOnCapital / totalCapitalAllocated) * 100;
 
   const formatCurrency = (amount: number) => {
@@ -337,7 +337,7 @@ export default function AllocationManager() {
                   </tr>
                 </thead>
                 <tbody>
-                  {allocations.map((allocation) => (
+                  {allocations.map((allocation: any) => (
                     <tr key={allocation.id} className="border-b hover:bg-gray-50">
                       <td className="py-4 px-4">
                         <div>

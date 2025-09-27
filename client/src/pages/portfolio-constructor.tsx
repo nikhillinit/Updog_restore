@@ -3,14 +3,13 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
@@ -25,8 +24,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
   Area,
   AreaChart
 } from 'recharts';
@@ -38,20 +35,16 @@ import {
   Settings,
   Play,
   Save,
-  Copy,
   BarChart3,
   Calendar,
   DollarSign,
   Percent,
-  Users,
-  Building,
   Globe,
-  AlertTriangle,
-  CheckCircle
+  AlertTriangle
 } from 'lucide-react';
 import { StatCard, StatCardGrid } from '@/components/analytics/StatCard';
 import { useFundData } from '@/hooks/use-fund-data';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
 
 // Mock data and types
@@ -78,6 +71,7 @@ export interface PortfolioStrategy {
   id?: string;
   name: string;
   fundSize: number;
+  totalFundSize: number; // Alias for fundSize for backward compatibility
   deploymentPeriodMonths: number;
   targetPortfolioSize: number;
   checkSizes: CheckSizeConfig;
@@ -85,6 +79,11 @@ export interface PortfolioStrategy {
   stageAllocation: AllocationConfig;
   geographicAllocation: AllocationConfig;
   reservePercentage: number;
+  reserveRatio: number; // Alias for reservePercentage for backward compatibility
+  allocatedCapital?: number; // Optional property for tracking allocated capital
+  projectedIRR?: number; // Optional property for projected IRR
+  targetReturns?: number; // Optional property for target returns
+  riskScore?: number; // Optional property for risk score
   scenarios: ScenarioConfig[];
 }
 
@@ -117,6 +116,7 @@ export default function PortfolioConstructor() {
   const [strategy, setStrategy] = useState<PortfolioStrategy>({
     name: 'Default Strategy',
     fundSize: 50000000, // $50M
+    totalFundSize: 50000000, // Same as fundSize for backward compatibility
     deploymentPeriodMonths: 36,
     targetPortfolioSize: 25,
     checkSizes: {
@@ -142,6 +142,8 @@ export default function PortfolioConstructor() {
       'Asia-Pacific': 0.1
     },
     reservePercentage: 50,
+    reserveRatio: 0.5, // Convert percentage to ratio for backward compatibility
+    allocatedCapital: 0, // Initialize allocated capital
     scenarios: [
       {
         name: 'Base Case',
@@ -261,7 +263,22 @@ export default function PortfolioConstructor() {
 
   // Helper functions
   const updateStrategy = (field: keyof PortfolioStrategy, value: any) => {
-    setStrategy(prev => ({ ...prev, [field]: value }));
+    setStrategy(prev => {
+      const updated = { ...prev, [field]: value };
+
+      // Maintain consistency between original and alias properties
+      if (field === 'fundSize') {
+        updated.totalFundSize = value;
+      } else if (field === 'totalFundSize') {
+        updated.fundSize = value;
+      } else if (field === 'reservePercentage') {
+        updated.reserveRatio = value / 100; // Convert percentage to ratio
+      } else if (field === 'reserveRatio') {
+        updated.reservePercentage = value * 100; // Convert ratio to percentage
+      }
+
+      return updated;
+    });
   };
 
   const updateCheckSizes = (field: keyof CheckSizeConfig, value: number) => {
@@ -299,7 +316,7 @@ export default function PortfolioConstructor() {
     amount: strategy.fundSize * percentage
   }));
 
-  const deploymentScheduleData = Array.from({ length: strategy.deploymentPeriodMonths }, (_, i) => ({
+  const deploymentScheduleData = Array.from({ length: strategy.deploymentPeriodMonths }, (_: any, i: any) => ({
     month: i + 1,
     cumulative: (calculatedMetrics.initialCapital * (i + 1)) / strategy.deploymentPeriodMonths,
     quarterly: i % 3 === 2 ? calculatedMetrics.deploymentPerQuarter : 0
@@ -400,7 +417,7 @@ export default function PortfolioConstructor() {
                       id="fundSize"
                       type="number"
                       value={strategy.fundSize}
-                      onChange={(e) => updateStrategy('fundSize', Number(e.target.value))}
+                      onChange={(e: any) => updateStrategy('fundSize', Number(e.target.value))}
                       className="mt-1"
                     />
                   </div>
@@ -410,7 +427,7 @@ export default function PortfolioConstructor() {
                       id="portfolioSize"
                       type="number"
                       value={strategy.targetPortfolioSize}
-                      onChange={(e) => updateStrategy('targetPortfolioSize', Number(e.target.value))}
+                      onChange={(e: any) => updateStrategy('targetPortfolioSize', Number(e.target.value))}
                       className="mt-1"
                     />
                   </div>
@@ -422,7 +439,7 @@ export default function PortfolioConstructor() {
                     id="deploymentPeriod"
                     type="number"
                     value={strategy.deploymentPeriodMonths}
-                    onChange={(e) => updateStrategy('deploymentPeriodMonths', Number(e.target.value))}
+                    onChange={(e: any) => updateStrategy('deploymentPeriodMonths', Number(e.target.value))}
                     className="mt-1"
                   />
                 </div>
@@ -460,7 +477,7 @@ export default function PortfolioConstructor() {
                     id="minCheck"
                     type="number"
                     value={strategy.checkSizes.min}
-                    onChange={(e) => updateCheckSizes('min', Number(e.target.value))}
+                    onChange={(e: any) => updateCheckSizes('min', Number(e.target.value))}
                     className="mt-1"
                   />
                 </div>
@@ -470,7 +487,7 @@ export default function PortfolioConstructor() {
                     id="targetCheck"
                     type="number"
                     value={strategy.checkSizes.target}
-                    onChange={(e) => updateCheckSizes('target', Number(e.target.value))}
+                    onChange={(e: any) => updateCheckSizes('target', Number(e.target.value))}
                     className="mt-1"
                   />
                 </div>
@@ -480,7 +497,7 @@ export default function PortfolioConstructor() {
                     id="maxCheck"
                     type="number"
                     value={strategy.checkSizes.max}
-                    onChange={(e) => updateCheckSizes('max', Number(e.target.value))}
+                    onChange={(e: any) => updateCheckSizes('max', Number(e.target.value))}
                     className="mt-1"
                   />
                 </div>
@@ -517,14 +534,14 @@ export default function PortfolioConstructor() {
                         cy="50%"
                         outerRadius={80}
                         dataKey="value"
-                        label={({ name, value }) => `${name} ${formatPercentage(value)}`}
+                        label={({ name, value }) => `${name} ${formatPercentage(value || 0)}`}
                         labelLine={false}
                       >
-                        {sectorChartData.map((entry, index) => (
+                        {sectorChartData.map((entry: any, index: any) => (
                           <Cell key={`sector-${index}`} fill={SECTOR_COLORS[index % SECTOR_COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: number) => formatPercentage(value)} />
+                      <Tooltip formatter={(value: any) => formatPercentage(Number(value) || 0)} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -553,8 +570,8 @@ export default function PortfolioConstructor() {
                     <BarChart data={stageChartData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
-                      <YAxis tickFormatter={formatPercentage} />
-                      <Tooltip formatter={(value: number) => formatPercentage(value)} />
+                      <YAxis tickFormatter={(value: any) => formatPercentage(Number(value) || 0)} />
+                      <Tooltip formatter={(value: any) => formatPercentage(Number(value) || 0)} />
                       <Bar dataKey="value" fill="#3B82F6" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -606,7 +623,7 @@ export default function PortfolioConstructor() {
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex gap-2">
-                    {strategy.scenarios.map((scenario, index) => (
+                    {strategy.scenarios.map((scenario: any, index: any) => (
                       <Button
                         key={index}
                         variant={activeScenario === index ? "default" : "outline"}
@@ -712,7 +729,7 @@ export default function PortfolioConstructor() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {strategy.scenarios.map((scenario, index) => (
+                  {strategy.scenarios.map((scenario: any, index: any) => (
                     <div
                       key={index}
                       className={`p-4 rounded-lg border ${
@@ -847,7 +864,7 @@ export default function PortfolioConstructor() {
                   <AreaChart data={deploymentScheduleData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
-                    <YAxis tickFormatter={(value) => formatCurrency(value)} />
+                    <YAxis tickFormatter={(value: any) => formatCurrency(value)} />
                     <Tooltip formatter={(value: number) => formatCurrency(value)} />
                     <Area
                       type="monotone"

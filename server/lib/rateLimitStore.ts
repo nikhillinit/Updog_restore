@@ -10,7 +10,7 @@ import type { Store, Options } from 'express-rate-limit';
  * Allows switching between memory and Redis stores via environment
  */
 export async function createRateLimitStore(): Promise<Store | undefined> {
-  const redisUrl = process.env.RATE_LIMIT_REDIS_URL;
+  const redisUrl = process.env['RATE_LIMIT_REDIS_URL'];
   
   if (!redisUrl) {
     // Use default memory store
@@ -28,7 +28,7 @@ export async function createRateLimitStore(): Promise<Store | undefined> {
       lazyConnect: true
     });
     
-    await client.ping();
+    await client['ping']();
     console.log('✅ Rate limit Redis store connected');
     
     // Create a properly typed store

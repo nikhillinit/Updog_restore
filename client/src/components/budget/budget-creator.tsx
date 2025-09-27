@@ -98,8 +98,8 @@ export default function BudgetCreator({ fundSize = 200000000, onBudgetCreate, cl
     }
   ]);
 
-  const totalExpense = expenseCategories.reduce((sum, cat) => sum + cat.lifetimeExpense, 0);
-  const totalRatio = expenseCategories.reduce((sum, cat) => sum + cat.expenseRatio, 0);
+  const totalExpense = expenseCategories.reduce((sum: any, cat: any) => sum + cat.lifetimeExpense, 0);
+  const totalRatio = expenseCategories.reduce((sum: any, cat: any) => sum + cat.expenseRatio, 0);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -202,7 +202,7 @@ export default function BudgetCreator({ fundSize = 200000000, onBudgetCreate, cl
                 </tr>
               </thead>
               <tbody>
-                {expenseCategories.map((category) => (
+                {expenseCategories.map((category: any) => (
                   <tr key={category.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <div className="flex items-center space-x-2">
@@ -219,7 +219,7 @@ export default function BudgetCreator({ fundSize = 200000000, onBudgetCreate, cl
                         <Input
                           type="number"
                           value={category.lifetimeExpense}
-                          onChange={(e) => handleExpenseChange(category.id, 'lifetimeExpense', parseFloat(e.target.value) || 0)}
+                          onChange={(e: any) => handleExpenseChange(category.id, 'lifetimeExpense', parseFloat(e.target.value) || 0)}
                           className="w-32 bg-yellow-50 border-yellow-300"
                         />
                       </div>
@@ -234,7 +234,7 @@ export default function BudgetCreator({ fundSize = 200000000, onBudgetCreate, cl
                         <Input
                           type="number"
                           value={category.term}
-                          onChange={(e) => handleExpenseChange(category.id, 'term', parseInt(e.target.value) || 1)}
+                          onChange={(e: any) => handleExpenseChange(category.id, 'term', parseInt(e.target.value) || 1)}
                           className="w-16 bg-yellow-50 border-yellow-300"
                         />
                         <span className="text-gray-500 text-sm">months</span>
@@ -283,7 +283,7 @@ export default function BudgetCreator({ fundSize = 200000000, onBudgetCreate, cl
                   <Input
                     id="category-name"
                     value={newExpenseCategory}
-                    onChange={(e) => setNewExpenseCategory(e.target.value)}
+                    onChange={(e: any) => setNewExpenseCategory(e.target.value)}
                     placeholder="e.g., Marketing"
                     className="mt-1"
                   />
@@ -295,7 +295,7 @@ export default function BudgetCreator({ fundSize = 200000000, onBudgetCreate, cl
                     id="expense-amount"
                     type="number"
                     value={newExpenseAmount}
-                    onChange={(e) => setNewExpenseAmount(e.target.value)}
+                    onChange={(e: any) => setNewExpenseAmount(e.target.value)}
                     placeholder="0"
                     className="mt-1"
                   />
@@ -307,7 +307,7 @@ export default function BudgetCreator({ fundSize = 200000000, onBudgetCreate, cl
                     id="expense-term"
                     type="number"
                     value={newExpenseTerm}
-                    onChange={(e) => setNewExpenseTerm(e.target.value)}
+                    onChange={(e: any) => setNewExpenseTerm(e.target.value)}
                     placeholder="120"
                     className="mt-1"
                   />

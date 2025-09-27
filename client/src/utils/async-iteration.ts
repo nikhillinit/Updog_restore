@@ -45,7 +45,7 @@ export async function processAsync<T>(
     if (batchSize >= items.length) {
       // Process all items in parallel
       if (continueOnError) {
-        const results = await Promise.allSettled(items.map((item, index) => processor(item, index)));
+        const results = await Promise.allSettled(items.map((item: any, index: any) => processor(item, index)));
         // Handle errors from Promise.allSettled
         for (let i = 0; i < results.length; i++) {
           const result = results[i];
@@ -54,7 +54,7 @@ export async function processAsync<T>(
           }
         }
       } else {
-        await Promise.all(items.map((item, index) => processor(item, index)));
+        await Promise.all(items.map((item: any, index: any) => processor(item, index)));
       }
     } else {
       // Process in batches
@@ -90,7 +90,7 @@ async function processBatches<T>(
     try {
       if (continueOnError) {
         const results = await Promise.allSettled(
-          batch.map((item, batchIndex) => processor(item, batchStart + batchIndex))
+          batch.map((item: any, batchIndex: any) => processor(item, batchStart + batchIndex))
         );
         
         for (let i = 0; i < results.length; i++) {
@@ -101,7 +101,7 @@ async function processBatches<T>(
         }
       } else {
         await Promise.all(
-          batch.map((item, batchIndex) => processor(item, batchStart + batchIndex))
+          batch.map((item: any, batchIndex: any) => processor(item, batchStart + batchIndex))
         );
       }
     } catch (error) {
@@ -166,7 +166,7 @@ export async function mapAsync<T, R>(
     for (let i = 0; i < items.length; i += batchSize) {
       const batch = items.slice(i, i + batchSize);
       const batchResults = await Promise.all(
-        batch.map((item, batchIndex) => callback(item, i + batchIndex, items))
+        batch.map((item: any, batchIndex: any) => callback(item, i + batchIndex, items))
       );
       results.push(...batchResults);
       
@@ -203,7 +203,7 @@ export async function filterAsync<T>(
   if (!Array.isArray(items)) return [];
   
   const results = await mapAsync(items, predicate);
-  return items.filter((_, index) => results[index]);
+  return items.filter((_: any, index: any) => results[index]);
 }
 
 /**

@@ -66,7 +66,7 @@ export function computeFromCapital_v2(i: CapitalFirstInputsV2): CapitalFirstResu
   const warn: string[] = [];
   
   // Validation
-  const allocSum = Object.values(i.allocationPctByStage).reduce((a, b) => a + b, 0);
+  const allocSum = Object.values(i.allocationPctByStage).reduce((a: any, b: any) => a + b, 0);
   if (Math.abs(allocSum - 100) > 0.01) {
     warn.push('Allocations must sum to 100%.');
   }
@@ -78,7 +78,7 @@ export function computeFromCapital_v2(i: CapitalFirstInputsV2): CapitalFirstResu
 
   // Build rule lookup
   const ruleMap = new Map<StageKey, FollowOnRule>();
-  i.followOnRules.forEach(r => ruleMap.set(r.from, r));
+  i.followOnRules.forEach(r => ruleMap['set'](r.from, r));
 
   const initialInvestmentsByStage: Record<StageKey, number> = {
     preseed: 0, seed: 0, seriesA: 0, seriesBplus: 0
@@ -96,7 +96,7 @@ export function computeFromCapital_v2(i: CapitalFirstInputsV2): CapitalFirstResu
     const c_s = Math.max(1, i.initialCheckByStage[s] ?? 0);
 
     // Transition config
-    const rule = ruleMap.get(s);
+    const rule = ruleMap['get'](s);
     const to = rule?.to ?? nextStage(s);
     let g_s = 0;    // Effective graduation × participation (0..1)
     let f_s = 0;    // $ follow-on per graduating deal actually executed
@@ -131,7 +131,7 @@ export function computeFromCapital_v2(i: CapitalFirstInputsV2): CapitalFirstResu
     followOnSpendByStage[s] = n_s * g_s * f_s;
   });
 
-  const followOnReserveDemand = Object.values(followOnSpendByStage).reduce((a, b) => a + b, 0);
+  const followOnReserveDemand = Object.values(followOnSpendByStage).reduce((a: any, b: any) => a + b, 0);
   const impliedReserveRatioPct = (followOnReserveDemand / Math.max(1, grossInvestable)) * 100;
 
   return {
@@ -192,7 +192,7 @@ export function validateCapitalFirstInputs(inputs: CapitalFirstInputsV2): string
   }
 
   // Check allocation percentages
-  const allocSum = Object.values(inputs.allocationPctByStage).reduce((a, b) => a + b, 0);
+  const allocSum = Object.values(inputs.allocationPctByStage).reduce((a: any, b: any) => a + b, 0);
   if (Math.abs(allocSum - 100) > 0.01) {
     errors.push(`Allocations must sum to 100% (currently ${allocSum.toFixed(1)}%)`);
   }
@@ -214,7 +214,7 @@ export function validateCapitalFirstInputs(inputs: CapitalFirstInputsV2): string
   });
 
   // Check graduation percentages with Tactyc-style constraints
-  StageOrder.forEach((stage, index) => {
+  StageOrder.forEach((stage: any, index: any) => {
     const grad = inputs.graduationPctByStage[stage];
     if (grad !== undefined) {
       if (grad < 0 || grad > 100) {
@@ -229,7 +229,7 @@ export function validateCapitalFirstInputs(inputs: CapitalFirstInputsV2): string
   });
 
   // Validate follow-on rules
-  inputs.followOnRules.forEach((rule, index) => {
+  inputs.followOnRules.forEach((rule: any, index: any) => {
     if (rule.participationPct < 0 || rule.participationPct > 100) {
       errors.push(`Follow-on rule ${index + 1}: participation rate must be between 0% and 100%`);
     }
@@ -278,7 +278,7 @@ export function validateCapitalFirstInputs(inputs: CapitalFirstInputsV2): string
 export function hasCriticalErrors(inputs: CapitalFirstInputsV2): boolean {
   if (inputs.totalCommitment <= 0) return true;
 
-  const allocSum = Object.values(inputs.allocationPctByStage).reduce((a, b) => a + b, 0);
+  const allocSum = Object.values(inputs.allocationPctByStage).reduce((a: any, b: any) => a + b, 0);
   if (Math.abs(allocSum - 100) > 0.01) return true;
 
   // Check for any non-positive initial checks
@@ -352,8 +352,8 @@ export function calculateCapitalBalance(result: CapitalFirstResultV2): {
   utilizationRate: number;
   surplus: number;
 } {
-  const totalInitialSpend = Object.values(result.initialSpendByStage).reduce((a, b) => a + b, 0);
-  const totalFollowOnSpend = Object.values(result.followOnSpendByStage).reduce((a, b) => a + b, 0);
+  const totalInitialSpend = Object.values(result.initialSpendByStage).reduce((a: any, b: any) => a + b, 0);
+  const totalFollowOnSpend = Object.values(result.followOnSpendByStage).reduce((a: any, b: any) => a + b, 0);
   const totalCapitalDeployed = totalInitialSpend + totalFollowOnSpend;
 
   const utilizationRate = result.grossInvestable > 0 ?

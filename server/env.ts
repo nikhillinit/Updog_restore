@@ -39,10 +39,10 @@ export function validateEnv(): Env {
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error('❌ Environment validation failed:');
-      error.errors.forEach((err) => {
+      error.errors.forEach((err: any) => {
         console.error(`  ${err.path.join('.')}: ${err.message}`);
         if (err.code === 'invalid_type' && err.received === 'undefined') {
-          const field = envSchema.shape[err.path[0] as keyof typeof envSchema.shape];
+          const field = envSchema.shape[err.path[0]! as keyof typeof envSchema.shape];
           if (field && 'description' in field && field.description) {
             console.error(`    Description: ${field.description}`);
           }

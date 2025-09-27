@@ -99,15 +99,15 @@ export function corsMiddleware(allowedOrigins?: string[]) {
     const origin = req.headers.origin;
     
     if (!origin || origins.length === 0 || origins.includes(origin)) {
-      res.setHeader('Access-Control-Allow-Origin', origin || '*');
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Authorization,Content-Type,X-Requested-With');
-      res.setHeader('Access-Control-Max-Age', '86400');
+      res['setHeader']('Access-Control-Allow-Origin', origin || '*');
+      res['setHeader']('Access-Control-Allow-Credentials', 'true');
+      res['setHeader']('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+      res['setHeader']('Access-Control-Allow-Headers', 'Authorization,Content-Type,X-Requested-With');
+      res['setHeader']('Access-Control-Max-Age', '86400');
     }
     
     // Always set Vary header for proper caching
-    res.setHeader('Vary', 'Origin');
+    res['setHeader']('Vary', 'Origin');
     
     if (req.method === 'OPTIONS') {
       res.status(204).end();

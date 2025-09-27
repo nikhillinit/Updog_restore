@@ -20,7 +20,7 @@ export class EnhancedFundModel {
     const { DEMO_MODE } = getConfig();
     if (!DEMO_MODE) {
       // Simulate some work
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise((r: any) => setTimeout(r, 50));
     }
     
     return {

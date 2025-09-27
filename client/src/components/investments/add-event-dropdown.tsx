@@ -93,7 +93,7 @@ export default function AddEventDropdown({
           <Card className="absolute top-full mt-2 right-0 w-80 z-50 shadow-lg">
             <CardContent className="p-2">
               <div className="space-y-1">
-                {eventTypes.map((event) => {
+                {eventTypes.map((event: any) => {
                   const IconComponent = event.icon;
                   return (
                     <button

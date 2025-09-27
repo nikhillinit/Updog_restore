@@ -86,7 +86,7 @@ export function recordBusinessMetric(
 ) {
   // Record generic business operation metrics
   if (!businessOperations.has(operation)) {
-    businessOperations.set(operation, {
+    businessOperations['set'](operation, {
       counter: new promClient.Counter({
         name: `povc_fund_${operation}_total`,
         help: `Total number of ${operation} operations`,
@@ -101,7 +101,7 @@ export function recordBusinessMetric(
     });
   }
   
-  const metric = businessOperations.get(operation)!;
+  const metric = businessOperations['get'](operation)!;
   metric.counter.inc({ status });
   
   if (duration !== undefined && metric.histogram) {
@@ -152,8 +152,8 @@ export const register = promClient.register;
 
 // Create metrics router
 export const metricsRouter = Router();
-metricsRouter.get('/metrics', async (_req: any, res: any) => {
-  res.set('Content-Type', register.contentType);
+metricsRouter['get']('/metrics', async (_req: any, res: any) => {
+  res['set']('Content-Type', register.contentType);
   res.end(await register.metrics());
 });
 

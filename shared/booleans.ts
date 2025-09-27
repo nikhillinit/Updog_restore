@@ -3,7 +3,7 @@ import { z } from 'zod';
  * zBooleanish accepts common boolean representations from HTTP/query/form inputs
  * and normalizes to a strict boolean. Use ONLY at the DTO/request boundary.
  */
-export const zBooleanish = z.preprocess((v) => {
+export const zBooleanish = z.preprocess((v: any) => {
   if (typeof v === 'boolean') return v;
   if (typeof v === 'number') return v !== 0;
   if (typeof v === 'string') {

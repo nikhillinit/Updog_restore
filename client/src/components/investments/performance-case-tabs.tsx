@@ -207,7 +207,7 @@ export default function PerformanceCaseTabs({ investment }: PerformanceCaseTabsP
     }
   ];
 
-  const currentCase = performanceCases.find(c => c.id === activeCase) || performanceCases[0];
+  const currentCase = performanceCases.find(c => c.id === activeCase) || performanceCases[0]!;
 
   const handleLiqPrefs = (performanceCase: PerformanceCase) => {
     setSelectedCase(performanceCase);
@@ -225,7 +225,7 @@ export default function PerformanceCaseTabs({ investment }: PerformanceCaseTabsP
       {/* Performance Case Tabs */}
       <Tabs value={activeCase} onValueChange={setActiveCase} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          {performanceCases.map((performanceCase) => (
+          {performanceCases.map((performanceCase: any) => (
             <TabsTrigger 
               key={performanceCase.id} 
               value={performanceCase.id}
@@ -242,7 +242,7 @@ export default function PerformanceCaseTabs({ investment }: PerformanceCaseTabsP
         </TabsList>
 
         {/* Tab Content for each Performance Case */}
-        {performanceCases.map((performanceCase) => (
+        {performanceCases.map((performanceCase: any) => (
           <TabsContent key={performanceCase.id} value={performanceCase.id} className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -270,7 +270,7 @@ export default function PerformanceCaseTabs({ investment }: PerformanceCaseTabsP
 
             {/* Rounds Display */}
             <div className="space-y-3">
-              {performanceCase.rounds.map((round) => {
+              {performanceCase.rounds.map((round: any) => {
                 const IconComponent = getRoundIcon(round);
                 return (
                   <Card key={round.id} className="border-l-4 border-l-blue-500">

@@ -51,7 +51,7 @@ function generateMockCompanies(cohortSize: number, _vintageYear: number) {
   const companyPrefixes = ['Tech', 'Data', 'Cloud', 'Smart', 'Digital', 'Next'];
   const companySuffixes = ['Corp', 'Inc', 'Labs', 'Systems', 'Solutions', 'Technologies'];
   
-  return Array.from({ length: cohortSize }, (_, i) => {
+  return Array.from({ length: cohortSize }, (_: any, i: any) => {
     const baseValuation = 1000000 + (Math.random() * 50000000); // $1M - $51M
     const growthFactor = Math.pow(1.5, Math.random() * 3); // 1.0x - 3.375x growth
     
@@ -178,11 +178,11 @@ export function generateCohortSummary(input: CohortInput): CohortSummary {
   
   const totalCompanies = cohortOutput.companies.length;
   const avgValuation = totalCompanies > 0 
-    ? reduce(cohortOutput.companies, (sum, company) => sum + company.valuation, 0) / totalCompanies
+    ? reduce(cohortOutput.companies, (sum: any, company: any) => sum + company.valuation, 0) / totalCompanies
     : 0;
   
   // Calculate stage distribution
-  const stageDistribution = reduce(cohortOutput.companies, (acc, company) => {
+  const stageDistribution = reduce(cohortOutput.companies, (acc: any, company: any) => {
     acc[company.stage] = (acc[company.stage] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
@@ -228,15 +228,15 @@ export function compareCohorts(cohorts: CohortInput[]): {
   const cohortSummaries = map(cohorts, generateCohortSummary);
   
   // Find best performing cohort by IRR  
-  const bestPerforming = reduce(cohortSummaries.slice(1), (best, current) =>
+  const bestPerforming = reduce(cohortSummaries.slice(1), (best: any, current: any) =>
     current.performance.irr > best.performance.irr ? current : best,
     cohortSummaries[0]
   );
   
   // Calculate aggregate metrics
-  const avgIRR = reduce(cohortSummaries, (sum, cohort) => sum + cohort.performance.irr, 0) / cohortSummaries.length;
-  const avgMultiple = reduce(cohortSummaries, (sum, cohort) => sum + cohort.performance.multiple, 0) / cohortSummaries.length;
-  const totalCompanies = reduce(cohortSummaries, (sum, cohort) => sum + cohort.totalCompanies, 0);
+  const avgIRR = reduce(cohortSummaries, (sum: any, cohort: any) => sum + cohort.performance.irr, 0) / cohortSummaries.length;
+  const avgMultiple = reduce(cohortSummaries, (sum: any, cohort: any) => sum + cohort.performance.multiple, 0) / cohortSummaries.length;
+  const totalCompanies = reduce(cohortSummaries, (sum: any, cohort: any) => sum + cohort.totalCompanies, 0);
   
   return {
     cohorts: cohortSummaries,

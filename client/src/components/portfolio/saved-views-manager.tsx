@@ -210,17 +210,17 @@ export default function SavedViewsManager({
               <Input
                 placeholder="View name (required)"
                 value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e: any) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               />
               <Input
                 placeholder="Description (optional)"
                 value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e: any) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               />
               <Textarea
                 placeholder="Analysis notes and insights..."
                 value={formData.notes}
-                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                onChange={(e: any) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                 rows={3}
               />
               <div className="flex justify-end space-x-2">
@@ -242,7 +242,7 @@ export default function SavedViewsManager({
           <Input
             placeholder="Search saved views..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e: any) => setSearchTerm(e.target.value)}
           />
         </div>
         {allTags.length > 0 && (
@@ -285,7 +285,7 @@ export default function SavedViewsManager({
             </CardContent>
           </Card>
         ) : (
-          filteredViews.map((view) => {
+          filteredViews.map((view: any) => {
             const ChartIcon = getChartTypeIcon(view.chartType);
             return (
               <Card key={view.id} className="hover:shadow-md transition-shadow">
@@ -412,17 +412,17 @@ export default function SavedViewsManager({
             <Input
               placeholder="View name (required)"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e: any) => setFormData(prev => ({ ...prev, name: e.target.value }))}
             />
             <Input
               placeholder="Description (optional)"
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e: any) => setFormData(prev => ({ ...prev, description: e.target.value }))}
             />
             <Textarea
               placeholder="Analysis notes and insights..."
               value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              onChange={(e: any) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               rows={3}
             />
             <div className="flex justify-end space-x-2">

@@ -131,7 +131,7 @@ export default function GraduationRateStrategy() {
     let totalFollowOnCapital = 0;
     let totalFollowOnInvestments = 0;
     
-    const calculatedRates = baseGraduationRates.map((round, index) => {
+    const calculatedRates = baseGraduationRates.map((round: any, index: any) => {
       // Calculate companies reaching this round
       const companiesReachingRound = Math.round(remainingCompanies * round.graduationRate);
       
@@ -191,7 +191,7 @@ export default function GraduationRateStrategy() {
       let remainingCompanies = portfolioSize;
       let totalFollowOn = 0;
       
-      forEach(randomizedRates, (round, index) => {
+      forEach(randomizedRates, (round: any, index: any) => {
         const companiesReachingRound = Math.round(remainingCompanies * round.graduationRate);
         let currentOwnership = initialOwnership;
         
@@ -224,8 +224,8 @@ export default function GraduationRateStrategy() {
   const monteCarloResults = generateMonteCarloData();
   
   // Monte Carlo statistics
-  const meanFollowOn = monteCarloResults.reduce((sum, r) => sum + r.followOnCapital, 0) / monteCarloResults.length;
-  const meanFundSize = monteCarloResults.reduce((sum, r) => sum + r.optimalFundSize, 0) / monteCarloResults.length;
+  const meanFollowOn = monteCarloResults.reduce((sum: any, r: any) => sum + r.followOnCapital, 0) / monteCarloResults.length;
+  const meanFundSize = monteCarloResults.reduce((sum: any, r: any) => sum + r.optimalFundSize, 0) / monteCarloResults.length;
   
   const formatCurrency = (amount: number) => {
     if (amount >= 1000000) return `$${(amount / 1000000).toFixed(1)}M`;
@@ -336,7 +336,7 @@ export default function GraduationRateStrategy() {
                     id="portfolio-size"
                     type="number"
                     value={portfolioSize}
-                    onChange={(e) => setPortfolioSize(parseInt(e.target.value) || 40)}
+                    onChange={(e: any) => setPortfolioSize(parseInt(e.target.value) || 40)}
                     className="bg-yellow-50 border-yellow-300"
                   />
                   <p className="text-xs text-gray-500">Number of companies</p>
@@ -348,7 +348,7 @@ export default function GraduationRateStrategy() {
                     id="initial-ownership"
                     type="number"
                     value={initialOwnership}
-                    onChange={(e) => setInitialOwnership(parseFloat(e.target.value) || 10)}
+                    onChange={(e: any) => setInitialOwnership(parseFloat(e.target.value) || 10)}
                     className="bg-yellow-50 border-yellow-300"
                   />
                   <p className="text-xs text-gray-500">Target ownership at seed</p>
@@ -360,7 +360,7 @@ export default function GraduationRateStrategy() {
                     id="seed-valuation"
                     type="number"
                     value={seedValuation}
-                    onChange={(e) => setSeedValuation(parseInt(e.target.value) || 12000000)}
+                    onChange={(e: any) => setSeedValuation(parseInt(e.target.value) || 12000000)}
                     className="bg-yellow-50 border-yellow-300"
                   />
                   <p className="text-xs text-gray-500">Post-money valuation</p>
@@ -373,7 +373,7 @@ export default function GraduationRateStrategy() {
                     type="number"
                     step="0.1"
                     value={managementFee}
-                    onChange={(e) => setManagementFee(parseFloat(e.target.value) || 2)}
+                    onChange={(e: any) => setManagementFee(parseFloat(e.target.value) || 2)}
                     className="bg-yellow-50 border-yellow-300"
                   />
                   <p className="text-xs text-gray-500">Annual management fee</p>
@@ -396,10 +396,10 @@ export default function GraduationRateStrategy() {
                   <BarChart data={strategy.calculatedRates}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="round" />
-                    <YAxis tickFormatter={(value) => formatCurrency(value)} />
+                    <YAxis tickFormatter={(value: any) => formatCurrency(value)} />
                     <Tooltip 
                       formatter={(value: number) => [formatCurrency(value), "Follow-On Capital"]}
-                      labelFormatter={(label) => `Round: ${label}`}
+                      labelFormatter={(label: any) => `Round: ${label}`}
                     />
                     <Bar dataKey="totalFollowOn" fill="#3b82f6" />
                   </BarChart>
@@ -433,7 +433,7 @@ export default function GraduationRateStrategy() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {strategy.calculatedRates.map((row, index) => (
+                  {strategy.calculatedRates.map((row: any, index: any) => (
                     <TableRow key={index}>
                       <TableCell className="font-medium">{row.round}</TableCell>
                       <TableCell>
@@ -552,7 +552,7 @@ export default function GraduationRateStrategy() {
                   <AreaChart data={monteCarloResults.slice(0, 100)}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="simulation" />
-                    <YAxis tickFormatter={(value) => formatCurrency(value)} />
+                    <YAxis tickFormatter={(value: any) => formatCurrency(value)} />
                     <Tooltip 
                       formatter={(value: number) => [formatCurrency(value), "Follow-On Capital"]}
                     />

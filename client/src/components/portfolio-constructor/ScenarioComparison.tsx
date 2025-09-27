@@ -146,7 +146,7 @@ export function ScenarioComparison({
 
   // Generate time series data for comparison
   const timeSeriesData = useMemo(() => {
-    const years = Array.from({ length: 8 }, (_, i) => i);
+    const years = Array.from({ length: 8 }, (_: any, i: any) => i);
 
     return years.map(year => {
       const dataPoint: any = { year: `Y${year}` };
@@ -382,7 +382,7 @@ export function ScenarioComparison({
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={(e) => {
+                    onClick={(e: any) => {
                       e.stopPropagation();
                       duplicateScenario(scenario.id);
                     }}
@@ -395,7 +395,7 @@ export function ScenarioComparison({
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={(e) => {
+                      onClick={(e: any) => {
                         e.stopPropagation();
                         removeScenario(scenario.id);
                       }}
@@ -408,7 +408,7 @@ export function ScenarioComparison({
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={(e) => {
+                    onClick={(e: any) => {
                       e.stopPropagation();
                       applyScenario(scenario.id);
                     }}
@@ -439,7 +439,7 @@ export function ScenarioComparison({
                     <Input
                       id="scenario-name"
                       value={selectedScenarioData.name}
-                      onChange={(e) => {
+                      onChange={(e: any) => {
                         setScenarios(prev => prev.map(s =>
                           s.id === selectedScenario
                             ? { ...s, name: e.target.value }
@@ -454,7 +454,7 @@ export function ScenarioComparison({
                     <Input
                       id="scenario-description"
                       value={selectedScenarioData.description}
-                      onChange={(e) => {
+                      onChange={(e: any) => {
                         setScenarios(prev => prev.map(s =>
                           s.id === selectedScenario
                             ? { ...s, description: e.target.value }
@@ -512,7 +512,7 @@ export function ScenarioComparison({
                       <div className="space-y-2">
                         <Slider
                           value={[selectedScenarioData.parameters.reserveRatio * 100]}
-                          onValueChange={([value]) => updateScenarioParameter(selectedScenario, 'reserveRatio', value / 100)}
+                          onValueChange={([value]) => updateScenarioParameter(selectedScenario, 'reserveRatio', (value ?? 0) / 100)}
                           max={50}
                           step={2.5}
                           disabled={selectedScenarioData.isBaseline}
@@ -528,7 +528,7 @@ export function ScenarioComparison({
                       <Label>Sector Focus</Label>
                       <Select
                         value={selectedScenarioData.parameters.sectorFocus}
-                        onValueChange={(value) => updateScenarioParameter(selectedScenario, 'sectorFocus', value)}
+                        onValueChange={(value: any) => updateScenarioParameter(selectedScenario, 'sectorFocus', value)}
                         disabled={selectedScenarioData.isBaseline}
                       >
                         <SelectTrigger>
@@ -595,7 +595,7 @@ export function ScenarioComparison({
                 <LineChart data={timeSeriesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="year" />
-                  <YAxis tickFormatter={(value) => `${value.toFixed(1)}x`} />
+                  <YAxis tickFormatter={(value: any) => `${value.toFixed(1)}x`} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
                   {scenarios.map(scenario => (

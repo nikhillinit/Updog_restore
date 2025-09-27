@@ -274,8 +274,8 @@ export class MonteCarloSimulationService {
       };
     }
 
-    const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
-    const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
+    const mean = values.reduce((sum: any, v: any) => sum + v, 0) / values.length;
+    const variance = values.reduce((sum: any, v: any) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
     const standardDeviation = Math.sqrt(variance);
 
     // Calculate skewness and kurtosis for distribution selection
@@ -503,7 +503,7 @@ export class MonteCarloSimulationService {
     }
 
     // Find optimal allocation
-    const optimalScenario = reserveScenarios.reduce((best, current) =>
+    const optimalScenario = reserveScenarios.reduce((best: any, current: any) =>
       current.riskAdjustedReturn > best.riskAdjustedReturn ? current : best
     );
 
@@ -526,9 +526,9 @@ export class MonteCarloSimulationService {
    * Calculate simulation result with percentiles and statistics
    */
   private calculateSimulationResult(metric: string, values: number[], confidenceIntervals: number[]): SimulationResult {
-    const sortedValues = values.slice().sort((a, b) => a - b);
-    const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
-    const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
+    const sortedValues = values.slice().sort((a: any, b: any) => a - b);
+    const mean = values.reduce((sum: any, v: any) => sum + v, 0) / values.length;
+    const variance = values.reduce((sum: any, v: any) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
     const standardDeviation = Math.sqrt(variance);
 
     // Calculate percentiles
@@ -583,7 +583,7 @@ export class MonteCarloSimulationService {
     const valueAtRisk: Record<number, number> = {};
     [5, 10, 25].forEach(confidence => {
       const index = Math.floor((confidence / 100) * totalValueScenarios.length);
-      valueAtRisk[confidence] = totalValueScenarios.sort((a, b) => a - b)[index];
+      valueAtRisk[confidence] = totalValueScenarios.sort((a: any, b: any) => a - b)[index];
     });
 
     // Expected Shortfall (Conditional VaR) - expected loss beyond VaR
@@ -591,7 +591,7 @@ export class MonteCarloSimulationService {
     [5, 10, 25].forEach(confidence => {
       const varValue = valueAtRisk[confidence];
       const tailLosses = totalValueScenarios.filter(v => v <= varValue);
-      expectedShortfall[confidence] = tailLosses.reduce((sum, v) => sum + v, 0) / tailLosses.length;
+      expectedShortfall[confidence] = tailLosses.reduce((sum: any, v: any) => sum + v, 0) / tailLosses.length;
     });
 
     // Probability of loss
@@ -601,7 +601,7 @@ export class MonteCarloSimulationService {
     // Downside deviation
     const downsideVariance = irrScenarios
       .filter(v => v < simulationResults.irr.mean)
-      .reduce((sum, v) => sum + Math.pow(v - simulationResults.irr.mean, 2), 0) / irrScenarios.length;
+      .reduce((sum: any, v: any) => sum + Math.pow(v - simulationResults.irr.mean, 2), 0) / irrScenarios.length;
     const downsideviation = Math.sqrt(downsideVariance);
 
     return {
@@ -656,13 +656,13 @@ export class MonteCarloSimulationService {
   // Statistical utility functions
   private calculateSkewness(values: number[], mean: number, stdDev: number): number {
     const n = values.length;
-    const skew = values.reduce((sum, v) => sum + Math.pow((v - mean) / stdDev, 3), 0) / n;
+    const skew = values.reduce((sum: any, v: any) => sum + Math.pow((v - mean) / stdDev, 3), 0) / n;
     return skew;
   }
 
   private calculateKurtosis(values: number[], mean: number, stdDev: number): number {
     const n = values.length;
-    const kurt = values.reduce((sum, v) => sum + Math.pow((v - mean) / stdDev, 4), 0) / n;
+    const kurt = values.reduce((sum: any, v: any) => sum + Math.pow((v - mean) / stdDev, 4), 0) / n;
     return kurt - 3; // Excess kurtosis
   }
 
@@ -740,7 +740,7 @@ export class MonteCarloSimulationService {
 
   private generateSectorScenarios(companies: any[], scenarios: number): number[] {
     return Array(scenarios).fill(0).map(() =>
-      companies.reduce((sum, company) => {
+      companies.reduce((sum: any, company: any) => {
         const performance = this.sampleNormal(0.15, 0.25); // 15% mean return, 25% volatility
         return sum + performance;
       }, 0) / companies.length
@@ -758,7 +758,7 @@ export class MonteCarloSimulationService {
     };
 
     return Array(scenarios).fill(0).map(() =>
-      companies.reduce((sum, company) => {
+      companies.reduce((sum: any, company: any) => {
         const volatility = stageVolatility[company.stage] || 0.3;
         const performance = this.sampleNormal(0.15, volatility);
         return sum + performance;
@@ -775,7 +775,7 @@ export class MonteCarloSimulationService {
       return Math.min(reserveAmount / followOnNeed, 1.0);
     });
 
-    return coverageScenarios.reduce((sum, v) => sum + v, 0) / coverageScenarios.length;
+    return coverageScenarios.reduce((sum: any, v: any) => sum + v, 0) / coverageScenarios.length;
   }
 
   private calculateRiskAdjustedReturn(allocation: number, simulationResults: Record<string, SimulationResult>): number {

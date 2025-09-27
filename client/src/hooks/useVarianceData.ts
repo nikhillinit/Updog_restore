@@ -103,9 +103,9 @@ export function useBaselines(
     queryKey: ['/api/funds', fundId, 'baselines', options],
     queryFn: async () => {
       const searchParams = new URLSearchParams();
-      if (options.baselineType) searchParams.set('baselineType', options.baselineType);
-      if (options.isDefault !== undefined) searchParams.set('isDefault', options.isDefault.toString());
-      if (options.limit) searchParams.set('limit', options.limit.toString());
+      if (options.baselineType) searchParams['set']('baselineType', options.baselineType);
+      if (options.isDefault !== undefined) searchParams['set']('isDefault', options.isDefault.toString());
+      if (options.limit) searchParams['set']('limit', options.limit.toString());
 
       const url = `/api/funds/${fundId}/baselines${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
       const response = await apiRequest('GET', url);
@@ -161,9 +161,9 @@ export function useActiveAlerts(
     queryKey: ['/api/funds', fundId, 'alerts', options],
     queryFn: async () => {
       const searchParams = new URLSearchParams();
-      if (options.severity) searchParams.set('severity', options.severity.join(','));
-      if (options.category) searchParams.set('category', options.category.join(','));
-      if (options.limit) searchParams.set('limit', options.limit.toString());
+      if (options.severity) searchParams['set']('severity', options.severity.join(','));
+      if (options.category) searchParams['set']('category', options.category.join(','));
+      if (options.limit) searchParams['set']('limit', options.limit.toString());
 
       const url = `/api/funds/${fundId}/alerts${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
       const response = await apiRequest('GET', url);
@@ -217,7 +217,7 @@ export function useCreateBaseline() {
       });
       return response.json();
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (data: any, variables: any) => {
       // Invalidate baselines queries
       queryClient.invalidateQueries({
         queryKey: ['/api/funds', variables.fundId, 'baselines'],
@@ -243,7 +243,7 @@ export function useSetDefaultBaseline() {
       const response = await apiRequest('POST', `/api/funds/${params.fundId}/baselines/${params.baselineId}/set-default`, {});
       return response.json();
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (data: any, variables: any) => {
       queryClient.invalidateQueries({
         queryKey: ['/api/funds', variables.fundId, 'baselines'],
       });
@@ -268,7 +268,7 @@ export function useDeactivateBaseline() {
       const response = await apiRequest('DELETE', `/api/funds/${params.fundId}/baselines/${params.baselineId}`, {});
       return response.json();
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (data: any, variables: any) => {
       queryClient.invalidateQueries({
         queryKey: ['/api/funds', variables.fundId, 'baselines'],
       });
@@ -297,7 +297,7 @@ export function useGenerateVarianceReport() {
       const response = await apiRequest('POST', `/api/funds/${params.fundId}/variance-reports`, params);
       return response.json();
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (data: any, variables: any) => {
       queryClient.invalidateQueries({
         queryKey: ['/api/funds', variables.fundId, 'variance-reports'],
       });
@@ -328,7 +328,7 @@ export function useCreateAlertRule() {
       const response = await apiRequest('POST', `/api/funds/${params.fundId}/alert-rules`, params);
       return response.json();
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (data: any, variables: any) => {
       queryClient.invalidateQueries({
         queryKey: ['/api/funds', variables.fundId, 'alerts'],
       });
@@ -356,7 +356,7 @@ export function useAcknowledgeAlert() {
       // Invalidate all alert queries
       queryClient.invalidateQueries({
         queryKey: ['/api/funds'],
-        predicate: (query) => query.queryKey.includes('alerts'),
+        predicate: (query: any) => query.queryKey.includes('alerts'),
       });
     },
   });
@@ -382,7 +382,7 @@ export function useResolveAlert() {
       // Invalidate all alert queries
       queryClient.invalidateQueries({
         queryKey: ['/api/funds'],
-        predicate: (query) => query.queryKey.includes('alerts'),
+        predicate: (query: any) => query.queryKey.includes('alerts'),
       });
     },
   });
@@ -403,7 +403,7 @@ export function usePerformVarianceAnalysis() {
       const response = await apiRequest('POST', `/api/funds/${params.fundId}/variance-analysis`, params);
       return response.json();
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (data: any, variables: any) => {
       // Invalidate all variance-related queries
       queryClient.invalidateQueries({
         queryKey: ['/api/funds', variables.fundId, 'variance-reports'],

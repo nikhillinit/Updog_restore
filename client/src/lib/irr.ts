@@ -9,7 +9,7 @@ import { Decimal } from 'decimal.js';
  */
 export function computeIRRPeriodic(cashflows: number[], guess = 0.1): number {
   // Demo-safe early returns
-  if (!cashflows.length || cashflows.every((x) => x === 0)) return 0;
+  if (!cashflows.length || cashflows.every((x: any) => x === 0)) return 0;
 
   // Check for valid cash flow pattern (needs both positive and negative)
   const hasOutflow = cashflows.some(cf => cf < 0);
@@ -157,13 +157,13 @@ export function calculateIRRScenarios(
   scenarios: { volatility: number; adjustment: number }[]
 ): { p10: number; p50: number; p90: number } {
   const irrs = scenarios.map(scenario => {
-    const adjustedCashflows = baseCashflows.map((cf, i) => {
+    const adjustedCashflows = baseCashflows.map((cf: any, i: any) => {
       if (i === 0) return cf; // Don't adjust initial investment
       const noise = (Math.random() - 0.5) * scenario.volatility;
       return cf * (1 + scenario.adjustment + noise);
     });
     return computeIRR(adjustedCashflows);
-  }).sort((a, b) => a - b);
+  }).sort((a: any, b: any) => a - b);
 
   const p10Index = Math.floor(irrs.length * 0.1);
   const p50Index = Math.floor(irrs.length * 0.5);

@@ -77,8 +77,8 @@ export function checkIfNoneMatch(getCurrentETag: (_req: Request) => string | Pro
     
     if (parseETag(ifNoneMatch) === parseETag(currentETag)) {
       // Content hasn't changed, return 304
-      res.setHeader('ETag', currentETag);
-      res.setHeader('Cache-Control', 'private, must-revalidate');
+      res['setHeader']('ETag', currentETag);
+      res['setHeader']('Cache-Control', 'private, must-revalidate');
       return res.status(304).end();
     }
     
@@ -128,14 +128,14 @@ export function setETagHeaders(res: Response, etag: string, options?: {
     ...options
   };
   
-  res.setHeader('ETag', etag);
+  res['setHeader']('ETag', etag);
   
   const cacheDirectives = [];
   if (opts.private) cacheDirectives.push('private');
   if (opts.maxAge > 0) cacheDirectives.push(`max-age=${opts.maxAge}`);
   if (opts.mustRevalidate) cacheDirectives.push('must-revalidate');
   
-  res.setHeader('Cache-Control', cacheDirectives.join(', '));
+  res['setHeader']('Cache-Control', cacheDirectives.join(', '));
 }
 
 /**
@@ -163,7 +163,7 @@ export function conditionalRequest(options: {
     const ifNoneMatch = req.headers['if-none-match'] as string | undefined;
     if (ifNoneMatch && req.method === 'GET') {
       if (parseETag(ifNoneMatch) === parseETag(currentETag)) {
-        res.setHeader('ETag', currentETag);
+        res['setHeader']('ETag', currentETag);
         return res.status(304).end();
       }
     }

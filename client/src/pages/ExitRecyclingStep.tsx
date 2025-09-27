@@ -50,7 +50,7 @@ export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepP
             <Switch
               data-testid="step-4-recycling-enabled"
               checked={data.enabled}
-              onCheckedChange={(checked) => handleChange('enabled', checked)}
+              onCheckedChange={(checked: any) => handleChange('enabled', checked)}
             />
           </div>
 
@@ -67,7 +67,7 @@ export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepP
                       min="0"
                       max="100"
                       value={data.recyclePercentage}
-                      onChange={(e) => handleChange('recyclePercentage', parseFloat(e.target.value) || 0)}
+                      onChange={(e: any) => handleChange('recyclePercentage', parseFloat(e.target.value) || 0)}
                       className="pr-8"
                       placeholder="0"
                     />
@@ -92,7 +92,7 @@ export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepP
                       type="number"
                       min="0"
                       value={data.maxRecycleAmount || ''}
-                      onChange={(e) => handleChange('maxRecycleAmount', parseFloat(e.target.value) || undefined)}
+                      onChange={(e: any) => handleChange('maxRecycleAmount', parseFloat(e.target.value) || undefined)}
                       className="pl-8"
                       placeholder="No limit"
                     />
@@ -108,7 +108,7 @@ export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepP
                 <Label className="text-base font-medium">Recycling Window</Label>
                 <Select 
                   value={data.recycleWindowMonths.toString()} 
-                  onValueChange={(value) => handleChange('recycleWindowMonths', parseInt(value))}
+                  onValueChange={(value: any) => handleChange('recycleWindowMonths', parseInt(value))}
                 >
                   <SelectTrigger className="max-w-xs">
                     <SelectValue placeholder="Select window" />
@@ -140,7 +140,7 @@ export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepP
                     </div>
                     <Switch
                       checked={data.restrictToSameSector}
-                      onCheckedChange={(checked) => handleChange('restrictToSameSector', checked)}
+                      onCheckedChange={(checked: any) => handleChange('restrictToSameSector', checked)}
                     />
                   </div>
 
@@ -153,7 +153,7 @@ export default function ExitRecyclingStep({ data, onChange }: ExitRecyclingStepP
                     </div>
                     <Switch
                       checked={data.restrictToSameStage}
-                      onCheckedChange={(checked) => handleChange('restrictToSameStage', checked)}
+                      onCheckedChange={(checked: any) => handleChange('restrictToSameStage', checked)}
                     />
                   </div>
                 </div>

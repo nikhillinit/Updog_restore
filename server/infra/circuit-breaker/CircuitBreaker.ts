@@ -181,7 +181,7 @@ export class CircuitBreaker<T> {
 
   private async withTimeout<R>(p: Promise<R>, ms: number, label: string): Promise<R> {
     let to: NodeJS.Timeout;
-    const timeout = new Promise<never>((_, reject) => {
+    const timeout = new Promise<never>((_: any, reject: any) => {
       to = setTimeout(() => reject(new Error(`Timeout (${label}) after ${ms}ms`)), ms);
     });
     try {
@@ -208,7 +208,7 @@ export class CircuitBreaker<T> {
   }
 
   // Public API
-  onStateChange(listener: (_e: StateChangeEvent) => void) { this.emitter.on('stateChange', listener); }
+  onStateChange(listener: (_e: StateChangeEvent) => void) { this.emitter['on']('stateChange', listener); }
   getState(): CircuitState { return this.state; }
   getMetrics() {
     const successRate = this.totalRequests ? this.successCount / this.totalRequests : 0;

@@ -419,10 +419,10 @@ export default function PortfolioConstruction() {
                     <BarChart data={allocationData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                      <YAxis tickFormatter={(value) => formatCurrency(value)} />
+                      <YAxis tickFormatter={(value: any) => formatCurrency(value)} />
                       <Tooltip 
                         formatter={(value: number) => [formatCurrency(value), "Amount"]}
-                        labelFormatter={(label) => `Category: ${label}`}
+                        labelFormatter={(label: any) => `Category: ${label}`}
                       />
                       <Bar dataKey="value" fill="#3b82f6" />
                     </BarChart>
@@ -466,7 +466,7 @@ export default function PortfolioConstruction() {
                   </div>
                   <Slider
                     value={[params.seedPreMoney]}
-                    onValueChange={([value]) => updateParam('seedPreMoney', value)}
+                    onValueChange={([value]) => updateParam('seedPreMoney', value ?? 0)}
                     min={6400}
                     max={9600}
                     step={100}
@@ -481,7 +481,7 @@ export default function PortfolioConstruction() {
                   </div>
                   <Slider
                     value={[params.seriesAGradRate]}
-                    onValueChange={([value]) => updateParam('seriesAGradRate', value)}
+                    onValueChange={([value]) => updateParam('seriesAGradRate', value ?? 0)}
                     min={40}
                     max={60}
                     step={2}
@@ -496,7 +496,7 @@ export default function PortfolioConstruction() {
                   </div>
                   <Slider
                     value={[params.seriesBGradRate]}
-                    onValueChange={([value]) => updateParam('seriesBGradRate', value)}
+                    onValueChange={([value]) => updateParam('seriesBGradRate', value ?? 0)}
                     min={40}
                     max={60}
                     step={2}
@@ -521,7 +521,7 @@ export default function PortfolioConstruction() {
                   <BarChart data={graduationData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="round" />
-                    <YAxis tickFormatter={(value) => formatCurrency(value)} />
+                    <YAxis tickFormatter={(value: any) => formatCurrency(value)} />
                     <Tooltip 
                       formatter={(value: number, name) => [
                         formatCurrency(value), 
@@ -555,7 +555,7 @@ export default function PortfolioConstruction() {
                   </div>
                   <Slider
                     value={[params.requiredLPReturn]}
-                    onValueChange={([value]) => updateParam('requiredLPReturn', value)}
+                    onValueChange={([value]) => updateParam('requiredLPReturn', value ?? 0)}
                     min={1.0}
                     max={10.0}
                     step={0.1}
@@ -569,7 +569,7 @@ export default function PortfolioConstruction() {
                   <BarChart data={returnWaterfallData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="category" />
-                    <YAxis tickFormatter={(value) => formatCurrency(value)} />
+                    <YAxis tickFormatter={(value: any) => formatCurrency(value)} />
                     <Tooltip 
                       formatter={(value: number) => [formatCurrency(value), "Amount"]}
                     />
@@ -595,12 +595,12 @@ export default function PortfolioConstruction() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis 
                       dataKey="fundSize" 
-                      tickFormatter={(value) => `$${value}K`}
+                      tickFormatter={(value: any) => `$${value}K`}
                     />
-                    <YAxis tickFormatter={(value) => `$${value}B`} />
+                    <YAxis tickFormatter={(value: any) => `$${value}B`} />
                     <Tooltip 
                       formatter={(value: number) => [`$${value.toFixed(1)}B`, "Exit Value Required"]}
-                      labelFormatter={(label) => `Fund Size: $${label}K`}
+                      labelFormatter={(label: any) => `Fund Size: $${label}K`}
                     />
                     <Area 
                       type="monotone" 

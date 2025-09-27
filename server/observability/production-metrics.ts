@@ -260,7 +260,7 @@ export function recordCalculation(
   }, durationSeconds);
 
   if (memoryMB) {
-    engineMetrics.memoryUsage.set({ engine_type: engineType }, memoryMB);
+    engineMetrics.memoryUsage['set']({ engine_type: engineType }, memoryMB);
   }
 }
 

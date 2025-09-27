@@ -57,7 +57,7 @@ export interface UserContext {
 // Cache configuration
 const TTL_MS = 30_000; // 30 seconds
 const LKG_TTL_MS = 5 * 60 * 1000; // 5 minutes Last Known Good
-const FLAG_ENV = process.env.FLAG_ENV || process.env.NODE_ENV || 'development';
+const FLAG_ENV = process.env['FLAG_ENV'] || process.env['NODE_ENV'] || 'development';
 const CACHE_KEY = `flags:v1:${FLAG_ENV}`;
 const INVALIDATION_KEY = 'flags:changed';
 
@@ -79,7 +79,7 @@ let cache: {
 let lastKnownGood: FlagSnapshot | null = null;
 
 // Kill switch - disables ALL non-essential flags
-const disabledAll = process.env.FLAGS_DISABLED_ALL === '1';
+const disabledAll = process.env['FLAGS_DISABLED_ALL'] === '1';
 
 // Default flag values (safe fallbacks)
 const defaultFlags: FlagMap = {
@@ -260,7 +260,7 @@ export async function getFlags(): Promise<FlagSnapshot> {
     flags: defaultFlags,
     hash,
     timestamp: now,
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env['NODE_ENV'] || 'development'
   };
 }
 
@@ -390,7 +390,7 @@ export async function getFlagHistory(key?: string): Promise<FlagChange[]> {
  * Kill switch demo - immediately disable all flags
  */
 export function activateKillSwitch(): void {
-  process.env.FLAGS_DISABLED_ALL = '1';
+  process.env['FLAGS_DISABLED_ALL'] = '1';
   cache.ts = 0; // Force cache refresh
   console.warn('🚨 KILL SWITCH ACTIVATED - All flags disabled');
 }

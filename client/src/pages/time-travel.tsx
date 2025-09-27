@@ -101,7 +101,7 @@ export default function TimeTravelPage() {
   const timelineChartData = useMemo(() => {
     if (!timelineData?.events) return [];
 
-    return timelineData.events.map((event, index) => ({
+    return timelineData.events.map((event: any, index: any) => ({
       timestamp: event.eventTime,
       value: index + 1, // Simple sequential value for visualization
       label: event.eventType,
@@ -266,7 +266,7 @@ export default function TimeTravelPage() {
       {/* Stats Cards */}
       {timelineLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+          {Array.from({ length: 4 }).map((_: any, i: any) => (
             <Card key={i}>
               <CardContent className="p-6">
                 <div className="animate-pulse space-y-2">
@@ -331,7 +331,7 @@ export default function TimeTravelPage() {
                   <Input
                     type="date"
                     value={selectedTimeRange.start}
-                    onChange={(e) => setSelectedTimeRange(prev => ({ ...prev, start: e.target.value }))}
+                    onChange={(e: any) => setSelectedTimeRange(prev => ({ ...prev, start: e.target.value }))}
                     className="w-40"
                   />
                 </div>
@@ -340,7 +340,7 @@ export default function TimeTravelPage() {
                   <Input
                     type="date"
                     value={selectedTimeRange.end}
-                    onChange={(e) => setSelectedTimeRange(prev => ({ ...prev, end: e.target.value }))}
+                    onChange={(e: any) => setSelectedTimeRange(prev => ({ ...prev, end: e.target.value }))}
                     className="w-40"
                   />
                 </div>
@@ -385,7 +385,7 @@ export default function TimeTravelPage() {
             <CardContent>
               {timelineLoading ? (
                 <div className="space-y-4">
-                  {Array.from({ length: 5 }).map((_, i) => (
+                  {Array.from({ length: 5 }).map((_: any, i: any) => (
                     <div key={i} className="animate-pulse flex items-center space-x-4 p-4 border rounded-lg">
                       <div className="w-10 h-10 bg-gray-200 rounded-full" />
                       <div className="flex-1 space-y-2">
@@ -397,7 +397,7 @@ export default function TimeTravelPage() {
                 </div>
               ) : timelineData?.events?.length ? (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {timelineData.events.slice(0, 20).map((event) => (
+                  {timelineData.events.slice(0, 20).map((event: any) => (
                     <div
                       key={event.id}
                       className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
@@ -444,7 +444,7 @@ export default function TimeTravelPage() {
             <CardContent>
               {timelineLoading ? (
                 <div className="space-y-4">
-                  {Array.from({ length: 3 }).map((_, i) => (
+                  {Array.from({ length: 3 }).map((_: any, i: any) => (
                     <div key={i} className="animate-pulse flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center space-x-4">
                         <div className="w-12 h-12 bg-gray-200 rounded-lg" />
@@ -459,7 +459,7 @@ export default function TimeTravelPage() {
                 </div>
               ) : timelineData?.snapshots?.length ? (
                 <div className="space-y-4">
-                  {timelineData.snapshots.map((snapshot) => (
+                  {timelineData.snapshots.map((snapshot: any) => (
                     <div
                       key={snapshot.id}
                       className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
@@ -512,7 +512,7 @@ export default function TimeTravelPage() {
                               <Input
                                 placeholder="Enter confirmation code"
                                 value={confirmationCode}
-                                onChange={(e) => setConfirmationCode(e.target.value)}
+                                onChange={(e: any) => setConfirmationCode(e.target.value)}
                               />
                             </div>
                             <AlertDialogFooter>
@@ -568,7 +568,7 @@ export default function TimeTravelPage() {
                   <Input
                     type="datetime-local"
                     value={selectedTimestamp1}
-                    onChange={(e) => setSelectedTimestamp1(e.target.value)}
+                    onChange={(e: any) => setSelectedTimestamp1(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -576,7 +576,7 @@ export default function TimeTravelPage() {
                   <Input
                     type="datetime-local"
                     value={selectedTimestamp2}
-                    onChange={(e) => setSelectedTimestamp2(e.target.value)}
+                    onChange={(e: any) => setSelectedTimestamp2(e.target.value)}
                   />
                 </div>
               </div>
@@ -614,7 +614,7 @@ export default function TimeTravelPage() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-2">
-                          {comparisonData.differences.map((diff, index) => (
+                          {comparisonData.differences.map((diff: any, index: any) => (
                             <div key={index} className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                               <div className="font-medium text-yellow-800">
                                 Change {index + 1}
@@ -700,7 +700,7 @@ export default function TimeTravelPage() {
               {/* Speed Control */}
               <div className="flex items-center justify-center space-x-4">
                 <span className="text-sm text-gray-600">Speed:</span>
-                <Select value={playbackSpeed.toString()} onValueChange={(value) => setPlaybackSpeed(parseFloat(value))}>
+                <Select value={playbackSpeed.toString()} onValueChange={(value: any) => setPlaybackSpeed(parseFloat(value))}>
                   <SelectTrigger className="w-24">
                     <SelectValue />
                   </SelectTrigger>

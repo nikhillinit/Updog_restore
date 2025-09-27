@@ -11,9 +11,9 @@ import { sendApiError, createErrorBody } from '../lib/apiError.js';
 // Redis client for distributed rate limiting (optional)
 let redisClient: Redis | null = null;
 
-if (process.env.REDIS_URL) {
+if (process.env['REDIS_URL']) {
   try {
-    redisClient = new Redis(process.env.REDIS_URL);
+    redisClient = new Redis(process.env['REDIS_URL']);
     console.log('[RateLimit] Connected to Redis for distributed rate limiting');
   } catch (error) {
     console.warn('[RateLimit] Redis unavailable, falling back to memory store:', error.message);
@@ -101,13 +101,13 @@ function createRateLimiter(
     },
     skip: (req: Request) => {
       // Allow bypass for internal health checks with valid key
-      const healthKey = process.env.HEALTH_KEY;
-      if (healthKey && req.get('X-Health-Key') === healthKey) {
+      const healthKey = process.env['HEALTH_KEY'];
+      if (healthKey && req['get']('X-Health-Key') === healthKey) {
         return true;
       }
       
       // Skip rate limiting in development mode if configured
-      if (process.env.NODE_ENV === 'development' && process.env.SKIP_RATE_LIMIT === 'true') {
+      if (process.env['NODE_ENV'] === 'development' && process.env['SKIP_RATE_LIMIT'] === 'true') {
         return true;
       }
       
@@ -119,7 +119,7 @@ function createRateLimiter(
         ? Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 1000))
         : 60;
       
-      res.setHeader('Retry-After', String(seconds));
+      res['setHeader']('Retry-After', String(seconds));
       sendApiError(
         res, 
         429, 
@@ -171,15 +171,15 @@ export class CostBasedRateLimiter {
   
   async consume(key: string, cost: number = 1): Promise<{ allowed: boolean; remaining: number }> {
     const now = Date.now();
-    const resetTime = this.resetTimes.get(key) || 0;
+    const resetTime = this.resetTimes['get'](key) || 0;
     
     // Reset if window expired
     if (now > resetTime) {
-      this.points.set(key, 0);
-      this.resetTimes.set(key, now + this.windowMs);
+      this.points['set'](key, 0);
+      this.resetTimes['set'](key, now + this.windowMs);
     }
     
-    const current = this.points.get(key) || 0;
+    const current = this.points['get'](key) || 0;
     const newTotal = current + cost;
     
     if (newTotal > this.maxPoints) {
@@ -189,7 +189,7 @@ export class CostBasedRateLimiter {
       };
     }
     
-    this.points.set(key, newTotal);
+    this.points['set'](key, newTotal);
     return { 
       allowed: true, 
       remaining: this.maxPoints - newTotal 
@@ -198,13 +198,13 @@ export class CostBasedRateLimiter {
   
   getRemainingPoints(key: string): number {
     const now = Date.now();
-    const resetTime = this.resetTimes.get(key) || 0;
+    const resetTime = this.resetTimes['get'](key) || 0;
     
     if (now > resetTime) {
       return this.maxPoints;
     }
     
-    const current = this.points.get(key) || 0;
+    const current = this.points['get'](key) || 0;
     return Math.max(0, this.maxPoints - current);
   }
   
@@ -233,11 +233,11 @@ export function costBasedRateLimit(getCost: (_req: Request) => number) {
     
     const { allowed, remaining } = await simulationCostLimiter.consume(key, cost);
     
-    res.setHeader('X-RateLimit-Cost', String(cost));
-    res.setHeader('X-RateLimit-Remaining', String(remaining));
+    res['setHeader']('X-RateLimit-Cost', String(cost));
+    res['setHeader']('X-RateLimit-Remaining', String(remaining));
     
     if (!allowed) {
-      res.setHeader('Retry-After', '3600'); // 1 hour
+      res['setHeader']('Retry-After', '3600'); // 1 hour
       return res.status(429).json({
         error: 'Rate limit exceeded',
         message: `Operation cost (${cost}) exceeds remaining quota (${remaining})`,

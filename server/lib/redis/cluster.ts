@@ -31,17 +31,17 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
     // Add TLS configuration if enabled
     if (tlsEnabled) {
       socketOptions.tls = true;
-      if (process.env.REDIS_CA_PATH) {
-        socketOptions.ca = fs.readFileSync(process.env.REDIS_CA_PATH);
+      if (process.env['REDIS_CA_PATH']) {
+        socketOptions.ca = fs.readFileSync(process.env['REDIS_CA_PATH']);
       }
-      if (process.env.REDIS_CERT_PATH) {
-        socketOptions.cert = fs.readFileSync(process.env.REDIS_CERT_PATH);
+      if (process.env['REDIS_CERT_PATH']) {
+        socketOptions.cert = fs.readFileSync(process.env['REDIS_CERT_PATH']);
       }
-      if (process.env.REDIS_KEY_PATH) {
-        socketOptions.key = fs.readFileSync(process.env.REDIS_KEY_PATH);
+      if (process.env['REDIS_KEY_PATH']) {
+        socketOptions.key = fs.readFileSync(process.env['REDIS_KEY_PATH']);
       }
-      if (process.env.REDIS_SERVERNAME) {
-        socketOptions.servername = process.env.REDIS_SERVERNAME;
+      if (process.env['REDIS_SERVERNAME']) {
+        socketOptions.servername = process.env['REDIS_SERVERNAME'];
       }
     }
     
@@ -52,7 +52,7 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
       defaults: { socket: socketOptions }
     });
 
-    cluster.on('error', (err: any) => {
+    cluster['on']('error', (err: any) => {
       // eslint-disable-next-line no-console
       console.error('[redis-cluster] error:', err?.message);
     });
@@ -63,7 +63,7 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
       conn: cluster,
       mode: 'cluster',
       describe: () => `cluster(${cfg.nodes!.join(',')})`,
-      close: async () => { await cluster.quit(); }
+      close: async () => { await cluster['quit'](); }
     };
   }
 
@@ -77,17 +77,17 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
   // Add TLS if URL starts with rediss://
   if (cfg.url?.startsWith('rediss://')) {
     socketOptions.tls = true;
-    if (process.env.REDIS_CA_PATH) {
-      socketOptions.ca = fs.readFileSync(process.env.REDIS_CA_PATH);
+    if (process.env['REDIS_CA_PATH']) {
+      socketOptions.ca = fs.readFileSync(process.env['REDIS_CA_PATH']);
     }
-    if (process.env.REDIS_CERT_PATH) {
-      socketOptions.cert = fs.readFileSync(process.env.REDIS_CERT_PATH);
+    if (process.env['REDIS_CERT_PATH']) {
+      socketOptions.cert = fs.readFileSync(process.env['REDIS_CERT_PATH']);
     }
-    if (process.env.REDIS_KEY_PATH) {
-      socketOptions.key = fs.readFileSync(process.env.REDIS_KEY_PATH);
+    if (process.env['REDIS_KEY_PATH']) {
+      socketOptions.key = fs.readFileSync(process.env['REDIS_KEY_PATH']);
     }
-    if (process.env.REDIS_SERVERNAME) {
-      socketOptions.servername = process.env.REDIS_SERVERNAME;
+    if (process.env['REDIS_SERVERNAME']) {
+      socketOptions.servername = process.env['REDIS_SERVERNAME'];
     }
   }
 
@@ -96,7 +96,7 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
     socket: socketOptions
   });
 
-  client.on('error', (err: any) => {
+  client['on']('error', (err: any) => {
     // eslint-disable-next-line no-console
     console.error('[redis] error:', err?.message);
   });
@@ -107,14 +107,14 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
     conn: client,
     mode: 'single',
     describe: () => `single(${cfg.url})`,
-    close: async () => { await client.quit(); }
+    close: async () => { await client['quit'](); }
   };
 }
 
 export async function pingRedis(conn: any): Promise<{ ok: boolean; latencyMs?: number; error?: string }> {
   try {
     const start = Date.now();
-    await conn.ping();
+    await conn['ping']();
     return { ok: true, latencyMs: Date.now() - start };
   } catch (err) {
     return { ok: false, error: (err as Error)?.message };

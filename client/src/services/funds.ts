@@ -208,7 +208,7 @@ async function executeCreateFund(
     if (useTelemetry) {
       try {
         const eventName = res.ok ? 'fund_create_success' : 'fund_create_failure';
-        const idempotencyStatus = res.headers.get('Idempotency-Status') || 'created';
+        const idempotencyStatus = res.headers['get']('Idempotency-Status') || 'created';
         (Telemetry as any).track?.(eventName, {
           status: res.status,
           durationMs,

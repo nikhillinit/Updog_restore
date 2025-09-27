@@ -104,7 +104,7 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
           seedGraduations: stages[0]?.monthlyGraduations ?? 0,
           seriesAGraduations: stages[1]?.monthlyGraduations ?? 0, 
           seriesBGraduations: stages[2]?.monthlyGraduations ?? 0,
-          totalExits: stages.reduce((sum, stage) => sum + stage.monthlyExits, 0)
+          totalExits: stages.reduce((sum: any, stage: any) => sum + stage.monthlyExits, 0)
         };
         
         setFlowData(prev => [...prev, newStep]);
@@ -128,9 +128,9 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
   };
 
   const calculateCumulativeStats = () => {
-    const totalInvested = flowData.reduce((sum, step) => sum + step.preSeedInvestments, 0);
-    const totalExits = flowData.reduce((sum, step) => sum + step.totalExits, 0);
-    const totalGraduations = flowData.reduce((sum, step) => 
+    const totalInvested = flowData.reduce((sum: any, step: any) => sum + step.preSeedInvestments, 0);
+    const totalExits = flowData.reduce((sum: any, step: any) => sum + step.totalExits, 0);
+    const totalGraduations = flowData.reduce((sum: any, step: any) => 
       sum + step.seedGraduations + step.seriesAGraduations + step.seriesBGraduations, 0);
     
     return { totalInvested, totalExits, totalGraduations };
@@ -208,7 +208,7 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
             <div className="relative">
               {/* Stages Row */}
               <div className="grid grid-cols-4 gap-6">
-                {stages.map((stage, index) => (
+                {stages.map((stage: any, index: any) => (
                   <div key={stage.id} className="text-center space-y-4">
                     {/* Stage Header */}
                     <div>
@@ -272,7 +272,7 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
                 </div>
 
                 <div className="grid grid-cols-12 gap-1">
-                  {Array.from({ length: 36 }, (_, i) => (
+                  {Array.from({ length: 36 }, (_: any, i: any) => (
                     <div 
                       key={i}
                       className={`h-8 rounded flex items-center justify-center text-xs font-medium ${
@@ -327,7 +327,7 @@ export default function PortfolioFlowChart({ fundData }: PortfolioFlowChartProps
             <div className="space-y-2">
               <h5 className="font-medium">Recent Monthly Activity</h5>
               <div className="max-h-32 overflow-y-auto space-y-1">
-                {flowData.slice(-6).reverse().map((step) => (
+                {flowData.slice(-6).reverse().map((step: any) => (
                   <div key={step.month} className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded">
                     <span className="font-medium">Month {step.month}</span>
                     <div className="flex space-x-4">

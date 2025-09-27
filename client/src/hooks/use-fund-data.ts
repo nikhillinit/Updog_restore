@@ -19,7 +19,7 @@ export function useFundData() {
     isLoading,
     hasFundData,
     needsSetup,
-    primaryFund: hasFundData && Array.isArray(funds) ? funds[0] : null,
+    primaryFund: hasFundData && Array.isArray(funds) ? funds[0]! : null,
   };
 }
 

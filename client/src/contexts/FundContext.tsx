@@ -54,13 +54,13 @@ export function FundProvider({ children }: FundProviderProps) {
           setCurrentFund(fund);
         } else {
           // Fallback to first fund if ID not found
-          setCurrentFund(funds[0]);
-          setFundId(funds[0].id);
+          setCurrentFund(funds[0]!);
+          setFundId(funds[0]!.id);
         }
       } else {
         // No selected fund ID, use first fund
-        setCurrentFund(funds[0]);
-        setFundId(funds[0].id);
+        setCurrentFund(funds[0]!);
+        setFundId(funds[0]!.id);
       }
     } else if (!isLoading && (!funds || !Array.isArray(funds) || funds.length === 0)) {
       // No funds available

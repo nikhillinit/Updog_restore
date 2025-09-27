@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, ArrowLeft, ArrowRight, Edit } from "lucide-react";
-import { useFundSelector, useFundTuple, useFundAction } from '@/stores/useFundSelector';
+import { useFundSelector } from '@/stores/useFundSelector';
 
 // Capital Allocation interface
 interface CapitalAllocation {
@@ -69,7 +69,7 @@ export default function CapitalStructureStep() {
 
   const entryRounds = ['Pre-Seed', 'Seed', 'Series A', 'Series B', 'Series C'];
 
-  const totalAllocationPct = allocations.reduce((sum, alloc) => sum + alloc.capitalAllocationPct, 0);
+  const totalAllocationPct = allocations.reduce((sum: any, alloc: any) => sum + alloc.capitalAllocationPct, 0);
 
   const handleAddAllocation = () => {
     const newAllocation: CapitalAllocation = {
@@ -159,7 +159,7 @@ export default function CapitalStructureStep() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {allocations.map((allocation) => {
+          {allocations.map((allocation: any) => {
             const calculations = calculateImpliedValues(allocation);
             const isEditing = editingAllocation === allocation.id;
             
@@ -228,7 +228,7 @@ export default function CapitalStructureStep() {
                         <Label>Allocation Name</Label>
                         <Input
                           value={allocation.name}
-                          onChange={(e) => handleUpdateAllocation(allocation.id, { name: e.target.value })}
+                          onChange={(e: any) => handleUpdateAllocation(allocation.id, { name: e.target.value })}
                           placeholder="e.g., Seed Investments"
                         />
                       </div>
@@ -237,7 +237,7 @@ export default function CapitalStructureStep() {
                         <Label>Sector Profile</Label>
                         <Select
                           value={allocation.sectorProfileId || 'default'}
-                          onValueChange={(value) => handleUpdateAllocation(allocation.id, { sectorProfileId: value })}
+                          onValueChange={(value: any) => handleUpdateAllocation(allocation.id, { sectorProfileId: value })}
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -256,7 +256,7 @@ export default function CapitalStructureStep() {
                         <Label>Entry Round</Label>
                         <Select
                           value={allocation.entryRound}
-                          onValueChange={(value) => handleUpdateAllocation(allocation.id, { entryRound: value })}
+                          onValueChange={(value: any) => handleUpdateAllocation(allocation.id, { entryRound: value })}
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -280,7 +280,7 @@ export default function CapitalStructureStep() {
                         max="100"
                         step="1"
                         value={allocation.capitalAllocationPct}
-                        onChange={(e) => handleUpdateAllocation(allocation.id, { 
+                        onChange={(e: any) => handleUpdateAllocation(allocation.id, { 
                           capitalAllocationPct: parseFloat(e.target.value) || 0 
                         })}
                       />
@@ -319,7 +319,7 @@ export default function CapitalStructureStep() {
                             min="0"
                             step="0.1"
                             value={allocation.initialCheckAmount || ''}
-                            onChange={(e) => handleUpdateAllocation(allocation.id, { 
+                            onChange={(e: any) => handleUpdateAllocation(allocation.id, { 
                               initialCheckAmount: parseFloat(e.target.value) || undefined 
                             })}
                             placeholder="e.g., 1.5"
@@ -334,7 +334,7 @@ export default function CapitalStructureStep() {
                             max="100"
                             step="0.1"
                             value={allocation.initialOwnershipPct || ''}
-                            onChange={(e) => handleUpdateAllocation(allocation.id, { 
+                            onChange={(e: any) => handleUpdateAllocation(allocation.id, { 
                               initialOwnershipPct: parseFloat(e.target.value) || undefined 
                             })}
                             placeholder="e.g., 10"
@@ -380,7 +380,7 @@ export default function CapitalStructureStep() {
                             max="100"
                             step="1"
                             value={allocation.followOnParticipationPct}
-                            onChange={(e) => handleUpdateAllocation(allocation.id, { 
+                            onChange={(e: any) => handleUpdateAllocation(allocation.id, { 
                               followOnParticipationPct: parseFloat(e.target.value) || 0 
                             })}
                           />
@@ -395,7 +395,7 @@ export default function CapitalStructureStep() {
                             min="0"
                             step="0.1"
                             value={allocation.followOnAmount || ''}
-                            onChange={(e) => handleUpdateAllocation(allocation.id, { 
+                            onChange={(e: any) => handleUpdateAllocation(allocation.id, { 
                               followOnAmount: parseFloat(e.target.value) || undefined 
                             })}
                             placeholder="e.g., 2.0"
@@ -416,7 +416,7 @@ export default function CapitalStructureStep() {
                         min="1"
                         max="120"
                         value={allocation.investmentHorizonMonths}
-                        onChange={(e) => handleUpdateAllocation(allocation.id, { 
+                        onChange={(e: any) => handleUpdateAllocation(allocation.id, { 
                           investmentHorizonMonths: parseInt(e.target.value) || 24 
                         })}
                       />

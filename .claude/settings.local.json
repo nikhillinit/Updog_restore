@@ -128,7 +128,17 @@
       "Bash(npm run build:types:*)",
       "Bash(git checkout:*)",
       "Bash(git rebase:*)",
-      "WebFetch(domain:tactyc.app.carta.com)"
+      "WebFetch(domain:tactyc.app.carta.com)",
+      "Bash(cross-env:*)",
+      "Bash(./setup.sh)",
+      "Bash(python3:*)",
+      "Bash(where python3)",
+      "Bash(C:UsersnikhiAppDataLocalMicrosoftWindowsAppspython3.exe -m venv venv)",
+      "Bash(venvScripts:*)",
+      "Bash(pip install:*)",
+      "Bash(/c/Users/nikhi/AppData/Local/Microsoft/WindowsApps/python3.exe -m venv venv)",
+      "Bash(npx tsx:*)",
+      "Bash(cut:*)"
     ],
     "deny": [],
     "ask": [],

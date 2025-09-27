@@ -133,8 +133,8 @@ export default function ExitAnalysis() {
       };
     });
 
-    const totalRealizedValue = calculatedExitData.reduce((sum, stage) => sum + stage.realizedValue, 0);
-    const totalExits = calculatedExitData.reduce((sum, stage) => sum + Math.round(stage.companiesAtStage * stage.exitRate), 0);
+    const totalRealizedValue = calculatedExitData.reduce((sum: any, stage: any) => sum + stage.realizedValue, 0);
+    const totalExits = calculatedExitData.reduce((sum: any, stage: any) => sum + Math.round(stage.companiesAtStage * stage.exitRate), 0);
     
     // Calculate fund returns
     const managementFees = (fundSize * managementFee / 100) * 10; // 10 year fund
@@ -273,7 +273,7 @@ export default function ExitAnalysis() {
                 id="fund-size"
                 type="number"
                 value={fundSize}
-                onChange={(e) => setFundSize(parseInt(e.target.value) || 138000000)}
+                onChange={(e: any) => setFundSize(parseInt(e.target.value) || 138000000)}
                 className="bg-yellow-50 border-yellow-300"
               />
               <p className="text-xs text-gray-500">Total fund size</p>
@@ -285,7 +285,7 @@ export default function ExitAnalysis() {
                 id="portfolio-size-exit"
                 type="number"
                 value={portfolioSize}
-                onChange={(e) => setPortfolioSize(parseInt(e.target.value) || 40)}
+                onChange={(e: any) => setPortfolioSize(parseInt(e.target.value) || 40)}
                 className="bg-yellow-50 border-yellow-300"
               />
               <p className="text-xs text-gray-500">Number of companies</p>
@@ -297,7 +297,7 @@ export default function ExitAnalysis() {
                 id="carry-percentage"
                 type="number"
                 value={carryPercentage}
-                onChange={(e) => setCarryPercentage(parseFloat(e.target.value) || 20)}
+                onChange={(e: any) => setCarryPercentage(parseFloat(e.target.value) || 20)}
                 className="bg-yellow-50 border-yellow-300"
               />
               <p className="text-xs text-gray-500">Carried interest</p>
@@ -310,7 +310,7 @@ export default function ExitAnalysis() {
                 type="number"
                 step="0.1"
                 value={managementFee}
-                onChange={(e) => setManagementFee(parseFloat(e.target.value) || 2)}
+                onChange={(e: any) => setManagementFee(parseFloat(e.target.value) || 2)}
                 className="bg-yellow-50 border-yellow-300"
               />
               <p className="text-xs text-gray-500">Annual management fee</p>
@@ -342,7 +342,7 @@ export default function ExitAnalysis() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {exitData.map((row, index) => (
+              {exitData.map((row: any, index: any) => (
                 <TableRow key={index}>
                   <TableCell className="font-medium">{row.stage}</TableCell>
                   <TableCell>{row.companiesAtStage}</TableCell>
@@ -385,10 +385,10 @@ export default function ExitAnalysis() {
                 <BarChart data={exitChartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="stage" />
-                  <YAxis tickFormatter={(value) => `$${value}M`} />
+                  <YAxis tickFormatter={(value: any) => `$${value}M`} />
                   <Tooltip 
                     formatter={(value: number) => [`$${value.toFixed(1)}M`, "Realized Value"]}
-                    labelFormatter={(label) => `Stage: ${label}`}
+                    labelFormatter={(label: any) => `Stage: ${label}`}
                   />
                   <Bar dataKey="realizedValue" fill="#10b981" />
                 </BarChart>
@@ -417,7 +417,7 @@ export default function ExitAnalysis() {
                     dataKey="exitingCompanies"
                     nameKey="stage"
                   >
-                    {exitChartData.filter(d => d.exitingCompanies > 0).map((entry, index) => (
+                    {exitChartData.filter(d => d.exitingCompanies > 0).map((entry: any, index: any) => (
                       <Cell key={`cell-${index}`} fill={stageColors[index % stageColors.length]} />
                     ))}
                   </Pie>
@@ -445,7 +445,7 @@ export default function ExitAnalysis() {
               <LineChart data={exitData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="stage" />
-                <YAxis tickFormatter={(value) => `${value}%`} />
+                <YAxis tickFormatter={(value: any) => `${value}%`} />
                 <Tooltip 
                   formatter={(value: number) => [`${value.toFixed(1)}%`, "Avg Ownership"]}
                 />

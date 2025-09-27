@@ -43,11 +43,11 @@ export class MemoryKV implements KV {
   private store = new Map<string, any>();
 
   async get<T>(k: string): Promise<T | undefined> {
-    return this.store.get(k);
+    return this.store['get'](k);
   }
 
   async set<T>(k: string, v: T, ttlMs?: number): Promise<void> {
-    this.store.set(k, v);
+    this.store['set'](k, v);
     // For memory KV, we could implement native TTL cleanup here if needed
     // But the TTLCache wrapper handles expiration logic
   }

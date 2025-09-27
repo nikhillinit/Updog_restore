@@ -110,7 +110,7 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
           <Input
             type="number"
             value={typeof value === 'number' ? value.toString() : ''}
-            onChange={(e) => updateFieldValue(field.id, parseFloat(e.target.value) || '')}
+            onChange={(e: any) => updateFieldValue(field.id, parseFloat(e.target.value) || '')}
             placeholder="Enter a number"
           />
         );
@@ -119,7 +119,7 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
         return (
           <Textarea
             value={(value as string) || ''}
-            onChange={(e) => updateFieldValue(field.id, e.target.value)}
+            onChange={(e: any) => updateFieldValue(field.id, e.target.value)}
             placeholder="Enter text"
             rows={2}
           />
@@ -143,8 +143,8 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
             <div className="flex gap-2">
               <Input
                 value={tagInputs[field.id] || ''}
-                onChange={(e) => setTagInputs({ ...tagInputs, [field.id]: e.target.value })}
-                onKeyPress={(e) => handleTagInputKeyPress(field.id, e)}
+                onChange={(e: any) => setTagInputs({ ...tagInputs, [field.id]: e.target.value })}
+                onKeyPress={(e: any) => handleTagInputKeyPress(field.id, e)}
                 placeholder="Type and press Enter to add tag"
                 className="flex-1"
               />
@@ -167,7 +167,7 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
           <div className="space-y-2">
             <Select
               value={(value as string) || ''}
-              onValueChange={(selectedColor) => updateFieldValue(field.id, selectedColor)}
+              onValueChange={(selectedColor: any) => updateFieldValue(field.id, selectedColor)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select a color">
@@ -219,7 +219,7 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
                 selected={value && (typeof value === 'string' || typeof value === 'number' || value instanceof Date) 
                   ? new Date(value) 
                   : undefined}
-                onSelect={(date) => updateFieldValue(field.id, date?.toISOString() || '')}
+                onSelect={(date: any) => updateFieldValue(field.id, date?.toISOString() || '')}
                 initialFocus
               />
             </PopoverContent>
@@ -248,7 +248,7 @@ export default function CustomFieldsEditor({ fields, values, onValuesChange, cla
         <CardTitle className="text-base">Custom Fields</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {fields.map((field) => (
+        {fields.map((field: any) => (
           <div key={field.id} className="space-y-2">
             <Label htmlFor={field.id} className="flex items-center gap-2">
               {field.name}

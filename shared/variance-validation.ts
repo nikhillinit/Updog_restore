@@ -83,7 +83,7 @@ export const CreateBaselineRequestSchema = z.object({
   tags: z.array(z.string().max(50, 'Tag must be 50 characters or less'))
     .max(10, 'Maximum 10 tags allowed')
     .default([])
-}).refine((data) => {
+}).refine((data: any) => {
   const start = new Date(data.periodStart);
   const end = new Date(data.periodEnd);
   return end > start;
@@ -279,7 +279,7 @@ export const CreateAlertRuleRequestSchema = z.object({
   escalationRules: z.any().optional(),
   conditions: z.any().optional(),
   filters: z.any().optional()
-}).refine((data) => {
+}).refine((data: any) => {
   if (data.operator === 'between' && !data.secondaryThreshold) {
     return false;
   }

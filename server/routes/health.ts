@@ -25,15 +25,15 @@ registerInvalidator(() => {
 });
 
 // Liveness check (unauthenticated, minimal)
-router.get('/healthz', (_req: Request, res: Response) => {
+router['get']('/healthz', (_req: Request, res: Response) => {
   // Simple liveness check - is the process running?
   res.status(200).json({ status: 'ok' });
 });
 
 // Readiness check (authenticated, detailed)
-router.get('/readyz', (req: Request, res: Response) => {
+router['get']('/readyz', (req: Request, res: Response) => {
   // Check if we should expose detailed info
-  const healthKey = process.env.HEALTH_KEY;
+  const healthKey = process.env['HEALTH_KEY'];
   const authHeader = req.headers['x-health-key'] || req.headers.authorization;
   const isAuthenticated = !healthKey || authHeader === healthKey || authHeader === `Bearer ${healthKey}`;
   
@@ -48,7 +48,7 @@ router.get('/readyz', (req: Request, res: Response) => {
   
   // Detailed readiness for authenticated requests
   const providers = req.app.locals.providers as any;
-  const mode = providers?.mode || (process.env.REDIS_URL === 'memory://' ? 'memory' : 'redis');
+  const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
   const cache = req.app.locals.cache as any;
   
   const response = {
@@ -71,9 +71,9 @@ router.get('/readyz', (req: Request, res: Response) => {
 });
 
 // Legacy health endpoints (for backward compatibility)
-router.get('/health', (req: Request, res: Response) => {
+router['get']('/health', (req: Request, res: Response) => {
   const providers = req.app.locals.providers as any;
-  const mode = providers?.mode || (process.env.REDIS_URL === 'memory://' ? 'memory' : 'redis');
+  const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
   res.json({
     status: 'ok',
     version: process.env.npm_package_version || '1.3.2',
@@ -81,9 +81,9 @@ router.get('/health', (req: Request, res: Response) => {
     ts: new Date().toISOString()
   });
 });
-router.get('/api/health', (req: Request, res: Response) => {
+router['get']('/api/health', (req: Request, res: Response) => {
   const providers = req.app.locals.providers as any;
-  const mode = providers?.mode || (process.env.REDIS_URL === 'memory://' ? 'memory' : 'redis');
+  const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
   res.json({
     status: 'ok',
     version: process.env.npm_package_version || '1.3.2',
@@ -91,21 +91,21 @@ router.get('/api/health', (req: Request, res: Response) => {
     ts: new Date().toISOString()
   });
 });
-router.get('/api/health/ready', readinessCheck);
-router.get('/api/health/live', livenessCheck);
+router['get']('/api/health/ready', readinessCheck);
+router['get']('/api/health/live', livenessCheck);
 
 // Richer JSON health endpoint for Guardian and canary checks
-router.get('/health/detailed-json', async (req: Request, res: Response) => {
+router['get']('/health/detailed-json', async (req: Request, res: Response) => {
   // Prevent intermediary caching
-  res.set('Cache-Control', 'no-store, max-age=0');
-  res.set('Pragma', 'no-cache');
+  res['set']('Cache-Control', 'no-store, max-age=0');
+  res['set']('Pragma', 'no-cache');
   
   // Check cache first
-  const cached = await healthCache.get('healthz');
+  const cached = await healthCache['get']('healthz');
   if (cached) {
-    res.set('X-Health-From-Cache', '1');
+    res['set']('X-Health-From-Cache', '1');
     const ttlMs = await healthCache.ttlMs('healthz');
-    res.set('X-Health-TTL-Remaining', ttlMs.toString());
+    res['set']('X-Health-TTL-Remaining', ttlMs.toString());
     return res.json(cached);
   }
   
@@ -128,9 +128,9 @@ router.get('/health/detailed-json', async (req: Request, res: Response) => {
     };
     
     // Cache with deterministic TTL
-    await healthCache.set('healthz', healthData, HEALTH_CACHE_MS);
+    await healthCache['set']('healthz', healthData, HEALTH_CACHE_MS);
     const ttlMs = await healthCache.ttlMs('healthz');
-    res.set('X-Health-TTL-Set', ttlMs.toString());
+    res['set']('X-Health-TTL-Set', ttlMs.toString());
     
     res.json(healthData);
   } catch (error) {
@@ -144,17 +144,17 @@ router.get('/health/detailed-json', async (req: Request, res: Response) => {
 
 // Readiness probe - checks if service can handle traffic
 // Returns 200 only when all critical dependencies are ready
-router.get('/readyz', async (req: Request, res: Response) => {
+router['get']('/readyz', async (req: Request, res: Response) => {
   // Prevent intermediary caching
-  res.set('Cache-Control', 'no-store, max-age=0');
-  res.set('Pragma', 'no-cache');
+  res['set']('Cache-Control', 'no-store, max-age=0');
+  res['set']('Pragma', 'no-cache');
   
   // Check cache first
-  const cached = await healthCache.get('readyz');
+  const cached = await healthCache['get']('readyz');
   if (cached) {
-    res.set('X-Health-From-Cache', '1');
+    res['set']('X-Health-From-Cache', '1');
     const ttlMs = await healthCache.ttlMs('readyz');
-    res.set('X-Health-TTL-Remaining', ttlMs.toString());
+    res['set']('X-Health-TTL-Remaining', ttlMs.toString());
     return res.status(cached.ready ? 200 : 503).json(cached);
   }
   
@@ -166,7 +166,7 @@ router.get('/readyz', async (req: Request, res: Response) => {
   
   // Check database connectivity (critical) - using lightweight ping
   try {
-    const dbHealthy = await storage.ping();
+    const dbHealthy = await storage['ping']();
     checks.database = dbHealthy ? "ok" : "fail";
   } catch (error) {
     checks.database = "fail";
@@ -189,18 +189,18 @@ router.get('/readyz', async (req: Request, res: Response) => {
   };
   
   // Cache with deterministic TTL
-  await healthCache.set('readyz', response, HEALTH_CACHE_MS);
+  await healthCache['set']('readyz', response, HEALTH_CACHE_MS);
   const ttlMs = await healthCache.ttlMs('readyz');
-  res.set('X-Health-TTL-Set', ttlMs.toString());
+  res['set']('X-Health-TTL-Set', ttlMs.toString());
   
   res.status(isReady ? 200 : 503).json(response);
 });
 
 // Detailed health endpoint for diagnostics (protected + rate limited)
-router.get('/health/detailed', rateLimitDetailed(), async (req: Request, res: Response) => {
+router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res: Response) => {
   // Protect sensitive health details
-  const healthKey = process.env.HEALTH_KEY;
-  if (healthKey && req.get('X-Health-Key') !== healthKey) {
+  const healthKey = process.env['HEALTH_KEY'];
+  if (healthKey && req['get']('X-Health-Key') !== healthKey) {
     // Also allow internal/localhost requests
     const clientIp = req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress;
     const isInternal = clientIp === '127.0.0.1' || 
@@ -248,7 +248,7 @@ router.get('/health/detailed', rateLimitDetailed(), async (req: Request, res: Re
 });
 
 // Simple inflight/uptime snapshot; extend as needed.
-router.get('/health/inflight', (_req: any, res: any) => {
+router['get']('/health/inflight', (_req: any, res: any) => {
   res.json({
     uptime: process.uptime(),
     memory: process.memoryUsage()
@@ -256,9 +256,9 @@ router.get('/health/inflight', (_req: any, res: any) => {
 });
 
 // Metrics endpoint
-router.get('/metrics', async (req: Request, res: Response) => {
+router['get']('/metrics', async (req: Request, res: Response) => {
   try {
-    res.set('Content-Type', metricsRegister.contentType);
+    res['set']('Content-Type', metricsRegister.contentType);
     const metrics = await metricsRegister.metrics();
     res.send(metrics);
   } catch (error) {

@@ -5,7 +5,7 @@ import type { Request, Response } from '../types/request-response';
 const router = Router();
 
 // Get overall error budget status
-router.get('/', async (_req: Request, res: Response) => {
+router['get']('/', async (_req: Request, res: Response) => {
   try {
     const report = await errorBudgetManager.generateReport();
     res.json(report);
@@ -18,7 +18,7 @@ router.get('/', async (_req: Request, res: Response) => {
 });
 
 // Get specific SLO error budget
-router.get('/:slo', async (req: Request, res: Response) => {
+router['get']('/:slo', async (req: Request, res: Response) => {
   try {
     const { slo } = req.params;
     const budget = await errorBudgetManager.calculateErrorBudget(slo);
@@ -36,7 +36,7 @@ router.get('/:slo', async (req: Request, res: Response) => {
 });
 
 // Check deployment gate status
-router.get('/gate/status', async (_req: Request, res: Response) => {
+router['get']('/gate/status', async (_req: Request, res: Response) => {
   try {
     const gate = await errorBudgetManager.checkDeploymentGate();
     res.json(gate);
@@ -49,7 +49,7 @@ router.get('/gate/status', async (_req: Request, res: Response) => {
 });
 
 // Get SLO configurations
-router.get('/config/slos', (_req: Request, res: Response) => {
+router['get']('/config/slos', (_req: Request, res: Response) => {
   const slos = errorBudgetManager.getSLOs();
   res.json(slos);
 });

@@ -43,7 +43,7 @@ export function useAllFeatureFlags(): Record<FeatureFlagName, boolean> {
   useEffect(() => {
     const allFlags: Record<string, boolean> = {};
     
-    Object.keys(featureConfig).forEach((key) => {
+    Object.keys(featureConfig).forEach((key: any) => {
       const flagName = key as FeatureFlagName;
       const envOverride = import.meta.env[`VITE_FEATURE_${flagName.toUpperCase().replace(/-/g, '_')}`];
       

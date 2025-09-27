@@ -72,7 +72,7 @@ function sendToAnalytics(metric: VitalMetric) {
   // Send to Sentry as custom measurement (if privacy allows)
   if ((window as any).Sentry && isTelemetryAllowed()) {
     // Use span API for measurements in v10+
-    Sentry.withScope((scope) => {
+    Sentry.withScope((scope: any) => {
       scope.setMeasurement(`webvital.${metric.name.toLowerCase()}`, metric.value);
       
       // Also send as breadcrumb for observability
@@ -147,7 +147,7 @@ export function startVitals() {
   // Monitor long tasks
   if ('PerformanceObserver' in window) {
     try {
-      const observer = new PerformanceObserver((list) => {
+      const observer = new PerformanceObserver((list: any) => {
         for (const entry of list.getEntries()) {
           // Report tasks longer than 50ms as potential issues
           if (entry.duration > 50) {
@@ -187,11 +187,11 @@ export function getVitalsSnapshot() {
   };
   
   // Collect current values (note: these are cumulative)
-  onLCP((metric) => { vitals['lcp'] = metric.value; }, { reportAllChanges: false });
-  onINP((metric) => { vitals['inp'] = metric.value; }, { reportAllChanges: false });
-  onCLS((metric) => { vitals['cls'] = metric.value; }, { reportAllChanges: false });
-  onFCP((metric) => { vitals['fcp'] = metric.value; }, { reportAllChanges: false });
-  onTTFB((metric) => { vitals['ttfb'] = metric.value; }, { reportAllChanges: false });
+  onLCP((metric: any) => { vitals['lcp'] = metric.value; }, { reportAllChanges: false });
+  onINP((metric: any) => { vitals['inp'] = metric.value; }, { reportAllChanges: false });
+  onCLS((metric: any) => { vitals['cls'] = metric.value; }, { reportAllChanges: false });
+  onFCP((metric: any) => { vitals['fcp'] = metric.value; }, { reportAllChanges: false });
+  onTTFB((metric: any) => { vitals['ttfb'] = metric.value; }, { reportAllChanges: false });
   
   return vitals;
 }

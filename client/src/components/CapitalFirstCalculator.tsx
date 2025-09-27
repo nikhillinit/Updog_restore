@@ -62,7 +62,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
     };
 
     // Simple mapping for demo - in production, you'd have more sophisticated allocation logic
-    allocations.forEach((alloc, index) => {
+    allocations.forEach((alloc: any, index: any) => {
       const stageKey = StageOrder[index % StageOrder.length];
       if (stageKey) {
         allocationPctByStage[stageKey] = alloc.percentage || 0;
@@ -84,7 +84,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
       seriesBplus: 1_200_000
     };
 
-    stages.forEach((stage, index) => {
+    stages.forEach((stage: any, index: any) => {
       const stageKey = StageOrder[index % StageOrder.length];
       if (stageKey) {
         graduationPctByStage[stageKey] = stage.graduate || 0;
@@ -170,7 +170,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {inputErrors.map((error, index) => (
+          {inputErrors.map((error: any, index: any) => (
             <Alert key={index} variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
@@ -260,7 +260,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
           
           <TabsContent value="counts" className="space-y-4">
             <div className="grid gap-3">
-              {StageOrder.map((stage) => (
+              {StageOrder.map((stage: any) => (
                 <div key={stage} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-3">
                     <Label className="capitalize font-medium">{stage.replace(/([A-Z])/g, ' $1')}</Label>
@@ -287,7 +287,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
           
           <TabsContent value="capital" className="space-y-4">
             <div className="grid gap-3">
-              {StageOrder.map((stage) => (
+              {StageOrder.map((stage: any) => (
                 <div key={stage} className="p-3 border rounded-lg">
                   <div className="flex items-center justify-between mb-2">
                     <Label className="capitalize font-medium">{stage.replace(/([A-Z])/g, ' $1')}</Label>
@@ -315,7 +315,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
         {/* Warnings */}
         {results.warnings.length > 0 && (
           <div className="space-y-2">
-            {results.warnings.map((warning, index) => (
+            {results.warnings.map((warning: any, index: any) => (
               <Alert key={index}>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{warning}</AlertDescription>

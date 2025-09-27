@@ -89,7 +89,7 @@ export function withRLSTransaction() {
       };
 
       // Handle premature close
-      res.on('close', () => {
+      res['on']('close', () => {
         if (!transactionCompleted) {
           transactionCompleted = true;
           client.query('ROLLBACK')
@@ -140,7 +140,7 @@ export async function verifyRLSContext(req: RLSRequest): Promise<{
       current_setting('app.current_role', true) as current_role
   `);
 
-  return result.rows[0];
+  return result.rows[0]!;
 }
 
 /**
@@ -183,7 +183,7 @@ export async function checkFundAccess(
  * Log RLS context for debugging
  */
 export function logRLSContext(req: RLSRequest, prefix: string = ''): void {
-  if (process.env.NODE_ENV === 'development' || process.env.DEBUG_RLS === 'true') {
+  if (process.env['NODE_ENV'] === 'development' || process.env['DEBUG_RLS'] === 'true') {
     verifyRLSContext(req)
       .then(context => {
         console.log(`${prefix} RLS Context:`, context);

@@ -83,7 +83,7 @@ export default function DealTagsEditor({ selectedTags, onTagsChange, className =
     if (e.key === 'Enter') {
       e.preventDefault();
       if (availableTags.length > 0) {
-        handleTagSelect(availableTags[0]);
+        handleTagSelect(availableTags[0]!);
       } else if (inputValue.trim()) {
         handleCustomTag();
       }
@@ -109,7 +109,7 @@ export default function DealTagsEditor({ selectedTags, onTagsChange, className =
       {/* Selected Tags Display */}
       {selectedTags.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {selectedTags.map((tag) => (
+          {selectedTags.map((tag: any) => (
             <Badge 
               key={tag} 
               variant="secondary" 
@@ -137,7 +137,7 @@ export default function DealTagsEditor({ selectedTags, onTagsChange, className =
               ref={inputRef}
               placeholder="Investment Tags (you can enter new tags)"
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(e: any) => setInputValue(e.target.value)}
               onFocus={() => setIsOpen(true)}
               onKeyDown={handleKeyDown}
               className="pr-8"
@@ -151,7 +151,7 @@ export default function DealTagsEditor({ selectedTags, onTagsChange, className =
             <CommandList className="max-h-[200px]">
               {availableTags.length > 0 ? (
                 <CommandGroup>
-                  {availableTags.map((tag) => (
+                  {availableTags.map((tag: any) => (
                     <CommandItem
                       key={tag}
                       onSelect={() => handleTagSelect(tag)}

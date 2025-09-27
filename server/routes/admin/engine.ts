@@ -9,22 +9,22 @@ router.use(requireAuth(), requireRole("admin"));
 
 // Simple in-memory state for runtime engine configuration
 const engineConfig = {
-  enabled: process.env.ENGINE_GUARD_ENABLED !== 'false',
-  faultRate: parseFloat(process.env.ENGINE_FAULT_RATE || '0'),
+  enabled: process.env['ENGINE_GUARD_ENABLED'] !== 'false',
+  faultRate: parseFloat(process.env['ENGINE_FAULT_RATE'] || '0'),
 };
 
 // GET /admin/engine/guard - Get current guard status
-router.get('/guard', (req: Request, res: Response) => {
+router['get']('/guard', (req: Request, res: Response) => {
   res.json({
     enabled: engineConfig.enabled,
     faultRate: engineConfig.faultRate,
-    environment: process.env.NODE_ENV,
+    environment: process.env['NODE_ENV'],
   });
 });
 
 // POST /admin/engine/guard - Update guard configuration (non-prod only)
 router.post('/guard', (req: Request, res: Response) => {
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env['NODE_ENV'] === 'production') {
     return res.status(403).json({ 
       ok: false, 
       error: 'Engine configuration changes not allowed in production' 
@@ -44,7 +44,7 @@ router.post('/guard', (req: Request, res: Response) => {
     if (typeof body.faultRate === 'number') {
       engineConfig.faultRate = body.faultRate;
       // Update environment variable so fault injector picks it up
-      process.env.ENGINE_FAULT_RATE = String(body.faultRate);
+      process.env['ENGINE_FAULT_RATE'] = String(body.faultRate);
     }
 
     res.json({
@@ -52,7 +52,7 @@ router.post('/guard', (req: Request, res: Response) => {
       engineGuard: {
         enabled: engineConfig.enabled,
         faultRate: engineConfig.faultRate,
-        environment: process.env.NODE_ENV,
+        environment: process.env['NODE_ENV'],
       }
     });
   } catch (error) {
@@ -65,17 +65,17 @@ router.post('/guard', (req: Request, res: Response) => {
 });
 
 // GET /admin/engine/status - Overall engine health
-router.get('/status', (req: Request, res: Response) => {
+router['get']('/status', (req: Request, res: Response) => {
   res.json({
     guard: {
       enabled: engineConfig.enabled,
       faultRate: engineConfig.faultRate,
     },
-    environment: process.env.NODE_ENV,
+    environment: process.env['NODE_ENV'],
     faultInjection: {
-      enabled: process.env.ENGINE_FAULT_ENABLE === '1' || process.env.NODE_ENV === 'test',
-      rate: parseFloat(process.env.ENGINE_FAULT_RATE || '0'),
-      seed: parseInt(process.env.ENGINE_FAULT_SEED || '1337'),
+      enabled: process.env['ENGINE_FAULT_ENABLE'] === '1' || process.env['NODE_ENV'] === 'test',
+      rate: parseFloat(process.env['ENGINE_FAULT_RATE'] || '0'),
+      seed: parseInt(process.env['ENGINE_FAULT_SEED'] || '1337'),
     },
   });
 });

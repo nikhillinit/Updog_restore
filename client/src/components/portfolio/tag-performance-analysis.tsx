@@ -229,7 +229,7 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
                   />
                   <YAxis fontSize={12} />
                   <Tooltip 
-                    formatter={(value, _name) => [getChartData().find(d => d.value === value)?.display || value, getMetricLabel()]}
+                    formatter={(value: any, _name: any) => [getChartData().find(d => d.value === value)?.display || value, getMetricLabel()]}
                   />
                   <Bar dataKey="value" fill="#3b82f6" />
                 </BarChart>
@@ -245,11 +245,11 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {getChartData().map((entry, index) => (
+                    {getChartData().map((entry: any, index: any) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value, _name) => [getChartData().find(d => d.value === value)?.display || value, getMetricLabel()]} />
+                  <Tooltip formatter={(value: any, _name: any) => [getChartData().find(d => d.value === value)?.display || value, getMetricLabel()]} />
                 </PieChart>
               )}
             </ResponsiveContainer>
@@ -264,7 +264,7 @@ export default function TagPerformanceAnalysis({ className = '' }: TagPerformanc
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {MOCK_TAG_PERFORMANCE.map((tag) => (
+            {MOCK_TAG_PERFORMANCE.map((tag: any) => (
               <div key={tag.tag} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                 <div className="flex items-center space-x-4">
                   <Badge variant="outline" className="font-medium">

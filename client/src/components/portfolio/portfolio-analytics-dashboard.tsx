@@ -261,7 +261,7 @@ export default function PortfolioAnalyticsDashboard() {
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey={currentChart.xAxis} />
-              <YAxis tickFormatter={(value) => formatValue(value, yMetric?.type || 'number')} />
+              <YAxis tickFormatter={(value: any) => formatValue(value, yMetric?.type || 'number')} />
               <Tooltip 
                 formatter={(value: number) => [formatValue(value, yMetric?.type || 'number'), yMetric?.label]}
               />
@@ -276,7 +276,7 @@ export default function PortfolioAnalyticsDashboard() {
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey={currentChart.xAxis} />
-              <YAxis tickFormatter={(value) => formatValue(value, yMetric?.type || 'number')} />
+              <YAxis tickFormatter={(value: any) => formatValue(value, yMetric?.type || 'number')} />
               <Tooltip 
                 formatter={(value: number) => [formatValue(value, yMetric?.type || 'number'), yMetric?.label]}
               />
@@ -291,7 +291,7 @@ export default function PortfolioAnalyticsDashboard() {
             <AreaChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey={currentChart.xAxis} />
-              <YAxis tickFormatter={(value) => formatValue(value, yMetric?.type || 'number')} />
+              <YAxis tickFormatter={(value: any) => formatValue(value, yMetric?.type || 'number')} />
               <Tooltip 
                 formatter={(value: number) => [formatValue(value, yMetric?.type || 'number'), yMetric?.label]}
               />
@@ -312,14 +312,14 @@ export default function PortfolioAnalyticsDashboard() {
                 cy="50%"
                 outerRadius={120}
                 fill="#3B82F6"
-                label={(props) => {
+                label={(props: any) => {
                   // Handle the case where props might have undefined properties
                   const name = props.name ?? '';
                   const value = props.value ?? 0;
                   return `${name}: ${formatValue(value, yMetric?.type ? yMetric.type : 'number')}`;
                 }}
               >
-                {data.map((entry, index) => (
+                {data.map((entry: any, index: any) => (
                   <Cell key={`cell-${index}`} fill={`hsl(${210 + index * 30}, 70%, 50%)`} />
                 ))}
               </Pie>
@@ -401,12 +401,12 @@ export default function PortfolioAnalyticsDashboard() {
                   <Input
                     placeholder="View name"
                     value={currentChart.title}
-                    onChange={(e) => setCurrentChart(prev => ({ ...prev, title: e.target.value }))}
+                    onChange={(e: any) => setCurrentChart(prev => ({ ...prev, title: e.target.value }))}
                   />
                   <Textarea
                     placeholder="Add notes about this analysis (optional)"
                     value={viewNotes}
-                    onChange={(e) => setViewNotes(e.target.value)}
+                    onChange={(e: any) => setViewNotes(e.target.value)}
                     rows={3}
                   />
                   <div className="flex justify-end space-x-2">
@@ -434,7 +434,7 @@ export default function PortfolioAnalyticsDashboard() {
               <Input
                 placeholder="Search data sources..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e: any) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -466,7 +466,7 @@ export default function PortfolioAnalyticsDashboard() {
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-3">SAVED VIEWS</h3>
               <div className="space-y-2">
-                {savedViews.map((view) => (
+                {savedViews.map((view: any) => (
                   <div
                     key={view.id}
                     className="p-2 rounded border hover:bg-gray-50 cursor-pointer"
@@ -534,7 +534,7 @@ export default function PortfolioAnalyticsDashboard() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {CHART_TYPES.map((type) => {
+                      {CHART_TYPES.map((type: any) => {
                         const Icon = type.icon;
                         return (
                           <SelectItem key={type.value} value={type.value}>
@@ -551,14 +551,14 @@ export default function PortfolioAnalyticsDashboard() {
 
                 <div>
                   <label className="block text-sm font-medium mb-2">X-Axis</label>
-                  <Select value={currentChart.xAxis} onValueChange={(value) => 
+                  <Select value={currentChart.xAxis} onValueChange={(value: any) => 
                     setCurrentChart(prev => ({ ...prev, xAxis: value }))
                   }>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {DIMENSIONS.map((dim) => (
+                      {DIMENSIONS.map((dim: any) => (
                         <SelectItem key={dim.value} value={dim.value}>
                           {dim.label}
                         </SelectItem>
@@ -569,14 +569,14 @@ export default function PortfolioAnalyticsDashboard() {
 
                 <div>
                   <label className="block text-sm font-medium mb-2">Y-Axis</label>
-                  <Select value={currentChart.yAxis} onValueChange={(value) => 
+                  <Select value={currentChart.yAxis} onValueChange={(value: any) => 
                     setCurrentChart(prev => ({ ...prev, yAxis: value }))
                   }>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {METRICS.map((metric) => (
+                      {METRICS.map((metric: any) => (
                         <SelectItem key={metric.value} value={metric.value}>
                           {metric.label}
                         </SelectItem>
@@ -589,7 +589,7 @@ export default function PortfolioAnalyticsDashboard() {
                   <label className="block text-sm font-medium mb-2">Title</label>
                   <Input
                     value={currentChart.title}
-                    onChange={(e) => setCurrentChart(prev => ({ ...prev, title: e.target.value }))}
+                    onChange={(e: any) => setCurrentChart(prev => ({ ...prev, title: e.target.value }))}
                     placeholder="Chart title"
                   />
                 </div>
@@ -621,7 +621,7 @@ export default function PortfolioAnalyticsDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {portfolioData.map((company) => (
+                        {portfolioData.map((company: any) => (
                           <tr key={company.id} className="border-b hover:bg-gray-50">
                             <td className="p-2 font-medium">{company.name}</td>
                             <td className="p-2">
@@ -667,7 +667,7 @@ export default function PortfolioAnalyticsDashboard() {
               <Textarea
                 placeholder="Add qualitative insights, context, or explanations for this analysis..."
                 value={viewNotes}
-                onChange={(e) => setViewNotes(e.target.value)}
+                onChange={(e: any) => setViewNotes(e.target.value)}
                 rows={4}
                 className="w-full"
               />

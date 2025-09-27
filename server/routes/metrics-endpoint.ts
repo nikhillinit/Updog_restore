@@ -11,11 +11,11 @@ export const metricsRouter = Router();
  * GET /metrics
  * Prometheus metrics endpoint
  */
-metricsRouter.get('/metrics', async (req: Request, res: Response) => {
+metricsRouter['get']('/metrics', async (req: Request, res: Response) => {
   try {
     const metrics = await getMetrics();
     
-    res.set({
+    res['set']({
       'Content-Type': getContentType(),
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',

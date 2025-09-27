@@ -42,9 +42,9 @@ async function bootstrap() {
     
     // Track open sockets for graceful shutdown
     const sockets = new Set<Socket>();
-    server.on('connection', (socket: Socket) => {
+    server['on']('connection', (socket: Socket) => {
       sockets.add(socket);
-      socket.on('close', () => sockets.delete(socket));
+      socket['on']('close', () => sockets.delete(socket));
     });
     
     // Set server timeouts to avoid slowloris attacks
@@ -87,16 +87,16 @@ async function bootstrap() {
     }
     
     // Listen for termination signals
-    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    process['on']('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process['on']('SIGINT', () => gracefulShutdown('SIGINT'));
     
     // Handle uncaught errors
-    process.on('uncaughtException', (error) => {
+    process['on']('uncaughtException', (error: any) => {
       console.error('Uncaught Exception:', error);
       gracefulShutdown('uncaughtException');
     });
     
-    process.on('unhandledRejection', (reason, promise) => {
+    process['on']('unhandledRejection', (reason: any, promise: any) => {
       console.error('Unhandled Rejection at:', promise, 'reason:', reason);
       // Don't exit on unhandled rejections in dev, but log them
       if (cfg.NODE_ENV === 'production') {

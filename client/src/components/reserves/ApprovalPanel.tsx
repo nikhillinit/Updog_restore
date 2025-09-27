@@ -258,7 +258,7 @@ export function ApprovalPanel() {
                     <CardFooter className="pt-3 border-t">
                       <div className="flex justify-between items-center w-full">
                         <div className="flex items-center gap-2">
-                          {approval.signatures.map((sig, idx) => (
+                          {approval.signatures.map((sig: any, idx: any) => (
                             <div key={idx} className="flex items-center gap-1">
                               <CheckCircle2 className="h-4 w-4 text-green-500" />
                               <span className="text-xs text-muted-foreground">
@@ -342,7 +342,7 @@ export function ApprovalPanel() {
                   {approvalDetails.signatures.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No signatures yet</p>
                   ) : (
-                    approvalDetails.signatures.map((sig, idx) => (
+                    approvalDetails.signatures.map((sig: any, idx: any) => (
                       <div key={idx} className="flex items-center gap-2 text-sm">
                         <CheckCircle2 className="h-4 w-4 text-green-500" />
                         <span>{sig.partnerEmail}</span>
@@ -359,7 +359,7 @@ export function ApprovalPanel() {
               <div className="space-y-2">
                 <h4 className="font-semibold text-sm">Audit Trail</h4>
                 <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {approvalDetails.auditLog.map((entry, idx) => (
+                  {approvalDetails.auditLog.map((entry: any, idx: any) => (
                     <div key={idx} className="text-xs text-muted-foreground">
                       {new Date(entry.timestamp).toLocaleString()} - {entry.actor} {entry.action}
                     </div>
@@ -423,7 +423,7 @@ export function ApprovalPanel() {
                 id="verification"
                 placeholder="Enter 2FA code for enhanced security"
                 value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value)}
+                onChange={(e: any) => setVerificationCode(e.target.value)}
               />
             </div>
           </div>
@@ -464,7 +464,7 @@ export function ApprovalPanel() {
                 id="reason"
                 placeholder="Enter reason for rejection (min 10 characters)"
                 value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
+                onChange={(e: any) => setRejectionReason(e.target.value)}
                 rows={4}
               />
             </div>

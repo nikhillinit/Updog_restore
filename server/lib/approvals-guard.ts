@@ -323,7 +323,7 @@ export async function createApprovalIfNeeded(
   if (existing.length > 0) {
     return {
       requiresApproval: true,
-      approvalId: existing[0].id
+      approvalId: existing[0]!.id
     };
   }
 

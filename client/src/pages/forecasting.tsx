@@ -28,7 +28,7 @@ export default function ForecastingPage() {
   });
 
   // Use first fund or default data
-  const fund = (Array.isArray(funds) ? funds[0] : null) || {
+  const fund = (Array.isArray(funds) ? funds[0]! : null) || {
     id: "1",
     name: "Press On Ventures Fund I",
     size: 55000000,
@@ -75,8 +75,8 @@ export default function ForecastingPage() {
     ];
 
     // Fund-Level Aggregation from Deal-Level Forecasts
-    const totalExpectedProceeds = portfolioCompanies.reduce((sum, co) => sum + co.expectedProceeds, 0);
-    const totalInvested = portfolioCompanies.reduce((sum, _co) => sum + 4500000, 0); // Sample invested amounts
+    const totalExpectedProceeds = portfolioCompanies.reduce((sum: any, co: any) => sum + co.expectedProceeds, 0);
+    const totalInvested = portfolioCompanies.reduce((sum: any, _co: any) => sum + 4500000, 0); // Sample invested amounts
     const fundLevelMOIC = totalExpectedProceeds / totalInvested;
     
     return {
@@ -85,7 +85,7 @@ export default function ForecastingPage() {
         totalExpectedProceeds,
         totalInvested,
         fundLevelMOIC,
-        averageReserveEfficiency: portfolioCompanies.reduce((sum, co) => sum + co.reserveEfficiency, 0) / portfolioCompanies.length
+        averageReserveEfficiency: portfolioCompanies.reduce((sum: any, co: any) => sum + co.reserveEfficiency, 0) / portfolioCompanies.length
       },
       investmentCycle: 36, // months
       monthlyInvestmentRate: 1.2, // deals per month

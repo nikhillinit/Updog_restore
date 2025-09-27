@@ -79,7 +79,7 @@ export default function InvestmentBreakdownChart({
                 stroke="#fff"
                 strokeWidth={2}
               >
-                {data.map((entry, index) => (
+                {data.map((entry: any, index: any) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
@@ -97,7 +97,7 @@ export default function InvestmentBreakdownChart({
         </div>
         
         <div className="space-y-3 pt-4 border-t border-gray-100">
-          {data.map((sector, index) => (
+          {data.map((sector: any, index: any) => (
             <div key={index} className="flex items-center justify-between text-sm">
               <div className="flex items-center space-x-3">
                 <div 

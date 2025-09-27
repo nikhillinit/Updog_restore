@@ -124,7 +124,7 @@ export default function LiquidationPreferencesDialog({
                     <div className="relative">
                       <Input
                         value={totalLiqPrefOwned}
-                        onChange={(e) => setTotalLiqPrefOwned(e.target.value)}
+                        onChange={(e: any) => setTotalLiqPrefOwned(e.target.value)}
                         className="pl-8 bg-yellow-50 border-yellow-200 font-mono"
                         placeholder="4000000"
                       />
@@ -177,7 +177,7 @@ export default function LiquidationPreferencesDialog({
                           <div className="relative">
                             <Input
                               value={liqPrefCapAmount}
-                              onChange={(e) => setLiqPrefCapAmount(e.target.value)}
+                              onChange={(e: any) => setLiqPrefCapAmount(e.target.value)}
                               className="pl-8 bg-yellow-50 border-yellow-200 font-mono"
                               placeholder="6000000"
                             />
@@ -215,7 +215,7 @@ export default function LiquidationPreferencesDialog({
                     <div className="relative">
                       <Input
                         value={totalLiqPrefsInFront}
-                        onChange={(e) => setTotalLiqPrefsInFront(e.target.value)}
+                        onChange={(e: any) => setTotalLiqPrefsInFront(e.target.value)}
                         className="pl-8 font-mono"
                         placeholder="0"
                       />
@@ -237,7 +237,7 @@ export default function LiquidationPreferencesDialog({
                     <div className="relative">
                       <Input
                         value={totalOtherLiqPrefsPariPassu}
-                        onChange={(e) => setTotalOtherLiqPrefsPariPassu(e.target.value)}
+                        onChange={(e: any) => setTotalOtherLiqPrefsPariPassu(e.target.value)}
                         className="pl-8 font-mono"
                         placeholder="0"
                       />
@@ -259,7 +259,7 @@ export default function LiquidationPreferencesDialog({
                     <div className="relative">
                       <Input
                         value={totalLiqPrefsSenior}
-                        onChange={(e) => setTotalLiqPrefsSenior(e.target.value)}
+                        onChange={(e: any) => setTotalLiqPrefsSenior(e.target.value)}
                         className="pl-8 font-mono"
                         placeholder="0"
                       />

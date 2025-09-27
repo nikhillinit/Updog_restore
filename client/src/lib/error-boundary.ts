@@ -111,7 +111,7 @@ export class ReservesErrorBoundary {
         if (!context.input || !context.config) return null;
         
         try {
-          const totalInvested = context.input.companies?.reduce((sum, c) => sum + c.invested_cents, 0) || 0;
+          const totalInvested = context.input.companies?.reduce((sum: any, c: any) => sum + c.invested_cents, 0) || 0;
           const reserveAmount = Math.floor(totalInvested * (context.config.reserve_bps || 1500) / 10000);
           
           return {
@@ -201,7 +201,7 @@ export class ReservesErrorBoundary {
   
   private async attemptRecovery(error: Error, context: ErrorContext): Promise<ReservesResult | null> {
     // Sort strategies by priority
-    const sortedStrategies = [...this.recoveryStrategies].sort((a, b) => a.priority - b.priority);
+    const sortedStrategies = [...this.recoveryStrategies].sort((a: any, b: any) => a.priority - b.priority);
     
     for (const strategy of sortedStrategies) {
       if (strategy.canRecover(error, context)) {
@@ -231,14 +231,14 @@ export class ReservesErrorBoundary {
       throw new Error('No valid companies for simplified calculation');
     }
     
-    const totalInvested = validCompanies.reduce((sum, c) => sum + c.invested_cents, 0);
+    const totalInvested = validCompanies.reduce((sum: any, c: any) => sum + c.invested_cents, 0);
     const reserveAmount = Math.floor(totalInvested * config.reserve_bps / 10000);
     
     // Simple equal allocation
     const allocationPerCompany = Math.floor(reserveAmount / validCompanies.length);
     const remainder = reserveAmount - (allocationPerCompany * validCompanies.length);
     
-    const allocations = validCompanies.map((company, index) => ({
+    const allocations = validCompanies.map((company: any, index: any) => ({
       company_id: company.id,
       planned_cents: allocationPerCompany + (index === 0 ? remainder : 0),
       iteration: 1,
@@ -326,7 +326,7 @@ export class ReservesErrorBoundary {
       entry => now - entry.timestamp.getTime() < this.CIRCUIT_BREAKER_WINDOW
     );
     
-    const operationCounts = recentErrors.reduce((acc, entry) => {
+    const operationCounts = recentErrors.reduce((acc: any, entry: any) => {
       acc[entry.context.operation] = (acc[entry.context.operation] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -335,7 +335,7 @@ export class ReservesErrorBoundary {
       totalErrors: this.errorHistory.length,
       recentErrors: recentErrors.length,
       operationBreakdown: operationCounts,
-      circuitStatus: Object.keys(operationCounts).reduce((acc, op) => {
+      circuitStatus: Object.keys(operationCounts).reduce((acc: any, op: any) => {
         acc[op] = operationCounts[op] >= this.CIRCUIT_BREAKER_THRESHOLD ? 'OPEN' : 'CLOSED';
         return acc;
       }, {} as Record<string, string>)

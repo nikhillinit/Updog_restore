@@ -8,12 +8,12 @@ import { breakerRegistry } from '../infra/circuit-breaker/breaker-registry';
 
 // PostgreSQL connection pool configuration
 const poolConfig = {
-  connectionString: process.env.DATABASE_URL,
-  max: parseInt(process.env.PG_POOL_MAX || '20', 10),
-  idleTimeoutMillis: parseInt(process.env.PG_IDLE_TIMEOUT || '30000', 10),
-  connectionTimeoutMillis: parseInt(process.env.PG_CONNECT_TIMEOUT || '2000', 10),
-  statement_timeout: parseInt(process.env.PG_STATEMENT_TIMEOUT || '10000', 10),
-  query_timeout: parseInt(process.env.PG_QUERY_TIMEOUT || '10000', 10),
+  connectionString: process.env['DATABASE_URL'],
+  max: parseInt(process.env['PG_POOL_MAX'] || '20', 10),
+  idleTimeoutMillis: parseInt(process.env['PG_IDLE_TIMEOUT'] || '30000', 10),
+  connectionTimeoutMillis: parseInt(process.env['PG_CONNECT_TIMEOUT'] || '2000', 10),
+  statement_timeout: parseInt(process.env['PG_STATEMENT_TIMEOUT'] || '10000', 10),
+  query_timeout: parseInt(process.env['PG_QUERY_TIMEOUT'] || '10000', 10),
   // Connection health check
   keepAlive: true,
   keepAliveInitialDelayMillis: 0,
@@ -23,29 +23,29 @@ const poolConfig = {
 export const pool = new Pool(poolConfig);
 
 // Pool event handlers for monitoring
-pool.on('error', (err) => {
+pool['on']('error', (err: any) => {
   console.error('[PG Pool] Unexpected error on idle client:', err);
 });
 
-pool.on('connect', (client) => {
+pool['on']('connect', (client: any) => {
   console.log('[PG Pool] New client connected');
 });
 
-pool.on('acquire', (client) => {
+pool['on']('acquire', (client: any) => {
   console.debug('[PG Pool] Client acquired from pool');
 });
 
-pool.on('remove', (client) => {
+pool['on']('remove', (client: any) => {
   console.debug('[PG Pool] Client removed from pool');
 });
 
 // Circuit breaker configuration for database operations
 const dbBreakerConfig = {
-  failureThreshold: parseInt(process.env.CB_DB_FAILURE_THRESHOLD || '5', 10),
-  resetTimeout: parseInt(process.env.CB_DB_RESET_TIMEOUT_MS || '30000', 10),
-  operationTimeout: parseInt(process.env.CB_DB_OP_TIMEOUT_MS || '10000', 10),
-  successesToClose: parseInt(process.env.CB_DB_SUCCESS_TO_CLOSE || '3', 10),
-  halfOpenMaxConcurrent: parseInt(process.env.CB_DB_HALF_OPEN_MAX_CONC || '2', 10),
+  failureThreshold: parseInt(process.env['CB_DB_FAILURE_THRESHOLD'] || '5', 10),
+  resetTimeout: parseInt(process.env['CB_DB_RESET_TIMEOUT_MS'] || '30000', 10),
+  operationTimeout: parseInt(process.env['CB_DB_OP_TIMEOUT_MS'] || '10000', 10),
+  successesToClose: parseInt(process.env['CB_DB_SUCCESS_TO_CLOSE'] || '3', 10),
+  halfOpenMaxConcurrent: parseInt(process.env['CB_DB_HALF_OPEN_MAX_CONC'] || '2', 10),
 };
 
 // Create circuit breaker for database operations
@@ -91,7 +91,7 @@ export function getQueryMetrics() {
   const totalQueries = queryMetrics.length;
   const errorQueries = queryMetrics.filter(m => m.error).length;
   const slowQueries = queryMetrics.filter(m => m.duration > 1000).length;
-  const avgDuration = queryMetrics.reduce((sum, m) => sum + m.duration, 0) / totalQueries || 0;
+  const avgDuration = queryMetrics.reduce((sum: any, m: any) => sum + m.duration, 0) / totalQueries || 0;
   
   return {
     totalQueries,
@@ -138,7 +138,7 @@ export async function query<T extends QueryResultRow = any>(
   params?: any[]
 ): Promise<QueryResult<T>> {
   // Skip circuit breaker if disabled
-  if (process.env.CB_DB_ENABLED === 'false') {
+  if (process.env['CB_DB_ENABLED'] === 'false') {
     return _query<T>(text, params);
   }
   
@@ -212,7 +212,7 @@ export async function transactionWithBreaker<T>(
   callback: (client: PoolClient) => Promise<T>
 ): Promise<T> {
   // Skip circuit breaker if disabled
-  if (process.env.CB_DB_ENABLED === 'false') {
+  if (process.env['CB_DB_ENABLED'] === 'false') {
     return transaction(callback);
   }
   

@@ -68,7 +68,7 @@ export function signatureForStrategy(input: StrategyInput): string {
   const stages = (input?.stages ?? [])
     .slice()
     .sort(sortById)
-    .map((s) => ({
+    .map((s: any) => ({
       id: s.id ?? '',
       name: s.name ?? '',
       // Support either field name, normalize to a single one
@@ -80,7 +80,7 @@ export function signatureForStrategy(input: StrategyInput): string {
   const sectorProfiles = (input?.sectorProfiles ?? [])
     .slice()
     .sort(sortById)
-    .map((p) => ({
+    .map((p: any) => ({
       id: p.id ?? '',
       name: p.name ?? '',
       targetPercentage: normNum(p.targetPercentage),
@@ -89,7 +89,7 @@ export function signatureForStrategy(input: StrategyInput): string {
   const allocations = (input?.allocations ?? [])
     .slice()
     .sort(sortById)
-    .map((a) => ({
+    .map((a: any) => ({
       id: a.id ?? '',
       category: a.category ?? '',
       percentage: normNum(a.percentage),

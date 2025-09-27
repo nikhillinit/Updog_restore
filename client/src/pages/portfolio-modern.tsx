@@ -132,9 +132,9 @@ export default function ModernPortfolio() {
     totalCompanies: portfolioCompanies.length,
     activeCompanies: portfolioCompanies.filter(c => c.status === 'active').length,
     exitedCompanies: portfolioCompanies.filter(c => c.status === 'exited').length,
-    totalInvested: portfolioCompanies.reduce((sum, c) => sum + c.initialInvestment, 0),
-    totalValue: portfolioCompanies.reduce((sum, c) => sum + c.currentValue, 0),
-    averageMOIC: portfolioCompanies.filter(c => c.status !== 'written-off').reduce((sum, c) => sum + c.moic, 0) / 
+    totalInvested: portfolioCompanies.reduce((sum: any, c: any) => sum + c.initialInvestment, 0),
+    totalValue: portfolioCompanies.reduce((sum: any, c: any) => sum + c.currentValue, 0),
+    averageMOIC: portfolioCompanies.filter(c => c.status !== 'written-off').reduce((sum: any, c: any) => sum + c.moic, 0) / 
                  portfolioCompanies.filter(c => c.status !== 'written-off').length
   };
 
@@ -244,7 +244,7 @@ export default function ModernPortfolio() {
                 <Input
                   placeholder="Search companies..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e: any) => setSearchTerm(e.target.value)}
                   className="pl-10 w-64 border-pov-gray focus:ring-pov-beige"
                 />
               </div>
@@ -307,7 +307,7 @@ export default function ModernPortfolio() {
                 </tr>
               </thead>
               <tbody>
-                {filteredCompanies.map((company) => (
+                {filteredCompanies.map((company: any) => (
                   <tr key={company.id} className="border-b border-pov-gray/20 hover:bg-pov-beige/10 transition-colors">
                     <td className="py-4 px-2">
                       <div className="space-y-1">

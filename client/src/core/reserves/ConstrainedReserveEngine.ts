@@ -10,7 +10,7 @@ export class ConstrainedReserveEngine {
 
     const stageMax = new Map<string, Cents>();
     Object.entries(cst.maxPerStage ?? {}).forEach(([stage, max]) => {
-      stageMax.set(stage, toCents(max));
+      stageMax['set'](stage, toCents(max));
     });
 
     const stageAllocated = new Map<string, Cents>();
@@ -19,10 +19,10 @@ export class ConstrainedReserveEngine {
     const pExit = (s:string)=> (cst.graduationProb as any)?.[s] ?? 0.5;
 
     const comps = input.companies.map(c=>{
-      const pol = polByStage.get(c.stage);
+      const pol = polByStage['get'](c.stage);
       if (!pol) throw Object.assign(new Error(`No policy for ${c.stage}`), { status: 400 });
       const capCompanyC = Number.isFinite(cst.maxPerCompany) ? toCents(cst.maxPerCompany as number) : BigInt(Number.MAX_SAFE_INTEGER);
-      const capStageC = stageMax.get(c.stage) ?? null;
+      const capStageC = stageMax['get'](c.stage) ?? null;
 
       const pv = pol.reserveMultiple * pExit(c.stage) / Math.pow(1+disc, years(c.stage));
       return {
@@ -45,7 +45,7 @@ export class ConstrainedReserveEngine {
     // Pass 1
     for (const c of comps) {
       if (remainingC <= 0n) break;
-      const stAlloc = stageAllocated.get(c.stage) ?? 0n;
+      const stAlloc = stageAllocated['get'](c.stage) ?? 0n;
       const stRoom = c.capStageC != null ? (c.capStageC - stAlloc > 0n ? c.capStageC - stAlloc : 0n) : remainingC;
       let roomC = remainingC < stRoom ? remainingC : stRoom;
       roomC = roomC < c.capCompanyC ? roomC : c.capCompanyC;
@@ -54,7 +54,7 @@ export class ConstrainedReserveEngine {
 
       c.allocatedC += roomC;
       remainingC -= roomC;
-      stageAllocated.set(c.stage, stAlloc + roomC);
+      stageAllocated['set'](c.stage, stAlloc + roomC);
     }
 
     const totalAllocatedC = comps.reduce((s,c)=> addCents(s,c.allocatedC), 0n);

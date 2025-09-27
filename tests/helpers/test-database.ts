@@ -4,35 +4,51 @@
  * Provides isolated database connections and cleanup utilities for tests
  */
 
-import { createConnection } from '../../server/database/connection';
+import { databaseMock, setupDatabaseMock } from './database-mock';
 
 export interface TestDatabase {
   getConnection(): Promise<any>;
   cleanup(): Promise<void>;
   createIsolatedTransaction(): Promise<any>;
+  getMockData(tableName: string): any[];
+  setMockData(tableName: string, data: any[]): void;
+  clearMockData(): void;
 }
 
 class TestDatabaseImpl implements TestDatabase {
   private connection: any = null;
   private transactions: any[] = [];
+  private isSetup = false;
 
   async getConnection(): Promise<any> {
     if (!this.connection) {
-      // Use test database configuration
-      this.connection = await createConnection({
-        database: process.env.TEST_DATABASE_NAME || 'updog_test',
-        host: process.env.TEST_DATABASE_HOST || 'localhost',
-        port: parseInt(process.env.TEST_DATABASE_PORT || '5432'),
-        username: process.env.TEST_DATABASE_USER || 'postgres',
-        password: process.env.TEST_DATABASE_PASSWORD || 'postgres',
-      });
+      // Setup the database mock if not already done
+      if (!this.isSetup) {
+        setupDatabaseMock();
+        this.isSetup = true;
+      }
+      this.connection = databaseMock;
     }
     return this.connection;
   }
 
   async createIsolatedTransaction(): Promise<any> {
     const conn = await this.getConnection();
-    const transaction = await conn.transaction();
+    // Create a mock transaction that behaves like the database mock
+    const transaction = {
+      execute: conn.execute,
+      select: conn.select,
+      insert: conn.insert,
+      update: conn.update,
+      delete: conn.delete,
+      rollback: async () => {
+        // Reset mock data on rollback
+        conn.clearMockData();
+      },
+      commit: async () => {
+        // No-op for mock
+      }
+    };
     this.transactions.push(transaction);
     return transaction;
   }
@@ -48,15 +64,36 @@ class TestDatabaseImpl implements TestDatabase {
     }
     this.transactions = [];
 
-    // Close connection
+    // Reset the database mock
     if (this.connection) {
       try {
-        await this.connection.close();
+        this.connection.reset();
       } catch (e) {
-        console.warn('Failed to close database connection:', e);
+        console.warn('Failed to reset database mock:', e);
       }
       this.connection = null;
     }
+  }
+
+  /**
+   * Get mock data for a table
+   */
+  getMockData(tableName: string): any[] {
+    return databaseMock.getMockData(tableName);
+  }
+
+  /**
+   * Set mock data for a table
+   */
+  setMockData(tableName: string, data: any[]): void {
+    databaseMock.setMockData(tableName, data);
+  }
+
+  /**
+   * Clear all mock data
+   */
+  clearMockData(): void {
+    databaseMock.clearMockData();
   }
 }
 

@@ -63,7 +63,7 @@ export function updateCircuitBreakerMetrics(
   // Map state to numeric value
   const stateValue = state === 'CLOSED' ? 0 : state === 'HALF_OPEN' ? 1 : 2;
   
-  circuitBreakerMetrics.state.set(
+  circuitBreakerMetrics.state['set'](
     { breaker_name: breakerName, state },
     stateValue
   );
@@ -84,7 +84,7 @@ export function updateCircuitBreakerMetrics(
 }
 
 // Metrics endpoint
-metricsRouter.get('/metrics', async (_req, res) => {
+metricsRouter['get']('/metrics', async (_req: any, res: any) => {
   try {
     // Update circuit breaker metrics from registry
     const { breakerRegistry } = await import('../infra/circuit-breaker/breaker-registry');
@@ -96,7 +96,7 @@ metricsRouter.get('/metrics', async (_req, res) => {
       }
     }
     
-    res.set('Content-Type', client.register.contentType);
+    res['set']('Content-Type', client.register.contentType);
     res.end(await client.register.metrics());
   } catch (error) {
     console.error('Failed to generate metrics:', error);
@@ -105,7 +105,7 @@ metricsRouter.get('/metrics', async (_req, res) => {
 });
 
 // Health metrics endpoint (lightweight)
-metricsRouter.get('/metrics/health', async (_req, res) => {
+metricsRouter['get']('/metrics/health', async (_req: any, res: any) => {
   try {
     const { breakerRegistry } = await import('../infra/circuit-breaker/breaker-registry');
     

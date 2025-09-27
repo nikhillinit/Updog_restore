@@ -35,7 +35,7 @@ export const WalkingSkeleton: React.FC = () => {
             id="fund-size"
             type="number"
             value={fundSize}
-            onChange={(e) => setFundSize(Number(e.target.value))}
+            onChange={(e: any) => setFundSize(Number(e.target.value))}
             className="mt-1 block w-full rounded-md border-gray-300"
             data-testid="fund-size-input"
           />

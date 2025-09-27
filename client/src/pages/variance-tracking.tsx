@@ -390,7 +390,7 @@ export default function VarianceTrackingPage() {
                   <Label>Report Name</Label>
                   <Input
                     value={reportForm.reportName}
-                    onChange={(e) => setReportForm(prev => ({ ...prev, reportName: e.target.value }))}
+                    onChange={(e: any) => setReportForm(prev => ({ ...prev, reportName: e.target.value }))}
                     placeholder="Enter report name..."
                   />
                 </div>
@@ -415,13 +415,13 @@ export default function VarianceTrackingPage() {
                   <Label>Baseline</Label>
                   <Select
                     value={reportForm.baselineId}
-                    onValueChange={(value) => setReportForm(prev => ({ ...prev, baselineId: value }))}
+                    onValueChange={(value: any) => setReportForm(prev => ({ ...prev, baselineId: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select baseline..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {baselinesData?.data?.map((baseline) => (
+                      {baselinesData?.data?.map((baseline: any) => (
                         <SelectItem key={baseline.id} value={baseline.id}>
                           {baseline.name} {baseline.isDefault ? '(Default)' : ''}
                         </SelectItem>
@@ -557,7 +557,7 @@ export default function VarianceTrackingPage() {
               <CardContent>
                 {alertsData?.data?.length ? (
                   <div className="space-y-3">
-                    {alertsData.data.slice(0, 5).map((alert) => (
+                    {alertsData.data.slice(0, 5).map((alert: any) => (
                       <div
                         key={alert.id}
                         className="flex items-center justify-between p-3 border rounded-lg"
@@ -596,7 +596,7 @@ export default function VarianceTrackingPage() {
               <CardContent>
                 {baselinesData?.data?.length ? (
                   <div className="space-y-3">
-                    {baselinesData.data.slice(0, 5).map((baseline) => (
+                    {baselinesData.data.slice(0, 5).map((baseline: any) => (
                       <div
                         key={baseline.id}
                         className="flex items-center justify-between p-3 border rounded-lg"
@@ -655,7 +655,7 @@ export default function VarianceTrackingPage() {
                       <Label>Baseline Name</Label>
                       <Input
                         value={baselineForm.name}
-                        onChange={(e) => setBaselineForm(prev => ({ ...prev, name: e.target.value }))}
+                        onChange={(e: any) => setBaselineForm(prev => ({ ...prev, name: e.target.value }))}
                         placeholder="Enter baseline name..."
                       />
                     </div>
@@ -682,7 +682,7 @@ export default function VarianceTrackingPage() {
                     <Label>Description</Label>
                     <Textarea
                       value={baselineForm.description}
-                      onChange={(e) => setBaselineForm(prev => ({ ...prev, description: e.target.value }))}
+                      onChange={(e: any) => setBaselineForm(prev => ({ ...prev, description: e.target.value }))}
                       placeholder="Enter baseline description..."
                     />
                   </div>
@@ -692,7 +692,7 @@ export default function VarianceTrackingPage() {
                       <Input
                         type="date"
                         value={baselineForm.periodStart}
-                        onChange={(e) => setBaselineForm(prev => ({ ...prev, periodStart: e.target.value }))}
+                        onChange={(e: any) => setBaselineForm(prev => ({ ...prev, periodStart: e.target.value }))}
                       />
                     </div>
                     <div>
@@ -700,7 +700,7 @@ export default function VarianceTrackingPage() {
                       <Input
                         type="date"
                         value={baselineForm.periodEnd}
-                        onChange={(e) => setBaselineForm(prev => ({ ...prev, periodEnd: e.target.value }))}
+                        onChange={(e: any) => setBaselineForm(prev => ({ ...prev, periodEnd: e.target.value }))}
                       />
                     </div>
                   </div>
@@ -726,7 +726,7 @@ export default function VarianceTrackingPage() {
               {baselinesLoading ? (
                 <div className="p-6">
                   <div className="space-y-4">
-                    {Array.from({ length: 3 }).map((_, i) => (
+                    {Array.from({ length: 3 }).map((_: any, i: any) => (
                       <div key={i} className="animate-pulse flex items-center justify-between p-4 border rounded-lg">
                         <div className="space-y-2">
                           <div className="h-4 w-48 bg-gray-200 rounded" />
@@ -739,7 +739,7 @@ export default function VarianceTrackingPage() {
                 </div>
               ) : baselinesData?.data?.length ? (
                 <div className="divide-y">
-                  {baselinesData.data.map((baseline) => (
+                  {baselinesData.data.map((baseline: any) => (
                     <div key={baseline.id} className="p-6 flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
@@ -819,7 +819,7 @@ export default function VarianceTrackingPage() {
                       <Label>Rule Name</Label>
                       <Input
                         value={alertRuleForm.name}
-                        onChange={(e) => setAlertRuleForm(prev => ({ ...prev, name: e.target.value }))}
+                        onChange={(e: any) => setAlertRuleForm(prev => ({ ...prev, name: e.target.value }))}
                         placeholder="Enter rule name..."
                       />
                     </div>
@@ -827,7 +827,7 @@ export default function VarianceTrackingPage() {
                       <Label>Metric Name</Label>
                       <Input
                         value={alertRuleForm.metricName}
-                        onChange={(e) => setAlertRuleForm(prev => ({ ...prev, metricName: e.target.value }))}
+                        onChange={(e: any) => setAlertRuleForm(prev => ({ ...prev, metricName: e.target.value }))}
                         placeholder="Enter metric name..."
                       />
                     </div>
@@ -836,7 +836,7 @@ export default function VarianceTrackingPage() {
                     <Label>Description</Label>
                     <Textarea
                       value={alertRuleForm.description}
-                      onChange={(e) => setAlertRuleForm(prev => ({ ...prev, description: e.target.value }))}
+                      onChange={(e: any) => setAlertRuleForm(prev => ({ ...prev, description: e.target.value }))}
                       placeholder="Enter rule description..."
                     />
                   </div>
@@ -882,7 +882,7 @@ export default function VarianceTrackingPage() {
                       <Input
                         type="number"
                         value={alertRuleForm.thresholdValue}
-                        onChange={(e) => setAlertRuleForm(prev => ({ ...prev, thresholdValue: parseFloat(e.target.value) }))}
+                        onChange={(e: any) => setAlertRuleForm(prev => ({ ...prev, thresholdValue: parseFloat(e.target.value) }))}
                         placeholder="0"
                       />
                     </div>
@@ -965,7 +965,7 @@ export default function VarianceTrackingPage() {
             <CardContent>
               {alertsLoading ? (
                 <div className="space-y-4">
-                  {Array.from({ length: 3 }).map((_, i) => (
+                  {Array.from({ length: 3 }).map((_: any, i: any) => (
                     <div key={i} className="animate-pulse flex items-center justify-between p-4 border rounded-lg">
                       <div className="space-y-2">
                         <div className="h-4 w-48 bg-gray-200 rounded" />
@@ -977,7 +977,7 @@ export default function VarianceTrackingPage() {
                 </div>
               ) : alertsData?.data?.length ? (
                 <div className="space-y-4">
-                  {alertsData.data.map((alert) => (
+                  {alertsData.data.map((alert: any) => (
                     <div
                       key={alert.id}
                       className="flex items-center justify-between p-4 border rounded-lg"
@@ -1077,7 +1077,7 @@ export default function VarianceTrackingPage() {
                   <Label>Notes (Optional)</Label>
                   <Textarea
                     value={actionNotes}
-                    onChange={(e) => setActionNotes(e.target.value)}
+                    onChange={(e: any) => setActionNotes(e.target.value)}
                     placeholder={`Add notes about ${actionType === 'acknowledge' ? 'acknowledging' : 'resolving'} this alert...`}
                   />
                 </div>

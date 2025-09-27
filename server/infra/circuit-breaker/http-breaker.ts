@@ -63,14 +63,14 @@ export class HttpBreakerService implements BreakerLike {
   }
 
   private storeStaleData(key: string, data: any): void {
-    this.staleDataCache.set(key, {
+    this.staleDataCache['set'](key, {
       data: JSON.parse(JSON.stringify(data)), // Deep clone
       timestamp: Date.now()
     });
   }
 
   private getStaleData(key: string): any | null {
-    const cached = this.staleDataCache.get(key);
+    const cached = this.staleDataCache['get'](key);
     if (!cached) return null;
 
     const age = Date.now() - cached.timestamp;
