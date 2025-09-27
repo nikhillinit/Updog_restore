@@ -126,7 +126,8 @@
       "Bash(npm run lint)",
       "Bash(npm run test:quick:*)",
       "Bash(npm run build:types:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git rebase:*)"
     ],
     "deny": [],
     "ask": [],
