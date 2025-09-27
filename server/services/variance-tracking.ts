@@ -11,9 +11,12 @@ import {
   varianceReports,
   performanceAlerts,
   alertRules,
+  funds,
   fundMetrics,
   portfolioCompanies,
-  fundSnapshots
+  investments,
+  fundSnapshots,
+  users
 } from '@shared/schema';
 import type {
   FundBaseline,
@@ -25,13 +28,15 @@ import type {
   AlertRule,
   InsertAlertRule
 } from '@shared/schema';
-import { eq, and, desc, lte, inArray } from 'drizzle-orm';
+import { eq, and, desc, gte, lte, sql, inArray, isNull } from 'drizzle-orm';
+import { v4 as uuidv4 } from 'uuid';
 import {
   recordVarianceReportGenerated,
   recordBaselineOperation,
   recordAlertGenerated,
   recordAlertAction,
   updateFundVarianceScore,
+  recordThresholdBreach,
   updateDataQualityScore,
   recordSystemError,
   startVarianceCalculation
@@ -334,7 +339,12 @@ export class VarianceCalculationService {
       asOfDate,
       currentMetrics,
       baselineMetrics,
-      ...variances,
+      totalValueVariance: variances.totalValueVariance,
+      totalValueVariancePct: variances.totalValueVariancePct,
+      irrVariance: variances.irrVariance,
+      multipleVariance: variances.multipleVariance,
+      dpiVariance: variances.dpiVariance,
+      tvpiVariance: variances.tvpiVariance,
       portfolioVariances,
       sectorVariances: portfolioVariances.sectorVariances,
       stageVariances: portfolioVariances.stageVariances,
@@ -342,13 +352,7 @@ export class VarianceCalculationService {
       pacingVariances: await this.calculatePacingVariances(fundId, baseline),
       overallVarianceScore: insights.overallScore,
       significantVariances: insights.significantVariances,
-      varianceFactors: insights.factors,
-      alertsTriggered,
-      thresholdBreaches: insights.thresholdBreaches,
-      riskLevel: insights.riskLevel,
-      calculationDurationMs: calculationDuration,
-      dataQualityScore: insights.dataQualityScore,
-      generatedBy
+      varianceFactors: insights.factors
     };
 
       const [report] = await db.insert(varianceReports)
@@ -506,7 +510,7 @@ export class VarianceCalculationService {
     const factors = [];
     const thresholdBreaches = [];
     let riskLevel = 'low';
-    let overallScore = 0;
+    let overallScore = "0";
 
     // Analyze total value variance
     if (variances.totalValueVariancePct && Math.abs(variances.totalValueVariancePct) > 0.1) {
@@ -694,10 +698,17 @@ export class AlertManagementService {
     createdBy: number;
   }): Promise<AlertRule> {
     const ruleData: InsertAlertRule = {
-      ...params,
+      fundId: params.fundId,
+      name: params.name,
+      description: params.description,
+      ruleType: params.ruleType,
+      metricName: params.metricName,
+      operator: params.operator,
+      thresholdValue: params.thresholdValue.toString(),
+      secondaryThreshold: params.secondaryThreshold?.toString(),
       severity: params.severity || 'warning',
       category: params.category || 'performance',
-      checkFrequency: params.checkFrequency || 'daily'
+      createdBy: params.createdBy
     };
 
     const [rule] = await db.insert(alertRules)
@@ -727,10 +738,19 @@ export class AlertManagementService {
     ruleId?: string;
   }): Promise<PerformanceAlert> {
     const alertData: InsertPerformanceAlert = {
-      ...params,
-      triggeredAt: new Date(),
-      firstOccurrence: new Date(),
-      lastOccurrence: new Date()
+      fundId: params.fundId,
+      baselineId: params.baselineId,
+      varianceReportId: params.varianceReportId,
+      alertType: params.alertType,
+      severity: params.severity,
+      category: params.category,
+      title: params.title,
+      description: params.description,
+      metricName: params.metricName,
+      thresholdValue: params.thresholdValue?.toString(),
+      actualValue: params.actualValue?.toString(),
+      varianceAmount: params.varianceAmount?.toString(),
+      triggeredAt: new Date()
     };
 
     const [alert] = await db.insert(performanceAlerts)
@@ -738,7 +758,7 @@ export class AlertManagementService {
       .returning();
 
     // Record metrics
-    recordAlertGenerated(fundId.toString(), alertType, severity, category);
+    recordAlertGenerated(params.fundId.toString(), params.alertType, params.severity, params.category);
 
     return alert;
   }
