@@ -11,11 +11,10 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
 import { storage } from "./storage";
-import { insertFundSchema, insertPortfolioCompanySchema, insertActivitySchema } from "@shared/schema";
-import { _fundSchema } from "./validators/fundSchema";
-import { _ReserveEngine, generateReserveSummary } from "../client/src/core/reserves/ReserveEngine.js";
-import { _PacingEngine, generatePacingSummary } from "../client/src/core/pacing/PacingEngine.js";
-import { _CohortEngine, generateCohortSummary } from "../client/src/core/cohorts/CohortEngine.js";
+import { insertPortfolioCompanySchema, insertActivitySchema } from "@shared/schema";
+import { generateReserveSummary } from "../client/src/core/reserves/ReserveEngine.js";
+import { generatePacingSummary } from "../client/src/core/pacing/PacingEngine.js";
+import { generateCohortSummary } from "../client/src/core/cohorts/CohortEngine.js";
 import { registerFundConfigRoutes } from "./routes/fund-config.js";
 import { recordHttpMetrics } from "./metrics";
 import { toNumber, NumberParseError } from "@shared/number";
@@ -62,27 +61,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const apiError: ApiError = {
         error: 'Database query failed',
         message: error instanceof Error ? error.message : 'Failed to fetch funds'
-      };
-      res.status(500).json(apiError);
-    }
-  });
-
-  app.post("/api/funds", async (req: Request, res: Response) => {
-    try {
-      const validatedData = insertFundSchema.parse(req.body);
-      const fund = await storage.createFund(validatedData);
-      res.status(201).json(fund);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const apiError: ApiError = {
-          error: 'Validation failed',
-          message: error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
-        };
-        return res.status(400).json(apiError);
-      }
-      const apiError: ApiError = {
-        error: 'Database operation failed',
-        message: error instanceof Error ? error.message : 'Failed to create fund'
       };
       res.status(500).json(apiError);
     }
@@ -152,10 +130,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Convert to format expected by storage layer
       const basicFundData = {
         name: result.data.name,
-        size: result.data.size,
-        deployedCapital: result.data.deployedCapital || 0,
-        managementFee: result.data.managementFee,
-        carryPercentage: result.data.carryPercentage,
+        size: result.data.size.toString(),
+        deployedCapital: (result.data.deployedCapital || 0).toString(),
+        managementFee: result.data.managementFee.toString(),
+        carryPercentage: result.data.carryPercentage.toString(),
         vintageYear: result.data.vintageYear,
         status: 'active'
       };
@@ -249,7 +227,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         return res.status(400).json(error);
       }
-      const company = await storage.createPortfolioCompany(result.data);
+      const companyData = {
+        name: req.body.name,
+        sector: req.body.sector,
+        stage: req.body.stage,
+        investmentAmount: req.body.investmentAmount
+      };
+      const company = await storage.createPortfolioCompany(companyData);
       res.status(201).json(company);
     } catch (error) {
       const apiError: ApiError = {
@@ -325,7 +309,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         return res.status(400).json(error);
       }
-      const activity = await storage.createActivity(result.data);
+      const activityData = {
+        type: req.body.type,
+        title: req.body.title,
+        activityDate: new Date(req.body.activityDate)
+      };
+      const activity = await storage.createActivity(activityData);
       res.status(201).json(activity);
     } catch (error) {
       const apiError: ApiError = {
@@ -726,6 +715,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register fund configuration routes
   registerFundConfigRoutes(app);
+
+  // Register variance tracking routes
+  const varianceRouter = await import('./routes/variance.js');
+  app.use('/', varianceRouter.default);
 
   // Register timeline routes for event-sourced architecture
   const timelineRouter = await import('./routes/timeline.js');

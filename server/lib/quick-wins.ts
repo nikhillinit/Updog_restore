@@ -6,6 +6,7 @@
 
 import crypto from 'crypto';
 import { LRUCache } from 'lru-cache';
+import { Worker } from 'worker_threads';
 
 /**
  * 1. APPROVAL SIGNER UNIQUENESS
@@ -275,7 +276,7 @@ export function generateDeterministicSeed(
   
   // Convert first 8 bytes of hash to bigint
   const seedBytes = Buffer.from(hash.substring(0, 16), 'hex');
-  return BigInt('0x' + seedBytes.toString('hex'));
+  return BigInt(`0x${  seedBytes.toString('hex')}`);
 }
 
 /**

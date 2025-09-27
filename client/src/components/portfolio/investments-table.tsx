@@ -19,7 +19,6 @@ import {
   TrendingUp, 
   TrendingDown,
   Eye,
-  Settings,
   Calendar,
   Tag,
   FileText

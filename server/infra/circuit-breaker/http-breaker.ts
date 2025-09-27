@@ -1,27 +1,31 @@
-import { CircuitBreaker } from './CircuitBreaker';
+import { TypedCircuitBreaker, type BreakerLike } from './typed-breaker';
 import { envCircuit } from '../../../shared/config/env.circuit';
 
 /**
  * Circuit breaker wrapper for HTTP operations
  * Protects against partner API failures with stale fallback support
  */
-export class HttpBreakerService {
-  private breaker: CircuitBreaker<any>;
+export class HttpBreakerService implements BreakerLike {
+  private breaker: TypedCircuitBreaker<any>;
   private staleDataCache = new Map<string, { data: any; timestamp: number }>();
   private readonly STALE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
   constructor(private serviceName: string) {
-    this.breaker = new CircuitBreaker({
+    this.breaker = new TypedCircuitBreaker({
       failureThreshold: envCircuit.CB_HTTP_FAILURE_THRESHOLD,
       resetTimeout: envCircuit.CB_HTTP_RESET_TIMEOUT_MS,
       operationTimeout: envCircuit.CB_HTTP_OP_TIMEOUT_MS,
       successesToClose: envCircuit.CB_HTTP_SUCCESS_TO_CLOSE,
       maxHalfOpenRequests: envCircuit.CB_HTTP_HALF_OPEN_MAX_CONC,
-      halfOpenRateLimit: { capacity: 3, refillPerSecond: 0.5 },
-      onStateChange: (state) => {
-        console.log(`[http-breaker:${this.serviceName}] State changed to: ${state}`);
-      }
+      halfOpenRateLimit: { capacity: 3, refillPerSecond: 0.5 }
     });
+  }
+
+  async run<T>(
+    operation: () => Promise<T>,
+    fallback?: () => Promise<T>
+  ): Promise<T> {
+    return this.breaker.run(operation, fallback || (async () => { throw new Error('No fallback provided'); }));
   }
 
   async execute<T>(
@@ -30,10 +34,10 @@ export class HttpBreakerService {
     staleTimeoutMs?: number
   ): Promise<{ data: T; degraded: boolean }> {
     try {
-      const result = await this.breaker.execute(
+      const result = await this.breaker.run(
         operation,
         // Fallback: try to get stale data
-        cacheKey ? () => this.getStaleData(cacheKey) : undefined
+        cacheKey ? () => this.getStaleData(cacheKey) : async () => null
       );
 
       // Cache fresh data for future fallback
@@ -82,8 +86,8 @@ export class HttpBreakerService {
     return this.breaker.getState();
   }
 
-  getStats() {
-    return this.breaker.getStats();
+  getMetrics() {
+    return this.breaker.getMetrics();
   }
 
   // Clean up old stale data periodically

@@ -34,7 +34,6 @@ import {
   Clock,
   AlertTriangle,
   Shield,
-  User,
   DollarSign,
   FileText,
   Hash,

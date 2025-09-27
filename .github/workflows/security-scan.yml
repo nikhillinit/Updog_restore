@@ -11,7 +11,7 @@ jobs:
   filesystem-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
@@ -30,7 +30,7 @@ jobs:
   container-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Build Docker image
         run: |
           docker build -t povc-fund-platform:latest .
@@ -51,8 +51,8 @@ jobs:
   license-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '22.16.0'
           cache: 'npm'
@@ -62,7 +62,7 @@ jobs:
   dependency-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: OWASP Dependency-Check
         uses: dependency-check/Dependency-Check_Action@main
         id: depcheck
@@ -76,7 +76,7 @@ jobs:
             --nvdApiKey ${{ secrets.NVD_API_KEY }}
             --suppression suppression.xml
       - name: Upload results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         with:
           name: dependency-check-reports
           path: reports/
@@ -90,18 +90,18 @@ jobs:
   sbom:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '22.16.0'
           cache: 'npm'
       - run: npm ci
       - name: Generate SBOM
         run: |
-          npm install -g @cyclonedx/cyclonedx-npm
+          npm ci -g @cyclonedx/cyclonedx-npm
           cyclonedx-npm --output-format json --output-file sbom.cyclonedx.json
       - name: Upload SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         with:
           name: sbom-cyclonedx
           path: sbom.cyclonedx.json

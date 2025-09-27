@@ -5,9 +5,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { z } from 'zod';
 import {
-  StageSchema,
-  SectorProfileSchema,
-  AllocationSchema,
   InvestmentStrategySchema,
   ExitRecyclingSchema,
   WaterfallSchema,

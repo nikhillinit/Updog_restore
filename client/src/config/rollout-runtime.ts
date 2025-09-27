@@ -56,7 +56,7 @@ function stableUserId(): string {
   } catch (e) {
     // Fallback for environments without localStorage/crypto
     console.warn('Unable to create stable user ID, using session fallback');
-    return 'session-' + Math.random().toString(36).substring(2, 15);
+    return `session-${  Math.random().toString(36).substring(2, 15)}`;
   }
 }
 
@@ -116,7 +116,7 @@ export async function shouldUseFundStore(): Promise<boolean> {
     
     // 7. Deterministic bucketing based on stable user ID
     const userId = stableUserId();
-    const bucket = fnv1a(userId + 'USE_FUND_STORE') % 100;
+    const bucket = fnv1a(`${userId  }USE_FUND_STORE`) % 100;
     const inRollout = bucket < rolloutPct;
     
     console.log(`📊 FundStore rollout: ${rolloutPct}%, bucket: ${bucket}, enabled: ${inRollout}`);
@@ -137,7 +137,7 @@ export async function shouldUseFundStore(): Promise<boolean> {
 export function getUserBucket(): number {
   try {
     const userId = stableUserId();
-    return fnv1a(userId + 'USE_FUND_STORE') % 100;
+    return fnv1a(`${userId  }USE_FUND_STORE`) % 100;
   } catch (e) {
     return -1; // Error state
   }
@@ -156,7 +156,7 @@ export async function debugRuntimeRollout() {
     
     console.table({
       'FundStore Rollout': {
-        userId: userId.substring(0, 8) + '...',
+        userId: `${userId.substring(0, 8)  }...`,
         bucket,
         'runtime %': config.flags.useFundStore?.rollout ?? 'default',
         'url override': new URLSearchParams(window.location.search).get('ffuseFundStore') ?? 'none',

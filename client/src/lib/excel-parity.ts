@@ -452,7 +452,7 @@ export class ExcelParityValidator {
         failureCount: failures.length,
         failures: failures.map(f => ({
           metric: f.metric,
-          drift: (f.percentageDrift * 100).toFixed(2) + '%',
+          drift: `${(f.percentageDrift * 100).toFixed(2)  }%`,
           excel: f.excelValue,
           webApp: f.webAppValue,
         })),
@@ -467,11 +467,11 @@ export class ExcelParityValidator {
     if (criticalMetrics.length > 0) {
       const criticalPassRate = criticalMetrics.filter(m => m.withinTolerance).length / criticalMetrics.length;
       logger.info('Critical metrics performance', {
-        criticalPassRate: (criticalPassRate * 100).toFixed(1) + '%',
+        criticalPassRate: `${(criticalPassRate * 100).toFixed(1)  }%`,
         criticalMetrics: criticalMetrics.map(m => ({
           metric: m.metric,
           passed: m.withinTolerance,
-          drift: (m.percentageDrift * 100).toFixed(2) + '%',
+          drift: `${(m.percentageDrift * 100).toFixed(2)  }%`,
         })),
       });
     }

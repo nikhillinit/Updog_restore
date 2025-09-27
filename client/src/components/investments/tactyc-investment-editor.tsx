@@ -11,29 +11,19 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import FutureRoundsBuilder from "./future-rounds-builder";
 import ExitValuationEditor from "./exit-valuation-editor";
 import DealTagsEditor from "./deal-tags-editor";
 import CustomFieldsEditor from '../custom-fields/custom-fields-editor';
-import { CustomField } from '../custom-fields/custom-fields-manager';
 import { 
   Building2, 
-  DollarSign, 
-  Calendar, 
   Users, 
-  Tag, 
   Globe, 
   Edit3, 
   Plus, 
   TrendingUp,
-  ArrowUpRight,
-  ArrowDownRight,
-  Percent,
   Target,
-  BarChart3,
   Info
 } from "lucide-react";
 
@@ -260,7 +250,7 @@ export default function TactycInvestmentEditor({ profileId, entryRound, onComple
     
     const futureRounds: InvestmentRound[] = [];
     const roundSequence: string[] = ['Series A', 'Series B', 'Series C', 'Series D'];
-    let currentDate = new Date(config.nextRoundDate);
+    const currentDate = new Date(config.nextRoundDate);
     
     for (let i = 0; i < roundSequence.length; i++) {
       const roundName = roundSequence[i];

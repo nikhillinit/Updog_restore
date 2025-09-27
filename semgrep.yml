@@ -1,0 +1,109 @@
+rules:
+  # Prevent hardcoded JWT secrets
+  - id: no-dev-secret-fallback
+    message: "Never fallback to a dev secret for JWT"
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: process.env.JWT_SECRET || "dev-secret"
+          - pattern: process.env.JWT_SECRET || 'dev-secret'
+          - pattern: $VAR || "dev-secret"
+          - pattern: $VAR || 'dev-secret'
+    languages: [javascript, typescript]
+    
+  # Prevent hardcoded secrets in general
+  - id: no-hardcoded-secrets
+    message: "Detected hardcoded secret or password"
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $SECRET = "..."
+          - pattern: |
+              $PASSWORD = "..."
+          - pattern: |
+              $TOKEN = "..."
+          - pattern: |
+              $KEY = "..."
+    metavariable-regex:
+      metavariable: $SECRET
+      regex: (.*[Ss]ecret.*|.*[Kk]ey.*|.*[Tt]oken.*|.*[Pp]assword.*)
+    languages: [javascript, typescript]
+    
+  # Ensure JWT verification uses proper issuer/audience
+  - id: jwt-verify-without-options
+    message: "JWT verification should include issuer and audience validation"
+    severity: WARNING
+    patterns:
+      - pattern: jwt.verify($TOKEN, $SECRET)
+      - pattern-not: jwt.verify($TOKEN, $SECRET, { ..., issuer: ..., ... })
+    languages: [javascript, typescript]
+    
+  # Prevent unsafe eval in production
+  - id: no-unsafe-eval
+    message: "Avoid using eval() as it can lead to code injection"
+    severity: ERROR
+    patterns:
+      - pattern: eval(...)
+    languages: [javascript, typescript]
+    
+  # Prevent SQL injection via string concatenation
+  - id: sql-injection-risk
+    message: "Use parameterized queries instead of string concatenation"
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $SQL = "SELECT ... WHERE ..." + $VAR
+          - pattern: |
+              $SQL = `SELECT ... WHERE ... ${$VAR}`
+          - pattern: |
+              db.execute("SELECT ... WHERE ..." + $VAR)
+    languages: [javascript, typescript]
+    
+  # Ensure proper error handling for async operations
+  - id: unhandled-promise-rejection
+    message: "Async operations should have proper error handling"
+    severity: WARNING
+    patterns:
+      - pattern: $PROMISE.then(...)
+      - pattern-not: $PROMISE.then(...).catch(...)
+    languages: [javascript, typescript]
+    
+  # Prevent information disclosure in error messages
+  - id: verbose-error-disclosure
+    message: "Avoid exposing stack traces or sensitive error details to clients"
+    severity: WARNING
+    patterns:
+      - pattern-either:
+          - pattern: res.status(...).json({ ..., stack: $ERR.stack, ... })
+          - pattern: res.send($ERR.stack)
+          - pattern: res.json({ error: $ERR })
+    languages: [javascript, typescript]
+    
+  # Enforce HTTPS in production
+  - id: http-without-tls
+    message: "Use HTTPS instead of HTTP for external connections"
+    severity: WARNING
+    patterns:
+      - pattern: |
+          $URL = "http://..."
+      - pattern-not: |
+          $URL = "http://localhost..."
+      - pattern-not: |
+          $URL = "http://127.0.0.1..."
+    languages: [javascript, typescript]
+    
+  # Prevent rate limit bypass
+  - id: missing-rate-limit
+    message: "API routes should have rate limiting"
+    severity: INFO
+    patterns:
+      - pattern: |
+          router.$METHOD("/...", ...)
+      - pattern-not: |
+          router.$METHOD("/...", $RATELIMIT, ...)
+    metavariable-regex:
+      metavariable: $METHOD
+      regex: (get|post|put|patch|delete)
+    languages: [javascript, typescript]

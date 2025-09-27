@@ -16,7 +16,8 @@ export function makeApp() {
   app.set('trust proxy', 1);
 
   // Security headers with custom CSP
-  const isReportOnly = process.env.CSP_REPORT_ONLY === '1';
+  // Use bracket notation for env vars to avoid TypeScript warnings
+  const isReportOnly = process.env['CSP_REPORT_ONLY'] === '1';
   const cspHeader = buildCSPHeader(cspDirectives);
   
   app.use(helmet({
@@ -44,11 +45,11 @@ export function makeApp() {
   });
 
   // Strict CORS (no wildcards in prod)
-  const allow = (process.env.ALLOWED_ORIGINS || '')
+  const allow = (process.env['ALLOWED_ORIGINS'] || '')
     .split(',').map(s => s.trim()).filter(Boolean);
   app.use((req: Request, res: Response, next: NextFunction) => {
     const origin = req.headers.origin as string | undefined;
-    const dev = process.env.NODE_ENV !== 'production';
+    const dev = process.env['NODE_ENV'] !== 'production';
     const ok = dev || (origin && allow.includes(origin));
     if (ok && origin) {
       res.setHeader('Access-Control-Allow-Origin', origin);
@@ -105,47 +106,16 @@ export function makeApp() {
   // Versioned API
   app.use('/api/v1/reserves', reservesV1Router);
 
-  /**
-   * @swagger
-   * /healthz:
-   *   get:
-   *     summary: Health check endpoint
-   *     description: Returns the health status of the service
-   *     tags: [Health]
-   *     responses:
-   *       200:
-   *         description: Service is healthy
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 status:
-   *                   type: string
-   *                   example: ok
-   */
-  app.get('/healthz', (_req: Request, res: Response) => res.json({ status: 'ok' }));
+  // Health endpoints moved to routes/health.ts to avoid duplication
   
-  /**
-   * @swagger
-   * /readyz:
-   *   get:
-   *     summary: Readiness check endpoint
-   *     description: Returns the readiness status of the service
-   *     tags: [Health]
-   *     responses:
-   *       200:
-   *         description: Service is ready
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 ok:
-   *                   type: boolean
-   *                   example: true
-   */
-  app.get('/readyz', (_req: Request, res: Response) => res.json({ ok: true }));
+  // Readiness and health endpoints moved to routes/health.ts to avoid duplication
+
+  // API version endpoint for deployment verification
+  app.get('/api/version', (_req: Request, res: Response) => res.json({ 
+    version: process.env['npm_package_version'] || '1.3.2',
+    environment: process.env['NODE_ENV'] || 'development',
+    commit: process.env['VERCEL_GIT_COMMIT_SHA'] || process.env['COMMIT_REF'] || 'local'
+  }));
 
   // 404 + error handler
   app.use((_req: Request, res: Response) => res.status(404).json({ error: 'not_found' }));
@@ -153,3 +123,6 @@ export function makeApp() {
 
   return app;
 }
+
+// Default export for Vercel compatibility
+export default makeApp;

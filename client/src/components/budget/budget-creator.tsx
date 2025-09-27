@@ -4,7 +4,7 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,9 +20,7 @@ import {
 import {
   Plus,
   Calculator,
-  Info,
-  Trash2,
-  Edit2
+  Trash2
 } from "lucide-react";
 
 interface ExpenseCategory {

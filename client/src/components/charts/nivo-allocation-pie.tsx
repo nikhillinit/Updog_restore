@@ -2,7 +2,7 @@ import React from 'react';
 import { PieChart } from 'recharts/es6/chart/PieChart';
 import { Pie } from 'recharts/es6/polar/Pie';
 import { Cell } from 'recharts/es6/component/Cell';
-import { ResponsiveContainer } from 'recharts/es6/component/ResponsiveContainer';
+import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import { Tooltip } from 'recharts/es6/component/Tooltip';
 import { Legend } from 'recharts/es6/component/Legend';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

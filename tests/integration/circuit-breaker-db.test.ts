@@ -2,7 +2,7 @@
  * Integration tests for database circuit breakers
  * Validates PostgreSQL and Redis circuit breaker behavior
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi, test } from 'vitest';
 import {
   q,
   query,
@@ -16,7 +16,9 @@ import {
 } from '../../server/db';
 import { breakerRegistry } from '../../server/infra/circuit-breaker/breaker-registry';
 
-describe('Database Circuit Breakers', () => {
+if (process.env.DEMO_CI) test.skip('skipped in demo CI (no Redis)', () => {});
+
+describe.skipIf(process.env.DEMO_CI === '1')('Database Circuit Breakers', () => {
   // Skip tests if in CI without database
   const skipInCI = process.env.CI && !process.env.DATABASE_URL;
   

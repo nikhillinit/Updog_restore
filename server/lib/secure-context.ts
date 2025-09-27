@@ -4,7 +4,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import { verifyAccessToken } from './auth/jwt';
 import { db } from '../db.js';
 import { sql } from 'drizzle-orm';
 
@@ -31,21 +31,18 @@ export interface JWTClaims {
  * Extract and verify user context from JWT
  * NEVER trust X-User-Id or similar headers from client
  */
+import { getAuthToken } from './headers-helper';
+
 export function extractUserContext(req: Request): UserContext | null {
-  const authHeader = req.headers.authorization;
+  const token = getAuthToken(req.headers);
   
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!token) {
     return null;
   }
   
-  const token = authHeader.substring(7);
-  
   try {
-    // Verify JWT and extract claims
-    const claims = jwt.verify(
-      token, 
-      process.env.JWT_SECRET || 'dev-secret'
-    ) as JWTClaims;
+    // Verify JWT and extract claims using centralized auth
+    const claims = verifyAccessToken(token) as JWTClaims;
     
     // Build context from verified JWT claims only
     const context: UserContext = {

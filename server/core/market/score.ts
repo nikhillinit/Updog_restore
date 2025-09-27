@@ -140,7 +140,10 @@ export class MarketScoreComputer {
       keys.forEach(key => {
         const value = row.indicators[key as keyof MarketIndicators];
         if (value != null) {
-          values[key].push(value);
+          const keyValues = values[key];
+          if (keyValues) {
+            keyValues.push(value);
+          }
         }
       });
     });
@@ -151,10 +154,11 @@ export class MarketScoreComputer {
 
     keys.forEach(key => {
       const data = values[key];
-      if (data.length > 0) {
-        newMean[key] = data.reduce((sum, val) => sum + val, 0) / data.length;
+      if (data && data.length > 0) {
+        const mean = data.reduce((sum, val) => sum + val, 0) / data.length;
+        newMean[key] = mean;
         
-        const variance = data.reduce((sum, val) => sum + Math.pow(val - newMean[key], 2), 0) / data.length;
+        const variance = data.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / data.length;
         newStd[key] = Math.sqrt(variance);
       }
     });
@@ -162,16 +166,25 @@ export class MarketScoreComputer {
     // Update normalization with exponential smoothing
     const alpha = 0.1; // Smoothing factor
     Object.keys(newMean).forEach(key => {
-      if (this.norms.mean[key] != null) {
-        this.norms.mean[key] = alpha * newMean[key] + (1 - alpha) * this.norms.mean[key];
-      } else {
-        this.norms.mean[key] = newMean[key];
+      const meanValue = newMean[key];
+      const stdValue = newStd[key];
+      
+      if (meanValue != null) {
+        const currentMean = this.norms.mean[key];
+        if (currentMean != null) {
+          this.norms.mean[key] = alpha * meanValue + (1 - alpha) * currentMean;
+        } else {
+          this.norms.mean[key] = meanValue;
+        }
       }
 
-      if (this.norms.std[key] != null) {
-        this.norms.std[key] = alpha * newStd[key] + (1 - alpha) * this.norms.std[key];
-      } else {
-        this.norms.std[key] = newStd[key];
+      if (stdValue != null) {
+        const currentStd = this.norms.std[key];
+        if (currentStd != null) {
+          this.norms.std[key] = alpha * stdValue + (1 - alpha) * currentStd;
+        } else {
+          this.norms.std[key] = stdValue;
+        }
       }
     });
   }

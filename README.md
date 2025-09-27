@@ -18,6 +18,13 @@ This repository contains the POVC Fund-Modeling Platform, a sophisticated applic
 [![Benchmark Trend](https://img.shields.io/badge/benchmark_tracking-active-success)](https://github.com/nikhillinit/Updog_restore/tree/gh-pages/dev/bench)
 [![ESLint Rules](https://img.shields.io/badge/eslint_async-enforced-orange)](./eslint-rules/no-async-array-methods.js)
 
+### Performance Baselines
+- **Fund Creation**: p95 < 500ms, p99 < 2s
+- **API Response Times**: p95 < 200ms for reads, p95 < 500ms for writes
+- **Availability SLO**: 99.9% uptime target
+- **Idempotency**: Automatic duplicate request detection with 409 responses
+- **Error Budget**: < 0.1% error rate over 30-day window
+
 ## Core Technology Stack
 
 * **Backend:** Node.js, Fastify, NATS

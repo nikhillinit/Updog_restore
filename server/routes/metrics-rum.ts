@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import * as express from 'express';
+import express from 'express';
 import * as client from 'prom-client';
 
 // Create dedicated registry for RUM metrics
@@ -153,7 +153,7 @@ metricsRumRouter.post('/metrics/rum', express.json({ limit: '10kb' }), async (re
 metricsRumRouter.get('/metrics/rum', (req: Request, res: Response) => {
   res.set('Content-Type', rumRegistry.contentType);
   rumRegistry.metrics().then(metrics => {
-    res.end(metrics);
+    res.send(metrics);
   }).catch(err => {
     res.status(500).json({ error: 'Failed to generate metrics', message: err.message });
   });

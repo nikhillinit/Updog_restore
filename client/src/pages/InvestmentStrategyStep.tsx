@@ -1,113 +1,215 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2 } from "lucide-react";
-import { useFundStore } from "@/stores/useFundStore";
-import type { Stage, SectorProfile, Allocation } from "@shared/types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Trash2, ArrowLeft, ArrowRight, Edit, MoveUp, MoveDown } from "lucide-react";
+import { useFundSelector, useFundTuple, useFundAction } from '@/stores/useFundSelector';
+
+// Investment Stage interface
+interface InvestmentStage {
+  id: string;
+  name: string;
+  roundSize: number; // $M
+  valuation: number; // $M
+  valuationType: 'pre' | 'post';
+  esopPct: number; // %
+  graduationRate: number; // %
+  exitRate: number; // %
+  exitValuation: number; // $M
+  monthsToGraduate: number;
+  monthsToExit: number;
+}
+
+// Sector Profile interface
+interface SectorProfile {
+  id: string;
+  name: string;
+  stages: InvestmentStage[];
+}
 
 export default function InvestmentStrategyStep() {
-  const data = useFundStore(state => state.toInvestmentStrategy());
-  const storeAddStage = useFundStore(state => state.addStage);
-  const storeRemoveStage = useFundStore(state => state.removeStage);
-  const storeUpdateStageName = useFundStore(state => state.updateStageName);
-  const storeUpdateStageRate = useFundStore(state => state.updateStageRate);
-  const fromInvestmentStrategy = useFundStore(state => state.fromInvestmentStrategy);
-  const { allValid } = useFundStore(state => state.stageValidation());
-  const [activeTab, setActiveTab] = useState("stages");
+  const [, navigate] = useLocation();
+  const [activeTab, setActiveTab] = useState("sector-profiles"); // Start on sector profiles tab
+  const [editingProfile, setEditingProfile] = useState<string | null>(null);
+  const [editingStage, setEditingStage] = useState<string | null>(null);
 
-  const addStage = () => {
-    storeAddStage();
-  };
+  // Debug logging
+  React.useEffect(() => {
+    console.log('Component mounted, editingProfile:', editingProfile);
+  }, []);
 
-  const updateStage = (index: number, updates: Partial<Stage>) => {
-    if ('name' in updates && updates.name !== undefined) {
-      storeUpdateStageName(index, updates.name);
+  React.useEffect(() => {
+    console.log('editingProfile state changed:', editingProfile);
+  }, [editingProfile]);
+
+  // Mock sector profiles (this would come from store)
+  const [sectorProfiles, setSectorProfiles] = useState<SectorProfile[]>([
+    {
+      id: 'default',
+      name: 'Default',
+      stages: [
+        {
+          id: 'pre-seed',
+          name: 'Pre-Seed',
+          roundSize: 0.5,
+          valuation: 3,
+          valuationType: 'pre',
+          esopPct: 15,
+          graduationRate: 60,
+          exitRate: 15,
+          exitValuation: 5,
+          monthsToGraduate: 18,
+          monthsToExit: 24
+        },
+        {
+          id: 'seed',
+          name: 'Seed',
+          roundSize: 2,
+          valuation: 8,
+          valuationType: 'pre',
+          esopPct: 12,
+          graduationRate: 65,
+          exitRate: 20,
+          exitValuation: 15,
+          monthsToGraduate: 24,
+          monthsToExit: 30
+        },
+        {
+          id: 'series-a',
+          name: 'Series A',
+          roundSize: 8,
+          valuation: 25,
+          valuationType: 'pre',
+          esopPct: 10,
+          graduationRate: 70,
+          exitRate: 25,
+          exitValuation: 50,
+          monthsToGraduate: 30,
+          monthsToExit: 36
+        },
+        {
+          id: 'series-b',
+          name: 'Series B+',
+          roundSize: 20,
+          valuation: 80,
+          valuationType: 'pre',
+          esopPct: 8,
+          graduationRate: 0,
+          exitRate: 40,
+          exitValuation: 200,
+          monthsToGraduate: 0,
+          monthsToExit: 42
+        }
+      ]
     }
-    if ('graduationRate' in updates || 'exitRate' in updates) {
-      storeUpdateStageRate(index, {
-        graduate: updates.graduationRate,
-        exit: updates.exitRate
-      });
-    }
+  ]);
+
+  const calculateFailureRate = (graduationRate: number, exitRate: number): number => {
+    return Math.max(0, 100 - graduationRate - exitRate);
   };
 
-  const removeStage = (index: number) => {
-    storeRemoveStage(index);
+  const validateStageRates = (graduationRate: number, exitRate: number): boolean => {
+    return graduationRate + exitRate <= 100;
   };
 
-  const addSectorProfile = () => {
-    const newSector: SectorProfile = {
-      id: `sector-${Date.now()}`,
+  const handleAddProfile = () => {
+    const newProfile: SectorProfile = {
+      id: `profile-${Date.now()}`,
       name: '',
-      targetPercentage: 0,
-      description: '',
+      stages: [
+        {
+          id: `stage-${Date.now()}`,
+          name: 'Seed',
+          roundSize: 2,
+          valuation: 8,
+          valuationType: 'pre',
+          esopPct: 12,
+          graduationRate: 65,
+          exitRate: 20,
+          exitValuation: 15,
+          monthsToGraduate: 24,
+          monthsToExit: 30
+        }
+      ]
     };
-    fromInvestmentStrategy({
-      ...data,
-      sectorProfiles: [...data.sectorProfiles, newSector]
-    });
+    setSectorProfiles([...sectorProfiles, newProfile]);
+    setEditingProfile(newProfile.id);
   };
 
-  const updateSectorProfile = (index: number, updates: Partial<SectorProfile>) => {
-    const updatedSectors = data.sectorProfiles.map((sector, i) => 
-      i === index ? { ...sector, ...updates } : sector
-    );
-    fromInvestmentStrategy({
-      ...data,
-      sectorProfiles: updatedSectors
-    });
+  const handleDeleteProfile = (profileId: string) => {
+    setSectorProfiles(prev => prev.filter(p => p.id !== profileId));
+    if (editingProfile === profileId) {
+      setEditingProfile(null);
+    }
   };
 
-  const removeSectorProfile = (index: number) => {
-    const updatedSectors = data.sectorProfiles.filter((_, i) => i !== index);
-    fromInvestmentStrategy({
-      ...data,
-      sectorProfiles: updatedSectors
-    });
+  const handleUpdateProfile = (profileId: string, updates: Partial<SectorProfile>) => {
+    setSectorProfiles(prev => prev.map(p => 
+      p.id === profileId ? { ...p, ...updates } : p
+    ));
   };
 
-  const addAllocation = () => {
-    const newAllocation: Allocation = {
-      id: `allocation-${Date.now()}`,
-      category: '',
-      percentage: 0,
-      description: '',
+  const handleAddStage = (profileId: string) => {
+    const newStage: InvestmentStage = {
+      id: `stage-${Date.now()}`,
+      name: '',
+      roundSize: 5,
+      valuation: 20,
+      valuationType: 'pre',
+      esopPct: 10,
+      graduationRate: 60,
+      exitRate: 25,
+      exitValuation: 50,
+      monthsToGraduate: 24,
+      monthsToExit: 36
     };
-    fromInvestmentStrategy({
-      ...data,
-      allocations: [...data.allocations, newAllocation]
-    });
+
+    setSectorProfiles(prev => prev.map(p => 
+      p.id === profileId ? { 
+        ...p, 
+        stages: [...p.stages, newStage] 
+      } : p
+    ));
   };
 
-  const updateAllocation = (index: number, updates: Partial<Allocation>) => {
-    const updatedAllocations = data.allocations.map((allocation, i) => 
-      i === index ? { ...allocation, ...updates } : allocation
-    );
-    fromInvestmentStrategy({
-      ...data,
-      allocations: updatedAllocations
-    });
+  const handleDeleteStage = (profileId: string, stageId: string) => {
+    setSectorProfiles(prev => prev.map(p => 
+      p.id === profileId ? { 
+        ...p, 
+        stages: p.stages.filter(s => s.id !== stageId) 
+      } : p
+    ));
   };
 
-  const removeAllocation = (index: number) => {
-    const updatedAllocations = data.allocations.filter((_, i) => i !== index);
-    fromInvestmentStrategy({
-      ...data,
-      allocations: updatedAllocations
-    });
+  const handleUpdateStage = (profileId: string, stageId: string, updates: Partial<InvestmentStage>) => {
+    setSectorProfiles(prev => prev.map(p => 
+      p.id === profileId ? { 
+        ...p, 
+        stages: p.stages.map(s => 
+          s.id === stageId ? { ...s, ...updates } : s
+        ) 
+      } : p
+    ));
   };
 
-  const totalSectorAllocation = data.sectorProfiles.reduce((sum, sector) => sum + sector.targetPercentage, 0);
-  const totalAllocation = data.allocations.reduce((sum, alloc) => sum + alloc.percentage, 0);
+  const handleMoveStage = (profileId: string, stageIndex: number, direction: 'up' | 'down') => {
+    setSectorProfiles(prev => prev.map(p => {
+      if (p.id !== profileId) return p;
+      
+      const stages = [...p.stages];
+      const newIndex = direction === 'up' ? stageIndex - 1 : stageIndex + 1;
+      
+      if (newIndex >= 0 && newIndex < stages.length) {
+        [stages[stageIndex], stages[newIndex]] = [stages[newIndex], stages[stageIndex]];
+      }
+      
+      return { ...p, stages };
+    }));
+  };
 
   return (
     <div className="space-y-6">
@@ -116,224 +218,313 @@ export default function InvestmentStrategyStep() {
         <p className="text-gray-600 mt-2">Define your investment stages, sector focus, and capital allocation</p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="stages">Investment Stages</TabsTrigger>
-          <TabsTrigger value="sectors">Sector Profiles</TabsTrigger>
-          <TabsTrigger value="allocations">Capital Allocation</TabsTrigger>
-        </TabsList>
+      {/* Remove tabs, just show sector profiles directly */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Sector Profiles</CardTitle>
+          <CardDescription>
+            Define macro views on round sizes, valuations, and performance for different sectors.
+            A Default profile is created based on proprietary research and publicly available datasets.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+              {/* Debug controls */}
+              <div className="bg-gray-100 p-3 rounded border">
+                <p className="text-sm mb-2">Debug: editingProfile = {editingProfile || 'null'}</p>
+                <Button 
+                  size="sm" 
+                  onClick={() => setEditingProfile(editingProfile ? null : 'default')}
+                  className="mr-2"
+                >
+                  Toggle Edit Mode
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => console.log('Current state:', { editingProfile, activeTab })}
+                >
+                  Log State
+                </Button>
+              </div>
 
-        <TabsContent value="stages" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Investment Stages</CardTitle>
-              <CardDescription>
-                Define the stages of investment and their graduation/exit rates. Last stage must have 0% graduation rate.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {data.stages.map((stage, index) => (
-                <div key={stage.id} className="border rounded-lg p-4 space-y-4" data-testid={`stage-${index}`}>
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium">Stage {index + 1}</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeStage(index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label>Stage Name</Label>
-                      <Input
-                        data-testid={`stage-${index}-name`}
-                        value={stage.name}
-                        onChange={(e) => updateStage(index, { name: e.target.value })}
-                        placeholder="e.g., Seed, Series A"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Graduation Rate (%)</Label>
-                      <Input
-                        data-testid={`stage-${index}-graduate`}
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={stage.graduationRate}
-                        onChange={(e) => updateStage(index, { graduationRate: parseFloat(e.target.value) || 0 })}
-                        disabled={index === data.stages.length - 1}
-                      />
-                      {index === data.stages.length - 1 && stage.graduationRate > 0 && (
-                        <p className="text-sm text-red-500">Last stage must have 0% graduation rate</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Exit Rate (%)</Label>
-                      <Input
-                        data-testid={`stage-${index}-exit`}
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={stage.exitRate}
-                        onChange={(e) => updateStage(index, { exitRate: parseFloat(e.target.value) || 0 })}
-                      />
-                      {(stage.graduationRate + stage.exitRate) > 100 && (
-                        <p className="text-sm text-red-500">Graduation + Exit rates cannot exceed 100%</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Remain (%)</Label>
-                      <div className="p-2 bg-gray-50 rounded h-10 flex items-center">
-                        <span className="text-gray-700" data-testid={`stage-${index}-remain`}>
-                          {Math.max(0, 100 - stage.graduationRate - stage.exitRate)}%
-                        </span>
+              {sectorProfiles.map((profile) => {
+                const isEditing = editingProfile === profile.id;
+                console.log(`Profile ${profile.id}: isEditing = ${isEditing}, editingProfile = ${editingProfile}`);
+                
+                return (
+                  <div key={profile.id} className={`border rounded-lg p-4 space-y-4 ${isEditing ? 'border-blue-500 bg-blue-50' : ''}`}>
+                    {!isEditing ? (
+                      // View Mode
+                      <div>
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="font-medium text-lg">{profile.name || 'Unnamed Profile'}</h3>
+                            <p className="text-sm text-gray-600">{profile.stages.length} stages defined</p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                console.log('Edit clicked for profile:', profile.id);
+                                setEditingProfile(profile.id);
+                              }}
+                              data-testid={`edit-profile-${profile.id}`}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            {profile.id !== 'default' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteProfile(profile.id)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Stages Summary */}
+                        <div className="grid gap-2">
+                          {profile.stages.map((stage, index) => (
+                            <div key={stage.id} className="grid grid-cols-8 gap-2 text-sm py-2 border-b">
+                              <div className="font-medium">{stage.name}</div>
+                              <div>${stage.roundSize}M</div>
+                              <div>${stage.valuation}M ({stage.valuationType})</div>
+                              <div>{stage.esopPct}%</div>
+                              <div>{stage.graduationRate}%</div>
+                              <div>{stage.exitRate}%</div>
+                              <div>{calculateFailureRate(stage.graduationRate, stage.exitRate)}%</div>
+                              <div>{stage.monthsToGraduate}mo</div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              
-              <Button onClick={addStage} variant="outline" className="w-full">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Stage
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                    ) : (
+                      // Edit Mode
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium">Edit Profile</h3>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingProfile(null)}
+                          >
+                            Done
+                          </Button>
+                        </div>
 
-        <TabsContent value="sectors" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Sector Profiles</CardTitle>
-              <CardDescription>
-                Define target allocation percentages by sector. Total: {totalSectorAllocation.toFixed(1)}%
-                {totalSectorAllocation > 100 && <span className="text-red-500"> (exceeds 100%)</span>}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {data.sectorProfiles.map((sector, index) => (
-                <div key={sector.id} className="border rounded-lg p-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium">Sector {index + 1}</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeSectorProfile(index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Sector Name</Label>
-                      <Input
-                        value={sector.name}
-                        onChange={(e) => updateSectorProfile(index, { name: e.target.value })}
-                        placeholder="e.g., FinTech, HealthTech"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Target Allocation (%)</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={sector.targetPercentage}
-                        onChange={(e) => updateSectorProfile(index, { targetPercentage: parseFloat(e.target.value) || 0 })}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Description (Optional)</Label>
-                    <Textarea
-                      value={sector.description || ''}
-                      onChange={(e) => updateSectorProfile(index, { description: e.target.value })}
-                      placeholder="Describe your focus and thesis for this sector"
-                    />
-                  </div>
-                </div>
-              ))}
-              
-              <Button onClick={addSectorProfile} variant="outline" className="w-full">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Sector
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                        {/* Profile Name */}
+                        <div className="space-y-2">
+                          <Label>Profile Name</Label>
+                          <Input
+                            value={profile.name}
+                            onChange={(e) => handleUpdateProfile(profile.id, { name: e.target.value })}
+                            placeholder="e.g., FinTech, HealthTech, Enterprise SaaS"
+                          />
+                        </div>
 
-        <TabsContent value="allocations" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Capital Allocation</CardTitle>
-              <CardDescription>
-                Define how capital will be allocated across different categories. Total: {totalAllocation.toFixed(1)}%
-                {totalAllocation > 100 && <span className="text-red-500"> (exceeds 100%)</span>}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {data.allocations.map((allocation, index) => (
-                <div key={allocation.id} className="border rounded-lg p-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium">Allocation {index + 1}</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeAllocation(index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                        {/* Stages Header */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label>Investment Stages</Label>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleAddStage(profile.id)}
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Round
+                            </Button>
+                          </div>
+                          
+                          {/* Column Headers */}
+                          <div className="grid grid-cols-10 gap-2 text-xs font-medium text-gray-600 py-2 border-b">
+                            <div>Round</div>
+                            <div>Size ($M)</div>
+                            <div>Valuation ($M)</div>
+                            <div>Type</div>
+                            <div>ESOP (%)</div>
+                            <div>Grad (%)</div>
+                            <div>Exit (%)</div>
+                            <div>Exit Val ($M)</div>
+                            <div>Mo to Grad</div>
+                            <div>Actions</div>
+                          </div>
+                        </div>
+
+                        {/* Stages */}
+                        {profile.stages.map((stage, stageIndex) => (
+                          <div key={stage.id} className="grid grid-cols-10 gap-2 items-center py-2 border-b">
+                            <Input
+                              value={stage.name}
+                              onChange={(e) => handleUpdateStage(profile.id, stage.id, { name: e.target.value })}
+                              placeholder="Round name"
+                              className="text-sm"
+                            />
+                            
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              value={stage.roundSize}
+                              onChange={(e) => handleUpdateStage(profile.id, stage.id, { roundSize: parseFloat(e.target.value) || 0 })}
+                              className="text-sm"
+                            />
+                            
+                            <Input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={stage.valuation}
+                              onChange={(e) => handleUpdateStage(profile.id, stage.id, { valuation: parseFloat(e.target.value) || 0 })}
+                              className="text-sm"
+                            />
+                            
+                            <Select
+                              value={stage.valuationType}
+                              onValueChange={(value: 'pre' | 'post') => handleUpdateStage(profile.id, stage.id, { valuationType: value })}
+                            >
+                              <SelectTrigger className="text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pre">Pre</SelectItem>
+                                <SelectItem value="post">Post</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            
+                            <Input
+                              type="number"
+                              min="0"
+                              max="50"
+                              step="1"
+                              value={stage.esopPct}
+                              onChange={(e) => handleUpdateStage(profile.id, stage.id, { esopPct: parseFloat(e.target.value) || 0 })}
+                              className="text-sm"
+                            />
+                            
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="1"
+                              value={stage.graduationRate}
+                              onChange={(e) => {
+                                const value = parseFloat(e.target.value) || 0;
+                                if (validateStageRates(value, stage.exitRate)) {
+                                  handleUpdateStage(profile.id, stage.id, { graduationRate: value });
+                                }
+                              }}
+                              className="text-sm"
+                            />
+                            
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="1"
+                              value={stage.exitRate}
+                              onChange={(e) => {
+                                const value = parseFloat(e.target.value) || 0;
+                                if (validateStageRates(stage.graduationRate, value)) {
+                                  handleUpdateStage(profile.id, stage.id, { exitRate: value });
+                                }
+                              }}
+                              className="text-sm"
+                            />
+                            
+                            <Input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={stage.exitValuation}
+                              onChange={(e) => handleUpdateStage(profile.id, stage.id, { exitValuation: parseFloat(e.target.value) || 0 })}
+                              className="text-sm"
+                            />
+                            
+                            <Input
+                              type="number"
+                              min="1"
+                              max="120"
+                              step="1"
+                              value={stage.monthsToGraduate}
+                              onChange={(e) => handleUpdateStage(profile.id, stage.id, { monthsToGraduate: parseInt(e.target.value) || 12 })}
+                              className="text-sm"
+                            />
+                            
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleMoveStage(profile.id, stageIndex, 'up')}
+                                disabled={stageIndex === 0}
+                              >
+                                <MoveUp className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleMoveStage(profile.id, stageIndex, 'down')}
+                                disabled={stageIndex === profile.stages.length - 1}
+                              >
+                                <MoveDown className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteStage(profile.id, stage.id)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Important Considerations */}
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
+                          <h4 className="font-medium text-amber-900 mb-2">Important Considerations</h4>
+                          <ul className="text-sm text-amber-800 space-y-1">
+                            <li>• Graduation Rate + Exit Rate cannot exceed 100% for any stage</li>
+                            <li>• The last stage must have a 0% graduation rate (no subsequent stage)</li>
+                            <li>• Time to exit is months after entering that stage, not from initial investment</li>
+                            <li>• Don't delete later-stage rounds even if you don't participate - needed for FMV step-ups</li>
+                          </ul>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Category</Label>
-                      <Input
-                        value={allocation.category}
-                        onChange={(e) => updateAllocation(index, { category: e.target.value })}
-                        placeholder="e.g., New Investments, Reserves"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Allocation (%)</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={allocation.percentage}
-                        onChange={(e) => updateAllocation(index, { percentage: parseFloat(e.target.value) || 0 })}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Description (Optional)</Label>
-                    <Textarea
-                      value={allocation.description || ''}
-                      onChange={(e) => updateAllocation(index, { description: e.target.value })}
-                      placeholder="Describe this allocation category"
-                    />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               
-              <Button onClick={addAllocation} variant="outline" className="w-full">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Allocation
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          <Button onClick={handleAddProfile} variant="outline" className="w-full">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Sector Profile
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Navigation */}
+      <div className="flex justify-between mt-6">
+        <Button 
+          variant="outline"
+          onClick={() => navigate('/fund-setup?step=2')}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Previous
+        </Button>
+        <Button 
+          onClick={() => navigate('/fund-setup?step=4')}
+          className="flex items-center gap-2"
+        >
+          Next Step
+          <ArrowRight className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }
-

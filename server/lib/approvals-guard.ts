@@ -5,13 +5,13 @@
 
 import { db } from '../db.js';
 import { eq, and, gte, sql } from 'drizzle-orm';
-import _crypto from 'crypto';
-import { _recordApprovalCreation, approvalMetrics } from '../observability/production-metrics.js';
+import { approvalMetrics } from '../observability/production-metrics.js';
 import { 
   validateDistinctSigners, 
   canonicalJsonHash, 
   ApprovalRateLimiter 
 } from './quick-wins.js';
+import { reserveApprovals } from '../../shared/schemas/reserve-approvals.js';
 
 // Initialize rate limiter for approval creation
 const approvalRateLimiter = new ApprovalRateLimiter(3, 60000); // 3 requests per minute
@@ -117,7 +117,7 @@ export async function verifyApproval(
         ok: false,
         approvalId: approval.id,
         reason: `Insufficient approvals: ${sigCount}/${minApprovals}`,
-        signatures: signatures.rows
+        signatures: signatures.rows as { partnerEmail: string; approvedAt: Date; }[]
       };
     }
 
@@ -137,13 +137,13 @@ export async function verifyApproval(
           ok: false,
           approvalId: approval.id,
           reason: `Approvals must be from ${minApprovals} distinct partners (found ${validation.uniqueCount} unique)`,
-          signatures: signatures.rows
+          signatures: signatures.rows as { partnerEmail: string; approvedAt: Date; }[]
         };
       }
     }
 
     // Check TTL (expires_at is authoritative)
-    if (new Date() > new Date(approval.expires_at)) {
+    if (new Date() > new Date(approval.expiresAt)) {
       // Mark as expired (should be handled by automatic TTL, but safety check)
       await db.execute(sql`
         UPDATE reserve_approvals 
@@ -156,7 +156,7 @@ export async function verifyApproval(
         ok: false,
         approvalId: approval.id,
         reason: 'Approval has expired',
-        signatures: signatures.rows
+        signatures: signatures.rows as { partnerEmail: string; approvedAt: Date; }[]
       };
     }
 
@@ -167,8 +167,8 @@ export async function verifyApproval(
     return {
       ok: true,
       approvalId: approval.id,
-      signatures: signatures.rows,
-      calculationHash: approval.calculation_hash || undefined
+      signatures: signatures.rows as Array<{ partnerEmail: string; approvedAt: Date; }>,
+      calculationHash: approval.calculationHash || undefined
     };
 
   } catch (error) {
@@ -180,7 +180,7 @@ export async function verifyApproval(
     
     return {
       ok: false,
-      reason: 'Failed to verify approval: ' + (error as Error).message
+      reason: `Failed to verify approval: ${  (error as Error).message}`
     };
   }
 }
@@ -339,9 +339,7 @@ export async function createApprovalIfNeeded(
       affectedFunds: impact.affectedFunds,
       estimatedAmount: Math.round(impact.estimatedAmount * 100),
       riskLevel: impact.riskLevel,
-      expiresAt,
-      calculationHash: inputsHash,
-      status: 'pending'
+      expiresAt
     })
     .returning();
 

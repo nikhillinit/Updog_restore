@@ -54,7 +54,7 @@ function stableUserId(): string {
   } catch (e) {
     // Fallback for environments without localStorage/crypto
     console.warn('Unable to create stable user ID, using session fallback');
-    return 'session-' + Math.random().toString(36).substring(2, 15);
+    return `session-${  Math.random().toString(36).substring(2, 15)}`;
   }
 }
 
@@ -120,7 +120,7 @@ export function debugRollouts() {
       const inFeature = inRollout(feature);
       
       acc[feature] = {
-        userId: userId.substring(0, 8) + '...',
+        userId: `${userId.substring(0, 8)  }...`,
         bucket,
         rolloutPct: envValue || 'default',
         enabled: inFeature
@@ -137,7 +137,7 @@ if ((import.meta as any).env?.NODE_ENV === 'development') {
       inRollout, 
       getUserBucket, 
       debugRollouts,
-      stableUserId: () => stableUserId().substring(0, 8) + '...' // Masked for privacy
+      stableUserId: () => `${stableUserId().substring(0, 8)  }...` // Masked for privacy
     };
   }
 }

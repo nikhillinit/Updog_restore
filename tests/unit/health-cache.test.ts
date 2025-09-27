@@ -4,7 +4,7 @@ import express from 'express';
 
 describe('Health Endpoint Cache TTL', () => {
   let app: express.Application;
-  let healthData = { status: 'ok', timestamp: new Date().toISOString() };
+  const healthData = { status: 'ok', timestamp: new Date().toISOString() };
   
   beforeEach(() => {
     vi.useFakeTimers();

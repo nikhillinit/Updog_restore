@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import FundSetup from '../client/src/pages/fund-setup';

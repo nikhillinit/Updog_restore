@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod';
+import { nonNegative, bounded01, positiveInt, yearRange } from '@shared/schema-helpers';
 
 // Company schema with validation rules
 export const CompanySchema = z.object({
@@ -19,10 +20,7 @@ export const CompanySchema = z.object({
     .max(1000000, 'Exit MOIC exceeds reasonable bounds (100x)'),
   stage: z.string().optional(),
   sector: z.string().optional(),
-  ownership_pct: z.number()
-    .min(0, 'Ownership cannot be negative')
-    .max(1, 'Ownership cannot exceed 100%')
-    .optional(),
+  ownership_pct: bounded01().optional(),
   metadata: z.record(z.unknown()).optional()
 }).strict();
 
@@ -43,7 +41,7 @@ export const StageBasedCapPolicySchema = z.object({
     .optional(),
   stage_caps: z.record(
     z.string(),
-    z.number().min(0).max(10)
+    nonNegative().max(10)
   ).optional()
 }).strict();
 
@@ -81,10 +79,7 @@ export const ReservesInputSchema = z.object({
     .int('Fund size must be in integer cents')
     .nonnegative('Fund size cannot be negative')
     .max(Number.MAX_SAFE_INTEGER, 'Fund size exceeds maximum safe integer'),
-  quarter_index: z.number()
-    .int('Quarter index must be an integer')
-    .min(1900 * 4, 'Quarter index before year 1900')
-    .max(2100 * 4 + 3, 'Quarter index after year 2100')
+  quarter_index: yearRange(1900 * 4, 2100 * 4 + 3)
 }).strict();
 
 // Allocation decision schema
@@ -98,10 +93,7 @@ export const AllocationDecisionSchema = z.object({
   cap_cents: z.number()
     .int()
     .nonnegative(),
-  iteration: z.number()
-    .int()
-    .positive()
-    .max(10)
+  iteration: positiveInt().max(10)
 }).strict();
 
 // Reserves output schema

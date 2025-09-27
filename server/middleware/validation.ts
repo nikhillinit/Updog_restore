@@ -4,7 +4,7 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { Request, Response, NextFunction } from 'express';
-import { ZodSchema, _z } from 'zod';
+import { ZodSchema } from 'zod';
 import { ApiError } from '@shared/types';
 
 interface ValidationSchemas {

@@ -169,7 +169,7 @@ export class ReservesV11System {
     context: { userId: string; orgId: string }
   ): Promise<any> {
     // Step 1: Check idempotency
-    const idempotencyKey = context.userId + ':' + JSON.stringify(params);
+    const idempotencyKey = `${context.userId  }:${  JSON.stringify(params)}`;
     const cached = await this.integration.concurrency.checkIdempotency(idempotencyKey);
     if (cached.exists) return cached.result;
     

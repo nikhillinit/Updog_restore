@@ -4,14 +4,10 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 // Chart libraries removed for bundle optimization
 const ChartPlaceholder = ({ title, height = "h-64" }: { title: string; height?: string }) => (
   <div className={`${height} bg-gray-50 rounded-lg flex flex-col items-center justify-center`}>
@@ -23,17 +19,11 @@ const ChartPlaceholder = ({ title, height = "h-64" }: { title: string; height?: 
   </div>
 );
 import { 
-  TrendingUp, 
-  TrendingDown,
-  DollarSign,
-  Target,
+  TrendingUp,
   Calculator,
   Info,
-  Award,
   AlertTriangle,
   BarChart3,
-  Activity,
-  Users,
   Building2,
   Percent
 } from "lucide-react";
