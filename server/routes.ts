@@ -716,6 +716,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register fund configuration routes
   registerFundConfigRoutes(app);
 
+  // Register variance tracking routes
+  const varianceRouter = await import('./routes/variance.js');
+  app.use('/', varianceRouter.default);
+
   // Register timeline routes for event-sourced architecture
   const timelineRouter = await import('./routes/timeline.js');
   app.use('/api/timeline', timelineRouter.default);

@@ -5,7 +5,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-console */
-import * as schema from "@schema";
+import * as schema from "@shared/schema";
 
 // Detect if running on Vercel
 const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;

@@ -46,6 +46,9 @@ const InvestmentsTable = React.lazy(() => import("@/pages/investments-table"));
 const CapTables = React.lazy(() => import("@/pages/CapTables"));
 const CashManagement = React.lazy(() => import("@/pages/cash-management"));
 const SensitivityAnalysisPage = React.lazy(() => import("@/pages/sensitivity-analysis"));
+// New analytics features
+const TimeTravelPage = React.lazy(() => import("@/pages/time-travel"));
+const VarianceTrackingPage = React.lazy(() => import("@/pages/variance-tracking"));
 
 const moduleConfig = {
   dashboard: {
@@ -95,6 +98,14 @@ const moduleConfig = {
   'tear-sheets': {
     title: "Tear Sheets",
     description: "Mobile-optimized portfolio company tear sheets with versioned commentary"
+  },
+  'time-travel': {
+    title: "Time-Travel Analytics",
+    description: "Historical fund state analysis, snapshots, and restoration capabilities"
+  },
+  'variance-tracking': {
+    title: "Variance Tracking",
+    description: "Performance variance monitoring, baseline management, and automated alerts"
   }
 };
 
@@ -192,6 +203,8 @@ function Router() {
         <Route path="/portfolio-analytics" component={(props) => <ProtectedRoute component={EnhancedPortfolioAnalytics} {...props} />} />
         <Route path="/cash-management" component={(props) => <ProtectedRoute component={CashManagement} {...props} />} />
         <Route path="/sensitivity-analysis" component={(props) => <ProtectedRoute component={SensitivityAnalysisPage} {...props} />} />
+        <Route path="/time-travel" component={(props) => <ProtectedRoute component={TimeTravelPage} {...props} />} />
+        <Route path="/variance-tracking" component={(props) => <ProtectedRoute component={VarianceTrackingPage} {...props} />} />
         <Route path="/reports" component={(props) => <ProtectedRoute component={Reports} {...props} />} />
         <Route component={NotFound} />
       </Switch>

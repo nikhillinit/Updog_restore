@@ -8,10 +8,10 @@ import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useFundContext } from "@/contexts/FundContext";
 import { POVIcon } from "@/components/ui/POVLogo";
-import { 
-  Briefcase, 
-  Calculator, 
-  BarChart3, 
+import {
+  Briefcase,
+  Calculator,
+  BarChart3,
   FileText,
   Activity,
   ChevronDown,
@@ -21,7 +21,9 @@ import {
   Building2,
   Target,
   Percent,
-  DollarSign
+  DollarSign,
+  Clock,
+  AlertTriangle
 } from "lucide-react";
 
 interface SidebarProps {
@@ -50,6 +52,8 @@ const navigationItems = [
   { id: 'portfolio-analytics', label: 'Portfolio Analytics', icon: Activity },
   { id: 'cash-management', label: 'Cash Management', icon: DollarSign },
   { id: 'sensitivity-analysis', label: 'Sensitivity Analysis', icon: Target },
+  { id: 'time-travel', label: 'Time-Travel Analytics', icon: Clock },
+  { id: 'variance-tracking', label: 'Variance Tracking', icon: AlertTriangle },
   { id: 'reports', label: 'Reports', icon: FileText },
 ];
 

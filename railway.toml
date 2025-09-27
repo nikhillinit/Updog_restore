@@ -1,7 +1,7 @@
 # Railway deployment configuration for MVP
 [build]
-builder = "nixpacks"
-buildCommand = "npm run build"
+builder = "dockerfile"
+dockerfilePath = "Dockerfile.railway"
 
 [deploy]
 healthcheckPath = "/health"
