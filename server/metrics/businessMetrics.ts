@@ -206,7 +206,7 @@ export class BusinessMetricsCollector {
     fundId: string,
     fn: () => Promise<any>
   ) {
-    pacingComplexity.set({ fund_id: fundId, analysis_type: analysisType }, complexityScore);
+    pacingComplexity['set']({ fund_id: fundId, analysis_type: analysisType }, complexityScore);
     
     return fn()
       .then(result => {
@@ -321,12 +321,12 @@ export class BusinessMetricsCollector {
 
   // Update system health metrics
   updateSystemHealth(component: string, checkType: string, score: number) {
-    systemHealth.set({ component, check_type: checkType }, score);
+    systemHealth['set']({ component, check_type: checkType }, score);
   }
 
   // Update fund performance metrics
   updateFundPerformance(fundId: string, metricType: string, score: number) {
-    fundPerformanceScore.set({ fund_id: fundId, metric_type: metricType }, score);
+    fundPerformanceScore['set']({ fund_id: fundId, metric_type: metricType }, score);
   }
 
   // Track user engagement

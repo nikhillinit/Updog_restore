@@ -44,7 +44,7 @@ export function VarianceChart({
   data,
   title,
   description,
-  valueFormatter = (value) => value.toLocaleString(),
+  valueFormatter = (value: any) => value.toLocaleString(),
   height = 300,
   showVarianceBands = true,
   acceptableVariance = 10, // 10% acceptable variance
@@ -53,7 +53,7 @@ export function VarianceChart({
   chartType = 'bar'
 }: VarianceChartProps) {
   const processedData = useMemo(() => {
-    return data.map((point, index) => ({
+    return data.map((point: any, index: any) => ({
       ...point,
       index,
       absVariance: Math.abs(point.variance),
@@ -74,7 +74,7 @@ export function VarianceChart({
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload;
+      const data = payload[0]!.payload;
       return (
         <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900 mb-2">{data.metric}</p>
@@ -209,7 +209,7 @@ export function VarianceChart({
         <YAxis
           yAxisId="right"
           orientation="right"
-          tickFormatter={(value) => `${value}%`}
+          tickFormatter={(value: any) => `${value}%`}
           stroke="#6b7280"
           fontSize={12}
         />
@@ -310,12 +310,12 @@ export function VarianceTrendChart({
         timestamp: parseISO(point.timestamp).getTime(),
         absVariance: Math.abs(point.variance),
       }))
-      .sort((a, b) => a.timestamp - b.timestamp);
+      .sort((a: any, b: any) => a.timestamp - b.timestamp);
   }, [data]);
 
   const TrendTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload;
+      const data = payload[0]!.payload;
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900">{data.formattedDate}</p>
@@ -352,12 +352,12 @@ export function VarianceTrendChart({
                 domain={['dataMin', 'dataMax']}
                 scale="time"
                 type="number"
-                tickFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd')}
+                tickFormatter={(timestamp: any) => format(new Date(timestamp), 'MMM dd')}
                 stroke="#6b7280"
                 fontSize={12}
               />
               <YAxis
-                tickFormatter={(value) => `${value}%`}
+                tickFormatter={(value: any) => `${value}%`}
                 stroke="#6b7280"
                 fontSize={12}
               />

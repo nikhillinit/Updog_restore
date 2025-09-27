@@ -197,7 +197,7 @@ export default function InvestmentsLayout() {
               <Input
                 placeholder="Search by company name. Press Enter to search."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e: any) => setSearchTerm(e.target.value)}
                 className="pl-10 bg-white border-gray-300"
               />
             </div>
@@ -246,7 +246,7 @@ export default function InvestmentsLayout() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredInvestments.map((investment) => (
+                {filteredInvestments.map((investment: any) => (
                   <TableRow key={investment.id} className="hover:bg-gray-50 cursor-pointer">
                     <TableCell>
                       <div className="flex items-center gap-1">

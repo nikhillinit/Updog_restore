@@ -84,14 +84,14 @@ export class WasmRunner extends EventEmitter {
       enableProfiling: opts.enableProfiling
     };
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve: any, reject: any) => {
       // Create worker thread for isolated execution
       const worker = new Worker(
         path.join(__dirname, 'wasm-worker.js'),
         { workerData }
       );
 
-      this.workers.set(executionId, worker);
+      this.workers['set'](executionId, worker);
       
       const startTime = Date.now();
       let timedOut = false;
@@ -116,7 +116,7 @@ export class WasmRunner extends EventEmitter {
       }, opts.timeoutMs!);
 
       // Handle worker messages
-      worker.on('message', (msg) => {
+      worker['on']('message', (msg: any) => {
         if (msg.type === 'memory-usage') {
           memoryUsage = msg.bytes;
           if (msg.bytes > (opts.maxMemoryMB! * 1024 * 1024)) {
@@ -199,7 +199,7 @@ export class WasmRunner extends EventEmitter {
       });
 
       // Handle worker errors
-      worker.on('error', (err) => {
+      worker['on']('error', (err: any) => {
         clearTimeout(timeout);
         worker.terminate();
         this.workers.delete(executionId);
@@ -215,7 +215,7 @@ export class WasmRunner extends EventEmitter {
       });
 
       // Handle worker exit
-      worker.on('exit', (code) => {
+      worker['on']('exit', (code: any) => {
         if (!timedOut && code !== 0) {
           clearTimeout(timeout);
           this.workers.delete(executionId);
@@ -283,11 +283,11 @@ export class WasmRunner extends EventEmitter {
         executing.add(promise as Promise<WasmExecutionResult<T>>);
         
         promise.then(
-          (result) => {
+          (result: any) => {
             results.push(result);
             executing.delete(promise as Promise<WasmExecutionResult<T>>);
           },
-          (error) => {
+          (error: any) => {
             executing.delete(promise as Promise<WasmExecutionResult<T>>);
             throw error;
           }

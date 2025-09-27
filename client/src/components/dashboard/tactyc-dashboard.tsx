@@ -198,7 +198,7 @@ export default function TactycDashboard() {
               <BarChart data={investableCapitalData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f2f2f2" />
                 <XAxis dataKey="name" tick={{ fill: '#292929' }} />
-                <YAxis tick={{ fill: '#292929' }} tickFormatter={(value) => `$${(value / 1000000).toFixed(0)}M`} />
+                <YAxis tick={{ fill: '#292929' }} tickFormatter={(value: any) => `$${(value / 1000000).toFixed(0)}M`} />
                 <Bar dataKey="initial" fill="#292929" name="Initial Investments" />
                 <Bar dataKey="followOn" fill="#E0D8D1" name="Follow-On Investments" />
               </BarChart>
@@ -266,7 +266,7 @@ export default function TactycDashboard() {
             <ComposedChart data={capitalCallsData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="period" />
-              <YAxis tickFormatter={(value) => `$${(value / 1000000).toFixed(0)}M`} />
+              <YAxis tickFormatter={(value: any) => `$${(value / 1000000).toFixed(0)}M`} />
               <Bar dataKey="amount" fill="#3b82f6" name="In Period" />
               <Line type="monotone" dataKey="cumulative" stroke="#1d4ed8" strokeWidth={3} name="Cumulative" />
             </ComposedChart>
@@ -331,7 +331,7 @@ export default function TactycDashboard() {
               <Switch 
                 id="view-toggle"
                 checked={viewType === "current"} 
-                onCheckedChange={(checked) => setViewType(checked ? "current" : "construction")}
+                onCheckedChange={(checked: any) => setViewType(checked ? "current" : "construction")}
               />
             </div>
             <div className="flex space-x-2">

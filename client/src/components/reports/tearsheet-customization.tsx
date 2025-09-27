@@ -155,7 +155,7 @@ export default function TearSheetCustomization({ onFieldsChange }: TearSheetCust
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {tearsheetFields.map((field) => (
+              {tearsheetFields.map((field: any) => (
                 <div key={field.id} className="flex items-center space-x-3">
                   <Checkbox
                     id={field.id}
@@ -179,7 +179,7 @@ export default function TearSheetCustomization({ onFieldsChange }: TearSheetCust
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {kpiFields.map((field) => (
+              {kpiFields.map((field: any) => (
                 <div key={field.id} className="flex items-center space-x-3">
                   <Checkbox
                     id={field.id}
@@ -204,7 +204,7 @@ export default function TearSheetCustomization({ onFieldsChange }: TearSheetCust
             </CardHeader>
             <CardContent className="space-y-3">
               {customFields.length > 0 ? (
-                customFields.map((field) => (
+                customFields.map((field: any) => (
                   <div key={field.id} className="flex items-center space-x-3">
                     <Checkbox
                       id={field.id}

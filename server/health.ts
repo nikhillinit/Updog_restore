@@ -31,8 +31,8 @@ interface HealthResponse {
 async function checkDatabase(): Promise<HealthComponent> {
   try {
     // In dev mode with mock database, just return healthy
-    if (process.env.DATABASE_URL?.includes('mock')) {
-      healthStatus.set({ component: 'database' }, 1);
+    if (process.env['DATABASE_URL']?.includes('mock')) {
+      healthStatus['set']({ component: 'database' }, 1);
       return {
         name: 'database',
         status: 'healthy',
@@ -42,14 +42,14 @@ async function checkDatabase(): Promise<HealthComponent> {
     
     // Simple query to check database connectivity
     await db.execute('SELECT 1');
-    healthStatus.set({ component: 'database' }, 1);
+    healthStatus['set']({ component: 'database' }, 1);
     return {
       name: 'database',
       status: 'healthy',
       message: 'Database connection successful',
     };
   } catch (error) {
-    healthStatus.set({ component: 'database' }, 0);
+    healthStatus['set']({ component: 'database' }, 0);
     return {
       name: 'database',
       status: 'unhealthy',
@@ -62,7 +62,7 @@ async function checkRedis(): Promise<HealthComponent> {
   const env = getEnv();
   
   if (!env.REDIS_URL || env.REDIS_URL === 'memory://') {
-    healthStatus.set({ component: 'redis' }, 1);
+    healthStatus['set']({ component: 'redis' }, 1);
     return {
       name: 'redis',
       status: 'healthy',
@@ -73,14 +73,14 @@ async function checkRedis(): Promise<HealthComponent> {
   try {
     // If Redis is configured, we would check it here
     // For now, we'll just mark it as healthy since it's optional
-    healthStatus.set({ component: 'redis' }, 1);
+    healthStatus['set']({ component: 'redis' }, 1);
     return {
       name: 'redis',
       status: 'healthy',
       message: 'Redis connection successful',
     };
   } catch (error) {
-    healthStatus.set({ component: 'redis' }, 0);
+    healthStatus['set']({ component: 'redis' }, 0);
     return {
       name: 'redis',
       status: 'unhealthy',
@@ -101,7 +101,7 @@ async function performHealthCheck(): Promise<HealthResponse> {
   const isHealthy = components.every(component => component.status === 'healthy');
   
   // Set overall health status
-  healthStatus.set({ component: 'overall' }, isHealthy ? 1 : 0);
+  healthStatus['set']({ component: 'overall' }, isHealthy ? 1 : 0);
 
   return {
     status: isHealthy ? 'healthy' : 'unhealthy',

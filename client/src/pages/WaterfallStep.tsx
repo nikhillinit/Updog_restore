@@ -113,7 +113,7 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
                     max="100"
                     step="0.1"
                     value={formatPercentage(data.hurdle)}
-                    onChange={(e) => handleChange('hurdle', parsePercentage(e.target.value))}
+                    onChange={(e: any) => handleChange('hurdle', parsePercentage(e.target.value))}
                     className="pr-8"
                     placeholder="8.0"
                   />
@@ -133,7 +133,7 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
                     max="100"
                     step="0.1"
                     value={formatPercentage(data.catchUp)}
-                    onChange={(e) => handleChange('catchUp', parsePercentage(e.target.value))}
+                    onChange={(e: any) => handleChange('catchUp', parsePercentage(e.target.value))}
                     className="pr-8"
                     placeholder="8.0"
                   />
@@ -167,7 +167,7 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
               <Label className="text-base font-medium">Cliff Period</Label>
               <Select 
                 value={data.carryVesting.cliffYears.toString()} 
-                onValueChange={(value) => handleCarryVestingChange('cliffYears', parseInt(value))}
+                onValueChange={(value: any) => handleCarryVestingChange('cliffYears', parseInt(value))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select cliff" />
@@ -189,7 +189,7 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
               <Label className="text-base font-medium">Vesting Period</Label>
               <Select 
                 value={data.carryVesting.vestingYears.toString()} 
-                onValueChange={(value) => handleCarryVestingChange('vestingYears', parseInt(value))}
+                onValueChange={(value: any) => handleCarryVestingChange('vestingYears', parseInt(value))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select vesting" />

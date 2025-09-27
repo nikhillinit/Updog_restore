@@ -17,7 +17,7 @@
 const getRuntimeFlag = (flagName: string): boolean | undefined => {
   try {
     // Check query params first
-    const qp = new URLSearchParams(window.location.search).get(`ff_${flagName}`);
+    const qp = new URLSearchParams(window.location.search)['get'](`ff_${flagName}`);
     if (qp === '0' || qp === '1') return qp === '1';
     
     // Check localStorage fallback

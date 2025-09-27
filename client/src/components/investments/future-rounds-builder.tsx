@@ -96,13 +96,13 @@ export default function FutureRoundsBuilder({ open, onOpenChange, onBuildRounds 
             </Label>
             <Select 
               value={config.sectorProfile} 
-              onValueChange={(value) => handleConfigChange('sectorProfile', value)}
+              onValueChange={(value: any) => handleConfigChange('sectorProfile', value)}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select sector profile" />
               </SelectTrigger>
               <SelectContent>
-                {sectorProfiles.map((profile) => (
+                {sectorProfiles.map((profile: any) => (
                   <SelectItem key={profile.id} value={profile.id}>
                     {profile.name}
                   </SelectItem>
@@ -118,13 +118,13 @@ export default function FutureRoundsBuilder({ open, onOpenChange, onBuildRounds 
             </Label>
             <Select 
               value={config.startingRound} 
-              onValueChange={(value) => handleConfigChange('startingRound', value)}
+              onValueChange={(value: any) => handleConfigChange('startingRound', value)}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select starting round" />
               </SelectTrigger>
               <SelectContent>
-                {fundingRounds.map((round) => (
+                {fundingRounds.map((round: any) => (
                   <SelectItem key={round.toLowerCase().replace(/\s+/g, '-')} value={round.toLowerCase().replace(/\s+/g, '-')}>
                     {round}
                   </SelectItem>
@@ -143,13 +143,13 @@ export default function FutureRoundsBuilder({ open, onOpenChange, onBuildRounds 
             </div>
             <Select 
               value={config.graduationRate} 
-              onValueChange={(value) => handleConfigChange('graduationRate', value)}
+              onValueChange={(value: any) => handleConfigChange('graduationRate', value)}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select graduation rate" />
               </SelectTrigger>
               <SelectContent>
-                {graduationRateOptions.map((option) => (
+                {graduationRateOptions.map((option: any) => (
                   <SelectItem key={option.id} value={option.id}>
                     {option.name}
                   </SelectItem>
@@ -168,13 +168,13 @@ export default function FutureRoundsBuilder({ open, onOpenChange, onBuildRounds 
             </div>
             <Select 
               value={config.startingDate} 
-              onValueChange={(value) => handleConfigChange('startingDate', value)}
+              onValueChange={(value: any) => handleConfigChange('startingDate', value)}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select starting date option" />
               </SelectTrigger>
               <SelectContent>
-                {startingDateOptions.map((option) => (
+                {startingDateOptions.map((option: any) => (
                   <SelectItem key={option.id} value={option.id}>
                     {option.name}
                   </SelectItem>
@@ -193,7 +193,7 @@ export default function FutureRoundsBuilder({ open, onOpenChange, onBuildRounds 
                 id="next-round-date"
                 type="date"
                 value={config.nextRoundDate}
-                onChange={(e) => handleConfigChange('nextRoundDate', e.target.value)}
+                onChange={(e: any) => handleConfigChange('nextRoundDate', e.target.value)}
                 className="w-full"
               />
               <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />

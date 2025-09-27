@@ -41,7 +41,7 @@ export default function ReservesTable({ output, companies, onExport }: ReservesT
   // Create company map for easy lookup
   const companyMap = useMemo(() => {
     const map = new Map<string, Company>();
-    companies.forEach(c => map.set(c.id, c));
+    companies.forEach(c => map['set'](c.id, c));
     return map;
   }, [companies]);
   
@@ -50,8 +50,8 @@ export default function ReservesTable({ output, companies, onExport }: ReservesT
     const { allocations, metadata } = output;
     const { exit_moic_ranking } = metadata;
     
-    return allocations.map((allocation) => {
-      const company = companyMap.get(allocation.company_id);
+    return allocations.map((allocation: any) => {
+      const company = companyMap['get'](allocation.company_id);
       const rank = exit_moic_ranking.indexOf(allocation.company_id) + 1;
       
       return {
@@ -88,7 +88,7 @@ export default function ReservesTable({ output, companies, onExport }: ReservesT
     }
     
     // Apply sorting
-    const sorted = [...filtered].sort((a, b) => {
+    const sorted = [...filtered].sort((a: any, b: any) => {
       let aVal: any, bVal: any;
       
       switch (sortField) {
@@ -230,7 +230,7 @@ export default function ReservesTable({ output, companies, onExport }: ReservesT
         <Input
           placeholder="Search by company, stage, or sector..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e: any) => setSearchTerm(e.target.value)}
           className="pl-10"
         />
       </div>
@@ -308,7 +308,7 @@ export default function ReservesTable({ output, companies, onExport }: ReservesT
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {processedData.map((row) => (
+                {processedData.map((row: any) => (
                   <TableRow key={row.id}>
                     <TableCell>
                       <Badge variant={row.rank <= 3 ? 'default' : 'secondary'}>

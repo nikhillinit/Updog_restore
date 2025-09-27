@@ -7,13 +7,13 @@ import { db } from "./db";
 import { funds, portfolioCompanies, investments, fundMetrics, activities } from "@schema";
 
 // Self-executing script when run directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === `file://${process.argv[1]!}`) {
   seedDatabase()
     .then(() => {
       console.log("Database seeding completed!");
       process.exit(0);
     })
-    .catch((error) => {
+    .catch((error: any) => {
       console.error("Database seeding failed:", error);
       process.exit(1);
     });
@@ -81,7 +81,7 @@ export async function seedDatabase() {
     const investmentData = [
       {
         fundId: fund.id,
-        companyId: companies[0].id,
+        companyId: companies[0]!.id,
         investmentDate: new Date("2021-03-15"),
         amount: "2500000",
         round: "Series A",
@@ -90,7 +90,7 @@ export async function seedDatabase() {
       },
       {
         fundId: fund.id,
-        companyId: companies[1].id,
+        companyId: companies[1]!.id,
         investmentDate: new Date("2021-06-20"),
         amount: "1500000",
         round: "Seed",
@@ -99,7 +99,7 @@ export async function seedDatabase() {
       },
       {
         fundId: fund.id,
-        companyId: companies[2].id,
+        companyId: companies[2]!.id,
         investmentDate: new Date("2021-09-10"),
         amount: "5000000",
         round: "Series B",
@@ -140,7 +140,7 @@ export async function seedDatabase() {
     const activitiesData = [
       {
         fundId: fund.id,
-        companyId: companies[0].id,
+        companyId: companies[0]!.id,
         title: "Investment Completed",
         type: "investment",
         activityDate: new Date("2021-03-15"),
@@ -149,7 +149,7 @@ export async function seedDatabase() {
       },
       {
         fundId: fund.id,
-        companyId: companies[1].id,
+        companyId: companies[1]!.id,
         title: "Due Diligence Started",
         type: "milestone",
         activityDate: new Date("2021-05-10"),
@@ -164,7 +164,7 @@ export async function seedDatabase() {
       },
       {
         fundId: fund.id,
-        companyId: companies[2].id,
+        companyId: companies[2]!.id,
         title: "Board Meeting",
         type: "governance",
         activityDate: new Date("2024-01-15"),

@@ -50,7 +50,7 @@ export default function ModernDashboard() {
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="animate-pulse space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {[...Array(4)].map((_, i) => (
+              {[...Array(4)].map((_: any, i: any) => (
                 <div key={i} className="h-32 bg-pov-white rounded-lg shadow-card"></div>
               ))}
             </div>
@@ -265,7 +265,7 @@ export default function ModernDashboard() {
                     <AreaChart data={performanceData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E0D8D1" opacity={0.3} />
                       <XAxis dataKey="quarter" stroke="#666" fontSize={12} />
-                      <YAxis stroke="#666" fontSize={12} tickFormatter={(value) => `$${value/1000000}M`} />
+                      <YAxis stroke="#666" fontSize={12} tickFormatter={(value: any) => `$${value/1000000}M`} />
                       <Tooltip 
                         formatter={(value: any) => [`$${(value/1000000).toFixed(1)}M`, 'Portfolio Value']}
                         labelStyle={{color: '#292929'}}
@@ -316,7 +316,7 @@ export default function ModernDashboard() {
                         paddingAngle={5}
                         dataKey="value"
                       >
-                        {sectorData.map((entry, index) => (
+                        {sectorData.map((entry: any, index: any) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
@@ -332,7 +332,7 @@ export default function ModernDashboard() {
                   </ResponsiveContainer>
                 </div>
                 <div className="grid grid-cols-2 gap-3 mt-4">
-                  {sectorData.map((sector, index) => (
+                  {sectorData.map((sector: any, index: any) => (
                     <div key={index} className="flex items-center space-x-2">
                       <div 
                         className="w-3 h-3 rounded-full" 
@@ -369,7 +369,7 @@ export default function ModernDashboard() {
                   <AreaChart data={portfolioData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E0D8D1" opacity={0.3} />
                     <XAxis dataKey="month" stroke="#666" fontSize={12} />
-                    <YAxis stroke="#666" fontSize={12} tickFormatter={(value) => `$${value}M`} />
+                    <YAxis stroke="#666" fontSize={12} tickFormatter={(value: any) => `$${value}M`} />
                     <Tooltip 
                       formatter={(value: any, name: string) => [`$${value}M`, name === 'deployed' ? 'Deployed' : 'Committed']}
                       contentStyle={{

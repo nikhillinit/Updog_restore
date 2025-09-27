@@ -1,5 +1,4 @@
 import { pgTable, text, serial, integer, boolean, decimal, timestamp, jsonb, varchar, index, unique, uuid, date, pgEnum, uniqueIndex, bigint } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 
 export const funds = pgTable("funds", {
@@ -11,6 +10,7 @@ export const funds = pgTable("funds", {
   carryPercentage: decimal("carry_percentage", { precision: 5, scale: 4 }).notNull(),
   vintageYear: integer("vintage_year").notNull(),
   status: text("status").notNull().default("active"),
+  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -25,9 +25,9 @@ export const fundConfigs = pgTable("fundconfigs", {
   publishedAt: timestamp("published_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-}, (table) => ({
-  fundVersionUnique: unique().on(table.fundId, table.version),
-  fundVersionIdx: index("fundconfigs_fund_version_idx").on(table.fundId, table.version),
+}, (table: any) => ({
+  fundVersionUnique: unique()['on'](table.fundId, table.version),
+  fundVersionIdx: index("fundconfigs_fund_version_idx")['on'](table.fundId, table.version),
 }));
 
 // Fund snapshots for CQRS pattern
@@ -44,8 +44,8 @@ export const fundSnapshots = pgTable("fund_snapshots", {
   stateHash: varchar("state_hash", { length: 64 }),
   state: jsonb("state"), // Snapshot state data
   createdAt: timestamp("created_at").defaultNow(),
-}, (table) => ({
-  lookupIdx: index("fund_snapshots_lookup_idx").on(table.fundId, table.type, table.createdAt.desc()),
+}, (table: any) => ({
+  lookupIdx: index("fund_snapshots_lookup_idx")['on'](table.fundId, table.type, table.createdAt.desc()),
 }));
 
 // Fund events for audit trail
@@ -61,8 +61,8 @@ export const fundEvents = pgTable("fund_events", {
   entityType: varchar("entity_type", { length: 50 }),
   metadata: jsonb("metadata"), // Additional event metadata
   createdAt: timestamp("created_at").defaultNow(),
-}, (table) => ({
-  fundEventIdx: index("fund_events_fund_idx").on(table.fundId, table.createdAt.desc()),
+}, (table: any) => ({
+  fundEventIdx: index("fund_events_fund_idx")['on'](table.fundId, table.createdAt.desc()),
 }));
 
 export const portfolioCompanies = pgTable("portfoliocompanies", {
@@ -97,6 +97,7 @@ export const fundMetrics = pgTable("fund_metrics", {
   id: serial("id").primaryKey(),
   fundId: integer("fund_id").references(() => funds.id),
   metricDate: timestamp("metric_date").notNull(),
+  asOfDate: timestamp("as_of_date").notNull(),
   totalValue: decimal("totalvalue", { precision: 15, scale: 2 }).notNull(),
   irr: decimal("irr", { precision: 5, scale: 4 }),
   multiple: decimal("multiple", { precision: 5, scale: 2 }),
@@ -409,8 +410,8 @@ export const reserveStrategies = pgTable("reserve_strategies", {
   allocation: decimal("allocation", { precision: 15, scale: 2 }).notNull(),
   confidence: decimal("confidence", { precision: 3, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow()
-}, (table) => ({
-  fundCompanyIdx: index("idx_reserve_strategies_fund_company").on(table.fundId, table.companyId)
+}, (table: any) => ({
+  fundCompanyIdx: index("idx_reserve_strategies_fund_company")['on'](table.fundId, table.companyId)
 }));
 
 export const pacingHistory = pgTable("pacing_history", {
@@ -420,8 +421,8 @@ export const pacingHistory = pgTable("pacing_history", {
   deploymentAmount: decimal("deployment_amount", { precision: 15, scale: 2 }).notNull(),
   marketCondition: varchar("market_condition", { length: 16 }),
   createdAt: timestamp("created_at").defaultNow()
-}, (table) => ({
-  fundQuarterUnique: unique("unique_fund_quarter").on(table.fundId, table.quarter)
+}, (table: any) => ({
+  fundQuarterUnique: unique("unique_fund_quarter")['on'](table.fundId, table.quarter)
 }));
 
 // Timeline-specific types for better TypeScript inference
@@ -472,10 +473,10 @@ export const auditLog = pgTable("audit_log", {
   statusCode: integer("status_code"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   // retention_until is a generated column, not managed by Drizzle directly
-}, (table) => ({
-  retentionIdx: index("idx_audit_retention").on(table.createdAt), // Index on created_at for retention queries
-  correlationIdx: index("idx_audit_correlation").on(table.correlationId),
-  userActionIdx: index("idx_audit_user_action").on(table.userId, table.action, table.createdAt.desc()),
+}, (table: any) => ({
+  retentionIdx: index("idx_audit_retention")['on'](table.createdAt), // Index on created_at for retention queries
+  correlationIdx: index("idx_audit_correlation")['on'](table.correlationId),
+  userActionIdx: index("idx_audit_user_action")['on'](table.userId, table.action, table.createdAt.desc()),
 }));
 
 // Insert schema for audit log
@@ -508,17 +509,17 @@ export const reserveDecisions = pgTable('reserve_decisions', {
   latencyMs: integer('latency_ms'),
   userId: uuid('user_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (table) => ({
-  uniqueDecision: uniqueIndex('ux_reserve_unique').on(
+}, (table: any) => ({
+  uniqueDecision: uniqueIndex('ux_reserve_unique')['on'](
     table.companyId,
     table.periodStart,
     table.periodEnd,
     table.engineType,
     table.engineVersion
   ),
-  fundCompanyIdx: index('idx_reserve_fund_company').on(table.fundId, table.companyId),
-  periodIdx: index('idx_reserve_period').on(table.periodStart, table.periodEnd),
-  engineIdx: index('idx_reserve_engine').on(table.engineType, table.engineVersion),
+  fundCompanyIdx: index('idx_reserve_fund_company')['on'](table.fundId, table.companyId),
+  periodIdx: index('idx_reserve_period')['on'](table.periodStart, table.periodEnd),
+  engineIdx: index('idx_reserve_engine')['on'](table.engineType, table.engineVersion),
   inputsGinIdx: index('idx_reserve_inputs_gin').using('gin', table.inputs),
   predictionGinIdx: index('idx_reserve_prediction_gin').using('gin', table.prediction),
 }));
@@ -561,13 +562,13 @@ export const fundStateSnapshots = pgTable("fund_state_snapshots", {
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  fundTimeIdx: index("fund_state_snapshots_fund_time_idx").on(table.fundId, table.snapshotTime.desc()),
-  nameIdx: index("fund_state_snapshots_name_idx").on(table.fundId, table.snapshotName),
-  hashIdx: index("fund_state_snapshots_hash_idx").on(table.stateHash),
+}, (table: any) => ({
+  fundTimeIdx: index("fund_state_snapshots_fund_time_idx")['on'](table.fundId, table.snapshotTime.desc()),
+  nameIdx: index("fund_state_snapshots_name_idx")['on'](table.fundId, table.snapshotName),
+  hashIdx: index("fund_state_snapshots_hash_idx")['on'](table.stateHash),
   tagsGinIdx: index("fund_state_snapshots_tags_gin_idx").using("gin", table.tags),
-  bookmarkedIdx: index("fund_state_snapshots_bookmarked_idx").on(table.fundId, table.isBookmarked),
-  expirationIdx: index("fund_state_snapshots_expiration_idx").on(table.expiresAt),
+  bookmarkedIdx: index("fund_state_snapshots_bookmarked_idx")['on'](table.fundId, table.isBookmarked),
+  expirationIdx: index("fund_state_snapshots_expiration_idx")['on'](table.expiresAt),
 }));
 
 // Snapshot Metadata for versioning and comparison
@@ -599,10 +600,10 @@ export const snapshotMetadata = pgTable("snapshot_metadata", {
   significantChanges: boolean("significant_changes").default(false),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  snapshotIdx: index("snapshot_metadata_snapshot_idx").on(table.snapshotId),
-  parentIdx: index("snapshot_metadata_parent_idx").on(table.parentSnapshotId),
-  schemaVersionIdx: index("snapshot_metadata_schema_version_idx").on(table.schemaVersion),
+}, (table: any) => ({
+  snapshotIdx: index("snapshot_metadata_snapshot_idx")['on'](table.snapshotId),
+  parentIdx: index("snapshot_metadata_parent_idx")['on'](table.parentSnapshotId),
+  schemaVersionIdx: index("snapshot_metadata_schema_version_idx")['on'](table.schemaVersion),
 }));
 
 // Restoration History for audit trail and rollback tracking
@@ -649,12 +650,12 @@ export const restorationHistory = pgTable("restoration_history", {
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  fundOperationIdx: index("restoration_history_fund_operation_idx").on(table.fundId, table.operationId),
-  sourceSnapshotIdx: index("restoration_history_source_idx").on(table.sourceSnapshotId),
-  timeRangeIdx: index("restoration_history_time_range_idx").on(table.startTime, table.endTime),
-  statusIdx: index("restoration_history_status_idx").on(table.status, table.createdAt.desc()),
-  userIdx: index("restoration_history_user_idx").on(table.restoredBy, table.createdAt.desc()),
+}, (table: any) => ({
+  fundOperationIdx: index("restoration_history_fund_operation_idx")['on'](table.fundId, table.operationId),
+  sourceSnapshotIdx: index("restoration_history_source_idx")['on'](table.sourceSnapshotId),
+  timeRangeIdx: index("restoration_history_time_range_idx")['on'](table.startTime, table.endTime),
+  statusIdx: index("restoration_history_status_idx")['on'](table.status, table.createdAt.desc()),
+  userIdx: index("restoration_history_user_idx")['on'](table.restoredBy, table.createdAt.desc()),
 }));
 
 // Snapshot Comparisons - For tracking and caching comparison operations
@@ -693,12 +694,12 @@ export const snapshotComparisons = pgTable("snapshot_comparisons", {
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  fundComparisonIdx: index("snapshot_comparisons_fund_idx").on(table.fundId, table.createdAt.desc()),
-  snapshotsIdx: index("snapshot_comparisons_snapshots_idx").on(table.baseSnapshotId, table.compareSnapshotId),
-  uniqueComparison: unique("snapshot_comparisons_unique").on(table.baseSnapshotId, table.compareSnapshotId, table.comparisonType),
-  cacheIdx: index("snapshot_comparisons_cache_idx").on(table.cacheStatus, table.lastUsed),
-  userIdx: index("snapshot_comparisons_user_idx").on(table.requestedBy, table.createdAt.desc()),
+}, (table: any) => ({
+  fundComparisonIdx: index("snapshot_comparisons_fund_idx")['on'](table.fundId, table.createdAt.desc()),
+  snapshotsIdx: index("snapshot_comparisons_snapshots_idx")['on'](table.baseSnapshotId, table.compareSnapshotId),
+  uniqueComparison: unique("snapshot_comparisons_unique")['on'](table.baseSnapshotId, table.compareSnapshotId, table.comparisonType),
+  cacheIdx: index("snapshot_comparisons_cache_idx")['on'](table.cacheStatus, table.lastUsed),
+  userIdx: index("snapshot_comparisons_user_idx")['on'](table.requestedBy, table.createdAt.desc()),
 }));
 
 // Variance Tracking Schema
@@ -753,12 +754,12 @@ export const fundBaselines = pgTable("fund_baselines", {
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  fundBaselineIdx: index("fund_baselines_fund_idx").on(table.fundId, table.createdAt.desc()),
-  periodIdx: index("fund_baselines_period_idx").on(table.periodStart, table.periodEnd),
-  typeIdx: index("fund_baselines_type_idx").on(table.baselineType, table.isActive),
-  defaultIdx: index("fund_baselines_default_idx").on(table.fundId, table.isDefault, table.isActive),
-  snapshotIdx: index("fund_baselines_snapshot_idx").on(table.sourceSnapshotId),
+}, (table: any) => ({
+  fundBaselineIdx: index("fund_baselines_fund_idx")['on'](table.fundId, table.createdAt.desc()),
+  periodIdx: index("fund_baselines_period_idx")['on'](table.periodStart, table.periodEnd),
+  typeIdx: index("fund_baselines_type_idx")['on'](table.baselineType, table.isActive),
+  defaultIdx: index("fund_baselines_default_idx")['on'](table.fundId, table.isDefault, table.isActive),
+  snapshotIdx: index("fund_baselines_snapshot_idx")['on'](table.sourceSnapshotId),
   tagsGinIdx: index("fund_baselines_tags_gin_idx").using("gin", table.tags),
 }));
 
@@ -826,13 +827,13 @@ export const varianceReports = pgTable("variance_reports", {
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  fundReportIdx: index("variance_reports_fund_idx").on(table.fundId, table.createdAt.desc()),
-  baselineIdx: index("variance_reports_baseline_idx").on(table.baselineId, table.asOfDate.desc()),
-  periodIdx: index("variance_reports_period_idx").on(table.analysisStart, table.analysisEnd),
-  typeIdx: index("variance_reports_type_idx").on(table.reportType, table.status),
-  riskIdx: index("variance_reports_risk_idx").on(table.riskLevel, table.createdAt.desc()),
-  statusIdx: index("variance_reports_status_idx").on(table.status, table.updatedAt.desc()),
+}, (table: any) => ({
+  fundReportIdx: index("variance_reports_fund_idx")['on'](table.fundId, table.createdAt.desc()),
+  baselineIdx: index("variance_reports_baseline_idx")['on'](table.baselineId, table.asOfDate.desc()),
+  periodIdx: index("variance_reports_period_idx")['on'](table.analysisStart, table.analysisEnd),
+  typeIdx: index("variance_reports_type_idx")['on'](table.reportType, table.status),
+  riskIdx: index("variance_reports_risk_idx")['on'](table.riskLevel, table.createdAt.desc()),
+  statusIdx: index("variance_reports_status_idx")['on'](table.status, table.updatedAt.desc()),
 }));
 
 // Performance Alerts - Track and manage variance-based alerts
@@ -893,14 +894,14 @@ export const performanceAlerts = pgTable("performance_alerts", {
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  fundAlertIdx: index("performance_alerts_fund_idx").on(table.fundId, table.triggeredAt.desc()),
-  severityIdx: index("performance_alerts_severity_idx").on(table.severity, table.status, table.triggeredAt.desc()),
-  statusIdx: index("performance_alerts_status_idx").on(table.status, table.triggeredAt.desc()),
-  metricIdx: index("performance_alerts_metric_idx").on(table.metricName, table.triggeredAt.desc()),
-  baselineIdx: index("performance_alerts_baseline_idx").on(table.baselineId, table.triggeredAt.desc()),
-  reportIdx: index("performance_alerts_report_idx").on(table.varianceReportId),
-  escalationIdx: index("performance_alerts_escalation_idx").on(table.escalationLevel, table.escalatedAt.desc()),
+}, (table: any) => ({
+  fundAlertIdx: index("performance_alerts_fund_idx")['on'](table.fundId, table.triggeredAt.desc()),
+  severityIdx: index("performance_alerts_severity_idx")['on'](table.severity, table.status, table.triggeredAt.desc()),
+  statusIdx: index("performance_alerts_status_idx")['on'](table.status, table.triggeredAt.desc()),
+  metricIdx: index("performance_alerts_metric_idx")['on'](table.metricName, table.triggeredAt.desc()),
+  baselineIdx: index("performance_alerts_baseline_idx")['on'](table.baselineId, table.triggeredAt.desc()),
+  reportIdx: index("performance_alerts_report_idx")['on'](table.varianceReportId),
+  escalationIdx: index("performance_alerts_escalation_idx")['on'](table.escalationLevel, table.escalatedAt.desc()),
 }));
 
 // Alert Rules - Configuration for automated alert generation
@@ -947,11 +948,11 @@ export const alertRules = pgTable("alert_rules", {
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  fundRuleIdx: index("alert_rules_fund_idx").on(table.fundId, table.isEnabled),
-  metricIdx: index("alert_rules_metric_idx").on(table.metricName, table.isEnabled),
-  enabledIdx: index("alert_rules_enabled_idx").on(table.isEnabled, table.checkFrequency),
-  lastTriggeredIdx: index("alert_rules_last_triggered_idx").on(table.lastTriggered.desc()),
+}, (table: any) => ({
+  fundRuleIdx: index("alert_rules_fund_idx")['on'](table.fundId, table.isEnabled),
+  metricIdx: index("alert_rules_metric_idx")['on'](table.metricName, table.isEnabled),
+  enabledIdx: index("alert_rules_enabled_idx")['on'](table.isEnabled, table.checkFrequency),
+  lastTriggeredIdx: index("alert_rules_last_triggered_idx")['on'](table.lastTriggered.desc()),
 }));
 
 // Time-Travel Analytics Insert Schemas
@@ -1077,13 +1078,13 @@ export const fundStrategyModels = pgTable("fund_strategy_models", {
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  fundIdx: index("fund_strategy_models_fund_idx").on(table.fundId, table.createdAt.desc()),
-  typeIdx: index("fund_strategy_models_type_idx").on(table.modelType, table.isActive),
-  activeIdx: index("fund_strategy_models_active_idx").on(table.isActive, table.effectiveDate.desc()),
-  templateIdx: index("fund_strategy_models_template_idx").on(table.isTemplate, table.isActive),
+}, (table: any) => ({
+  fundIdx: index("fund_strategy_models_fund_idx")['on'](table.fundId, table.createdAt.desc()),
+  typeIdx: index("fund_strategy_models_type_idx")['on'](table.modelType, table.isActive),
+  activeIdx: index("fund_strategy_models_active_idx")['on'](table.isActive, table.effectiveDate.desc()),
+  templateIdx: index("fund_strategy_models_template_idx")['on'](table.isTemplate, table.isActive),
   tagsGinIdx: index("fund_strategy_models_tags_gin_idx").using("gin", table.tags),
-  activeUnique: unique("fund_strategy_models_active_unique").on(table.fundId),
+  activeUnique: unique("fund_strategy_models_active_unique")['on'](table.fundId),
 }));
 
 // Portfolio Construction Scenarios - Multiple "what-if" scenarios for fund building
@@ -1145,13 +1146,13 @@ export const portfolioScenarios = pgTable("portfolio_scenarios", {
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  fundIdx: index("portfolio_scenarios_fund_idx").on(table.fundId, table.createdAt.desc()),
-  strategyIdx: index("portfolio_scenarios_strategy_idx").on(table.strategyModelId, table.status),
-  typeIdx: index("portfolio_scenarios_type_idx").on(table.scenarioType, table.status),
-  statusIdx: index("portfolio_scenarios_status_idx").on(table.status, table.updatedAt.desc()),
-  sharedIdx: index("portfolio_scenarios_shared_idx").on(table.isShared, table.createdAt.desc()),
-  baselineIdx: index("portfolio_scenarios_baseline_idx").on(table.baselineScenarioId),
+}, (table: any) => ({
+  fundIdx: index("portfolio_scenarios_fund_idx")['on'](table.fundId, table.createdAt.desc()),
+  strategyIdx: index("portfolio_scenarios_strategy_idx")['on'](table.strategyModelId, table.status),
+  typeIdx: index("portfolio_scenarios_type_idx")['on'](table.scenarioType, table.status),
+  statusIdx: index("portfolio_scenarios_status_idx")['on'](table.status, table.updatedAt.desc()),
+  sharedIdx: index("portfolio_scenarios_shared_idx")['on'](table.isShared, table.createdAt.desc()),
+  baselineIdx: index("portfolio_scenarios_baseline_idx")['on'](table.baselineScenarioId),
 }));
 
 // Reserve Allocation Strategies - Dynamic reserve deployment strategies with optimization data
@@ -1216,12 +1217,12 @@ export const reserveAllocationStrategies = pgTable("reserve_allocation_strategie
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  fundIdx: index("reserve_allocation_strategies_fund_idx").on(table.fundId, table.createdAt.desc()),
-  scenarioIdx: index("reserve_allocation_strategies_scenario_idx").on(table.scenarioId, table.isActive),
-  typeIdx: index("reserve_allocation_strategies_type_idx").on(table.strategyType, table.isActive),
-  activeIdx: index("reserve_allocation_strategies_active_idx").on(table.isActive, table.lastOptimizedAt.desc()),
-  optimizationIdx: index("reserve_allocation_strategies_optimization_idx").on(table.optimizationObjective, table.isActive),
+}, (table: any) => ({
+  fundIdx: index("reserve_allocation_strategies_fund_idx")['on'](table.fundId, table.createdAt.desc()),
+  scenarioIdx: index("reserve_allocation_strategies_scenario_idx")['on'](table.scenarioId, table.isActive),
+  typeIdx: index("reserve_allocation_strategies_type_idx")['on'](table.strategyType, table.isActive),
+  activeIdx: index("reserve_allocation_strategies_active_idx")['on'](table.isActive, table.lastOptimizedAt.desc()),
+  optimizationIdx: index("reserve_allocation_strategies_optimization_idx")['on'](table.optimizationObjective, table.isActive),
 }));
 
 // Performance Forecasts - Predictive models linking to variance tracking
@@ -1300,13 +1301,13 @@ export const performanceForecasts = pgTable("performance_forecasts", {
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  fundIdx: index("performance_forecasts_fund_idx").on(table.fundId, table.createdAt.desc()),
-  scenarioIdx: index("performance_forecasts_scenario_idx").on(table.scenarioId, table.status),
-  baselineIdx: index("performance_forecasts_baseline_idx").on(table.baselineId, table.createdAt.desc()),
-  typeIdx: index("performance_forecasts_type_idx").on(table.forecastType, table.status),
-  methodologyIdx: index("performance_forecasts_methodology_idx").on(table.methodology, table.modelVersion),
-  horizonIdx: index("performance_forecasts_horizon_idx").on(table.forecastHorizonYears, table.status),
+}, (table: any) => ({
+  fundIdx: index("performance_forecasts_fund_idx")['on'](table.fundId, table.createdAt.desc()),
+  scenarioIdx: index("performance_forecasts_scenario_idx")['on'](table.scenarioId, table.status),
+  baselineIdx: index("performance_forecasts_baseline_idx")['on'](table.baselineId, table.createdAt.desc()),
+  typeIdx: index("performance_forecasts_type_idx")['on'](table.forecastType, table.status),
+  methodologyIdx: index("performance_forecasts_methodology_idx")['on'](table.methodology, table.modelVersion),
+  horizonIdx: index("performance_forecasts_horizon_idx")['on'](table.forecastHorizonYears, table.status),
 }));
 
 // Scenario Comparisons - Comparing different portfolio construction approaches
@@ -1379,12 +1380,12 @@ export const scenarioComparisons = pgTable("scenario_comparisons", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   lastAccessed: timestamp("last_accessed", { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  fundIdx: index("scenario_comparisons_fund_idx").on(table.fundId, table.createdAt.desc()),
-  baseIdx: index("scenario_comparisons_base_idx").on(table.baseScenarioId, table.status),
-  typeIdx: index("scenario_comparisons_type_idx").on(table.comparisonType, table.status),
-  statusIdx: index("scenario_comparisons_status_idx").on(table.status, table.lastAccessed.desc()),
-  publicIdx: index("scenario_comparisons_public_idx").on(table.isPublic, table.createdAt.desc()),
+}, (table: any) => ({
+  fundIdx: index("scenario_comparisons_fund_idx")['on'](table.fundId, table.createdAt.desc()),
+  baseIdx: index("scenario_comparisons_base_idx")['on'](table.baseScenarioId, table.status),
+  typeIdx: index("scenario_comparisons_type_idx")['on'](table.comparisonType, table.status),
+  statusIdx: index("scenario_comparisons_status_idx")['on'](table.status, table.lastAccessed.desc()),
+  publicIdx: index("scenario_comparisons_public_idx")['on'](table.isPublic, table.createdAt.desc()),
 }));
 
 // Monte Carlo Simulation Results - Detailed simulation results for scenario modeling
@@ -1453,12 +1454,12 @@ export const monteCarloSimulations = pgTable("monte_carlo_simulations", {
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   expiresAt: timestamp("expires_at", { withTimezone: true }), // When to cleanup detailed results
-}, (table) => ({
-  fundIdx: index("monte_carlo_simulations_fund_idx").on(table.fundId, table.simulationDate.desc()),
-  scenarioIdx: index("monte_carlo_simulations_scenario_idx").on(table.scenarioId, table.simulationDate.desc()),
-  forecastIdx: index("monte_carlo_simulations_forecast_idx").on(table.forecastId, table.simulationDate.desc()),
-  typeIdx: index("monte_carlo_simulations_type_idx").on(table.simulationType, table.simulationDate.desc()),
-  expiryIdx: index("monte_carlo_simulations_expiry_idx").on(table.expiresAt),
+}, (table: any) => ({
+  fundIdx: index("monte_carlo_simulations_fund_idx")['on'](table.fundId, table.simulationDate.desc()),
+  scenarioIdx: index("monte_carlo_simulations_scenario_idx")['on'](table.scenarioId, table.simulationDate.desc()),
+  forecastIdx: index("monte_carlo_simulations_forecast_idx")['on'](table.forecastId, table.simulationDate.desc()),
+  typeIdx: index("monte_carlo_simulations_type_idx")['on'](table.simulationType, table.simulationDate.desc()),
+  expiryIdx: index("monte_carlo_simulations_expiry_idx")['on'](table.expiresAt),
   tagsGinIdx: index("monte_carlo_simulations_tags_gin_idx").using("gin", table.tags),
 }));
 

@@ -95,7 +95,7 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
       cumulativeTotals.audit += categories.audit.monthly;
       cumulativeTotals.other += categories.other.monthly;
 
-      const total = Object.values(cumulativeTotals).reduce((sum, val) => sum + val, 0);
+      const total = Object.values(cumulativeTotals).reduce((sum: any, val: any) => sum + val, 0);
 
       data.push({
         date: currentDate.toISOString().slice(0, 7), // YYYY-MM format
@@ -272,14 +272,14 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
                     <XAxis 
                       dataKey="date" 
                       tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => {
+                      tickFormatter={(value: any) => {
                         const date = new Date(`${value  }-01`);
                         return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
                       }}
                     />
                     <YAxis 
                       tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => 
+                      tickFormatter={(value: any) => 
                         viewType === 'expenses' ? formatCurrency(value) : formatPercent(value)
                       }
                     />
@@ -351,14 +351,14 @@ export default function FundExpenseCharts({ className }: FundExpenseChartsProps)
                     <XAxis 
                       dataKey="date" 
                       tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => {
+                      tickFormatter={(value: any) => {
                         const date = new Date(`${value  }-01`);
                         return date.toLocaleDateString('en-US', { month: 'short' });
                       }}
                     />
                     <YAxis 
                       tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => 
+                      tickFormatter={(value: any) => 
                         viewType === 'expenses' ? formatCurrency(value) : formatPercent(value)
                       }
                     />

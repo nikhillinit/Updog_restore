@@ -258,7 +258,7 @@ export default function InvestmentDetail() {
                   </DialogDescription>
                 </DialogHeader>
                 <Form {...roundForm}>
-                  <form onSubmit={roundForm.handleSubmit((data) => addRoundMutation.mutate(data))} className="space-y-4">
+                  <form onSubmit={roundForm.handleSubmit((data: any) => addRoundMutation.mutate(data))} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={roundForm.control}
@@ -538,7 +538,7 @@ export default function InvestmentDetail() {
                   </DialogDescription>
                 </DialogHeader>
                 <Form {...caseForm}>
-                  <form onSubmit={caseForm.handleSubmit((data) => addCaseMutation.mutate(data))} className="space-y-4">
+                  <form onSubmit={caseForm.handleSubmit((data: any) => addCaseMutation.mutate(data))} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={caseForm.control}

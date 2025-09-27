@@ -44,7 +44,7 @@ type StrategySlice = {
 
 // helper functions
 const enforceLast = (rows: StrategyStage[]) =>
-  rows.map((r, i) => (i === rows.length - 1 ? { ...r, graduate: 0 } : r));
+  rows.map((r: any, i: any) => (i === rows.length - 1 ? { ...r, graduate: 0 } : r));
 
 const generateStableId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -65,14 +65,14 @@ const generateStableId = (): string => {
  */
 export const useFundStore = create<StrategySlice>()(
   persist(
-    (set, get) => {
+    (set: any, get: any) => {
       // Cache for stageValidation to prevent object recreation
       let cachedStagesState: StrategyStage[] | null = null;
       let cachedValidationResult: { allValid: boolean; errorsByRow: (string | null)[] } | null = null;
       
       return {
       hydrated: false,
-      setHydrated: (v) => set({ hydrated: v }),
+      setHydrated: (v: any) => set({ hydrated: v }),
       
       stages: [
         { id: generateStableId(), name: 'Seed', graduate: 30, exit: 20, months: 18 },
@@ -91,7 +91,7 @@ export const useFundStore = create<StrategySlice>()(
       ],
       followOnChecks: { A: 800_000, B: 1_500_000, C: 2_500_000 },
 
-      addStage: () => set((s) => {
+      addStage: () => set((s: any) => {
         // Invalidate cache when stages change
         cachedStagesState = null;
         cachedValidationResult = null;
@@ -101,16 +101,16 @@ export const useFundStore = create<StrategySlice>()(
         return { stages: enforceLast(next) };
       }),
 
-      removeStage: (idx: number) => set((s) => {
+      removeStage: (idx: number) => set((s: any) => {
         // Invalidate cache when stages change
         cachedStagesState = null;
         cachedValidationResult = null;
         
-        const next = s.stages.filter((_, i) => i !== idx);
+        const next = s.stages.filter((_: any, i: any) => i !== idx);
         return { stages: enforceLast(next) };
       }),
 
-      updateStageName: (idx: number, name: string) => set((s) => {
+      updateStageName: (idx: number, name: string) => set((s: any) => {
         // Invalidate cache when stages change
         cachedStagesState = null;
         cachedValidationResult = null;
@@ -122,7 +122,7 @@ export const useFundStore = create<StrategySlice>()(
         return { stages };
       }),
 
-      updateStageRate: (idx, patch) => set((s) => {
+      updateStageRate: (idx: any, patch: any) => set((s: any) => {
         // Invalidate cache when stages change
         cachedStagesState = null;
         cachedValidationResult = null;
@@ -207,7 +207,7 @@ export const useFundStore = create<StrategySlice>()(
         // 3) Deep equality check for stages (using NaN-safe equality)
         const stagesEqual = 
           prevStages.length === newStages.length &&
-          prevStages.every((a, i) => 
+          prevStages.every((a: any, i: any) => 
             a.id === newStages[i].id &&
             a.name === newStages[i].name &&
             eq(a.graduate, newStages[i].graduate) &&
@@ -220,7 +220,7 @@ export const useFundStore = create<StrategySlice>()(
         const prevProfiles = current.sectorProfiles.slice().sort(sortById);
         const profilesEqual = 
           prevProfiles.length === nextProfiles.length &&
-          prevProfiles.every((a, i) => 
+          prevProfiles.every((a: any, i: any) => 
             a.id === nextProfiles[i]?.id &&
             a.name === nextProfiles[i]?.name &&
             eq(a.targetPercentage, normalizeNumber(nextProfiles[i]?.targetPercentage)) &&
@@ -232,7 +232,7 @@ export const useFundStore = create<StrategySlice>()(
         const prevAllocs = current.allocations.slice().sort(sortById);
         const allocsEqual = 
           prevAllocs.length === nextAllocs.length &&
-          prevAllocs.every((a, i) => 
+          prevAllocs.every((a: any, i: any) => 
             a.id === nextAllocs[i]?.id &&
             a.category === nextAllocs[i]?.category &&
             eq(a.percentage, normalizeNumber(nextAllocs[i]?.percentage)) &&
@@ -259,7 +259,7 @@ export const useFundStore = create<StrategySlice>()(
   {
       name: 'investment-strategy',
       version: 2, // Bump version for new structure
-      partialize: (s) => ({
+      partialize: (s: any) => ({
         // Only persist primitive inputs (no derived remain)
         stages: s.stages.map((r: StrategyStage) => ({
           id: r.id, name: r.name, graduate: r.graduate, exit: r.exit, months: r.months
@@ -275,7 +275,7 @@ export const useFundStore = create<StrategySlice>()(
         }
         return state;
       },
-      onRehydrateStorage: () => (_state, err) => {
+      onRehydrateStorage: () => (_state: any, err: any) => {
         if (err) console.error('[fund-store] rehydrate error', err);
         // Flip on next microtask so subscribers see the final rehydrated values
         Promise.resolve().then(() => useFundStore.getState().setHydrated(true));
@@ -287,7 +287,7 @@ export const useFundStore = create<StrategySlice>()(
 // Dev-only store tracer for debugging state updates
 if (import.meta.env.DEV && import.meta.env['VITE_WIZARD_DEBUG'] === '1' && typeof window !== 'undefined' && !(window as any).__fundStoreTracer) {
   (window as any).__fundStoreTracer = true;
-  const unsub = useFundStore.subscribe((state, prev) => {
+  const unsub = useFundStore.subscribe((state: any, prev: any) => {
     const changed: string[] = [];
     if (state.hydrated !== prev.hydrated) changed.push('hydrated');
     if (state.stages !== prev.stages) changed.push('stages');

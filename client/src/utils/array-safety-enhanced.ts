@@ -28,7 +28,7 @@ export function forEach<T>(
   thisArg?: any
 ): void {
   if (!isSafeArray(array)) {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env['NODE_ENV'] === 'development') {
       console.debug('forEach called on null/undefined array');
     }
     return;
@@ -204,8 +204,8 @@ export function forEachNested<T, U>(
   nestedGetter: (_item: T) => U[] | null | undefined,
   callback: (_parent: T, _child: U, _parentIndex: number, _childIndex: number) => void
 ): void {
-  forEach(array, (parent, parentIndex) => {
-    forEach(nestedGetter(parent), (child, childIndex) => {
+  forEach(array, (parent: any, parentIndex: any) => {
+    forEach(nestedGetter(parent), (child: any, childIndex: any) => {
       callback(parent, child, parentIndex, childIndex);
     });
   });
@@ -222,7 +222,7 @@ export function forEachWithMetrics<T>(
   const start = performance.now();
   forEach(array, callback);
   
-  if (metricName && process.env.NODE_ENV === 'development') {
+  if (metricName && process.env['NODE_ENV'] === 'development') {
     const duration = performance.now() - start;
     console.debug(`forEach[${metricName}]: ${duration.toFixed(2)}ms for ${length(array)} items`);
   }
@@ -259,7 +259,7 @@ export async function forEachParallel<T>(
   
   for (const chunk of chunks) {
     await Promise.all(
-      chunk.map((item, localIndex) => {
+      chunk.map((item: any, localIndex: any) => {
         const globalIndex = chunks.indexOf(chunk) * concurrency + localIndex;
         return callback(item, globalIndex);
       })

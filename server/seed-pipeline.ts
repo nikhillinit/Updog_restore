@@ -87,7 +87,7 @@ async function seedPipelineData() {
   // Sample due diligence items for the first opportunity
   const sampleDDItems = [
     {
-      opportunityId: insertedOpportunities[0].id,
+      opportunityId: insertedOpportunities[0]!.id,
       category: 'Financial',
       item: 'Review audited financials (last 3 years)',
       description: 'Analyze revenue growth, burn rate, and cash flow',
@@ -98,7 +98,7 @@ async function seedPipelineData() {
       notes: 'Strong revenue growth, healthy margins'
     },
     {
-      opportunityId: insertedOpportunities[0].id,
+      opportunityId: insertedOpportunities[0]!.id,
       category: 'Technical',
       item: 'Technical architecture review',
       description: 'Assess scalability and security of quantum algorithms',
@@ -108,7 +108,7 @@ async function seedPipelineData() {
       dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
     },
     {
-      opportunityId: insertedOpportunities[0].id,
+      opportunityId: insertedOpportunities[0]!.id,
       category: 'Market',
       item: 'Competitive landscape analysis',
       description: 'Map key competitors and differentiation',
@@ -125,7 +125,7 @@ async function seedPipelineData() {
   // Sample scoring models
   const sampleScores = [
     {
-      opportunityId: insertedOpportunities[0].id,
+      opportunityId: insertedOpportunities[0]!.id,
       criteriaName: 'Team',
       score: 9,
       weight: "0.25",
@@ -133,7 +133,7 @@ async function seedPipelineData() {
       scoredBy: 'Investment Partner'
     },
     {
-      opportunityId: insertedOpportunities[0].id,
+      opportunityId: insertedOpportunities[0]!.id,
       criteriaName: 'Market',
       score: 8,
       weight: "0.20",
@@ -141,7 +141,7 @@ async function seedPipelineData() {
       scoredBy: 'Investment Partner'
     },
     {
-      opportunityId: insertedOpportunities[0].id,
+      opportunityId: insertedOpportunities[0]!.id,
       criteriaName: 'Product',
       score: 9,
       weight: "0.25",
@@ -149,7 +149,7 @@ async function seedPipelineData() {
       scoredBy: 'Technical Advisor'
     },
     {
-      opportunityId: insertedOpportunities[0].id,
+      opportunityId: insertedOpportunities[0]!.id,
       criteriaName: 'Traction',
       score: 7,
       weight: "0.20",
@@ -157,7 +157,7 @@ async function seedPipelineData() {
       scoredBy: 'Investment Associate'
     },
     {
-      opportunityId: insertedOpportunities[0].id,
+      opportunityId: insertedOpportunities[0]!.id,
       criteriaName: 'Financials',
       score: 8,
       weight: "0.10",
@@ -172,7 +172,7 @@ async function seedPipelineData() {
   // Sample pipeline activities
   const sampleActivities = [
     {
-      opportunityId: insertedOpportunities[0].id,
+      opportunityId: insertedOpportunities[0]!.id,
       type: 'meeting',
       title: 'Initial Partner Meeting',
       description: 'First meeting with founding team',
@@ -185,7 +185,7 @@ async function seedPipelineData() {
       createdBy: 'Investment Partner'
     },
     {
-      opportunityId: insertedOpportunities[0].id,
+      opportunityId: insertedOpportunities[0]!.id,
       type: 'call',
       title: 'Customer Reference Call',
       description: 'Call with Fortune 500 customer',
@@ -206,7 +206,7 @@ async function seedPipelineData() {
 
   // Sample market research
   const sampleResearch = {
-    opportunityId: insertedOpportunities[0].id,
+    opportunityId: insertedOpportunities[0]!.id,
     sector: 'Artificial Intelligence',
     marketSize: '156000000000',
     growthRate: '38.1',
@@ -231,7 +231,7 @@ async function seedPipelineData() {
   // Sample financial projections
   const sampleProjections = [
     {
-      opportunityId: insertedOpportunities[0].id,
+      opportunityId: insertedOpportunities[0]!.id,
       year: 2025,
       revenue: '2500000',
       revenueGrowth: '180',
@@ -246,7 +246,7 @@ async function seedPipelineData() {
       assumptions: 'Assumes successful Series A and 3 major enterprise deals'
     },
     {
-      opportunityId: insertedOpportunities[0].id,
+      opportunityId: insertedOpportunities[0]!.id,
       year: 2026,
       revenue: '8500000',
       revenueGrowth: '240',
@@ -269,10 +269,10 @@ async function seedPipelineData() {
 }
 
 // Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === `file://${process.argv[1]!}`) {
   seedPipelineData()
     .then(() => process.exit(0))
-    .catch((error) => {
+    .catch((error: any) => {
       console.error('❌ Error seeding pipeline data:', error);
       process.exit(1);
     });

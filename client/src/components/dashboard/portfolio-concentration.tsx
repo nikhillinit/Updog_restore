@@ -120,7 +120,7 @@ const ConcentrationChart = ({ data, title }: { data: ConcentrationData[], title:
             paddingAngle={2}
             dataKey="value"
           >
-            {data.map((entry, index) => (
+            {data.map((entry: any, index: any) => (
               <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
           </Pie>
@@ -130,7 +130,7 @@ const ConcentrationChart = ({ data, title }: { data: ConcentrationData[], title:
       
       {/* Custom Legend */}
       <div className="mt-4 grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
-        {data.map((entry, index) => (
+        {data.map((entry: any, index: any) => (
           <div key={index} className="flex items-center justify-between text-sm">
             <div className="flex items-center space-x-2">
               <div 
@@ -215,7 +215,7 @@ export default function PortfolioConcentration() {
             </TabsTrigger>
           </TabsList>
 
-          {['sector', 'stage', 'geography', 'ownership', 'checksize', 'company'].map((tab) => (
+          {['sector', 'stage', 'geography', 'ownership', 'checksize', 'company'].map((tab: any) => (
             <TabsContent key={tab} value={tab} className="mt-0">
               <ConcentrationChart 
                 data={getTabData(tab)} 
@@ -242,13 +242,13 @@ export default function PortfolioConcentration() {
             </div>
             <div className="text-center">
               <div className="text-lg font-semibold text-blue-600">
-                {getTabData(activeTab).reduce((sum, item) => sum + item.companies, 0)}
+                {getTabData(activeTab).reduce((sum: any, item: any) => sum + item.companies, 0)}
               </div>
               <div className="text-gray-600">Total Companies</div>
             </div>
             <div className="text-center">
               <div className="text-lg font-semibold text-blue-600">
-                {(getTabData(activeTab).slice(0, 3).reduce((sum, item) => sum + item.value, 0)).toFixed(1)}%
+                {(getTabData(activeTab).slice(0, 3).reduce((sum: any, item: any) => sum + item.value, 0)).toFixed(1)}%
               </div>
               <div className="text-gray-600">Top 3 Concentration</div>
             </div>

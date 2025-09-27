@@ -7,8 +7,8 @@
 import { LRUCache } from 'lru-cache';
 
 // Configuration via environment variables
-const MAX_NEW_ROUTES_PER_DAY = Number(process.env.RUM_LABEL_BUDGET || 200);
-const MAX_NEW_USERS_PER_DAY = Number(process.env.RUM_USER_BUDGET || 5000);
+const MAX_NEW_ROUTES_PER_DAY = Number(process.env['RUM_LABEL_BUDGET'] || 200);
+const MAX_NEW_USERS_PER_DAY = Number(process.env['RUM_USER_BUDGET'] || 5000);
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
@@ -64,7 +64,7 @@ class LabelBudgetTracker {
     }
 
     // New value under budget - track it
-    this.seen.set(value, true);
+    this.seen['set'](value, true);
     this.newToday++;
     
     // Log when approaching limit

@@ -116,7 +116,7 @@ export class ShadowIntelligence {
     if (v1Map.size !== v11Map.size) return false;
     
     for (const [id, v1Amount] of v1Map) {
-      const v11Amount = v11Map.get(id);
+      const v11Amount = v11Map['get'](id);
       if (!v11Amount || Math.abs(v1Amount - v11Amount) > this.ROUNDING_TOLERANCE) {
         return false;
       }
@@ -140,8 +140,8 @@ export class ShadowIntelligence {
     const allCompanies = new Set([...v1Map.keys(), ...v11Map.keys()]);
     
     for (const companyId of allCompanies) {
-      const v1Amount = v1Map.get(companyId) || 0;
-      const v11Amount = v11Map.get(companyId) || 0;
+      const v1Amount = v1Map['get'](companyId) || 0;
+      const v11Amount = v11Map['get'](companyId) || 0;
       const diff = Math.abs(v11Amount - v1Amount);
       
       if (diff > this.ROUNDING_TOLERANCE) {
@@ -289,7 +289,7 @@ export class ShadowIntelligence {
   private recordAnalysis(analysis: DivergenceAnalysis): void {
     // Record pattern frequency
     const pattern = analysis.details.pattern;
-    this.patterns.set(pattern, (this.patterns.get(pattern) || 0) + 1);
+    this.patterns['set'](pattern, (this.patterns['get'](pattern) || 0) + 1);
     
     // Record metrics
     metrics.recordDivergence(analysis.divergenceType, analysis.severity);

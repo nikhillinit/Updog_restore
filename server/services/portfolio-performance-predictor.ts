@@ -11,6 +11,7 @@ import {
 } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { monteCarloSimulationService, type SimulationParameters, type MonteCarloForecast } from './monte-carlo-simulation';
+import { SafeArithmetic, toSafeNumber } from '@shared/type-safety-utils';
 
 /**
  * Company-level performance prediction
@@ -213,7 +214,7 @@ export class PortfolioPerformancePredictorService {
 
     return companies.map(company => ({
       ...company,
-      totalInvestment: company.investments?.reduce((sum, inv) =>
+      totalInvestment: company.investments?.reduce((sum: any, inv: any) =>
         sum + parseFloat(inv.amount.toString()), 0) || 0,
       currentValuation: company.currentValuation ?
         parseFloat(company.currentValuation.toString()) : 0
@@ -293,10 +294,10 @@ export class PortfolioPerformancePredictorService {
       const sectorPredictionsData = companyPredictions.filter(p => p.sector === sector);
 
       // Aggregate sector metrics
-      const totalInvestment = sectorCompanies.reduce((sum, c) => sum + c.totalInvestment, 0);
-      const currentValue = sectorCompanies.reduce((sum, c) => sum + c.currentValuation, 0);
-      const expectedExitValue = sectorPredictionsData.reduce((sum, p) => sum + p.expectedExitValue, 0);
-      const expectedExitCount = sectorPredictionsData.reduce((sum, p) => sum + p.exitProbability, 0);
+      const totalInvestment = sectorCompanies.reduce((sum: any, c: any) => sum + c.totalInvestment, 0);
+      const currentValue = sectorCompanies.reduce((sum: any, c: any) => sum + c.currentValuation, 0);
+      const expectedExitValue = sectorPredictionsData.reduce((sum: any, p: any) => sum + p.expectedExitValue, 0);
+      const expectedExitCount = sectorPredictionsData.reduce((sum: any, p: any) => sum + p.exitProbability, 0);
 
       // Calculate sector-level returns and volatility
       const expectedReturn = totalInvestment > 0 ? (expectedExitValue - totalInvestment) / totalInvestment : 0;
@@ -339,16 +340,16 @@ export class PortfolioPerformancePredictorService {
       const stagePredictionsData = companyPredictions.filter(p => p.stage === stage);
 
       if (stagePredictionsData.length > 0) {
-        const expectedReturn = stagePredictionsData.reduce((sum, p) =>
+        const expectedReturn = stagePredictionsData.reduce((sum: any, p: any) =>
           sum + (p.expectedExitValue - p.investmentAmount), 0) / stagePredictionsData.length;
 
-        const expectedVolatility = stagePredictionsData.reduce((sum, p) =>
+        const expectedVolatility = stagePredictionsData.reduce((sum: any, p: any) =>
           sum + p.riskMetrics.volatility, 0) / stagePredictionsData.length;
 
-        const exitProbability = stagePredictionsData.reduce((sum, p) =>
+        const exitProbability = stagePredictionsData.reduce((sum: any, p: any) =>
           sum + p.exitProbability, 0) / stagePredictionsData.length;
 
-        const averageTimeToExit = stagePredictionsData.reduce((sum, p) =>
+        const averageTimeToExit = stagePredictionsData.reduce((sum: any, p: any) =>
           sum + p.timeToExit, 0) / stagePredictionsData.length;
 
         stagePredictions[stage] = {
@@ -370,9 +371,9 @@ export class PortfolioPerformancePredictorService {
     companies: any[],
     companyPredictions: CompanyPerformancePrediction[]
   ) {
-    const totalInvestment = companies.reduce((sum, c) => sum + c.totalInvestment, 0);
-    const currentValue = companies.reduce((sum, c) => sum + c.currentValuation, 0);
-    const expectedValue = companyPredictions.reduce((sum, p) => sum + p.expectedExitValue, 0);
+    const totalInvestment = companies.reduce((sum: any, c: any) => sum + c.totalInvestment, 0);
+    const currentValue = companies.reduce((sum: any, c: any) => sum + c.currentValuation, 0);
+    const expectedValue = companyPredictions.reduce((sum: any, p: any) => sum + p.expectedExitValue, 0);
 
     const expectedReturn = totalInvestment > 0 ? (expectedValue - totalInvestment) / totalInvestment : 0;
 
@@ -582,7 +583,7 @@ export class PortfolioPerformancePredictorService {
     if (sectorPredictions.length === 0) return 0;
 
     const volatilities = sectorPredictions.map(p => p.riskMetrics.volatility);
-    const avgVolatility = volatilities.reduce((sum, v) => sum + v, 0) / volatilities.length;
+    const avgVolatility = volatilities.reduce((sum: any, v: any) => sum + v, 0) / volatilities.length;
 
     // Add diversification benefit
     const diversificationFactor = Math.max(0.7, 1 - (sectorPredictions.length * 0.05));
@@ -629,7 +630,7 @@ export class PortfolioPerformancePredictorService {
     if (companyPredictions.length === 0) return 0;
 
     // Weighted average volatility with diversification benefits
-    const totalInvestment = companyPredictions.reduce((sum, p) => sum + p.investmentAmount, 0);
+    const totalInvestment = companyPredictions.reduce((sum: any, p: any) => sum + p.investmentAmount, 0);
 
     let weightedVolatility = 0;
     for (const prediction of companyPredictions) {
@@ -645,46 +646,49 @@ export class PortfolioPerformancePredictorService {
 
   private calculateDiversificationScore(companies: any[]): number {
     // Simple diversification score based on sector and stage distribution
-    const sectorCounts = companies.reduce((acc, c) => {
+    const sectorCounts = companies.reduce((acc: any, c: any) => {
       acc[c.sector] = (acc[c.sector] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    const stageCounts = companies.reduce((acc, c) => {
+    const stageCounts = companies.reduce((acc: any, c: any) => {
       acc[c.stage] = (acc[c.stage] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     // Calculate Herfindahl index (lower = more diversified)
-    const sectorHHI = Object.values(sectorCounts).reduce((sum, count) => {
-      const share = count / companies.length;
-      return sum + share * share;
+    const sectorHHI = Object.values(sectorCounts).reduce((sum: any, count: any) => {
+      const safeCount = toSafeNumber(count);
+      const share = companies.length > 0 ? SafeArithmetic.divide(safeCount, companies.length) : 0;
+      return SafeArithmetic.add(sum, SafeArithmetic.multiply(share, share));
     }, 0);
 
-    const stageHHI = Object.values(stageCounts).reduce((sum, count) => {
-      const share = count / companies.length;
-      return sum + share * share;
+    const stageHHI = Object.values(stageCounts).reduce((sum: any, count: any) => {
+      const safeCount = toSafeNumber(count);
+      const share = companies.length > 0 ? SafeArithmetic.divide(safeCount, companies.length) : 0;
+      return SafeArithmetic.add(sum, SafeArithmetic.multiply(share, share));
     }, 0);
 
     // Convert to diversification score (0-1, higher = more diversified)
-    const sectorDiv = 1 - sectorHHI;
-    const stageDiv = 1 - stageHHI;
+    const sectorDiv = SafeArithmetic.subtract(1, sectorHHI);
+    const stageDiv = SafeArithmetic.subtract(1, stageHHI);
 
-    return (sectorDiv + stageDiv) / 2;
+    return SafeArithmetic.divide(SafeArithmetic.add(sectorDiv, stageDiv), 2);
   }
 
   private identifyConcentrationRisks(companies: any[]) {
     const risks = [];
-    const totalInvestment = companies.reduce((sum, c) => sum + c.totalInvestment, 0);
+    const totalInvestment = companies.reduce((sum: any, c: any) => sum + c.totalInvestment, 0);
 
     // Sector concentration
-    const sectorConcentration = companies.reduce((acc, c) => {
+    const sectorConcentration = companies.reduce((acc: any, c: any) => {
       acc[c.sector] = (acc[c.sector] || 0) + c.totalInvestment;
       return acc;
     }, {} as Record<string, number>);
 
     for (const [sector, investment] of Object.entries(sectorConcentration)) {
-      const concentration = investment / totalInvestment;
+      const safeInvestment = toSafeNumber(investment);
+      const concentration = SafeArithmetic.divide(safeInvestment, totalInvestment);
       if (concentration > 0.4) {
         risks.push({
           type: 'sector' as const,
@@ -696,13 +700,14 @@ export class PortfolioPerformancePredictorService {
     }
 
     // Stage concentration
-    const stageConcentration = companies.reduce((acc, c) => {
+    const stageConcentration = companies.reduce((acc: any, c: any) => {
       acc[c.stage] = (acc[c.stage] || 0) + c.totalInvestment;
       return acc;
     }, {} as Record<string, number>);
 
     for (const [stage, investment] of Object.entries(stageConcentration)) {
-      const concentration = investment / totalInvestment;
+      const safeInvestment = toSafeNumber(investment);
+      const concentration = SafeArithmetic.divide(safeInvestment, totalInvestment);
       if (concentration > 0.5) {
         risks.push({
           type: 'stage' as const,

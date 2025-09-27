@@ -166,7 +166,7 @@ export default function DragDropChartBuilder({ onChartChange }: DragDropChartBui
                   <div className="space-y-2">
                     {AVAILABLE_FIELDS
                       .filter(field => field.category === category)
-                      .map((field) => (
+                      .map((field: any) => (
                         <div
                           key={field.id}
                           className={`p-2 rounded border-2 text-xs cursor-pointer transition-all ${getCategoryColor(field.category)} hover:shadow-md`}

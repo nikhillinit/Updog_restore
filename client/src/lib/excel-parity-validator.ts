@@ -437,7 +437,7 @@ export class ExcelParityValidator {
     }
 
     const summary = results.reduce(
-      (acc, r) => ({
+      (acc: any, r: any) => ({
         passed: acc.passed + (r.passed ? 1 : 0),
         failed: acc.failed + (r.passed ? 0 : 1),
       }),

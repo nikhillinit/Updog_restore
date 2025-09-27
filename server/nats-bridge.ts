@@ -63,7 +63,7 @@ export class NatsBridge {
   async connect(): Promise<void> {
     try {
       this.nc = await connect({
-        servers: process.env.NATS_URL || 'nats://localhost:4222',
+        servers: process.env['NATS_URL'] || 'nats://localhost:4222',
         reconnect: true,
         maxReconnectAttempts: 3,
         reconnectTimeWait: 1000,
@@ -85,10 +85,10 @@ export class NatsBridge {
   }
 
   private setupWebSocketServer(): void {
-    this.wss.on('connection', (ws, req) => {
+    this.wss['on']('connection', (ws: any, req: any) => {
       const clientId = crypto.randomUUID();
       const clientSubs = new Set<string>();
-      this.connections.set(clientId, clientSubs);
+      this.connections['set'](clientId, clientSubs);
 
       logger.info('WebSocket client connected', {
         clientId,
@@ -100,15 +100,15 @@ export class NatsBridge {
       // Handle ping/pong for connection health
       const pingInterval = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
-          ws.ping();
+          ws['ping']();
         }
       }, 30000);
 
-      ws.on('pong', () => {
+      ws['on']('pong', () => {
         // Client is alive
       });
 
-      ws.on('message', async (data) => {
+      ws['on']('message', async (data: any) => {
         try {
           const message = JSON.parse(data.toString());
           natsBridgeMessages.inc({ direction: 'in', type: message.type || 'unknown' });
@@ -121,14 +121,14 @@ export class NatsBridge {
         }
       });
 
-      ws.on('close', () => {
+      ws['on']('close', () => {
         clearInterval(pingInterval);
         this.cleanupClient(clientId);
         logger.info('WebSocket client disconnected', { clientId });
         natsBridgeConnections.dec();
       });
 
-      ws.on('error', (error) => {
+      ws['on']('error', (error: any) => {
         logger.error('WebSocket error', { clientId, error });
       });
 
@@ -174,7 +174,7 @@ export class NatsBridge {
     try {
       const parsed = subscribeSchema.parse(data);
       const { fundId, eventTypes } = parsed;
-      const clientSubs = this.connections.get(clientId)!;
+      const clientSubs = this.connections['get'](clientId)!;
 
       // Subscribe to main fund subject
       const mainSubject = getFundSubject(fundId);
@@ -253,14 +253,14 @@ export class NatsBridge {
   ): Promise<void> {
     try {
       const { fundId } = data;
-      const clientSubs = this.connections.get(clientId)!;
+      const clientSubs = this.connections['get'](clientId)!;
 
       // Remove fund-related subscriptions
-      const toRemove = Array.from(clientSubs).filter((sub) =>
+      const toRemove = Array.from(clientSubs).filter((sub: any) =>
         sub.startsWith(`fund.${fundId}.`)
       );
 
-      toRemove.forEach((sub) => clientSubs.delete(sub));
+      toRemove.forEach((sub: any) => clientSubs.delete(sub));
 
       ws.send(JSON.stringify({
         type: 'unsubscribed',
@@ -277,7 +277,7 @@ export class NatsBridge {
   }
 
   private cleanupClient(clientId: string): void {
-    const clientSubs = this.connections.get(clientId);
+    const clientSubs = this.connections['get'](clientId);
     if (clientSubs) {
       // NATS subscriptions auto-cleanup when not consumed
       this.connections.delete(clientId);
@@ -318,7 +318,7 @@ export class NatsBridge {
 
   // Graceful shutdown
   async close(): Promise<void> {
-    this.wss.clients.forEach((ws) => {
+    this.wss.clients.forEach((ws: any) => {
       ws.close(1000, 'Server shutting down');
     });
 
@@ -333,7 +333,7 @@ export class NatsBridge {
     return {
       activeConnections: this.wss.clients.size,
       totalSubscriptions: Array.from(this.connections.values()).reduce(
-        (sum, subs) => sum + subs.size,
+        (sum: any, subs: any) => sum + subs.size,
         0
       ),
       natsConnected: this.nc ? !this.nc.isClosed() : false,

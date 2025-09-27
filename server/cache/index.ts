@@ -22,23 +22,23 @@ class RedisCache implements Cache {
   constructor(private redis: any) {}
 
   async get(key: string): Promise<string | null> {
-    return (await this.redis.get(key)) ?? null;
+    return (await this.redis['get'](key)) ?? null;
   }
 
   async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
     if (ttlSeconds) {
       await this.redis.setex(key, ttlSeconds, value);
     } else {
-      await this.redis.set(key, value);
+      await this.redis['set'](key, value);
     }
   }
 
   async del(key: string): Promise<void> {
-    await this.redis.del(key);
+    await this.redis['del'](key);
   }
 
   async close(): Promise<void> {
-    await this.redis.quit();
+    await this.redis['quit']();
   }
 }
 
@@ -54,7 +54,7 @@ function throttledWarn(message: string) {
 }
 
 export async function buildCache(): Promise<Cache> {
-  const url = process.env.REDIS_URL;
+  const url = process.env['REDIS_URL'];
   
   // Explicit memory cache mode
   if (!url || url.startsWith('memory://')) {
@@ -74,15 +74,15 @@ export async function buildCache(): Promise<Cache> {
     // Test Redis availability with timeout
     await Promise.race([
       redis.connect(),
-      new Promise((_, reject) => 
+      new Promise((_: any, reject: any) => 
         setTimeout(() => reject(new Error('Redis connection timeout')), 800)
       )
     ]);
 
     // Verify with ping
     await Promise.race([
-      redis.ping(),
-      new Promise((_, reject) => 
+      redis['ping'](),
+      new Promise((_: any, reject: any) => 
         setTimeout(() => reject(new Error('Redis ping timeout')), 500)
       )
     ]);
@@ -90,11 +90,11 @@ export async function buildCache(): Promise<Cache> {
     console.log('[cache] Connected to Redis successfully');
     
     // Handle Redis errors gracefully in production
-    redis.on('error', (err: Error) => {
+    redis['on']('error', (err: Error) => {
       throttledWarn(`Redis error: ${err.message}`);
     });
 
-    redis.on('reconnecting', () => {
+    redis['on']('reconnecting', () => {
       throttledWarn('Redis reconnecting...');
     });
 

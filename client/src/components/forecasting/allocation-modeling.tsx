@@ -153,8 +153,8 @@ export default function AllocationModeling({ fundData }: AllocationModelingProps
     }
   ];
 
-  const totalAllocated = allocations.reduce((sum, alloc) => sum + alloc.totalCapital, 0);
-  const totalDeployed = allocations.reduce((sum, alloc) => sum + alloc.currentDeployed, 0);
+  const totalAllocated = allocations.reduce((sum: any, alloc: any) => sum + alloc.totalCapital, 0);
+  const totalDeployed = allocations.reduce((sum: any, alloc: any) => sum + alloc.currentDeployed, 0);
   const deploymentProgress = (totalDeployed / totalAllocated) * 100;
 
   const getStageColor = (type: string) => {
@@ -226,7 +226,7 @@ export default function AllocationModeling({ fundData }: AllocationModelingProps
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {forecastSteps.map((step, _index) => (
+            {forecastSteps.map((step: any, _index: any) => (
               <div key={step.step} className="flex items-start space-x-4">
                 <div className={`
                   w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
@@ -251,7 +251,7 @@ export default function AllocationModeling({ fundData }: AllocationModelingProps
 
       {/* Allocation Analysis */}
       <div className="grid gap-4">
-        {allocations.map((allocation) => {
+        {allocations.map((allocation: any) => {
           const { projectedExitValue, projectedTVPI } = calculateProjectedReturns(allocation);
           const deploymentRate = (allocation.currentDeployed / allocation.totalCapital) * 100;
 

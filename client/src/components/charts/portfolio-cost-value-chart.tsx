@@ -63,7 +63,7 @@ const SAMPLE_DATA: PortfolioCostValueData[] = [
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
-    const data = payload[0].payload;
+    const data = payload[0]!.payload;
     
     return (
       <div className="bg-white p-4 border border-gray-300 rounded-lg shadow-lg">
@@ -235,7 +235,7 @@ export default function PortfolioCostValueChart() {
               <Legend 
                 wrapperStyle={{ paddingTop: '20px' }}
                 iconType="circle"
-                formatter={(value) => (
+                formatter={(value: any) => (
                   <span style={{ color: '#666', fontSize: '12px' }}>{value}</span>
                 )}
               />

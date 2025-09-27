@@ -8,7 +8,7 @@ const patterns: Record<string, RegExp> = {
 export function scrubPII(value: unknown): any {
   if (value == null) return value;
   if (typeof value === 'string') {
-    return Object.values(patterns).reduce((s, re) => s.replace(re, '[REDACTED]'), value);
+    return Object.values(patterns).reduce((s: any, re: any) => s.replace(re, '[REDACTED]'), value);
   }
   if (Array.isArray(value)) return value.map(scrubPII);
   if (typeof value === 'object') {

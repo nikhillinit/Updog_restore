@@ -53,7 +53,7 @@ const engine = new ConstrainedReserveEngine();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-reservesV1Router.post('/calculate', (req, res) => {
+reservesV1Router.post('/calculate', (req: any, res: any) => {
   const rid = req.requestId || 'unknown';
   try {
     const val = validateReserveInput(req.body);
@@ -102,7 +102,7 @@ reservesV1Router.post('/calculate', (req, res) => {
  *                   description: Readiness check endpoint URL
  *                   example: "http://localhost:3001"
  */
-reservesV1Router.get('/config', (_req, res) => {
+reservesV1Router['get']('/config', (_req: any, res: any) => {
   res.json({
     '/healthz': 'http://localhost:3001',
     '/readyz': 'http://localhost:3001'

@@ -279,7 +279,7 @@ export default function TactycScenarioBuilder() {
                 <Input
                   id="scenario-name"
                   value={newScenarioName}
-                  onChange={(e) => setNewScenarioName(e.target.value)}
+                  onChange={(e: any) => setNewScenarioName(e.target.value)}
                   placeholder="Enter scenario name"
                 />
               </div>
@@ -290,7 +290,7 @@ export default function TactycScenarioBuilder() {
                     <SelectValue placeholder="Select base scenario" />
                   </SelectTrigger>
                   <SelectContent>
-                    {scenarios.map((scenario) => (
+                    {scenarios.map((scenario: any) => (
                       <SelectItem key={scenario.id} value={scenario.id}>
                         {scenario.name}
                       </SelectItem>
@@ -365,7 +365,7 @@ export default function TactycScenarioBuilder() {
                       <span>Round</span>
                     </div>
                   </td>
-                  {scenarios.map((scenario) => (
+                  {scenarios.map((scenario: any) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {scenario.metrics.totalInitialInvestments.toFixed(1)}
                     </td>
@@ -375,7 +375,7 @@ export default function TactycScenarioBuilder() {
 
                 <tr className="bg-gray-50">
                   <td className="py-3 px-4 text-sm text-gray-600">Investable Capital</td>
-                  {scenarios.map((scenario) => (
+                  {scenarios.map((scenario: any) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatCurrency(scenario.metrics.investableCapital)}
                     </td>
@@ -385,7 +385,7 @@ export default function TactycScenarioBuilder() {
 
                 <tr>
                   <td className="py-3 px-4 text-sm text-gray-600">Initial Capital</td>
-                  {scenarios.map((scenario) => (
+                  {scenarios.map((scenario: any) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatCurrency(scenario.metrics.initialCapital)}
                     </td>
@@ -395,7 +395,7 @@ export default function TactycScenarioBuilder() {
 
                 <tr className="bg-gray-50">
                   <td className="py-3 px-4 text-sm text-gray-600">Follow-on Capital</td>
-                  {scenarios.map((scenario) => (
+                  {scenarios.map((scenario: any) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatCurrency(scenario.metrics.followOnCapital)}
                     </td>
@@ -405,7 +405,7 @@ export default function TactycScenarioBuilder() {
 
                 <tr>
                   <td className="py-3 px-4 text-sm text-gray-600">Follow-on Reserve</td>
-                  {scenarios.map((scenario) => (
+                  {scenarios.map((scenario: any) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatPercentage(scenario.metrics.followOnReserve)}
                     </td>
@@ -422,7 +422,7 @@ export default function TactycScenarioBuilder() {
 
                 <tr>
                   <td className="py-3 px-4 text-sm text-gray-600">Projected Fund Value</td>
-                  {scenarios.map((scenario) => (
+                  {scenarios.map((scenario: any) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatCurrency(scenario.metrics.projectedFundValue)}
                     </td>
@@ -432,7 +432,7 @@ export default function TactycScenarioBuilder() {
 
                 <tr className="bg-gray-50">
                   <td className="py-3 px-4 text-sm text-gray-600">Gross Multiple</td>
-                  {scenarios.map((scenario) => (
+                  {scenarios.map((scenario: any) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatMultiple(scenario.metrics.grossMultiple)}
                     </td>
@@ -442,7 +442,7 @@ export default function TactycScenarioBuilder() {
 
                 <tr>
                   <td className="py-3 px-4 text-sm text-gray-600">TVPI</td>
-                  {scenarios.map((scenario) => (
+                  {scenarios.map((scenario: any) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatMultiple(scenario.metrics.tvpi)}
                     </td>
@@ -452,7 +452,7 @@ export default function TactycScenarioBuilder() {
 
                 <tr className="bg-gray-50">
                   <td className="py-3 px-4 text-sm text-gray-600">Gross IRR</td>
-                  {scenarios.map((scenario) => (
+                  {scenarios.map((scenario: any) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatPercentage(scenario.metrics.grossIrr)}
                     </td>
@@ -462,7 +462,7 @@ export default function TactycScenarioBuilder() {
 
                 <tr>
                   <td className="py-3 px-4 text-sm text-gray-600">Net IRR</td>
-                  {scenarios.map((scenario) => (
+                  {scenarios.map((scenario: any) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatPercentage(scenario.metrics.netIrr)}
                     </td>
@@ -479,7 +479,7 @@ export default function TactycScenarioBuilder() {
 
                 <tr>
                   <td className="py-3 px-4 text-sm text-gray-600">Total to LPs</td>
-                  {scenarios.map((scenario) => (
+                  {scenarios.map((scenario: any) => (
                     <td key={scenario.id} className="py-3 px-4 text-center text-sm">
                       {formatCurrency(scenario.metrics.totalToLPs)}
                     </td>

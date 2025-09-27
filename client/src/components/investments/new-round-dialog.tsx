@@ -110,7 +110,7 @@ export default function NewRoundDialog({
             </Label>
             <Input
               value={month}
-              onChange={(e) => setMonth(e.target.value)}
+              onChange={(e: any) => setMonth(e.target.value)}
               placeholder="Jun-2024"
               className="font-mono"
             />
@@ -124,7 +124,7 @@ export default function NewRoundDialog({
             </Label>
             <Input
               value={roundName}
-              onChange={(e) => setRoundName(e.target.value)}
+              onChange={(e: any) => setRoundName(e.target.value)}
               placeholder="Warrants"
             />
           </div>
@@ -138,7 +138,7 @@ export default function NewRoundDialog({
             <div className="relative">
               <Input
                 value={graduationRate}
-                onChange={(e) => setGraduationRate(e.target.value)}
+                onChange={(e: any) => setGraduationRate(e.target.value)}
                 className="pr-8 text-center"
                 placeholder="100"
               />
@@ -177,7 +177,7 @@ export default function NewRoundDialog({
             <div className="relative">
               <Input
                 value={investmentAmount}
-                onChange={(e) => setInvestmentAmount(e.target.value)}
+                onChange={(e: any) => setInvestmentAmount(e.target.value)}
                 className="pl-8 bg-yellow-50 border-yellow-200 font-mono"
                 placeholder="25000"
               />
@@ -196,7 +196,7 @@ export default function NewRoundDialog({
             <div className="relative">
               <Input
                 value={roundSize}
-                onChange={(e) => setRoundSize(e.target.value)}
+                onChange={(e: any) => setRoundSize(e.target.value)}
                 className="pl-8 bg-yellow-50 border-yellow-200 font-mono"
                 placeholder="25000"
               />
@@ -216,7 +216,7 @@ export default function NewRoundDialog({
             <div className="relative">
               <Input
                 value={preMoneyValuation}
-                onChange={(e) => setPreMoneyValuation(e.target.value)}
+                onChange={(e: any) => setPreMoneyValuation(e.target.value)}
                 className="pl-8 bg-yellow-50 border-yellow-200 font-mono"
                 placeholder="18700000"
               />
@@ -264,7 +264,7 @@ export default function NewRoundDialog({
                   <div className="relative">
                     <Input
                       value={sharePrice}
-                      onChange={(e) => setSharePrice(e.target.value)}
+                      onChange={(e: any) => setSharePrice(e.target.value)}
                       className="pl-6 bg-yellow-50 border-yellow-200 font-mono text-sm"
                       placeholder="1.5"
                     />
@@ -282,7 +282,7 @@ export default function NewRoundDialog({
                   </Label>
                   <Input
                     value={newSharesPurchased}
-                    onChange={(e) => setNewSharesPurchased(e.target.value)}
+                    onChange={(e: any) => setNewSharesPurchased(e.target.value)}
                     className="bg-yellow-50 border-yellow-200 font-mono text-sm"
                     placeholder="16666.666667"
                   />
@@ -296,7 +296,7 @@ export default function NewRoundDialog({
                   </Label>
                   <Input
                     value={totalSharesOwned}
-                    onChange={(e) => setTotalSharesOwned(e.target.value)}
+                    onChange={(e: any) => setTotalSharesOwned(e.target.value)}
                     className="bg-yellow-50 border-yellow-200 font-mono text-sm"
                     placeholder="683333.333333"
                   />
@@ -310,7 +310,7 @@ export default function NewRoundDialog({
                   </Label>
                   <Input
                     value={newSharesIssued}
-                    onChange={(e) => setNewSharesIssued(e.target.value)}
+                    onChange={(e: any) => setNewSharesIssued(e.target.value)}
                     className="bg-yellow-50 border-yellow-200 font-mono text-sm"
                     placeholder="16666.666667"
                   />
@@ -324,7 +324,7 @@ export default function NewRoundDialog({
                   </Label>
                   <Input
                     value={fullyDilutedShares}
-                    onChange={(e) => setFullyDilutedShares(e.target.value)}
+                    onChange={(e: any) => setFullyDilutedShares(e.target.value)}
                     className="bg-yellow-50 border-yellow-200 font-mono text-sm"
                     placeholder="12483333.333333"
                   />

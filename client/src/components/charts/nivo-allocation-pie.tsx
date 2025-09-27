@@ -24,8 +24,8 @@ const COLORS = ['#2563eb', '#dc2626', '#16a34a', '#ca8a04', '#7c3aed', '#ea580c'
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
-    const data = payload[0];
-    const total = payload[0].payload.total || 0;
+    const data = payload[0]!;
+    const total = payload[0]!.payload.total || 0;
     const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0';
     return (
       <div className="bg-white p-2 border border-gray-200 rounded shadow-lg">
@@ -45,8 +45,8 @@ export default function NivoAllocationPie({
   height = 400 
 }: NivoAllocationPieProps) {
   // Transform data for Recharts
-  const total = data.reduce((sum, item) => sum + item.value, 0);
-  const chartData = data.map((item, index) => ({
+  const total = data.reduce((sum: any, item: any) => sum + item.value, 0);
+  const chartData = data.map((item: any, index: any) => ({
     name: item.label,
     value: item.value,
     total: total,
@@ -74,7 +74,7 @@ export default function NivoAllocationPie({
               fill="#8884d8"
               dataKey="value"
             >
-              {chartData.map((entry, index) => (
+              {chartData.map((entry: any, index: any) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
             </Pie>

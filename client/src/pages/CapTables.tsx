@@ -199,7 +199,7 @@ export default function CapTables() {
                 <div>
                   <p className="text-sm text-gray-600">Avg Pre-Money</p>
                   <p className="text-lg font-bold">
-                    {formatCurrency(scenarios.reduce((sum, s) => sum + s.preMoneyValuation, 0) / scenarios.length)}
+                    {formatCurrency(scenarios.reduce((sum: any, s: any) => sum + s.preMoneyValuation, 0) / scenarios.length)}
                   </p>
                 </div>
               </div>
@@ -226,7 +226,7 @@ export default function CapTables() {
             <Input
               placeholder="Search cap table scenarios..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e: any) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>
@@ -264,7 +264,7 @@ export default function CapTables() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredScenarios.map((scenario) => (
+            {filteredScenarios.map((scenario: any) => (
               <Card key={scenario.id} className="hover:shadow-lg transition-shadow cursor-pointer">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">

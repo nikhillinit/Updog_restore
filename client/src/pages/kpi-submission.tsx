@@ -100,7 +100,7 @@ export default function KPISubmission() {
                           <td key={period} className="border border-gray-300 p-1">
                             <Input
                               value={value}
-                              onChange={(e) => handleKPIChange(period, e.target.value)}
+                              onChange={(e: any) => handleKPIChange(period, e.target.value)}
                               className="border-0 bg-blue-50 text-right"
                               placeholder="$0"
                             />
@@ -120,7 +120,7 @@ export default function KPISubmission() {
                 <Textarea
                   id="comments"
                   value={kpiData.comments}
-                  onChange={(e) => setKpiData(prev => ({ ...prev, comments: e.target.value }))}
+                  onChange={(e: any) => setKpiData(prev => ({ ...prev, comments: e.target.value }))}
                   placeholder="Enter any additional comments or context about the data..."
                   className="min-h-24"
                 />
@@ -150,7 +150,7 @@ export default function KPISubmission() {
                 {uploadedFiles.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-gray-700">Uploaded Files:</p>
-                    {uploadedFiles.map((file, index) => (
+                    {uploadedFiles.map((file: any, index: any) => (
                       <div key={index} className="flex items-center space-x-2">
                         <Badge variant="outline" className="text-green-600 border-green-200">
                           {file}

@@ -98,7 +98,7 @@ export default function AddInvestmentDropdown({ onInvestmentAdded, onBulkImport 
           </div>
           <DropdownMenuSeparator />
           
-          {sectorProfiles.map((profile) => (
+          {sectorProfiles.map((profile: any) => (
             <DropdownMenuSub key={profile.id}>
               <DropdownMenuSubTrigger className="flex items-center justify-between">
                 <span>{profile.name}</span>
@@ -108,7 +108,7 @@ export default function AddInvestmentDropdown({ onInvestmentAdded, onBulkImport 
                 <div className="p-2 text-xs text-gray-500 font-medium">
                   Investment starting at...
                 </div>
-                {profile.entryRounds.map((round) => (
+                {profile.entryRounds.map((round: any) => (
                   <DropdownMenuItem
                     key={round}
                     onClick={() => handleProfileRoundSelect(profile.id, round)}

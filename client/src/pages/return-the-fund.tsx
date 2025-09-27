@@ -232,7 +232,7 @@ export default function ReturnTheFundPage() {
       </Card>
 
       {/* Analysis Tabs */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
+      <Tabs value={activeTab} onValueChange={(value: any) => setActiveTab(value as any)}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="construction" className="flex items-center space-x-2">
             <Building2 className="h-4 w-4" />
@@ -289,7 +289,7 @@ export default function ReturnTheFundPage() {
                             <XAxis dataKey="round" />
                             <YAxis 
                               domain={[0, 0.125]}
-                              tickFormatter={(value) => `${(value * 100).toFixed(1)}%`}
+                              tickFormatter={(value: any) => `${(value * 100).toFixed(1)}%`}
                             />
                             <Tooltip 
                               formatter={(value: number) => [`${value.toFixed(2)}%`, 'Ownership']}
@@ -317,7 +317,7 @@ export default function ReturnTheFundPage() {
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="round" />
                             <YAxis 
-                              tickFormatter={(value) => `$${value}mm`}
+                              tickFormatter={(value: any) => `$${value}mm`}
                             />
                             <Tooltip 
                               formatter={(value: number) => [`$${value}mm`, 'Return the Fund']}
@@ -437,7 +437,7 @@ export default function ReturnTheFundPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {returnTheFundData.slice(0, 8).map((row, index) => (
+                          {returnTheFundData.slice(0, 8).map((row: any, index: any) => (
                             <tr 
                               key={index} 
                               className={`border-b hover:bg-gray-50 ${

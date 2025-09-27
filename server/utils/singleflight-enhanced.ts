@@ -71,13 +71,13 @@ export function createEnhancedSingleFlight(opts: SingleFlightOptions = {}) {
     return { 
       ...stats,
       avgDuration: durations.length > 0 
-        ? durations.reduce((a, b) => a + b, 0) / durations.length 
+        ? durations.reduce((a: any, b: any) => a + b, 0) / durations.length 
         : 0
     }; 
   }
 
   function cancel(key: string): boolean {
-    const entry = inflight.get(key);
+    const entry = inflight['get'](key);
     if (entry) {
       entry.abort?.abort();
       inflight.delete(key);
@@ -93,7 +93,7 @@ export function createEnhancedSingleFlight(opts: SingleFlightOptions = {}) {
   ): Promise<T> {
     stats.totalRequests++;
 
-    const existing = inflight.get(key);
+    const existing = inflight['get'](key);
     if (existing) {
       stats.dedupedRequests++;
       return existing.promise;
@@ -104,7 +104,7 @@ export function createEnhancedSingleFlight(opts: SingleFlightOptions = {}) {
       // Evict oldest entry
       const oldestKey = inflight.keys().next().value;
       if (oldestKey) {
-        const entry = inflight.get(oldestKey)!;
+        const entry = inflight['get'](oldestKey)!;
         entry.abort?.abort();
         inflight.delete(oldestKey);
         stats.evictions++;
@@ -157,7 +157,7 @@ export function createEnhancedSingleFlight(opts: SingleFlightOptions = {}) {
       })
       .catch(error => {
         stats.errors++;
-        const entry = inflight.get(key);
+        const entry = inflight['get'](key);
         if (entry) {
           entry.lastError = error;
         }
@@ -171,7 +171,7 @@ export function createEnhancedSingleFlight(opts: SingleFlightOptions = {}) {
       attempts: 0,
     };
 
-    inflight.set(key, entry);
+    inflight['set'](key, entry);
     stats.size = inflight.size;
 
     return promise;

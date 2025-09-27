@@ -220,7 +220,7 @@ router.post('/api/portfolio/strategies', idempotency, async (req: AuthenticatedR
  * Get strategies for a fund
  * GET /api/portfolio/strategies/:fundId
  */
-router.get('/api/portfolio/strategies/:fundId', async (req: Request, res: Response) => {
+router['get']('/api/portfolio/strategies/:fundId', async (req: Request, res: Response) => {
   try {
     let fundId: number;
     try {
@@ -454,7 +454,7 @@ router.post('/api/portfolio/scenarios', idempotency, async (req: AuthenticatedRe
  * Get scenarios for a fund
  * GET /api/portfolio/scenarios/:fundId
  */
-router.get('/api/portfolio/scenarios/:fundId', async (req: Request, res: Response) => {
+router['get']('/api/portfolio/scenarios/:fundId', async (req: Request, res: Response) => {
   try {
     let fundId: number;
     try {
@@ -739,7 +739,7 @@ router.post('/api/portfolio/reserves/optimize', idempotency, async (req: Authent
  * Get reserve strategies for a fund
  * GET /api/portfolio/reserves/strategies/:fundId
  */
-router.get('/api/portfolio/reserves/strategies/:fundId', async (req: Request, res: Response) => {
+router['get']('/api/portfolio/reserves/strategies/:fundId', async (req: Request, res: Response) => {
   try {
     let fundId: number;
     try {
@@ -949,7 +949,7 @@ router.post('/api/portfolio/forecasts', idempotency, async (req: AuthenticatedRe
  * Get forecasts for a scenario
  * GET /api/portfolio/forecasts/:scenarioId
  */
-router.get('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: Response) => {
+router['get']('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: Response) => {
   try {
     const scenarioId = req.params.scenarioId;
     if (!scenarioId) {
@@ -1066,7 +1066,7 @@ router.post('/api/portfolio/forecasts/validate', async (req: AuthenticatedReques
  * Get strategy templates
  * GET /api/portfolio/templates
  */
-router.get('/api/portfolio/templates', async (req: Request, res: Response) => {
+router['get']('/api/portfolio/templates', async (req: Request, res: Response) => {
   try {
     const category = req.query.category as string;
     const riskProfile = req.query.riskProfile as string;
@@ -1196,7 +1196,7 @@ router.post('/api/portfolio/quick-scenario', async (req: AuthenticatedRequest, r
  * Get real-time metrics for a scenario
  * GET /api/portfolio/metrics/:scenarioId
  */
-router.get('/api/portfolio/metrics/:scenarioId', async (req: Request, res: Response) => {
+router['get']('/api/portfolio/metrics/:scenarioId', async (req: Request, res: Response) => {
   try {
     const scenarioId = req.params.scenarioId;
     if (!scenarioId) {

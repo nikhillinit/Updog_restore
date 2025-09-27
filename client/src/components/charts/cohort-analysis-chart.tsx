@@ -33,7 +33,7 @@ export default function CohortAnalysisChart() {
         <ChartPlaceholder title="Cohort Analysis Chart" />
         
         <div className="grid grid-cols-3 gap-4 text-center">
-          {cohortData.map((cohort, index) => (
+          {cohortData.map((cohort: any, index: any) => (
             <div key={index}>
               <p className="text-sm text-gray-600">{cohort.vintage} Vintage</p>
               <p className="text-lg font-bold text-gray-800">{cohort.irr}% IRR</p>

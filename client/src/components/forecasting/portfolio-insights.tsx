@@ -82,7 +82,7 @@ export default function PortfolioInsights() {
     return `$${value.toLocaleString()}`;
   };
 
-  const totalInvested = coInvestorData.reduce((sum, item) => sum + item.amount, 0);
+  const totalInvested = coInvestorData.reduce((sum: any, item: any) => sum + item.amount, 0);
 
   return (
     <div className="space-y-6">
@@ -115,7 +115,7 @@ export default function PortfolioInsights() {
                       paddingAngle={2}
                       dataKey="amount"
                     >
-                      {coInvestorData.map((entry, index) => (
+                      {coInvestorData.map((entry: any, index: any) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -125,7 +125,7 @@ export default function PortfolioInsights() {
               </div>
 
               <div className="space-y-2">
-                {coInvestorData.map((investor, index) => (
+                {coInvestorData.map((investor: any, index: any) => (
                   <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-gray-50">
                     <div className="flex items-center space-x-3">
                       <div 
@@ -193,7 +193,7 @@ export default function PortfolioInsights() {
               </div>
               <div className="text-2xl font-bold">Enterprise Software</div>
               <div className="text-sm text-muted-foreground">
-                {sectorMOICData[0].moic.toFixed(2)}x average MOIC
+                {sectorMOICData[0]?.moic?.toFixed(2) ?? '0.00'}x average MOIC
               </div>
             </Card>
 

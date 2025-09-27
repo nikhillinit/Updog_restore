@@ -140,7 +140,7 @@ router.post('/api/funds/:id/baselines', idempotency, async (req: AuthenticatedRe
  * Get baselines for a fund
  * GET /api/funds/:id/baselines
  */
-router.get('/api/funds/:id/baselines', async (req: Request, res: Response) => {
+router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) => {
   try {
     let fundId: number;
     try {
@@ -322,7 +322,7 @@ router.post('/api/funds/:id/variance-reports', idempotency, async (req: Authenti
  * Get variance reports for a fund
  * GET /api/funds/:id/variance-reports
  */
-router.get('/api/funds/:id/variance-reports', async (req: Request, res: Response) => {
+router['get']('/api/funds/:id/variance-reports', async (req: Request, res: Response) => {
   try {
     let fundId: number;
     try {
@@ -360,7 +360,7 @@ router.get('/api/funds/:id/variance-reports', async (req: Request, res: Response
  * Get specific variance report
  * GET /api/funds/:id/variance-reports/:reportId
  */
-router.get('/api/funds/:id/variance-reports/:reportId', async (req: Request, res: Response) => {
+router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, res: Response) => {
   try {
     let fundId: number;
     try {
@@ -478,7 +478,7 @@ router.post('/api/funds/:id/alert-rules', async (req: AuthenticatedRequest, res:
  * Get active alerts for a fund
  * GET /api/funds/:id/alerts
  */
-router.get('/api/funds/:id/alerts', async (req: Request, res: Response) => {
+router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
   try {
     let fundId: number;
     try {
@@ -693,7 +693,7 @@ router.post('/api/funds/:id/variance-analysis', idempotency, async (req: Authent
  * Get variance tracking dashboard data
  * GET /api/funds/:id/variance-dashboard
  */
-router.get('/api/funds/:id/variance-dashboard', async (req: Request, res: Response) => {
+router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Response) => {
   try {
     let fundId: number;
     try {

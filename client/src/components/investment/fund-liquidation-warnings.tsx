@@ -134,8 +134,8 @@ export default function FundLiquidationWarnings({
             
             <div className="text-center p-4 bg-orange-50 rounded-lg">
               <div className="text-2xl font-bold text-orange-600">
-                {afterFundDateInvestments.reduce((sum, inv) => sum + inv.exitValue, 0) > 0 
-                  ? formatCurrency(afterFundDateInvestments.reduce((sum, inv) => sum + inv.exitValue, 0))
+                {afterFundDateInvestments.reduce((sum: any, inv: any) => sum + inv.exitValue, 0) > 0 
+                  ? formatCurrency(afterFundDateInvestments.reduce((sum: any, inv: any) => sum + inv.exitValue, 0))
                   : "$0"}
               </div>
               <div className="text-sm text-orange-700 mt-1">Affected Value</div>
@@ -185,7 +185,7 @@ export default function FundLiquidationWarnings({
                         </tr>
                       </thead>
                       <tbody>
-                        {afterFundDateInvestments.map((investment) => (
+                        {afterFundDateInvestments.map((investment: any) => (
                           <tr key={investment.id} className="border-b hover:bg-gray-50">
                             <td className="py-2 px-3 font-medium">{investment.company}</td>
                             <td className="py-2 px-3">{investment.round}</td>
@@ -227,7 +227,7 @@ export default function FundLiquidationWarnings({
                         </tr>
                       </thead>
                       <tbody>
-                        {liquidatedInvestments.map((investment) => (
+                        {liquidatedInvestments.map((investment: any) => (
                           <tr key={investment.id} className="border-b hover:bg-gray-50">
                             <td className="py-2 px-3 font-medium">{investment.company}</td>
                             <td className="py-2 px-3">{investment.round}</td>

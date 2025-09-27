@@ -344,7 +344,7 @@ export class AutomatedRolloutOrchestrator {
     
     const report = {
       success: this.currentStage === this.stages.length - 1,
-      stages: this.stages.map((s, i) => ({
+      stages: this.stages.map((s: any, i: any) => ({
         ...s,
         completed: i <= this.currentStage
       })),
@@ -397,7 +397,7 @@ export class AutomatedRolloutOrchestrator {
   
   private calculateAverage(metrics: RolloutMetrics[], field: keyof RolloutMetrics): number {
     if (metrics.length === 0) return 0;
-    const sum = metrics.reduce((acc, m) => acc + (m[field] as number), 0);
+    const sum = metrics.reduce((acc: any, m: any) => acc + (m[field] as number), 0);
     return sum / metrics.length;
   }
   

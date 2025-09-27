@@ -31,15 +31,15 @@ function wakeOne() {
   if (w) w();
 }
 function waitForSlot(): Promise<void> {
-  return new Promise((resolve) => waiters.push(resolve));
+  return new Promise((resolve: any) => waiters.push(resolve));
 }
 
 function anySignal(signals: AbortSignal[]): AbortSignal {
   if (signals.length === 1) return signals[0];
   const controller = new AbortController();
   const onAbort = () => controller.abort();
-  signals.forEach((s) => s.addEventListener('abort', onAbort, { once: true }));
-  if (signals.some((s) => s.aborted)) controller.abort();
+  signals.forEach((s: any) => s.addEventListener('abort', onAbort, { once: true }));
+  if (signals.some((s: any) => s.aborted)) controller.abort();
   return controller.signal;
 }
 
@@ -49,9 +49,9 @@ export function isInFlight(hash: string): boolean {
 
 export function cancelInFlight(hash: string): boolean {
   const key = nsKey(hash);
-  const e = inflight.get(key);
+  const e = inflight['get'](key);
   if (!e) return false;
-  e.controllers.forEach((c) => c.abort());
+  e.controllers.forEach((c: any) => c.abort());
   inflight.delete(key);
   totalInflight = Math.max(0, totalInflight - 1);
   wakeOne();
@@ -78,7 +78,7 @@ export async function startInFlight<T>(
   const dedupe = opts.dedupe !== false;
 
   if (dedupe) {
-    const existing = inflight.get(key);
+    const existing = inflight['get'](key);
     if (existing) return existing.promise;
   }
 
@@ -112,7 +112,7 @@ export async function startInFlight<T>(
     }
   })();
 
-  inflight.set(key, {
+  inflight['set'](key, {
     promise: p,
     controllers: new Set([local]),
     createdAt: Date.now(),

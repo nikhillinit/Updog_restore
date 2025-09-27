@@ -39,8 +39,8 @@ export class MlClient {
 
   constructor(config: Partial<MLServiceConfig> = {}) {
     this.config = {
-      baseUrl: process.env.ML_RESERVE_URL || 'http://localhost:8088',
-      timeoutMs: parseInt(process.env.ML_TIMEOUT_MS || '1200'),
+      baseUrl: process.env['ML_RESERVE_URL'] || 'http://localhost:8088',
+      timeoutMs: parseInt(process.env['ML_TIMEOUT_MS'] || '1200'),
       retries: 2,
       backoffMs: 100,
       ...config,
@@ -221,7 +221,7 @@ export class MlClient {
         importance: Math.abs(importance as number),
         direction: ((importance as number) >= 0 ? 'positive' : 'negative') as 'positive' | 'negative',
       }))
-      .sort((a, b) => b.importance - a.importance)
+      .sort((a: any, b: any) => b.importance - a.importance)
       .slice(0, 5); // Top 5 factors
   }
 }

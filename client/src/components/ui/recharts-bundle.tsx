@@ -225,7 +225,7 @@ export const ChartTooltipContent = React.forwardRef<
     labelKey?: string
     config?: ChartConfig
   }
->((props, ref) => {
+>((props: any, ref: any) => {
   const { config } = useChart()
   const { className, hideLabel, hideIndicator, indicator, nameKey, labelKey, ...rest } = props
 
@@ -337,7 +337,7 @@ const componentMap = {
   Legend
 };
 
-const RechartsDispatcher = React.forwardRef<any, any & { component: string }>((props, ref) => {
+const RechartsDispatcher = React.forwardRef<any, any & { component: string }>((props: any, ref: any) => {
   const { component, ...rest } = props;
   const Component = componentMap[component as keyof typeof componentMap];
   

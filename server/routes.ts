@@ -40,11 +40,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const operationsRoutes = await import('./routes/operations.js');
   app.use('/', operationsRoutes.default);
 
+  // Monte Carlo simulation routes
+  const monteCarloRoutes = await import('./routes/monte-carlo.js');
+  app.use('/api/monte-carlo', monteCarloRoutes.default);
+
   // Middleware to record HTTP metrics
   app.use((req: Request, res: Response, next: (err?: any) => void) => {
     const startTime = Date.now();
     
-    res.on('finish', () => {
+    res['on']('finish', () => {
       const duration = (Date.now() - startTime) / 1000;
       recordHttpMetrics(req.method || 'UNKNOWN', req.route?.path || req.path || 'unknown', res.statusCode, duration);
     });
@@ -53,7 +57,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Fund routes - Type-safe error responses
-  app.get("/api/funds", async (req: Request, res: Response) => {
+  app['get']("/api/funds", async (req: Request, res: Response) => {
     try {
       const funds = await storage.getAllFunds();
       res.json(funds);
@@ -66,7 +70,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/funds/:id", async (req: Request, res: Response) => {
+  app['get']("/api/funds/:id", async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
       const id = toNumber(idParam, 'ID');
@@ -150,7 +154,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Portfolio company routes - Type-safe with query validation
-  app.get("/api/portfolio-companies", async (req: Request, res: Response) => {
+  app['get']("/api/portfolio-companies", async (req: Request, res: Response) => {
     try {
       const fundIdQuery = req.query.fundId;
       let fundId: number | undefined = undefined;
@@ -185,7 +189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/portfolio-companies/:id", async (req: Request, res: Response) => {
+  app['get']("/api/portfolio-companies/:id", async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
       const id = toNumber(idParam, 'ID');
@@ -245,7 +249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Fund metrics routes - Type-safe parameter validation
-  app.get("/api/fund-metrics/:fundId", async (req: Request, res: Response) => {
+  app['get']("/api/fund-metrics/:fundId", async (req: Request, res: Response) => {
     try {
       const fundIdParam = req.params.fundId;
       const fundId = toNumber(fundIdParam, 'fund ID');
@@ -270,7 +274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Activity routes - Type-safe query parameter handling
-  app.get("/api/activities", async (req: Request, res: Response) => {
+  app['get']("/api/activities", async (req: Request, res: Response) => {
     try {
       const fundIdQuery = req.query.fundId;
       let fundId: number | undefined = undefined;
@@ -288,7 +292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const activities = await storage.getActivities(fundId);
-      res.json(activities.sort((a, b) => b.activityDate.getTime() - a.activityDate.getTime()));
+      res.json(activities.sort((a: any, b: any) => b.activityDate.getTime() - a.activityDate.getTime()));
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database query failed',
@@ -326,7 +330,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard summary route - Type-safe with comprehensive validation
-  app.get("/api/dashboard-summary/:fundId", async (req: Request, res: Response) => {
+  app['get']("/api/dashboard-summary/:fundId", async (req: Request, res: Response) => {
     try {
       const fundIdParam = req.params.fundId;
       const fundId = toNumber(fundIdParam, 'fund ID');
@@ -387,7 +391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Investment routes - Type-safe with query validation
-  app.get("/api/investments", async (req: Request, res: Response) => {
+  app['get']("/api/investments", async (req: Request, res: Response) => {
     try {
       const fundIdQuery = req.query.fundId;
       let fundId: number | undefined = undefined;
@@ -415,7 +419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/investments/:id", async (req: Request, res: Response) => {
+  app['get']("/api/investments/:id", async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
       const id = toNumber(idParam, 'ID');
@@ -536,7 +540,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reserve Engine routes - Type-safe with comprehensive error handling
-  app.get("/api/reserves/:fundId", async (req: Request, res: Response) => {
+  app['get']("/api/reserves/:fundId", async (req: Request, res: Response) => {
     try {
       const fundIdParam = req.params.fundId;
       const fundId = toNumber(fundIdParam, 'fund ID');
@@ -588,7 +592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Pacing Engine routes - Type-safe with query parameter support
-  app.get("/api/pacing/summary", async (req: Request, res: Response) => {
+  app['get']("/api/pacing/summary", async (req: Request, res: Response) => {
     try {
       // Extract and validate query parameters
       const fundSizeParam = req.query.fundSize as string;
@@ -626,7 +630,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Cohort Engine routes - Type-safe vintage cohort analysis (SCAFFOLD)
-  app.get("/api/cohorts/analysis", async (req: Request, res: Response) => {
+  app['get']("/api/cohorts/analysis", async (req: Request, res: Response) => {
     try {
       // Extract and validate query parameters
       const fundIdQuery = req.query.fundId;

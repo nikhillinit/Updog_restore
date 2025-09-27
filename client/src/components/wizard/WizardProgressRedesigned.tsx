@@ -37,7 +37,7 @@ export function WizardProgressRedesigned({ steps, currentStep, completedSteps }:
 
       {/* Steps */}
       <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
-        {steps.map((step, index) => {
+        {steps.map((step: any, index: any) => {
           const isCompleted = completedSteps.includes(step.id);
           const isCurrent = step.id === currentStep;
           const isUpcoming = index > currentIndex;

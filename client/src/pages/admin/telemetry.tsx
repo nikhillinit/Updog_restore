@@ -120,7 +120,7 @@ export default function TelemetryDashboard() {
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {events.slice(-20).reverse().map((event, idx) => (
+              {events.slice(-20).reverse().map((event: any, idx: any) => (
                 <div key={`${event['t']}-${idx}`} className="px-6 py-4 hover:bg-gray-50">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">

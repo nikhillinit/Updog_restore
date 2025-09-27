@@ -21,15 +21,15 @@ export async function getOrStart<T>(
   }
 
   const controller = new AbortController();
-  await store.set(key, { status: 'in-progress', updatedAt: Date.now(), ttlMs });
+  await store['set'](key, { status: 'in-progress', updatedAt: Date.now(), ttlMs });
 
   const p = (async () => {
     try {
       const out = await worker(controller.signal);
-      await store.set(key, { status: 'succeeded', result: out, updatedAt: Date.now(), ttlMs });
+      await store['set'](key, { status: 'succeeded', result: out, updatedAt: Date.now(), ttlMs });
       return out;
     } catch (e: any) {
-      await store.set(key, { status: 'failed', error: String(e?.message ?? e), updatedAt: Date.now(), ttlMs });
+      await store['set'](key, { status: 'failed', error: String(e?.message ?? e), updatedAt: Date.now(), ttlMs });
       throw e;
     }
   })();

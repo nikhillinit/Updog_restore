@@ -270,7 +270,7 @@ export default function SensitivityAnalysis() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {INDEPENDENT_VARIABLES.map((variable) => (
+                        {INDEPENDENT_VARIABLES.map((variable: any) => (
                           <SelectItem key={variable.id} value={variable.id}>
                             {variable.name}
                           </SelectItem>
@@ -289,7 +289,7 @@ export default function SensitivityAnalysis() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {INDEPENDENT_VARIABLES.map((variable) => (
+                        {INDEPENDENT_VARIABLES.map((variable: any) => (
                           <SelectItem key={variable.id} value={variable.id}>
                             {variable.name}
                           </SelectItem>
@@ -308,7 +308,7 @@ export default function SensitivityAnalysis() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {DEPENDENT_VARIABLES.map((variable) => (
+                        {DEPENDENT_VARIABLES.map((variable: any) => (
                           <SelectItem key={variable.id} value={variable.id}>
                             {variable.name}
                           </SelectItem>
@@ -409,7 +409,7 @@ export default function SensitivityAnalysis() {
                   <CardContent>
                     <div className="h-64">
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={sensitivityData.filter((_, i) => i % 11 === 0)}>
+                        <LineChart data={sensitivityData.filter((_: any, i: any) => i % 11 === 0)}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="input1" />
                           <YAxis />
@@ -459,7 +459,7 @@ export default function SensitivityAnalysis() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {INDEPENDENT_VARIABLES.map((variable) => (
+                      {INDEPENDENT_VARIABLES.map((variable: any) => (
                         <SelectItem key={variable.id} value={variable.id}>
                           {variable.name}
                         </SelectItem>
@@ -469,7 +469,7 @@ export default function SensitivityAnalysis() {
                   
                   <div className="space-y-3">
                     <h4 className="font-medium">Impact Ranking</h4>
-                    {DEPENDENT_VARIABLES.map((dep, index) => (
+                    {DEPENDENT_VARIABLES.map((dep: any, index: any) => (
                       <div key={dep.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                         <span className="text-sm">{dep.name}</span>
                         <Badge variant={index < 2 ? 'default' : 'secondary'}>
@@ -483,7 +483,7 @@ export default function SensitivityAnalysis() {
                 <div className="lg:col-span-2">
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={sensitivityData.filter((_, i) => i % 11 === 0)}>
+                      <LineChart data={sensitivityData.filter((_: any, i: any) => i % 11 === 0)}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="input1" />
                         <YAxis />
@@ -512,7 +512,7 @@ export default function SensitivityAnalysis() {
                     <Input
                       type="number"
                       value={monteCarloIterations}
-                      onChange={(e) => setMonteCarloIterations(parseInt(e.target.value))}
+                      onChange={(e: any) => setMonteCarloIterations(parseInt(e.target.value))}
                       min={100}
                       max={10000}
                       step={100}
@@ -524,7 +524,7 @@ export default function SensitivityAnalysis() {
                   <div className="space-y-3">
                     <h4 className="font-medium">Variable Distributions</h4>
                     <ScrollArea className="h-40">
-                      {INDEPENDENT_VARIABLES.slice(0, 5).map((variable) => (
+                      {INDEPENDENT_VARIABLES.slice(0, 5).map((variable: any) => (
                         <div key={variable.id} className="space-y-2 mb-3">
                           <Label className="text-xs">{variable.name}</Label>
                           <Select defaultValue="normal">
@@ -532,7 +532,7 @@ export default function SensitivityAnalysis() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {DISTRIBUTION_TYPES.map((dist) => (
+                              {DISTRIBUTION_TYPES.map((dist: any) => (
                                 <SelectItem key={dist.id} value={dist.id}>
                                   {dist.name}
                                 </SelectItem>
@@ -623,7 +623,7 @@ export default function SensitivityAnalysis() {
                       { name: 'Reduced Graduation', impact: 'IRR: 18% → 8%', severity: 'medium' },
                       { name: 'Extended Timeline', impact: 'DPI Delay: +3 years', severity: 'medium' },
                       { name: 'Zero Exits', impact: 'DPI: 1.8x → 0.0x', severity: 'high' }
-                    ].map((scenario, index) => (
+                    ].map((scenario: any, index: any) => (
                       <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                         <div>
                           <p className="font-medium text-sm">{scenario.name}</p>

@@ -33,7 +33,7 @@ export class BoundedMemoryCache implements Cache {
   private metrics: CacheMetrics;
 
   constructor(options: { maxSize?: number; defaultTTL?: number; cleanupInterval?: number } = {}) {
-    this.maxSize = options.maxSize ?? Number(process.env.CACHE_MAX_KEYS ?? 5000);
+    this.maxSize = options.maxSize ?? Number(process.env['CACHE_MAX_KEYS'] ?? 5000);
     this.defaultTTL = options.defaultTTL ?? 300; // 5 minutes default
     
     this.metrics = {
@@ -54,7 +54,7 @@ export class BoundedMemoryCache implements Cache {
   }
 
   async get(key: string): Promise<string | null> {
-    const entry = this.data.get(key);
+    const entry = this.data['get'](key);
     
     if (!entry) {
       this.metrics.misses++;
@@ -71,7 +71,7 @@ export class BoundedMemoryCache implements Cache {
     
     // LRU: Move to end (most recently used)
     this.data.delete(key);
-    this.data.set(key, entry);
+    this.data['set'](key, entry);
     
     this.metrics.hits++;
     return entry.value;
@@ -89,7 +89,7 @@ export class BoundedMemoryCache implements Cache {
       }
     }
     
-    this.data.set(key, { value, expires });
+    this.data['set'](key, { value, expires });
     this.metrics.sets++;
     this.updateSize();
   }

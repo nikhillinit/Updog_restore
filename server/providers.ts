@@ -121,7 +121,7 @@ async function buildCache(redisUrl: string): Promise<Cache> {
     
     // Test connection with explicit ping
     await redis.connect();
-    await redis.ping();
+    await redis['ping']();
     
     console.log('[providers] Redis cache enabled and verified');
     
@@ -153,7 +153,7 @@ async function buildCache(redisUrl: string): Promise<Cache> {
     return {
       async get(key: string): Promise<string | null> {
         return withCircuitBreaker(
-          async () => (await redis.get(key)) ?? null,
+          async () => (await redis['get'](key)) ?? null,
           null
         );
       },
@@ -163,7 +163,7 @@ async function buildCache(redisUrl: string): Promise<Cache> {
             if (ttlSeconds) {
               await redis.setex(key, ttlSeconds, value);
             } else {
-              await redis.set(key, value);
+              await redis['set'](key, value);
             }
           },
           undefined
@@ -171,13 +171,13 @@ async function buildCache(redisUrl: string): Promise<Cache> {
       },
       async del(key: string): Promise<void> {
         await withCircuitBreaker(
-          async () => { await redis.del(key); },
+          async () => { await redis['del'](key); },
           undefined
         );
       },
       async close(): Promise<void> {
         try {
-          await redis.quit();
+          await redis['quit']();
         } catch (err) {
           console.warn('[providers] Redis close failed', { error: (err as Error).message });
         }

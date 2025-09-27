@@ -86,7 +86,7 @@ export function validateFeeTiers(tiers: FeeTier[]): string[] {
     return ['At least one fee tier is required'];
   }
   
-  tiers.forEach((tier, index) => {
+  tiers.forEach((tier: any, index: any) => {
     if (!tier.name?.trim()) {
       errors.push(`Tier ${index + 1}: Name is required`);
     }
@@ -111,7 +111,7 @@ export function validateFeeTiers(tiers: FeeTier[]): string[] {
   });
   
   // Check for overlapping periods
-  const sortedTiers = [...tiers].sort((a, b) => a.startMonth - b.startMonth);
+  const sortedTiers = [...tiers].sort((a: any, b: any) => a.startMonth - b.startMonth);
   for (let i = 1; i < sortedTiers.length; i++) {
     const prev = sortedTiers[i - 1];
     const curr = sortedTiers[i];

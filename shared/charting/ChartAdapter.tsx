@@ -129,7 +129,7 @@ export const AdaptedLineChart: React.FC<LineChartProps> = ({
   
   const renderLines = () => {
     if (series && series.length > 0) {
-      return series.map((s, index) => (
+      return series.map((s: any, index: any) => (
         <Line
           key={s.key}
           type={curve}
@@ -148,7 +148,7 @@ export const AdaptedLineChart: React.FC<LineChartProps> = ({
       <Line
         type={curve}
         dataKey={yKey}
-        stroke={mergedConfig.colors[0]}
+        stroke={mergedConfig.colors[0]!}
         strokeWidth={2}
         dot={{ r: 4 }}
         activeDot={{ r: 6 }}
@@ -211,7 +211,7 @@ export const AdaptedAreaChart: React.FC<AreaChartProps> = ({
 
   const renderAreas = () => {
     if (series && series.length > 0) {
-      return series.map((s, index) => (
+      return series.map((s: any, index: any) => (
         <Area
           key={s.key}
           type={curve}
@@ -229,8 +229,8 @@ export const AdaptedAreaChart: React.FC<AreaChartProps> = ({
       <Area
         type={curve}
         dataKey={yKey}
-        stroke={mergedConfig.colors[0]}
-        fill={mergedConfig.colors[0]}
+        stroke={mergedConfig.colors[0]!}
+        fill={mergedConfig.colors[0]!}
         fillOpacity={0.6}
       />
     );
@@ -283,7 +283,7 @@ export const AdaptedBarChart: React.FC<BarChartProps> = ({
 
   const renderBars = () => {
     if (series && series.length > 0) {
-      return series.map((s, index) => (
+      return series.map((s: any, index: any) => (
         <Bar
           key={s.key}
           dataKey={s.key}
@@ -297,7 +297,7 @@ export const AdaptedBarChart: React.FC<BarChartProps> = ({
     return (
       <Bar
         dataKey={yKey}
-        fill={mergedConfig.colors[0]}
+        fill={mergedConfig.colors[0]!}
       />
     );
   };
@@ -355,7 +355,7 @@ export const AdaptedScatterChart: React.FC<ScatterChartProps> = ({
 
   const renderScatters = () => {
     if (series && series.length > 0) {
-      return series.map((s, index) => (
+      return series.map((s: any, index: any) => (
         <Scatter
           key={s.key}
           data={s.data || data}
@@ -368,7 +368,7 @@ export const AdaptedScatterChart: React.FC<ScatterChartProps> = ({
     return (
       <Scatter
         data={data}
-        fill={mergedConfig.colors[0]}
+        fill={mergedConfig.colors[0]!}
       />
     );
   };
@@ -437,7 +437,7 @@ export const AdaptedPieChart: React.FC<PieChartProps> = ({
         dataKey={valueKey}
         nameKey={labelKey}
       >
-        {data.map((entry, index) => (
+        {data.map((entry: any, index: any) => (
           <Cell 
             key={`cell-${index}`} 
             fill={mergedConfig.colors[index % mergedConfig.colors.length]} 

@@ -154,7 +154,7 @@ export default function InvestmentsTable() {
       
       return matchesSearch && matchesSector && matchesStage && matchesStatus;
     })
-    .sort((a, b) => {
+    .sort((a: any, b: any) => {
       const aValue = a[sortBy];
       const bValue = b[sortBy];
       
@@ -239,12 +239,12 @@ export default function InvestmentsTable() {
               <Input
                 placeholder="Search companies..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e: any) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
             
-            <Select value={filterBy.sector} onValueChange={(value) => setFilterBy(prev => ({ ...prev, sector: value }))}>
+            <Select value={filterBy.sector} onValueChange={(value: any) => setFilterBy(prev => ({ ...prev, sector: value }))}>
               <SelectTrigger className="w-32">
                 <SelectValue placeholder="Sector" />
               </SelectTrigger>
@@ -258,7 +258,7 @@ export default function InvestmentsTable() {
               </SelectContent>
             </Select>
 
-            <Select value={filterBy.stage} onValueChange={(value) => setFilterBy(prev => ({ ...prev, stage: value }))}>
+            <Select value={filterBy.stage} onValueChange={(value: any) => setFilterBy(prev => ({ ...prev, stage: value }))}>
               <SelectTrigger className="w-32">
                 <SelectValue placeholder="Stage" />
               </SelectTrigger>
@@ -272,7 +272,7 @@ export default function InvestmentsTable() {
               </SelectContent>
             </Select>
 
-            <Select value={filterBy.status} onValueChange={(value) => setFilterBy(prev => ({ ...prev, status: value }))}>
+            <Select value={filterBy.status} onValueChange={(value: any) => setFilterBy(prev => ({ ...prev, status: value }))}>
               <SelectTrigger className="w-32">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -309,19 +309,19 @@ export default function InvestmentsTable() {
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-gray-900">
-              {formatCurrency(filteredInvestments.reduce((sum, inv) => sum + inv.totalInvestment, 0))}
+              {formatCurrency(filteredInvestments.reduce((sum: any, inv: any) => sum + inv.totalInvestment, 0))}
             </div>
             <div className="text-sm text-gray-600">Total Invested</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-gray-900">
-              {formatCurrency(filteredInvestments.reduce((sum, inv) => sum + inv.currentValue, 0))}
+              {formatCurrency(filteredInvestments.reduce((sum: any, inv: any) => sum + inv.currentValue, 0))}
             </div>
             <div className="text-sm text-gray-600">Current Value</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-green-600">
-              {(filteredInvestments.reduce((sum, inv) => sum + inv.moic, 0) / filteredInvestments.length || 0).toFixed(1)}x
+              {(filteredInvestments.reduce((sum: any, inv: any) => sum + inv.moic, 0) / filteredInvestments.length || 0).toFixed(1)}x
             </div>
             <div className="text-sm text-gray-600">Avg MOIC</div>
           </div>
@@ -335,7 +335,7 @@ export default function InvestmentsTable() {
                 <th className="text-left p-3">
                   <Checkbox 
                     checked={selectedInvestments.length === filteredInvestments.length}
-                    onCheckedChange={(checked) => {
+                    onCheckedChange={(checked: any) => {
                       if (checked) {
                         setSelectedInvestments(filteredInvestments.map(inv => inv.id));
                       } else {
@@ -398,12 +398,12 @@ export default function InvestmentsTable() {
               </tr>
             </thead>
             <tbody>
-              {filteredInvestments.map((investment) => (
+              {filteredInvestments.map((investment: any) => (
                 <tr key={investment.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="p-3">
                     <Checkbox 
                       checked={selectedInvestments.includes(investment.id)}
-                      onCheckedChange={(checked) => {
+                      onCheckedChange={(checked: any) => {
                         if (checked) {
                           setSelectedInvestments(prev => [...prev, investment.id]);
                         } else {
@@ -439,7 +439,7 @@ export default function InvestmentsTable() {
                   </td>
                   <td className="p-3">
                     <div className="flex flex-wrap gap-1">
-                      {investment.tags.slice(0, 2).map((tag, index) => (
+                      {investment.tags.slice(0, 2).map((tag: any, index: any) => (
                         <Badge key={index} variant="secondary" className="text-xs">
                           {tag}
                         </Badge>

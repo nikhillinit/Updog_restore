@@ -9,15 +9,15 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { logger } from './logger';
 
 // Parse connection string to get database name
-const dbName = process.env.DATABASE_URL?.split('/').pop()?.split('?')[0] || 'unknown';
+const dbName = process.env['DATABASE_URL']?.split('/').pop()?.split('?')[0] || 'unknown';
 
 // Optimized pool configuration
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env['DATABASE_URL'],
   
   // Pool sizing (adjust based on your server capacity)
-  max: parseInt(process.env.DB_POOL_MAX || '20'),
-  min: parseInt(process.env.DB_POOL_MIN || '2'),
+  max: parseInt(process.env['DB_POOL_MAX'] || '20'),
+  min: parseInt(process.env['DB_POOL_MIN'] || '2'),
   
   // Timeouts
   idleTimeoutMillis: 30000,              // Release idle connections after 30s
@@ -31,7 +31,7 @@ export const pool = new Pool({
 });
 
 // Set up connection configuration
-pool.on('connect', (client) => {
+pool['on']('connect', (client: any) => {
   // Set statement timeout for all queries
   client.query('SET statement_timeout = 5000');        // 5 second timeout
   client.query('SET lock_timeout = 3000');             // 3 second lock timeout
@@ -45,7 +45,7 @@ pool.on('connect', (client) => {
 });
 
 // Monitor pool health
-pool.on('error', (err, _client) => {
+pool['on']('error', (err: any, _client: any) => {
   logger.error('Database pool error', { err, database: dbName });
 });
 

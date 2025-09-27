@@ -11,10 +11,10 @@ import { sendApiError, httpCodeToAppCode } from '../lib/apiError';
 // Only create queue if Redis is available
 let errorQueue: Queue | null = null;
 
-if (process.env.REDIS_URL) {
+if (process.env['REDIS_URL']) {
   errorQueue = new Queue('error-tracking', {
     connection: {
-      url: process.env.REDIS_URL
+      url: process.env['REDIS_URL']
     },
     defaultJobOptions: {
       removeOnComplete: 100,
@@ -63,7 +63,7 @@ export function asyncErrorHandler() {
       method: req.method,
       path: req.path,
       ip: req.ip,
-      userAgent: req.get('user-agent'),
+      userAgent: req['get']('user-agent'),
       timestamp: new Date().toISOString()
     };
     

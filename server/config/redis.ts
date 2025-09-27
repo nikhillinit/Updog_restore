@@ -9,7 +9,7 @@ export interface RedisConfig {
 }
 
 export function parseRedisConfig(): RedisConfig {
-  const raw = process.env.REDIS_URL ?? 'memory://';
+  const raw = process.env['REDIS_URL'] ?? 'memory://';
   if (raw === 'memory://') {
     return { mode: 'memory' };
   }
@@ -23,8 +23,8 @@ export function parseRedisConfig(): RedisConfig {
   const tls = String(raw).startsWith('rediss+cluster://');
   let nodes: string[] = [];
   
-  if (process.env.REDIS_CLUSTER_NODES) {
-    nodes = process.env.REDIS_CLUSTER_NODES.split(',').map(n => n.trim());
+  if (process.env['REDIS_CLUSTER_NODES']) {
+    nodes = process.env['REDIS_CLUSTER_NODES'].split(',').map(n => n.trim());
   } else {
     // Extract from URL if present
     const url = new URL(raw);

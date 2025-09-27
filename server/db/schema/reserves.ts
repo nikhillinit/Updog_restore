@@ -19,18 +19,18 @@ export const reserveDecisions = pgTable('reserve_decisions', {
   latencyMs: integer('latency_ms'),
   userId: uuid('user_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (table) => ({
+}, (table: any) => ({
   // Ensure no duplicate decisions for same company-period-engine-version
-  uniqueDecision: uniqueIndex('ux_reserve_unique').on(
+  uniqueDecision: uniqueIndex('ux_reserve_unique')['on'](
     table.companyId, 
     table.periodStart, 
     table.periodEnd, 
     table.engineType, 
     table.engineVersion
   ),
-  fundCompanyIdx: index('idx_reserve_fund_company').on(table.fundId, table.companyId),
-  periodIdx: index('idx_reserve_period').on(table.periodStart, table.periodEnd),
-  engineIdx: index('idx_reserve_engine').on(table.engineType, table.engineVersion),
+  fundCompanyIdx: index('idx_reserve_fund_company')['on'](table.fundId, table.companyId),
+  periodIdx: index('idx_reserve_period')['on'](table.periodStart, table.periodEnd),
+  engineIdx: index('idx_reserve_engine')['on'](table.engineType, table.engineVersion),
   // GIN indexes for JSONB columns
   inputsGinIdx: index('idx_reserve_inputs_gin').using('gin', table.inputs),
   predictionGinIdx: index('idx_reserve_prediction_gin').using('gin', table.prediction),

@@ -17,7 +17,7 @@ function checkEmergencyRollback() {
   try {
     // Check URL parameter first (highest priority)
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('emergency_rollback') === 'true') {
+    if (urlParams['get']('emergency_rollback') === 'true') {
       (window as any).__FORCE_LEGACY_STATE = true;
       console.warn('🚨 Emergency rollback activated via URL parameter');
       return;

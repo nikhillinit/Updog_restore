@@ -192,7 +192,7 @@ export default function ScenarioManager({ scenarios, onScenariosChange, investme
         <Input
           placeholder="Search scenarios..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e: any) => setSearchTerm(e.target.value)}
           className="max-w-sm"
         />
         <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -210,7 +210,7 @@ export default function ScenarioManager({ scenarios, onScenariosChange, investme
 
       {/* Scenarios Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredScenarios.map((scenario) => (
+        {filteredScenarios.map((scenario: any) => (
           <Card key={scenario.id} className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
@@ -224,7 +224,7 @@ export default function ScenarioManager({ scenarios, onScenariosChange, investme
                   </Badge>
                   <Select
                     value={scenario.status}
-                    onValueChange={(value) => handleStatusChange(scenario.id, value as CapTableScenario['status'])}
+                    onValueChange={(value: any) => handleStatusChange(scenario.id, value as CapTableScenario['status'])}
                   >
                     <SelectTrigger className="w-24 h-6 text-xs">
                       <SelectValue />

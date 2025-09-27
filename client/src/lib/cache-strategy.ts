@@ -32,15 +32,15 @@ export class CalculationCache<TInput, TData> {
   }
 
   private touch(k: string) {
-    const v = this.cache.get(k);
+    const v = this.cache['get'](k);
     if (!v) return;
     this.cache.delete(k);
-    this.cache.set(k, v); // move to MRU
+    this.cache['set'](k, v); // move to MRU
   }
 
   async get(input: TInput): Promise<TData | null> {
     const k = await this.hashJSON(input);
-    const v = this.cache.get(k);
+    const v = this.cache['get'](k);
     if (!v) return null;
     if (Date.now() - v.ts > this.ttlMs) {
       this.cache.delete(k);
@@ -58,7 +58,7 @@ export class CalculationCache<TInput, TData> {
         this.cache.delete(oldest);
       }
     }
-    this.cache.set(k, { data, ts: Date.now() });
+    this.cache['set'](k, { data, ts: Date.now() });
   }
 
   // Clear all cached data - useful for tests and manual cache management

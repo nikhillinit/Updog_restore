@@ -11,12 +11,9 @@ import {
   varianceReports,
   performanceAlerts,
   alertRules,
-  funds,
   fundMetrics,
   portfolioCompanies,
-  investments,
-  fundSnapshots,
-  users
+  fundSnapshots
 } from '@shared/schema';
 import type {
   FundBaseline,
@@ -28,15 +25,13 @@ import type {
   AlertRule,
   InsertAlertRule
 } from '@shared/schema';
-import { eq, and, desc, gte, lte, sql, inArray, isNull } from 'drizzle-orm';
-import { v4 as uuidv4 } from 'uuid';
+import { eq, and, desc, lte, inArray } from 'drizzle-orm';
 import {
   recordVarianceReportGenerated,
   recordBaselineOperation,
   recordAlertGenerated,
   recordAlertAction,
   updateFundVarianceScore,
-  recordThresholdBreach,
   updateDataQualityScore,
   recordSystemError,
   startVarianceCalculation
@@ -167,10 +162,10 @@ export class BaselineService {
    * Set a baseline as default
    */
   async setDefaultBaseline(baselineId: string, fundId: number): Promise<void> {
-    await db.transaction(async (tx) => {
+    await db.transaction(async (tx: any) => {
       // Clear existing defaults
       await tx.update(fundBaselines)
-        .set({ isDefault: false, updatedAt: new Date() })
+        ['set']({ isDefault: false, updatedAt: new Date() })
         .where(and(
           eq(fundBaselines.fundId, fundId),
           eq(fundBaselines.isDefault, true)
@@ -178,7 +173,7 @@ export class BaselineService {
 
       // Set new default
       await tx.update(fundBaselines)
-        .set({ isDefault: true, updatedAt: new Date() })
+        ['set']({ isDefault: true, updatedAt: new Date() })
         .where(eq(fundBaselines.id, baselineId));
     });
   }
@@ -188,7 +183,7 @@ export class BaselineService {
    */
   async deactivateBaseline(baselineId: string): Promise<void> {
     await db.update(fundBaselines)
-      .set({ isActive: false, updatedAt: new Date() })
+      ['set']({ isActive: false, updatedAt: new Date() })
       .where(eq(fundBaselines.id, baselineId));
   }
 
@@ -203,8 +198,8 @@ export class BaselineService {
       }
     });
 
-    const totalInvestments = companies.reduce((sum, company) => {
-      const companyInvestment = company.investments?.reduce((compSum, inv) =>
+    const totalInvestments = companies.reduce((sum: any, company: any) => {
+      const companyInvestment = company.investments?.reduce((compSum: any, inv: any) =>
         compSum + parseFloat(inv.amount.toString()), 0) || 0;
       return sum + companyInvestment;
     }, 0);
@@ -213,13 +208,13 @@ export class BaselineService {
     const averageInvestment = portfolioCount > 0 ? totalInvestments / portfolioCount : 0;
 
     // Get sector distribution
-    const sectorCounts = companies.reduce((acc, company) => {
+    const sectorCounts = companies.reduce((acc: any, company: any) => {
       acc[company.sector] = (acc[company.sector] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     // Get stage distribution
-    const stageCounts = companies.reduce((acc, company) => {
+    const stageCounts = companies.reduce((acc: any, company: any) => {
       acc[company.stage] = (acc[company.stage] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -227,7 +222,7 @@ export class BaselineService {
     // Identify top performers (top 20% by current valuation)
     const sortedCompanies = companies
       .filter(c => c.currentValuation)
-      .sort((a, b) => parseFloat(b.currentValuation!.toString()) - parseFloat(a.currentValuation!.toString()));
+      .sort((a: any, b: any) => parseFloat(b.currentValuation!.toString()) - parseFloat(a.currentValuation!.toString()));
 
     const topPerformersCount = Math.ceil(sortedCompanies.length * 0.2);
     const topPerformers = sortedCompanies.slice(0, topPerformersCount).map(c => ({
@@ -773,7 +768,7 @@ export class AlertManagementService {
     });
 
     await db.update(performanceAlerts)
-      .set({
+      ['set']({
         status: 'acknowledged',
         acknowledgedBy: userId,
         acknowledgedAt: new Date(),
@@ -799,7 +794,7 @@ export class AlertManagementService {
 
     const resolveTime = new Date();
     await db.update(performanceAlerts)
-      .set({
+      ['set']({
         status: 'resolved',
         resolvedBy: userId,
         resolvedAt: resolveTime,

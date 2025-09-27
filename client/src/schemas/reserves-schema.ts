@@ -184,7 +184,7 @@ export function adaptAndValidateCompanies(rawData: unknown[]): {
   const valid: Company[] = [];
   const invalid: Array<{ index: number; errors: string[] }> = [];
   
-  rawData.forEach((item, index) => {
+  rawData.forEach((item: any, index: any) => {
     const result = CompanySchema.safeParse(item);
     if (result.success) {
       valid.push(result.data);

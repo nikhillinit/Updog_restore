@@ -31,10 +31,10 @@ export const reserveApprovals = pgTable('reserve_approvals', {
   // Metadata
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull()
-}, (table) => ({
-  statusIdx: index('idx_reserve_approvals_status').on(table.status),
-  strategyIdx: index('idx_reserve_approvals_strategy').on(table.strategyId),
-  expiresIdx: index('idx_reserve_approvals_expires').on(table.expiresAt)
+}, (table: any) => ({
+  statusIdx: index('idx_reserve_approvals_status')['on'](table.status),
+  strategyIdx: index('idx_reserve_approvals_strategy')['on'](table.strategyId),
+  expiresIdx: index('idx_reserve_approvals_expires')['on'](table.expiresAt)
 }));
 
 export const approvalSignatures = pgTable('approval_signatures', {
@@ -59,10 +59,10 @@ export const approvalSignatures = pgTable('approval_signatures', {
   verificationCode: text('verification_code'), // Optional email verification code
   
   createdAt: timestamp('created_at').defaultNow().notNull()
-}, (table) => ({
-  approvalIdx: index('idx_signatures_approval').on(table.approvalId),
-  partnerIdx: index('idx_signatures_partner').on(table.partnerEmail),
-  uniquePartnerApproval: uniqueIndex('uniq_partner_approval').on(table.approvalId, table.partnerEmail)
+}, (table: any) => ({
+  approvalIdx: index('idx_signatures_approval')['on'](table.approvalId),
+  partnerIdx: index('idx_signatures_partner')['on'](table.partnerEmail),
+  uniquePartnerApproval: uniqueIndex('uniq_partner_approval')['on'](table.approvalId, table.partnerEmail)
 }));
 
 export const approvalAuditLog = pgTable('approval_audit_log', {
@@ -79,10 +79,10 @@ export const approvalAuditLog = pgTable('approval_audit_log', {
   systemGenerated: timestamp('system_generated'), // For automated actions
   ipAddress: text('ip_address'),
   userAgent: text('user_agent')
-}, (table) => ({
-  approvalIdx: index('idx_audit_approval').on(table.approvalId),
-  timestampIdx: index('idx_audit_timestamp').on(table.timestamp),
-  actorIdx: index('idx_audit_actor').on(table.actor)
+}, (table: any) => ({
+  approvalIdx: index('idx_audit_approval')['on'](table.approvalId),
+  timestampIdx: index('idx_audit_timestamp')['on'](table.timestamp),
+  actorIdx: index('idx_audit_actor')['on'](table.actor)
 }));
 
 // Configuration for partner emails (stored separately for security)

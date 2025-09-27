@@ -25,7 +25,7 @@ export function validateDistinctSigners(
     // Find duplicates for better error messages
     const idCounts = new Map<string, number>();
     approvals.forEach(a => {
-      idCounts.set(a.partnerId, (idCounts.get(a.partnerId) || 0) + 1);
+      idCounts['set'](a.partnerId, (idCounts['get'](a.partnerId) || 0) + 1);
     });
     
     const duplicates = Array.from(idCounts.entries())
@@ -102,7 +102,7 @@ export class ApprovalRateLimiter {
     const windowStart = now - this.windowMs;
     
     // Get existing timestamps
-    let timestamps = this.cache.get(key) || [];
+    let timestamps = this.cache['get'](key) || [];
     
     // Filter out expired timestamps
     timestamps = timestamps.filter(t => t > windowStart);
@@ -120,7 +120,7 @@ export class ApprovalRateLimiter {
     
     // Add current timestamp
     timestamps.push(now);
-    this.cache.set(key, timestamps);
+    this.cache['set'](key, timestamps);
     
     return {
       allowed: true,
@@ -165,7 +165,7 @@ export function createGuardedWorker(config: WorkerGuard): {
       throw new Error('Worker is already executing');
     }
     
-    resultPromise = new Promise((resolve, reject) => {
+    resultPromise = new Promise((resolve: any, reject: any) => {
       // Set up timeout
       timeoutId = setTimeout(() => {
         isTimedOut = true;
@@ -179,7 +179,7 @@ export function createGuardedWorker(config: WorkerGuard): {
       }, config.timeoutMs);
       
       // Listen for worker messages
-      config.worker.on('message', (result: any) => {
+      config.worker['on']('message', (result: any) => {
         if (!isTimedOut) {
           cleanup();
           resolve(result);
@@ -187,7 +187,7 @@ export function createGuardedWorker(config: WorkerGuard): {
         // Ignore messages after timeout
       });
       
-      config.worker.on('error', (error: Error) => {
+      config.worker['on']('error', (error: Error) => {
         if (!isTimedOut) {
           cleanup();
           reject(error);

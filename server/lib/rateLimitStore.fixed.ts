@@ -11,7 +11,7 @@ import Redis from 'ioredis';
  * Factory for rate limit stores with proper error handling
  */
 export async function createRateLimitStore(): Promise<Store | undefined> {
-  const redisUrl = process.env.RATE_LIMIT_REDIS_URL;
+  const redisUrl = process.env['RATE_LIMIT_REDIS_URL'];
   
   if (!redisUrl) {
     console.log('⚠️ Using in-memory rate limit store (not suitable for production clusters)');
@@ -26,7 +26,7 @@ export async function createRateLimitStore(): Promise<Store | undefined> {
       enableOfflineQueue: false  // Fail fast if Redis is down
     });
     
-    await client.ping();
+    await client['ping']();
     console.log('✅ Rate limit Redis store connected');
     
     // Use dynamic import to avoid bundling issues

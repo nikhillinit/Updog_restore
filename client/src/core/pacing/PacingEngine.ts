@@ -58,7 +58,7 @@ function calculateRuleBasedPacing(input: PacingInput): PacingOutput[] {
   const adjustment = marketAdjustments[marketCondition];
   const baseAmount = fundSize / 8; // 8 quarters deployment
   
-  return Array.from({ length: 8 }, (_, i) => {
+  return Array.from({ length: 8 }, (_: any, i: any) => {
     const quarter = deploymentQuarter + i;
     let multiplier: number;
     
@@ -95,7 +95,7 @@ function calculateMLBasedPacing(input: PacingInput): PacingOutput[] {
   const ruleBased = calculateRuleBasedPacing(input);
   
   // Simulate ML enhancement with trend analysis
-  return map(ruleBased, (item, _index) => {
+  return map(ruleBased, (item: any, _index: any) => {
     // ML adjusts based on simulated market trends and fund performance
     const trendAdjustment = 0.85 + (Math.random() * 0.3); // 0.85 to 1.15
     const mlEnhancedDeployment = item.deployment * trendAdjustment;
@@ -138,7 +138,7 @@ export function generatePacingSummary(input: PacingInput): PacingSummary {
   const deployments = PacingEngine(input);
   
   const totalQuarters = deployments.length;
-  const totalDeployment = reduce(deployments, (sum, d) => sum + d.deployment, 0);
+  const totalDeployment = reduce(deployments, (sum: any, d: any) => sum + d.deployment, 0);
   const avgQuarterlyDeployment = totalQuarters > 0 ? totalDeployment / totalQuarters : 0;
   
   return {

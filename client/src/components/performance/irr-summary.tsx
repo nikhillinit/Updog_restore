@@ -73,9 +73,9 @@ export default function IRRSummary({ className }: IRRSummaryProps) {
     { company: "Enterprise SaaS", invested: 1800000, realized: 2100000, holdingPeriod: 4.0, irr: 3.9 }
   ];
 
-  const totalRealizedInvested = realizedFlows.reduce((sum, flow) => sum + flow.invested, 0);
-  const totalRealizedValue = realizedFlows.reduce((sum, flow) => sum + flow.realized, 0);
-  const weightedAvgIRR = realizedFlows.reduce((sum, flow) => sum + (flow.irr * flow.invested), 0) / totalRealizedInvested;
+  const totalRealizedInvested = realizedFlows.reduce((sum: any, flow: any) => sum + flow.invested, 0);
+  const totalRealizedValue = realizedFlows.reduce((sum: any, flow: any) => sum + flow.realized, 0);
+  const weightedAvgIRR = realizedFlows.reduce((sum: any, flow: any) => sum + (flow.irr * flow.invested), 0) / totalRealizedInvested;
 
   const formatPercentage = (value: number) => `${value.toFixed(2)}%`;
   const formatCurrency = (value: number) => {
@@ -170,7 +170,7 @@ export default function IRRSummary({ className }: IRRSummaryProps) {
                   tick={{ fontSize: 12 }}
                   axisLine={false}
                   tickLine={false}
-                  tickFormatter={(value) => `${value}%`}
+                  tickFormatter={(value: any) => `${value}%`}
                 />
                 <Tooltip content={<CustomTooltip />} />
                 
@@ -244,7 +244,7 @@ export default function IRRSummary({ className }: IRRSummaryProps) {
                 </tr>
               </thead>
               <tbody>
-                {realizedFlows.map((flow, index) => (
+                {realizedFlows.map((flow: any, index: any) => (
                   <tr key={index} className="border-b border-orange-100 hover:bg-orange-100">
                     <td className="p-3 font-medium">{flow.company}</td>
                     <td className="p-3 text-right">{formatCurrency(flow.invested)}</td>
@@ -266,7 +266,7 @@ export default function IRRSummary({ className }: IRRSummaryProps) {
                   <td className="p-3 text-right font-bold text-orange-900">{formatCurrency(totalRealizedInvested)}</td>
                   <td className="p-3 text-right font-bold text-orange-900">{formatCurrency(totalRealizedValue)}</td>
                   <td className="p-3 text-right font-bold text-orange-900">
-                    {(realizedFlows.reduce((sum, flow) => sum + flow.holdingPeriod, 0) / realizedFlows.length).toFixed(1)} avg
+                    {(realizedFlows.reduce((sum: any, flow: any) => sum + flow.holdingPeriod, 0) / realizedFlows.length).toFixed(1)} avg
                   </td>
                   <td className="p-3 text-right">
                     <Badge variant="default" className="font-bold">

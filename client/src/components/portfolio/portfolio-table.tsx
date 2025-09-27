@@ -56,7 +56,7 @@ export default function PortfolioTable({ companies = [] }: PortfolioTableProps) 
 
   const getCompanyInitials = (name: string) => {
     return name.split(' ')
-      .map(word => word[0])
+      .map(word => word[0]!)
       .join('')
       .substring(0, 2)
       .toUpperCase();
@@ -126,7 +126,7 @@ export default function PortfolioTable({ companies = [] }: PortfolioTableProps) 
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {companies.map((company) => (
+              {companies.map((company: any) => (
                 <tr key={company.id} className="hover:bg-gray-50 transition-colors cursor-pointer">
                   <td className="py-4 px-4">
                     <div className="flex items-center space-x-3">
@@ -154,7 +154,7 @@ export default function PortfolioTable({ companies = [] }: PortfolioTableProps) 
                   <td className="py-4 px-4">
                     <div className="flex flex-wrap gap-1">
                       {company.dealTags && company.dealTags.length > 0 ? (
-                        company.dealTags.slice(0, 3).map((tag, idx) => (
+                        company.dealTags.slice(0, 3).map((tag: any, idx: any) => (
                           <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                             {tag}
                           </Badge>

@@ -83,7 +83,7 @@ export default function Analytics() {
       <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
         <div className="animate-pulse space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {Array.from({ length: 4 }).map((_, i) => (
+            {Array.from({ length: 4 }).map((_: any, i: any) => (
               <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
             ))}
           </div>
@@ -275,7 +275,7 @@ export default function Analytics() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {riskMetrics.map((metric, index) => (
+                  {riskMetrics.map((metric: any, index: any) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div>
                         <p className="font-medium text-gray-800">{metric.category}</p>

@@ -103,7 +103,7 @@ export class MemStorage implements IStorage {
       status: "active",
       createdAt: new Date(),
     };
-    this.funds.set(1, sampleFund);
+    this.funds['set'](1, sampleFund);
     this.currentFundId = 2;
 
     // Sample portfolio companies
@@ -153,7 +153,7 @@ export class MemStorage implements IStorage {
     ];
     
     sampleCompanies.forEach(company => {
-      this.portfolioCompanies.set(company.id, company);
+      this.portfolioCompanies['set'](company.id, company);
     });
     this.currentCompanyId = 4;
 
@@ -195,7 +195,7 @@ export class MemStorage implements IStorage {
     ];
 
     sampleActivities.forEach(activity => {
-      this.activities.set(activity.id, activity);
+      this.activities['set'](activity.id, activity);
     });
     this.currentActivityId = 4;
 
@@ -211,13 +211,13 @@ export class MemStorage implements IStorage {
       tvpi: "2.22",
       createdAt: new Date(),
     };
-    this.fundMetrics.set(1, sampleMetrics);
+    this.fundMetrics['set'](1, sampleMetrics);
     this.currentMetricsId = 2;
   }
 
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    return this.users['get'](id);
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
@@ -227,7 +227,7 @@ export class MemStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
     const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    this.users['set'](id, user);
     return user;
   }
 
@@ -237,7 +237,7 @@ export class MemStorage implements IStorage {
   }
 
   async getFund(id: number): Promise<Fund | undefined> {
-    return this.funds.get(id);
+    return this.funds['get'](id);
   }
 
   async createFund(insertFund: InsertFund): Promise<Fund> {
@@ -253,7 +253,7 @@ export class MemStorage implements IStorage {
       status: "active", // Default value from schema
       createdAt: new Date()
     };
-    this.funds.set(id, fund);
+    this.funds['set'](id, fund);
     return fund;
   }
 
@@ -264,7 +264,7 @@ export class MemStorage implements IStorage {
   }
 
   async getPortfolioCompany(id: number): Promise<PortfolioCompany | undefined> {
-    return this.portfolioCompanies.get(id);
+    return this.portfolioCompanies['get'](id);
   }
 
   async createPortfolioCompany(insertCompany: InsertPortfolioCompany): Promise<PortfolioCompany> {
@@ -280,7 +280,7 @@ export class MemStorage implements IStorage {
       foundedYear: null, // Optional field
       dealTags: null // Optional field
     };
-    this.portfolioCompanies.set(id, company);
+    this.portfolioCompanies['set'](id, company);
     return company;
   }
 
@@ -291,7 +291,7 @@ export class MemStorage implements IStorage {
   }
 
   async getInvestment(id: number): Promise<Investment | undefined> {
-    return this.investments.get(id);
+    return this.investments['get'](id);
   }
 
   async createInvestment(insertInvestment: InsertInvestment): Promise<Investment> {
@@ -308,12 +308,12 @@ export class MemStorage implements IStorage {
       dealTags: null, // Optional field
       createdAt: new Date()
     };
-    this.investments.set(id, investment);
+    this.investments['set'](id, investment);
     return investment;
   }
 
   async addInvestmentRound(investmentId: number, roundData: any): Promise<any> {
-    const investment = this.investments.get(investmentId);
+    const investment = this.investments['get'](investmentId);
     if (!investment) {
       throw new Error('Investment not found');
     }
@@ -336,12 +336,12 @@ export class MemStorage implements IStorage {
     //   investment.rounds = [];
     // }
     // investment.rounds.push(round);
-    // this.investments.set(investmentId, investment);
+    // this.investments['set'](investmentId, investment);
     return round;
   }
 
   async addPerformanceCase(investmentId: number, caseData: any): Promise<any> {
-    const investment = this.investments.get(investmentId);
+    const investment = this.investments['get'](investmentId);
     if (!investment) {
       throw new Error('Investment not found');
     }
@@ -362,7 +362,7 @@ export class MemStorage implements IStorage {
     //   investment.performanceCases = [];
     // }
     // investment.performanceCases.push(performanceCase);
-    // this.investments.set(investmentId, investment);
+    // this.investments['set'](investmentId, investment);
     return performanceCase;
   }
 
@@ -383,7 +383,7 @@ export class MemStorage implements IStorage {
       dpi: null, // Optional field
       tvpi: null // Optional field
     };
-    this.fundMetrics.set(id, metrics);
+    this.fundMetrics['set'](id, metrics);
     return metrics;
   }
 
@@ -404,7 +404,7 @@ export class MemStorage implements IStorage {
       companyId: null, // Optional field
       amount: null // Optional field
     };
-    this.activities.set(id, activity);
+    this.activities['set'](id, activity);
     return activity;
   }
 }
@@ -513,7 +513,7 @@ export class DatabaseStorage implements IStorage {
       .insert(investments)
       .values(insertInvestment)
       .returning();
-    const investment = result[0];
+    const investment = result[0]!;
     if (!investment) {
       throw new Error('Failed to create investment');
     }
@@ -559,7 +559,7 @@ export class DatabaseStorage implements IStorage {
       .insert(fundMetrics)
       .values(insertMetrics)
       .returning();
-    const metrics = result[0];
+    const metrics = result[0]!;
     if (!metrics) {
       throw new Error('Failed to create fund metrics');
     }
@@ -578,7 +578,7 @@ export class DatabaseStorage implements IStorage {
       .insert(activities)
       .values(insertActivity)
       .returning();
-    const activity = result[0];
+    const activity = result[0]!;
     if (!activity) {
       throw new Error('Failed to create activity');
     }

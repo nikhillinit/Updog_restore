@@ -18,17 +18,17 @@ export class BreakerRegistry {
   }
 
   register(name: string, breaker: BreakerLike): void {
-    this.breakers.set(name, breaker);
+    this.breakers['set'](name, breaker);
     console.log(`[breaker-registry] Registered breaker: ${name}`);
   }
 
   get(name: string): BreakerLike | undefined {
-    return this.breakers.get(name);
+    return this.breakers['get'](name);
   }
 
   getAll(): Record<string, any> {
     const result: Record<string, any> = {};
-    this.breakers.forEach((breaker, name) => {
+    this.breakers.forEach((breaker: any, name: any) => {
       result[name] = {
         state: breaker.getState(),
         stats: breaker.getMetrics?.() || {}
@@ -42,7 +42,7 @@ export class BreakerRegistry {
     const critical: Array<{ name: string; breaker: any }> = [];
     
     // Add cache and database breakers as critical
-    this.breakers.forEach((breaker, name) => {
+    this.breakers.forEach((breaker: any, name: any) => {
       if (name.includes('cache') || name.includes('db') || name.includes('database')) {
         critical.push({ name, breaker });
       }
@@ -60,7 +60,7 @@ export class BreakerRegistry {
   // Get degraded services (half-open or recently recovered)
   getDegraded(): string[] {
     const degraded: string[] = [];
-    this.breakers.forEach((breaker, name) => {
+    this.breakers.forEach((breaker: any, name: any) => {
       const state = breaker.getState();
       if (state === 'HALF_OPEN' || state === 'OPEN') {
         degraded.push(name);

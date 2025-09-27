@@ -17,7 +17,7 @@ export function generateCashFlowsFromFundLite(d: FundDataLite): CashFlow[] {
     dt.setMonth(dt.getMonth() + e.monthOffset);
     flows.push({ date: dt, amount: Math.max(0, e.amount) });
   }
-  return flows.sort((a, b) => a.date.getTime() - b.date.getTime());
+  return flows.sort((a: any, b: any) => a.date.getTime() - b.date.getTime());
 }
 
 /**

@@ -83,10 +83,10 @@ export default function GraduationReservesDemo() {
   ];
 
   const currentScenario = scenarios[selectedScenario];
-  const result = computeReservesFromGraduation(currentScenario.fundData);
+  const result = currentScenario ? computeReservesFromGraduation(currentScenario.fundData) : null;
   
   // Calculate comparison data for all scenarios
-  const comparisonData = scenarios.map((scenario, _index) => {
+  const comparisonData = scenarios.map((scenario: any, _index: any) => {
     const scenarioResult = computeReservesFromGraduation(scenario.fundData);
     return {
       name: scenario.name,
@@ -139,7 +139,7 @@ export default function GraduationReservesDemo() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {scenarios.map((scenario, index) => (
+            {scenarios.map((scenario: any, index: any) => (
               <Button
                 key={index}
                 variant={selectedScenario === index ? "default" : "outline"}
@@ -165,7 +165,7 @@ export default function GraduationReservesDemo() {
           <CardHeader>
             <CardTitle className="text-lg flex items-center">
               <Target className="w-5 h-5 mr-2 text-green-600" />
-              {currentScenario.name} Results
+              {currentScenario?.name ?? 'Scenario'} Results
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -174,13 +174,13 @@ export default function GraduationReservesDemo() {
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <div className="text-sm font-medium text-blue-600">Total Reserves</div>
                   <div className="text-2xl font-bold text-blue-900">
-                    {formatCurrency(result.totalReserves)}
+                    {formatCurrency(result?.totalReserves ?? 0)}
                   </div>
                 </div>
                 <div className="bg-green-50 p-4 rounded-lg">
                   <div className="text-sm font-medium text-green-600">Reserve Ratio</div>
                   <div className="text-2xl font-bold text-green-900" data-testid="demo-ratio">
-                    {formatPercent(result.reserveRatioPct)}
+                    {formatPercent(result?.reserveRatioPct ?? 0)}
                   </div>
                 </div>
               </div>
@@ -188,23 +188,23 @@ export default function GraduationReservesDemo() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Series A Follow-ons:</span>
-                  <span className="font-medium">{formatCurrency(result.aggregateByStage.A)}</span>
+                  <span className="font-medium">{formatCurrency(result?.aggregateByStage.A ?? 0)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Series B Follow-ons:</span>
-                  <span className="font-medium">{formatCurrency(result.aggregateByStage.B)}</span>
+                  <span className="font-medium">{formatCurrency(result?.aggregateByStage.B ?? 0)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Series C Follow-ons:</span>
-                  <span className="font-medium">{formatCurrency(result.aggregateByStage.C)}</span>
+                  <span className="font-medium">{formatCurrency(result?.aggregateByStage.C ?? 0)}</span>
                 </div>
               </div>
 
               <div className="pt-4 border-t">
                 <div className="text-sm text-gray-600 space-y-1">
-                  <div><strong>Companies per Quarter:</strong> {result.assumptions.perQuarter}</div>
-                  <div><strong>Deployment Period:</strong> {result.assumptions.deploymentQuarters} quarters</div>
-                  <div><strong>Target Companies:</strong> {currentScenario.fundData.targetCompanies}</div>
+                  <div><strong>Companies per Quarter:</strong> {result?.assumptions.perQuarter ?? 0}</div>
+                  <div><strong>Deployment Period:</strong> {result?.assumptions.deploymentQuarters ?? 0} quarters</div>
+                  <div><strong>Target Companies:</strong> {currentScenario?.fundData?.targetCompanies ?? 0}</div>
                 </div>
               </div>
             </div>
@@ -218,7 +218,7 @@ export default function GraduationReservesDemo() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {Object.entries(currentScenario.fundData.graduationRates).map(([stage, rates]) => (
+              {Object.entries(currentScenario?.fundData?.graduationRates ?? {}).map(([stage, rates]) => (
                 <div key={stage} className="bg-gray-50 p-4 rounded-lg">
                   <div className="text-sm font-semibold text-gray-700 mb-2">
                     {stage === 'seedToA' ? 'Seed → Series A' : 
@@ -294,7 +294,7 @@ export default function GraduationReservesDemo() {
                 <span className="text-sm font-medium text-blue-800">Conservative Strategy</span>
               </div>
               <p className="text-sm text-blue-700">
-                Lower graduation rates require higher reserve ratios ({formatPercent(comparisonData[0].reserveRatio)}) 
+                Lower graduation rates require higher reserve ratios ({formatPercent(comparisonData[0]?.reserveRatio ?? 0)}) 
                 due to fewer companies reaching follow-on stages.
               </p>
             </div>
@@ -306,7 +306,7 @@ export default function GraduationReservesDemo() {
               </div>
               <p className="text-sm text-green-700">
                 High graduation rates with smaller checks create the most capital-efficient reserves 
-                ({formatPercent(comparisonData[1].reserveRatio)}).
+                ({formatPercent(comparisonData[1]?.reserveRatio ?? 0)}).
               </p>
             </div>
             

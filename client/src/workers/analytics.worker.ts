@@ -49,10 +49,10 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         }
         (self as any).postMessage({ id, progress: Math.round(((c + 1) / chunks) * 100) } as WorkerResponse);
       }
-      results.sort((a, b) => a - b);
+      results.sort((a: any, b: any) => a - b);
       const q = (p: number) => results.length ? results[Math.max(0, Math.min(results.length - 1, Math.floor(p * (results.length - 1))))] : null;
-      const mean = results.length ? results.reduce((s, x) => s + x, 0) / results.length : null;
-      const variance = results.length ? results.reduce((s, x) => s + Math.pow(x - (mean as number), 2), 0) / results.length : null;
+      const mean = results.length ? results.reduce((s: any, x: any) => s + x, 0) / results.length : null;
+      const variance = results.length ? results.reduce((s: any, x: any) => s + Math.pow(x - (mean as number), 2), 0) / results.length : null;
 
       if (!CANCELLED.has(id)) {
         (self as any).postMessage({

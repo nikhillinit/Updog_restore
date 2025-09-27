@@ -6,7 +6,7 @@ export function readinessHandler(critical?: CircuitBreaker<any>[]) {
   return (_req: Request, res: Response) => {
     // Use registry if no critical breakers specified
     const isHealthy = critical ? 
-      !critical.some((b) => b.getState() === 'OPEN') :
+      !critical.some((b: any) => b.getState() === 'OPEN') :
       breakerRegistry.isHealthy();
     
     if (!isHealthy) {

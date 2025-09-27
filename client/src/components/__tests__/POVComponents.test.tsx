@@ -338,7 +338,7 @@ describe('POV Design System Components', () => {
         amount: (totalCommitment * call.percentage) / 100
       }));
       
-      expect(callAmounts[0].amount).toBe(25000000);
+      expect(callAmounts[0]!.amount).toBe(25000000);
       expect(callAmounts.reduce((sum, call) => sum + call.amount, 0)).toBe(totalCommitment);
     });
 
@@ -352,7 +352,7 @@ describe('POV Design System Components', () => {
       
       const dates = callSchedule.map(call => new Date(call.date));
       for (let i = 1; i < dates.length; i++) {
-        expect(dates[i] > dates[i-1]).toBe(true);
+        expect(dates[i]! > dates[i-1]!).toBe(true);
       }
     });
   });

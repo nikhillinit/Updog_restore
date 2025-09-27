@@ -2,20 +2,20 @@ import type { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 
 // Parse allowed origins from environment
-const ORIGINS = (process.env.RUM_ORIGIN_ALLOWLIST || '').split(',').map(s => s.trim()).filter(Boolean);
-const SAMPLE = Number(process.env.RUM_SAMPLE_RATE || '0.2'); // 20% default sampling
+const ORIGINS = (process.env['RUM_ORIGIN_ALLOWLIST'] || '').split(',').map(s => s.trim()).filter(Boolean);
+const SAMPLE = Number(process.env['RUM_SAMPLE_RATE'] || '0.2'); // 20% default sampling
 
 /**
  * Guard to restrict RUM metrics to allowed origins
  */
 export function rumOriginGuard(req: Request, res: Response, next: NextFunction) {
   // In development, allow all origins
-  if (process.env.NODE_ENV === 'development' && ORIGINS.length === 0) {
+  if (process.env['NODE_ENV'] === 'development' && ORIGINS.length === 0) {
     return next();
   }
   
-  const origin = req.get('origin') || '';
-  const referer = req.get('referer') || '';
+  const origin = req['get']('origin') || '';
+  const referer = req['get']('referer') || '';
   
   // Allow if no allowlist configured (opt-in security)
   if (ORIGINS.length === 0) {
@@ -39,7 +39,7 @@ export function rumOriginGuard(req: Request, res: Response, next: NextFunction) 
  */
 export function rumSamplingGuard(req: Request, res: Response, next: NextFunction) {
   // Client can opt-in to force sampling
-  const force = req.get('x-rum-sample') === '1';
+  const force = req['get']('x-rum-sample') === '1';
   
   // Always sample errors
   const isError = req.body?.rating === 'poor' || req.body?.error === true;
@@ -61,9 +61,9 @@ export const rumLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: 'Too many metrics sent, please try again later',
-  skip: (_req) => {
+  skip: (_req: any) => {
     // Skip rate limiting in development
-    return process.env.NODE_ENV === 'development';
+    return process.env['NODE_ENV'] === 'development';
   },
 });
 
@@ -72,7 +72,7 @@ export const rumLimiter = rateLimit({
  */
 export function rumPrivacyGuard(req: Request, res: Response, next: NextFunction) {
   // Set no-store cache control
-  res.setHeader('Cache-Control', 'no-store');
+  res['setHeader']('Cache-Control', 'no-store');
   
   // Strip accidental PII fields from body
   if (typeof req.body === 'object' && req.body) {

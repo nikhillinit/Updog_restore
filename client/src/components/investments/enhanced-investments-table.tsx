@@ -243,7 +243,7 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
     });
 
     // Sort investments
-    filtered.sort((a, b) => {
+    filtered.sort((a: any, b: any) => {
       const aValue = a[sortField];
       const bValue = b[sortField];
       
@@ -352,7 +352,7 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
               <Input
                 placeholder="Search investments, sectors, or partners..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e: any) => setSearchTerm(e.target.value)}
                 className="pl-9"
               />
             </div>
@@ -455,7 +455,7 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                         <Checkbox
                           id={key}
                           checked={visible}
-                          onCheckedChange={(checked) =>
+                          onCheckedChange={(checked: any) =>
                             setVisibleColumns(prev => ({ ...prev, [key]: checked }))
                           }
                         />
@@ -563,7 +563,7 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filteredInvestments.map((investment) => (
+                {filteredInvestments.map((investment: any) => (
                   <tr key={investment.id} className="hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <Checkbox
@@ -607,7 +607,7 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
                     {visibleColumns.tags && (
                       <td className="py-3 px-4">
                         <div className="flex flex-wrap gap-1">
-                          {investment.tags.slice(0, 2).map((tag, idx) => (
+                          {investment.tags.slice(0, 2).map((tag: any, idx: any) => (
                             <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700">
                               {tag}
                             </Badge>

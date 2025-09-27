@@ -41,11 +41,11 @@ class MemoryDedupeStore {
     }
     
     const expiry = Date.now() + (ttl * 1000);
-    this.store.set(key, { data, expiry });
+    this.store['set'](key, { data, expiry });
   }
   
   get(key: string): DedupedResponse | null {
-    const entry = this.store.get(key);
+    const entry = this.store['get'](key);
     
     if (!entry) {
       return null;
@@ -145,7 +145,7 @@ async function storeResponse(
     
     // Fallback to memory if enabled
     if (options.memoryFallback) {
-      memoryStore.set(key, response, ttl);
+      memoryStore['set'](key, response, ttl);
     }
   }
 }
@@ -162,7 +162,7 @@ async function retrieveResponse(
   try {
     // Try Redis first
     if (redisClient) {
-      const cached = await redisClient.get(redisKey);
+      const cached = await redisClient['get'](redisKey);
       if (cached) {
         const response = JSON.parse(cached);
         response.requestCount = (response.requestCount || 0) + 1;
@@ -179,7 +179,7 @@ async function retrieveResponse(
   
   // Fallback to memory if enabled
   if (options.memoryFallback) {
-    return memoryStore.get(key);
+    return memoryStore['get'](key);
   }
   
   return null;
@@ -221,15 +221,15 @@ export function dedupe(options: DedupeOptions = {}) {
       // Return cached response
       console.log(`[Dedupe] Returning cached response for request hash: ${key.substring(0, 8)}...`);
       
-      res.setHeader('X-Request-Dedup', 'true');
-      res.setHeader('X-Dedup-Count', String(cached.requestCount));
-      res.setHeader('X-Dedup-Key', key.substring(0, 8));
+      res['setHeader']('X-Request-Dedup', 'true');
+      res['setHeader']('X-Dedup-Count', String(cached.requestCount));
+      res['setHeader']('X-Dedup-Key', key.substring(0, 8));
       
       // Restore headers
       Object.entries(cached.headers).forEach(([name, value]) => {
         if (!name.toLowerCase().startsWith('x-request-dedup') && 
             !name.toLowerCase().startsWith('x-dedup')) {
-          res.setHeader(name, value);
+          res['setHeader'](name, value);
         }
       });
       
@@ -241,10 +241,10 @@ export function dedupe(options: DedupeOptions = {}) {
       console.log(`[Dedupe] Request in-flight, waiting for completion: ${key.substring(0, 8)}...`);
       
       try {
-        const result = await inflightRequests.get(key);
+        const result = await inflightRequests['get'](key);
         
-        res.setHeader('X-Request-Dedup', 'inflight');
-        res.setHeader('X-Dedup-Key', key.substring(0, 8));
+        res['setHeader']('X-Request-Dedup', 'inflight');
+        res['setHeader']('X-Dedup-Key', key.substring(0, 8));
         
         return res.status(result.statusCode).json(result.body);
       } catch (error) {
@@ -258,12 +258,12 @@ export function dedupe(options: DedupeOptions = {}) {
     let rejectInflight: (reason?: any) => void;
     
     if (config.useSingleflight) {
-      const inflightPromise = new Promise((resolve, reject) => {
+      const inflightPromise = new Promise((resolve: any, reject: any) => {
         resolveInflight = resolve;
         rejectInflight = reject;
       });
       
-      inflightRequests.set(key, inflightPromise);
+      inflightRequests['set'](key, inflightPromise);
     }
     
     // Capture response for caching
@@ -303,7 +303,7 @@ export function dedupe(options: DedupeOptions = {}) {
         inflightRequests.delete(key);
       }
       
-      res.setHeader('X-Dedup-Key', key.substring(0, 8));
+      res['setHeader']('X-Dedup-Key', key.substring(0, 8));
       return originalSend.call(this, body);
     };
     
@@ -337,13 +337,13 @@ export function dedupe(options: DedupeOptions = {}) {
         inflightRequests.delete(key);
       }
       
-      res.setHeader('X-Dedup-Key', key.substring(0, 8));
+      res['setHeader']('X-Dedup-Key', key.substring(0, 8));
       return originalJson.call(this, body);
     };
     
     // Clean up in-flight on error
     if (config.useSingleflight) {
-      res.on('finish', () => {
+      res['on']('finish', () => {
         if (!responseCaptured && inflightRequests.has(key)) {
           rejectInflight!(new Error('Request finished without response'));
           inflightRequests.delete(key);

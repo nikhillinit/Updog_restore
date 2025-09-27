@@ -322,7 +322,7 @@ export default function MOICAnalysisPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {filteredData.slice(0, 3).map((company) => (
+              {filteredData.slice(0, 3).map((company: any) => (
                 <div key={company.company} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <div className="font-medium">{company.company}</div>
@@ -345,9 +345,9 @@ export default function MOICAnalysisPage() {
           <CardContent>
             <div className="space-y-4">
               {filteredData
-                .sort((a, b) => b.exitMOICOnPlannedReserves - a.exitMOICOnPlannedReserves)
+                .sort((a: any, b: any) => b.exitMOICOnPlannedReserves - a.exitMOICOnPlannedReserves)
                 .slice(0, 3)
-                .map((company) => (
+                .map((company: any) => (
                 <div key={company.company} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                   <div>
                     <div className="font-medium">{company.company}</div>
@@ -375,9 +375,9 @@ export default function MOICAnalysisPage() {
           <CardContent>
             <div className="space-y-2">
               {moicData
-                .sort((a, b) => b.exitMOIC - a.exitMOIC)
+                .sort((a: any, b: any) => b.exitMOIC - a.exitMOIC)
                 .slice(0, 3)
-                .map((company) => (
+                .map((company: any) => (
                 <div key={company.company} className="flex items-center justify-between">
                   <span className="font-medium">{company.company}</span>
                   <span className="text-green-700 font-bold">{company.exitMOIC.toFixed(2)}x</span>
@@ -397,9 +397,9 @@ export default function MOICAnalysisPage() {
           <CardContent>
             <div className="space-y-2">
               {moicData
-                .sort((a, b) => b.exitMOICOnPlannedReserves - a.exitMOICOnPlannedReserves)
+                .sort((a: any, b: any) => b.exitMOICOnPlannedReserves - a.exitMOICOnPlannedReserves)
                 .slice(0, 3)
-                .map((company) => (
+                .map((company: any) => (
                 <div key={company.company} className="flex items-center justify-between">
                   <span className="font-medium">{company.company}</span>
                   <span className="text-blue-700 font-bold">{company.exitMOICOnPlannedReserves.toFixed(2)}x</span>
@@ -420,7 +420,7 @@ export default function MOICAnalysisPage() {
             <div className="space-y-2">
               {moicData
                 .filter(c => c.exitMOIC < 1.0)
-                .map((company) => (
+                .map((company: any) => (
                 <div key={company.company} className="flex items-center justify-between">
                   <span className="font-medium">{company.company}</span>
                   <span className="text-red-700 font-bold">{company.exitMOIC.toFixed(2)}x</span>

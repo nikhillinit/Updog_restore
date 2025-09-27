@@ -60,7 +60,7 @@ export class DeterministicReserveEngine {
     }
   ) {
     // Set high precision for financial calculations
-    Decimal.set({ precision: 28, rounding: Decimal.ROUND_HALF_UP });
+    Decimal['set']({ precision: 28, rounding: Decimal.ROUND_HALF_UP });
   }
 
   /**
@@ -84,7 +84,7 @@ export class DeterministicReserveEngine {
       // Check cache first (for deterministic results)
       const cacheKey = this.context.deterministicSeed;
       if (this.calculationCache.has(cacheKey)) {
-        const cached = this.calculationCache.get(cacheKey)!;
+        const cached = this.calculationCache['get'](cacheKey)!;
         logger.debug('Returning cached reserve calculation', { cacheKey });
         return cached;
       }
@@ -128,7 +128,7 @@ export class DeterministicReserveEngine {
       );
 
       // Cache result for consistency
-      this.calculationCache.set(cacheKey, result);
+      this.calculationCache['set'](cacheKey, result);
 
       // Performance tracking
       const duration = Date.now() - startTime;
@@ -248,7 +248,7 @@ export class DeterministicReserveEngine {
     input: ReserveAllocationInput
   ): Promise<ReserveAllocationOutput[]> {
     // Sort by allocation score (highest first)
-    const sorted = [...calculations].sort((a, b) => 
+    const sorted = [...calculations].sort((a: any, b: any) => 
       b.allocationScore.comparedTo(a.allocationScore)
     );
 
@@ -403,7 +403,7 @@ export class DeterministicReserveEngine {
 
     // Ensure total doesn't exceed available reserves
     const totalAllocated = filtered.reduce(
-      (sum, a) => sum + a.recommendedAllocation,
+      (sum: any, a: any) => sum + a.recommendedAllocation,
       0
     );
 
@@ -428,14 +428,14 @@ export class DeterministicReserveEngine {
     moicCalculations: MOICCalculation[]
   ): Promise<ReserveCalculationResult> {
     const totalAllocated = allocations.reduce(
-      (sum, a) => sum + a.recommendedAllocation,
+      (sum: any, a: any) => sum + a.recommendedAllocation,
       0
     );
     const unallocatedReserves = input.availableReserves - totalAllocated;
 
     // Calculate portfolio metrics
     const expectedPortfolioValue = allocations.reduce(
-      (sum, a) => sum + a.expectedValue,
+      (sum: any, a: any) => sum + a.expectedValue,
       0
     );
     const expectedPortfolioMOIC = expectedPortfolioValue / totalAllocated || 0;
@@ -725,12 +725,12 @@ export class DeterministicReserveEngine {
     const sectorCounts = new Map<string, number>();
     for (const allocation of allocations) {
       const company = input.portfolio.find(c => c.id === allocation.companyId)!;
-      sectorCounts.set(company.sector, (sectorCounts.get(company.sector) || 0) + 1);
+      sectorCounts['set'](company.sector, (sectorCounts['get'](company.sector) || 0) + 1);
     }
 
     for (const allocation of allocations) {
       const company = input.portfolio.find(c => c.id === allocation.companyId)!;
-      const sectorCount = sectorCounts.get(company.sector) || 1;
+      const sectorCount = sectorCounts['get'](company.sector) || 1;
       
       if (sectorCount === 1) {
         // Bonus for unique sector
@@ -742,10 +742,10 @@ export class DeterministicReserveEngine {
 
   private calculateDiversificationIndex(allocations: ReserveAllocationOutput[]): number {
     // Calculate Herfindahl-Hirschman Index (HHI) for diversification
-    const total = allocations.reduce((sum, a) => sum + a.recommendedAllocation, 0);
+    const total = allocations.reduce((sum: any, a: any) => sum + a.recommendedAllocation, 0);
     if (total === 0) return 1;
 
-    const hhi = allocations.reduce((sum, a) => {
+    const hhi = allocations.reduce((sum: any, a: any) => {
       const share = a.recommendedAllocation / total;
       return sum + (share * share);
     }, 0);
@@ -774,11 +774,11 @@ export class DeterministicReserveEngine {
     if (allocations.length === 0) return 84; // Default 7 years
 
     const totalWeighted = allocations.reduce(
-      (sum, a) => sum + (a.calculationMetadata.timeToExit * a.recommendedAllocation),
+      (sum: any, a: any) => sum + (a.calculationMetadata.timeToExit * a.recommendedAllocation),
       0
     );
     const totalAllocation = allocations.reduce(
-      (sum, a) => sum + a.recommendedAllocation,
+      (sum: any, a: any) => sum + a.recommendedAllocation,
       0
     );
 
@@ -791,7 +791,7 @@ export class DeterministicReserveEngine {
   ): ReserveCalculationResult['riskAnalysis'] {
     // Simplified risk analysis
     const avgRiskAdjustedReturn = allocations.reduce(
-      (sum, a) => sum + a.riskAdjustedReturn,
+      (sum: any, a: any) => sum + a.riskAdjustedReturn,
       0
     ) / allocations.length;
 
@@ -811,7 +811,7 @@ export class DeterministicReserveEngine {
     allocations: ReserveAllocationOutput[],
     input: ReserveAllocationInput
   ): Promise<ReserveCalculationResult['scenarioResults']> {
-    const baseValue = allocations.reduce((sum, a) => sum + a.expectedValue, 0);
+    const baseValue = allocations.reduce((sum: any, a: any) => sum + a.expectedValue, 0);
 
     return {
       conservative: {

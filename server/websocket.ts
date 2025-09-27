@@ -47,14 +47,14 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
   // In production, this should be replaced with proper Redis pub/sub
 
   // WebSocket connection handling
-  io.on('connection', (socket: Socket) => {
+  io['on']('connection', (socket: Socket) => {
     logger.info('WebSocket client connected', { socketId: socket.id });
 
     // Track subscriptions per socket
     const subscriptions = new Set<number>();
 
     // Subscribe to fund events
-    socket.on('subscribe:fund', async (data, callback) => {
+    socket['on']('subscribe:fund', async (data: any, callback: any) => {
       try {
         const parsed = subscribeSchema.parse(data);
         const { fundId, eventTypes } = parsed;
@@ -77,7 +77,7 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
 
         // Join specific event type rooms if requested
         if (eventTypes && eventTypes.length > 0) {
-          eventTypes.forEach((eventType) => {
+          eventTypes.forEach((eventType: any) => {
             socket.join(getEventTypeRoom(fundId, eventType));
           });
         }
@@ -99,17 +99,17 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
     });
 
     // Unsubscribe from fund events
-    socket.on('unsubscribe:fund', async (data, callback) => {
+    socket['on']('unsubscribe:fund', async (data: any, callback: any) => {
       try {
         const parsed = unsubscribeSchema.parse(data);
         const { fundId } = parsed;
 
         // Leave all rooms for this fund
         const rooms = Array.from(socket.rooms).filter(
-          (room) => room.startsWith(`fund:${fundId}`)
+          (room: any) => room.startsWith(`fund:${fundId}`)
         );
         
-        rooms.forEach((room) => socket.leave(room));
+        rooms.forEach((room: any) => socket.leave(room));
         subscriptions.delete(fundId);
 
         logger.info('Client unsubscribed from fund', {
@@ -128,7 +128,7 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
     });
 
     // Get current subscriptions
-    socket.on('get:subscriptions', (callback) => {
+    socket['on']('get:subscriptions', (callback: any) => {
       callback({
         subscriptions: Array.from(subscriptions),
         rooms: Array.from(socket.rooms),
@@ -136,7 +136,7 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
     });
 
     // Handle disconnection
-    socket.on('disconnect', () => {
+    socket['on']('disconnect', () => {
       logger.info('WebSocket client disconnected', {
         socketId: socket.id,
         subscriptions: Array.from(subscriptions),
@@ -144,7 +144,7 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
     });
 
     // Ping/pong for connection health
-    socket.on('ping', (callback) => {
+    socket['on']('ping', (callback: any) => {
       callback({ pong: true, timestamp: Date.now() });
     });
   });
@@ -155,9 +155,9 @@ export function initializeWebSocket(httpServer: HttpServer): SocketIOServer {
     const roomCounts = new Map<string, number>();
 
     // Count clients per room
-    io.sockets.adapter.rooms.forEach((socketIds, room) => {
+    io.sockets.adapter.rooms.forEach((socketIds: any, room: any) => {
       if (room.startsWith('fund:')) {
-        roomCounts.set(room, socketIds.size);
+        roomCounts['set'](room, socketIds.size);
       }
     });
 

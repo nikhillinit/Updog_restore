@@ -228,7 +228,7 @@ export default function BenchmarkingDashboard() {
                 { label: 'Gross Margin', value: `${company.grossMargin}%`, percentile: company.percentiles.grossMargin },
                 { label: 'Operating Margin', value: `${company.operatingMargin}%`, percentile: company.percentiles.operatingMargin },
                 { label: 'Runway', value: `${company.runway} Mo.`, percentile: company.percentiles.runway }
-              ].map((item, index) => (
+              ].map((item: any, index: any) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="text-sm">{item.label} {item.value}</div>
                   <Badge className={`${getPerformanceColor(item.percentile)} border-0`}>
@@ -343,7 +343,7 @@ export default function BenchmarkingDashboard() {
                 {[
                   'Burn / FTE', 'Gross Margin', 'Headcount', 'Operating Margin',
                   'Net Burn', 'Revenue', 'Revenue / FTE', 'Revenue Growth', 'Runway'
-                ].map((metric) => (
+                ].map((metric: any) => (
                   <div
                     key={metric}
                     className="p-2 text-sm border rounded cursor-pointer hover:bg-gray-50"
@@ -360,8 +360,8 @@ export default function BenchmarkingDashboard() {
           {/* Company Selection */}
           <div className="flex items-center gap-4">
             <Select
-              value={selectedCompany.id.toString()}
-              onValueChange={(value) => {
+              value={selectedCompany?.id?.toString() ?? ''}
+              onValueChange={(value: any) => {
                 const company = PORTFOLIO_COMPANIES.find(c => c.id.toString() === value);
                 if (company) setSelectedCompany(company);
               }}
@@ -370,7 +370,7 @@ export default function BenchmarkingDashboard() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PORTFOLIO_COMPANIES.map((company) => (
+                {PORTFOLIO_COMPANIES.map((company: any) => (
                   <SelectItem key={company.id} value={company.id.toString()}>
                     {company.name}
                   </SelectItem>
@@ -391,15 +391,15 @@ export default function BenchmarkingDashboard() {
               <CardContent className="space-y-4">
                 <div>
                   <div className="text-sm text-gray-500 mb-1">Sector</div>
-                  <div className="font-medium">{selectedCompany.sector}</div>
+                  <div className="font-medium">{selectedCompany?.sector ?? 'N/A'}</div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-500 mb-1">Revenue scale</div>
-                  <div className="font-medium">{selectedCompany.revenue}</div>
+                  <div className="font-medium">{selectedCompany?.revenue ?? 'N/A'}</div>
                 </div>
                 <div>
                   <a href="#" className="text-blue-600 text-sm hover:underline">
-                    http://www.{selectedCompany.name.toLowerCase()}.ai
+                    http://www.{selectedCompany?.name?.toLowerCase() ?? 'company'}.ai
                   </a>
                 </div>
               </CardContent>
@@ -419,7 +419,7 @@ export default function BenchmarkingDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                {renderRadarChart(selectedCompany)}
+                {selectedCompany && renderRadarChart(selectedCompany)}
               </CardContent>
             </Card>
           </div>
@@ -431,11 +431,11 @@ export default function BenchmarkingDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {PORTFOLIO_COMPANIES.map((company) => (
+                {PORTFOLIO_COMPANIES.map((company: any) => (
                   <div
                     key={company.id}
                     className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-gray-50 ${
-                      company.id === selectedCompany.id ? 'bg-blue-50 border-blue-200' : ''
+                      company.id === selectedCompany?.id ? 'bg-blue-50 border-blue-200' : ''
                     }`}
                     onClick={() => setSelectedCompany(company)}
                   >
@@ -453,7 +453,7 @@ export default function BenchmarkingDashboard() {
         </TabsContent>
 
         <TabsContent value="scorecard" className="space-y-6">
-          {renderScorecard(selectedCompany)}
+          {selectedCompany && renderScorecard(selectedCompany)}
 
           {/* Revenue Growth Performance */}
           <Card>
@@ -500,7 +500,7 @@ export default function BenchmarkingDashboard() {
               <Input
                 placeholder="Search companies..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e: any) => setSearchTerm(e.target.value)}
                 className="w-64"
               />
             </div>
@@ -548,7 +548,7 @@ export default function BenchmarkingDashboard() {
                       { name: 'Stewart Gaming', sector: 'SaaS', cash: '$2M', revenue: '$551K', logo: '🎮' },
                       { name: 'Dakarai', sector: 'FinTech', cash: '$18M', revenue: '$4M', logo: '🔺' },
                       { name: 'Oceans Drone', sector: 'ClimateTech', cash: '$30K', revenue: '$47K', logo: '🌊' }
-                    ].map((company, index) => (
+                    ].map((company: any, index: any) => (
                       <tr key={index} className="border-b hover:bg-gray-50">
                         <td className="p-4">
                           <div className="flex items-center space-x-3">

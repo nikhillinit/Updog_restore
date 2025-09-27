@@ -199,7 +199,7 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {workflows.map((workflow) => {
+        {workflows.map((workflow: any) => {
           const IconComponent = workflow.icon;
           return (
             <Card key={workflow.id} className="hover:shadow-lg transition-shadow">
@@ -222,7 +222,7 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
               <CardContent className="space-y-4">
                 {/* Metrics */}
                 <div className="grid grid-cols-1 gap-2">
-                  {workflow.metrics.map((metric, index) => (
+                  {workflow.metrics.map((metric: any, index: any) => (
                     <div key={index} className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">{metric.label}</span>
                       <div className="flex items-center space-x-1">

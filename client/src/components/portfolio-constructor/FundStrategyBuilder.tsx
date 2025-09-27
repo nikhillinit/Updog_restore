@@ -115,7 +115,7 @@ export function FundStrategyBuilder({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const filteredBuckets = buckets.filter(bucket => bucket.category === selectedCategory);
-  const totalAllocated = filteredBuckets.reduce((sum, bucket) => sum + bucket.targetPercentage, 0);
+  const totalAllocated = filteredBuckets.reduce((sum: any, bucket: any) => sum + bucket.targetPercentage, 0);
   const isOverAllocated = totalAllocated > 100;
 
   const handleDragEnd = useCallback((result: DropResult) => {
@@ -125,7 +125,7 @@ export function FundStrategyBuilder({
 
     const items = Array.from(filteredBuckets);
     const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
+    items.splice(result.destination.index, 0, reorderedItem!);
 
     const newBuckets = buckets.map(bucket => {
       const updatedItem = items.find(item => item.id === bucket.id);
@@ -147,7 +147,7 @@ export function FundStrategyBuilder({
     ));
 
     // Update portfolio state
-    const newAllocated = buckets.reduce((sum, bucket) =>
+    const newAllocated = buckets.reduce((sum: any, bucket: any) =>
       sum + (bucket.id === bucketId ? (portfolioState.totalFundSize * percentage) / 100 : bucket.allocatedAmount), 0
     );
     onUpdate({ allocatedCapital: newAllocated });
@@ -159,8 +159,8 @@ export function FundStrategyBuilder({
       name: `New ${selectedCategory}`,
       targetPercentage: 0,
       allocatedAmount: 0,
-      color: COLORS[buckets.length % COLORS.length],
-      category: selectedCategory
+      color: COLORS[buckets.length % COLORS.length] ?? '#000000',
+      category: selectedCategory ?? 'Strategy'
     };
     setBuckets(prev => [...prev, newBucket]);
   };
@@ -241,7 +241,7 @@ export function FundStrategyBuilder({
           <CardContent className="space-y-4">
             <DragDropContext onDragEnd={handleDragEnd}>
               <Droppable droppableId="buckets">
-                {(provided, snapshot) => (
+                {(provided: any, snapshot: any) => (
                   <div
                     {...provided.droppableProps}
                     ref={provided.innerRef}
@@ -250,9 +250,9 @@ export function FundStrategyBuilder({
                       snapshot.isDraggingOver && "bg-blue-50"
                     )}
                   >
-                    {filteredBuckets.map((bucket, index) => (
+                    {filteredBuckets.map((bucket: any, index: any) => (
                       <Draggable key={bucket.id} draggableId={bucket.id} index={index}>
-                        {(provided, snapshot) => (
+                        {(provided: any, snapshot: any) => (
                           <div
                             ref={provided.innerRef}
                             {...provided.draggableProps}
@@ -278,7 +278,7 @@ export function FundStrategyBuilder({
                                 <div className="flex items-center justify-between">
                                   <Input
                                     value={bucket.name}
-                                    onChange={(e) => setBuckets(prev =>
+                                    onChange={(e: any) => setBuckets(prev =>
                                       prev.map(b =>
                                         b.id === bucket.id
                                           ? { ...b, name: e.target.value }
@@ -308,7 +308,7 @@ export function FundStrategyBuilder({
 
                                   <Slider
                                     value={[bucket.targetPercentage]}
-                                    onValueChange={([value]) => updateBucketPercentage(bucket.id, value)}
+                                    onValueChange={([value]) => updateBucketPercentage(bucket.id, value ?? 0)}
                                     max={100}
                                     step={0.5}
                                     className="w-full"
@@ -390,7 +390,7 @@ export function FundStrategyBuilder({
                       paddingAngle={2}
                       dataKey="value"
                     >
-                      {chartData.map((entry, index) => (
+                      {chartData.map((entry: any, index: any) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -435,7 +435,7 @@ export function FundStrategyBuilder({
             <div>
               <p className="text-sm text-gray-600">Total Allocated</p>
               <p className="text-2xl font-bold">
-                ${(filteredBuckets.reduce((sum, b) => sum + b.allocatedAmount, 0) / 1000000).toFixed(1)}M
+                ${(filteredBuckets.reduce((sum: any, b: any) => sum + b.allocatedAmount, 0) / 1000000).toFixed(1)}M
               </p>
             </div>
           </div>

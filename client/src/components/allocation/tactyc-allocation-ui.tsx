@@ -63,7 +63,7 @@ export default function TactycAllocationUI() {
   // Calculate derived metrics based on Tactyc methodology - deploy ALL available capital
   const calculateMetrics = () => {
     const totalFollowOnCapital = Object.values(allocation.followOnStrategy).reduce(
-      (sum, stage) => sum + stage.capitalAllocated, 0
+      (sum: any, stage: any) => sum + stage.capitalAllocated, 0
     );
     const totalCapital = allocation.capitalAllocated + totalFollowOnCapital;
     const reserveRatio = (totalFollowOnCapital / totalCapital) * 100;
@@ -208,7 +208,7 @@ export default function TactycAllocationUI() {
               <Input
                 id="allocationName"
                 value={allocation.name}
-                onChange={(e) => updateInitialParameters('name', e.target.value)}
+                onChange={(e: any) => updateInitialParameters('name', e.target.value)}
                 className="bg-yellow-50 border-yellow-200"
               />
             </div>
@@ -218,7 +218,7 @@ export default function TactycAllocationUI() {
                 Linked Sector Profile
                 <Info className="w-4 h-4 inline ml-1 text-gray-400" />
               </Label>
-              <Select value={allocation.linkedSectorProfile} onValueChange={(value) => updateInitialParameters('linkedSectorProfile', value)}>
+              <Select value={allocation.linkedSectorProfile} onValueChange={(value: any) => updateInitialParameters('linkedSectorProfile', value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -234,7 +234,7 @@ export default function TactycAllocationUI() {
 
             <div className="space-y-2">
               <Label htmlFor="entryRound">Entry Round</Label>
-              <Select value={allocation.entryRound} onValueChange={(value) => updateInitialParameters('entryRound', value)}>
+              <Select value={allocation.entryRound} onValueChange={(value: any) => updateInitialParameters('entryRound', value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -274,7 +274,7 @@ export default function TactycAllocationUI() {
                   id="initialCheckSize"
                   type="number"
                   value={allocation.initialCheckSize}
-                  onChange={(e) => updateInitialParameters('initialCheckSize', parseFloat(e.target.value))}
+                  onChange={(e: any) => updateInitialParameters('initialCheckSize', parseFloat(e.target.value))}
                   className="bg-yellow-50 border-yellow-200"
                 />
               </div>
@@ -349,7 +349,7 @@ export default function TactycAllocationUI() {
                     <Input
                       type="number"
                       value={allocation.followOnStrategy.preSeed.maintainOwnership}
-                      onChange={(e) => updateFollowOnStrategy('preSeed', 'maintainOwnership', parseFloat(e.target.value) || 0)}
+                      onChange={(e: any) => updateFollowOnStrategy('preSeed', 'maintainOwnership', parseFloat(e.target.value) || 0)}
                       className="w-16 h-8 text-center"
                       disabled
                     />
@@ -359,7 +359,7 @@ export default function TactycAllocationUI() {
                     <Input
                       type="number"
                       value={allocation.followOnStrategy.seed.maintainOwnership}
-                      onChange={(e) => updateFollowOnStrategy('seed', 'maintainOwnership', parseFloat(e.target.value) || 0)}
+                      onChange={(e: any) => updateFollowOnStrategy('seed', 'maintainOwnership', parseFloat(e.target.value) || 0)}
                       className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
                     />
                     <span className="text-xs ml-1">%</span>
@@ -368,7 +368,7 @@ export default function TactycAllocationUI() {
                     <Input
                       type="number"
                       value={allocation.followOnStrategy.seriesA.maintainOwnership}
-                      onChange={(e) => updateFollowOnStrategy('seriesA', 'maintainOwnership', parseFloat(e.target.value) || 0)}
+                      onChange={(e: any) => updateFollowOnStrategy('seriesA', 'maintainOwnership', parseFloat(e.target.value) || 0)}
                       className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
                     />
                     <span className="text-xs ml-1">%</span>
@@ -377,7 +377,7 @@ export default function TactycAllocationUI() {
                     <Input
                       type="number"
                       value={allocation.followOnStrategy.seriesB.maintainOwnership}
-                      onChange={(e) => updateFollowOnStrategy('seriesB', 'maintainOwnership', parseFloat(e.target.value) || 0)}
+                      onChange={(e: any) => updateFollowOnStrategy('seriesB', 'maintainOwnership', parseFloat(e.target.value) || 0)}
                       className="w-16 h-8 text-center"
                       disabled
                     />
@@ -403,7 +403,7 @@ export default function TactycAllocationUI() {
                     <Input
                       type="number"
                       value={allocation.followOnStrategy.seed.participation}
-                      onChange={(e) => updateFollowOnStrategy('seed', 'participation', parseFloat(e.target.value) || 0)}
+                      onChange={(e: any) => updateFollowOnStrategy('seed', 'participation', parseFloat(e.target.value) || 0)}
                       className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
                     />
                     <span className="text-xs ml-1">%</span>
@@ -412,7 +412,7 @@ export default function TactycAllocationUI() {
                     <Input
                       type="number"
                       value={allocation.followOnStrategy.seriesA.participation}
-                      onChange={(e) => updateFollowOnStrategy('seriesA', 'participation', parseFloat(e.target.value) || 0)}
+                      onChange={(e: any) => updateFollowOnStrategy('seriesA', 'participation', parseFloat(e.target.value) || 0)}
                       className="w-16 h-8 text-center bg-yellow-50 border-yellow-200"
                     />
                     <span className="text-xs ml-1">%</span>

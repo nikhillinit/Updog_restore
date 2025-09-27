@@ -44,7 +44,7 @@ function stableUserId(): string {
         id = crypto.randomUUID();
       } else {
         // Fallback UUID v4 generation for older browsers
-        id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c: any) => {
           const r = Math.random() * 16 | 0;
           const v = c === 'x' ? r : (r & 0x3 | 0x8);
           return v.toString(16);
@@ -66,7 +66,7 @@ function stableUserId(): string {
 function getRuntimeOverride(flagName: string): boolean | undefined {
   try {
     // Check URL params first (highest priority)
-    const qp = new URLSearchParams(window.location.search).get(`ff_${flagName}`);
+    const qp = new URLSearchParams(window.location.search)['get'](`ff_${flagName}`);
     if (qp === '0' || qp === '1') return qp === '1';
     
     // Check localStorage fallback
@@ -159,7 +159,7 @@ export async function debugRuntimeRollout() {
         userId: `${userId.substring(0, 8)  }...`,
         bucket,
         'runtime %': config.flags.useFundStore?.rollout ?? 'default',
-        'url override': new URLSearchParams(window.location.search).get('ffuseFundStore') ?? 'none',
+        'url override': new URLSearchParams(window.location.search)['get']('ffuseFundStore') ?? 'none',
         'localStorage override': localStorage.getItem('ffuseFundStore') ?? 'none', 
         'emergency rollback': config.killSwitches.emergencyRollback,
         enabled

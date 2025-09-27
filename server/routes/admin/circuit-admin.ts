@@ -8,7 +8,7 @@ export function circuitAdmin(breakers?: Record<string, CircuitBreaker<any>>) {
 
   // Apply authentication and admin role requirement to all routes
   r.use(requireAuth(), requireRole("admin"));
-  r.get('/state', (_req, res) => {
+  r['get']('/state', (_req: any, res: any) => {
     // Use registry if available, fallback to passed breakers
     const states = breakers ? 
       Object.fromEntries(Object.entries(breakers).map(([k, b]) => [k, b.getState()])) :
@@ -22,7 +22,7 @@ export function circuitAdmin(breakers?: Record<string, CircuitBreaker<any>>) {
     });
   });
 
-  r.get('/health', (_req, res) => {
+  r['get']('/health', (_req: any, res: any) => {
     const isHealthy = breakerRegistry.isHealthy();
     const degraded = breakerRegistry.getDegraded();
     
@@ -33,8 +33,8 @@ export function circuitAdmin(breakers?: Record<string, CircuitBreaker<any>>) {
     });
   });
 
-  r.post('/force/:name/:state', (req, res) => {
-    const breaker = breakerRegistry.get(req.params.name) || 
+  r.post('/force/:name/:state', (req: any, res: any) => {
+    const breaker = breakerRegistry['get'](req.params.name) || 
                    (breakers && breakers[req.params.name]);
     
     if (!breaker) return res.status(404).json({ error: 'unknown breaker' });

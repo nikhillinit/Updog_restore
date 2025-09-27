@@ -14,7 +14,7 @@ export const flagsRouter = Router();
 /**
  * GET /api/flags - Client-safe flags with ETag support
  */
-flagsRouter.get('/', async (req: Request, res: Response) => {
+flagsRouter['get']('/', async (req: Request, res: Response) => {
   try {
     // Extract user context for targeting (optional)
     const userId = req.headers['x-user-id'] as string;
@@ -25,8 +25,8 @@ flagsRouter.get('/', async (req: Request, res: Response) => {
     
     // ETag support for conditional requests
     const etag = `W/"${result.hash}"`;
-    res.setHeader('ETag', etag);
-    res.setHeader('Cache-Control', 'max-age=15, must-revalidate');
+    res['setHeader']('ETag', etag);
+    res['setHeader']('Cache-Control', 'max-age=15, must-revalidate');
     
     // Handle conditional GET
     if (req.headers['if-none-match'] === etag) {
@@ -58,14 +58,14 @@ flagsRouter.get('/', async (req: Request, res: Response) => {
 /**
  * GET /api/flags/status - Cache and system status
  */
-flagsRouter.get('/status', async (req: Request, res: Response) => {
+flagsRouter['get']('/status', async (req: Request, res: Response) => {
   try {
     const status = getCacheStatus();
     
     res.json({
       cache: status,
-      killSwitchActive: process.env.FLAGS_DISABLED_ALL === '1',
-      environment: process.env.NODE_ENV || 'unknown',
+      killSwitchActive: process.env['FLAGS_DISABLED_ALL'] === '1',
+      environment: process.env['NODE_ENV'] || 'unknown',
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -92,10 +92,10 @@ const adminRateLimit = rateLimit({
 // Security headers for admin routes
 adminRouter.use((req: Request, res: Response, next) => {
   // Never cache admin responses
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
-  res.setHeader('Surrogate-Control', 'no-store');
+  res['setHeader']('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res['setHeader']('Pragma', 'no-cache');
+  res['setHeader']('Expires', '0');
+  res['setHeader']('Surrogate-Control', 'no-store');
   next();
 });
 
@@ -106,7 +106,7 @@ adminRouter.use(requireAuth());
 /**
  * GET /api/admin/flags - Get all flags with version for admin
  */
-adminRouter.get('/', requireRole('flag_read'), async (req: Request, res: Response) => {
+adminRouter['get']('/', requireRole('flag_read'), async (req: Request, res: Response) => {
   try {
     const version = await getFlagsVersion();
     const hash = await getFlagsHash();
@@ -218,7 +218,7 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: AuthenticatedR
 /**
  * GET /api/admin/flags/:key/history - Get flag history
  */
-adminRouter.get('/:key/history', async (req: Request, res: Response) => {
+adminRouter['get']('/:key/history', async (req: Request, res: Response) => {
   try {
     const { key } = req.params;
     const history = await getFlagHistory(key);
@@ -260,7 +260,7 @@ adminRouter.post('/kill-switch', (req: Request, res: Response) => {
  */
 adminRouter.delete('/kill-switch', (req: Request, res: Response) => {
   try {
-    delete process.env.FLAGS_DISABLED_ALL;
+    delete process.env['FLAGS_DISABLED_ALL'];
     
     res.json({
       success: true,

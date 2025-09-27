@@ -81,7 +81,7 @@ const urlParams = typeof window !== 'undefined'
   : new URLSearchParams();
 
 // Check for engine override
-const engineOverride = urlParams.get('force_reserves_engine');
+const engineOverride = urlParams['get']('force_reserves_engine');
 
 /**
  * Check if a feature flag is enabled for a user
@@ -89,7 +89,7 @@ const engineOverride = urlParams.get('force_reserves_engine');
 export function isEnabled(flag: FlagName, userId?: string): boolean {
   // Check cache first
   if (overrideCache.has(flag)) {
-    return overrideCache.get(flag)!;
+    return overrideCache['get'](flag)!;
   }
   
   const config = FLAGS[flag];
@@ -101,32 +101,32 @@ export function isEnabled(flag: FlagName, userId?: string): boolean {
   // Handle engine-specific overrides
   if (engineOverride) {
     if (flag === 'ts_reserves' && engineOverride === 'ts') {
-      overrideCache.set(flag, true);
+      overrideCache['set'](flag, true);
       return true;
     }
     if (flag === 'wasm_reserves' && engineOverride === 'wasm') {
-      overrideCache.set(flag, true);
+      overrideCache['set'](flag, true);
       return true;
     }
     if (flag === 'ts_reserves' && engineOverride === 'wasm') {
-      overrideCache.set(flag, false);
+      overrideCache['set'](flag, false);
       return false;
     }
     if (flag === 'wasm_reserves' && engineOverride === 'ts') {
-      overrideCache.set(flag, false);
+      overrideCache['set'](flag, false);
       return false;
     }
   }
   
   // Check URL parameter override
   if (config.allowOverride) {
-    const paramValue = urlParams.get(`ff_${flag}`);
+    const paramValue = urlParams['get'](`ff_${flag}`);
     if (paramValue === '1' || paramValue === 'true') {
-      overrideCache.set(flag, true);
+      overrideCache['set'](flag, true);
       return true;
     }
     if (paramValue === '0' || paramValue === 'false') {
-      overrideCache.set(flag, false);
+      overrideCache['set'](flag, false);
       return false;
     }
   }
@@ -135,11 +135,11 @@ export function isEnabled(flag: FlagName, userId?: string): boolean {
   if (typeof localStorage !== 'undefined' && config.allowOverride) {
     const stored = localStorage.getItem(`ff_${flag}`);
     if (stored === 'true') {
-      overrideCache.set(flag, true);
+      overrideCache['set'](flag, true);
       return true;
     }
     if (stored === 'false') {
-      overrideCache.set(flag, false);
+      overrideCache['set'](flag, false);
       return false;
     }
   }
@@ -149,7 +149,7 @@ export function isEnabled(flag: FlagName, userId?: string): boolean {
     const hash = hashUserId(userId);
     const bucket = hash % 100;
     const enabled = bucket < config.rolloutPercent;
-    overrideCache.set(flag, enabled);
+    overrideCache['set'](flag, enabled);
     return enabled;
   }
   
@@ -172,7 +172,7 @@ export function setFlag(flag: FlagName, value: boolean): void {
     return;
   }
   
-  overrideCache.set(flag, value);
+  overrideCache['set'](flag, value);
   
   if (typeof localStorage !== 'undefined') {
     localStorage.setItem(`ff_${flag}`, String(value));

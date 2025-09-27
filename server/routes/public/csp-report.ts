@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { cspMetrics } from "../../telemetry";
 
-export const cspReportRoute = Router().post("/csp-violations", (req, res) => {
+export const cspReportRoute = Router().post("/csp-violations", (req: any, res: any) => {
   try {
     // Requests may be JSON with { "csp-report": { ... } } or Report-To batch
     const body = (req.body ?? {}) as any;

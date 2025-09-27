@@ -105,7 +105,7 @@ router.post('/', requireRole('reserve_admin'), async (req: AuthenticatedRequest,
 /**
  * GET /api/v1/reserve-approvals - List pending approvals
  */
-router.get('/', async (req: AuthenticatedRequest, res: Response) => {
+router['get']('/', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const status = req.query.status as string || 'pending';
     
@@ -155,7 +155,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 /**
  * GET /api/v1/reserve-approvals/:id - Get specific approval details
  */
-router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
+router['get']('/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
     
@@ -226,7 +226,7 @@ router.post('/:id/sign', requireRole('partner'), async (req: AuthenticatedReques
     if (approval.expiresAt < new Date()) {
       // Mark as expired
       await db.update(reserveApprovals)
-        .set({ status: 'expired', updatedAt: new Date() } as any)
+        ['set']({ status: 'expired', updatedAt: new Date() } as any)
         .where(eq(reserveApprovals.id, id));
       
       return res.status(400).json({ error: 'Approval has expired' });
@@ -294,7 +294,7 @@ router.post('/:id/sign', requireRole('partner'), async (req: AuthenticatedReques
     if (signatureCount >= 2) {
       // Mark as approved and execute
       await db.update(reserveApprovals)
-        .set({ status: 'approved', updatedAt: new Date() } as any)
+        ['set']({ status: 'approved', updatedAt: new Date() } as any)
         .where(eq(reserveApprovals.id, id));
       
       await db.insert(approvalAuditLog).values({
@@ -352,7 +352,7 @@ router.post('/:id/reject', requireRole('partner'), async (req: AuthenticatedRequ
     
     // Update approval status
     await db.update(reserveApprovals)
-      .set({ status: 'rejected', updatedAt: new Date() } as any)
+      ['set']({ status: 'rejected', updatedAt: new Date() } as any)
       .where(eq(reserveApprovals.id, id));
     
     // Log rejection

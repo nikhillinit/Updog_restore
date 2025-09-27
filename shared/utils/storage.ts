@@ -14,11 +14,11 @@ class MemoryStorage implements KV {
   private store = new Map<string, string>();
   
   getItem(key: string): string | null {
-    return this.store.get(key) ?? null;
+    return this.store['get'](key) ?? null;
   }
   
   setItem(key: string, value: string): void {
-    this.store.set(key, value);
+    this.store['set'](key, value);
   }
   
   removeItem(key: string): void {
@@ -87,8 +87,8 @@ export class TypedStorage<T = any> {
   }
   
   update(fn: (_current: T | null) => T): void {
-    const current = this.get();
-    this.set(fn(current));
+    const current = this['get']();
+    this['set'](fn(current));
   }
 }
 

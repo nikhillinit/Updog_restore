@@ -155,10 +155,10 @@ export class MarketScoreComputer {
     keys.forEach(key => {
       const data = values[key];
       if (data && data.length > 0) {
-        const mean = data.reduce((sum, val) => sum + val, 0) / data.length;
+        const mean = data.reduce((sum: any, val: any) => sum + val, 0) / data.length;
         newMean[key] = mean;
         
-        const variance = data.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / data.length;
+        const variance = data.reduce((sum: any, val: any) => sum + Math.pow(val - mean, 2), 0) / data.length;
         newStd[key] = Math.sqrt(variance);
       }
     });
@@ -225,7 +225,7 @@ export class MarketScoreComputer {
       }
     }
 
-    return contributions.sort((a, b) => b.contribution - a.contribution);
+    return contributions.sort((a: any, b: any) => b.contribution - a.contribution);
   }
 
   /**

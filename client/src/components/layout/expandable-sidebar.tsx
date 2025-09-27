@@ -185,7 +185,7 @@ export default function ExpandableSidebar({ activeModule, onModuleChange }: Expa
             {/* Section Items */}
             {(isExpanded ? expandedSections[sectionKey] : true) && (
               <div className={cn("space-y-1", isExpanded && "ml-2")}>
-                {section.items.map((item) => {
+                {section.items.map((item: any) => {
                   const isActive = activeModule === item.id;
                   const isDisabled = needsSetup && item.id !== 'fund-setup';
                   

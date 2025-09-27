@@ -68,7 +68,7 @@ export default function OwnershipUpdateDialog({
             <Input
               id="month"
               value={month}
-              onChange={(e) => setMonth(e.target.value)}
+              onChange={(e: any) => setMonth(e.target.value)}
               placeholder="Feb-2021"
               className="font-mono"
             />
@@ -90,7 +90,7 @@ export default function OwnershipUpdateDialog({
               <Input
                 id="ownership"
                 value={updatedOwnership}
-                onChange={(e) => setUpdatedOwnership(e.target.value)}
+                onChange={(e: any) => setUpdatedOwnership(e.target.value)}
                 className="pr-8 text-center bg-yellow-50 border-yellow-200 font-mono"
                 placeholder={isDilutionMode ? "5.0" : "2.284727"}
               />
@@ -109,7 +109,7 @@ export default function OwnershipUpdateDialog({
             <Textarea
               id="event-notes"
               value={eventNotes}
-              onChange={(e) => setEventNotes(e.target.value)}
+              onChange={(e: any) => setEventNotes(e.target.value)}
               placeholder="Enter text here"
               className="min-h-[80px] resize-none"
             />

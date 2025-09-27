@@ -60,7 +60,7 @@ export function useWorkerMemo<TIn, TOut>(
       }
     };
 
-    w.onerror = (ev) => {
+    w.onerror = (ev: any) => {
       if (!w || w !== workerRef.current) return;
       setError(ev instanceof ErrorEvent ? ev.error : new Error('Worker error'));
       setLoading(false);

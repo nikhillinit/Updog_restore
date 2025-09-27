@@ -8,6 +8,15 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { timeTravelFixtures, timeTravelTestHelpers } from '../../fixtures/time-travel-fixtures';
 import { createSandbox } from '../../setup/test-infrastructure';
 
+// Create stable mock functions that can track calls
+const mockValues = vi.fn(() => ({
+  returning: vi.fn(() => Promise.resolve([{ id: 'test-id' }]))
+}));
+
+const mockInsertResult = {
+  values: mockValues
+};
+
 // Mock the database
 const mockDb = {
   query: {
@@ -66,11 +75,7 @@ const mockDb = {
       }))
     }))
   })),
-  insert: vi.fn(() => ({
-    values: vi.fn(() => ({
-      returning: vi.fn(() => Promise.resolve([{ id: 'test-id' }]))
-    }))
-  })),
+  insert: vi.fn(() => mockInsertResult),
   update: vi.fn(() => ({
     set: vi.fn(() => ({
       where: vi.fn(() => Promise.resolve())

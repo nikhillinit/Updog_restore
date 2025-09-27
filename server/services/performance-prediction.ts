@@ -202,14 +202,14 @@ export class PerformancePredictionEngine {
 
     // Calculate statistical boundaries
     const values = timeSeries.map(d => d.value);
-    const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+    const mean = values.reduce((sum: any, v: any) => sum + v, 0) / values.length;
     const stdDev = Math.sqrt(
-      values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length
+      values.reduce((sum: any, v: any) => sum + Math.pow(v - mean, 2), 0) / values.length
     );
 
     // Detect anomalies using z-score
     const anomalies = timeSeries
-      .map((point, idx) => {
+      .map((point: any, idx: any) => {
         const zScore = Math.abs((point.value - mean) / stdDev);
         const isAnomaly = zScore > sensitivity;
 
@@ -219,7 +219,7 @@ export class PerformancePredictionEngine {
             value: point.value,
             expectedValue: mean,
             deviation: zScore,
-            severity: zScore > 3 ? 'high' : zScore > 2.5 ? 'medium' : 'low' as const
+            severity: (zScore > 3 ? 'high' : zScore > 2.5 ? 'medium' : 'low') as 'low' | 'medium' | 'high'
           };
         }
         return null;
@@ -319,7 +319,7 @@ export class PerformancePredictionEngine {
         }))
       }));
 
-      results.set(scenario.name, adjustedPredictions);
+      results['set'](scenario.name, adjustedPredictions);
     }
 
     return results;
@@ -359,14 +359,14 @@ export class PerformancePredictionEngine {
     config: PredictionConfig
   ): Promise<PredictionResult> {
     const n = timeSeries.length;
-    const x = timeSeries.map((_, i) => i);
+    const x = timeSeries.map((_: any, i: any) => i);
     const y = timeSeries.map(d => d.value);
 
     // Calculate regression coefficients
-    const sumX = x.reduce((a, b) => a + b, 0);
-    const sumY = y.reduce((a, b) => a + b, 0);
+    const sumX = x.reduce((a: any, b: any) => a + b, 0);
+    const sumY = y.reduce((a: any, b: any) => a + b, 0);
     const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
-    const sumX2 = x.reduce((sum, xi) => sum + xi * xi, 0);
+    const sumX2 = x.reduce((sum: any, xi: any) => sum + xi * xi, 0);
 
     const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
     const intercept = (sumY - slope * sumX) / n;
@@ -477,15 +477,15 @@ export class PerformancePredictionEngine {
   ): Promise<PredictionResult> {
     // Simplified polynomial regression (quadratic)
     const n = timeSeries.length;
-    const x = timeSeries.map((_, i) => i);
+    const x = timeSeries.map((_: any, i: any) => i);
     const y = timeSeries.map(d => d.value);
 
     // Calculate coefficients for y = ax^2 + bx + c
-    const sumX = x.reduce((a, b) => a + b, 0);
-    const sumX2 = x.reduce((sum, xi) => sum + xi * xi, 0);
-    const sumX3 = x.reduce((sum, xi) => sum + xi * xi * xi, 0);
-    const sumX4 = x.reduce((sum, xi) => sum + xi * xi * xi * xi, 0);
-    const sumY = y.reduce((a, b) => a + b, 0);
+    const sumX = x.reduce((a: any, b: any) => a + b, 0);
+    const sumX2 = x.reduce((sum: any, xi: any) => sum + xi * xi, 0);
+    const sumX3 = x.reduce((sum: any, xi: any) => sum + xi * xi * xi, 0);
+    const sumX4 = x.reduce((sum: any, xi: any) => sum + xi * xi * xi * xi, 0);
+    const sumY = y.reduce((a: any, b: any) => a + b, 0);
     const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
     const sumX2Y = x.reduce((sum, xi, i) => sum + xi * xi * y[i], 0);
 
@@ -560,7 +560,7 @@ export class PerformancePredictionEngine {
 
     // Combine predictions using weighted average based on accuracy
     const weights = models.map(m => m.accuracy.r2Score);
-    const totalWeight = weights.reduce((sum, w) => sum + Math.max(0, w), 0);
+    const totalWeight = weights.reduce((sum: any, w: any) => sum + Math.max(0, w), 0);
     const normalizedWeights = weights.map(w => Math.max(0, w) / totalWeight);
 
     const ensemblePredictions = [];
@@ -570,7 +570,7 @@ export class PerformancePredictionEngine {
       let lowerBound = 0;
       let upperBound = 0;
 
-      models.forEach((model, mi) => {
+      models.forEach((model: any, mi: any) => {
         if (model.predictions[i]) {
           value += model.predictions[i].value * normalizedWeights[mi];
           lowerBound += model.predictions[i].lowerBound * normalizedWeights[mi];
@@ -589,10 +589,10 @@ export class PerformancePredictionEngine {
 
     // Calculate ensemble accuracy (average of individual model accuracies)
     const ensembleAccuracy = {
-      mae: models.reduce((sum, m) => sum + m.accuracy.mae, 0) / models.length,
-      rmse: models.reduce((sum, m) => sum + m.accuracy.rmse, 0) / models.length,
-      mape: models.reduce((sum, m) => sum + m.accuracy.mape, 0) / models.length,
-      r2Score: models.reduce((sum, m) => sum + m.accuracy.r2Score, 0) / models.length
+      mae: models.reduce((sum: any, m: any) => sum + m.accuracy.mae, 0) / models.length,
+      rmse: models.reduce((sum: any, m: any) => sum + m.accuracy.rmse, 0) / models.length,
+      mape: models.reduce((sum: any, m: any) => sum + m.accuracy.mape, 0) / models.length,
+      r2Score: models.reduce((sum: any, m: any) => sum + m.accuracy.r2Score, 0) / models.length
     };
 
     return {
@@ -628,9 +628,9 @@ export class PerformancePredictionEngine {
     }, 0) / n;
 
     // R-squared
-    const meanActual = actual.reduce((sum, a) => sum + a, 0) / n;
+    const meanActual = actual.reduce((sum: any, a: any) => sum + a, 0) / n;
     const ssRes = actual.reduce((sum, a, i) => sum + Math.pow(a - predicted[i], 2), 0);
-    const ssTot = actual.reduce((sum, a) => sum + Math.pow(a - meanActual, 2), 0);
+    const ssTot = actual.reduce((sum: any, a: any) => sum + Math.pow(a - meanActual, 2), 0);
     const r2Score = ssTot === 0 ? 0 : 1 - (ssRes / ssTot);
 
     return { mae, rmse, mape, r2Score };
@@ -638,25 +638,25 @@ export class PerformancePredictionEngine {
 
   private calculateStandardError(actual: number[], predicted: number[]): number {
     const n = actual.length;
-    const residuals = actual.map((a, i) => a - predicted[i]);
-    const sse = residuals.reduce((sum, r) => sum + r * r, 0);
+    const residuals = actual.map((a: any, i: any) => a - predicted[i]);
+    const sse = residuals.reduce((sum: any, r: any) => sum + r * r, 0);
     return Math.sqrt(sse / (n - 2));
   }
 
   private calculateVariance(values: number[]): number {
-    const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
-    return values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
+    const mean = values.reduce((sum: any, v: any) => sum + v, 0) / values.length;
+    return values.reduce((sum: any, v: any) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
   }
 
   private calculateTrendCoefficient(timeSeries: TimeSeriesData[]): number {
     const n = timeSeries.length;
-    const x = timeSeries.map((_, i) => i);
+    const x = timeSeries.map((_: any, i: any) => i);
     const y = timeSeries.map(d => d.value);
 
-    const sumX = x.reduce((a, b) => a + b, 0);
-    const sumY = y.reduce((a, b) => a + b, 0);
+    const sumX = x.reduce((a: any, b: any) => a + b, 0);
+    const sumY = y.reduce((a: any, b: any) => a + b, 0);
     const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
-    const sumX2 = x.reduce((sum, xi) => sum + xi * xi, 0);
+    const sumX2 = x.reduce((sum: any, xi: any) => sum + xi * xi, 0);
 
     return (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
   }
@@ -716,7 +716,7 @@ export class PerformancePredictionEngine {
 
   private calculateAutocorrelation(values: number[], lag: number): number {
     const n = values.length - lag;
-    const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+    const mean = values.reduce((sum: any, v: any) => sum + v, 0) / values.length;
 
     let numerator = 0;
     let denominator = 0;
@@ -761,7 +761,7 @@ export class PerformancePredictionEngine {
 
     for (const metric of metrics) {
       if (!latestByFund.has(metric.fundId)) {
-        latestByFund.set(metric.fundId, parseFloat(metric.irr?.toString() || '0'));
+        latestByFund['set'](metric.fundId, parseFloat(metric.irr?.toString() || '0'));
       }
     }
 
@@ -769,13 +769,13 @@ export class PerformancePredictionEngine {
   }
 
   private calculateMedian(values: number[]): number {
-    const sorted = values.slice().sort((a, b) => a - b);
+    const sorted = values.slice().sort((a: any, b: any) => a - b);
     const mid = Math.floor(sorted.length / 2);
     return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
   }
 
   private calculatePercentile(values: number[], percentile: number): number {
-    const sorted = values.slice().sort((a, b) => a - b);
+    const sorted = values.slice().sort((a: any, b: any) => a - b);
     const index = Math.ceil((percentile / 100) * sorted.length) - 1;
     return sorted[Math.max(0, index)];
   }

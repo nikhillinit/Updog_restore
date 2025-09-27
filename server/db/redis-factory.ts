@@ -42,11 +42,11 @@ export interface Cache {
  */
 export function createCacheFromEnv(): Redis {
   return createRedis({
-    url: process.env.REDIS_URL,
-    host: process.env.REDIS_HOST,
-    port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : undefined,
-    password: process.env.REDIS_PASSWORD,
-    db: process.env.REDIS_DB ? parseInt(process.env.REDIS_DB, 10) : undefined
+    url: process.env['REDIS_URL'],
+    host: process.env['REDIS_HOST'],
+    port: process.env['REDIS_PORT'] ? parseInt(process.env['REDIS_PORT'], 10) : undefined,
+    password: process.env['REDIS_PASSWORD'],
+    db: process.env['REDIS_DB'] ? parseInt(process.env['REDIS_DB'], 10) : undefined
   });
 }
 
@@ -58,19 +58,19 @@ export function createCacheInterface(): Cache {
   
   return {
     async get(key: string): Promise<string | null> {
-      return await redis.get(key);
+      return await redis['get'](key);
     },
     
     async set(key: string, val: string, ttlSeconds?: number): Promise<void> {
       if (ttlSeconds) {
         await redis.setex(key, ttlSeconds, val);
       } else {
-        await redis.set(key, val);
+        await redis['set'](key, val);
       }
     },
     
     async del(key: string): Promise<void> {
-      await redis.del(key);
+      await redis['del'](key);
     }
   };
 }

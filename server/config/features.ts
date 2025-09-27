@@ -10,11 +10,11 @@ export function flag(v: unknown, def = false): boolean {
 
 export const FEATURES = {
   // Redis enabled whenever not explicitly in memory mode
-  redis: (process.env.REDIS_URL ?? 'memory://') !== 'memory://',
-  queues: flag(process.env.ENABLE_QUEUES, false),
-  sessions: flag(process.env.ENABLE_SESSIONS, false),
-  metrics: flag(process.env.ENABLE_METRICS, true), // enable locally by default
-  statGating: flag(process.env.ENABLE_STAT_GATING, false),
+  redis: (process.env['REDIS_URL'] ?? 'memory://') !== 'memory://',
+  queues: flag(process.env['ENABLE_QUEUES'], false),
+  sessions: flag(process.env['ENABLE_SESSIONS'], false),
+  metrics: flag(process.env['ENABLE_METRICS'], true), // enable locally by default
+  statGating: flag(process.env['ENABLE_STAT_GATING'], false),
 };
 
 export type FeatureBag = typeof FEATURES;

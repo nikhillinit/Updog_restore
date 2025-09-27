@@ -18,7 +18,7 @@ export function header(
   const value = headers[name.toLowerCase()];
   
   if (Array.isArray(value)) {
-    return value[0]; // Take first value if array
+    return value[0]!; // Take first value if array
   }
   
   return value;

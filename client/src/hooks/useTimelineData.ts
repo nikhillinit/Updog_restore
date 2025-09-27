@@ -85,10 +85,10 @@ export function useTimelineData(
     queryKey: ['/api/timeline', fundId, options],
     queryFn: async () => {
       const searchParams = new URLSearchParams();
-      if (options.startTime) searchParams.set('startTime', options.startTime);
-      if (options.endTime) searchParams.set('endTime', options.endTime);
-      if (options.limit) searchParams.set('limit', options.limit.toString());
-      if (options.offset) searchParams.set('offset', options.offset.toString());
+      if (options.startTime) searchParams['set']('startTime', options.startTime);
+      if (options.endTime) searchParams['set']('endTime', options.endTime);
+      if (options.limit) searchParams['set']('limit', options.limit.toString());
+      if (options.offset) searchParams['set']('offset', options.offset.toString());
 
       const url = `/api/timeline/${fundId}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
       const response = await apiRequest('GET', url);
@@ -160,7 +160,7 @@ export function useLatestEvents(
     queryKey: ['/api/timeline/events/latest', limit, eventTypes],
     queryFn: async () => {
       const searchParams = new URLSearchParams();
-      searchParams.set('limit', limit.toString());
+      searchParams['set']('limit', limit.toString());
       if (eventTypes && eventTypes.length > 0) {
         eventTypes.forEach(type => searchParams.append('eventTypes', type));
       }
@@ -191,7 +191,7 @@ export function useCreateSnapshot() {
       });
       return response.json();
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (data: any, variables: any) => {
       // Invalidate timeline queries for this fund
       queryClient.invalidateQueries({
         queryKey: ['/api/timeline', variables.fundId],
@@ -220,7 +220,7 @@ export function useRestoreSnapshot() {
       });
       return response.json();
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (data: any, variables: any) => {
       // Invalidate all fund-related queries after restoration
       queryClient.invalidateQueries({
         queryKey: ['/api/timeline', variables.fundId],

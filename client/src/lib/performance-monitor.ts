@@ -181,14 +181,14 @@ export class PerformanceMonitor {
     const averages: Record<string, number> = {};
     const peaks: Record<string, number> = {};
     
-    const metricGroups = recentMetrics.reduce((acc, metric) => {
+    const metricGroups = recentMetrics.reduce((acc: any, metric: any) => {
       if (!acc[metric.name]) acc[metric.name] = [];
       acc[metric.name].push(metric.value);
       return acc;
     }, {} as Record<string, number[]>);
     
     for (const [name, values] of Object.entries(metricGroups)) {
-      averages[name] = values.reduce((sum, val) => sum + val, 0) / values.length;
+      averages[name] = values.reduce((sum: any, val: any) => sum + val, 0) / values.length;
       peaks[name] = Math.max(...values);
     }
     
@@ -317,7 +317,7 @@ export class PerformanceMonitor {
         };
         
         this.alerts.push(alert);
-        this.activeAlerts.set(alertId, alert);
+        this.activeAlerts['set'](alertId, alert);
         
         // Send to external alerting system
         this.sendAlert(alert);
@@ -329,7 +329,7 @@ export class PerformanceMonitor {
       );
       
       alertsToResolve.forEach(alertId => {
-        const alert = this.activeAlerts.get(alertId);
+        const alert = this.activeAlerts['get'](alertId);
         if (alert) {
           alert.resolved = new Date();
           this.activeAlerts.delete(alertId);
@@ -370,7 +370,7 @@ export class PerformanceMonitor {
   }
   
   private calculateAverages(metrics: PerformanceMetric[]): Record<string, number> {
-    const groups = metrics.reduce((acc, metric) => {
+    const groups = metrics.reduce((acc: any, metric: any) => {
       if (!acc[metric.name]) acc[metric.name] = [];
       acc[metric.name].push(metric.value);
       return acc;
@@ -379,7 +379,7 @@ export class PerformanceMonitor {
     const averages: Record<string, number> = {};
     for (const [name, values] of Object.entries(groups)) {
       if (values.length > 0) {
-        averages[name] = values.reduce((sum, val) => sum + val, 0) / values.length;
+        averages[name] = values.reduce((sum: any, val: any) => sum + val, 0) / values.length;
       }
     }
     
@@ -388,8 +388,8 @@ export class PerformanceMonitor {
   
   private initializePerformanceObserver(): void {
     if (typeof PerformanceObserver !== 'undefined') {
-      const observer = new PerformanceObserver((list) => {
-        list.getEntries().forEach((entry) => {
+      const observer = new PerformanceObserver((list: any) => {
+        list.getEntries().forEach((entry: any) => {
           if (entry.entryType === 'measure') {
             this.recordMetric(entry.name, entry.duration, 'ms', {
               entryType: entry.entryType,

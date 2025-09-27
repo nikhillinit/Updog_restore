@@ -136,7 +136,7 @@ export async function executeWithContext<T>(
   context: UserContext,
   queryFn: (_tx: any) => Promise<T>
 ): Promise<T> {
-  return await db.transaction(async (tx) => {
+  return await db.transaction(async (tx: any) => {
     // Set RLS context
     await setDatabaseContext(tx, context);
     
@@ -153,7 +153,7 @@ export async function validateFundAccess(
   context: UserContext,
   fundId: string
 ): Promise<boolean> {
-  const result = await executeWithContext(context, async (tx) => {
+  const result = await executeWithContext(context, async (tx: any) => {
     const funds = await tx.execute(sql`
       SELECT id FROM funds 
       WHERE id = ${fundId}
@@ -173,7 +173,7 @@ export async function validateFundAccess(
 export async function resolveFlags(
   context: UserContext
 ): Promise<Record<string, any>> {
-  return await executeWithContext(context, async (tx) => {
+  return await executeWithContext(context, async (tx: any) => {
     // Get flags at each level
     const [globalFlags, orgFlags, fundFlags, userFlags] = await Promise.all([
       // Global flags
@@ -265,7 +265,7 @@ export async function auditLog(
     metadata?: any;
   }
 ): Promise<void> {
-  await executeWithContext(context, async (tx) => {
+  await executeWithContext(context, async (tx: any) => {
     await tx.execute(sql`
       INSERT INTO audit_events (
         event_type,

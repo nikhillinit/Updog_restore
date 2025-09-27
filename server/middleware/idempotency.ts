@@ -38,11 +38,11 @@ class MemoryIdempotencyStore {
     }
     
     const expiry = Date.now() + (ttl * 1000);
-    this.store.set(key, { data, expiry });
+    this.store['set'](key, { data, expiry });
   }
   
   get(key: string): IdempotentResponse | null {
-    const entry = this.store.get(key);
+    const entry = this.store['get'](key);
     
     if (!entry) {
       return null;
@@ -158,7 +158,7 @@ async function storeResponse(
     
     // Fallback to memory if enabled
     if (options.memoryFallback) {
-      memoryStore.set(key, response, ttl);
+      memoryStore['set'](key, response, ttl);
     }
   }
 }
@@ -175,7 +175,7 @@ async function retrieveResponse(
   try {
     // Try Redis first
     if (redisClient) {
-      const cached = await redisClient.get(redisKey);
+      const cached = await redisClient['get'](redisKey);
       if (cached) {
         return JSON.parse(cached);
       }
@@ -186,7 +186,7 @@ async function retrieveResponse(
   
   // Fallback to memory if enabled
   if (options.memoryFallback) {
-    return memoryStore.get(key);
+    return memoryStore['get'](key);
   }
   
   return null;
@@ -226,13 +226,13 @@ export function idempotency(options: IdempotencyOptions = {}) {
       // Return cached response
       console.log(`[Idempotency] Returning cached response for key: ${key}`);
       
-      res.setHeader('X-Idempotent-Replay', 'true');
-      res.setHeader('X-Idempotency-Key', key);
+      res['setHeader']('X-Idempotent-Replay', 'true');
+      res['setHeader']('X-Idempotency-Key', key);
       
       // Restore headers
       Object.entries(cached.headers).forEach(([name, value]) => {
         if (!name.toLowerCase().startsWith('x-idempotent')) {
-          res.setHeader(name, value);
+          res['setHeader'](name, value);
         }
       });
       
@@ -265,7 +265,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
         });
       }
       
-      res.setHeader('X-Idempotency-Key', key);
+      res['setHeader']('X-Idempotency-Key', key);
       return originalSend.call(this, body);
     };
     
@@ -288,7 +288,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
         });
       }
       
-      res.setHeader('X-Idempotency-Key', key);
+      res['setHeader']('X-Idempotency-Key', key);
       return originalJson.call(this, body);
     };
     

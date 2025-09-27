@@ -91,7 +91,7 @@ router.post('/reserves/calculate', idempotency, async (req: Request, res: Respon
 });
 
 // GET /api/reserves/health
-router.get('/reserves/health', (req: Request, res: Response) => {
+router['get']('/reserves/health', (req: Request, res: Response) => {
   res.json({
     status: 'healthy',
     version: '1.1.0',

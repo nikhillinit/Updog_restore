@@ -184,34 +184,34 @@ function Router() {
         <Route path="/" component={HomeRoute} />
         <Route path="/fund-setup" component={FundSetup} />
         <Route path="/design-system" component={DesignSystem} />
-        <Route path="/dashboard" component={(props) => <ProtectedRoute component={Dashboard} {...props} />} />
-        <Route path="/portfolio" component={(props) => <ProtectedRoute component={Portfolio} {...props} />} />
-        <Route path="/investments" component={(props) => <ProtectedRoute component={Investments} {...props} />} />
-        <Route path="/investments/:id" component={(props) => <ProtectedRoute component={InvestmentDetail} {...props} />} />
-        <Route path="/custom-fields" component={(props) => <ProtectedRoute component={CustomFields} {...props} />} />
-        <Route path="/investments-table" component={(props) => <ProtectedRoute component={InvestmentsTable} {...props} />} />
-        <Route path="/investments/company/:id" component={(props) => <ProtectedRoute component={Investments} {...props} />} />
-        <Route path="/cap-tables" component={(props) => <ProtectedRoute component={CapTables} {...props} />} />
-        <Route path="/kpi-manager" component={(props) => <ProtectedRoute component={KPIManager} {...props} />} />
+        <Route path="/dashboard" component={(props: any) => <ProtectedRoute component={Dashboard} {...props} />} />
+        <Route path="/portfolio" component={(props: any) => <ProtectedRoute component={Portfolio} {...props} />} />
+        <Route path="/investments" component={(props: any) => <ProtectedRoute component={Investments} {...props} />} />
+        <Route path="/investments/:id" component={(props: any) => <ProtectedRoute component={InvestmentDetail} {...props} />} />
+        <Route path="/custom-fields" component={(props: any) => <ProtectedRoute component={CustomFields} {...props} />} />
+        <Route path="/investments-table" component={(props: any) => <ProtectedRoute component={InvestmentsTable} {...props} />} />
+        <Route path="/investments/company/:id" component={(props: any) => <ProtectedRoute component={Investments} {...props} />} />
+        <Route path="/cap-tables" component={(props: any) => <ProtectedRoute component={CapTables} {...props} />} />
+        <Route path="/kpi-manager" component={(props: any) => <ProtectedRoute component={KPIManager} {...props} />} />
         <Route path="/kpi-submission" component={KPISubmission} />
         <Route path="/allocation-manager" component={() => <AllocationManagerPage />} />
-        <Route path="/planning" component={(props) => <ProtectedRoute component={Planning} {...props} />} />
-        <Route path="/forecasting" component={(props) => <ProtectedRoute component={ForecastingPage} {...props} />} />
-        <Route path="/scenario-builder" component={(props) => <ProtectedRoute component={ScenarioBuilderPage} {...props} />} />
-        <Route path="/reserves-demo" component={(props) => <ProtectedRoute component={ReservesDemo} {...props} />} />
-        <Route path="/moic-analysis" component={(props) => <ProtectedRoute component={MOICAnalysisPage} {...props} />} />
-        <Route path="/return-the-fund" component={(props) => <ProtectedRoute component={ReturnTheFundPage} {...props} />} />
-        <Route path="/partial-sales" component={(props) => <ProtectedRoute component={PartialSalesPage} {...props} />} />
-        <Route path="/financial-modeling" component={(props) => <ProtectedRoute component={FinancialModeling} {...props} />} />
-        <Route path="/performance" component={(props) => <ProtectedRoute component={Performance} {...props} />} />
-        <Route path="/analytics" component={(props) => <ProtectedRoute component={Analytics} {...props} />} />
-        <Route path="/portfolio-analytics" component={(props) => <ProtectedRoute component={EnhancedPortfolioAnalytics} {...props} />} />
-        <Route path="/cash-management" component={(props) => <ProtectedRoute component={CashManagement} {...props} />} />
-        <Route path="/sensitivity-analysis" component={(props) => <ProtectedRoute component={SensitivityAnalysisPage} {...props} />} />
-        <Route path="/time-travel" component={(props) => <ProtectedRoute component={TimeTravelPage} {...props} />} />
-        <Route path="/variance-tracking" component={(props) => <ProtectedRoute component={VarianceTrackingPage} {...props} />} />
-        <Route path="/portfolio-constructor" component={(props) => <ProtectedRoute component={PortfolioConstructor} {...props} />} />
-        <Route path="/reports" component={(props) => <ProtectedRoute component={Reports} {...props} />} />
+        <Route path="/planning" component={(props: any) => <ProtectedRoute component={Planning} {...props} />} />
+        <Route path="/forecasting" component={(props: any) => <ProtectedRoute component={ForecastingPage} {...props} />} />
+        <Route path="/scenario-builder" component={(props: any) => <ProtectedRoute component={ScenarioBuilderPage} {...props} />} />
+        <Route path="/reserves-demo" component={(props: any) => <ProtectedRoute component={ReservesDemo} {...props} />} />
+        <Route path="/moic-analysis" component={(props: any) => <ProtectedRoute component={MOICAnalysisPage} {...props} />} />
+        <Route path="/return-the-fund" component={(props: any) => <ProtectedRoute component={ReturnTheFundPage} {...props} />} />
+        <Route path="/partial-sales" component={(props: any) => <ProtectedRoute component={PartialSalesPage} {...props} />} />
+        <Route path="/financial-modeling" component={(props: any) => <ProtectedRoute component={FinancialModeling} {...props} />} />
+        <Route path="/performance" component={(props: any) => <ProtectedRoute component={Performance} {...props} />} />
+        <Route path="/analytics" component={(props: any) => <ProtectedRoute component={Analytics} {...props} />} />
+        <Route path="/portfolio-analytics" component={(props: any) => <ProtectedRoute component={EnhancedPortfolioAnalytics} {...props} />} />
+        <Route path="/cash-management" component={(props: any) => <ProtectedRoute component={CashManagement} {...props} />} />
+        <Route path="/sensitivity-analysis" component={(props: any) => <ProtectedRoute component={SensitivityAnalysisPage} {...props} />} />
+        <Route path="/time-travel" component={(props: any) => <ProtectedRoute component={TimeTravelPage} {...props} />} />
+        <Route path="/variance-tracking" component={(props: any) => <ProtectedRoute component={VarianceTrackingPage} {...props} />} />
+        <Route path="/portfolio-constructor" component={(props: any) => <ProtectedRoute component={PortfolioConstructor} {...props} />} />
+        <Route path="/reports" component={(props: any) => <ProtectedRoute component={Reports} {...props} />} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

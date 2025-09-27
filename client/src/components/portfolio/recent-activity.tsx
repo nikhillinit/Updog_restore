@@ -74,7 +74,7 @@ export default function RecentActivity({ activities = [] }: RecentActivityProps)
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {activities.map((activity) => {
+          {activities.map((activity: any) => {
             const Icon = getActivityIcon(activity.type);
             const iconColorClass = getActivityColor(activity.type);
             const formattedAmount = formatAmount(activity.amount, activity.type);

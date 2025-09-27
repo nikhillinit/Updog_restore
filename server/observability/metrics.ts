@@ -42,7 +42,7 @@ export function withRequestMetrics() {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!FEATURES.metrics) return next();
     const stop = httpDuration.startTimer({ method: req.method, path: req.route?.path ?? req.path });
-    res.on('finish', () => stop({ status: String(res.statusCode) }));
+    res['on']('finish', () => stop({ status: String(res.statusCode) }));
     next();
   };
 }
@@ -53,8 +53,8 @@ export function installMetricsRoute(app: import('express').Express) {
   // Import auth middleware
   const { authenticateMetrics } = require('../middleware/auth-metrics');
   
-  app.get('/metrics', authenticateMetrics, async (_req: Request, res: Response) => {
-    res.setHeader('Content-Type', client.register.contentType);
+  app['get']('/metrics', authenticateMetrics, async (_req: Request, res: Response) => {
+    res['setHeader']('Content-Type', client.register.contentType);
     res.send(await client.register.metrics());
   });
 }
@@ -65,10 +65,10 @@ export function startRedisHealthProbe(conn?: RedisConn) {
   const t = setInterval(async () => {
     const res = await pingRedis(conn.conn);
     if (res.ok) {
-      redisUp.set(1);
-      if (typeof res.latencyMs === 'number') redisLatency.set(res.latencyMs);
+      redisUp['set'](1);
+      if (typeof res.latencyMs === 'number') redisLatency['set'](res.latencyMs);
     } else {
-      redisUp.set(0);
+      redisUp['set'](0);
     }
   }, 5000);
   t.unref?.();

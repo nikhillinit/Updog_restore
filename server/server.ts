@@ -62,11 +62,11 @@ export async function createServer(
   app.locals.config = config;
   
   // Security first - disable version disclosure
-  app.disable('x-powered-by');
+  app['disable']('x-powered-by');
   
   // Trust proxy configuration from environment or safe defaults
-  const trustProxy = process.env.TRUST_PROXY || 'loopback, linklocal, uniquelocal';
-  app.set('trust proxy', trustProxy);
+  const trustProxy = process.env['TRUST_PROXY'] || 'loopback, linklocal, uniquelocal';
+  app['set']('trust proxy', trustProxy);
   
   // Request ID MUST be first for correlation on all paths
   app.use(requestId());
@@ -83,8 +83,8 @@ export async function createServer(
   // Version headers for observability
   app.use((req: Request, res: Response, next: NextFunction) => {
     const version = config.APP_VERSION;
-    res.set('X-Service-Version', version);
-    res.set('X-Service-Name', 'fund-platform-api');
+    res['set']('X-Service-Version', version);
+    res['set']('X-Service-Name', 'fund-platform-api');
     (req as any).version = version;
     next();
   });
@@ -104,7 +104,7 @@ export async function createServer(
           directives: {
             "script-src": ["'self'"], // TODO: Add nonces and remove unsafe-inline
             "style-src": ["'self'", "'unsafe-inline'"], // TODO: Use nonces for inline styles
-            "connect-src": ["'self'", process.env.API_ORIGIN ?? "'self'"],
+            "connect-src": ["'self'", process.env['API_ORIGIN'] ?? "'self'"],
             "img-src": ["'self'", "data:", "blob:"],
             "font-src": ["'self'", "data:"],
             "frame-ancestors": ["'none'"],
@@ -117,7 +117,7 @@ export async function createServer(
   const corsOrigins = parseOrigins(config.CORS_ORIGIN);
   
   // Fail fast if CORS_ORIGIN is set but invalid
-  if (process.env.CORS_ORIGIN && corsOrigins.length === 0) {
+  if (process.env['CORS_ORIGIN'] && corsOrigins.length === 0) {
     throw new Error('CORS_ORIGIN set but no valid origins were parsed. Check your configuration.');
   }
   
@@ -142,8 +142,8 @@ export async function createServer(
     if (!err) return next();
     
     // Ensure X-Request-ID is set
-    if ((req as any).requestId && !res.get('X-Request-ID')) {
-      res.set('X-Request-ID', (req as any).requestId);
+    if ((req as any).requestId && !res['get']('X-Request-ID')) {
+      res['set']('X-Request-ID', (req as any).requestId);
     }
     
     if (err?.type === 'entity.too.large') {
@@ -171,7 +171,7 @@ export async function createServer(
       return originalResJson.call(res, bodyJson);
     };
   
-    res.on("finish", () => {
+    res['on']("finish", () => {
       const duration = Date.now() - start;
       if (path.startsWith("/api")) {
         const version = config.APP_VERSION;
@@ -229,7 +229,7 @@ export async function createServer(
     }
     
     // For development, you might want to bypass auth - remove this in production!
-    if (config.NODE_ENV === 'development' && !process.env.REQUIRE_AUTH) {
+    if (config.NODE_ENV === 'development' && !process.env['REQUIRE_AUTH']) {
       // Mock context for development
       (req as any).context = {
         userId: 'dev-user',

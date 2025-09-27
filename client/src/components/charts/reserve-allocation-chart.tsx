@@ -47,7 +47,7 @@ export default function ReserveAllocationChart({ fundId }: ReserveAllocationChar
   }
 
   // Transform reserve engine data to allocation pie chart format
-  const pieData = reserveData?.allocations.map((item, index) => ({
+  const pieData = reserveData?.allocations.map((item: any, index: any) => ({
     id: `company-${index + 1}`,
     label: `Company ${index + 1}`,
     value: item.allocation,
@@ -133,7 +133,7 @@ export default function ReserveAllocationChart({ fundId }: ReserveAllocationChar
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {reserveData?.allocations.map((item, index) => (
+            {reserveData?.allocations.map((item: any, index: any) => (
               <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex-1">
                   <p className="font-medium text-gray-800">Company {index + 1}</p>

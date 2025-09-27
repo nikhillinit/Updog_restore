@@ -90,7 +90,7 @@ export class IntelligentReservesCache {
   }
   
   private getFromCache(key: string): ReservesResult | null {
-    const entry = this.cache.get(key);
+    const entry = this.cache['get'](key);
     
     if (!entry) return null;
     
@@ -113,7 +113,7 @@ export class IntelligentReservesCache {
     config: ReservesConfig,
     calculator: Function
   ): Promise<ReservesResult> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve: any, reject: any) => {
       // Add to batch queue
       this.batchQueue.push({
         key,
@@ -151,12 +151,12 @@ export class IntelligentReservesCache {
     
     try {
       // Process batch in parallel
-      const promises = batch.map(async (request) => {
+      const promises = batch.map(async (request: any) => {
         try {
           const result = await calculator(request.input, request.config);
           
           // Cache result
-          this.set(request.key, result, request.input, request.config);
+          this['set'](request.key, result, request.input, request.config);
           
           request.resolver(result);
         } catch (error) {
@@ -203,7 +203,7 @@ export class IntelligentReservesCache {
       lastAccess: Date.now(),
       ttl
     };
-    this.cache.set(key, cacheEntry);
+    this.cache['set'](key, cacheEntry);
     
     // Manage cache size
     if (this.cache.size > this.MAX_CACHE_SIZE) {
@@ -215,7 +215,7 @@ export class IntelligentReservesCache {
   }
   
   private calculateAdaptiveTTL(key: string): number {
-    const pattern = this.accessPatterns.get(key);
+    const pattern = this.accessPatterns['get'](key);
     
     if (!pattern) {
       return this.MIN_TTL;
@@ -258,7 +258,7 @@ export class IntelligentReservesCache {
     }
     
     // Update pattern
-    const pattern = this.accessPatterns.get(key) || {
+    const pattern = this.accessPatterns['get'](key) || {
       key,
       frequency: 0,
       relatedKeys: new Set(),
@@ -276,7 +276,7 @@ export class IntelligentReservesCache {
       }
     });
     
-    this.accessPatterns.set(key, pattern);
+    this.accessPatterns['set'](key, pattern);
   }
   
   private updateAccessPattern(
@@ -284,7 +284,7 @@ export class IntelligentReservesCache {
     input: ReservesInput,
     config: ReservesConfig
   ): void {
-    const pattern = this.accessPatterns.get(key) || {
+    const pattern = this.accessPatterns['get'](key) || {
       key,
       frequency: 1,
       relatedKeys: new Set(),
@@ -300,7 +300,7 @@ export class IntelligentReservesCache {
       }
     }
     
-    this.accessPatterns.set(key, pattern);
+    this.accessPatterns['set'](key, pattern);
   }
   
   private areSimilar(key1: string, key2: string): boolean {
@@ -326,7 +326,7 @@ export class IntelligentReservesCache {
     baseInput: ReservesInput,
     baseConfig: ReservesConfig
   ): Promise<void> {
-    const pattern = this.accessPatterns.get(key);
+    const pattern = this.accessPatterns['get'](key);
     
     if (!pattern || pattern.frequency < this.PREFETCH_THRESHOLD) {
       return;
@@ -364,7 +364,7 @@ export class IntelligentReservesCache {
           for (const [varInput, varConfig] of variations) {
             const result = await calculator(varInput, varConfig);
             const varKey = this.generateKey(varInput, varConfig);
-            this.set(varKey, result, varInput, varConfig);
+            this['set'](varKey, result, varInput, varConfig);
           }
         } catch (error) {
           console.debug('Prefetch error:', error);

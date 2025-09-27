@@ -171,7 +171,7 @@ export default function FundOverview() {
                     outerRadius={90} 
                     paddingAngle={2} 
                     dataKey="value"
-                    label={(props) => {
+                    label={(props: any) => {
                       // Handle the case where props.percent might be undefined
                       const percent = props.percent ?? 0;
                       const name = props.name ?? '';
@@ -179,7 +179,7 @@ export default function FundOverview() {
                     }}
                     labelLine={false}
                   >
-                    {pieChartData.map((entry, index) => (
+                    {pieChartData.map((entry: any, index: any) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>

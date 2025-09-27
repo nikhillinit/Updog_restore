@@ -174,7 +174,7 @@ export default function Planning() {
                     <SelectValue placeholder="Select case" />
                   </SelectTrigger>
                   <SelectContent>
-                    {investmentCases.map((investmentCase) => (
+                    {investmentCases.map((investmentCase: any) => (
                       <SelectItem key={investmentCase.id} value={investmentCase.id}>
                         {investmentCase.name} ({investmentCase.probability}%)
                       </SelectItem>
@@ -201,7 +201,7 @@ export default function Planning() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-4 gap-4">
-            {investmentCases.map((investmentCase) => (
+            {investmentCases.map((investmentCase: any) => (
               <Card 
                 key={investmentCase.id} 
                 className={`cursor-pointer transition-colors ${
@@ -270,7 +270,7 @@ export default function Planning() {
                   </tr>
                 </thead>
                 <tbody>
-                  {futureRounds.map((round) => {
+                  {futureRounds.map((round: any) => {
                     const actualReserve = (round.reserveAmount || 0) * ((round.graduationRate || 0) / 100);
                     return (
                       <tr key={round.id} className="border-b hover:bg-gray-50">

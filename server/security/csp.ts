@@ -27,12 +27,12 @@ export function csp() {
         defaultSrc: ["'self'"],
         scriptSrc: [
           "'self'", 
-          (_req, res) => `'nonce-${res.locals.cspNonce}'`, 
+          (_req: any, res: any) => `'nonce-${res.locals.cspNonce}'`, 
           isDev ? "'unsafe-eval'" : null
         ].filter(Boolean) as string[],
         styleSrc:  [
           "'self'", 
-          (_req, res) => `'nonce-${res.locals.cspNonce}'`, 
+          (_req: any, res: any) => `'nonce-${res.locals.cspNonce}'`, 
           isDev ? "'unsafe-inline'" : null
         ].filter(Boolean) as string[],
         imgSrc:    ["'self'", "data:", "blob:"],

@@ -132,7 +132,7 @@ class ServerReserveEngine implements ReserveEngineInterface {
         totalAllocated: Math.min(input.availableReserves * 0.8, 5000000),
         allocationEfficiency: 0.8,
       },
-      allocations: input.portfolio.slice(0, 3).map((company, index) => ({
+      allocations: input.portfolio.slice(0, 3).map((company: any, index: any) => ({
         companyId: company.id,
         companyName: company.name,
         recommendedAllocation: Math.min(input.availableReserves * 0.3, 2000000) / (index + 1),
@@ -473,7 +473,7 @@ router.post('/validate-parity',
  * GET /api/reserves/health
  * Health check endpoint
  */
-router.get('/health', (req: Request, res: Response) => {
+router['get']('/health', (req: Request, res: Response) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -486,7 +486,7 @@ router.get('/health', (req: Request, res: Response) => {
  * GET /api/reserves/config
  * Get configuration and limits
  */
-router.get('/config', (req: Request, res: Response) => {
+router['get']('/config', (req: Request, res: Response) => {
   res.json({
     rateLimits: {
       calculation: {

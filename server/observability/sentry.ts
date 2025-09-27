@@ -5,14 +5,14 @@
 
 import * as Sentry from '@sentry/node';
 
-const sentryDSN = process.env.SENTRY_DSN;
+const sentryDSN = process.env['SENTRY_DSN'];
 
 if (sentryDSN) {
   Sentry.init({
     dsn: sentryDSN,
-    environment: process.env.NODE_ENV || 'development',
-    release: process.env.GIT_SHA || 'unknown',
-    tracesSampleRate: Number(process.env.SENTRY_TRACES_RATE || '0.1'),
+    environment: process.env['NODE_ENV'] || 'development',
+    release: process.env['GIT_SHA'] || 'unknown',
+    tracesSampleRate: Number(process.env['SENTRY_TRACES_RATE'] || '0.1'),
     
     // Performance monitoring
     integrations: [

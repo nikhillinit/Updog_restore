@@ -55,7 +55,7 @@ export function PremiumSelect({
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent className="bg-pov-white border border-pov-gray shadow-elevated">
-          {options.map((option) => (
+          {options.map((option: any) => (
             <SelectItem 
               key={option.value} 
               value={option.value}

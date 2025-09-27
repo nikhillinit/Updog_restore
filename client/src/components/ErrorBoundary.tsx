@@ -125,7 +125,7 @@ export function ChartErrorBoundary({ children, chartName }: { children: ReactNod
           </div>
         </div>
       }
-      onError={(error, errorInfo) => {
+      onError={(error: any, errorInfo: any) => {
         console.error(`Chart error in ${chartName || 'unknown chart'}:`, error);
         // In production, this could report to error tracking
       }}
@@ -162,7 +162,7 @@ export function FormErrorBoundary({ children, formName }: { children: ReactNode;
           </CardContent>
         </Card>
       }
-      onError={(error, errorInfo) => {
+      onError={(error: any, errorInfo: any) => {
         console.error(`Form error in ${formName || 'unknown form'}:`, error);
         // Preserve form state in localStorage before refresh
         const formData = document.querySelector('form');
@@ -208,7 +208,7 @@ export function CalculationErrorBoundary({
           </div>
         )
       }
-      onError={(error, errorInfo) => {
+      onError={(error: any, errorInfo: any) => {
         console.error(`Calculation error in ${calculationType || 'unknown calculation'}:`, error);
         // Could trigger fallback calculation here
       }}

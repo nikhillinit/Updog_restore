@@ -105,7 +105,7 @@ export default function SimpleChartBuilder({ onChartChange }: ChartBuilderProps)
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CHART_TYPES.map((type) => {
+                  {CHART_TYPES.map((type: any) => {
                     const Icon = type.icon;
                     return (
                       <SelectItem key={type.value} value={type.value}>
@@ -127,7 +127,7 @@ export default function SimpleChartBuilder({ onChartChange }: ChartBuilderProps)
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {DIMENSIONS.map((dim) => (
+                  {DIMENSIONS.map((dim: any) => (
                     <SelectItem key={dim.value} value={dim.value}>
                       {dim.label}
                     </SelectItem>
@@ -143,7 +143,7 @@ export default function SimpleChartBuilder({ onChartChange }: ChartBuilderProps)
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {METRICS.map((metric) => (
+                  {METRICS.map((metric: any) => (
                     <SelectItem key={metric.value} value={metric.value}>
                       {metric.label}
                     </SelectItem>
@@ -156,7 +156,7 @@ export default function SimpleChartBuilder({ onChartChange }: ChartBuilderProps)
               <label className="block text-sm font-medium mb-2">Title</label>
               <Input
                 value={title}
-                onChange={(e) => handleTitleChange(e.target.value)}
+                onChange={(e: any) => handleTitleChange(e.target.value)}
                 placeholder="Chart title"
               />
             </div>

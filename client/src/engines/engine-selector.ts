@@ -63,7 +63,7 @@ function isDifferent(
   const wasmMap = new Map(wasmData.allocations.map(a => [a.company_id, a.planned_cents]));
   
   for (const [id, tsCents] of tsMap) {
-    const wasmCents = wasmMap.get(id);
+    const wasmCents = wasmMap['get'](id);
     if (wasmCents === undefined || Math.abs(tsCents - wasmCents) > epsilonCents) {
       return true;
     }
@@ -160,7 +160,7 @@ export async function calculateReservesWithFlags(
   
   const input: ReservesInput = {
     companies,
-    fund_size_cents: companies.reduce((sum, c) => sum + (c.invested_cents || 0), 0),
+    fund_size_cents: companies.reduce((sum: any, c: any) => sum + (c.invested_cents || 0), 0),
     quarter_index: new Date().getFullYear() * 4 + Math.floor(new Date().getMonth() / 3)
   };
   
@@ -197,7 +197,7 @@ export async function migrateReservesCalculation(
   const calculator = await getReservesCalculator(userId);
   const input: ReservesInput = {
     companies,
-    fund_size_cents: companies.reduce((sum, c) => sum + (c.invested_cents || 0), 0),
+    fund_size_cents: companies.reduce((sum: any, c: any) => sum + (c.invested_cents || 0), 0),
     quarter_index: new Date().getFullYear() * 4 + Math.floor(new Date().getMonth() / 3)
   };
   

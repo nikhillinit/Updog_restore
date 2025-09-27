@@ -101,7 +101,7 @@ export function assertFiniteDeep(
 
       if (o instanceof Map) {
         let i = 0;
-        o.forEach((val, k) => {
+        o.forEach((val: any, k: any) => {
           if (i++ > maxBreadth) {
             return;
           }
@@ -119,7 +119,7 @@ export function assertFiniteDeep(
 
       if (o instanceof Set) {
         let i = 0;
-        o.forEach((val) => {
+        o.forEach((val: any) => {
           if (i < maxBreadth) {
             stack.push({ v: val, path: `${path}.(set:${i})`, depth: depth + 1 });
           }

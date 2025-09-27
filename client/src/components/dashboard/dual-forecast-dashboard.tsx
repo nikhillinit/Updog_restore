@@ -81,13 +81,13 @@ export default function DualForecastDashboard() {
 
   // Generate forecast scenarios
   const generateForecastData = () => {
-    const months = Array.from({ length: 24 }, (_, i) => {
+    const months = Array.from({ length: 24 }, (_: any, i: any) => {
       const date = new Date();
       date.setMonth(date.getMonth() + i);
       return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
     });
 
-    return months.map((month, i) => {
+    return months.map((month: any, i: any) => {
       const growthFactor = Math.pow(1 + currentIRR / 12, i);
       const conservativeGrowth = Math.pow(1.15, i / 12); // 15% annual
       const aggressiveGrowth = Math.pow(1.35, i / 12); // 35% annual
@@ -185,7 +185,7 @@ export default function DualForecastDashboard() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis label={{ value: 'Value ($M)', angle: -90, position: 'insideLeft' }} />
-                <Tooltip formatter={(value) => [`$${value}M`, '']} />
+                <Tooltip formatter={(value: any) => [`$${value}M`, '']} />
                 <Legend />
                 <Area
                   type="monotone"
@@ -237,7 +237,7 @@ export default function DualForecastDashboard() {
                 <XAxis dataKey="name" />
                 <YAxis label={{ value: 'Value ($M)', angle: -90, position: 'insideLeft' }} />
                 <Tooltip 
-                  formatter={(value, name) => [`$${value}M`, name === 'value' ? 'Current Value' : 'Investment']}
+                  formatter={(value: any, name: any) => [`$${value}M`, name === 'value' ? 'Current Value' : 'Investment']}
                 />
                 <Legend />
                 <Bar dataKey="investment" fill="#94a3b8" name="Investment" />
@@ -262,7 +262,7 @@ export default function DualForecastDashboard() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis label={{ value: 'Deployed ($M)', angle: -90, position: 'insideLeft' }} />
-              <Tooltip formatter={(value) => [`$${value}M`, 'Deployed Capital']} />
+              <Tooltip formatter={(value: any) => [`$${value}M`, 'Deployed Capital']} />
               <Line
                 type="monotone"
                 dataKey="deployed"

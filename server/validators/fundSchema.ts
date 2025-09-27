@@ -14,10 +14,10 @@ import {
 // Enhanced Fund Schema with cross-field validation
 export const fundSchema = CompleteFundSetupSchema
   .refine(
-    (data) => {
+    (data: any) => {
       // Validation Rule: Allocation sum ≤ 100%
       const totalAllocation = data.investmentStrategy.allocations
-        .reduce((sum, alloc) => sum + alloc.percentage, 0);
+        .reduce((sum: any, alloc: any) => sum + alloc.percentage, 0);
       return totalAllocation <= 100;
     },
     {
@@ -26,7 +26,7 @@ export const fundSchema = CompleteFundSetupSchema
     }
   )
   .refine(
-    (data) => {
+    (data: any) => {
       // Validation Rule: Each stage graduation + exit ≤ 100%
       return data.investmentStrategy.stages.every(stage => 
         (stage.graduationRate + stage.exitRate) <= 100
@@ -38,7 +38,7 @@ export const fundSchema = CompleteFundSetupSchema
     }
   )
   .refine(
-    (data) => {
+    (data: any) => {
       // Validation Rule: Last stage graduation rate must be 0
       const stages = data.investmentStrategy.stages;
       if (stages.length > 0) {
@@ -53,10 +53,10 @@ export const fundSchema = CompleteFundSetupSchema
     }
   )
   .refine(
-    (data) => {
+    (data: any) => {
       // Validation Rule: Sector profile sum ≤ 100%
       const totalSectorAllocation = data.investmentStrategy.sectorProfiles
-        .reduce((sum, sector) => sum + sector.targetPercentage, 0);
+        .reduce((sum: any, sector: any) => sum + sector.targetPercentage, 0);
       return totalSectorAllocation <= 100;
     },
     {
@@ -65,7 +65,7 @@ export const fundSchema = CompleteFundSetupSchema
     }
   )
   .refine(
-    (data) => {
+    (data: any) => {
       // Validation Rule: If exit recycling enabled, percentage must be > 0
       if (data.exitRecycling.enabled) {
         return data.exitRecycling.recyclePercentage > 0;
@@ -78,7 +78,7 @@ export const fundSchema = CompleteFundSetupSchema
     }
   )
   .refine(
-    (data) => {
+    (data: any) => {
       // Validation Rule: Waterfall hurdle and catch-up logical relationship (only for EUROPEAN)
       if (data.waterfall.type === 'EUROPEAN') {
         return data.waterfall.catchUp >= data.waterfall.hurdle;
@@ -91,7 +91,7 @@ export const fundSchema = CompleteFundSetupSchema
     }
   )
   .refine(
-    (data) => {
+    (data: any) => {
       // Validation Rule: Fund life is required for closed-end funds
       return data.isEvergreen || !!data.lifeYears;
     },
@@ -101,7 +101,7 @@ export const fundSchema = CompleteFundSetupSchema
     }
   )
   .refine(
-    (data) => {
+    (data: any) => {
       // Validation Rule: Investment horizon cannot exceed fund life for closed-end funds
       if (!data.isEvergreen && data.lifeYears) {
         return data.investmentHorizonYears <= data.lifeYears;
@@ -117,8 +117,8 @@ export const fundSchema = CompleteFundSetupSchema
 // Individual schema exports for component-level validation
 export const investmentStrategySchema = InvestmentStrategySchema
   .refine(
-    (data) => {
-      const totalAllocation = data.allocations.reduce((sum, alloc) => sum + alloc.percentage, 0);
+    (data: any) => {
+      const totalAllocation = data.allocations.reduce((sum: any, alloc: any) => sum + alloc.percentage, 0);
       return totalAllocation <= 100;
     },
     {
@@ -127,7 +127,7 @@ export const investmentStrategySchema = InvestmentStrategySchema
     }
   )
   .refine(
-    (data) => {
+    (data: any) => {
       return data.stages.every(stage => (stage.graduationRate + stage.exitRate) <= 100);
     },
     {
@@ -136,7 +136,7 @@ export const investmentStrategySchema = InvestmentStrategySchema
     }
   )
   .refine(
-    (data) => {
+    (data: any) => {
       if (data.stages.length > 0) {
         const lastStage = data.stages[data.stages.length - 1];
         return lastStage?.graduationRate === 0;
@@ -150,7 +150,7 @@ export const investmentStrategySchema = InvestmentStrategySchema
   );
 
 export const exitRecyclingSchema = ExitRecyclingSchema.refine(
-  (data) => {
+  (data: any) => {
     if (data.enabled) {
       return data.recyclePercentage > 0;
     }
@@ -163,7 +163,7 @@ export const exitRecyclingSchema = ExitRecyclingSchema.refine(
 );
 
 export const waterfallSchema = WaterfallSchema.refine(
-  (data) => {
+  (data: any) => {
     // Only validate hurdle/catch-up for EUROPEAN waterfall
     if (data.type === 'EUROPEAN') {
       return data.catchUp >= data.hurdle;

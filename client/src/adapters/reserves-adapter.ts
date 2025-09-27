@@ -234,7 +234,7 @@ export function validateFundData(fund: ExistingFund): string[] {
   }
   
   // Validate each company
-  companies?.forEach((company, index) => {
+  companies?.forEach((company: any, index: any) => {
     const companyErrors = validateCompanyData(company);
     companyErrors.forEach(error => {
       errors.push(`Company ${index + 1}: ${error}`);

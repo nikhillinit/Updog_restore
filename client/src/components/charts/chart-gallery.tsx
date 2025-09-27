@@ -64,7 +64,7 @@ export default function ChartGallery() {
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap gap-2 mb-6">
-          {categories.map((category) => (
+          {categories.map((category: any) => (
             <Button
               key={category.id}
               variant={selectedCategory === category.id ? "default" : "outline"}
@@ -78,7 +78,7 @@ export default function ChartGallery() {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {filteredCharts.map((chart) => {
+          {filteredCharts.map((chart: any) => {
             const Icon = chart.icon;
             return (
               <div 

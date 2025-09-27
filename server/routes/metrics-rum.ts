@@ -98,7 +98,7 @@ metricsRumRouter.post('/metrics/rum', express.json({ limit: '10kb' }), async (re
     }
     
     // If RUM v2 is enabled, use enhanced processing
-    if (process.env.ENABLE_RUM_V2 === '1' && (req as any).rumV2) {
+    if (process.env['ENABLE_RUM_V2'] === '1' && (req as any).rumV2) {
       try {
         const processed = await rumCircuitBreaker.execute(async () => {
           return (req as any).rumV2.processMetric(name, value, {
@@ -135,7 +135,7 @@ metricsRumRouter.post('/metrics/rum', express.json({ limit: '10kb' }), async (re
       rumMetricsReceived.labels({ metric_name: name.toUpperCase() }).inc();
       
       // Log in development
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env['NODE_ENV'] === 'development') {
         console.log(`[RUM] ${name}: ${value}ms (${rating}) - ${sanitizedPath}`);
       }
     }
@@ -150,8 +150,8 @@ metricsRumRouter.post('/metrics/rum', express.json({ limit: '10kb' }), async (re
 });
 
 // Expose RUM metrics separately from main metrics
-metricsRumRouter.get('/metrics/rum', (req: Request, res: Response) => {
-  res.set('Content-Type', rumRegistry.contentType);
+metricsRumRouter['get']('/metrics/rum', (req: Request, res: Response) => {
+  res['set']('Content-Type', rumRegistry.contentType);
   rumRegistry.metrics().then(metrics => {
     res.send(metrics);
   }).catch(err => {
@@ -168,9 +168,9 @@ const syntheticBeaconCounter = new client.Counter({
 });
 
 // Health check for RUM endpoint
-metricsRumRouter.get('/metrics/rum/health', async (req: Request, res: Response) => {
+metricsRumRouter['get']('/metrics/rum/health', async (req: Request, res: Response) => {
   // Track synthetic health check
-  const source = req.get('X-Synthetic-Source') || 'health-check';
+  const source = req['get']('X-Synthetic-Source') || 'health-check';
   syntheticBeaconCounter.labels({ source }).inc();
   
   // Get metrics as string and parse to count total
@@ -185,8 +185,8 @@ metricsRumRouter.get('/metrics/rum/health', async (req: Request, res: Response) 
   }
   
   // Get synthetic beacon count
-  const syntheticCount = await syntheticBeaconCounter.get();
-  const syntheticTotal = syntheticCount.values.reduce((sum, v) => sum + (v.value || 0), 0);
+  const syntheticCount = await syntheticBeaconCounter['get']();
+  const syntheticTotal = syntheticCount.values.reduce((sum: any, v: any) => sum + (v.value || 0), 0);
   
   res.json({
     status: 'healthy',

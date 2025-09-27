@@ -129,7 +129,7 @@ export class LPBusinessMetrics {
     const complexityScore = params.lpCount * params.dataPoints;
     const estimatedCost = this.calculateComputeCost(complexityScore);
     
-    reportGenerationCost.set({
+    reportGenerationCost['set']({
       fundId: params.fundId.toString(),
       complexity: this.getComplexityTier(complexityScore)
     }, estimatedCost);
@@ -147,7 +147,7 @@ export class LPBusinessMetrics {
     
     // Track revenue at risk
     if (context.orgTier === 'enterprise') {
-      enterpriseRevenueAtRisk.set({
+      enterpriseRevenueAtRisk['set']({
         customerId: context.userId,
         reason: context.operationType
       }, context.estimatedValue);
@@ -181,7 +181,7 @@ export class LPBusinessMetrics {
       
       // Calculate revenue impact
       const revenueImpact = await this.calculateRevenueImpact(tier, duration - sloTarget);
-      sloViolationRevenueImpact.set({
+      sloViolationRevenueImpact['set']({
         customerId: endpoint
       }, revenueImpact);
     }
@@ -205,18 +205,18 @@ export class LPBusinessMetrics {
     return {
       recordStage,
       complete: () => {
-        const totalTime = Object.values(stages).reduce((a, b) => a + b, 0);
+        const totalTime = Object.values(stages).reduce((a: any, b: any) => a + b, 0);
         
         reportStageMetrics.observe({ stage: 'total', reportId }, totalTime);
         
         // Identify bottlenecks
-        const bottleneck = Object.entries(stages).reduce((a, b) => 
-          b[1] > a[1] ? b : a
+        const bottleneck = Object.entries(stages).reduce((a: any, b: any) => 
+          b[1]! > a[1]! ? b : a
         );
         
-        if (bottleneck[1] > totalTime * 0.5) {
+        if (bottleneck[1]! > totalTime * 0.5) {
           reportBottlenecks.inc({
-            stage: bottleneck[0],
+            stage: bottleneck[0]!,
             fundId: reportId // Using reportId as a proxy for fundId
           });
         }
@@ -265,7 +265,7 @@ export class LPBusinessMetrics {
         AND created_at > NOW() - INTERVAL '30 days'
     `);
     
-    const { active_days, total_actions } = result.rows[0] as { active_days: number; total_actions: number };
+    const { active_days, total_actions } = result.rows[0]! as { active_days: number; total_actions: number };
     return Math.min(1, (active_days * 0.1 + total_actions * 0.01));
   }
   
@@ -308,8 +308,8 @@ export class LPBusinessMetrics {
       supportTickets: 0.1
     };
     
-    const healthScore = Object.values(healthFactors).reduce((a, b) => a + b, 0);
-    customerHealthScore.set(
+    const healthScore = Object.values(healthFactors).reduce((a: any, b: any) => a + b, 0);
+    customerHealthScore['set'](
       {
         lpId: context.userId,
         riskLevel: healthScore < 0.5 ? 'high' : healthScore < 0.8 ? 'medium' : 'low'

@@ -23,7 +23,7 @@ export default function pLimit(concurrency: number) {
   };
 
   const run = <T>(task: AsyncTask<T>): Promise<T> =>
-    new Promise((res, rej) => {
+    new Promise((res: any, rej: any) => {
       const execute = () => {
         active++;
         task().then(res, rej).finally(next);

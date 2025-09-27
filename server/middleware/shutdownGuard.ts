@@ -15,7 +15,7 @@ const ALLOW = (path: string) =>
   path.startsWith('/health/');
 
 // Configurable retry-after for shutdown
-const SHUTDOWN_RETRY_AFTER = Number(process.env.SHUTDOWN_RETRY_AFTER_SECONDS ?? 30);
+const SHUTDOWN_RETRY_AFTER = Number(process.env['SHUTDOWN_RETRY_AFTER_SECONDS'] ?? 30);
 
 /**
  * Middleware that returns 503 during shutdown
@@ -26,9 +26,9 @@ const SHUTDOWN_RETRY_AFTER = Number(process.env.SHUTDOWN_RETRY_AFTER_SECONDS ?? 
 export function shutdownGuard() {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!isReady() && !ALLOW(req.path)) {
-      res.setHeader('Connection', 'close');
-      res.setHeader('Retry-After', String(SHUTDOWN_RETRY_AFTER));
-      res.setHeader('Cache-Control', 'no-store');
+      res['setHeader']('Connection', 'close');
+      res['setHeader']('Retry-After', String(SHUTDOWN_RETRY_AFTER));
+      res['setHeader']('Cache-Control', 'no-store');
       return sendApiError(res, 503, { 
         error: 'Service Unavailable', 
         code: 'SERVICE_UNAVAILABLE', 

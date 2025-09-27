@@ -263,6 +263,6 @@ export class QuickWins {
       worker.terminate();
     }, timeoutMs);
     
-    worker.on('exit', () => clearTimeout(timeout));
+    worker['on']('exit', () => clearTimeout(timeout));
   }
 }

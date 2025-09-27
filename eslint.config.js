@@ -94,7 +94,15 @@ export default [
         crypto: "readonly",
         __dirname: "readonly",
         require: "readonly",
-        performance: "readonly"
+        performance: "readonly",
+        // Browser/runtime globals
+        fetch: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        setInterval: "readonly",
+        clearInterval: "readonly",
+        // Node.js globals
+        global: "readonly"
       }
     },
     plugins: { 
@@ -193,6 +201,26 @@ export default [
       parserOptions: {
         project: "./tsconfig.eslint.server.json",
         tsconfigRootDir: __dirname
+      }
+    }
+  },
+  // Test files with Vitest globals
+  {
+    files: ["tests/**/*.ts", "tests/**/*.tsx", "**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
+    languageOptions: {
+      globals: {
+        // Vitest test globals
+        describe: "readonly",
+        it: "readonly",
+        test: "readonly",
+        expect: "readonly",
+        beforeAll: "readonly",
+        afterAll: "readonly",
+        beforeEach: "readonly",
+        afterEach: "readonly",
+        vi: "readonly",
+        // Node.js test environment
+        global: "readonly"
       }
     }
   }

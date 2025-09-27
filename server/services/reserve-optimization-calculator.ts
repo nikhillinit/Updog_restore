@@ -366,13 +366,13 @@ export class ReserveOptimizationCalculatorService {
     });
 
     // Calculate current metrics
-    const totalInvestment = companies.reduce((sum, company) => {
-      const companyInvestment = company.investments?.reduce((invSum, inv) =>
+    const totalInvestment = companies.reduce((sum: any, company: any) => {
+      const companyInvestment = company.investments?.reduce((invSum: any, inv: any) =>
         invSum + parseFloat(inv.amount.toString()), 0) || 0;
       return sum + companyInvestment;
     }, 0);
 
-    const currentValuation = companies.reduce((sum, company) =>
+    const currentValuation = companies.reduce((sum: any, company: any) =>
       sum + parseFloat(company.currentValuation?.toString() || '0'), 0);
 
     const fundSize = parseFloat(fund?.size?.toString() || '100000000');
@@ -382,7 +382,7 @@ export class ReserveOptimizationCalculatorService {
       fund,
       companies: companies.map(company => ({
         ...company,
-        totalInvestment: company.investments?.reduce((sum, inv) =>
+        totalInvestment: company.investments?.reduce((sum: any, inv: any) =>
           sum + parseFloat(inv.amount.toString()), 0) || 0
       })),
       baseline,
@@ -752,7 +752,7 @@ export class ReserveOptimizationCalculatorService {
     recommendations: CompanyReserveRecommendation[],
     availableReserves: number
   ): void {
-    const totalRecommended = recommendations.reduce((sum, rec) => sum + rec.recommendedReserveAmount, 0);
+    const totalRecommended = recommendations.reduce((sum: any, rec: any) => sum + rec.recommendedReserveAmount, 0);
 
     if (totalRecommended > availableReserves) {
       const scaleFactor = availableReserves / totalRecommended * 0.9; // Leave 10% buffer
@@ -780,7 +780,7 @@ export class ReserveOptimizationCalculatorService {
     monteCarloResults: MonteCarloForecast
   ) {
     const totalRecommendedReserves = companyRecommendations.reduce(
-      (sum, rec) => sum + rec.recommendedReserveAmount, 0
+      (sum: any, rec: any) => sum + rec.recommendedReserveAmount, 0
     );
 
     const recommendedTotalReserves = Math.max(

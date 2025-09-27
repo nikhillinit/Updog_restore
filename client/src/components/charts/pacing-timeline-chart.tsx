@@ -55,7 +55,7 @@ export default function PacingTimelineChart() {
     const currentIndex = deployments.findIndex(d => d.quarter === item.quarter);
     const cumulative = deployments
       .slice(0, currentIndex + 1)
-      .reduce((sum, d) => sum + d.deployment, 0);
+      .reduce((sum: any, d: any) => sum + d.deployment, 0);
     
     return {
       quarter: `Q${item.quarter}`,
@@ -89,7 +89,7 @@ export default function PacingTimelineChart() {
                     `$${value.toFixed(1)}M`, 
                     name === 'deployment' ? 'Quarterly Deployment' : 'Cumulative'
                   ]}
-                  labelFormatter={(label) => `Quarter: ${label}`}
+                  labelFormatter={(label: any) => `Quarter: ${label}`}
                 />
                 <Bar dataKey="deployment" fill="#3b82f6" name="deployment" />
                 <Line type="monotone" dataKey="cumulative" stroke="#10b981" strokeWidth={3} name="cumulative" />
@@ -163,7 +163,7 @@ export default function PacingTimelineChart() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {chartData.map((item, index) => (
+            {chartData.map((item: any, index: any) => (
               <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex-1">
                   <p className="font-medium text-gray-800">{item.quarter} Deployment</p>

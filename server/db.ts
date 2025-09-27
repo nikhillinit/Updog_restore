@@ -7,19 +7,28 @@
 /* eslint-disable no-console */
 import * as schema from "@shared/schema";
 
+// Detect test environment
+const isTest = process.env['NODE_ENV'] === 'test' || process.env['VITEST'] === 'true';
+
 // Detect if running on Vercel
-const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
+const isVercel = process.env['VERCEL'] === '1' || process.env['VERCEL_ENV'];
 
 // Dynamic imports based on environment
 let db: any;
 let pool: any;
 
-if (isVercel) {
+// Use mock database in test environment
+if (isTest) {
+  // Import the database mock for testing
+  const { databaseMock } = require('../tests/helpers/database-mock');
+  db = databaseMock;
+  pool = null;
+} else if (isVercel) {
   // Use HTTP driver for Vercel (no persistent connections)
   const { drizzle } = require('drizzle-orm/neon-http');
   const { neon } = require('@neondatabase/serverless');
   
-  const DATABASE_URL = process.env.DATABASE_URL || process.env.NEON_DATABASE_URL;
+  const DATABASE_URL = process.env['DATABASE_URL'] || process.env['NEON_DATABASE_URL'];
   
   if (!DATABASE_URL) {
     throw new Error('DATABASE_URL or NEON_DATABASE_URL environment variable is required');
@@ -38,12 +47,12 @@ if (isVercel) {
   
   neonConfig.webSocketConstructor = ws;
   
-  if (!process.env.DATABASE_URL) {
+  if (!process.env['DATABASE_URL']) {
     console.warn("DATABASE_URL not set - using mock mode for API testing");
-    process.env.DATABASE_URL = "postgresql://mock:mock@localhost:5432/mock";
+    process.env['DATABASE_URL'] = "postgresql://mock:mock@localhost:5432/mock";
   }
   
-  pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  pool = new Pool({ connectionString: process.env['DATABASE_URL'] });
   db = drizzle({ client: pool, schema });
 }
 

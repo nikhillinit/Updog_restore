@@ -20,8 +20,8 @@ interface AuthenticatedRequest extends Request {
 
 // Redis connection for queue
 const connection = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
+  host: process.env['REDIS_HOST'] || 'localhost',
+  port: parseInt(process.env['REDIS_PORT'] || '6379'),
 };
 
 // Initialize queues
@@ -115,7 +115,7 @@ export function registerFundConfigRoutes(app: Express) {
   });
 
   // Get latest draft
-  app.get("/api/funds/:id/draft", async (req: Request, res: Response) => {
+  app['get']("/api/funds/:id/draft", async (req: Request, res: Response) => {
     try {
       let fundId: number;
       try {
@@ -194,7 +194,7 @@ export function registerFundConfigRoutes(app: Express) {
 
       // Mark previous published versions as not current (simplified)
       await db.update(fundConfigs)
-        .set({ 
+        ['set']({ 
           isPublished: false,
           updatedAt: new Date()
         } as any)
@@ -205,7 +205,7 @@ export function registerFundConfigRoutes(app: Express) {
 
       // Publish the draft (simplified)
       const [published] = await db.update(fundConfigs)
-        .set({
+        ['set']({
           isPublished: true,
           isDraft: false,
           publishedAt: new Date(),
@@ -263,7 +263,7 @@ export function registerFundConfigRoutes(app: Express) {
   });
 
   // Get fund reserves (from snapshots)
-  app.get("/api/funds/:id/reserves", async (req: Request, res: Response) => {
+  app['get']("/api/funds/:id/reserves", async (req: Request, res: Response) => {
     try {
       let fundId: number;
       try {

@@ -72,10 +72,10 @@ export function validateReplayWindow(timestamp: number): { valid: boolean; reaso
 export function validateOrigin(origin: string | undefined, referer: string | undefined): boolean {
   if (!origin || !referer) return false;
   
-  const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim());
+  const allowedOrigins = (process.env['ALLOWED_ORIGINS'] || '').split(',').map(o => o.trim());
   if (allowedOrigins.length === 0) {
     // Default to public URL
-    allowedOrigins.push(process.env.PUBLIC_URL || 'http://localhost:5173');
+    allowedOrigins.push(process.env['PUBLIC_URL'] || 'http://localhost:5173');
   }
   
   return allowedOrigins.some(allowed => 
@@ -86,15 +86,15 @@ export function validateOrigin(origin: string | undefined, referer: string | und
 // ===== Cardinality Guard =====
 
 const routeCardinality = new Map<string, Set<string>>();
-const MAX_ROUTES_PER_DAY = parseInt(process.env.RUM_MAX_ROUTES || '1000');
-const MAX_LABELS_PER_ROUTE = parseInt(process.env.RUM_MAX_LABELS || '50');
+const MAX_ROUTES_PER_DAY = parseInt(process.env['RUM_MAX_ROUTES'] || '1000');
+const MAX_LABELS_PER_ROUTE = parseInt(process.env['RUM_MAX_LABELS'] || '50');
 
 // Reset daily at midnight
 setInterval(() => {
   const hour = new Date().getHours();
   if (hour === 0) {
     routeCardinality.clear();
-    rumUniqueRoutesToday.set(0);
+    rumUniqueRoutesToday['set'](0);
   }
 }, 60 * 60 * 1000); // Check every hour
 
@@ -104,10 +104,10 @@ export function checkCardinality(pathname: string, labels: Record<string, string
     if (routeCardinality.size >= MAX_ROUTES_PER_DAY) {
       return false; // Exceeded daily route limit
     }
-    routeCardinality.set(pathname, new Set());
+    routeCardinality['set'](pathname, new Set());
   }
   
-  const routeLabels = routeCardinality.get(pathname)!;
+  const routeLabels = routeCardinality['get'](pathname)!;
   const labelKey = JSON.stringify(labels);
   
   if (!routeLabels.has(labelKey)) {
@@ -118,15 +118,15 @@ export function checkCardinality(pathname: string, labels: Record<string, string
   }
   
   // Update gauge
-  rumUniqueRoutesToday.set(routeCardinality.size);
+  rumUniqueRoutesToday['set'](routeCardinality.size);
   
   // Calculate and update label budget
-  const totalLabels = Array.from(routeCardinality.values()).reduce((sum, set) => sum + set.size, 0);
+  const totalLabels = Array.from(routeCardinality.values()).reduce((sum: any, set: any) => sum + set.size, 0);
   const maxTotalLabels = MAX_ROUTES_PER_DAY * MAX_LABELS_PER_ROUTE;
   const budgetUsed = (totalLabels / maxTotalLabels) * 100;
   
-  rumLabelBudgetUsed.labels({ dimension: 'total' }).set(budgetUsed);
-  rumLabelBudgetUsed.labels({ dimension: 'routes' }).set((routeCardinality.size / MAX_ROUTES_PER_DAY) * 100);
+  rumLabelBudgetUsed.labels({ dimension: 'total' })['set'](budgetUsed);
+  rumLabelBudgetUsed.labels({ dimension: 'routes' })['set']((routeCardinality.size / MAX_ROUTES_PER_DAY) * 100);
   
   return true;
 }
@@ -135,7 +135,7 @@ export function checkCardinality(pathname: string, labels: Record<string, string
 
 export function rumV2Enhancement(req: Request, res: Response, next: NextFunction) {
   // Skip if not enabled
-  if (process.env.ENABLE_RUM_V2 !== '1') {
+  if (process.env['ENABLE_RUM_V2'] !== '1') {
     return next();
   }
   
@@ -153,8 +153,8 @@ export function rumV2Enhancement(req: Request, res: Response, next: NextFunction
       }
       
       // 2. Validate origin
-      const origin = req.get('origin');
-      const referer = req.get('referer');
+      const origin = req['get']('origin');
+      const referer = req['get']('referer');
       if (!validateOrigin(origin, referer)) {
         rumIngestRejectedTotal.labels({ reason: 'origin' }).inc();
         return false;
@@ -168,9 +168,9 @@ export function rumV2Enhancement(req: Request, res: Response, next: NextFunction
       }
       
       // 4. Detect device type and connection
-      const userAgent = req.get('user-agent') || '';
+      const userAgent = req['get']('user-agent') || '';
       const device = /mobile/i.test(userAgent) ? 'mobile' : 'desktop';
-      const connection = req.get('downlink') || 'unknown';
+      const connection = req['get']('downlink') || 'unknown';
       
       // 5. Record accepted metric
       rumIngestTotal.labels({ 
@@ -207,7 +207,7 @@ class RUMCircuitBreaker {
         this.state = 'half-open';
         this.successes = 0;
       } else {
-        rumCircuitBreakerState.set(1);
+        rumCircuitBreakerState['set'](1);
         throw new Error('Circuit breaker is OPEN');
       }
     }
@@ -229,12 +229,12 @@ class RUMCircuitBreaker {
       this.successes++;
       if (this.successes >= this.successThreshold) {
         this.state = 'closed';
-        rumCircuitBreakerState.set(0);
+        rumCircuitBreakerState['set'](0);
       } else {
-        rumCircuitBreakerState.set(2);
+        rumCircuitBreakerState['set'](2);
       }
     } else {
-      rumCircuitBreakerState.set(0);
+      rumCircuitBreakerState['set'](0);
     }
   }
   
@@ -244,7 +244,7 @@ class RUMCircuitBreaker {
     
     if (this.failures >= this.threshold) {
       this.state = 'open';
-      rumCircuitBreakerState.set(1);
+      rumCircuitBreakerState['set'](1);
     }
   }
   

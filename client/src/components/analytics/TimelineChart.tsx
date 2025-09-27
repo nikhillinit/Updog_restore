@@ -29,7 +29,7 @@ export function TimelineChart({
   data,
   title,
   description,
-  valueFormatter = (value) => value.toLocaleString(),
+  valueFormatter = (value: any) => value.toLocaleString(),
   height = 300,
   showBaseline = false,
   baselineValue,
@@ -48,17 +48,17 @@ export function TimelineChart({
         formattedDate: format(parseISO(point.timestamp), 'MMM dd, yyyy'),
         timestamp: parseISO(point.timestamp).getTime(),
       }))
-      .sort((a, b) => a.timestamp - b.timestamp);
+      .sort((a: any, b: any) => a.timestamp - b.timestamp);
   }, [data]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload;
+      const data = payload[0]!.payload;
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900">{data.formattedDate}</p>
           <p className="text-sm text-gray-600">
-            Value: <span className="font-medium">{valueFormatter(payload[0].value)}</span>
+            Value: <span className="font-medium">{valueFormatter(payload[0]!.value)}</span>
           </p>
           {data.label && (
             <p className="text-sm text-gray-600">
@@ -122,7 +122,7 @@ export function TimelineChart({
                 domain={['dataMin', 'dataMax']}
                 scale="time"
                 type="number"
-                tickFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd')}
+                tickFormatter={(timestamp: any) => format(new Date(timestamp), 'MMM dd')}
                 stroke="#6b7280"
                 fontSize={12}
               />
@@ -182,18 +182,18 @@ export function EventTimelineChart({
         const date = parseISO(event.timestamp);
         return isValid(date);
       })
-      .map((event, index) => ({
+      .map((event: any, index: any) => ({
         ...event,
         formattedDate: format(parseISO(event.timestamp), 'MMM dd, HH:mm'),
         timestamp: parseISO(event.timestamp).getTime(),
         y: index % 3, // Stagger events vertically
       }))
-      .sort((a, b) => a.timestamp - b.timestamp);
+      .sort((a: any, b: any) => a.timestamp - b.timestamp);
   }, [events]);
 
   const EventTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const event = payload[0].payload;
+      const event = payload[0]!.payload;
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900">{event.label}</p>
@@ -223,7 +223,7 @@ export function EventTimelineChart({
                 domain={['dataMin', 'dataMax']}
                 scale="time"
                 type="number"
-                tickFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd')}
+                tickFormatter={(timestamp: any) => format(new Date(timestamp), 'MMM dd')}
                 stroke="#6b7280"
                 fontSize={12}
               />

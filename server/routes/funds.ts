@@ -58,14 +58,14 @@ router.post('/api/funds/calculate', async (req: Request, res: Response, next: Ne
     const key = idemHeader || `calc:${hashPayload(dto)}`;
 
     const endTimer = calcDurationMs.startTimer();
-    const { status, promise } = await getOrStart(idem, key, async (_signal) => {
+    const { status, promise } = await getOrStart(idem, key, async (_signal: any) => {
       const model = new EnhancedFundModel(dto);
       const out = await model.calculate();
       return out;
     }, 60_000);
 
     if (status === 'created') {
-      res.setHeader('Idempotency-Status', 'created');
+      res['setHeader']('Idempotency-Status', 'created');
       const result = await promise;
       endTimer();
       return res.status(201).json(result);
@@ -74,9 +74,9 @@ router.post('/api/funds/calculate', async (req: Request, res: Response, next: Ne
     // === joined path (memory store cannot share promise across processes) ===
     // Avoid unhandled rejection by detaching:
     promise.catch(() => void 0);
-    res.setHeader('Idempotency-Status', 'joined');
-    res.setHeader('Retry-After', '2');
-    res.setHeader('Location', `/api/operations/${encodeURIComponent(key)}`);
+    res['setHeader']('Idempotency-Status', 'joined');
+    res['setHeader']('Retry-After', '2');
+    res['setHeader']('Location', `/api/operations/${encodeURIComponent(key)}`);
     endTimer();
     return res.status(202).json({ status: 'in-progress', key });
   } catch (err) {

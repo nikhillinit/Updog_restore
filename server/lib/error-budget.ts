@@ -72,11 +72,11 @@ export class ErrorBudgetManager {
       }
     ];
     
-    defaultSLOs.forEach(slo => this.slos.set(slo.name, slo));
+    defaultSLOs.forEach(slo => this.slos['set'](slo.name, slo));
   }
   
   async calculateErrorBudget(sloName: string): Promise<ErrorBudget> {
-    const slo = this.slos.get(sloName);
+    const slo = this.slos['get'](sloName);
     if (!slo) {
       throw new Error(`Unknown SLO: ${sloName}`);
     }
@@ -126,8 +126,8 @@ export class ErrorBudgetManager {
     };
     
     // Update metrics
-    errorBudgetRemaining.labels(sloName, 'api', slo.window).set(remaining);
-    errorBudgetBurnRate.labels(sloName, 'api', slo.window).set(currentBurnRate);
+    errorBudgetRemaining.labels(sloName, 'api', slo.window)['set'](remaining);
+    errorBudgetBurnRate.labels(sloName, 'api', slo.window)['set'](currentBurnRate);
     
     return budget;
   }
@@ -188,7 +188,7 @@ export class ErrorBudgetManager {
   private async getBurnRate(sloName: string, window: string): Promise<number> {
     // Calculate current burn rate (simplified mock)
     const currentSuccessRate = await this.getSuccessRate(sloName, window);
-    const slo = this.slos.get(sloName)!;
+    const slo = this.slos['get'](sloName)!;
     const currentErrorRate = 1 - currentSuccessRate;
     const allowedErrorRate = 1 - slo.target;
     
@@ -198,7 +198,7 @@ export class ErrorBudgetManager {
   private async queryPrometheus(query: string): Promise<number> {
     // Mock Prometheus query - replace with actual HTTP request
     try {
-      const prometheusUrl = process.env.PROMETHEUS_URL || 'http://localhost:9090';
+      const prometheusUrl = process.env['PROMETHEUS_URL'] || 'http://localhost:9090';
       const response = await fetch(`${prometheusUrl}/api/v1/query?query=${encodeURIComponent(query)}`);
       
       if (!response.ok) {
@@ -208,7 +208,7 @@ export class ErrorBudgetManager {
       
       const data = await response.json();
       if (data.status === 'success' && data.data.result.length > 0) {
-        return parseFloat(data.data.result[0].value[1]);
+        return parseFloat(data.data.result[0]!.value[1]!);
       }
     } catch (error) {
       console.warn(`Prometheus query error: ${error}`);
@@ -221,8 +221,8 @@ export class ErrorBudgetManager {
     const match = window.match(/(\d+)([dhm])/);
     if (!match) return 60; // Default 1 hour
     
-    const value = parseInt(match[1]);
-    const unit = match[2];
+    const value = parseInt(match[1]!);
+    const unit = match[2]!;
     
     switch (unit) {
       case 'm': return value;
@@ -234,7 +234,7 @@ export class ErrorBudgetManager {
   
   // Add a new SLO configuration
   addSLO(slo: SLOConfig) {
-    this.slos.set(slo.name, slo);
+    this.slos['set'](slo.name, slo);
   }
   
   // Get all SLO configurations
