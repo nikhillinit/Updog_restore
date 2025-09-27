@@ -130,3 +130,142 @@ export const scenarioAnalysis = (
   };
 };
 
+/**
+ * Generate time series data for charts
+ * @param periods number of periods to generate
+ * @param initialValue starting value
+ * @param growthRate average growth rate per period
+ * @param volatility volatility of growth
+ * @param seed optional seed for deterministic results
+ * @returns array of values over time
+ */
+export const generateTimeSeries = (
+  periods: number,
+  initialValue: number,
+  growthRate: number,
+  volatility: number,
+  seed?: number
+): number[] => {
+  const values: number[] = [initialValue];
+  let currentValue = initialValue;
+  
+  // Use seed for deterministic random if provided
+  const random = seed ? (() => {
+    let x = seed;
+    return () => {
+      x = (x * 1103515245 + 12345) % 2147483648;
+      return x / 2147483648;
+    };
+  })() : Math.random;
+  
+  for (let i = 1; i < periods; i++) {
+    const randomGrowth = (random() - 0.5) * 2 * volatility;
+    const periodGrowth = growthRate + randomGrowth;
+    currentValue = currentValue * (1 + periodGrowth);
+    values.push(Math.max(0, currentValue));
+  }
+  
+  return values;
+};
+
+/**
+ * Main simulation function - runs comprehensive fund analysis
+ * This is the heavy computation that should run in a Worker
+ * @param inputs simulation inputs
+ * @param seed optional seed for deterministic results
+ * @returns comprehensive simulation results
+ */
+export const runSimulation = async (
+  inputs: any,
+  seed?: number
+): Promise<any> => {
+  // Simulate heavy computation
+  const runs = inputs?.monteCarloRuns || 1000;
+  const periods = inputs?.periods || 120; // 10 years monthly
+  
+  // Performance metrics
+  const startTime = performance.now();
+  
+  // Generate Monte Carlo scenarios for key metrics
+  const moicScenarios = quickMonteCarlo(
+    inputs?.baseMOIC || 2.5,
+    inputs?.moicVolatility || 0.3,
+    runs
+  );
+  
+  // Generate IRR scenarios
+  const irrBase = inputs?.baseIRR || 0.25;
+  const irrScenarios = quickMonteCarlo(
+    irrBase,
+    inputs?.irrVolatility || 0.2,
+    runs
+  );
+  
+  // Generate time series for charts
+  const tvpiSeries = generateTimeSeries(
+    periods,
+    inputs?.initialCapital || 100000000,
+    inputs?.growthRate || 0.015, // 1.5% monthly
+    inputs?.growthVolatility || 0.05,
+    seed
+  );
+  
+  const dpiSeries = generateTimeSeries(
+    periods,
+    0,
+    inputs?.distributionRate || 0.008,
+    inputs?.distributionVolatility || 0.1,
+    seed ? seed + 1 : undefined
+  );
+  
+  // Calculate exits by quarter
+  const exitsByQuarter = Array.from({ length: 40 }, (_, i) => ({
+    quarter: `Q${(i % 4) + 1} ${Math.floor(i / 4) + 2020}`,
+    exits: Math.floor(Math.random() * 5) + 1,
+    value: Math.random() * 50000000 + 10000000
+  }));
+  
+  // Key Performance Indicators
+  const kpi = {
+    tvpi: (tvpiSeries[tvpiSeries.length - 1] / (inputs?.initialCapital || 100000000)).toFixed(2),
+    irr: `${(irrScenarios.p50 * 100).toFixed(1)  }%`,
+    moic: `${moicScenarios.p50.toFixed(2)  }x`,
+    dpi: (dpiSeries.reduce((a, b) => a + b, 0) / (inputs?.initialCapital || 100000000)).toFixed(2)
+  };
+  
+  // Simulate some heavy nested computation
+  const portfolioAnalysis = [];
+  for (let i = 0; i < 100; i++) {
+    portfolioAnalysis.push({
+      companyId: `company-${i}`,
+      metrics: {
+        revenue: Math.random() * 100000000,
+        growth: Math.random(),
+        multiple: Math.random() * 10,
+        irr: calculateIRR([
+          -1000000,
+          ...Array.from({ length: 5 }, () => Math.random() * 500000)
+        ])
+      }
+    });
+  }
+  
+  const duration = performance.now() - startTime;
+  
+  return {
+    kpi,
+    moicScenarios,
+    irrScenarios,
+    tvpiSeries,
+    dpiSeries,
+    exitsByQuarter,
+    portfolioAnalysis,
+    metadata: {
+      runs,
+      periods,
+      duration,
+      timestamp: new Date().toISOString()
+    }
+  };
+};
+

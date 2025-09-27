@@ -1,16 +1,17 @@
 import { z } from 'zod';
+import { nonNegative, bounded01 } from './schema-helpers';
 
 export const StageSchema = z.enum(['preseed', 'seed', 'series_a', 'series_b', 'series_c', 'series_dplus']);
-export const Dollars = z.number().min(0).finite();
-export const Percent = z.number().min(0).max(1);
+export const Dollars = nonNegative().finite();
+export const Percent = bounded01();
 
 export const CompanySchema = z.object({
   id: z.string().min(1),
   name: z.string(),
   stage: StageSchema,
-  invested: z.number().min(0),
+  invested: nonNegative(),
   ownership: Percent,
-  reserveCap: z.number().min(0).optional()
+  reserveCap: nonNegative().optional()
 });
 
 export const StagePolicySchema = z.object({
@@ -20,16 +21,16 @@ export const StagePolicySchema = z.object({
 });
 
 export const ConstraintsSchema = z.object({
-  minCheck: z.number().min(0).default(0),
-  maxPerCompany: z.number().min(0).default(Number.POSITIVE_INFINITY),
-  maxPerStage: z.record(StageSchema, z.number().min(0)).default({}),
-  discountRateAnnual: z.number().min(0).max(1).default(0.12),
+  minCheck: nonNegative().default(0),
+  maxPerCompany: nonNegative().default(Number.POSITIVE_INFINITY),
+  maxPerStage: z.record(StageSchema, nonNegative()).default({}),
+  discountRateAnnual: bounded01().default(0.12),
   graduationYears: z.record(StageSchema, z.number().positive()).default({preseed:8,seed:7,series_a:6,series_b:5,series_c:4,series_dplus:3}),
-  graduationProb: z.record(StageSchema, z.number().min(0).max(1)).default({preseed:0.1,seed:0.2,series_a:0.35,series_b:0.5,series_c:0.65,series_dplus:0.8})
+  graduationProb: z.record(StageSchema, bounded01()).default({preseed:0.1,seed:0.2,series_a:0.35,series_b:0.5,series_c:0.65,series_dplus:0.8})
 }).partial();
 
 export const ReserveInputSchema = z.object({
-  availableReserves: z.number().min(0),
+  availableReserves: nonNegative(),
   companies: z.array(CompanySchema).min(0),
   stagePolicies: z.array(StagePolicySchema).min(1),
   constraints: ConstraintsSchema.optional()

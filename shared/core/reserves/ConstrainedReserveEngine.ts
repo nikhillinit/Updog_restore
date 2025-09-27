@@ -1,5 +1,5 @@
 import { ReserveInput } from '../../schemas.js';
-import { toCents, fromCents, addCents, subCents, minCents, conservationCheck, type Cents } from '../../money.js';
+import { toCents, fromCents, addCents, conservationCheck, type Cents } from '../../money.js';
 
 export class ConstrainedReserveEngine {
   calculate(input: ReserveInput) {

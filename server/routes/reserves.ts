@@ -5,24 +5,16 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { z } from 'zod';
-import { calculateReservesSafe } from '../../client/src/lib/reserves-v11';
+import { calculateReservesSafe } from '@shared/lib/reserves-v11';
 import { 
   ReservesInputSchema, 
-  ReservesConfigSchema 
-} from '../../client/src/schemas/reserves-schema';
+  ReservesConfigSchema,
+  CalculateReservesRequestSchema
+} from '@shared/schemas/reserves-schemas';
 import { idempotency } from '../middleware/idempotency';
-import { metrics } from '../metrics';
+import { metrics } from '../metrics/index';
 
 const router = Router();
-
-// Request schema
-const CalculateReservesRequestSchema = z.object({
-  input: ReservesInputSchema,
-  config: ReservesConfigSchema,
-  userId: z.string().optional(),
-  requestId: z.string().optional()
-});
 
 // POST /api/reserves/calculate
 router.post('/reserves/calculate', idempotency, async (req: Request, res: Response) => {
@@ -43,7 +35,7 @@ router.post('/reserves/calculate', idempotency, async (req: Request, res: Respon
     
     const { input, config, userId } = validation.data;
     
-    // Record metrics
+    // Record metrics when available
     metrics.recordReservesRequest({
       companyCount: input.companies.length,
       reservePercent: config.reserve_bps / 100,
@@ -52,13 +44,14 @@ router.post('/reserves/calculate', idempotency, async (req: Request, res: Respon
     });
     
     // Calculate reserves
-    const result = await calculateReservesSafe(input, config);
+    const result = await calculateReservesSafe(input as any, config as any);
     
     // Record calculation metrics
     const duration = Date.now() - startTime;
     metrics.recordReservesDuration(duration);
     
     if (result.ok) {
+      // Record success metrics
       metrics.recordReservesSuccess({
         companiesFunded: result.data?.metadata.companies_funded || 0,
         utilization: result.data ? 

@@ -14,6 +14,8 @@ const Env = z.object({
   CB_HTTP_FAILURE_THRESHOLD: z.coerce.number().default(3),
   CB_HTTP_RESET_TIMEOUT_MS: z.coerce.number().default(5_000),
   CB_HTTP_OP_TIMEOUT_MS: z.coerce.number().default(500),
+  CB_HTTP_SUCCESS_TO_CLOSE: z.coerce.number().default(2),
+  CB_HTTP_HALF_OPEN_MAX_CONC: z.coerce.number().default(3),
 
   CB_DB_FAILURE_THRESHOLD: z.coerce.number().default(4),
   CB_DB_RESET_TIMEOUT_MS: z.coerce.number().default(8_000),

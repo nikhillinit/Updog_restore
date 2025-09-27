@@ -7,12 +7,12 @@ import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { idempotency } from '../middleware/idempotency';
 import { z } from 'zod';
+import { positiveInt, percent100 } from '@shared/schema-helpers';
 import { hashPayload } from '../lib/hash';
 import { idem } from '../shared/idempotency-instance';
 import { getOrStart } from '../lib/inflight-server';
 import { EnhancedFundModel } from '../core/enhanced-fund-model';
 import { calcDurationMs } from '../metrics';
-import { _FundConfigDTO, _toDomainFundConfig } from '@shared/dto';
 
 const router = Router();
 
@@ -25,9 +25,9 @@ const CreateFundSchema = z.object({
   strategy: z.object({
     stages: z.array(z.object({
       name: z.string().min(1),
-      graduate: z.number().min(0).max(100),
-      exit: z.number().min(0).max(100),
-      months: z.number().int().min(1),
+      graduate: percent100(),
+      exit: percent100(),
+      months: positiveInt(),
     })),
   }),
 });
@@ -46,7 +46,7 @@ router.post('/funds', idempotency, async (req: any, res: any) => {
   }
 
   // TODO: persist fund with Drizzle
-  const fundId = 'fund_' + Math.random().toString(36).slice(2);
+  const fundId = `fund_${  Math.random().toString(36).slice(2)}`;
   res.status(201);
   return res.json({ id: fundId });
 });

@@ -43,10 +43,10 @@ Given portfolio construction inputs, model expected follow-on demand across quar
 - Months are non-negative; horizon covers all transitions.
 - If invalid, `valid=false` with `errors[]`.
 
-## Limitations & Planned v1.1
-- **Remain pass**: EV-v1 does not reattempt "remain". v1.1 can add a second attempt after delay.
-- **Smooth EV** (not lumpy per-deal); good for planning & scenarios.
-- **Bind horizon**: derive `horizonQuarters = investmentHorizonYears * 4` from Fund Basics.
+## v1.1 Features ✅
+- **Remain pass**: Optional retry attempts for "remain" companies with configurable delay and success rates
+- **Horizon binding**: Derives `horizonQuarters = investmentHorizonYears * 4` from Fund Basics
+- **Realistic timing**: Delayed retry attempts with reduced success rates for more accurate modeling
 
 ## Usage
 ```ts
@@ -64,6 +64,9 @@ const res = computeReservesFromGraduation({
   followOnChecks: { A: 800_000, B: 1_500_000, C: 2_500_000 },
   startQuarter: 0,
   horizonQuarters: 64,
+  // v1.1: Enable remain pass for higher reserves
+  remainAttempts: 1,          // One extra attempt for remain companies
+  remainDelayQuarters: 2,     // 6 months delay before retry
 });
 
 if (!res.valid) throw new Error(res.errors.join("; "));

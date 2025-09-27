@@ -4,7 +4,7 @@
  * All tests should pass before integration
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it } from 'vitest';
 
 // ============================================================
 // STEP 2: CONCURRENCY SAFETY ACCEPTANCE TESTS

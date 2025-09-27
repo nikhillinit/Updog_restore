@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import crypto from 'crypto';
@@ -223,8 +223,8 @@ describe('Idempotency Integration Tests', () => {
       const payload = { name: 'Environment Fund', size: 6000000 };
       
       // Simulate different environment hashes
-      const devKey = 'dev|fund-create|' + JSON.stringify(payload);
-      const prodKey = 'prod|fund-create|' + JSON.stringify(payload);
+      const devKey = `dev|fund-create|${  JSON.stringify(payload)}`;
+      const prodKey = `prod|fund-create|${  JSON.stringify(payload)}`;
       
       expect(devKey).not.toBe(prodKey);
     });

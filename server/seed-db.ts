@@ -4,7 +4,7 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { db } from "./db";
-import { funds, portfolioCompanies, investments, fundMetrics, activities } from "@shared/schema";
+import { funds, portfolioCompanies, investments, fundMetrics, activities } from "@schema";
 
 // Self-executing script when run directly
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -24,15 +24,16 @@ export async function seedDatabase() {
   
   try {
     // Insert sample fund
-    const [fund] = await db.insert(funds).values({
+    const fundData = {
       name: "Press On Ventures Fund I",
       size: "100000000",
-      deployedCapital: "67500000",
+      deployedCapital: "67500000", 
       managementFee: "0.02",
       carryPercentage: "0.20",
       vintageYear: 2020,
       status: "active"
-    }).returning();
+    } as any;
+    const [fund] = await db.insert(funds).values(fundData).returning();
 
     console.log("✅ Created fund:", fund.name);
 

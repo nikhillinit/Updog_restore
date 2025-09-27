@@ -4,6 +4,9 @@
  */
 import { test, expect } from '@playwright/test';
 
+// Skip in demo CI (requires full environment)
+if (process.env.DEMO_CI) test.skip();
+
 // Get configuration from environment
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
 const SMOKE_USER = process.env.SMOKE_USER || 'smoke@test.com';
@@ -110,6 +113,70 @@ test.describe('Production Smoke Tests', () => {
         await expect(stepIndicator).toBeVisible();
       }
     }
+  });
+
+  test('Fund setup Step 2→3 transition works without errors', async ({ page }) => {
+    const consoleErrors: string[] = [];
+    const pageErrors: string[] = [];
+    
+    // Capture console and page errors
+    page.on('console', msg => {
+      if (msg.type() === 'error') {
+        consoleErrors.push(msg.text().toLowerCase());
+      }
+    });
+    
+    page.on('pageerror', error => {
+      pageErrors.push(error.message.toLowerCase());
+    });
+
+    // Navigate to Step 2 of fund setup
+    await page.goto(`${BASE_URL}/fund-setup?step=2`);
+    await page.waitForLoadState('networkidle');
+
+    // Wait for the step to be fully loaded
+    await expect(page.locator('[data-testid="wizard-step-investment-strategy-container"], [data-testid="wizard-step3-container"]')).toBeVisible({ timeout: 10000 });
+
+    // Fill minimal required fields if present
+    const fundNameInput = page.locator('input[name="name"], input[placeholder*="fund"], input[placeholder*="Fund"]').first();
+    if (await fundNameInput.count() > 0) {
+      await fundNameInput.fill('Test Fund');
+    }
+
+    const sizeInput = page.locator('input[name="size"], input[placeholder*="size"], input[type="number"]').first();
+    if (await sizeInput.count() > 0) {
+      await sizeInput.fill('25000000');
+    }
+
+    // Click Next to transition to Step 3
+    const nextButton = page.locator('button:has-text("Next"), button:has-text("Continue")').first();
+    await expect(nextButton).toBeVisible();
+    await nextButton.click();
+
+    // Wait for Step 3 to load
+    await page.waitForTimeout(2000);
+    
+    // Check that we successfully navigated to step 3
+    await expect(page).toHaveURL(/step=3/);
+
+    // Filter critical errors (exclude known non-issues)
+    const criticalConsoleErrors = consoleErrors.filter(error => 
+      error.includes('maximum update depth exceeded') ||
+      error.includes('failed to fetch dynamically imported module') ||
+      error.includes('getsnapshot should be cached') ||
+      error.includes('infinite loop') ||
+      error.includes('stack overflow')
+    );
+
+    const criticalPageErrors = pageErrors.filter(error =>
+      error.includes('maximum update depth') ||
+      error.includes('dynamic import') ||
+      error.includes('infinite loop')
+    );
+
+    // Assert no critical errors occurred during Step 2→3 transition
+    expect(criticalConsoleErrors).toHaveLength(0);
+    expect(criticalPageErrors).toHaveLength(0);
   });
 
   test('Dashboard loads with data', async ({ page }) => {

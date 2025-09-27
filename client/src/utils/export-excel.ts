@@ -55,7 +55,7 @@ function generateCSV(data: ExportData): string {
     company.stage,
     `$${(parseFloat(company.investmentAmount) / 1000000).toFixed(1)}M`,
     company.currentValuation ? `$${(parseFloat(company.currentValuation) / 1000000).toFixed(1)}M` : 'N/A',
-    company.currentValuation ? (parseFloat(company.currentValuation) / parseFloat(company.investmentAmount)).toFixed(2) + 'x' : 'N/A',
+    company.currentValuation ? `${(parseFloat(company.currentValuation) / parseFloat(company.investmentAmount)).toFixed(2)  }x` : 'N/A',
     company.status,
     company.foundedYear || 'N/A'
   ]);

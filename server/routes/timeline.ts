@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+/**
+ * Timeline API Routes
+ *
+ * RESTful endpoints for fund timeline and snapshot management
+ */
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db';

@@ -3,7 +3,7 @@
  * Handles progressive deployment with automatic gate progression
  */
 
-import { setFlag, isEnabled } from '@/lib/feature-flags';
+import { setFlag } from '@/lib/feature-flags';
 import { metrics } from '@/metrics/reserves-metrics';
 
 interface RolloutStage {

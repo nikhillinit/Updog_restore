@@ -86,7 +86,7 @@ function mutateResult<T>(v: T, rate: number, rnd: Rand, targets: string[]): T {
 
     // Prefer targeted keys
     const keyLower = path.toLowerCase();
-    const isTarget = targets.some((t) => keyLower.endsWith('.' + t));
+    const isTarget = targets.some((t) => keyLower.endsWith(`.${  t}`));
 
     if (typeof node === 'number') {
       if (rnd() < (isTarget ? Math.min(1, rate * 1.5) : rate)) {

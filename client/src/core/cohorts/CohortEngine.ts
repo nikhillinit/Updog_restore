@@ -8,8 +8,7 @@
 import type { 
   CohortInput, 
   CohortOutput,
-  CohortSummary,
-  EngineConfig 
+  CohortSummary 
 } from '@shared/types';
 import { CohortInputSchema, CohortOutputSchema } from '@shared/types';
 import { map, reduce } from '@/utils/array-safety';

@@ -8,7 +8,7 @@ import { Line } from 'recharts/es6/cartesian/Line';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
 import { YAxis } from 'recharts/es6/cartesian/YAxis';
 import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
-import { ResponsiveContainer } from 'recharts/es6/component/ResponsiveContainer';
+import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import { Tooltip } from 'recharts/es6/component/Tooltip';
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -19,14 +19,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { 
   ArrowLeft,
   Edit, 
-  Plus, 
-  MoreHorizontal,
+  Plus,
   TrendingUp,
   Target,
   Calendar,
   Building2,
-  Globe,
-  Users,
   ChevronDown,
   Activity
 } from 'lucide-react';

@@ -7,12 +7,10 @@ import { useState } from "react";
 import { useFundContext } from "@/contexts/FundContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Plus, Copy, Trash2, PlayCircle, BarChart3, TrendingUp, DollarSign, Users, Target, Info } from "lucide-react";
+import { Plus, Copy, Trash2, PlayCircle, Info } from "lucide-react";
 
 interface Scenario {
   id: string;

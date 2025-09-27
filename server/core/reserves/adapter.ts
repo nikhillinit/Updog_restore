@@ -3,8 +3,7 @@
  * Orchestrates ML and rules engines with comprehensive logging and fallback
  */
 
-import { eq, and } from 'drizzle-orm';
-import { reserveDecisions } from '../../db/schema/reserves.js';
+import { reserveDecisions } from '@schema';
 import { db } from '../../db.js';
 import { 
   ReserveEnginePort, 
@@ -14,12 +13,12 @@ import {
   ReserveEngineOptions,
   PredictionExplanation 
 } from './ports.js';
-import { DeterministicReserveEngine } from '../../../client/src/core/reserves/DeterministicReserveEngine.js';
-import { ConstrainedReserveEngine } from '../../../client/src/core/reserves/ConstrainedReserveEngine.js';
+import { DeterministicReserveEngine } from '@shared/core/reserves/DeterministicReserveEngine.js';
+import { ConstrainedReserveEngine } from '@shared/core/reserves/ConstrainedReserveEngine.js';
 import { MlClient } from './mlClient.js';
 import { logger } from '../../lib/logger.js';
 import { nanoid } from 'nanoid';
-import { performanceMonitor } from '../../../client/src/lib/performance-monitor.js';
+// import { performanceMonitor } from '@shared/lib/performance-monitor.js';
 
 export interface FeatureFlagConfig {
   useMl: boolean;
@@ -133,13 +132,14 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
     this.updateMetrics(decision.latencyMs!, fallbackUsed ? 1 : 0);
 
     // Record performance monitoring
-    if (performanceMonitor) {
-      performanceMonitor.recordCalculationPerformance(
-        decision.latencyMs!,
-        1, // company count
-        !fallbackUsed
-      );
-    }
+    // TODO: Wire up performance monitoring when instrumentation is configured
+    // if (performanceMonitor) {
+    //   performanceMonitor.recordCalculationPerformance(
+    //     decision.latencyMs!,
+    //     1, // company count
+    //     !fallbackUsed
+    //   );
+    // }
 
     return decision;
   }
@@ -149,8 +149,8 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
     if (!this.config.useMl) return 'rules';
 
     // Check explicit mode override in options
-    if (opts.flags?.engineMode) {
-      return opts.flags.engineMode as 'ml' | 'rules' | 'hybrid';
+    if (opts.flags?.['engineMode']) {
+      return opts.flags['engineMode'] as 'ml' | 'rules' | 'hybrid';
     }
 
     // A/B testing logic
@@ -338,15 +338,20 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
     decision: ReserveDecision,
     opts: ReserveEngineOptions
   ): Promise<void> {
-    const periodStart = opts.periodStart || new Date(market.asOfDate);
-    const periodEnd = opts.periodEnd || new Date(market.asOfDate);
+    // Convert to date strings for the date columns
+    const periodStartDate = opts.periodStart 
+      ? new Date(opts.periodStart) 
+      : new Date(market.asOfDate);
+    const periodEndDate = opts.periodEnd 
+      ? new Date(opts.periodEnd) 
+      : new Date(market.asOfDate);
 
-    await db.insert(reserveDecisions).values({
+    const insertData = {
       fundId: company.fundId,
       companyId: company.id,
       decisionTs: new Date(),
-      periodStart,
-      periodEnd,
+      periodStart: periodStartDate.toISOString().split('T')[0]!, // date type expects YYYY-MM-DD
+      periodEnd: periodEndDate.toISOString().split('T')[0]!, // date type expects YYYY-MM-DD
       engineType: decision.engineType,
       engineVersion: decision.engineVersion,
       requestId: opts.requestId || null,
@@ -361,7 +366,9 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
       explanation: decision.explanation || null,
       latencyMs: decision.latencyMs || null,
       userId: opts.userId || null,
-    });
+    };
+    
+    await db.insert(reserveDecisions).values(insertData);
   }
 
   private updateMetrics(latencyMs: number, _errors: number): void {

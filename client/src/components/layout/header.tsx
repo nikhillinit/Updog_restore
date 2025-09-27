@@ -5,7 +5,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { Button } from "@/components/ui/button";
 import { Download, RefreshCw, DollarSign, UserCircle2, ChevronDown, Bell } from "lucide-react";
-import { exportToExcel } from "@/utils/export-excel";
 import { useFundContext } from "@/contexts/FundContext";
 import { useState } from "react";
 import { Link } from "wouter";

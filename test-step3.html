@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Step 3 Navigation</title>
+</head>
+<body>
+    <h1>Fund Setup Wizard - Step 3 Test</h1>
+    <p>This tests if a user can proceed to step 3 of the wizard.</p>
+    
+    <button onclick="testStep3()">Open Fund Setup at Step 3</button>
+    <button onclick="testNavigation()">Test Step Navigation</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        function testStep3() {
+            window.open('http://localhost:5173/fund-setup?step=3', '_blank');
+            document.getElementById('results').innerHTML += '<p>✓ Opened fund setup at step 3</p>';
+        }
+        
+        async function testNavigation() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testing navigation...</p>';
+            
+            try {
+                // Test if the page loads
+                const response = await fetch('http://localhost:5173/fund-setup?step=3');
+                if (response.ok) {
+                    results.innerHTML += '<p>✓ Step 3 page loads successfully (Status: ' + response.status + ')</p>';
+                    
+                    // Check if we can access the API
+                    const apiResponse = await fetch('http://localhost:5000/api/funds');
+                    if (apiResponse.ok) {
+                        results.innerHTML += '<p>✓ API is accessible</p>';
+                    } else {
+                        results.innerHTML += '<p>✗ API error: ' + apiResponse.status + '</p>';
+                    }
+                } else {
+                    results.innerHTML += '<p>✗ Failed to load step 3: ' + response.status + '</p>';
+                }
+            } catch (error) {
+                results.innerHTML += '<p>✗ Error: ' + error.message + '</p>';
+            }
+        }
+    </script>
+</body>
+</html>

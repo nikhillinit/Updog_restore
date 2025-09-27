@@ -184,7 +184,7 @@ export class ProductionMonitor {
       ...metadata,
     });
 
-    logger.info('Reserve calculation started', {
+    (logger as any).info('Reserve calculation started', {
       calculationId,
       scenarioType,
       portfolioSize,
@@ -200,7 +200,7 @@ export class ProductionMonitor {
   ): void {
     const startTime = this.calculationTimes.get(calculationId);
     if (!startTime) {
-      logger.warn('Calculation completion recorded without start time', { calculationId });
+      (logger as any).warn('Calculation completion recorded without start time', { calculationId });
       return;
     }
 
@@ -234,7 +234,7 @@ export class ProductionMonitor {
 
     monitoringEvents.recordCalculationComplete(calculationId, result);
 
-    logger.info('Reserve calculation completed', {
+    (logger as any).info('Reserve calculation completed', {
       calculationId,
       duration,
       portfolioSize,
@@ -276,7 +276,7 @@ export class ProductionMonitor {
 
     monitoringEvents.recordCalculationError(calculationId, error);
 
-    logger.error('Reserve calculation failed', {
+    (logger as any).error('Reserve calculation failed', {
       calculationId,
       duration,
       portfolioSize,
@@ -315,7 +315,7 @@ export class ProductionMonitor {
 
     monitoringEvents.recordParityValidation(validationId, result);
 
-    logger.info('Parity validation completed', {
+    (logger as any).info('Parity validation completed', {
       validationId,
       passRate: result.overallParity.parityPercentage,
       passes: result.overallParity.passesParityTest,
@@ -334,7 +334,7 @@ export class ProductionMonitor {
       .labels(method, route, statusCode.toString())
       .observe(duration / 1000); // Convert to seconds
 
-    logger.debug('API request completed', {
+    (logger as any).debug('API request completed', {
       method,
       route,
       statusCode,
@@ -357,13 +357,13 @@ export class ProductionMonitor {
       }
     });
 
-    logger.debug('Fund metrics recorded', { fundId, metrics });
+    (logger as any).debug('Fund metrics recorded', { fundId, metrics });
   }
 
   // Health monitoring
   registerHealthCheck(component: string, check: () => Promise<boolean>): void {
     this.healthChecks.set(component, check);
-    logger.info('Health check registered', { component });
+    (logger as any).info('Health check registered', { component });
   }
 
   async performHealthCheck(): Promise<{ [component: string]: boolean }> {
@@ -382,7 +382,7 @@ export class ProductionMonitor {
       } catch (error) {
         results[component] = false;
         systemHealth.labels(component).set(0);
-        logger.warn('Health check failed', { component, error: error.message });
+        (logger as any).warn('Health check failed', { component, error: error.message });
       }
     }
 
@@ -406,7 +406,7 @@ export class ProductionMonitor {
   private recordBudgetViolation(budget: PerformanceBudget, currentValue: number): void {
     monitoringEvents.recordPerformanceBudgetViolation(budget, currentValue);
 
-    logger.warn('Performance budget violation', {
+    (logger as any).warn('Performance budget violation', {
       metric: budget.metric,
       threshold: budget.threshold,
       currentValue,
@@ -433,7 +433,7 @@ export class ProductionMonitor {
   private recordSLOViolation(slo: SLOTarget, currentValue: number): void {
     monitoringEvents.recordSLOViolation(slo, currentValue);
 
-    logger.error('SLO violation detected', {
+    (logger as any).error('SLO violation detected', {
       slo: slo.name,
       target: slo.target,
       currentValue,
@@ -497,15 +497,15 @@ export class ProductionMonitor {
 
   private setupEventListeners(): void {
     monitoringEvents.on('calculation:start', (data) => {
-      logger.debug('Calculation started event', data);
+      (logger as any).debug('Calculation started event', data);
     });
 
     monitoringEvents.on('calculation:complete', (data) => {
-      logger.debug('Calculation completed event', data);
+      (logger as any).debug('Calculation completed event', data);
     });
 
     monitoringEvents.on('calculation:error', (data) => {
-      logger.warn('Calculation error event', data);
+      (logger as any).warn('Calculation error event', data);
     });
 
     monitoringEvents.on('performance:budget-violation', (data) => {
@@ -536,7 +536,7 @@ export class ProductionMonitor {
 
   private sendAlert(type: string, data: any): void {
     // In production, this would send alerts to Slack, PagerDuty, etc.
-    logger.error(`ALERT: ${type}`, data);
+    (logger as any).error(`ALERT: ${type}`, data);
   }
 
   // Cleanup

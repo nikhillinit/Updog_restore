@@ -1,0 +1,23 @@
+{
+  "name": "Updog Fund Platform",
+  "image": "mcr.microsoft.com/vscode/devcontainers/typescript-node:18",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "postCreateCommand": "npm install",
+  "forwardPorts": [5000],
+  "portsAttributes": {
+    "5000": {
+      "label": "Updog Platform",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.vscode-typescript-next",
+        "bradlc.vscode-tailwindcss"
+      ]
+    }
+  }
+}

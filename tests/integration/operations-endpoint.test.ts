@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import http from 'http';
 import express from 'express';
 import healthRouter from '../../server/routes/health';
 import fundsRouter from '../../server/routes/funds';
@@ -104,7 +103,7 @@ describe('Operations Endpoint', () => {
 
   it('concurrent idempotent requests do not cause unhandled rejections', async () => {
     const payload = { fundSize: 5e7 };
-    const key = 'itest-concurrent-' + Date.now();
+    const key = `itest-concurrent-${  Date.now()}`;
     
     // Fire 5 concurrent requests with same key
     const requests = Array(5).fill(null).map(() => 
@@ -127,7 +126,7 @@ describe('Operations Endpoint', () => {
 
   it('polling operations endpoint eventually returns success', async () => {
     const payload = { fundSize: 2e7 };
-    const key = 'itest-poll-' + Date.now();
+    const key = `itest-poll-${  Date.now()}`;
     
     // Start calculation
     const initRes = await request(server)

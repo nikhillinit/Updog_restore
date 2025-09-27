@@ -1,6 +1,4 @@
-import { CircuitBreaker } from './CircuitBreaker';
-import { CacheBreakerService } from './cache-breaker';
-import { HttpBreakerService } from './http-breaker';
+import type { BreakerLike } from './typed-breaker';
 
 /**
  * Central registry for all circuit breakers in the application
@@ -8,7 +6,7 @@ import { HttpBreakerService } from './http-breaker';
  */
 export class BreakerRegistry {
   private static instance: BreakerRegistry;
-  private breakers = new Map<string, CircuitBreaker<any> | CacheBreakerService | HttpBreakerService>();
+  private breakers = new Map<string, BreakerLike>();
 
   private constructor() {}
 
@@ -19,23 +17,23 @@ export class BreakerRegistry {
     return BreakerRegistry.instance;
   }
 
-  register(name: string, breaker: CircuitBreaker<any> | CacheBreakerService | HttpBreakerService): void {
+  register(name: string, breaker: BreakerLike): void {
     this.breakers.set(name, breaker);
     console.log(`[breaker-registry] Registered breaker: ${name}`);
   }
 
-  get(name: string): CircuitBreaker<any> | CacheBreakerService | HttpBreakerService | undefined {
+  get(name: string): BreakerLike | undefined {
     return this.breakers.get(name);
   }
 
   getAll(): Record<string, any> {
     const result: Record<string, any> = {};
-    for (const [name, breaker] of this.breakers.entries()) {
+    this.breakers.forEach((breaker, name) => {
       result[name] = {
         state: breaker.getState(),
-        stats: breaker.getStats?.() || {}
+        stats: breaker.getMetrics?.() || {}
       };
-    }
+    });
     return result;
   }
 
@@ -44,11 +42,11 @@ export class BreakerRegistry {
     const critical: Array<{ name: string; breaker: any }> = [];
     
     // Add cache and database breakers as critical
-    for (const [name, breaker] of this.breakers.entries()) {
+    this.breakers.forEach((breaker, name) => {
       if (name.includes('cache') || name.includes('db') || name.includes('database')) {
         critical.push({ name, breaker });
       }
-    }
+    });
     
     return critical;
   }
@@ -62,12 +60,12 @@ export class BreakerRegistry {
   // Get degraded services (half-open or recently recovered)
   getDegraded(): string[] {
     const degraded: string[] = [];
-    for (const [name, breaker] of this.breakers.entries()) {
+    this.breakers.forEach((breaker, name) => {
       const state = breaker.getState();
       if (state === 'HALF_OPEN' || state === 'OPEN') {
         degraded.push(name);
       }
-    }
+    });
     return degraded;
   }
 }

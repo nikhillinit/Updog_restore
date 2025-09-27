@@ -12,7 +12,7 @@ import { PremiumToggle } from "@/components/wizard/PremiumToggle";
 import { Button } from "@/components/ui/button";
 import { POVBrandHeader } from "@/components/ui/POVLogo";
 import { BrandComplianceShowcase } from "@/components/ui/BrandShowcase";
-import { Building2, TrendingUp, DollarSign, Users, Target } from 'lucide-react';
+import { TrendingUp, Users, Target } from 'lucide-react';
 
 export default function DesignSystem() {
   const [fundName, setFundName] = useState('Acme Ventures Fund I');

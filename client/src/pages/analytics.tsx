@@ -20,8 +20,8 @@ const ChartPlaceholder = ({ title, height = "h-80" }: { title: string; height?: 
 import { useState, lazy, Suspense } from "react";
 import { useFundContext } from "@/contexts/FundContext";
 import { 
-  TrendingUp, TrendingDown, BarChart3, PieChart, Activity, 
-  Target, Calendar, Filter, Download 
+  TrendingUp, TrendingDown, BarChart3, Activity, 
+  Target, Filter, Download 
 } from "lucide-react";
 
 // Lazy load chart components to prevent Recharts from loading in analytics chunk

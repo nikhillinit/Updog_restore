@@ -46,6 +46,9 @@ const InvestmentsTable = React.lazy(() => import("@/pages/investments-table"));
 const CapTables = React.lazy(() => import("@/pages/CapTables"));
 const CashManagement = React.lazy(() => import("@/pages/cash-management"));
 const SensitivityAnalysisPage = React.lazy(() => import("@/pages/sensitivity-analysis"));
+// New analytics features
+const TimeTravelPage = React.lazy(() => import("@/pages/time-travel"));
+const VarianceTrackingPage = React.lazy(() => import("@/pages/variance-tracking"));
 
 const moduleConfig = {
   dashboard: {
@@ -95,6 +98,14 @@ const moduleConfig = {
   'tear-sheets': {
     title: "Tear Sheets",
     description: "Mobile-optimized portfolio company tear sheets with versioned commentary"
+  },
+  'time-travel': {
+    title: "Time-Travel Analytics",
+    description: "Historical fund state analysis, snapshots, and restoration capabilities"
+  },
+  'variance-tracking': {
+    title: "Variance Tracking",
+    description: "Performance variance monitoring, baseline management, and automated alerts"
   }
 };
 
@@ -108,7 +119,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     setActiveModule(path);
   }, [location]);
 
-  const currentModule = moduleConfig[activeModule as keyof typeof moduleConfig] || moduleConfig['fund-setup'];
+  // const currentModule = moduleConfig[activeModule as keyof typeof moduleConfig] || moduleConfig['fund-setup'];
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 font-poppins text-charcoal">
@@ -156,7 +167,14 @@ function ProtectedRoute({ component: Component, ...props }: any) {
 
 function Router() {
   return (
-    <Suspense fallback={<div>Loading…</div>}>
+    <Suspense fallback={
+      <div className="flex-1 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading page...</p>
+        </div>
+      </div>
+    }>
       <Switch>
         <Route path="/" component={HomeRoute} />
         <Route path="/fund-setup" component={FundSetup} />
@@ -185,6 +203,8 @@ function Router() {
         <Route path="/portfolio-analytics" component={(props) => <ProtectedRoute component={EnhancedPortfolioAnalytics} {...props} />} />
         <Route path="/cash-management" component={(props) => <ProtectedRoute component={CashManagement} {...props} />} />
         <Route path="/sensitivity-analysis" component={(props) => <ProtectedRoute component={SensitivityAnalysisPage} {...props} />} />
+        <Route path="/time-travel" component={(props) => <ProtectedRoute component={TimeTravelPage} {...props} />} />
+        <Route path="/variance-tracking" component={(props) => <ProtectedRoute component={VarianceTrackingPage} {...props} />} />
         <Route path="/reports" component={(props) => <ProtectedRoute component={Reports} {...props} />} />
         <Route component={NotFound} />
       </Switch>

@@ -1,0 +1,63 @@
+{
+  "timestamp": "2025-09-12T23-02-04-532Z",
+  "environment": {
+    "node": "v22.16.0",
+    "platform": "win32",
+    "arch": "arm64",
+    "memory": {
+      "rss": 48242688,
+      "heapTotal": 10002432,
+      "heapUsed": 7246848,
+      "external": 3421667,
+      "arrayBuffers": 74192
+    }
+  },
+  "endpoints": {
+    "/health": {
+      "name": "Health Check",
+      "samples": 10,
+      "latency": {
+        "min": 0.6390999999999849,
+        "max": 46.92420000000001,
+        "avg": 6.006250000000003,
+        "p50": 1.5615999999999985,
+        "p95": 46.92420000000001
+      },
+      "status": 200,
+      "size": 80
+    },
+    "/api/funds": {
+      "name": "Funds API",
+      "samples": 10,
+      "latency": {
+        "min": 0.3141999999999996,
+        "max": 1.2484000000000037,
+        "avg": 0.7750300000000039,
+        "p50": 0.8155000000000143,
+        "p95": 1.2484000000000037
+      },
+      "status": 401,
+      "size": 61
+    },
+    "/api/stub-status": {
+      "name": "Stub Status",
+      "samples": 10,
+      "latency": {
+        "min": 0.2798999999999978,
+        "max": 1.1253999999999849,
+        "avg": 0.49462999999999224,
+        "p50": 0.3516999999999939,
+        "p95": 1.1253999999999849
+      },
+      "status": 401,
+      "size": 61
+    }
+  },
+  "memoryAfter": {
+    "rss": 54587392,
+    "heapTotal": 12009472,
+    "heapUsed": 7640880,
+    "external": 3576633,
+    "arrayBuffers": 85454
+  }
+}

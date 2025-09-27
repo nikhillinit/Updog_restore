@@ -5,16 +5,11 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { 
-  TrendingUp, 
-  DollarSign, 
-  Target, 
-  Calendar,
+import {
   BarChart3,
   PieChart,
   ArrowRight

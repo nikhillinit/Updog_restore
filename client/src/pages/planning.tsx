@@ -4,7 +4,7 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useFundContext } from "@/contexts/FundContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,21 +17,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { 
   Calendar, 
-  DollarSign, 
-  TrendingUp, 
-  Filter, 
   Edit3, 
   Copy, 
   RotateCcw,
   Plus,
-  Info,
-  AlertCircle
+  Info
 } from "lucide-react";
-import { format } from "date-fns/format";
 import FundLiquidationWarnings from "@/components/investment/fund-liquidation-warnings";
 import ExitProceedsRecycling from "@/components/recycling/exit-proceeds-recycling";
 

@@ -38,21 +38,13 @@ export function FundProvider({ children }: FundProviderProps) {
   const [currentFund, setCurrentFund] = useState<Fund | null>(null);
   const [fundId, setFundId] = useState<number | null>(null);
 
-  // Load fund ID from localStorage on mount
-  useEffect(() => {
-    const storedFundId = localStorage.getItem('povc_current_fund_id');
-    if (storedFundId) {
-      setFundId(parseInt(storedFundId, 10));
-    }
-  }, []);
-
-  // Fetch fund data when fundId changes
+  // Fetch fund data
   const { data: funds, isLoading } = useQuery({
     queryKey: ['/api/funds'],
     enabled: true,
   });
 
-  // Update current fund when funds data changes or fundId changes
+  // Update current fund when funds data changes
   useEffect(() => {
     if (funds && Array.isArray(funds) && funds.length > 0) {
       if (fundId) {
@@ -64,19 +56,16 @@ export function FundProvider({ children }: FundProviderProps) {
           // Fallback to first fund if ID not found
           setCurrentFund(funds[0]);
           setFundId(funds[0].id);
-          localStorage.setItem('povc_current_fund_id', funds[0].id.toString());
         }
       } else {
-        // No stored fund ID, use first fund
+        // No selected fund ID, use first fund
         setCurrentFund(funds[0]);
         setFundId(funds[0].id);
-        localStorage.setItem('povc_current_fund_id', funds[0].id.toString());
       }
     } else if (!isLoading && (!funds || !Array.isArray(funds) || funds.length === 0)) {
       // No funds available
       setCurrentFund(null);
       setFundId(null);
-      localStorage.removeItem('povc_current_fund_id');
     }
   }, [funds, fundId, isLoading]);
 
@@ -84,10 +73,8 @@ export function FundProvider({ children }: FundProviderProps) {
     setCurrentFund(fund);
     if (fund) {
       setFundId(fund.id);
-      localStorage.setItem('povc_current_fund_id', fund.id.toString());
     } else {
       setFundId(null);
-      localStorage.removeItem('povc_current_fund_id');
     }
   };
 

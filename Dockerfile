@@ -1,5 +1,5 @@
 # ---- deps ----
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 
 # Security: run as non-root
@@ -8,19 +8,19 @@ RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 # Copy dependency files
 COPY package*.json ./
 
-# Install only production dependencies initially
-RUN npm ci --omit=dev && npm cache clean --force
+# Install only production dependencies initially (skip scripts to avoid Husky)
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 # ---- build ----
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
 
 # Copy deps from previous stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY package*.json ./
 
-# Install dev dependencies for build
-RUN npm ci
+# Install dev dependencies for build (skip scripts to avoid Husky issues)
+RUN npm ci --ignore-scripts
 
 # Copy source code
 COPY . .
@@ -31,7 +31,7 @@ RUN npm run build && \
     npm prune --omit=dev
 
 # ---- runtime ----
-FROM node:20-alpine AS prod
+FROM node:22-alpine AS prod
 WORKDIR /app
 
 # Security hardening
@@ -42,6 +42,7 @@ RUN addgroup -g 1001 -S nodejs && \
 # Environment
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV HUSKY=0
 
 # Copy built application
 COPY --from=build --chown=nextjs:nodejs /app/dist ./dist

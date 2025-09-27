@@ -25,13 +25,20 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Reserve ML Service", version="1.0.0")
 
-# Add CORS middleware
+# Add CORS middleware with security hardening
+allowed_origins = os.getenv("CORS_ORIGINS", "").split(",")
+allowed_origins = [origin.strip() for origin in allowed_origins if origin.strip()]
+
+# In development, allow localhost if no origins specified
+if not allowed_origins and os.getenv("ENV", "development") == "development":
+    allowed_origins = ["http://localhost:3000", "http://localhost:5000", "http://127.0.0.1:3000"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=allowed_origins if allowed_origins else ["http://localhost:3000"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
 )
 
 # Configuration
@@ -414,4 +421,7 @@ async def get_model_info():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8088)
+    # Security: In production, bind to localhost only or use reverse proxy
+    host = os.getenv("BIND_HOST", "127.0.0.1" if os.getenv("ENV") == "production" else "0.0.0.0")
+    port = int(os.getenv("PORT", "8088"))
+    uvicorn.run(app, host=host, port=port)

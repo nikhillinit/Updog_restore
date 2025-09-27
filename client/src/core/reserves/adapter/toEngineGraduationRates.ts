@@ -4,7 +4,6 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { clampPct, clampInt } from '@/lib/coerce';
-import type { useFundStore } from '@/stores/useFundStore';
 
 export interface Stage {
   id: string;

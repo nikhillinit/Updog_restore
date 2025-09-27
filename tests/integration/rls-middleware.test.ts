@@ -6,7 +6,6 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
-import { Pool } from 'pg';
 import { withRLSTransaction, verifyRLSContext } from '../../server/middleware/with-rls-transaction.js';
 import { requireSecureContext } from '../../server/lib/secure-context.js';
 import { requireIfMatch } from '../../server/lib/http-preconditions.js';

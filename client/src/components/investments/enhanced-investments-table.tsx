@@ -4,7 +4,7 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -228,7 +228,7 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
 
   // Filter and sort investments
   const filteredInvestments = useMemo(() => {
-    let filtered = investments.filter(investment => {
+    const filtered = investments.filter(investment => {
       const matchesSearch = investment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            investment.sector.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            investment.partnerLead.toLowerCase().includes(searchTerm.toLowerCase());

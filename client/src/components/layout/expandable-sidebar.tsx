@@ -9,13 +9,11 @@ import { Link, useLocation } from "wouter";
 import { useFundContext } from "@/contexts/FundContext";
 import { 
   LayoutDashboard, 
-  Briefcase, 
   Calculator, 
   BarChart3, 
   FileText,
   Activity,
   ChevronRight,
-  Building2,
   TrendingUp,
   Target,
   DollarSign,

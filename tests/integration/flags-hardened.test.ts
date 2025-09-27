@@ -3,7 +3,7 @@
  * Validates ETag, versioning, auth, and concurrency control
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
 

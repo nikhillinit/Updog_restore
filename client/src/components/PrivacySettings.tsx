@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, Eye, Activity } from 'lucide-react';
-import { setAnalyticsEnabled, isSentryEnabled } from '@/lib/sentry';
+import { setAnalyticsEnabled } from '@/lib/sentry';
 
 export function PrivacySettings() {
   const [analyticsEnabled, setAnalyticsEnabledState] = useState(false);

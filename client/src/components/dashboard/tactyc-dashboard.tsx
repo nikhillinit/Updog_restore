@@ -8,12 +8,8 @@ import { Bar } from 'recharts/es6/cartesian/Bar';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
 import { YAxis } from 'recharts/es6/cartesian/YAxis';
 import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
-import { ResponsiveContainer } from 'recharts/es6/component/ResponsiveContainer';
-import { LineChart } from 'recharts/es6/chart/LineChart';
+import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import { Line } from 'recharts/es6/cartesian/Line';
-import { PieChart } from 'recharts/es6/chart/PieChart';
-import { Pie } from 'recharts/es6/polar/Pie';
-import { Cell } from 'recharts/es6/component/Cell';
 import { AreaChart } from 'recharts/es6/chart/AreaChart';
 import { Area } from 'recharts/es6/cartesian/Area';
 import { ComposedChart } from 'recharts/es6/chart/ComposedChart';
@@ -23,10 +19,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { TrendingUp, Building2, DollarSign, Target, Calendar, Users, ArrowUpRight, ArrowDownRight, Info } from "lucide-react";
+import { TrendingUp, Building2, Target } from "lucide-react";
 import PortfolioConcentration from "./portfolio-concentration";
 
 export default function TactycDashboard() {

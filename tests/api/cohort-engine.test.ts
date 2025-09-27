@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CohortEngine, generateCohortSummary, compareCohorts } from '../../client/src/core/cohorts/CohortEngine';
-import type { CohortInput, CohortOutput, CohortSummary } from '../../shared/types';
+import type { CohortInput, CohortOutput } from '../../shared/types';
 
 describe.skip('CohortEngine', () => {
   beforeEach(() => {

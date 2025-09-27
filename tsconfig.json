@@ -1,5 +1,5 @@
 {
-  "include": ["client/src/**/*", "shared/**/*", "server/**/*"],
+  "include": ["types/**/*.d.ts", "client/src/**/*", "shared/**/*", "server/**/*", "schema/src/**/*"],
   "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
   "compilerOptions": {
     "incremental": true,
@@ -27,7 +27,9 @@
       "@/core/*": ["./client/src/core/*"],
       "@/lib/*": ["./client/src/lib/*"],
       "@shared/*": ["./shared/*"],
-      "@server/*": ["./server/*"]
+      "@server/*": ["./server/*"],
+      "@schema": ["./schema/src/index.ts"],
+      "@schema/*": ["./schema/src/*"]
     }
   }
 }

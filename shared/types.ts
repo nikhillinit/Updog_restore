@@ -3,6 +3,66 @@
 import { z } from 'zod';
 
 // =============================================================================
+// SIMULATION TYPES
+// =============================================================================
+
+export interface SimulationInputs {
+  baseMOIC?: number;
+  baseIRR?: number;
+  initialCapital?: number;
+  monteCarloRuns?: number;
+  periods?: number;
+  growthRate?: number;
+  growthVolatility?: number;
+  distributionRate?: number;
+  distributionVolatility?: number;
+  moicVolatility?: number;
+  irrVolatility?: number;
+  [key: string]: any; // Allow additional fund data
+}
+
+export interface SimulationResult {
+  kpi: {
+    tvpi: string;
+    irr: string;
+    moic: string;
+    dpi: string;
+  };
+  moicScenarios: {
+    p10: number;
+    p50: number;
+    p90: number;
+  };
+  irrScenarios: {
+    p10: number;
+    p50: number;
+    p90: number;
+  };
+  tvpiSeries: number[];
+  dpiSeries: number[];
+  exitsByQuarter: Array<{
+    quarter: string;
+    exits: number;
+    value: number;
+  }>;
+  portfolioAnalysis: Array<{
+    companyId: string;
+    metrics: {
+      revenue: number;
+      growth: number;
+      multiple: number;
+      irr: number;
+    };
+  }>;
+  metadata: {
+    runs: number;
+    periods: number;
+    duration: number;
+    timestamp: string;
+  };
+}
+
+// =============================================================================
 // CORE ENGINE TYPES
 // =============================================================================
 

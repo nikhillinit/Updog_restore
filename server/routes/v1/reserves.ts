@@ -54,7 +54,7 @@ const engine = new ConstrainedReserveEngine();
  *               $ref: '#/components/schemas/Error'
  */
 reservesV1Router.post('/calculate', (req, res) => {
-  const rid = (req).rid;
+  const rid = req.requestId || 'unknown';
   try {
     const val = validateReserveInput(req.body);
     if (!val.ok) return res.status(val.status).json({ error: 'validation', issues: val.issues, rid });
@@ -70,7 +70,9 @@ reservesV1Router.post('/calculate', (req, res) => {
     });
   } catch (e: unknown) {
     console.error('reserve calc error:', e);
-    res.status(e?.status ?? 500).json({ error: e?.message ?? 'internal', rid });
+    const status = (e && typeof e === 'object' && 'status' in e && typeof e.status === 'number') ? e.status : 500;
+    const message = (e && typeof e === 'object' && 'message' in e && typeof e.message === 'string') ? e.message : 'internal';
+    res.status(status).json({ error: message, rid });
   }
 });
 

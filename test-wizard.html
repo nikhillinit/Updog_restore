@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fund Setup Wizard Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            background: #e8f4f8;
+            border-left: 4px solid #0066cc;
+            border-radius: 4px;
+        }
+        .log {
+            padding: 10px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Fund Setup Wizard Navigation Test</h1>
+    
+    <div class="controls">
+        <h2>Test Controls</h2>
+        <button onclick="fillStep1()">Fill Step 1 Data</button>
+        <button onclick="clickNext()">Click Next</button>
+        <button onclick="fillStep2()">Fill Step 2 Data</button>
+        <button onclick="checkStep()">Check Current Step</button>
+        <button onclick="skipSimulation()">Skip Simulation Mode</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="status" id="status">
+        Status: Ready to test
+    </div>
+
+    <div class="log" id="log">
+        Console log will appear here...
+    </div>
+
+    <iframe id="wizardFrame" src="http://localhost:5174/fund-setup"></iframe>
+
+    <script>
+        const frame = document.getElementById('wizardFrame');
+        const statusEl = document.getElementById('status');
+        const logEl = document.getElementById('log');
+
+        function log(message) {
+            const time = new Date().toLocaleTimeString();
+            logEl.innerHTML += `[${time}] ${message}<br>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function setStatus(message) {
+            statusEl.textContent = `Status: ${message}`;
+        }
+
+        function clearLog() {
+            logEl.innerHTML = '';
+            log('Log cleared');
+        }
+
+        async function waitForFrame() {
+            return new Promise((resolve) => {
+                if (frame.contentWindow && frame.contentDocument) {
+                    resolve();
+                } else {
+                    setTimeout(() => waitForFrame().then(resolve), 100);
+                }
+            });
+        }
+
+        async function fillStep1() {
+            try {
+                await waitForFrame();
+                const doc = frame.contentDocument;
+                
+                // Fill fund name
+                const fundNameInput = doc.querySelector('input[name="name"], input[placeholder*="fund name" i]');
+                if (fundNameInput) {
+                    fundNameInput.value = 'Test Fund 2024';
+                    fundNameInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    log('✓ Filled fund name');
+                }
+
+                // Fill total committed capital
+                const capitalInput = doc.querySelector('input[name="totalCommittedCapital"], input[placeholder*="capital" i]');
+                if (capitalInput) {
+                    capitalInput.value = '100000000';
+                    capitalInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    log('✓ Filled committed capital');
+                }
+
+                // Fill GP commitment
+                const gpInput = doc.querySelector('input[name="gpCommitmentPercent"], input[placeholder*="gp" i]');
+                if (gpInput) {
+                    gpInput.value = '2';
+                    gpInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    log('✓ Filled GP commitment');
+                }
+
+                setStatus('Step 1 data filled');
+            } catch (error) {
+                log(`Error filling Step 1: ${error.message}`);
+            }
+        }
+
+        async function fillStep2() {
+            try {
+                await waitForFrame();
+                const doc = frame.contentDocument;
+                
+                // Try to fill any Step 2 inputs
+                const step2Inputs = doc.querySelectorAll('input[type="text"], input[type="number"]');
+                let filled = 0;
+                step2Inputs.forEach(input => {
+                    if (input.offsetParent && !input.value) {
+                        input.value = '10';
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        filled++;
+                    }
+                });
+                
+                log(`✓ Filled ${filled} Step 2 inputs`);
+                setStatus('Step 2 data filled');
+            } catch (error) {
+                log(`Error filling Step 2: ${error.message}`);
+            }
+        }
+
+        async function clickNext() {
+            try {
+                await waitForFrame();
+                const doc = frame.contentDocument;
+                
+                // Find and click Next button
+                const nextButton = doc.querySelector('button[data-testid="wizard-next-button"], button:has-text("Next"), button');
+                const buttons = Array.from(doc.querySelectorAll('button'));
+                const nextBtn = buttons.find(btn => btn.textContent.includes('Next'));
+                
+                if (nextBtn) {
+                    log('Clicking Next button...');
+                    setStatus('Transitioning to next step...');
+                    
+                    // Listen for console logs from iframe
+                    const originalLog = frame.contentWindow.console.log;
+                    frame.contentWindow.console.log = function(...args) {
+                        log(`[WIZARD] ${args.join(' ')}`);
+                        originalLog.apply(console, args);
+                    };
+                    
+                    nextBtn.click();
+                    
+                    // Check for step change after delay
+                    setTimeout(() => checkStep(), 2000);
+                } else {
+                    log('⚠️ Next button not found');
+                }
+            } catch (error) {
+                log(`Error clicking Next: ${error.message}`);
+            }
+        }
+
+        async function checkStep() {
+            try {
+                await waitForFrame();
+                const doc = frame.contentDocument;
+                
+                // Check which step is active
+                const stepIndicators = doc.querySelectorAll('[data-testid*="step"], .step-indicator, [class*="step"]');
+                const url = frame.contentWindow.location.href;
+                
+                // Look for step titles
+                const h1 = doc.querySelector('h1');
+                const h2 = doc.querySelector('h2');
+                
+                let currentStep = 'Unknown';
+                if (h1) currentStep = h1.textContent;
+                else if (h2) currentStep = h2.textContent;
+                
+                log(`Current step: ${currentStep}`);
+                log(`URL: ${url}`);
+                
+                // Check if simulation is running
+                const loadingIndicator = doc.querySelector('[class*="loading"], [class*="spinner"], [data-testid*="loading"]');
+                if (loadingIndicator) {
+                    log('⏳ Loading/Simulation in progress...');
+                    setStatus('Simulation running...');
+                } else {
+                    setStatus(`On step: ${currentStep}`);
+                }
+                
+            } catch (error) {
+                log(`Error checking step: ${error.message}`);
+            }
+        }
+
+        function skipSimulation() {
+            try {
+                // Set in both parent and iframe localStorage
+                localStorage.setItem('VITE_SKIP_WIZARD_SIMULATION', 'true');
+                frame.contentWindow.localStorage.setItem('VITE_SKIP_WIZARD_SIMULATION', 'true');
+                
+                log('✓ Simulation skip mode enabled');
+                setStatus('Simulation will be skipped');
+                
+                // Reload the iframe to apply the setting
+                frame.src = frame.src;
+            } catch (error) {
+                log(`Error setting skip mode: ${error.message}`);
+            }
+        }
+
+        // Initial check
+        frame.onload = () => {
+            log('Wizard iframe loaded');
+            checkStep();
+        };
+    </script>
+</body>
+</html>

@@ -20,14 +20,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Plus, Calculator, Download, Edit, Trash2, Users, TrendingUp, DollarSign, Percent } from 'lucide-react';
+
+
+import { Plus, Calculator, Download, Users, TrendingUp, DollarSign, Percent } from 'lucide-react';
 import SAFENoteEditor from './safe-note-editor';
 
 interface Shareholder {

@@ -63,7 +63,7 @@ function fnv1a(input: string): string {
 
 export function computeCreateFundHash(payload: Json): string {
   // Add environment namespace to avoid cross-env collisions
-  const namespace = (import.meta.env.MODE || 'unknown-env') + '|fund-create|';
+  const namespace = `${import.meta.env.MODE || 'unknown-env'  }|fund-create|`;
   return fnv1a(namespace + stableStringify(payload));
 }
 

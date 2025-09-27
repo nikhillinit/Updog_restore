@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout at tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.inputs.tag || github.sha }}
 
@@ -37,7 +37,7 @@ jobs:
             --output-signature sbom.sig
 
       - name: Upload attestations
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         with:
           name: attestations-${{ github.event.inputs.tag || github.sha }}
           path: |

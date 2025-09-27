@@ -3,10 +3,15 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { shallow } from 'zustand/shallow';
-import { useFundStore } from '../state/useFundStore';
+import { useFundStore } from '../stores/useFundStore';
 
+// ✅ Use this INSIDE React components or other custom hooks
 export function useStageValidation() {
-  return useFundStore((s: any) => s.stageValidation());
+  return useFundStore(s => s.stageValidation());
+}
+
+// ✅ Use this ANYWHERE (schemas/helpers/module scope)
+export function getStageValidation() {
+  return useFundStore.getState().stageValidation();
 }
 

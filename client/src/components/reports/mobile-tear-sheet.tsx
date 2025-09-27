@@ -22,7 +22,6 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { 
-  ExternalLink, 
   Edit3, 
   Save, 
   Download, 
@@ -33,9 +32,7 @@ import {
   MapPin,
   Calendar,
   DollarSign,
-  Users,
-  Building,
-  TrendingUp
+  Users
 } from 'lucide-react';
 
 interface MobileTearSheetProps {

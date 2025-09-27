@@ -144,14 +144,14 @@ describe('In-flight Request Tracking', () => {
     }
     
     const payload = JSON.stringify({ name: 'Test', size: 1000 });
-    const hash1 = fnv1a('test|' + payload);
-    const hash2 = fnv1a('test|' + payload);
+    const hash1 = fnv1a(`test|${  payload}`);
+    const hash2 = fnv1a(`test|${  payload}`);
     
     expect(hash1).toBe(hash2);
     
     // Different payloads should produce different hashes
     const payload2 = JSON.stringify({ name: 'Test2', size: 2000 });
-    const hash3 = fnv1a('test|' + payload2);
+    const hash3 = fnv1a(`test|${  payload2}`);
     
     expect(hash3).not.toBe(hash1);
   });
@@ -159,7 +159,7 @@ describe('In-flight Request Tracking', () => {
   it('should namespace hashes by environment', () => {
     function computeHash(env: string, payload: any): string {
       let hash = 0x811c9dc5;
-      const input = env + '|fund-create|' + JSON.stringify(payload);
+      const input = `${env  }|fund-create|${  JSON.stringify(payload)}`;
       for (let i = 0; i < input.length; i++) {
         hash ^= input.charCodeAt(i);
         hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);

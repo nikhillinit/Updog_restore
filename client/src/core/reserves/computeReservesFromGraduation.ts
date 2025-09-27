@@ -24,6 +24,9 @@ export type FundDataForReserves = {
   followOnChecks: { A: number; B: number; C: number };
   startQuarter?: number;
   horizonQuarters?: number;
+  // v1.1: Remain pass configuration
+  remainAttempts?: number; // Default 0 (disabled), 1 = one extra attempt
+  remainDelayQuarters?: number; // Default 2 quarters delay before retry
 };
 
 export type ReservesResult = {
@@ -42,6 +45,10 @@ export function computeReservesFromGraduation(f: FundDataForReserves): ReservesR
   const errors: string[] = [];
   const startQ = f.startQuarter ?? 0;
   const horizon = f.horizonQuarters ?? 40;
+  
+  // v1.1: Remain pass configuration
+  const remainAttempts = f.remainAttempts ?? 0;
+  const remainDelayQuarters = f.remainDelayQuarters ?? 2;
 
   (["seedToA", "aToB", "bToC"] as const).forEach(key => {
     const r = f.graduationRates[key];
@@ -83,26 +90,75 @@ export function computeReservesFromGraduation(f: FundDataForReserves): ReservesR
   const BByQuarter: number[] = Array(horizon).fill(0);
   const CByQuarter: number[] = Array(horizon).fill(0);
 
+  // v1.1: Track remain companies for retry attempts
+  const seedRemainByQuarter: number[] = Array(horizon).fill(0);
+  const ARemainByQuarter: number[] = Array(horizon).fill(0);
+  const BRemainByQuarter: number[] = Array(horizon).fill(0);
+
   const tA = q(f.graduationRates.seedToA.months);
   const tB = q(f.graduationRates.aToB.months);
   const tC = q(f.graduationRates.bToC.months);
 
+  // First pass: Standard graduation + track remain companies
   for (let quarter = 0; quarter < horizon; quarter++) {
-    const grads = seedNewCosByQuarter[quarter] * (f.graduationRates.seedToA.graduate / 100);
+    const totalSeed = seedNewCosByQuarter[quarter];
+    const grads = totalSeed * (f.graduationRates.seedToA.graduate / 100);
+    const remains = totalSeed * (f.graduationRates.seedToA.remain / 100);
+    
     const when = quarter + tA;
-    if (when < horizon) AByQuarter[when] += grads;
+    if (when < horizon) {
+      AByQuarter[when] += grads;
+      if (remainAttempts > 0) seedRemainByQuarter[when + remainDelayQuarters] += remains;
+    }
   }
 
   for (let quarter = 0; quarter < horizon; quarter++) {
-    const grads = AByQuarter[quarter] * (f.graduationRates.aToB.graduate / 100);
+    const totalA = AByQuarter[quarter];
+    const grads = totalA * (f.graduationRates.aToB.graduate / 100);
+    const remains = totalA * (f.graduationRates.aToB.remain / 100);
+    
     const when = quarter + tB;
-    if (when < horizon) BByQuarter[when] += grads;
+    if (when < horizon) {
+      BByQuarter[when] += grads;
+      if (remainAttempts > 0) ARemainByQuarter[when + remainDelayQuarters] += remains;
+    }
   }
 
   for (let quarter = 0; quarter < horizon; quarter++) {
-    const grads = BByQuarter[quarter] * (f.graduationRates.bToC.graduate / 100);
+    const totalB = BByQuarter[quarter];
+    const grads = totalB * (f.graduationRates.bToC.graduate / 100);
+    const remains = totalB * (f.graduationRates.bToC.remain / 100);
+    
     const when = quarter + tC;
-    if (when < horizon) CByQuarter[when] += grads;
+    if (when < horizon) {
+      CByQuarter[when] += grads;
+      if (remainAttempts > 0) BRemainByQuarter[when + remainDelayQuarters] += remains;
+    }
+  }
+
+  // v1.1: Second pass - Remain attempts with reduced success rates
+  if (remainAttempts > 0) {
+    const remainSuccessRate = 0.6; // 60% success rate for remain attempts (more realistic)
+    
+    for (let quarter = 0; quarter < horizon; quarter++) {
+      if (seedRemainByQuarter[quarter] > 0) {
+        const remainGrads = seedRemainByQuarter[quarter] * (f.graduationRates.seedToA.graduate / 100) * remainSuccessRate;
+        const when = quarter + tA;
+        if (when < horizon) AByQuarter[when] += remainGrads;
+      }
+      
+      if (ARemainByQuarter[quarter] > 0) {
+        const remainGrads = ARemainByQuarter[quarter] * (f.graduationRates.aToB.graduate / 100) * remainSuccessRate;
+        const when = quarter + tB;
+        if (when < horizon) BByQuarter[when] += remainGrads;
+      }
+      
+      if (BRemainByQuarter[quarter] > 0) {
+        const remainGrads = BRemainByQuarter[quarter] * (f.graduationRates.bToC.graduate / 100) * remainSuccessRate;
+        const when = quarter + tC;
+        if (when < horizon) CByQuarter[when] += remainGrads;
+      }
+    }
   }
 
   const followOnByQuarter: Record<number, { A: number; B: number; C: number; total: number }> = {};

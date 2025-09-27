@@ -7,7 +7,6 @@
  * Async iteration utilities to replace problematic forEach patterns
  */
 
-import { safeArray } from './array-safety';
 import { logger } from '../lib/logger';
 
 // Compile-time flag for metrics collection - dead-stripped in production builds

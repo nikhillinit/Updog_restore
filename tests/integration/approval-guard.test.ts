@@ -3,7 +3,7 @@
  * Ensures policy enforcement before compute execution
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { 
   verifyApproval, 
   computeStrategyHash, 

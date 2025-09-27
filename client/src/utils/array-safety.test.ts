@@ -15,7 +15,6 @@
  *  - map works on complex object arrays
  */
 
-import React from 'react';
 import { safeArray, forEach, map, filter, reduce } from '@/utils/array-safety';
 
 describe('ArraySafety utilities', () => {

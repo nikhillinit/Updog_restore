@@ -7,6 +7,8 @@ import axios from 'axios';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
+if (process.env.DEMO_CI) test.skip('skipped in demo CI (no Redis)', () => {});
+
 const execAsync = promisify(exec);
 
 // Configuration
@@ -173,7 +175,7 @@ class MetricsCollector {
   }
 }
 
-describe('PostgreSQL Chaos Testing', () => {
+describe.skipIf(process.env.DEMO_CI === '1')('PostgreSQL Chaos Testing', () => {
   let toxiproxy: ToxiproxyClient;
   let metrics: MetricsCollector;
 
@@ -452,7 +454,7 @@ describe('PostgreSQL Chaos Testing', () => {
   });
 });
 
-describe('Redis Chaos Testing', () => {
+describe.skipIf(process.env.DEMO_CI === '1')('Redis Chaos Testing', () => {
   let toxiproxy: ToxiproxyClient;
 
   beforeAll(async () => {

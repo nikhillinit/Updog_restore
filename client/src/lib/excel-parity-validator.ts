@@ -11,7 +11,6 @@ import {
   EngineStagePolicy,
   EngineInput,
   EngineResult,
-  Stage,
   normalizeStage,
   isRawCompany,
   isRawStagePolicy

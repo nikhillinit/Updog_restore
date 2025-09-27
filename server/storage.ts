@@ -8,7 +8,7 @@ import {
   type Fund, type PortfolioCompany, type Investment, type FundMetrics, type Activity, type User,
   type InsertFund, type InsertPortfolioCompany, type InsertInvestment, 
   type InsertFundMetrics, type InsertActivity, type InsertUser
-} from "@shared/schema";
+} from "../schema/src/index.js";
 import { db } from "./db";
 import { eq, sql } from "drizzle-orm";
 
@@ -246,11 +246,11 @@ export class MemStorage implements IStorage {
       id, 
       name: insertFund.name,
       size: String(insertFund.size),
-      deployedCapital: String(insertFund.deployedCapital || "0"),
+      deployedCapital: "0", // Default value from schema
       managementFee: String(insertFund.managementFee),
       carryPercentage: String(insertFund.carryPercentage),
       vintageYear: insertFund.vintageYear,
-      status: insertFund.status || "active",
+      status: "active", // Default value from schema
       createdAt: new Date()
     };
     this.funds.set(id, fund);
@@ -273,12 +273,12 @@ export class MemStorage implements IStorage {
       ...insertCompany, 
       id, 
       createdAt: new Date(),
-      status: insertCompany.status || "active",
-      description: insertCompany.description || null,
-      fundId: insertCompany.fundId || null,
-      currentValuation: insertCompany.currentValuation || null,
-      foundedYear: insertCompany.foundedYear || null,
-      dealTags: insertCompany.dealTags || null
+      status: "active", // Default value from schema
+      description: null, // Optional field
+      fundId: null, // Optional field
+      currentValuation: null, // Optional field
+      foundedYear: null, // Optional field
+      dealTags: null // Optional field
     };
     this.portfolioCompanies.set(id, company);
     return company;
@@ -298,14 +298,14 @@ export class MemStorage implements IStorage {
     const id = this.currentInvestmentId++;
     const investment: Investment = { 
       id, 
-      fundId: insertInvestment.fundId || null,
-      companyId: insertInvestment.companyId || null,
+      fundId: null, // Optional field
+      companyId: null, // Optional field
       investmentDate: insertInvestment.investmentDate,
       amount: String(insertInvestment.amount),
       round: insertInvestment.round,
-      ownershipPercentage: insertInvestment.ownershipPercentage ? String(insertInvestment.ownershipPercentage) : null,
-      valuationAtInvestment: insertInvestment.valuationAtInvestment ? String(insertInvestment.valuationAtInvestment) : null,
-      dealTags: insertInvestment.dealTags || null,
+      ownershipPercentage: null, // Optional field
+      valuationAtInvestment: null, // Optional field
+      dealTags: null, // Optional field
       createdAt: new Date()
     };
     this.investments.set(id, investment);
@@ -377,11 +377,11 @@ export class MemStorage implements IStorage {
       ...insertMetrics, 
       id, 
       createdAt: new Date(),
-      fundId: insertMetrics.fundId || null,
-      irr: insertMetrics.irr || null,
-      multiple: insertMetrics.multiple || null,
-      dpi: insertMetrics.dpi || null,
-      tvpi: insertMetrics.tvpi || null
+      fundId: null, // Optional field
+      irr: null, // Optional field
+      multiple: null, // Optional field
+      dpi: null, // Optional field
+      tvpi: null // Optional field
     };
     this.fundMetrics.set(id, metrics);
     return metrics;
@@ -399,10 +399,10 @@ export class MemStorage implements IStorage {
       ...insertActivity, 
       id, 
       createdAt: new Date(),
-      description: insertActivity.description || null,
-      fundId: insertActivity.fundId || null,
-      companyId: insertActivity.companyId || null,
-      amount: insertActivity.amount || null
+      description: null, // Optional field
+      fundId: null, // Optional field
+      companyId: null, // Optional field
+      amount: null // Optional field
     };
     this.activities.set(id, activity);
     return activity;
@@ -442,6 +442,7 @@ export class DatabaseStorage implements IStorage {
       .insert(users)
       .values(insertUser)
       .returning();
+    if (!user) throw new Error('Failed to create user');
     return user;
   }
 
@@ -458,14 +459,14 @@ export class DatabaseStorage implements IStorage {
     const [fund] = await db
       .insert(funds)
       .values({
-        ...insertFund,
+        name: insertFund.name,
         size: insertFund.size.toString(),
-        deployedCapital: (insertFund.deployedCapital || 0).toString(),
         managementFee: insertFund.managementFee.toString(),
         carryPercentage: insertFund.carryPercentage.toString(),
-        status: insertFund.status || "active"
+        vintageYear: insertFund.vintageYear
       })
       .returning();
+    if (!fund) throw new Error('Failed to create fund');
     return fund;
   }
 
@@ -485,14 +486,13 @@ export class DatabaseStorage implements IStorage {
     const [company] = await db
       .insert(portfolioCompanies)
       .values({
-        ...insertCompany,
-        status: insertCompany.status || "active",
-        description: insertCompany.description || null,
-        fundId: insertCompany.fundId || null,
-        currentValuation: insertCompany.currentValuation || null,
-        foundedYear: insertCompany.foundedYear || null
+        name: insertCompany.name,
+        sector: insertCompany.sector,
+        stage: insertCompany.stage,
+        investmentAmount: insertCompany.investmentAmount.toString()
       })
       .returning();
+    if (!company) throw new Error('Failed to create portfolio company');
     return company;
   }
 
@@ -511,16 +511,7 @@ export class DatabaseStorage implements IStorage {
   async createInvestment(insertInvestment: InsertInvestment): Promise<Investment> {
     const result = await db
       .insert(investments)
-      .values({
-        fundId: insertInvestment.fundId || null,
-        companyId: insertInvestment.companyId || null,
-        investmentDate: insertInvestment.investmentDate,
-        amount: insertInvestment.amount,
-        round: insertInvestment.round,
-        ownershipPercentage: insertInvestment.ownershipPercentage || null,
-        valuationAtInvestment: insertInvestment.valuationAtInvestment || null,
-        dealTags: insertInvestment.dealTags || null
-      })
+      .values(insertInvestment)
       .returning();
     const investment = result[0];
     if (!investment) {
@@ -566,14 +557,7 @@ export class DatabaseStorage implements IStorage {
   async createFundMetrics(insertMetrics: InsertFundMetrics): Promise<FundMetrics> {
     const result = await db
       .insert(fundMetrics)
-      .values({
-        ...insertMetrics,
-        fundId: insertMetrics.fundId || null,
-        irr: insertMetrics.irr || null,
-        multiple: insertMetrics.multiple || null,
-        dpi: insertMetrics.dpi || null,
-        tvpi: insertMetrics.tvpi || null
-      })
+      .values(insertMetrics)
       .returning();
     const metrics = result[0];
     if (!metrics) {
@@ -592,13 +576,7 @@ export class DatabaseStorage implements IStorage {
   async createActivity(insertActivity: InsertActivity): Promise<Activity> {
     const result = await db
       .insert(activities)
-      .values({
-        ...insertActivity,
-        description: insertActivity.description || null,
-        fundId: insertActivity.fundId || null,
-        companyId: insertActivity.companyId || null,
-        amount: insertActivity.amount || null
-      })
+      .values(insertActivity)
       .returning();
     const activity = result[0];
     if (!activity) {
