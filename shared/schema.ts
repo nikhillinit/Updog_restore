@@ -1,4 +1,5 @@
 import { pgTable, text, serial, integer, boolean, decimal, timestamp, jsonb, varchar, index, unique, uuid, date, pgEnum, uniqueIndex, bigint } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 
 export const funds = pgTable("funds", {
@@ -1012,4 +1013,509 @@ export type PerformanceAlert = typeof performanceAlerts.$inferSelect;
 export type InsertPerformanceAlert = typeof performanceAlerts.$inferInsert;
 export type AlertRule = typeof alertRules.$inferSelect;
 export type InsertAlertRule = typeof alertRules.$inferInsert;
+
+// ============================================================================
+// PORTFOLIO CONSTRUCTION MODELING SCHEMA EXTENSIONS
+// Comprehensive portfolio construction modeling for scenario planning
+// ============================================================================
+
+// Fund Strategy Models - Forward-looking fund construction with allocation strategies
+export const fundStrategyModels = pgTable("fund_strategy_models", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  fundId: integer("fund_id").notNull().references(() => funds.id),
+
+  // Model identification
+  name: text("name").notNull(),
+  description: text("description"),
+  modelType: text("model_type").notNull(), // 'strategic', 'tactical', 'opportunistic', 'defensive', 'balanced'
+
+  // Strategy parameters
+  targetPortfolioSize: integer("target_portfolio_size").notNull().default(25),
+  maxPortfolioSize: integer("max_portfolio_size").notNull().default(30),
+  targetDeploymentPeriodMonths: integer("target_deployment_period_months").notNull().default(36),
+
+  // Investment allocation strategy
+  checkSizeRange: jsonb("check_size_range").notNull(), // {min: 500000, max: 2000000, target: 1000000}
+  sectorAllocation: jsonb("sector_allocation").notNull(), // {fintech: 0.3, healthtech: 0.2, ...}
+  stageAllocation: jsonb("stage_allocation").notNull(), // {seed: 0.4, seriesA: 0.6}
+  geographicAllocation: jsonb("geographic_allocation"), // {us: 0.8, europe: 0.2}
+
+  // Reserve strategy
+  initialReservePercentage: decimal("initial_reserve_percentage", { precision: 5, scale: 4 }).notNull().default("0.50"),
+  followOnStrategy: jsonb("follow_on_strategy").notNull(), // Complex follow-on rules
+  reserveDeploymentTimeline: jsonb("reserve_deployment_timeline"), // Planned reserve deployment over time
+
+  // Risk parameters
+  concentrationLimits: jsonb("concentration_limits").notNull(), // Max % per company, sector, etc.
+  diversificationRules: jsonb("diversification_rules"), // Minimum diversification requirements
+  riskTolerance: text("risk_tolerance").notNull().default("moderate"), // 'conservative', 'moderate', 'aggressive'
+
+  // Performance targets
+  targetIrr: decimal("target_irr", { precision: 5, scale: 4 }), // Target IRR %
+  targetMultiple: decimal("target_multiple", { precision: 5, scale: 2 }), // Target multiple of invested capital
+  targetDpi: decimal("target_dpi", { precision: 5, scale: 2 }), // Target DPI
+  targetPortfolioBeta: decimal("target_portfolio_beta", { precision: 5, scale: 2 }), // Portfolio risk relative to market
+
+  // Model metadata
+  modelVersion: text("model_version").notNull().default("1.0.0"),
+  isActive: boolean("is_active").default(true),
+  isTemplate: boolean("is_template").default(false), // Can be used as template for other funds
+  confidenceLevel: decimal("confidence_level", { precision: 3, scale: 2 }).default("0.75"), // 0.00-1.00
+
+  // Scenario planning
+  marketAssumptions: jsonb("market_assumptions"), // Economic/market assumptions
+  validationCriteria: jsonb("validation_criteria"), // Criteria for model validation
+  stressTestScenarios: jsonb("stress_test_scenarios"), // Stress testing parameters
+
+  // User context
+  createdBy: integer("created_by").notNull().references(() => users.id),
+  approvedBy: integer("approved_by").references(() => users.id),
+  tags: text("tags").array().default([]),
+
+  // Timestamps
+  effectiveDate: timestamp("effective_date", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  fundIdx: index("fund_strategy_models_fund_idx").on(table.fundId, table.createdAt.desc()),
+  typeIdx: index("fund_strategy_models_type_idx").on(table.modelType, table.isActive),
+  activeIdx: index("fund_strategy_models_active_idx").on(table.isActive, table.effectiveDate.desc()),
+  templateIdx: index("fund_strategy_models_template_idx").on(table.isTemplate, table.isActive),
+  tagsGinIdx: index("fund_strategy_models_tags_gin_idx").using("gin", table.tags),
+  activeUnique: unique("fund_strategy_models_active_unique").on(table.fundId),
+}));
+
+// Portfolio Construction Scenarios - Multiple "what-if" scenarios for fund building
+export const portfolioScenarios = pgTable("portfolio_scenarios", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  fundId: integer("fund_id").notNull().references(() => funds.id),
+  strategyModelId: uuid("strategy_model_id").notNull().references(() => fundStrategyModels.id),
+
+  // Scenario identification
+  name: text("name").notNull(),
+  description: text("description"),
+  scenarioType: text("scenario_type").notNull(), // 'base_case', 'optimistic', 'pessimistic', 'stress_test', 'custom'
+
+  // Scenario parameters
+  marketEnvironment: text("market_environment").notNull().default("normal"), // 'bull', 'normal', 'bear', 'recession'
+  dealFlowAssumption: decimal("deal_flow_assumption", { precision: 5, scale: 2 }).notNull().default("1.00"), // Multiplier vs normal deal flow
+  valuationEnvironment: decimal("valuation_environment", { precision: 5, scale: 2 }).notNull().default("1.00"), // Valuation multiplier vs normal
+  exitEnvironment: decimal("exit_environment", { precision: 5, scale: 2 }).notNull().default("1.00"), // Exit opportunity multiplier
+
+  // Portfolio construction parameters
+  plannedInvestments: jsonb("planned_investments").notNull(), // Array of planned investment details
+  deploymentSchedule: jsonb("deployment_schedule").notNull(), // Timeline of when investments are made
+  followOnAssumptions: jsonb("follow_on_assumptions"), // Follow-on investment assumptions
+
+  // Performance projections
+  projectedFundMetrics: jsonb("projected_fund_metrics").notNull(), // Expected fund-level metrics
+  projectedPortfolioOutcomes: jsonb("projected_portfolio_outcomes"), // Company-level outcome projections
+  monteCarloResults: jsonb("monte_carlo_results"), // Statistical simulation results
+
+  // Risk analysis
+  riskFactors: jsonb("risk_factors"), // Identified risk factors and mitigations
+  sensitivityAnalysis: jsonb("sensitivity_analysis"), // Sensitivity to key variables
+  correlationAssumptions: jsonb("correlation_assumptions"), // Cross-portfolio correlations
+
+  // Comparison and benchmarking
+  baselineScenarioId: uuid("baseline_scenario_id"), // What this is compared against
+  varianceFromBaseline: jsonb("variance_from_baseline"), // Key differences from baseline
+  benchmarkComparison: jsonb("benchmark_comparison"), // Comparison to industry benchmarks
+
+  // Simulation metadata
+  simulationEngine: text("simulation_engine").notNull().default("monte-carlo-v1"),
+  simulationRuns: integer("simulation_runs").default(10000),
+  simulationDurationMs: integer("simulation_duration_ms"),
+  lastSimulationAt: timestamp("last_simulation_at", { withTimezone: true }),
+
+  // Status and workflow
+  status: text("status").notNull().default("draft"), // 'draft', 'modeling', 'complete', 'approved', 'archived'
+  confidenceScore: decimal("confidence_score", { precision: 5, scale: 2 }), // Overall confidence in scenario
+  validationResults: jsonb("validation_results"), // Validation check results
+
+  // User context
+  createdBy: integer("created_by").notNull().references(() => users.id),
+  reviewedBy: integer("reviewed_by").references(() => users.id),
+  approvedBy: integer("approved_by").references(() => users.id),
+
+  // Sharing and collaboration
+  isShared: boolean("is_shared").default(false),
+  sharedWith: text("shared_with").array().default([]), // User IDs with access
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  fundIdx: index("portfolio_scenarios_fund_idx").on(table.fundId, table.createdAt.desc()),
+  strategyIdx: index("portfolio_scenarios_strategy_idx").on(table.strategyModelId, table.status),
+  typeIdx: index("portfolio_scenarios_type_idx").on(table.scenarioType, table.status),
+  statusIdx: index("portfolio_scenarios_status_idx").on(table.status, table.updatedAt.desc()),
+  sharedIdx: index("portfolio_scenarios_shared_idx").on(table.isShared, table.createdAt.desc()),
+  baselineIdx: index("portfolio_scenarios_baseline_idx").on(table.baselineScenarioId),
+}));
+
+// Reserve Allocation Strategies - Dynamic reserve deployment strategies with optimization data
+export const reserveAllocationStrategies = pgTable("reserve_allocation_strategies", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  fundId: integer("fund_id").notNull().references(() => funds.id),
+  scenarioId: uuid("scenario_id").references(() => portfolioScenarios.id),
+
+  // Strategy identification
+  name: text("name").notNull(),
+  description: text("description"),
+  strategyType: text("strategy_type").notNull(), // 'proportional', 'milestone_based', 'performance_based', 'opportunistic', 'hybrid'
+
+  // Allocation rules
+  allocationRules: jsonb("allocation_rules").notNull(), // Complex rules for reserve allocation
+  triggerConditions: jsonb("trigger_conditions").notNull(), // When to deploy reserves
+  companyScoringCriteria: jsonb("company_scoring_criteria"), // How to score companies for reserves
+
+  // Reserve pools and tranches
+  totalReserveAmount: decimal("total_reserve_amount", { precision: 15, scale: 2 }).notNull(),
+  reserveTranches: jsonb("reserve_tranches").notNull(), // {tranche1: {amount: 5000000, criteria: {...}}}
+  emergencyReservePct: decimal("emergency_reserve_pct", { precision: 5, scale: 4 }).default("0.10"), // Emergency reserve %
+
+  // Deployment parameters
+  maxPerCompanyPct: decimal("max_per_company_pct", { precision: 5, scale: 4 }).notNull().default("0.20"), // Max % of reserves per company
+  minDeploymentAmount: decimal("min_deployment_amount", { precision: 15, scale: 2 }).default("100000"),
+  maxDeploymentAmount: decimal("max_deployment_amount", { precision: 15, scale: 2 }),
+
+  // Performance tracking
+  performanceThresholds: jsonb("performance_thresholds"), // Performance gates for reserve deployment
+  milestoneTracking: jsonb("milestone_tracking"), // Milestone-based deployment tracking
+  riskAdjustedScoring: jsonb("risk_adjusted_scoring"), // Risk-adjusted allocation criteria
+
+  // Optimization parameters
+  optimizationObjective: text("optimization_objective").notNull().default("risk_adjusted_return"), // 'irr_maximization', 'risk_minimization', 'risk_adjusted_return', 'portfolio_balance'
+  optimizationConstraints: jsonb("optimization_constraints"), // Mathematical constraints for optimization
+  rebalancingFrequency: text("rebalancing_frequency").default("quarterly"), // 'monthly', 'quarterly', 'semi_annual', 'annual'
+
+  // Simulation and modeling
+  monteCarloIterations: integer("monte_carlo_iterations").default(5000),
+  scenarioWeights: jsonb("scenario_weights"), // Probability weights for different scenarios
+  sensitivityParameters: jsonb("sensitivity_parameters"), // Variables for sensitivity analysis
+
+  // Strategy effectiveness
+  backtestResults: jsonb("backtest_results"), // Historical backtesting results
+  performanceAttribution: jsonb("performance_attribution"), // Performance attribution analysis
+  benchmarkComparison: jsonb("benchmark_comparison"), // Comparison to benchmark strategies
+
+  // Decision support
+  recommendationEngine: jsonb("recommendation_engine"), // AI/ML recommendations
+  decisionHistory: jsonb("decision_history"), // History of reserve allocation decisions
+  overrideReasons: jsonb("override_reasons"), // Reasons for manual overrides
+
+  // Status and metadata
+  isActive: boolean("is_active").default(true),
+  lastOptimizedAt: timestamp("last_optimized_at", { withTimezone: true }),
+  optimizationFrequencyDays: integer("optimization_frequency_days").default(30),
+
+  // User context
+  createdBy: integer("created_by").notNull().references(() => users.id),
+  lastModifiedBy: integer("last_modified_by").references(() => users.id),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  fundIdx: index("reserve_allocation_strategies_fund_idx").on(table.fundId, table.createdAt.desc()),
+  scenarioIdx: index("reserve_allocation_strategies_scenario_idx").on(table.scenarioId, table.isActive),
+  typeIdx: index("reserve_allocation_strategies_type_idx").on(table.strategyType, table.isActive),
+  activeIdx: index("reserve_allocation_strategies_active_idx").on(table.isActive, table.lastOptimizedAt.desc()),
+  optimizationIdx: index("reserve_allocation_strategies_optimization_idx").on(table.optimizationObjective, table.isActive),
+}));
+
+// Performance Forecasts - Predictive models linking to variance tracking
+export const performanceForecasts = pgTable("performance_forecasts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  fundId: integer("fund_id").notNull().references(() => funds.id),
+  scenarioId: uuid("scenario_id").references(() => portfolioScenarios.id),
+  baselineId: uuid("baseline_id").references(() => fundBaselines.id), // Link to variance tracking
+
+  // Forecast identification
+  forecastName: text("forecast_name").notNull(),
+  forecastType: text("forecast_type").notNull(), // 'fund_level', 'portfolio_level', 'company_level', 'sector_level'
+  forecastHorizonYears: integer("forecast_horizon_years").notNull().default(10),
+
+  // Time series forecasting
+  forecastPeriods: jsonb("forecast_periods").notNull(), // Quarterly/annual forecast data
+  confidenceIntervals: jsonb("confidence_intervals"), // Statistical confidence intervals
+  predictionVariance: jsonb("prediction_variance"), // Variance estimates for predictions
+
+  // Fund-level forecasts
+  irrForecast: jsonb("irr_forecast"), // IRR projections over time
+  multipleForecast: jsonb("multiple_forecast"), // Multiple projections
+  tvpiForecast: jsonb("tvpi_forecast"), // TVPI progression
+  dpiForecast: jsonb("dpi_forecast"), // DPI progression
+  navForecast: jsonb("nav_forecast"), // NAV evolution
+
+  // Portfolio forecasts
+  companyLevelForecasts: jsonb("company_level_forecasts"), // Individual company projections
+  sectorPerformanceForecasts: jsonb("sector_performance_forecasts"), // Sector-level performance
+  stagePerformanceForecasts: jsonb("stage_performance_forecasts"), // Stage-level performance
+  correlationMatrix: jsonb("correlation_matrix"), // Portfolio correlation assumptions
+
+  // Economic scenario modeling
+  baseCaseForecast: jsonb("base_case_forecast"), // Base case economic scenario
+  stressScenarios: jsonb("stress_scenarios"), // Economic stress test scenarios
+  macroSensitivity: jsonb("macro_sensitivity"), // Sensitivity to macro factors
+
+  // Forecast methodology
+  methodology: text("methodology").notNull(), // 'historical_extrapolation', 'monte_carlo', 'machine_learning', 'hybrid', 'expert_judgment'
+  modelParameters: jsonb("model_parameters"), // Parameters used in forecasting model
+  dataSources: jsonb("data_sources"), // Sources of data for forecasting
+  assumptions: jsonb("assumptions"), // Key assumptions underlying forecast
+
+  // Model performance
+  accuracyMetrics: jsonb("accuracy_metrics"), // Historical accuracy of model
+  calibrationResults: jsonb("calibration_results"), // Model calibration statistics
+  validationResults: jsonb("validation_results"), // Out-of-sample validation
+  modelVersion: text("model_version").notNull().default("1.0.0"),
+
+  // Comparison to actuals (for learning)
+  actualVsForecast: jsonb("actual_vs_forecast"), // Comparison when actuals become available
+  forecastErrors: jsonb("forecast_errors"), // Systematic forecast errors
+  modelDriftMetrics: jsonb("model_drift_metrics"), // Model performance drift over time
+
+  // Risk and uncertainty
+  uncertaintyQuantification: jsonb("uncertainty_quantification"), // Model uncertainty estimates
+  riskFactors: jsonb("risk_factors"), // Key risk factors affecting forecast
+  scenarioProbabilities: jsonb("scenario_probabilities"), // Probability weights for scenarios
+
+  // Forecast updates and versioning
+  parentForecastId: uuid("parent_forecast_id"),
+  updateReason: text("update_reason"), // Why forecast was updated
+  updateFrequencyDays: integer("update_frequency_days").default(90),
+  lastUpdatedAt: timestamp("last_updated_at", { withTimezone: true }),
+
+  // User context and workflow
+  createdBy: integer("created_by").notNull().references(() => users.id),
+  reviewedBy: integer("reviewed_by").references(() => users.id),
+  approvedBy: integer("approved_by").references(() => users.id),
+  status: text("status").notNull().default("draft"), // 'draft', 'modeling', 'review', 'approved', 'archived'
+
+  // Quality and governance
+  qualityScore: decimal("quality_score", { precision: 3, scale: 2 }), // Overall forecast quality score
+  peerReviewScores: jsonb("peer_review_scores"), // Peer review feedback
+  governanceNotes: text("governance_notes"),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  fundIdx: index("performance_forecasts_fund_idx").on(table.fundId, table.createdAt.desc()),
+  scenarioIdx: index("performance_forecasts_scenario_idx").on(table.scenarioId, table.status),
+  baselineIdx: index("performance_forecasts_baseline_idx").on(table.baselineId, table.createdAt.desc()),
+  typeIdx: index("performance_forecasts_type_idx").on(table.forecastType, table.status),
+  methodologyIdx: index("performance_forecasts_methodology_idx").on(table.methodology, table.modelVersion),
+  horizonIdx: index("performance_forecasts_horizon_idx").on(table.forecastHorizonYears, table.status),
+}));
+
+// Scenario Comparisons - Comparing different portfolio construction approaches
+export const scenarioComparisons = pgTable("scenario_comparisons", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  fundId: integer("fund_id").notNull().references(() => funds.id),
+
+  // Comparison identification
+  comparisonName: text("comparison_name").notNull(),
+  description: text("description"),
+  comparisonType: text("comparison_type").notNull(), // 'strategy_comparison', 'scenario_analysis', 'sensitivity_test', 'optimization_study'
+
+  // Scenarios being compared
+  baseScenarioId: uuid("base_scenario_id").notNull().references(() => portfolioScenarios.id),
+  comparisonScenarios: jsonb("comparison_scenarios").notNull(), // Array of scenario IDs with metadata
+
+  // Comparison dimensions
+  comparisonMetrics: jsonb("comparison_metrics").notNull(), // Which metrics to compare
+  weightScheme: jsonb("weight_scheme"), // Relative importance of different metrics
+  normalizationMethod: text("normalization_method").default("z_score"), // 'raw', 'percentage', 'z_score', 'ranking'
+
+  // Comparison results
+  metricComparisons: jsonb("metric_comparisons").notNull(), // Detailed metric-by-metric comparison
+  rankingResults: jsonb("ranking_results"), // Scenario rankings by different criteria
+  paretoAnalysis: jsonb("pareto_analysis"), // Pareto frontier analysis
+  tradeOffAnalysis: jsonb("trade_off_analysis"), // Risk-return trade-off analysis
+
+  // Statistical analysis
+  significanceTests: jsonb("significance_tests"), // Statistical significance of differences
+  confidenceIntervals: jsonb("confidence_intervals"), // Confidence intervals for differences
+  correlationAnalysis: jsonb("correlation_analysis"), // Correlation between scenarios
+  varianceDecomposition: jsonb("variance_decomposition"), // Sources of variance between scenarios
+
+  // Decision support
+  recommendationSummary: text("recommendation_summary"), // Summary recommendations
+  keyInsights: jsonb("key_insights"), // Key insights from comparison
+  decisionCriteria: jsonb("decision_criteria"), // Criteria for choosing between scenarios
+  riskConsiderations: jsonb("risk_considerations"), // Risk factors to consider
+
+  // Sensitivity analysis
+  sensitivityResults: jsonb("sensitivity_results"), // How robust are the comparisons
+  parameterImportance: jsonb("parameter_importance"), // Which parameters drive differences
+  thresholdAnalysis: jsonb("threshold_analysis"), // At what thresholds do preferences change
+
+  // Visualization data
+  chartConfigurations: jsonb("chart_configurations"), // Chart configs for visualization
+  dashboardLayout: jsonb("dashboard_layout"), // Dashboard layout preferences
+  exportFormats: jsonb("export_formats"), // Preferred export formats
+
+  // Comparison metadata
+  comparisonEngine: text("comparison_engine").notNull().default("scenario-compare-v1"),
+  computationTimeMs: integer("computation_time_ms"),
+  dataFreshnessHours: integer("data_freshness_hours"), // How old is the underlying data
+
+  // User interaction
+  userPreferences: jsonb("user_preferences"), // User-specific comparison preferences
+  bookmarkSettings: jsonb("bookmark_settings"), // User bookmarks and favorites
+  sharingSettings: jsonb("sharing_settings"), // How comparison is shared
+
+  // Status and workflow
+  status: text("status").notNull().default("computing"), // 'computing', 'ready', 'stale', 'error'
+  errorDetails: jsonb("error_details"), // Error information if status is error
+  cacheExpiresAt: timestamp("cache_expires_at", { withTimezone: true }), // When cached results expire
+
+  // User context
+  createdBy: integer("created_by").notNull().references(() => users.id),
+  sharedWith: text("shared_with").array().default([]),
+  isPublic: boolean("is_public").default(false),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  lastAccessed: timestamp("last_accessed", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  fundIdx: index("scenario_comparisons_fund_idx").on(table.fundId, table.createdAt.desc()),
+  baseIdx: index("scenario_comparisons_base_idx").on(table.baseScenarioId, table.status),
+  typeIdx: index("scenario_comparisons_type_idx").on(table.comparisonType, table.status),
+  statusIdx: index("scenario_comparisons_status_idx").on(table.status, table.lastAccessed.desc()),
+  publicIdx: index("scenario_comparisons_public_idx").on(table.isPublic, table.createdAt.desc()),
+}));
+
+// Monte Carlo Simulation Results - Detailed simulation results for scenario modeling
+export const monteCarloSimulations = pgTable("monte_carlo_simulations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  fundId: integer("fund_id").notNull().references(() => funds.id),
+  scenarioId: uuid("scenario_id").references(() => portfolioScenarios.id),
+  forecastId: uuid("forecast_id").references(() => performanceForecasts.id),
+
+  // Simulation identification
+  simulationName: text("simulation_name").notNull(),
+  simulationType: text("simulation_type").notNull(), // 'portfolio_construction', 'performance_forecast', 'risk_analysis', 'optimization'
+
+  // Simulation parameters
+  numberOfRuns: integer("number_of_runs").notNull().default(10000),
+  randomSeed: integer("random_seed"), // For reproducibility
+  simulationEngine: text("simulation_engine").notNull().default("monte-carlo-v2"),
+
+  // Input parameters
+  inputDistributions: jsonb("input_distributions").notNull(), // Probability distributions for inputs
+  correlationMatrix: jsonb("correlation_matrix"), // Input correlations
+  scenarioWeights: jsonb("scenario_weights"), // Probability weights for scenarios
+  constraints: jsonb("constraints"), // Simulation constraints
+
+  // Output results
+  summaryStatistics: jsonb("summary_statistics").notNull(), // Mean, std, percentiles, etc.
+  percentileResults: jsonb("percentile_results").notNull(), // Key percentiles (5th, 25th, 50th, 75th, 95th)
+  distributionData: jsonb("distribution_data"), // Full distribution data (if stored)
+  confidenceIntervals: jsonb("confidence_intervals"), // Confidence intervals for key metrics
+
+  // Risk metrics
+  varCalculations: jsonb("var_calculations"), // Value at Risk calculations
+  cvarCalculations: jsonb("cvar_calculations"), // Conditional VaR calculations
+  downsideRisk: jsonb("downside_risk"), // Downside risk metrics
+  tailRiskAnalysis: jsonb("tail_risk_analysis"), // Tail risk analysis
+
+  // Convergence and quality
+  convergenceMetrics: jsonb("convergence_metrics"), // Simulation convergence statistics
+  qualityMetrics: jsonb("quality_metrics"), // Quality of simulation results
+  stabilityAnalysis: jsonb("stability_analysis"), // Result stability across runs
+
+  // Performance attribution
+  factorContributions: jsonb("factor_contributions"), // Contribution of different factors
+  sensitivityIndices: jsonb("sensitivity_indices"), // Sobol indices or similar
+  interactionEffects: jsonb("interaction_effects"), // Factor interaction effects
+
+  // Simulation metadata
+  computationTimeMs: integer("computation_time_ms"),
+  memoryUsageMb: integer("memory_usage_mb"),
+  cpuCoresUsed: integer("cpu_cores_used"),
+  simulationDate: timestamp("simulation_date", { withTimezone: true }).notNull().defaultNow(),
+
+  // Results storage
+  detailedResultsPath: text("detailed_results_path"), // Path to detailed results file
+  resultsCompressed: boolean("results_compressed").default(false),
+  resultsFormat: text("results_format").default("json"), // 'json', 'parquet', 'csv'
+
+  // Validation
+  validationTests: jsonb("validation_tests"), // Statistical validation tests
+  benchmarkComparison: jsonb("benchmark_comparison"), // Comparison to benchmark results
+  historicalValidation: jsonb("historical_validation"), // Validation against historical data
+
+  // User context
+  createdBy: integer("created_by").notNull().references(() => users.id),
+  tags: text("tags").array().default([]),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }), // When to cleanup detailed results
+}, (table) => ({
+  fundIdx: index("monte_carlo_simulations_fund_idx").on(table.fundId, table.simulationDate.desc()),
+  scenarioIdx: index("monte_carlo_simulations_scenario_idx").on(table.scenarioId, table.simulationDate.desc()),
+  forecastIdx: index("monte_carlo_simulations_forecast_idx").on(table.forecastId, table.simulationDate.desc()),
+  typeIdx: index("monte_carlo_simulations_type_idx").on(table.simulationType, table.simulationDate.desc()),
+  expiryIdx: index("monte_carlo_simulations_expiry_idx").on(table.expiresAt),
+  tagsGinIdx: index("monte_carlo_simulations_tags_gin_idx").using("gin", table.tags),
+}));
+
+// ============================================================================
+// INSERT SCHEMAS FOR PORTFOLIO CONSTRUCTION MODELING
+// ============================================================================
+
+export const insertFundStrategyModelSchema = createInsertSchema(fundStrategyModels).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertPortfolioScenarioSchema = createInsertSchema(portfolioScenarios).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertReserveAllocationStrategySchema = createInsertSchema(reserveAllocationStrategies).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertPerformanceForecastSchema = createInsertSchema(performanceForecasts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertScenarioComparisonSchema = createInsertSchema(scenarioComparisons).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastAccessed: true
+});
+
+export const insertMonteCarloSimulationSchema = createInsertSchema(monteCarloSimulations).omit({
+  id: true,
+  createdAt: true
+});
+
+// ============================================================================
+// TYPE EXPORTS FOR PORTFOLIO CONSTRUCTION MODELING
+// ============================================================================
+
+export type FundStrategyModel = typeof fundStrategyModels.$inferSelect;
+export type InsertFundStrategyModel = typeof fundStrategyModels.$inferInsert;
+export type PortfolioScenario = typeof portfolioScenarios.$inferSelect;
+export type InsertPortfolioScenario = typeof portfolioScenarios.$inferInsert;
+export type ReserveAllocationStrategy = typeof reserveAllocationStrategies.$inferSelect;
+export type InsertReserveAllocationStrategy = typeof reserveAllocationStrategies.$inferInsert;
+export type PerformanceForecast = typeof performanceForecasts.$inferSelect;
+export type InsertPerformanceForecast = typeof performanceForecasts.$inferInsert;
+export type ScenarioComparison = typeof scenarioComparisons.$inferSelect;
+export type InsertScenarioComparison = typeof scenarioComparisons.$inferInsert;
+export type MonteCarloSimulation = typeof monteCarloSimulations.$inferSelect;
+export type InsertMonteCarloSimulation = typeof monteCarloSimulations.$inferInsert;
 

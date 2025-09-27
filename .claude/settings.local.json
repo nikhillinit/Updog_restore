@@ -127,7 +127,8 @@
       "Bash(npm run test:quick:*)",
       "Bash(npm run build:types:*)",
       "Bash(git checkout:*)",
-      "Bash(git rebase:*)"
+      "Bash(git rebase:*)",
+      "WebFetch(domain:tactyc.app.carta.com)"
     ],
     "deny": [],
     "ask": [],
