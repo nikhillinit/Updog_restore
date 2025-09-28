@@ -12,8 +12,8 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../db.js';
-import { auditLog, fundEvents } from '@shared/schema';
-import { auditLogger, logAudit, logContext, securityLogger } from '../utils/logger.js';
+import { fundEvents } from '@shared/schema';
+import { auditLogger, logAudit, securityLogger } from '../utils/logger.js';
 import { z } from 'zod';
 import crypto from 'crypto';
 
@@ -247,7 +247,7 @@ export function enhancedAuditMiddleware(config: AuditConfig = {}) {
         const riskLevel = determineRiskLevel(req, res, executionTime);
 
         // Prepare audit data
-        let auditData: any = {
+        const auditData: any = {
           timestamp: new Date(),
           correlationId,
           userId: userId || null,

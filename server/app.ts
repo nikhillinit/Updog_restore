@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import swaggerUi from 'swagger-ui-express';
 import { reservesV1Router } from './routes/v1/reserves.js';
 import { flagsRouter } from './routes/flags.js';
+import cashflowRouter from './routes/cashflow.js';
 import { swaggerSpec } from './config/swagger.js';
 import { cspDirectives, buildCSPHeader, securityHeaders } from './config/csp.js';
 
@@ -102,9 +103,12 @@ export function makeApp() {
 
   // Feature flags API
   app.use('/api/flags', flagsRouter);
-  
+
   // Versioned API
   app.use('/api/v1/reserves', reservesV1Router);
+
+  // Cashflow management API
+  app.use('/api/cashflow', cashflowRouter);
 
   // Health endpoints moved to routes/health.ts to avoid duplication
   

@@ -21,18 +21,20 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  TrendingUp, 
-  DollarSign, 
-  Target, 
+import {
+  TrendingUp,
+  DollarSign,
+  Target,
   Users,
   PieChart,
   Filter,
   Download,
   Eye,
   Settings,
-  Plus
+  Plus,
+  Activity
 } from "lucide-react";
+import CashflowDashboard from "@/components/dashboard/CashflowDashboard";
 
 export default function ModernDashboard() {
   const { currentFund, isLoading } = useFundContext();
@@ -128,6 +130,10 @@ export default function ModernDashboard() {
                 </TabsTrigger>
                 <TabsTrigger value="performance" className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white">
                   Performance
+                </TabsTrigger>
+                <TabsTrigger value="cashflow" className="data-[state=active]:bg-pov-charcoal data-[state=active]:text-pov-white">
+                  <Activity className="h-4 w-4 mr-2" />
+                  Cashflow
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -454,6 +460,14 @@ export default function ModernDashboard() {
                 </div>
               </PremiumCard>
             </div>
+          </TabsContent>
+
+          {/* Cashflow Management Tab */}
+          <TabsContent value="cashflow" className="space-y-8">
+            <CashflowDashboard
+              fundId={currentFund?.id || 'default'}
+              className="max-w-none"
+            />
           </TabsContent>
         </Tabs>
       </div>

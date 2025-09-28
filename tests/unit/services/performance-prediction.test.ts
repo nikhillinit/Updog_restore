@@ -10,26 +10,25 @@ import {
   PerformancePredictionEngine,
   type PredictionConfig
 } from '../../../server/services/performance-prediction';
+import { db } from '../../../server/db';
 
-// Mock the database and dependencies
-const mockDb = {
-  query: {
-    fundMetrics: {
-      findMany: vi.fn(),
-      findFirst: vi.fn()
-    },
-    funds: {
-      findFirst: vi.fn(),
-      findMany: vi.fn()
-    }
-  },
-  insert: vi.fn(() => ({
-    values: vi.fn(() => Promise.resolve())
-  }))
-};
-
+// Mock the database and dependencies - use factory function to avoid hoisting issues
 vi.mock('../../../server/db', () => ({
-  db: mockDb
+  db: {
+    query: {
+      fundMetrics: {
+        findMany: vi.fn(),
+        findFirst: vi.fn()
+      },
+      funds: {
+        findFirst: vi.fn(),
+        findMany: vi.fn()
+      }
+    },
+    insert: vi.fn(() => ({
+      values: vi.fn(() => Promise.resolve())
+    }))
+  }
 }));
 
 vi.mock('@shared/schema', () => ({
@@ -113,7 +112,7 @@ describe('PerformancePredictionEngine', () => {
     ];
 
     // Setup default mock responses
-    mockDb.query.fundMetrics.findMany.mockResolvedValue(mockHistoricalData);
+    (db.query.fundMetrics.findMany as any).mockResolvedValue(mockHistoricalData);
   });
 
   afterEach(() => {
@@ -215,7 +214,7 @@ describe('PerformancePredictionEngine', () => {
       });
 
       it('should fail with insufficient historical data', async () => {
-        mockDb.query.fundMetrics.findMany.mockResolvedValue([mockHistoricalData[0], mockHistoricalData[1]]);
+        (db.query.fundMetrics.findMany as any).mockResolvedValue([mockHistoricalData[0], mockHistoricalData[1]]);
 
         await expect(engine.generatePredictions(mockConfig)).rejects.toThrow('Insufficient historical data');
       });
@@ -223,7 +222,7 @@ describe('PerformancePredictionEngine', () => {
       it('should store predictions in database', async () => {
         await engine.generatePredictions(mockConfig);
 
-        expect(mockDb.insert).toHaveBeenCalled();
+        expect((db.insert as any)).toHaveBeenCalled();
       });
     });
 
@@ -266,7 +265,7 @@ describe('PerformancePredictionEngine', () => {
           irr: data.irr + (Math.random() - 0.5) * 0.1
         }));
 
-        mockDb.query.fundMetrics.findMany.mockResolvedValue(volatileData);
+        (db.query.fundMetrics.findMany as any).mockResolvedValue(volatileData);
 
         const config = { ...mockConfig, modelType: 'exponential' as const };
         const results = await engine.generatePredictions(config);
@@ -287,7 +286,7 @@ describe('PerformancePredictionEngine', () => {
           irr: 0.1 + 0.02 * index + 0.001 * index * index
         }));
 
-        mockDb.query.fundMetrics.findMany.mockResolvedValue(quadraticData);
+        (db.query.fundMetrics.findMany as any).mockResolvedValue(quadraticData);
 
         const config = { ...mockConfig, modelType: 'polynomial' as const };
         const results = await engine.generatePredictions(config);
@@ -312,7 +311,7 @@ describe('PerformancePredictionEngine', () => {
           rvpi: 1.5
         }));
 
-        mockDb.query.fundMetrics.findMany.mockResolvedValue(illConditionedData);
+        (db.query.fundMetrics.findMany as any).mockResolvedValue(illConditionedData);
 
         const config = { ...mockConfig, modelType: 'polynomial' as const };
         const results = await engine.generatePredictions(config);
@@ -374,7 +373,7 @@ describe('PerformancePredictionEngine', () => {
           irr: 0.3 - 0.02 * index // Declining IRR
         }));
 
-        mockDb.query.fundMetrics.findMany.mockResolvedValue(decliningData);
+        (db.query.fundMetrics.findMany as any).mockResolvedValue(decliningData);
 
         const trendAnalysis = await engine.analyzeTrends(1, 12);
 
@@ -389,7 +388,7 @@ describe('PerformancePredictionEngine', () => {
           irr: 0.18 + (Math.random() - 0.5) * 0.01 // Small random variation around 18%
         }));
 
-        mockDb.query.fundMetrics.findMany.mockResolvedValue(stableData);
+        (db.query.fundMetrics.findMany as any).mockResolvedValue(stableData);
 
         const trendAnalysis = await engine.analyzeTrends(1, 12);
 
@@ -410,7 +409,7 @@ describe('PerformancePredictionEngine', () => {
           rvpi: 1.2
         }));
 
-        mockDb.query.fundMetrics.findMany.mockResolvedValue(seasonalData);
+        (db.query.fundMetrics.findMany as any).mockResolvedValue(seasonalData);
 
         const trendAnalysis = await engine.analyzeTrends(1, 24);
 
@@ -422,7 +421,7 @@ describe('PerformancePredictionEngine', () => {
       });
 
       it('should fail with insufficient data', async () => {
-        mockDb.query.fundMetrics.findMany.mockResolvedValue([mockHistoricalData[0], mockHistoricalData[1]]);
+        (db.query.fundMetrics.findMany as any).mockResolvedValue([mockHistoricalData[0], mockHistoricalData[1]]);
 
         await expect(engine.analyzeTrends(1, 12)).rejects.toThrow('Insufficient data for trend analysis');
       });
@@ -457,7 +456,7 @@ describe('PerformancePredictionEngine', () => {
           }
         ];
 
-        mockDb.query.fundMetrics.findMany.mockResolvedValue(dataWithAnomalies);
+        (db.query.fundMetrics.findMany as any).mockResolvedValue(dataWithAnomalies);
 
         const anomalies = await engine.detectAnomalies(1, 2);
 
@@ -517,8 +516,8 @@ describe('PerformancePredictionEngine', () => {
           { id: 4, createdAt: new Date('2022-11-10'), isActive: true }
         ];
 
-        mockDb.query.funds.findFirst.mockResolvedValue(mockFund);
-        mockDb.query.funds.findMany.mockResolvedValue(mockCohortFunds);
+        (db.query.funds as any).findFirst.mockResolvedValue(mockFund);
+        (db.query.funds as any).findMany.mockResolvedValue(mockCohortFunds);
       });
 
       it('should analyze fund cohort performance', async () => {
@@ -555,7 +554,7 @@ describe('PerformancePredictionEngine', () => {
           fundDate.setFullYear(fundDate.getFullYear() - stage.age);
 
           const fund = { ...mockFund, createdAt: fundDate };
-          mockDb.query.funds.findFirst.mockResolvedValue(fund);
+          (db.query.funds as any).findFirst.mockResolvedValue(fund);
 
           const cohortAnalysis = await engine.analyzeCohort(1);
           expect(cohortAnalysis.performanceProfile.currentStage).toBe(stage.expected);
@@ -563,7 +562,7 @@ describe('PerformancePredictionEngine', () => {
       });
 
       it('should handle missing fund', async () => {
-        mockDb.query.funds.findFirst.mockResolvedValue(null);
+        (db.query.funds as any).findFirst.mockResolvedValue(null);
 
         await expect(engine.analyzeCohort(1)).rejects.toThrow('Fund 1 not found');
       });
@@ -628,7 +627,7 @@ describe('PerformancePredictionEngine', () => {
         rvpi: 1.0 + 0.005 * i
       }));
 
-      mockDb.query.fundMetrics.findMany.mockResolvedValue(largeDataset);
+      (db.query.fundMetrics.findMany as any).mockResolvedValue(largeDataset);
 
       const startTime = Date.now();
       const results = await engine.generatePredictions({ ...mockConfig, predictionHorizon: 24 });
@@ -647,7 +646,7 @@ describe('PerformancePredictionEngine', () => {
         { ...mockHistoricalData[4] }
       ];
 
-      mockDb.query.fundMetrics.findMany.mockResolvedValue(sparseData);
+      (db.query.fundMetrics.findMany as any).mockResolvedValue(sparseData);
 
       const results = await engine.generatePredictions(mockConfig);
 
@@ -684,7 +683,7 @@ describe('PerformancePredictionEngine', () => {
       ];
 
       for (const edgeCase of edgeCases) {
-        mockDb.query.fundMetrics.findMany.mockResolvedValue(edgeCase);
+        (db.query.fundMetrics.findMany as any).mockResolvedValue(edgeCase);
 
         const results = await engine.generatePredictions(mockConfig);
         expect(results.length).toBeGreaterThan(0);
@@ -705,7 +704,7 @@ describe('PerformancePredictionEngine', () => {
     it('should query historical data with correct parameters', async () => {
       await engine.generatePredictions(mockConfig);
 
-      expect(mockDb.query.fundMetrics.findMany).toHaveBeenCalledWith({
+      expect((db.query.fundMetrics.findMany as any)).toHaveBeenCalledWith({
         where: expect.any(Object),
         orderBy: expect.any(Object)
       });
@@ -714,17 +713,17 @@ describe('PerformancePredictionEngine', () => {
     it('should store predictions with correct metadata', async () => {
       const results = await engine.generatePredictions(mockConfig);
 
-      expect(mockDb.insert).toHaveBeenCalledTimes(results.length);
+      expect((db.insert as any)).toHaveBeenCalledTimes(results.length);
 
       // Verify the structure of stored data
-      const insertCalls = mockDb.insert.mock.calls;
+      const insertCalls = (db.insert as any).mock.calls;
       insertCalls.forEach(call => {
         expect(call[0]).toBe('mocked-predictions-table');
       });
     });
 
     it('should handle database query errors gracefully', async () => {
-      mockDb.query.fundMetrics.findMany.mockRejectedValue(new Error('Database connection failed'));
+      (db.query.fundMetrics.findMany as any).mockRejectedValue(new Error('Database connection failed'));
 
       await expect(engine.generatePredictions(mockConfig)).rejects.toThrow('Performance prediction failed');
     });
@@ -742,7 +741,7 @@ describe('PerformancePredictionEngine', () => {
       ];
 
       for (const pattern of patterns) {
-        mockDb.query.fundMetrics.findMany.mockResolvedValue(pattern);
+        (db.query.fundMetrics.findMany as any).mockResolvedValue(pattern);
 
         const results = await engine.generatePredictions({ ...mockConfig, modelType: 'ensemble' });
 
@@ -756,7 +755,7 @@ describe('PerformancePredictionEngine', () => {
 
     it('should provide consistent predictions for stable time series', async () => {
       const stableData = mockHistoricalData.map(d => ({ ...d, irr: 0.18 }));
-      mockDb.query.fundMetrics.findMany.mockResolvedValue(stableData);
+      (db.query.fundMetrics.findMany as any).mockResolvedValue(stableData);
 
       const results = await engine.generatePredictions(mockConfig);
       const irrResult = results.find(r => r.metric === 'irr');

@@ -50,6 +50,8 @@ const SensitivityAnalysisPage = React.lazy(() => import("@/pages/sensitivity-ana
 const TimeTravelPage = React.lazy(() => import("@/pages/time-travel"));
 const VarianceTrackingPage = React.lazy(() => import("@/pages/variance-tracking"));
 const PortfolioConstructor = React.lazy(() => import("@/pages/portfolio-constructor"));
+// Development dashboard for solo developer productivity
+const DevDashboardPage = React.lazy(() => import("@/pages/DevDashboardPage"));
 
 const moduleConfig = {
   dashboard: {
@@ -111,6 +113,10 @@ const moduleConfig = {
   'portfolio-constructor': {
     title: "Portfolio Constructor",
     description: "Build and optimize fund portfolio strategies with scenario modeling and real-time calculations"
+  },
+  'dev-dashboard': {
+    title: "Development Dashboard",
+    description: "Real-time visibility into system health for solo developer productivity"
   }
 };
 
@@ -211,6 +217,7 @@ function Router() {
         <Route path="/time-travel" component={(props: any) => <ProtectedRoute component={TimeTravelPage} {...props} />} />
         <Route path="/variance-tracking" component={(props: any) => <ProtectedRoute component={VarianceTrackingPage} {...props} />} />
         <Route path="/portfolio-constructor" component={(props: any) => <ProtectedRoute component={PortfolioConstructor} {...props} />} />
+        <Route path="/dev-dashboard" component={DevDashboardPage} />
         <Route path="/reports" component={(props: any) => <ProtectedRoute component={Reports} {...props} />} />
         <Route component={NotFound} />
       </Switch>

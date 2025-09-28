@@ -19,11 +19,15 @@ import { registerFundConfigRoutes } from "./routes/fund-config.js";
 import { recordHttpMetrics } from "./metrics";
 import { toNumber, NumberParseError } from "@shared/number";
 import type { ReserveInput, PacingInput, CohortInput, ApiError, ReserveSummary, PacingSummary, CohortSummary } from "@shared/types";
+import { monitor } from "./middleware/performance-monitor.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Performance monitoring middleware - track all API requests
+  app.use('/api', monitor.middleware());
+
   // Fund routes
   const fundRoutes = await import('./routes/funds.js');
   app.use('/api', fundRoutes.default);
@@ -43,6 +47,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Monte Carlo simulation routes
   const monteCarloRoutes = await import('./routes/monte-carlo.js');
   app.use('/api/monte-carlo', monteCarloRoutes.default);
+
+  // Performance monitoring routes
+  const performanceRoutes = await import('./routes/performance-metrics.js');
+  app.use('/api/performance', performanceRoutes.default);
 
   // Middleware to record HTTP metrics
   app.use((req: Request, res: Response, next: (err?: any) => void) => {
@@ -732,7 +740,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { engineAdminRoutes } = await import('./routes/admin/engine.js');
   app.use('/api/admin/engine', engineAdminRoutes);
 
+  // Development dashboard routes (development only)
+  if (process.env.NODE_ENV === 'development') {
+    const devDashboardRoutes = await import('./routes/dev-dashboard.js');
+    app.use('/api/dev-dashboard', devDashboardRoutes.default);
+  }
+
   const httpServer = createServer(app as any);
+
+  // Setup WebSocket servers
+  const { setupWebSocketServers } = await import('./websocket/index.js');
+  setupWebSocketServers(httpServer);
+
   return httpServer;
 }
 

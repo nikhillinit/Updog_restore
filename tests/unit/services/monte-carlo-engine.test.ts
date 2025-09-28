@@ -11,31 +11,33 @@ import {
   type SimulationConfig,
   type PortfolioInputs
 } from '../../../server/services/monte-carlo-engine';
+import { db } from '../../../server/db';
 
-// Mock the database and dependencies
-const mockDb = {
-  query: {
-    fundBaselines: {
-      findFirst: vi.fn()
-    },
-    funds: {
-      findFirst: vi.fn()
-    },
-    varianceReports: {
-      findMany: vi.fn()
-    }
-  },
-  insert: vi.fn(() => ({
-    values: vi.fn(() => Promise.resolve())
-  }))
-};
-
+// Mock the database and dependencies - use factory function to avoid hoisting issues
 vi.mock('../../../server/db', () => ({
-  db: mockDb
+  db: {
+    query: {
+      fundBaselines: {
+        findFirst: vi.fn()
+      },
+      funds: {
+        findFirst: vi.fn()
+      },
+      varianceReports: {
+        findMany: vi.fn()
+      }
+    },
+    insert: vi.fn(() => ({
+      values: vi.fn(() => Promise.resolve())
+    }))
+  }
 }));
 
 vi.mock('@shared/schema', () => ({
-  monteCarloSimulations: 'mocked-table'
+  monteCarloSimulations: 'mocked-table',
+  fundBaselines: 'mocked-fundBaselines-table',
+  funds: 'mocked-funds-table',
+  varianceReports: 'mocked-varianceReports-table'
 }));
 
 // Mock UUID generation for consistent testing
@@ -129,9 +131,9 @@ describe('MonteCarloEngine', () => {
     ];
 
     // Setup mock database responses
-    mockDb.query.fundBaselines.findFirst.mockResolvedValue(mockBaseline);
-    mockDb.query.funds.findFirst.mockResolvedValue(mockFund);
-    mockDb.query.varianceReports.findMany.mockResolvedValue(mockVarianceReports);
+    (db.query.fundBaselines.findFirst as any).mockResolvedValue(mockBaseline);
+    (db.query.funds.findFirst as any).mockResolvedValue(mockFund);
+    (db.query.varianceReports.findMany as any).mockResolvedValue(mockVarianceReports);
   });
 
   afterEach(() => {
@@ -228,7 +230,7 @@ describe('MonteCarloEngine', () => {
       });
 
       it('should handle insufficient historical data', async () => {
-        mockDb.query.varianceReports.findMany.mockResolvedValue([]);
+        (db.query.varianceReports.findMany as any).mockResolvedValue([]);
 
         const result = await engine.runPortfolioSimulation(mockConfig);
 
@@ -238,13 +240,13 @@ describe('MonteCarloEngine', () => {
       });
 
       it('should handle missing baseline data', async () => {
-        mockDb.query.fundBaselines.findFirst.mockResolvedValue(null);
+        (db.query.fundBaselines.findFirst as any).mockResolvedValue(null);
 
         await expect(engine.runPortfolioSimulation(mockConfig)).rejects.toThrow('No suitable baseline found');
       });
 
       it('should handle missing fund data', async () => {
-        mockDb.query.funds.findFirst.mockResolvedValue(null);
+        (db.query.funds.findFirst as any).mockResolvedValue(null);
 
         await expect(engine.runPortfolioSimulation(mockConfig)).rejects.toThrow('Fund 1 not found');
       });
@@ -559,9 +561,9 @@ describe('MonteCarloEngine', () => {
     it('should store simulation results', async () => {
       const result = await engine.runPortfolioSimulation(mockConfig);
 
-      expect(mockDb.insert).toHaveBeenCalled();
+      expect(db.insert).toHaveBeenCalled();
 
-      const insertCall = mockDb.insert.mock.calls[0];
+      const insertCall = (db.insert as any).mock.calls[0];
       expect(insertCall[0]).toBe('mocked-table');
     });
 
@@ -572,7 +574,7 @@ describe('MonteCarloEngine', () => {
       };
 
       // Mock extreme variance data
-      mockDb.query.varianceReports.findMany.mockResolvedValue([
+      (db.query.varianceReports.findMany as any).mockResolvedValue([
         {
           id: 1,
           fundId: 1,
@@ -606,15 +608,15 @@ describe('MonteCarloEngine', () => {
       await engine.runPortfolioSimulation(mockConfig);
 
       // Verify database queries were made correctly
-      expect(mockDb.query.fundBaselines.findFirst).toHaveBeenCalledWith({
+      expect(db.query.fundBaselines.findFirst).toHaveBeenCalledWith({
         where: expect.any(Object)
       });
 
-      expect(mockDb.query.funds.findFirst).toHaveBeenCalledWith({
+      expect(db.query.funds.findFirst).toHaveBeenCalledWith({
         where: expect.any(Object)
       });
 
-      expect(mockDb.query.varianceReports.findMany).toHaveBeenCalledWith({
+      expect(db.query.varianceReports.findMany).toHaveBeenCalledWith({
         where: expect.any(Object),
         orderBy: expect.any(Object),
         limit: 30
@@ -630,7 +632,7 @@ describe('MonteCarloEngine', () => {
     });
 
     it('should handle empty variance reports', async () => {
-      mockDb.query.varianceReports.findMany.mockResolvedValue([]);
+      (db.query.varianceReports.findMany as any).mockResolvedValue([]);
 
       const result = await engine.runPortfolioSimulation(mockConfig);
 
@@ -692,9 +694,9 @@ describe('MonteCarloEngine Integration Scenarios', () => {
       isActive: true
     };
 
-    mockDb.query.fundBaselines.findFirst.mockResolvedValue(baseline);
-    mockDb.query.funds.findFirst.mockResolvedValue(fund);
-    mockDb.query.varianceReports.findMany.mockResolvedValue([
+    (db.query.fundBaselines.findFirst as any).mockResolvedValue(baseline);
+    (db.query.funds.findFirst as any).mockResolvedValue(fund);
+    (db.query.varianceReports.findMany as any).mockResolvedValue([
       { id: 1, fundId: 1, baselineId: 'baseline-123', asOfDate: new Date(),
         irrVariance: 0.03, multipleVariance: 0.2, dpiVariance: 0.1 }
     ]);
@@ -747,8 +749,8 @@ describe('MonteCarloEngine Integration Scenarios', () => {
         isDefault: true
       };
 
-      mockDb.query.funds.findFirst.mockResolvedValue(fund);
-      mockDb.query.fundBaselines.findFirst.mockResolvedValue(baseline);
+      (db.query.funds.findFirst as any).mockResolvedValue(fund);
+      (db.query.fundBaselines.findFirst as any).mockResolvedValue(baseline);
 
       const config: SimulationConfig = {
         fundId: 1,

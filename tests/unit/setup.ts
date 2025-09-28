@@ -6,21 +6,41 @@ import { vi, beforeAll, afterAll } from 'vitest';
 import '@testing-library/jest-dom';
 import { configure } from '@testing-library/react';
 
-// Disable automatic cleanup to avoid conflicts with act
-configure({ asyncUtilTimeout: 2000 });
+// Configure React Testing Library for React 18 compatibility
+configure({
+  asyncUtilTimeout: 2000,
+  // Enable automatic cleanup (default behavior)
+  // This prevents "Should not already be working" errors
+});
 
 // Force UTC timezone for consistent date handling
 process.env.TZ = 'UTC';
+
+// React 18 Concurrent Features Configuration
+// Ensure tests work properly with React 18's automatic batching and concurrent rendering
+if (typeof globalThis !== 'undefined') {
+  // Flag to help RTL work better with React 18
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+}
 
 // Set test environment
 process.env.NODE_ENV = 'test';
 
 // Mock external dependencies that shouldn't be called in unit tests
-vi.mock('fs', () => ({
-  readFileSync: vi.fn(),
-  writeFileSync: vi.fn(),
-  existsSync: vi.fn().mockReturnValue(false)
-}));
+vi.mock('fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs')>();
+  return {
+    ...actual,
+    readFileSync: vi.fn(),
+    writeFileSync: vi.fn(),
+    existsSync: vi.fn().mockReturnValue(true), // Change to true to avoid creating directories
+    mkdirSync: vi.fn(),
+    createWriteStream: vi.fn().mockReturnValue({
+      write: vi.fn(),
+      end: vi.fn()
+    })
+  };
+});
 
 // Mock network calls
 global.fetch = vi.fn();

@@ -265,18 +265,18 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
                   <div className="flex items-center gap-3">
                     <Label className="capitalize font-medium">{stage.replace(/([A-Z])/g, ' $1')}</Label>
                     {showWholeNumbers && roundedResults && (
-                      <Badge variant={roundedResults.surplusByStage[stage] >= 0 ? "secondary" : "destructive"}>
-                        {roundedResults.surplusByStage[stage] >= 0 ? '+' : ''}
-                        {formatCurrency(roundedResults.surplusByStage[stage])} surplus
+                      <Badge variant={(roundedResults as any).surplusByStage[stage] >= 0 ? "secondary" : "destructive"}>
+                        {(roundedResults as any).surplusByStage[stage] >= 0 ? '+' : ''}
+                        {formatCurrency((roundedResults as any).surplusByStage[stage])} surplus
                       </Badge>
                     )}
                   </div>
                   <div className="text-right">
                     <div className="font-semibold">
                       {formatNumber(
-                        showWholeNumbers && roundedResults 
-                          ? roundedResults.rounded[stage]
-                          : results.initialInvestmentsByStage[stage]
+                        showWholeNumbers && roundedResults
+                          ? (roundedResults as any).rounded[stage]
+                          : (results as any).initialInvestmentsByStage[stage]
                       )} deals
                     </div>
                   </div>
@@ -296,13 +296,13 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
                     <div>
                       <span className="text-muted-foreground">Initial:</span>
                       <span className="ml-2 font-medium">
-                        {formatCurrency(results.initialSpendByStage[stage])}
+                        {formatCurrency((results as any).initialSpendByStage[stage])}
                       </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Follow-on:</span>
                       <span className="ml-2 font-medium">
-                        {formatCurrency(results.followOnSpendByStage[stage])}
+                        {formatCurrency((results as any).followOnSpendByStage[stage])}
                       </span>
                     </div>
                   </div>

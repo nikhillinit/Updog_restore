@@ -11,7 +11,6 @@
  * - File upload validation
  */
 
-import { z } from 'zod';
 import DOMPurify from 'isomorphic-dompurify';
 import validator from 'validator';
 import { logValidationError, securityLogger } from './logger.js';

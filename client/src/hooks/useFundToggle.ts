@@ -12,16 +12,18 @@ import { api } from '@/lib';
 interface ToggleStore {
   mode: 'construction' | 'current';
   isTransitioning: boolean;
-  setMode: (_mode: 'construction' | 'current') => void;
-  setTransitioning: (_transitioning: boolean) => void;
+  setMode: (mode: 'construction' | 'current') => void;
+  setTransitioning: (transitioning: boolean) => void;
 }
 
-const useToggleStore = create<ToggleStore>()(subscribeWithSelector((set: any) => ({
-  mode: 'current',
-  isTransitioning: false,
-  setMode: (mode: any) => set({ mode }),
-  setTransitioning: (transitioning: any) => set({ isTransitioning: transitioning }),
-})));
+const useToggleStore = create<ToggleStore>()(subscribeWithSelector(
+  (set, get): ToggleStore => ({
+    mode: 'current' as const,
+    isTransitioning: false,
+    setMode: (mode: 'construction' | 'current') => set({ mode }),
+    setTransitioning: (transitioning: boolean) => set({ isTransitioning: transitioning }),
+  })
+));
 
 // API response with pre-computed delta
 interface FundStateResponse {
@@ -63,7 +65,7 @@ export function useFundToggle(fundId: number) {
       // API returns the delta for UI to render immediately
       return api.post<FundStateResponse>(`/funds/${fundId}/toggle`, { mode: newMode });
     },
-    onMutate: async (newMode: any) => {
+    onMutate: async (newMode: 'construction' | 'current') => {
       setTransitioning(true);
       setMode(newMode);
 
@@ -73,7 +75,7 @@ export function useFundToggle(fundId: number) {
       // Return context for rollback
       return { previousMode: mode };
     },
-    onError: (err, newMode, context) => {
+    onError: (err: any, newMode: 'construction' | 'current', context: any) => {
       // Rollback on error
       if (context?.previousMode) {
         setMode(context.previousMode);
@@ -137,8 +139,8 @@ export function useFundToggle(fundId: number) {
 
 // Subscribe to mode changes for analytics
 useToggleStore.subscribe(
-  (state: any) => state.mode,
-  (mode: any) => {
+  (state: ToggleStore) => state.mode,
+  (mode: 'construction' | 'current') => {
     // Track mode changes
     if (typeof window !== 'undefined' && window.gtag) {
       window.gtag('event', 'fund_mode_toggle', {

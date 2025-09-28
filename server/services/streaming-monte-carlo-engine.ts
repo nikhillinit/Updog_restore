@@ -25,11 +25,9 @@ import { toSafeNumber } from '@shared/type-safety-utils';
 // Import existing types from the original engine
 import type {
   SimulationConfig,
-  MarketEnvironment,
   PortfolioInputs,
   DistributionParameters,
   SimulationResults,
-  PerformanceDistribution,
   RiskMetrics,
   ReserveOptimization,
   ScenarioAnalysis,
