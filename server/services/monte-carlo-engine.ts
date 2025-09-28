@@ -25,7 +25,8 @@ import type {
 import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { toSafeNumber } from '@shared/type-safety-utils';
-import { logMonteCarloOperation, logMonteCarloError, logPerformance, PerformanceMonitor } from '../utils/logger.js';
+import { logMonteCarloOperation, logMonteCarloError } from '../utils/logger.js';
+import { monitor, monteCarloTracker } from '../middleware/performance-monitor.js';
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -180,6 +181,10 @@ export class MonteCarloEngine {
     const startTime = Date.now();
     const simulationId = uuidv4();
 
+    // Start performance tracking
+    monteCarloTracker.startSimulation(simulationId, config);
+    const timer = monitor.createTimer('monte_carlo_simulation', 'monte_carlo');
+
     try {
       // Validate configuration
       this.validateConfig(config);
@@ -245,9 +250,29 @@ export class MonteCarloEngine {
       // Store results
       await this.storeResults(results);
 
+      // Complete performance tracking
+      const duration = timer.end({
+        runs: config.runs,
+        fundId: config.fundId,
+        timeHorizonYears: config.timeHorizonYears,
+        portfolioSize: config.portfolioSize,
+        scenarios: results.irr.scenarios.length
+      });
+
+      monteCarloTracker.endSimulation(simulationId, {
+        scenarios: results.irr.scenarios,
+        duration,
+        success: true
+      });
+
+      // Track memory usage
+      monteCarloTracker.trackMemoryUsage('simulation_complete', process.memoryUsage());
+
       return results;
 
     } catch (error) {
+      // Track failed simulation
+      monteCarloTracker.endSimulation(simulationId, null);
       throw new Error(`Portfolio simulation failed: ${error.message}`);
     }
   }
@@ -536,8 +561,16 @@ export class MonteCarloEngine {
     const batchPromises = [];
     for (let i = 0; i < totalBatches; i++) {
       const runsInBatch = Math.min(batchSize, config.runs - i * batchSize);
+      const batchId = `batch_${i}`;
+      const batchStart = Date.now();
+
       batchPromises.push(
         this.runSimulationBatch(runsInBatch, portfolioInputs, distributions, config.timeHorizonYears)
+          .then(results => {
+            const batchDuration = Date.now() - batchStart;
+            monteCarloTracker.trackBatch(batchId, runsInBatch, batchDuration);
+            return results;
+          })
       );
     }
 
@@ -869,7 +902,6 @@ export async function exampleUsage(): Promise<void> {
   };
 
   try {
-    const perfMonitor = new PerformanceMonitor('monte_carlo_simulation', { fundId: config.fundId, runs: config.runs });
     logMonteCarloOperation('Starting simulation', config.fundId, {
       runs: config.runs,
       timeHorizonYears: config.timeHorizonYears,
@@ -877,7 +909,6 @@ export async function exampleUsage(): Promise<void> {
     });
 
     const results = await engine.runPortfolioSimulation(config);
-    const executionTime = perfMonitor.end({ simulationId: results.simulationId });
 
     logMonteCarloOperation('Simulation completed successfully', config.fundId, {
       simulationId: results.simulationId,
@@ -889,6 +920,12 @@ export async function exampleUsage(): Promise<void> {
       recommendations: results.insights.primaryRecommendations.length,
       riskWarnings: results.insights.riskWarnings.length
     });
+
+    // Performance metrics are now automatically tracked within the engine
+    console.log(`\n🎯 Performance Summary:`);
+    console.log(`   Execution Time: ${results.executionTimeMs}ms`);
+    console.log(`   Scenarios Generated: ${results.irr.scenarios.length}`);
+    console.log(`   Throughput: ${(results.irr.scenarios.length / (results.executionTimeMs / 1000)).toFixed(1)} scenarios/sec`);
 
   } catch (error) {
     logMonteCarloError('Simulation failed', config.fundId, error as Error, {

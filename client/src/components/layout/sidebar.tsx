@@ -24,7 +24,8 @@ import {
   DollarSign,
   Clock,
   AlertTriangle,
-  Settings
+  Settings,
+  Monitor
 } from "lucide-react";
 
 interface SidebarProps {
@@ -56,6 +57,7 @@ const navigationItems = [
   { id: 'time-travel', label: 'Time-Travel Analytics', icon: Clock },
   { id: 'variance-tracking', label: 'Variance Tracking', icon: AlertTriangle },
   { id: 'portfolio-constructor', label: 'Portfolio Constructor', icon: Settings },
+  { id: 'dev-dashboard', label: 'Dev Dashboard', icon: Monitor },
   { id: 'reports', label: 'Reports', icon: FileText },
 ];
 

@@ -16,8 +16,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { createClient } from 'redis';
 import { RateLimiterRedis } from 'rate-limit-redis';
-import { z } from 'zod';
-import { securityLogger, logSecurity, logContext } from '../utils/logger.js';
+import { logSecurity, logContext } from '../utils/logger.js';
 
 // Security configuration
 const SECURITY_CONFIG = {

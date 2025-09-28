@@ -56,19 +56,11 @@ vi.mock('recharts', () => ({
   Area: () => <div data-testid="area" />
 }));
 
+// Create a reusable query client instance to avoid conflicts
+let queryClient: QueryClient;
+
 // Test wrapper component
 const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-      mutations: {
-        retry: false,
-      },
-    },
-  });
-
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
@@ -86,11 +78,25 @@ describe('PortfolioConstructor', () => {
   let user: ReturnType<typeof userEvent.setup>;
 
   beforeEach(() => {
+    // Create a fresh query client for each test
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+        mutations: {
+          retry: false,
+        },
+      },
+    });
+
     user = userEvent.setup();
     vi.clearAllMocks();
   });
 
   afterEach(() => {
+    // Clean up query client
+    queryClient.clear();
     vi.restoreAllMocks();
   });
 

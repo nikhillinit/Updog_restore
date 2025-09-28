@@ -14,42 +14,45 @@ import {
 import { varianceTrackingFixtures } from '../../fixtures/variance-tracking-fixtures';
 import { createSandbox } from '../../setup/test-infrastructure';
 
-// Mock the database
-const mockDb = {
-  query: {
-    fundMetrics: {
-      findFirst: vi.fn(),
-      findMany: vi.fn()
+// Create a function factory for mock database to avoid hoisting issues
+const createMockDb = () => {
+  const mockDb = {
+    query: {
+      fundMetrics: {
+        findFirst: vi.fn(),
+        findMany: vi.fn()
+      },
+      portfolioCompanies: {
+        findMany: vi.fn()
+      },
+      fundSnapshots: {
+        findFirst: vi.fn()
+      },
+      fundBaselines: {
+        findFirst: vi.fn(),
+        findMany: vi.fn()
+      },
+      alertRules: {
+        findMany: vi.fn()
+      },
+      performanceAlerts: {
+        findFirst: vi.fn(),
+        findMany: vi.fn()
+      }
     },
-    portfolioCompanies: {
-      findMany: vi.fn()
-    },
-    fundSnapshots: {
-      findFirst: vi.fn()
-    },
-    fundBaselines: {
-      findFirst: vi.fn(),
-      findMany: vi.fn()
-    },
-    alertRules: {
-      findMany: vi.fn()
-    },
-    performanceAlerts: {
-      findFirst: vi.fn(),
-      findMany: vi.fn()
-    }
-  },
-  insert: vi.fn(() => ({
-    values: vi.fn(() => ({
-      returning: vi.fn(() => Promise.resolve([{ id: 'test-id' }]))
-    }))
-  })),
-  update: vi.fn(() => ({
-    set: vi.fn(() => ({
-      where: vi.fn(() => Promise.resolve())
-    }))
-  })),
-  transaction: vi.fn((fn) => fn(mockDb))
+    insert: vi.fn(() => ({
+      values: vi.fn(() => ({
+        returning: vi.fn(() => Promise.resolve([{ id: 'test-id' }]))
+      }))
+    })),
+    update: vi.fn(() => ({
+      set: vi.fn(() => ({
+        where: vi.fn(() => Promise.resolve())
+      }))
+    })),
+    transaction: vi.fn((fn) => fn(mockDb))
+  };
+  return mockDb;
 };
 
 // Mock metrics functions
@@ -67,7 +70,7 @@ vi.mock('../../../server/metrics/variance-metrics', () => ({
 
 // Mock the database module
 vi.mock('../../../server/db', () => ({
-  db: mockDb
+  db: createMockDb()
 }));
 
 describe('BaselineService', () => {

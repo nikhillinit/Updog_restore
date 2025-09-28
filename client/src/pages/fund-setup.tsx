@@ -5,6 +5,7 @@ import CapitalStructureStep from './CapitalStructureStep';
 import InvestmentStrategyStep from './InvestmentStrategyStep';
 import InvestmentStrategyStepNew from './InvestmentStrategyStepNew';
 import DistributionsStep from './DistributionsStep';
+import CashflowManagementStep from './CashflowManagementStep';
 import StepNotFound from './steps/StepNotFound';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { resolveStepKeyFromLocation, type StepKey, getStepNumber } from './fund-setup-utils';
@@ -18,6 +19,7 @@ const STEP_COMPONENTS: Record<StepKey, React.ComponentType<any>> = {
   'capital-structure':  CapitalStructureStep,
   'investment-strategy': useNewSelectors ? InvestmentStrategyStepNew : InvestmentStrategyStep,
   'distributions':      DistributionsStep,
+  'cashflow-management': CashflowManagementStep,
   'not-found':          StepNotFound,
 };
 
@@ -115,7 +117,7 @@ export default function FundSetup() {
         className="wizard-container"
       >
         <div data-testid="step-indicator" className="step-indicator mb-4">
-          Step {key !== 'not-found' ? getStepNumber(key) : '?'} of 4
+          Step {key !== 'not-found' ? getStepNumber(key) : '?'} of 5
         </div>
         <div data-testid={`wizard-step-${key}-container`}>
           <Step />

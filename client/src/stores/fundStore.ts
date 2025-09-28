@@ -272,7 +272,7 @@ function createFundStore() {
   return createStore<FundState>()(
     devtools(
       persist(
-        (set: any, get: any) => ({
+        (set, get): FundState => ({
           hydrated: false,
           setHydrated: (v: any) => set({ hydrated: v }),
           
@@ -358,76 +358,76 @@ function createFundStore() {
             lpClasses: [...state.lpClasses, lpClass]
           })),
           
-          updateLPClass: (id: any, patch: any) => set((state: any) => ({
-            lpClasses: state.lpClasses.map(cls => 
+          updateLPClass: (id: string, patch: Partial<LPClass>) => set((state: any) => ({
+            lpClasses: state.lpClasses.map((cls: LPClass) =>
               cls.id === id ? { ...cls, ...patch } : cls
             )
           })),
           
-          removeLPClass: (id: any) => set((state: any) => ({
-            lpClasses: state.lpClasses.filter(cls => cls.id !== id)
+          removeLPClass: (id: string) => set((state: any) => ({
+            lpClasses: state.lpClasses.filter((cls: LPClass) => cls.id !== id)
           })),
           
-          addLP: (lp: any) => set((state: any) => ({
+          addLP: (lp: LP) => set((state: any) => ({
             lps: [...state.lps, lp]
           })),
           
-          updateLP: (id: any, patch: any) => set((state: any) => ({
-            lps: state.lps.map(lp => 
+          updateLP: (id: string, patch: Partial<LP>) => set((state: any) => ({
+            lps: state.lps.map((lp: LP) =>
               lp.id === id ? { ...lp, ...patch } : lp
             )
           })),
           
-          removeLP: (id: any) => set((state: any) => ({
-            lps: state.lps.filter(lp => lp.id !== id)
+          removeLP: (id: string) => set((state: any) => ({
+            lps: state.lps.filter((lp: LP) => lp.id !== id)
           })),
 
           // Distributions actions
           updateDistributions: (patch: any) => set((state: any) => ({ ...state, ...patch })),
           
-          addWaterfallTier: (tier: any) => set((state: any) => ({
+          addWaterfallTier: (tier: WaterfallTier) => set((state: any) => ({
             waterfallTiers: [...state.waterfallTiers, tier]
           })),
           
-          updateWaterfallTier: (id: any, patch: any) => set((state: any) => ({
-            waterfallTiers: state.waterfallTiers.map(tier => 
+          updateWaterfallTier: (id: string, patch: Partial<WaterfallTier>) => set((state: any) => ({
+            waterfallTiers: state.waterfallTiers.map((tier: WaterfallTier) =>
               tier.id === id ? { ...tier, ...patch } : tier
             )
           })),
           
-          removeWaterfallTier: (id: any) => set((state: any) => ({
-            waterfallTiers: state.waterfallTiers.filter(tier => tier.id !== id)
+          removeWaterfallTier: (id: string) => set((state: any) => ({
+            waterfallTiers: state.waterfallTiers.filter((tier: WaterfallTier) => tier.id !== id)
           })),
 
           // Fee Profile actions
-          addFeeProfile: (profile: any) => set((state: any) => ({
+          addFeeProfile: (profile: FeeProfile) => set((state: any) => ({
             feeProfiles: [...state.feeProfiles, profile]
           })),
 
-          updateFeeProfile: (id: any, patch: any) => set((state: any) => ({
-            feeProfiles: state.feeProfiles.map(profile => 
+          updateFeeProfile: (id: string, patch: Partial<FeeProfile>) => set((state: any) => ({
+            feeProfiles: state.feeProfiles.map((profile: FeeProfile) =>
               profile.id === id ? { ...profile, ...patch } : profile
             )
           })),
 
-          removeFeeProfile: (id: any) => set((state: any) => ({
-            feeProfiles: state.feeProfiles.filter(profile => profile.id !== id)
+          removeFeeProfile: (id: string) => set((state: any) => ({
+            feeProfiles: state.feeProfiles.filter((profile: FeeProfile) => profile.id !== id)
           })),
 
-          addFeeTier: (profileId: any, tier: any) => set((state: any) => ({
-            feeProfiles: state.feeProfiles.map(profile => 
-              profile.id === profileId 
+          addFeeTier: (profileId: string, tier: FeeTier) => set((state: any) => ({
+            feeProfiles: state.feeProfiles.map((profile: FeeProfile) =>
+              profile.id === profileId
                 ? { ...profile, feeTiers: [...profile.feeTiers, tier] }
                 : profile
             )
           })),
 
-          updateFeeTier: (profileId, tierId, patch) => set((state: any) => ({
-            feeProfiles: state.feeProfiles.map(profile => 
-              profile.id === profileId 
+          updateFeeTier: (profileId: string, tierId: string, patch: Partial<FeeTier>) => set((state: any) => ({
+            feeProfiles: state.feeProfiles.map((profile: FeeProfile) =>
+              profile.id === profileId
                 ? {
                     ...profile,
-                    feeTiers: profile.feeTiers.map(tier => 
+                    feeTiers: profile.feeTiers.map((tier: FeeTier) =>
                       tier.id === tierId ? { ...tier, ...patch } : tier
                     )
                   }
@@ -435,30 +435,30 @@ function createFundStore() {
             )
           })),
 
-          removeFeeTier: (profileId: any, tierId: any) => set((state: any) => ({
-            feeProfiles: state.feeProfiles.map(profile => 
-              profile.id === profileId 
+          removeFeeTier: (profileId: string, tierId: string) => set((state: any) => ({
+            feeProfiles: state.feeProfiles.map((profile: FeeProfile) =>
+              profile.id === profileId
                 ? {
                     ...profile,
-                    feeTiers: profile.feeTiers.filter(tier => tier.id !== tierId)
+                    feeTiers: profile.feeTiers.filter((tier: FeeTier) => tier.id !== tierId)
                   }
                 : profile
             )
           })),
 
           // Fund Expense actions
-          addFundExpense: (expense: any) => set((state: any) => ({
+          addFundExpense: (expense: FundExpense) => set((state: any) => ({
             fundExpenses: [...state.fundExpenses, expense]
           })),
 
-          updateFundExpense: (id: any, patch: any) => set((state: any) => ({
-            fundExpenses: state.fundExpenses.map(expense => 
+          updateFundExpense: (id: string, patch: Partial<FundExpense>) => set((state: any) => ({
+            fundExpenses: state.fundExpenses.map((expense: FundExpense) =>
               expense.id === id ? { ...expense, ...patch } : expense
             )
           })),
 
-          removeFundExpense: (id: any) => set((state: any) => ({
-            fundExpenses: state.fundExpenses.filter(expense => expense.id !== id)
+          removeFundExpense: (id: string) => set((state: any) => ({
+            fundExpenses: state.fundExpenses.filter((expense: FundExpense) => expense.id !== id)
           })),
 
           addStage: () => set((s: any) => {
@@ -492,14 +492,14 @@ function createFundStore() {
             return { stages };
           }),
 
-          updateStageRate: (idx: any, patch: any) => set((s: any) => {
+          updateStageRate: (idx: number, patch: Partial<Pick<StrategyStage, 'graduate'|'exit'|'months'>>) => set((s: any) => {
             // Invalidate cache when stages change
             cachedStagesState = null;
             cachedValidationResult = null;
             
             const stages: StrategyStage[] = [...s.stages];
             const r = stages[idx];
-            if (!r) return {};
+            if (!r) return s;
 
             const isLast = idx === stages.length - 1;
             const gradRaw = isLast ? 0 : clampPct(patch.graduate ?? r.graduate);
@@ -511,14 +511,14 @@ function createFundStore() {
 
             // Re-enforce last rule in case stages changed earlier
             const lastIdx = stages.length - 1;
-            if (lastIdx >= 0 && stages[lastIdx].graduate !== 0) {
-              stages[lastIdx] = { ...stages[lastIdx], graduate: 0 };
+            if (lastIdx >= 0 && stages[lastIdx]?.graduate !== 0) {
+              stages[lastIdx] = { ...stages[lastIdx]!, graduate: 0 };
             }
 
             return { stages };
           }),
 
-          stageValidation: () => {
+          stageValidation: (): { allValid: boolean; errorsByRow: (string | null)[] } => {
             const { stages } = get();
             
             // Return cached result if stages haven't changed
@@ -534,7 +534,7 @@ function createFundStore() {
               return null;
             });
             
-            const result = { allValid: errors.every(e => !e), errorsByRow: errors };
+            const result = { allValid: errors.every((e: string | null) => !e), errorsByRow: errors };
             
             // Cache the result
             cachedStagesState = stages;
@@ -544,10 +544,10 @@ function createFundStore() {
           },
 
           // Conversion utilities to work with existing InvestmentStrategy type
-          toInvestmentStrategy: () => {
+          toInvestmentStrategy: (): InvestmentStrategy => {
             const { stages, sectorProfiles, allocations } = get();
             return {
-              stages: stages.map(s => ({
+              stages: stages.map((s: StrategyStage) => ({
                 id: s.id,
                 name: s.name,
                 graduationRate: s.graduate,
@@ -558,7 +558,7 @@ function createFundStore() {
             };
           },
 
-          fromInvestmentStrategy: (strategy: InvestmentStrategy) => set((state: any) => {
+          fromInvestmentStrategy: (strategy: InvestmentStrategy) => set((state: FundState) => {
             const prevRaw = {
               stages: state.stages,
               sectorProfiles: state.sectorProfiles,

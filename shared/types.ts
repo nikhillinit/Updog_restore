@@ -368,3 +368,38 @@ export type InvestmentStrategy = z.infer<typeof InvestmentStrategySchema>;
 export type ExitRecycling = z.infer<typeof ExitRecyclingSchema>;
 export type Waterfall = z.infer<typeof WaterfallSchema>;
 export type CompleteFundSetup = z.infer<typeof CompleteFundSetupSchema>;
+
+// =============================================================================
+// CASHFLOW & LIQUIDITY MANAGEMENT TYPES
+// =============================================================================
+
+// Re-export cashflow management types
+export {
+  CashTransactionTypeSchema,
+  TransactionStatusSchema,
+  CashTransactionSchema,
+  CapitalCallSchema,
+  ExpenseCategorySchema,
+  RecurringExpenseSchema,
+  LiquidityForecastSchema,
+  CashPositionSchema,
+  DistributionWaterfallSchema,
+  FundCashflowConfigSchema,
+  validateCashTransaction,
+  validateCapitalCall,
+  validateLiquidityForecast,
+  validateCashPosition,
+  calculateNetCashFlow,
+  groupTransactionsByType,
+  calculateLiquidityMetrics,
+  type CashTransactionType,
+  type TransactionStatus,
+  type CashTransaction,
+  type CapitalCall,
+  type ExpenseCategory,
+  type RecurringExpense,
+  type LiquidityForecast,
+  type CashPosition,
+  type DistributionWaterfall,
+  type FundCashflowConfig,
+} from './schemas/cashflow-schema';

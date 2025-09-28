@@ -65,33 +65,33 @@ const generateStableId = (): string => {
  */
 export const useFundStore = create<StrategySlice>()(
   persist(
-    (set: any, get: any) => {
+    (set, get): StrategySlice => {
       // Cache for stageValidation to prevent object recreation
       let cachedStagesState: StrategyStage[] | null = null;
       let cachedValidationResult: { allValid: boolean; errorsByRow: (string | null)[] } | null = null;
       
       return {
-      hydrated: false,
-      setHydrated: (v: any) => set({ hydrated: v }),
-      
-      stages: [
+        hydrated: false,
+        setHydrated: (v: boolean) => set({ hydrated: v }),
+
+        stages: [
         { id: generateStableId(), name: 'Seed', graduate: 30, exit: 20, months: 18 },
         { id: generateStableId(), name: 'Series A', graduate: 40, exit: 25, months: 24 },
         { id: generateStableId(), name: 'Series B+', graduate: 0, exit: 35, months: 30 }
-      ],
-      sectorProfiles: [
+        ],
+        sectorProfiles: [
         { id: 'sector-1', name: 'FinTech', targetPercentage: 40, description: 'Financial technology companies' },
         { id: 'sector-2', name: 'HealthTech', targetPercentage: 30, description: 'Healthcare technology companies' },
         { id: 'sector-3', name: 'Enterprise SaaS', targetPercentage: 30, description: 'B2B software solutions' }
-      ],
-      allocations: [
+        ],
+        allocations: [
         { id: 'alloc-1', category: 'New Investments', percentage: 75, description: 'Fresh capital for new portfolio companies' },
         { id: 'alloc-2', category: 'Reserves', percentage: 20, description: 'Follow-on investments for existing portfolio' },
         { id: 'alloc-3', category: 'Operating Expenses', percentage: 5, description: 'Fund management and operations' }
-      ],
-      followOnChecks: { A: 800_000, B: 1_500_000, C: 2_500_000 },
+        ],
+        followOnChecks: { A: 800_000, B: 1_500_000, C: 2_500_000 },
 
-      addStage: () => set((s: any) => {
+        addStage: () => set((s: any) => {
         // Invalidate cache when stages change
         cachedStagesState = null;
         cachedValidationResult = null;
@@ -99,18 +99,18 @@ export const useFundStore = create<StrategySlice>()(
         const id = generateStableId();
         const next = [...s.stages, { id, name: '', graduate: 0, exit: 0, months: 12 }];
         return { stages: enforceLast(next) };
-      }),
+        }),
 
-      removeStage: (idx: number) => set((s: any) => {
+        removeStage: (idx: number) => set((s: any) => {
         // Invalidate cache when stages change
         cachedStagesState = null;
         cachedValidationResult = null;
         
         const next = s.stages.filter((_: any, i: any) => i !== idx);
         return { stages: enforceLast(next) };
-      }),
+        }),
 
-      updateStageName: (idx: number, name: string) => set((s: any) => {
+        updateStageName: (idx: number, name: string) => set((s: any) => {
         // Invalidate cache when stages change
         cachedStagesState = null;
         cachedValidationResult = null;
@@ -120,16 +120,16 @@ export const useFundStore = create<StrategySlice>()(
           stages[idx] = { ...stages[idx], name };
         }
         return { stages };
-      }),
+        }),
 
-      updateStageRate: (idx: any, patch: any) => set((s: any) => {
+        updateStageRate: (idx: number, patch: Partial<Pick<StrategyStage, 'graduate'|'exit'|'months'>>) => set((s: any) => {
         // Invalidate cache when stages change
         cachedStagesState = null;
         cachedValidationResult = null;
         
         const stages: StrategyStage[] = [...s.stages];
         const r = stages[idx];
-        if (!r) return {};
+        if (!r) return s;
 
         const isLast = idx === stages.length - 1;
         const gradRaw = isLast ? 0 : clampPct(patch.graduate ?? r.graduate);
@@ -141,43 +141,43 @@ export const useFundStore = create<StrategySlice>()(
 
         // Re-enforce last rule in case stages changed earlier
         const lastIdx = stages.length - 1;
-        if (lastIdx >= 0 && stages[lastIdx].graduate !== 0) {
-          stages[lastIdx] = { ...stages[lastIdx], graduate: 0 };
+        if (lastIdx >= 0 && stages[lastIdx]?.graduate !== 0) {
+          stages[lastIdx] = { ...stages[lastIdx]!, graduate: 0 };
         }
 
-        return { stages };
-      }),
+          return { stages };
+        }),
 
-      stageValidation: () => {
-        const { stages } = get();
+        stageValidation: (): { allValid: boolean; errorsByRow: (string | null)[] } => {
+          const { stages } = get();
         
-        // Return cached result if stages haven't changed
-        if (cachedStagesState === stages && cachedValidationResult) {
-          return cachedValidationResult;
-        }
-        
-        // Compute new validation result
-        const errors = stages.map((r: StrategyStage, i: number) => {
-          if (!r.name?.trim()) return 'Stage name required';
-          if (r.graduate + r.exit > 100) return 'Graduate + Exit must be ≤ 100%';
-          if (i === stages.length - 1 && r.graduate !== 0) return 'Last stage must have 0% graduation';
-          return null;
-        });
-        
-        const result = { allValid: errors.every(e => !e), errorsByRow: errors };
-        
-        // Cache the result
-        cachedStagesState = stages;
-        cachedValidationResult = result;
-        
-        return result;
-      },
+          // Return cached result if stages haven't changed
+          if (cachedStagesState === stages && cachedValidationResult) {
+            return cachedValidationResult;
+          }
 
-      // Conversion utilities to work with existing InvestmentStrategy type
-      toInvestmentStrategy: () => {
+          // Compute new validation result
+          const errors = stages.map((r: StrategyStage, i: number) => {
+            if (!r.name?.trim()) return 'Stage name required';
+            if (r.graduate + r.exit > 100) return 'Graduate + Exit must be ≤ 100%';
+            if (i === stages.length - 1 && r.graduate !== 0) return 'Last stage must have 0% graduation';
+            return null;
+          });
+
+          const result = { allValid: errors.every((e: string | null) => !e), errorsByRow: errors };
+
+          // Cache the result
+          cachedStagesState = stages;
+          cachedValidationResult = result;
+
+          return result;
+        },
+
+        // Conversion utilities to work with existing InvestmentStrategy type
+        toInvestmentStrategy: (): InvestmentStrategy => {
         const { stages, sectorProfiles, allocations } = get();
         return {
-          stages: stages.map(s => ({
+          stages: stages.map((s: StrategyStage) => ({
             id: s.id,
             name: s.name,
             graduationRate: s.graduate,
@@ -188,7 +188,7 @@ export const useFundStore = create<StrategySlice>()(
         };
       },
 
-      fromInvestmentStrategy: (strategy: InvestmentStrategy) => {
+        fromInvestmentStrategy: (strategy: InvestmentStrategy) => {
         const current = get();
         
         // 1) Normalize & default only when absent (use ?? not ||)
@@ -253,8 +253,8 @@ export const useFundStore = create<StrategySlice>()(
           sectorProfiles: nextProfiles,
           allocations: nextAllocs
         });
-      }
-    };
+        }
+      };
   },
   {
       name: 'investment-strategy',

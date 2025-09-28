@@ -24,7 +24,7 @@ export default defineConfig({
     hookTimeout: 20000,
     teardownTimeout: 5000,
     retry: process.env.CI ? 2 : 0,
-    pool: 'forks',  // More stable for React components
+    pool: 'threads',  // Try threads instead of forks for React 18
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
