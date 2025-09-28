@@ -334,7 +334,7 @@ export default function SavedViewsManager({
 
                         {view.tags.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1">
-                            {view.tags.map(tag => (
+                            {view.tags.map((tag: string) => (
                               <Badge key={tag} variant="outline" className="text-xs">
                                 {tag}
                               </Badge>

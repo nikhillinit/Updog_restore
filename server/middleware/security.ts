@@ -15,7 +15,7 @@ import { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { createClient } from 'redis';
-import { RateLimiterRedis } from 'rate-limit-redis';
+import RedisStore from 'rate-limit-redis';
 import { logSecurity, logContext } from '../utils/logger.js';
 
 // Security configuration
@@ -52,9 +52,7 @@ export const initializeSecurityMiddleware = async () => {
   try {
     if (process.env['REDIS_URL'] && process.env['REDIS_URL'] !== 'memory://') {
       redisClient = createClient({
-        url: process.env['REDIS_URL'],
-        retry_delay_on_failure: 5000,
-        max_attempts: 3
+        url: process.env['REDIS_URL']
       });
 
       await redisClient.connect();
@@ -109,21 +107,9 @@ export const securityHeaders = helmet({
   xssFilter: true,
 
   // Referrer Policy
-  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
 
-  // Permissions Policy
-  permissionsPolicy: {
-    features: {
-      geolocation: ["'none'"],
-      microphone: ["'none'"],
-      camera: ["'none'"],
-      payment: ["'none'"],
-      usb: ["'none'"],
-      magnetometer: ["'none'"],
-      gyroscope: ["'none'"],
-      accelerometer: ["'none'"]
-    }
-  }
+  // Remove permissions policy as it's not supported in current helmet version
 });
 
 // =============================================================================
@@ -135,10 +121,9 @@ const createRateLimiter = (options: any) => {
   if (redisClient) {
     return rateLimit({
       ...options,
-      store: new RateLimiterRedis({
+      store: new RedisStore({
         client: redisClient,
-        prefix: 'rl:',
-        sendCommand: (...args: string[]) => redisClient.sendCommand(args)
+        prefix: 'rl:'
       })
     });
   }

@@ -215,7 +215,7 @@ export function validateCapitalFirstInputs(inputs: CapitalFirstInputsV2): string
 
   // Check graduation percentages with Tactyc-style constraints
   StageOrder.forEach((stage: any, index: any) => {
-    const grad = inputs.graduationPctByStage[stage];
+    const grad = (inputs as any).graduationPctByStage[stage];
     if (grad !== undefined) {
       if (grad < 0 || grad > 100) {
         errors.push(`${stage} graduation rate must be between 0% and 100%`);

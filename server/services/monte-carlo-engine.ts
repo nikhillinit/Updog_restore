@@ -846,7 +846,6 @@ export class MonteCarloEngine {
       fundId: results.config.fundId,
       simulationName: `Monte Carlo Simulation ${new Date().toISOString()}`,
       simulationType: 'portfolio_construction',
-      numberOfRuns: results.config.runs,
       inputDistributions: {},
       summaryStatistics: {},
       percentileResults: {},

@@ -95,7 +95,6 @@ export class DatabasePoolManager extends EventEmitter {
       min: fullConfig.minConnections,
       idleTimeoutMillis: fullConfig.idleTimeoutMs,
       connectionTimeoutMillis: fullConfig.connectionTimeoutMs,
-      acquireTimeoutMillis: fullConfig.acquireTimeoutMs,
       maxRetries: fullConfig.maxRetries,
     });
 

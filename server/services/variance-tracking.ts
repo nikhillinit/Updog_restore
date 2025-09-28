@@ -222,7 +222,7 @@ export class BaselineService {
     // Identify top performers (top 20% by current valuation)
     const sortedCompanies = companies
       .filter(c => c.currentValuation)
-      .sort((a: any, b: any) => parseFloat(b.currentValuation!.toString()) - parseFloat(a.currentValuation!.toString()));
+      .sort((a, b) => parseFloat(b.currentValuation!.toString()) - parseFloat(a.currentValuation!.toString()));
 
     const topPerformersCount = Math.ceil(sortedCompanies.length * 0.2);
     const topPerformers = sortedCompanies.slice(0, topPerformersCount).map(c => ({
@@ -334,12 +334,12 @@ export class VarianceCalculationService {
       asOfDate,
       currentMetrics,
       baselineMetrics,
-      totalValueVariance: variances.totalValueVariance,
-      totalValueVariancePct: variances.totalValueVariancePct,
-      irrVariance: variances.irrVariance,
-      multipleVariance: variances.multipleVariance,
-      dpiVariance: variances.dpiVariance,
-      tvpiVariance: variances.tvpiVariance,
+      totalValueVariance: variances.totalValueVariance?.toString() || null,
+      totalValueVariancePct: variances.totalValueVariancePct?.toString() || null,
+      irrVariance: variances.irrVariance?.toString() || null,
+      multipleVariance: variances.multipleVariance?.toString() || null,
+      dpiVariance: variances.dpiVariance?.toString() || null,
+      tvpiVariance: variances.tvpiVariance?.toString() || null,
       portfolioVariances,
       sectorVariances: portfolioVariances.sectorVariances,
       stageVariances: portfolioVariances.stageVariances,
@@ -501,9 +501,9 @@ export class VarianceCalculationService {
    * Generate variance insights and risk assessment
    */
   private generateVarianceInsights(variances: any, portfolioVariances: any) {
-    const significantVariances = [];
-    const factors = [];
-    const thresholdBreaches = [];
+    const significantVariances: any[] = [];
+    const factors: any[] = [];
+    const thresholdBreaches: any[] = [];
     let riskLevel = 'low';
     let overallScore = "0";
 

@@ -151,7 +151,8 @@
       "Bash(📦 Batch 3/4: 5 tests)",
       "Bash(📦 Batch 4/4: 5 tests)",
       "Bash(__NEW_LINE__ 🔧 Phase 3: Automatic Repair)",
-      "Bash(tsx scripts/automated-test-repair.ts:*)"
+      "Bash(tsx scripts/automated-test-repair.ts:*)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": [],
     "ask": [],

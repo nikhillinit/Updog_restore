@@ -439,14 +439,14 @@ export class MonteCarloSimulationService {
 
     // Analyze sector performance
     const sectorPerformance: Record<string, SimulationResult> = {};
-    const sectors = [...new Set(portfolioCompaniesData.map(c => c.sector))];
+    const sectors = [...new Set(portfolioCompaniesData.map(c => c.sector).filter(Boolean))];
 
     for (const sector of sectors) {
       const sectorScenarios = this.generateSectorScenarios(
         portfolioCompaniesData.filter(c => c.sector === sector),
         params.scenarios || 10000
       );
-      sectorPerformance[sector] = this.calculateSimulationResult(
+      sectorPerformance[sector as string] = this.calculateSimulationResult(
         `${sector}_performance`,
         sectorScenarios,
         params.confidenceIntervals || [10, 25, 50, 75, 90]
@@ -455,14 +455,14 @@ export class MonteCarloSimulationService {
 
     // Analyze stage performance
     const stagePerformance: Record<string, SimulationResult> = {};
-    const stages = [...new Set(portfolioCompaniesData.map(c => c.stage))];
+    const stages = [...new Set(portfolioCompaniesData.map(c => c.stage).filter(Boolean))];
 
     for (const stage of stages) {
       const stageScenarios = this.generateStageScenarios(
         portfolioCompaniesData.filter(c => c.stage === stage),
         params.scenarios || 10000
       );
-      stagePerformance[stage] = this.calculateSimulationResult(
+      stagePerformance[stage as string] = this.calculateSimulationResult(
         `${stage}_performance`,
         stageScenarios,
         params.confidenceIntervals || [10, 25, 50, 75, 90]

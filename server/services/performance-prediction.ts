@@ -8,8 +8,7 @@
 import { db } from '../db';
 import {
   funds,
-  fundMetrics,
-  performancePredictions
+  fundMetrics
 } from '@shared/schema';
 import { eq, and, desc, gte, sql, inArray } from 'drizzle-orm';
 

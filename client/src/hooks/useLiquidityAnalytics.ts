@@ -154,6 +154,7 @@ export function useLiquidityAnalytics(
         createdAt: date,
         updatedAt: date,
         createdBy: 'system',
+        quarterEnd: date.getMonth() % 3 === 2, // true if it's the last month of a quarter
       });
     }
 
@@ -313,12 +314,12 @@ export function useLiquidityAnalytics(
     }
   }, [options.defaultForecastMonths, liquidityEngine, generateMockCurrentPosition, generateMockTransactions, generateMockRecurringExpenses]);
 
-  const runStressTest = useCallback(async (factors = defaultStressFactors) => {
+  const runStressTest = useCallback(async (factors?: Partial<typeof defaultStressFactors>) => {
     setState(prev => ({ ...prev, isLoadingStressTest: true, stressTestError: null }));
 
     try {
       const currentPosition = generateMockCurrentPosition();
-      const mergedFactors = { ...defaultStressFactors, ...factors };
+      const mergedFactors = { ...defaultStressFactors, ...(factors || {}) };
 
       const stressTestResult = liquidityEngine.runStressTest(currentPosition, mergedFactors);
 

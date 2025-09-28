@@ -746,7 +746,7 @@ export class LiquidityEngine {
 
     // Penalize too many small calls
     const avgCallSize = calls.reduce((sum, call) => sum + call.amount, 0) / Math.max(calls.length, 1);
-    if (avgCallSize < constraints.minCallAmount || 0) {
+    if (avgCallSize < (constraints.minCallAmount || 0)) {
       score -= 20;
     }
 

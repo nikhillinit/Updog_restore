@@ -78,7 +78,7 @@ describe('Type Guards', () => {
       expect(isNonEmptyString('   ')).toBe(false);
       expect(isNonEmptyString(null)).toBe(false);
       expect(isNonEmptyString(undefined)).toBe(false);
-      expect(isNonEmptyString(0)).toBe(false);
+      expect(isNonEmptyString(0 as any)).toBe(false);
     });
   });
 
@@ -96,7 +96,7 @@ describe('Type Guards', () => {
       expect(isValidNumber(-Infinity)).toBe(false);
       expect(isValidNumber(null)).toBe(false);
       expect(isValidNumber(undefined)).toBe(false);
-      expect(isValidNumber('42')).toBe(false);
+      expect(isValidNumber('42' as any)).toBe(false);
     });
   });
 
@@ -111,7 +111,7 @@ describe('Type Guards', () => {
       expect(hasElements([])).toBe(false);
       expect(hasElements(null)).toBe(false);
       expect(hasElements(undefined)).toBe(false);
-      expect(hasElements('string')).toBe(false);
+      expect(hasElements('string' as any)).toBe(false);
     });
   });
 
@@ -196,7 +196,7 @@ describe('Type Guards', () => {
     it('returns fallback for non-arrays', () => {
       expect(safeArray(null)).toEqual([]);
       expect(safeArray(undefined, [1, 2])).toEqual([1, 2]);
-      expect(safeArray('string')).toEqual([]);
+      expect(safeArray('string' as any)).toEqual([]);
     });
   });
 
@@ -208,7 +208,7 @@ describe('Type Guards', () => {
     });
 
     it('returns undefined when object is null/undefined', () => {
-      const result = safeAccess(null, (o) => o.nested.value);
+      const result = safeAccess(null, (o: any) => o?.nested?.value);
       expect(result).toBeUndefined();
     });
 
@@ -255,9 +255,9 @@ describe('Type Guards', () => {
 
     it('returns undefined when object is null/undefined or property missing', () => {
       const obj = { name: 'test' };
-      expect(safeObjectAccess(obj, 'missing' as any)).toBeUndefined();
-      expect(safeObjectAccess(null, 'name')).toBeUndefined();
-      expect(safeObjectAccess(undefined, 'name')).toBeUndefined();
+      expect(safeObjectAccess(obj, 'missing' as keyof typeof obj)).toBeUndefined();
+      expect(safeObjectAccess(null as any, 'name')).toBeUndefined();
+      expect(safeObjectAccess(undefined as any, 'name')).toBeUndefined();
     });
   });
 
@@ -275,7 +275,7 @@ describe('Type Guards', () => {
     });
 
     it('returns undefined when object is null/undefined', () => {
-      const result = getValidProperty(null, 'name', (v): v is string => typeof v === 'string');
+      const result = getValidProperty(null as any, 'name', (v): v is string => typeof v === 'string');
       expect(result).toBeUndefined();
     });
   });

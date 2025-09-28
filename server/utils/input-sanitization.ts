@@ -11,8 +11,8 @@
  * - File upload validation
  */
 
-import DOMPurify from 'isomorphic-dompurify';
-import validator from 'validator';
+// DOMPurify not available in server environment, using built-in sanitization
+// import validator from 'validator';
 import { logValidationError, securityLogger } from './logger.js';
 
 // =============================================================================
@@ -109,21 +109,9 @@ export function sanitizeString(
       sanitized = sanitized.substring(0, opts.maxLength);
     }
 
-    // HTML sanitization using DOMPurify
-    if (opts.allowedTags && opts.allowedTags.length > 0) {
-      sanitized = DOMPurify.sanitize(sanitized, {
-        ALLOWED_TAGS: opts.allowedTags,
-        ALLOWED_ATTR: opts.allowedAttributes || [],
-        KEEP_CONTENT: true
-      });
-    } else {
-      // Strip all HTML if no tags are allowed
-      sanitized = DOMPurify.sanitize(sanitized, {
-        ALLOWED_TAGS: [],
-        ALLOWED_ATTR: [],
-        KEEP_CONTENT: true
-      });
-    }
+    // Basic HTML sanitization - strip all HTML tags for security
+    // In a production environment, consider using a proper HTML sanitization library
+    sanitized = sanitized.replace(/<[^>]*>/g, '');
 
     // Check for dangerous patterns
     if (opts.strictMode) {

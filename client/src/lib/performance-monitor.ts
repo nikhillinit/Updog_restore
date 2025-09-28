@@ -188,8 +188,9 @@ export class PerformanceMonitor {
     }, {} as Record<string, number[]>);
     
     for (const [name, values] of Object.entries(metricGroups)) {
-      averages[name] = values.reduce((sum: any, val: any) => sum + val, 0) / values.length;
-      peaks[name] = Math.max(...values);
+      const numberArray = values as number[];
+      averages[name] = numberArray.reduce((sum: number, val: number) => sum + val, 0) / numberArray.length;
+      peaks[name] = Math.max(...numberArray);
     }
     
     // Get recent alerts
@@ -378,8 +379,9 @@ export class PerformanceMonitor {
     
     const averages: Record<string, number> = {};
     for (const [name, values] of Object.entries(groups)) {
-      if (values.length > 0) {
-        averages[name] = values.reduce((sum: any, val: any) => sum + val, 0) / values.length;
+      const numberArray = values as number[];
+      if (numberArray.length > 0) {
+        averages[name] = numberArray.reduce((sum: number, val: number) => sum + val, 0) / numberArray.length;
       }
     }
     

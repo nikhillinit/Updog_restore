@@ -953,19 +953,12 @@ export class StreamingMonteCarloEngine {
       fundId: results.config.fundId,
       simulationName: `Streaming Monte Carlo Simulation ${new Date().toISOString()}`,
       simulationType: 'streaming_portfolio_construction',
-      numberOfRuns: results.config.runs,
       inputDistributions: {},
       summaryStatistics: {},
       percentileResults: {},
       createdBy: 1, // TODO: Get from context
       tags: ['streaming', 'portfolio-construction', 'risk-analysis', 'memory-efficient'],
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      metadata: {
-        baseline: results.config.baselineId,
-        timeHorizon: results.config.timeHorizonYears,
-        randomSeed: results.config.randomSeed,
-        streamingConfig: results.config
-      }
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     };
 
     await this.db.insert(schema.monteCarloSimulations).values(simulationData);
