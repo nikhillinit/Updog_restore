@@ -226,7 +226,7 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
           change={analytics.liquidityForecast?.liquidityRatio ?
             `${analytics.liquidityForecast.liquidityRatio >= 1.5 ? 'Healthy' : 'Low'}` :
             undefined}
-          trend={analytics.liquidityForecast?.liquidityRatio >= 1.5 ? 'stable' : 'decreasing'}
+          trend={analytics.liquidityForecast?.liquidityRatio && analytics.liquidityForecast.liquidityRatio >= 1.5 ? 'stable' : 'decreasing'}
           icon={Target}
           loading={analytics.isLoadingForecast}
         />
@@ -248,7 +248,7 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
           change={analytics.liquidityForecast?.runwayMonths ?
             `${analytics.liquidityForecast.runwayMonths >= 12 ? 'Excellent' : analytics.liquidityForecast.runwayMonths >= 6 ? 'Good' : 'Critical'}` :
             undefined}
-          trend={analytics.liquidityForecast?.runwayMonths >= 12 ? 'increasing' : analytics.liquidityForecast?.runwayMonths >= 6 ? 'stable' : 'decreasing'}
+          trend={analytics.liquidityForecast?.runwayMonths && analytics.liquidityForecast.runwayMonths >= 12 ? 'increasing' : analytics.liquidityForecast?.runwayMonths && analytics.liquidityForecast.runwayMonths >= 6 ? 'stable' : 'decreasing'}
           icon={Clock}
           loading={analytics.isLoadingForecast}
         />
@@ -297,7 +297,7 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                     <XAxis dataKey="month" />
                     <YAxis />
                     <Tooltip formatter={(value: number) => formatCurrencyShort(value)} />
-                    <Bar dataKey="netFlow" fill={(entry: any) => entry.netFlow >= 0 ? "#10b981" : "#ef4444"} />
+                    <Bar dataKey="netFlow" fill="#3b82f6" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -486,7 +486,7 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <Button onClick={analytics.runStressTest} disabled={analytics.isLoadingStressTest}>
+                  <Button onClick={() => analytics.runStressTest()} disabled={analytics.isLoadingStressTest}>
                     {analytics.isLoadingStressTest ? (
                       <>
                         <RefreshCw className="h-4 w-4 mr-2 animate-spin" />

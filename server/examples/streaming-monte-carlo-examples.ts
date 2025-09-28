@@ -290,10 +290,10 @@ export async function performanceMonitoringExample() {
 
   // Run several simulations to build performance history
   const configs = [
-    { fundId: 1, runs: 1000, forceEngine: 'traditional' as const },
-    { fundId: 1, runs: 5000, forceEngine: 'streaming' as const },
-    { fundId: 1, runs: 10000, forceEngine: 'auto' as const },
-    { fundId: 1, runs: 2000, forceEngine: 'auto' as const }
+    { fundId: 1, runs: 1000, forceEngine: 'traditional' as const, timeHorizonYears: 8 },
+    { fundId: 1, runs: 5000, forceEngine: 'streaming' as const, timeHorizonYears: 8 },
+    { fundId: 1, runs: 10000, forceEngine: 'auto' as const, timeHorizonYears: 8 },
+    { fundId: 1, runs: 2000, forceEngine: 'auto' as const, timeHorizonYears: 8 }
   ];
 
   console.log('Building performance history...');

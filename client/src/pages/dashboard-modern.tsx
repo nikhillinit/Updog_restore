@@ -465,7 +465,7 @@ export default function ModernDashboard() {
           {/* Cashflow Management Tab */}
           <TabsContent value="cashflow" className="space-y-8">
             <CashflowDashboard
-              fundId={currentFund?.id || 'default'}
+              fundId={String(currentFund?.id || 'default')}
               className="max-w-none"
             />
           </TabsContent>

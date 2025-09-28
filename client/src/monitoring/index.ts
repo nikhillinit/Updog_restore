@@ -93,7 +93,7 @@ if (typeof __SENTRY__ !== 'undefined' && __SENTRY__ && !isDNT && !isOptedOut) {
         replaysOnErrorSampleRate: 1.0,
         
         // Privacy: Scrub sensitive data
-        beforeSend(event, _hint) {
+        beforeSend(event: any, _hint: any) {
           // Remove PII from URLs
           if (event.request?.url) {
             event.request.url = event.request.url.replace(/\/users\/\d+/g, '/users/[id]');

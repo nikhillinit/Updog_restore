@@ -12,7 +12,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../db.js';
-import { fundEvents } from '@shared/schema';
+import { fundEvents, auditLog } from '@shared/schema';
 import { auditLogger, logAudit, securityLogger } from '../utils/logger.js';
 import { z } from 'zod';
 import crypto from 'crypto';
@@ -433,7 +433,7 @@ function extractEntityId(path: string): string | null {
 async function storeAuditRecord(auditData: any): Promise<void> {
   try {
     // Store in database
-    await db.insert(auditLogs).values({
+    await db.insert(auditLog).values({
       userId: auditData.userId,
       action: auditData.action,
       entityType: auditData.entityType,

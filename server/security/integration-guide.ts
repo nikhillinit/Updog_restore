@@ -5,7 +5,7 @@
  * into the Updog VC fund modeling platform for production deployment.
  */
 
-import express from 'express';
+import express, { Application } from 'express';
 import { Request, Response, NextFunction } from 'express';
 
 // Security middleware imports
@@ -51,7 +51,7 @@ import {
  * =============================================================================
  */
 
-export async function setupSecurityMiddleware(app: express.Application): Promise<void> {
+export async function setupSecurityMiddleware(app: Application): Promise<void> {
   console.log('🔒 Initializing security middleware...');
 
   // Initialize Redis connection for rate limiting
@@ -165,7 +165,7 @@ export function createValidationMiddleware<T>(schema: any) {
  * =============================================================================
  */
 
-export function setupSecureRoutes(app: express.Application): void {
+export function setupSecureRoutes(app: Application): void {
   console.log('🛡️  Setting up secure routes...');
 
   // Monte Carlo simulation endpoint with full security
@@ -308,7 +308,7 @@ export function setupSecureRoutes(app: express.Application): void {
  * =============================================================================
  */
 
-export function setupSecurityMonitoring(app: express.Application): void {
+export function setupSecurityMonitoring(app: Application): void {
   // Security health check endpoint
   app['get']('/api/security/health', (req: Request, res: Response) => {
     res.json({
@@ -374,7 +374,7 @@ export function validateSecurityEnvironment(): void {
  * =============================================================================
  */
 
-export async function initializeCompleteSecurity(app: express.Application): Promise<void> {
+export async function initializeCompleteSecurity(app: Application): Promise<void> {
   console.log('🚀 Initializing complete security system...');
 
   // 1. Validate environment
