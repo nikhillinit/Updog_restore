@@ -15,9 +15,7 @@ import {
   TrendingUp,
   DollarSign,
   Target,
-  Calculator,
-  Users,
-  Calendar
+  Calculator
 } from 'lucide-react';
 
 export interface SkeletonVariant {

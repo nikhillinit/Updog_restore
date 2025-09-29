@@ -19,14 +19,11 @@ import { cn } from '@/lib/utils';
 import {
   HelpCircle,
   TrendingUp,
-  DollarSign,
   Target,
   AlertTriangle,
   BarChart3,
   PieChart,
   Calculator,
-  ExternalLink,
-  BookOpen,
   Lightbulb
 } from 'lucide-react';
 

@@ -55,7 +55,6 @@ import {
   Brain,
   Smartphone,
   BarChart3,
-  PieChart,
   Zap,
   Eye
 } from 'lucide-react';

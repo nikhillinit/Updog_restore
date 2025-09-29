@@ -22,8 +22,7 @@ import {
   PowerLawTooltip,
   SeriesAChasmTooltip,
   IRRTooltip,
-  MOICTooltip,
-  DPITooltip
+  MOICTooltip
 } from '@/components/ui/contextual-tooltip';
 import {
   DashboardSkeleton_Component,
@@ -37,8 +36,6 @@ import {
   Target,
   PieChart,
   BarChart3,
-  Users,
-  Calendar,
   Lightbulb,
   Eye,
   Settings,

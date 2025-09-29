@@ -192,9 +192,9 @@ describe('Fund Store Stability Tests', () => {
         stateSlices
       );
       
-      const beforeUpdate = store.getState();
+      const _beforeUpdate = store.getState();
       store.getState().fromInvestmentStrategy(canonicalPayload as any);
-      const afterUpdate = store.getState();
+      const _afterUpdate = store.getState();
       
       expect(notificationCount).toBe(0);
       

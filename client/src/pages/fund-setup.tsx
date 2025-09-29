@@ -8,7 +8,7 @@ import DistributionsStep from './DistributionsStep';
 import CashflowManagementStep from './CashflowManagementStep';
 import StepNotFound from './steps/StepNotFound';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { resolveStepKeyFromLocation, type StepKey, getStepNumber } from './fund-setup-utils';
+import { resolveStepKeyFromLocation, type StepKey } from './fund-setup-utils';
 import { emitWizard } from '@/lib/wizard-telemetry';
 import { ModernWizardProgress } from '@/components/wizard/ModernWizardProgress';
 
