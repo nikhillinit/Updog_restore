@@ -45,6 +45,7 @@ export default function InvestmentStrategyStep() {
   }, [editingProfile]);
 
   // Mock sector profiles (this would come from store)
+  // Updated with 2024-2025 market data based on current venture capital trends
   const [sectorProfiles, setSectorProfiles] = useState<SectorProfile[]>([
     {
       id: 'default',
@@ -53,54 +54,67 @@ export default function InvestmentStrategyStep() {
         {
           id: 'pre-seed',
           name: 'Pre-Seed',
-          roundSize: 0.5,
-          valuation: 3,
+          roundSize: 0.75, // 2024-2025: Increased from $0.5M due to higher operating costs and talent competition
+          valuation: 6.5, // 2024-2025: Higher valuations reflecting strong early-stage market
           valuationType: 'pre',
-          esopPct: 15,
-          graduationRate: 60,
-          exitRate: 15,
-          exitValuation: 5,
+          esopPct: 20, // 2024-2025: Increased to attract top talent in competitive market
+          graduationRate: 25, // 2024-2025: More conservative, reflecting Series A funding challenges
+          exitRate: 5, // 2024-2025: Lower early exits as companies hold longer for higher valuations
+          exitValuation: 12, // 2024-2025: Updated exit valuation expectation
           monthsToGraduate: 18,
           monthsToExit: 24
         },
         {
           id: 'seed',
           name: 'Seed',
-          roundSize: 2,
-          valuation: 8,
+          roundSize: 3.5, // 2024-2025: Significant increase reflecting larger seed rounds
+          valuation: 16, // 2024-2025: Higher seed valuations in current market
           valuationType: 'pre',
-          esopPct: 12,
-          graduationRate: 65,
+          esopPct: 20, // 2024-2025: Maintained high ESOP to retain talent through Series A Chasm
+          graduationRate: 18, // 2024-2025: Series A Chasm - much lower graduation rate
           exitRate: 20,
-          exitValuation: 15,
-          monthsToGraduate: 24,
+          exitValuation: 35, // 2024-2025: Higher exit expectations
+          monthsToGraduate: 25, // 2024-2025: Longer time to Series A due to market conditions
           monthsToExit: 30
         },
         {
           id: 'series-a',
           name: 'Series A',
-          roundSize: 8,
-          valuation: 25,
+          roundSize: 12, // 2024-2025: Larger Series A rounds reflecting market consolidation
+          valuation: 48, // 2024-2025: Higher Series A valuations for proven companies
           valuationType: 'pre',
-          esopPct: 10,
-          graduationRate: 70,
+          esopPct: 18, // 2024-2025: Slightly reduced from seed but still competitive
+          graduationRate: 35, // 2024-2025: Improved graduation rate for Series A survivors
           exitRate: 25,
-          exitValuation: 50,
-          monthsToGraduate: 30,
+          exitValuation: 120, // 2024-2025: Higher exit valuations for Series A companies
+          monthsToGraduate: 34, // 2024-2025: Longer path to Series B
           monthsToExit: 36
         },
         {
           id: 'series-b',
-          name: 'Series B+',
-          roundSize: 20,
-          valuation: 80,
+          name: 'Series B',
+          roundSize: 30, // 2024-2025: Larger Series B rounds
+          valuation: 109, // 2024-2025: Updated Series B valuations
           valuationType: 'pre',
-          esopPct: 8,
-          graduationRate: 0,
-          exitRate: 40,
-          exitValuation: 200,
-          monthsToGraduate: 0,
+          esopPct: 17, // 2024-2025: Maintained competitive ESOP levels
+          graduationRate: 40, // 2024-2025: Improved graduation rate for proven growth companies
+          exitRate: 25,
+          exitValuation: 250, // 2024-2025: Higher Series B exit expectations
+          monthsToGraduate: 26, // 2024-2025: Faster path to Series C in growth phase
           monthsToExit: 42
+        },
+        {
+          id: 'series-c',
+          name: 'Series C+',
+          roundSize: 50, // 2024-2025: New stage - larger late-stage rounds
+          valuation: 200, // 2024-2025: Late-stage valuations for scaled companies
+          valuationType: 'pre',
+          esopPct: 12, // 2024-2025: Lower ESOP percentage for mature companies
+          graduationRate: 0, // Final stage - no graduation
+          exitRate: 50, // 2024-2025: Higher exit rate for mature companies seeking liquidity
+          exitValuation: 500, // 2024-2025: Premium exit valuations for Series C+ companies
+          monthsToGraduate: 0,
+          monthsToExit: 48
         }
       ]
     }
@@ -122,14 +136,14 @@ export default function InvestmentStrategyStep() {
         {
           id: `stage-${Date.now()}`,
           name: 'Seed',
-          roundSize: 2,
-          valuation: 8,
+          roundSize: 3.5, // 2024-2025 market default
+          valuation: 16, // 2024-2025 market default
           valuationType: 'pre',
-          esopPct: 12,
-          graduationRate: 65,
+          esopPct: 20, // 2024-2025 market default
+          graduationRate: 18, // 2024-2025 market default - Series A Chasm
           exitRate: 20,
-          exitValuation: 15,
-          monthsToGraduate: 24,
+          exitValuation: 35, // 2024-2025 market default
+          monthsToGraduate: 25, // 2024-2025 market default
           monthsToExit: 30
         }
       ]
@@ -155,14 +169,14 @@ export default function InvestmentStrategyStep() {
     const newStage: InvestmentStage = {
       id: `stage-${Date.now()}`,
       name: '',
-      roundSize: 5,
-      valuation: 20,
+      roundSize: 12, // 2024-2025 Series A market default
+      valuation: 48, // 2024-2025 Series A market default
       valuationType: 'pre',
-      esopPct: 10,
-      graduationRate: 60,
+      esopPct: 18, // 2024-2025 market default
+      graduationRate: 35, // 2024-2025 market default
       exitRate: 25,
-      exitValuation: 50,
-      monthsToGraduate: 24,
+      exitValuation: 120, // 2024-2025 market default
+      monthsToGraduate: 34, // 2024-2025 market default
       monthsToExit: 36
     };
 

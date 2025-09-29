@@ -849,14 +849,7 @@ export class MonteCarloEngine {
       inputDistributions: {},
       summaryStatistics: {},
       percentileResults: {},
-      createdBy: 1, // TODO: Get from context
-      tags: ['portfolio-construction', 'risk-analysis', 'reserve-optimization'],
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-      metadata: {
-        baseline: results.config.baselineId,
-        timeHorizon: results.config.timeHorizonYears,
-        randomSeed: results.config.randomSeed
-      }
+      createdBy: 1 // TODO: Get from context
     };
 
     await db.insert(monteCarloSimulations).values(simulationData);
