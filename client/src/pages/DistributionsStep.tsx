@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { useLocation } from 'wouter';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, AlertCircle, ArrowLeft } from "lucide-react";
+import { Plus, Trash2, AlertCircle, ArrowLeft, ArrowRight } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useFundTuple, useFundAction } from '@/stores/useFundSelector';
+import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
 import type { FeeProfile, FeeTier, FundExpense, FeeBasis } from '@/stores/fundStore';
 
 interface WaterfallTier {
@@ -63,7 +63,7 @@ export default function DistributionsStep() {
   const addWaterfallTier = useFundAction(s => s.addWaterfallTier);
   const updateWaterfallTier = useFundAction(s => s.updateWaterfallTier);
   const removeWaterfallTier = useFundAction(s => s.removeWaterfallTier);
-  
+
   // Fee Profile actions
   const addFeeProfile = useFundAction(s => s.addFeeProfile);
   const updateFeeProfile = useFundAction(s => s.updateFeeProfile);
@@ -71,7 +71,7 @@ export default function DistributionsStep() {
   const addFeeTier = useFundAction(s => s.addFeeTier);
   const updateFeeTier = useFundAction(s => s.updateFeeTier);
   const removeFeeTier = useFundAction(s => s.removeFeeTier);
-  
+
   // Fund Expense actions
   const addFundExpense = useFundAction(s => s.addFundExpense);
   const updateFundExpense = useFundAction(s => s.updateFundExpense);
@@ -89,7 +89,7 @@ export default function DistributionsStep() {
   };
 
   const handleRecyclingToggle = (enabled: boolean) => {
-    updateDistributions({ 
+    updateDistributions({
       recyclingEnabled: enabled,
       // Reset recycling values when disabled
       exitRecyclingRate: enabled ? exitRecyclingRate : 0,
@@ -174,536 +174,554 @@ export default function DistributionsStep() {
   const recyclingExceeds100 = totalRecyclingRate > 100;
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-charcoal">Distributions & Carry</h2>
-        <p className="text-gray-600 mt-2">Configure waterfall structure and recycling provisions</p>
-      </div>
+    <ModernStepContainer
+      title="Exit Recycling"
+      description="Proceeds recycling configuration"
+    >
+      <div className="space-y-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="waterfall">Waterfall Structure</TabsTrigger>
+            <TabsTrigger value="fees">Fees & Expenses</TabsTrigger>
+            <TabsTrigger value="recycling">Recycling Provisions</TabsTrigger>
+          </TabsList>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="waterfall">Waterfall Structure</TabsTrigger>
-          <TabsTrigger value="fees">Fees & Expenses</TabsTrigger>
-          <TabsTrigger value="recycling">Recycling Provisions</TabsTrigger>
-        </TabsList>
+          <TabsContent value="waterfall" className="space-y-6">
+            <div className="space-y-6">
+              <div className="pb-4 border-b border-gray-100">
+                <h3 className="text-lg font-medium text-charcoal-800 mb-2">Distribution Waterfall</h3>
+                <p className="text-gray-600">Define how distributions flow between LPs and GP</p>
+              </div>
 
-        <TabsContent value="waterfall" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Distribution Waterfall</CardTitle>
-              <CardDescription>
-                Define how distributions flow between LPs and GP
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  American waterfall calculates carry on each individual deal. 
+                  American waterfall calculates carry on each individual deal.
                   Consider clawback provisions to protect LPs.
                 </AlertDescription>
               </Alert>
 
-              <div className="space-y-4 pt-4">
-                <h4 className="font-medium">Waterfall Tiers</h4>
-                {waterfallTiers.map((tier: any, index: any) => (
-                  <div key={tier.id} className="border rounded-lg p-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-medium">{tier.name}</h3>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeWaterfallTier(tier.id)}
-                        className="text-red-500 hover:text-red-700"
-                        disabled={waterfallTiers.length === 1}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Tier Name</Label>
-                        <Input
-                          value={tier.name}
-                          onChange={(e: any) => updateWaterfallTier(tier.id, { name: e.target.value })}
-                          placeholder="e.g., Preferred Return"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Condition</Label>
-                        <Select
-                          value={tier.condition || 'none'}
-                          onValueChange={(value: any) => 
-                            updateWaterfallTier(tier.id, { condition: value as WaterfallTier['condition'] })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">No Condition</SelectItem>
-                            <SelectItem value="irr">IRR Hurdle</SelectItem>
-                            <SelectItem value="moic">MOIC Hurdle</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {tier.condition && tier.condition !== 'none' && (
-                      <div className="space-y-2">
-                        <Label>
-                          {tier.condition === 'irr' ? 'IRR Hurdle (%)' : 'MOIC Hurdle'}
-                        </Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step={tier.condition === 'irr' ? "0.1" : "0.01"}
-                          value={tier.conditionValue || ''}
-                          onChange={(e: any) => updateWaterfallTier(tier.id, { 
-                            conditionValue: parseFloat(e.target.value) || undefined 
-                          })}
-                          placeholder={tier.condition === 'irr' ? "e.g., 8.0" : "e.g., 1.5"}
-                        />
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>LP Split (%)</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={tier.lpSplit}
-                          onChange={(e: any) => {
-                            const lpSplit = parseFloat(e.target.value) || 0;
-                            updateWaterfallTier(tier.id, { 
-                              lpSplit,
-                              gpSplit: 100 - lpSplit
-                            });
-                          }}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>GP Split (%)</Label>
-                        <div className="p-2 bg-gray-50 rounded h-10 flex items-center">
-                          <span className="text-gray-700">
-                            {tier.gpSplit}%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-                ))}
-
-                <Button onClick={handleAddTier} variant="outline" className="w-full">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Waterfall Tier
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="fees" className="space-y-4">
-          {/* Management Fees Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Management Fees</CardTitle>
-              <CardDescription>
-                Configure fee structures with different basis methods and step-downs
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {feeProfiles.map((profile: any) => (
-                <div key={profile.id} className="border rounded-lg p-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-2 flex-1">
-                      <Label>Fee Profile Name</Label>
-                      <Input
-                        value={profile.name}
-                        onChange={(e: any) => updateFeeProfile(profile.id, { name: e.target.value })}
-                        placeholder="e.g., Default Fee Profile"
-                        className="max-w-md"
-                      />
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleAddFeeTier(profile.id)}
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Fee Tier
-                      </Button>
-                      {feeProfiles.length > 1 && (
+              <div className="space-y-4">
+                <h4 className="font-medium text-charcoal-800">Waterfall Tiers</h4>
+                <div className="space-y-4">
+                  {waterfallTiers.map((tier: any, index: any) => (
+                    <div key={tier.id} className="border rounded-lg p-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-medium">{tier.name}</h3>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => removeFeeProfile(profile.id)}
+                          onClick={() => removeWaterfallTier(tier.id)}
+                          className="text-red-500 hover:text-red-700"
+                          disabled={waterfallTiers.length === 1}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <Label className="text-sm font-medium text-charcoal-700">Tier Name</Label>
+                          <Input
+                            value={tier.name}
+                            onChange={(e: any) => updateWaterfallTier(tier.id, { name: e.target.value })}
+                            placeholder="e.g., Preferred Return"
+                            className="h-12"
+                          />
+                        </div>
+
+                        <div className="space-y-3">
+                          <Label className="text-sm font-medium text-charcoal-700">Condition</Label>
+                          <Select
+                            value={tier.condition || 'none'}
+                            onValueChange={(value: any) =>
+                              updateWaterfallTier(tier.id, { condition: value as WaterfallTier['condition'] })
+                            }
+                          >
+                            <SelectTrigger className="h-12">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">No Condition</SelectItem>
+                              <SelectItem value="irr">IRR Hurdle</SelectItem>
+                              <SelectItem value="moic">MOIC Hurdle</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {tier.condition && tier.condition !== 'none' && (
+                        <div className="space-y-3">
+                          <Label className="text-sm font-medium text-charcoal-700">
+                            {tier.condition === 'irr' ? 'IRR Hurdle (%)' : 'MOIC Hurdle'}
+                          </Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step={tier.condition === 'irr' ? "0.1" : "0.01"}
+                            value={tier.conditionValue || ''}
+                            onChange={(e: any) => updateWaterfallTier(tier.id, {
+                              conditionValue: parseFloat(e.target.value) || undefined
+                            })}
+                            placeholder={tier.condition === 'irr' ? "e.g., 8.0" : "e.g., 1.5"}
+                            className="h-12"
+                          />
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <Label className="text-sm font-medium text-charcoal-700">LP Split (%)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={tier.lpSplit}
+                            onChange={(e: any) => {
+                              const lpSplit = parseFloat(e.target.value) || 0;
+                              updateWaterfallTier(tier.id, {
+                                lpSplit,
+                                gpSplit: 100 - lpSplit
+                              });
+                            }}
+                            className="h-12"
+                          />
+                        </div>
+
+                        <div className="space-y-3">
+                          <Label className="text-sm font-medium text-charcoal-700">GP Split (%)</Label>
+                          <div className="p-3 bg-gray-50 rounded-lg h-12 flex items-center">
+                            <span className="text-gray-700">
+                              {tier.gpSplit}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  ))}
+
+                  <Button onClick={handleAddTier} variant="outline" className="w-full h-12">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Waterfall Tier
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="fees" className="space-y-6">
+            {/* Management Fees Section */}
+            <div className="space-y-6">
+              <div className="pb-4 border-b border-gray-100">
+                <h3 className="text-lg font-medium text-charcoal-800 mb-2">Management Fees</h3>
+                <p className="text-gray-600">
+                  Configure fee structures with different basis methods and step-downs
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                {feeProfiles.map((profile: any) => (
+                  <div key={profile.id} className="border rounded-lg p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-3 flex-1">
+                        <Label className="text-sm font-medium text-charcoal-700">Fee Profile Name</Label>
+                        <Input
+                          value={profile.name}
+                          onChange={(e: any) => updateFeeProfile(profile.id, { name: e.target.value })}
+                          placeholder="e.g., Default Fee Profile"
+                          className="max-w-md h-12"
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAddFeeTier(profile.id)}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Fee Tier
+                        </Button>
+                        {feeProfiles.length > 1 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFeeProfile(profile.id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Fee Tiers */}
+                    <div className="space-y-4">
+                      {profile.feeTiers.map((tier: any, index: any) => (
+                        <div key={tier.id} className="border-l-4 border-blue-200 pl-4 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium">Fee Tier {index + 1}</h4>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeFeeTier(profile.id, tier.id)}
+                              className="text-red-500 hover:text-red-700"
+                              disabled={profile.feeTiers.length === 1}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="space-y-3">
+                              <Label className="text-sm font-medium text-charcoal-700">Fee Name</Label>
+                              <Input
+                                value={tier.name}
+                                onChange={(e: any) => updateFeeTier(profile.id, tier.id, { name: e.target.value })}
+                                placeholder="e.g., Management Fee"
+                                className="h-12"
+                              />
+                            </div>
+
+                            <div className="space-y-3">
+                              <Label className="text-sm font-medium text-charcoal-700">Fee Percentage (%)</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                max="10"
+                                step="0.1"
+                                value={tier.percentage}
+                                onChange={(e: any) => updateFeeTier(profile.id, tier.id, {
+                                  percentage: parseFloat(e.target.value) || 0
+                                })}
+                                placeholder="2.0"
+                                className="h-12"
+                              />
+                            </div>
+
+                            <div className="space-y-3">
+                              <Label className="text-sm font-medium text-charcoal-700">Fee Basis</Label>
+                              <Select
+                                value={tier.feeBasis}
+                                onValueChange={(value: any) => updateFeeTier(profile.id, tier.id, {
+                                  feeBasis: value as FeeBasis
+                                })}
+                              >
+                                <SelectTrigger className="h-12">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {feeBasisOptions.map(option => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-gray-500">
+                                {feeBasisOptions.find(opt => opt.value === tier.feeBasis)?.description}
+                              </p>
+                            </div>
+
+                            <div className="space-y-3">
+                              <Label className="text-sm font-medium text-charcoal-700">Start Month</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={tier.startMonth}
+                                onChange={(e: any) => updateFeeTier(profile.id, tier.id, {
+                                  startMonth: parseInt(e.target.value) || 1
+                                })}
+                                className="h-12"
+                              />
+                            </div>
+
+                            <div className="space-y-3">
+                              <Label className="text-sm font-medium text-charcoal-700">End Month (Optional)</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={tier.endMonth || ''}
+                                onChange={(e: any) => updateFeeTier(profile.id, tier.id, {
+                                  endMonth: parseInt(e.target.value) || undefined
+                                })}
+                                placeholder="120"
+                                className="h-12"
+                              />
+                            </div>
+
+                            <div className="space-y-3">
+                              <Label className="text-sm font-medium text-charcoal-700">Management Fee Recycling (%)</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={tier.recyclingPercentage || ''}
+                                onChange={(e: any) => updateFeeTier(profile.id, tier.id, {
+                                  recyclingPercentage: parseFloat(e.target.value) || undefined
+                                })}
+                                placeholder="0"
+                                className="h-12"
+                              />
+                              <p className="text-xs text-gray-500">
+                                % of fees that can be recycled from this tier
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                <Button onClick={handleAddFeeProfile} variant="outline" className="w-full h-12">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Fee Profile
+                </Button>
+              </div>
+
+              {/* Fund Expenses Section */}
+              <div className="space-y-6 border-t border-gray-100 pt-8">
+                <div className="pb-4 border-b border-gray-100">
+                  <h3 className="text-lg font-medium text-charcoal-800 mb-2">Fund Expenses</h3>
+                  <p className="text-gray-600">
+                    Define line-item fund expenses with monthly amounts and terms
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {fundExpenses.map((expense: any) => (
+                    <div key={expense.id} className="border rounded-lg p-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium">Expense: {expense.category}</h4>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFundExpense(expense.id)}
                           className="text-red-500 hover:text-red-700"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
-                      )}
-                    </div>
-                  </div>
+                      </div>
 
-                  {/* Fee Tiers */}
-                  <div className="space-y-4">
-                    {profile.feeTiers.map((tier: any, index: any) => (
-                      <div key={tier.id} className="border-l-4 border-blue-200 pl-4 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium">Fee Tier {index + 1}</h4>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeFeeTier(profile.id, tier.id)}
-                            className="text-red-500 hover:text-red-700"
-                            disabled={profile.feeTiers.length === 1}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="space-y-3">
+                          <Label className="text-sm font-medium text-charcoal-700">Expense Category</Label>
+                          <Input
+                            value={expense.category}
+                            onChange={(e: any) => updateFundExpense(expense.id, { category: e.target.value })}
+                            placeholder="e.g., Legal Fees"
+                            className="h-12"
+                          />
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label>Fee Name</Label>
-                            <Input
-                              value={tier.name}
-                              onChange={(e: any) => updateFeeTier(profile.id, tier.id, { name: e.target.value })}
-                              placeholder="e.g., Management Fee"
-                            />
-                          </div>
+                        <div className="space-y-3">
+                          <Label className="text-sm font-medium text-charcoal-700">Monthly Amount ($)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={expense.monthlyAmount}
+                            onChange={(e: any) => updateFundExpense(expense.id, {
+                              monthlyAmount: parseFloat(e.target.value) || 0
+                            })}
+                            placeholder="10000"
+                            className="h-12"
+                          />
+                        </div>
 
-                          <div className="space-y-2">
-                            <Label>Fee Percentage (%)</Label>
-                            <Input
-                              type="number"
-                              min="0"
-                              max="10"
-                              step="0.1"
-                              value={tier.percentage}
-                              onChange={(e: any) => updateFeeTier(profile.id, tier.id, { 
-                                percentage: parseFloat(e.target.value) || 0 
-                              })}
-                              placeholder="2.0"
-                            />
-                          </div>
+                        <div className="space-y-3">
+                          <Label className="text-sm font-medium text-charcoal-700">Start Month</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={expense.startMonth}
+                            onChange={(e: any) => updateFundExpense(expense.id, {
+                              startMonth: parseInt(e.target.value) || 1
+                            })}
+                            className="h-12"
+                          />
+                        </div>
 
-                          <div className="space-y-2">
-                            <Label>Fee Basis</Label>
-                            <Select
-                              value={tier.feeBasis}
-                              onValueChange={(value: any) => updateFeeTier(profile.id, tier.id, { 
-                                feeBasis: value as FeeBasis 
-                              })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {feeBasisOptions.map(option => (
-                                  <SelectItem key={option.value} value={option.value}>
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <p className="text-xs text-gray-500">
-                              {feeBasisOptions.find(opt => opt.value === tier.feeBasis)?.description}
-                            </p>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>Start Month</Label>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={tier.startMonth}
-                              onChange={(e: any) => updateFeeTier(profile.id, tier.id, { 
-                                startMonth: parseInt(e.target.value) || 1 
-                              })}
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>End Month (Optional)</Label>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={tier.endMonth || ''}
-                              onChange={(e: any) => updateFeeTier(profile.id, tier.id, { 
-                                endMonth: parseInt(e.target.value) || undefined 
-                              })}
-                              placeholder="120"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>Management Fee Recycling (%)</Label>
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={tier.recyclingPercentage || ''}
-                              onChange={(e: any) => updateFeeTier(profile.id, tier.id, { 
-                                recyclingPercentage: parseFloat(e.target.value) || undefined 
-                              })}
-                              placeholder="0"
-                            />
-                            <p className="text-xs text-gray-500">
-                              % of fees that can be recycled from this tier
-                            </p>
-                          </div>
+                        <div className="space-y-3">
+                          <Label className="text-sm font-medium text-charcoal-700">End Month (Optional)</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={expense.endMonth || ''}
+                            onChange={(e: any) => updateFundExpense(expense.id, {
+                              endMonth: parseInt(e.target.value) || undefined
+                            })}
+                            placeholder="120"
+                            className="h-12"
+                          />
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
+
+                  <Button onClick={handleAddExpense} variant="outline" className="w-full h-12">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Expense
+                  </Button>
                 </div>
-              ))}
+              </div>
+            </div>
+          </TabsContent>
 
-              <Button onClick={handleAddFeeProfile} variant="outline" className="w-full">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Fee Profile
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Fund Expenses Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Fund Expenses</CardTitle>
-              <CardDescription>
-                Define line-item fund expenses with monthly amounts and terms
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {fundExpenses.map((expense: any) => (
-                <div key={expense.id} className="border rounded-lg p-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Expense: {expense.category}</h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeFundExpense(expense.id)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label>Expense Category</Label>
-                      <Input
-                        value={expense.category}
-                        onChange={(e: any) => updateFundExpense(expense.id, { category: e.target.value })}
-                        placeholder="e.g., Legal Fees"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Monthly Amount ($)</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={expense.monthlyAmount}
-                        onChange={(e: any) => updateFundExpense(expense.id, { 
-                          monthlyAmount: parseFloat(e.target.value) || 0 
-                        })}
-                        placeholder="10000"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Start Month</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={expense.startMonth}
-                        onChange={(e: any) => updateFundExpense(expense.id, { 
-                          startMonth: parseInt(e.target.value) || 1 
-                        })}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>End Month (Optional)</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={expense.endMonth || ''}
-                        onChange={(e: any) => updateFundExpense(expense.id, { 
-                          endMonth: parseInt(e.target.value) || undefined 
-                        })}
-                        placeholder="120"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              <Button onClick={handleAddExpense} variant="outline" className="w-full">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Expense
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="recycling" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recycling Provisions</CardTitle>
-              <CardDescription>
-                Configure exit proceeds recycling for new investments
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="space-y-1">
-                  <Label htmlFor="recycling-enabled" className="cursor-pointer font-medium">
-                    Enable Exit Recycling
-                  </Label>
-                  <p className="text-sm text-gray-500">
-                    Allow exit proceeds to be recycled for new investments
-                  </p>
-                </div>
-                <Switch
-                  id="recycling-enabled"
-                  checked={recyclingEnabled}
-                  onCheckedChange={handleRecyclingToggle}
-                  data-testid="recycling-toggle"
-                />
+          <TabsContent value="recycling" className="space-y-6">
+            <div className="space-y-6">
+              <div className="pb-4 border-b border-gray-100">
+                <h3 className="text-lg font-medium text-charcoal-800 mb-2">Recycling Provisions</h3>
+                <p className="text-gray-600">Configure exit proceeds recycling for new investments</p>
               </div>
 
-              {recyclingEnabled && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="recycling-type">Recycling Type</Label>
-                    <Select
-                      value={recyclingType}
-                      onValueChange={(value: any) => updateDistributions({ recyclingType: value as 'exits' | 'fees' | 'both' })}
-                    >
-                      <SelectTrigger id="recycling-type">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="exits">Exit Proceeds Recycling</SelectItem>
-                        <SelectItem value="fees">Management Fee Recycling</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <div className="space-y-6">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="space-y-1">
+                    <Label htmlFor="recycling-enabled" className="cursor-pointer font-medium text-charcoal-700">
+                      Enable Exit Recycling
+                    </Label>
                     <p className="text-sm text-gray-500">
-                      {recyclingType === 'exits' 
-                        ? 'Fund can recycle exit proceeds up to a cap (% of committed capital)'
-                        : 'Fund can recycle exit proceeds up to the level of management fees earned to date'
-                      }
+                      Allow exit proceeds to be recycled for new investments
                     </p>
                   </div>
+                  <Switch
+                    id="recycling-enabled"
+                    checked={recyclingEnabled}
+                    onCheckedChange={handleRecyclingToggle}
+                    data-testid="recycling-toggle"
+                  />
+                </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="exit-recycling">Exit Proceeds Recycling Rate (%)</Label>
-                    <Input
-                      id="exit-recycling"
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={exitRecyclingRate}
-                      onChange={(e: any) => updateDistributions({ 
-                        exitRecyclingRate: parseFloat(e.target.value) || 0 
-                      })}
-                      data-testid="exit-recycling-rate"
-                      placeholder="100"
-                    />
-                    <p className="text-sm text-gray-500">
-                      Percentage of exit proceeds that can be recycled each period (typically 100%)
-                    </p>
-                  </div>
+                {recyclingEnabled && (
+                  <div className="space-y-6">
+                    <div className="space-y-3">
+                      <Label htmlFor="recycling-type" className="text-sm font-medium text-charcoal-700">Recycling Type</Label>
+                      <Select
+                        value={recyclingType}
+                        onValueChange={(value: any) => updateDistributions({ recyclingType: value as 'exits' | 'fees' | 'both' })}
+                      >
+                        <SelectTrigger id="recycling-type" className="h-12">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="exits">Exit Proceeds Recycling</SelectItem>
+                          <SelectItem value="fees">Management Fee Recycling</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-gray-500">
+                        {recyclingType === 'exits'
+                          ? 'Fund can recycle exit proceeds up to a cap (% of committed capital)'
+                          : 'Fund can recycle exit proceeds up to the level of management fees earned to date'
+                        }
+                      </p>
+                    </div>
 
-                  {recyclingType === 'exits' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="recycling-cap-pct">Recycling Cap (% of Committed Capital)</Label>
+                    <div className="space-y-3">
+                      <Label htmlFor="exit-recycling" className="text-sm font-medium text-charcoal-700">Exit Proceeds Recycling Rate (%)</Label>
                       <Input
-                        id="recycling-cap-pct"
+                        id="exit-recycling"
                         type="number"
                         min="0"
                         max="100"
-                        step="1"
-                        value={recyclingCap ? (recyclingCap / fundSize) * 100 : ''}
-                        onChange={(e: any) => {
-                          const pct = parseFloat(e.target.value) || 0;
-                          updateDistributions({ 
-                            recyclingCap: (pct / 100) * fundSize
-                          });
-                        }}
-                        placeholder="50"
+                        value={exitRecyclingRate}
+                        onChange={(e: any) => updateDistributions({
+                          exitRecyclingRate: parseFloat(e.target.value) || 0
+                        })}
+                        data-testid="exit-recycling-rate"
+                        placeholder="100"
+                        className="h-12"
                       />
                       <p className="text-sm text-gray-500">
-                        Maximum amount that can be recycled as % of committed capital (e.g., 50% cap = half the committed capital)
+                        Percentage of exit proceeds that can be recycled each period (typically 100%)
                       </p>
                     </div>
-                  )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="recycling-period">Recycling Term (years)</Label>
-                    <Input
-                      id="recycling-period"
-                      type="number"
-                      min="0"
-                      max="10"
-                      value={recyclingPeriod || ''}
-                      onChange={(e: any) => updateDistributions({ 
-                        recyclingPeriod: parseFloat(e.target.value) || undefined 
-                      })}
-                      placeholder="3"
-                    />
-                    <p className="text-sm text-gray-500">
-                      Timeframe over which the fund can recycle exit proceeds
-                    </p>
+                    {recyclingType === 'exits' && (
+                      <div className="space-y-3">
+                        <Label htmlFor="recycling-cap-pct" className="text-sm font-medium text-charcoal-700">Recycling Cap (% of Committed Capital)</Label>
+                        <Input
+                          id="recycling-cap-pct"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={recyclingCap ? (recyclingCap / fundSize) * 100 : ''}
+                          onChange={(e: any) => {
+                            const pct = parseFloat(e.target.value) || 0;
+                            updateDistributions({
+                              recyclingCap: (pct / 100) * fundSize
+                            });
+                          }}
+                          placeholder="50"
+                          className="h-12"
+                        />
+                        <p className="text-sm text-gray-500">
+                          Maximum amount that can be recycled as % of committed capital (e.g., 50% cap = half the committed capital)
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="space-y-3">
+                      <Label htmlFor="recycling-period" className="text-sm font-medium text-charcoal-700">Recycling Term (years)</Label>
+                      <Input
+                        id="recycling-period"
+                        type="number"
+                        min="0"
+                        max="10"
+                        value={recyclingPeriod || ''}
+                        onChange={(e: any) => updateDistributions({
+                          recyclingPeriod: parseFloat(e.target.value) || undefined
+                        })}
+                        placeholder="3"
+                        className="h-12"
+                      />
+                      <p className="text-sm text-gray-500">
+                        Timeframe over which the fund can recycle exit proceeds
+                      </p>
+                    </div>
+
+                    <div className="flex items-center space-x-3 p-4 border rounded-lg">
+                      <Switch
+                        id="allow-future-recycling"
+                        checked={allowFutureRecycling || false}
+                        onCheckedChange={(checked: any) => updateDistributions({ allowFutureRecycling: checked })}
+                      />
+                      <div>
+                        <Label htmlFor="allow-future-recycling" className="cursor-pointer text-sm font-medium text-charcoal-700">
+                          Allow fund to recycle future exit proceeds ahead of time
+                        </Label>
+                        <p className="text-sm text-gray-500 mt-1">
+                          If enabled, fund will aggressively invest in anticipation of future exits. If disabled, fund waits for exits before recycling.
+                        </p>
+                      </div>
+                    </div>
                   </div>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
 
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="allow-future-recycling"
-                      checked={allowFutureRecycling || false}
-                      onCheckedChange={(checked: any) => updateDistributions({ allowFutureRecycling: checked })}
-                    />
-                    <Label htmlFor="allow-future-recycling" className="cursor-pointer">
-                      Allow fund to recycle future exit proceeds ahead of time
-                    </Label>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    If enabled, fund will aggressively invest in anticipation of future exits. If disabled, fund waits for exits before recycling.
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      <div className="flex justify-between mt-6">
-        <Button 
-          variant="outline"
-          onClick={() => navigate('/fund-setup?step=3')}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Previous
-        </Button>
-        <Button
-          onClick={() => navigate('/fund-setup?step=5')}
-          className="flex items-center gap-2"
-        >
-          Next: Cashflow Management
-          <ArrowLeft className="h-4 w-4 rotate-180" />
-        </Button>
+        {/* Navigation */}
+        <div className="flex justify-between pt-8 border-t border-gray-100 mt-8">
+          <Button
+            variant="outline"
+            onClick={() => navigate('/fund-setup?step=3')}
+            className="flex items-center gap-2 px-8 py-3 h-auto"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Previous
+          </Button>
+          <Button
+            onClick={() => navigate('/fund-setup?step=5')}
+            className="flex items-center gap-2 bg-charcoal-800 hover:bg-charcoal-900 text-white px-8 py-3 h-auto"
+          >
+            Next: Waterfall & Carry
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-    </div>
+    </ModernStepContainer>
   );
 }

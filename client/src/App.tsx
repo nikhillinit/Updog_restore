@@ -52,6 +52,9 @@ const VarianceTrackingPage = React.lazy(() => import("@/pages/variance-tracking"
 const PortfolioConstructor = React.lazy(() => import("@/pages/portfolio-constructor"));
 // Development dashboard for solo developer productivity
 const DevDashboardPage = React.lazy(() => import("@/pages/DevDashboardPage"));
+// Agent 2: Mobile Executive Dashboard
+const MobileExecutiveDashboardPage = React.lazy(() => import("@/pages/mobile-executive-dashboard"));
+const EnhancedDesignSystemDemo = React.lazy(() => import("@/components/demo/enhanced-design-system-demo"));
 
 const moduleConfig = {
   dashboard: {
@@ -117,6 +120,14 @@ const moduleConfig = {
   'dev-dashboard': {
     title: "Development Dashboard",
     description: "Real-time visibility into system health for solo developer productivity"
+  },
+  'mobile-executive-dashboard': {
+    title: "Mobile Executive Dashboard",
+    description: "Mobile-first executive dashboard with AI insights and touch-optimized navigation"
+  },
+  'enhanced-design-system-demo': {
+    title: "Enhanced Design System",
+    description: "Professional micro-interactions and AI confidence levels (Agent 3)"
   }
 };
 
@@ -218,6 +229,8 @@ function Router() {
         <Route path="/variance-tracking" component={(props: any) => <ProtectedRoute component={VarianceTrackingPage} {...props} />} />
         <Route path="/portfolio-constructor" component={(props: any) => <ProtectedRoute component={PortfolioConstructor} {...props} />} />
         <Route path="/dev-dashboard" component={DevDashboardPage} />
+        <Route path="/mobile-executive-dashboard" component={(props: any) => <ProtectedRoute component={MobileExecutiveDashboardPage} {...props} />} />
+        <Route path="/enhanced-design-system-demo" component={(props: any) => <ProtectedRoute component={EnhancedDesignSystemDemo} {...props} />} />
         <Route path="/reports" component={(props: any) => <ProtectedRoute component={Reports} {...props} />} />
         <Route component={NotFound} />
       </Switch>

@@ -1,12 +1,12 @@
 import React from 'react';
 import { useLocation } from 'wouter';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ArrowRight } from "lucide-react";
 import { useFundSelector, useFundAction } from '@/stores/useFundSelector';
+import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
 
 export default function FundBasicsStep() {
   const [, navigate] = useLocation();
@@ -51,47 +51,41 @@ export default function FundBasicsStep() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-charcoal">Fund Basics</h2>
-        <p className="text-gray-600 mt-2">Define your fund structure and key parameters</p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Fund Structure</CardTitle>
-          <CardDescription>
-            Core fund parameters and structure type
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="fund-name">Fund Name</Label>
+    <ModernStepContainer
+      title="Fund Basics"
+      description="Name, currency, and fund lifecycle"
+    >
+      <div className="space-y-8">
+        {/* Fund Structure Section */}
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <Label htmlFor="fund-name" className="text-sm font-medium text-charcoal-700">Fund Name *</Label>
             <Input
               id="fund-name"
               value={fundName || ''}
               onChange={(e: any) => handleInputChange('fundName', e.target.value)}
-              placeholder="e.g., Growth Fund III"
+              placeholder="Enter your fund name"
               data-testid="fund-name"
+              className="h-12 text-base"
             />
           </div>
 
-          <div className="flex items-center space-x-2 py-4 border-t">
+          <div className="flex items-center space-x-3 py-6 border-t border-gray-100">
             <Switch
               id="evergreen"
               checked={isEvergreen || false}
               onCheckedChange={handleEvergreenToggle}
               data-testid="evergreen-toggle"
             />
-            <Label htmlFor="evergreen" className="cursor-pointer">
+            <Label htmlFor="evergreen" className="cursor-pointer text-sm font-medium text-charcoal-700">
               Evergreen Fund Structure
             </Label>
           </div>
 
           {!isEvergreen && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="fund-life">Fund Life (years)</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <Label htmlFor="fund-life" className="text-sm font-medium text-charcoal-700">Fund Life (years)</Label>
                 <Input
                   id="fund-life"
                   type="number"
@@ -101,11 +95,12 @@ export default function FundBasicsStep() {
                   onChange={(e: any) => handleInputChange('fundLife', parseFloat(e.target.value) || undefined)}
                   placeholder="e.g., 10"
                   data-testid="fund-life"
+                  className="h-12"
                 />
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="investment-period">Investment Period (years)</Label>
+
+              <div className="space-y-3">
+                <Label htmlFor="investment-period" className="text-sm font-medium text-charcoal-700">Investment Period (years)</Label>
                 <Input
                   id="investment-period"
                   type="number"
@@ -115,13 +110,14 @@ export default function FundBasicsStep() {
                   onChange={(e: any) => handleInputChange('investmentPeriod', parseFloat(e.target.value) || undefined)}
                   placeholder="e.g., 3"
                   data-testid="investment-period"
+                  className="h-12"
                 />
               </div>
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="fund-size">Target Fund Size ($M)</Label>
+          <div className="space-y-3">
+            <Label htmlFor="fund-size" className="text-sm font-medium text-charcoal-700">Target Fund Size ($M)</Label>
             <Input
               id="fund-size"
               type="number"
@@ -131,25 +127,21 @@ export default function FundBasicsStep() {
               onChange={(e: any) => handleInputChange('fundSize', parseFloat(e.target.value) || undefined)}
               placeholder="e.g., 100"
               data-testid="fund-size"
+              className="h-12"
             />
             <p className="text-sm text-gray-500">
               This will be automatically calculated from LP commitments if not specified
             </p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Economics</CardTitle>
-          <CardDescription>
-            Management fees and carry structure
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Economics Section */}
+        <div className="space-y-6 pt-8 border-t border-gray-100">
+          <h3 className="text-lg font-medium text-charcoal-800">Economics</h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="mgmt-fee">Management Fee (%)</Label>
+              <Label htmlFor="mgmt-fee" className="text-sm font-medium text-charcoal-700">Management Fee (%)</Label>
               <Input
                 id="mgmt-fee"
                 type="number"
@@ -160,11 +152,12 @@ export default function FundBasicsStep() {
                 onChange={(e: any) => handleInputChange('managementFeeRate', parseFloat(e.target.value) || undefined)}
                 placeholder="e.g., 2.0"
                 data-testid="mgmt-fee"
+                className="h-12"
               />
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="carried-interest">Carried Interest (%)</Label>
+              <Label htmlFor="carried-interest" className="text-sm font-medium text-charcoal-700">Carried Interest (%)</Label>
               <Input
                 id="carried-interest"
                 type="number"
@@ -175,29 +168,31 @@ export default function FundBasicsStep() {
                 onChange={(e: any) => handleInputChange('carriedInterest', parseFloat(e.target.value) || undefined)}
                 placeholder="e.g., 20"
                 data-testid="carried-interest"
+                className="h-12"
               />
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      <div className="flex justify-end mt-6">
-        <Button 
-          onClick={() => {
-            console.log('[FundBasics] Next button clicked, navigating to step 2');
-            console.log('[FundBasics] Current URL before navigate:', window.location.href);
-            navigate('/fund-setup?step=2');
-            // Check URL after a brief delay
-            setTimeout(() => {
-              console.log('[FundBasics] URL after navigate:', window.location.href);
-            }, 100);
-          }}
-          className="flex items-center gap-2"
-        >
-          Next Step
-          <ArrowRight className="h-4 w-4" />
-        </Button>
+        {/* Navigation */}
+        <div className="flex justify-end pt-8 border-t border-gray-100 mt-8">
+          <Button
+            onClick={() => {
+              console.log('[FundBasics] Next button clicked, navigating to step 2');
+              console.log('[FundBasics] Current URL before navigate:', window.location.href);
+              navigate('/fund-setup?step=2');
+              // Check URL after a brief delay
+              setTimeout(() => {
+                console.log('[FundBasics] URL after navigate:', window.location.href);
+              }, 100);
+            }}
+            className="flex items-center gap-2 bg-charcoal-800 hover:bg-charcoal-900 text-white px-8 py-3 h-auto"
+          >
+            Next Step
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-    </div>
+    </ModernStepContainer>
   );
 }

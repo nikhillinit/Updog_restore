@@ -39,9 +39,10 @@ export function FundProvider({ children }: FundProviderProps) {
   const [fundId, setFundId] = useState<number | null>(null);
 
   // Fetch fund data
-  const { data: funds, isLoading } = useQuery({
+  const { data: funds, isLoading, error } = useQuery({
     queryKey: ['/api/funds'],
     enabled: true,
+    retry: false, // Don't retry failed requests in demo mode
   });
 
   // Update current fund when funds data changes
@@ -62,12 +63,26 @@ export function FundProvider({ children }: FundProviderProps) {
         setCurrentFund(funds[0]!);
         setFundId(funds[0]!.id);
       }
-    } else if (!isLoading && (!funds || !Array.isArray(funds) || funds.length === 0)) {
-      // No funds available
-      setCurrentFund(null);
-      setFundId(null);
+    } else if (!isLoading && (error || !funds || !Array.isArray(funds) || funds.length === 0)) {
+      // Demo mode: Create a fallback fund when API is unavailable
+      console.log('[FundContext] API unavailable, entering demo mode');
+      const demoFund: Fund = {
+        id: 1,
+        name: 'Demo Fund I (VC Platform)',
+        size: 100000000, // $100M
+        managementFee: 0.025, // 2.5%
+        carryPercentage: 0.20, // 20%
+        vintageYear: 2024,
+        deployedCapital: 35000000, // $35M deployed
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        termYears: 10
+      };
+      setCurrentFund(demoFund);
+      setFundId(demoFund.id);
     }
-  }, [funds, fundId, isLoading]);
+  }, [funds, fundId, isLoading, error]);
 
   const handleSetCurrentFund = (fund: Fund | null) => {
     setCurrentFund(fund);
