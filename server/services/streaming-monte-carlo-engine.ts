@@ -957,8 +957,6 @@ export class StreamingMonteCarloEngine {
       summaryStatistics: {},
       percentileResults: {},
       createdBy: 1, // TODO: Get from context
-      tags: ['streaming', 'portfolio-construction', 'risk-analysis', 'memory-efficient'],
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     };
 
     await this.db.insert(schema.monteCarloSimulations).values(simulationData);

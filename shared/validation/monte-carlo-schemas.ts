@@ -41,6 +41,11 @@ const StageEnum = z.enum([
   'series_d_plus', 'growth', 'late_stage', 'public'
 ]);
 
+// Power law distribution specific stages
+const PowerLawStageEnum = z.enum([
+  'pre-seed', 'seed', 'series-a', 'series-b', 'series-c+'
+]);
+
 // Market scenario validation
 const MarketScenarioEnum = z.enum(['bull', 'bear', 'neutral']);
 
@@ -108,6 +113,79 @@ export const DistributionParametersSchema = z.object({
     volatility: PositiveNumber.min(0.01).max(2)
   })
 }).strict();
+
+// =============================================================================
+// POWER LAW DISTRIBUTION SCHEMAS
+// =============================================================================
+
+export const PowerLawConfigSchema = z.object({
+  failureRate: Percentage.default(0.70),
+  modestReturnRate: Percentage.default(0.15),
+  goodOutcomeRate: Percentage.default(0.10),
+  homeRunRate: Percentage.default(0.04),
+  unicornRate: Percentage.default(0.01),
+  alpha: PositiveNumber.min(0.5).max(3.0).default(1.16),
+  xMin: PositiveNumber.min(1.0).max(10.0).default(3.0),
+  maxReturn: PositiveNumber.min(50.0).max(1000.0).default(200.0)
+}).strict().refine(
+  (data) => {
+    const total = data.failureRate + data.modestReturnRate + data.goodOutcomeRate + data.homeRunRate + data.unicornRate;
+    return Math.abs(total - 1.0) < 0.001; // Allow for small floating point errors
+  },
+  { message: "Return rate probabilities must sum to 1.0" }
+);
+
+export const ReturnCategoryEnum = z.enum(['failure', 'modest', 'good', 'homeRun', 'unicorn']);
+
+export const ReturnSampleSchema = z.object({
+  multiple: PositiveNumber,
+  category: ReturnCategoryEnum,
+  stage: PowerLawStageEnum,
+  probability: Percentage
+}).strict();
+
+export const InvestmentScenarioSchema = z.object({
+  multiple: PositiveNumber,
+  irr: z.number().min(-1).max(10).finite(),
+  category: ReturnCategoryEnum,
+  exitTiming: PositiveNumber.min(0.5).max(20),
+  stage: PowerLawStageEnum.optional()
+}).strict();
+
+export const PortfolioReturnDistributionSchema = z.object({
+  samples: z.array(ReturnSampleSchema).min(1).max(1000000),
+  statistics: z.object({
+    mean: PositiveNumber,
+    median: PositiveNumber,
+    standardDeviation: PositiveNumber,
+    skewness: z.number().finite(),
+    kurtosis: z.number().finite(),
+    powerLawAlpha: PositiveNumber.min(0.5).max(5.0)
+  }),
+  percentiles: z.object({
+    p5: PositiveNumber,
+    p25: PositiveNumber,
+    p50: PositiveNumber,
+    p75: PositiveNumber,
+    p95: PositiveNumber,
+    p99: PositiveNumber
+  })
+}).strict().refine(
+  (data) => {
+    const p = data.percentiles;
+    return p.p5 <= p.p25 && p.p25 <= p.p50 && p.p50 <= p.p75 && p.p75 <= p.p95 && p.p95 <= p.p99;
+  },
+  { message: "Percentiles must be in ascending order" }
+);
+
+export const StageDistributionSchema = z.record(PowerLawStageEnum, PositiveNumber)
+  .refine(
+    (data) => {
+      const total = Object.values(data).reduce((sum, weight) => sum + weight, 0);
+      return total > 0;
+    },
+    { message: "Stage distribution weights must sum to a positive number" }
+  );
 
 // =============================================================================
 // RESULTS AND METRICS SCHEMAS
@@ -325,6 +403,14 @@ export const MonteCarloSchemas = {
   Response: MonteCarloResponseSchema
 };
 
+export const PowerLawSchemas = {
+  PowerLawConfig: PowerLawConfigSchema,
+  ReturnSample: ReturnSampleSchema,
+  InvestmentScenario: InvestmentScenarioSchema,
+  PortfolioReturnDistribution: PortfolioReturnDistributionSchema,
+  StageDistribution: StageDistributionSchema
+};
+
 export const FinancialSchemas = {
   FundBasics: FundBasicsSchema,
   Investment: InvestmentSchema,
@@ -348,6 +434,13 @@ export type PortfolioInputs = z.infer<typeof PortfolioInputsSchema>;
 export type DistributionParameters = z.infer<typeof DistributionParametersSchema>;
 export type MonteCarloRequest = z.infer<typeof MonteCarloRequestSchema>;
 export type MonteCarloResponse = z.infer<typeof MonteCarloResponseSchema>;
+export type PowerLawConfig = z.infer<typeof PowerLawConfigSchema>;
+export type ReturnSample = z.infer<typeof ReturnSampleSchema>;
+export type InvestmentScenario = z.infer<typeof InvestmentScenarioSchema>;
+export type PortfolioReturnDistribution = z.infer<typeof PortfolioReturnDistributionSchema>;
+export type StageDistribution = z.infer<typeof StageDistributionSchema>;
+export type ReturnCategory = z.infer<typeof ReturnCategoryEnum>;
+export type PowerLawStage = z.infer<typeof PowerLawStageEnum>;
 export type FundBasics = z.infer<typeof FundBasicsSchema>;
 export type Investment = z.infer<typeof InvestmentSchema>;
 export type UserInput = z.infer<typeof UserInputSchema>;
@@ -360,6 +453,14 @@ export const validateMonteCarloConfig = (data: unknown) => {
 
 export const validateFinancialInput = (schema: z.ZodSchema, data: unknown) => {
   return schema.safeParse(data);
+};
+
+export const validatePowerLawConfig = (data: unknown) => {
+  return PowerLawConfigSchema.safeParse(data);
+};
+
+export const validateStageDistribution = (data: unknown) => {
+  return StageDistributionSchema.safeParse(data);
 };
 
 export const createValidationError = (error: z.ZodError) => {
