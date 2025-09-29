@@ -33,9 +33,9 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
     fundSize,
     feeProfiles,
     stages,
-    sectorProfiles,
+    _sectorProfiles,
     allocations,
-    followOnChecks
+    _followOnChecks
   ] = useFundTuple(s => [
     s.fundSize,
     s.feeProfiles,
@@ -62,7 +62,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
     };
 
     // Simple mapping for demo - in production, you'd have more sophisticated allocation logic
-    allocations.forEach((alloc: any, index: any) => {
+    allocations.forEach((alloc: { percentage?: number }, index: number) => {
       const stageKey = StageOrder[index % StageOrder.length];
       if (stageKey) {
         allocationPctByStage[stageKey] = alloc.percentage || 0;
@@ -84,7 +84,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
       seriesBplus: 1_200_000
     };
 
-    stages.forEach((stage: any, index: any) => {
+    stages.forEach((stage: { graduate?: number }, index: number) => {
       const stageKey = StageOrder[index % StageOrder.length];
       if (stageKey) {
         graduationPctByStage[stageKey] = stage.graduate || 0;

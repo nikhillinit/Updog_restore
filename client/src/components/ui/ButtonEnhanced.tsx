@@ -5,17 +5,13 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
-import { cva, type VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
 import { cn } from "@/lib/utils";
+import { Button, type ButtonProps } from "@/components/ui/button";
 
 // Enhanced button variants with professional micro-interactions
 const buttonEnhancedVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium",
-  "transition-all duration-200 ease-professional transform",
-  "focus-visible-ring reduced-motion-safe touch-target-enhanced",
-  "disabled:pointer-events-none disabled:opacity-50",
-  "[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
-  "font-poppins relative overflow-hidden",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-200 transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 relative overflow-hidden",
   {
     variants: {
       variant: {
@@ -119,10 +115,7 @@ const buttonEnhancedVariants = cva(
   }
 );
 
-export interface ButtonEnhancedProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonEnhancedVariants> {
-  asChild?: boolean;
+export interface ButtonEnhancedProps extends ButtonProps {
   loading?: boolean;
   loadingText?: string;
   leftIcon?: React.ReactNode;
@@ -175,16 +168,16 @@ const ButtonEnhanced = React.forwardRef<HTMLButtonElement, ButtonEnhancedProps>(
     const Comp = asChild ? Slot : "button";
 
     return (
-      <Comp
+      <Button
         className={cn(
-          buttonEnhancedVariants({
-            variant: effectiveVariant,
-            size,
-            loading,
-            pulse,
-            className
-          })
+          pulse && "animate-pulse",
+          className
         )}
+        variant={effectiveVariant === 'ai-confidence-high' ? 'default' :
+                effectiveVariant === 'ai-confidence-medium' ? 'secondary' :
+                effectiveVariant === 'ai-confidence-low' ? 'outline' :
+                effectiveVariant}
+        size={size}
         ref={ref}
         onClick={handleClick}
         disabled={loading || props.disabled}
@@ -227,7 +220,7 @@ const ButtonEnhanced = React.forwardRef<HTMLButtonElement, ButtonEnhancedProps>(
             AI confidence level: {confidence}
           </div>
         )}
-      </Comp>
+      </Button>
     );
   }
 );

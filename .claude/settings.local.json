@@ -157,7 +157,9 @@
       "Bash(npm --version)",
       "Read(//c/Users/nikhi/.claude-mcp-servers/**)",
       "Bash(git stash apply:*)",
-      "WebFetch(domain:tactyc.io)"
+      "WebFetch(domain:tactyc.io)",
+      "Bash(git reset:*)",
+      "Bash(npx depcheck:*)"
     ],
     "deny": [],
     "ask": [],

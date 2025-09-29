@@ -8,7 +8,7 @@
  * - Touch-friendly interactions
  */
 
-import React, { useState, useRef, useEffect, memo, Suspense } from 'react';
+import React, { useState, useRef, useEffect, memo } from 'react';
 import { cn } from '@/lib/utils';
 
 // Types for chart data
