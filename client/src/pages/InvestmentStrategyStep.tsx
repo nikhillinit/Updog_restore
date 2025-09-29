@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useLocation } from 'wouter';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, ArrowLeft, ArrowRight, Edit, MoveUp, MoveDown } from "lucide-react";
+import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
 
 // Investment Stage interface
 interface InvestmentStage {
@@ -31,7 +31,6 @@ interface SectorProfile {
 
 export default function InvestmentStrategyStep() {
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState("sector-profiles"); // Start on sector profiles tab
   const [editingProfile, setEditingProfile] = useState<string | null>(null);
   const [editingStage, setEditingStage] = useState<string | null>(null);
 
@@ -160,7 +159,7 @@ export default function InvestmentStrategyStep() {
   };
 
   const handleUpdateProfile = (profileId: string, updates: Partial<SectorProfile>) => {
-    setSectorProfiles(prev => prev.map(p => 
+    setSectorProfiles(prev => prev.map(p =>
       p.id === profileId ? { ...p, ...updates } : p
     ));
   };
@@ -180,30 +179,30 @@ export default function InvestmentStrategyStep() {
       monthsToExit: 36
     };
 
-    setSectorProfiles(prev => prev.map(p => 
-      p.id === profileId ? { 
-        ...p, 
-        stages: [...p.stages, newStage] 
+    setSectorProfiles(prev => prev.map(p =>
+      p.id === profileId ? {
+        ...p,
+        stages: [...p.stages, newStage]
       } : p
     ));
   };
 
   const handleDeleteStage = (profileId: string, stageId: string) => {
-    setSectorProfiles(prev => prev.map(p => 
-      p.id === profileId ? { 
-        ...p, 
-        stages: p.stages.filter(s => s.id !== stageId) 
+    setSectorProfiles(prev => prev.map(p =>
+      p.id === profileId ? {
+        ...p,
+        stages: p.stages.filter(s => s.id !== stageId)
       } : p
     ));
   };
 
   const handleUpdateStage = (profileId: string, stageId: string, updates: Partial<InvestmentStage>) => {
-    setSectorProfiles(prev => prev.map(p => 
-      p.id === profileId ? { 
-        ...p, 
-        stages: p.stages.map(s => 
+    setSectorProfiles(prev => prev.map(p =>
+      p.id === profileId ? {
+        ...p,
+        stages: p.stages.map(s =>
           s.id === stageId ? { ...s, ...updates } : s
-        ) 
+        )
       } : p
     ));
   };
@@ -211,195 +210,197 @@ export default function InvestmentStrategyStep() {
   const handleMoveStage = (profileId: string, stageIndex: number, direction: 'up' | 'down') => {
     setSectorProfiles(prev => prev.map(p => {
       if (p.id !== profileId) return p;
-      
+
       const stages = [...p.stages];
       const newIndex = direction === 'up' ? stageIndex - 1 : stageIndex + 1;
-      
+
       if (newIndex >= 0 && newIndex < stages.length) {
         [stages[stageIndex], stages[newIndex]] = [stages[newIndex], stages[stageIndex]];
       }
-      
+
       return { ...p, stages };
     }));
   };
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-charcoal">Investment Strategy</h2>
-        <p className="text-gray-600 mt-2">Define your investment stages, sector focus, and capital allocation</p>
-      </div>
+    <ModernStepContainer
+      title="Investment Strategy"
+      description="Stages, sectors, and allocations"
+    >
+      <div className="space-y-8">
+        {/* Sector Profiles Section */}
+        <div className="space-y-6">
+          <div className="pb-4 border-b border-gray-100">
+            <h3 className="text-lg font-medium text-charcoal-800 mb-2">Sector Profiles</h3>
+            <p className="text-gray-600">
+              Define macro views on round sizes, valuations, and performance for different sectors.
+              A Default profile is created based on proprietary research and publicly available datasets.
+            </p>
+          </div>
 
-      {/* Remove tabs, just show sector profiles directly */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Sector Profiles</CardTitle>
-          <CardDescription>
-            Define macro views on round sizes, valuations, and performance for different sectors.
-            A Default profile is created based on proprietary research and publicly available datasets.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-              {/* Debug controls */}
-              <div className="bg-gray-100 p-3 rounded border">
-                <p className="text-sm mb-2">Debug: editingProfile = {editingProfile || 'null'}</p>
-                <Button 
-                  size="sm" 
-                  onClick={() => setEditingProfile(editingProfile ? null : 'default')}
-                  className="mr-2"
-                >
-                  Toggle Edit Mode
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => console.log('Current state:', { editingProfile, activeTab })}
-                >
-                  Log State
-                </Button>
-              </div>
+          <div className="space-y-4">
+            {/* Debug controls */}
+            <div className="bg-gray-100 p-3 rounded border">
+              <p className="text-sm mb-2">Debug: editingProfile = {editingProfile || 'null'}</p>
+              <Button
+                size="sm"
+                onClick={() => setEditingProfile(editingProfile ? null : 'default')}
+                className="mr-2"
+              >
+                Toggle Edit Mode
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => console.log('Current state:', { editingProfile })}
+              >
+                Log State
+              </Button>
+            </div>
 
-              {sectorProfiles.map((profile: any) => {
-                const isEditing = editingProfile === profile.id;
-                console.log(`Profile ${profile.id}: isEditing = ${isEditing}, editingProfile = ${editingProfile}`);
-                
-                return (
-                  <div key={profile.id} className={`border rounded-lg p-4 space-y-4 ${isEditing ? 'border-blue-500 bg-blue-50' : ''}`}>
-                    {!isEditing ? (
-                      // View Mode
-                      <div>
-                        <div className="flex items-center justify-between mb-4">
-                          <div>
-                            <h3 className="font-medium text-lg">{profile.name || 'Unnamed Profile'}</h3>
-                            <p className="text-sm text-gray-600">{profile.stages.length} stages defined</p>
-                          </div>
-                          <div className="flex gap-2">
+            {sectorProfiles.map((profile: any) => {
+              const isEditing = editingProfile === profile.id;
+              console.log(`Profile ${profile.id}: isEditing = ${isEditing}, editingProfile = ${editingProfile}`);
+
+              return (
+                <div key={profile.id} className={`border rounded-lg p-4 space-y-4 ${isEditing ? 'border-blue-500 bg-blue-50' : ''}`}>
+                  {!isEditing ? (
+                    // View Mode
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="font-medium text-lg">{profile.name || 'Unnamed Profile'}</h3>
+                          <p className="text-sm text-gray-600">{profile.stages.length} stages defined</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              console.log('Edit clicked for profile:', profile.id);
+                              setEditingProfile(profile.id);
+                            }}
+                            data-testid={`edit-profile-${profile.id}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          {profile.id !== 'default' && (
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => {
-                                console.log('Edit clicked for profile:', profile.id);
-                                setEditingProfile(profile.id);
-                              }}
-                              data-testid={`edit-profile-${profile.id}`}
+                              onClick={() => handleDeleteProfile(profile.id)}
+                              className="text-red-500 hover:text-red-700"
                             >
-                              <Edit className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4" />
                             </Button>
-                            {profile.id !== 'default' && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteProfile(profile.id)}
-                                className="text-red-500 hover:text-red-700"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                        
-                        {/* Stages Summary */}
-                        <div className="grid gap-2">
-                          {profile.stages.map((stage: any, index: any) => (
-                            <div key={stage.id} className="grid grid-cols-8 gap-2 text-sm py-2 border-b">
-                              <div className="font-medium">{stage.name}</div>
-                              <div>${stage.roundSize}M</div>
-                              <div>${stage.valuation}M ({stage.valuationType})</div>
-                              <div>{stage.esopPct}%</div>
-                              <div>{stage.graduationRate}%</div>
-                              <div>{stage.exitRate}%</div>
-                              <div>{calculateFailureRate(stage.graduationRate, stage.exitRate)}%</div>
-                              <div>{stage.monthsToGraduate}mo</div>
-                            </div>
-                          ))}
+                          )}
                         </div>
                       </div>
-                    ) : (
-                      // Edit Mode
+
+                      {/* Stages Summary */}
+                      <div className="grid gap-2">
+                        {profile.stages.map((stage: any, index: any) => (
+                          <div key={stage.id} className="grid grid-cols-8 gap-2 text-sm py-2 border-b">
+                            <div className="font-medium">{stage.name}</div>
+                            <div>${stage.roundSize}M</div>
+                            <div>${stage.valuation}M ({stage.valuationType})</div>
+                            <div>{stage.esopPct}%</div>
+                            <div>{stage.graduationRate}%</div>
+                            <div>{stage.exitRate}%</div>
+                            <div>{calculateFailureRate(stage.graduationRate, stage.exitRate)}%</div>
+                            <div>{stage.monthsToGraduate}mo</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    // Edit Mode
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-medium">Edit Profile</h3>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingProfile(null)}
+                        >
+                          Done
+                        </Button>
+                      </div>
+
+                      {/* Profile Name */}
+                      <div className="space-y-3">
+                        <Label className="text-sm font-medium text-charcoal-700">Profile Name</Label>
+                        <Input
+                          value={profile.name}
+                          onChange={(e: any) => handleUpdateProfile(profile.id, { name: e.target.value })}
+                          placeholder="e.g., FinTech, HealthTech, Enterprise SaaS"
+                          className="h-12"
+                        />
+                      </div>
+
+                      {/* Stages Header */}
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <h3 className="font-medium">Edit Profile</h3>
+                          <Label className="text-sm font-medium text-charcoal-700">Investment Stages</Label>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setEditingProfile(null)}
+                            onClick={() => handleAddStage(profile.id)}
                           >
-                            Done
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Round
                           </Button>
                         </div>
 
-                        {/* Profile Name */}
-                        <div className="space-y-2">
-                          <Label>Profile Name</Label>
-                          <Input
-                            value={profile.name}
-                            onChange={(e: any) => handleUpdateProfile(profile.id, { name: e.target.value })}
-                            placeholder="e.g., FinTech, HealthTech, Enterprise SaaS"
-                          />
+                        {/* Column Headers */}
+                        <div className="grid grid-cols-10 gap-2 text-xs font-medium text-gray-600 py-2 border-b border-gray-100">
+                          <div>Round</div>
+                          <div>Size ($M)</div>
+                          <div>Valuation ($M)</div>
+                          <div>Type</div>
+                          <div>ESOP (%)</div>
+                          <div>Grad (%)</div>
+                          <div>Exit (%)</div>
+                          <div>Exit Val ($M)</div>
+                          <div>Mo to Grad</div>
+                          <div>Actions</div>
                         </div>
+                      </div>
 
-                        {/* Stages Header */}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label>Investment Stages</Label>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleAddStage(profile.id)}
-                            >
-                              <Plus className="h-4 w-4 mr-2" />
-                              Add Round
-                            </Button>
-                          </div>
-                          
-                          {/* Column Headers */}
-                          <div className="grid grid-cols-10 gap-2 text-xs font-medium text-gray-600 py-2 border-b">
-                            <div>Round</div>
-                            <div>Size ($M)</div>
-                            <div>Valuation ($M)</div>
-                            <div>Type</div>
-                            <div>ESOP (%)</div>
-                            <div>Grad (%)</div>
-                            <div>Exit (%)</div>
-                            <div>Exit Val ($M)</div>
-                            <div>Mo to Grad</div>
-                            <div>Actions</div>
-                          </div>
-                        </div>
-
-                        {/* Stages */}
+                      {/* Stages */}
+                      <div className="space-y-3">
                         {profile.stages.map((stage: any, stageIndex: any) => (
-                          <div key={stage.id} className="grid grid-cols-10 gap-2 items-center py-2 border-b">
+                          <div key={stage.id} className="grid grid-cols-10 gap-2 items-center py-2 border-b border-gray-100">
                             <Input
                               value={stage.name}
                               onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { name: e.target.value })}
                               placeholder="Round name"
-                              className="text-sm"
+                              className="text-sm h-10"
                             />
-                            
+
                             <Input
                               type="number"
                               min="0"
                               step="0.1"
                               value={stage.roundSize}
                               onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { roundSize: parseFloat(e.target.value) || 0 })}
-                              className="text-sm"
+                              className="text-sm h-10"
                             />
-                            
+
                             <Input
                               type="number"
                               min="0"
                               step="1"
                               value={stage.valuation}
                               onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { valuation: parseFloat(e.target.value) || 0 })}
-                              className="text-sm"
+                              className="text-sm h-10"
                             />
-                            
+
                             <Select
                               value={stage.valuationType}
                               onValueChange={(value: 'pre' | 'post') => handleUpdateStage(profile.id, stage.id, { valuationType: value })}
                             >
-                              <SelectTrigger className="text-sm">
+                              <SelectTrigger className="text-sm h-10">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -407,7 +408,7 @@ export default function InvestmentStrategyStep() {
                                 <SelectItem value="post">Post</SelectItem>
                               </SelectContent>
                             </Select>
-                            
+
                             <Input
                               type="number"
                               min="0"
@@ -415,9 +416,9 @@ export default function InvestmentStrategyStep() {
                               step="1"
                               value={stage.esopPct}
                               onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { esopPct: parseFloat(e.target.value) || 0 })}
-                              className="text-sm"
+                              className="text-sm h-10"
                             />
-                            
+
                             <Input
                               type="number"
                               min="0"
@@ -430,9 +431,9 @@ export default function InvestmentStrategyStep() {
                                   handleUpdateStage(profile.id, stage.id, { graduationRate: value });
                                 }
                               }}
-                              className="text-sm"
+                              className="text-sm h-10"
                             />
-                            
+
                             <Input
                               type="number"
                               min="0"
@@ -445,18 +446,18 @@ export default function InvestmentStrategyStep() {
                                   handleUpdateStage(profile.id, stage.id, { exitRate: value });
                                 }
                               }}
-                              className="text-sm"
+                              className="text-sm h-10"
                             />
-                            
+
                             <Input
                               type="number"
                               min="0"
                               step="1"
                               value={stage.exitValuation}
                               onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { exitValuation: parseFloat(e.target.value) || 0 })}
-                              className="text-sm"
+                              className="text-sm h-10"
                             />
-                            
+
                             <Input
                               type="number"
                               min="1"
@@ -464,9 +465,9 @@ export default function InvestmentStrategyStep() {
                               step="1"
                               value={stage.monthsToGraduate}
                               onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { monthsToGraduate: parseInt(e.target.value) || 12 })}
-                              className="text-sm"
+                              className="text-sm h-10"
                             />
-                            
+
                             <div className="flex gap-1">
                               <Button
                                 variant="ghost"
@@ -495,48 +496,50 @@ export default function InvestmentStrategyStep() {
                             </div>
                           </div>
                         ))}
-
-                        {/* Important Considerations */}
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
-                          <h4 className="font-medium text-amber-900 mb-2">Important Considerations</h4>
-                          <ul className="text-sm text-amber-800 space-y-1">
-                            <li>• Graduation Rate + Exit Rate cannot exceed 100% for any stage</li>
-                            <li>• The last stage must have a 0% graduation rate (no subsequent stage)</li>
-                            <li>• Time to exit is months after entering that stage, not from initial investment</li>
-                            <li>• Don't delete later-stage rounds even if you don't participate - needed for FMV step-ups</li>
-                          </ul>
-                        </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-              
-          <Button onClick={handleAddProfile} variant="outline" className="w-full">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Sector Profile
-          </Button>
-        </CardContent>
-      </Card>
 
-      {/* Navigation */}
-      <div className="flex justify-between mt-6">
-        <Button 
-          variant="outline"
-          onClick={() => navigate('/fund-setup?step=2')}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Previous
-        </Button>
-        <Button 
-          onClick={() => navigate('/fund-setup?step=4')}
-          className="flex items-center gap-2"
-        >
-          Next Step
-          <ArrowRight className="h-4 w-4" />
-        </Button>
+                      {/* Important Considerations */}
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <h4 className="font-medium text-amber-900 mb-2">Important Considerations</h4>
+                        <ul className="text-sm text-amber-800 space-y-1">
+                          <li>• Graduation Rate + Exit Rate cannot exceed 100% for any stage</li>
+                          <li>• The last stage must have a 0% graduation rate (no subsequent stage)</li>
+                          <li>• Time to exit is months after entering that stage, not from initial investment</li>
+                          <li>• Don't delete later-stage rounds even if you don't participate - needed for FMV step-ups</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            <Button onClick={handleAddProfile} variant="outline" className="w-full h-12">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Sector Profile
+            </Button>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <div className="flex justify-between pt-8 border-t border-gray-100 mt-8">
+          <Button
+            variant="outline"
+            onClick={() => navigate('/fund-setup?step=2')}
+            className="flex items-center gap-2 px-8 py-3 h-auto"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Previous
+          </Button>
+          <Button
+            onClick={() => navigate('/fund-setup?step=4')}
+            className="flex items-center gap-2 bg-charcoal-800 hover:bg-charcoal-900 text-white px-8 py-3 h-auto"
+          >
+            Next Step
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-    </div>
+    </ModernStepContainer>
   );
 }

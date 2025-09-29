@@ -4,6 +4,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Agent 2: Mobile Executive Dashboard Optimizations */
+@import './styles/mobile-optimizations.css';
+
+/* Agent 3: Enhanced Design System and Micro-interactions */
+@import './styles/design-system.css';
+
 :root {
   --background: hsl(0, 0%, 100%);
   --foreground: hsl(20, 14.3%, 4.1%);
