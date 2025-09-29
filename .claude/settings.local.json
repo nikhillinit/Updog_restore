@@ -155,7 +155,8 @@
       "mcp__ide__getDiagnostics",
       "WebFetch(domain:www.kauffmanfellows.org)",
       "Bash(npm --version)",
-      "Read(//c/Users/nikhi/.claude-mcp-servers/**)"
+      "Read(//c/Users/nikhi/.claude-mcp-servers/**)",
+      "Bash(git stash apply:*)"
     ],
     "deny": [],
     "ask": [],
