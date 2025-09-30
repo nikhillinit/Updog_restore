@@ -1,16 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
 import { Request, Response, NextFunction } from 'express';
 import { ZodSchema } from 'zod';
 import { ApiError } from '@shared/types';
 
 interface ValidationSchemas {
-  body?: ZodSchema<any>;
-  query?: ZodSchema<any>;
-  params?: ZodSchema<any>;
+  body?: ZodSchema<unknown>;
+  query?: ZodSchema<unknown>;
+  params?: ZodSchema<unknown>;
 }
 
 export function validateRequest(schemas: ValidationSchemas) {
@@ -41,7 +36,7 @@ export function validateRequest(schemas: ValidationSchemas) {
           };
           return res.status(400).json(error);
         }
-        req.query = result.data;
+        req.query = result.data as Record<string, string | string[]>;
       }
 
       // Validate route parameters
@@ -55,7 +50,7 @@ export function validateRequest(schemas: ValidationSchemas) {
           };
           return res.status(400).json(error);
         }
-        req.params = result.data;
+        req.params = result.data as Record<string, string>;
       }
 
       next();
