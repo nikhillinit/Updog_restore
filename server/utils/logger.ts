@@ -13,6 +13,7 @@
 import winston from 'winston';
 import path from 'path';
 import fs from 'fs';
+import { Request, Response, NextFunction } from 'express';
 
 // Ensure logs directory exists
 const logsDir = path.join(process.cwd(), 'logs');
@@ -203,10 +204,10 @@ export const performanceLogger = winston.createLogger({
 
 // Helper functions for structured logging
 export const logContext = {
-  addRequestContext: (req: any) => ({
-    correlationId: req.correlationId,
-    userId: req.user?.id,
-    userAgent: req['get']('User-Agent'),
+  addRequestContext: (req: Request) => ({
+    correlationId: (req as Request & { correlationId?: string }).correlationId,
+    userId: (req as Request & { user?: { id?: string | number } }).user?.id,
+    userAgent: req.get('User-Agent'),
     ip: req.ip,
     method: req.method,
     path: req.path
@@ -216,19 +217,19 @@ export const logContext = {
     userId
   }),
 
-  addPerformanceContext: (operation: string, duration: number, metadata?: any) => ({
+  addPerformanceContext: (operation: string, duration: number, metadata?: Record<string, unknown>) => ({
     operation,
     duration,
     ...metadata
   }),
 
-  addSecurityContext: (event: string, severity: 'low' | 'medium' | 'high' | 'critical', metadata?: any) => ({
+  addSecurityContext: (event: string, severity: 'low' | 'medium' | 'high' | 'critical', metadata?: Record<string, unknown>) => ({
     securityEvent: event,
     severity,
     ...metadata
   }),
 
-  addAuditContext: (action: string, entityType: string, entityId: string | number, changes?: any) => ({
+  addAuditContext: (action: string, entityType: string, entityId: string | number, changes?: Record<string, unknown>) => ({
     auditAction: action,
     entityType,
     entityId,
@@ -237,20 +238,20 @@ export const logContext = {
 };
 
 // Utility functions for specific log types
-export const logSecurity = (message: string, context: any = {}) => {
+export const logSecurity = (message: string, context: Record<string, unknown> = {}) => {
   securityLogger.log('security', message, context);
 };
 
-export const logAudit = (message: string, context: any = {}) => {
+export const logAudit = (message: string, context: Record<string, unknown> = {}) => {
   auditLogger.log('audit', message, context);
 };
 
-export const logPerformance = (message: string, context: any = {}) => {
+export const logPerformance = (message: string, context: Record<string, unknown> = {}) => {
   performanceLogger.log('performance', message, context);
 };
 
 // Monte Carlo specific logging
-export const logMonteCarloOperation = (operation: string, fundId: number, context: any = {}) => {
+export const logMonteCarloOperation = (operation: string, fundId: number, context: Record<string, unknown> = {}) => {
   logger.info(`Monte Carlo: ${operation}`, {
     operation: 'monte_carlo',
     fundId,
@@ -258,7 +259,7 @@ export const logMonteCarloOperation = (operation: string, fundId: number, contex
   });
 };
 
-export const logMonteCarloError = (operation: string, fundId: number, error: Error, context: any = {}) => {
+export const logMonteCarloError = (operation: string, fundId: number, error: Error, context: Record<string, unknown> = {}) => {
   logger.error(`Monte Carlo Error: ${operation}`, {
     operation: 'monte_carlo',
     fundId,
@@ -269,7 +270,7 @@ export const logMonteCarloError = (operation: string, fundId: number, error: Err
 };
 
 // Financial operation logging
-export const logFinancialOperation = (operation: string, fundId: number, amount?: number, context: any = {}) => {
+export const logFinancialOperation = (operation: string, fundId: number, amount?: number, context: Record<string, unknown> = {}) => {
   auditLogger.log('audit', `Financial Operation: ${operation}`, {
     operation: 'financial',
     fundId,
@@ -279,7 +280,7 @@ export const logFinancialOperation = (operation: string, fundId: number, amount?
 };
 
 // Input validation logging
-export const logValidationError = (field: string, value: any, error: string, context: any = {}) => {
+export const logValidationError = (field: string, value: unknown, error: string, context: Record<string, unknown> = {}) => {
   logger.warn(`Validation Error: ${field}`, {
     field,
     value: typeof value === 'object' ? JSON.stringify(value) : value,
@@ -289,7 +290,7 @@ export const logValidationError = (field: string, value: any, error: string, con
 };
 
 // Rate limiting logging
-export const logRateLimit = (identifier: string, limit: number, current: number, context: any = {}) => {
+export const logRateLimit = (identifier: string, limit: number, current: number, context: Record<string, unknown> = {}) => {
   securityLogger.log('security', `Rate limit exceeded`, {
     identifier,
     limit,
@@ -304,15 +305,15 @@ export const logRateLimit = (identifier: string, limit: number, current: number,
 export class PerformanceMonitor {
   private startTime: number;
   private operation: string;
-  private context: any;
+  private context: Record<string, unknown>;
 
-  constructor(operation: string, context: any = {}) {
+  constructor(operation: string, context: Record<string, unknown> = {}) {
     this.startTime = Date.now();
     this.operation = operation;
     this.context = context;
   }
 
-  end(additionalContext: any = {}) {
+  end(additionalContext: Record<string, unknown> = {}) {
     const duration = Date.now() - this.startTime;
     logPerformance(`Operation completed: ${this.operation}`, {
       ...this.context,
@@ -324,10 +325,11 @@ export class PerformanceMonitor {
 }
 
 // Express middleware for request logging
-export const requestLogger = (req: any, res: any, next: any) => {
+export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
   const startTime = Date.now();
-  const correlationId = req.correlationId || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  req.correlationId = correlationId;
+  const reqWithId = req as Request & { correlationId?: string };
+  const correlationId = reqWithId.correlationId || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  reqWithId.correlationId = correlationId;
 
   // Log request start
   logger.info('Request started', {
@@ -362,7 +364,7 @@ export const requestLogger = (req: any, res: any, next: any) => {
 };
 
 // Error logging middleware
-export const errorLogger = (err: Error, req: any, res: any, next: any) => {
+export const errorLogger = (err: Error, req: Request, res: Response, next: NextFunction) => {
   logger.error('Request error', {
     ...logContext.addRequestContext(req),
     error: err.message,

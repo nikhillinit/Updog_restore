@@ -18,7 +18,7 @@ interface IdempotencyOptions {
 interface IdempotentResponse {
   statusCode: number;
   headers: Record<string, string>;
-  body: any;
+  body: unknown;
   timestamp: number;
 }
 

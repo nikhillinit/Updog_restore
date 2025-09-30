@@ -15,10 +15,10 @@ export interface AgentExecutionContext {
   timestamp: string;
   agent: string;
   operation: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
-export interface AgentResult<T = any> {
+export interface AgentResult<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -27,7 +27,7 @@ export interface AgentResult<T = any> {
   context: AgentExecutionContext;
 }
 
-export abstract class BaseAgent<TInput = any, TOutput = any> {
+export abstract class BaseAgent<TInput = unknown, TOutput = unknown> {
   protected readonly config: AgentConfig;
   protected readonly logger: Logger;
   protected readonly metrics: MetricsCollector;
@@ -167,7 +167,7 @@ export abstract class BaseAgent<TInput = any, TOutput = any> {
   /**
    * Override to provide custom metadata for execution context
    */
-  protected getExecutionMetadata(input: TInput): Record<string, any> {
+  protected getExecutionMetadata(input: TInput): Record<string, unknown> {
     return {
       inputType: typeof input,
       hasInput: input !== null && input !== undefined,

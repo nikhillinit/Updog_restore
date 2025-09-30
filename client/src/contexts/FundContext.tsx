@@ -1,10 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { logger } from '@/lib/logger';
 
 export interface Fund {
   id: number;
@@ -66,7 +62,7 @@ export function FundProvider({ children }: FundProviderProps) {
       }
     } else if (!isLoading && (error || !funds || !Array.isArray(funds) || funds.length === 0)) {
       // Demo mode: Create a fallback fund when API is unavailable
-      console.log('[FundContext] API unavailable, entering demo mode');
+      logger.info('API unavailable, entering demo mode', { context: 'FundContext' });
       const demoFund: Fund = {
         id: 1,
         name: 'Demo Fund I (VC Platform)',
