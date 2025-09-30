@@ -1,0 +1,208 @@
+name: Code Quality Gate
+
+on:
+  pull_request:
+    branches: [main, develop, 'recovery/**']
+  push:
+    branches: [main, develop]
+
+jobs:
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for better analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint with auto-fix
+        id: eslint
+        run: |
+          npm run lint:fix || true
+          npm run lint > eslint-results.txt 2>&1 || echo "LINT_FAILED=true" >> $GITHUB_ENV
+        continue-on-error: true
+
+      - name: TypeScript type check
+        id: typecheck
+        run: |
+          npm run check > typecheck-results.txt 2>&1 || echo "TYPECHECK_FAILED=true" >> $GITHUB_ENV
+        continue-on-error: true
+
+      - name: Count code quality metrics
+        id: metrics
+        run: |
+          echo "## Code Quality Metrics" > metrics-report.md
+          echo "" >> metrics-report.md
+
+          # Count 'any' types
+          ANY_COUNT=$(grep -r ": any\b" client/ server/ shared/ --include="*.ts" --include="*.tsx" 2>/dev/null | wc -l || echo "0")
+          echo "- **Any types**: $ANY_COUNT" >> metrics-report.md
+          echo "ANY_COUNT=$ANY_COUNT" >> $GITHUB_ENV
+
+          # Count eslint-disable comments
+          DISABLE_COUNT=$(grep -r "eslint-disable" client/ server/ shared/ --include="*.ts" --include="*.tsx" 2>/dev/null | wc -l || echo "0")
+          echo "- **ESLint-disable comments**: $DISABLE_COUNT" >> metrics-report.md
+          echo "DISABLE_COUNT=$DISABLE_COUNT" >> $GITHUB_ENV
+
+          # Count TypeScript errors
+          TS_ERRORS=$(cat typecheck-results.txt 2>/dev/null | grep -c "error TS" || echo "0")
+          echo "- **TypeScript errors**: $TS_ERRORS" >> metrics-report.md
+          echo "TS_ERRORS=$TS_ERRORS" >> $GITHUB_ENV
+
+          # Count ESLint warnings/errors
+          LINT_ISSUES=$(cat eslint-results.txt 2>/dev/null | grep -E "problems? \(" | sed -E 's/.*\(([0-9]+).*/\1/' || echo "0")
+          echo "- **ESLint issues**: $LINT_ISSUES" >> metrics-report.md
+          echo "LINT_ISSUES=$LINT_ISSUES" >> $GITHUB_ENV
+
+          echo "" >> metrics-report.md
+          echo "### Quality Thresholds" >> metrics-report.md
+          echo "- Any types: < 5000 (Current: $ANY_COUNT)" >> metrics-report.md
+          echo "- ESLint-disable: < 1500 (Current: $DISABLE_COUNT)" >> metrics-report.md
+          echo "- TypeScript errors: 0 (Current: $TS_ERRORS)" >> metrics-report.md
+          echo "- ESLint issues: 0 (Current: $LINT_ISSUES)" >> metrics-report.md
+
+      - name: Check quality thresholds
+        id: threshold-check
+        run: |
+          FAILED=0
+
+          # Fail on TypeScript errors
+          if [ "${TYPECHECK_FAILED}" = "true" ] || [ "${{ env.TS_ERRORS }}" -gt 0 ]; then
+            echo "❌ TypeScript type check failed"
+            FAILED=1
+          fi
+
+          # Fail on ESLint errors
+          if [ "${LINT_FAILED}" = "true" ]; then
+            echo "❌ ESLint check failed"
+            FAILED=1
+          fi
+
+          # Warn on 'any' type increase
+          if [ "${{ env.ANY_COUNT }}" -gt 5500 ]; then
+            echo "⚠️  Warning: 'any' types exceed threshold (5500)"
+          fi
+
+          # Warn on eslint-disable increase
+          if [ "${{ env.DISABLE_COUNT }}" -gt 1700 ]; then
+            echo "⚠️  Warning: eslint-disable comments exceed threshold (1700)"
+          fi
+
+          if [ $FAILED -eq 1 ]; then
+            exit 1
+          fi
+
+      - name: Generate auto-fix suggestions
+        if: failure()
+        run: |
+          echo "## Suggested Fixes" > fixes-report.md
+          echo "" >> fixes-report.md
+          echo "### Automated Fixes Available" >> fixes-report.md
+          echo "" >> fixes-report.md
+          echo "Run these commands locally to fix issues:" >> fixes-report.md
+          echo "" >> fixes-report.md
+          echo '```bash' >> fixes-report.md
+          echo "# Auto-fix ESLint issues" >> fixes-report.md
+          echo "npm run lint:fix" >> fixes-report.md
+          echo "" >> fixes-report.md
+          echo "# Auto-fix TypeScript errors (experimental)" >> fixes-report.md
+          echo "npm run fix:typescript" >> fixes-report.md
+          echo "" >> fixes-report.md
+          echo "# Run tests to verify fixes" >> fixes-report.md
+          echo "npm run test:quick" >> fixes-report.md
+          echo '```' >> fixes-report.md
+
+      - name: Comment PR with metrics
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const metrics = fs.readFileSync('metrics-report.md', 'utf8');
+            const fixes = fs.existsSync('fixes-report.md') ? fs.readFileSync('fixes-report.md', 'utf8') : '';
+
+            const body = `${metrics}\n\n${fixes}`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Upload quality reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: |
+            metrics-report.md
+            fixes-report.md
+            eslint-results.txt
+            typecheck-results.txt
+          retention-days: 30
+
+  type-safety-check:
+    name: Type Safety Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run strict TypeScript check
+        run: |
+          echo "Running strict TypeScript configuration..."
+          npx tsc --project tsconfig.strict.json --noEmit > strict-check.txt 2>&1 || true
+
+          STRICT_ERRORS=$(cat strict-check.txt | grep -c "error TS" || echo "0")
+          echo "Strict mode errors: $STRICT_ERRORS"
+
+          if [ "$STRICT_ERRORS" -gt 100 ]; then
+            echo "⚠️  Warning: $STRICT_ERRORS errors in strict mode"
+            echo "This is informational only - not blocking the build"
+          fi
+
+      - name: Analyze 'any' type usage
+        run: |
+          echo "## 'any' Type Analysis" > any-analysis.md
+          echo "" >> any-analysis.md
+
+          # Find files with most 'any' types
+          echo "### Top 10 files with 'any' types:" >> any-analysis.md
+          echo "" >> any-analysis.md
+          grep -r ": any\b" client/ server/ shared/ --include="*.ts" --include="*.tsx" 2>/dev/null | \
+            cut -d: -f1 | sort | uniq -c | sort -rn | head -10 | \
+            awk '{print "- " $2 ": " $1 " occurrences"}' >> any-analysis.md || true
+
+      - name: Upload type safety reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: type-safety-reports
+          path: |
+            strict-check.txt
+            any-analysis.md
+          retention-days: 30
