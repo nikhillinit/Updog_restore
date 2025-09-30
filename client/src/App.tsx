@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, { Suspense, useState, useEffect } from 'react';
 import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
@@ -148,7 +143,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const path = location.replace('/', '') || 'fund-setup';
     setActiveModule(path);
-  }, [location]);
+  }, [location, setActiveModule]);
 
   // const currentModule = moduleConfig[activeModule as keyof typeof moduleConfig] || moduleConfig['fund-setup'];
 
@@ -180,20 +175,25 @@ function HomeRoute() {
   return needsSetup ? <Redirect to="/fund-setup" /> : <Redirect to="/dashboard" />;
 }
 
-function ProtectedRoute({ component: Component, ...props }: any) {
+interface ProtectedRouteProps {
+  component: React.ComponentType<Record<string, unknown>>;
+  [key: string]: unknown;
+}
+
+function ProtectedRoute({ component: Component, ...props }: ProtectedRouteProps) {
   const { needsSetup, isLoading } = useFundContext();
-  
+
   if (isLoading) {
     return <div className="flex-1 flex items-center justify-center">
       <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
     </div>;
   }
-  
+
   if (needsSetup) {
     return <Redirect to="/fund-setup" />;
   }
-  
-  return <Component {...props} />;
+
+  return <Component {...(props as Record<string, unknown>)} />;
 }
 
 function Router() {
@@ -210,38 +210,38 @@ function Router() {
         <Route path="/" component={HomeRoute} />
         <Route path="/fund-setup" component={FundSetup} />
         <Route path="/design-system" component={DesignSystem} />
-        <Route path="/dashboard" component={(props: any) => <ProtectedRoute component={Dashboard} {...props} />} />
-        <Route path="/portfolio" component={(props: any) => <ProtectedRoute component={Portfolio} {...props} />} />
-        <Route path="/investments" component={(props: any) => <ProtectedRoute component={Investments} {...props} />} />
-        <Route path="/investments/:id" component={(props: any) => <ProtectedRoute component={InvestmentDetail} {...props} />} />
-        <Route path="/custom-fields" component={(props: any) => <ProtectedRoute component={CustomFields} {...props} />} />
-        <Route path="/investments-table" component={(props: any) => <ProtectedRoute component={InvestmentsTable} {...props} />} />
-        <Route path="/investments/company/:id" component={(props: any) => <ProtectedRoute component={Investments} {...props} />} />
-        <Route path="/cap-tables" component={(props: any) => <ProtectedRoute component={CapTables} {...props} />} />
-        <Route path="/kpi-manager" component={(props: any) => <ProtectedRoute component={KPIManager} {...props} />} />
+        <Route path="/dashboard">{() => <ProtectedRoute component={Dashboard} />}</Route>
+        <Route path="/portfolio">{() => <ProtectedRoute component={Portfolio} />}</Route>
+        <Route path="/investments">{() => <ProtectedRoute component={Investments} />}</Route>
+        <Route path="/investments/:id">{() => <ProtectedRoute component={InvestmentDetail} />}</Route>
+        <Route path="/custom-fields">{() => <ProtectedRoute component={CustomFields} />}</Route>
+        <Route path="/investments-table">{() => <ProtectedRoute component={InvestmentsTable} />}</Route>
+        <Route path="/investments/company/:id">{() => <ProtectedRoute component={Investments} />}</Route>
+        <Route path="/cap-tables">{() => <ProtectedRoute component={CapTables} />}</Route>
+        <Route path="/kpi-manager">{() => <ProtectedRoute component={KPIManager} />}</Route>
         <Route path="/kpi-submission" component={KPISubmission} />
-        <Route path="/allocation-manager" component={() => <AllocationManagerPage />} />
-        <Route path="/planning" component={(props: any) => <ProtectedRoute component={Planning} {...props} />} />
-        <Route path="/forecasting" component={(props: any) => <ProtectedRoute component={ForecastingPage} {...props} />} />
-        <Route path="/scenario-builder" component={(props: any) => <ProtectedRoute component={ScenarioBuilderPage} {...props} />} />
-        <Route path="/reserves-demo" component={(props: any) => <ProtectedRoute component={ReservesDemo} {...props} />} />
-        <Route path="/moic-analysis" component={(props: any) => <ProtectedRoute component={MOICAnalysisPage} {...props} />} />
-        <Route path="/return-the-fund" component={(props: any) => <ProtectedRoute component={ReturnTheFundPage} {...props} />} />
-        <Route path="/partial-sales" component={(props: any) => <ProtectedRoute component={PartialSalesPage} {...props} />} />
-        <Route path="/financial-modeling" component={(props: any) => <ProtectedRoute component={FinancialModeling} {...props} />} />
-        <Route path="/performance" component={(props: any) => <ProtectedRoute component={Performance} {...props} />} />
-        <Route path="/analytics" component={(props: any) => <ProtectedRoute component={Analytics} {...props} />} />
-        <Route path="/portfolio-analytics" component={(props: any) => <ProtectedRoute component={EnhancedPortfolioAnalytics} {...props} />} />
-        <Route path="/cash-management" component={(props: any) => <ProtectedRoute component={CashManagement} {...props} />} />
-        <Route path="/sensitivity-analysis" component={(props: any) => <ProtectedRoute component={SensitivityAnalysisPage} {...props} />} />
-        <Route path="/time-travel" component={(props: any) => <ProtectedRoute component={TimeTravelPage} {...props} />} />
-        <Route path="/variance-tracking" component={(props: any) => <ProtectedRoute component={VarianceTrackingPage} {...props} />} />
-        <Route path="/portfolio-constructor" component={(props: any) => <ProtectedRoute component={PortfolioConstructor} {...props} />} />
-        <Route path="/secondary-market" component={(props: any) => <ProtectedRoute component={SecondaryMarketPage} {...props} />} />
-        <Route path="/notion-integration" component={(props: any) => <ProtectedRoute component={NotionIntegrationPage} {...props} />} />
+        <Route path="/allocation-manager">{() => <AllocationManagerPage />}</Route>
+        <Route path="/planning">{() => <ProtectedRoute component={Planning} />}</Route>
+        <Route path="/forecasting">{() => <ProtectedRoute component={ForecastingPage} />}</Route>
+        <Route path="/scenario-builder">{() => <ProtectedRoute component={ScenarioBuilderPage} />}</Route>
+        <Route path="/reserves-demo">{() => <ProtectedRoute component={ReservesDemo} />}</Route>
+        <Route path="/moic-analysis">{() => <ProtectedRoute component={MOICAnalysisPage} />}</Route>
+        <Route path="/return-the-fund">{() => <ProtectedRoute component={ReturnTheFundPage} />}</Route>
+        <Route path="/partial-sales">{() => <ProtectedRoute component={PartialSalesPage} />}</Route>
+        <Route path="/financial-modeling">{() => <ProtectedRoute component={FinancialModeling} />}</Route>
+        <Route path="/performance">{() => <ProtectedRoute component={Performance} />}</Route>
+        <Route path="/analytics">{() => <ProtectedRoute component={Analytics} />}</Route>
+        <Route path="/portfolio-analytics">{() => <ProtectedRoute component={EnhancedPortfolioAnalytics} />}</Route>
+        <Route path="/cash-management">{() => <ProtectedRoute component={CashManagement} />}</Route>
+        <Route path="/sensitivity-analysis">{() => <ProtectedRoute component={SensitivityAnalysisPage} />}</Route>
+        <Route path="/time-travel">{() => <ProtectedRoute component={TimeTravelPage} />}</Route>
+        <Route path="/variance-tracking">{() => <ProtectedRoute component={VarianceTrackingPage} />}</Route>
+        <Route path="/portfolio-constructor">{() => <ProtectedRoute component={PortfolioConstructor} />}</Route>
+        <Route path="/secondary-market">{() => <ProtectedRoute component={SecondaryMarketPage} />}</Route>
+        <Route path="/notion-integration">{() => <ProtectedRoute component={NotionIntegrationPage} />}</Route>
         <Route path="/dev-dashboard" component={DevDashboardPage} />
-        <Route path="/mobile-executive-dashboard" component={(props: any) => <ProtectedRoute component={MobileExecutiveDashboardPage} {...props} />} />
-        <Route path="/reports" component={(props: any) => <ProtectedRoute component={Reports} {...props} />} />
+        <Route path="/mobile-executive-dashboard">{() => <ProtectedRoute component={MobileExecutiveDashboardPage} />}</Route>
+        <Route path="/reports">{() => <ProtectedRoute component={Reports} />}</Route>
         {/* LP Sharing - No authentication required */}
         <Route path="/shared/:shareId" component={SharedDashboard} />
         <Route component={NotFound} />
