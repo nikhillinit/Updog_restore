@@ -194,11 +194,11 @@ export default function ModernPortfolio() {
               <div className="p-2 bg-pov-success/10 rounded-lg w-fit mx-auto">
                 <DollarSign className="h-5 w-5 text-pov-success" />
               </div>
-              <div className="font-inter font-bold text-3xl text-pov-charcoal">
+              <div className="font-inter font-bold text-3xl text-[#292929]">
                 ${(portfolioMetrics.totalInvested / 1000000).toFixed(1)}M
               </div>
-              <p className="font-poppins text-sm text-gray-600">Total Invested</p>
-              <p className="font-mono text-xs text-gray-500">
+              <p className="font-poppins text-sm text-[#292929]/70">Total Invested</p>
+              <p className="font-mono text-xs text-[#292929]/60">
                 Capital deployed across portfolio
               </p>
             </div>
@@ -209,10 +209,10 @@ export default function ModernPortfolio() {
               <div className="p-2 bg-pov-beige/50 rounded-lg w-fit mx-auto">
                 <Target className="h-5 w-5 text-pov-charcoal" />
               </div>
-              <div className="font-inter font-bold text-3xl text-pov-charcoal">
+              <div className="font-inter font-bold text-3xl text-[#292929]">
                 ${(portfolioMetrics.totalValue / 1000000).toFixed(1)}M
               </div>
-              <p className="font-poppins text-sm text-gray-600">Current Value</p>
+              <p className="font-poppins text-sm text-[#292929]/70">Current Value</p>
               <Badge className="bg-pov-success/10 text-pov-success border-pov-success/20 text-xs">
                 +{(((portfolioMetrics.totalValue - portfolioMetrics.totalInvested) / portfolioMetrics.totalInvested) * 100).toFixed(1)}%
               </Badge>
@@ -224,11 +224,11 @@ export default function ModernPortfolio() {
               <div className="p-2 bg-pov-charcoal/10 rounded-lg w-fit mx-auto">
                 <TrendingUp className="h-5 w-5 text-pov-charcoal" />
               </div>
-              <div className="font-inter font-bold text-3xl text-pov-charcoal">
+              <div className="font-inter font-bold text-3xl text-[#292929]">
                 {portfolioMetrics.averageMOIC.toFixed(1)}x
               </div>
-              <p className="font-poppins text-sm text-gray-600">Average MOIC</p>
-              <p className="font-mono text-xs text-gray-500">
+              <p className="font-poppins text-sm text-[#292929]/70">Average MOIC</p>
+              <p className="font-mono text-xs text-[#292929]/60">
                 Multiple on invested capital
               </p>
             </div>
@@ -296,25 +296,25 @@ export default function ModernPortfolio() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-pov-gray/30">
-                  <th className="text-left py-4 px-2 font-inter font-semibold text-sm text-pov-charcoal">Company</th>
-                  <th className="text-left py-4 px-2 font-inter font-semibold text-sm text-pov-charcoal">Sector</th>
-                  <th className="text-left py-4 px-2 font-inter font-semibold text-sm text-pov-charcoal">Status</th>
-                  <th className="text-right py-4 px-2 font-inter font-semibold text-sm text-pov-charcoal">Investment</th>
-                  <th className="text-right py-4 px-2 font-inter font-semibold text-sm text-pov-charcoal">Current Value</th>
-                  <th className="text-right py-4 px-2 font-inter font-semibold text-sm text-pov-charcoal">MOIC</th>
-                  <th className="text-center py-4 px-2 font-inter font-semibold text-sm text-pov-charcoal">Actions</th>
+                <tr className="border-b border-[#E0D8D1]">
+                  <th className="text-left py-4 px-2 font-inter font-bold text-sm text-[#292929]">Company</th>
+                  <th className="text-left py-4 px-2 font-inter font-bold text-sm text-[#292929]">Sector</th>
+                  <th className="text-left py-4 px-2 font-inter font-bold text-sm text-[#292929]">Status</th>
+                  <th className="text-right py-4 px-2 font-inter font-bold text-sm text-[#292929]">Investment</th>
+                  <th className="text-right py-4 px-2 font-inter font-bold text-sm text-[#292929]">Current Value</th>
+                  <th className="text-right py-4 px-2 font-inter font-bold text-sm text-[#292929]">MOIC</th>
+                  <th className="text-center py-4 px-2 font-inter font-bold text-sm text-[#292929]">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredCompanies.map((company: any) => (
-                  <tr key={company.id} className="border-b border-pov-gray/20 hover:bg-pov-beige/10 transition-colors">
+                  <tr key={company.id} className="border-b border-[#E0D8D1] hover:bg-[#E0D8D1]/20 transition-colors">
                     <td className="py-4 px-2">
                       <div className="space-y-1">
-                        <div className="font-poppins font-medium text-pov-charcoal">
+                        <div className="font-poppins font-medium text-[#292929]">
                           {company.company}
                         </div>
-                        <div className="font-poppins text-xs text-gray-500">
+                        <div className="font-poppins text-xs text-[#292929]/60">
                           {company.stage} • {new Date(company.investmentDate).toLocaleDateString()}
                         </div>
                       </div>
@@ -329,20 +329,20 @@ export default function ModernPortfolio() {
                     </td>
                     <td className="py-4 px-2 text-right">
                       <div className="space-y-1">
-                        <div className="font-mono font-medium text-pov-charcoal">
+                        <div className="font-mono font-medium text-[#292929]">
                           ${(company.initialInvestment / 1000000).toFixed(2)}M
                         </div>
-                        <div className="font-poppins text-xs text-gray-500">
+                        <div className="font-poppins text-xs text-[#292929]/60">
                           {company.ownershipPercent}% ownership
                         </div>
                       </div>
                     </td>
                     <td className="py-4 px-2 text-right">
                       <div className="space-y-1">
-                        <div className="font-mono font-medium text-pov-charcoal">
+                        <div className="font-mono font-medium text-[#292929]">
                           ${(company.currentValue / 1000000).toFixed(2)}M
                         </div>
-                        <div className="font-poppins text-xs text-gray-500">
+                        <div className="font-poppins text-xs text-[#292929]/60">
                           Current valuation
                         </div>
                       </div>
@@ -350,7 +350,7 @@ export default function ModernPortfolio() {
                     <td className="py-4 px-2 text-right">
                       <div className="flex items-center justify-end space-x-2">
                         {getMOICIndicator(company.moic)}
-                        <span className="font-mono font-bold text-pov-charcoal">
+                        <span className="font-mono font-bold text-[#292929]">
                           {company.moic > 0 ? `${company.moic.toFixed(1)}x` : '—'}
                         </span>
                       </div>

@@ -209,11 +209,11 @@ export default function ModernDashboard() {
                   </Badge>
                 </div>
                 <div className="space-y-2">
-                  <p className="font-poppins text-sm text-gray-600">Total Value</p>
-                  <p className="font-inter font-bold text-3xl text-pov-charcoal">
+                  <p className="font-poppins text-sm text-[#292929]/70">Total Value</p>
+                  <p className="font-inter font-bold text-3xl text-[#292929]">
                     ${(fundMetrics.totalValue / 1000000).toFixed(1)}M
                   </p>
-                  <p className="font-mono text-xs text-gray-500">
+                  <p className="font-mono text-xs text-[#292929]/60">
                     {fundMetrics.moic.toFixed(2)}x MOIC
                   </p>
                 </div>
@@ -229,11 +229,11 @@ export default function ModernDashboard() {
                   </Badge>
                 </div>
                 <div className="space-y-2">
-                  <p className="font-poppins text-sm text-gray-600">IRR</p>
-                  <p className="font-inter font-bold text-3xl text-pov-charcoal">
+                  <p className="font-poppins text-sm text-[#292929]/70">IRR</p>
+                  <p className="font-inter font-bold text-3xl text-[#292929]">
                     {fundMetrics.irr}%
                   </p>
-                  <p className="font-mono text-xs text-gray-500">
+                  <p className="font-mono text-xs text-[#292929]/60">
                     Net IRR to LPs
                   </p>
                 </div>
@@ -249,11 +249,11 @@ export default function ModernDashboard() {
                   </Badge>
                 </div>
                 <div className="space-y-2">
-                  <p className="font-poppins text-sm text-gray-600">Deployed</p>
-                  <p className="font-inter font-bold text-3xl text-pov-charcoal">
+                  <p className="font-poppins text-sm text-[#292929]/70">Deployed</p>
+                  <p className="font-inter font-bold text-3xl text-[#292929]">
                     ${(fundMetrics.totalInvested / 1000000).toFixed(1)}M
                   </p>
-                  <p className="font-mono text-xs text-gray-500">
+                  <p className="font-mono text-xs text-[#292929]/60">
                     of ${(fundMetrics.totalCommitted / 1000000).toFixed(1)}M committed
                   </p>
                 </div>
@@ -269,11 +269,11 @@ export default function ModernDashboard() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <p className="font-poppins text-sm text-gray-600">Portfolio</p>
-                  <p className="font-inter font-bold text-3xl text-pov-charcoal">
+                  <p className="font-poppins text-sm text-[#292929]/70">Portfolio</p>
+                  <p className="font-inter font-bold text-3xl text-[#292929]">
                     {fundMetrics.activeInvestments}
                   </p>
-                  <p className="font-mono text-xs text-gray-500">
+                  <p className="font-mono text-xs text-[#292929]/60">
                     Active companies
                   </p>
                 </div>
@@ -368,12 +368,12 @@ export default function ModernDashboard() {
                 <div className="grid grid-cols-2 gap-3 mt-4">
                   {sectorData.map((sector: any, index: any) => (
                     <div key={index} className="flex items-center space-x-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
+                      <div
+                        className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: sector.color }}
                       ></div>
-                      <span className="font-poppins text-sm text-gray-700">{sector.name}</span>
-                      <span className="font-mono text-xs text-gray-500">{sector.value}%</span>
+                      <span className="font-poppins text-sm text-[#292929]">{sector.name}</span>
+                      <span className="font-mono text-xs text-[#292929]/60">{sector.value}%</span>
                     </div>
                   ))}
                 </div>
@@ -442,10 +442,10 @@ export default function ModernDashboard() {
                 className="text-center"
               >
                 <div className="space-y-2">
-                  <div className="font-inter font-bold text-4xl text-pov-charcoal">
+                  <div className="font-inter font-bold text-4xl text-[#292929]">
                     {fundMetrics.dpi.toFixed(2)}x
                   </div>
-                  <p className="font-poppins text-sm text-gray-600">
+                  <p className="font-poppins text-sm text-[#292929]/70">
                     Distributions to Paid-In
                   </p>
                   <Badge variant="outline" className="text-pov-success border-pov-success/20 bg-pov-success/5">
@@ -454,15 +454,15 @@ export default function ModernDashboard() {
                 </div>
               </PremiumCard>
 
-              <PremiumCard 
+              <PremiumCard
                 title="TVPI"
                 className="text-center"
               >
                 <div className="space-y-2">
-                  <div className="font-inter font-bold text-4xl text-pov-charcoal">
+                  <div className="font-inter font-bold text-4xl text-[#292929]">
                     {fundMetrics.moic.toFixed(2)}x
                   </div>
-                  <p className="font-poppins text-sm text-gray-600">
+                  <p className="font-poppins text-sm text-[#292929]/70">
                     Total Value to Paid-In
                   </p>
                   <Badge variant="outline" className="text-pov-success border-pov-success/20 bg-pov-success/5">
@@ -471,15 +471,15 @@ export default function ModernDashboard() {
                 </div>
               </PremiumCard>
 
-              <PremiumCard 
+              <PremiumCard
                 title="Net IRR"
                 className="text-center"
               >
                 <div className="space-y-2">
-                  <div className="font-inter font-bold text-4xl text-pov-charcoal">
+                  <div className="font-inter font-bold text-4xl text-[#292929]">
                     {fundMetrics.irr}%
                   </div>
-                  <p className="font-poppins text-sm text-gray-600">
+                  <p className="font-poppins text-sm text-[#292929]/70">
                     Internal Rate of Return
                   </p>
                   <Badge variant="outline" className="text-pov-success border-pov-success/20 bg-pov-success/5">
