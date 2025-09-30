@@ -36,9 +36,14 @@ describe('fund-setup-utils', () => {
       expect(resolveStepKeyFromLocation('')).toBe('fund-basics');
     });
 
+    it('maps step 5 to cashflow-management', () => {
+      expect(resolveStepKeyFromLocation('/fund-setup?step=5')).toBe('cashflow-management');
+      expect(resolveStepKeyFromLocation('?step=5')).toBe('cashflow-management');
+    });
+
     it('returns not-found for invalid steps', () => {
       expect(resolveStepKeyFromLocation('/fund-setup?step=0')).toBe('not-found');
-      expect(resolveStepKeyFromLocation('/fund-setup?step=5')).toBe('not-found');
+      expect(resolveStepKeyFromLocation('/fund-setup?step=6')).toBe('not-found');
       expect(resolveStepKeyFromLocation('/fund-setup?step=99')).toBe('not-found');
       expect(resolveStepKeyFromLocation('/fund-setup?step=abc')).toBe('not-found');
     });
@@ -75,6 +80,7 @@ describe('fund-setup-utils', () => {
       expect(normalizeStepParam('2')).toBe('2');
       expect(normalizeStepParam('3')).toBe('3');
       expect(normalizeStepParam('4')).toBe('4');
+      expect(normalizeStepParam('5')).toBe('5');
     });
 
     it('trims whitespace', () => {
@@ -84,7 +90,7 @@ describe('fund-setup-utils', () => {
 
     it('returns null for invalid values', () => {
       expect(normalizeStepParam('0')).toBe(null);
-      expect(normalizeStepParam('5')).toBe(null);
+      expect(normalizeStepParam('6')).toBe(null);
       expect(normalizeStepParam('abc')).toBe(null);
     });
   });
@@ -95,11 +101,12 @@ describe('fund-setup-utils', () => {
       expect(isValidStep('2')).toBe(true);
       expect(isValidStep('3')).toBe(true);
       expect(isValidStep('4')).toBe(true);
+      expect(isValidStep('5')).toBe(true);
     });
 
     it('returns false for invalid steps', () => {
       expect(isValidStep('0')).toBe(false);
-      expect(isValidStep('5')).toBe(false);
+      expect(isValidStep('6')).toBe(false);
       expect(isValidStep('99')).toBe(false);
       expect(isValidStep('abc')).toBe(false);
       expect(isValidStep('')).toBe(false);
@@ -115,20 +122,22 @@ describe('fund-setup-utils', () => {
       expect(getStepNumber('capital-structure')).toBe('2');
       expect(getStepNumber('investment-strategy')).toBe('3');
       expect(getStepNumber('distributions')).toBe('4');
+      expect(getStepNumber('cashflow-management')).toBe('5');
     });
   });
 
   describe('type safety', () => {
-    it('VALID_STEPS contains exactly 1, 2, 3, 4', () => {
-      expect(VALID_STEPS).toEqual(['1', '2', '3', '4']);
+    it('VALID_STEPS contains exactly 1, 2, 3, 4, 5', () => {
+      expect(VALID_STEPS).toEqual(['1', '2', '3', '4', '5']);
     });
 
     it('NUM_TO_KEY maps all valid steps', () => {
-      expect(Object.keys(NUM_TO_KEY).sort()).toEqual(['1', '2', '3', '4']);
+      expect(Object.keys(NUM_TO_KEY).sort()).toEqual(['1', '2', '3', '4', '5']);
       expect(NUM_TO_KEY['1']).toBe('fund-basics');
       expect(NUM_TO_KEY['2']).toBe('capital-structure');
       expect(NUM_TO_KEY['3']).toBe('investment-strategy');
       expect(NUM_TO_KEY['4']).toBe('distributions');
+      expect(NUM_TO_KEY['5']).toBe('cashflow-management');
     });
   });
 });

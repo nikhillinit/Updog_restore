@@ -11,7 +11,7 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       colors: {
-        // POV Brand Colors
+        // POV Brand Colors (Enhanced)
         pov: {
           charcoal: '#292929',
           white: '#FFFFFF',
@@ -20,6 +20,88 @@ export default {
           success: '#10B981',
           error: '#EF4444',
           warning: '#F59E0B',
+        },
+        // AI Confidence Level Colors (Semantic)
+        confidence: {
+          critical: '#ef4444',    // Red for critical/low confidence
+          low: '#f59e0b',         // Amber for low confidence
+          medium: '#3b82f6',      // Blue for medium confidence
+          high: '#10b981',        // Green for high confidence
+          excellent: '#059669',   // Dark green for excellent confidence
+        },
+        // Semantic State Colors (Enhanced)
+        semantic: {
+          // Success states
+          success: {
+            50: '#ecfdf5',
+            100: '#d1fae5',
+            500: '#10b981',
+            600: '#059669',
+            700: '#047857',
+            900: '#064e3b',
+          },
+          // Warning states
+          warning: {
+            50: '#fffbeb',
+            100: '#fef3c7',
+            500: '#f59e0b',
+            600: '#d97706',
+            700: '#b45309',
+            900: '#78350f',
+          },
+          // Error states
+          error: {
+            50: '#fef2f2',
+            100: '#fee2e2',
+            500: '#ef4444',
+            600: '#dc2626',
+            700: '#b91c1c',
+            900: '#7f1d1d',
+          },
+          // Info states
+          info: {
+            50: '#eff6ff',
+            100: '#dbeafe',
+            500: '#3b82f6',
+            600: '#2563eb',
+            700: '#1d4ed8',
+            900: '#1e3a8a',
+          },
+          // Neutral states
+          neutral: {
+            50: '#fafafa',
+            100: '#f5f5f5',
+            200: '#e5e5e5',
+            300: '#d4d4d4',
+            400: '#a3a3a3',
+            500: '#737373',
+            600: '#525252',
+            700: '#404040',
+            800: '#262626',
+            900: '#171717',
+          },
+        },
+        // Interactive States (Enhanced)
+        interactive: {
+          primary: {
+            DEFAULT: '#292929',
+            hover: '#1f1f1f',
+            active: '#141414',
+            disabled: '#a3a3a3',
+            focus: '#0ea5e9',
+          },
+          secondary: {
+            DEFAULT: '#E0D8D1',
+            hover: '#d4cbb8',
+            active: '#c4b8a5',
+            disabled: '#e5e7eb',
+          },
+          accent: {
+            DEFAULT: '#3b82f6',
+            hover: '#2563eb',
+            active: '#1d4ed8',
+            disabled: '#9ca3af',
+          },
         },
         // Target UI theme colors
         charcoal: {
@@ -132,6 +214,16 @@ export default {
       boxShadow: {
         card: "0 2px 8px rgba(0, 0, 0, 0.05)",
         elevated: "0 4px 12px rgba(0, 0, 0, 0.08)",
+        // Enhanced shadow system
+        'card-hover': '0 8px 24px rgba(0, 0, 0, 0.12)',
+        'card-active': '0 2px 4px rgba(0, 0, 0, 0.08)',
+        'confidence-high': '0 0 0 2px rgba(16, 185, 129, 0.2)',
+        'confidence-medium': '0 0 0 2px rgba(59, 130, 246, 0.2)',
+        'confidence-low': '0 0 0 2px rgba(245, 158, 11, 0.2)',
+        'confidence-critical': '0 0 0 2px rgba(239, 68, 68, 0.2)',
+        'focus-ring': '0 0 0 2px rgba(59, 130, 246, 0.5)',
+        'ai-insight': '0 4px 16px rgba(59, 130, 246, 0.1)',
+        'success-glow': '0 0 20px rgba(16, 185, 129, 0.2)',
       },
       keyframes: {
         "accordion-down": {
@@ -150,12 +242,183 @@ export default {
             height: "0",
           },
         },
+        // Enhanced Micro-interactions
+        "fade-in": {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "slide-in-right": {
+          "0%": { opacity: "0", transform: "translateX(20px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
+        "slide-in-left": {
+          "0%": { opacity: "0", transform: "translateX(-20px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
+        "scale-in": {
+          "0%": { opacity: "0", transform: "scale(0.9)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        "gentle-bounce": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-2px)" },
+        },
+        "card-hover": {
+          "0%": { transform: "translateY(0) scale(1)", boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)" },
+          "100%": { transform: "translateY(-2px) scale(1.005)", boxShadow: "0 8px 24px rgba(0, 0, 0, 0.12)" },
+        },
+        "loading-pulse": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.5" },
+        },
+        "confidence-glow": {
+          "0%, 100%": { boxShadow: "0 0 5px rgba(59, 130, 246, 0.3)" },
+          "50%": { boxShadow: "0 0 15px rgba(59, 130, 246, 0.6)" },
+        },
+        "ai-thinking": {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(360deg)" },
+        },
+        "metric-update": {
+          "0%": { backgroundColor: "rgba(16, 185, 129, 0)" },
+          "50%": { backgroundColor: "rgba(16, 185, 129, 0.2)" },
+          "100%": { backgroundColor: "rgba(16, 185, 129, 0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        // Professional Micro-interactions
+        "fade-in": "fade-in 0.3s ease-out",
+        "slide-in-right": "slide-in-right 0.3s ease-out",
+        "slide-in-left": "slide-in-left 0.3s ease-out",
+        "scale-in": "scale-in 0.2s ease-out",
+        "gentle-bounce": "gentle-bounce 2s ease-in-out infinite",
+        "card-hover": "card-hover 0.2s ease-out forwards",
+        "loading-pulse": "loading-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "confidence-glow": "confidence-glow 2s ease-in-out infinite",
+        "ai-thinking": "ai-thinking 1s linear infinite",
+        "metric-update": "metric-update 0.6s ease-out",
+      },
+      // Enhanced Transitions
+      transitionDuration: {
+        '0': '0ms',
+        '75': '75ms',
+        '100': '100ms',
+        '150': '150ms',
+        '200': '200ms',
+        '300': '300ms',
+        '500': '500ms',
+        '700': '700ms',
+        '1000': '1000ms',
+      },
+      transitionTimingFunction: {
+        'smooth': 'cubic-bezier(0.4, 0, 0.2, 1)',
+        'smooth-in': 'cubic-bezier(0, 0, 0.2, 1)',
+        'smooth-out': 'cubic-bezier(0.4, 0, 1, 1)',
+        'professional': 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+      },
+      // Enhanced Spacing for Touch Targets
+      spacing: {
+        '18': '4.5rem',   // 72px - optimal touch target
+        '22': '5.5rem',   // 88px - comfortable touch target
       },
     },
   },
-  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
+  plugins: [
+    require("tailwindcss-animate"),
+    require("@tailwindcss/typography"),
+    // Custom plugin for accessibility and interactions
+    function({ addUtilities, addComponents, theme }: any) {
+      // Accessibility utilities
+      addUtilities({
+        '.focus-visible-ring': {
+          '&:focus-visible': {
+            outline: `2px solid ${theme('colors.interactive.primary.focus')}`,
+            outlineOffset: '2px',
+            borderRadius: theme('borderRadius.sm'),
+          },
+        },
+        '.reduced-motion-safe': {
+          '@media (prefers-reduced-motion: reduce)': {
+            animation: 'none !important',
+            transition: 'none !important',
+          },
+        },
+        '.high-contrast-border': {
+          '@media (prefers-contrast: high)': {
+            border: '2px solid currentColor',
+          },
+        },
+      });
+
+      // Interactive component classes
+      addComponents({
+        '.btn-enhanced': {
+          transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+          transform: 'translateY(0)',
+          '&:focus-visible': {
+            outline: `2px solid ${theme('colors.interactive.primary.focus')}`,
+            outlineOffset: '2px',
+          },
+          '&:hover': {
+            transform: 'translateY(-2px)',
+            boxShadow: theme('boxShadow.elevated'),
+          },
+          '&:active': {
+            transform: 'translateY(0)',
+            boxShadow: theme('boxShadow.card-active'),
+          },
+          '&:disabled': {
+            opacity: '0.5',
+            cursor: 'not-allowed',
+            transform: 'none',
+            boxShadow: 'none',
+          },
+          '@media (prefers-reduced-motion: reduce)': {
+            animation: 'none !important',
+            transition: 'none !important',
+          },
+        },
+        '.card-enhanced': {
+          transition: 'all 300ms cubic-bezier(0.25, 0.1, 0.25, 1)',
+          '&:hover': {
+            boxShadow: theme('boxShadow.card-hover'),
+            transform: 'translateY(-4px)',
+          },
+          '@media (prefers-reduced-motion: reduce)': {
+            animation: 'none !important',
+            transition: 'none !important',
+          },
+        },
+        '.ai-confidence-indicator': {
+          '&.critical': {
+            borderLeftWidth: '4px',
+            borderLeftColor: theme('colors.confidence.critical'),
+            backgroundColor: theme('colors.semantic.error.50'),
+          },
+          '&.low': {
+            borderLeftWidth: '4px',
+            borderLeftColor: theme('colors.confidence.low'),
+            backgroundColor: theme('colors.semantic.warning.50'),
+          },
+          '&.medium': {
+            borderLeftWidth: '4px',
+            borderLeftColor: theme('colors.confidence.medium'),
+            backgroundColor: theme('colors.semantic.info.50'),
+          },
+          '&.high': {
+            borderLeftWidth: '4px',
+            borderLeftColor: theme('colors.confidence.high'),
+            backgroundColor: theme('colors.semantic.success.50'),
+          },
+        },
+      });
+    }
+  ],
 } satisfies Config;
+
+// Export type definitions for enhanced design system
+export type ConfidenceLevel = 'critical' | 'low' | 'medium' | 'high' | 'excellent';
+export type SemanticColor = 'success' | 'warning' | 'error' | 'info' | 'neutral';
+export type InteractiveState = 'default' | 'hover' | 'active' | 'disabled' | 'focus';

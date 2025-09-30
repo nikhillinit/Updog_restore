@@ -8,7 +8,8 @@
 import { db } from '../db';
 import {
   funds,
-  fundMetrics
+  fundMetrics,
+  performanceForecasts
 } from '@shared/schema';
 import { eq, and, desc, gte, sql, inArray } from 'drizzle-orm';
 
@@ -785,7 +786,7 @@ export class PerformancePredictionEngine {
   }
 
   private async storePrediction(result: PredictionResult, config: PredictionConfig): Promise<void> {
-    await db.insert(performancePredictions).values({
+    await db.insert(performanceForecasts).values({
       fundId: result.fundId,
       predictionEngine: 'performance-prediction-v1',
       predictionType: result.metric,

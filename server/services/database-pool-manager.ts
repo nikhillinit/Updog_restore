@@ -95,7 +95,6 @@ export class DatabasePoolManager extends EventEmitter {
       min: fullConfig.minConnections,
       idleTimeoutMillis: fullConfig.idleTimeoutMs,
       connectionTimeoutMillis: fullConfig.connectionTimeoutMs,
-      maxRetries: fullConfig.maxRetries,
     });
 
     // Initialize metrics
@@ -204,7 +203,7 @@ export class DatabasePoolManager extends EventEmitter {
       const queryTime = Date.now() - startTime;
       this.updateQueryMetrics(poolId, queryTime);
 
-      return result;
+      return result as T;
 
     } finally {
       await this.releaseConnection(poolId, wrapper);

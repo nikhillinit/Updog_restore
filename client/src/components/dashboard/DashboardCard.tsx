@@ -27,26 +27,26 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
   const changeIcon = change && change > 0 ? '↗' : '↘';
 
   return (
-    <Card className="bg-white border-0 shadow-card hover:shadow-elevated transition-shadow duration-200">
+    <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md hover:shadow-lg hover:border-[#292929] transition-all duration-200">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="flex-1">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-charcoal/70 font-poppins">
+              <h3 className="text-sm font-medium text-[#292929]/70 font-poppins">
                 {title}
               </h3>
               {icon && (
-                <div className="text-charcoal">
+                <div className="text-[#292929]">
                   {icon}
                 </div>
               )}
             </div>
             <div className="flex items-baseline space-x-2">
-              <span className="text-2xl font-bold text-charcoal font-inter">
+              <span className="text-2xl font-bold text-[#292929] font-inter">
                 {value}
               </span>
               {metric && (
-                <span className="text-sm font-medium text-beige/80">
+                <span className="text-sm font-medium text-[#292929]/60">
                   {metric}
                 </span>
               )}
@@ -56,7 +56,7 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
                 <span className={`text-sm font-medium ${changeColor} mr-1`}>
                   {changeIcon} {Math.abs(change)}%
                 </span>
-                <span className="text-xs text-charcoal/60">
+                <span className="text-xs text-[#292929]/60">
                   {changeLabel}
                 </span>
               </div>

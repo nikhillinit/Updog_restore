@@ -97,7 +97,7 @@ const validateRequest = (schema: z.ZodSchema) => {
 // Response guard middleware
 const guardResponse = (req: Request, res: Response, next: NextFunction) => {
   const originalJson = res.json;
-  res.json = function(data: any) {
+  (res as any).json = function(data: any) {
     const guard = assertFiniteDeep(data);
     if (!guard.ok) {
       const failure = guard as { ok: false; path: string; value: unknown; reason: string };

@@ -27,6 +27,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { toSafeNumber } from '@shared/type-safety-utils';
 import { logMonteCarloOperation, logMonteCarloError } from '../utils/logger.js';
 import { monitor, monteCarloTracker } from '../middleware/performance-monitor.js';
+import { PRNG } from '@shared/utils/prng';
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -173,6 +174,11 @@ export interface ActionableInsights {
 // ============================================================================
 
 export class MonteCarloEngine {
+  private prng: PRNG;
+
+  constructor(seed?: number) {
+    this.prng = new PRNG(seed);
+  }
 
   /**
    * Run portfolio construction simulation
@@ -194,9 +200,9 @@ export class MonteCarloEngine {
       const portfolioInputs = await this.getPortfolioInputs(config.fundId, baseline);
       const distributions = await this.calibrateDistributions(config.fundId, baseline);
 
-      // Set random seed for reproducibility
+      // Set random seed for reproducibility using local PRNG
       if (config.randomSeed) {
-        this.setRandomSeed(config.randomSeed);
+        this.prng.reset(config.randomSeed);
       }
 
       // Run simulations in parallel batches for performance
@@ -609,8 +615,13 @@ export class MonteCarloEngine {
     const dpiSample = this.sampleNormal(distributions.dpi.mean, distributions.dpi.volatility);
     const exitTimingSample = Math.max(1, this.sampleNormal(distributions.exitTiming.mean, distributions.exitTiming.volatility));
 
-    // Apply time decay for longer horizons
-    const timeDecay = Math.pow(0.98, timeHorizonYears - 5); // Slight decay for longer periods
+    // Fix: Improved time decay formula (line 613)
+    // Use a more conservative decay that reflects realistic VC market dynamics
+    // - Base decay rate: 0.97 per year after year 5
+    // - Accelerates for very long horizons (>10 years)
+    const yearsAboveBaseline = Math.max(0, timeHorizonYears - 5);
+    const acceleratedDecay = timeHorizonYears > 10 ? 0.95 : 0.97;
+    const timeDecay = Math.pow(acceleratedDecay, yearsAboveBaseline);
     const compoundFactor = Math.pow(1 + irrSample, timeHorizonYears);
 
     // Calculate scenario values
@@ -849,34 +860,15 @@ export class MonteCarloEngine {
       inputDistributions: {},
       summaryStatistics: {},
       percentileResults: {},
-      createdBy: 1, // TODO: Get from context
-      tags: ['portfolio-construction', 'risk-analysis', 'reserve-optimization'],
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-      metadata: {
-        baseline: results.config.baselineId,
-        timeHorizon: results.config.timeHorizonYears,
-        randomSeed: results.config.randomSeed
-      }
+      createdBy: 1 // TODO: Get from context
     };
 
     await db.insert(monteCarloSimulations).values(simulationData);
   }
 
-  // Utility functions
-  private setRandomSeed(seed: number): void {
-    let state = seed;
-    Math.random = () => {
-      state = (state * 1664525 + 1013904223) % 4294967296;
-      return state / 4294967296;
-    };
-  }
-
+  // Utility functions using local PRNG (no global Math.random override)
   private sampleNormal(mean: number, stdDev: number): number {
-    // Box-Muller transformation for normal distribution
-    const u1 = Math.random();
-    const u2 = Math.random();
-    const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-    return mean + z0 * stdDev;
+    return this.prng.nextNormal(mean, stdDev);
   }
 }
 

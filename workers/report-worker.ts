@@ -5,6 +5,7 @@ import { eq, and, desc, lte, gte, inArray } from 'drizzle-orm';
 import { logger } from '../lib/logger';
 import { withMetrics, metrics } from '../lib/metrics';
 import { singleflightEnhanced } from '../server/utils/singleflight-enhanced';
+import { registerWorker, createHealthServer } from './health-server';
 import type { ReportGenerationParams } from '@shared/types';
 
 const connection = {
@@ -23,15 +24,102 @@ interface ReportJobData {
   idempotencyKey?: string;
 }
 
-// Report generation templates
+// Simple PDF-like text generation (can be replaced with pdfkit/pdf-lib later)
 const generateCapitalAccount = async (data: any) => {
-  // TODO: Implement actual PDF generation
-  return Buffer.from(`Capital Account Report\n${JSON.stringify(data, null, 2)}`);
+  const { fund, limitedPartners, commitments, asOfDate, generatedAt } = data;
+
+  const lines = [
+    '='.repeat(80),
+    'CAPITAL ACCOUNT STATEMENT',
+    '='.repeat(80),
+    '',
+    `Fund: ${fund?.name || 'N/A'}`,
+    `As of Date: ${new Date(asOfDate).toLocaleDateString()}`,
+    `Generated: ${new Date(generatedAt).toLocaleString()}`,
+    '',
+    '-'.repeat(80),
+    'LIMITED PARTNERS',
+    '-'.repeat(80),
+    '',
+  ];
+
+  for (const lp of limitedPartners) {
+    const commitment = commitments.find((c: any) => c.lpId === lp.id);
+    lines.push(`LP: ${lp.name || lp.id}`);
+    lines.push(`Commitment: $${commitment?.commitment || '0'}`);
+    lines.push(`Status: ${commitment?.status || 'Active'}`);
+    lines.push('');
+  }
+
+  lines.push('-'.repeat(80));
+  lines.push('END OF REPORT');
+  lines.push('='.repeat(80));
+
+  return Buffer.from(lines.join('\n'), 'utf-8');
 };
 
 const generatePerformanceLetter = async (data: any) => {
-  // TODO: Implement actual PDF generation
-  return Buffer.from(`Performance Letter\n${JSON.stringify(data, null, 2)}`);
+  const { fund, limitedPartners, historicalData, asOfDate, generatedAt } = data;
+
+  const lines = [
+    '='.repeat(80),
+    'QUARTERLY PERFORMANCE LETTER',
+    '='.repeat(80),
+    '',
+    `Dear Limited Partners,`,
+    '',
+    `We are pleased to present the performance update for ${fund?.name || 'the Fund'}`,
+    `as of ${new Date(asOfDate).toLocaleDateString()}.`,
+    '',
+    '-'.repeat(80),
+    'FUND OVERVIEW',
+    '-'.repeat(80),
+    '',
+    `Fund Size: $${fund?.size || 'N/A'}`,
+    `Deployed Capital: $${fund?.deployedCapital || '0'}`,
+    `Management Fee: ${fund?.managementFee ? parseFloat(fund.managementFee) * 100 : 'N/A'}%`,
+    `Carry: ${fund?.carryPercentage ? parseFloat(fund.carryPercentage) * 100 : 'N/A'}%`,
+    `Vintage Year: ${fund?.vintageYear || 'N/A'}`,
+    '',
+    '-'.repeat(80),
+    'PERFORMANCE HIGHLIGHTS',
+    '-'.repeat(80),
+    '',
+    `Number of LP Distributions: ${limitedPartners.length}`,
+    `Historical Snapshots: ${historicalData.length}`,
+    '',
+    '-'.repeat(80),
+    'END OF LETTER',
+    '='.repeat(80),
+  ];
+
+  return Buffer.from(lines.join('\n'), 'utf-8');
+};
+
+// Add watermark to text-based reports
+const addWatermark = (buffer: Buffer, watermarkText: string = 'PREVIEW - NOT FOR DISTRIBUTION'): Buffer => {
+  const content = buffer.toString('utf-8');
+  const lines = content.split('\n');
+
+  // Insert watermark at top and throughout document
+  const watermarked = [
+    '=' .repeat(80),
+    `*** ${watermarkText} ***`.padStart(50),
+    '='.repeat(80),
+    '',
+    ...lines,
+  ];
+
+  // Add watermark every 20 lines
+  const withPeriodicWatermarks: string[] = [];
+  watermarked.forEach((line, index) => {
+    withPeriodicWatermarks.push(line);
+    if (index > 0 && index % 20 === 0) {
+      withPeriodicWatermarks.push(`[${watermarkText}]`);
+    }
+  });
+
+  return Buffer.from(withPeriodicWatermarks.join('\n'), 'utf-8');
 };
 
 export const reportWorker = new Worker<ReportJobData>(
@@ -138,8 +226,11 @@ export const reportWorker = new Worker<ReportJobData>(
           
           // Add watermark if preview
           if (preview) {
-            // TODO: Add actual watermarking logic
-            logger.info('Adding preview watermark to report');
+            reportBuffer = addWatermark(reportBuffer);
+            logger.info('Added preview watermark to report', {
+              originalSize: reportBuffer.length,
+              reportType,
+            });
           }
           
           // Store document
@@ -242,8 +333,21 @@ export const reportWorker = new Worker<ReportJobData>(
   }
 );
 
+// Register worker for health monitoring
+registerWorker('report-generation', reportWorker);
+
+// Start health check server
+const HEALTH_PORT = parseInt(process.env.REPORT_WORKER_HEALTH_PORT || '9003');
+createHealthServer(HEALTH_PORT);
+
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('Report worker shutting down...');
   await reportWorker.close();
+});
+
+process.on('SIGINT', async () => {
+  logger.info('Report worker received SIGINT, shutting down...');
+  await reportWorker.close();
+  process.exit(0);
 });

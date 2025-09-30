@@ -24,7 +24,21 @@ export class ConstrainedReserveEngine {
       const capCompanyC = Number.isFinite(cst.maxPerCompany) ? toCents(cst.maxPerCompany as number) : BigInt(Number.MAX_SAFE_INTEGER);
       const capStageC = stageMax['get'](c.stage) ?? null;
 
-      const pv = pol.reserveMultiple * pExit(c.stage) / Math.pow(1+disc, years(c.stage));
+      // Fix: Improved present value calculation with proper discount factor validation
+    const yearsToExit = years(c.stage);
+    const exitProb = pExit(c.stage);
+    const discountFactor = Math.pow(1 + disc, yearsToExit);
+
+    // Validate discount factor to prevent division by zero or invalid calculations
+    if (discountFactor <= 0 || !Number.isFinite(discountFactor)) {
+      throw Object.assign(
+        new Error(`Invalid discount calculation for stage ${c.stage}: discount=${disc}, years=${yearsToExit}`),
+        { status: 400 }
+      );
+    }
+
+    // Present value calculation with proper formula
+    const pv = (pol.reserveMultiple * exitProb) / discountFactor;
       return {
         id: c.id, name: c.name, stage: c.stage,
         investedC: toCents(c.invested),

@@ -8,8 +8,9 @@ import DistributionsStep from './DistributionsStep';
 import CashflowManagementStep from './CashflowManagementStep';
 import StepNotFound from './steps/StepNotFound';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { resolveStepKeyFromLocation, type StepKey, getStepNumber } from './fund-setup-utils';
+import { resolveStepKeyFromLocation, type StepKey } from './fund-setup-utils';
 import { emitWizard } from '@/lib/wizard-telemetry';
+import { ModernWizardProgress } from '@/components/wizard/ModernWizardProgress';
 
 // Feature flag for new selector pattern migration
 const useNewSelectors = import.meta.env['VITE_NEW_SELECTORS'] === 'true';
@@ -22,6 +23,52 @@ const STEP_COMPONENTS: Record<StepKey, React.ComponentType<any>> = {
   'cashflow-management': CashflowManagementStep,
   'not-found':          StepNotFound,
 };
+
+// Modern wizard steps configuration
+const WIZARD_STEPS = [
+  {
+    id: 'fund-basics',
+    number: 1,
+    title: 'FUND BASICS',
+    description: 'Name, currency, and fund lifecycle'
+  },
+  {
+    id: 'capital-structure',
+    number: 2,
+    title: 'CAPITAL ALLOCATION',
+    description: 'Investment stage allocations and deal modeling'
+  },
+  {
+    id: 'investment-strategy',
+    number: 3,
+    title: 'INVESTMENT STRATEGY',
+    description: 'Stages, sectors, and allocations'
+  },
+  {
+    id: 'distributions',
+    number: 4,
+    title: 'EXIT RECYCLING',
+    description: 'Proceeds recycling configuration'
+  },
+  {
+    id: 'cashflow-management',
+    number: 5,
+    title: 'WATERFALL & CARRY',
+    description: 'Distribution terms and carry structure'
+  },
+  {
+    id: 'review',
+    number: 6,
+    title: 'ADVANCED SETTINGS',
+    description: 'Fund structure and expenses'
+  },
+  {
+    id: 'complete',
+    number: 7,
+    title: 'REVIEW & CREATE',
+    description: 'Final review and fund creation'
+  }
+];
 
 function useStepKey(): StepKey {
   const [loc] = useLocation();
@@ -88,13 +135,20 @@ export default function FundSetup() {
   // Emit telemetry on step load
   React.useEffect(() => {
     const ttfmp = performance.now();
-    emitWizard({ 
-      type: "step_loaded", 
+    emitWizard({
+      type: "step_loaded",
       step: key,
       route: window.location.pathname + window.location.search,
-      ttfmp 
+      ttfmp
     });
   }, [key]);
+
+  // Add completed status to steps based on current progress
+  const stepsWithStatus = WIZARD_STEPS.map(step => ({
+    ...step,
+    completed: WIZARD_STEPS.findIndex(s => s.id === key) > WIZARD_STEPS.findIndex(s => s.id === step.id),
+    current: step.id === key
+  }));
 
   return (
     <ErrorBoundary
@@ -104,9 +158,9 @@ export default function FundSetup() {
           console.error(`[FundSetup] Error in step ${key}:`, error);
         }
         // Emit telemetry on error
-        emitWizard({ 
-          type: "wizard_error", 
-          step: key, 
+        emitWizard({
+          type: "wizard_error",
+          step: key,
           message: String(error),
           stack: error instanceof Error ? error.stack?.slice(0, 500) : undefined
         });
@@ -114,12 +168,16 @@ export default function FundSetup() {
     >
       <div
         data-testid="fund-setup-wizard"
-        className="wizard-container"
+        className="min-h-screen bg-gray-50"
       >
-        <div data-testid="step-indicator" className="step-indicator mb-4">
-          Step {key !== 'not-found' ? getStepNumber(key) : '?'} of 5
-        </div>
-        <div data-testid={`wizard-step-${key}-container`}>
+        {/* Modern Progress Header */}
+        <ModernWizardProgress
+          steps={stepsWithStatus}
+          currentStepId={key}
+        />
+
+        {/* Step Content */}
+        <div data-testid={`wizard-step-${key}-container`} className="relative">
           <Step />
         </div>
       </div>

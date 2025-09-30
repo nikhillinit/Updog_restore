@@ -458,8 +458,33 @@ export class LiquidityEngine {
     return transactions.reduce((sum, t) => sum + t.amount, 0);
   }
 
+  /**
+   * Calculate minimum cash buffer based on risk factors
+   * Fix: Make cash buffer risk-based instead of arbitrary 2% (line 462 fix)
+   */
   private calculateMinimumCashBuffer(): number {
-    return this.fundSize * 0.02; // 2% of fund size as minimum buffer
+    // Base buffer: 1% of fund size
+    let bufferRate = 0.01;
+
+    // Adjust based on fund size (larger funds need smaller relative buffer)
+    if (this.fundSize > 500_000_000) {
+      bufferRate = 0.008; // 0.8% for funds > $500M
+    } else if (this.fundSize > 100_000_000) {
+      bufferRate = 0.012; // 1.2% for funds $100M-$500M
+    } else if (this.fundSize < 50_000_000) {
+      bufferRate = 0.025; // 2.5% for funds < $50M (higher risk)
+    }
+
+    // Add buffer for operational risk (0.5% for typical operating expenses)
+    const operationalBuffer = this.fundSize * 0.005;
+
+    // Add buffer for deployment volatility (0.5% for typical deployment variations)
+    const deploymentBuffer = this.fundSize * 0.005;
+
+    // Total risk-based buffer
+    const totalBuffer = this.fundSize * bufferRate + operationalBuffer + deploymentBuffer;
+
+    return Math.max(totalBuffer, 100_000); // Minimum $100k absolute floor
   }
 
   private calculateTrend(values: number[]): 'increasing' | 'decreasing' | 'stable' {

@@ -18,6 +18,7 @@ import {
   DEFAULT_STAGE_STRATEGIES,
 } from '@shared/schemas/reserves-schemas';
 import { getLogger, getPerf } from '@shared/instrumentation';
+import { validateReserveAllocationConservation, assertConservation } from '@shared/validation/conservation';
 
 // Get instrumentation instances
 const logger = getLogger();
@@ -400,7 +401,7 @@ export class DeterministicReserveEngine {
   }
 
   /**
-   * Apply final constraints and validation
+   * Apply final constraints and validation with conservation check
    */
   private async applyConstraints(
     allocations: ReserveAllocationOutput[],
@@ -437,6 +438,34 @@ export class DeterministicReserveEngine {
         allocation.riskFactors.push('Proportional reduction applied to fit available reserves');
       }
     }
+
+    // Conservation of capital validation
+    const finalTotal = filtered.reduce(
+      (sum: any, a: any) => sum + a.recommendedAllocation,
+      0
+    );
+    const unallocated = input.availableReserves - finalTotal;
+
+    const conservationCheck = validateReserveAllocationConservation(
+      input.availableReserves,
+      filtered.map(a => a.recommendedAllocation),
+      unallocated,
+      0.001 // 0.1% tolerance
+    );
+
+    if (!conservationCheck.isValid) {
+      logger.error('Conservation of capital validation failed', {
+        ...conservationCheck,
+        context: 'DeterministicReserveEngine.applyConstraints'
+      });
+      throw new ReserveCalculationError(
+        `Conservation of capital validation failed: ${conservationCheck.message}`,
+        'CONSERVATION_ERROR',
+        conservationCheck
+      );
+    }
+
+    logger.debug('Conservation check passed', conservationCheck);
 
     return filtered;
   }
@@ -531,6 +560,10 @@ export class DeterministicReserveEngine {
       .mul(graduationBonus.plus(1));
   }
 
+  /**
+   * Calculate graduation probability with improved defaults
+   * Fix: Use stage-specific defaults instead of blanket 0.5 (line 505 improvement)
+   */
   private calculateGraduationProbability(
     company: PortfolioCompany,
     graduationMatrix: GraduationMatrix
@@ -539,14 +572,41 @@ export class DeterministicReserveEngine {
       rate => rate.fromStage === company.currentStage
     );
 
-    return new Decimal(graduationRate?.probability || 0.5);
+    if (graduationRate) {
+      return new Decimal(graduationRate.probability);
+    }
+
+    // Improved stage-specific defaults based on industry data
+    const stageDefaults: Record<string, number> = {
+      'seed': 0.30,        // 30% seed to Series A
+      'series-a': 0.50,    // 50% Series A to Series B
+      'series-b': 0.60,    // 60% Series B to Series C
+      'series-c': 0.70,    // 70% Series C to later stages
+      'growth': 0.75,      // 75% growth to exit
+      'late-stage': 0.80,  // 80% late-stage to exit
+    };
+
+    return new Decimal(stageDefaults[company.currentStage.toLowerCase()] || 0.40);
   }
 
+  /**
+   * Calculate expected value with validation to prevent division by zero
+   * @throws {ReserveCalculationError} if company.totalInvested is invalid
+   */
   private calculateExpectedValue(
     company: PortfolioCompany,
     projectedMOIC: Decimal,
     graduationProbability: Decimal
   ): Decimal {
+    // Validate totalInvested to prevent downstream division by zero
+    if (!company.totalInvested || company.totalInvested <= 0) {
+      throw new ReserveCalculationError(
+        `Invalid totalInvested (${company.totalInvested}) for company ${company.id}. Must be positive.`,
+        'INVALID_COMPANY_DATA',
+        { companyId: company.id, totalInvested: company.totalInvested }
+      );
+    }
+
     return new Decimal(company.totalInvested)
       .mul(projectedMOIC)
       .mul(graduationProbability);
@@ -566,14 +626,32 @@ export class DeterministicReserveEngine {
     return expectedValue.mul(riskAdjustment);
   }
 
+  /**
+   * Calculate allocation score with validation to prevent division by zero
+   * Exit MOIC on Planned Reserves calculation
+   * Score = (Projected MOIC * Graduation Probability * Risk Adjustment) / Current Valuation
+   * @throws {ReserveCalculationError} if currentValuation is zero or negative
+   */
   private calculateAllocationScore(
     projectedMOIC: Decimal,
     graduationProbability: Decimal,
     riskAdjustedReturn: Decimal,
     company: PortfolioCompany
   ): Decimal {
-    // Exit MOIC on Planned Reserves calculation
-    // Score = (Projected MOIC * Graduation Probability * Risk Adjustment) / Current Valuation
+    // Validate currentValuation to prevent division by zero (line 548 fix)
+    if (!company.currentValuation || company.currentValuation <= 0) {
+      throw new ReserveCalculationError(
+        `Invalid currentValuation (${company.currentValuation}) for company ${company.id}. Must be positive for allocation score calculation.`,
+        'INVALID_COMPANY_DATA',
+        {
+          companyId: company.id,
+          companyName: company.name,
+          currentValuation: company.currentValuation,
+          totalInvested: company.totalInvested
+        }
+      );
+    }
+
     return projectedMOIC
       .mul(graduationProbability)
       .mul(riskAdjustedReturn)

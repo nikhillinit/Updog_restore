@@ -1,0 +1,57 @@
+{
+  "timestamp": "2025-09-29T12:00:17.297Z",
+  "results": [
+    {
+      "id": "perf-1",
+      "agent": "Performance Optimization",
+      "passed": true,
+      "details": "File exists: server/services/streaming-monte-carlo-engine.ts"
+    },
+    {
+      "id": "perf-2",
+      "agent": "Performance Optimization",
+      "passed": true,
+      "details": "Memory usage: 150MB (max: 200MB)"
+    },
+    {
+      "id": "test-1",
+      "agent": "Test Automation",
+      "passed": true,
+      "details": "File exists: tests/helpers/database-mock.ts"
+    },
+    {
+      "id": "test-2",
+      "agent": "Test Automation",
+      "passed": false,
+      "details": "Test execution failed"
+    },
+    {
+      "id": "sec-1",
+      "agent": "Security",
+      "passed": true,
+      "details": "File exists: server/utils/logger.ts"
+    },
+    {
+      "id": "sec-2",
+      "agent": "Security",
+      "passed": true,
+      "details": "Validation schemas implemented"
+    },
+    {
+      "id": "sec-3",
+      "agent": "Security",
+      "passed": true,
+      "details": "No console.log statements found"
+    }
+  ],
+  "statistics": {
+    "total": 7,
+    "passed": 6,
+    "failed": 1,
+    "agents": {
+      "performance": 2,
+      "testing": 1,
+      "security": 3
+    }
+  }
+}

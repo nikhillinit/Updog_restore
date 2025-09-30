@@ -53,6 +53,8 @@ const navigationItems = [
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'portfolio-analytics', label: 'Portfolio Analytics', icon: Activity },
   { id: 'cash-management', label: 'Cash Management', icon: DollarSign },
+  { id: 'secondary-market', label: 'Secondary Market', icon: Activity },
+  { id: 'notion-integration', label: 'Notion Integration', icon: Settings },
   { id: 'sensitivity-analysis', label: 'Sensitivity Analysis', icon: Target },
   { id: 'time-travel', label: 'Time-Travel Analytics', icon: Clock },
   { id: 'variance-tracking', label: 'Variance Tracking', icon: AlertTriangle },

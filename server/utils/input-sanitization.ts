@@ -12,7 +12,7 @@
  */
 
 // DOMPurify not available in server environment, using built-in sanitization
-// import validator from 'validator';
+import validator from 'validator';
 import { logValidationError, securityLogger } from './logger.js';
 
 // =============================================================================

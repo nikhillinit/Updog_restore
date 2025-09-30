@@ -117,15 +117,15 @@ export default function IRRSummary({ className }: IRRSummaryProps) {
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Header */}
-      <Card>
+      <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center space-x-2">
+              <CardTitle className="flex items-center space-x-2 font-inter text-[#292929]">
                 <TrendingUp className="h-5 w-5 text-blue-600" />
                 <span>IRR Summary</span>
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="font-poppins text-[#292929]/70">
                 Internal Rate of Return analysis comparing forecasted vs realized performance
               </CardDescription>
             </div>
@@ -143,10 +143,10 @@ export default function IRRSummary({ className }: IRRSummaryProps) {
       </Card>
 
       {/* IRR Chart */}
-      <Card>
+      <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
         <CardHeader>
-          <CardTitle>IRR Performance Comparison</CardTitle>
-          <CardDescription>
+          <CardTitle className="font-inter text-lg text-[#292929]">IRR Performance Comparison</CardTitle>
+          <CardDescription className="font-poppins text-sm text-[#292929]/70">
             Construction forecast vs current forecast vs realized IRR from actual exits
           </CardDescription>
         </CardHeader>
@@ -185,49 +185,49 @@ export default function IRRSummary({ className }: IRRSummaryProps) {
           <div className="flex items-center justify-center space-x-8 mt-6">
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 rounded" style={{ backgroundColor: getBarColor('constructionForecast') }}></div>
-              <span className="text-sm">Construction Forecast</span>
+              <span className="text-sm font-poppins text-[#292929]">Construction Forecast</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 rounded" style={{ backgroundColor: getBarColor('currentForecast') }}></div>
-              <span className="text-sm">Current Forecast</span>
+              <span className="text-sm font-poppins text-[#292929]">Current Forecast</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 rounded" style={{ backgroundColor: getBarColor('realized') }}></div>
-              <span className="text-sm">Realized</span>
+              <span className="text-sm font-poppins text-[#292929]">Realized</span>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Realized IRR Analysis */}
-      <Card className="border-orange-200 bg-orange-50">
+      <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2 text-orange-900">
+          <CardTitle className="flex items-center space-x-2 font-inter text-[#292929]">
             <Calculator className="h-5 w-5" />
             <span>Realized IRR Analysis</span>
           </CardTitle>
-          <CardDescription className="text-orange-700">
+          <CardDescription className="font-poppins text-[#292929]/70">
             IRR calculated from actual realized cash flows only
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-orange-900">{formatPercentage(weightedAvgIRR)}</div>
-              <div className="text-sm text-orange-700">Weighted Avg Realized IRR</div>
-              <div className="text-xs text-orange-600">Based on actual exits</div>
+              <div className="text-2xl font-bold font-inter text-[#292929]">{formatPercentage(weightedAvgIRR)}</div>
+              <div className="text-sm font-poppins text-[#292929]/70">Weighted Avg Realized IRR</div>
+              <div className="text-xs font-poppins text-[#292929]/60">Based on actual exits</div>
             </div>
-            
+
             <div className="text-center">
-              <div className="text-2xl font-bold text-orange-900">{formatCurrency(totalRealizedValue)}</div>
-              <div className="text-sm text-orange-700">Total Realized Value</div>
-              <div className="text-xs text-orange-600">From {realizedFlows.length} exits</div>
+              <div className="text-2xl font-bold font-inter text-[#292929]">{formatCurrency(totalRealizedValue)}</div>
+              <div className="text-sm font-poppins text-[#292929]/70">Total Realized Value</div>
+              <div className="text-xs font-poppins text-[#292929]/60">From {realizedFlows.length} exits</div>
             </div>
-            
+
             <div className="text-center">
-              <div className="text-2xl font-bold text-orange-900">{((totalRealizedValue / totalRealizedInvested) - 1).toFixed(1)}%</div>
-              <div className="text-sm text-orange-700">Realized Return Multiple</div>
-              <div className="text-xs text-orange-600">{(totalRealizedValue / totalRealizedInvested).toFixed(2)}x MOIC</div>
+              <div className="text-2xl font-bold font-inter text-[#292929]">{((totalRealizedValue / totalRealizedInvested) - 1).toFixed(1)}%</div>
+              <div className="text-sm font-poppins text-[#292929]/70">Realized Return Multiple</div>
+              <div className="text-xs font-poppins text-[#292929]/60">{(totalRealizedValue / totalRealizedInvested).toFixed(2)}x MOIC</div>
             </div>
           </div>
 
@@ -235,21 +235,21 @@ export default function IRRSummary({ className }: IRRSummaryProps) {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
-                <tr className="border-b border-orange-200">
-                  <th className="text-left p-3 font-medium text-orange-900">Company</th>
-                  <th className="text-right p-3 font-medium text-orange-900">Invested</th>
-                  <th className="text-right p-3 font-medium text-orange-900">Realized</th>
-                  <th className="text-right p-3 font-medium text-orange-900">Holding Period</th>
-                  <th className="text-right p-3 font-medium text-orange-900">Realized IRR</th>
+                <tr className="border-b border-[#E0D8D1]">
+                  <th className="text-left p-3 font-inter font-bold text-[#292929]">Company</th>
+                  <th className="text-right p-3 font-inter font-bold text-[#292929]">Invested</th>
+                  <th className="text-right p-3 font-inter font-bold text-[#292929]">Realized</th>
+                  <th className="text-right p-3 font-inter font-bold text-[#292929]">Holding Period</th>
+                  <th className="text-right p-3 font-inter font-bold text-[#292929]">Realized IRR</th>
                 </tr>
               </thead>
               <tbody>
                 {realizedFlows.map((flow: any, index: any) => (
-                  <tr key={index} className="border-b border-orange-100 hover:bg-orange-100">
-                    <td className="p-3 font-medium">{flow.company}</td>
-                    <td className="p-3 text-right">{formatCurrency(flow.invested)}</td>
-                    <td className="p-3 text-right font-medium">{formatCurrency(flow.realized)}</td>
-                    <td className="p-3 text-right">{flow.holdingPeriod.toFixed(1)} years</td>
+                  <tr key={index} className="border-b border-[#E0D8D1] hover:bg-[#E0D8D1]/20 transition-colors">
+                    <td className="p-3 font-poppins font-medium text-[#292929]">{flow.company}</td>
+                    <td className="p-3 text-right font-mono text-[#292929]">{formatCurrency(flow.invested)}</td>
+                    <td className="p-3 text-right font-mono font-medium text-[#292929]">{formatCurrency(flow.realized)}</td>
+                    <td className="p-3 text-right font-poppins text-[#292929]">{flow.holdingPeriod.toFixed(1)} years</td>
                     <td className="p-3 text-right">
                       <Badge variant={flow.irr > 25 ? 'default' : flow.irr > 15 ? 'secondary' : 'outline'}>
                         {formatPercentage(flow.irr)}
@@ -261,11 +261,11 @@ export default function IRRSummary({ className }: IRRSummaryProps) {
               
               {/* Totals Row */}
               <tfoot>
-                <tr className="border-t-2 border-orange-300 bg-orange-100 font-medium">
-                  <td className="p-3 font-bold text-orange-900">Total</td>
-                  <td className="p-3 text-right font-bold text-orange-900">{formatCurrency(totalRealizedInvested)}</td>
-                  <td className="p-3 text-right font-bold text-orange-900">{formatCurrency(totalRealizedValue)}</td>
-                  <td className="p-3 text-right font-bold text-orange-900">
+                <tr className="border-t-2 border-[#E0D8D1] bg-[#E0D8D1]/30 font-medium">
+                  <td className="p-3 font-inter font-bold text-[#292929]">Total</td>
+                  <td className="p-3 text-right font-mono font-bold text-[#292929]">{formatCurrency(totalRealizedInvested)}</td>
+                  <td className="p-3 text-right font-mono font-bold text-[#292929]">{formatCurrency(totalRealizedValue)}</td>
+                  <td className="p-3 text-right font-poppins font-bold text-[#292929]">
                     {(realizedFlows.reduce((sum: any, flow: any) => sum + flow.holdingPeriod, 0) / realizedFlows.length).toFixed(1)} avg
                   </td>
                   <td className="p-3 text-right">
@@ -281,17 +281,17 @@ export default function IRRSummary({ className }: IRRSummaryProps) {
       </Card>
 
       {/* IRR Methodology */}
-      <Card className="border-blue-200 bg-blue-50">
+      <Card className="bg-white rounded-xl border border-[#E0D8D1] shadow-md">
         <CardContent className="pt-6">
           <div className="flex items-start space-x-3">
-            <Info className="h-5 w-5 text-blue-600 mt-0.5" />
+            <Info className="h-5 w-5 text-[#292929] mt-0.5" />
             <div>
-              <h4 className="font-medium text-blue-900 mb-2">Realized IRR Methodology</h4>
-              <p className="text-sm text-blue-800 mb-3">
-                <strong>Realized IRR</strong> calculates the internal rate of return using only actual cash flows from completed exits, 
+              <h4 className="font-inter font-bold text-[#292929] mb-2">Realized IRR Methodology</h4>
+              <p className="text-sm font-poppins text-[#292929]/70 mb-3">
+                <strong>Realized IRR</strong> calculates the internal rate of return using only actual cash flows from completed exits,
                 providing a conservative measure of fund performance based on liquidity events rather than paper valuations.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-700">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm font-poppins text-[#292929]/70">
                 <div>
                   <strong>Includes:</strong>
                   <ul className="list-disc list-inside mt-1 space-y-1">

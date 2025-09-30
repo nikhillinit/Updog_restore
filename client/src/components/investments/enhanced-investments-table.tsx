@@ -21,22 +21,26 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { 
-  Search, 
-  Filter, 
-  Download, 
-  Plus, 
+import {
+  Search,
+  Filter,
+  Download,
+  Plus,
   ArrowUpDown,
   Tag,
   MoreHorizontal,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  Upload
 } from 'lucide-react';
+import BulkImportModal from './BulkImportModal';
+import BulkOperationsToolbar from './BulkOperationsToolbar';
 
 interface Investment {
   id: string;
   name: string;
+  company_name: string;
   sector: string;
   stage: string;
   tags: string[];
@@ -56,6 +60,7 @@ const MOCK_INVESTMENTS: Investment[] = [
   {
     id: 'inv-1',
     name: 'AlphaTech',
+    company_name: 'AlphaTech',
     sector: 'SaaS',
     stage: 'Series A',
     tags: ['Governance', 'Warehoused'],
@@ -72,6 +77,7 @@ const MOCK_INVESTMENTS: Investment[] = [
   {
     id: 'inv-2',
     name: 'Amplio',
+    company_name: 'Amplio',
     sector: 'FinTech',
     stage: 'Seed',
     tags: ['Female Founder'],
@@ -88,6 +94,7 @@ const MOCK_INVESTMENTS: Investment[] = [
   {
     id: 'inv-3',
     name: 'CatalystLabs',
+    company_name: 'CatalystLabs',
     sector: 'AI/ML',
     stage: 'Pre-Seed',
     tags: ['AI/ML', 'Female Founder'],
@@ -104,6 +111,7 @@ const MOCK_INVESTMENTS: Investment[] = [
   {
     id: 'inv-4',
     name: 'CybrosX2',
+    company_name: 'CybrosX2',
     sector: 'Security',
     stage: 'Series B',
     tags: ['Environmental'],
@@ -120,6 +128,7 @@ const MOCK_INVESTMENTS: Investment[] = [
   {
     id: 'inv-5',
     name: 'DigitalWave',
+    company_name: 'DigitalWave',
     sector: 'Consumer',
     stage: 'Seed',
     tags: ['Minority Founder'],
@@ -136,6 +145,7 @@ const MOCK_INVESTMENTS: Investment[] = [
   {
     id: 'inv-6',
     name: 'EchelonTech',
+    company_name: 'EchelonTech',
     sector: 'Enterprise',
     stage: 'Series A',
     tags: ['Governance', 'Asia'],
@@ -152,6 +162,7 @@ const MOCK_INVESTMENTS: Investment[] = [
   {
     id: 'inv-7',
     name: 'Glyphic',
+    company_name: 'Glyphic',
     sector: 'Design Tools',
     stage: 'Seed',
     tags: ['Social', 'Female Founder'],
@@ -168,6 +179,7 @@ const MOCK_INVESTMENTS: Investment[] = [
   {
     id: 'inv-8',
     name: 'InnovateLabs',
+    company_name: 'InnovateLabs',
     sector: 'DeepTech',
     stage: 'Series A',
     tags: ['AI/ML', 'Asia', 'General'],
@@ -320,6 +332,34 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
     );
   };
 
+  // Bulk operations handlers
+  const handleBulkImport = async (newInvestments: any[]) => {
+    console.log('Importing investments:', newInvestments);
+    // In real implementation, this would call an API
+    // setInvestments(prev => [...prev, ...newInvestments]);
+  };
+
+  const handleBulkUpdate = async (updates: Partial<Investment>) => {
+    console.log('Bulk updating investments:', selectedInvestments, updates);
+    // In real implementation, this would call an API
+    // Update the investments in state or refetch data
+  };
+
+  const handleBulkDelete = async (ids: string[]) => {
+    console.log('Bulk deleting investments:', ids);
+    // In real implementation, this would call an API
+    // setInvestments(prev => prev.filter(inv => !ids.includes(inv.id)));
+    setSelectedInvestments([]);
+  };
+
+  const handleBulkTag = async (ids: string[], tags: string[]) => {
+    console.log('Bulk tagging investments:', ids, tags);
+    // In real implementation, this would call an API
+    // Update investments with new tags
+  };
+
+  const selectedInvestmentObjects = investments.filter(inv => selectedInvestments.includes(inv.id));
+
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Header */}
@@ -335,6 +375,14 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
+
+          <BulkImportModal onImportComplete={handleBulkImport}>
+            <Button variant="outline" size="sm">
+              <Upload className="h-4 w-4 mr-2" />
+              Bulk Import
+            </Button>
+          </BulkImportModal>
+
           <Button size="sm">
             <Plus className="h-4 w-4 mr-2" />
             Add Investment
@@ -665,32 +713,14 @@ export default function EnhancedInvestmentsTable({ className = '' }: EnhancedInv
         </CardContent>
       </Card>
 
-      {/* Bulk Actions */}
-      {selectedInvestments.length > 0 && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">
-                {selectedInvestments.length} investment{selectedInvestments.length > 1 ? 's' : ''} selected
-              </span>
-              <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm">
-                  <Edit className="h-4 w-4 mr-2" />
-                  Bulk Edit
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Download className="h-4 w-4 mr-2" />
-                  Export Selected
-                </Button>
-                <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Bulk Operations Toolbar */}
+      <BulkOperationsToolbar
+        selectedInvestments={selectedInvestmentObjects}
+        onClearSelection={() => setSelectedInvestments([])}
+        onBulkUpdate={handleBulkUpdate}
+        onBulkDelete={handleBulkDelete}
+        onBulkTag={handleBulkTag}
+      />
     </div>
   );
 }

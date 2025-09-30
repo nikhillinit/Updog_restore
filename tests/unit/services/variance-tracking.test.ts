@@ -14,8 +14,21 @@ import {
 import { varianceTrackingFixtures } from '../../fixtures/variance-tracking-fixtures';
 import { createSandbox } from '../../setup/test-infrastructure';
 
-// Create a function factory for mock database to avoid hoisting issues
-const createMockDb = () => {
+// Mock metrics functions
+vi.mock('../../../server/metrics/variance-metrics', () => ({
+  recordVarianceReportGenerated: vi.fn(),
+  recordBaselineOperation: vi.fn(),
+  recordAlertGenerated: vi.fn(),
+  recordAlertAction: vi.fn(),
+  updateFundVarianceScore: vi.fn(),
+  recordThresholdBreach: vi.fn(),
+  updateDataQualityScore: vi.fn(),
+  recordSystemError: vi.fn(),
+  startVarianceCalculation: vi.fn(() => vi.fn())
+}));
+
+// Mock the database module
+vi.mock('../../../server/db', () => {
   const mockDb = {
     query: {
       fundMetrics: {
@@ -52,26 +65,12 @@ const createMockDb = () => {
     })),
     transaction: vi.fn((fn) => fn(mockDb))
   };
-  return mockDb;
-};
 
-// Mock metrics functions
-vi.mock('../../../server/metrics/variance-metrics', () => ({
-  recordVarianceReportGenerated: vi.fn(),
-  recordBaselineOperation: vi.fn(),
-  recordAlertGenerated: vi.fn(),
-  recordAlertAction: vi.fn(),
-  updateFundVarianceScore: vi.fn(),
-  recordThresholdBreach: vi.fn(),
-  updateDataQualityScore: vi.fn(),
-  recordSystemError: vi.fn(),
-  startVarianceCalculation: vi.fn(() => vi.fn())
-}));
+  return { db: mockDb };
+});
 
-// Mock the database module
-vi.mock('../../../server/db', () => ({
-  db: createMockDb()
-}));
+// Import after mocking to get the mocked instance
+import { db as mockDb } from '../../../server/db';
 
 describe('BaselineService', () => {
   let service: BaselineService;

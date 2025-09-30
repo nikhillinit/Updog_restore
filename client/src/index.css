@@ -1,4 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Roboto+Mono:wght@300;400;500;600&display=swap');
+/* Agent 2: Mobile Executive Dashboard Optimizations */
+@import './styles/mobile-optimizations.css';
+/* Agent 3: Enhanced Design System and Micro-interactions */
+@import './styles/design-system.css';
 
 @tailwind base;
 @tailwind components;
@@ -26,7 +30,15 @@
   --ring: hsl(20, 14.3%, 4.1%);
   --radius: 0.5rem;
   
-  /* Custom POVC colors */
+  /* Press On Ventures Official Brand Colors */
+  --press-dark: #292929;        /* Primary dark - R41 G41 B41 */
+  --press-beige: #E0D8D1;       /* Secondary beige - R224 G216 B209 */
+  --press-white: #FFFFFF;       /* White - R255 G255 B255 */
+  --press-light: #F2F2F2;       /* Light gray - R242 G242 B242 */
+  --press-beige-hover: #d4cbb8; /* Beige hover state */
+  --press-beige-active: #c4b8a5;/* Beige active state */
+
+  /* Legacy POVC colors (deprecated - use Press On colors above) */
   --povc-primary: hsl(207, 90%, 54%);
   --povc-primary-light: hsl(207, 100%, 95%);
   --povc-secondary: hsl(240, 3.7%, 15.9%);
@@ -69,7 +81,36 @@
   }
 }
 
-/* POVC specific styles */
+/* Press On Ventures Brand Utility Classes */
+.press-text-dark {
+  color: var(--press-dark);
+}
+
+.press-bg-dark {
+  background-color: var(--press-dark);
+}
+
+.press-text-beige {
+  color: var(--press-beige);
+}
+
+.press-bg-beige {
+  background-color: var(--press-beige);
+}
+
+.press-bg-light {
+  background-color: var(--press-light);
+}
+
+.press-border-dark {
+  border-color: var(--press-dark);
+}
+
+.press-border-beige {
+  border-color: var(--press-beige);
+}
+
+/* Legacy POVC specific styles (deprecated) */
 .povc-primary {
   color: var(--povc-primary);
 }

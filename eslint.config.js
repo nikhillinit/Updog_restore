@@ -112,13 +112,13 @@ export default [
       "unused-imports": unusedImports 
     },
     rules: {
-      // Phase 1: Type safety warnings (will escalate to errors in Phase 3)
-      "@typescript-eslint/no-explicit-any": "warn",
-      // These require parserOptions.project which impacts performance
-      // "@typescript-eslint/no-unsafe-assignment": "warn",
-      // "@typescript-eslint/no-unsafe-member-access": "warn",
-      // "@typescript-eslint/no-unsafe-call": "warn",
-      // "@typescript-eslint/no-unsafe-return": "warn",
+      // Type safety rules - ERROR to prevent new 'any' types
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-unsafe-assignment": "warn",
+      "@typescript-eslint/no-unsafe-member-access": "warn",
+      "@typescript-eslint/no-unsafe-call": "warn",
+      "@typescript-eslint/no-unsafe-return": "warn",
+      "@typescript-eslint/no-unsafe-argument": "warn",
       
       // Unused imports and variables
       "no-unused-vars": "off",
