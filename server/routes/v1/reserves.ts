@@ -1,6 +1,7 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { validateReserveInput } from '../../../shared/schemas.js';
 import { ConstrainedReserveEngine } from '../../../shared/core/reserves/ConstrainedReserveEngine.js';
+import logger from '../../utils/logger.js';
 
 export const reservesV1Router = Router();
 const engine = new ConstrainedReserveEngine();
@@ -53,8 +54,8 @@ const engine = new ConstrainedReserveEngine();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-reservesV1Router.post('/calculate', (req: any, res: any) => {
-  const rid = req.requestId || 'unknown';
+reservesV1Router.post('/calculate', (req: Request, res: Response) => {
+  const rid = (req as Request & { requestId?: string }).requestId || 'unknown';
   try {
     const val = validateReserveInput(req.body);
     if (!val.ok) return res.status(val.status).json({ error: 'validation', issues: val.issues, rid });
@@ -62,14 +63,14 @@ reservesV1Router.post('/calculate', (req: any, res: any) => {
     const out = engine.calculate(val.data);
     if (!out.conservationOk) return res.status(500).json({ error: 'conservation_failed', rid });
 
-    res.json({ 
-      allocations: out.allocations, 
-      totalAllocated: out.totalAllocated, 
+    res.json({
+      allocations: out.allocations,
+      totalAllocated: out.totalAllocated,
       remaining: out.remaining,
-      rid 
+      rid
     });
   } catch (e: unknown) {
-    console.error('reserve calc error:', e);
+    logger.error('Reserve calculation error', e instanceof Error ? e : new Error(String(e)), { requestId: rid });
     const status = (e && typeof e === 'object' && 'status' in e && typeof e.status === 'number') ? e.status : 500;
     const message = (e && typeof e === 'object' && 'message' in e && typeof e.message === 'string') ? e.message : 'internal';
     res.status(status).json({ error: message, rid });
@@ -102,7 +103,7 @@ reservesV1Router.post('/calculate', (req: any, res: any) => {
  *                   description: Readiness check endpoint URL
  *                   example: "http://localhost:3001"
  */
-reservesV1Router['get']('/config', (_req: any, res: any) => {
+reservesV1Router.get('/config', (_req: Request, res: Response) => {
   res.json({
     '/healthz': 'http://localhost:3001',
     '/readyz': 'http://localhost:3001'
