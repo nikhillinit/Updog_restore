@@ -1,0 +1,296 @@
+/**
+ * Mobile Optimizations for Executive Dashboard
+ *
+ * Performance and UX optimizations for mobile-first executive experience.
+ * Ensures proper touch targets, smooth scrolling, and battery efficiency.
+ */
+
+/* ============================================================================
+   TOUCH TARGET OPTIMIZATIONS
+   ============================================================================ */
+
+/* Ensure minimum 44px touch targets for accessibility */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Touch-friendly button and interactive elements */
+.touch-friendly {
+  padding: 12px;
+  margin: 4px;
+  border-radius: 8px;
+  transition: all 0.2s ease-out;
+}
+
+.touch-friendly:active {
+  transform: scale(0.98);
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* ============================================================================
+   SWIPE AND SCROLL OPTIMIZATIONS
+   ============================================================================ */
+
+/* Hide scrollbars while maintaining functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth momentum scrolling for iOS */
+.momentum-scroll {
+  -webkit-overflow-scrolling: touch;
+  overflow-scrolling: touch;
+}
+
+/* Prevent overscroll bounce on iOS */
+.no-overscroll {
+  overscroll-behavior: none;
+  -webkit-overscroll-behavior: none;
+}
+
+/* Horizontal swipe container */
+.swipe-container {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.swipe-container::-webkit-scrollbar {
+  display: none;
+}
+
+.swipe-item {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+/* ============================================================================
+   PERFORMANCE OPTIMIZATIONS
+   ============================================================================ */
+
+/* Hardware acceleration for animations */
+.gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimize repaints */
+.optimized-repaint {
+  contain: layout style paint;
+}
+
+/* Reduce composite layers */
+.composite-optimized {
+  transform: translate3d(0, 0, 0);
+}
+
+/* ============================================================================
+   RESPONSIVE TYPOGRAPHY
+   ============================================================================ */
+
+/* Fluid typography that scales with viewport */
+.responsive-text-xs {
+  font-size: clamp(0.75rem, 2vw, 0.875rem);
+}
+
+.responsive-text-sm {
+  font-size: clamp(0.875rem, 2.5vw, 1rem);
+}
+
+.responsive-text-base {
+  font-size: clamp(1rem, 3vw, 1.125rem);
+}
+
+.responsive-text-lg {
+  font-size: clamp(1.125rem, 3.5vw, 1.25rem);
+}
+
+.responsive-text-xl {
+  font-size: clamp(1.25rem, 4vw, 1.5rem);
+}
+
+.responsive-text-2xl {
+  font-size: clamp(1.5rem, 5vw, 2rem);
+}
+
+/* ============================================================================
+   MOBILE-SPECIFIC LAYOUTS
+   ============================================================================ */
+
+/* Mobile-first grid with touch-friendly gaps */
+.mobile-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .mobile-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .mobile-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem;
+  }
+}
+
+/* Flexible containers for varying content */
+.mobile-container {
+  width: 100%;
+  max-width: 100vw;
+  padding: 1rem;
+  margin: 0 auto;
+}
+
+@media (min-width: 640px) {
+  .mobile-container {
+    max-width: 640px;
+    padding: 1.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .mobile-container {
+    max-width: 768px;
+    padding: 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .mobile-container {
+    max-width: 1024px;
+  }
+}
+
+/* ============================================================================
+   INTERACTION FEEDBACK
+   ============================================================================ */
+
+/* Haptic feedback simulation with visual cues */
+.haptic-feedback:active {
+  animation: haptic-pulse 0.1s ease-out;
+}
+
+@keyframes haptic-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.97);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Loading states optimized for mobile */
+.mobile-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading-shimmer 1.5s infinite;
+}
+
+@keyframes loading-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ============================================================================
+   ACCESSIBILITY ENHANCEMENTS
+   ============================================================================ */
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .mobile-container {
+    border: 2px solid currentColor;
+  }
+
+  .touch-friendly {
+    border: 1px solid currentColor;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .gpu-accelerated,
+  .haptic-feedback,
+  .mobile-loading {
+    animation: none;
+    transition: none;
+  }
+
+  .swipe-container {
+    scroll-behavior: auto;
+  }
+}
+
+/* Focus indicators for keyboard navigation */
+.focus-visible:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ============================================================================
+   DARK MODE OPTIMIZATIONS
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+  .mobile-container {
+    background-color: #1e293b;
+    color: #f1f5f9;
+  }
+
+  .mobile-loading {
+    background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+    background-size: 200% 100%;
+  }
+
+  .touch-friendly:active {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* ============================================================================
+   PRINT OPTIMIZATIONS
+   ============================================================================ */
+
+@media print {
+  .swipe-container {
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  .swipe-item {
+    break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+
+  .gpu-accelerated {
+    transform: none;
+  }
+}

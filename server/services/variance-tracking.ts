@@ -90,27 +90,13 @@ export class BaselineService {
     const baselineData: InsertFundBaseline = {
       fundId,
       name,
-      description,
       baselineType,
       periodStart,
       periodEnd,
       snapshotDate: new Date(),
       totalValue: latestMetrics.totalValue,
       deployedCapital: portfolioData.deployedCapital,
-      irr: latestMetrics.irr,
-      multiple: latestMetrics.multiple,
-      dpi: latestMetrics.dpi,
-      tvpi: latestMetrics.tvpi,
-      portfolioCount: portfolioData.portfolioCount,
-      averageInvestment: portfolioData.averageInvestment,
-      topPerformers: portfolioData.topPerformers,
-      sectorDistribution: portfolioData.sectorDistribution,
-      stageDistribution: portfolioData.stageDistribution,
-      reserveAllocation: reserveData,
-      pacingMetrics: pacingData,
-      isDefault,
-      createdBy,
-      tags
+      createdBy
     };
 
       const [baseline] = await db.insert(fundBaselines)
@@ -328,26 +314,11 @@ export class VarianceCalculationService {
       baselineId,
       reportName,
       reportType,
-      reportPeriod,
       analysisStart: baseline.periodStart,
       analysisEnd: baseline.periodEnd,
       asOfDate,
       currentMetrics,
-      baselineMetrics,
-      totalValueVariance: variances.totalValueVariance?.toString() || null,
-      totalValueVariancePct: variances.totalValueVariancePct?.toString() || null,
-      irrVariance: variances.irrVariance?.toString() || null,
-      multipleVariance: variances.multipleVariance?.toString() || null,
-      dpiVariance: variances.dpiVariance?.toString() || null,
-      tvpiVariance: variances.tvpiVariance?.toString() || null,
-      portfolioVariances,
-      sectorVariances: portfolioVariances.sectorVariances,
-      stageVariances: portfolioVariances.stageVariances,
-      reserveVariances: await this.calculateReserveVariances(fundId, baseline),
-      pacingVariances: await this.calculatePacingVariances(fundId, baseline),
-      overallVarianceScore: insights.overallScore,
-      significantVariances: insights.significantVariances,
-      varianceFactors: insights.factors
+      baselineMetrics
     };
 
       const [report] = await db.insert(varianceReports)
@@ -693,16 +664,10 @@ export class AlertManagementService {
     createdBy: number;
   }): Promise<AlertRule> {
     const ruleData: InsertAlertRule = {
-      fundId: params.fundId,
       name: params.name,
-      description: params.description,
       ruleType: params.ruleType,
       metricName: params.metricName,
       operator: params.operator,
-      thresholdValue: params.thresholdValue.toString(),
-      secondaryThreshold: params.secondaryThreshold?.toString(),
-      severity: params.severity || 'warning',
-      category: params.category || 'performance',
       createdBy: params.createdBy
     };
 
@@ -734,17 +699,12 @@ export class AlertManagementService {
   }): Promise<PerformanceAlert> {
     const alertData: InsertPerformanceAlert = {
       fundId: params.fundId,
-      baselineId: params.baselineId,
-      varianceReportId: params.varianceReportId,
       alertType: params.alertType,
       severity: params.severity,
       category: params.category,
       title: params.title,
       description: params.description,
       metricName: params.metricName,
-      thresholdValue: params.thresholdValue?.toString(),
-      actualValue: params.actualValue?.toString(),
-      varianceAmount: params.varianceAmount?.toString(),
       triggeredAt: new Date()
     };
 

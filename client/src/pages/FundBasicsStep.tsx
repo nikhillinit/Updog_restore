@@ -1,18 +1,21 @@
 import React from 'react';
 import { useLocation } from 'wouter';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ArrowRight } from "lucide-react";
 import { useFundSelector, useFundAction } from '@/stores/useFundSelector';
+import { useFundContext } from '@/contexts/FundContext';
+import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
 
 export default function FundBasicsStep() {
   const [, navigate] = useLocation();
   
   // State
   const fundName = useFundSelector(s => s.fundName);
+  const establishmentDate = useFundSelector(s => s.establishmentDate);
+  const vintageYear = useFundSelector(s => s.vintageYear);
   const isEvergreen = useFundSelector(s => s.isEvergreen);
   const fundLife = useFundSelector(s => s.fundLife);
   const investmentPeriod = useFundSelector(s => s.investmentPeriod);
@@ -22,23 +25,82 @@ export default function FundBasicsStep() {
 
   // Actions
   const updateFundBasics = useFundAction(s => s.updateFundBasics);
+  const { currentFund, setCurrentFund } = useFundContext();
 
   // Auto-populate with defaults for easy testing
   React.useEffect(() => {
-    if (!fundName) {
-      updateFundBasics({
+    if (!fundName && currentFund) {
+      const currentDate = new Date();
+      const establishmentDateStr = currentDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+
+      const defaults = {
         fundName: 'Test Fund I',
-        fundSize: 50,
+        establishmentDate: establishmentDateStr,
+        vintageYear: currentDate.getFullYear(),
+        fundSize: 50, // $50M
         managementFeeRate: 2.0,
         carriedInterest: 20,
         fundLife: 10,
         investmentPeriod: 3
-      });
+      };
+
+      // Update fund store
+      updateFundBasics(defaults);
+
+      // Update fund context with converted values
+      const updatedFund = {
+        ...currentFund,
+        name: defaults.fundName,
+        establishmentDate: defaults.establishmentDate,
+        vintageYear: defaults.vintageYear,
+        size: defaults.fundSize * 1000000, // Convert to dollars
+        managementFee: defaults.managementFeeRate / 100, // Convert to decimal
+        carryPercentage: defaults.carriedInterest / 100 // Convert to decimal
+      };
+
+      setCurrentFund(updatedFund);
     }
-  }, [fundName, updateFundBasics]);
+  }, [fundName, updateFundBasics, currentFund, setCurrentFund]);
 
   const handleInputChange = (field: string, value: any) => {
-    updateFundBasics({ [field]: value });
+    let updateData: any = { [field]: value };
+
+    // Auto-derive vintage year from establishment date
+    if (field === 'establishmentDate' && value) {
+      const date = new Date(value);
+      updateData.vintageYear = date.getFullYear();
+    }
+
+    // Update the fund store
+    updateFundBasics(updateData);
+
+    // Sync critical fields to FundContext
+    if (currentFund && (field === 'fundSize' || field === 'fundName' || field === 'managementFeeRate' || field === 'carriedInterest' || field === 'establishmentDate')) {
+      const updatedFund = { ...currentFund };
+
+      switch (field) {
+        case 'fundSize':
+          updatedFund.size = value ? value * 1000000 : 0; // Convert from M to dollars
+          break;
+        case 'fundName':
+          updatedFund.name = value || 'Untitled Fund';
+          break;
+        case 'managementFeeRate':
+          updatedFund.managementFee = value ? value / 100 : 0; // Convert from percentage to decimal
+          break;
+        case 'carriedInterest':
+          updatedFund.carryPercentage = value ? value / 100 : 0; // Convert from percentage to decimal
+          break;
+        case 'establishmentDate':
+          updatedFund.establishmentDate = value;
+          if (value) {
+            updatedFund.vintageYear = new Date(value).getFullYear();
+          }
+          break;
+      }
+
+      setCurrentFund(updatedFund);
+    }
   };
 
   const handleEvergreenToggle = (checked: boolean) => {
@@ -51,47 +113,75 @@ export default function FundBasicsStep() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-charcoal">Fund Basics</h2>
-        <p className="text-gray-600 mt-2">Define your fund structure and key parameters</p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Fund Structure</CardTitle>
-          <CardDescription>
-            Core fund parameters and structure type
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="fund-name">Fund Name</Label>
+    <ModernStepContainer
+      title="Fund Basics"
+      description="Name, currency, and fund lifecycle"
+    >
+      <div className="space-y-8">
+        {/* Fund Structure Section */}
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <Label htmlFor="fund-name" className="text-sm font-poppins font-medium text-[#292929]">Fund Name *</Label>
             <Input
               id="fund-name"
               value={fundName || ''}
               onChange={(e: any) => handleInputChange('fundName', e.target.value)}
-              placeholder="e.g., Growth Fund III"
+              placeholder="Enter your fund name"
               data-testid="fund-name"
+              className="h-12 text-base font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
             />
           </div>
 
-          <div className="flex items-center space-x-2 py-4 border-t">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <Label htmlFor="establishment-date" className="text-sm font-poppins font-medium text-[#292929]">Establishment Date *</Label>
+              <Input
+                id="establishment-date"
+                type="date"
+                value={establishmentDate || ''}
+                onChange={(e: any) => handleInputChange('establishmentDate', e.target.value)}
+                data-testid="establishment-date"
+                className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
+              />
+              <p className="text-sm font-poppins text-[#292929]/60">
+                Used for accurate IRR calculations and performance modeling
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="vintage-year" className="text-sm font-poppins font-medium text-[#292929]">Vintage Year</Label>
+              <Input
+                id="vintage-year"
+                type="number"
+                value={vintageYear || ''}
+                onChange={(e: any) => handleInputChange('vintageYear', parseFloat(e.target.value) || undefined)}
+                placeholder="Auto-filled from establishment date"
+                data-testid="vintage-year"
+                className="h-12 bg-[#F2F2F2] font-poppins border-[#E0D8D1]"
+                readOnly
+              />
+              <p className="text-sm font-poppins text-[#292929]/60">
+                Automatically derived from establishment date
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-3 py-6 border-t border-[#E0D8D1]">
             <Switch
               id="evergreen"
               checked={isEvergreen || false}
               onCheckedChange={handleEvergreenToggle}
               data-testid="evergreen-toggle"
             />
-            <Label htmlFor="evergreen" className="cursor-pointer">
+            <Label htmlFor="evergreen" className="cursor-pointer text-sm font-poppins font-medium text-[#292929]">
               Evergreen Fund Structure
             </Label>
           </div>
 
           {!isEvergreen && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="fund-life">Fund Life (years)</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <Label htmlFor="fund-life" className="text-sm font-poppins font-medium text-[#292929]">Fund Life (years)</Label>
                 <Input
                   id="fund-life"
                   type="number"
@@ -101,11 +191,12 @@ export default function FundBasicsStep() {
                   onChange={(e: any) => handleInputChange('fundLife', parseFloat(e.target.value) || undefined)}
                   placeholder="e.g., 10"
                   data-testid="fund-life"
+                  className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
                 />
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="investment-period">Investment Period (years)</Label>
+
+              <div className="space-y-3">
+                <Label htmlFor="investment-period" className="text-sm font-poppins font-medium text-[#292929]">Investment Period (years)</Label>
                 <Input
                   id="investment-period"
                   type="number"
@@ -115,13 +206,14 @@ export default function FundBasicsStep() {
                   onChange={(e: any) => handleInputChange('investmentPeriod', parseFloat(e.target.value) || undefined)}
                   placeholder="e.g., 3"
                   data-testid="investment-period"
+                  className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
                 />
               </div>
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="fund-size">Target Fund Size ($M)</Label>
+          <div className="space-y-3">
+            <Label htmlFor="fund-size" className="text-sm font-poppins font-medium text-[#292929]">Target Fund Size ($M)</Label>
             <Input
               id="fund-size"
               type="number"
@@ -131,25 +223,21 @@ export default function FundBasicsStep() {
               onChange={(e: any) => handleInputChange('fundSize', parseFloat(e.target.value) || undefined)}
               placeholder="e.g., 100"
               data-testid="fund-size"
+              className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
             />
-            <p className="text-sm text-gray-500">
+            <p className="text-sm font-poppins text-[#292929]/60">
               This will be automatically calculated from LP commitments if not specified
             </p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Economics</CardTitle>
-          <CardDescription>
-            Management fees and carry structure
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Economics Section */}
+        <div className="space-y-6 pt-8 border-t border-[#E0D8D1]">
+          <h3 className="text-lg font-inter font-bold text-[#292929]">Economics</h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="mgmt-fee">Management Fee (%)</Label>
+              <Label htmlFor="mgmt-fee" className="text-sm font-poppins font-medium text-[#292929]">Management Fee (%)</Label>
               <Input
                 id="mgmt-fee"
                 type="number"
@@ -160,11 +248,12 @@ export default function FundBasicsStep() {
                 onChange={(e: any) => handleInputChange('managementFeeRate', parseFloat(e.target.value) || undefined)}
                 placeholder="e.g., 2.0"
                 data-testid="mgmt-fee"
+                className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
               />
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="carried-interest">Carried Interest (%)</Label>
+              <Label htmlFor="carried-interest" className="text-sm font-poppins font-medium text-[#292929]">Carried Interest (%)</Label>
               <Input
                 id="carried-interest"
                 type="number"
@@ -175,29 +264,31 @@ export default function FundBasicsStep() {
                 onChange={(e: any) => handleInputChange('carriedInterest', parseFloat(e.target.value) || undefined)}
                 placeholder="e.g., 20"
                 data-testid="carried-interest"
+                className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
               />
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      <div className="flex justify-end mt-6">
-        <Button 
-          onClick={() => {
-            console.log('[FundBasics] Next button clicked, navigating to step 2');
-            console.log('[FundBasics] Current URL before navigate:', window.location.href);
-            navigate('/fund-setup?step=2');
-            // Check URL after a brief delay
-            setTimeout(() => {
-              console.log('[FundBasics] URL after navigate:', window.location.href);
-            }, 100);
-          }}
-          className="flex items-center gap-2"
-        >
-          Next Step
-          <ArrowRight className="h-4 w-4" />
-        </Button>
+        {/* Navigation */}
+        <div className="flex justify-end pt-8 border-t border-[#E0D8D1] mt-8">
+          <Button
+            onClick={() => {
+              console.log('[FundBasics] Next button clicked, navigating to step 2');
+              console.log('[FundBasics] Current URL before navigate:', window.location.href);
+              navigate('/fund-setup?step=2');
+              // Check URL after a brief delay
+              setTimeout(() => {
+                console.log('[FundBasics] URL after navigate:', window.location.href);
+              }, 100);
+            }}
+            className="flex items-center gap-2 bg-[#292929] hover:bg-[#292929]/90 text-white px-8 py-3 h-auto font-poppins font-medium transition-all duration-200"
+          >
+            Next Step
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-    </div>
+    </ModernStepContainer>
   );
 }

@@ -266,4 +266,355 @@ router['get']('/metrics', async (req: Request, res: Response) => {
   }
 });
 
+// Database health endpoint
+router['get']('/api/health/db', async (req: Request, res: Response) => {
+  try {
+    const dbHealthy = await storage['ping']();
+
+    if (dbHealthy) {
+      res.json({
+        database: 'connected',
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+      res.status(503).json({
+        database: 'disconnected',
+        status: 'error',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  } catch (error) {
+    res.status(503).json({
+      database: 'error',
+      status: 'error',
+      error: (error as Error).message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// Cache health endpoint
+router['get']('/api/health/cache', async (req: Request, res: Response) => {
+  try {
+    const redisHealthy = await storage.isRedisHealthy?.() ?? false;
+
+    res.json({
+      cache: redisHealthy ? 'connected' : 'degraded',
+      status: redisHealthy ? 'ok' : 'degraded',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(503).json({
+      cache: 'error',
+      status: 'error',
+      error: (error as Error).message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// Queue health endpoint
+router['get']('/api/health/queues', async (req: Request, res: Response) => {
+  try {
+    const redisHealthy = await storage.isRedisHealthy?.() ?? false;
+
+    if (!redisHealthy) {
+      res.json({
+        queues: {
+          'reserve-calc': 'idle',
+          'pacing-calc': 'idle',
+        },
+        status: 'degraded',
+        message: 'Queues disabled (Redis not available)',
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    // Check queue status via Redis
+    const queueHealth: Record<string, any> = {};
+
+    try {
+      // Import Redis client to check queue status
+      const IORedis = await import('ioredis');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dynamic import type incompatibility
+      const Redis: any = IORedis.default;
+      const redis = new Redis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+        maxRetriesPerRequest: 1,
+        retryStrategy: () => null,
+      });
+
+      // Check if queues exist and have workers
+      const queues = ['reserve-calc', 'pacing-calc'];
+
+      for (const queueName of queues) {
+        try {
+          const waiting = await redis.llen(`bull:${queueName}:wait`);
+          const active = await redis.llen(`bull:${queueName}:active`);
+
+          queueHealth[queueName] = {
+            status: 'ok',
+            waiting,
+            active,
+          };
+        } catch (error) {
+          queueHealth[queueName] = {
+            status: 'error',
+            error: (error as Error).message,
+          };
+        }
+      }
+
+      await redis.quit();
+    } catch (error) {
+      // Fallback if Redis check fails
+      queueHealth['reserve-calc'] = { status: 'unknown' };
+      queueHealth['pacing-calc'] = { status: 'unknown' };
+    }
+
+    res.json({
+      queues: queueHealth,
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(503).json({
+      queues: {},
+      status: 'error',
+      error: (error as Error).message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// Schema health endpoint
+router['get']('/api/health/schema', async (req: Request, res: Response) => {
+  try {
+    // Query database for table list
+    const result = await storage['query']?.(
+      `SELECT table_name
+       FROM information_schema.tables
+       WHERE table_schema = 'public'
+       ORDER BY table_name`
+    );
+
+    const tables = result?.rows?.map((row: any) => row.table_name) || [];
+
+    res.json({
+      tables,
+      count: tables.length,
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(503).json({
+      tables: [],
+      status: 'error',
+      error: (error as Error).message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// Migration status endpoint
+router['get']('/api/health/migrations', async (req: Request, res: Response) => {
+  try {
+    // Query migration history
+    const result = await storage['query']?.(
+      `SELECT name, hash, created_at
+       FROM drizzle_migrations
+       ORDER BY created_at DESC
+       LIMIT 5`
+    );
+
+    const migrations = result?.rows || [];
+
+    res.json({
+      status: 'up-to-date',
+      latestMigrations: migrations,
+      count: migrations.length,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      error: (error as Error).message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// Version endpoint
+router['get']('/api/version', (req: Request, res: Response) => {
+  const version = process.env.npm_package_version || '1.3.2';
+  const nodeVersion = process.version;
+  const platform = process.platform;
+  const arch = process.arch;
+
+  res.json({
+    version,
+    nodeVersion,
+    platform,
+    arch,
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Alerts endpoint
+router['get']('/api/health/alerts', async (req: Request, res: Response) => {
+  try {
+    const alerts = {
+      critical: [] as any[],
+      warning: [] as any[],
+      info: [] as any[],
+    };
+
+    // Check database connectivity
+    const dbHealthy = await storage['ping']?.() ?? false;
+    if (!dbHealthy) {
+      alerts.critical.push({
+        type: 'database',
+        message: 'Database connection failed',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Check Redis (optional)
+    const redisHealthy = await storage.isRedisHealthy?.() ?? false;
+    if (!redisHealthy) {
+      alerts.warning.push({
+        type: 'cache',
+        message: 'Redis cache not available',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Check memory usage
+    const memoryUsage = process.memoryUsage();
+    const heapUsedMB = memoryUsage.heapUsed / 1048576;
+
+    if (heapUsedMB > 512) {
+      alerts.warning.push({
+        type: 'memory',
+        message: `High memory usage: ${heapUsedMB.toFixed(0)}MB`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    res.json({
+      ...alerts,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(503).json({
+      critical: [{
+        type: 'system',
+        message: (error as Error).message,
+        timestamp: new Date().toISOString(),
+      }],
+      warning: [],
+      info: [],
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// Worker health endpoints
+router['get']('/api/health/workers/:workerType', async (req: Request, res: Response) => {
+  const { workerType } = req.params;
+
+  try {
+    const redisHealthy = await storage.isRedisHealthy?.() ?? false;
+
+    if (!redisHealthy) {
+      res.json({
+        status: 'idle',
+        message: 'Workers disabled (Redis not available)',
+        worker: workerType,
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    // Check worker health via worker health server
+    try {
+      const http = await import('http');
+
+      const workerHealthPort = parseInt(process.env.WORKER_HEALTH_PORT || '9000');
+
+      const options = {
+        hostname: process.env.WORKER_HEALTH_HOST || 'localhost',
+        port: workerHealthPort,
+        path: '/health',
+        method: 'GET',
+        timeout: 2000,
+      };
+
+      await new Promise((resolve, reject) => {
+        const req = http.request(options, (workerRes) => {
+          let data = '';
+
+          workerRes.on('data', (chunk) => {
+            data += chunk;
+          });
+
+          workerRes.on('end', () => {
+            try {
+              const health = JSON.parse(data);
+              const worker = health.workers?.find((w: any) =>
+                w.name.includes(workerType)
+              );
+
+              if (worker) {
+                res.json({
+                  status: worker.status,
+                  worker: workerType,
+                  jobsProcessed: worker.jobsProcessed,
+                  lastJobTime: worker.lastJobTime,
+                  timestamp: new Date().toISOString(),
+                });
+              } else {
+                res.status(404).json({
+                  status: 'not_found',
+                  worker: workerType,
+                  message: 'Worker not registered',
+                  timestamp: new Date().toISOString(),
+                });
+              }
+
+              resolve(null);
+            } catch (error) {
+              reject(error);
+            }
+          });
+        });
+
+        req.on('error', reject);
+        req.on('timeout', () => reject(new Error('Timeout')));
+        req.end();
+      });
+    } catch (error) {
+      // Worker health server not accessible
+      res.json({
+        status: 'unknown',
+        worker: workerType,
+        message: 'Worker health server not accessible',
+        error: (error as Error).message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      worker: workerType,
+      error: (error as Error).message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 export default router;

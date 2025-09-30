@@ -1,11 +1,68 @@
 version: 2
 updates:
+  # npm dependencies - weekly updates with security prioritization
   - package-ecosystem: npm
     directory: "/"
     schedule:
       interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/New_York
+    # Security updates get priority
+    open-pull-requests-limit: 10
+    # Group non-security updates to reduce PR noise
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      development-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    # Ignore specific packages with breaking changes
     ignore:
       - dependency-name: "@slack/*"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "husky"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "@types/node"
         versions: [">=19"]
+      # Keep vite on v5.x for stability (v6+ is major breaking)
+      - dependency-name: "vite"
+        versions: [">=6.0.0"]
+      # Keep React on v18.x (v19 is major breaking)
+      - dependency-name: "react"
+        versions: [">=19.0.0"]
+      - dependency-name: "react-dom"
+        versions: [">=19.0.0"]
+      # Keep Zod on v3.x (v4 is major breaking)
+      - dependency-name: "zod"
+        versions: [">=4.0.0"]
+    # Assign reviewers for security updates
+    reviewers:
+      - "nikhillinit"
+    # Add labels for easy filtering
+    labels:
+      - "dependencies"
+      - "automated"
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+      include: "scope"
+
+  # GitHub Actions - daily security updates
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "automated"
+    commit-message:
+      prefix: "ci"
+      include: "scope"

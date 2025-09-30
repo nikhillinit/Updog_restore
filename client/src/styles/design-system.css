@@ -1,0 +1,611 @@
+/**
+ * Enhanced Design System for Updog VC Platform
+ *
+ * Professional micro-interactions, semantic colors, and accessibility enhancements
+ * that make sophisticated VC platform feel as polished as the best consumer apps.
+ */
+
+/* ============================================================================
+   CSS CUSTOM PROPERTIES FOR DYNAMIC THEMING
+   ============================================================================ */
+
+:root {
+  /* AI Confidence Level Colors */
+  --confidence-critical: #ef4444;
+  --confidence-low: #f59e0b;
+  --confidence-medium: #3b82f6;
+  --confidence-high: #10b981;
+  --confidence-excellent: #059669;
+
+  /* Interactive State Durations */
+  --duration-instant: 75ms;
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --duration-deliberate: 500ms;
+
+  /* Professional Easing Functions */
+  --ease-professional: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* Touch Target Sizes */
+  --touch-target-min: 44px;
+  --touch-target-comfortable: 48px;
+  --touch-target-generous: 56px;
+
+  /* Layout Spacing */
+  --space-micro: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+}
+
+/* Dark mode variants */
+.dark {
+  --confidence-critical: #fca5a5;
+  --confidence-low: #fcd34d;
+  --confidence-medium: #93c5fd;
+  --confidence-high: #6ee7b7;
+  --confidence-excellent: #34d399;
+}
+
+/* ============================================================================
+   AI CONFIDENCE LEVEL COMPONENTS
+   ============================================================================ */
+
+.ai-confidence-badge {
+  @apply inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium;
+  @apply transition-all duration-200 ease-professional;
+}
+
+.ai-confidence-badge.critical {
+  @apply bg-semantic-error-100 text-semantic-error-700 border border-red-200;
+}
+
+.ai-confidence-badge.low {
+  @apply bg-semantic-warning-100 text-semantic-warning-700 border border-yellow-200;
+}
+
+.ai-confidence-badge.medium {
+  @apply bg-semantic-info-100 text-semantic-info-700 border border-blue-200;
+}
+
+.ai-confidence-badge.high {
+  @apply bg-semantic-success-100 text-semantic-success-700 border border-green-200;
+}
+
+.ai-confidence-badge.excellent {
+  @apply bg-emerald-100 text-emerald-800 border border-emerald-200;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+}
+
+.ai-confidence-progress {
+  @apply relative overflow-hidden bg-gray-200 rounded-full h-2;
+}
+
+.ai-confidence-progress .progress-fill {
+  @apply h-full rounded-full transition-all duration-700 ease-professional;
+}
+
+.ai-confidence-progress .progress-fill.critical {
+  @apply bg-confidence-critical;
+  width: 25%;
+}
+
+.ai-confidence-progress .progress-fill.low {
+  @apply bg-confidence-low;
+  width: 50%;
+}
+
+.ai-confidence-progress .progress-fill.medium {
+  @apply bg-confidence-medium;
+  width: 70%;
+}
+
+.ai-confidence-progress .progress-fill.high {
+  @apply bg-confidence-high;
+  width: 85%;
+}
+
+.ai-confidence-progress .progress-fill.excellent {
+  @apply bg-confidence-excellent;
+  width: 95%;
+  animation: confidence-glow 2s ease-in-out infinite;
+}
+
+/* ============================================================================
+   ENHANCED BUTTON COMPONENTS
+   ============================================================================ */
+
+.btn-primary-enhanced {
+  @apply bg-interactive-primary text-white font-medium px-4 py-2 rounded-lg;
+  @apply transition-all duration-200 ease-smooth;
+  @apply focus-visible-ring reduced-motion-safe;
+  @apply min-h-[44px] min-w-[44px]; /* Touch target compliance */
+}
+
+.btn-primary-enhanced:hover:not(:disabled) {
+  @apply bg-interactive-primary-hover shadow-elevated;
+  transform: translateY(-1px);
+}
+
+.btn-primary-enhanced:active:not(:disabled) {
+  @apply bg-interactive-primary-active;
+  transform: translateY(0);
+}
+
+.btn-primary-enhanced:disabled {
+  @apply bg-interactive-primary-disabled cursor-not-allowed;
+  transform: none;
+}
+
+/* Loading state */
+.btn-primary-enhanced.loading {
+  @apply relative text-transparent cursor-not-allowed;
+}
+
+.btn-primary-enhanced.loading::after {
+  content: '';
+  @apply absolute inset-0 flex items-center justify-center;
+  @apply w-4 h-4 border-2 border-white border-t-transparent rounded-full;
+  animation: ai-thinking 1s linear infinite;
+  margin: auto;
+}
+
+.btn-secondary-enhanced {
+  @apply bg-interactive-secondary text-gray-700 font-medium px-4 py-2 rounded-lg;
+  @apply border border-gray-300 transition-all duration-200 ease-smooth;
+  @apply focus-visible-ring reduced-motion-safe;
+  @apply min-h-[44px] min-w-[44px];
+}
+
+.btn-secondary-enhanced:hover:not(:disabled) {
+  @apply bg-interactive-secondary-hover border-gray-400 shadow-card;
+  transform: translateY(-1px);
+}
+
+.btn-secondary-enhanced:active:not(:disabled) {
+  @apply bg-interactive-secondary-active;
+  transform: translateY(0);
+}
+
+.btn-secondary-enhanced:disabled {
+  @apply bg-interactive-secondary-disabled text-gray-400 cursor-not-allowed;
+  transform: none;
+}
+
+/* ============================================================================
+   ENHANCED CARD COMPONENTS
+   ============================================================================ */
+
+.card-premium-enhanced {
+  @apply bg-white rounded-xl border border-gray-200 shadow-card;
+  @apply transition-all duration-300 ease-professional;
+  @apply reduced-motion-safe high-contrast-border;
+}
+
+.card-premium-enhanced:hover {
+  @apply shadow-card-hover border-gray-300;
+  transform: translateY(-2px);
+}
+
+.card-premium-enhanced.interactive {
+  @apply cursor-pointer;
+}
+
+.card-premium-enhanced.interactive:active {
+  @apply shadow-card-active;
+  transform: translateY(0);
+}
+
+/* AI-enhanced variant */
+.card-premium-enhanced.ai-enhanced {
+  @apply relative overflow-hidden;
+}
+
+.card-premium-enhanced.ai-enhanced::before {
+  content: '';
+  @apply absolute top-0 left-0 w-full h-1 bg-gradient-to-r;
+  @apply from-confidence-medium via-confidence-high to-confidence-excellent;
+  opacity: 0;
+  transition: opacity var(--duration-normal) var(--ease-professional);
+}
+
+.card-premium-enhanced.ai-enhanced:hover::before {
+  opacity: 1;
+}
+
+/* Loading state */
+.card-premium-enhanced.loading {
+  @apply relative overflow-hidden;
+}
+
+.card-premium-enhanced.loading::after {
+  content: '';
+  @apply absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent;
+  animation: loading-shimmer 1.5s infinite;
+  transform: translateX(-100%);
+}
+
+.card-metric-enhanced {
+  @apply bg-white rounded-xl border border-gray-200 shadow-card p-6;
+  @apply transition-all duration-300 ease-professional;
+  @apply reduced-motion-safe high-contrast-border;
+}
+
+.card-metric-enhanced .metric-value {
+  @apply text-2xl font-bold font-mono transition-all duration-300;
+}
+
+.card-metric-enhanced .metric-value.updating {
+  animation: metric-update 0.6s ease-out;
+}
+
+.card-metric-enhanced .metric-trend {
+  @apply inline-flex items-center gap-1 text-sm font-medium;
+}
+
+.card-metric-enhanced .metric-trend.up {
+  @apply text-semantic-success-600;
+}
+
+.card-metric-enhanced .metric-trend.down {
+  @apply text-semantic-error-600;
+}
+
+.card-metric-enhanced .metric-trend.stable {
+  @apply text-semantic-neutral-600;
+}
+
+.card-metric-enhanced .metric-icon {
+  @apply w-5 h-5 transition-transform duration-200;
+}
+
+.card-metric-enhanced .metric-icon:hover {
+  animation: gentle-bounce 2s ease-in-out infinite;
+}
+
+/* ============================================================================
+   AI INSIGHT CARD ENHANCEMENTS
+   ============================================================================ */
+
+.ai-insight-enhanced {
+  @apply bg-white rounded-xl border border-gray-200 shadow-card p-6;
+  @apply transition-all duration-300 ease-professional;
+  @apply reduced-motion-safe high-contrast-border;
+  @apply border-l-4 border-transparent relative overflow-hidden;
+}
+
+.ai-insight-enhanced.critical {
+  @apply border-l-confidence-critical bg-red-50;
+  box-shadow: var(--tw-shadow), 0 0 0 1px rgba(239, 68, 68, 0.1);
+}
+
+.ai-insight-enhanced.low {
+  @apply border-l-confidence-low bg-yellow-50;
+  box-shadow: var(--tw-shadow), 0 0 0 1px rgba(245, 158, 11, 0.1);
+}
+
+.ai-insight-enhanced.medium {
+  @apply border-l-confidence-medium bg-blue-50;
+  box-shadow: var(--tw-shadow), 0 0 0 1px rgba(59, 130, 246, 0.1);
+}
+
+.ai-insight-enhanced.high {
+  @apply border-l-confidence-high bg-green-50;
+  box-shadow: var(--tw-shadow), 0 0 0 1px rgba(16, 185, 129, 0.1);
+}
+
+.ai-insight-enhanced.excellent {
+  @apply border-l-confidence-excellent bg-emerald-50;
+  box-shadow: var(--tw-shadow), 0 0 0 1px rgba(5, 150, 105, 0.1);
+}
+
+.ai-insight-enhanced.excellent:hover {
+  animation: confidence-glow 2s ease-in-out infinite;
+}
+
+.ai-insight-enhanced .insight-icon {
+  @apply w-5 h-5 transition-all duration-300;
+}
+
+.ai-insight-enhanced .insight-icon.thinking {
+  animation: ai-thinking 1s linear infinite;
+}
+
+.ai-insight-enhanced .confidence-meter {
+  @apply ai-confidence-progress mt-2;
+}
+
+/* ============================================================================
+   SWIPEABLE METRIC CARDS (Agent 2 Integration)
+   ============================================================================ */
+
+.swipeable-container-enhanced {
+  @apply relative overflow-hidden rounded-xl;
+}
+
+.swipeable-container-enhanced .swipe-indicator {
+  @apply absolute bottom-4 left-1/2 transform -translate-x-1/2;
+  @apply flex gap-2 z-10;
+}
+
+.swipeable-container-enhanced .swipe-indicator .dot {
+  @apply w-2 h-2 rounded-full bg-gray-300 transition-all duration-200;
+}
+
+.swipeable-container-enhanced .swipe-indicator .dot.active {
+  @apply bg-confidence-medium w-6;
+}
+
+.swipeable-container-enhanced .metric-card-swipeable {
+  @apply card-metric-enhanced;
+  @apply transform transition-transform duration-300 ease-professional;
+}
+
+.swipeable-container-enhanced .metric-card-swipeable.swiping {
+  @apply scale-95;
+}
+
+.swipeable-container-enhanced .metric-card-swipeable:active {
+  @apply scale-95;
+}
+
+/* ============================================================================
+   PROGRESSIVE DISCLOSURE ENHANCEMENTS
+   ============================================================================ */
+
+.progressive-disclosure-enhanced {
+  @apply space-y-4;
+}
+
+.progressive-disclosure-enhanced .disclosure-trigger {
+  @apply btn-secondary-enhanced w-full justify-between;
+}
+
+.progressive-disclosure-enhanced .disclosure-trigger .trigger-icon {
+  @apply w-4 h-4 transition-transform duration-200;
+}
+
+.progressive-disclosure-enhanced .disclosure-trigger .trigger-icon.expanded {
+  @apply rotate-180;
+}
+
+.progressive-disclosure-enhanced .disclosure-content {
+  @apply overflow-hidden transition-all duration-300 ease-professional;
+}
+
+.progressive-disclosure-enhanced .disclosure-content.collapsed {
+  @apply max-h-0 opacity-0;
+}
+
+.progressive-disclosure-enhanced .disclosure-content.expanded {
+  @apply max-h-screen opacity-100;
+  animation: fade-in 0.3s ease-out;
+}
+
+.progressive-disclosure-enhanced .complexity-indicator {
+  @apply inline-flex items-center gap-1 text-xs;
+}
+
+.progressive-disclosure-enhanced .complexity-indicator .complexity-dot {
+  @apply w-1.5 h-1.5 rounded-full bg-gray-300;
+}
+
+.progressive-disclosure-enhanced .complexity-indicator .complexity-dot.active {
+  @apply bg-confidence-medium;
+}
+
+/* ============================================================================
+   LOADING AND SKELETON STATES
+   ============================================================================ */
+
+.skeleton-enhanced {
+  @apply bg-gray-200 rounded animate-loading-pulse;
+}
+
+.skeleton-enhanced.text {
+  @apply h-4 w-full;
+}
+
+.skeleton-enhanced.text-sm {
+  @apply h-3 w-3/4;
+}
+
+.skeleton-enhanced.title {
+  @apply h-6 w-1/2;
+}
+
+.skeleton-enhanced.avatar {
+  @apply w-10 h-10 rounded-full;
+}
+
+.skeleton-enhanced.card {
+  @apply h-32 w-full;
+}
+
+.skeleton-enhanced.chart {
+  @apply h-48 w-full rounded-lg;
+}
+
+.loading-shimmer-enhanced {
+  @apply relative overflow-hidden bg-gray-100 rounded;
+}
+
+.loading-shimmer-enhanced::after {
+  content: '';
+  @apply absolute inset-0 bg-gradient-to-r;
+  @apply from-transparent via-white to-transparent;
+  animation: loading-shimmer 1.5s infinite;
+  transform: translateX(-100%);
+}
+
+/* ============================================================================
+   ACCESSIBILITY ENHANCEMENTS
+   ============================================================================ */
+
+/* Screen reader only content */
+.sr-only-enhanced {
+  @apply sr-only;
+}
+
+/* Focus indicators for keyboard navigation */
+.focus-enhanced:focus-visible {
+  @apply outline-none ring-2 ring-confidence-medium ring-offset-2 ring-offset-white;
+  @apply rounded-lg;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .card-premium-enhanced {
+    @apply border-2 border-gray-900;
+  }
+
+  .btn-primary-enhanced {
+    @apply border-2 border-gray-900;
+  }
+
+  .ai-confidence-badge {
+    @apply border-2;
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .card-premium-enhanced:hover {
+    transform: none;
+  }
+
+  .btn-primary-enhanced:hover {
+    transform: none;
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE TYPOGRAPHY ENHANCEMENTS
+   ============================================================================ */
+
+.text-responsive-xs {
+  font-size: clamp(0.75rem, 2vw, 0.875rem);
+}
+
+.text-responsive-sm {
+  font-size: clamp(0.875rem, 2.5vw, 1rem);
+}
+
+.text-responsive-base {
+  font-size: clamp(1rem, 3vw, 1.125rem);
+}
+
+.text-responsive-lg {
+  font-size: clamp(1.125rem, 3.5vw, 1.25rem);
+}
+
+.text-responsive-xl {
+  font-size: clamp(1.25rem, 4vw, 1.5rem);
+}
+
+.text-responsive-2xl {
+  font-size: clamp(1.5rem, 5vw, 2rem);
+}
+
+/* ============================================================================
+   TOUCH TARGET OPTIMIZATIONS
+   ============================================================================ */
+
+.touch-target-enhanced {
+  @apply min-h-[44px] min-w-[44px] relative;
+}
+
+/* Expand touch area without visual changes */
+.touch-target-enhanced::before {
+  content: '';
+  @apply absolute inset-0;
+  @apply min-h-[44px] min-w-[44px];
+  @apply -m-2; /* Expand touch area by 8px on all sides */
+}
+
+.touch-feedback {
+  @apply transition-transform duration-100 ease-smooth;
+}
+
+.touch-feedback:active {
+  @apply scale-95;
+}
+
+/* ============================================================================
+   KEYFRAMES FOR CUSTOM ANIMATIONS
+   ============================================================================ */
+
+@keyframes loading-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes metric-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+@keyframes confidence-pulse {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
+  }
+}
+
+/* ============================================================================
+   PRINT STYLES
+   ============================================================================ */
+
+@media print {
+  .btn-primary-enhanced,
+  .btn-secondary-enhanced {
+    @apply border border-gray-800 bg-transparent text-gray-800;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .card-premium-enhanced {
+    @apply border border-gray-800;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .ai-confidence-badge {
+    @apply border border-gray-800;
+  }
+
+  /* Hide interactive elements in print */
+  .swipe-indicator,
+  .disclosure-trigger {
+    @apply hidden;
+  }
+
+  .disclosure-content {
+    @apply block opacity-100 max-h-none;
+  }
+}

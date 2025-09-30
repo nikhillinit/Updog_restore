@@ -128,117 +128,117 @@ export default function DynamicFundHeader() {
           </div>
         </div>
 
-        {/* Real-time Metrics Grid */}
+        {/* Real-time Metrics Grid - Professional Monochrome Design */}
         <div className="grid grid-cols-8 gap-3">
-          {/* Capital Metrics */}
-          <Card className="bg-blue-50 border-blue-200">
+          {/* Capital Metrics - Using POV Brand Colors */}
+          <Card className="bg-white border-charcoal-200 shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-blue-600 font-medium">Total Invested</p>
-                  <p className="text-sm font-bold text-blue-900">
+                  <p className="text-xs text-charcoal-600 font-medium">Total Invested</p>
+                  <p className="text-sm font-bold text-charcoal-900">
                     {formatCurrency(displayMetrics.totalInvested)}
                   </p>
                 </div>
-                <DollarSign className="h-4 w-4 text-blue-600" />
+                <DollarSign className="h-4 w-4 text-charcoal-500" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-green-50 border-green-200">
+          <Card className="bg-beige-50 border-beige-300 shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-green-600 font-medium">Current Value</p>
-                  <p className="text-sm font-bold text-green-900">
+                  <p className="text-xs text-charcoal-700 font-medium">Current Value</p>
+                  <p className="text-sm font-bold text-charcoal-900">
                     {formatCurrency(displayMetrics.totalValue)}
                   </p>
                 </div>
-                <TrendingUp className="h-4 w-4 text-green-600" />
+                <TrendingUp className="h-4 w-4 text-charcoal-600" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-purple-50 border-purple-200">
+          <Card className="bg-white border-charcoal-200 shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-purple-600 font-medium">Net IRR</p>
-                  <p className="text-sm font-bold text-purple-900">
+                  <p className="text-xs text-charcoal-600 font-medium">Net IRR</p>
+                  <p className="text-sm font-bold text-charcoal-900">
                     {formatPercentage(displayMetrics.irr)}
                   </p>
                 </div>
-                <BarChart3 className="h-4 w-4 text-purple-600" />
+                <BarChart3 className="h-4 w-4 text-charcoal-500" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-orange-50 border-orange-200">
+          <Card className="bg-beige-50 border-beige-300 shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-orange-600 font-medium">TVPI</p>
-                  <p className="text-sm font-bold text-orange-900">
+                  <p className="text-xs text-charcoal-700 font-medium">TVPI</p>
+                  <p className="text-sm font-bold text-charcoal-900">
                     {(displayMetrics.tvpi || 0).toFixed(2)}x
                   </p>
                 </div>
-                <Target className="h-4 w-4 text-orange-600" />
+                <Target className="h-4 w-4 text-charcoal-600" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-teal-50 border-teal-200">
+          <Card className="bg-white border-charcoal-200 shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-teal-600 font-medium">DPI</p>
-                  <p className="text-sm font-bold text-teal-900">
+                  <p className="text-xs text-charcoal-600 font-medium">DPI</p>
+                  <p className="text-sm font-bold text-charcoal-900">
                     {(displayMetrics.dpi || 0).toFixed(2)}x
                   </p>
                 </div>
-                <PieChart className="h-4 w-4 text-teal-600" />
+                <PieChart className="h-4 w-4 text-charcoal-500" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-indigo-50 border-indigo-200">
+          <Card className="bg-beige-50 border-beige-300 shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-indigo-600 font-medium">Active</p>
-                  <p className="text-sm font-bold text-indigo-900">
+                  <p className="text-xs text-charcoal-700 font-medium">Active</p>
+                  <p className="text-sm font-bold text-charcoal-900">
                     {displayMetrics.activeInvestments || 0}
                   </p>
                 </div>
-                <Activity className="h-4 w-4 text-indigo-600" />
+                <Activity className="h-4 w-4 text-charcoal-600" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gray-50 border-gray-200">
+          <Card className="bg-white border-charcoal-200 shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-gray-600 font-medium">Avg Check</p>
-                  <p className="text-sm font-bold text-gray-900">
+                  <p className="text-xs text-charcoal-600 font-medium">Avg Check</p>
+                  <p className="text-sm font-bold text-charcoal-900">
                     {formatCurrency(displayMetrics.avgCheckSize)}
                   </p>
                 </div>
-                <DollarSign className="h-4 w-4 text-gray-600" />
+                <DollarSign className="h-4 w-4 text-charcoal-500" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-yellow-50 border-yellow-200">
+          <Card className="bg-beige-50 border-beige-300 shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-yellow-600 font-medium">Remaining</p>
-                  <p className="text-sm font-bold text-yellow-900">
+                  <p className="text-xs text-charcoal-700 font-medium">Remaining</p>
+                  <p className="text-sm font-bold text-charcoal-900">
                     {formatCurrency(displayMetrics.remainingCapital)}
                   </p>
                 </div>
-                <Calendar className="h-4 w-4 text-yellow-600" />
+                <Calendar className="h-4 w-4 text-charcoal-600" />
               </div>
             </CardContent>
           </Card>

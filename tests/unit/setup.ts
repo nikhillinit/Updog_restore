@@ -75,8 +75,26 @@ Object.defineProperty(global, 'window', {
   value: {
     localStorage: global.localStorage,
     sessionStorage: global.sessionStorage,
-    location: { origin: 'http://localhost:3000' },
-    navigator: { userAgent: 'test-agent' }
+    location: {
+      origin: 'http://localhost:3000',
+      hostname: 'localhost'
+    },
+    navigator: {
+      userAgent: 'test-agent',
+      sendBeacon: vi.fn()
+    },
+    setInterval: vi.fn((fn, delay) => setInterval(fn, delay)),
+    clearInterval: vi.fn((id) => clearInterval(id)),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    performance: {
+      now: vi.fn(() => Date.now()),
+      memory: {
+        usedJSHeapSize: 100000000,
+        totalJSHeapSize: 200000000,
+        jsHeapSizeLimit: 2000000000
+      }
+    }
   },
   writable: true
 });
@@ -92,3 +110,35 @@ beforeAll(() => {
 afterAll(() => {
   Object.assign(console, originalConsole);
 });
+
+// Mock browser-only APIs
+global.PerformanceObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  disconnect: vi.fn(),
+  takeRecords: vi.fn(() => [])
+})) as any;
+
+global.document = {
+  querySelector: vi.fn(() => null),
+  createElement: vi.fn(() => ({})),
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn()
+} as any;
+
+global.navigator = {
+  ...global.navigator,
+  sendBeacon: vi.fn(() => true),
+  userAgent: 'test-agent'
+} as any;
+
+// Mock import.meta for browser code
+if (typeof globalThis !== 'undefined') {
+  (globalThis as any).import = {
+    meta: {
+      env: {
+        MODE: 'test',
+        NODE_ENV: 'test'
+      }
+    }
+  };
+}

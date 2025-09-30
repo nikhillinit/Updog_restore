@@ -19,6 +19,12 @@ import type {
 } from '@shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  createVCPowerLawDistribution,
+  PowerLawDistribution,
+  type InvestmentStage
+} from './power-law-distribution';
+import { PRNG } from '@shared/utils/prng';
 
 /**
  * Core Monte Carlo simulation parameters
@@ -40,7 +46,7 @@ export interface DistributionParams {
   standardDeviation: number;
   skew?: number;
   kurtosis?: number;
-  distribution: 'normal' | 'lognormal' | 'triangular' | 'beta';
+  distribution: 'normal' | 'lognormal' | 'triangular' | 'beta' | 'powerlaw';
   historicalCount: number;
   confidence: number; // 0-1 confidence in parameter accuracy
 }
@@ -141,8 +147,17 @@ export interface ScenarioConfig {
 
 /**
  * Main Monte Carlo Simulation Service
+ *
+ * Enhanced with power law distribution for realistic VC return modeling
  */
 export class MonteCarloSimulationService {
+  private powerLawDistribution: PowerLawDistribution;
+  private prng: PRNG;
+
+  constructor(seed?: number) {
+    this.powerLawDistribution = createVCPowerLawDistribution();
+    this.prng = new PRNG(seed);
+  }
   /**
    * Generate Monte Carlo forecast for fund performance
    */
@@ -294,6 +309,7 @@ export class MonteCarloSimulationService {
 
   /**
    * Generate distribution parameters for each metric
+   * Enhanced with power law distribution for return multiples
    */
   private async generateDistributions(patterns: any): Promise<Record<string, DistributionParams>> {
     const distributions: Record<string, DistributionParams> = {};
@@ -302,9 +318,12 @@ export class MonteCarloSimulationService {
       const p = pattern as any;
 
       // Select appropriate distribution based on data characteristics
-      let distribution: 'normal' | 'lognormal' | 'triangular' | 'beta' = 'normal';
+      let distribution: 'normal' | 'lognormal' | 'triangular' | 'beta' | 'powerlaw' = 'normal';
 
-      if (Math.abs(p.skewness) > 1.0) {
+      // Use power law for return multiples (matches VC reality)
+      if (metric === 'multipleVariance' || metric.includes('multiple')) {
+        distribution = 'powerlaw';
+      } else if (Math.abs(p.skewness) > 1.0) {
         distribution = 'lognormal'; // Use lognormal for highly skewed data
       } else if (p.count < 10) {
         distribution = 'triangular'; // Use triangular for limited data
@@ -326,6 +345,7 @@ export class MonteCarloSimulationService {
 
   /**
    * Run Monte Carlo simulations
+   * Enhanced with power law distribution and portfolio-aware sampling
    */
   private async runSimulations(
     params: SimulationParameters,
@@ -341,14 +361,23 @@ export class MonteCarloSimulationService {
       tvpi: []
     };
 
-    // Set random seed for reproducibility
+    // Set random seed for reproducibility using local PRNG
     if (params.randomSeed) {
-      this.setRandomSeed(params.randomSeed);
+      this.prng.reset(params.randomSeed);
+      this.powerLawDistribution = createVCPowerLawDistribution(params.randomSeed);
     }
+
+    // Get portfolio stage distribution
+    const stageDistribution = await this.getPortfolioStageDistribution(params.fundId);
 
     // Run simulation scenarios
     for (let i = 0; i < scenarios; i++) {
-      const scenario = this.generateScenario(baseline, distributions, params.timeHorizonYears);
+      const scenario = await this.generateScenario(
+        baseline,
+        distributions,
+        params.timeHorizonYears,
+        stageDistribution
+      );
 
       results.totalValue.push(scenario.totalValue);
       results.irr.push(scenario.irr);
@@ -368,41 +397,65 @@ export class MonteCarloSimulationService {
 
   /**
    * Generate a single scenario based on distributions
+   * Enhanced with power law distribution for realistic VC returns
    */
-  private generateScenario(
+  private async generateScenario(
     baseline: FundBaseline,
     distributions: Record<string, DistributionParams>,
-    timeHorizonYears: number
+    timeHorizonYears: number,
+    stageDistribution: Record<string, number>
   ) {
-    // Sample from distributions for each metric
-    const totalValueVariance = this.sampleFromDistribution(distributions.totalValueVariance);
-    const irrVariance = this.sampleFromDistribution(distributions.irrVariance);
-    const multipleVariance = this.sampleFromDistribution(distributions.multipleVariance);
-    const dpiVariance = this.sampleFromDistribution(distributions.dpiVariance);
-    const tvpiVariance = this.sampleFromDistribution(distributions.tvpiVariance);
+    // Select stage based on portfolio distribution
+    const selectedStage = this.selectStageFromDistribution(stageDistribution);
 
-    // Apply time decay and compounding effects
-    const timeDecay = Math.pow(0.95, timeHorizonYears); // Variance tends to stabilize over time
-    const compoundGrowth = Math.pow(1 + parseFloat(baseline.irr?.toString() || '0.15'), timeHorizonYears);
+    // Generate power law scenario for realistic VC returns
+    const powerLawScenario = this.powerLawDistribution.generateInvestmentScenario(
+      selectedStage,
+      timeHorizonYears
+    );
 
-    // Calculate scenario values
+    // Sample from traditional distributions for other metrics
+    const totalValueVariance = this.sampleFromDistribution(distributions.totalValueVariance || {
+      mean: 0,
+      standardDeviation: 0.15,
+      distribution: 'normal',
+      historicalCount: 0,
+      confidence: 0.5
+    });
+    const dpiVariance = this.sampleFromDistribution(distributions.dpiVariance || {
+      mean: 0,
+      standardDeviation: 0.1,
+      distribution: 'normal',
+      historicalCount: 0,
+      confidence: 0.5
+    });
+    const tvpiVariance = this.sampleFromDistribution(distributions.tvpiVariance || {
+      mean: 0,
+      standardDeviation: 0.1,
+      distribution: 'normal',
+      historicalCount: 0,
+      confidence: 0.5
+    });
+
+    // Calculate baseline values
     const baselineTotalValue = parseFloat(baseline.totalValue.toString());
-    const baselineIrr = parseFloat(baseline.irr?.toString() || '0.15');
-    const baselineMultiple = parseFloat(baseline.multiple?.toString() || '2.0');
     const baselineDpi = parseFloat(baseline.dpi?.toString() || '0.5');
     const baselineTvpi = parseFloat(baseline.tvpi?.toString() || '1.5');
 
+    // Use power law results for multiple and IRR (NO TIME DECAY)
+    // Apply minimal variance to other metrics to preserve power law characteristics
     return {
-      totalValue: baselineTotalValue * (1 + totalValueVariance * timeDecay) * compoundGrowth,
-      irr: baselineIrr + (irrVariance * timeDecay),
-      multiple: baselineMultiple * (1 + multipleVariance * timeDecay),
-      dpi: baselineDpi + (dpiVariance * timeDecay),
-      tvpi: baselineTvpi + (tvpiVariance * timeDecay)
+      totalValue: baselineTotalValue * powerLawScenario.multiple * (1 + totalValueVariance * 0.1), // Reduced variance impact
+      irr: powerLawScenario.irr,
+      multiple: powerLawScenario.multiple,
+      dpi: baselineDpi + (dpiVariance * 0.5), // Reduced impact, no time decay
+      tvpi: baselineTvpi + (tvpiVariance * 0.5) // Reduced impact, no time decay
     };
   }
 
   /**
    * Sample from a distribution based on its parameters
+   * Enhanced with power law distribution support
    */
   private sampleFromDistribution(params: DistributionParams): number {
     switch (params.distribution) {
@@ -414,6 +467,10 @@ export class MonteCarloSimulationService {
         return this.sampleTriangular(params.mean - params.standardDeviation, params.mean + params.standardDeviation, params.mean);
       case 'beta':
         return this.sampleBeta(2, 5, params.mean - 2 * params.standardDeviation, params.mean + 2 * params.standardDeviation);
+      case 'powerlaw':
+        // Use power law distribution for return multiples
+        const powerLawSample = this.powerLawDistribution.sampleReturn('seed');
+        return powerLawSample.multiple - 1; // Convert to variance form
       default:
         return this.sampleNormal(params.mean, params.standardDeviation);
     }
@@ -666,69 +723,27 @@ export class MonteCarloSimulationService {
     return kurt - 3; // Excess kurtosis
   }
 
-  private setRandomSeed(seed: number): void {
-    // Simple linear congruential generator for reproducible results
-    let state = seed;
-    Math.random = () => {
-      state = (state * 1664525 + 1013904223) % 4294967296;
-      return state / 4294967296;
-    };
-  }
-
-  // Distribution sampling functions
+  // Distribution sampling functions using local PRNG (no global Math.random override)
   private sampleNormal(mean: number, stdDev: number): number {
-    // Box-Muller transformation
-    const u1 = Math.random();
-    const u2 = Math.random();
-    const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-    return mean + z0 * stdDev;
+    return this.prng.nextNormal(mean, stdDev);
   }
 
   private sampleLogNormal(mean: number, stdDev: number): number {
-    return Math.exp(this.sampleNormal(mean, stdDev));
+    return this.prng.nextLogNormal(mean, stdDev);
   }
 
   private sampleTriangular(min: number, max: number, mode: number): number {
-    const u = Math.random();
-    if (u < (mode - min) / (max - min)) {
-      return min + Math.sqrt(u * (max - min) * (mode - min));
-    } else {
-      return max - Math.sqrt((1 - u) * (max - min) * (max - mode));
-    }
+    return this.prng.nextTriangular(min, max, mode);
   }
 
   private sampleBeta(alpha: number, beta: number, min: number, max: number): number {
-    // Simplified beta sampling using gamma distribution approximation
-    const gamma1 = this.sampleGamma(alpha);
-    const gamma2 = this.sampleGamma(beta);
-    const betaSample = gamma1 / (gamma1 + gamma2);
-    return min + betaSample * (max - min);
-  }
-
-  private sampleGamma(shape: number): number {
-    // Simplified gamma sampling for beta distribution
-    if (shape >= 1) {
-      const d = shape - 1 / 3;
-      const c = 1 / Math.sqrt(9 * d);
-      while (true) {
-        const z = this.sampleNormal(0, 1);
-        if (z > -1 / c) {
-          const v = Math.pow(1 + c * z, 3);
-          const u = Math.random();
-          if (Math.log(u) < 0.5 * z * z + d * (1 - v + Math.log(v))) {
-            return d * v;
-          }
-        }
-      }
-    } else {
-      return this.sampleGamma(shape + 1) * Math.pow(Math.random(), 1 / shape);
-    }
+    return this.prng.nextBeta(alpha, beta, min, max);
   }
 
   // Helper functions for portfolio analysis
   private generateExitScenarios(companies: any[], scenarios: number): number[] {
     return Array(scenarios).fill(0).map(() =>
-      companies.filter(() => Math.random() < 0.3).length // 30% exit probability
+      companies.filter(() => this.prng.next() < 0.3).length // 30% exit probability
     );
   }
 
@@ -769,7 +784,8 @@ export class MonteCarloSimulationService {
   private calculateReserveCoverage(allocation: number, simulationResults: Record<string, SimulationResult>, scenarios: number): number {
     // Simulate reserve coverage scenarios
     const coverageScenarios = Array(scenarios).fill(0).map(() => {
-      const totalValue = simulationResults.totalValue.scenarios[Math.floor(Math.random() * simulationResults.totalValue.scenarios.length)];
+      const randomIndex = Math.floor(this.prng.next() * simulationResults.totalValue.scenarios.length);
+      const totalValue = simulationResults.totalValue.scenarios[randomIndex];
       const reserveAmount = totalValue * allocation;
       const followOnNeed = this.sampleLogNormal(reserveAmount * 0.6, reserveAmount * 0.3);
       return Math.min(reserveAmount / followOnNeed, 1.0);
@@ -791,6 +807,84 @@ export class MonteCarloSimulationService {
       where: eq(funds.id, fundId)
     });
     return parseFloat(fund?.size?.toString() || '100000000');
+  }
+
+  /**
+   * Get portfolio stage distribution for power law sampling
+   */
+  private async getPortfolioStageDistribution(fundId: number): Promise<Record<string, number>> {
+    const portfolioCompaniesData = await db.query.portfolioCompanies.findMany({
+      where: eq(portfolioCompanies.fundId, fundId)
+    });
+
+    if (portfolioCompaniesData.length === 0) {
+      // Default to seed stage if no portfolio data
+      return { 'seed': 1.0 };
+    }
+
+    // Count companies by stage
+    const stageCounts: Record<string, number> = {};
+    portfolioCompaniesData.forEach(company => {
+      const stage = this.normalizeStage(company.stage);
+      stageCounts[stage] = (stageCounts[stage] || 0) + 1;
+    });
+
+    // Convert to proportions
+    const total = portfolioCompaniesData.length;
+    const stageDistribution: Record<string, number> = {};
+    for (const [stage, count] of Object.entries(stageCounts)) {
+      stageDistribution[stage] = count / total;
+    }
+
+    return stageDistribution;
+  }
+
+  /**
+   * Normalize stage names to match power law distribution types
+   */
+  private normalizeStage(stage: string | null): InvestmentStage {
+    if (!stage) return 'seed';
+
+    const normalized = stage.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+    if (normalized.includes('pre-seed') || normalized.includes('preseed')) {
+      return 'pre-seed';
+    } else if (normalized.includes('seed') && !normalized.includes('series')) {
+      return 'seed';
+    } else if (normalized.includes('series-a') || normalized.includes('a-round')) {
+      return 'series-a';
+    } else if (normalized.includes('series-b') || normalized.includes('b-round')) {
+      return 'series-b';
+    } else if (normalized.includes('series-c') || normalized.includes('c-round') ||
+               normalized.includes('series-d') || normalized.includes('later')) {
+      return 'series-c+';
+    }
+
+    // Default to seed for unknown stages
+    return 'seed';
+  }
+
+  /**
+   * Select stage randomly based on distribution weights using local PRNG
+   */
+  private selectStageFromDistribution(distribution: Record<string, number>): InvestmentStage {
+    const stages = Object.keys(distribution);
+    if (stages.length === 0) {
+      return 'seed';
+    }
+
+    const rand = this.prng.next();
+    let cumulativeProb = 0;
+
+    for (const stage of stages) {
+      cumulativeProb += distribution[stage];
+      if (rand <= cumulativeProb) {
+        return this.normalizeStage(stage);
+      }
+    }
+
+    // Fallback to first stage
+    return this.normalizeStage(stages[0]);
   }
 }
 

@@ -1,0 +1,151 @@
+# ---- deps ----
+FROM node:22-alpine AS deps
+WORKDIR /app
+
+# Security: run as non-root
+RUN addgroup -g 1001 -S nodejs && adduser -S worker -u 1001
+
+# Copy dependency files
+COPY package*.json ./
+
+# Install only production dependencies initially (skip scripts to avoid Husky)
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+
+# ---- build ----
+FROM node:22-alpine AS build
+WORKDIR /app
+
+# Copy deps from previous stage
+COPY --from=deps /app/node_modules ./node_modules
+COPY package*.json ./
+
+# Install dev dependencies for build (skip scripts to avoid Husky issues)
+RUN npm ci --ignore-scripts
+
+# Copy source code
+COPY . .
+
+# Build with error checking and optimization
+RUN npm run build && \
+    npm run check && \
+    npm prune --omit=dev
+
+# ---- runtime ----
+FROM node:22-alpine AS prod
+WORKDIR /app
+
+# Security hardening
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S worker -u 1001 && \
+    apk add --no-cache dumb-init curl
+
+# Environment
+ENV NODE_ENV=production
+ENV HUSKY=0
+
+# Copy built application
+COPY --from=build --chown=worker:nodejs /app/dist ./dist
+COPY --from=build --chown=worker:nodejs /app/node_modules ./node_modules
+COPY --from=build --chown=worker:nodejs /app/package*.json ./
+COPY --from=build --chown=worker:nodejs /app/workers ./workers
+COPY --from=build --chown=worker:nodejs /app/shared ./shared
+
+# Worker type environment variable (set at runtime)
+ENV WORKER_TYPE=reserve
+
+# Health check script
+COPY --chown=worker:nodejs <<'EOF' /app/healthcheck.js
+const net = require('net');
+const workerType = process.env.WORKER_TYPE || 'reserve';
+
+// Check if worker health server is running (port 9000)
+const healthServerPort = parseInt(process.env.WORKER_HEALTH_PORT || '9000');
+
+const socket = new net.Socket();
+socket.setTimeout(2000);
+
+socket.on('connect', () => {
+  // Health server is listening, now verify worker status via HTTP
+  const http = require('http');
+
+  const options = {
+    hostname: 'localhost',
+    port: healthServerPort,
+    path: '/health',
+    method: 'GET',
+    timeout: 2000
+  };
+
+  const req = http.request(options, (res) => {
+    let data = '';
+
+    res.on('data', (chunk) => {
+      data += chunk;
+    });
+
+    res.on('end', () => {
+      try {
+        const health = JSON.parse(data);
+
+        // Check if our worker is healthy
+        const worker = health.workers?.find(w => w.name.includes(workerType));
+
+        if (worker && worker.status === 'healthy') {
+          console.log(`Worker ${workerType} is healthy`);
+          socket.destroy();
+          process.exit(0);
+        } else {
+          console.error(`Worker ${workerType} is unhealthy:`, worker?.error || 'not found');
+          socket.destroy();
+          process.exit(1);
+        }
+      } catch (error) {
+        console.error('Invalid health response:', error.message);
+        socket.destroy();
+        process.exit(1);
+      }
+    });
+  });
+
+  req.on('error', (err) => {
+    console.error('Health check request failed:', err.message);
+    socket.destroy();
+    process.exit(1);
+  });
+
+  req.on('timeout', () => {
+    console.error('Health check timeout');
+    req.destroy();
+    socket.destroy();
+    process.exit(1);
+  });
+
+  req.end();
+});
+
+socket.on('error', (err) => {
+  console.error('Health server not accessible:', err.message);
+  process.exit(1);
+});
+
+socket.on('timeout', () => {
+  console.error('Health server connection timeout');
+  socket.destroy();
+  process.exit(1);
+});
+
+socket.connect(healthServerPort, 'localhost');
+EOF
+
+# Health check - verify worker is running
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD node /app/healthcheck.js
+
+# Security: switch to non-root user
+USER worker
+
+# Use dumb-init for proper signal handling
+ENTRYPOINT ["dumb-init", "--"]
+
+# Worker entry point (determined by WORKER_TYPE env var)
+CMD node -e "const workerType = process.env.WORKER_TYPE || 'reserve'; require('./workers/' + workerType + '-worker.js')"

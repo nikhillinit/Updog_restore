@@ -14,46 +14,54 @@ const envSchema = z.object({
   // Core environment
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(5000),
-  
+
   // Database
   DATABASE_URL: z.string().min(1).default('postgresql://mock:mock@localhost:5432/mock'),
-  
+
   // Cache & Queue - explicit scheme validation
   REDIS_URL: z.string().url().or(z.literal('memory://')).default('memory://'),
   RATE_LIMIT_REDIS_URL: z.string().url().or(z.literal('memory://')).optional(),
   QUEUE_REDIS_URL: z.string().url().or(z.literal('memory://')).optional(),
   SESSION_REDIS_URL: z.string().url().or(z.literal('memory://')).optional(),
   ENABLE_QUEUES: z.enum(['0','1']).default('0'),
-  
+
   // Security & CORS
   CORS_ORIGIN: z.string().default('http://localhost:5173,http://localhost:5174,http://localhost:5175'),
   BODY_LIMIT: z.string().default('10mb'),
-  
+  SESSION_SECRET: z.string().min(32).optional(),
+  JWT_SECRET: z.string().min(32).optional(),
+
   // Monitoring & Observability
   PROMETHEUS_URL: z.string().optional(),
   ERROR_TRACKING_DSN: z.string().optional(),
-  
+  METRICS_KEY: z.string().min(16).optional(),
+
   // Deployment & Circuit Breaker
   CIRCUIT_BREAKER_THRESHOLD: z.coerce.number().default(3),
   CIRCUIT_BREAKER_RESET_TIMEOUT: z.coerce.number().default(3600000), // 1 hour
-  
+
   // SLO Configuration
   SLO_ERROR_BUDGET: z.coerce.number().default(0.001), // 99.9% SLO
   SLO_SHORT_WINDOW: z.coerce.number().default(3600000), // 1 hour
   SLO_MEDIUM_WINDOW: z.coerce.number().default(21600000), // 6 hours
   SLO_LONG_WINDOW: z.coerce.number().default(86400000), // 24 hours
-  
+
   // Deployment Thresholds
   DEPLOY_ERROR_THRESHOLD: z.coerce.number().default(0.01),
   DEPLOY_P99_THRESHOLD: z.coerce.number().default(1000),
   DEPLOY_MEMORY_THRESHOLD: z.coerce.number().default(0.8),
   DEPLOY_CPU_THRESHOLD: z.coerce.number().default(0.7),
-  
+
   // Optional Services
-  HEALTH_KEY: z.string().optional(),
+  HEALTH_KEY: z.string().min(16).optional(),
   SHUTDOWN_RETRY_AFTER_SECONDS: z.coerce.number().default(30),
   NATS_URL: z.string().optional(),
-  
+
+  // Worker Configuration
+  WORKER_TYPE: z.enum(['reserve', 'pacing', 'cohort', 'report']).optional(),
+  REDIS_HOST: z.string().default('localhost'),
+  REDIS_PORT: z.coerce.number().int().positive().default(6379),
+
   // Release Information
   npm_package_version: z.string().optional(),
   RELEASE: z.string().optional(),
@@ -70,27 +78,99 @@ export function loadEnv() {
   }
   
   const config = parsed.data;
-    
+
     // Additional validation for production
     if (config.NODE_ENV === 'production') {
+      console.log('[config] Running production environment validation...');
+
+      // Required configuration
       const requiredInProduction = [
         'DATABASE_URL',
         'REDIS_URL',
-        'CORS_ORIGIN'
+        'CORS_ORIGIN',
+        'SESSION_SECRET',
+        'HEALTH_KEY',
+        'METRICS_KEY'
       ] as const;
-      
-      const missing = requiredInProduction.filter(key => 
+
+      const missing = requiredInProduction.filter(key =>
         !process.env[key] || process.env[key]?.startsWith('mock')
       );
-      
+
       if (missing.length > 0) {
+        console.error(`❌ Missing required production configuration: ${missing.join(', ')}`);
         throw new Error(`Missing required production configuration: ${missing.join(', ')}`);
       }
-      
+
       // Validate Redis URL format in production
       if (config.REDIS_URL === 'memory://') {
+        console.error('❌ Redis memory cache not allowed in production');
         throw new Error('Redis memory cache not allowed in production');
       }
+
+      // Validate secret strength
+      const secrets = {
+        SESSION_SECRET: config.SESSION_SECRET,
+        JWT_SECRET: config.JWT_SECRET,
+        HEALTH_KEY: config.HEALTH_KEY,
+        METRICS_KEY: config.METRICS_KEY,
+      };
+
+      for (const [key, value] of Object.entries(secrets)) {
+        if (value && value.length < 32) {
+          console.error(`❌ ${key} must be at least 32 characters in production (current: ${value.length})`);
+          throw new Error(`${key} must be at least 32 characters in production`);
+        }
+
+        // Check for weak patterns
+        if (value && (
+          value === 'password' ||
+          value === 'secret' ||
+          value === '12345' ||
+          value.toLowerCase().includes('test') ||
+          value.toLowerCase().includes('dev')
+        )) {
+          console.error(`❌ ${key} contains weak pattern - use strong random value`);
+          throw new Error(`${key} contains weak pattern - use strong random value`);
+        }
+      }
+
+      // Validate database URL doesn't use default credentials
+      if (config.DATABASE_URL.includes('postgres:postgres') ||
+          config.DATABASE_URL.includes('user:password')) {
+        console.error('❌ Database URL contains default credentials');
+        throw new Error('Database URL contains default credentials - use secure credentials');
+      }
+
+      // Validate CORS origin is specific in production
+      if (config.CORS_ORIGIN.includes('localhost') ||
+          config.CORS_ORIGIN === '*') {
+        console.error('❌ CORS_ORIGIN must be specific production domains, not localhost or wildcard');
+        throw new Error('CORS_ORIGIN must be specific production domains');
+      }
+
+      console.log('✅ Production environment validation passed');
+    }
+
+    // Staging validation
+    if (config.NODE_ENV === 'staging') {
+      console.log('[config] Running staging environment validation...');
+
+      const requiredInStaging = [
+        'DATABASE_URL',
+        'REDIS_URL',
+        'SESSION_SECRET',
+      ] as const;
+
+      const missing = requiredInStaging.filter(key =>
+        !process.env[key] || process.env[key]?.startsWith('mock')
+      );
+
+      if (missing.length > 0) {
+        console.warn(`⚠️  Missing recommended staging configuration: ${missing.join(', ')}`);
+      }
+
+      console.log('✅ Staging environment validation passed');
     }
     
     // Log configuration (redact sensitive values)

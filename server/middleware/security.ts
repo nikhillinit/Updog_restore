@@ -123,7 +123,8 @@ const createRateLimiter = (options: any) => {
       ...options,
       store: new RedisStore({
         client: redisClient,
-        prefix: 'rl:'
+        prefix: 'rl:',
+        sendCommand: (...args: string[]) => redisClient.sendCommand(args)
       })
     });
   }

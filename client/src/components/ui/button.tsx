@@ -10,19 +10,19 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 font-poppins shadow-card",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 font-poppins font-medium shadow-card",
   {
     variants: {
       variant: {
-        default: "bg-charcoal text-white hover:bg-charcoal-800 hover:shadow-elevated",
+        default: "bg-[#292929] hover:bg-[#292929]/90 text-white hover:shadow-elevated",
         destructive:
-          "bg-error text-white hover:bg-error-dark",
+          "bg-error text-white hover:bg-error-dark font-medium",
         outline:
-          "border border-charcoal/20 bg-white text-charcoal hover:bg-charcoal hover:text-white",
+          "border border-[#E0D8D1] bg-white text-[#292929] hover:bg-[#E0D8D1]/20 hover:border-[#292929]",
         secondary:
-          "bg-beige text-charcoal hover:bg-beige-400",
-        ghost: "hover:bg-charcoal/10 hover:text-charcoal",
-        link: "text-charcoal underline-offset-4 hover:underline",
+          "bg-beige text-[#292929] hover:bg-beige-400 font-medium",
+        ghost: "hover:bg-[#292929]/10 hover:text-[#292929] font-medium",
+        link: "text-[#292929] underline-offset-4 hover:underline font-medium",
       },
       size: {
         default: "h-10 px-4 py-2",

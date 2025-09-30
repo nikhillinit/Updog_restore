@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useLocation } from 'wouter';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, ArrowLeft, ArrowRight, Edit } from "lucide-react";
+import { useFundContext } from '@/contexts/FundContext';
 import { useFundSelector } from '@/stores/useFundSelector';
+import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
 
 // Capital Allocation interface
 interface CapitalAllocation {
@@ -28,9 +29,13 @@ export default function CapitalStructureStep() {
   const [, navigate] = useLocation();
   const [editingAllocation, setEditingAllocation] = useState<string | null>(null);
 
-  // Get investable capital from fund size (assuming some percentage)
-  const fundSize = useFundSelector(s => s.fundSize);
-  const investableCapital = fundSize ? fundSize * 0.8 : 0; // Assume 80% investable
+  // Get investable capital from fund context
+  const { currentFund } = useFundContext();
+  const fundSize = currentFund?.size || 0;
+  const investableCapital = fundSize * 0.8; // Assume 80% investable
+
+  // Get investment strategy stages for graduation rate modeling
+  const stages = useFundSelector(s => s.stages);
 
   // Mock allocations (this would come from store)
   const [allocations, setAllocations] = useState<CapitalAllocation[]>([
@@ -38,7 +43,7 @@ export default function CapitalStructureStep() {
       id: 'seed-allocation',
       name: 'Seed Investments',
       entryRound: 'Seed',
-      capitalAllocationPct: 40,
+      capitalAllocationPct: 43,
       initialCheckStrategy: 'ownership',
       initialOwnershipPct: 8,
       followOnStrategy: 'maintain_ownership',
@@ -46,15 +51,27 @@ export default function CapitalStructureStep() {
       investmentHorizonMonths: 24
     },
     {
-      id: 'series-a-allocation', 
+      id: 'series-a-allocation',
       name: 'Series A Investments',
       entryRound: 'Series A',
-      capitalAllocationPct: 35,
+      capitalAllocationPct: 14,
       initialCheckStrategy: 'amount',
       initialCheckAmount: 2.5,
       followOnStrategy: 'amount',
       followOnAmount: 1.5,
       followOnParticipationPct: 80,
+      investmentHorizonMonths: 18
+    },
+    {
+      id: 'pre-seed-allocation',
+      name: 'Pre-Seed Investments',
+      entryRound: 'Pre-Seed',
+      capitalAllocationPct: 43,
+      initialCheckStrategy: 'amount',
+      initialCheckAmount: 0.75,
+      followOnStrategy: 'amount',
+      followOnAmount: 0.5,
+      followOnParticipationPct: 60,
       investmentHorizonMonths: 18
     }
   ]);
@@ -87,7 +104,7 @@ export default function CapitalStructureStep() {
   };
 
   const handleUpdateAllocation = (id: string, updates: Partial<CapitalAllocation>) => {
-    setAllocations(prev => prev.map(alloc => 
+    setAllocations(prev => prev.map(alloc =>
       alloc.id === id ? { ...alloc, ...updates } : alloc
     ));
   };
@@ -99,362 +116,515 @@ export default function CapitalStructureStep() {
     }
   };
 
+  // Deterministic portfolio modeling algorithm using graduation rates
   const calculateImpliedValues = (allocation: CapitalAllocation) => {
     const allocatedCapital = investableCapital * (allocation.capitalAllocationPct / 100);
-    
-    let impliedOwnership = 0;
-    let estimatedDeals = 0;
-    let initialCapital = 0;
-    
-    if (allocation.initialCheckStrategy === 'amount' && allocation.initialCheckAmount) {
-      estimatedDeals = Math.floor(allocatedCapital / allocation.initialCheckAmount);
-      // Would need sector profile data to calculate implied ownership
-      impliedOwnership = 8; // Mock value
-      initialCapital = allocation.initialCheckAmount * estimatedDeals;
-    } else if (allocation.initialCheckStrategy === 'ownership' && allocation.initialOwnershipPct) {
-      impliedOwnership = allocation.initialOwnershipPct;
-      // Would need sector profile valuations to calculate check size and deal count
-      estimatedDeals = 15; // Mock value
-      initialCapital = allocatedCapital * 0.6; // Mock value
+
+    // Find the entry stage in our investment strategy
+    const entryStage = stages.find(stage => stage.name === allocation.entryRound);
+    if (!entryStage) {
+      // Fallback to simple calculation if stage not found
+      return calculateSimpleAllocation(allocation, allocatedCapital);
     }
-    
+
+    // Get stage progression data
+    const stageIndex = stages.findIndex(stage => stage.name === allocation.entryRound);
+    const subsequentStages = stages.slice(stageIndex);
+
+    // Deterministic algorithm: work backwards from target portfolio size
+    const targetDealsInThisStage = calculateTargetDeals(allocation, allocatedCapital);
+
+    // Model progression through subsequent stages using graduation rates
+    const stageProgression = modelStageProgression(subsequentStages, targetDealsInThisStage);
+
+    // Calculate total capital requirements across all stages
+    const capitalDistribution = calculateCapitalDistribution(allocation, stageProgression, allocatedCapital);
+
     return {
       allocatedCapital,
-      impliedOwnership,
-      estimatedDeals,
-      initialCapital,
-      followOnCapital: allocatedCapital - initialCapital
+      impliedOwnership: calculateImpliedOwnership(allocation),
+      estimatedDeals: targetDealsInThisStage,
+      initialCapital: capitalDistribution.initialCapital,
+      followOnCapital: capitalDistribution.followOnCapital,
+      stageProgression, // Additional data for detailed modeling
+      totalFutureCommitment: capitalDistribution.totalCommitment
     };
   };
 
+  // Helper function for simple fallback calculation
+  const calculateSimpleAllocation = (allocation: CapitalAllocation, allocatedCapital: number) => {
+    if (allocation.initialCheckStrategy === 'amount' && allocation.initialCheckAmount) {
+      const checkAmountInDollars = allocation.initialCheckAmount * 1000000;
+      const estimatedDeals = Math.floor(allocatedCapital / checkAmountInDollars);
+      return {
+        allocatedCapital,
+        impliedOwnership: calculateImpliedOwnership(allocation),
+        estimatedDeals,
+        initialCapital: checkAmountInDollars * estimatedDeals,
+        followOnCapital: allocatedCapital - (checkAmountInDollars * estimatedDeals)
+      };
+    }
+    return {
+      allocatedCapital,
+      impliedOwnership: 0,
+      estimatedDeals: 0,
+      initialCapital: 0,
+      followOnCapital: allocatedCapital
+    };
+  };
+
+  // Calculate target number of deals at entry stage
+  const calculateTargetDeals = (allocation: CapitalAllocation, allocatedCapital: number): number => {
+    if (allocation.initialCheckStrategy === 'amount' && allocation.initialCheckAmount) {
+      // Start with simple division, then adjust for follow-on requirements
+      const initialCheckSize = allocation.initialCheckAmount * 1000000;
+      const baseDeals = Math.floor(allocatedCapital / initialCheckSize);
+
+      // Adjust for follow-on capital requirements (reserve 60% for follow-ons)
+      const adjustedDeals = Math.floor(baseDeals * 0.4); // More conservative to account for follow-ons
+      return Math.max(1, adjustedDeals);
+    }
+    return 10; // Default fallback
+  };
+
+  // Model how deals progress through subsequent stages
+  const modelStageProgression = (subsequentStages: any[], initialDeals: number) => {
+    let currentDeals = initialDeals;
+    const progression = [];
+
+    for (const stage of subsequentStages) {
+      const graduationRate = stage.graduate / 100;
+      const exitRate = stage.exit / 100;
+      const remainRate = 1 - graduationRate - exitRate;
+
+      const graduatingDeals = Math.floor(currentDeals * graduationRate);
+      const exitingDeals = Math.floor(currentDeals * exitRate);
+      const remainingDeals = currentDeals - graduatingDeals - exitingDeals;
+
+      progression.push({
+        stageName: stage.name,
+        startingDeals: currentDeals,
+        graduatingDeals,
+        exitingDeals,
+        remainingDeals,
+        months: stage.months
+      });
+
+      // Next stage starts with graduating deals from this stage
+      currentDeals = graduatingDeals;
+
+      // Stop if no deals graduate to next stage
+      if (graduatingDeals === 0) break;
+    }
+
+    return progression;
+  };
+
+  // Calculate capital distribution across initial and follow-on investments
+  const calculateCapitalDistribution = (allocation: CapitalAllocation, stageProgression: any[], totalCapital: number) => {
+    if (!allocation.initialCheckAmount) {
+      return { initialCapital: 0, followOnCapital: totalCapital, totalCommitment: totalCapital };
+    }
+
+    const initialCheckSize = allocation.initialCheckAmount * 1000000;
+    const initialDeals = stageProgression[0]?.startingDeals || 0;
+    const initialCapital = initialCheckSize * initialDeals;
+
+    // Calculate follow-on requirements based on stage progression
+    let totalFollowOnCapital = 0;
+
+    for (let i = 1; i < stageProgression.length; i++) {
+      const stage = stageProgression[i];
+      if (stage.startingDeals > 0) {
+        // Estimate follow-on check size (typically 2-3x initial for growth stages)
+        const followOnMultiplier = i === 1 ? 2.5 : (i === 2 ? 4 : 6);
+        const followOnPerDeal = initialCheckSize * followOnMultiplier;
+        totalFollowOnCapital += followOnPerDeal * stage.startingDeals;
+      }
+    }
+
+    const totalCommitment = initialCapital + totalFollowOnCapital;
+
+    // Scale down if total exceeds allocation
+    const scaleFactor = totalCommitment > totalCapital ? totalCapital / totalCommitment : 1;
+
+    return {
+      initialCapital: initialCapital * scaleFactor,
+      followOnCapital: totalFollowOnCapital * scaleFactor,
+      totalCommitment: totalCommitment * scaleFactor
+    };
+  };
+
+  // Calculate implied ownership based on typical valuations
+  const calculateImpliedOwnership = (allocation: CapitalAllocation): number => {
+    if (!allocation.initialCheckAmount) return 0;
+
+    const typicalValuations = {
+      'Pre-Seed': 6000000,
+      'Seed': 15000000,
+      'Series A': 32000000,
+      'Series B': 75000000,
+      'Series C': 150000000
+    };
+
+    const valuation = typicalValuations[allocation.entryRound as keyof typeof typicalValuations] || 20000000;
+    const checkSize = allocation.initialCheckAmount * 1000000;
+    return (checkSize / valuation) * 100;
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-charcoal">Capital Allocations</h2>
-        <p className="text-gray-600 mt-2">Define how your fund's capital will be allocated across investment strategies</p>
-      </div>
-
-      {/* Overview Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Allocation Overview</CardTitle>
-          <CardDescription>
-            Investable Capital: ${(investableCapital / 1000000).toFixed(1)}M 
-            {totalAllocationPct > 0 && (
-              <span className="ml-2">• Total Allocated: {totalAllocationPct.toFixed(1)}%</span>
-            )}
+    <ModernStepContainer
+      title="Capital Allocation"
+      description="Configure how investable capital is allocated across investment stages"
+    >
+      <div className="space-y-8">
+        {/* Overview Section */}
+        <div className="space-y-6">
+          <div className="p-6 bg-[#F2F2F2] rounded-xl">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+              <div>
+                <div className="text-2xl font-inter font-bold text-[#292929]">
+                  ${(investableCapital / 1000000).toFixed(1)}M
+                </div>
+                <div className="text-sm text-[#292929]/60 font-poppins">Investable Capital</div>
+              </div>
+              <div>
+                <div className={`text-2xl font-inter font-bold ${
+                  totalAllocationPct > 100 ? 'text-red-600' : 'text-[#292929]'
+                }`}>
+                  {totalAllocationPct.toFixed(1)}%
+                </div>
+                <div className="text-sm text-[#292929]/60 font-poppins">Total Allocated</div>
+              </div>
+              <div>
+                <div className="text-2xl font-inter font-bold text-[#292929]">
+                  {allocations.length}
+                </div>
+                <div className="text-sm text-[#292929]/60 font-poppins">Allocations</div>
+              </div>
+            </div>
             {totalAllocationPct > 100 && (
-              <span className="text-red-500 ml-2">⚠️ Over-allocated</span>
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm text-center">
+                ⚠️ Total allocation exceeds 100%
+              </div>
             )}
-          </CardDescription>
-        </CardHeader>
-      </Card>
+          </div>
+        </div>
 
-      {/* Current Allocations */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Current Allocations</CardTitle>
-          <CardDescription>
-            Your currently defined allocations. Click on + New Allocation to create a new allocation or click on any allocation to edit.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {allocations.map((allocation: any) => {
-            const calculations = calculateImpliedValues(allocation);
-            const isEditing = editingAllocation === allocation.id;
-            
-            return (
-              <div key={allocation.id} className="border rounded-lg p-4 space-y-4">
-                {!isEditing ? (
-                  // View Mode
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-medium text-lg">{allocation.name || 'Unnamed Allocation'}</h3>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditingAllocation(allocation.id)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteAllocation(allocation.id)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-500">Entry Round:</span>
-                        <div className="font-medium">{allocation.entryRound}</div>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Capital Allocation:</span>
-                        <div className="font-medium">{allocation.capitalAllocationPct}%</div>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Allocated Capital:</span>
-                        <div className="font-medium">${(calculations.allocatedCapital / 1000000).toFixed(1)}M</div>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Est. Initial Deals:</span>
-                        <div className="font-medium">{calculations.estimatedDeals}</div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  // Edit Mode
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-medium">Edit Allocation</h3>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditingAllocation(null)}
-                      >
-                        Done
-                      </Button>
-                    </div>
+        {/* Current Allocations */}
+        <div className="space-y-6">
+          <div className="pb-4 border-b border-[#E0D8D1]">
+            <h3 className="text-lg font-inter font-bold text-[#292929] mb-2">Current Allocations</h3>
+            <p className="text-[#292929]/70 font-poppins">
+              Your currently defined allocations. Click on + New Allocation to create a new allocation or click on any allocation to edit.
+            </p>
+          </div>
 
-                    {/* Basic Info */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label>Allocation Name</Label>
-                        <Input
-                          value={allocation.name}
-                          onChange={(e: any) => handleUpdateAllocation(allocation.id, { name: e.target.value })}
-                          placeholder="e.g., Seed Investments"
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label>Sector Profile</Label>
-                        <Select
-                          value={allocation.sectorProfileId || 'default'}
-                          onValueChange={(value: any) => handleUpdateAllocation(allocation.id, { sectorProfileId: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sectorProfiles.map(profile => (
-                              <SelectItem key={profile.id} value={profile.id}>
-                                {profile.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label>Entry Round</Label>
-                        <Select
-                          value={allocation.entryRound}
-                          onValueChange={(value: any) => handleUpdateAllocation(allocation.id, { entryRound: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {entryRounds.map(round => (
-                              <SelectItem key={round} value={round}>
-                                {round}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
+          <div className="space-y-4">
+            {allocations.map((allocation: any) => {
+              const calculations = calculateImpliedValues(allocation);
+              const isEditing = editingAllocation === allocation.id;
 
-                    <div className="space-y-2">
-                      <Label>Capital Allocation (%)</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="1"
-                        value={allocation.capitalAllocationPct}
-                        onChange={(e: any) => handleUpdateAllocation(allocation.id, { 
-                          capitalAllocationPct: parseFloat(e.target.value) || 0 
-                        })}
-                      />
-                      <p className="text-sm text-gray-500">
-                        Allocated Capital: ${((investableCapital * allocation.capitalAllocationPct / 100) / 1000000).toFixed(1)}M
-                      </p>
-                    </div>
-
-                    {/* Initial Check Strategy */}
-                    <div className="space-y-4 border-t pt-4">
-                      <h4 className="font-medium">Initial Check Strategy</h4>
-                      
-                      <div className="space-y-2">
-                        <Label>Strategy Type</Label>
-                        <Select
-                          value={allocation.initialCheckStrategy}
-                          onValueChange={(value: 'amount' | 'ownership') => 
-                            handleUpdateAllocation(allocation.id, { initialCheckStrategy: value })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="amount">Check Amount</SelectItem>
-                            <SelectItem value="ownership">Entry Ownership (%)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {allocation.initialCheckStrategy === 'amount' ? (
-                        <div className="space-y-2">
-                          <Label>Initial Check Size ($M)</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            value={allocation.initialCheckAmount || ''}
-                            onChange={(e: any) => handleUpdateAllocation(allocation.id, { 
-                              initialCheckAmount: parseFloat(e.target.value) || undefined 
-                            })}
-                            placeholder="e.g., 1.5"
-                          />
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <Label>Entry Ownership (%)</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.1"
-                            value={allocation.initialOwnershipPct || ''}
-                            onChange={(e: any) => handleUpdateAllocation(allocation.id, { 
-                              initialOwnershipPct: parseFloat(e.target.value) || undefined 
-                            })}
-                            placeholder="e.g., 10"
-                          />
-                        </div>
-                      )}
-                      
-                      <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
-                        <p><strong>Implied Entry Ownership:</strong> ~{calculations.impliedOwnership.toFixed(1)}%</p>
-                        <p><strong>Estimated Initial Investments:</strong> {calculations.estimatedDeals}</p>
-                        <p><strong>Capital for Initial Investments:</strong> ${(calculations.initialCapital / 1000000).toFixed(1)}M</p>
-                      </div>
-                    </div>
-
-                    {/* Follow-On Strategy */}
-                    <div className="space-y-4 border-t pt-4">
-                      <h4 className="font-medium">Follow-On Strategy</h4>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Follow-On Strategy</Label>
-                          <Select
-                            value={allocation.followOnStrategy}
-                            onValueChange={(value: 'amount' | 'maintain_ownership') => 
-                              handleUpdateAllocation(allocation.id, { followOnStrategy: value })
-                            }
+              return (
+                <div key={allocation.id} className="border border-[#E0D8D1] rounded-xl p-4 space-y-4">
+                  {!isEditing ? (
+                    // View Mode
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-medium text-lg">{allocation.name || 'Unnamed Allocation'}</h3>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingAllocation(allocation.id)}
                           >
-                            <SelectTrigger>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteAllocation(allocation.id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm font-poppins">
+                        <div>
+                          <span className="text-[#292929]/60">Entry Round:</span>
+                          <div className="font-medium text-[#292929]">{allocation.entryRound}</div>
+                        </div>
+                        <div>
+                          <span className="text-[#292929]/60">Capital Allocation:</span>
+                          <div className="font-medium text-[#292929]">{allocation.capitalAllocationPct}%</div>
+                        </div>
+                        <div>
+                          <span className="text-[#292929]/60">Allocated Capital:</span>
+                          <div className="font-medium text-[#292929]">${(calculations.allocatedCapital / 1000000).toFixed(1)}M</div>
+                        </div>
+                        <div>
+                          <span className="text-[#292929]/60">Est. Initial Deals:</span>
+                          <div className="font-medium text-[#292929]">{calculations.estimatedDeals}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    // Edit Mode
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-medium">Edit Allocation</h3>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingAllocation(null)}
+                        >
+                          Done
+                        </Button>
+                      </div>
+
+                      {/* Basic Info */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-3">
+                          <Label className="text-sm font-poppins font-medium text-[#292929]">Allocation Name</Label>
+                          <Input
+                            value={allocation.name}
+                            onChange={(e: any) => handleUpdateAllocation(allocation.id, { name: e.target.value })}
+                            placeholder="e.g., Seed Investments"
+                            className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                          />
+                        </div>
+
+                        <div className="space-y-3">
+                          <Label className="text-sm font-poppins font-medium text-[#292929]">Sector Profile</Label>
+                          <Select
+                            value={allocation.sectorProfileId || 'default'}
+                            onValueChange={(value: any) => handleUpdateAllocation(allocation.id, { sectorProfileId: value })}
+                          >
+                            <SelectTrigger className="h-12">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="amount">Fixed Amount</SelectItem>
-                              <SelectItem value="maintain_ownership">Maintain Ownership (%)</SelectItem>
+                              {sectorProfiles.map(profile => (
+                                <SelectItem key={profile.id} value={profile.id}>
+                                  {profile.name}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </div>
-                        
-                        <div className="space-y-2">
-                          <Label>Follow-On Participation (%)</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="1"
-                            value={allocation.followOnParticipationPct}
-                            onChange={(e: any) => handleUpdateAllocation(allocation.id, { 
-                              followOnParticipationPct: parseFloat(e.target.value) || 0 
-                            })}
-                          />
+
+                        <div className="space-y-3">
+                          <Label className="text-sm font-poppins font-medium text-[#292929]">Entry Round</Label>
+                          <Select
+                            value={allocation.entryRound}
+                            onValueChange={(value: any) => handleUpdateAllocation(allocation.id, { entryRound: value })}
+                          >
+                            <SelectTrigger className="h-12">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {entryRounds.map(round => (
+                                <SelectItem key={round} value={round}>
+                                  {round}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
-                      {allocation.followOnStrategy === 'amount' && (
-                        <div className="space-y-2">
-                          <Label>Follow-On Check Size ($M)</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            value={allocation.followOnAmount || ''}
-                            onChange={(e: any) => handleUpdateAllocation(allocation.id, { 
-                              followOnAmount: parseFloat(e.target.value) || undefined 
-                            })}
-                            placeholder="e.g., 2.0"
-                          />
+                      <div className="space-y-3">
+                        <Label className="text-sm font-poppins font-medium text-[#292929]">Capital Allocation (%)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={allocation.capitalAllocationPct}
+                          onChange={(e: any) => handleUpdateAllocation(allocation.id, {
+                            capitalAllocationPct: parseFloat(e.target.value) || 0
+                          })}
+                          className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                        />
+                        <p className="text-sm text-[#292929]/60 font-poppins">
+                          Allocated Capital: ${((investableCapital * allocation.capitalAllocationPct / 100) / 1000000).toFixed(1)}M
+                        </p>
+                      </div>
+
+                      {/* Initial Check Strategy */}
+                      <div className="space-y-4 border-t border-[#E0D8D1] pt-6">
+                        <h4 className="text-lg font-inter font-bold text-[#292929]">Initial Check Strategy</h4>
+
+                        <div className="space-y-3">
+                          <Label className="text-sm font-poppins font-medium text-[#292929]">Strategy Type</Label>
+                          <Select
+                            value={allocation.initialCheckStrategy}
+                            onValueChange={(value: 'amount' | 'ownership') =>
+                              handleUpdateAllocation(allocation.id, { initialCheckStrategy: value })
+                            }
+                          >
+                            <SelectTrigger className="h-12">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="amount">Check Amount</SelectItem>
+                              <SelectItem value="ownership">Entry Ownership (%)</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
-                      )}
-                      
-                      <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
-                        <p><strong>Follow-On Capital:</strong> ${(calculations.followOnCapital / 1000000).toFixed(1)}M</p>
+
+                        {allocation.initialCheckStrategy === 'amount' ? (
+                          <div className="space-y-3">
+                            <Label className="text-sm font-poppins font-medium text-[#292929]">Initial Check Size ($M)</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              value={allocation.initialCheckAmount || ''}
+                              onChange={(e: any) => handleUpdateAllocation(allocation.id, {
+                                initialCheckAmount: parseFloat(e.target.value) || undefined
+                              })}
+                              placeholder="e.g., 1.5"
+                              className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                            />
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <Label className="text-sm font-poppins font-medium text-[#292929]">Entry Ownership (%)</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.1"
+                              value={allocation.initialOwnershipPct || ''}
+                              onChange={(e: any) => handleUpdateAllocation(allocation.id, {
+                                initialOwnershipPct: parseFloat(e.target.value) || undefined
+                              })}
+                              placeholder="e.g., 10"
+                              className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                            />
+                          </div>
+                        )}
+
+                        <div className="text-sm text-[#292929]/70 bg-[#F2F2F2] p-3 rounded-xl font-poppins">
+                          <p><strong>Implied Entry Ownership:</strong> ~{calculations.impliedOwnership.toFixed(1)}%</p>
+                          <p><strong>Estimated Initial Investments:</strong> {calculations.estimatedDeals}</p>
+                          <p><strong>Capital for Initial Investments:</strong> ${(calculations.initialCapital / 1000000).toFixed(1)}M</p>
+                        </div>
+                      </div>
+
+                      {/* Follow-On Strategy */}
+                      <div className="space-y-4 border-t border-[#E0D8D1] pt-6">
+                        <h4 className="text-lg font-inter font-bold text-[#292929]">Follow-On Strategy</h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-3">
+                            <Label className="text-sm font-poppins font-medium text-[#292929]">Follow-On Strategy</Label>
+                            <Select
+                              value={allocation.followOnStrategy}
+                              onValueChange={(value: 'amount' | 'maintain_ownership') =>
+                                handleUpdateAllocation(allocation.id, { followOnStrategy: value })
+                              }
+                            >
+                              <SelectTrigger className="h-12">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="amount">Fixed Amount</SelectItem>
+                                <SelectItem value="maintain_ownership">Maintain Ownership (%)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-3">
+                            <Label className="text-sm font-poppins font-medium text-[#292929]">Follow-On Participation (%)</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="1"
+                              value={allocation.followOnParticipationPct}
+                              onChange={(e: any) => handleUpdateAllocation(allocation.id, {
+                                followOnParticipationPct: parseFloat(e.target.value) || 0
+                              })}
+                              className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                            />
+                          </div>
+                        </div>
+
+                        {allocation.followOnStrategy === 'amount' && (
+                          <div className="space-y-3">
+                            <Label className="text-sm font-poppins font-medium text-[#292929]">Follow-On Check Size ($M)</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              value={allocation.followOnAmount || ''}
+                              onChange={(e: any) => handleUpdateAllocation(allocation.id, {
+                                followOnAmount: parseFloat(e.target.value) || undefined
+                              })}
+                              placeholder="e.g., 2.0"
+                              className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                            />
+                          </div>
+                        )}
+
+                        <div className="text-sm text-[#292929]/70 bg-[#F2F2F2] p-3 rounded-xl font-poppins">
+                          <p><strong>Follow-On Capital:</strong> ${(calculations.followOnCapital / 1000000).toFixed(1)}M</p>
+                        </div>
+                      </div>
+
+                      {/* Investment Horizon */}
+                      <div className="space-y-3 border-t border-[#E0D8D1] pt-6">
+                        <Label className="text-sm font-poppins font-medium text-[#292929]">Initial Investment Horizon (months)</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="120"
+                          value={allocation.investmentHorizonMonths}
+                          onChange={(e: any) => handleUpdateAllocation(allocation.id, {
+                            investmentHorizonMonths: parseInt(e.target.value) || 24
+                          })}
+                          className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
+                        />
+                        <p className="text-sm text-[#292929]/60 font-poppins">
+                          Time period over which you expect to make initial investments in this allocation
+                        </p>
                       </div>
                     </div>
+                  )}
+                </div>
+              );
+            })}
 
-                    {/* Investment Horizon */}
-                    <div className="space-y-2 border-t pt-4">
-                      <Label>Initial Investment Horizon (months)</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        max="120"
-                        value={allocation.investmentHorizonMonths}
-                        onChange={(e: any) => handleUpdateAllocation(allocation.id, { 
-                          investmentHorizonMonths: parseInt(e.target.value) || 24 
-                        })}
-                      />
-                      <p className="text-sm text-gray-500">
-                        Time period over which you expect to make initial investments in this allocation
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          
-          <Button onClick={handleAddAllocation} variant="outline" className="w-full">
-            <Plus className="h-4 w-4 mr-2" />
-            + New Allocation
+            <Button onClick={handleAddAllocation} variant="outline" className="w-full h-12 border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium">
+              <Plus className="h-4 w-4 mr-2" />
+              + New Allocation
+            </Button>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <div className="flex justify-between pt-8 border-t border-[#E0D8D1] mt-8">
+          <Button
+            variant="outline"
+            onClick={() => navigate('/fund-setup?step=1')}
+            className="flex items-center gap-2 px-8 py-3 h-auto border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Previous
           </Button>
-        </CardContent>
-      </Card>
-
-      {/* Navigation */}
-      <div className="flex justify-between mt-6">
-        <Button 
-          variant="outline"
-          onClick={() => navigate('/fund-setup?step=1')}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Previous
-        </Button>
-        <Button 
-          onClick={() => navigate('/fund-setup?step=3')}
-          className="flex items-center gap-2"
-        >
-          Next Step
-          <ArrowRight className="h-4 w-4" />
-        </Button>
+          <Button
+            onClick={() => navigate('/fund-setup?step=3')}
+            className="flex items-center gap-2 bg-[#292929] hover:bg-[#292929]/90 text-white px-8 py-3 h-auto font-poppins font-medium"
+          >
+            Next Step
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-    </div>
+    </ModernStepContainer>
   );
 }
