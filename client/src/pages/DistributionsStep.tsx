@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Trash2, AlertCircle, ArrowLeft, ArrowRight } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useFundTuple, useFundAction } from '@/stores/useFundSelector';
+import { useFundContext } from '@/contexts/FundContext';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
 import type { FeeProfile, FeeTier, FundExpense, FeeBasis } from '@/stores/fundStore';
 
@@ -27,6 +28,10 @@ export default function DistributionsStep() {
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("waterfall");
 
+  // Get fund size from context
+  const { currentFund } = useFundContext();
+  const fundSize = currentFund?.size || 50000000;
+
   // State
   const [
     waterfallType,
@@ -38,7 +43,6 @@ export default function DistributionsStep() {
     exitRecyclingRate,
     mgmtFeeRecyclingRate,
     allowFutureRecycling,
-    fundSize,
     feeProfiles,
     fundExpenses,
     isEvergreen
@@ -52,7 +56,6 @@ export default function DistributionsStep() {
     s.exitRecyclingRate || 100,
     s.mgmtFeeRecyclingRate || 0,
     s.allowFutureRecycling || false,
-    s.fundSize || 50000000,
     s.feeProfiles || [],
     s.fundExpenses || [],
     s.isEvergreen || false

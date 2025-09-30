@@ -35,8 +35,8 @@ const WIZARD_STEPS = [
   {
     id: 'capital-structure',
     number: 2,
-    title: 'CAPITAL STRUCTURE',
-    description: 'LP/GP commitments and capital calls'
+    title: 'CAPITAL ALLOCATION',
+    description: 'Investment stage allocations and deal modeling'
   },
   {
     id: 'investment-strategy',

@@ -35,7 +35,7 @@ import {
   Zap
 } from "lucide-react";
 import { useLiquidityAnalytics, useLiquidityAlerts, useLiquidityMetrics } from '@/hooks/useLiquidityAnalytics';
-import { useFundSelector } from '@/stores/useFundSelector';
+import { useFundContext } from '@/contexts/FundContext';
 
 interface CashflowDashboardProps {
   fundId: string;
@@ -46,8 +46,9 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
   const [timeframe, setTimeframe] = useState('12m');
   const [activeView, setActiveView] = useState('overview');
 
-  // Get fund data from store
-  const fundSize = useFundSelector(s => s.fundSize) || 100; // Default to $100M
+  // Get fund data from context
+  const { currentFund } = useFundContext();
+  const fundSize = currentFund?.size ? currentFund.size / 1000000 : 100; // Convert to millions, default to $100M
 
   // Use liquidity analytics hook
   const analytics = useLiquidityAnalytics({

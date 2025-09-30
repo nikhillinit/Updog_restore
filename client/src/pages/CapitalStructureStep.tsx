@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, ArrowLeft, ArrowRight, Edit } from "lucide-react";
+import { useFundContext } from '@/contexts/FundContext';
 import { useFundSelector } from '@/stores/useFundSelector';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
 
@@ -28,9 +29,13 @@ export default function CapitalStructureStep() {
   const [, navigate] = useLocation();
   const [editingAllocation, setEditingAllocation] = useState<string | null>(null);
 
-  // Get investable capital from fund size (assuming some percentage)
-  const fundSize = useFundSelector(s => s.fundSize);
-  const investableCapital = fundSize ? fundSize * 0.8 : 0; // Assume 80% investable
+  // Get investable capital from fund context
+  const { currentFund } = useFundContext();
+  const fundSize = currentFund?.size || 0;
+  const investableCapital = fundSize * 0.8; // Assume 80% investable
+
+  // Get investment strategy stages for graduation rate modeling
+  const stages = useFundSelector(s => s.stages);
 
   // Mock allocations (this would come from store)
   const [allocations, setAllocations] = useState<CapitalAllocation[]>([
@@ -38,7 +43,7 @@ export default function CapitalStructureStep() {
       id: 'seed-allocation',
       name: 'Seed Investments',
       entryRound: 'Seed',
-      capitalAllocationPct: 40,
+      capitalAllocationPct: 43,
       initialCheckStrategy: 'ownership',
       initialOwnershipPct: 8,
       followOnStrategy: 'maintain_ownership',
@@ -49,12 +54,24 @@ export default function CapitalStructureStep() {
       id: 'series-a-allocation',
       name: 'Series A Investments',
       entryRound: 'Series A',
-      capitalAllocationPct: 35,
+      capitalAllocationPct: 14,
       initialCheckStrategy: 'amount',
       initialCheckAmount: 2.5,
       followOnStrategy: 'amount',
       followOnAmount: 1.5,
       followOnParticipationPct: 80,
+      investmentHorizonMonths: 18
+    },
+    {
+      id: 'pre-seed-allocation',
+      name: 'Pre-Seed Investments',
+      entryRound: 'Pre-Seed',
+      capitalAllocationPct: 43,
+      initialCheckStrategy: 'amount',
+      initialCheckAmount: 0.75,
+      followOnStrategy: 'amount',
+      followOnAmount: 0.5,
+      followOnParticipationPct: 60,
       investmentHorizonMonths: 18
     }
   ]);
@@ -99,38 +116,166 @@ export default function CapitalStructureStep() {
     }
   };
 
+  // Deterministic portfolio modeling algorithm using graduation rates
   const calculateImpliedValues = (allocation: CapitalAllocation) => {
     const allocatedCapital = investableCapital * (allocation.capitalAllocationPct / 100);
 
-    let impliedOwnership = 0;
-    let estimatedDeals = 0;
-    let initialCapital = 0;
-
-    if (allocation.initialCheckStrategy === 'amount' && allocation.initialCheckAmount) {
-      estimatedDeals = Math.floor(allocatedCapital / allocation.initialCheckAmount);
-      // Would need sector profile data to calculate implied ownership
-      impliedOwnership = 8; // Mock value
-      initialCapital = allocation.initialCheckAmount * estimatedDeals;
-    } else if (allocation.initialCheckStrategy === 'ownership' && allocation.initialOwnershipPct) {
-      impliedOwnership = allocation.initialOwnershipPct;
-      // Would need sector profile valuations to calculate check size and deal count
-      estimatedDeals = 15; // Mock value
-      initialCapital = allocatedCapital * 0.6; // Mock value
+    // Find the entry stage in our investment strategy
+    const entryStage = stages.find(stage => stage.name === allocation.entryRound);
+    if (!entryStage) {
+      // Fallback to simple calculation if stage not found
+      return calculateSimpleAllocation(allocation, allocatedCapital);
     }
+
+    // Get stage progression data
+    const stageIndex = stages.findIndex(stage => stage.name === allocation.entryRound);
+    const subsequentStages = stages.slice(stageIndex);
+
+    // Deterministic algorithm: work backwards from target portfolio size
+    const targetDealsInThisStage = calculateTargetDeals(allocation, allocatedCapital);
+
+    // Model progression through subsequent stages using graduation rates
+    const stageProgression = modelStageProgression(subsequentStages, targetDealsInThisStage);
+
+    // Calculate total capital requirements across all stages
+    const capitalDistribution = calculateCapitalDistribution(allocation, stageProgression, allocatedCapital);
 
     return {
       allocatedCapital,
-      impliedOwnership,
-      estimatedDeals,
-      initialCapital,
-      followOnCapital: allocatedCapital - initialCapital
+      impliedOwnership: calculateImpliedOwnership(allocation),
+      estimatedDeals: targetDealsInThisStage,
+      initialCapital: capitalDistribution.initialCapital,
+      followOnCapital: capitalDistribution.followOnCapital,
+      stageProgression, // Additional data for detailed modeling
+      totalFutureCommitment: capitalDistribution.totalCommitment
     };
+  };
+
+  // Helper function for simple fallback calculation
+  const calculateSimpleAllocation = (allocation: CapitalAllocation, allocatedCapital: number) => {
+    if (allocation.initialCheckStrategy === 'amount' && allocation.initialCheckAmount) {
+      const checkAmountInDollars = allocation.initialCheckAmount * 1000000;
+      const estimatedDeals = Math.floor(allocatedCapital / checkAmountInDollars);
+      return {
+        allocatedCapital,
+        impliedOwnership: calculateImpliedOwnership(allocation),
+        estimatedDeals,
+        initialCapital: checkAmountInDollars * estimatedDeals,
+        followOnCapital: allocatedCapital - (checkAmountInDollars * estimatedDeals)
+      };
+    }
+    return {
+      allocatedCapital,
+      impliedOwnership: 0,
+      estimatedDeals: 0,
+      initialCapital: 0,
+      followOnCapital: allocatedCapital
+    };
+  };
+
+  // Calculate target number of deals at entry stage
+  const calculateTargetDeals = (allocation: CapitalAllocation, allocatedCapital: number): number => {
+    if (allocation.initialCheckStrategy === 'amount' && allocation.initialCheckAmount) {
+      // Start with simple division, then adjust for follow-on requirements
+      const initialCheckSize = allocation.initialCheckAmount * 1000000;
+      const baseDeals = Math.floor(allocatedCapital / initialCheckSize);
+
+      // Adjust for follow-on capital requirements (reserve 60% for follow-ons)
+      const adjustedDeals = Math.floor(baseDeals * 0.4); // More conservative to account for follow-ons
+      return Math.max(1, adjustedDeals);
+    }
+    return 10; // Default fallback
+  };
+
+  // Model how deals progress through subsequent stages
+  const modelStageProgression = (subsequentStages: any[], initialDeals: number) => {
+    let currentDeals = initialDeals;
+    const progression = [];
+
+    for (const stage of subsequentStages) {
+      const graduationRate = stage.graduate / 100;
+      const exitRate = stage.exit / 100;
+      const remainRate = 1 - graduationRate - exitRate;
+
+      const graduatingDeals = Math.floor(currentDeals * graduationRate);
+      const exitingDeals = Math.floor(currentDeals * exitRate);
+      const remainingDeals = currentDeals - graduatingDeals - exitingDeals;
+
+      progression.push({
+        stageName: stage.name,
+        startingDeals: currentDeals,
+        graduatingDeals,
+        exitingDeals,
+        remainingDeals,
+        months: stage.months
+      });
+
+      // Next stage starts with graduating deals from this stage
+      currentDeals = graduatingDeals;
+
+      // Stop if no deals graduate to next stage
+      if (graduatingDeals === 0) break;
+    }
+
+    return progression;
+  };
+
+  // Calculate capital distribution across initial and follow-on investments
+  const calculateCapitalDistribution = (allocation: CapitalAllocation, stageProgression: any[], totalCapital: number) => {
+    if (!allocation.initialCheckAmount) {
+      return { initialCapital: 0, followOnCapital: totalCapital, totalCommitment: totalCapital };
+    }
+
+    const initialCheckSize = allocation.initialCheckAmount * 1000000;
+    const initialDeals = stageProgression[0]?.startingDeals || 0;
+    const initialCapital = initialCheckSize * initialDeals;
+
+    // Calculate follow-on requirements based on stage progression
+    let totalFollowOnCapital = 0;
+
+    for (let i = 1; i < stageProgression.length; i++) {
+      const stage = stageProgression[i];
+      if (stage.startingDeals > 0) {
+        // Estimate follow-on check size (typically 2-3x initial for growth stages)
+        const followOnMultiplier = i === 1 ? 2.5 : (i === 2 ? 4 : 6);
+        const followOnPerDeal = initialCheckSize * followOnMultiplier;
+        totalFollowOnCapital += followOnPerDeal * stage.startingDeals;
+      }
+    }
+
+    const totalCommitment = initialCapital + totalFollowOnCapital;
+
+    // Scale down if total exceeds allocation
+    const scaleFactor = totalCommitment > totalCapital ? totalCapital / totalCommitment : 1;
+
+    return {
+      initialCapital: initialCapital * scaleFactor,
+      followOnCapital: totalFollowOnCapital * scaleFactor,
+      totalCommitment: totalCommitment * scaleFactor
+    };
+  };
+
+  // Calculate implied ownership based on typical valuations
+  const calculateImpliedOwnership = (allocation: CapitalAllocation): number => {
+    if (!allocation.initialCheckAmount) return 0;
+
+    const typicalValuations = {
+      'Pre-Seed': 6000000,
+      'Seed': 15000000,
+      'Series A': 32000000,
+      'Series B': 75000000,
+      'Series C': 150000000
+    };
+
+    const valuation = typicalValuations[allocation.entryRound as keyof typeof typicalValuations] || 20000000;
+    const checkSize = allocation.initialCheckAmount * 1000000;
+    return (checkSize / valuation) * 100;
   };
 
   return (
     <ModernStepContainer
-      title="Capital Structure"
-      description="LP/GP commitments and capital calls"
+      title="Capital Allocation"
+      description="Configure how investable capital is allocated across investment stages"
     >
       <div className="space-y-8">
         {/* Overview Section */}

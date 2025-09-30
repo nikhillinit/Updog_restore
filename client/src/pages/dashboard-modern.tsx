@@ -32,14 +32,31 @@ import {
   Eye,
   Settings,
   Plus,
-  Activity
+  Activity,
+  Share2
 } from "lucide-react";
 import CashflowDashboard from "@/components/dashboard/CashflowDashboard";
+import ShareConfigModal from "@/components/sharing/ShareConfigModal";
+import { CreateShareLinkRequest } from "@shared/sharing-schema";
 
 export default function ModernDashboard() {
   const { currentFund, isLoading } = useFundContext();
   const [timeframe, setTimeframe] = useState('12m');
   const [activeView, setActiveView] = useState('overview');
+
+  // Mock function to create share links - replace with actual API call
+  const handleCreateShare = async (config: CreateShareLinkRequest): Promise<{ shareUrl: string; shareId: string }> => {
+    // Simulate API call
+    const shareId = 'demo-share-123';
+    const shareUrl = `${window.location.origin}/shared/${shareId}`;
+
+    console.log('Creating share link:', config);
+
+    // Simulate delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    return { shareUrl, shareId };
+  };
 
   if (isLoading || !currentFund) {
     return (
@@ -161,6 +178,17 @@ export default function ModernDashboard() {
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
+
+            <ShareConfigModal
+              fundId={String(currentFund.id || 'demo-fund')}
+              fundName={currentFund.name || 'Demo Fund'}
+              onCreateShare={handleCreateShare}
+            >
+              <Button variant="outline" size="sm" className="border-pov-gray hover:bg-pov-charcoal hover:text-pov-white">
+                <Share2 className="h-4 w-4 mr-2" />
+                Share with LPs
+              </Button>
+            </ShareConfigModal>
           </div>
         </div>
 

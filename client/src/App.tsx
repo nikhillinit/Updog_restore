@@ -54,6 +54,12 @@ const PortfolioConstructor = React.lazy(() => import("@/pages/portfolio-construc
 const DevDashboardPage = React.lazy(() => import("@/pages/DevDashboardPage"));
 // Agent 2: Mobile Executive Dashboard
 const MobileExecutiveDashboardPage = React.lazy(() => import("@/pages/mobile-executive-dashboard"));
+// LP Sharing
+const SharedDashboard = React.lazy(() => import("@/pages/shared-dashboard"));
+// Secondary Market Analysis
+const SecondaryMarketPage = React.lazy(() => import("@/pages/secondary-market"));
+// Notion Integration
+const NotionIntegrationPage = React.lazy(() => import("@/pages/notion-integration"));
 
 const _moduleConfig = {
   dashboard: {
@@ -123,6 +129,14 @@ const _moduleConfig = {
   'mobile-executive-dashboard': {
     title: "Mobile Executive Dashboard",
     description: "Mobile-first executive dashboard with AI insights and touch-optimized navigation"
+  },
+  'secondary-market': {
+    title: "Secondary Market Analysis",
+    description: "Liquidity analysis, secondary valuations, and market opportunity assessment"
+  },
+  'notion-integration': {
+    title: "Notion Integration",
+    description: "Connect Notion workspaces to sync fund data and portfolio company updates"
   }
 };
 
@@ -223,9 +237,13 @@ function Router() {
         <Route path="/time-travel" component={(props: any) => <ProtectedRoute component={TimeTravelPage} {...props} />} />
         <Route path="/variance-tracking" component={(props: any) => <ProtectedRoute component={VarianceTrackingPage} {...props} />} />
         <Route path="/portfolio-constructor" component={(props: any) => <ProtectedRoute component={PortfolioConstructor} {...props} />} />
+        <Route path="/secondary-market" component={(props: any) => <ProtectedRoute component={SecondaryMarketPage} {...props} />} />
+        <Route path="/notion-integration" component={(props: any) => <ProtectedRoute component={NotionIntegrationPage} {...props} />} />
         <Route path="/dev-dashboard" component={DevDashboardPage} />
         <Route path="/mobile-executive-dashboard" component={(props: any) => <ProtectedRoute component={MobileExecutiveDashboardPage} {...props} />} />
         <Route path="/reports" component={(props: any) => <ProtectedRoute component={Reports} {...props} />} />
+        {/* LP Sharing - No authentication required */}
+        <Route path="/shared/:shareId" component={SharedDashboard} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

@@ -85,6 +85,8 @@ export type FundState = {
 
   // Fund Basics
   fundName?: string;
+  establishmentDate?: string; // ISO date string for fund establishment
+  vintageYear?: number; // Derived from establishment date
   isEvergreen?: boolean;
   fundLife?: number;
   investmentPeriod?: number;
@@ -119,7 +121,7 @@ export type FundState = {
   fundExpenses: FundExpense[];
 
   // Fund Basics actions
-  updateFundBasics: (patch: Partial<Pick<FundState, 'fundName' | 'isEvergreen' | 'fundLife' | 'investmentPeriod' | 'fundSize' | 'managementFeeRate' | 'carriedInterest'>>) => void;
+  updateFundBasics: (patch: Partial<Pick<FundState, 'fundName' | 'establishmentDate' | 'vintageYear' | 'isEvergreen' | 'fundLife' | 'investmentPeriod' | 'fundSize' | 'managementFeeRate' | 'carriedInterest'>>) => void;
 
   // Capital Structure actions
   updateCapitalStructure: (patch: Partial<Pick<FundState, 'gpCommitment'>>) => void;

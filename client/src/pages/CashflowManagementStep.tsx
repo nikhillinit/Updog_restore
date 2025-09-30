@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus, Trash2, AlertCircle, DollarSign, Check } from "lucide-react";
 import { useFundSelector, useFundActions } from '@/stores/useFundSelector';
+import { useFundContext } from '@/contexts/FundContext';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { FundExpense } from '@/stores/fundStore';
 import type { ExpenseCategory } from '@shared/types';
@@ -36,8 +37,9 @@ const DEFAULT_EXPENSE_CATEGORIES: Array<{
 export default function CashflowManagementStep() {
   const [, navigate] = useLocation();
 
-  // Current fund data
-  const fundSize = useFundSelector(s => s.fundSize);
+  // Get fund size from context
+  const { currentFund } = useFundContext();
+  const fundSize = currentFund?.size ? currentFund.size / 1000000 : 50; // Convert to millions for calculations
   const fundExpenses = useFundSelector(s => s.fundExpenses);
 
   // Actions

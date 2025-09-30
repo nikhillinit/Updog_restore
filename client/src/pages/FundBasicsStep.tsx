@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ArrowRight } from "lucide-react";
 import { useFundSelector, useFundAction } from '@/stores/useFundSelector';
+import { useFundContext } from '@/contexts/FundContext';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
 
 export default function FundBasicsStep() {
@@ -13,6 +14,8 @@ export default function FundBasicsStep() {
   
   // State
   const fundName = useFundSelector(s => s.fundName);
+  const establishmentDate = useFundSelector(s => s.establishmentDate);
+  const vintageYear = useFundSelector(s => s.vintageYear);
   const isEvergreen = useFundSelector(s => s.isEvergreen);
   const fundLife = useFundSelector(s => s.fundLife);
   const investmentPeriod = useFundSelector(s => s.investmentPeriod);
@@ -22,23 +25,82 @@ export default function FundBasicsStep() {
 
   // Actions
   const updateFundBasics = useFundAction(s => s.updateFundBasics);
+  const { currentFund, setCurrentFund } = useFundContext();
 
   // Auto-populate with defaults for easy testing
   React.useEffect(() => {
-    if (!fundName) {
-      updateFundBasics({
+    if (!fundName && currentFund) {
+      const currentDate = new Date();
+      const establishmentDateStr = currentDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+
+      const defaults = {
         fundName: 'Test Fund I',
-        fundSize: 50,
+        establishmentDate: establishmentDateStr,
+        vintageYear: currentDate.getFullYear(),
+        fundSize: 50, // $50M
         managementFeeRate: 2.0,
         carriedInterest: 20,
         fundLife: 10,
         investmentPeriod: 3
-      });
+      };
+
+      // Update fund store
+      updateFundBasics(defaults);
+
+      // Update fund context with converted values
+      const updatedFund = {
+        ...currentFund,
+        name: defaults.fundName,
+        establishmentDate: defaults.establishmentDate,
+        vintageYear: defaults.vintageYear,
+        size: defaults.fundSize * 1000000, // Convert to dollars
+        managementFee: defaults.managementFeeRate / 100, // Convert to decimal
+        carryPercentage: defaults.carriedInterest / 100 // Convert to decimal
+      };
+
+      setCurrentFund(updatedFund);
     }
-  }, [fundName, updateFundBasics]);
+  }, [fundName, updateFundBasics, currentFund, setCurrentFund]);
 
   const handleInputChange = (field: string, value: any) => {
-    updateFundBasics({ [field]: value });
+    let updateData: any = { [field]: value };
+
+    // Auto-derive vintage year from establishment date
+    if (field === 'establishmentDate' && value) {
+      const date = new Date(value);
+      updateData.vintageYear = date.getFullYear();
+    }
+
+    // Update the fund store
+    updateFundBasics(updateData);
+
+    // Sync critical fields to FundContext
+    if (currentFund && (field === 'fundSize' || field === 'fundName' || field === 'managementFeeRate' || field === 'carriedInterest' || field === 'establishmentDate')) {
+      const updatedFund = { ...currentFund };
+
+      switch (field) {
+        case 'fundSize':
+          updatedFund.size = value ? value * 1000000 : 0; // Convert from M to dollars
+          break;
+        case 'fundName':
+          updatedFund.name = value || 'Untitled Fund';
+          break;
+        case 'managementFeeRate':
+          updatedFund.managementFee = value ? value / 100 : 0; // Convert from percentage to decimal
+          break;
+        case 'carriedInterest':
+          updatedFund.carryPercentage = value ? value / 100 : 0; // Convert from percentage to decimal
+          break;
+        case 'establishmentDate':
+          updatedFund.establishmentDate = value;
+          if (value) {
+            updatedFund.vintageYear = new Date(value).getFullYear();
+          }
+          break;
+      }
+
+      setCurrentFund(updatedFund);
+    }
   };
 
   const handleEvergreenToggle = (checked: boolean) => {
@@ -68,6 +130,40 @@ export default function FundBasicsStep() {
               data-testid="fund-name"
               className="h-12 text-base"
             />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <Label htmlFor="establishment-date" className="text-sm font-medium text-charcoal-700">Establishment Date *</Label>
+              <Input
+                id="establishment-date"
+                type="date"
+                value={establishmentDate || ''}
+                onChange={(e: any) => handleInputChange('establishmentDate', e.target.value)}
+                data-testid="establishment-date"
+                className="h-12"
+              />
+              <p className="text-sm text-gray-500">
+                Used for accurate IRR calculations and performance modeling
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="vintage-year" className="text-sm font-medium text-charcoal-700">Vintage Year</Label>
+              <Input
+                id="vintage-year"
+                type="number"
+                value={vintageYear || ''}
+                onChange={(e: any) => handleInputChange('vintageYear', parseFloat(e.target.value) || undefined)}
+                placeholder="Auto-filled from establishment date"
+                data-testid="vintage-year"
+                className="h-12 bg-gray-50"
+                readOnly
+              />
+              <p className="text-sm text-gray-500">
+                Automatically derived from establishment date
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center space-x-3 py-6 border-t border-gray-100">

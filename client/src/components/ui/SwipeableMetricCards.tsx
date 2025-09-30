@@ -217,7 +217,7 @@ export function SwipeableMetricCards({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, scrollLeft: 0, time: 0 });
   const [currentIndex, setCurrentIndex] = useState(activeIndex);
-  const autoScrollTimeoutRef = useRef<NodeJS.Timeout>();
+  const autoScrollTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Handle index changes
   const handleIndexChange = useCallback((newIndex: number) => {

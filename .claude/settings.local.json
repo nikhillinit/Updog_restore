@@ -159,7 +159,12 @@
       "Bash(git stash apply:*)",
       "WebFetch(domain:tactyc.io)",
       "Bash(git reset:*)",
-      "Bash(npx depcheck:*)"
+      "Bash(npx depcheck:*)",
+      "WebFetch(domain:docs.tactyc.io)",
+      "Bash(start http://localhost:5174/investments-table)",
+      "Bash(start http://localhost:5174/secondary-market)",
+      "Bash(start http://localhost:5175/notion-integration)",
+      "Bash(start http://localhost:5175/fund-setup)"
     ],
     "deny": [],
     "ask": [],
