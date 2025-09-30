@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
 // ReserveEngine.ts - Type-safe reserve allocation engine
 
 import type { 
@@ -140,17 +135,17 @@ export function ReserveEngine(portfolio: unknown[]): ReserveOutput[] {
   }
   
   // Validate all inputs
-  const validatedPortfolio: ReserveInput[] = map(portfolio, (company: any, index: any) => {
+  const validatedPortfolio: ReserveInput[] = map(portfolio, (company: unknown, index: number) => {
     try {
       return validateReserveInput(company);
     } catch (error) {
-      throw new Error(`Invalid company data at index ${index}: ${error}`);
+      throw new Error(`Invalid company data at index ${index}: ${error instanceof Error ? error.message : String(error)}`);
     }
   });
   
   const useAlgorithm = isAlgorithmModeEnabled();
-  
-  return map(validatedPortfolio, (company: any) => {
+
+  return map(validatedPortfolio, (company: ReserveInput) => {
     // Use ML algorithm if enabled and confidence threshold met
     if (useAlgorithm && Math.random() > 0.3) { // 70% chance of using ML in algorithm mode
       return calculateMLBasedAllocation(company);
@@ -168,10 +163,10 @@ export function ReserveEngine(portfolio: unknown[]): ReserveOutput[] {
  */
 export function generateReserveSummary(fundId: number, portfolio: ReserveInput[]): ReserveSummary {
   const allocations = ReserveEngine(portfolio);
-  
-  const totalAllocation = reduce(allocations, (sum: any, item: any) => sum + item.allocation, 0);
-  const avgConfidence = allocations.length > 0 
-    ? reduce(allocations, (sum: any, item: any) => sum + item.confidence, 0) / allocations.length 
+
+  const totalAllocation = reduce(allocations, (sum: number, item: ReserveOutput) => sum + item.allocation, 0);
+  const avgConfidence = allocations.length > 0
+    ? reduce(allocations, (sum: number, item: ReserveOutput) => sum + item.confidence, 0) / allocations.length
     : 0;
   const highConfidenceCount = allocations.filter(item => item.confidence >= ConfidenceLevel.MEDIUM).length;
   
