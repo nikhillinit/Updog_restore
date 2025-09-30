@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+# Commit Message Linter
+# Enforces conventional commit format: type(scope): message
+
+COMMIT_MSG_FILE=$1
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Skip merge commits and auto-generated commits
+if echo "$COMMIT_MSG" | grep -qE "^Merge|^Revert|^🤖 Generated"; then
+  exit 0
+fi
+
+# Conventional commit regex
+# Format: type(scope): message
+# Examples: feat(api): add new endpoint, fix: resolve type error, docs: update README
+CONVENTIONAL_REGEX="^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .{1,}"
+
+if ! echo "$COMMIT_MSG" | grep -qE "$CONVENTIONAL_REGEX"; then
+  echo "❌ Invalid commit message format"
+  echo ""
+  echo "Commit message must follow conventional commit format:"
+  echo "  type(scope): message"
+  echo ""
+  echo "Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+  echo ""
+  echo "Examples:"
+  echo "  feat(api): add reserve calculation endpoint"
+  echo "  fix(types): resolve 'any' type in workers"
+  echo "  docs: update code quality guidelines"
+  echo ""
+  exit 1
+fi
+
+echo "✅ Commit message format valid"
