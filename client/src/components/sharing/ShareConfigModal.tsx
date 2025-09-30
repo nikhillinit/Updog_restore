@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Share2, Copy, Eye, Clock, Shield, Users } from 'lucide-react';
-import { ShareAccessLevel, LP_HIDDEN_METRICS, CreateShareLinkRequest } from '@shared/sharing-schema';
+import { ShareAccessLevel, ShareAccessLevelType, LP_HIDDEN_METRICS, CreateShareLinkRequest } from '@shared/sharing-schema';
 
 interface ShareConfigModalProps {
   fundId: string;
@@ -140,7 +140,7 @@ export const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
               </Label>
               <Select
                 value={config.accessLevel}
-                onValueChange={(value) => setConfig(prev => ({ ...prev, accessLevel: value as ShareAccessLevel }))}
+                onValueChange={(value) => setConfig(prev => ({ ...prev, accessLevel: value as any }))}
               >
                 <SelectTrigger>
                   <SelectValue />
