@@ -24,6 +24,7 @@ import {
   PowerLawDistribution,
   type InvestmentStage
 } from './power-law-distribution';
+import { PRNG } from '@shared/utils/prng';
 
 /**
  * Core Monte Carlo simulation parameters
@@ -151,9 +152,11 @@ export interface ScenarioConfig {
  */
 export class MonteCarloSimulationService {
   private powerLawDistribution: PowerLawDistribution;
+  private prng: PRNG;
 
-  constructor() {
+  constructor(seed?: number) {
     this.powerLawDistribution = createVCPowerLawDistribution();
+    this.prng = new PRNG(seed);
   }
   /**
    * Generate Monte Carlo forecast for fund performance
@@ -358,9 +361,9 @@ export class MonteCarloSimulationService {
       tvpi: []
     };
 
-    // Set random seed for reproducibility
+    // Set random seed for reproducibility using local PRNG
     if (params.randomSeed) {
-      this.setRandomSeed(params.randomSeed);
+      this.prng.reset(params.randomSeed);
       this.powerLawDistribution = createVCPowerLawDistribution(params.randomSeed);
     }
 
@@ -720,69 +723,27 @@ export class MonteCarloSimulationService {
     return kurt - 3; // Excess kurtosis
   }
 
-  private setRandomSeed(seed: number): void {
-    // Simple linear congruential generator for reproducible results
-    let state = seed;
-    Math.random = () => {
-      state = (state * 1664525 + 1013904223) % 4294967296;
-      return state / 4294967296;
-    };
-  }
-
-  // Distribution sampling functions
+  // Distribution sampling functions using local PRNG (no global Math.random override)
   private sampleNormal(mean: number, stdDev: number): number {
-    // Box-Muller transformation
-    const u1 = Math.random();
-    const u2 = Math.random();
-    const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-    return mean + z0 * stdDev;
+    return this.prng.nextNormal(mean, stdDev);
   }
 
   private sampleLogNormal(mean: number, stdDev: number): number {
-    return Math.exp(this.sampleNormal(mean, stdDev));
+    return this.prng.nextLogNormal(mean, stdDev);
   }
 
   private sampleTriangular(min: number, max: number, mode: number): number {
-    const u = Math.random();
-    if (u < (mode - min) / (max - min)) {
-      return min + Math.sqrt(u * (max - min) * (mode - min));
-    } else {
-      return max - Math.sqrt((1 - u) * (max - min) * (max - mode));
-    }
+    return this.prng.nextTriangular(min, max, mode);
   }
 
   private sampleBeta(alpha: number, beta: number, min: number, max: number): number {
-    // Simplified beta sampling using gamma distribution approximation
-    const gamma1 = this.sampleGamma(alpha);
-    const gamma2 = this.sampleGamma(beta);
-    const betaSample = gamma1 / (gamma1 + gamma2);
-    return min + betaSample * (max - min);
-  }
-
-  private sampleGamma(shape: number): number {
-    // Simplified gamma sampling for beta distribution
-    if (shape >= 1) {
-      const d = shape - 1 / 3;
-      const c = 1 / Math.sqrt(9 * d);
-      while (true) {
-        const z = this.sampleNormal(0, 1);
-        if (z > -1 / c) {
-          const v = Math.pow(1 + c * z, 3);
-          const u = Math.random();
-          if (Math.log(u) < 0.5 * z * z + d * (1 - v + Math.log(v))) {
-            return d * v;
-          }
-        }
-      }
-    } else {
-      return this.sampleGamma(shape + 1) * Math.pow(Math.random(), 1 / shape);
-    }
+    return this.prng.nextBeta(alpha, beta, min, max);
   }
 
   // Helper functions for portfolio analysis
   private generateExitScenarios(companies: any[], scenarios: number): number[] {
     return Array(scenarios).fill(0).map(() =>
-      companies.filter(() => Math.random() < 0.3).length // 30% exit probability
+      companies.filter(() => this.prng.next() < 0.3).length // 30% exit probability
     );
   }
 
@@ -823,7 +784,8 @@ export class MonteCarloSimulationService {
   private calculateReserveCoverage(allocation: number, simulationResults: Record<string, SimulationResult>, scenarios: number): number {
     // Simulate reserve coverage scenarios
     const coverageScenarios = Array(scenarios).fill(0).map(() => {
-      const totalValue = simulationResults.totalValue.scenarios[Math.floor(Math.random() * simulationResults.totalValue.scenarios.length)];
+      const randomIndex = Math.floor(this.prng.next() * simulationResults.totalValue.scenarios.length);
+      const totalValue = simulationResults.totalValue.scenarios[randomIndex];
       const reserveAmount = totalValue * allocation;
       const followOnNeed = this.sampleLogNormal(reserveAmount * 0.6, reserveAmount * 0.3);
       return Math.min(reserveAmount / followOnNeed, 1.0);
@@ -903,7 +865,7 @@ export class MonteCarloSimulationService {
   }
 
   /**
-   * Select stage randomly based on distribution weights
+   * Select stage randomly based on distribution weights using local PRNG
    */
   private selectStageFromDistribution(distribution: Record<string, number>): InvestmentStage {
     const stages = Object.keys(distribution);
@@ -911,7 +873,7 @@ export class MonteCarloSimulationService {
       return 'seed';
     }
 
-    const rand = Math.random();
+    const rand = this.prng.next();
     let cumulativeProb = 0;
 
     for (const stage of stages) {
