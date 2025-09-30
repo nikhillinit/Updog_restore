@@ -13,6 +13,7 @@ export interface Fund {
   managementFee: number;
   carryPercentage: number;
   vintageYear: number;
+  establishmentDate?: string; // ISO date string for fund establishment
   deployedCapital: number;
   status: string;
   createdAt: string;

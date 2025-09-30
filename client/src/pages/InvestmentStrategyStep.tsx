@@ -238,29 +238,10 @@ export default function InvestmentStrategyStep() {
             </p>
           </div>
 
-          <div className="space-y-4">
-            {/* Debug controls */}
-            <div className="bg-gray-100 p-3 rounded border">
-              <p className="text-sm mb-2">Debug: editingProfile = {editingProfile || 'null'}</p>
-              <Button
-                size="sm"
-                onClick={() => setEditingProfile(editingProfile ? null : 'default')}
-                className="mr-2"
-              >
-                Toggle Edit Mode
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => console.log('Current state:', { editingProfile })}
-              >
-                Log State
-              </Button>
-            </div>
+          <div className="space-y-6">
 
             {sectorProfiles.map((profile: any) => {
               const isEditing = editingProfile === profile.id;
-              console.log(`Profile ${profile.id}: isEditing = ${isEditing}, editingProfile = ${editingProfile}`);
 
               return (
                 <div key={profile.id} className={`border rounded-lg p-4 space-y-4 ${isEditing ? 'border-blue-500 bg-blue-50' : ''}`}>
@@ -297,18 +278,37 @@ export default function InvestmentStrategyStep() {
                         </div>
                       </div>
 
-                      {/* Stages Summary */}
-                      <div className="grid gap-2">
+                      {/* Stages Summary with Fixed Column Widths */}
+                      <div className="space-y-4">
+                        {/* Header with Fixed Column Grid */}
+                        <div className="grid text-sm font-bold text-gray-700 py-4 px-2 bg-gray-100 rounded-lg border border-gray-200" style={{
+                          gridTemplateColumns: '140px 100px 80px 120px 90px 90px 100px 90px 140px'
+                        }}>
+                          <div className="text-blue-700 px-3">Round</div>
+                          <div className="text-blue-700 px-3 text-center">Size ($M)</div>
+                          <div className="text-blue-700 px-3 text-center">Type</div>
+                          <div className="text-blue-700 px-3 text-center">Valuation ($M)</div>
+                          <div className="text-blue-700 px-3 text-center">ESOP (%)</div>
+                          <div className="text-green-700 px-3 text-center">Grad (%)</div>
+                          <div className="text-green-700 px-3 text-center">Mo to Grad</div>
+                          <div className="text-orange-700 px-3 text-center">Exit (%)</div>
+                          <div className="text-orange-700 px-3 text-center">Exit Val ($M)</div>
+                        </div>
+
+                        {/* Rows with Matching Fixed Column Grid */}
                         {profile.stages.map((stage: any, index: any) => (
-                          <div key={stage.id} className="grid grid-cols-8 gap-2 text-sm py-2 border-b">
-                            <div className="font-medium">{stage.name}</div>
-                            <div>${stage.roundSize}M</div>
-                            <div>${stage.valuation}M ({stage.valuationType})</div>
-                            <div>{stage.esopPct}%</div>
-                            <div>{stage.graduationRate}%</div>
-                            <div>{stage.exitRate}%</div>
-                            <div>{calculateFailureRate(stage.graduationRate, stage.exitRate)}%</div>
-                            <div>{stage.monthsToGraduate}mo</div>
+                          <div key={stage.id} className="grid text-base py-4 px-2 bg-white rounded-lg border border-gray-100 hover:bg-gray-50 hover:border-gray-200 transition-all" style={{
+                            gridTemplateColumns: '140px 100px 80px 120px 90px 90px 100px 90px 140px'
+                          }}>
+                            <div className="font-bold text-blue-800 text-lg px-3">{stage.name}</div>
+                            <div className="font-semibold text-gray-900 px-3 text-center">${stage.roundSize}M</div>
+                            <div className="text-gray-700 font-medium px-3 text-center">{stage.valuationType}</div>
+                            <div className="font-semibold text-gray-900 px-3 text-center">${stage.valuation}M</div>
+                            <div className="font-semibold text-gray-900 px-3 text-center">{stage.esopPct}%</div>
+                            <div className="font-bold text-green-800 px-3 text-center">{stage.graduationRate}%</div>
+                            <div className="font-bold text-green-800 px-3 text-center">{stage.monthsToGraduate}mo</div>
+                            <div className="font-bold text-orange-800 px-3 text-center">{stage.exitRate}%</div>
+                            <div className="font-semibold text-gray-900 px-3 text-center">${stage.exitValuation}M</div>
                           </div>
                         ))}
                       </div>
@@ -352,128 +352,178 @@ export default function InvestmentStrategyStep() {
                           </Button>
                         </div>
 
-                        {/* Column Headers */}
-                        <div className="grid grid-cols-10 gap-2 text-xs font-medium text-gray-600 py-2 border-b border-gray-100">
-                          <div>Round</div>
-                          <div>Size ($M)</div>
-                          <div>Valuation ($M)</div>
-                          <div>Type</div>
-                          <div>ESOP (%)</div>
-                          <div>Grad (%)</div>
-                          <div>Exit (%)</div>
-                          <div>Exit Val ($M)</div>
-                          <div>Mo to Grad</div>
-                          <div>Actions</div>
+                        {/* Column Headers with Fixed Column Grid */}
+                        <div className="grid text-base font-bold text-gray-700 py-4 px-2 bg-gray-100 rounded-lg border border-gray-200" style={{
+                          gridTemplateColumns: '140px 100px 80px 120px 90px 90px 100px 90px 140px 120px'
+                        }}>
+                          <div className="text-blue-700 px-3">Round</div>
+                          <div className="text-blue-700 px-3 text-center">Size ($M)</div>
+                          <div className="text-blue-700 px-3 text-center">Type</div>
+                          <div className="text-blue-700 px-3 text-center">Valuation ($M)</div>
+                          <div className="text-blue-700 px-3 text-center">ESOP (%)</div>
+                          <div className="text-green-700 px-3 text-center">Grad (%)</div>
+                          <div className="text-green-700 px-3 text-center">Mo to Grad</div>
+                          <div className="text-orange-700 px-3 text-center">Exit (%)</div>
+                          <div className="text-orange-700 px-3 text-center">Exit Val ($M)</div>
+                          <div className="text-gray-600 px-3 text-center">Actions</div>
                         </div>
                       </div>
 
-                      {/* Stages */}
-                      <div className="space-y-3">
+                      {/* Stages with Fixed Column Grid Matching Headers */}
+                      <div className="space-y-4">
                         {profile.stages.map((stage: any, stageIndex: any) => (
-                          <div key={stage.id} className="grid grid-cols-10 gap-2 items-center py-2 border-b border-gray-100">
-                            <Input
-                              value={stage.name}
-                              onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { name: e.target.value })}
-                              placeholder="Round name"
-                              className="text-sm h-10"
-                            />
+                          <div key={stage.id} className="grid items-center py-4 px-2 bg-white rounded-lg border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all" style={{
+                            gridTemplateColumns: '140px 100px 80px 120px 90px 90px 100px 90px 140px 120px'
+                          }}>
+                            {/* Round Dropdown */}
+                            <div className="px-3">
+                              <Select
+                                value={stage.name}
+                                onValueChange={(value: string) => handleUpdateStage(profile.id, stage.id, { name: value })}
+                              >
+                                <SelectTrigger className="h-12 text-sm font-medium w-full">
+                                  <SelectValue placeholder="Select round" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Pre-Seed">Pre-Seed</SelectItem>
+                                  <SelectItem value="Seed">Seed</SelectItem>
+                                  <SelectItem value="Series A">Series A</SelectItem>
+                                  <SelectItem value="Series B">Series B</SelectItem>
+                                  <SelectItem value="Series C">Series C</SelectItem>
+                                  <SelectItem value="Series D+">Series D+</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
 
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.1"
-                              value={stage.roundSize}
-                              onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { roundSize: parseFloat(e.target.value) || 0 })}
-                              className="text-sm h-10"
-                            />
+                            {/* Size */}
+                            <div className="px-3">
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.1"
+                                value={stage.roundSize}
+                                onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { roundSize: parseFloat(e.target.value) || 0 })}
+                                className="h-12 text-sm text-center font-medium w-full"
+                                placeholder="0.0"
+                              />
+                            </div>
 
-                            <Input
-                              type="number"
-                              min="0"
-                              step="1"
-                              value={stage.valuation}
-                              onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { valuation: parseFloat(e.target.value) || 0 })}
-                              className="text-sm h-10"
-                            />
+                            {/* Type (Pre/Post) */}
+                            <div className="px-3">
+                              <Select
+                                value={stage.valuationType}
+                                onValueChange={(value: 'pre' | 'post') => handleUpdateStage(profile.id, stage.id, { valuationType: value })}
+                              >
+                                <SelectTrigger className="h-12 text-sm w-full">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pre">Pre</SelectItem>
+                                  <SelectItem value="post">Post</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
 
-                            <Select
-                              value={stage.valuationType}
-                              onValueChange={(value: 'pre' | 'post') => handleUpdateStage(profile.id, stage.id, { valuationType: value })}
-                            >
-                              <SelectTrigger className="text-sm h-10">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="pre">Pre</SelectItem>
-                                <SelectItem value="post">Post</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            {/* Valuation */}
+                            <div className="px-3">
+                              <Input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={stage.valuation}
+                                onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { valuation: parseFloat(e.target.value) || 0 })}
+                                className="h-12 text-sm text-center font-medium w-full"
+                                placeholder="0"
+                              />
+                            </div>
 
-                            <Input
-                              type="number"
-                              min="0"
-                              max="50"
-                              step="1"
-                              value={stage.esopPct}
-                              onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { esopPct: parseFloat(e.target.value) || 0 })}
-                              className="text-sm h-10"
-                            />
+                            {/* ESOP */}
+                            <div className="px-3">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="50"
+                                step="0.5"
+                                value={stage.esopPct}
+                                onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { esopPct: parseFloat(e.target.value) || 0 })}
+                                className="h-12 text-sm text-center font-medium w-full"
+                                placeholder="10"
+                              />
+                            </div>
 
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="1"
-                              value={stage.graduationRate}
-                              onChange={(e: any) => {
-                                const value = parseFloat(e.target.value) || 0;
-                                if (validateStageRates(value, stage.exitRate)) {
-                                  handleUpdateStage(profile.id, stage.id, { graduationRate: value });
-                                }
-                              }}
-                              className="text-sm h-10"
-                            />
+                            {/* Graduation Rate */}
+                            <div className="px-3">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="1"
+                                value={stage.graduationRate}
+                                onChange={(e: any) => {
+                                  const value = parseFloat(e.target.value) || 0;
+                                  if (validateStageRates(value, stage.exitRate)) {
+                                    handleUpdateStage(profile.id, stage.id, { graduationRate: value });
+                                  }
+                                }}
+                                className="h-12 text-sm text-center font-medium w-full"
+                                placeholder="30"
+                              />
+                            </div>
 
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="1"
-                              value={stage.exitRate}
-                              onChange={(e: any) => {
-                                const value = parseFloat(e.target.value) || 0;
-                                if (validateStageRates(stage.graduationRate, value)) {
-                                  handleUpdateStage(profile.id, stage.id, { exitRate: value });
-                                }
-                              }}
-                              className="text-sm h-10"
-                            />
+                            {/* Months to Graduate */}
+                            <div className="px-3">
+                              <Input
+                                type="number"
+                                min="1"
+                                max="120"
+                                step="1"
+                                value={stage.monthsToGraduate}
+                                onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { monthsToGraduate: parseInt(e.target.value) || 12 })}
+                                className="h-12 text-sm text-center font-medium w-full"
+                                placeholder="18"
+                              />
+                            </div>
 
-                            <Input
-                              type="number"
-                              min="0"
-                              step="1"
-                              value={stage.exitValuation}
-                              onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { exitValuation: parseFloat(e.target.value) || 0 })}
-                              className="text-sm h-10"
-                            />
+                            {/* Exit Rate */}
+                            <div className="px-3">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="1"
+                                value={stage.exitRate}
+                                onChange={(e: any) => {
+                                  const value = parseFloat(e.target.value) || 0;
+                                  if (validateStageRates(stage.graduationRate, value)) {
+                                    handleUpdateStage(profile.id, stage.id, { exitRate: value });
+                                  }
+                                }}
+                                className="h-12 text-sm text-center font-medium w-full"
+                                placeholder="5"
+                              />
+                            </div>
 
-                            <Input
-                              type="number"
-                              min="1"
-                              max="120"
-                              step="1"
-                              value={stage.monthsToGraduate}
-                              onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { monthsToGraduate: parseInt(e.target.value) || 12 })}
-                              className="text-sm h-10"
-                            />
+                            {/* Exit Valuation */}
+                            <div className="px-3">
+                              <Input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={stage.exitValuation}
+                                onChange={(e: any) => handleUpdateStage(profile.id, stage.id, { exitValuation: parseFloat(e.target.value) || 0 })}
+                                className="h-12 text-sm text-center font-medium w-full"
+                                placeholder="50"
+                              />
+                            </div>
 
-                            <div className="flex gap-1">
+                            {/* Actions */}
+                            <div className="px-3 flex gap-1 justify-center">
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleMoveStage(profile.id, stageIndex, 'up')}
                                 disabled={stageIndex === 0}
+                                className="h-8 w-8 p-0"
                               >
                                 <MoveUp className="h-3 w-3" />
                               </Button>
@@ -482,6 +532,7 @@ export default function InvestmentStrategyStep() {
                                 size="sm"
                                 onClick={() => handleMoveStage(profile.id, stageIndex, 'down')}
                                 disabled={stageIndex === profile.stages.length - 1}
+                                className="h-8 w-8 p-0"
                               >
                                 <MoveDown className="h-3 w-3" />
                               </Button>
@@ -489,7 +540,7 @@ export default function InvestmentStrategyStep() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDeleteStage(profile.id, stage.id)}
-                                className="text-red-500 hover:text-red-700"
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
                               >
                                 <Trash2 className="h-3 w-3" />
                               </Button>
