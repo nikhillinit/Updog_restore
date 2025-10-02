@@ -176,7 +176,10 @@
       "Bash(tee:*)",
       "Read(//c/**)",
       "Bash(powershell:*)",
-      "Bash(Select-String -Pattern \"(PASS|FAIL|Test Files|Tests  |Duration)\")"
+      "Bash(Select-String -Pattern \"(PASS|FAIL|Test Files|Tests  |Duration)\")",
+      "Bash(claude mcp:*)",
+      "Bash(where python)",
+      "Bash(/c/Python313/python.exe -m pip list)"
     ],
     "deny": [],
     "ask": [],

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import 'dotenv/config';
 
 const bool = z.string().transform(v => v === "1" || v?.toLowerCase() === "true").or(z.boolean());
 

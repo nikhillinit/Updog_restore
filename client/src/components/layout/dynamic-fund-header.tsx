@@ -36,14 +36,14 @@ interface FundMetrics {
 export default function DynamicFundHeader() {
   const { currentFund } = useFundContext();
 
-  // Fetch real-time fund metrics
+  // Fetch real-time fund metrics from calculated-metrics endpoint
   const { data: metrics, isLoading } = useQuery<FundMetrics>({
-    queryKey: ['/api/fund-metrics', currentFund?.id],
+    queryKey: ['/api/funds', currentFund?.id, 'calculated-metrics'],
     enabled: !!currentFund?.id,
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
-  // Sample metrics for demo (would be replaced by API)
+  // Sample metrics for demo (TODO: Remove once calculated-metrics API is stable)
   const sampleMetrics: FundMetrics = {
     totalCommitted: currentFund?.size || 100000000,
     totalInvested: 65000000,
