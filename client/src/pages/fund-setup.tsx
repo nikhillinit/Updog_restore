@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation } from 'wouter';
 import FundBasicsStep from './FundBasicsStep';
+import InvestmentRoundsStep from './InvestmentRoundsStep';
 import CapitalStructureStep from './CapitalStructureStep';
 import InvestmentStrategyStep from './InvestmentStrategyStep';
 import InvestmentStrategyStepNew from './InvestmentStrategyStepNew';
@@ -17,6 +18,7 @@ const useNewSelectors = import.meta.env['VITE_NEW_SELECTORS'] === 'true';
 
 const STEP_COMPONENTS: Record<StepKey, React.ComponentType<any>> = {
   'fund-basics':        FundBasicsStep,
+  'investment-rounds':  InvestmentRoundsStep,
   'capital-structure':  CapitalStructureStep,
   'investment-strategy': useNewSelectors ? InvestmentStrategyStepNew : InvestmentStrategyStep,
   'distributions':      DistributionsStep,
@@ -33,38 +35,44 @@ const WIZARD_STEPS = [
     description: 'Name, currency, and fund lifecycle'
   },
   {
-    id: 'capital-structure',
+    id: 'investment-rounds',
     number: 2,
+    title: 'INVESTMENT ROUNDS',
+    description: 'Define stages, valuations, and progression rates'
+  },
+  {
+    id: 'capital-structure',
+    number: 3,
     title: 'CAPITAL ALLOCATION',
     description: 'Investment stage allocations and deal modeling'
   },
   {
     id: 'investment-strategy',
-    number: 3,
+    number: 4,
     title: 'INVESTMENT STRATEGY',
     description: 'Stages, sectors, and allocations'
   },
   {
     id: 'distributions',
-    number: 4,
+    number: 5,
     title: 'EXIT RECYCLING',
     description: 'Proceeds recycling configuration'
   },
   {
     id: 'cashflow-management',
-    number: 5,
+    number: 6,
     title: 'WATERFALL & CARRY',
     description: 'Distribution terms and carry structure'
   },
   {
     id: 'review',
-    number: 6,
+    number: 7,
     title: 'ADVANCED SETTINGS',
     description: 'Fund structure and expenses'
   },
   {
     id: 'complete',
-    number: 7,
+    number: 8,
     title: 'REVIEW & CREATE',
     description: 'Final review and fund creation'
   }
