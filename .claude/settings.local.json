@@ -192,7 +192,13 @@
       "Bash(rm:*)",
       "Bash(gh:*)",
       "Bash(./node_modules/.bin/vitest run --reporter=verbose client/src/components/__tests__/LegacyRouteRedirector.test)",
-      "Bash(git apply:*)"
+      "Bash(git apply:*)",
+      "Bash(where node)",
+      "Bash(where npm)",
+      "Bash(.node_modules.binvite.cmd)",
+      "Bash(where tsc)",
+      "Bash(npm pkg get:*)",
+      "Bash(nvm:*)"
     ],
     "deny": [],
     "ask": [],
