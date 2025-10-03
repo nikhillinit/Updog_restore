@@ -181,7 +181,10 @@
       "Bash(gh repo view:*)",
       "Bash(redis-cli:*)",
       "Bash(docker-compose up:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(./node_modules/.bin/vite)",
+      "Bash(./node_modules/.bin/tsx:*)",
+      "Bash(npx:*)"
     ],
     "deny": [],
     "ask": [],
