@@ -189,7 +189,8 @@
       "Read(//tmp/**)",
       "Bash(where concurrently)",
       "Bash(.node_modules.binvite.cmd --version)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(gh:*)"
     ],
     "deny": [],
     "ask": [],
