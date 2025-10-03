@@ -185,7 +185,11 @@
       "Bash(./node_modules/.bin/vite)",
       "Bash(./node_modules/.bin/tsx:*)",
       "Bash(npx:*)",
-      "Bash(git rev-parse:*)"
+      "Bash(git rev-parse:*)",
+      "Read(//tmp/**)",
+      "Bash(where concurrently)",
+      "Bash(.node_modules.binvite.cmd --version)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": [],
