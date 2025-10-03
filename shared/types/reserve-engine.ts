@@ -287,12 +287,12 @@ export function validateStageData(data: unknown): data is StageData {
   const stage = data as Record<string, unknown>;
 
   return (
-    typeof stage.name === 'string' &&
-    typeof stage.roundSize === 'number' &&
-    stage.roundSize >= 0 &&
-    typeof stage.graduationRate === 'number' &&
-    stage.graduationRate >= 0 &&
-    stage.graduationRate <= 100
+    typeof stage['name'] === 'string' &&
+    typeof stage['roundSize'] === 'number' &&
+    stage['roundSize'] >= 0 &&
+    typeof stage['graduationRate'] === 'number' &&
+    stage['graduationRate'] >= 0 &&
+    stage['graduationRate'] <= 100
   );
 }
 
@@ -302,13 +302,13 @@ export function validateFollowOnStrategy(data: unknown): data is FollowOnStrateg
   const strategy = data as Record<string, unknown>;
 
   return (
-    typeof strategy.stage === 'string' &&
-    typeof strategy.checkSize === 'number' &&
-    strategy.checkSize >= 0 &&
-    typeof strategy.participationRate === 'number' &&
-    strategy.participationRate >= 0 &&
-    strategy.participationRate <= 100 &&
-    (!strategy.strategy || VALID_STRATEGIES.includes(strategy.strategy as any))
+    typeof strategy['stage'] === 'string' &&
+    typeof strategy['checkSize'] === 'number' &&
+    strategy['checkSize'] >= 0 &&
+    typeof strategy['participationRate'] === 'number' &&
+    strategy['participationRate'] >= 0 &&
+    strategy['participationRate'] <= 100 &&
+    (!strategy['strategy'] || VALID_STRATEGIES.includes(strategy['strategy'] as any))
   );
 }
 
@@ -320,17 +320,17 @@ export function validateReserveCalculationRequest(
   const request = data as Record<string, unknown>;
 
   return (
-    typeof request.fundId === 'string' &&
-    typeof request.totalAllocatedCapital === 'number' &&
-    request.totalAllocatedCapital >= 0 &&
-    typeof request.initialCheckSize === 'number' &&
-    request.initialCheckSize >= 0 &&
-    typeof request.entryStage === 'string' &&
-    VALID_ENTRY_STAGES.includes(request.entryStage as any) &&
-    Array.isArray(request.stages) &&
-    request.stages.every(validateStageData) &&
-    Array.isArray(request.followOnStrategy) &&
-    request.followOnStrategy.every(validateFollowOnStrategy)
+    typeof request['fundId'] === 'string' &&
+    typeof request['totalAllocatedCapital'] === 'number' &&
+    request['totalAllocatedCapital'] >= 0 &&
+    typeof request['initialCheckSize'] === 'number' &&
+    request['initialCheckSize'] >= 0 &&
+    typeof request['entryStage'] === 'string' &&
+    VALID_ENTRY_STAGES.includes(request['entryStage'] as any) &&
+    Array.isArray(request['stages']) &&
+    request['stages'].every(validateStageData) &&
+    Array.isArray(request['followOnStrategy']) &&
+    request['followOnStrategy'].every(validateFollowOnStrategy)
   );
 }
 
