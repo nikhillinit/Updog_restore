@@ -184,7 +184,8 @@
       "Bash(ls:*)",
       "Bash(./node_modules/.bin/vite)",
       "Bash(./node_modules/.bin/tsx:*)",
-      "Bash(npx:*)"
+      "Bash(npx:*)",
+      "Bash(git rev-parse:*)"
     ],
     "deny": [],
     "ask": [],
