@@ -190,7 +190,8 @@
       "Bash(where concurrently)",
       "Bash(.node_modules.binvite.cmd --version)",
       "Bash(rm:*)",
-      "Bash(gh:*)"
+      "Bash(gh:*)",
+      "Bash(./node_modules/.bin/vitest run --reporter=verbose client/src/components/__tests__/LegacyRouteRedirector.test)"
     ],
     "deny": [],
     "ask": [],

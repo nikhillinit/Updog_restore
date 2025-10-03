@@ -30,6 +30,16 @@ import { monitor, monteCarloTracker } from '../middleware/performance-monitor.js
 import { PRNG } from '@shared/utils/prng';
 
 // ============================================================================
+// DEMO MODE CONFIGURATION
+// ============================================================================
+
+// Demo mode: lower iterations for fast interactive demos
+const DEFAULT_RUNS = process.env.DEMO_MODE === 'true' ? 2_000 : 10_000;
+const MAX_RUNS = process.env.DEMO_MODE === 'true' ? 5_000 : 50_000;
+
+console.log(`[Monte Carlo] Mode: ${process.env.DEMO_MODE === 'true' ? 'DEMO' : 'PRODUCTION'}, Default runs: ${DEFAULT_RUNS}, Max runs: ${MAX_RUNS}`);
+
+// ============================================================================
 // TYPES & INTERFACES
 // ============================================================================
 
@@ -405,8 +415,17 @@ export class MonteCarloEngine {
   // ============================================================================
 
   private validateConfig(config: SimulationConfig): void {
-    if (config.runs < 100 || config.runs > 50000) {
-      throw new Error('Simulation runs must be between 100 and 50,000');
+    // Apply demo mode caps
+    const runs = config.runs ?? DEFAULT_RUNS;
+    const cappedRuns = Math.min(runs, MAX_RUNS);
+
+    if (cappedRuns < runs) {
+      console.log(`[Monte Carlo] Capped runs from ${runs} to ${cappedRuns} (mode: ${process.env.DEMO_MODE ? 'demo' : 'prod'})`);
+      config.runs = cappedRuns;
+    }
+
+    if (config.runs < 100 || config.runs > MAX_RUNS) {
+      throw new Error(`Simulation runs must be between 100 and ${MAX_RUNS}`);
     }
     if (config.timeHorizonYears < 1 || config.timeHorizonYears > 15) {
       throw new Error('Time horizon must be between 1 and 15 years');

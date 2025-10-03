@@ -14,28 +14,29 @@ import { Request, Response, NextFunction } from '../types/request-response';
  */
 export function requestId() {
   return (req: Request, res: Response, next: NextFunction) => {
-    // Use client-provided ID or generate new one
-    const incoming = req['get']('X-Request-ID');
-    const rid = incoming && incoming.trim() !== '' ? incoming : `req_${randomUUID()}`;
-    
-    // Attach to request object for logging
-    req.requestId = rid;
-    
-    // Always set response header
-    res['setHeader']('X-Request-ID', rid);
-    
-    // Add to response locals for telemetry
-    res.locals.requestId = rid;
-    
+    // ALWAYS generate server-side ID (security: prevent log injection/collision)
+    const serverRid = `req_${randomUUID()}`;
+
+    // Optionally preserve client-provided ID for debugging (separate header)
+    const clientRid = req['get']('X-Request-ID');
+    if (clientRid && process.env.NODE_ENV !== 'production') {
+      res['setHeader']('X-Client-Request-ID', clientRid);
+    }
+
+    // Use server ID as authoritative
+    req.requestId = serverRid;
+    res['setHeader']('X-Request-ID', serverRid);
+    res.locals.requestId = serverRid;
+
     // If logger exists, create child logger with request context
     if ((global as any).logger) {
-      req.log = (global as any).logger.child({ 
-        requestId: rid, 
-        path: req.path, 
-        method: req.method 
+      req.log = (global as any).logger.child({
+        requestId: serverRid,
+        path: req.path,
+        method: req.method
       });
     }
-    
+
     // Log request completion
     res['on']('finish', () => {
       const duration = Date.now() - (res.locals.startTime || Date.now());
@@ -45,14 +46,14 @@ export function requestId() {
           duration,
           path: req.path,
           method: req.method,
-          requestId: rid
+          requestId: serverRid
         }, 'Request completed');
       }
     });
-    
+
     // Track start time for duration calculation
     res.locals.startTime = Date.now();
-    
+
     next();
   };
 }

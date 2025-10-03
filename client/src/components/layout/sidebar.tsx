@@ -8,24 +8,11 @@ import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useFundContext } from "@/contexts/FundContext";
 import { POVIcon } from "@/components/ui/POVLogo";
+import { getNavigationItems } from './navigation-config';
 import {
-  Briefcase,
-  Calculator,
-  BarChart3,
-  FileText,
-  Activity,
   ChevronDown,
   ChevronRight,
-  Plus,
-  TrendingUp,
-  Building2,
-  Target,
-  Percent,
-  DollarSign,
-  Clock,
-  AlertTriangle,
-  Settings,
-  Monitor
+  Plus
 } from "lucide-react";
 
 interface SidebarProps {
@@ -33,34 +20,8 @@ interface SidebarProps {
   onModuleChange: (_module: string) => void;
 }
 
-const navigationItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-  { id: 'portfolio', label: 'Portfolio', icon: Building2 },
-  { id: 'investments', label: 'Investments', icon: TrendingUp },
-  { id: 'investments-table', label: 'Investments Table', icon: TrendingUp },
-  { id: 'cap-tables', label: 'Cap Tables', icon: Calculator },
-  { id: 'kpi-manager', label: 'KPI Manager', icon: Activity },
-  { id: 'allocation-manager', label: 'Allocation Manager', icon: Calculator },
-  { id: 'planning', label: 'Planning', icon: Briefcase },
-  { id: 'forecasting', label: 'Forecasting', icon: TrendingUp },
-  { id: 'scenario-builder', label: 'Scenario Builder', icon: Target },
-  { id: 'moic-analysis', label: 'MOIC Analysis', icon: Calculator },
-  { id: 'return-the-fund', label: 'Return the Fund', icon: TrendingUp },
-  { id: 'partial-sales', label: 'Partial Sales', icon: Percent },
-  { id: 'financial-modeling', label: 'Financial Modeling', icon: Calculator },
-  { id: 'performance', label: 'Performance', icon: TrendingUp },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-  { id: 'portfolio-analytics', label: 'Portfolio Analytics', icon: Activity },
-  { id: 'cash-management', label: 'Cash Management', icon: DollarSign },
-  { id: 'secondary-market', label: 'Secondary Market', icon: Activity },
-  { id: 'notion-integration', label: 'Notion Integration', icon: Settings },
-  { id: 'sensitivity-analysis', label: 'Sensitivity Analysis', icon: Target },
-  { id: 'time-travel', label: 'Time-Travel Analytics', icon: Clock },
-  { id: 'variance-tracking', label: 'Variance Tracking', icon: AlertTriangle },
-  { id: 'portfolio-constructor', label: 'Portfolio Constructor', icon: Settings },
-  { id: 'dev-dashboard', label: 'Dev Dashboard', icon: Monitor },
-  { id: 'reports', label: 'Reports', icon: FileText },
-];
+// Use feature-flag aware navigation
+const navigationItems = getNavigationItems();
 
 const chartCategories = [
   { id: 'basic', label: 'Basic Charts' },
