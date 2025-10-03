@@ -33,16 +33,19 @@ export function LegacyRouteRedirector() {
     const currentPath = location.pathname;
     const newPath = LEGACY_ROUTE_MAP.get(currentPath);
 
-    if (newPath) {
+    if (newPath && newPath !== currentPath) {
+      // Preserve query strings and hash fragments to maintain deep links
+      const target = `${newPath}${location.search}${location.hash}`;
+
       // Log in development
       if (import.meta.env?.DEV) {
-        console.info(`[LegacyRouteRedirector] ${currentPath} → ${newPath}`);
+        console.info(`[LegacyRouteRedirector] ${currentPath} → ${target}`);
       }
 
       // Idempotent redirect (replace: true prevents history pollution)
-      navigate(newPath, { replace: true });
+      navigate(target, { replace: true });
     }
-  }, [isNewIA, location.pathname, navigate]);
+  }, [isNewIA, location.pathname, location.search, location.hash, navigate]);
 
   // Renders nothing - pure side-effect component
   return null;
