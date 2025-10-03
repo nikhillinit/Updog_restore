@@ -142,7 +142,7 @@ const reportItems: ReportItem[] = [
   }
 ];
 
-export default function TactycReports() {
+export default function Reports() {
   const { currentFund, isLoading } = useFundContext();
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'investment' | 'fund'>('all');
   const [generatingReport, setGeneratingReport] = useState<string | null>(null);

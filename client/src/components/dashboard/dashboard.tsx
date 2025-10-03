@@ -24,7 +24,7 @@ import { Label } from "@/components/ui/label";
 import { TrendingUp, Building2, Target } from "lucide-react";
 import PortfolioConcentration from "./portfolio-concentration";
 
-export default function TactycDashboard() {
+export default function Dashboard() {
   const { currentFund, isLoading } = useFundContext();
   const [viewType, setViewType] = useState("construction"); // construction | current
   const [activeTab, setActiveTab] = useState("fund");

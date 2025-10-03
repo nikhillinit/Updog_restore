@@ -61,7 +61,7 @@ export default function ExitAnalysis() {
   const [carryPercentage, setCarryPercentage] = useState(20);
   const [managementFee, setManagementFee] = useState(2);
 
-  // Exit analysis data based on Tactyc methodology
+  // Exit analysis data using stage-based methodology
   const baseExitData: ExitData[] = [
     {
       stage: "Seed",

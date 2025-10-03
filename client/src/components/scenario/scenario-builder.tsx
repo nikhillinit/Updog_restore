@@ -160,7 +160,7 @@ const predefinedScenarios: Scenario[] = [
   }
 ];
 
-export default function TactycScenarioBuilder() {
+export default function ScenarioBuilder() {
   const { currentFund, isLoading } = useFundContext();
   const [scenarios, setScenarios] = useState<Scenario[]>(predefinedScenarios);
   const [selectedScenario, setSelectedScenario] = useState<string>('construction');

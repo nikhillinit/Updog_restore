@@ -30,13 +30,13 @@ interface AllocationData {
   };
 }
 
-interface TactycsummaryData {
+interface SummaryData {
   capitalAllocated: number;
   expectedMOIC: number;
   reserveRatio: number;
 }
 
-export default function TactycAllocationUI() {
+export default function AllocationUI() {
   const [allocation, setAllocation] = useState<AllocationData>({
     id: "pre-seed",
     name: "Pre-Seed",
@@ -54,13 +54,13 @@ export default function TactycAllocationUI() {
     }
   });
 
-  const [summary, setSummary] = useState<TactycsummaryData>({
+  const [summary, setSummary] = useState<SummaryData>({
     capitalAllocated: 14780179,
     expectedMOIC: 7.90,
     reserveRatio: 48.13
   });
 
-  // Calculate derived metrics based on Tactyc methodology - deploy ALL available capital
+  // Calculate derived metrics using capital deployment methodology - deploy ALL available capital
   const calculateMetrics = () => {
     const totalFollowOnCapital = Object.values(allocation.followOnStrategy).reduce(
       (sum: any, stage: any) => sum + stage.capitalAllocated, 0
@@ -89,7 +89,7 @@ export default function TactycAllocationUI() {
       preciseNumberOfDeals,
       expectedMOIC,
       totalCapital,
-      unusedCapital: 0 // Tactyc ensures no unused capital
+      unusedCapital: 0 // Ensures no unused capital
     };
   };
 
@@ -477,7 +477,7 @@ export default function TactycAllocationUI() {
           <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <div className="flex items-center mb-2">
               <Info className="w-4 h-4 text-blue-600 mr-2" />
-              <span className="font-medium text-blue-800">Tactyc Capital Deployment Methodology</span>
+              <span className="font-medium text-blue-800">Capital Deployment Methodology</span>
             </div>
             <p className="text-sm text-blue-700 mb-2">
               <strong>All available capital is deployed</strong> - no unused capital allowed:

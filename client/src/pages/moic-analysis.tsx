@@ -445,8 +445,8 @@ export default function MOICAnalysisPage() {
             By summarizing the future follow-on performance it enables us to compare one company's reserves with another.
           </p>
           <p className="text-sm text-yellow-800">
-            When optimizing follow-on reserves, comparing this metric can guide future follow-on deployments. 
-            Tactyc automatically calculates and ranks all of your portfolio companies based on this metric.
+            When optimizing follow-on reserves, comparing this metric can guide future follow-on deployments.
+            The system automatically calculates and ranks all of your portfolio companies based on this metric.
           </p>
         </CardContent>
       </Card>

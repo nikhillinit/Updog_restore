@@ -31,7 +31,7 @@ interface TagPerformance {
   performance: 'excellent' | 'good' | 'average' | 'poor';
 }
 
-// Mock data based on the Tactyc image showing tag performance
+// Mock data for tag performance analysis
 const MOCK_TAG_PERFORMANCE: TagPerformance[] = [
   {
     tag: 'Asia',

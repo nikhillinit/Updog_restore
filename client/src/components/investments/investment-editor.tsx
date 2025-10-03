@@ -65,7 +65,7 @@ interface InvestmentData {
   activeCase: string;
 }
 
-interface TactycInvestmentEditorProps {
+interface InvestmentEditorProps {
   profileId?: string;
   entryRound?: string;
   onComplete?: () => void;
@@ -79,7 +79,7 @@ const sectorProfiles = [
   { id: 'healthcare', name: 'Healthcare Profile' }
 ];
 
-export default function TactycInvestmentEditor({ profileId, entryRound, onComplete }: TactycInvestmentEditorProps) {
+export default function InvestmentEditor({ profileId, entryRound, onComplete }: InvestmentEditorProps) {
   const { currentFund } = useFundContext();
   const [investment, setInvestment] = useState<InvestmentData>({
     id: 'new-investment',

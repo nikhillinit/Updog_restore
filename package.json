@@ -347,6 +347,7 @@
     "winston": "^3.17.0",
     "wouter": "^3.3.5",
     "ws": "^8.18.0",
+    "xstate": "^5.22.1",
     "zod": "^3.25.76",
     "zod-validation-error": "^3.4.0",
     "zustand": "^5.0.7"

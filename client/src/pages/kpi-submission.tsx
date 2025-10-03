@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Upload, Info } from "lucide-react";
+import { BRANDING } from '@/config/branding';
 
 // This component simulates what portfolio companies see when they click the KPI request link
 export default function KPISubmission() {
@@ -46,11 +47,11 @@ export default function KPISubmission() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header - Tactyc Branding */}
+        {/* Header - Branding */}
         <div className="text-center py-8">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <span className="text-2xl font-bold text-blue-600">TACTYC</span>
-            <span className="text-lg text-gray-600">VENTURES</span>
+            <span className="text-2xl font-bold text-blue-600">{BRANDING.app.nameStyled.toUpperCase()}</span>
+            <span className="text-lg text-gray-600">{BRANDING.company.name.toUpperCase()}</span>
           </div>
           <p className="text-gray-600">June 2023 Data Request</p>
         </div>
@@ -179,7 +180,7 @@ export default function KPISubmission() {
 
         {/* Footer */}
         <div className="text-center text-sm text-gray-500 py-4">
-          <p>Powered by Tactyc • Secure Data Collection Platform</p>
+          <p>{BRANDING.footer.tagline} • Secure Data Collection Platform</p>
         </div>
       </div>
     </div>
