@@ -19,7 +19,6 @@ const Investments = React.lazy(() => import("@/pages/investments"));
 const Planning = React.lazy(() => import("@/pages/planning"));
 // Lazy load non-critical routes for bundle optimization
 const FundSetup = React.lazy(() => import("@/pages/fund-setup"));
-const DesignSystem = React.lazy(() => import("@/pages/design-system"));
 const InvestmentDetail = React.lazy(() => import("@/pages/investment-detail"));
 const KPIManager = React.lazy(() => import("@/pages/kpi-manager"));
 const KPISubmission = React.lazy(() => import("@/pages/kpi-submission"));
@@ -209,7 +208,6 @@ function Router() {
       <Switch>
         <Route path="/" component={HomeRoute} />
         <Route path="/fund-setup" component={FundSetup} />
-        <Route path="/design-system" component={DesignSystem} />
         <Route path="/dashboard">{() => <ProtectedRoute component={Dashboard} />}</Route>
         <Route path="/portfolio">{() => <ProtectedRoute component={Portfolio} />}</Route>
         <Route path="/investments">{() => <ProtectedRoute component={Investments} />}</Route>

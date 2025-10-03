@@ -66,11 +66,11 @@ export function FundProvider({ children }: FundProviderProps) {
       const demoFund: Fund = {
         id: 1,
         name: 'Demo Fund I (VC Platform)',
-        size: 100000000, // $100M
+        size: 20000000, // $20M default
         managementFee: 0.025, // 2.5%
         carryPercentage: 0.20, // 20%
         vintageYear: 2024,
-        deployedCapital: 35000000, // $35M deployed
+        deployedCapital: 0, // No deployed capital yet
         status: 'active',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

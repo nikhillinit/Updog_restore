@@ -179,7 +179,12 @@
       "Bash(Select-String -Pattern \"(PASS|FAIL|Test Files|Tests  |Duration)\")",
       "Bash(claude mcp:*)",
       "Bash(where python)",
-      "Bash(/c/Python313/python.exe -m pip list)"
+      "Bash(/c/Python313/python.exe -m pip list)",
+      "Bash(npx prettier:*)",
+      "Bash(gh repo view:*)",
+      "Bash(redis-cli:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": [],

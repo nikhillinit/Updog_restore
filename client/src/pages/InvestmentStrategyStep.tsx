@@ -227,6 +227,13 @@ export default function InvestmentStrategyStep() {
       title="Investment Strategy"
       description="Stages, sectors, and allocations"
     >
+      {/* Consolidation Notice */}
+      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <p className="text-sm font-poppins text-blue-800">
+          <strong>📋 Note:</strong> This step will be consolidated with Investment Rounds (Step 2) in a future update
+          to eliminate redundancy and streamline the setup process. For now, please continue with your stage definitions.
+        </p>
+      </div>
       <div className="space-y-8">
         {/* Sector Profiles Section */}
         <div className="space-y-6">
