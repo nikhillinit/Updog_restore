@@ -6,11 +6,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FundProvider, useFundContext } from "@/contexts/FundContext";
 import { ErrorBoundary } from "./components/ui/error-boundary";
+import './styles/demo-animations.css';
 
 // Layout components
 import Sidebar from "@/components/layout/sidebar";
 // import Header from "@/components/layout/header"; // Unused - removed
 import DynamicFundHeader from "@/components/layout/dynamic-fund-header";
+import DemoBanner from "@/components/demo/DemoBanner";
 
 // Page components - Heavy routes lazy loaded for bundle optimization
 const Dashboard = React.lazy(() => import("@/pages/dashboard"));
@@ -254,6 +256,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <FundProvider>
           <TooltipProvider>
+            <DemoBanner />
             <Toaster />
             <AppLayout>
               <Router />

@@ -7,6 +7,7 @@ import { useFundContext } from "@/contexts/FundContext";
 import { useQuery } from "@tanstack/react-query";
 import { TrendingUp, Target, DollarSign } from "lucide-react";
 import { useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface KPIMetrics {
   dpi: number;
@@ -18,7 +19,7 @@ export default function HeaderKpis() {
   const { currentFund } = useFundContext();
   const [selectedKPI, setSelectedKPI] = useState<'dpi' | 'tvpi' | 'nav'>('dpi');
 
-  const { data: metrics } = useQuery<KPIMetrics>({
+  const { data: metrics, isLoading } = useQuery<KPIMetrics>({
     queryKey: ['/api/funds', currentFund?.id, 'kpi-metrics'],
     enabled: !!currentFund?.id,
     refetchInterval: 15000, // Refresh every 15s
@@ -85,12 +86,16 @@ export default function HeaderKpis() {
       <div className="flex items-center gap-2 ml-4 px-4 py-2 bg-white rounded-lg shadow-sm border border-slate-200">
         <Icon className={`h-5 w-5 ${selected.color}`} />
         <span className="text-sm text-slate-600">{selected.label}:</span>
-        <span className={`text-xl font-bold ${selected.color}`}>
-          {selected.isCurrency
-            ? `$${(selected.value / 1_000_000).toFixed(1)}M`
-            : selected.value.toFixed(2)
-          }
-        </span>
+        {isLoading ? (
+          <Skeleton className="h-7 w-24" />
+        ) : (
+          <span className={`text-xl font-bold ${selected.color} live-pulse-kpi`}>
+            {selected.isCurrency
+              ? `$${(selected.value / 1_000_000).toFixed(1)}M`
+              : selected.value.toFixed(2)
+            }
+          </span>
+        )}
       </div>
 
       {/* Fund Name */}
