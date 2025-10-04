@@ -77,7 +77,17 @@
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply font-poppins antialiased bg-background text-foreground;
+  }
+
+  /* MagicPatterns Typography System */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-inter font-bold text-charcoal;
+  }
+
+  /* Numeric data styling */
+  .font-numeric {
+    @apply font-mono;
   }
 }
 

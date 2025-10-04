@@ -39,13 +39,13 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
 
   return (
     <aside
-      className={`bg-white shadow-lg border-r border-gray-200 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out ${
+      className={`bg-white shadow-card border-r border-lightGray flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out ${
         isHovered ? 'w-64' : 'w-16'
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="p-3 border-b border-gray-200 bg-slate-900">
+      <div className="p-3 border-b border-lightGray bg-charcoal">
         <div className="flex items-center mb-4">
           <div className="flex items-center justify-center w-10 h-10">
             <POVIcon variant="white" size="md" />
@@ -56,18 +56,18 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
           </div>
         </div>
         {currentFund && isHovered && (
-          <div className="bg-slate-800 rounded-lg p-3 border border-slate-700 transition-all duration-300">
+          <div className="bg-charcoal/30 rounded-lg p-3 border border-beige/30 transition-all duration-300">
             <p className="font-poppins font-medium text-sm text-white truncate">
               {currentFund.name}
             </p>
-            <p className="font-mono text-xs text-slate-300 mt-1">
+            <p className="font-mono text-xs text-white/70 mt-1">
               ${(currentFund.size / 1000000).toFixed(0)}M Fund
             </p>
           </div>
         )}
       </div>
-      
-      <nav className="flex-1 p-2 overflow-y-auto custom-scrollbar bg-slate-50">
+
+      <nav className="flex-1 p-2 overflow-y-auto custom-scrollbar bg-white">
         {needsSetup && isHovered && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 transition-all duration-300">
             <div className="flex items-center space-x-2 mb-2">
@@ -97,13 +97,13 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
                     onClick={() => !isDisabled && onModuleChange(item.id)}
                     title={!isHovered ? item.label : undefined}
                     className={cn(
-                      "w-full flex items-center rounded-lg transition-all duration-200 font-poppins relative group",
+                      "w-full flex items-center rounded-md transition-colors font-poppins relative group",
                       isHovered ? "space-x-3 px-3 py-2.5" : "justify-center p-2.5",
                       isDisabled
-                        ? "text-gray-400 cursor-not-allowed bg-gray-100"
+                        ? "text-charcoal/40 cursor-not-allowed bg-lightGray"
                         : isActive
-                          ? "bg-slate-900 text-white shadow-md"
-                          : "text-slate-700 hover:bg-white hover:text-slate-900 hover:shadow-sm"
+                          ? "bg-beige/30 text-charcoal font-medium"
+                          : "text-charcoal/70 hover:bg-lightGray"
                     )}
                   >
                     <Icon className="h-5 w-5 flex-shrink-0" />
@@ -115,7 +115,7 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
 
                     {/* Tooltip for collapsed state */}
                     {!isHovered && (
-                      <div className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                      <div className="absolute left-full ml-2 px-2 py-1 bg-charcoal text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                         {item.label}
                       </div>
                     )}
@@ -127,10 +127,10 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
         </ul>
 
         {isHovered && (
-          <div className="mt-6 pt-4 border-t border-gray-200">
+          <div className="mt-6 pt-4 border-t border-lightGray">
             <button
               onClick={() => setIsChartsExpanded(!isChartsExpanded)}
-              className="w-full flex items-center justify-between px-2 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-700 transition-colors"
+              className="w-full flex items-center justify-between px-2 py-2 text-xs font-medium text-charcoal/70 uppercase tracking-wider hover:text-charcoal transition-colors"
             >
               <span>Chart Types</span>
               {isChartsExpanded ? (
@@ -144,7 +144,7 @@ export default function Sidebar({ activeModule, onModuleChange }: SidebarProps) 
               <ul className="mt-3 space-y-1">
                 {chartCategories.map((category: any) => (
                   <li key={category.id}>
-                    <button className="w-full text-left px-2 py-1 text-sm text-gray-600 hover:text-slate-800 hover:bg-gray-50 rounded-md transition-colors">
+                    <button className="w-full text-left px-2 py-1 text-sm text-charcoal/70 hover:text-charcoal hover:bg-lightGray rounded-md transition-colors">
                       {category.label}
                     </button>
                   </li>
