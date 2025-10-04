@@ -7,10 +7,11 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "vitest"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "@updog/agent-core": "workspace:*",
+    "@povc/agent-core": "workspace:*",
     "depcheck": "^1.4.7"
   },
   "devDependencies": {

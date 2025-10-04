@@ -40,8 +40,8 @@ export class ZencoderAgent extends BaseAgent<ZencoderInput, ZencoderResult> {
     });
 
     // Load API configuration from environment
-    this.apiKey = process.env.ZENCODER_API_KEY || '';
-    this.apiEndpoint = process.env.ZENCODER_ENDPOINT || 'https://api.zencoder.ai/v1';
+    this.apiKey = process.env['ZENCODER_API_KEY'] || '';
+    this.apiEndpoint = process.env['ZENCODER_ENDPOINT'] || 'https://api.zencoder.ai/v1';
   }
 
   protected async performOperation(
@@ -342,7 +342,7 @@ export class ZencoderAgent extends BaseAgent<ZencoderInput, ZencoderResult> {
     return new Promise((resolve) => {
       const errors: any[] = [];
       const tsc = spawn('npx', ['tsc', '--noEmit'], {
-        cwd: projectRoot,
+        cwd: projectRoot || process.cwd(),
         shell: true,
       });
 
@@ -356,11 +356,11 @@ export class ZencoderAgent extends BaseAgent<ZencoderInput, ZencoderResult> {
         const lines = output.split('\n');
         for (const line of lines) {
           const match = line.match(/(.+)\((\d+),(\d+)\): error TS\d+: (.+)/);
-          if (match) {
+          if (match && match[1] && match[2] && match[3] && match[4]) {
             errors.push({
               file: match[1],
-              line: parseInt(match[2]),
-              column: parseInt(match[3]),
+              line: parseInt(match[2], 10),
+              column: parseInt(match[3], 10),
               message: match[4],
             });
           }

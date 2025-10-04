@@ -2,12 +2,13 @@
   "name": "@povc/zencoder-integration",
   "version": "1.0.0",
   "description": "Zencoder AI integration for automated code fixes",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "vitest"
+    "test": "node test-build.mjs"
   },
   "dependencies": {
     "@povc/agent-core": "workspace:*",

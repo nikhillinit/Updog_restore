@@ -4,7 +4,15 @@
     "rootDir": "src",
     "outDir": "dist",
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
+    "paths": {
+      "@povc/agent-core": ["../agent-core/dist/index.d.ts"],
+      "@povc/agent-core/*": ["../agent-core/dist/*"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
