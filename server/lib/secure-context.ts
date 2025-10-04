@@ -33,17 +33,17 @@ export interface JWTClaims {
  */
 import { getAuthToken } from './headers-helper';
 
-export function extractUserContext(req: Request): UserContext | null {
+export async function extractUserContext(req: Request): Promise<UserContext | null> {
   const token = getAuthToken(req.headers);
-  
+
   if (!token) {
     return null;
   }
-  
+
   try {
     // Verify JWT and extract claims using centralized auth
-    const claims = verifyAccessToken(token) as JWTClaims;
-    
+    const claims = await verifyAccessToken(token) as JWTClaims;
+
     // Build context from verified JWT claims only
     const context: UserContext = {
       userId: claims.sub,
@@ -52,12 +52,12 @@ export function extractUserContext(req: Request): UserContext | null {
       orgId: claims.org_id || '', // Will be resolved from database if not in JWT
       partnerId: claims.partner_id
     };
-    
+
     // Fund ID comes from route params, not headers
     if (req.params.fundId) {
       context.fundId = req.params.fundId;
     }
-    
+
     return context;
   } catch (error) {
     console.error('JWT verification failed:', error);
@@ -68,13 +68,13 @@ export function extractUserContext(req: Request): UserContext | null {
 /**
  * Middleware to enforce secure context
  */
-export function requireSecureContext(
+export async function requireSecureContext(
   req: Request & { context?: UserContext },
   res: Response,
   next: NextFunction
-): void {
-  const context = extractUserContext(req);
-  
+): Promise<void> {
+  const context = await extractUserContext(req);
+
   if (!context) {
     res.status(401).json({
       error: 'unauthorized',
@@ -82,23 +82,23 @@ export function requireSecureContext(
     });
     return;
   }
-  
+
   // Ignore any client-supplied user headers
   const suspiciousHeaders = [
     'x-user-id',
-    'x-user-email', 
+    'x-user-email',
     'x-org-id',
     'x-partner-id',
     'x-role'
   ];
-  
+
   for (const header of suspiciousHeaders) {
     if (req.headers[header]) {
       console.warn(`Client attempted to send ${header} header, ignoring`);
       delete req.headers[header];
     }
   }
-  
+
   // Attach verified context to request
   req.context = context;
   next();
