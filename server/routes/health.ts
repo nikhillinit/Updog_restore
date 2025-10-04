@@ -11,6 +11,7 @@ import { setReady, registerInvalidator } from '../health/state';
 import { register as metricsRegister } from '../metrics';
 import type { Request, Response } from '../types/request-response';
 import { TTLCache, MemoryKV } from '../lib/ttl-cache';
+import { getVersionInfo } from '../version';
 
 const router = Router();
 
@@ -25,9 +26,14 @@ registerInvalidator(() => {
 });
 
 // Liveness check (unauthenticated, minimal)
+// Enhanced with build provenance for CI smoke gates
 router['get']('/healthz', (_req: Request, res: Response) => {
-  // Simple liveness check - is the process running?
-  res.status(200).json({ status: 'ok' });
+  const versionInfo = getVersionInfo();
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    ...versionInfo
+  });
 });
 
 // Note: Main /readyz handler is below (lines 147-197) with caching + state management
