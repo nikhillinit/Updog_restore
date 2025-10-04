@@ -112,6 +112,21 @@ TS_FIX_ORCHESTRATION.md
 TS_FIX_STREAMLINED.md
 ts-boolean-errors.txt
 
+# Build artifacts (TypeScript compilation outputs)
+packages/**/src/**/*.js
+packages/**/src/**/*.d.ts
+packages/**/src/**/*.js.map
+packages/**/src/**/*.d.ts.map
+!packages/**/src/**/__tests__/**/*.js
+!packages/**/src/**/__tests__/**/*.d.ts
+
+# Windows artifacts
+nul
+
+# Local data files
+Default Parameters/
+*.csv
+
 # Claude settings (local only)
 .claude/settings.local.json
 

@@ -177,6 +177,8 @@
     "ai:metrics": "node scripts/ai-tools/metrics-server.js",
     "ai:type-safety": "node scripts/ai-tools/type-safety-agent.js",
     "ai:type-safety:dry": "node scripts/ai-tools/type-safety-agent.js --dry-run",
+    "review:watch": "tsx scripts/codex-review-watch.ts",
+    "review:help": "tsx scripts/codex-review-watch.ts --help",
     "metrics:type-safety": "node scripts/type-safety-metrics.js",
     "generate:golden": "tsx scripts/generate-golden-fixture.ts",
     "api:types": "openapi-typescript server/openapi/api-spec.yaml -o shared/api-types.gen.ts",

@@ -205,7 +205,10 @@
       "Bash(npm config:*)",
       "Bash(npm config get:*)",
       "Bash(NODE_ENV=development npm run dev:api)",
-      "Bash(git show:*)"
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(for branch in hotfix/jwt-rs256-restoration fix/dev-crash-useFundSelector fix/data-loss-investmentStrategy)",
+      "Bash(do echo \"=== $branch ===\")"
     ],
     "deny": [],
     "ask": [],
