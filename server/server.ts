@@ -214,10 +214,10 @@ export async function createServer(
   // RUM metrics endpoint (public, for browser telemetry)
   const { metricsRumRouter } = await import('./routes/metrics-rum.js');
   const { rumOriginGuard, rumSamplingGuard, rumLimiter } = await import('./routes/metrics-rum.guard.js');
-  
-  // Apply guards in order: origin check -> rate limit -> sampling -> privacy (in router)
-  app.use('/metrics/rum', rumOriginGuard, rumLimiter, rumSamplingGuard);
-  app.use(metricsRumRouter);
+
+  // Apply guards and router together at the same path to prevent path resolution issues
+  // Guards run in order: origin check -> rate limit -> sampling -> privacy (in router)
+  app.use(rumOriginGuard, rumLimiter, rumSamplingGuard, metricsRumRouter);
   
   // Apply authentication and RLS middleware to protected routes
   // Note: Some routes like /healthz and /metrics are public
