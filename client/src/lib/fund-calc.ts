@@ -291,11 +291,17 @@ function simulatePeriods(
 ): PeriodResult[] {
   const periods: PeriodResult[] = [];
 
-  // Calculate total periods based on longest exit time
+  // Calculate total periods based on BOTH longest exit time AND management fee horizon
+  // Fix for PR #112 review: Ensure we simulate through full fee period to avoid understating expenses
   const maxExitMonths = Math.max(
     ...inputs.stageAllocations.map(s => inputs.monthsToExit[s.stage] || 0)
   );
-  const numPeriods = Math.ceil(maxExitMonths / inputs.periodLengthMonths);
+  const managementFeeMonths = inputs.managementFeeYears * 12;
+
+  // Use the LONGER of: (1) longest exit time, or (2) management fee horizon
+  // This ensures we capture all fees even if exits happen early
+  const simulationMonths = Math.max(maxExitMonths, managementFeeMonths);
+  const numPeriods = Math.ceil(simulationMonths / inputs.periodLengthMonths);
 
   // Generate period dates
   const periodDates = generatePeriodDates(

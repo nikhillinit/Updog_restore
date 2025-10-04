@@ -99,7 +99,12 @@ export function runFundModelV2(inputs: ExtendedFundModelInputs): FundModelOutput
   // Deploy companies using StageProfile
   deployCompaniesV2(inputs, state);
 
-  // Simulate periods
+  // Simulate periods through FULL fund term
+  // Critical: Must simulate through fundTermMonths (not just max exit time) to capture:
+  // 1. All management fees until fee horizon expires
+  // 2. NAV changes from uninvested cash
+  // 3. Potential late exits beyond initial estimates
+  // Fix for PR #112 review: Prevents understating expenses and overstating NAV/TVPI
   const periods: FundModelOutputs['periods'] = [];
   const maxMonths = inputs.fundTermMonths;
 
