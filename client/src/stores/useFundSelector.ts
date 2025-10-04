@@ -4,20 +4,34 @@ import { fundStore } from './fundStore';
 import type { FundState } from './fundStore';
 
 /**
+ * Core implementation of the fund selector.
+ * Internal function - use `useFundSelector` export instead.
+ */
+function useFundSelectorImpl<T>(
+  selector: (s: FundState) => T,
+  equality?: (a: T, b: T) => boolean
+): T {
+  return useStoreWithEqualityFn(fundStore, selector, equality);
+}
+
+/**
  * Safe selector hook using Zustand's built-in primitives.
  * Prevents the "getSnapshot must be cached" warning and infinite re-renders.
- * 
+ *
+ * In development mode, wraps selectors with performance monitoring to detect
+ * slow selectors (>4ms execution time).
+ *
  * @param selector - Function to select a slice of state
  * @param equality - Optional equality function (defaults to Object.is)
  * @returns The selected state slice
- * 
+ *
  * @example
  * // Single value
  * const hydrated = useFundSelector(s => s.hydrated);
- * 
+ *
  * // Multiple values with tuple (preferred)
  * const [stages, allocations] = useFundTuple(s => [s.stages, s.allocations]);
- * 
+ *
  * // Actions (usually stable by reference)
  * const addStage = useFundSelector(s => s.addStage);
  */
@@ -25,7 +39,28 @@ export function useFundSelector<T>(
   selector: (s: FundState) => T,
   equality?: (a: T, b: T) => boolean
 ): T {
-  return useStoreWithEqualityFn(fundStore, selector, equality);
+  // Development mode: wrap selector with performance monitoring
+  if (import.meta.env.DEV) {
+    const wrappedSelector = (state: FundState): T => {
+      const start = performance.now();
+      const result = selector(state);
+      const duration = performance.now() - start;
+
+      // Only warn for selectors taking more than 4ms
+      if (duration > 4) {
+        console.warn(`[Slow selector] ${duration.toFixed(2)}ms`, {
+          selector: selector.toString().slice(0, 100)
+        });
+      }
+
+      return result;
+    };
+
+    return useFundSelectorImpl(wrappedSelector, equality);
+  }
+
+  // Production mode: use selector directly
+  return useFundSelectorImpl(selector, equality);
 }
 
 /**
@@ -68,31 +103,3 @@ export const useFundAction = <T>(
 export const useFundActions = <T extends Record<string, any>>(
   selector: (s: FundState) => T
 ) => useFundSelector(selector, shallow);
-
-// Development-only selector performance monitoring
-if (import.meta.env.DEV) {
-  const originalSelector = useFundSelector;
-  
-  // Wrap selector to track performance in development
-  (useFundSelector as any) = <T>(
-    selector: (s: FundState) => T,
-    equality?: (a: T, b: T) => boolean
-  ): T => {
-    const wrappedSelector = (state: FundState): T => {
-      const start = performance.now();
-      const result = selector(state);
-      const duration = performance.now() - start;
-      
-      // Only warn for selectors taking more than 4ms
-      if (duration > 4) {
-        console.warn(`[Slow selector] ${duration.toFixed(2)}ms`, {
-          selector: selector.toString().slice(0, 100)
-        });
-      }
-      
-      return result;
-    };
-    
-    return originalSelector(wrappedSelector, equality);
-  };
-}
