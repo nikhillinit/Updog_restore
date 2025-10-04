@@ -25,9 +25,12 @@ export const PortfolioCompanySchema = z.object({
   liquidationPreference: MoneySchema.optional(),
   
   // Timeline and status
-  investmentDate: z.date(),
-  lastRoundDate: z.date().optional(),
-  exitDate: z.date().optional(),
+  /** Investment date - accepts Date objects or ISO strings, coerces to Date */
+  investmentDate: z.coerce.date(),
+  /** Last funding round date - accepts Date objects or ISO strings, coerces to Date */
+  lastRoundDate: z.coerce.date().optional(),
+  /** Exit date if applicable - accepts Date objects or ISO strings, coerces to Date */
+  exitDate: z.coerce.date().optional(),
   isActive: z.boolean().default(true),
   
   // Performance metrics
@@ -196,7 +199,8 @@ export const ReserveCalculationResultSchema = z.object({
   
   // Calculation metadata
   metadata: z.object({
-    calculationDate: z.date(),
+    /** Timestamp of calculation - accepts Date objects or ISO strings, coerces to Date */
+    calculationDate: z.coerce.date(),
     calculationDuration: z.number().positive(), // milliseconds
     modelVersion: z.string(),
     deterministicHash: z.string(), // for result verification

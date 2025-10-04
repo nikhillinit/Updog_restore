@@ -9,16 +9,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Info, Calculator } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useFundTuple } from '@/stores/useFundSelector';
-import { 
-  computeFromCapital_v2, 
-  roundToNearestWhole, 
+import {
+  computeFromCapital_v2,
+  roundToNearestWhole,
   validateCapitalFirstInputs,
   type CapitalFirstInputsV2,
   type StageKey,
   type FollowOnRule,
-  StageOrder 
+  StageOrder
 } from '@/lib/capital-first';
-import { committedFeeDragPctFromTiers } from '@/lib/fees';
+import { committedFeeDragFraction } from '@/lib/fees';
+import { asFraction, type Fraction } from '@shared/units';
 
 interface CapitalFirstCalculatorProps {
   className?: string;
@@ -48,10 +49,10 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
   // Build inputs for capital-first calculation
   const primaryFeeProfile = feeProfiles[0];
   const inputs: CapitalFirstInputsV2 = useMemo(() => {
-    // Calculate fee drag from tier tables
-    const feeDragPct = primaryFeeProfile?.feeTiers 
-      ? committedFeeDragPctFromTiers(primaryFeeProfile.feeTiers)
-      : 20; // Fallback estimate for 2% over 10 years
+    // Calculate fee drag as fraction (0-1) from tier tables
+    const feeDragFraction: Fraction = primaryFeeProfile?.feeTiers
+      ? committedFeeDragFraction(primaryFeeProfile.feeTiers)
+      : asFraction(0.20); // Fallback estimate for 2% over 10 years = 20% = 0.20 fraction
 
     // Map allocations to stage percentages
     const allocationPctByStage: Record<StageKey, number> = {
@@ -127,7 +128,7 @@ export default function CapitalFirstCalculator({ className }: CapitalFirstCalcul
 
     return {
       totalCommitment: fundSize || 100_000_000,
-      feeDragPct,
+      feeDragPct: feeDragFraction * 100, // Convert fraction back to percentage for the input type
       allocationPctByStage,
       initialCheckByStage,
       graduationPctByStage,

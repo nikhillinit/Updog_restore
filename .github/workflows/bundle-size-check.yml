@@ -1,0 +1,197 @@
+name: Bundle Size Check
+
+on:
+  pull_request:
+    branches:
+      - main
+      - feat/**
+    paths:
+      - 'client/**'
+      - 'vite.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.size-limit.json'
+
+jobs:
+  bundle-size:
+    name: Check Bundle Size
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npm run build:web
+        env:
+          NODE_ENV: production
+          BUILD_WITH_PREACT: '1'
+
+      - name: Run size-limit on current branch
+        run: npm run size-limit:check
+        continue-on-error: false
+
+      - name: Fetch base branch
+        run: |
+          git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
+
+      - name: Checkout base branch
+        run: |
+          git checkout ${{ github.base_ref }}
+
+      - name: Install dependencies (base)
+        run: npm ci
+
+      - name: Build production bundle (base)
+        run: npm run build:web
+        env:
+          NODE_ENV: production
+          BUILD_WITH_PREACT: '1'
+
+      - name: Run size-limit on base branch
+        run: npm run size-limit:check
+        continue-on-error: true
+
+      - name: Save base results
+        run: |
+          if [ -f size-limit-current.json ]; then
+            mv size-limit-current.json size-limit-base.json
+          fi
+
+      - name: Checkout PR branch again
+        run: |
+          git checkout ${{ github.event.pull_request.head.sha }}
+
+      - name: Install dependencies (PR)
+        run: npm ci
+
+      - name: Build production bundle (PR)
+        run: npm run build:web
+        env:
+          NODE_ENV: production
+          BUILD_WITH_PREACT: '1'
+
+      - name: Run size-limit on PR branch
+        run: npm run size-limit:check
+
+      - name: Compare bundle sizes
+        id: compare
+        run: |
+          node scripts/compare-bundle-size.js > comparison-output.txt 2>&1 || echo "COMPARISON_FAILED=true" >> $GITHUB_OUTPUT
+          cat comparison-output.txt
+
+      - name: Read comparison results
+        id: results
+        run: |
+          if [ -f bundle-size-diff.json ]; then
+            echo "HAS_RESULTS=true" >> $GITHUB_OUTPUT
+          else
+            echo "HAS_RESULTS=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate PR comment
+        if: steps.results.outputs.HAS_RESULTS == 'true'
+        id: comment
+        run: |
+          echo "COMMENT<<EOF" >> $GITHUB_OUTPUT
+          echo "## 📊 Bundle Size Report" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+
+          # Parse JSON and create markdown table
+          node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync('bundle-size-diff.json', 'utf-8'));
+
+            console.log('| Bundle | Limit | Current | Base | Change | Status |');
+            console.log('|--------|-------|---------|------|--------|--------|');
+
+            for (const result of data.results) {
+              const status = result.passed ? '✅ PASS' : '❌ FAIL';
+              const change = result.diffFormatted
+                ? \`\${result.diff < 0 ? '↓' : result.diff > 0 ? '↑' : '→'} \${result.diffFormatted} (\${result.diffPercent > 0 ? '+' : ''}\${result.diffPercent}%)\`
+                : 'N/A';
+              const base = result.baseFormatted || 'N/A';
+
+              console.log(\`| \${result.name} | \${result.limitFormatted} | \${result.currentFormatted} | \${base} | \${change} | \${status} |\`);
+            }
+
+            console.log('');
+            console.log('### Summary');
+            console.log('');
+            console.log(\`- Total Checks: \${data.summary.total}\`);
+            console.log(\`- ✅ Passed: \${data.summary.passed}\`);
+            console.log(\`- ❌ Failed: \${data.summary.failed}\`);
+
+            if (data.hasBase) {
+              console.log(\`- ↓ Improved: \${data.summary.improved}\`);
+              console.log(\`- ↑ Regressed: \${data.summary.regressed}\`);
+            }
+          " >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Comment PR
+        if: steps.results.outputs.HAS_RESULTS == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const comment = `${{ steps.comment.outputs.COMMENT }}`;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('📊 Bundle Size Report')
+            );
+
+            // Update or create comment
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }
+
+      - name: Upload bundle size artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-size-results
+          path: |
+            bundle-size-diff.json
+            size-limit-current.json
+            size-limit-base.json
+            comparison-output.txt
+          retention-days: 30
+
+      - name: Fail if size limits exceeded
+        if: steps.compare.outputs.COMPARISON_FAILED == 'true'
+        run: |
+          echo "❌ Bundle size check failed - one or more limits exceeded"
+          exit 1
