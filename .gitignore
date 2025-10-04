@@ -137,3 +137,6 @@ Updog_restore-main/
 STREAMLINED_*.md
 .claude/settings.local.json
 .github/instructions/
+
+# Test reports
+reports/
