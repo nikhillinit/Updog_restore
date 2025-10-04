@@ -3,7 +3,7 @@
  * Supports URL parameters for testing and gradual rollout
  */
 
-export type FlagName = 
+export type FlagName =
   | 'ts_reserves'
   | 'wasm_reserves'
   | 'shadow_compare'
@@ -11,7 +11,12 @@ export type FlagName =
   | 'remain_pass'
   | 'stage_based_caps'
   | 'export_async'
-  | 'metrics_collection';
+  | 'metrics_collection'
+  | 'new_ia'               // New Information Architecture (5-item nav)
+  | 'live_kpi_selectors'   // Live KPI selector functions
+  | 'modeling_hub'         // Unified modeling hub
+  | 'operate_hub'          // Operations hub
+  | 'analytics_events';    // Analytics tracking
 
 interface FlagConfig {
   defaultValue: boolean;
@@ -68,6 +73,36 @@ const FLAGS: Record<FlagName, FlagConfig> = {
     defaultValue: true,
     rolloutPercent: 100,
     description: 'Enable metrics collection',
+    allowOverride: true
+  },
+  new_ia: {
+    defaultValue: true,
+    rolloutPercent: 100,
+    description: 'New Information Architecture (5-item navigation)',
+    allowOverride: true
+  },
+  live_kpi_selectors: {
+    defaultValue: false,
+    rolloutPercent: 0,
+    description: 'Live KPI selector functions (requires API)',
+    allowOverride: true
+  },
+  modeling_hub: {
+    defaultValue: false,
+    rolloutPercent: 0,
+    description: 'Unified modeling hub with Construction/Current/Reserves',
+    allowOverride: true
+  },
+  operate_hub: {
+    defaultValue: false,
+    rolloutPercent: 0,
+    description: 'Operations hub (Capital Calls/Distributions/Fees)',
+    allowOverride: true
+  },
+  analytics_events: {
+    defaultValue: false,
+    rolloutPercent: 0,
+    description: 'Analytics event tracking',
     allowOverride: true
   }
 };

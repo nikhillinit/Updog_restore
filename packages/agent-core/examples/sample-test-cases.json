@@ -1,0 +1,162 @@
+[
+  {
+    "id": "case-001",
+    "commitHash": "08a0a44",
+    "type": "test-failure",
+    "description": "Fix failing unit test in ReserveEngine - undefined property access",
+    "files": ["client/src/core/ReserveEngine.ts"],
+    "errorMessage": "TypeError: Cannot read property 'amount' of undefined at ReserveEngine.calculateAllocation",
+    "humanSolution": "Added null check before accessing fund.amount property using optional chaining",
+    "timeToResolve": 15,
+    "complexity": 3,
+    "metadata": {
+      "testCommand": "npm test -- ReserveEngine.test.ts",
+      "expectedOutcome": "All tests pass",
+      "category": "runtime-error"
+    }
+  },
+  {
+    "id": "case-002",
+    "commitHash": "9bc74a1",
+    "type": "typescript-error",
+    "description": "Fix TypeScript compilation error - index signature access",
+    "files": ["server/reserve-engine/index.ts"],
+    "errorMessage": "TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type",
+    "humanSolution": "Changed dot notation to bracket notation for dynamic property access",
+    "timeToResolve": 10,
+    "complexity": 2,
+    "metadata": {
+      "testCommand": "npm run check",
+      "expectedOutcome": "No TypeScript errors",
+      "category": "type-error"
+    }
+  },
+  {
+    "id": "case-003",
+    "commitHash": "165517d",
+    "type": "refactoring",
+    "description": "Refactor duplicate code in Dashboard components",
+    "files": ["client/src/components/Dashboard/DashboardCard.tsx", "client/src/components/Dashboard/MetricsCard.tsx"],
+    "errorMessage": "Code smell: Duplicate card rendering logic across multiple components",
+    "humanSolution": "Extracted common card logic into BaseCard component and refactored both components to use it",
+    "timeToResolve": 45,
+    "complexity": 6,
+    "metadata": {
+      "testCommand": "npm test && npm run lint",
+      "expectedOutcome": "Tests pass and no lint warnings",
+      "category": "code-quality"
+    }
+  },
+  {
+    "id": "case-004",
+    "commitHash": "d8339e4",
+    "type": "performance",
+    "description": "Optimize slow React component re-renders in portfolio view",
+    "files": ["client/src/pages/Portfolio.tsx"],
+    "errorMessage": "Performance issue: Portfolio component re-renders on every state change causing lag",
+    "humanSolution": "Implemented React.memo and useMemo to prevent unnecessary re-renders",
+    "timeToResolve": 30,
+    "complexity": 5,
+    "metadata": {
+      "testCommand": "npm run test:ui",
+      "expectedOutcome": "Component renders < 100ms",
+      "category": "performance"
+    }
+  },
+  {
+    "id": "case-005",
+    "commitHash": "94cc833",
+    "type": "api-design",
+    "description": "Design new REST endpoint for scenario comparisons",
+    "files": ["server/routes/scenarios.ts"],
+    "errorMessage": "Missing endpoint: Need API to compare multiple scenarios side-by-side",
+    "humanSolution": "Created POST /api/scenarios/compare endpoint with proper validation and response schema",
+    "timeToResolve": 60,
+    "complexity": 7,
+    "metadata": {
+      "testCommand": "npm run test -- scenarios.test.ts",
+      "expectedOutcome": "All API tests pass",
+      "category": "feature-development"
+    }
+  },
+  {
+    "id": "case-006",
+    "commitHash": "165517d",
+    "type": "test-failure",
+    "description": "Fix flaky async test in PacingEngine",
+    "files": ["tests/core/PacingEngine.test.ts"],
+    "errorMessage": "Test timeout: PacingEngine simulation test intermittently times out after 5000ms",
+    "humanSolution": "Added proper async/await handling and increased timeout for Monte Carlo simulations",
+    "timeToResolve": 20,
+    "complexity": 4,
+    "metadata": {
+      "testCommand": "npm test -- PacingEngine.test.ts --run",
+      "expectedOutcome": "Test passes consistently",
+      "category": "test-stability"
+    }
+  },
+  {
+    "id": "case-007",
+    "commitHash": "08a0a44",
+    "type": "debugging",
+    "description": "Debug memory leak in worker process",
+    "files": ["server/workers/simulation-worker.ts"],
+    "errorMessage": "Memory usage grows unbounded during long-running simulations",
+    "humanSolution": "Fixed event listener cleanup and added proper garbage collection after each simulation batch",
+    "timeToResolve": 90,
+    "complexity": 8,
+    "metadata": {
+      "testCommand": "npm run test:api",
+      "expectedOutcome": "Memory usage remains stable",
+      "category": "critical-bug"
+    }
+  },
+  {
+    "id": "case-008",
+    "commitHash": "9bc74a1",
+    "type": "react-component",
+    "description": "Build new ScenarioComparisonTable component",
+    "files": ["client/src/components/Scenarios/ScenarioComparisonTable.tsx"],
+    "errorMessage": "Missing component: Need table to display scenario comparison data",
+    "humanSolution": "Created fully responsive table component with sorting, filtering, and export functionality using shadcn/ui table primitives",
+    "timeToResolve": 120,
+    "complexity": 7,
+    "metadata": {
+      "testCommand": "npm run test:ui",
+      "expectedOutcome": "Component renders correctly and is accessible",
+      "category": "ui-development"
+    }
+  },
+  {
+    "id": "case-009",
+    "commitHash": "d8339e4",
+    "type": "code-review",
+    "description": "Review and improve error handling in API routes",
+    "files": ["server/routes/*.ts"],
+    "errorMessage": "Code review finding: Inconsistent error handling across API routes",
+    "humanSolution": "Standardized error handling using centralized error middleware and custom error classes",
+    "timeToResolve": 75,
+    "complexity": 6,
+    "metadata": {
+      "testCommand": "npm run lint && npm run test:api",
+      "expectedOutcome": "Consistent error responses",
+      "category": "code-quality"
+    }
+  },
+  {
+    "id": "case-010",
+    "commitHash": "94cc833",
+    "type": "database-query",
+    "description": "Optimize slow fund query with complex joins",
+    "files": ["server/database/queries/funds.ts"],
+    "errorMessage": "Performance: Fund detail query takes 3+ seconds with large datasets",
+    "humanSolution": "Added database indexes, optimized JOIN order, and implemented query result caching",
+    "timeToResolve": 50,
+    "complexity": 7,
+    "metadata": {
+      "testCommand": "npm run test:api",
+      "expectedOutcome": "Query completes in < 500ms",
+      "category": "database-optimization"
+    }
+  }
+]

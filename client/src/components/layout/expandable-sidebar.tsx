@@ -7,10 +7,10 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useFundContext } from "@/contexts/FundContext";
-import { 
-  LayoutDashboard, 
-  Calculator, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  Calculator,
+  BarChart3,
   FileText,
   Activity,
   ChevronRight,
@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { BRANDING } from '@/config/branding';
 
 interface ExpandableSidebarProps {
   activeModule: string;
@@ -113,7 +114,7 @@ export default function ExpandableSidebar({ activeModule, onModuleChange }: Expa
           </div>
           {isExpanded && (
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg font-bold text-white">Tactyc</h1>
+              <h1 className="text-lg font-bold text-white">{BRANDING.app.name}</h1>
               {currentFund ? (
                 <p className="text-sm text-gray-300 truncate">{currentFund.name}</p>
               ) : (

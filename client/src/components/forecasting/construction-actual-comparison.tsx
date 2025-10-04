@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 export function ConstructionActualComparison() {
-  // Sample data matching your Tactyc screenshots
+  // Sample data for construction vs actual comparison
   const comparisonData = {
     initialChecks: [
       { 

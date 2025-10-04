@@ -32,7 +32,7 @@ export default function ProjectedPerformance() {
   const [entryRound, setEntryRound] = useState<string>("all-rounds");
   const [timePeriod, setTimePeriod] = useState<string>("monthly");
 
-  // Sample data based on your Tactyc screenshots
+  // Sample data for portfolio projection modeling
   const performanceData: PerformanceData[] = [
     { month: "Jan 2022", date: "2022-01", constructionProjection: 10, actual: 8, currentProjection: 10, tvpiConstruction: 1.0, tvpiActual: 1.0, tvpiCurrent: 1.0 },
     { month: "Mar 2022", date: "2022-03", constructionProjection: 12, actual: 11, currentProjection: 12, tvpiConstruction: 1.1, tvpiActual: 1.05, tvpiCurrent: 1.1 },

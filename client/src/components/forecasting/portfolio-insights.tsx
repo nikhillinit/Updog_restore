@@ -29,7 +29,7 @@ interface SectorMOIC {
 }
 
 export default function PortfolioInsights() {
-  // Sample data based on your Tactyc screenshots
+  // Sample data for co-investor analysis
   const coInvestorData: CoInvestorData[] = [
     {
       name: "Andreessen Horowitz",

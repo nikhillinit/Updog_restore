@@ -24,11 +24,27 @@ export interface RepairResult {
     file: string;
     changes: string;
     success: boolean;
+    evaluation?: EvaluationResult;
+    iterations?: number;
   }>;
   prUrl?: string;
 }
 
+export type EvaluationStatus = 'PASS' | 'NEEDS_IMPROVEMENT' | 'FAIL';
+
+export interface EvaluationResult {
+  status: EvaluationStatus;
+  feedback: string;
+  criteria: {
+    testPasses: boolean;
+    noRegressions: boolean;
+    followsConventions: boolean;
+  };
+}
+
 export class TestRepairAgent extends BaseAgent<RepairInput, RepairResult> {
+  private readonly MAX_OPTIMIZATION_ITERATIONS = 3;
+
   constructor(config?: Partial<AgentConfig>) {
     super({
       name: 'test-repair-agent',
@@ -81,23 +97,24 @@ export class TestRepairAgent extends BaseAgent<RepairInput, RepairResult> {
     return this.parseTestOutput(result.stdout, result.stderr);
   }
 
-  // Core logic: Generate repairs (~20 lines)
+  // Core logic: Generate repairs with evaluator-optimizer pattern
   private async generateRepairs(
     failures: TestFailure[],
     input: RepairInput
-  ): Promise<Array<{ file: string; changes: string; success: boolean }>> {
+  ): Promise<Array<{ file: string; changes: string; success: boolean; evaluation?: EvaluationResult; iterations?: number }>> {
     const maxRepairs = input.maxRepairs || 5;
     const repairs = [];
 
     for (const failure of failures.slice(0, maxRepairs)) {
       try {
-        const repair = await this.generateSingleRepair(failure);
-        repairs.push({
-          file: failure.file,
-          changes: repair,
-          success: true,
+        // Use evaluator-optimizer loop instead of single attempt
+        const result = await this.evaluatorOptimizerLoop(failure, input);
+        repairs.push(result);
+        this.logger.info(`Generated repair for ${failure.file}`, {
+          failure,
+          iterations: result.iterations,
+          evaluation: result.evaluation
         });
-        this.logger.info(`Generated repair for ${failure.file}`, { failure, repair });
       } catch (error) {
         repairs.push({
           file: failure.file,
@@ -109,6 +126,68 @@ export class TestRepairAgent extends BaseAgent<RepairInput, RepairResult> {
     }
 
     return repairs;
+  }
+
+  /**
+   * Evaluator-Optimizer Loop (Cookbook Pattern)
+   * Iteratively generates and evaluates fixes until PASS or max iterations
+   */
+  private async evaluatorOptimizerLoop(
+    failure: TestFailure,
+    input: RepairInput
+  ): Promise<{ file: string; changes: string; success: boolean; evaluation: EvaluationResult; iterations: number }> {
+    let currentRepair = '';
+    let evaluation: EvaluationResult | null = null;
+    let previousAttempts: Array<{ repair: string; feedback: string }> = [];
+
+    for (let iteration = 0; iteration < this.MAX_OPTIMIZATION_ITERATIONS; iteration++) {
+      // Generate (or optimize) repair
+      if (iteration === 0) {
+        currentRepair = await this.generateSingleRepair(failure);
+      } else {
+        currentRepair = await this.optimizeWithFeedback(failure, currentRepair, evaluation!, previousAttempts);
+      }
+
+      // Evaluate the repair
+      evaluation = await this.evaluateFix(failure, currentRepair, input);
+
+      // Track attempt for next iteration
+      previousAttempts.push({
+        repair: currentRepair,
+        feedback: evaluation.feedback
+      });
+
+      this.logger.debug(`Iteration ${iteration + 1}/${this.MAX_OPTIMIZATION_ITERATIONS}`, {
+        status: evaluation.status,
+        feedback: evaluation.feedback
+      });
+
+      // Stop if we achieved PASS
+      if (evaluation.status === 'PASS') {
+        return {
+          file: failure.file,
+          changes: currentRepair,
+          success: true,
+          evaluation,
+          iterations: iteration + 1
+        };
+      }
+
+      // Stop if we hit FAIL (unrecoverable)
+      if (evaluation.status === 'FAIL') {
+        this.logger.warn('Repair marked as FAIL, stopping iterations', { evaluation });
+        break;
+      }
+    }
+
+    // Max iterations reached or FAIL
+    return {
+      file: failure.file,
+      changes: currentRepair,
+      success: false,
+      evaluation: evaluation!,
+      iterations: this.MAX_OPTIMIZATION_ITERATIONS
+    };
   }
 
   private async generateSingleRepair(failure: TestFailure): Promise<string> {
@@ -159,6 +238,222 @@ export class TestRepairAgent extends BaseAgent<RepairInput, RepairResult> {
 
   private generateTimeoutRepair(failure: TestFailure): string {
     return 'Increase test timeout or optimize async operations';
+  }
+
+  /**
+   * Evaluator: Assesses repair quality against criteria
+   * Returns PASS, NEEDS_IMPROVEMENT, or FAIL with detailed feedback
+   */
+  private async evaluateFix(
+    failure: TestFailure,
+    repair: string,
+    input: RepairInput
+  ): Promise<EvaluationResult> {
+    const criteria = {
+      testPasses: false,
+      noRegressions: false,
+      followsConventions: false
+    };
+
+    const feedbackItems: string[] = [];
+
+    // Criterion 1: Does the repair address the actual error?
+    const addressesError = this.repairAddressesError(failure, repair);
+    if (addressesError) {
+      criteria.testPasses = true;
+    } else {
+      feedbackItems.push('Repair does not directly address the error message');
+    }
+
+    // Criterion 2: No obvious regressions (basic heuristics)
+    const hasRegressions = this.detectPotentialRegressions(repair);
+    if (!hasRegressions) {
+      criteria.noRegressions = true;
+    } else {
+      feedbackItems.push('Repair may introduce regressions (unsafe patterns detected)');
+    }
+
+    // Criterion 3: Follows coding conventions
+    const followsConventions = this.checksConventions(repair);
+    if (followsConventions) {
+      criteria.followsConventions = true;
+    } else {
+      feedbackItems.push('Repair should follow project conventions (type safety, error handling)');
+    }
+
+    // Determine overall status
+    let status: EvaluationStatus;
+    if (criteria.testPasses && criteria.noRegressions && criteria.followsConventions) {
+      status = 'PASS';
+    } else if (criteria.testPasses) {
+      status = 'NEEDS_IMPROVEMENT';
+    } else {
+      status = 'FAIL';
+    }
+
+    return {
+      status,
+      feedback: feedbackItems.length > 0
+        ? feedbackItems.join('; ')
+        : 'All criteria met',
+      criteria
+    };
+  }
+
+  /**
+   * Optimizer: Improves repair based on evaluator feedback
+   */
+  private async optimizeWithFeedback(
+    failure: TestFailure,
+    currentRepair: string,
+    evaluation: EvaluationResult,
+    previousAttempts: Array<{ repair: string; feedback: string }>
+  ): Promise<string> {
+    this.logger.debug('Optimizing repair based on feedback', {
+      currentRepair,
+      feedback: evaluation.feedback,
+      attemptCount: previousAttempts.length
+    });
+
+    // Build optimization context
+    const optimizationPrompt = this.buildOptimizationPrompt(
+      failure,
+      currentRepair,
+      evaluation,
+      previousAttempts
+    );
+
+    // Apply specific improvements based on failed criteria
+    let optimizedRepair = currentRepair;
+
+    if (!evaluation.criteria.followsConventions) {
+      optimizedRepair = this.improveConventions(optimizedRepair, failure);
+    }
+
+    if (!evaluation.criteria.noRegressions) {
+      optimizedRepair = this.removeUnsafePatterns(optimizedRepair);
+    }
+
+    if (!evaluation.criteria.testPasses) {
+      // Try alternative repair strategy
+      optimizedRepair = this.tryAlternativeStrategy(failure, previousAttempts);
+    }
+
+    return optimizedRepair;
+  }
+
+  // Helper: Check if repair addresses the error
+  private repairAddressesError(failure: TestFailure, repair: string): boolean {
+    const errorKeywords = this.extractKeywords(failure.error);
+    const repairKeywords = this.extractKeywords(repair);
+
+    // Check if repair mentions key error concepts
+    return errorKeywords.some(keyword => repairKeywords.includes(keyword));
+  }
+
+  // Helper: Detect potential regressions
+  private detectPotentialRegressions(repair: string): boolean {
+    const unsafePatterns = [
+      /any\s+type/i,           // TypeScript 'any' type
+      /console\.log/i,         // Debug statements
+      /@ts-ignore/i,           // Suppressing TS errors
+      /\/\/\s*TODO/i,          // Unfinished work
+      /setTimeout.*999999/i,   // Extremely long timeouts
+    ];
+
+    return unsafePatterns.some(pattern => pattern.test(repair));
+  }
+
+  // Helper: Check coding conventions
+  private checksConventions(repair: string): boolean {
+    // Basic convention checks
+    const hasTypeAnnotations = repair.includes(':') || !repair.includes('const ');
+    const hasProperErrorHandling = repair.includes('try') || !repair.includes('Error');
+    const noMagicNumbers = !/\d{3,}/.test(repair); // No large magic numbers
+
+    return hasTypeAnnotations && hasProperErrorHandling && noMagicNumbers;
+  }
+
+  // Helper: Build optimization prompt context
+  private buildOptimizationPrompt(
+    failure: TestFailure,
+    currentRepair: string,
+    evaluation: EvaluationResult,
+    previousAttempts: Array<{ repair: string; feedback: string }>
+  ): string {
+    return `
+Error: ${failure.error}
+Current Repair: ${currentRepair}
+Feedback: ${evaluation.feedback}
+Previous Attempts: ${previousAttempts.length}
+Failed Criteria: ${Object.entries(evaluation.criteria)
+      .filter(([_, passed]) => !passed)
+      .map(([criterion]) => criterion)
+      .join(', ')}
+    `.trim();
+  }
+
+  // Helper: Improve conventions
+  private improveConventions(repair: string, failure: TestFailure): string {
+    // Add type safety if missing
+    if (!repair.includes(':') && failure.type === 'runtime') {
+      return `${repair} (add proper TypeScript types and null checks)`;
+    }
+
+    // Add error handling if missing
+    if (!repair.includes('try') && failure.type === 'runtime') {
+      return `Wrap in try-catch: ${repair}`;
+    }
+
+    return repair;
+  }
+
+  // Helper: Remove unsafe patterns
+  private removeUnsafePatterns(repair: string): string {
+    return repair
+      .replace(/@ts-ignore/g, '') // Remove TS suppressions
+      .replace(/console\.log/g, '') // Remove debug statements
+      .replace(/any/g, 'unknown'); // Replace 'any' with 'unknown'
+  }
+
+  // Helper: Try alternative strategy
+  private tryAlternativeStrategy(
+    failure: TestFailure,
+    previousAttempts: Array<{ repair: string; feedback: string }>
+  ): string {
+    // If previous strategies failed, try a different approach based on failure type
+    const attemptedStrategies = previousAttempts.map(a => a.repair);
+
+    switch (failure.type) {
+      case 'assertion':
+        if (!attemptedStrategies.some(s => s.includes('mock'))) {
+          return 'Add proper test mocking for external dependencies';
+        }
+        return 'Update test expectations to match implementation behavior';
+
+      case 'runtime':
+        if (!attemptedStrategies.some(s => s.includes('null'))) {
+          return 'Add comprehensive null/undefined guards with type narrowing';
+        }
+        return 'Refactor to use optional chaining and nullish coalescing';
+
+      case 'syntax':
+        return 'Fix syntax using AST-aware formatter (Prettier/ESLint auto-fix)';
+
+      case 'timeout':
+        return 'Replace synchronous operations with async/await patterns';
+
+      default:
+        return 'Apply general-purpose error resolution strategy';
+    }
+  }
+
+  // Helper: Extract keywords from text
+  private extractKeywords(text: string): string[] {
+    return text
+      .toLowerCase()
+      .split(/\W+/)
+      .filter(word => word.length > 3);
   }
 
   private parseTestOutput(stdout: string, stderr: string): TestFailure[] {

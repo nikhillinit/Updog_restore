@@ -3,15 +3,17 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
+import { FLAGS } from '@/core/flags/featureFlags';
+import HeaderKpis from './HeaderKpis';
 import { useFundContext } from "@/contexts/FundContext";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { 
-  TrendingUp, 
-  Target, 
-  DollarSign, 
+import {
+  TrendingUp,
+  Target,
+  DollarSign,
   Calendar,
   BarChart3,
   PieChart,
@@ -34,6 +36,12 @@ interface FundMetrics {
 }
 
 export default function DynamicFundHeader() {
+  // If KPI selector flag is enabled, use new compact header
+  if (FLAGS.ENABLE_SELECTOR_KPIS) {
+    return <HeaderKpis />;
+  }
+
+  // Otherwise, existing full metrics header
   const { currentFund } = useFundContext();
 
   // Fetch real-time fund metrics from calculated-metrics endpoint

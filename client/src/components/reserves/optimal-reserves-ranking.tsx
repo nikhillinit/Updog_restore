@@ -48,7 +48,7 @@ export default function OptimalReservesRanking({ className }: OptimalReservesRan
   const [_sortBy, _setSortBy] = useState<'rank' | 'moic' | 'planned' | 'deployed'>('rank');
   const [filterStage, _setFilterStage] = useState<string>('all');
 
-  // Calculate Follow-On MOIC using Tactyc methodology
+  // Calculate Follow-On MOIC using probability-weighted methodology
   const calculateFollowOnMOIC = (cases: PerformanceCase[]): number => {
     return cases.reduce((weighted: any, case_: any) => {
       return weighted + (case_.followOnMOIC * case_.probability / 100);
@@ -61,7 +61,7 @@ export default function OptimalReservesRanking({ className }: OptimalReservesRan
     }, 0);
   };
 
-  // Sample reserves ranking data based on exact Tactyc methodology from documentation
+  // Sample reserves ranking data using probability-weighted reserve allocation methodology
   const reserveRankings: ReserveRanking[] = [
     {
       rank: 1,
@@ -247,7 +247,7 @@ export default function OptimalReservesRanking({ className }: OptimalReservesRan
             <div>
               <h4 className="font-medium text-blue-900 mb-2">Expected MOIC on Planned Reserves</h4>
               <p className="text-sm text-blue-800">
-                Tactyc automatically calculates <strong>Exit MOIC on Planned Reserves</strong> - this is the expected return on the next $1 into each company. 
+                The system automatically calculates <strong>Exit MOIC on Planned Reserves</strong> - this is the expected return on the next $1 into each company. 
                 The multiple is determined based on deal-level forecasts for exits, future financing rounds and performance cases.
               </p>
             </div>

@@ -46,7 +46,7 @@ export default function PartialSalesPage() {
   const [percentSold, setPercentSold] = useState<number>(25);
   const [minimumHoldingPeriod, setMinimumHoldingPeriod] = useState<number>(12);
 
-  // Sample data based on your Tactyc screenshot
+  // Sample data for demonstration purposes
   const partialSalesData: PartialSaleData[] = [
     {
       company: "AlphaTech",

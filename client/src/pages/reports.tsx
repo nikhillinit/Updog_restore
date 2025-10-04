@@ -4,7 +4,7 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import TactycReports from "@/components/reports/tactyc-reports";
+import ReportsComponent from "@/components/reports/reports";
 import TearSheetDashboard from "@/components/reports/tear-sheet-dashboard";
 
 export default function Reports() {
@@ -23,7 +23,7 @@ export default function Reports() {
           </TabsList>
 
           <TabsContent value="reports" className="mt-6">
-            <TactycReports />
+            <ReportsComponent />
           </TabsContent>
 
           <TabsContent value="tear-sheets" className="mt-6">

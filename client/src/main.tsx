@@ -6,6 +6,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import "./styles/brand-tokens.css"; // Phase 1: Brand consistency (Inter/Poppins, neutral palette)
 import { installFetchTap } from "./debug/fetch-tap";
 // Vitals loaded dynamically in production
 

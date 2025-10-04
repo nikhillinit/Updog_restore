@@ -7,7 +7,8 @@ Enables Claude Code to collaborate with Gemini, Grok-3, ChatGPT, and DeepSeek
 import json
 import sys
 import os
-from typing import Dict, Any, Optional, List
+from dataclasses import dataclass
+from typing import Dict, Any, Optional, List, Callable
 from pathlib import Path
 
 # Ensure unbuffered output
@@ -20,6 +21,32 @@ __version__ = "1.0.0"
 # Load credentials
 SCRIPT_DIR = Path(__file__).parent
 CREDENTIALS_FILE = SCRIPT_DIR / "credentials.json"
+
+# Tool schema validator
+try:
+    from jsonschema import validate, ValidationError
+    HAS_JSONSCHEMA = True
+except ImportError:
+    HAS_JSONSCHEMA = False
+    print("Warning: jsonschema not installed - tool validation disabled", file=sys.stderr)
+
+TOOL_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "inputSchema": {"type": "object"},
+    },
+    "required": ["name", "description", "inputSchema"],
+}
+
+@dataclass(frozen=True)
+class Tool:
+    """Type-safe tool definition with optional feature gate."""
+    name: str
+    description: str
+    inputSchema: Dict[str, Any]
+    gate: Callable[[], bool] = lambda: True  # Feature flag / entitlement check
 
 try:
     with open(CREDENTIALS_FILE, 'r') as f:
@@ -90,6 +117,285 @@ if CREDENTIALS.get("deepseek", {}).get("enabled", False):
     except Exception as e:
         print(f"Warning: DeepSeek initialization failed: {e}", file=sys.stderr)
 
+# ---
+# FEATURE FLAGS & TOOL REGISTRY
+# Centralized tool definitions with type safety and feature gates
+# ---
+
+def is_flag_enabled(flag_name: str) -> bool:
+    """Check if a feature flag is enabled. Stub for future flag system."""
+    # Future: integrate with actual feature flag system
+    # For now, all flags enabled by default
+    return True
+
+def build_tool_registry() -> List[Tool]:
+    """
+    Build the complete tool registry with all available tools.
+    Tools are only included if their gate function returns True.
+    """
+    registry: List[Tool] = [
+        # Server status tool
+        Tool(
+            name="server_status",
+            description="Get server status and available AI models",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
+    ]
+
+    # Dynamic AI tools - generated for each enabled AI client
+    for ai_name in AI_CLIENTS.keys():
+        registry.extend([
+            # Basic interaction
+            Tool(
+                name=f"ask_{ai_name}",
+                description=f"Ask {ai_name.upper()} a question",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "prompt": {
+                            "type": "string",
+                            "description": "The question or prompt",
+                        },
+                        "temperature": {
+                            "type": "number",
+                            "description": "Temperature for response (0.0-1.0)",
+                            "default": 0.7,
+                        },
+                    },
+                    "required": ["prompt"],
+                },
+            ),
+            # Code review
+            Tool(
+                name=f"{ai_name}_code_review",
+                description=f"Have {ai_name.upper()} review code for issues and improvements",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string",
+                            "description": "The code to review",
+                        },
+                        "focus": {
+                            "type": "string",
+                            "description": "Focus area (security, performance, readability, etc.)",
+                            "default": "general",
+                        },
+                    },
+                    "required": ["code"],
+                },
+            ),
+            # Deep thinking/analysis
+            Tool(
+                name=f"{ai_name}_think_deep",
+                description=f"Have {ai_name.upper()} do deep analysis with extended reasoning",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "topic": {
+                            "type": "string",
+                            "description": "Topic or problem for deep analysis",
+                        },
+                        "context": {
+                            "type": "string",
+                            "description": "Additional context or constraints",
+                            "default": "",
+                        },
+                    },
+                    "required": ["topic"],
+                },
+            ),
+            # Brainstorming
+            Tool(
+                name=f"{ai_name}_brainstorm",
+                description=f"Brainstorm creative solutions with {ai_name.upper()}",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "challenge": {
+                            "type": "string",
+                            "description": "The challenge or problem to brainstorm about",
+                        },
+                        "constraints": {
+                            "type": "string",
+                            "description": "Any constraints or limitations",
+                            "default": "",
+                        },
+                    },
+                    "required": ["challenge"],
+                },
+            ),
+            # Debug assistance
+            Tool(
+                name=f"{ai_name}_debug",
+                description=f"Get debugging help from {ai_name.upper()}",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "error": {
+                            "type": "string",
+                            "description": "Error message or description",
+                        },
+                        "code": {
+                            "type": "string",
+                            "description": "Related code that's causing issues",
+                            "default": "",
+                        },
+                        "context": {
+                            "type": "string",
+                            "description": "Additional context about the environment/setup",
+                            "default": "",
+                        },
+                    },
+                    "required": ["error"],
+                },
+            ),
+            # Architecture advice
+            Tool(
+                name=f"{ai_name}_architecture",
+                description=f"Get architecture design advice from {ai_name.upper()}",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "requirements": {
+                            "type": "string",
+                            "description": "System requirements and goals",
+                        },
+                        "constraints": {
+                            "type": "string",
+                            "description": "Technical constraints, budget, timeline etc.",
+                            "default": "",
+                        },
+                        "scale": {
+                            "type": "string",
+                            "description": "Expected scale (users, data, etc.)",
+                            "default": "",
+                        },
+                    },
+                    "required": ["requirements"],
+                },
+            ),
+        ])
+
+    # Collaborative tools (only if multiple AIs available)
+    if len(AI_CLIENTS) > 1:
+        registry.extend([
+            Tool(
+                name="ask_all_ais",
+                description="Ask all available AIs the same question and compare responses",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "prompt": {
+                            "type": "string",
+                            "description": "The question to ask all AIs",
+                        },
+                        "temperature": {
+                            "type": "number",
+                            "description": "Temperature for responses",
+                            "default": 0.7,
+                        },
+                    },
+                    "required": ["prompt"],
+                },
+            ),
+            Tool(
+                name="ai_debate",
+                description="Have two AIs debate a topic",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "topic": {
+                            "type": "string",
+                            "description": "The debate topic",
+                        },
+                        "ai1": {
+                            "type": "string",
+                            "description": "First AI (gemini, grok, openai, deepseek)",
+                            "default": "gemini",
+                        },
+                        "ai2": {
+                            "type": "string",
+                            "description": "Second AI (gemini, grok, openai, deepseek)",
+                            "default": "grok",
+                        },
+                    },
+                    "required": ["topic"],
+                },
+            ),
+            Tool(
+                name="collaborative_solve",
+                description="Have multiple AIs collaborate to solve a complex problem",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "problem": {
+                            "type": "string",
+                            "description": "The complex problem to solve",
+                        },
+                        "approach": {
+                            "type": "string",
+                            "description": "How to divide the work (sequential, parallel, debate)",
+                            "default": "sequential",
+                        },
+                    },
+                    "required": ["problem"],
+                },
+            ),
+            Tool(
+                name="ai_consensus",
+                description="Get consensus opinion from all available AIs",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "question": {
+                            "type": "string",
+                            "description": "Question to get consensus on",
+                        },
+                        "options": {
+                            "type": "string",
+                            "description": "Available options or approaches to choose from",
+                            "default": "",
+                        },
+                    },
+                    "required": ["question"],
+                },
+            ),
+        ])
+
+    return registry
+
+def list_enabled_tools() -> List[Dict[str, Any]]:
+    """
+    Get list of enabled tools with validation.
+    Only tools whose gate() returns True are included.
+    """
+    tools: List[Dict[str, Any]] = []
+    registry = build_tool_registry()
+
+    for tool in registry:
+        if tool.gate():  # Check feature gate
+            payload = {
+                "name": tool.name,
+                "description": tool.description,
+                "inputSchema": tool.inputSchema,
+            }
+
+            # Validate schema if jsonschema available
+            if HAS_JSONSCHEMA:
+                try:
+                    validate(instance=payload, schema=TOOL_SCHEMA)
+                except ValidationError as e:
+                    print(f"Warning: Tool validation failed for {tool.name}: {e}", file=sys.stderr)
+                    continue  # Skip invalid tools
+
+            tools.append(payload)
+
+    return tools
+
 def send_response(response: Dict[str, Any]):
     """Send a JSON-RPC response"""
     print(json.dumps(response), flush=True)
@@ -158,245 +464,16 @@ def handle_initialize(request_id: Any) -> Dict[str, Any]:
     }
 
 def handle_tools_list(request_id: Any) -> Dict[str, Any]:
-    """List available tools"""
-    tools = [
-        {
-            "name": "server_status",
-            "description": "Get server status and available AI models",
-            "inputSchema": {
-                "type": "object",
-                "properties": {}
-            }
-        }
-    ]
-    
-    # Individual AI tools - comprehensive set
-    for ai_name in AI_CLIENTS.keys():
-        tools.extend([
-            # Basic interaction
-            {
-                "name": f"ask_{ai_name}",
-                "description": f"Ask {ai_name.upper()} a question",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "prompt": {
-                            "type": "string",
-                            "description": "The question or prompt"
-                        },
-                        "temperature": {
-                            "type": "number",
-                            "description": "Temperature for response (0.0-1.0)",
-                            "default": 0.7
-                        }
-                    },
-                    "required": ["prompt"]
-                }
-            },
-            # Code review
-            {
-                "name": f"{ai_name}_code_review",
-                "description": f"Have {ai_name.upper()} review code for issues and improvements",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "code": {
-                            "type": "string",
-                            "description": "The code to review"
-                        },
-                        "focus": {
-                            "type": "string",
-                            "description": "Focus area (security, performance, readability, etc.)",
-                            "default": "general"
-                        }
-                    },
-                    "required": ["code"]
-                }
-            },
-            # Deep thinking/analysis
-            {
-                "name": f"{ai_name}_think_deep",
-                "description": f"Have {ai_name.upper()} do deep analysis with extended reasoning",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "topic": {
-                            "type": "string",
-                            "description": "Topic or problem for deep analysis"
-                        },
-                        "context": {
-                            "type": "string",
-                            "description": "Additional context or constraints",
-                            "default": ""
-                        }
-                    },
-                    "required": ["topic"]
-                }
-            },
-            # Brainstorming
-            {
-                "name": f"{ai_name}_brainstorm",
-                "description": f"Brainstorm creative solutions with {ai_name.upper()}",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "challenge": {
-                            "type": "string",
-                            "description": "The challenge or problem to brainstorm about"
-                        },
-                        "constraints": {
-                            "type": "string",
-                            "description": "Any constraints or limitations",
-                            "default": ""
-                        }
-                    },
-                    "required": ["challenge"]
-                }
-            },
-            # Debug assistance
-            {
-                "name": f"{ai_name}_debug",
-                "description": f"Get debugging help from {ai_name.upper()}",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "error": {
-                            "type": "string",
-                            "description": "Error message or description"
-                        },
-                        "code": {
-                            "type": "string",
-                            "description": "Related code that's causing issues",
-                            "default": ""
-                        },
-                        "context": {
-                            "type": "string",
-                            "description": "Additional context about the environment/setup",
-                            "default": ""
-                        }
-                    },
-                    "required": ["error"]
-                }
-            },
-            # Architecture advice
-            {
-                "name": f"{ai_name}_architecture",
-                "description": f"Get architecture design advice from {ai_name.upper()}",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "requirements": {
-                            "type": "string",
-                            "description": "System requirements and goals"
-                        },
-                        "constraints": {
-                            "type": "string",
-                            "description": "Technical constraints, budget, timeline etc.",
-                            "default": ""
-                        },
-                        "scale": {
-                            "type": "string",
-                            "description": "Expected scale (users, data, etc.)",
-                            "default": ""
-                        }
-                    },
-                    "required": ["requirements"]
-                }
-            }
-        ])
-    
-    # Collaborative tools
-    if len(AI_CLIENTS) > 1:
-        tools.extend([
-            {
-                "name": "ask_all_ais",
-                "description": "Ask all available AIs the same question and compare responses",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "prompt": {
-                            "type": "string",
-                            "description": "The question to ask all AIs"
-                        },
-                        "temperature": {
-                            "type": "number",
-                            "description": "Temperature for responses",
-                            "default": 0.7
-                        }
-                    },
-                    "required": ["prompt"]
-                }
-            },
-            {
-                "name": "ai_debate",
-                "description": "Have two AIs debate a topic",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "topic": {
-                            "type": "string",
-                            "description": "The debate topic"
-                        },
-                        "ai1": {
-                            "type": "string",
-                            "description": "First AI (gemini, grok, openai, deepseek)",
-                            "default": "gemini"
-                        },
-                        "ai2": {
-                            "type": "string",
-                            "description": "Second AI (gemini, grok, openai, deepseek)",
-                            "default": "grok"
-                        }
-                    },
-                    "required": ["topic"]
-                }
-            },
-            {
-                "name": "collaborative_solve",
-                "description": "Have multiple AIs collaborate to solve a complex problem",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "problem": {
-                            "type": "string",
-                            "description": "The complex problem to solve"
-                        },
-                        "approach": {
-                            "type": "string",
-                            "description": "How to divide the work (sequential, parallel, debate)",
-                            "default": "sequential"
-                        }
-                    },
-                    "required": ["problem"]
-                }
-            },
-            {
-                "name": "ai_consensus",
-                "description": "Get consensus opinion from all available AIs",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "question": {
-                            "type": "string",
-                            "description": "Question to get consensus on"
-                        },
-                        "options": {
-                            "type": "string",
-                            "description": "Available options or approaches to choose from",
-                            "default": ""
-                        }
-                    },
-                    "required": ["question"]
-                }
-            }
-        ])
-    
+    """
+    List available tools using centralized registry.
+    Tools are filtered by feature gates and validated before returning.
+    """
     return {
         "jsonrpc": "2.0",
         "id": request_id,
         "result": {
-            "tools": tools
-        }
+            "tools": list_enabled_tools(),
+        },
     }
 
 def handle_tool_call(request_id: Any, params: Dict[str, Any]) -> Dict[str, Any]:

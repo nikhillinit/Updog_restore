@@ -17,7 +17,7 @@ interface DealTagsEditorProps {
   className?: string;
 }
 
-// Predefined tags from Tactyc - matching the images provided
+// Predefined tags based on industry-standard categorization
 const PREDEFINED_TAGS = [
   'Asia',
   'CSR',

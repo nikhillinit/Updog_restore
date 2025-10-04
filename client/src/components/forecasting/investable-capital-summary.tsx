@@ -25,7 +25,7 @@ interface InvestableCapitalData {
 }
 
 export default function InvestableCapitalSummary() {
-  // Data based on your Tactyc screenshot
+  // Data for capital deployment tracking
   const capitalData: InvestableCapitalData = {
     category: "Fund Capital",
     committed: 150000000,

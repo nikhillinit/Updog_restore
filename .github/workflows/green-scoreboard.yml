@@ -3,6 +3,15 @@ name: Green Scoreboard
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'DOCS/**'
+      - '**/*.png'
+      - '**/*.svg'
+      - '**/*.jpg'
+      - '**/*.jpeg'
+      - '**/*.gif'
   push:
     branches: [main]
   workflow_dispatch:

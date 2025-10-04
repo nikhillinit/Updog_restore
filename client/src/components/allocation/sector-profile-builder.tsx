@@ -168,15 +168,15 @@ export default function SectorProfileBuilder() {
         </CardHeader>
       </Card>
 
-      {/* Tactyc Methodology Info */}
+      {/* Market-Driven Methodology Info */}
       <Card>
         <CardContent className="p-6">
           <div className="flex items-start">
             <Info className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Tactyc Market-Driven Methodology</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">Market-Driven Methodology</h3>
               <p className="text-sm text-gray-600 mb-3">
-                Instead of setting fixed exit multiples, Tactyc builds up performance expectations from granular market assumptions:
+                Instead of setting fixed exit multiples, this approach builds up performance expectations from granular market assumptions:
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                 <div>

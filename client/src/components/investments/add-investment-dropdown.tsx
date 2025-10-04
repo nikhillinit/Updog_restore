@@ -23,7 +23,7 @@ import {
   DialogTitle 
 } from "@/components/ui/dialog";
 import { Plus, ChevronDown, ChevronRight, FileSpreadsheet } from "lucide-react";
-import TactycInvestmentEditor from "./tactyc-investment-editor";
+import InvestmentEditor from "./investment-editor";
 
 interface SectorProfile {
   id: string;
@@ -143,7 +143,7 @@ export default function AddInvestmentDropdown({ onInvestmentAdded, onBulkImport 
               starting at {selectedRound} round
             </DialogDescription>
           </DialogHeader>
-          <TactycInvestmentEditor 
+          <InvestmentEditor
             profileId={selectedProfile}
             entryRound={selectedRound}
             onComplete={handleInvestmentComplete}

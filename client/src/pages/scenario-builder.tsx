@@ -3,8 +3,8 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import TactycScenarioBuilder from "@/components/scenario/tactyc-scenario-builder";
+import ScenarioBuilderComponent from "@/components/scenario/scenario-builder";
 
 export default function ScenarioBuilder() {
-  return <TactycScenarioBuilder />;
+  return <ScenarioBuilderComponent />;
 }
