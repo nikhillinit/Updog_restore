@@ -1,4 +1,4 @@
-import { BaseAgent, AgentExecutionContext } from '@agent-core/BaseAgent';
+import { BaseAgent, AgentExecutionContext } from '@povc/agent-core';
 import * as fs from 'fs';
 import * as path from 'path';
 import { exec } from 'child_process';
@@ -118,8 +118,8 @@ export class DependencyAnalysisAgent extends BaseAgent<DependencyAnalysisInput, 
     }
 
     // Calculate total potential savings
-    analysis.totalSavingsKB = this.calculateTotalSavings(analysis);
-    
+    analysis.totalSavingsKB = await this.calculateTotalSavings(analysis);
+
     // Generate removal commands
     analysis.removalCommands = this.generateRemovalCommands(analysis);
 
@@ -365,7 +365,7 @@ export class DependencyAnalysisAgent extends BaseAgent<DependencyAnalysisInput, 
     return metaDeps.some(meta => name.includes(meta));
   }
 
-  private calculateTotalSavings(analysis: DependencyAnalysis): number {
+  private async calculateTotalSavings(analysis: DependencyAnalysis): Promise<number> {
     let total = 0;
 
     // Savings from unused dependencies
