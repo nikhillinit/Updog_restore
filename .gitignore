@@ -124,6 +124,7 @@ ts-boolean-errors.txt
 playwright-report/
 test-results/
 coverage/
+reports/
 
 # Local scratch
 Updog_restore-main/
