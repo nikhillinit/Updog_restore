@@ -20,20 +20,30 @@ import type { FundModelInputs, FundModelOutputs, PeriodResult } from '@shared/sc
 /**
  * Run fund model calculation (deterministic, no RNG)
  *
- * NOTE: This is a STUB implementation for PR #2 to enable CSV export testing.
- * Full implementation will be added in subsequent PRs.
- *
  * @param inputs - Validated fund model inputs (Zod schema enforces feasibility constraints)
  * @returns Complete fund model outputs with period results, company ledger, and KPIs
  */
 export function runFundModel(inputs: FundModelInputs): FundModelOutputs {
-  // TODO: Full implementation in next PR
-  // For now, throw error to indicate stub status
-  throw new Error(
-    'Fund calculation engine not yet implemented. ' +
-    'This is a stub for PR #2 to enable CSV export route development. ' +
-    'Full deterministic engine will be implemented in PR #3.'
-  );
+  // =====================
+  // STEP 1: Deploy Companies (Deterministic)
+  // =====================
+  const companies = deployCompanies(inputs);
+
+  // =====================
+  // STEP 2: Run Period-by-Period Simulation
+  // =====================
+  const periodResults = simulatePeriods(inputs, companies);
+
+  // =====================
+  // STEP 3: Calculate Final KPIs
+  // =====================
+  const kpis = calculateKPIs(periodResults);
+
+  return {
+    periodResults,
+    companyLedger: companies,
+    kpis,
+  };
 }
 
 /**
@@ -210,4 +220,223 @@ export function validateInputs(inputs: FundModelInputs): string[] {
   });
 
   return errors;
+}
+
+// =====================
+// INTERNAL IMPLEMENTATION FUNCTIONS
+// =====================
+
+import type { CompanyResult } from '@shared/schemas/fund-model';
+
+/**
+ * Deploy companies deterministically across stages
+ *
+ * @param inputs - Fund model inputs
+ * @returns Array of company results
+ */
+function deployCompanies(inputs: FundModelInputs): CompanyResult[] {
+  const companies: CompanyResult[] = [];
+  let globalCompanyIndex = 0;
+
+  // Deploy companies sequentially by stage (seed → growth)
+  inputs.stageAllocations.forEach(stageAlloc => {
+    // Calculate capital available for this stage (after reserves)
+    const stageCapital = toDecimal(inputs.fundSize).times(stageAlloc.allocationPct);
+    const reserveCapital = stageCapital.times(inputs.reservePoolPct);
+    const deployableCapital = stageCapital.minus(reserveCapital);
+
+    // Calculate number of companies for this stage
+    const avgCheckSize = toDecimal(inputs.averageCheckSizes[stageAlloc.stage] || 0);
+    const numCompanies = deployableCapital.dividedToIntegerBy(avgCheckSize).toNumber();
+
+    // Deploy companies with deterministic IDs
+    for (let i = 0; i < numCompanies; i++) {
+      const companyId = `${stageAlloc.stage}-${String(i + 1).padStart(3, '0')}`;
+      const initialInvestment = avgCheckSize.toNumber();
+
+      // Deterministic exit bucket assignment (cycle through buckets)
+      const exitBuckets: Array<'failure' | 'acquired' | 'ipo' | 'secondary'> =
+        ['failure', 'acquired', 'ipo', 'secondary'];
+      const exitBucket = exitBuckets[globalCompanyIndex % 4];
+
+      companies.push({
+        companyId,
+        stageAtEntry: stageAlloc.stage,
+        initialInvestment,
+        followOnInvestment: 0,  // Will be calculated during simulation
+        totalInvested: initialInvestment,
+        ownershipAtExit: 0.15,  // TODO: Make configurable per stage
+        exitBucket,
+        exitValue: 0,  // Will be calculated at exit
+        proceedsToFund: 0,  // Will be calculated at exit
+      });
+
+      globalCompanyIndex++;
+    }
+  });
+
+  return companies;
+}
+
+/**
+ * Simulate fund periods from 0 to fund term
+ *
+ * @param inputs - Fund model inputs
+ * @param companies - Deployed companies
+ * @returns Array of period results
+ */
+function simulatePeriods(
+  inputs: FundModelInputs,
+  companies: CompanyResult[]
+): PeriodResult[] {
+  const periods: PeriodResult[] = [];
+
+  // Calculate total periods based on longest exit time
+  const maxExitMonths = Math.max(
+    ...inputs.stageAllocations.map(s => inputs.monthsToExit[s.stage] || 0)
+  );
+  const numPeriods = Math.ceil(maxExitMonths / inputs.periodLengthMonths);
+
+  // Generate period dates
+  const periodDates = generatePeriodDates(
+    new Date().toISOString(),  // TODO: Make configurable
+    inputs.periodLengthMonths,
+    numPeriods + 1
+  );
+
+  // Initialize cumulative tracking
+  let cumulativeContributions = toDecimal(0);
+  let cumulativeDistributions = toDecimal(0);
+  let cumulativeInvestments = toDecimal(0);
+  let cumulativeManagementFees = toDecimal(0);
+  let cumulativeExitProceeds = toDecimal(0);
+  let uninvestedCash = toDecimal(0);
+
+  // Period 0: Upfront capital call and initial deployment
+  const period0Contributions = toDecimal(inputs.fundSize);
+  const period0Fees = calculateManagementFee(
+    inputs.fundSize,
+    inputs.periodLengthMonths,
+    inputs.managementFeeRate,
+    inputs.managementFeeYears,
+    0
+  );
+  const period0Investments = sum(companies.map(c => c.initialInvestment));
+
+  cumulativeContributions = cumulativeContributions.plus(period0Contributions);
+  cumulativeManagementFees = cumulativeManagementFees.plus(period0Fees);
+  cumulativeInvestments = cumulativeInvestments.plus(period0Investments);
+  uninvestedCash = period0Contributions.minus(period0Fees).minus(period0Investments);
+
+  const period0NAV = cumulativeInvestments.plus(uninvestedCash);
+
+  periods.push({
+    periodIndex: 0,
+    periodStart: periodDates[0].start,
+    periodEnd: periodDates[0].end,
+    contributions: period0Contributions.toNumber(),
+    investments: period0Investments.toNumber(),
+    managementFees: period0Fees,
+    exitProceeds: 0,
+    distributions: 0,  // Policy A: distributions in exit period only
+    unrealizedPnl: 0,  // TODO: Add mark-to-market logic
+    nav: period0NAV.toNumber(),
+    tvpi: roundRatio(safeDivide(period0NAV, cumulativeContributions)),
+    dpi: 0,
+    irrAnnualized: 0,
+  });
+
+  // Periods 1-N: Track progression and exits
+  for (let periodIndex = 1; periodIndex <= numPeriods; periodIndex++) {
+    const periodMonths = periodIndex * inputs.periodLengthMonths;
+
+    // Calculate exits for this period
+    let periodExitProceeds = toDecimal(0);
+
+    companies.forEach(company => {
+      const stageExitMonths = inputs.monthsToExit[company.stageAtEntry] || 0;
+
+      // Check if company exits in this period
+      if (periodMonths >= stageExitMonths && company.exitValue === 0) {
+        // Calculate exit value (deterministic: use average exit multiple for bucket)
+        const exitMultiple = getExitMultiple(company.exitBucket);
+        const exitValue = toDecimal(company.totalInvested).times(exitMultiple);
+        const proceedsToFund = exitValue.times(company.ownershipAtExit);
+
+        company.exitValue = exitValue.toNumber();
+        company.proceedsToFund = proceedsToFund.toNumber();
+
+        periodExitProceeds = periodExitProceeds.plus(proceedsToFund);
+      }
+    });
+
+    // Management fees for this period
+    const periodFees = calculateManagementFee(
+      inputs.fundSize,
+      inputs.periodLengthMonths,
+      inputs.managementFeeRate,
+      inputs.managementFeeYears,
+      periodIndex
+    );
+
+    // Policy A: Immediate distribution = exit proceeds
+    const periodDistributions = periodExitProceeds;
+
+    // Update cumulative trackers
+    cumulativeExitProceeds = cumulativeExitProceeds.plus(periodExitProceeds);
+    cumulativeDistributions = cumulativeDistributions.plus(periodDistributions);
+    cumulativeManagementFees = cumulativeManagementFees.plus(periodFees);
+    uninvestedCash = uninvestedCash.plus(periodExitProceeds).minus(periodDistributions).minus(periodFees);
+
+    // Calculate NAV: remaining investments + uninvested cash
+    const remainingInvestments = sum(
+      companies
+        .filter(c => c.exitValue === 0)
+        .map(c => c.totalInvested)
+    );
+    const periodNAV = remainingInvestments.plus(uninvestedCash);
+
+    // Calculate KPIs for this period
+    const periodTVPI = safeDivide(
+      cumulativeDistributions.plus(periodNAV),
+      cumulativeContributions
+    );
+    const periodDPI = safeDivide(cumulativeDistributions, cumulativeContributions);
+
+    periods.push({
+      periodIndex,
+      periodStart: periodDates[periodIndex].start,
+      periodEnd: periodDates[periodIndex].end,
+      contributions: 0,  // Only period 0 has contributions
+      investments: 0,    // Only period 0 has initial investments
+      managementFees: periodFees,
+      exitProceeds: periodExitProceeds.toNumber(),
+      distributions: periodDistributions.toNumber(),
+      unrealizedPnl: 0,  // TODO: Add mark-to-market logic
+      nav: periodNAV.toNumber(),
+      tvpi: roundRatio(periodTVPI),
+      dpi: roundRatio(periodDPI),
+      irrAnnualized: 0,  // TODO: Calculate period IRR
+    });
+  }
+
+  return periods;
+}
+
+/**
+ * Get deterministic exit multiple for exit bucket
+ *
+ * @param exitBucket - Exit bucket type
+ * @returns Exit multiple
+ */
+function getExitMultiple(exitBucket: 'failure' | 'acquired' | 'ipo' | 'secondary'): Decimal {
+  // Deterministic average exit multiples per bucket
+  const multiples: Record<string, Decimal> = {
+    failure: toDecimal(0.1),    // 0.1x (90% loss)
+    acquired: toDecimal(3.0),   // 3x
+    ipo: toDecimal(15.0),       // 15x
+    secondary: toDecimal(5.0),  // 5x
+  };
+
+  return multiples[exitBucket];
 }
