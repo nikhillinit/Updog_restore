@@ -198,7 +198,14 @@
       "Bash(.node_modules.binvite.cmd)",
       "Bash(where tsc)",
       "Bash(npm pkg get:*)",
-      "Bash(nvm:*)"
+      "Bash(nvm:*)",
+      "Bash(./node_modules/.bin/tsc:*)",
+      "Bash(npm cache verify:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(npm config:*)",
+      "Bash(npm config get:*)",
+      "Bash(NODE_ENV=development npm run dev:api)",
+      "Bash(git show:*)"
     ],
     "deny": [],
     "ask": [],
