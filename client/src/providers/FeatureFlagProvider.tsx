@@ -92,17 +92,27 @@ function getFeatureFlags(): FeatureFlags {
   return baseFlags;
 }
 
-const FeatureFlagContext = createContext<FeatureFlags | null>(null);
+export interface FeatureFlagContextValue {
+  flags: FeatureFlags;
+  isFeatureEnabled: (feature: keyof FeatureFlags) => boolean;
+}
+
+const FeatureFlagContext = createContext<FeatureFlagContextValue | null>(null);
 
 /**
  * Provider component for feature flags
  * Memoized to prevent unnecessary re-renders
  */
 export function FeatureFlagProvider({ children }: { children: React.ReactNode }) {
-  const flags = useMemo(() => getFeatureFlags(), []);
+  const flags = getFeatureFlags();
+
+  const value = useMemo<FeatureFlagContextValue>(() => ({
+    flags,
+    isFeatureEnabled: (feature: keyof FeatureFlags) => Boolean(flags[feature]),
+  }), [flags]);
 
   return (
-    <FeatureFlagContext.Provider value={flags}>
+    <FeatureFlagContext.Provider value={value}>
       {children}
     </FeatureFlagContext.Provider>
   );
@@ -116,7 +126,7 @@ export function useFeatureFlags(): FeatureFlags {
   if (!context) {
     throw new Error('useFeatureFlags must be used within FeatureFlagProvider');
   }
-  return context;
+  return context.flags;
 }
 
 /**

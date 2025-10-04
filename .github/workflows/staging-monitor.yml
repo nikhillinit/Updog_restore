@@ -1,0 +1,322 @@
+name: Staging Monitor
+
+on:
+  schedule:
+    # Run every 15 minutes during soak test
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    # Allow manual triggering
+    inputs:
+      staging_url:
+        description: 'Staging URL to monitor'
+        required: false
+        default: 'https://updog-staging.vercel.app'
+
+jobs:
+  monitor:
+    name: Monitor Staging Deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci --prefer-offline --no-audit
+          # Install jq and bc for metrics processing
+          sudo apt-get update && sudo apt-get install -y jq bc
+
+      - name: Run staging monitor script
+        id: monitor
+        env:
+          STAGING_URL: ${{ github.event.inputs.staging_url || 'https://updog-staging.vercel.app' }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          ALERT_ON_FAILURE: 'true'
+        run: |
+          chmod +x scripts/staging-monitor.sh
+          ./scripts/staging-monitor.sh || echo "MONITOR_FAILED=true" >> $GITHUB_OUTPUT
+
+      - name: Check health endpoint
+        id: health
+        continue-on-error: true
+        run: |
+          STAGING_URL="${{ github.event.inputs.staging_url || 'https://updog-staging.vercel.app' }}"
+
+          echo "Checking health endpoint: ${STAGING_URL}/api/health"
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" "${STAGING_URL}/api/health" || echo "FAILED")
+
+          if [ "$RESPONSE" = "FAILED" ]; then
+            echo "::error::Health check failed - cannot reach server"
+            echo "health_status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
+          RESPONSE_BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $RESPONSE_BODY"
+
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "::error::Health check failed with status code: $HTTP_CODE"
+            echo "health_status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "health_status=passed" >> $GITHUB_OUTPUT
+          echo "::notice::Health check passed"
+
+      - name: Verify feature flags
+        id: feature_flags
+        continue-on-error: true
+        run: |
+          STAGING_URL="${{ github.event.inputs.staging_url || 'https://updog-staging.vercel.app' }}"
+
+          echo "Fetching homepage to check feature flags..."
+
+          RESPONSE=$(curl -s "$STAGING_URL" || echo "FAILED")
+
+          if [ "$RESPONSE" = "FAILED" ]; then
+            echo "::error::Cannot fetch homepage"
+            echo "flags_status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          # Check if deterministicEngineV1 is enabled
+          if echo "$RESPONSE" | grep -q "deterministicEngineV1.*false"; then
+            echo "::error::Feature flag deterministicEngineV1 is DISABLED"
+            echo "flags_status=disabled" >> $GITHUB_OUTPUT
+            exit 1
+          elif echo "$RESPONSE" | grep -q "deterministicEngineV1.*true"; then
+            echo "::notice::Feature flag deterministicEngineV1 is ENABLED"
+            echo "flags_status=enabled" >> $GITHUB_OUTPUT
+          else
+            echo "::warning::Feature flag deterministicEngineV1 not found"
+            echo "flags_status=unknown" >> $GITHUB_OUTPUT
+          fi
+
+          # Check for staging ribbon
+          if echo "$RESPONSE" | grep -iq "staging"; then
+            echo "::notice::Staging ribbon detected"
+          else
+            echo "::warning::Staging ribbon not detected"
+          fi
+
+      - name: Check bundle sizes
+        id: bundle
+        continue-on-error: true
+        run: |
+          echo "Building project to check bundle sizes..."
+
+          # Run build
+          npm run build
+
+          # Run size limit check
+          npm run size-limit || echo "SIZE_LIMIT_FAILED=true" >> $GITHUB_OUTPUT
+
+      - name: Run test suite
+        id: tests
+        continue-on-error: true
+        run: |
+          echo "Running test suite to verify golden dataset tests..."
+
+          # Run tests (skip slow integration tests)
+          npm run test:quick || echo "TESTS_FAILED=true" >> $GITHUB_OUTPUT
+
+      - name: Measure response time
+        id: response_time
+        continue-on-error: true
+        run: |
+          STAGING_URL="${{ github.event.inputs.staging_url || 'https://updog-staging.vercel.app' }}"
+
+          echo "Measuring response time for homepage..."
+
+          RESPONSE_TIME=$(curl -s -w "%{time_total}" -o /dev/null "$STAGING_URL" || echo "FAILED")
+
+          if [ "$RESPONSE_TIME" = "FAILED" ]; then
+            echo "::error::Response time check failed"
+            echo "response_time=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          RESPONSE_TIME_MS=$(echo "$RESPONSE_TIME * 1000" | bc)
+          echo "Response time: ${RESPONSE_TIME_MS}ms"
+          echo "response_time_ms=$RESPONSE_TIME_MS" >> $GITHUB_OUTPUT
+
+          # Alert if > 3 seconds
+          if (( $(echo "$RESPONSE_TIME_MS > 3000" | bc -l) )); then
+            echo "::warning::Response time is slow: ${RESPONSE_TIME_MS}ms (threshold: 3000ms)"
+          else
+            echo "::notice::Response time is acceptable: ${RESPONSE_TIME_MS}ms"
+          fi
+
+      - name: Upload metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-metrics-${{ github.run_number }}
+          path: |
+            staging-monitor.log
+            staging-metrics.json
+          retention-days: 30
+
+      - name: Create status summary
+        if: always()
+        run: |
+          echo "## Staging Monitor Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp**: $(date -Iseconds)" >> $GITHUB_STEP_SUMMARY
+          echo "**Staging URL**: ${{ github.event.inputs.staging_url || 'https://updog-staging.vercel.app' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Health Check | ${{ steps.health.outputs.health_status || 'unknown' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Feature Flags | ${{ steps.feature_flags.outputs.flags_status || 'unknown' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Bundle Size | ${{ steps.bundle.outputs.SIZE_LIMIT_FAILED == 'true' && 'failed' || 'passed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | ${{ steps.tests.outputs.TESTS_FAILED == 'true' && 'failed' || 'passed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Response Time | ${{ steps.response_time.outputs.response_time_ms || 'unknown' }}ms |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Add metrics if file exists
+          if [ -f staging-metrics.json ]; then
+            echo "### Detailed Metrics" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat staging-metrics.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Notify on failure
+        if: failure() && github.event_name == 'schedule'
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -X POST "$SLACK_WEBHOOK" \
+              -H 'Content-Type: application/json' \
+              -d "{\"text\":\"🚨 Staging monitor detected issues - Check <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|workflow run> for details\"}"
+          fi
+
+      - name: Fail workflow if critical issues detected
+        if: steps.monitor.outputs.MONITOR_FAILED == 'true' || steps.health.outputs.health_status == 'failed'
+        run: |
+          echo "::error::Critical issues detected in staging deployment"
+          exit 1
+
+  # Optional: Run Lighthouse audit
+  lighthouse:
+    name: Lighthouse Performance Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Only run on manual trigger or once every 6 hours
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 */6 * * *'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          urls: |
+            ${{ github.event.inputs.staging_url || 'https://updog-staging.vercel.app' }}
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: Check Lighthouse scores
+        run: |
+          echo "Lighthouse audit completed. Check artifacts for detailed report."
+          echo "::notice::View detailed Lighthouse report in workflow artifacts"
+
+  # Optional: Browser compatibility check
+  compatibility:
+    name: Browser Compatibility Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Only run on manual trigger or once per day
+    if: github.event_name == 'workflow_dispatch'
+
+    strategy:
+      matrix:
+        browser: [chromium, firefox, webkit]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Run browser smoke test
+        run: |
+          cat > browser-test.js <<'EOF'
+          const { ${{ matrix.browser }} } = require('playwright');
+
+          (async () => {
+            const browser = await ${{ matrix.browser }}.launch();
+            const page = await browser.newPage();
+
+            const stagingUrl = process.env.STAGING_URL || 'https://updog-staging.vercel.app';
+
+            console.log(`Testing ${stagingUrl} in ${{ matrix.browser }}...`);
+
+            await page.goto(stagingUrl);
+
+            // Wait for page to load
+            await page.waitForLoadState('networkidle');
+
+            // Check for console errors
+            const errors = [];
+            page.on('console', msg => {
+              if (msg.type() === 'error') {
+                errors.push(msg.text());
+              }
+            });
+
+            // Take screenshot
+            await page.screenshot({ path: 'screenshot-${{ matrix.browser }}.png', fullPage: true });
+
+            // Check if page loaded successfully
+            const title = await page.title();
+            console.log(`Page title: ${title}`);
+
+            if (errors.length > 0) {
+              console.error('Console errors detected:');
+              errors.forEach(err => console.error(`  - ${err}`));
+              process.exit(1);
+            }
+
+            console.log('No console errors detected');
+            await browser.close();
+          })();
+          EOF
+
+          node browser-test.js
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-screenshots-${{ matrix.browser }}
+          path: screenshot-*.png
+          retention-days: 7

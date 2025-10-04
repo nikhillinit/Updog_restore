@@ -314,13 +314,7 @@ export default defineConfig(({ mode }) => {
           objectShorthand: true,
         },
         minifyInternalExports: true,
-        // Strategic vendor chunking for bundle size monitoring
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react/jsx-runtime'],
-          'chart-vendor': ['recharts', '@nivo/line', '@nivo/scatterplot'],
-          'utils-vendor': ['date-fns', 'clsx', 'tailwind-merge'],
-          'math-crypto-vendor': ['decimal.js'],
-        },
+        manualChunks: undefined,
       }
     }
   },

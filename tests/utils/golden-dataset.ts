@@ -196,7 +196,7 @@ export function compareToExpected(
         expectedVal !== 0 ? absoluteDiff / Math.abs(expectedVal) : absoluteDiff;
 
       const withinTolerance =
-        absoluteDiff <= tolerances.absolute || relativeDiff <= tolerances.relative;
+        absoluteDiff <= tolerances.absolute && relativeDiff <= tolerances.relative;
 
       if (!withinTolerance) {
         differences.push({
