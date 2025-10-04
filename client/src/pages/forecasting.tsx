@@ -102,7 +102,7 @@ export default function ForecastingPage() {
         <div>
           <h1 className="text-3xl font-bold">Fund Forecasting</h1>
           <p className="text-muted-foreground">
-            Portfolio construction modeling based on Tactyc methodology
+            Portfolio construction modeling using reserve-driven methodology
           </p>
         </div>
         <Badge variant="outline" className="text-lg px-4 py-2">

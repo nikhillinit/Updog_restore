@@ -16,9 +16,9 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { 
+import {
   ArrowLeft,
-  Edit, 
+  Edit,
   Plus,
   TrendingUp,
   Target,
@@ -28,6 +28,7 @@ import {
   Activity
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { BRANDING } from '@/config/branding';
 
 interface Round {
   id: string;
@@ -386,7 +387,7 @@ export default function PortfolioCompanyDetail() {
           Back to Investments
         </Button>
         <div className="text-sm text-gray-500">
-          Tactyc Ventures II L.P. / Investments / Carmasal Fund
+          {BRANDING.company.legalName} / Investments / Carmasal Fund
         </div>
       </div>
 

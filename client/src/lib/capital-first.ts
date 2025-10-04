@@ -213,7 +213,7 @@ export function validateCapitalFirstInputs(inputs: CapitalFirstInputsV2): string
     }
   });
 
-  // Check graduation percentages with Tactyc-style constraints
+  // Check graduation percentages with standard portfolio constraints
   StageOrder.forEach((stage: any, index: any) => {
     const grad = (inputs as any).graduationPctByStage[stage];
     if (grad !== undefined) {
@@ -221,7 +221,7 @@ export function validateCapitalFirstInputs(inputs: CapitalFirstInputsV2): string
         errors.push(`${stage} graduation rate must be between 0% and 100%`);
       }
       
-      // Last stage must have 0% graduation (Tactyc constraint)
+      // Last stage must have 0% graduation (standard portfolio constraint)
       if (index === StageOrder.length - 1 && grad !== 0) {
         errors.push(`${stage} (final stage) must have 0% graduation rate`);
       }

@@ -7,7 +7,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import TactycAllocationUI from "@/components/allocation/tactyc-allocation-ui";
+import AllocationUI from "@/components/allocation/allocation-ui";
 import SectorProfileBuilder from "@/components/allocation/sector-profile-builder";
 import { computeReservesFromGraduation, type FundDataForReserves } from "@/core/reserves/computeReservesFromGraduation";
 import { yearsToQuarters } from "@/lib/horizon";
@@ -39,7 +39,7 @@ export default function AllocationManager() {
   const [selectedAllocation, setSelectedAllocation] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'allocations' | 'sector-profiles'>('allocations');
   
-  // Authentic Tactyc "Deploy ALL Capital" Methodology - No Unused Capital Allowed
+  // "Deploy ALL Capital" Methodology - No Unused Capital Allowed
   const calculatePreciseAllocation = () => {
     const totalFundSize = 55000000; // $55M fund
     const managementFees = totalFundSize * 0.2; // 20% management fees over life
@@ -138,7 +138,7 @@ export default function AllocationManager() {
     return {
       allocations: calculatedAllocations,
       totalDeployed: totalInvestableCapital,
-      unusedCapital: 0, // ZERO unused capital per Tactyc principle
+      unusedCapital: 0, // ZERO unused capital per portfolio construction principle
       deploymentEfficiency: 100.0
     };
   };
@@ -173,7 +173,7 @@ export default function AllocationManager() {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Allocations
             </Button>
-            <TactycAllocationUI />
+            <AllocationUI />
           </div>
         </div>
       </div>
@@ -209,7 +209,7 @@ export default function AllocationManager() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Allocation Manager</h1>
               <p className="text-gray-600 mt-2">
-                Configure fund allocations with automatic reserve calculation using Tactyc methodology
+                Configure fund allocations with automatic reserve calculation using market-driven methodology
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -291,15 +291,15 @@ export default function AllocationManager() {
           </Card>
         </div>
 
-        {/* Tactyc Methodology Info */}
+        {/* Reserve Sizing Methodology Info */}
         <Card className="mb-8">
           <CardContent className="p-6">
             <div className="flex items-start">
               <Info className="w-5 h-5 text-blue-600 mt-0.5 mr-3" />
               <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Tactyc Reserve Sizing Methodology</h3>
+                <h3 className="font-semibold text-gray-900 mb-2">Reserve Sizing Methodology</h3>
                 <p className="text-sm text-gray-600 mb-3">
-                  Tactyc calculates your fund's expected reserve ratios instead of having you enter them directly. 
+                  The system calculates your fund's expected reserve ratios instead of having you enter them directly. 
                   This ensures there is no "left-over" capital and enables you to "build up" to the ideal reserve ratio from more granular assumptions.
                 </p>
                 <div className="text-sm text-gray-600">
@@ -410,7 +410,7 @@ export default function AllocationManager() {
                 <h4 className="font-medium text-blue-800 mb-2">If your reserves are too high:</h4>
                 <ul className="text-sm text-blue-700 space-y-1">
                   <li>• Revisit Sector Profiles and adjust Graduation Rates</li>
-                  <li>• Adjust Exit Rates (Tactyc only follows-on into graduated companies)</li>
+                  <li>• Adjust Exit Rates (follow-on capital only deployed into graduated companies)</li>
                   <li>• This is a "macro" change that implies your sector view has changed</li>
                 </ul>
               </div>

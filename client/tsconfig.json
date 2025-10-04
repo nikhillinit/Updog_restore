@@ -11,5 +11,5 @@
     "jsx": "react-jsx",
     "types": ["vite/client"]
   },
-  "include": ["client/src", "shared", "types"]
+  "include": ["src", "../shared", "../types", "vite-env.d.ts"]
 }

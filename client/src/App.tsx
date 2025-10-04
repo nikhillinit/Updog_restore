@@ -6,11 +6,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FundProvider, useFundContext } from "@/contexts/FundContext";
 import { ErrorBoundary } from "./components/ui/error-boundary";
+import './styles/demo-animations.css';
 
 // Layout components
 import Sidebar from "@/components/layout/sidebar";
 // import Header from "@/components/layout/header"; // Unused - removed
 import DynamicFundHeader from "@/components/layout/dynamic-fund-header";
+import DemoBanner from "@/components/demo/DemoBanner";
 
 // Page components - Heavy routes lazy loaded for bundle optimization
 const Dashboard = React.lazy(() => import("@/pages/dashboard"));
@@ -19,7 +21,6 @@ const Investments = React.lazy(() => import("@/pages/investments"));
 const Planning = React.lazy(() => import("@/pages/planning"));
 // Lazy load non-critical routes for bundle optimization
 const FundSetup = React.lazy(() => import("@/pages/fund-setup"));
-const DesignSystem = React.lazy(() => import("@/pages/design-system"));
 const InvestmentDetail = React.lazy(() => import("@/pages/investment-detail"));
 const KPIManager = React.lazy(() => import("@/pages/kpi-manager"));
 const KPISubmission = React.lazy(() => import("@/pages/kpi-submission"));
@@ -209,7 +210,6 @@ function Router() {
       <Switch>
         <Route path="/" component={HomeRoute} />
         <Route path="/fund-setup" component={FundSetup} />
-        <Route path="/design-system" component={DesignSystem} />
         <Route path="/dashboard">{() => <ProtectedRoute component={Dashboard} />}</Route>
         <Route path="/portfolio">{() => <ProtectedRoute component={Portfolio} />}</Route>
         <Route path="/investments">{() => <ProtectedRoute component={Investments} />}</Route>
@@ -256,6 +256,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <FundProvider>
           <TooltipProvider>
+            <DemoBanner />
             <Toaster />
             <AppLayout>
               <Router />

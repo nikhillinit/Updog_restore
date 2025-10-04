@@ -9,7 +9,7 @@
     "module": "ESNext",
     "strict": true,
     "noUncheckedIndexedAccess": true,  // Re-enabled for base (shared/server)
-    "exactOptionalPropertyTypes": false, // TODO: Re-enable after chart library consolidation (316 errors)",
+    "exactOptionalPropertyTypes": false, // TODO: Re-enable after chart library consolidation (316 errors)
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,  // Re-enabled for base
     "noFallthroughCasesInSwitch": true,

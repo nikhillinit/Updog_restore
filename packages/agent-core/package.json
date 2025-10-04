@@ -12,7 +12,8 @@
     "dev": "tsc --watch",
     "clean": "rimraf dist",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "backtest": "ts-node backtest-runner.ts"
   },
   "keywords": [
     "ai",

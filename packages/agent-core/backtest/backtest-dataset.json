@@ -1,0 +1,824 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "generated": "2025-10-03",
+    "repository": "nikhillinit/Updog_restore",
+    "timeframe": "2024-07-01 to 2025-10-03",
+    "totalCases": 35,
+    "description": "Real-world test cases extracted from git history for agent backtesting"
+  },
+  "testCases": [
+    {
+      "id": "tc-001",
+      "commitHash": "203c541b89c7c225729e4cb9503d184bbb42e3d5",
+      "timestamp": "2025-09-30T01:19:20-05:00",
+      "type": "typescript-error",
+      "severity": "high",
+      "description": "Phase 1 - zero TypeScript compilation errors (36 → 0)",
+      "files": [
+        "client/src/App.tsx",
+        "server/middleware/validation.ts",
+        "server/routes/health.ts"
+      ],
+      "errorMessage": "TypeScript compilation errors: implicit any types in ProtectedRoute component, missing dependency in useEffect, unsafe component prop spreading",
+      "humanSolution": "Added explicit type interfaces (ProtectedRouteProps), fixed dependency arrays, replaced lambda props with render prop pattern",
+      "timeToResolve": "unknown",
+      "linesChanged": 448,
+      "complexity": 8,
+      "pattern": "type-safety",
+      "agentApplicability": {
+        "testRepair": true,
+        "typeScriptFix": true,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-002",
+      "commitHash": "927a0c3e752ec311ce7fd598933402bd4f70540e",
+      "timestamp": "2025-09-28T09:18:03-05:00",
+      "type": "typescript-error",
+      "severity": "high",
+      "description": "Resolve all TypeScript compilation errors using AI agents",
+      "files": [
+        "client/src/components/dashboard/CashflowDashboard.tsx",
+        "client/src/core/LiquidityEngine.ts",
+        "server/middleware/security.ts",
+        "server/services/monte-carlo-engine.ts"
+      ],
+      "errorMessage": "Multiple TypeScript errors across 22 files: type guards, unused imports, any types, security middleware type mismatches",
+      "humanSolution": "AI-assisted fix: removed unused imports, fixed type assertions, corrected middleware signatures, cleaned up any types",
+      "timeToResolve": "1 commit",
+      "linesChanged": 173,
+      "complexity": 7,
+      "pattern": "ai-assisted",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": true
+      }
+    },
+    {
+      "id": "tc-003",
+      "commitHash": "bb3da504251744d1399a23b83ec7fd861d740c58",
+      "timestamp": "2025-09-29T21:37:56-05:00",
+      "type": "typescript-error",
+      "severity": "medium",
+      "description": "Resolve ShareAccessLevel TypeScript type errors",
+      "files": [
+        "client/src/components/sharing/ShareConfigModal.tsx"
+      ],
+      "errorMessage": "Type 'string' is not assignable to type 'ShareAccessLevel'. ShareAccessLevel is an enum/union type but onValueChange returns string.",
+      "humanSolution": "Added ShareAccessLevelType import and used 'as any' type assertion in onValueChange handler as workaround",
+      "timeToResolve": "unknown",
+      "linesChanged": 4,
+      "complexity": 3,
+      "pattern": "type-assertion",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-004",
+      "commitHash": "f515ee3228c94246e88c5657ae1fcfbb5a169c43",
+      "timestamp": "2025-08-26T22:36:55-07:00",
+      "type": "test-failure",
+      "severity": "critical",
+      "description": "Resolve critical TypeScript and test failures for CI stability",
+      "files": [
+        "tests/unit/circuit-breaker.test.ts",
+        "server/infra/circuit-breaker-cache.ts",
+        "shared/charting/ChartAdapter.tsx",
+        "vitest.config.ts"
+      ],
+      "errorMessage": "Test failures in circuit-breaker tests, TypeScript errors in ChartAdapter, websocket type issues",
+      "humanSolution": "Updated vitest config with proper test environment, added type guards, fixed circuit breaker test assertions, created test improvement status doc",
+      "timeToResolve": "unknown",
+      "linesChanged": 156,
+      "complexity": 9,
+      "pattern": "test-infrastructure",
+      "agentApplicability": {
+        "testRepair": true,
+        "typeScriptFix": true,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-005",
+      "commitHash": "ba012efc51aeeab21406cb076ae8e30a0b4b6c69",
+      "timestamp": "2025-08-26T21:48:15-07:00",
+      "type": "test-failure",
+      "severity": "critical",
+      "description": "Resolve critical test failures and infrastructure gaps",
+      "files": [
+        "tests/unit/health-guards.test.ts",
+        "tests/unit/setup.ts",
+        "server/infra/circuit-breaker-cache.ts",
+        ".github/workflows/ci-unified.yml"
+      ],
+      "errorMessage": "Missing test infrastructure, circuit breaker implementation incomplete, health guard tests failing",
+      "humanSolution": "Created circuit-breaker-cache implementation, added test setup utilities, updated CI workflow, fixed health guard test expectations",
+      "timeToResolve": "1 hour",
+      "linesChanged": 450,
+      "complexity": 10,
+      "pattern": "infrastructure",
+      "agentApplicability": {
+        "testRepair": true,
+        "typeScriptFix": false,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-006",
+      "commitHash": "715e5c9b78deb088ddb9ddce5a00586b2f6fb19d",
+      "timestamp": "2025-09-14T00:20:10-05:00",
+      "type": "typescript-error",
+      "severity": "low",
+      "description": "Resolve TypeScript errors in fund setup and cash flow generation",
+      "files": [
+        "client/src/lib/cashflow/generate.ts",
+        "client/src/pages/fund-setup.tsx"
+      ],
+      "errorMessage": "Implicit any type in map callback parameters - exit and index need explicit types",
+      "humanSolution": "Added explicit type annotations: (exit: any, index: number) to map callback",
+      "timeToResolve": "minutes",
+      "linesChanged": 7,
+      "complexity": 2,
+      "pattern": "simple-typing",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": true
+      }
+    },
+    {
+      "id": "tc-007",
+      "commitHash": "84aefac16f3fe0fcd650e9639923d9d79fe48579",
+      "timestamp": "2025-09-14T02:32:05-05:00",
+      "type": "build-error",
+      "severity": "critical",
+      "description": "Resolve critical TypeScript and ESLint build errors",
+      "files": [
+        "eslint.config.js",
+        ".eslintignore",
+        "server/db/schema/market.ts",
+        "server/infra/circuit-breaker-cache.ts"
+      ],
+      "errorMessage": "ESLint blocking build: config files being linted, unsafe type rules too strict, multiple violations",
+      "humanSolution": "Added config files to ignores, disabled strict unsafe-* rules, fixed import errors in server files",
+      "timeToResolve": "2 hours",
+      "linesChanged": 43,
+      "complexity": 6,
+      "pattern": "build-configuration",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": false,
+        "lintFix": true
+      }
+    },
+    {
+      "id": "tc-008",
+      "commitHash": "b937fb20adde78a3e92dcaeab43da5b402d9feb3",
+      "timestamp": "2025-08-29T13:21:04-07:00",
+      "type": "typescript-error",
+      "severity": "medium",
+      "description": "Resolve TypeScript errors in React components",
+      "files": [
+        "client/src/components/cash-management/cash-management-dashboard.tsx",
+        "client/src/components/charts/portfolio-cost-value-chart.tsx",
+        "client/src/components/investments/tactyc-investment-editor.tsx"
+      ],
+      "errorMessage": "Type mismatches in component props, incorrect generic type parameters, missing type annotations in event handlers",
+      "humanSolution": "Fixed generic type parameters, added proper event handler types, corrected component prop interfaces",
+      "timeToResolve": "unknown",
+      "linesChanged": 41,
+      "complexity": 5,
+      "pattern": "react-types",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-009",
+      "commitHash": "6d1d98e7a2f3dc60eaaed9ec7cd40930444863db",
+      "timestamp": "2025-08-28T23:53:15-07:00",
+      "type": "typescript-error",
+      "severity": "medium",
+      "description": "Resolve schema TypeScript syntax errors by converting multiline omit patterns",
+      "files": [
+        "shared/schema.ts"
+      ],
+      "errorMessage": "TypeScript syntax errors with multiline omit() patterns in Drizzle schema insert type definitions",
+      "humanSolution": "Converted multiline omit() calls to single-line format, simplified schema insert definitions",
+      "timeToResolve": "unknown",
+      "linesChanged": 96,
+      "complexity": 4,
+      "pattern": "schema-refactor",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-010",
+      "commitHash": "111e48c42d6e3402ea6484b73b183b18695a09e7",
+      "timestamp": "2025-08-29T00:42:18-05:00",
+      "type": "typescript-error",
+      "severity": "high",
+      "description": "Resolve unused variable TypeScript errors across codebase",
+      "files": [
+        "client/src/components/**/*.tsx",
+        "server/**/*.ts",
+        "shared/**/*.ts"
+      ],
+      "errorMessage": "Widespread @typescript-eslint/no-unused-vars violations across 147 files",
+      "humanSolution": "Mass automated fix using ZenCoder agent: removed unused imports, commented unused function parameters, removed dead code",
+      "timeToResolve": "automated",
+      "linesChanged": 4071,
+      "complexity": 8,
+      "pattern": "mass-cleanup",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": true
+      }
+    },
+    {
+      "id": "tc-011",
+      "commitHash": "7e268fe34404615849960bd0fe317fdb1e50cd46",
+      "timestamp": "2025-08-27T07:18:27-07:00",
+      "type": "test-failure",
+      "severity": "high",
+      "description": "Stabilize test suite with systematic fixes and monitoring",
+      "files": [
+        "tests/unit/circuit-breaker.test.ts",
+        "tests/unit/health-cache.test.ts",
+        "tests/unit/inflight-capacity.test.ts",
+        "tests/setup/test-infrastructure.ts"
+      ],
+      "errorMessage": "Flaky tests due to timing issues, insufficient test infrastructure, unreliable assertions",
+      "humanSolution": "Created test infrastructure utilities, added proper async handling, implemented test risk matrix, added validation scripts",
+      "timeToResolve": "1 day",
+      "linesChanged": 764,
+      "complexity": 9,
+      "pattern": "test-reliability",
+      "agentApplicability": {
+        "testRepair": true,
+        "typeScriptFix": false,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-012",
+      "commitHash": "4f7a8d6d5e7e9901a7ef413e332bf21ed30873e9",
+      "timestamp": "2025-08-27T00:00:52-07:00",
+      "type": "test-failure",
+      "severity": "medium",
+      "description": "Resolve test infrastructure timing issues and validation script compatibility",
+      "files": [
+        "tests/unit/circuit-breaker.test.ts",
+        "tests/unit/health-cache.test.ts",
+        "tests/unit/inflight-capacity.test.ts",
+        "scripts/validate-phase1.js"
+      ],
+      "errorMessage": "Tests failing due to timer mocking issues, validation script incompatible with vitest async timers",
+      "humanSolution": "Changed vi.advanceTimersByTime to vi.advanceTimersByTimeAsync, added Promise.resolve() microtask flushes, updated validation script",
+      "timeToResolve": "hours",
+      "linesChanged": 39,
+      "complexity": 6,
+      "pattern": "async-timing",
+      "agentApplicability": {
+        "testRepair": true,
+        "typeScriptFix": false,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-013",
+      "commitHash": "c7ad3c109ef7443e56b486615fde4ca61f50f862",
+      "timestamp": "2025-07-22T11:34:50-07:00",
+      "type": "test-failure",
+      "severity": "medium",
+      "description": "Skip failing test suites for green build",
+      "files": [
+        "tests/api/cohort-engine.test.ts",
+        "tests/api/edge-cases.test.ts",
+        "tests/api/engines.test.ts",
+        "tests/evergreen-validation.test.ts"
+      ],
+      "errorMessage": "Multiple test suites failing blocking CI pipeline",
+      "humanSolution": "Wrapped failing test suites with describe.skip() to unblock CI, documented need for fixes",
+      "timeToResolve": "minutes",
+      "linesChanged": 22,
+      "complexity": 1,
+      "pattern": "test-skip",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": false,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-014",
+      "commitHash": "36a816497e2da4299e725b499d47add5286e2e2a",
+      "timestamp": "2025-09-10T20:15:33-05:00",
+      "type": "bug-fix",
+      "severity": "critical",
+      "description": "Resolve merge conflicts and infinite loops in fund setup wizard",
+      "files": [
+        "client/src/pages/fund-setup.tsx",
+        "tests/unit/investment-strategy-step.test.tsx"
+      ],
+      "errorMessage": "Infinite re-render loop in fund setup wizard causing browser crash, merge conflicts from feature branches",
+      "humanSolution": "Massive refactor: resolved merge conflicts, removed duplicate code (1469 lines deleted), fixed state update logic",
+      "timeToResolve": "several hours",
+      "linesChanged": 1762,
+      "complexity": 10,
+      "pattern": "major-refactor",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": false,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-015",
+      "commitHash": "483105050441bafc3f8cce34079cce264bca40fe",
+      "timestamp": "2025-09-10T00:15:44-05:00",
+      "type": "bug-fix",
+      "severity": "critical",
+      "description": "Resolve infinite loop in fund setup wizard with NaN-safe equality",
+      "files": [
+        "client/src/pages/InvestmentStrategyStep.tsx",
+        "client/src/pages/fund-setup.tsx",
+        "client/src/stores/useFundStore.ts",
+        "client/src/utils/state-utils.ts"
+      ],
+      "errorMessage": "NaN values in state causing infinite loops due to NaN !== NaN in equality checks",
+      "humanSolution": "Created NaN-safe equality utilities, added state-utils module, implemented proper value comparisons, added test coverage",
+      "timeToResolve": "several hours",
+      "linesChanged": 359,
+      "complexity": 8,
+      "pattern": "edge-case-handling",
+      "agentApplicability": {
+        "testRepair": true,
+        "typeScriptFix": true,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-016",
+      "commitHash": "0ec27b4e79f9d8148db6ab215f7bf6fd29dac67d",
+      "timestamp": "2025-09-10T23:01:33-05:00",
+      "type": "bug-fix",
+      "severity": "medium",
+      "description": "Improve signature generation with proper sorting and type safety",
+      "files": [
+        "client/src/domain/strategy-signature.ts"
+      ],
+      "errorMessage": "Strategy signature generation producing inconsistent results due to object key ordering and missing type safety",
+      "humanSolution": "Added deterministic object key sorting, improved type safety with explicit interfaces, enhanced signature generation algorithm",
+      "timeToResolve": "hours",
+      "linesChanged": 96,
+      "complexity": 7,
+      "pattern": "algorithm-improvement",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-017",
+      "commitHash": "1989fde996fbcc41b8b1f842eadf21db83865b2a",
+      "timestamp": "2025-09-30T01:36:59-05:00",
+      "type": "bug-fix",
+      "severity": "medium",
+      "description": "Improve engine calculations and edge cases",
+      "files": [
+        "client/src/core/LiquidityEngine.ts",
+        "client/src/core/reserves/DeterministicReserveEngine.ts",
+        "shared/core/reserves/ConstrainedReserveEngine.ts"
+      ],
+      "errorMessage": "Edge case handling insufficient in reserve and liquidity engines, incorrect calculations for boundary conditions",
+      "humanSolution": "Added boundary condition checks, improved edge case handling in multiple engines, enhanced deterministic calculations",
+      "timeToResolve": "unknown",
+      "linesChanged": 172,
+      "complexity": 7,
+      "pattern": "calculation-accuracy",
+      "agentApplicability": {
+        "testRepair": true,
+        "typeScriptFix": true,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-018",
+      "commitHash": "d7fcff8c7a1150bd7942d6539bbb2b03eab94f1c",
+      "timestamp": "2025-08-27T00:29:56-07:00",
+      "type": "bug-fix",
+      "severity": "high",
+      "description": "Implement critical stability improvements for circuit breaker, TTL cache, and inflight registry",
+      "files": [
+        "client/src/lib/inflight.ts",
+        "server/infra/circuit-breaker-cache.ts",
+        "server/lib/ttl-cache.ts",
+        "tests/unit/circuit-breaker.test.ts"
+      ],
+      "errorMessage": "Circuit breaker state machine unreliable, TTL cache missing features, inflight registry race conditions",
+      "humanSolution": "Major refactor of circuit breaker logic, implemented TTL cache properly, fixed race conditions in inflight registry",
+      "timeToResolve": "1 day",
+      "linesChanged": 474,
+      "complexity": 9,
+      "pattern": "infrastructure-stability",
+      "agentApplicability": {
+        "testRepair": true,
+        "typeScriptFix": true,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-019",
+      "commitHash": "135c85b510092cb700ba28e95260ce11be4f5fb3",
+      "timestamp": "2025-10-03T02:33:08-05:00",
+      "type": "bug-fix",
+      "severity": "low",
+      "description": "Preserve query strings and hash fragments in legacy route redirects",
+      "files": [
+        "client/src/components/LegacyRouteRedirector.tsx"
+      ],
+      "errorMessage": "Query parameters and hash fragments being dropped during legacy route redirects",
+      "humanSolution": "Updated redirect logic to preserve search params and hash fragments from original URL",
+      "timeToResolve": "minutes",
+      "linesChanged": 11,
+      "complexity": 2,
+      "pattern": "routing-fix",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": false,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-020",
+      "commitHash": "8659014ad6d3bee07e60d2ec90779262c0cf9802",
+      "timestamp": "2025-09-30T01:38:25-05:00",
+      "type": "bug-fix",
+      "severity": "medium",
+      "description": "Integrate PRNG for deterministic simulations",
+      "files": [
+        "server/services/monte-carlo-engine.ts",
+        "server/services/monte-carlo-simulation.ts"
+      ],
+      "errorMessage": "Monte Carlo simulations non-deterministic, cannot reproduce results, testing unreliable",
+      "humanSolution": "Integrated pseudo-random number generator (PRNG) with seed support, made simulations deterministic and reproducible",
+      "timeToResolve": "unknown",
+      "linesChanged": 105,
+      "complexity": 6,
+      "pattern": "determinism",
+      "agentApplicability": {
+        "testRepair": true,
+        "typeScriptFix": false,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-021",
+      "commitHash": "1605d7fea9ebb498058479d506698bcdc03fe5f3",
+      "timestamp": "2025-09-27T12:37:43-05:00",
+      "type": "typescript-error",
+      "severity": "high",
+      "description": "Resolve TypeScript compilation errors through AI consensus",
+      "files": [
+        "multiple files across codebase"
+      ],
+      "errorMessage": "Multiple TypeScript compilation errors requiring cross-file analysis",
+      "humanSolution": "Used multi-AI consensus (Gemini, GPT, Claude) to identify and fix complex type issues",
+      "timeToResolve": "AI-assisted",
+      "linesChanged": 0,
+      "complexity": 8,
+      "pattern": "ai-consensus",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-022",
+      "commitHash": "9bc74a1",
+      "timestamp": "2025-10-03",
+      "type": "typescript-error",
+      "severity": "low",
+      "description": "Use bracket notation for index signature access in reserve-engine",
+      "files": [
+        "client/src/core/ReserveEngine.ts"
+      ],
+      "errorMessage": "TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type",
+      "humanSolution": "Changed dot notation to bracket notation for dynamic property access on objects with index signatures",
+      "timeToResolve": "minutes",
+      "linesChanged": 1,
+      "complexity": 1,
+      "pattern": "index-signature",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": true
+      }
+    },
+    {
+      "id": "tc-023",
+      "commitHash": "7d95134a806442dd867eb062b4ee7445d3b56143",
+      "timestamp": "2025-08-28T12:05:07-07:00",
+      "type": "typescript-error",
+      "severity": "medium",
+      "description": "Resolve Recharts Legend content prop TypeScript error",
+      "files": [
+        "client/src/components/charts/WaterfallChart.tsx"
+      ],
+      "errorMessage": "Type error with Recharts Legend content prop - incorrect type signature for custom legend renderer",
+      "humanSolution": "Fixed Legend content prop type to match Recharts v2 API, updated custom legend function signature",
+      "timeToResolve": "hours",
+      "linesChanged": 10,
+      "complexity": 4,
+      "pattern": "library-upgrade",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-024",
+      "commitHash": "61a087038880d67b80ee9afd8748a7b8bb6a0fe9",
+      "timestamp": "2025-08-28T05:53:43-07:00",
+      "type": "typescript-error",
+      "severity": "medium",
+      "description": "Add type assertions to resolve remaining recharts-bundle TypeScript errors",
+      "files": [
+        "client/src/components/charts/**/*.tsx"
+      ],
+      "errorMessage": "Multiple TypeScript errors in Recharts component props and event handlers",
+      "humanSolution": "Added strategic type assertions, fixed event handler signatures, corrected generic type parameters",
+      "timeToResolve": "hours",
+      "linesChanged": 30,
+      "complexity": 5,
+      "pattern": "library-types",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-025",
+      "commitHash": "fb578e41116f93ffa47c9167abc6c47b496bbf47",
+      "timestamp": "2025-08-28T23:10:08-07:00",
+      "type": "typescript-error",
+      "severity": "high",
+      "description": "Resolve major TypeScript errors (75→28) with infrastructure improvements",
+      "files": [
+        "multiple files across codebase"
+      ],
+      "errorMessage": "75 TypeScript compilation errors across codebase requiring systematic approach",
+      "humanSolution": "Systematic fix in phases: fixed critical errors first, added type guards, improved infrastructure, reduced to 28 errors",
+      "timeToResolve": "several hours",
+      "linesChanged": 200,
+      "complexity": 9,
+      "pattern": "systematic-reduction",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": true
+      }
+    },
+    {
+      "id": "tc-026",
+      "commitHash": "ff902f986a77d6cc58e4a47e848f731f66550c4a",
+      "timestamp": "2025-08-28T21:06:55-07:00",
+      "type": "typescript-error",
+      "severity": "medium",
+      "description": "Resolve additional TypeScript errors in predictive-cache and rollout-orchestrator",
+      "files": [
+        "client/src/lib/predictive-cache.ts",
+        "server/lib/rollout-orchestrator.ts"
+      ],
+      "errorMessage": "Type errors in cache implementation and feature rollout orchestrator",
+      "humanSolution": "Fixed generic type constraints, corrected async type signatures, improved type inference",
+      "timeToResolve": "hours",
+      "linesChanged": 25,
+      "complexity": 6,
+      "pattern": "generics-async",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-027",
+      "commitHash": "61fdf44f2935a0bdfa9518d21f061d369c674711",
+      "timestamp": "2025-08-28T21:05:07-07:00",
+      "type": "typescript-error",
+      "severity": "medium",
+      "description": "Resolve TypeScript errors (23→19) with targeted fixes",
+      "files": [
+        "multiple files"
+      ],
+      "errorMessage": "Remaining TypeScript errors requiring targeted fixes",
+      "humanSolution": "Incremental fixes: 4 errors resolved through careful type adjustments and refactoring",
+      "timeToResolve": "1 hour",
+      "linesChanged": 15,
+      "complexity": 5,
+      "pattern": "incremental-fix",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-028",
+      "commitHash": "8d51de64352872a80062bd50eb5062179537c244",
+      "timestamp": "2025-08-29T13:16:55-07:00",
+      "type": "bug-fix",
+      "severity": "medium",
+      "description": "Restore omit() calls to schema insert definitions",
+      "files": [
+        "shared/schema.ts"
+      ],
+      "errorMessage": "Schema insert types missing omit() calls causing type mismatches",
+      "humanSolution": "Restored proper omit() calls for auto-generated fields (id, createdAt, updatedAt) in schema insert types",
+      "timeToResolve": "minutes",
+      "linesChanged": 20,
+      "complexity": 3,
+      "pattern": "schema-types",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-029",
+      "commitHash": "1352c22",
+      "timestamp": "2025-09-29",
+      "type": "bug-fix",
+      "severity": "low",
+      "description": "Resolve Investment Strategy column alignment issues",
+      "files": [
+        "client/src/pages/InvestmentStrategyStep.tsx"
+      ],
+      "errorMessage": "UI alignment issues in Investment Strategy step table columns",
+      "humanSolution": "Fixed CSS grid/flexbox alignment, adjusted column widths and spacing",
+      "timeToResolve": "minutes",
+      "linesChanged": 10,
+      "complexity": 2,
+      "pattern": "ui-fix",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": false,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-030",
+      "commitHash": "6fd1c99",
+      "timestamp": "2025-09-30",
+      "type": "security-fix",
+      "severity": "high",
+      "description": "Phase 0 - security hardening and systematic remediation",
+      "files": [
+        "server/middleware/security.ts",
+        "server/middleware/validation.ts",
+        "server/utils/input-sanitization.ts"
+      ],
+      "errorMessage": "Security vulnerabilities: insufficient input validation, missing sanitization, weak security headers",
+      "humanSolution": "Implemented comprehensive security hardening: input sanitization, validation middleware, security headers, rate limiting",
+      "timeToResolve": "1 day",
+      "linesChanged": 300,
+      "complexity": 9,
+      "pattern": "security",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-031",
+      "commitHash": "c270f0f",
+      "timestamp": "2025-09-30",
+      "type": "test-improvement",
+      "severity": "low",
+      "description": "Improve test configuration",
+      "files": [
+        "vitest.config.ts",
+        "vitest.config.unit.ts"
+      ],
+      "errorMessage": "Test configuration suboptimal, missing coverage settings, slow test execution",
+      "humanSolution": "Optimized test configuration: added coverage settings, improved test isolation, faster execution",
+      "timeToResolve": "hours",
+      "linesChanged": 30,
+      "complexity": 4,
+      "pattern": "test-config",
+      "agentApplicability": {
+        "testRepair": true,
+        "typeScriptFix": false,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-032",
+      "commitHash": "23f4649",
+      "timestamp": "2025-09-27",
+      "type": "typescript-error",
+      "severity": "medium",
+      "description": "Resolve TypeScript compilation issues in variance tracking service",
+      "files": [
+        "server/services/variance-tracking.ts"
+      ],
+      "errorMessage": "Type errors in variance tracking service: incorrect generic constraints, missing type guards",
+      "humanSolution": "Fixed generic type constraints, added proper type guards, improved type inference in variance calculations",
+      "timeToResolve": "hours",
+      "linesChanged": 40,
+      "complexity": 6,
+      "pattern": "service-types",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": false
+      }
+    },
+    {
+      "id": "tc-033",
+      "commitHash": "1212604",
+      "timestamp": "2025-09-15",
+      "type": "infrastructure",
+      "severity": "critical",
+      "description": "Resolve critical infrastructure issues and framework consolidation",
+      "files": [
+        "multiple infrastructure files"
+      ],
+      "errorMessage": "Infrastructure fragmentation, duplicate implementations, missing abstractions",
+      "humanSolution": "Major consolidation: unified infrastructure patterns, removed duplicates, created proper abstractions",
+      "timeToResolve": "2 days",
+      "linesChanged": 500,
+      "complexity": 10,
+      "pattern": "consolidation",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": true
+      }
+    },
+    {
+      "id": "tc-034",
+      "commitHash": "dbfffe8",
+      "timestamp": "2025-09-15",
+      "type": "bug-fix",
+      "severity": "low",
+      "description": "Correct insertFundSchema import in routes.ts",
+      "files": [
+        "server/routes.ts"
+      ],
+      "errorMessage": "Import error: insertFundSchema not found, incorrect module path",
+      "humanSolution": "Fixed import path to correct module location",
+      "timeToResolve": "minutes",
+      "linesChanged": 1,
+      "complexity": 1,
+      "pattern": "import-fix",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": true,
+        "lintFix": true
+      }
+    },
+    {
+      "id": "tc-035",
+      "commitHash": "4c6cb62",
+      "timestamp": "2025-09-15",
+      "type": "build-error",
+      "severity": "medium",
+      "description": "Correct YAML syntax in synthetic.yml workflow",
+      "files": [
+        ".github/workflows/synthetic.yml"
+      ],
+      "errorMessage": "YAML syntax error in GitHub Actions workflow preventing CI runs",
+      "humanSolution": "Fixed YAML indentation and syntax errors in workflow file",
+      "timeToResolve": "minutes",
+      "linesChanged": 5,
+      "complexity": 2,
+      "pattern": "yaml-syntax",
+      "agentApplicability": {
+        "testRepair": false,
+        "typeScriptFix": false,
+        "lintFix": true
+      }
+    }
+  ]
+}

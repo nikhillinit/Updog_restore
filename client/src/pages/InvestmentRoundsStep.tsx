@@ -127,7 +127,7 @@ export default function InvestmentRoundsStep() {
     >
       <div className="max-w-[1500px] mx-auto px-6">
         {/* Info Alert */}
-        <Alert className="bg-blue-50 border-blue-200 mb-6">
+        <Alert className="bg-blue-50 border-blue-200 mb-4">
           <AlertCircle className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-blue-800 text-sm">
             <strong>Important:</strong> Do not delete later stage rounds, even if your fund doesn't participate in them.
@@ -135,75 +135,20 @@ export default function InvestmentRoundsStep() {
           </AlertDescription>
         </Alert>
 
-        {/* Summary Cards at Top */}
+        {/* Compact Summary - Contextual Subtitle */}
         {summary && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {/* Total Capital */}
-            <div className="border border-[#E0D8D1] rounded-lg p-4 bg-white">
-              <div className="text-xs font-poppins font-medium text-[#292929]/60 uppercase mb-1">
-                Total Capital
-              </div>
-              <div className="text-2xl font-poppins font-bold text-[#292929]">
-                {formatCurrency(summary.totalRoundSize)}
-              </div>
-              <div className="text-xs text-[#292929]/50 mt-1">
-                Sum of all rounds
-              </div>
-            </div>
-
-            {/* Avg Valuation */}
-            <div className="border border-[#E0D8D1] rounded-lg p-4 bg-white">
-              <div className="text-xs font-poppins font-medium text-[#292929]/60 uppercase mb-1">
-                Avg Valuation
-              </div>
-              <div className="text-2xl font-poppins font-bold text-[#292929]">
-                {formatCurrency(summary.averagePostMoney)}
-              </div>
-              <div className="text-xs text-[#292929]/50 mt-1">
-                Weighted post-money
-              </div>
-            </div>
-
-            {/* Avg Progression */}
-            <div className="border border-[#E0D8D1] rounded-lg p-4 bg-white">
-              <div className="text-xs font-poppins font-medium text-[#292929]/60 uppercase mb-1">
-                Avg Progression
-              </div>
-              <div className="flex items-baseline gap-2 text-sm font-poppins">
-                <span className="text-emerald-600 font-semibold">
-                  {formatPercent(summary.averageGraduationRate)}
-                </span>
-                <span className="text-[#292929]/40">/</span>
-                <span className="text-blue-600 font-semibold">
-                  {formatPercent(summary.averageExitRate)}
-                </span>
-                <span className="text-[#292929]/40">/</span>
-                <span className="text-red-600 font-semibold">
-                  {formatPercent(summary.averageFailureRate)}
-                </span>
-              </div>
-              <div className="text-xs text-[#292929]/50 mt-1">
-                Grad / Exit / Fail
-              </div>
-            </div>
-
-            {/* Total Timeline */}
-            <div className="border border-[#E0D8D1] rounded-lg p-4 bg-white">
-              <div className="text-xs font-poppins font-medium text-[#292929]/60 uppercase mb-1">
-                Total Timeline
-              </div>
-              <div className="text-2xl font-poppins font-bold text-[#292929]">
-                {formatMonths(summary.totalFundLifeMonths)}
-              </div>
-              <div className="text-xs text-[#292929]/50 mt-1">
-                Cumulative stage duration
-              </div>
-            </div>
+          <div className="mb-4 pb-3 border-b border-[#E0D8D1]">
+            <p className="text-sm font-poppins text-[#292929]/70">
+              Modeling a <strong className="text-[#292929]">{formatMonths(summary.totalFundLifeMonths)}</strong> journey
+              with <strong className="text-[#292929]">{formatCurrency(summary.totalRoundSize)}</strong> capital
+              across stages, averaging <strong className="text-emerald-600">{formatPercent(summary.averageGraduationRate)}</strong> graduation
+              and <strong className="text-blue-600">{formatPercent(summary.averageExitRate)}</strong> exit rates.
+            </p>
           </div>
         )}
 
         {/* Main Table - Horizontally Scrollable */}
-        <div className="border border-[#E0D8D1] rounded-xl overflow-hidden bg-white mb-6">
+        <div className="border border-[#E0D8D1] rounded-xl overflow-hidden bg-white mb-4">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -563,7 +508,7 @@ export default function InvestmentRoundsStep() {
 
         {/* Validation Errors Summary */}
         {hasErrors && (
-          <Alert className="bg-red-50 border-red-200 mb-6">
+          <Alert className="bg-red-50 border-red-200 mb-4">
             <AlertCircle className="h-4 w-4 text-red-600" />
             <AlertDescription className="text-red-800 text-sm">
               <strong>{totalErrors} validation error{totalErrors !== 1 ? 's' : ''} found.</strong> Please review the highlighted rows and fix the errors before proceeding.
@@ -582,7 +527,7 @@ export default function InvestmentRoundsStep() {
         )}
 
         {/* Add Round Button */}
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-4">
           <Button
             onClick={handleAddRound}
             variant="outline"
@@ -605,8 +550,7 @@ export default function InvestmentRoundsStep() {
           </Button>
           <Button
             onClick={() => navigate('/fund-setup?step=3')}
-            disabled={hasErrors}
-            className="flex items-center gap-2 bg-[#292929] hover:bg-[#292929]/90 text-white px-8 py-3 h-auto font-poppins font-medium disabled:opacity-50"
+            className="flex items-center gap-2 bg-[#292929] hover:bg-[#292929]/90 text-white px-8 py-3 h-auto font-poppins font-medium"
           >
             Next Step
             <ArrowRight className="h-4 w-4" />

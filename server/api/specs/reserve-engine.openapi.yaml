@@ -1,0 +1,756 @@
+openapi: 3.0.3
+info:
+  title: Reserve Engine API
+  version: 1.0.0
+  description: |
+    Deterministic capital reserve allocation engine for VC fund platform.
+
+    This API provides endpoints for calculating optimal capital allocation
+    for follow-on investments based on initial investments by stage, graduation
+    rates between stages, and follow-on strategies.
+
+    The engine uses a binary search algorithm to solve:
+    `initial_capital + follow_on_capital = total_allocated_capital`
+  contact:
+    name: Press On Ventures
+    email: engineering@pressonventures.com
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.pressonventures.com/v1
+    description: Production server
+  - url: https://staging-api.pressonventures.com/v1
+    description: Staging server
+  - url: http://localhost:5000/api/v1
+    description: Local development server
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Reserve Calculation
+    description: Capital allocation calculation endpoints
+  - name: Optimization
+    description: Portfolio optimization endpoints
+  - name: Scenarios
+    description: Scenario management endpoints
+
+paths:
+  /reserve/calculate:
+    post:
+      tags:
+        - Reserve Calculation
+      summary: Calculate optimal reserve allocation
+      description: |
+        Calculate the optimal number of initial deals and follow-on capital
+        allocation based on total allocated capital, initial check size, entry stage,
+        graduation rates, and follow-on strategies.
+
+        The engine uses binary search to find the optimal solution where:
+        `initial_capital + follow_on_capital ≈ total_allocated_capital`
+
+        Results are deterministic - same inputs always produce same outputs.
+      operationId: calculateReserveAllocation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReserveCalculationRequest'
+            examples:
+              seedFund:
+                summary: Seed fund with follow-on to Series A
+                value:
+                  fundId: "fund_abc123"
+                  totalAllocatedCapital: 20000000
+                  initialCheckSize: 500000
+                  entryStage: "Seed"
+                  stages:
+                    - name: "Seed"
+                      roundSize: 3000000
+                      graduationRate: 40
+                    - name: "Series A"
+                      roundSize: 8000000
+                      graduationRate: 50
+                    - name: "Series B"
+                      roundSize: 20000000
+                      graduationRate: 30
+                  followOnStrategy:
+                    - stage: "Series A"
+                      checkSize: 1000000
+                      participationRate: 100
+                    - stage: "Series B"
+                      checkSize: 2000000
+                      participationRate: 50
+      responses:
+        '200':
+          description: Calculation completed successfully
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+                format: uuid
+              description: Request correlation ID for tracing
+            X-Calculation-Duration:
+              schema:
+                type: integer
+              description: Calculation duration in milliseconds
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReserveCalculationResponse'
+              examples:
+                successfulCalculation:
+                  summary: Successful calculation result
+                  value:
+                    success: true
+                    data:
+                      initialDeals: 12
+                      initialCapital: 6000000
+                      followOnCapital: 14000000
+                      totalCapitalDeployed: 20000000
+                      stageBreakdown:
+                        - stageName: "Seed"
+                          dealsEntering: 12
+                          graduationRate: 40
+                          dealsGraduating: 4.8
+                          followOnCheckSize: 1000000
+                          participationRate: 100
+                          followOnInvestments: 4.8
+                          capitalDeployed: 4800000
+                        - stageName: "Series A"
+                          dealsEntering: 4.8
+                          graduationRate: 50
+                          dealsGraduating: 2.4
+                          followOnCheckSize: 2000000
+                          participationRate: 50
+                          followOnInvestments: 1.2
+                          capitalDeployed: 2400000
+                    metadata:
+                      correlationId: "req_123456"
+                      processingTime: 45
+                      timestamp: "2025-10-02T10:30:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /reserve/optimize:
+    post:
+      tags:
+        - Optimization
+      summary: Optimize portfolio allocation
+      description: |
+        Run optimization across multiple scenarios to find the best allocation strategy.
+        This endpoint compares different initial check sizes, entry stages, and follow-on
+        strategies to maximize portfolio returns within constraints.
+      operationId: optimizeReserveAllocation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OptimizationRequest'
+      responses:
+        '200':
+          description: Optimization completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OptimizationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /reserve/scenarios/{scenarioId}:
+    get:
+      tags:
+        - Scenarios
+      summary: Get scenario calculation results
+      description: |
+        Retrieve previously calculated scenario results by scenario ID.
+        Results are cached for 24 hours.
+      operationId: getScenarioResults
+      parameters:
+        - name: scenarioId
+          in: path
+          required: true
+          description: Unique scenario identifier
+          schema:
+            type: string
+            format: uuid
+          example: "scenario_abc123"
+      responses:
+        '200':
+          description: Scenario results retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /reserve/health:
+    get:
+      tags:
+        - Reserve Calculation
+      summary: Health check endpoint
+      description: Check API health and availability
+      operationId: healthCheck
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded]
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                  service:
+                    type: string
+                    example: "reserve-engine"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT access token for authentication.
+        Include in Authorization header as: `Bearer <token>`
+
+  schemas:
+    ReserveCalculationRequest:
+      type: object
+      required:
+        - fundId
+        - totalAllocatedCapital
+        - initialCheckSize
+        - entryStage
+        - stages
+        - followOnStrategy
+      properties:
+        fundId:
+          type: string
+          format: uuid
+          description: Unique fund identifier
+          example: "fund_abc123"
+        totalAllocatedCapital:
+          type: number
+          format: double
+          minimum: 0
+          description: Total capital allocated for deployment (in dollars)
+          example: 20000000
+        initialCheckSize:
+          type: number
+          format: double
+          minimum: 0
+          description: Size of initial check per deal (in dollars)
+          example: 500000
+        entryStage:
+          type: string
+          description: Stage at which initial investments are made
+          enum:
+            - Pre-Seed
+            - Seed
+            - Series A
+            - Series B
+            - Series C
+            - Series D
+          example: "Seed"
+        stages:
+          type: array
+          description: Investment stage definitions with graduation rates
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/StageData'
+        followOnStrategy:
+          type: array
+          description: Follow-on investment strategy per stage
+          items:
+            $ref: '#/components/schemas/FollowOnStrategy'
+        metadata:
+          type: object
+          description: Optional metadata for tracking and auditing
+          additionalProperties: true
+          example:
+            creator: "john@example.com"
+            description: "Q4 2025 allocation model"
+
+    StageData:
+      type: object
+      required:
+        - name
+        - roundSize
+        - graduationRate
+      properties:
+        name:
+          type: string
+          description: Stage name
+          example: "Seed"
+        roundSize:
+          type: number
+          format: double
+          minimum: 0
+          description: Typical round size for this stage (in dollars)
+          example: 3000000
+        graduationRate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: Percentage of companies graduating to next stage
+          example: 40
+
+    FollowOnStrategy:
+      type: object
+      required:
+        - stage
+        - checkSize
+        - participationRate
+      properties:
+        stage:
+          type: string
+          description: Target follow-on stage
+          example: "Series A"
+        checkSize:
+          type: number
+          format: double
+          minimum: 0
+          description: Follow-on check size (in dollars, 0 if no follow-on)
+          example: 1000000
+        participationRate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: Percentage of graduating deals you participate in
+          example: 100
+        strategy:
+          type: string
+          enum:
+            - maintain_ownership
+            - fixed_amount
+            - pro_rata
+          description: Follow-on investment strategy
+          example: "maintain_ownership"
+
+    ReserveCalculationResponse:
+      type: object
+      required:
+        - success
+        - data
+        - metadata
+      properties:
+        success:
+          type: boolean
+          description: Whether calculation succeeded
+          example: true
+        data:
+          $ref: '#/components/schemas/AllocationResult'
+        metadata:
+          $ref: '#/components/schemas/ResponseMetadata'
+
+    AllocationResult:
+      type: object
+      required:
+        - initialDeals
+        - initialCapital
+        - followOnCapital
+        - totalCapitalDeployed
+        - stageBreakdown
+      properties:
+        initialDeals:
+          type: number
+          format: double
+          description: Optimal number of initial deals
+          example: 12
+        initialCapital:
+          type: number
+          format: double
+          description: Capital deployed in initial investments
+          example: 6000000
+        followOnCapital:
+          type: number
+          format: double
+          description: Capital reserved for follow-on investments
+          example: 14000000
+        totalCapitalDeployed:
+          type: number
+          format: double
+          description: Total capital deployed (initial + follow-on)
+          example: 20000000
+        stageBreakdown:
+          type: array
+          description: Detailed breakdown by stage
+          items:
+            $ref: '#/components/schemas/StageBreakdown'
+
+    StageBreakdown:
+      type: object
+      required:
+        - stageName
+        - dealsEntering
+        - graduationRate
+        - dealsGraduating
+        - followOnCheckSize
+        - participationRate
+        - followOnInvestments
+        - capitalDeployed
+      properties:
+        stageName:
+          type: string
+          description: Stage name
+          example: "Seed"
+        dealsEntering:
+          type: number
+          format: double
+          description: Number of deals entering this stage
+          example: 12
+        graduationRate:
+          type: number
+          format: double
+          description: Graduation rate to next stage (%)
+          example: 40
+        dealsGraduating:
+          type: number
+          format: double
+          description: Number of deals graduating to next stage
+          example: 4.8
+        followOnCheckSize:
+          type: number
+          format: double
+          description: Follow-on check size for next stage
+          example: 1000000
+        participationRate:
+          type: number
+          format: double
+          description: Follow-on participation rate (%)
+          example: 100
+        followOnInvestments:
+          type: number
+          format: double
+          description: Number of follow-on investments made
+          example: 4.8
+        capitalDeployed:
+          type: number
+          format: double
+          description: Total capital deployed at this stage
+          example: 4800000
+
+    OptimizationRequest:
+      type: object
+      required:
+        - fundId
+        - totalAllocatedCapital
+        - constraints
+        - optimizationGoals
+      properties:
+        fundId:
+          type: string
+          format: uuid
+        totalAllocatedCapital:
+          type: number
+          format: double
+          minimum: 0
+        constraints:
+          type: object
+          properties:
+            minInitialCheckSize:
+              type: number
+              format: double
+            maxInitialCheckSize:
+              type: number
+              format: double
+            allowedEntryStages:
+              type: array
+              items:
+                type: string
+            maxFollowOnRatio:
+              type: number
+              format: double
+              minimum: 0
+              maximum: 1
+              description: Max ratio of follow-on to initial capital
+        optimizationGoals:
+          type: array
+          items:
+            type: string
+            enum:
+              - maximize_deals
+              - maximize_ownership
+              - minimize_risk
+              - maximize_returns
+        scenarios:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReserveCalculationRequest'
+
+    OptimizationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        optimalScenario:
+          $ref: '#/components/schemas/AllocationResult'
+        allScenarios:
+          type: array
+          items:
+            type: object
+            properties:
+              scenarioId:
+                type: string
+              score:
+                type: number
+              result:
+                $ref: '#/components/schemas/AllocationResult'
+        metadata:
+          $ref: '#/components/schemas/ResponseMetadata'
+
+    ScenarioResponse:
+      type: object
+      properties:
+        scenarioId:
+          type: string
+          format: uuid
+        fundId:
+          type: string
+          format: uuid
+        result:
+          $ref: '#/components/schemas/AllocationResult'
+        input:
+          $ref: '#/components/schemas/ReserveCalculationRequest'
+        metadata:
+          $ref: '#/components/schemas/ResponseMetadata'
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+
+    ResponseMetadata:
+      type: object
+      properties:
+        correlationId:
+          type: string
+          description: Request correlation ID for tracing
+          example: "req_abc123"
+        processingTime:
+          type: integer
+          description: Processing time in milliseconds
+          example: 45
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp
+        version:
+          type: string
+          description: API version
+          example: "1.0.0"
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+        - correlationId
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+          example: "Validation failed"
+        code:
+          type: string
+          description: Machine-readable error code
+          example: "VALIDATION_ERROR"
+        details:
+          type: array
+          description: Detailed error information
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+              code:
+                type: string
+        correlationId:
+          type: string
+          description: Request correlation ID
+        timestamp:
+          type: string
+          format: date-time
+
+    ValidationErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            validationErrors:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  constraint:
+                    type: string
+                  value:
+                    type: string
+                  message:
+                    type: string
+
+    RateLimitResponse:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            retryAfter:
+              type: integer
+              description: Seconds until rate limit resets
+            limit:
+              type: integer
+              description: Rate limit maximum
+            remaining:
+              type: integer
+              description: Remaining requests in window
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: "Invalid request parameters"
+            code: "BAD_REQUEST"
+            correlationId: "req_123456"
+            timestamp: "2025-10-02T10:30:00Z"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: "Authentication required"
+            code: "UNAUTHORIZED"
+            correlationId: "req_123456"
+            timestamp: "2025-10-02T10:30:00Z"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: "Scenario not found"
+            code: "NOT_FOUND"
+            correlationId: "req_123456"
+            timestamp: "2025-10-02T10:30:00Z"
+
+    ValidationError:
+      description: Validation error - request failed validation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          example:
+            success: false
+            error: "Validation failed"
+            code: "VALIDATION_ERROR"
+            validationErrors:
+              - field: "totalAllocatedCapital"
+                constraint: "minimum"
+                value: "-1000000"
+                message: "Must be greater than 0"
+              - field: "entryStage"
+                constraint: "enum"
+                value: "Series E"
+                message: "Must be one of: Pre-Seed, Seed, Series A, Series B, Series C, Series D"
+            correlationId: "req_123456"
+            timestamp: "2025-10-02T10:30:00Z"
+
+    RateLimitExceeded:
+      description: Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Request limit per window
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Remaining requests in current window
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Unix timestamp when rate limit resets
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds to wait before retrying
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RateLimitResponse'
+          example:
+            success: false
+            error: "Rate limit exceeded"
+            code: "RATE_LIMIT_EXCEEDED"
+            retryAfter: 900
+            limit: 100
+            remaining: 0
+            correlationId: "req_123456"
+            timestamp: "2025-10-02T10:30:00Z"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: "Internal server error"
+            code: "INTERNAL_ERROR"
+            correlationId: "req_123456"
+            timestamp: "2025-10-02T10:30:00Z"

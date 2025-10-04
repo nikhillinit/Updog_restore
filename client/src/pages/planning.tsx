@@ -408,9 +408,9 @@ export default function Planning() {
             <div className="p-4 bg-gray-50 rounded-lg">
               <h4 className="font-medium mb-2">FMV Override</h4>
               <p className="text-sm text-muted-foreground mb-3">
-                By default, Tactyc determines the FMV based on the Valuation and 
-                Ownership as Aggregate Valuation x Ownership (%). You can override 
-                the FMV here to disconnect the FMV from the underlying Aggregate 
+                By default, the system determines the FMV based on the Valuation and
+                Ownership as Aggregate Valuation x Ownership (%). You can override
+                the FMV here to disconnect the FMV from the underlying Aggregate
                 Valuation and Ownership.
               </p>
               
@@ -418,9 +418,9 @@ export default function Planning() {
                 <div>
                   <h5 className="font-medium text-sm mb-1">When to override?</h5>
                   <p className="text-sm text-muted-foreground">
-                    You may want to override the FMV if your fund's valuation policy 
-                    differs from Tactyc's. These include affecting FMV for any 
-                    outstanding liquidation preferences, or how your fund wants to 
+                    You may want to override the FMV if your fund's valuation policy
+                    differs from the default calculation. These include affecting FMV for any
+                    outstanding liquidation preferences, or how your fund wants to
                     report valuations on SAFEs and Convertible Notes.
                   </p>
                 </div>

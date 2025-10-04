@@ -10,11 +10,11 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { 
-  Plus, 
-  Search, 
-  Calendar, 
-  TrendingUp, 
+import {
+  Plus,
+  Search,
+  Calendar,
+  TrendingUp,
   ChevronDown,
   Eye,
   BarChart3,
@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { BRANDING } from '@/config/branding';
 
 interface Investment {
   id: string;
@@ -145,7 +146,7 @@ export default function InvestmentsLayout() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tactyc Ventures II L.P. / Investments</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{BRANDING.company.legalName} / Investments</h1>
           <p className="text-gray-600 mt-1">View and manage investments</p>
         </div>
       </div>

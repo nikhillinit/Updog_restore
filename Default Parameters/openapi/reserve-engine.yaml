@@ -1,0 +1,26 @@
+
+openapi: 3.0.3
+info: { title: Deterministic Reserve Optimization API, version: 1.0.0 }
+paths:
+  /api/reserve-optimization:
+    post:
+      summary: Calculate optimal reserve allocation across portfolio
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ReserveOptimizationRequest' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ReserveOptimizationResult' } } } }
+components:
+  schemas:
+    StageStrategy: { type: object, properties: { roundName: {type:string}, followOnProbability:{type:number}, maxRounds:{type:integer}, maintainProRata:{type:boolean} } }
+    GraduationMatrixEntry: { type: object, properties: { fromRound:{type:string}, toRound:{type:string}, graduationRate:{type:number}, monthsToGraduate:{type:integer} } }
+    PortfolioCompany: { type: object, properties: { id:{type:string}, name:{type:string}, currentRound:{type:string}, costBasis:{type:number}, currentFMV:{type:number}, nextRoundExpectedValuation:{type:number}, exitMOICOnPlannedReserves:{type:number} } }
+    ReserveOptimizationRequest:
+      type: object
+      properties:
+        portfolio: { type: array, items: { $ref: '#/components/schemas/PortfolioCompany' } }
+        stageStrategies: { type: array, items: { $ref: '#/components/schemas/StageStrategy' } }
+        graduationMatrix: { type: array, items: { $ref: '#/components/schemas/GraduationMatrixEntry' } }
+        availableReserves: { type: number }
+    CompanyReservePlan: { type: object, properties: { companyId:{type:string}, plannedReserve:{type:number}, impliedOwnershipDeltaPct:{type:number}, expectedFollowOnMOIC:{type:number} } }
+    ReserveOptimizationResult: { type: object, properties: { totalAvailable:{type:number}, totalPlanned:{type:number}, plans:{ type: array, items: { $ref: '#/components/schemas/CompanyReservePlan' } } } }

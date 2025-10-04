@@ -78,7 +78,7 @@ export default function PortfolioConstruction() {
     setParams(prev => ({ ...prev, [key]: value }));
   };
 
-  // Calculate portfolio construction metrics using Tactyc methodology
+  // Calculate portfolio construction metrics using reserve-driven methodology
   const calculatePortfolio = (): PortfolioCalculations => {
     const fundSizeActual = params.fundSize * 1000; // Convert to actual dollars
     const managementFees = (fundSizeActual * params.managementFee / 100) * 10; // 10 year fund
@@ -117,7 +117,7 @@ export default function PortfolioConstruction() {
     const initialInvestmentCapital = numberOfDeals * initialCheckSizeActual;
     const followOnReserveCapital = numberOfDeals * totalFollowOnPerDeal;
     
-    // Verification: ensure all capital is deployed - core Tactyc principle
+    // Verification: ensure all capital is deployed - core portfolio construction principle
     const totalCapitalDeployed = initialInvestmentCapital + followOnReserveCapital;
     const capitalUtilization = (totalCapitalDeployed / totalInvestableCapital) * 100;
     const unusedCapital = totalInvestableCapital - totalCapitalDeployed;

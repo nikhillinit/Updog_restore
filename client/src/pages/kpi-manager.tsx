@@ -75,7 +75,7 @@ export default function KPIManager() {
   const [showKPIDefinition, setShowKPIDefinition] = useState(false);
   const [showRequestCreator, setShowRequestCreator] = useState(false);
   
-  // Sample data based on Tactyc screenshots
+  // Sample data for demonstration
   const companies = ["AlphaTech", "Amplio", "CatalystLabs", "Cybrosys Technologies", "DigitalWave"];
   
   const [_kpis] = useState<KPI[]>([
@@ -121,11 +121,11 @@ export default function KPIManager() {
   ]);
 
   const [contacts] = useState<Contact[]>([
-    { investment: "AlphaTech", contact: "anubhav+3@tactyc.io", status: "valid" },
-    { investment: "Amplio", contact: "anubhav+4@tactyc.io", status: "valid" },
-    { investment: "CatalystLabs", contact: "anubhav+5@tactyc.io", status: "valid" },
-    { investment: "Cybrosys Technologies", contact: "anubhav+6@tactyc.io", status: "valid" },
-    { investment: "DigitalWave", contact: "anubhav+7@tactyc.io", status: "valid" }
+    { investment: "AlphaTech", contact: "demo-alphatech@example.com", status: "valid" },
+    { investment: "Amplio", contact: "demo-amplio@example.com", status: "valid" },
+    { investment: "CatalystLabs", contact: "demo-catalystlabs@example.com", status: "valid" },
+    { investment: "Cybrosys Technologies", contact: "demo-cybrosys@example.com", status: "valid" },
+    { investment: "DigitalWave", contact: "demo-digitalwave@example.com", status: "valid" }
   ]);
 
   const sampleKPIData = {
@@ -309,7 +309,7 @@ export default function KPIManager() {
       </CardHeader>
       <CardContent className="space-y-6">
         <p className="text-sm text-gray-600">
-          Tactyc will now create a custom <strong>Request URL</strong>.
+          The system will now create a custom <strong>Request URL</strong>.
         </p>
         <p className="text-sm text-gray-600">
           Please send this request URLs to your contact at the portfolio company to request a KPI update.
@@ -708,7 +708,7 @@ export default function KPIManager() {
               <CardHeader>
                 <CardTitle>Valuation Analysis</CardTitle>
                 <p className="text-sm text-gray-600">
-                  Automated valuation multiple analysis. Tactyc will automatically compute valuation multiples on collected KPIs by matching up the KPI provided at each date with the valuation of the company as of that date.
+                  Automated valuation multiple analysis. The system will automatically compute valuation multiples on collected KPIs by matching up the KPI provided at each date with the valuation of the company as of that date.
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">

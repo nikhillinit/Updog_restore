@@ -50,7 +50,7 @@ interface ForecastStep {
 export default function AllocationModeling({ fundData }: AllocationModelingProps) {
   const [_activeStep, _setActiveStep] = useState(0);
 
-  // Sample allocation data based on Tactyc methodology
+  // Sample allocation data using portfolio construction methodology
   const allocations: Allocation[] = [
     {
       id: "seed",
@@ -185,7 +185,7 @@ export default function AllocationModeling({ fundData }: AllocationModelingProps
             <span>Fund Construction Methodology</span>
           </CardTitle>
           <CardDescription>
-            Portfolio construction based on Tactyc forecasting logic
+            Portfolio construction using reserve-driven forecasting logic
           </CardDescription>
         </CardHeader>
         <CardContent>

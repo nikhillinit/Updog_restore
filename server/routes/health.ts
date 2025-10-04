@@ -30,45 +30,8 @@ router['get']('/healthz', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// Readiness check (authenticated, detailed)
-router['get']('/readyz', (req: Request, res: Response) => {
-  // Check if we should expose detailed info
-  const healthKey = process.env['HEALTH_KEY'];
-  const authHeader = req.headers['x-health-key'] || req.headers.authorization;
-  const isAuthenticated = !healthKey || authHeader === healthKey || authHeader === `Bearer ${healthKey}`;
-  
-  // Basic readiness for unauthenticated requests
-  if (!isAuthenticated) {
-    const providers = req.app.locals.providers as any;
-    const isReady = providers?.cache !== undefined;
-    return res.status(isReady ? 200 : 503).json({ 
-      ready: isReady 
-    });
-  }
-  
-  // Detailed readiness for authenticated requests
-  const providers = req.app.locals.providers as any;
-  const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
-  const cache = req.app.locals.cache as any;
-  
-  const response = {
-    ready: true,
-    mode,
-    version: process.env.npm_package_version || '1.3.2',
-    checks: {
-      cache: cache ? 'ok' : 'unavailable',
-      providers: providers ? 'ok' : 'unavailable'
-    },
-    ts: new Date().toISOString()
-  };
-  
-  // If any critical component is down, mark as not ready
-  if (!cache || !providers) {
-    response.ready = false;
-  }
-  
-  res.status(response.ready ? 200 : 503).json(response);
-});
+// Note: Main /readyz handler is below (lines 147-197) with caching + state management
+// Keeping that as the single source of truth
 
 // Legacy health endpoints (for backward compatibility)
 router['get']('/health', (req: Request, res: Response) => {
@@ -255,16 +218,8 @@ router['get']('/health/inflight', (_req: any, res: any) => {
   });
 });
 
-// Metrics endpoint
-router['get']('/metrics', async (req: Request, res: Response) => {
-  try {
-    res['set']('Content-Type', metricsRegister.contentType);
-    const metrics = await metricsRegister.metrics();
-    res.send(metrics);
-  } catch (error) {
-    res.status(500).send('Error generating metrics');
-  }
-});
+// Metrics endpoint handled by server/routes/metrics-endpoint.ts (mounted separately)
+// Removed duplicate to avoid conflicts
 
 // Database health endpoint
 router['get']('/api/health/db', async (req: Request, res: Response) => {
