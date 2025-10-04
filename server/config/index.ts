@@ -8,7 +8,11 @@
  * Fail-fast on invalid configuration
  */
 
+import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
+
+// Load .env file and override any existing env vars (important for NODE_ENV)
+loadDotenv({ override: true });
 
 const envSchema = z.object({
   // Core environment
@@ -23,10 +27,12 @@ const envSchema = z.object({
   RATE_LIMIT_REDIS_URL: z.string().url().or(z.literal('memory://')).optional(),
   QUEUE_REDIS_URL: z.string().url().or(z.literal('memory://')).optional(),
   SESSION_REDIS_URL: z.string().url().or(z.literal('memory://')).optional(),
-  ENABLE_QUEUES: z.enum(['0','1']).default('0'),
+  ENABLE_QUEUES: z.enum(['0', '1']).default('0'),
 
   // Security & CORS
-  CORS_ORIGIN: z.string().default('http://localhost:5173,http://localhost:5174,http://localhost:5175'),
+  CORS_ORIGIN: z
+    .string()
+    .default('http://localhost:5173,http://localhost:5174,http://localhost:5175'),
   BODY_LIMIT: z.string().default('10mb'),
   SESSION_SECRET: z.string().min(32).optional(),
   JWT_SECRET: z.string().min(32).optional(),
@@ -76,118 +82,124 @@ export function loadEnv() {
     console.error('❌ Invalid configuration:', parsed.error.format());
     process.exit(1);
   }
-  
+
   const config = parsed.data;
 
-    // Additional validation for production
-    if (config.NODE_ENV === 'production') {
-      console.log('[config] Running production environment validation...');
+  console.log(
+    `[config] NODE_ENV detected: ${config.NODE_ENV} (from process.env: ${process.env.NODE_ENV})`
+  );
 
-      // Required configuration
-      const requiredInProduction = [
-        'DATABASE_URL',
-        'REDIS_URL',
-        'CORS_ORIGIN',
-        'SESSION_SECRET',
-        'HEALTH_KEY',
-        'METRICS_KEY'
-      ] as const;
+  // Additional validation for production
+  if (config.NODE_ENV === 'production') {
+    console.log('[config] Running production environment validation...');
 
-      const missing = requiredInProduction.filter(key =>
-        !process.env[key] || process.env[key]?.startsWith('mock')
-      );
+    // Required configuration
+    const requiredInProduction = [
+      'DATABASE_URL',
+      'REDIS_URL',
+      'CORS_ORIGIN',
+      'SESSION_SECRET',
+      'HEALTH_KEY',
+      'METRICS_KEY',
+    ] as const;
 
-      if (missing.length > 0) {
-        console.error(`❌ Missing required production configuration: ${missing.join(', ')}`);
-        throw new Error(`Missing required production configuration: ${missing.join(', ')}`);
+    const missing = requiredInProduction.filter(
+      (key) => !process.env[key] || process.env[key]?.startsWith('mock')
+    );
+
+    if (missing.length > 0) {
+      console.error(`❌ Missing required production configuration: ${missing.join(', ')}`);
+      throw new Error(`Missing required production configuration: ${missing.join(', ')}`);
+    }
+
+    // Validate Redis URL format in production
+    if (config.REDIS_URL === 'memory://') {
+      console.error('❌ Redis memory cache not allowed in production');
+      throw new Error('Redis memory cache not allowed in production');
+    }
+
+    // Validate secret strength
+    const secrets = {
+      SESSION_SECRET: config.SESSION_SECRET,
+      JWT_SECRET: config.JWT_SECRET,
+      HEALTH_KEY: config.HEALTH_KEY,
+      METRICS_KEY: config.METRICS_KEY,
+    };
+
+    for (const [key, value] of Object.entries(secrets)) {
+      if (value && value.length < 32) {
+        console.error(
+          `❌ ${key} must be at least 32 characters in production (current: ${value.length})`
+        );
+        throw new Error(`${key} must be at least 32 characters in production`);
       }
 
-      // Validate Redis URL format in production
-      if (config.REDIS_URL === 'memory://') {
-        console.error('❌ Redis memory cache not allowed in production');
-        throw new Error('Redis memory cache not allowed in production');
-      }
-
-      // Validate secret strength
-      const secrets = {
-        SESSION_SECRET: config.SESSION_SECRET,
-        JWT_SECRET: config.JWT_SECRET,
-        HEALTH_KEY: config.HEALTH_KEY,
-        METRICS_KEY: config.METRICS_KEY,
-      };
-
-      for (const [key, value] of Object.entries(secrets)) {
-        if (value && value.length < 32) {
-          console.error(`❌ ${key} must be at least 32 characters in production (current: ${value.length})`);
-          throw new Error(`${key} must be at least 32 characters in production`);
-        }
-
-        // Check for weak patterns
-        if (value && (
-          value === 'password' ||
+      // Check for weak patterns
+      if (
+        value &&
+        (value === 'password' ||
           value === 'secret' ||
           value === '12345' ||
           value.toLowerCase().includes('test') ||
-          value.toLowerCase().includes('dev')
-        )) {
-          console.error(`❌ ${key} contains weak pattern - use strong random value`);
-          throw new Error(`${key} contains weak pattern - use strong random value`);
-        }
+          value.toLowerCase().includes('dev'))
+      ) {
+        console.error(`❌ ${key} contains weak pattern - use strong random value`);
+        throw new Error(`${key} contains weak pattern - use strong random value`);
       }
-
-      // Validate database URL doesn't use default credentials
-      if (config.DATABASE_URL.includes('postgres:postgres') ||
-          config.DATABASE_URL.includes('user:password')) {
-        console.error('❌ Database URL contains default credentials');
-        throw new Error('Database URL contains default credentials - use secure credentials');
-      }
-
-      // Validate CORS origin is specific in production
-      if (config.CORS_ORIGIN.includes('localhost') ||
-          config.CORS_ORIGIN === '*') {
-        console.error('❌ CORS_ORIGIN must be specific production domains, not localhost or wildcard');
-        throw new Error('CORS_ORIGIN must be specific production domains');
-      }
-
-      console.log('✅ Production environment validation passed');
     }
 
-    // Staging validation
-    if (config.NODE_ENV === 'staging') {
-      console.log('[config] Running staging environment validation...');
+    // Validate database URL doesn't use default credentials
+    if (
+      config.DATABASE_URL.includes('postgres:postgres') ||
+      config.DATABASE_URL.includes('user:password')
+    ) {
+      console.error('❌ Database URL contains default credentials');
+      throw new Error('Database URL contains default credentials - use secure credentials');
+    }
 
-      const requiredInStaging = [
-        'DATABASE_URL',
-        'REDIS_URL',
-        'SESSION_SECRET',
-      ] as const;
-
-      const missing = requiredInStaging.filter(key =>
-        !process.env[key] || process.env[key]?.startsWith('mock')
+    // Validate CORS origin is specific in production
+    if (config.CORS_ORIGIN.includes('localhost') || config.CORS_ORIGIN === '*') {
+      console.error(
+        '❌ CORS_ORIGIN must be specific production domains, not localhost or wildcard'
       );
-
-      if (missing.length > 0) {
-        console.warn(`⚠️  Missing recommended staging configuration: ${missing.join(', ')}`);
-      }
-
-      console.log('✅ Staging environment validation passed');
+      throw new Error('CORS_ORIGIN must be specific production domains');
     }
-    
-    // Log configuration (redact sensitive values)
-    const logConfig = {
-      ...config,
-      DATABASE_URL: config.DATABASE_URL.replace(/\/\/[^@]+@/, '//***:***@'),
-      REDIS_URL: config.REDIS_URL.startsWith('redis://') ? 'redis://***' : config.REDIS_URL,
-      ERROR_TRACKING_DSN: config.ERROR_TRACKING_DSN ? '***' : undefined,
-      HEALTH_KEY: config.HEALTH_KEY ? '***' : undefined,
-    };
-    
-    console.log(`[config] Environment: ${config.NODE_ENV}`);
-    if (config.NODE_ENV === 'development') {
-      console.log('[config] Development configuration loaded:', logConfig);
+
+    console.log('✅ Production environment validation passed');
+  }
+
+  // Staging validation
+  if (config.NODE_ENV === 'staging') {
+    console.log('[config] Running staging environment validation...');
+
+    const requiredInStaging = ['DATABASE_URL', 'REDIS_URL', 'SESSION_SECRET'] as const;
+
+    const missing = requiredInStaging.filter(
+      (key) => !process.env[key] || process.env[key]?.startsWith('mock')
+    );
+
+    if (missing.length > 0) {
+      console.warn(`⚠️  Missing recommended staging configuration: ${missing.join(', ')}`);
     }
-    
-    return config;
+
+    console.log('✅ Staging environment validation passed');
+  }
+
+  // Log configuration (redact sensitive values)
+  const logConfig = {
+    ...config,
+    DATABASE_URL: config.DATABASE_URL.replace(/\/\/[^@]+@/, '//***:***@'),
+    REDIS_URL: config.REDIS_URL.startsWith('redis://') ? 'redis://***' : config.REDIS_URL,
+    ERROR_TRACKING_DSN: config.ERROR_TRACKING_DSN ? '***' : undefined,
+    HEALTH_KEY: config.HEALTH_KEY ? '***' : undefined,
+  };
+
+  console.log(`[config] Environment: ${config.NODE_ENV}`);
+  if (config.NODE_ENV === 'development') {
+    console.log('[config] Development configuration loaded:', logConfig);
+  }
+
+  return config;
 }
 
 export const config = loadEnv();
@@ -215,6 +227,6 @@ export function getDefaultLabels() {
   return {
     service: 'fund-platform-api',
     version: getVersion(),
-    environment: config.NODE_ENV
+    environment: config.NODE_ENV,
   };
 }
