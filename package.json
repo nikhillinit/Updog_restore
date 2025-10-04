@@ -109,6 +109,7 @@
     "test:unit:watch": "cross-env TZ=UTC vitest",
     "test:integration:watch": "cross-env TZ=UTC vitest -c vitest.config.int.ts",
     "test:e2e": "playwright test --project=core tests/e2e/fund-setup.spec.ts",
+    "test:e2e:wizard": "playwright test --project=core tests/e2e/fund-setup-workflow.spec.ts",
     "test:e2e:all": "playwright test",
     "ci:e2e": "playwright test --project=core tests/e2e/fund-setup.spec.ts",
     "test:memory": "cross-env REDIS_URL=memory:// npm run test:unit",

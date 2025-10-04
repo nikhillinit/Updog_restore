@@ -501,11 +501,20 @@ export default function CashflowManagementStep() {
 
       {/* Navigation */}
       <div className="flex justify-between pt-6">
-        <Button variant="outline" onClick={handlePrevious} className="border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium">
+        <Button
+          data-testid="previous-step"
+          variant="outline"
+          onClick={handlePrevious}
+          className="border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
+        >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Previous
         </Button>
-        <Button onClick={handleNext} className="bg-green-600 hover:bg-green-700 font-poppins font-medium">
+        <Button
+          data-testid="finish-setup"
+          onClick={handleNext}
+          className="bg-green-600 hover:bg-green-700 font-poppins font-medium"
+        >
           <Check className="h-4 w-4 mr-2" />
           Complete Setup
         </Button>

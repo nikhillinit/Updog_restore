@@ -523,6 +523,7 @@ export default function InvestmentRoundsStep() {
         {/* Navigation */}
         <div className="flex justify-between pt-6 border-t border-[#E0D8D1]">
           <Button
+            data-testid="previous-step"
             variant="outline"
             onClick={() => navigate('/fund-setup?step=1')}
             className="flex items-center gap-2 px-8 py-3 h-auto border-[#E0D8D1] hover:bg-[#E0D8D1]/20 hover:border-[#292929] font-poppins font-medium"
@@ -531,6 +532,7 @@ export default function InvestmentRoundsStep() {
             Previous
           </Button>
           <Button
+            data-testid="next-step"
             onClick={() => navigate('/fund-setup?step=3')}
             className="flex items-center gap-2 bg-[#292929] hover:bg-[#292929]/90 text-white px-8 py-3 h-auto font-poppins font-medium"
           >
