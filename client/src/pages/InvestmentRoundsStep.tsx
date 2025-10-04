@@ -165,9 +165,6 @@ export default function InvestmentRoundsStep() {
                   <TableHead className="text-xs text-white sticky top-0 z-10 bg-[#292929] min-w-[110px]">
                     Valuation ($M)
                   </TableHead>
-                  <TableHead className="text-xs text-white sticky top-0 z-10 bg-[#292929] min-w-[120px]">
-                    Post-Money ($M)
-                  </TableHead>
                   <TableHead className="text-xs text-white sticky top-0 z-10 bg-[#292929] min-w-[90px]">
                     ESOP (%)
                   </TableHead>
@@ -300,21 +297,6 @@ export default function InvestmentRoundsStep() {
                               "h-8 pl-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins",
                               hasRoundErrors && "border-red-300 focus:border-red-500"
                             )}
-                          />
-                        </div>
-                      </TableCell>
-
-                      {/* Post-Money (Read-only) */}
-                      <TableCell className="py-2">
-                        <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
-                            $
-                          </span>
-                          <Input
-                            type="number"
-                            value={round.postMoney.toFixed(1)}
-                            disabled
-                            className="h-8 pl-5 text-sm px-2 bg-gray-50 border border-gray-200 rounded text-gray-600 cursor-not-allowed font-poppins"
                           />
                         </div>
                       </TableCell>

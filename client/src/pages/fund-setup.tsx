@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, useSearch } from 'wouter';
 import FundBasicsStep from './FundBasicsStep';
 import InvestmentRoundsStep from './InvestmentRoundsStep';
 import CapitalStructureStep from './CapitalStructureStep';
@@ -80,58 +80,30 @@ const WIZARD_STEPS = [
 
 function useStepKey(): StepKey {
   const [loc] = useLocation();
-  
-  // Use window location for query params since wouter doesn't track them reliably
-  const [search, setSearch] = React.useState(window.location.search);
-  
-  // Listen for popstate events to update search params
-  React.useEffect(() => {
-    const handlePopState = () => {
-      setSearch(window.location.search);
-    };
-    
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-  
-  // Update search when location changes or manually check periodically in dev
-  React.useEffect(() => {
-    setSearch(window.location.search);
-    
-    // In dev, also poll for URL changes as a fallback
-    if (import.meta.env.DEV) {
-      const interval = setInterval(() => {
-        const currentSearch = window.location.search;
-        if (currentSearch !== search) {
-          console.log(`[useStepKey] Polling detected search change: '${search}' -> '${currentSearch}'`);
-          setSearch(currentSearch);
-        }
-      }, 100);
-      
-      return () => clearInterval(interval);
-    }
-  }, [loc, search]);
-  
+  const search = useSearch(); // Use wouter's useSearch hook for proper query param tracking
+
   // Debug: log every time this hook runs
   if (import.meta.env.DEV) {
-    console.log(`[useStepKey] Hook called, loc='${loc}', search='${search}', window.location='${window.location.pathname}${window.location.search}'`);
+    console.log(`[useStepKey] Hook called, loc='${loc}', search='${search}'`);
   }
-  
+
   return React.useMemo<StepKey>(() => {
-    const fullLocation = window.location.pathname + search;
+    // Add ? prefix since useSearch returns without it
+    const searchWithPrefix = search ? `?${search}` : '';
+    const fullLocation = loc + searchWithPrefix;
     const key = resolveStepKeyFromLocation(fullLocation);
-    
+
     // Debug logging
     if (import.meta.env.DEV) {
       const stepParam = new URLSearchParams(search)['get']('step');
       console.log(`[FundSetup Debug] fullLocation='${fullLocation}', stepParam='${stepParam}', resolved key='${key}'`);
     }
-    
+
     if (key === 'not-found' && import.meta.env.DEV) {
       const val = new URLSearchParams(search)['get']('step');
       console.warn(`[FundSetup] Invalid step '${val}', defaulting to not-found`);
     }
-    
+
     return key;
   }, [loc, search]);
 }

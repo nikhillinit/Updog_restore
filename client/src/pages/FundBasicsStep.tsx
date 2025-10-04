@@ -273,15 +273,7 @@ export default function FundBasicsStep() {
         {/* Navigation */}
         <div className="flex justify-end pt-8 border-t border-[#E0D8D1] mt-8">
           <Button
-            onClick={() => {
-              console.log('[FundBasics] Next button clicked, navigating to step 2');
-              console.log('[FundBasics] Current URL before navigate:', window.location.href);
-              navigate('/fund-setup?step=2');
-              // Check URL after a brief delay
-              setTimeout(() => {
-                console.log('[FundBasics] URL after navigate:', window.location.href);
-              }, 100);
-            }}
+            onClick={() => navigate('/fund-setup?step=2')}
             className="flex items-center gap-2 bg-[#292929] hover:bg-[#292929]/90 text-white px-8 py-3 h-auto font-poppins font-medium transition-all duration-200"
           >
             Next Step
