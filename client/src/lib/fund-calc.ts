@@ -1,271 +1,213 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
-/**
- * Generate random number from normal distribution using Box-Muller transform
- * @param mean mean of the distribution
- * @param stdDev standard deviation
- * @returns random number from normal distribution
- */
-const randomNormal = (mean = 0, stdDev = 1): number => {
-  let u = 0, v = 0;
-  while(u === 0) u = Math.random(); // Converting [0,1) to (0,1)
-  while(v === 0) v = Math.random();
-  return mean + stdDev * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-};
+import { Decimal, toDecimal, sum, safeDivide, roundRatio, roundPercent } from './decimal-utils';
+import { calculateIRRFromPeriods } from './xirr';
+import type { FundModelInputs, FundModelOutputs, PeriodResult } from '@shared/schemas/fund-model';
 
 /**
- * Calculate quantile from sorted array
- * @param sortedArray sorted array of numbers
- * @param quantile quantile to calculate (0-1)
- * @returns quantile value
+ * Fund Calculation Engine (Deterministic)
+ *
+ * This is the main entry point for the deterministic fund modeling engine.
+ * It processes fund inputs and returns period results, company ledger, and KPIs.
+ *
+ * Version: 1.0.0 (Stub for PR #2 - full implementation in subsequent PRs)
+ *
+ * Key Features:
+ * - Deterministic (no RNG) - same inputs always produce same outputs
+ * - Policy A: Immediate distribution (distributions = exitProceeds each period)
+ * - Upfront capital call (100% at period 0)
+ * - Management fees only (with horizon limit)
  */
-const quantile = (sortedArray: number[], quantile: number): number => {
-  const index = quantile * (sortedArray.length - 1);
-  const lower = Math.floor(index);
-  const upper = Math.ceil(index);
-  const weight = index % 1;
-  
-  if (upper >= sortedArray.length) return sortedArray[sortedArray.length - 1];
-  if (lower < 0) return sortedArray[0];
-  
-  return sortedArray[lower] * (1 - weight) + sortedArray[upper] * weight;
-};
 
 /**
- * quickMonteCarlo - Zero-config Monte Carlo simulation for fund metrics
- * @param baseCase   expected outcome (e.g. MOIC or IRR)
- * @param sigma      volatility (standard deviation, default 0.2 = 20%)
- * @param runs       number of simulations (default 1000)
- * @returns percentile analysis (p10, p50, p90)
+ * Run fund model calculation (deterministic, no RNG)
+ *
+ * NOTE: This is a STUB implementation for PR #2 to enable CSV export testing.
+ * Full implementation will be added in subsequent PRs.
+ *
+ * @param inputs - Validated fund model inputs (Zod schema enforces feasibility constraints)
+ * @returns Complete fund model outputs with period results, company ledger, and KPIs
  */
-export const quickMonteCarlo = (
-  baseCase: number,
-  sigma = 0.2,
-  runs = 1000
-): { p10: number; p50: number; p90: number } => {
-  if (runs > 10000) {
-    console.warn('Monte Carlo: Large run count may impact performance');
+export function runFundModel(inputs: FundModelInputs): FundModelOutputs {
+  // TODO: Full implementation in next PR
+  // For now, throw error to indicate stub status
+  throw new Error(
+    'Fund calculation engine not yet implemented. ' +
+    'This is a stub for PR #2 to enable CSV export route development. ' +
+    'Full deterministic engine will be implemented in PR #3.'
+  );
+}
+
+/**
+ * Calculate management fee for a given period
+ *
+ * Implements fees v1: management fees on committed capital with horizon limit.
+ * Fees stop after managementFeeYears (default 10).
+ *
+ * @param fundSize - Total committed capital
+ * @param periodLengthMonths - Length of each period (e.g., 3 for quarterly)
+ * @param managementFeeRate - Annual fee rate (e.g., 0.02 = 2%)
+ * @param managementFeeYears - Number of years to charge fees (default 10)
+ * @param periodIndex - Current period index (0-based)
+ * @returns Management fee amount for this period
+ *
+ * @example
+ * // Quarterly fees, 2% annual, 10-year horizon
+ * const fee = calculateManagementFee(100_000_000, 3, 0.02, 10, 0);
+ * // => 500,000 (0.5% per quarter)
+ */
+export function calculateManagementFee(
+  fundSize: number,
+  periodLengthMonths: number,
+  managementFeeRate: number,
+  managementFeeYears: number,
+  periodIndex: number
+): number {
+  // Calculate period as fraction of year
+  const periodsPerYear = 12 / periodLengthMonths;
+  const periodYears = periodIndex / periodsPerYear;
+
+  // Stop charging fees after managementFeeYears (horizon limit)
+  if (periodYears >= managementFeeYears) {
+    return 0;
   }
-  
-  const results = Array.from({ length: runs }, () => 
-    baseCase * (1 + randomNormal(0, sigma))
-  ).sort((a: any, b: any) => a - b);
-  
+
+  // Pro-rate annual fee to period
+  const periodFeeRate = managementFeeRate / periodsPerYear;
+  return toDecimal(fundSize).times(periodFeeRate).toNumber();
+}
+
+/**
+ * Calculate KPIs from period results
+ *
+ * Calculates TVPI, DPI, and IRR based on complete period results.
+ * Uses Decimal.js for precision and XIRR for IRR calculation.
+ *
+ * @param periodResults - Array of period results from fund model
+ * @returns KPIs object with TVPI, DPI, and annualized IRR
+ *
+ * @example
+ * const kpis = calculateKPIs(periodResults);
+ * // => { tvpi: 2.5432, dpi: 1.2345, irrAnnualized: 18.25 }
+ */
+export function calculateKPIs(periodResults: PeriodResult[]): {
+  tvpi: number;
+  dpi: number;
+  irrAnnualized: number;
+} {
+  // Calculate cumulative totals
+  const totalDistributions = sum(periodResults.map(p => p.distributions));
+  const totalContributions = sum(periodResults.map(p => p.contributions));
+
+  // Get final NAV
+  const finalNAV = toDecimal(periodResults[periodResults.length - 1]?.nav ?? 0);
+
+  // Calculate TVPI = (cumulative distributions + ending NAV) / cumulative contributions
+  const tvpi = safeDivide(totalDistributions.plus(finalNAV), totalContributions);
+
+  // Calculate DPI = cumulative distributions / cumulative contributions
+  const dpi = safeDivide(totalDistributions, totalContributions);
+
+  // Calculate IRR using XIRR
+  let irr = 0;
+  try {
+    irr = calculateIRRFromPeriods(periodResults);
+  } catch (err) {
+    // If IRR calculation fails (e.g., no cashflows), default to 0
+    console.warn('IRR calculation failed, defaulting to 0:', err);
+  }
+
   return {
-    p10: quantile(results, 0.1),
-    p50: quantile(results, 0.5),
-    p90: quantile(results, 0.9)
+    tvpi: roundRatio(tvpi),
+    dpi: roundRatio(dpi),
+    irrAnnualized: roundPercent(irr),
   };
-};
+}
 
 /**
- * Calculate Internal Rate of Return (IRR) for cash flows
- * @param cashFlows array of cash flows (negative for investments, positive for returns)
- * @returns IRR as decimal (e.g., 0.15 = 15%)
+ * Generate period dates based on fund start date and period length
+ *
+ * @param startDate - Fund start date (ISO 8601 string)
+ * @param periodLengthMonths - Length of each period in months
+ * @param numPeriods - Total number of periods to generate
+ * @returns Array of period start/end dates
+ *
+ * @example
+ * const dates = generatePeriodDates('2025-01-01', 3, 4);
+ * // => [
+ * //   { start: '2025-01-01T00:00:00.000Z', end: '2025-03-31T23:59:59.999Z' },
+ * //   { start: '2025-04-01T00:00:00.000Z', end: '2025-06-30T23:59:59.999Z' },
+ * //   ...
+ * // ]
  */
-export const calculateIRR = (cashFlows: number[]): number => {
-  if (cashFlows.length < 2) {
-    throw new Error('IRR requires at least 2 cash flows');
-  }
-  
-  // Simple Newton-Raphson method for IRR calculation
-  let rate = 0.1; // Initial guess: 10%
-  const tolerance = 1e-6;
-  const maxIterations = 100;
-  
-  for (let i = 0; i < maxIterations; i++) {
-    let npv = 0;
-    let npvDerivative = 0;
-    
-    for (let j = 0; j < cashFlows.length; j++) {
-      const factor = Math.pow(1 + rate, j);
-      npv += cashFlows[j] / factor;
-      npvDerivative -= (j * cashFlows[j]) / (factor * (1 + rate));
-    }
-    
-    if (Math.abs(npv) < tolerance) {
-      return rate;
-    }
-    
-    if (Math.abs(npvDerivative) < tolerance) {
-      break; // Avoid division by zero
-    }
-    
-    rate = rate - npv / npvDerivative;
-  }
-  
-  return rate;
-};
+export function generatePeriodDates(
+  startDate: string,
+  periodLengthMonths: number,
+  numPeriods: number
+): Array<{ start: string; end: string }> {
+  const dates: Array<{ start: string; end: string }> = [];
+  const baseDate = new Date(startDate);
 
-/**
- * Calculate Multiple of Invested Capital (MOIC)
- * @param invested total amount invested
- * @param returned total amount returned (including unrealized value)
- * @returns MOIC as multiple (e.g., 2.5 = 2.5x)
- */
-export const calculateMOIC = (invested: number, returned: number): number => {
-  if (invested <= 0) {
-    throw new Error('Invested amount must be positive');
-  }
-  return returned / invested;
-};
+  for (let i = 0; i < numPeriods; i++) {
+    // Calculate period start
+    const periodStart = new Date(baseDate);
+    periodStart.setMonth(baseDate.getMonth() + (i * periodLengthMonths));
+    periodStart.setHours(0, 0, 0, 0);
 
-/**
- * Scenario analysis helper
- * @param baseCase base case value
- * @param scenarios array of scenario adjustments (e.g., [0.8, 1.0, 1.2] for bear/base/bull)
- * @returns scenario values
- */
-export const scenarioAnalysis = (
-  baseCase: number,
-  scenarios: number[] = [0.7, 1.0, 1.3]
-): { bear: number; base: number; bull: number } => {
-  return {
-    bear: baseCase * scenarios[0],
-    base: baseCase * scenarios[1],
-    bull: baseCase * scenarios[2]
-  };
-};
+    // Calculate period end (last moment of last day of period)
+    const periodEnd = new Date(periodStart);
+    periodEnd.setMonth(periodEnd.getMonth() + periodLengthMonths);
+    periodEnd.setDate(0); // Last day of previous month
+    periodEnd.setHours(23, 59, 59, 999);
 
-/**
- * Generate time series data for charts
- * @param periods number of periods to generate
- * @param initialValue starting value
- * @param growthRate average growth rate per period
- * @param volatility volatility of growth
- * @param seed optional seed for deterministic results
- * @returns array of values over time
- */
-export const generateTimeSeries = (
-  periods: number,
-  initialValue: number,
-  growthRate: number,
-  volatility: number,
-  seed?: number
-): number[] => {
-  const values: number[] = [initialValue];
-  let currentValue = initialValue;
-  
-  // Use seed for deterministic random if provided
-  const random = seed ? (() => {
-    let x = seed;
-    return () => {
-      x = (x * 1103515245 + 12345) % 2147483648;
-      return x / 2147483648;
-    };
-  })() : Math.random;
-  
-  for (let i = 1; i < periods; i++) {
-    const randomGrowth = (random() - 0.5) * 2 * volatility;
-    const periodGrowth = growthRate + randomGrowth;
-    currentValue = currentValue * (1 + periodGrowth);
-    values.push(Math.max(0, currentValue));
-  }
-  
-  return values;
-};
-
-/**
- * Main simulation function - runs comprehensive fund analysis
- * This is the heavy computation that should run in a Worker
- * @param inputs simulation inputs
- * @param seed optional seed for deterministic results
- * @returns comprehensive simulation results
- */
-export const runSimulation = async (
-  inputs: any,
-  seed?: number
-): Promise<any> => {
-  // Simulate heavy computation
-  const runs = inputs?.monteCarloRuns || 1000;
-  const periods = inputs?.periods || 120; // 10 years monthly
-  
-  // Performance metrics
-  const startTime = performance.now();
-  
-  // Generate Monte Carlo scenarios for key metrics
-  const moicScenarios = quickMonteCarlo(
-    inputs?.baseMOIC || 2.5,
-    inputs?.moicVolatility || 0.3,
-    runs
-  );
-  
-  // Generate IRR scenarios
-  const irrBase = inputs?.baseIRR || 0.25;
-  const irrScenarios = quickMonteCarlo(
-    irrBase,
-    inputs?.irrVolatility || 0.2,
-    runs
-  );
-  
-  // Generate time series for charts
-  const tvpiSeries = generateTimeSeries(
-    periods,
-    inputs?.initialCapital || 100000000,
-    inputs?.growthRate || 0.015, // 1.5% monthly
-    inputs?.growthVolatility || 0.05,
-    seed
-  );
-  
-  const dpiSeries = generateTimeSeries(
-    periods,
-    0,
-    inputs?.distributionRate || 0.008,
-    inputs?.distributionVolatility || 0.1,
-    seed ? seed + 1 : undefined
-  );
-  
-  // Calculate exits by quarter
-  const exitsByQuarter = Array.from({ length: 40 }, (_: any, i: any) => ({
-    quarter: `Q${(i % 4) + 1} ${Math.floor(i / 4) + 2020}`,
-    exits: Math.floor(Math.random() * 5) + 1,
-    value: Math.random() * 50000000 + 10000000
-  }));
-  
-  // Key Performance Indicators
-  const kpi = {
-    tvpi: (tvpiSeries[tvpiSeries.length - 1] / (inputs?.initialCapital || 100000000)).toFixed(2),
-    irr: `${(irrScenarios.p50 * 100).toFixed(1)  }%`,
-    moic: `${moicScenarios.p50.toFixed(2)  }x`,
-    dpi: (dpiSeries.reduce((a: any, b: any) => a + b, 0) / (inputs?.initialCapital || 100000000)).toFixed(2)
-  };
-  
-  // Simulate some heavy nested computation
-  const portfolioAnalysis = [];
-  for (let i = 0; i < 100; i++) {
-    portfolioAnalysis.push({
-      companyId: `company-${i}`,
-      metrics: {
-        revenue: Math.random() * 100000000,
-        growth: Math.random(),
-        multiple: Math.random() * 10,
-        irr: calculateIRR([
-          -1000000,
-          ...Array.from({ length: 5 }, () => Math.random() * 500000)
-        ])
-      }
+    dates.push({
+      start: periodStart.toISOString(),
+      end: periodEnd.toISOString(),
     });
   }
-  
-  const duration = performance.now() - startTime;
-  
-  return {
-    kpi,
-    moicScenarios,
-    irrScenarios,
-    tvpiSeries,
-    dpiSeries,
-    exitsByQuarter,
-    portfolioAnalysis,
-    metadata: {
-      runs,
-      periods,
-      duration,
-      timestamp: new Date().toISOString()
-    }
-  };
-};
 
+  return dates;
+}
+
+/**
+ * Validate fund model inputs against feasibility constraints
+ *
+ * This is a runtime check in addition to Zod schema validation.
+ * Useful for providing detailed error messages to users.
+ *
+ * @param inputs - Fund model inputs to validate
+ * @returns Array of error messages (empty if valid)
+ */
+export function validateInputs(inputs: FundModelInputs): string[] {
+  const errors: string[] = [];
+
+  // Check: Stage allocations sum to 100%
+  const allocSum = inputs.stageAllocations.reduce((s, a) => s + a.allocationPct, 0);
+  if (Math.abs(allocSum - 1.0) > 1e-6) {
+    errors.push(`Stage allocations must sum to 100%. Current: ${(allocSum * 100).toFixed(2)}%`);
+  }
+
+  // Check: Check sizes <= stage allocations
+  inputs.stageAllocations.forEach(stage => {
+    const stageCapital = inputs.fundSize * stage.allocationPct;
+    const avgCheck = inputs.averageCheckSizes[stage.stage];
+    if (avgCheck && avgCheck > stageCapital) {
+      errors.push(
+        `Check size for ${stage.stage} ($${(avgCheck / 1e6).toFixed(2)}M) ` +
+        `exceeds stage allocation ($${(stageCapital / 1e6).toFixed(2)}M)`
+      );
+    }
+  });
+
+  // Check: Graduation time < Exit time
+  inputs.stageAllocations.forEach(stage => {
+    const gradTime = inputs.monthsToGraduate[stage.stage];
+    const exitTime = inputs.monthsToExit[stage.stage];
+    if (gradTime && exitTime && gradTime >= exitTime) {
+      errors.push(
+        `Graduation time for ${stage.stage} (${gradTime} months) ` +
+        `must be less than exit time (${exitTime} months)`
+      );
+    }
+  });
+
+  return errors;
+}
