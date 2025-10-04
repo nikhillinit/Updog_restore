@@ -6,6 +6,7 @@ import swaggerUi from 'swagger-ui-express';
 import { reservesV1Router } from './routes/v1/reserves.js';
 import { flagsRouter } from './routes/flags.js';
 import cashflowRouter from './routes/cashflow.js';
+import healthRouter from './routes/health.js';
 import { swaggerSpec } from './config/swagger.js';
 import { cspDirectives, buildCSPHeader, securityHeaders } from './config/csp.js';
 
@@ -101,6 +102,9 @@ export function makeApp() {
     res.send(swaggerSpec);
   });
 
+  // Health endpoints (must be before other routes for /healthz)
+  app.use(healthRouter);
+
   // Feature flags API
   app.use('/api/flags', flagsRouter);
 
@@ -108,11 +112,7 @@ export function makeApp() {
   app.use('/api/v1/reserves', reservesV1Router);
 
   // Cashflow management API
-  app.use('/api/cashflow', cashflowRouter);
-
-  // Health endpoints moved to routes/health.ts to avoid duplication
-  
-  // Readiness and health endpoints moved to routes/health.ts to avoid duplication
+  app.use('/api/cashflow', cashflowRouter)
 
   // API version endpoint for deployment verification
   app['get']('/api/version', (_req: Request, res: Response) => res.json({ 
