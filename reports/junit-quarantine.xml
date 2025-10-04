@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="19" failures="0" errors="0" time="0.221813543">
+    <testsuite name="tests/quarantine/fund-setup.smoke.quarantine.test.tsx" timestamp="2025-10-04T21:33:49.494Z" hostname="runnervmwhb2z" tests="5" failures="0" errors="0" skipped="5" time="0">
+        <testcase classname="tests/quarantine/fund-setup.smoke.quarantine.test.tsx" name="FundSetup (smoke) - QUARANTINED: See tests/e2e/fund-setup.spec.ts &gt; renders step 2 (investment-strategy) without churn errors" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="tests/quarantine/fund-setup.smoke.quarantine.test.tsx" name="FundSetup (smoke) - QUARANTINED: See tests/e2e/fund-setup.spec.ts &gt; renders step 3 (exit-recycling) without churn errors" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="tests/quarantine/fund-setup.smoke.quarantine.test.tsx" name="FundSetup (smoke) - QUARANTINED: See tests/e2e/fund-setup.spec.ts &gt; renders step 4 (waterfall) without churn errors" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="tests/quarantine/fund-setup.smoke.quarantine.test.tsx" name="FundSetup (smoke) - QUARANTINED: See tests/e2e/fund-setup.spec.ts &gt; shows not-found for invalid step and warns at most once in DEV" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="tests/quarantine/fund-setup.smoke.quarantine.test.tsx" name="FundSetup (smoke) - QUARANTINED: See tests/e2e/fund-setup.spec.ts &gt; no hydration or infinite loop errors across multiple renders" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/unit/inflight-capacity.quarantine.test.ts" timestamp="2025-10-04T21:33:49.496Z" hostname="runnervmwhb2z" tests="7" failures="0" errors="0" skipped="0" time="0.201327487">
+        <testcase classname="tests/unit/inflight-capacity.quarantine.test.ts" name="In-flight Capacity Management &gt; should track in-flight requests" time="0.075285912">
+            <system-out>
+[Telemetry] {
+  event: [32m&apos;fund_create_attempt&apos;[39m,
+  env: [32m&apos;test&apos;[39m,
+  app_version: [32m&apos;unknown&apos;[39m,
+  git_sha: [32m&apos;unknown&apos;[39m,
+  session_id: [32m&apos;sess_1759613628722_f4bipx4&apos;[39m,
+  timestamp: [32m&apos;2025-10-04T21:33:48.722Z&apos;[39m,
+  user_agent: [32m&apos;test-agent&apos;[39m,
+  viewport: { width: [90mundefined[39m, height: [90mundefined[39m },
+  properties: { hash: [32m&apos;e9b7d088&apos;[39m, model_version: [90mundefined[39m, env: [32m&apos;test&apos;[39m }
+}
+
+[Telemetry] {
+  event: [32m&apos;fund_create_success&apos;[39m,
+  env: [32m&apos;test&apos;[39m,
+  app_version: [32m&apos;unknown&apos;[39m,
+  git_sha: [32m&apos;unknown&apos;[39m,
+  session_id: [32m&apos;sess_1759613628727_f4bipx4&apos;[39m,
+  timestamp: [32m&apos;2025-10-04T21:33:48.727Z&apos;[39m,
+  user_agent: [32m&apos;test-agent&apos;[39m,
+  viewport: { width: [90mundefined[39m, height: [90mundefined[39m },
+  properties: {
+    status: [33m201[39m,
+    durationMs: [33m5[39m,
+    hash: [32m&apos;e9b7d088&apos;[39m,
+    idempotency_status: [32m&apos;created&apos;[39m,
+    model_version: [90mundefined[39m,
+    env: [32m&apos;test&apos;[39m
+  }
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/unit/inflight-capacity.quarantine.test.ts" name="In-flight Capacity Management &gt; should deduplicate concurrent identical requests" time="0.003297872">
+            <system-out>
+[Telemetry] {
+  event: [32m&apos;fund_create_attempt&apos;[39m,
+  env: [32m&apos;test&apos;[39m,
+  app_version: [32m&apos;unknown&apos;[39m,
+  git_sha: [32m&apos;unknown&apos;[39m,
+  session_id: [32m&apos;sess_1759613628791_f4bipx4&apos;[39m,
+  timestamp: [32m&apos;2025-10-04T21:33:48.791Z&apos;[39m,
+  user_agent: [32m&apos;test-agent&apos;[39m,
+  viewport: { width: [90mundefined[39m, height: [90mundefined[39m },
+  properties: { hash: [32m&apos;e9b7d088&apos;[39m, model_version: [90mundefined[39m, env: [32m&apos;test&apos;[39m }
+}
+
+[Telemetry] {
+  event: [32m&apos;fund_create_success&apos;[39m,
+  env: [32m&apos;test&apos;[39m,
+  app_version: [32m&apos;unknown&apos;[39m,
+  git_sha: [32m&apos;unknown&apos;[39m,
+  session_id: [32m&apos;sess_1759613628792_f4bipx4&apos;[39m,
+  timestamp: [32m&apos;2025-10-04T21:33:48.792Z&apos;[39m,
+  user_agent: [32m&apos;test-agent&apos;[39m,
+  viewport: { width: [90mundefined[39m, height: [90mundefined[39m },
+  properties: {
+    status: [33m201[39m,
+    durationMs: [33m1[39m,
+    hash: [32m&apos;e9b7d088&apos;[39m,
+    idempotency_status: [32m&apos;created&apos;[39m,
+    model_version: [90mundefined[39m,
+    env: [32m&apos;test&apos;[39m
+  }
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/unit/inflight-capacity.quarantine.test.ts" name="In-flight Capacity Management &gt; should allow different requests concurrently" time="0.009090448">
+            <system-out>
+[Telemetry] {
+  event: [32m&apos;fund_create_attempt&apos;[39m,
+  env: [32m&apos;test&apos;[39m,
+  app_version: [32m&apos;unknown&apos;[39m,
+  git_sha: [32m&apos;unknown&apos;[39m,
+  session_id: [32m&apos;sess_1704067200000_f4bipx4&apos;[39m,
+  timestamp: [32m&apos;2025-10-04T21:33:48.793Z&apos;[39m,
+  user_agent: [32m&apos;test-agent&apos;[39m,
+  viewport: { width: [90mundefined[39m, height: [90mundefined[39m },
+  properties: { hash: [32m&apos;f84a0e4d&apos;[39m, model_version: [90mundefined[39m, env: [32m&apos;test&apos;[39m }
+}
+[Telemetry] {
+  event: [32m&apos;fund_create_attempt&apos;[39m,
+  env: [32m&apos;test&apos;[39m,
+  app_version: [32m&apos;unknown&apos;[39m,
+  git_sha: [32m&apos;unknown&apos;[39m,
+  session_id: [32m&apos;sess_1704067200000_f4bipx4&apos;[39m,
+  timestamp: [32m&apos;2025-10-04T21:33:48.793Z&apos;[39m,
+  user_agent: [32m&apos;test-agent&apos;[39m,
+  viewport: { width: [90mundefined[39m, height: [90mundefined[39m },
+  properties: { hash: [32m&apos;18201191&apos;[39m, model_version: [90mundefined[39m, env: [32m&apos;test&apos;[39m }
+}
+
+[Telemetry] {
+  event: [32m&apos;fund_create_success&apos;[39m,
+  env: [32m&apos;test&apos;[39m,
+  app_version: [32m&apos;unknown&apos;[39m,
+  git_sha: [32m&apos;unknown&apos;[39m,
+  session_id: [32m&apos;sess_1704067200000_f4bipx4&apos;[39m,
+  timestamp: [32m&apos;2025-10-04T21:33:48.793Z&apos;[39m,
+  user_agent: [32m&apos;test-agent&apos;[39m,
+  viewport: { width: [90mundefined[39m, height: [90mundefined[39m },
+  properties: {
+    status: [33m201[39m,
+    durationMs: [33m0[39m,
+    hash: [32m&apos;f84a0e4d&apos;[39m,
+    idempotency_status: [32m&apos;created&apos;[39m,
+    model_version: [90mundefined[39m,
+    env: [32m&apos;test&apos;[39m
+  }
+}
+[Telemetry] {
+  event: [32m&apos;fund_create_success&apos;[39m,
+  env: [32m&apos;test&apos;[39m,
+  app_version: [32m&apos;unknown&apos;[39m,
+  git_sha: [32m&apos;unknown&apos;[39m,
+  session_id: [32m&apos;sess_1704067200000_f4bipx4&apos;[39m,
+  timestamp: [32m&apos;2025-10-04T21:33:48.793Z&apos;[39m,
+  user_agent: [32m&apos;test-agent&apos;[39m,
+  viewport: { width: [90mundefined[39m, height: [90mundefined[39m },
+  properties: {
+    status: [33m201[39m,
+    durationMs: [33m0[39m,
+    hash: [32m&apos;18201191&apos;[39m,
+    idempotency_status: [32m&apos;created&apos;[39m,
+    model_version: [90mundefined[39m,
+    env: [32m&apos;test&apos;[39m
+  }
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/unit/inflight-capacity.quarantine.test.ts" name="In-flight Capacity Management &gt; should throw when capacity is exceeded" time="0.001009857">
+        </testcase>
+        <testcase classname="tests/unit/inflight-capacity.quarantine.test.ts" name="In-flight Capacity Management &gt; should support manual cancellation" time="0.105502349">
+            <system-out>
+[Telemetry] {
+  event: [32m&apos;fund_create_attempt&apos;[39m,
+  env: [32m&apos;test&apos;[39m,
+  app_version: [32m&apos;unknown&apos;[39m,
+  git_sha: [32m&apos;unknown&apos;[39m,
+  session_id: [32m&apos;sess_1759613628804_f4bipx4&apos;[39m,
+  timestamp: [32m&apos;2025-10-04T21:33:48.804Z&apos;[39m,
+  user_agent: [32m&apos;test-agent&apos;[39m,
+  viewport: { width: [90mundefined[39m, height: [90mundefined[39m },
+  properties: { hash: [32m&apos;e9b7d088&apos;[39m, model_version: [90mundefined[39m, env: [32m&apos;test&apos;[39m }
+}
+
+[Telemetry] {
+  event: [32m&apos;fund_create_failure&apos;[39m,
+  env: [32m&apos;test&apos;[39m,
+  app_version: [32m&apos;unknown&apos;[39m,
+  git_sha: [32m&apos;unknown&apos;[39m,
+  session_id: [32m&apos;sess_1759613628806_f4bipx4&apos;[39m,
+  timestamp: [32m&apos;2025-10-04T21:33:48.806Z&apos;[39m,
+  user_agent: [32m&apos;test-agent&apos;[39m,
+  viewport: { width: [90mundefined[39m, height: [90mundefined[39m },
+  properties: {
+    aborted: [33mtrue[39m,
+    message: [32m&apos;The operation was aborted&apos;[39m,
+    durationMs: [33m2[39m,
+    hash: [32m&apos;e9b7d088&apos;[39m,
+    idempotency_status: [32m&apos;error&apos;[39m,
+    model_version: [90mundefined[39m,
+    env: [32m&apos;test&apos;[39m
+  }
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/unit/inflight-capacity.quarantine.test.ts" name="In-flight Capacity Management &gt; should not deduplicate when dedupe option is false" time="0.003074937">
+            <system-out>
+[Telemetry] {
+  event: [32m&apos;fund_create_attempt&apos;[39m,
+  env: [32m&apos;test&apos;[39m,
+  app_version: [32m&apos;unknown&apos;[39m,
+  git_sha: [32m&apos;unknown&apos;[39m,
+  session_id: [32m&apos;sess_1759613628909_f4bipx4&apos;[39m,
+  timestamp: [32m&apos;2025-10-04T21:33:48.909Z&apos;[39m,
+  user_agent: [32m&apos;test-agent&apos;[39m,
+  viewport: { width: [90mundefined[39m, height: [90mundefined[39m },
+  properties: { hash: [32m&apos;e9b7d088&apos;[39m, model_version: [90mundefined[39m, env: [32m&apos;test&apos;[39m }
+}
+[Telemetry] {
+  event: [32m&apos;fund_create_attempt&apos;[39m,
+  env: [32m&apos;test&apos;[39m,
+  app_version: [32m&apos;unknown&apos;[39m,
+  git_sha: [32m&apos;unknown&apos;[39m,
+  session_id: [32m&apos;sess_1759613628910_f4bipx4&apos;[39m,
+  timestamp: [32m&apos;2025-10-04T21:33:48.910Z&apos;[39m,
+  user_agent: [32m&apos;test-agent&apos;[39m,
+  viewport: { width: [90mundefined[39m, height: [90mundefined[39m },
+  properties: { hash: [32m&apos;e9b7d088&apos;[39m, model_version: [90mundefined[39m, env: [32m&apos;test&apos;[39m }
+}
+[Telemetry] {
+  event: [32m&apos;fund_create_success&apos;[39m,
+  env: [32m&apos;test&apos;[39m,
+  app_version: [32m&apos;unknown&apos;[39m,
+  git_sha: [32m&apos;unknown&apos;[39m,
+  session_id: [32m&apos;sess_1759613628910_f4bipx4&apos;[39m,
+  timestamp: [32m&apos;2025-10-04T21:33:48.910Z&apos;[39m,
+  user_agent: [32m&apos;test-agent&apos;[39m,
+  viewport: { width: [90mundefined[39m, height: [90mundefined[39m },
+  properties: {
+    status: [33m201[39m,
+    durationMs: [33m1[39m,
+    hash: [32m&apos;e9b7d088&apos;[39m,
+    idempotency_status: [32m&apos;created&apos;[39m,
+    model_version: [90mundefined[39m,
+    env: [32m&apos;test&apos;[39m
+  }
+}
+[Telemetry] {
+  event: [32m&apos;fund_create_success&apos;[39m,
+  env: [32m&apos;test&apos;[39m,
+  app_version: [32m&apos;unknown&apos;[39m,
+  git_sha: [32m&apos;unknown&apos;[39m,
+  session_id: [32m&apos;sess_1759613628911_f4bipx4&apos;[39m,
+  timestamp: [32m&apos;2025-10-04T21:33:48.911Z&apos;[39m,
+  user_agent: [32m&apos;test-agent&apos;[39m,
+  viewport: { width: [90mundefined[39m, height: [90mundefined[39m },
+  properties: {
+    status: [33m201[39m,
+    durationMs: [33m0[39m,
+    hash: [32m&apos;e9b7d088&apos;[39m,
+    idempotency_status: [32m&apos;created&apos;[39m,
+    model_version: [90mundefined[39m,
+    env: [32m&apos;test&apos;[39m
+  }
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/unit/inflight-capacity.quarantine.test.ts" name="In-flight Capacity Management &gt; should include environment namespace in hash" time="0.001620183">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/unit/inflight-simple.quarantine.test.ts" timestamp="2025-10-04T21:33:49.499Z" hostname="runnervmwhb2z" tests="7" failures="0" errors="0" skipped="0" time="0.020486056">
+        <testcase classname="tests/unit/inflight-simple.quarantine.test.ts" name="In-flight Request Tracking &gt; should track requests while in-flight" time="0.005145138">
+        </testcase>
+        <testcase classname="tests/unit/inflight-simple.quarantine.test.ts" name="In-flight Request Tracking &gt; should deduplicate identical requests" time="0.00116145">
+        </testcase>
+        <testcase classname="tests/unit/inflight-simple.quarantine.test.ts" name="In-flight Request Tracking &gt; should allow different requests concurrently" time="0.00138578">
+        </testcase>
+        <testcase classname="tests/unit/inflight-simple.quarantine.test.ts" name="In-flight Request Tracking &gt; should enforce capacity limit" time="0.00221061">
+        </testcase>
+        <testcase classname="tests/unit/inflight-simple.quarantine.test.ts" name="In-flight Request Tracking &gt; should support manual cancellation" time="0.003736032">
+        </testcase>
+        <testcase classname="tests/unit/inflight-simple.quarantine.test.ts" name="In-flight Request Tracking &gt; should compute consistent hashes" time="0.002082351">
+        </testcase>
+        <testcase classname="tests/unit/inflight-simple.quarantine.test.ts" name="In-flight Request Tracking &gt; should namespace hashes by environment" time="0.002441093">
+        </testcase>
+    </testsuite>
+</testsuites>

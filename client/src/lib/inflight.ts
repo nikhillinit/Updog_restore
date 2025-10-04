@@ -62,6 +62,13 @@ export function inFlightSize() {
   return totalInflight;
 }
 
+// For testing: clear all in-flight state
+export function clearAllInFlight() {
+  inflight.clear();
+  totalInflight = 0;
+  waiters.length = 0;
+}
+
 type StartOpts = {
   dedupe?: boolean;
   signal?: AbortSignal;

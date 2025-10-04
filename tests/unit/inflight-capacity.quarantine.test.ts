@@ -22,10 +22,16 @@ const {
   computeCreateFundHash 
 } = await import('../../client/src/services/funds');
 
+// Import cleanup function for tests
+const { clearAllInFlight } = await import('../../client/src/lib/inflight');
+
 describe('In-flight Capacity Management', () => {
   beforeEach(async () => {
     vi.clearAllTimers();
     vi.useFakeTimers();
+    
+    // Clear all in-flight state
+    clearAllInFlight();
     
     // Clear any existing in-flight requests by canceling all possible hashes
     // This is a brute force approach but works for tests
@@ -193,13 +199,24 @@ describe('In-flight Capacity Management', () => {
   });
 
   it('should support manual cancellation', async () => {
+    vi.useRealTimers(); // Use real timers for this test
     const payload = { name: 'Test Fund', size: 1000000 };
     const finalizedPayload = { ...payload, modelVersion: 'reserves-ev1' };
     const hash = computeCreateFundHash(finalizedPayload);
     
-    // Create a controlled deferred promise that won't resolve
-    const deferredRequest = deferred();
-    (global.fetch as any).mockReturnValue(deferredRequest.promise);
+    // Create a fetch mock that respects abort signals
+    (global.fetch as any).mockImplementation((url: string, options: any) => {
+      return new Promise((resolve, reject) => {
+        if (options.signal) {
+          options.signal.addEventListener('abort', () => {
+            const abortError = new Error('The operation was aborted');
+            abortError.name = 'AbortError';
+            reject(abortError);
+          });
+        }
+        // Never resolve - will be aborted
+      });
+    });
     
     // Start request 
     const promise = startCreateFund(payload);
@@ -222,9 +239,6 @@ describe('In-flight Capacity Management', () => {
     
     // Second cancel should return false
     expect(cancelCreateFund(hash)).toBe(false);
-    
-    // Clean up the deferred promise
-    deferredRequest.reject(new Error('Test cleanup'));
   });
 
   it('should not deduplicate when dedupe option is false', async () => {

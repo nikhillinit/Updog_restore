@@ -47,7 +47,7 @@ describe('In-flight Request Tracking', () => {
     const registry = new InflightRegistry();
     const hash = 'test-hash-123';
     
-    // Create a promise that resolves immediately
+    // Create a promise that resolves after being added to registry
     let resolvePromise: any;
     const promise = new Promise(resolve => {
       resolvePromise = resolve;
@@ -63,7 +63,8 @@ describe('In-flight Request Tracking', () => {
     
     // Wait for promise to complete and cleanup to happen
     await promise;
-    await new Promise(resolve => setTimeout(resolve, 10));
+    // Use setImmediate/queueMicrotask equivalent to ensure .finally() callback executes
+    await new Promise(resolve => queueMicrotask(() => resolve(undefined)));
     
     // Should no longer be in-flight
     expect(registry.isInFlight(hash)).toBe(false);
