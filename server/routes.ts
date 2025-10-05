@@ -52,6 +52,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const performanceRoutes = await import('./routes/performance-metrics.js');
   app.use('/api/performance', performanceRoutes.default);
 
+  // Unified Metrics Layer routes
+  const fundMetricsRoutes = await import('./routes/fund-metrics.js');
+  app.use(fundMetricsRoutes.default);
+
   // Middleware to record HTTP metrics
   app.use((req: Request, res: Response, next: (err?: any) => void) => {
     const startTime = Date.now();

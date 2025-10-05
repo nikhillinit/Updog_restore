@@ -1,0 +1,108 @@
+{
+  "dxt_version": "0.1",
+  "name": "Multi-AI Collaboration",
+  "version": "1.1.0",
+  "description": "Connect Claude to Gemini, GPT-4, and DeepSeek for multi-AI collaboration",
+  "long_description": "# Multi-AI Collaboration MCP\n\nEnables Claude Code to collaborate with multiple AI models for better problem-solving, code review, and decision-making.\n\n## Supported AI Models\n\n- **Google Gemini** - Technical deep-dive and precision\n- **OpenAI GPT-4** - Best practices and systematic approaches\n- **DeepSeek** - Specialized reasoning and code optimization\n- **Grok-3** (optional) - Creative problem-solving\n\n## Key Features\n\n- **Ask Multiple AIs**: Get perspectives from different AI models\n- **AI Debates**: Have AIs debate technical decisions\n- **Code Review**: Multiple AI opinions on code quality\n- **Collaborative Problem Solving**: Consensus-driven solutions\n- **Think Deep**: Advanced reasoning with specialized models\n\n## Use Cases\n\n- Multi-perspective code reviews\n- Architecture decision validation\n- Debugging complex issues\n- Technical consensus building\n- Creative brainstorming\n\n## Requirements\n\nAPI keys for one or more AI services:\n- Gemini (free): https://aistudio.google.com/apikey\n- OpenAI (paid): https://platform.openai.com/api-keys\n- DeepSeek (paid): https://platform.deepseek.com/\n- Grok (paid): https://console.x.ai/",
+  "author": {
+    "name": "RaiAnsar",
+    "email": "support@multi-ai-mcp.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RaiAnsar/claude_code-multi-AI-MCP"
+  },
+  "homepage": "https://github.com/RaiAnsar/claude_code-multi-AI-MCP",
+  "documentation": "https://github.com/RaiAnsar/claude_code-multi-AI-MCP#readme",
+  "server": {
+    "type": "python",
+    "entry_point": "server.py",
+    "mcp_config": {
+      "command": "C:\\Python313\\python.exe",
+      "args": [
+        "${__dirname}\\server.py"
+      ],
+      "env": {}
+    }
+  },
+  "tools": [
+    {
+      "name": "ask_gemini",
+      "description": "Ask Google Gemini for technical analysis, deep system understanding, and precise answers"
+    },
+    {
+      "name": "ask_openai",
+      "description": "Ask OpenAI GPT-4 for best practices, systematic approaches, and comprehensive analysis"
+    },
+    {
+      "name": "ask_deepseek",
+      "description": "Ask DeepSeek for specialized reasoning, mathematical problems, and code optimization"
+    },
+    {
+      "name": "ask_all_ais",
+      "description": "Ask all available AI models the same question and get multiple perspectives"
+    },
+    {
+      "name": "ai_debate",
+      "description": "Have two AI models debate a topic to explore different viewpoints"
+    },
+    {
+      "name": "gemini_code_review",
+      "description": "Get Gemini's technical code review with focus on accuracy and edge cases"
+    },
+    {
+      "name": "openai_code_review",
+      "description": "Get GPT-4's code review with focus on best practices and maintainability"
+    },
+    {
+      "name": "deepseek_code_review",
+      "description": "Get DeepSeek's code review with focus on optimization and algorithms"
+    },
+    {
+      "name": "think_deep",
+      "description": "Advanced reasoning using DeepSeek for complex logical problems"
+    },
+    {
+      "name": "brainstorm",
+      "description": "Creative brainstorming session with multiple AI perspectives"
+    },
+    {
+      "name": "debug",
+      "description": "Multi-AI debugging assistance for complex technical issues"
+    },
+    {
+      "name": "architecture",
+      "description": "Get architecture advice from multiple AI models"
+    },
+    {
+      "name": "collaborative_solve",
+      "description": "Have all AIs collaborate on solving a complex problem"
+    },
+    {
+      "name": "ai_consensus",
+      "description": "Get consensus opinion from all available AIs on a decision"
+    },
+    {
+      "name": "server_status",
+      "description": "Check which AI models are available and server health"
+    }
+  ],
+  "tools_generated": true,
+  "keywords": [
+    "multi-ai",
+    "gemini",
+    "gpt-4",
+    "deepseek",
+    "collaboration",
+    "code-review",
+    "ai"
+  ],
+  "license": "MIT",
+  "compatibility": {
+    "platforms": [
+      "win32",
+      "darwin",
+      "linux"
+    ]
+  }
+}
