@@ -1,14 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash($env:TZ='UTC')"
+      "Bash(npm ls:*)",
+      "Bash(npm run test:unit:*)",
+      "Bash(git grep:*)"
     ],
     "deny": [],
     "ask": [],
     "additionalDirectories": [
-      "C:\\mnt\\c\\dev",
-      "C:\\tmp",
-      "C:\\dev\\updog_components_wt"
+      "C:\\\\dev",
+      "C:\\\\tmp"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": false
 }
