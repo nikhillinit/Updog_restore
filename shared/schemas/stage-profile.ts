@@ -108,8 +108,13 @@ export const StageProfileSchema = z.object({
     // Ensure stages are ordered from early to late
     const stageOrder: StageType[] = ['pre_seed', 'seed', 'series_a', 'series_b', 'series_c', 'growth', 'late_stage'];
     for (let i = 1; i < data.stages.length; i++) {
-      const prevIdx = stageOrder.indexOf(data.stages[i - 1].stage);
-      const currIdx = stageOrder.indexOf(data.stages[i].stage);
+      const current = data.stages[i];
+      const previous = data.stages[i - 1];
+      if (!current || !previous) {
+        return false;
+      }
+      const prevIdx = stageOrder.indexOf(previous.stage);
+      const currIdx = stageOrder.indexOf(current.stage);
       if (currIdx <= prevIdx) {
         return false;
       }

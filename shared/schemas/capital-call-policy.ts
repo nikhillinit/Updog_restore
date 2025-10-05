@@ -124,7 +124,9 @@ const CustomPolicySchema = BaseCapitalCallPolicySchema.extend({
   (data) => {
     // Validate schedule is sorted by month
     for (let i = 1; i < data.schedule.length; i++) {
-      if (data.schedule[i].month <= data.schedule[i - 1].month) {
+      const current = data.schedule[i];
+      const previous = data.schedule[i - 1];
+      if (!current || !previous || current.month <= previous.month) {
         return false;
       }
     }
@@ -139,7 +141,7 @@ const CustomPolicySchema = BaseCapitalCallPolicySchema.extend({
 /**
  * Discriminated union of all capital call policies
  */
-export const CapitalCallPolicySchema = z.discriminatedUnion('mode', [
+export const CapitalCallPolicySchema = z.union([
   UpfrontPolicySchema,
   PeriodicPolicySchema,
   AsNeededPolicySchema,
@@ -159,33 +161,33 @@ export function calculateCapitalCall(
 ): Decimal {
   switch (policy.mode) {
     case 'upfront':
-      return currentMonth === 0 ? committedCapital.times(policy.percentage) : new Decimal(0);
+      return currentMonth === 0 ? committedCapital.times(policy['percentage']) : new Decimal(0);
 
     case 'quarterly': {
       if (currentMonth % 3 !== 0) return new Decimal(0);
       const currentYear = Math.floor(currentMonth / 12) + 1;
-      if (currentYear < policy.startYear || currentYear > policy.endYear) {
+      if (currentYear < policy['startYear'] || currentYear > policy['endYear']) {
         return new Decimal(0);
       }
-      return committedCapital.times(policy.percentagePerPeriod);
+      return committedCapital.times(policy['percentagePerPeriod']);
     }
 
     case 'semi_annual': {
       if (currentMonth % 6 !== 0) return new Decimal(0);
       const currentYear = Math.floor(currentMonth / 12) + 1;
-      if (currentYear < policy.startYear || currentYear > policy.endYear) {
+      if (currentYear < policy['startYear'] || currentYear > policy['endYear']) {
         return new Decimal(0);
       }
-      return committedCapital.times(policy.percentagePerPeriod);
+      return committedCapital.times(policy['percentagePerPeriod']);
     }
 
     case 'annual': {
       if (currentMonth % 12 !== 0) return new Decimal(0);
       const currentYear = Math.floor(currentMonth / 12) + 1;
-      if (currentYear < policy.startYear || currentYear > policy.endYear) {
+      if (currentYear < policy['startYear'] || currentYear > policy['endYear']) {
         return new Decimal(0);
       }
-      return committedCapital.times(policy.percentagePerPeriod);
+      return committedCapital.times(policy['percentagePerPeriod']);
     }
 
     case 'as_needed':
@@ -194,8 +196,11 @@ export function calculateCapitalCall(
       return new Decimal(0);
 
     case 'custom': {
-      const entry = policy.schedule.find(s => s.month === currentMonth);
+      const entry = policy['schedule'].find((s: { month: number }) => s.month === currentMonth);
       return entry ? committedCapital.times(entry.percentage) : new Decimal(0);
     }
+
+    default:
+      return new Decimal(0);
   }
 }

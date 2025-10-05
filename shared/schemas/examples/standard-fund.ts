@@ -228,6 +228,7 @@ export const microVCFund: Partial<ExtendedFundModelInputs> = {
     id: 'pre-seed-seed',
     name: 'Pre-Seed / Seed Focus',
     initialPortfolioSize: new Decimal('40'), // More companies, smaller checks
+    recyclingEnabled: false,
 
     stages: [
       {
@@ -272,6 +273,7 @@ export const growthFund: Partial<ExtendedFundModelInputs> = {
     id: 'growth-stage',
     name: 'Series B / C / Growth',
     initialPortfolioSize: new Decimal('15'), // Larger checks, fewer companies
+    recyclingEnabled: false,
 
     stages: [
       {

@@ -292,48 +292,49 @@ export function useModelingWizard(options: UseModelingWizardOptions = {}): UseMo
 
 /**
  * Example usage of the useModelingWizard hook
+ *
+ * @example
+ * ```tsx
+ * function ModelingWizardExample() {
+ *   const wizard = useModelingWizard({
+ *     skipOptionalSteps: false,
+ *     autoSaveInterval: 30000,
+ *     onComplete: (data) => {
+ *       console.log('Wizard completed!', data);
+ *     },
+ *     onError: (error) => {
+ *       console.error('Wizard error:', error);
+ *     }
+ *   });
+ *
+ *   return (
+ *     <div>
+ *       <h1>Modeling Wizard</h1>
+ *       <p>Current Step: {wizard.currentStep}</p>
+ *       <p>Progress: {wizard.progressPercentage.toFixed(0)}%</p>
+ *       <p>Is Dirty: {wizard.isDirty ? 'Yes' : 'No'}</p>
+ *
+ *       <div>
+ *         <button onClick={wizard.goBack} disabled={!wizard.canGoBack}>
+ *           Back
+ *         </button>
+ *         <button onClick={wizard.goNext} disabled={!wizard.canGoNext}>
+ *           Next
+ *         </button>
+ *       </div>
+ *
+ *       {wizard.isSubmitting && <p>Submitting...</p>}
+ *
+ *       {wizard.currentStep === 'generalInfo' && (
+ *         <div>
+ *           <h2>General Info Step</h2>
+ *         </div>
+ *       )}
+ *     </div>
+ *   );
+ * }
+ * ```
  */
-export function ModelingWizardExample() {
-  const wizard = useModelingWizard({
-    skipOptionalSteps: false,
-    autoSaveInterval: 30000,
-    onComplete: (data) => {
-      console.log('Wizard completed!', data);
-    },
-    onError: (error) => {
-      console.error('Wizard error:', error);
-    }
-  });
-
-  return (
-    <div>
-      <h1>Modeling Wizard</h1>
-      <p>Current Step: {wizard.currentStep}</p>
-      <p>Progress: {wizard.progressPercentage.toFixed(0)}%</p>
-      <p>Is Dirty: {wizard.isDirty ? 'Yes' : 'No'}</p>
-
-      <div>
-        <button onClick={wizard.goBack} disabled={!wizard.canGoBack}>
-          Back
-        </button>
-        <button onClick={wizard.goNext} disabled={!wizard.canGoNext}>
-          Next
-        </button>
-      </div>
-
-      {wizard.isSubmitting && <p>Submitting...</p>}
-
-      {wizard.currentStep === 'generalInfo' && (
-        <div>
-          <h2>General Info Step</h2>
-          {/* Step component here */}
-        </div>
-      )}
-
-      {/* More step rendering... */}
-    </div>
-  );
-}
 
 // ============================================================================
 // UTILITY HOOKS

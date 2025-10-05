@@ -385,12 +385,12 @@ export function isUnifiedFundMetrics(value: unknown): value is UnifiedFundMetric
   if (!value || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
   return (
-    typeof v.fundId === 'number' &&
-    typeof v.fundName === 'string' &&
-    typeof v.actual === 'object' &&
-    typeof v.projected === 'object' &&
-    typeof v.target === 'object' &&
-    typeof v.variance === 'object' &&
-    typeof v.lastUpdated === 'string'
+    typeof v['fundId'] === 'number' &&
+    typeof v['fundName'] === 'string' &&
+    typeof v['actual'] === 'object' &&
+    typeof v['projected'] === 'object' &&
+    typeof v['target'] === 'object' &&
+    typeof v['variance'] === 'object' &&
+    typeof v['lastUpdated'] === 'string'
   );
 }

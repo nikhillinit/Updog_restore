@@ -190,7 +190,7 @@ export function clamp(value: Decimal.Value, min: Decimal.Value, max: Decimal.Val
  * Sum an array of Decimal values
  */
 export function sum(values: Decimal.Value[]): Decimal {
-  return values.reduce((acc, v) => acc.plus(d(v)), d(0));
+  return values.reduce((acc: Decimal, v) => acc.plus(d(v)), d(0));
 }
 
 /**

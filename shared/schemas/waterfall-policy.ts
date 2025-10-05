@@ -77,9 +77,9 @@ export const ClawbackPolicySchema = z.object({
 export type ClawbackPolicy = z.infer<typeof ClawbackPolicySchema>;
 
 /**
- * Base waterfall policy
+ * Base waterfall policy (without validation)
  */
-const BaseWaterfallPolicySchema = z.object({
+const BaseWaterfallPolicySchemaCore = z.object({
   /** Policy identifier */
   id: z.string(),
 
@@ -103,45 +103,51 @@ const BaseWaterfallPolicySchema = z.object({
 
   /** Use cumulative calculations across all periods */
   cumulativeCalculations: z.boolean().default(true)
-}).refine(
-  (data) => {
-    // Validate tier priorities are unique
-    const priorities = data.tiers.map(t => t.priority);
-    const uniquePriorities = new Set(priorities);
-    return priorities.length === uniquePriorities.size;
-  },
-  {
-    message: 'Waterfall tier priorities must be unique',
-    path: ['tiers']
-  }
-);
+});
+
+const validateTierPriorities = (data: { tiers: Array<{ priority: number }> }) => {
+  // Validate tier priorities are unique
+  const priorities = data.tiers.map(t => t.priority);
+  const uniquePriorities = new Set(priorities);
+  return priorities.length === uniquePriorities.size;
+};
 
 /**
  * European waterfall (fund-level)
  * All capital returned and preferred return met before any carry
  */
-export const EuropeanWaterfallSchema = BaseWaterfallPolicySchema.extend({
+const EuropeanWaterfallSchemaCore = BaseWaterfallPolicySchemaCore.extend({
   type: z.literal('european')
 });
 
-export type EuropeanWaterfall = z.infer<typeof EuropeanWaterfallSchema>;
+export const EuropeanWaterfallSchema = EuropeanWaterfallSchemaCore.refine(validateTierPriorities, {
+  message: 'Waterfall tier priorities must be unique',
+  path: ['tiers']
+});
+
+export type EuropeanWaterfall = z.infer<typeof EuropeanWaterfallSchemaCore>;
 
 /**
  * American waterfall (deal-by-deal)
  * Carry distributed on individual exits
  */
-export const AmericanWaterfallSchema = BaseWaterfallPolicySchema.extend({
+const AmericanWaterfallSchemaCore = BaseWaterfallPolicySchemaCore.extend({
   type: z.literal('american')
 });
 
-export type AmericanWaterfall = z.infer<typeof AmericanWaterfallSchema>;
+export const AmericanWaterfallSchema = AmericanWaterfallSchemaCore.refine(validateTierPriorities, {
+  message: 'Waterfall tier priorities must be unique',
+  path: ['tiers']
+});
+
+export type AmericanWaterfall = z.infer<typeof AmericanWaterfallSchemaCore>;
 
 /**
  * Discriminated union of waterfall policies
  */
 export const WaterfallPolicySchema = z.discriminatedUnion('type', [
-  EuropeanWaterfallSchema,
-  AmericanWaterfallSchema
+  EuropeanWaterfallSchemaCore,
+  AmericanWaterfallSchemaCore
 ]);
 
 export type WaterfallPolicy = z.infer<typeof WaterfallPolicySchema>;

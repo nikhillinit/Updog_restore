@@ -115,12 +115,14 @@ export const FeeProfileSchema = z.object({
   (data) => {
     // Validate tiers are sorted by startYear
     for (let i = 1; i < data.tiers.length; i++) {
-      if (data.tiers[i].startYear <= data.tiers[i - 1].startYear) {
+      const current = data.tiers[i];
+      const previous = data.tiers[i - 1];
+      if (!current || !previous || current.startYear <= previous.startYear) {
         return false;
       }
       // Validate endYear > startYear if present
       const tier = data.tiers[i];
-      if (tier.endYear && tier.endYear <= tier.startYear) {
+      if (tier && tier.endYear && tier.endYear <= tier.startYear) {
         return false;
       }
     }

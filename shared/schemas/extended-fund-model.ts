@@ -123,7 +123,7 @@ export const ExtendedFundModelInputsSchema = BaseFundModelInputsSchema.extend({
 }).refine(
   (data) => {
     // Validate investment period <= fund term
-    if (data.investmentPeriodMonths) {
+    if (data.investmentPeriodMonths && typeof data.fundTermMonths === 'number') {
       return data.investmentPeriodMonths <= data.fundTermMonths;
     }
     return true;
@@ -135,10 +135,12 @@ export const ExtendedFundModelInputsSchema = BaseFundModelInputsSchema.extend({
 ).refine(
   (data) => {
     // Validate stage graduation/exit rates sum <= 100%
-    for (const stage of data.stageProfile.stages) {
-      const totalRate = stage.graduationRate.plus(stage.exitRate);
-      if (totalRate.gt(1)) {
-        return false;
+    if (data.stageProfile && typeof data.stageProfile === 'object' && 'stages' in data.stageProfile && Array.isArray(data.stageProfile.stages)) {
+      for (const stage of data.stageProfile.stages) {
+        const totalRate = stage.graduationRate.plus(stage.exitRate);
+        if (totalRate.gt(1)) {
+          return false;
+        }
       }
     }
     return true;
