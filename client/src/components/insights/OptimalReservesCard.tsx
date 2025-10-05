@@ -30,11 +30,11 @@ export function OptimalReservesCard() {
   const summary = state.reserveAnalysis.summary as ReserveSummary;
 
   const rows: ReserveRow[] = ranking.map((r) => ({
-    companyId: String(r.id ?? r.companyId ?? r.company ?? 'unknown'),
-    company: String(r.company ?? r.name ?? ''),
-    plannedReserve: toNumber(r.plannedReserves ?? r.plannedReserve),
-    expectedExitMOIC: toNumber(r.exitMoicOnPlanned ?? r.expectedExitMOIC),
-    rationale: r.rationale ? String(r.rationale) : undefined
+    companyId: String(r['id'] ?? r['companyId'] ?? r['company'] ?? 'unknown'),
+    company: String(r['company'] ?? r['name'] ?? ''),
+    plannedReserve: toNumber(r['plannedReserves'] ?? r['plannedReserve']),
+    expectedExitMOIC: toNumber(r['exitMoicOnPlanned'] ?? r['expectedExitMOIC']),
+    rationale: r['rationale'] ? String(r['rationale']) : undefined
   }));
 
   return (

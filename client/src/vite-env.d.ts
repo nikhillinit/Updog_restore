@@ -21,5 +21,6 @@ interface ImportMetaEnv {
   VITE_ENV: string;
   VITE_NEW_SELECTORS?: string;
   VITE_WIZARD_DEBUG?: string;
+  VITE_NEW_IA?: string;
   DEMO_MODE?: string;
 }
