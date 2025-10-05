@@ -37,17 +37,37 @@ const invalidateLimiter = rateLimit({
 });
 
 /**
+ * Rate limiter for metrics endpoint
+ * Lighter rate limit for regular requests: 60 requests per minute per IP
+ */
+const metricsLimiter = rateLimit({
+  windowMs: 60_000, // 1 minute
+  max: 60, // 60 requests per window
+  message: {
+    error: 'TOO_MANY_REQUESTS',
+    message: 'Too many metrics requests. Please try again later.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
  * GET /api/funds/:fundId/metrics
  *
  * Get unified metrics for a fund
  *
  * Query parameters:
- * - skipCache: boolean - Force recomputation (admin only)
+ * - skipCache: boolean - Force recomputation (requires auth)
  * - skipProjections: boolean - Skip expensive projections (for fast loading)
  *
  * Response: UnifiedFundMetrics
  */
-router.get('/api/funds/:fundId/metrics', async (req: Request, res: Response) => {
+router.get(
+  '/api/funds/:fundId/metrics',
+  requireAuth(),
+  requireFundAccess,
+  metricsLimiter,
+  async (req: Request, res: Response) => {
   try {
     // Parse and validate fund ID
     const fundIdParam = req.params.fundId;
@@ -63,6 +83,18 @@ router.get('/api/funds/:fundId/metrics', async (req: Request, res: Response) => 
     // Parse query options
     const skipCache = req.query.skipCache === 'true';
     const skipProjections = req.query.skipProjections === 'true';
+
+    // Log skipCache usage for operational visibility
+    if (skipCache) {
+      console.info(JSON.stringify({
+        event: 'metrics.skipCache',
+        user: (req as any).user?.id || 'unknown',
+        fundId,
+        ip: req.ip,
+        reason: req.query.reason || 'manual',
+        timestamp: new Date().toISOString(),
+      }));
+    }
 
     // Get unified metrics
     const metrics: UnifiedFundMetrics = await metricsAggregator.getUnifiedMetrics(fundId, {
@@ -105,7 +137,8 @@ router.get('/api/funds/:fundId/metrics', async (req: Request, res: Response) => 
       details: error instanceof Error ? error.message : 'Unknown error',
     });
   }
-});
+}
+);
 
 /**
  * POST /api/funds/:fundId/metrics/invalidate

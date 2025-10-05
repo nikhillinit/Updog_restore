@@ -89,7 +89,10 @@ export class MetricsAggregator {
       skipProjections?: boolean;
     } = {}
   ): Promise<UnifiedFundMetrics> {
-    const cacheKey = `fund:${fundId}:unified-metrics:v1`;
+    // Cache key versioning: v2 includes projection flag for better granularity
+    const SCHEMA_VERSION = 2;
+    const projectionFlag = options.skipProjections ? 'no-proj' : 'with-proj';
+    const cacheKey = `unified:v${SCHEMA_VERSION}:fund:${fundId}:${projectionFlag}`;
     const lockKey = `${cacheKey}:rebuilding`;
 
     // Check cache unless explicitly skipped
@@ -265,10 +268,15 @@ export class MetricsAggregator {
    * Invalidate cached metrics for a fund
    *
    * Call this when fund data changes (new investment, valuation update, etc.)
+   * Invalidates both projection variants to ensure consistency
    */
   async invalidateCache(fundId: number): Promise<void> {
-    const cacheKey = `fund:${fundId}:unified-metrics:v1`;
-    await this.cache.del(cacheKey);
+    const SCHEMA_VERSION = 2;
+    // Invalidate both cache variants (with-proj and no-proj)
+    await Promise.all([
+      this.cache.del(`unified:v${SCHEMA_VERSION}:fund:${fundId}:with-proj`),
+      this.cache.del(`unified:v${SCHEMA_VERSION}:fund:${fundId}:no-proj`),
+    ]);
   }
 
   /**
