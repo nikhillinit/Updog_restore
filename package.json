@@ -236,6 +236,8 @@
     ]
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.65.0",
+    "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^0.10.4",
@@ -322,6 +324,8 @@
     "nats": "2.16.0",
     "next-themes": "^0.4.6",
     "node-jose": "^2.2.0",
+    "openai": "^6.1.0",
+    "p-limit": "^7.1.1",
     "papaparse": "^5.5.3",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
@@ -424,6 +428,7 @@
     "eslint-plugin-unused-imports": "^4.2.0",
     "fast-check": "^4.2.0",
     "get-port": "^7.1.0",
+    "gitleaks": "^1.0.0",
     "glob": "^11.0.3",
     "globals": "^16.3.0",
     "husky": "^9.1.7",

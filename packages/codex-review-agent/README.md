@@ -76,9 +76,16 @@ const agent = new CodexReviewAgent({
 });
 ```
 
-## MCP Integration
+## In-Repo AI Orchestrator Integration
 
-The agent uses the MCP multi-AI server for code reviews. Currently uses placeholder static analysis - to enable full AI reviews, implement the `callMCPCodeReview` method in [CodexReviewAgent.ts](src/CodexReviewAgent.ts):
+The agent now uses the **in-repo AI orchestrator** instead of the external MCP server for code reviews. This provides:
+
+- ✅ **Zero supply-chain risk** - All code is version-controlled
+- ✅ **Budget controls** - Daily call limits and cost tracking
+- ✅ **Audit logging** - JSONL logs of all AI interactions
+- ✅ **Same AI models** - Claude, GPT, Gemini, DeepSeek
+
+The `callMCPCodeReview` method in [CodexReviewAgent.ts](src/CodexReviewAgent.ts) calls the in-repo orchestrator API:
 
 ```typescript
 private async callMCPCodeReview(
@@ -86,14 +93,23 @@ private async callMCPCodeReview(
   filePath: string,
   content: string
 ): Promise<ReviewIssue[]> {
-  // TODO: Replace with actual MCP server call
-  // const response = await mcpClient.call(
-  //   `mcp__multi-ai-collab__${provider}_code_review`,
-  //   { code: content, focus: 'general' }
-  // );
-  // return parseReviewResponse(response);
+  const response = await fetch('http://localhost:5000/api/ai/ask', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      prompt: `Review this code for security issues...`,
+      models: [provider],
+      tags: ['code-review', 'codex-agent'],
+    }),
+  });
+  // Parse and return structured issues
 }
 ```
+
+**Requirements:**
+- API server must be running on `http://localhost:5000`
+- AI API keys configured in `.env.local`
+- See [AI_ORCHESTRATOR_IMPLEMENTATION.md](../../AI_ORCHESTRATOR_IMPLEMENTATION.md) for setup
 
 ## Architecture
 
@@ -112,9 +128,11 @@ Built on the [BaseAgent](../agent-core/src/BaseAgent.ts) framework with:
 | **Timing** | PR review | Real-time (on save) |
 | **Feedback Loop** | Hours | Seconds |
 | **Context** | Full PR diff | Single file |
-| **AI Providers** | 1 (ChatGPT) | 3 (Gemini, OpenAI, DeepSeek) |
+| **AI Providers** | 1 (ChatGPT) | 4 (Claude, GPT, Gemini, DeepSeek) |
 | **Consensus** | No | Yes |
 | **Local** | No | Yes |
+| **Supply Chain** | External (GitHub) | In-repo (auditable) |
+| **Budget Control** | No | Yes (daily limits) |
 
 ## Development
 
