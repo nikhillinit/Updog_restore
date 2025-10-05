@@ -51,14 +51,14 @@ export class ReserveEngineError extends Error {
 }
 
 export class ValidationError extends ReserveEngineError {
-  constructor(public readonly response: ValidationErrorResponse) {
+  constructor(public override readonly response: ValidationErrorResponse) {
     super('Validation failed', response);
     this.name = 'ValidationError';
   }
 }
 
 export class RateLimitError extends ReserveEngineError {
-  constructor(public readonly response: RateLimitResponse) {
+  constructor(public override readonly response: RateLimitResponse) {
     super(`Rate limit exceeded. Retry after ${response.retryAfter}s`, response);
     this.name = 'RateLimitError';
   }
