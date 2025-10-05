@@ -246,8 +246,14 @@ export default defineConfig(({ mode }) => {
     }), 
     // Conditional React/Preact plugin
     usePreact ? preact({ devtoolsInProd: false }) : react(),
-    // Vite's default chunking is sufficient - manual chunking removed to prevent TDZ issues
-    visualizer({ filename: "stats.html", gzipSize: true })
+    // Bundle visualization with detailed size metrics
+    visualizer({
+      filename: 'dist/stats.html',
+      template: 'treemap',
+      gzipSize: true,
+      brotliSize: true,
+      open: false
+    })
   ].filter(Boolean) as Plugin[],
   esbuild: {
     legalComments: 'none', // Remove all legal comments
