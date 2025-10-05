@@ -23,7 +23,7 @@ import { requireAuth } from '../lib/auth/jwt.js';
 // Import the reserve engine (would be a server-side implementation)
 // For now, we'll create a mock that delegates to the client-side engine
 interface ReserveEngineInterface {
-  calculateOptimalReserveAllocation(_input: ReserveAllocationInput): Promise<ReserveCalculationResult>;
+  calculateOptimalReserveAllocation(_input: ReserveAllocationInput, _pagination?: { limit: number; offset: number }): Promise<ReserveCalculationResult>;
 }
 
 // Rate limiting configuration
@@ -51,10 +51,19 @@ const heavyCalculationLimiter = rateLimit({
 const ReserveCalculationRequestSchema = z.object({
   body: ReserveAllocationInputSchema,
   query: z.object({
-    async: z.boolean().optional(),
-    cache: z.boolean().optional(),
-    priority: z.enum(['low', 'normal', 'high']).optional(),
-  }).optional(),
+    /** Accept "true"/"false" strings or boolean values */
+    async: z.coerce.boolean().optional(),
+    /** Accept "true"/"false" strings or boolean values */
+    cache: z.coerce.boolean().optional(),
+    /** Priority level - accepts case variations and converts to lowercase */
+    priority: z.string().optional().transform(val =>
+      val ? val.toLowerCase() as 'low' | 'normal' | 'high' : undefined
+    ),
+    /** Maximum number of allocations to return (1-500, default 100) */
+    limit: z.coerce.number().int().min(1).max(500).default(100),
+    /** Number of allocations to skip (default 0) */
+    offset: z.coerce.number().int().min(0).default(0),
+  }).optional(), // Unknown params are ignored by default (not validated but passthrough)
 });
 
 const ParityValidationRequestSchema = z.object({
@@ -119,11 +128,16 @@ const ParityValidationRequestSchema = z.object({
 
 // Mock reserve engine implementation
 class ServerReserveEngine implements ReserveEngineInterface {
-  async calculateOptimalReserveAllocation(input: ReserveAllocationInput): Promise<ReserveCalculationResult> {
+  async calculateOptimalReserveAllocation(input: ReserveAllocationInput, pagination?: { limit: number; offset: number }): Promise<ReserveCalculationResult> {
     // In a real implementation, this would contain the server-side logic
     // For now, we'll simulate the calculation with a delay
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
+    // Apply pagination to portfolio (default: all companies)
+    const limit = pagination?.limit ?? input.portfolio.length;
+    const offset = pagination?.offset ?? 0;
+    const paginatedPortfolio = input.portfolio.slice(offset, offset + limit);
+
     // Mock result - in production this would be the actual calculation
     const mockResult: ReserveCalculationResult = {
       inputSummary: {
@@ -132,7 +146,7 @@ class ServerReserveEngine implements ReserveEngineInterface {
         totalAllocated: Math.min(input.availableReserves * 0.8, 5000000),
         allocationEfficiency: 0.8,
       },
-      allocations: input.portfolio.slice(0, 3).map((company: any, index: any) => ({
+      allocations: paginatedPortfolio.map((company: any, index: any) => ({
         companyId: company.id,
         companyName: company.name,
         recommendedAllocation: Math.min(input.availableReserves * 0.3, 2000000) / (index + 1),
@@ -306,8 +320,9 @@ router.post('/calculate',
         options,
       });
 
-      // Perform calculation
-      const result = await reserveEngine.calculateOptimalReserveAllocation(input);
+      // Perform calculation with pagination
+      const pagination = options ? { limit: options.limit ?? 100, offset: options.offset ?? 0 } : undefined;
+      const result = await reserveEngine.calculateOptimalReserveAllocation(input, pagination);
 
       // Track performance
       const duration = Date.now() - startTime;
@@ -604,8 +619,10 @@ router.post('/calculate-protected',
         signatures: req.approval.signatures.length,
       });
 
-      // Perform calculation with approval verified
-      const result = await reserveEngine.calculateOptimalReserveAllocation(input);
+      // Perform calculation with approval verified and pagination
+      const { query: options } = validatedRequest;
+      const pagination = options ? { limit: options.limit ?? 100, offset: options.offset ?? 0 } : undefined;
+      const result = await reserveEngine.calculateOptimalReserveAllocation(input, pagination);
 
       const duration = Date.now() - startTime;
 

@@ -261,7 +261,6 @@ export const DistributionWaterfallSchema = z.object({
   // LP distribution
   lpDistribution: z.object({
     returnOfCapital: z.number().nonnegative(),
-    preferredReturn: z.number().nonnegative(),
     profit: z.number().nonnegative(),
     total: z.number().nonnegative(),
   }),
@@ -284,8 +283,7 @@ export const DistributionWaterfallSchema = z.object({
 
   // Calculation metadata
   calculatedAt: z.date().default(() => new Date()),
-  waterfallType: z.enum(['EUROPEAN', 'AMERICAN']),
-  hurdleRate: z.number().min(0).max(1),
+  waterfallType: z.enum(['AMERICAN']),
   carryRate: z.number().min(0).max(1),
 });
 

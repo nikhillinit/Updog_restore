@@ -314,9 +314,6 @@ export default defineConfig(({ mode }) => {
           objectShorthand: true,
         },
         minifyInternalExports: true,
-        // REMOVED: All manual chunking to prevent TDZ "Cannot access X before initialization" errors
-        // Let Vite's default chunking handle vendor splitting safely
-        // Manual chunking can reorder module initialization and break ESM guarantees
         manualChunks: undefined,
       }
     }

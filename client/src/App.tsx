@@ -5,6 +5,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FundProvider, useFundContext } from "@/contexts/FundContext";
+import { FeatureFlagProvider } from "@/providers/FeatureFlagProvider";
+import { StagingRibbon } from "@/components/StagingRibbon";
 import { ErrorBoundary } from "./components/ui/error-boundary";
 import './styles/demo-animations.css';
 
@@ -254,15 +256,18 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <FundProvider>
-          <TooltipProvider>
-            <DemoBanner />
-            <Toaster />
-            <AppLayout>
-              <Router />
-            </AppLayout>
-          </TooltipProvider>
-        </FundProvider>
+        <FeatureFlagProvider>
+          <StagingRibbon />
+          <FundProvider>
+            <TooltipProvider>
+              <DemoBanner />
+              <Toaster />
+              <AppLayout>
+                <Router />
+              </AppLayout>
+            </TooltipProvider>
+          </FundProvider>
+        </FeatureFlagProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

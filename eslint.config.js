@@ -7,9 +7,14 @@ import unusedImports from 'eslint-plugin-unused-imports';
 // import securityConfig from './eslint.security.config.js'; // TODO: Re-enable after fixing flat config compatibility
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 
+const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Import custom rules
+const noHardcodedFundMetrics = require('./eslint-rules/no-hardcoded-fund-metrics.js');
 
 // Boundary enforcement rules for server/client/shared separation
 const boundaryRules = {
@@ -105,11 +110,16 @@ export default [
         global: "readonly"
       }
     },
-    plugins: { 
-      "@typescript-eslint": ts, 
-      "react": react, 
+    plugins: {
+      "@typescript-eslint": ts,
+      "react": react,
       "react-hooks": reactHooks,
-      "unused-imports": unusedImports 
+      "unused-imports": unusedImports,
+      "custom": {
+        rules: {
+          "no-hardcoded-fund-metrics": noHardcodedFundMetrics
+        }
+      }
     },
     rules: {
       // Type safety rules - ERROR to prevent new 'any' types
@@ -134,6 +144,9 @@ export default [
         }
       ],
       
+      // Custom rules - Unified Metrics Layer enforcement
+      "custom/no-hardcoded-fund-metrics": "error",
+
       // Existing rules
       "no-console": "off",
       "react-hooks/rules-of-hooks": "error",

@@ -123,7 +123,6 @@ export const FundLedgerSchema = z.object({
   })).optional(),
 
   // Carry structure
-  preferredReturnRate: z.number().nonnegative(),
   carryRate: z.number().nonnegative(),
   waterfallType: WaterfallTypeSchema,
   catchupProvision: z.number().min(0).max(100).optional(), // e.g., 100 = 100% GP catch-up
@@ -173,7 +172,6 @@ export interface KPISelectors {
   calculateWaterfall(
     totalDistributions: number,
     paidInCapital: number,
-    preferredReturnRate: number,
     carryRate: number,
     waterfallType: 'american' | 'european',
     catchupPercent?: number

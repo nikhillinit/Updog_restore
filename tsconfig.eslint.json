@@ -4,12 +4,13 @@
     "noEmit": true 
   },
   "include": [
-    "client/src/**/*", 
-    "server/**/*", 
+    "client/src/**/*",
+    "server/**/*",
     "shared/**/*",
     "tests/**/*",
     "scripts/**/*.ts",
-    "scripts/**/*.mjs"
+    "scripts/**/*.mjs",
+    "packages/**/*.ts"
   ],
   "exclude": [
     "dist", 

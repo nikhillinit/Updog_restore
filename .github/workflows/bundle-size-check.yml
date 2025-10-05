@@ -1,0 +1,124 @@
+name: Bundle Size Check
+
+on:
+  pull_request:
+    branches: [main, feat/iteration-a-deterministic-engine]
+    paths:
+      - 'client/**'
+      - 'shared/**'
+      - 'vite.config.ts'
+      - 'package.json'
+      - '.size-limit.json'
+
+jobs:
+  build-base:
+    name: Build Base Branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm run build
+        env:
+          NODE_ENV: production
+          BUILD_WITH_PREACT: '1'
+
+      - run: npm run size-limit:json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: base-size-results
+          path: size-limit-report.json
+
+  build-pr:
+    name: Build PR Branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm run build
+        env:
+          NODE_ENV: production
+          BUILD_WITH_PREACT: '1'
+
+      - run: npm run size-limit:json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pr-size-results
+          path: size-limit-report.json
+
+  compare:
+    name: Compare Bundle Sizes
+    needs: [build-base, build-pr]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: base-size-results
+          path: base-results
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: pr-size-results
+          path: pr-results
+
+      - name: Compare sizes
+        run: |
+          mv base-results/size-limit-report.json size-limit-base.json
+          mv pr-results/size-limit-report.json size-limit-current.json
+          node scripts/compare-bundle-size.js
+
+      - name: Comment PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const diff = JSON.parse(fs.readFileSync('bundle-size-diff.json', 'utf8'));
+
+            let comment = '## 📦 Bundle Size Report\n\n';
+            comment += '| Bundle | Current | Base | Diff | Status |\n';
+            comment += '|--------|---------|------|------|--------|\n';
+
+            for (const item of diff) {
+              const status = item.deltaBytes > 0 ? '🔴 +' : '🟢 ';
+              comment += `| ${item.name} | ${item.current} | ${item.base} | ${status}${item.diff} | ${item.withinLimit ? '✅' : '❌'} |\n`;
+            }
+
+            comment += '\n' + (diff.some(d => !d.withinLimit)
+              ? '❌ **Some bundles exceed limits!**'
+              : '✅ All bundles within limits');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.name,
+              body: comment
+            });
+
+      - name: Fail if limits exceeded
+        run: |
+          if [ -f bundle-size-diff.json ]; then
+            if grep -q '"exceedsLimit":true' bundle-size-diff.json; then
+              echo "❌ Bundle size limits exceeded!"
+              exit 1
+            fi
+          fi

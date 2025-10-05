@@ -77,19 +77,7 @@ export const fundSchema = CompleteFundSetupSchema
       path: ["exitRecycling", "recyclePercentage"],
     }
   )
-  .refine(
-    (data: any) => {
-      // Validation Rule: Waterfall hurdle and catch-up logical relationship (only for EUROPEAN)
-      if (data.waterfall.type === 'EUROPEAN') {
-        return data.waterfall.catchUp >= data.waterfall.hurdle;
-      }
-      return true;
-    },
-    {
-      message: "Catch-up rate must be greater than or equal to hurdle rate",
-      path: ["waterfall", "catchUp"],
-    }
-  )
+  
   .refine(
     (data: any) => {
       // Validation Rule: Fund life is required for closed-end funds
@@ -162,19 +150,7 @@ export const exitRecyclingSchema = ExitRecyclingSchema.refine(
   }
 );
 
-export const waterfallSchema = WaterfallSchema.refine(
-  (data: any) => {
-    // Only validate hurdle/catch-up for EUROPEAN waterfall
-    if (data.type === 'EUROPEAN') {
-      return data.catchUp >= data.hurdle;
-    }
-    return true;
-  },
-  {
-    message: "Catch-up rate must be greater than or equal to hurdle rate",
-    path: ["catchUp"],
-  }
-);
+export const waterfallSchema = WaterfallSchema;
 
 // Type exports
 export type FundSchema = z.infer<typeof fundSchema>;
