@@ -98,6 +98,18 @@ stats.html
 # package-lock.json
 # yarn.lock
 
+# Deployment artifacts (prevent future sprawl)
+*_DEPLOYMENT*.md
+*_STATUS*.md
+*_ASSESSMENT*.md
+CI_FAILURES*.md
+PR_CREATED*.md
+
+# Local development configs
+.mcp.json
+*.local.json
+.claude/settings.local.json
+
 # TypeScript cache files
 .tscache
 
