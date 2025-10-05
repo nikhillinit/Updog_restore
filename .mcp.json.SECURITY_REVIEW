@@ -1,0 +1,64 @@
+# MCP Server Security Review
+
+## ⚠️ SECURITY CONCERNS - .mcp.json
+
+### Issue
+The `.mcp.json` configuration auto-registers the `multi-ai-collab` MCP server from:
+```
+%AppData%\Claude\Claude Extensions\multi-ai-collab
+```
+
+### Risk Assessment: **HIGH**
+
+This creates a **supply chain security vulnerability** because:
+
+1. **Code Outside Repository**: The server code lives outside this repo and cannot be audited here
+2. **Auto-Registration**: Code runs automatically without explicit verification
+3. **Trust-on-First-Use (TOFU)**: No cryptographic verification of server identity or integrity
+4. **Privilege Escalation**: MCP servers run with user permissions and can execute arbitrary commands
+
+### Attack Vectors
+
+1. **Malicious Server**: Attacker tricks user into installing malicious MCP server
+2. **Compromised Update**: Legitimate server's update mechanism is compromised
+3. **Vulnerable Code**: Server contains exploitable vulnerabilities
+
+### Mitigation Strategy
+
+#### Immediate Actions
+1. ✅ Disabled `enableAllProjectMcpServers` in `.claude/settings.local.json`
+2. ✅ Created this security review document
+3. **TODO**: Audit the multi-ai-collab server code at the source location
+4. **TODO**: Verify provenance (official source, developer identity, code signing)
+
+#### Before Re-enabling
+- [ ] Review server source code for security issues
+- [ ] Verify server is from trusted source
+- [ ] Check for active maintenance and security updates
+- [ ] Document server capabilities and permissions required
+- [ ] Test in isolated environment first
+
+#### Long-term Recommendations
+1. **Code Signing**: Only allow digitally signed MCP servers
+2. **Explicit Approval**: Require user consent before any MCP server loads
+3. **Sandboxing**: Run MCP servers in restricted environments
+4. **Integrity Checks**: Verify SHA-256 hashes of server binaries
+5. **Audit Trail**: Log all MCP server registrations and tool calls
+
+### Server Vetting Checklist
+
+Before enabling any MCP server:
+
+- [ ] **Source Code Available**: Can you review the code?
+- [ ] **Trusted Developer**: Is it from a known, reputable source?
+- [ ] **Active Maintenance**: Recent commits, security updates?
+- [ ] **Dependency Scan**: No known CVEs in dependencies?
+- [ ] **Minimal Permissions**: Only requests necessary capabilities?
+- [ ] **Digital Signature**: Cryptographically signed by developer?
+- [ ] **Community Vetted**: Used and reviewed by others?
+
+### Current Status
+
+**multi-ai-collab server**: ⏸️ DISABLED PENDING REVIEW
+
+**Action Required**: Manual security audit before re-enabling
