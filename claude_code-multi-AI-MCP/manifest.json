@@ -19,9 +19,7 @@
     "entry_point": "server.py",
     "mcp_config": {
       "command": "C:\\Python313\\python.exe",
-      "args": [
-        "${__dirname}\\server.py"
-      ],
+      "args": ["${__dirname}\\server.py"],
       "env": {}
     }
   },
@@ -99,10 +97,6 @@
   ],
   "license": "MIT",
   "compatibility": {
-    "platforms": [
-      "win32",
-      "darwin",
-      "linux"
-    ]
+    "platforms": ["win32", "darwin", "linux"]
   }
 }
