@@ -1,0 +1,16 @@
+X [ERROR] Cannot start service: Host version "0.25.9" does not match binary version "0.25.10"
+
+1 error
+[31mfailed to load config from C:\dev\Updog_restore\vitest.config.ts[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Startup Error [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯⎯[39m
+Error: The service was stopped
+    at C:\Users\nikhi\AppData\Local\npm-cache\_npx\69c381f8ad94b576\node_modules\esbuild\lib\main.js:949:34
+    at responseCallbacks.<computed> (C:\Users\nikhi\AppData\Local\npm-cache\_npx\69c381f8ad94b576\node_modules\esbuild\lib\main.js:603:9)
+    at Socket.afterClose (C:\Users\nikhi\AppData\Local\npm-cache\_npx\69c381f8ad94b576\node_modules\esbuild\lib\main.js:594:28)
+    at Socket.emit (node:events:531:35)
+    at endReadableNT (node:internal/streams/readable:1696:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)
+
+
+

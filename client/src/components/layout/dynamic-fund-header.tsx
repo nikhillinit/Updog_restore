@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { formatDPI } from '@/lib/format-metrics';
 import {
   TrendingUp,
   Target,
@@ -201,7 +202,7 @@ export default function DynamicFundHeader() {
                 <div>
                   <p className="text-xs text-charcoal-600 font-medium">DPI</p>
                   <p className="text-sm font-bold text-charcoal-900">
-                    {(displayMetrics.dpi || 0).toFixed(2)}x
+                    {formatDPI(displayMetrics.dpi)}
                   </p>
                 </div>
                 <PieChart className="h-4 w-4 text-charcoal-500" />

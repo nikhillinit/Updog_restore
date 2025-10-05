@@ -1,9 +1,11 @@
 /**
  * Fee calculation utilities for fund modeling
- * 
+ *
  * Handles multiple fee bases, tiered step-downs, and provides both
  * quick preview calculations and precise fee drag computation.
  */
+
+import { Percentage, pctToFraction, asFraction, type Fraction } from '@shared/units';
 
 export interface FeeTier {
   id: string;
@@ -30,34 +32,59 @@ export type FeeBasis =
   | 'unrealized_investments';
 
 /**
- * Calculate precise fee drag % from tier table for committed capital basis
- * 
- * This gives exact results for committed-basis funds (your default template)
- * and is still fast enough for real-time preview calculations.
- * 
+ * Calculate precise fee drag as FRACTION (0-1) for use in calculations
+ *
+ * This is the preferred function for use in financial calculations.
+ * Returns a type-safe Fraction that prevents unit mismatch bugs.
+ *
  * @param tiers Fee tier configuration
  * @param termMonths Fund term in months (default 120 = 10 years)
- * @returns Total fee drag as percentage of committed capital
+ * @returns Total fee drag as Fraction (0-1) of committed capital
+ * @example
+ * // For 2% annual fee over 10 years:
+ * committedFeeDragFraction(tiers) => 0.20 (as Fraction)
+ */
+export function committedFeeDragFraction(tiers: FeeTier[], termMonths = 120): Fraction {
+  const pct = committedFeeDragPctFromTiers(tiers, termMonths);
+  return pctToFraction(pct as Percentage);
+}
+
+/**
+ * Calculate precise fee drag % from tier table for committed capital basis
+ *
+ * @deprecated Use committedFeeDragFraction() for calculations to ensure unit safety.
+ * This function returns a percentage (0-100), which can lead to calculation errors
+ * if mistaken for a fraction (0-1).
+ *
+ * This gives exact results for committed-basis funds (your default template)
+ * and is still fast enough for real-time preview calculations.
+ *
+ * @param tiers Fee tier configuration
+ * @param termMonths Fund term in months (default 120 = 10 years)
+ * @returns Total fee drag as percentage of committed capital (e.g., 20 for 20%)
+ * @example
+ * // For 2% annual fee over 10 years:
+ * committedFeeDragPctFromTiers(tiers) => 20 (percentage, not fraction!)
  */
 export function committedFeeDragPctFromTiers(tiers: FeeTier[], termMonths = 120): number {
   if (!tiers.length) return 0;
-  
+
   const endMonth = termMonths;
   let totalFeeMonthsPercent = 0;
-  
+
   for (const tier of tiers) {
     const startMonth = Math.max(1, tier.startMonth ?? 1);
     const tierEndMonth = Math.min(endMonth, tier.endMonth ?? endMonth);
-    
+
     if (tierEndMonth < startMonth) continue; // Invalid tier
-    
+
     const monthsActive = tierEndMonth - startMonth + 1;
     const annualRate = tier.percentage || 0;
-    
+
     // Convert annual percentage to monthly and accumulate
     totalFeeMonthsPercent += monthsActive * (annualRate / 12);
   }
-  
+
   // Return total fee burden as % of committed capital over fund life
   return totalFeeMonthsPercent;
 }

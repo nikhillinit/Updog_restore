@@ -29,23 +29,8 @@ interface SectorProfile {
   stages: InvestmentStage[];
 }
 
-export default function InvestmentStrategyStep() {
-  const [, navigate] = useLocation();
-  const [editingProfile, setEditingProfile] = useState<string | null>(null);
-  const [editingStage, setEditingStage] = useState<string | null>(null);
-
-  // Debug logging
-  React.useEffect(() => {
-    console.log('Component mounted, editingProfile:', editingProfile);
-  }, []);
-
-  React.useEffect(() => {
-    console.log('editingProfile state changed:', editingProfile);
-  }, [editingProfile]);
-
-  // Mock sector profiles (this would come from store)
-  // Updated with 2024-2025 market data based on current venture capital trends
-  const [sectorProfiles, setSectorProfiles] = useState<SectorProfile[]>([
+// Default sector profiles with 2024-2025 market data
+const DEFAULT_SECTOR_PROFILES: SectorProfile[] = [
     {
       id: 'default',
       name: 'Default',
@@ -117,7 +102,50 @@ export default function InvestmentStrategyStep() {
         }
       ]
     }
-  ]);
+];
+
+export default function InvestmentStrategyStep() {
+  const [, navigate] = useLocation();
+  const [editingProfile, setEditingProfile] = useState<string | null>(null);
+  const [editingStage, setEditingStage] = useState<string | null>(null);
+
+  // ✅ FIX: Use localStorage for persistence instead of ephemeral useState
+  // This ensures data survives component unmount/remount cycles
+  //
+  // TECHNICAL NOTE: This component manages a nested data structure (SectorProfile with InvestmentStage[])
+  // that differs from the fund store's flat structure. To avoid schema conflicts and enable quick
+  // iteration, we persist directly to localStorage with a unique key. Future consolidation with
+  // Step 2 (Investment Rounds) will migrate this to the unified fund store schema.
+  const STORAGE_KEY = 'updog_sector_profiles_with_stages';
+
+  const [sectorProfiles, setSectorProfilesInternal] = useState<SectorProfile[]>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Validate that stored data has correct structure
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load sector profiles from localStorage:', error);
+    }
+    return DEFAULT_SECTOR_PROFILES;
+  });
+
+  // Wrapper to persist to localStorage whenever profiles change
+  const setSectorProfiles = React.useCallback((profiles: SectorProfile[] | ((prev: SectorProfile[]) => SectorProfile[])) => {
+    setSectorProfilesInternal((prev) => {
+      const newProfiles = typeof profiles === 'function' ? profiles(prev) : profiles;
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(newProfiles));
+      } catch (error) {
+        console.error('Failed to save sector profiles to localStorage:', error);
+      }
+      return newProfiles;
+    });
+  }, [STORAGE_KEY]);
 
   const calculateFailureRate = (graduationRate: number, exitRate: number): number => {
     return Math.max(0, 100 - graduationRate - exitRate);

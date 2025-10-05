@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Critical Path (main entry)",
+    "path": "dist/assets/index-*.js",
+    "limit": "150 KB",
+    "gzip": true
+  },
+  {
+    "name": "Deterministic Engine",
+    "path": "dist/assets/DeterministicEngine-*.js",
+    "limit": "50 KB",
+    "gzip": true
+  },
+  {
+    "name": "Math/Crypto Vendor",
+    "path": "dist/assets/math-crypto-vendor-*.js",
+    "limit": "30 KB",
+    "gzip": true
+  },
+  {
+    "name": "Total Bundle Size",
+    "path": "dist/assets/*.js",
+    "limit": "600 KB",
+    "gzip": true
+  }
+]
