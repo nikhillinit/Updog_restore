@@ -2,7 +2,7 @@ name: Deploy (staging)
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch: {}
 
 jobs:
@@ -24,12 +24,11 @@ jobs:
       - name: Build
         run: npm run build --if-present
 
-      # ===== GCP Auth (Workload Identity Federation preferred) =====
+      # ===== GCP Auth =====
       - name: Google Auth
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
@@ -62,12 +61,12 @@ jobs:
         run: |
           # Warm-up period
           sleep 15
-          
+
           # Liveness check
           curl -fsSL ${{ secrets.STAGING_URL }}/healthz
-          
+
           # Metrics with auth (first 5 lines to verify it works)
           curl -fsSL -H "Authorization: Bearer ${{ secrets.METRICS_KEY }}" \
             ${{ secrets.STAGING_URL }}/metrics | head -n 5
-          
+
           echo "Staging deployment looks healthy."
