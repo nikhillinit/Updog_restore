@@ -69,11 +69,11 @@ let isSentryEnabled = false;
 
 // Only load real Sentry if compile-time flag is true
 // DISABLED: Sentry is not configured (no VITE_SENTRY_DSN)
-// When Sentry is needed, install @sentry/browser and uncomment below
+// When Sentry is needed, uncomment below
 /*
 if (typeof __SENTRY__ !== 'undefined' && __SENTRY__ && !isDNT && !isOptedOut) {
   // Dynamic import to enable code splitting - but ONLY if flag is true
-  import('@sentry/browser').then((SentryModule: any) => {
+  import('@sentry/react').then((SentryModule: any) => {
     const sentryDSN = import.meta.env.VITE_SENTRY_DSN;
     if (sentryDSN) {
       SentryModule.init({
@@ -83,6 +83,7 @@ if (typeof __SENTRY__ !== 'undefined' && __SENTRY__ && !isDNT && !isOptedOut) {
         tracesSampleRate: Number(import.meta.env.VITE_SENTRY_TRACES_RATE || '0.1'),
         
         // Performance monitoring
+        // Note: browserTracingIntegration is exported from @sentry/react (NOT @sentry/tracing)
         integrations: [
           SentryModule.browserTracingIntegration(),
           SentryModule.replayIntegration({
