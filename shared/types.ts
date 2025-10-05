@@ -312,9 +312,7 @@ export const ExitRecyclingSchema = z.object({
 
 // Waterfall Types
 export const WaterfallSchema = z.object({
-  type: z.enum(['EUROPEAN', 'AMERICAN']).default('EUROPEAN'),
-  hurdle: z.number().min(0).max(1).default(0.08), // decimal representation (e.g., 0.08 for 8%)
-  catchUp: z.number().min(0).max(1).default(0.08), // decimal representation
+  type: z.enum(['AMERICAN']).default('AMERICAN'),
   carryVesting: z.object({
     cliffYears: z.number().int().min(0).max(10).default(0),
     vestingYears: z.number().int().min(1).max(10).default(4),

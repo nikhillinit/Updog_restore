@@ -1,31 +1,231 @@
 /**
  * Typed Redis Factory Pattern
- * Centralizes Redis client creation with proper type safety
+ * Centralizes Redis client creation with proper type safety and comprehensive config support
  */
 
-import Redis from 'ioredis';
+import IORedis, { Redis, RedisOptions, SentinelAddress } from 'ioredis';
+import { logger } from '../lib/logger';
+import * as fs from 'fs';
 
-interface CreateRedisConfig {
+/**
+ * Mask sensitive data in connection strings for logging
+ */
+function maskPassword(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.password) {
+      parsed.password = '***';
+    }
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Mask password in connection info for logging
+ */
+function maskConnectionInfo(options: RedisOptions): string {
+  const { host, port, db } = options;
+  return `${host || 'localhost'}:${port || 6379}/${db || 0}`;
+}
+
+/**
+ * Default Redis options with production-ready settings
+ */
+const DEFAULT_OPTIONS: Partial<RedisOptions> = {
+  lazyConnect: true,
+  enableAutoPipelining: true,
+  enableOfflineQueue: false, // Fail fast in production
+  maxRetriesPerRequest: 3,
+  connectTimeout: 10_000,
+  commandTimeout: 5_000,
+  retryStrategy: (times: number) => {
+    const delay = Math.min(1000 * 2 ** times, 30_000);
+    logger.warn(`Redis retry attempt ${times}, waiting ${delay}ms`);
+    return delay;
+  },
+};
+
+/**
+ * Configuration for creating Redis clients
+ * Supports both URL strings and individual options
+ */
+export interface CreateRedisConfig extends Partial<RedisOptions> {
   url?: string;
-  host?: string;
-  port?: number;
-  password?: string;
-  db?: number;
-  retryStrategy?: (times: number) => number;
-  enableOfflineQueue?: boolean;
-  maxRetriesPerRequest?: number;
-  connectTimeout?: number;
-  commandTimeout?: number;
-  lazyConnect?: boolean;
+  sentinels?: SentinelAddress[];
+  name?: string; // Sentinel master name
+}
+
+/**
+ * Parse TLS options from environment or config
+ */
+function parseTlsOptions(config: CreateRedisConfig): RedisOptions['tls'] | undefined {
+  // If URL uses rediss://, enable TLS
+  if (config.url?.startsWith('rediss://')) {
+    return {};
+  }
+
+  // Check explicit TLS env var
+  if (process.env['REDIS_TLS'] === 'true' || process.env['REDIS_TLS'] === '1') {
+    const tlsOptions: NonNullable<RedisOptions['tls']> = {};
+
+    // Load TLS certificates if paths are provided
+    if (process.env['REDIS_CA_PATH']) {
+      tlsOptions.ca = fs.readFileSync(process.env['REDIS_CA_PATH']);
+    }
+    if (process.env['REDIS_CERT_PATH']) {
+      tlsOptions.cert = fs.readFileSync(process.env['REDIS_CERT_PATH']);
+    }
+    if (process.env['REDIS_KEY_PATH']) {
+      tlsOptions.key = fs.readFileSync(process.env['REDIS_KEY_PATH']);
+    }
+    if (process.env['REDIS_SERVERNAME']) {
+      tlsOptions.servername = process.env['REDIS_SERVERNAME'];
+    }
+
+    return tlsOptions;
+  }
+
+  // Return any TLS options from config
+  return config.tls;
+}
+
+/**
+ * Parse Sentinel configuration from environment
+ */
+function parseSentinelOptions(config: CreateRedisConfig): {
+  sentinels?: SentinelAddress[];
+  name?: string;
+} {
+  // Use config sentinels if provided
+  if (config.sentinels) {
+    return {
+      sentinels: config.sentinels,
+      name: config.name || process.env['REDIS_SENTINEL_NAME'],
+    };
+  }
+
+  // Parse from environment
+  const sentinelsEnv = process.env['REDIS_SENTINELS'];
+  if (sentinelsEnv) {
+    try {
+      const sentinels = JSON.parse(sentinelsEnv) as SentinelAddress[];
+      return {
+        sentinels,
+        name: config.name || process.env['REDIS_SENTINEL_NAME'],
+      };
+    } catch (error) {
+      logger.error('Failed to parse REDIS_SENTINELS env var', { error });
+    }
+  }
+
+  return {};
 }
 
 /**
  * Create typed Redis client from configuration
  */
 export function createRedis(config: CreateRedisConfig = {}): Redis {
-  // Always construct URL for consistent type handling
-  const url = config.url || `redis://${config.host || 'localhost'}:${config.port || 6379}`;
-  return new Redis(url);
+  // Start with defaults
+  const options: RedisOptions = { ...DEFAULT_OPTIONS };
+
+  // Handle Sentinel configuration
+  const sentinelConfig = parseSentinelOptions(config);
+  if (sentinelConfig.sentinels) {
+    Object.assign(options, sentinelConfig);
+    logger.info('Creating Redis client with Sentinel configuration', {
+      sentinelCount: sentinelConfig.sentinels.length,
+      masterName: sentinelConfig.name,
+    });
+  }
+
+  // Handle TLS configuration
+  const tls = parseTlsOptions(config);
+  if (tls) {
+    options.tls = tls;
+    logger.info('Redis TLS enabled');
+  }
+
+  // If URL is provided, parse and override options
+  if (config.url) {
+    try {
+      const url = new URL(config.url);
+
+      // Extract connection details from URL
+      if (url.hostname) options.host = url.hostname;
+      if (url.port) options.port = parseInt(url.port, 10);
+      if (url.username) options.username = url.username;
+      if (url.password) options.password = url.password;
+
+      // Extract DB from pathname (e.g., /0, /1)
+      const dbMatch = url.pathname.match(/^\/(\d+)$/);
+      if (dbMatch) {
+        options.db = parseInt(dbMatch[1], 10);
+      }
+
+      // Enable TLS for rediss:// URLs
+      if (url.protocol === 'rediss:') {
+        options.tls = options.tls || {};
+      }
+
+      logger.info('Redis client using URL configuration', {
+        connection: maskPassword(config.url),
+      });
+    } catch (error) {
+      logger.warn('Failed to parse Redis URL, using as-is', {
+        url: config.url,
+        error,
+      });
+    }
+  }
+
+  // Merge any additional config options (these override URL-parsed values)
+  const {
+    url: _url,
+    sentinels: _sentinels,
+    name: _name,
+    ...configOptions
+  } = config;
+  Object.assign(options, configOptions);
+
+  // Log connection attempt (mask password)
+  logger.info('Creating Redis client', {
+    connection: maskConnectionInfo(options),
+  });
+
+  // Create Redis client
+  const redis = new IORedis(options);
+
+  // Add connection event listeners
+  redis.on('connect', () => {
+    logger.info('Redis client connected', {
+      connection: maskConnectionInfo(options),
+    });
+  });
+
+  redis.on('ready', () => {
+    logger.info('Redis client ready');
+  });
+
+  redis.on('error', (error: Error) => {
+    logger.error('Redis client error', {
+      error: error.message,
+      connection: maskConnectionInfo(options),
+    });
+  });
+
+  redis.on('close', () => {
+    logger.warn('Redis connection closed', {
+      connection: maskConnectionInfo(options),
+    });
+  });
+
+  redis.on('reconnecting', (delay: number) => {
+    logger.info(`Redis reconnecting in ${delay}ms`);
+  });
+
+  return redis;
 }
 
 /**
@@ -38,16 +238,55 @@ export interface Cache {
 }
 
 /**
+ * Check Redis health
+ * Returns true if Redis is healthy, false otherwise
+ * Does not throw errors
+ */
+export async function checkRedisHealth(redis: Redis): Promise<boolean> {
+  try {
+    await redis.ping();
+    return true;
+  } catch (error) {
+    logger.error('Redis health check failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
+
+/**
  * Create Redis client from environment variables
  */
 export function createCacheFromEnv(): Redis {
-  return createRedis({
-    url: process.env['REDIS_URL'],
-    host: process.env['REDIS_HOST'],
-    port: process.env['REDIS_PORT'] ? parseInt(process.env['REDIS_PORT'], 10) : undefined,
-    password: process.env['REDIS_PASSWORD'],
-    db: process.env['REDIS_DB'] ? parseInt(process.env['REDIS_DB'], 10) : undefined
-  });
+  const config: CreateRedisConfig = {};
+
+  // Parse URL if provided
+  if (process.env['REDIS_URL']) {
+    config.url = process.env['REDIS_URL'];
+  } else {
+    // Use individual options
+    if (process.env['REDIS_HOST']) {
+      config.host = process.env['REDIS_HOST'];
+    }
+    if (process.env['REDIS_PORT']) {
+      config.port = parseInt(process.env['REDIS_PORT'], 10);
+    }
+  }
+
+  // Parse optional credentials and settings
+  if (process.env['REDIS_PASSWORD']) {
+    config.password = process.env['REDIS_PASSWORD'];
+  }
+  if (process.env['REDIS_USERNAME']) {
+    config.username = process.env['REDIS_USERNAME'];
+  }
+  if (process.env['REDIS_DB']) {
+    config.db = parseInt(process.env['REDIS_DB'], 10);
+  }
+
+  // TLS and Sentinel are handled by createRedis via parsers
+
+  return createRedis(config);
 }
 
 /**
@@ -55,22 +294,22 @@ export function createCacheFromEnv(): Redis {
  */
 export function createCacheInterface(): Cache {
   const redis = createCacheFromEnv();
-  
+
   return {
     async get(key: string): Promise<string | null> {
-      return await redis['get'](key);
+      return await redis.get(key);
     },
-    
+
     async set(key: string, val: string, ttlSeconds?: number): Promise<void> {
       if (ttlSeconds) {
         await redis.setex(key, ttlSeconds, val);
       } else {
-        await redis['set'](key, val);
+        await redis.set(key, val);
       }
     },
-    
+
     async del(key: string): Promise<void> {
-      await redis['del'](key);
-    }
+      await redis.del(key);
+    },
   };
 }

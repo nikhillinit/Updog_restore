@@ -228,6 +228,9 @@ export type FlagKey = keyof typeof ALL_FLAGS;
  */
 export function isFlagEnabled(flagKey: FlagKey, flagStates: Record<string, boolean>): boolean {
   const flag = ALL_FLAGS[flagKey];
+  if (!flag) {
+    return false;
+  }
 
   // Check dependencies first
   if (flag.dependencies) {
@@ -258,6 +261,10 @@ export function shouldEnableForUser(
   }
 
   const flag = ALL_FLAGS[flagKey];
+  if (!flag) {
+    return false;
+  }
+
   if (flag.rolloutPercentage === 100) {
     return true;
   }
