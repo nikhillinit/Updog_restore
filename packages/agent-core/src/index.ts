@@ -9,6 +9,19 @@ export { Orchestrator } from './Orchestrator';
 export { BacktestReporter } from './BacktestReporter';
 export { BacktestRunner } from './Backtest';
 
+// Conversation Memory exports
+export {
+  initializeStorage,
+  createThread,
+  getThread,
+  addTurn,
+  getThreadChain,
+  getConversationFileList,
+  getConversationImageList,
+  buildConversationHistory,
+  clearAllThreads,
+} from './ConversationMemory';
+
 export type {
   AgentConfig,
   AgentExecutionContext,
@@ -69,3 +82,9 @@ export type {
   AgentExecutionResult,
   WorktreeContext,
 } from './Backtest';
+
+export type {
+  ConversationTurn,
+  ThreadContext,
+  ConversationStorage,
+} from './ConversationMemory';

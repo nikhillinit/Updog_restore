@@ -8,6 +8,8 @@
 
 - **BaseAgent**: Abstract base class with retry logic, metrics, and health
   monitoring
+- **ConversationMemory**: Multi-turn conversation persistence with cross-tool
+  continuation (inspired by zen-mcp-server)
 - **Logger**: JSON-structured logging with file and console output
 - **MetricsCollector**: Prometheus metrics integration with comprehensive agent
   tracking
@@ -126,6 +128,61 @@ const result = await orchestrator.execute({
 ```
 
 **Demo**: `npx tsx demo-orchestrator.ts`
+
+### Conversation Memory (Multi-Agent Workflows)
+
+```typescript
+import { BaseAgent, getThread, buildConversationHistory } from '@povc/agent-core';
+
+class AnalyzerAgent extends BaseAgent<AnalyzerInput, AnalyzerOutput> {
+  constructor() {
+    super({
+      name: 'analyzer',
+      enableConversationMemory: true, // Enable conversation threading
+    });
+  }
+
+  protected async performOperation(input, context) {
+    // context.conversationHistory contains full conversation context
+    if (context.conversationHistory) {
+      console.log('Continuing conversation with full context!');
+    }
+
+    return await analyzeCode(input);
+  }
+}
+
+// Agent A analyzes code
+const analyzer = new AnalyzerAgent();
+const result1 = await analyzer.execute({ files: ['test.ts'] }, 'analyze', {
+  files: ['test.ts']
+});
+
+// Agent B fixes issues (with full context from Agent A)
+const fixer = new FixerAgent();
+const result2 = await fixer.execute({ issues: result1.data.issues }, 'fix', {
+  continuationId: result1.continuationId,  // Continue conversation
+  files: ['test.ts']
+});
+
+// Agent C validates (with context from A + B)
+const validator = new ValidatorAgent();
+const result3 = await validator.execute({ files: ['test.ts'] }, 'validate', {
+  continuationId: result2.continuationId
+});
+
+// Full conversation history preserved across all agents!
+```
+
+**Features:**
+- Thread-based conversations with UUID tracking
+- Cross-tool continuation (analyzer → fixer → validator)
+- File context preservation with newest-first prioritization
+- Parent/child thread chains for conversation hierarchies
+- Token-aware history with intelligent truncation
+- In-memory or Redis storage backends
+
+**Demo**: `npx tsx demo-conversation-memory.ts`
 
 ## Configuration
 

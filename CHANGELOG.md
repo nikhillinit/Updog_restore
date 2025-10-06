@@ -5,9 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] – 2025‑10‑04
+## [Unreleased] – 2025‑10‑06
 
 ### Added
+- **Conversation Memory System** - Multi-turn conversation persistence for cross-agent workflows
+  - Thread-based conversations with UUID tracking and parent/child chains
+  - Cross-tool continuation (analyzer → fixer → validator with full context)
+  - File/image context preservation with newest-first prioritization strategy
+  - Token-aware history building with intelligent truncation (newest turns prioritized)
+  - Storage backend abstraction (in-memory for dev, Redis for production)
+  - Integrated into `BaseAgent` with `enableConversationMemory` config flag
+  - Architecture inspired by [zen-mcp-server](https://github.com/BeehiveInnovations/zen-mcp-server)
+  - [Demo](packages/agent-core/demo-conversation-memory.ts) showing multi-agent workflow
+  - Comprehensive test suite with 50+ test cases covering all scenarios
+
+### Added (Previous)
 - **Production-Grade Fund Modeling Schemas** - Complete TypeScript/Zod schema system for VC fund modeling
   - `StageProfile` - Replace hard-coded exit buckets with stage-driven valuations and deterministic cohort math
   - `FeeProfile` - Tiered management fee structure with 6 calculation bases, step-downs, and fee recycling
