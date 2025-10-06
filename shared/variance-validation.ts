@@ -7,6 +7,16 @@
 
 import { z } from 'zod';
 import { positiveInt } from './schema-helpers';
+import type { Request, Response, NextFunction } from 'express';
+
+// Extend Express Request type to include validatedBody
+declare global {
+  namespace Express {
+    interface Request {
+      validatedBody?: any;
+    }
+  }
+}
 
 // === CORE VALIDATION HELPERS ===
 
@@ -560,7 +570,7 @@ export const validateDate = (dateString: string): Date => {
  * Create validation middleware for Express routes
  */
 export const createValidationMiddleware = <T extends z.ZodTypeAny>(schema: T) => {
-  return (req: any, res: any, next: any) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({
