@@ -11,9 +11,10 @@
   "scripts": {
     "preinstall": "npx only-allow npm",
     "postinstall": "node scripts/link-sidecar-packages.mjs",
-    "doctor": "npm-run-all --sequential doctor:sidecar doctor:links doctor:quick",
+    "doctor": "npm-run-all --sequential doctor:sidecar doctor:shell doctor:links doctor:quick",
     "doctor:parallel": "npm-run-all --parallel doctor:links doctor:quick",
     "doctor:sidecar": "node scripts/doctor-sidecar.js",
+    "doctor:shell": "node scripts/doctor-shell.mjs",
     "doctor:links": "node scripts/doctor-links.mjs",
     "reset:deps": "rimraf node_modules package-lock.json && npm cache clean --force && npm install",
     "reset:local-tools": "rimraf node_modules && npm cache clean --force && node scripts/ensure-complete-local.mjs",
