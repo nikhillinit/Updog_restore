@@ -23,8 +23,25 @@ const redisConfig = {
   lazyConnect: true,
 };
 
-// Create Redis client using typed factory
-const redis = createCacheFromEnv();
+// Create Redis client using typed factory (skip in memory mode)
+let redis: any;
+if (process.env['REDIS_URL'] === 'memory://') {
+  console.log('[Redis Circuit] Memory mode detected, skipping Redis client creation');
+  // Create a no-op Redis client stub for memory mode
+  redis = {
+    get: async () => null,
+    set: async () => {},
+    setex: async () => {},
+    del: async () => 0,
+    incr: async () => 0,
+    expire: async () => false,
+    ping: async () => 'PONG',
+    quit: async () => {},
+    on: () => {},
+  };
+} else {
+  redis = createCacheFromEnv();
+}
 
 // Redis event handlers for monitoring
 redis['on']('connect', () => {
