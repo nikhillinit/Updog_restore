@@ -215,56 +215,66 @@ export default defineConfig(({ mode }) => {
     process.env.VITE_USE_PREACT === '1' ||
     mode === 'preact';
 
+  const parsePort = (value: string | undefined, fallback: number) => {
+    const parsed = Number.parseInt(value ?? '', 10);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+  };
+
+  const clientPort = parsePort(process.env.VITE_CLIENT_PORT, 5173);
+  const apiPort = parsePort(process.env.VITE_API_PORT ?? process.env.PORT, 5000);
+  const apiTarget = process.env.VITE_API_URL ?? `http://localhost:${apiPort}`;
+
   return {
     base: '/', // Ensure absolute paths for assets
-  server: {
-    port: 3000,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-      }
-    }
-  },
-  plugins: [
-    // Dev telemetry stub - always returns 204 for telemetry endpoints
-    {
-      name: 'dev-telemetry-stub',
-      configureServer(server) {
-        server.middlewares.use('/api/telemetry/wizard', async (req, res) => {
-          try {
-            let body = '';
-            for await (const chunk of req) body += chunk;
-            if (body) JSON.parse(body); // validate JSON without crashing dev
-            res.statusCode = 204;
-            res.end();
-          } catch {
-            res.statusCode = 400;
-            res.end('Bad payload');
-          }
-        });
+    server: {
+      port: clientPort,
+      strictPort: true,
+      proxy: {
+        '/api': {
+          target: apiTarget,
+          changeOrigin: true,
+        }
       }
     },
-    // Use absolute path so Vite doesn't ever look for "client/client/tsconfig.json"
-    tsconfigPaths({
-      projects: [path.resolve(import.meta.dirname, 'client/tsconfig.json')],
-      // ignoreConfigErrors: true // (optional) uncomment if a transient parse error blocks local runs
-    }),
-    virtual({ 
-      "winston": winstonMock,
-      "prom-client": promClientMock
-    }), 
-    // Conditional React/Preact plugin
-    usePreact ? preact({ devtoolsInProd: false }) : react(),
-    // Bundle visualization with detailed size metrics
-    visualizer({
-      filename: 'dist/stats.html',
-      template: 'treemap',
-      gzipSize: true,
-      brotliSize: true,
-      open: false
-    })
-  ].filter(Boolean) as Plugin[],
+    plugins: [
+      // Dev telemetry stub - always returns 204 for telemetry endpoints
+      {
+        name: 'dev-telemetry-stub',
+        configureServer(server) {
+          server.middlewares.use('/api/telemetry/wizard', async (req, res) => {
+            try {
+              let body = '';
+              for await (const chunk of req) body += chunk;
+              if (body) JSON.parse(body); // validate JSON without crashing dev
+              res.statusCode = 204;
+              res.end();
+            } catch {
+              res.statusCode = 400;
+              res.end('Bad payload');
+            }
+          });
+        }
+      },
+      // Use absolute path so Vite doesn't ever look for "client/client/tsconfig.json"
+      tsconfigPaths({
+        projects: [path.resolve(import.meta.dirname, 'client/tsconfig.json')],
+        // ignoreConfigErrors: true // (optional) uncomment if a transient parse error blocks local runs
+      }),
+      virtual({
+        "winston": winstonMock,
+        "prom-client": promClientMock
+      }),
+      // Conditional React/Preact plugin
+      usePreact ? preact({ devtoolsInProd: false }) : react(),
+      // Bundle visualization with detailed size metrics
+      visualizer({
+        filename: 'dist/stats.html',
+        template: 'treemap',
+        gzipSize: true,
+        brotliSize: true,
+        open: false
+      })
+    ].filter(Boolean) as Plugin[],
   esbuild: {
     legalComments: 'none', // Remove all legal comments
     // Remove only non-critical console calls

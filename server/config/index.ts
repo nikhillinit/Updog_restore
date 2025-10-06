@@ -12,8 +12,9 @@ import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
 import { assertSecureURL, validateCORSOrigins } from '../lib/url-security.js';
 
-// Load .env file and override any existing env vars (important for NODE_ENV)
-loadDotenv({ override: true });
+const shouldOverrideEnv = process.env.DOTENV_OVERRIDE === 'true';
+// Load .env file; allow opt-in overriding via DOTENV_OVERRIDE
+loadDotenv({ override: shouldOverrideEnv });
 
 const envSchema = z.object({
   // Core environment

@@ -659,3 +659,100 @@ export async function collaborativeSolve({
     elapsedMs: Date.now() - startTime,
   };
 }
+
+// ============================================================================
+// Multi-AI Review Integration
+// ============================================================================
+import type { ChatMessage } from '../../tools/ai-review/OrchestratorAdapter'; // relative import from server/
+
+// Ollama support (optional - dynamic require)
+let __ollama__: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const Ollama = require('ollama');
+  __ollama__ = new Ollama({ host: process.env.OLLAMA_HOST ?? 'http://localhost:11434' });
+} catch { /* not installed */ }
+
+async function askOllama(prompt: string, model: string) {
+  if (!__ollama__) throw new Error('ollama not available - install via: npm install ollama');
+  const started = Date.now();
+  const res = await __ollama__.chat({ model, messages: [{ role: 'user', content: prompt }] });
+  return {
+    text: res?.message?.content ?? '',
+    usage: {
+      inputTokens: res?.prompt_eval_count ?? 0,
+      outputTokens: res?.eval_count ?? 0,
+      costUsd: 0
+    },
+    elapsed: Date.now() - started
+  };
+}
+
+// HuggingFace (native fetch)
+async function askHuggingFace(prompt: string, model: string) {
+  const started = Date.now();
+  const r = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.HF_TOKEN ?? ''}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      inputs: prompt,
+      parameters: { max_new_tokens: 2048, temperature: 0.3, return_full_text: false }
+    })
+  });
+  if (!r.ok) throw new Error(`HF ${model} -> ${r.status}`);
+  const j = await r.json();
+  const text = Array.isArray(j) ? j[0]?.generated_text : j?.generated_text ?? '';
+  return {
+    text,
+    usage: {
+      inputTokens: Math.ceil(prompt.length / 4),
+      outputTokens: Math.ceil((text?.length ?? 0) / 4),
+      costUsd: 0.15
+    },
+    elapsed: Date.now() - started
+  };
+}
+
+const __userText = (messages: ChatMessage[]) =>
+  messages.find(m => m.role === 'user')?.content ?? '';
+
+export const AIRouter = {
+  async call(providerId: string, messages: ChatMessage[], _opts?: any) {
+    const prompt = __userText(messages);
+
+    if (providerId.startsWith('ollama:')) {
+      const model = providerId.slice('ollama:'.length);
+      return askOllama(prompt, model);
+    }
+
+    if (providerId.startsWith('hf:')) {
+      const model = providerId.slice('hf:'.length);
+      return askHuggingFace(prompt, model);
+    }
+
+    // Wire to your existing cloud functions (budgeting/retry already there)
+    if (providerId === 'gpt' || providerId === 'gpt4') {
+      const r = await askGPT(prompt);
+      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens, outputTokens: r.usage?.completion_tokens, costUsd: r.cost_usd } };
+    }
+    if (providerId === 'gemini') {
+      const r = await askGemini(prompt);
+      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens, outputTokens: r.usage?.completion_tokens, costUsd: r.cost_usd } };
+    }
+    if (providerId === 'deepseek') {
+      const r = await askDeepSeek(prompt);
+      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens, outputTokens: r.usage?.completion_tokens, costUsd: r.cost_usd } };
+    }
+    if (providerId === 'claude') {
+      const r = await askClaude(prompt);
+      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens, outputTokens: r.usage?.completion_tokens, costUsd: r.cost_usd } };
+    }
+
+    throw new Error(`Unknown providerId: ${providerId}`);
+  }
+};
+
+export default AIRouter;

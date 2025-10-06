@@ -59,6 +59,7 @@ export class UnifiedMonteCarloService {
   private traditionalEngine: MonteCarloEngine;
   private streamingEngine: StreamingMonteCarloEngine;
   private performanceHistory: PerformanceMetrics[] = [];
+  private streamingEnabled: boolean;
 
   // Engine selection thresholds
   private readonly STREAMING_THRESHOLD_SCENARIOS = 5000;
@@ -68,7 +69,17 @@ export class UnifiedMonteCarloService {
   constructor() {
     this.traditionalEngine = new MonteCarloEngine();
     this.streamingEngine = new StreamingMonteCarloEngine();
-    this.initializePooling();
+    this.streamingEnabled = this.shouldEnableStreaming();
+    console.log(`[monte-carlo] streaming enabled: ${this.streamingEnabled}`);
+
+    if (this.streamingEnabled) {
+      this.initializePooling().catch(error => {
+        console.warn('Streaming Monte Carlo pool initialization failed, falling back to traditional engine:', error instanceof Error ? error.message : error);
+        this.streamingEnabled = false;
+      });
+    } else {
+      console.log('Streaming Monte Carlo disabled for this environment');
+    }
   }
 
   /**
@@ -85,9 +96,12 @@ export class UnifiedMonteCarloService {
 
     try {
       // Execute with selected engine
-      if (selectedEngine === 'streaming') {
+      if (selectedEngine === 'streaming' && this.streamingEnabled) {
         result = await this.executeStreamingSimulation(config);
       } else {
+        if (selectedEngine === 'streaming' && !this.streamingEnabled) {
+          fallbackTriggered = true;
+        }
         result = await this.executeTraditionalSimulation(config);
       }
 
@@ -307,15 +321,30 @@ export class UnifiedMonteCarloService {
   // ============================================================================
 
   private async initializePooling(): Promise<void> {
-    // Initialize database connection pool for streaming engine
-    await databasePoolManager.createPool('streaming-monte-carlo', {
-      connectionString: process.env['DATABASE_URL']!,
-      minConnections: 2,
-      maxConnections: 8,
-      idleTimeoutMs: 30000,
-      connectionTimeoutMs: 5000,
-      enableMetrics: true
-    });
+    if (!this.streamingEnabled) {
+      return;
+    }
+
+    const connectionString = process.env['DATABASE_URL'];
+    if (!connectionString) {
+      console.warn('DATABASE_URL not set; disabling streaming Monte Carlo engine');
+      this.streamingEnabled = false;
+      return;
+    }
+
+    try {
+      await databasePoolManager.createPool('streaming-monte-carlo', {
+        connectionString,
+        minConnections: 2,
+        maxConnections: 8,
+        idleTimeoutMs: 30000,
+        connectionTimeoutMs: 5000,
+        enableMetrics: true
+      });
+    } catch (error) {
+      console.warn('Failed to create streaming Monte Carlo pool, disabling streaming engine:', error instanceof Error ? error.message : error);
+      this.streamingEnabled = false;
+    }
   }
 
   private async buildSelectionCriteria(config: UnifiedSimulationConfig): Promise<EngineSelectionCriteria> {
@@ -335,6 +364,10 @@ export class UnifiedMonteCarloService {
 
   private selectEngine(criteria: EngineSelectionCriteria): 'streaming' | 'traditional' {
     // Forced selection
+    if (!this.streamingEnabled) {
+      return 'traditional';
+    }
+
     if (criteria.enginePreference !== 'auto') {
       return criteria.enginePreference;
     }
@@ -434,6 +467,13 @@ export class UnifiedMonteCarloService {
     // Analyze performance vs batch size (would need to track batch size in metrics)
     // For now, return a reasonable default
     return 1000;
+  }
+
+  private shouldEnableStreaming(): boolean {
+    const explicit = process.env['ENABLE_STREAMING_MONTE_CARLO'];
+    if (explicit === '1') return true;
+    if (explicit === '0') return false;
+    return process.env['NODE_ENV'] === 'production';
   }
 
   private analyzeMemoryPattern(): string {

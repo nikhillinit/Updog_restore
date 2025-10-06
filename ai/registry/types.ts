@@ -9,6 +9,14 @@ export type Capability =
   | 'data.quality'         // Data validation and quality checks
   | 'reserve.analyze';     // Reserve allocation analysis
 
+export interface AgentHealth {
+  success_ratio_1h: number; // 0-1
+  success_ratio_24h: number; // 0-1
+  latency_p95_ms: number;
+  last_success_at?: number;
+  last_failure_at?: number;
+}
+
 export interface AgentDescriptor {
   id: string;
   version: string;
@@ -21,6 +29,7 @@ export interface AgentDescriptor {
     notes?: string;
     successRate?: number;
   };
+  health?: AgentHealth;
   constraints?: Record<string, unknown>;
 }
 
