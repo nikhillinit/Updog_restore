@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "types": ["node"],  // Override to remove vite/client from server
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
