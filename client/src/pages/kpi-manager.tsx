@@ -210,7 +210,7 @@ export default function KPIManager() {
           <Label>Start Date</Label>
           <Input
             type="month"
-            value={newKPI.startDate || ""}
+            value={newKPI.startDate ?? ""}
             onChange={(e: any) => setNewKPI(prev => ({ ...prev, startDate: e.target.value }))}
             className="border-gray-300"
           />

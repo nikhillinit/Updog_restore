@@ -155,7 +155,7 @@ export default function CapTables() {
             <p className="text-gray-600">Model SAFE/Note conversions and analyze dilution scenarios</p>
           </div>
           <div className="flex items-center space-x-2">
-            <Button variant="outline" onClick={() => setShowCalculator(true)}>
+            <Button variant="outline" onClick={() => { setShowCalculator(true); }}>
               <Calculator className="h-4 w-4 mr-2" />
               Cap Table Calculator
             </Button>

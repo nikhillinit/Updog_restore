@@ -350,7 +350,7 @@ export default function PortfolioConstruction() {
                   </div>
                   <Slider
                     value={[params.fundSize]}
-                    onValueChange={([value]) => updateParam('fundSize', value ?? 0)}
+                    onValueChange={([value]) => { updateParam('fundSize', value ?? 0); }}
                     min={50000}
                     max={250000}
                     step={10000}

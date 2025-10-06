@@ -104,11 +104,11 @@ export class NatsBridge {
         }
       }, 30000);
 
-      ws['on']('pong', () => {
+      ws.on('pong', () => {
         // Client is alive
       });
 
-      ws['on']('message', async (data: any) => {
+      ws.on('message', async (data: any) => {
         try {
           const message = JSON.parse(data.toString());
           natsBridgeMessages.inc({ direction: 'in', type: message.type || 'unknown' });

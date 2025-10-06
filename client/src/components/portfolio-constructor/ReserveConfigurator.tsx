@@ -168,7 +168,7 @@ export function ReserveConfigurator({
 
   // Generate deployment timeline data
   const deploymentTimeline = useMemo(() => {
-    const months = Array.from({ length: 48 }, (_: any, i: any) => i + 1);
+    const months: number[] = Array.from({ length: 48 }, (_: unknown, i: number) => i + 1);
 
     return months.map(month => {
       const dataPoint: any = { month: `M${month}` };

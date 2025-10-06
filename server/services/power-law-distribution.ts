@@ -584,7 +584,7 @@ export function generatePowerLawReturns(
 
   // Default to seed stage if no valid stages provided
   if (Object.keys(stageMap).length === 0) {
-    stageMap['seed'] = 1.0;
+    stageMap.seed = 1.0;
   }
 
   return powerLaw.generateBatchScenarios(
