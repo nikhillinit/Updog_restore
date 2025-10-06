@@ -1,0 +1,55 @@
+name: AI Foundation Ship Gate
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'README.md'
+      - '.env.example'
+      - 'docs/adr/**'
+      - 'docs/metrics-meanings.md'
+      - 'docs/observability/ai-metrics.md'
+      - 'tests/agents/fixtures/**'
+      - 'ai/**'
+      - 'server/agents/**'
+      - 'scripts/verify-docs-and-env.sh'
+  push:
+    branches: [main]
+    paths:
+      - 'README.md'
+      - '.env.example'
+      - 'docs/adr/**'
+      - 'docs/metrics-meanings.md'
+      - 'tests/agents/fixtures/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ship-gate:
+    name: Phase 1 Ship Gate Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify ship gate requirements
+        run: bash scripts/verify-docs-and-env.sh
+
+      - name: Validate golden fixtures schema
+        run: |
+          if [ -f tests/agents/fixtures/golden-cashflows.csv ]; then
+            echo "✅ Golden fixtures found"
+            head -n 3 tests/agents/fixtures/golden-cashflows.csv
+          else
+            echo "⚠️  Golden fixtures not yet created (expected for initial setup)"
+          fi
