@@ -55,8 +55,8 @@ checkEmergencyRollback();
 if (import.meta.env.PROD) {
   // Code-split Sentry - only load when DSN is configured
   if (import.meta.env.VITE_SENTRY_DSN) {
-    import('./sentry').then(({ initSentry }) => {
-      initSentry();
+    import('@/monitoring').then(() => {
+      console.log('Sentry monitoring initialized');
     }).catch(err => {
       console.warn('Failed to load Sentry:', err);
     });

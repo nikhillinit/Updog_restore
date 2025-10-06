@@ -11,6 +11,8 @@
     "autoprefixer",
     "postcss",
     "tailwindcss",
+    "@tailwindcss/typography",
+    "lightningcss",
     "preact"
   ],
   "_notes": {
