@@ -15,6 +15,7 @@ interface SectorData {
   value: number;
   color: string;
   amount?: number;
+  [key: string]: unknown;
 }
 
 const sectorData: SectorData[] = [

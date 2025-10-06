@@ -63,7 +63,7 @@ export const invalidationPredicates = {
   /**
    * Invalidate all queries for a specific fund
    */
-  fund: (fundId: number) => (query: { queryKey: unknown[] }) => {
+  fund: (fundId: number) => (query: { queryKey: readonly unknown[] }) => {
     return Array.isArray(query.queryKey) &&
            query.queryKey.includes('funds') &&
            query.queryKey.includes(fundId);
@@ -72,7 +72,7 @@ export const invalidationPredicates = {
   /**
    * Invalidate all fund-related queries
    */
-  allFunds: (query: { queryKey: unknown[] }) => {
+  allFunds: (query: { queryKey: readonly unknown[] }) => {
     return Array.isArray(query.queryKey) &&
            query.queryKey[0] === 'app' &&
            query.queryKey[1] === 'funds';
@@ -81,7 +81,7 @@ export const invalidationPredicates = {
   /**
    * Invalidate all investment-related queries
    */
-  allInvestments: (query: { queryKey: unknown[] }) => {
+  allInvestments: (query: { queryKey: readonly unknown[] }) => {
     return Array.isArray(query.queryKey) &&
            query.queryKey[0] === 'app' &&
            query.queryKey[1] === 'investments';

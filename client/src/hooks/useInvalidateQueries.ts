@@ -25,11 +25,7 @@ export function useInvalidateFund() {
      */
     invalidateMetrics: (fundId: number) => {
       return queryClient.invalidateQueries({
-        queryKey: queryKeys.funds.detail(fundId),
-        predicate: (query) => {
-          return Array.isArray(query.queryKey) &&
-                 query.queryKey.includes('metrics');
-        },
+        queryKey: [...queryKeys.funds.detail(fundId), 'metrics'],
       });
     },
 

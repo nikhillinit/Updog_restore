@@ -119,9 +119,9 @@ export function safeDivide(numerator: Decimal | number, denominator: Decimal | n
  * sum([1, 2, 3]) // => Decimal(6)
  * sum([new Decimal('0.1'), new Decimal('0.2')]) // => Decimal(0.3)
  */
-export function sum(values: (Decimal | number)[]): Decimal {
+export function sum(values: readonly (Decimal | number)[]): Decimal {
   return values.reduce(
-    (total, value) => total.plus(value),
+    (total: Decimal, value: Decimal | number) => total.plus(value),
     new Decimal(0)
   );
 }
@@ -134,7 +134,7 @@ export function sum(values: (Decimal | number)[]): Decimal {
  * @example
  * cumulativeSum([1, 2, 3]) // => [Decimal(1), Decimal(3), Decimal(6)]
  */
-export function cumulativeSum(values: (Decimal | number)[]): Decimal[] {
+export function cumulativeSum(values: readonly (Decimal | number)[]): Decimal[] {
   const result: Decimal[] = [];
   let cumulative = new Decimal(0);
 
