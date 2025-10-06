@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Waterfall } from "@shared/types";
-import { applyWaterfallChange } from "@/lib/waterfall";
+import { applyWaterfallChange, changeWaterfallType } from "@/lib/waterfall";
 
 interface WaterfallStepProps {
   data: Waterfall;
@@ -23,9 +23,15 @@ function assertNever(x: never): never {
 }
 
 export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
-  // Type-safe update using waterfall helper
+  // Type-safe field updates using waterfall helper
   const handleChange = (field: string, value: any) => {
     const updated = applyWaterfallChange(data, field, value);
+    onChange(updated);
+  };
+
+  // Schema-validated type switching
+  const handleTypeChange = (type: 'EUROPEAN' | 'AMERICAN') => {
+    const updated = changeWaterfallType(data, type);
     onChange(updated);
   };
 
@@ -64,7 +70,7 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
           <CardContent className="space-y-4">
             <RadioGroup
               value={data.type}
-              onValueChange={(value: 'EUROPEAN' | 'AMERICAN') => handleChange('type', value)}
+              onValueChange={handleTypeChange}
             >
               <div className="space-y-4">
                 <div className="flex items-start space-x-3 p-4 border rounded-lg">
