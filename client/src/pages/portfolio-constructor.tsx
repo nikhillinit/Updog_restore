@@ -534,7 +534,7 @@ export default function PortfolioConstructor() {
                         cy="50%"
                         outerRadius={80}
                         dataKey="value"
-                        label={({ name, value }) => `${name} ${formatPercentage(value || 0)}`}
+                        label={(props: any) => `${props.name || ''} ${formatPercentage(props.value || 0)}`}
                         labelLine={false}
                       >
                         {sectorChartData.map((entry: any, index: any) => (

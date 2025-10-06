@@ -322,7 +322,7 @@ export const SecondaryMarketAnalysis: React.FC = () => {
                       cx="50%"
                       cy="50%"
                       outerRadius={100}
-                      label={({ sector, value }) => `${sector}: ${formatCurrency(value || 0)}`}
+                      label={(props: any) => `${props.sector || ''}: ${formatCurrency(props.value || 0)}`}
                     >
                       {sectorDistribution.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

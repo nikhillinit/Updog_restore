@@ -1,0 +1,81 @@
+[
+  {
+    "file": "client/src/pages/WaterfallStep.tsx",
+    "domain": "Waterfall carry distribution (American vs European)",
+    "problems": [
+      "Type comparison 'AMERICAN' vs 'EUROPEAN' appears unintentional (line 98) - types don't overlap",
+      "Property 'hurdle' does not exist on type with AMERICAN waterfall (lines 115, 145)",
+      "Property 'catchUp' does not exist on type with AMERICAN waterfall (lines 135, 145)",
+      "Property assignments fail because 'hurdle' and 'catchUp' not in allowed keys (lines 116, 136)",
+      "UI shows hurdle/catchUp inputs only for EUROPEAN but tries to access them on AMERICAN type"
+    ],
+    "currentUnion": "export const WaterfallSchema = z.object({\n  type: z.enum(['AMERICAN']).default('AMERICAN'),\n  carryVesting: z.object({\n    cliffYears: z.number().int().min(0).max(10).default(0),\n    vestingYears: z.number().int().min(1).max(10).default(4),\n  }),\n});",
+    "proposedTypes": "// Update shared/types.ts WaterfallSchema to be discriminated union:\nexport const WaterfallSchema = z.discriminatedUnion('type', [\n  z.object({\n    type: z.literal('AMERICAN'),\n    carryVesting: z.object({\n      cliffYears: z.number().int().min(0).max(10).default(0),\n      vestingYears: z.number().int().min(1).max(10).default(4),\n    }),\n  }),\n  z.object({\n    type: z.literal('EUROPEAN'),\n    carryVesting: z.object({\n      cliffYears: z.number().int().min(0).max(10).default(0),\n      vestingYears: z.number().int().min(1).max(10).default(4),\n    }),\n    hurdle: z.number().min(0).max(1), // as decimal (0.08 = 8%)\n    catchUp: z.number().min(0).max(1), // as decimal (0.08 = 8%)\n  }),\n]);\n\nexport type Waterfall = z.infer<typeof WaterfallSchema>;",
+    "exhaustivenessCheck": "// Add to WaterfallStep.tsx after line 25:\nfunction validateWaterfallType(data: Waterfall): boolean {\n  switch (data.type) {\n    case 'AMERICAN':\n      return data.carryVesting.cliffYears >= 0 && data.carryVesting.vestingYears > 0;\n    case 'EUROPEAN':\n      return data.hurdle >= 0 && data.catchUp >= 0 && data.carryVesting.cliffYears >= 0;\n    default:\n      const _exhaustiveCheck: never = data;\n      return _exhaustiveCheck;\n  }\n}",
+    "reasoning": {
+      "europeanRequired": "European waterfall REQUIRES hurdle and catch-up rates because it's deal-by-deal distribution where each exit must clear the hurdle threshold before GPs earn carry. These are fundamental to the European waterfall structure in VC.",
+      "americanOptional": "American waterfall does NOT have hurdle/catchUp properties because it's fund-level distribution - carry is calculated at the portfolio level, not per-deal. The UI correctly shows hurdle inputs ONLY for European (line 98), but the type doesn't support this distinction.",
+      "exhaustiveness": "The never-check ensures type safety when adding new waterfall types (e.g., 'HYBRID'). Without it, adding a new variant would compile successfully but silently skip validation, causing runtime errors.",
+      "discriminatedUnion": "Using z.discriminatedUnion() instead of z.union() enables TypeScript to narrow types correctly based on the 'type' discriminator, allowing safe access to variant-specific properties."
+    },
+    "notes": "ARCHITECTURAL ISSUE: There are TWO waterfall type systems in this codebase:\n1. Legacy: shared/types.ts WaterfallSchema (only AMERICAN, used by UI wizard)\n2. New: shared/schemas/waterfall-policy.ts WaterfallPolicySchema (complete European/American with tiers, used by fund-calc-v2.ts)\n\nThe UI (WaterfallStep.tsx) uses the legacy simple schema but tries to support EUROPEAN features. Recommendation: Migrate to the production-grade WaterfallPolicySchema or extend the legacy schema as shown above."
+  },
+  {
+    "file": "client/src/lib/fund-calc-v2.ts",
+    "domain": "Fund calculation engine with Decimal.js precision",
+    "problems": [
+      "Property 'periods' does not exist on return type (lines 108, 211)",
+      "Property 'inputs' does not exist on return type (line 133)",
+      "Return type mismatch - function returns FundModelOutputs but should return complete simulation result",
+      "Missing properties: inputs, periods array, finalMetrics, metadata"
+    ],
+    "currentUnion": "// Function signature (line 79):\nexport function runFundModelV2(inputs: ExtendedFundModelInputs): FundModelOutputs {\n  // ...\n  return {\n    inputs,           // ❌ Not in FundModelOutputs\n    periods,          // ❌ Not in FundModelOutputs\n    finalMetrics,     // ❌ Not in FundModelOutputs\n    metadata          // ❌ Not in FundModelOutputs\n  };\n}\n\n// Current return type (shared/schemas/extended-fund-model.ts lines 159-212):\nexport const FundModelOutputsSchema = z.object({\n  period: z.number().int().min(0),\n  month: z.number().int().min(0),\n  capitalCalled: ZodDecimal,\n  // ... single period snapshot fields ...\n});",
+    "proposedTypes": "// Fix: Change return type from FundModelOutputs to SimulationResult\n// In client/src/lib/fund-calc-v2.ts line 79:\nexport function runFundModelV2(inputs: ExtendedFundModelInputs): SimulationResult {\n  // ... existing implementation ...\n  \n  return {\n    inputs,\n    periods,\n    finalMetrics: {\n      tvpi: finalPeriod.tvpi,\n      dpi: finalPeriod.dpi,\n      irr: finalPeriod.irr ?? new Decimal(0),\n      moic: finalPeriod.tvpi,\n      totalExitValue: state.exitProceeds,\n      totalDistributed: state.distributionsToLPs.plus(state.distributionsToGP),\n      fundLifetimeMonths: inputs.fundTermMonths\n    },\n    metadata: {\n      modelVersion: 'v2.0.0',\n      engineVersion: 'deterministic-cohort-v2',\n      computedAt: new Date(),\n      computationTimeMs: 0 // TODO: Add timing\n    }\n  };\n}\n\n// Import at top of file:\nimport type { ExtendedFundModelInputs, SimulationResult } from '@shared/schemas/extended-fund-model';",
+    "exhaustivenessCheck": "// Add type guard for waterfall policy exhaustiveness (after line 271):\nfunction processWaterfallDistribution(\n  policy: WaterfallPolicy,\n  periodExitProceeds: Decimal,\n  state: FundState\n): { lpDistribution: Decimal; gpDistribution: Decimal } {\n  switch (policy.type) {\n    case 'european': {\n      const waterfall = calculateEuropeanWaterfall(\n        policy, // TypeScript knows this is EuropeanWaterfall\n        periodExitProceeds,\n        state.calledCapital,\n        state.distributionsToLPs,\n        state.distributionsToGP\n      );\n      return {\n        lpDistribution: waterfall.lpDistribution,\n        gpDistribution: waterfall.gpDistribution\n      };\n    }\n    case 'american': {\n      // TODO: Implement per-deal waterfall\n      const waterfall = calculateAmericanWaterfall(\n        policy, // TypeScript knows this is AmericanWaterfall\n        periodExitProceeds,\n        state.investedCapital // Deal cost basis\n      );\n      return {\n        lpDistribution: waterfall.lpDistribution,\n        gpDistribution: waterfall.gpDistribution\n      };\n    }\n    default: {\n      const _exhaustiveCheck: never = policy;\n      throw new Error(`Unhandled waterfall type: ${_exhaustiveCheck}`);\n    }\n  }\n}",
+    "reasoning": {
+      "returnTypeMismatch": "FundModelOutputs represents a SINGLE period snapshot (month 0, month 3, etc.), but runFundModelV2 returns the COMPLETE simulation with all periods. The correct return type is SimulationResult which wraps the periods array plus inputs/metrics/metadata.",
+      "decimalPrecision": "Using Decimal.js throughout ensures financial calculations maintain precision for VC fund modeling where rounding errors in carry calculations can accumulate to significant amounts over 10-year fund lifecycles.",
+      "requiredVsOptional": "All finalMetrics fields are required because they're derived from the complete simulation. The 'irr' field is optional within individual period outputs (line 200) because IRR can't be calculated until there's a cash flow history, but in finalMetrics it should be required (with 0 as fallback).",
+      "waterfallExhaustiveness": "The current implementation (lines 272-286) has a TODO for American waterfall. The exhaustiveness check ensures both European and American cases are handled, and will catch when new waterfall types (e.g., 'hybrid') are added."
+    },
+    "notes": "DOMAIN CONTEXT: VC fund calculations require extreme precision because:\n1. Carry calculations compound over 10-year fund lives\n2. Management fees are calculated on changing bases (committed→invested→FMV)\n3. Waterfall tiers have complex cascading logic\n4. Small rounding errors in early periods compound to material GP/LP distribution differences\n\nThe v2 engine correctly uses Decimal.js throughout, but the return type annotation is wrong, causing TypeScript to reject valid business logic."
+  },
+  {
+    "file": "client/src/hooks/useModelingWizard.ts",
+    "domain": "XState v5 state machine for multi-step wizard",
+    "problems": [
+      "Argument of type '\"active.submitting\"' is not assignable to parameter type (line 253)",
+      "State machine uses nested states but matches() call uses dot notation incorrectly",
+      "XState v5 changed how nested state matching works - need to use object notation"
+    ],
+    "currentUnion": "// Line 253 - Incorrect nested state matching:\nisSubmitting: state.matches('active.submitting'),",
+    "proposedTypes": "// Fix: Use XState v5 object notation for nested states\n// Line 253 in useModelingWizard.ts:\nisSubmitting: state.matches({ active: 'submitting' }),\n\n// Alternative: Check if state value includes the nested state\nisSubmitting: state.value === 'active' && state.context.submissionStatus === 'submitting',\n\n// Or use hasTag if the machine defines tags:\nisSubmitting: state.hasTag('submitting'),",
+    "exhaustivenessCheck": "// Add state value type guard to ensure all states are handled:\nfunction getWizardPhase(state: typeof state): 'idle' | 'editing' | 'submitting' | 'completed' | 'error' {\n  if (state.matches('idle')) {\n    return 'idle';\n  }\n  if (state.matches({ active: 'editing' })) {\n    return 'editing';\n  }\n  if (state.matches({ active: 'submitting' })) {\n    return 'submitting';\n  }\n  if (state.matches({ active: 'submissionError' })) {\n    return 'error';\n  }\n  if (state.matches('completed')) {\n    return 'completed';\n  }\n  \n  // Exhaustiveness check\n  const _exhaustive: never = state.value as never;\n  throw new Error(`Unhandled wizard state: ${JSON.stringify(state.value)}`);\n}",
+    "reasoning": {
+      "xstateV5Breaking": "XState v5 changed the matches() API. In v4, you could use dot notation like 'active.submitting'. In v5, nested states require object notation: { active: 'submitting' }. This is a breaking change from the migration guide.",
+      "stateMachineTypes": "The state machine defines nested states (active.editing, active.submitting, active.submissionError) but the type inference expects flat state names. The object notation preserves type safety while matching nested states correctly.",
+      "exhaustiveness": "State machines are perfect candidates for exhaustiveness checking because states are finite and known at compile time. The never-check ensures all possible states are handled, preventing runtime errors when the machine definition changes.",
+      "tagAlternative": "XState v5 also supports tags (metadata on states) which can be checked with hasTag(). This is useful for cross-cutting concerns like 'loading', 'error', 'dirty' that span multiple states."
+    },
+    "notes": "XSTATE V5 MIGRATION: This codebase uses XState v5 (line 14 imports setup, assign, fromPromise from 'xstate'). Key breaking changes:\n1. Machine creation: createMachine() → setup().createMachine()\n2. Nested state matching: 'parent.child' → { parent: 'child' }\n3. Actions/guards: inline functions → named references in setup()\n4. Context typing: Explicit generic → inferred from setup()\n\nThe error suggests the machine definition is correct but the hook's state.matches() call uses the old v4 API."
+  },
+  {
+    "file": "client/src/workers/simulation.worker.ts",
+    "domain": "Web Worker for off-main-thread fund simulation",
+    "problems": [
+      "Cannot find name 'runSimulation' (line 32)",
+      "Import for runSimulation is commented out (line 6)",
+      "Comment says 'TODO: Fix - runSimulation export missing from fund-calc'"
+    ],
+    "currentUnion": "// Lines 5-6 (commented out import):\n// TODO: Fix - runSimulation export missing from fund-calc\n// import { runSimulation } from '../lib/fund-calc';\n\n// Line 32 (usage):\nconst result = await runSimulation(data.inputs, data.seed);",
+    "proposedTypes": "// Option 1: Use the new v2 engine (recommended)\n// Replace lines 5-6 with:\nimport { runFundModelV2 } from '../lib/fund-calc-v2';\nimport type { ExtendedFundModelInputs } from '@shared/schemas/extended-fund-model';\n\n// Update line 32 to:\nconst result = runFundModelV2(data.inputs);\n\n// Update RunMsg type to use ExtendedFundModelInputs:\ntype RunMsg = { \n  type: 'run'; \n  runId: string; \n  inputs: ExtendedFundModelInputs;\n  seed?: number; // Note: v2 engine is deterministic, seed not used\n};\n\n// Option 2: Re-export from fund-calc.ts (if legacy engine needed)\n// In client/src/lib/fund-calc.ts, add:\nexport { runSimulation } from './fund-calc-impl'; // or wherever it's defined",
+    "exhaustivenessCheck": "// Add message type exhaustiveness check:\nself.addEventListener('message', async (evt: MessageEvent<RunMsg>) => {\n  const { data } = evt;\n  \n  // Exhaustive message type handling\n  switch (data.type) {\n    case 'run': {\n      try {\n        const t0 = performance.now();\n        const result = runFundModelV2(data.inputs);\n        const duration = performance.now() - t0;\n        \n        const response: ResultMsg = {\n          type: 'result',\n          runId: data.runId,\n          result,\n          duration\n        };\n        \n        (self as any).postMessage(response);\n      } catch (err: any) {\n        const errorResponse: ResultMsg = {\n          type: 'error',\n          runId: data.runId,\n          error: String(err?.message ?? err)\n        };\n        (self as any).postMessage(errorResponse);\n      }\n      break;\n    }\n    default: {\n      const _exhaustive: never = data;\n      console.error('Unknown message type:', _exhaustive);\n    }\n  }\n});",
+    "reasoning": {
+      "missingExport": "The worker was written for the legacy fund-calc.ts engine which exported runSimulation(). The codebase now has fund-calc-v2.ts with runFundModelV2() but the worker wasn't updated. The TODO comment acknowledges this known issue.",
+      "workerUsage": "Web Workers are critical for VC fund modeling because Monte Carlo simulations (1000+ runs) can freeze the UI for 5-10 seconds. Running simulations off-main-thread keeps the UI responsive while calculating percentile outcomes.",
+      "deterministicVsSeed": "The v2 engine is fully deterministic (uses fractional company counts, no randomness) so the seed parameter is no longer needed. If Monte Carlo mode is added later, the seed should be part of MonteCarloSettings in ExtendedFundModelInputs, not a separate parameter.",
+      "typeAlignment": "The worker's SimulationInputs type should match ExtendedFundModelInputs (from shared/schemas/extended-fund-model.ts) to ensure the worker can handle all fund configuration options without type mismatches."
+    },
+    "notes": "WORKER ARCHITECTURE: This is a correctly structured web worker:\n1. Triple-slash directive for webworker lib (line 1)\n2. Typed message passing (RunMsg, ResultMsg)\n3. Duration tracking for performance monitoring\n4. Error handling with serializable error messages\n5. Type-only export for TypeScript (line 56)\n\nThe ONLY issue is the missing function import. Once fixed, this worker can handle fund simulations with proper type safety and performance isolation."
+  }
+]
