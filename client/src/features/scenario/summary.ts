@@ -1,4 +1,4 @@
-import { useFundContext } from '../../context/enhanced-fund-context-provider';
+import { useFundContext } from '@/contexts/FundContext';
 
 export type ScenarioSummary = { TVPI?: string | number; DPI?: string | number; NAV?: string | number; IRR?: string | number | null };
 
