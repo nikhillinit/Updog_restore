@@ -76,6 +76,7 @@ interface ConcentrationData {
   value: number;
   companies: number;
   color: string;
+  [key: string]: unknown;
 }
 
 const CustomTooltip = ({ active, payload }: any) => {

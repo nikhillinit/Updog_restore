@@ -21,11 +21,13 @@ interface CoInvestorData {
   amount: number;
   deals: number;
   color: string;
+  [key: string]: unknown;
 }
 
 interface SectorMOIC {
   sector: string;
   moic: number;
+  [key: string]: unknown;
 }
 
 export default function PortfolioInsights() {
