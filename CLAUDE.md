@@ -82,6 +82,35 @@ This is a web-based venture-capital fund modeling and reporting platform built a
 - **Testing**: Tests alongside source files, comprehensive coverage with Vitest
 - **Patterns**: Composition over inheritance, custom hooks for business logic, error boundaries
 
+### Waterfall Update Pattern
+All waterfall (carry distribution) updates should use the centralized helper:
+
+**Location:** `client/src/lib/waterfall.ts`
+
+**Usage:**
+- `applyWaterfallChange()` - Field updates with validation and clamping
+- `changeWaterfallType()` - Type switching with schema enforcement (AMERICAN ↔ EUROPEAN)
+
+**Features:**
+- Type-safe discriminated union handling (overloaded signatures)
+- Schema-validated defaults via `WaterfallSchema.parse()`
+- Value clamping (hurdle/catchUp to [0,1], carryVesting bounds)
+- Immutable updates (returns new object)
+- Performance: no-op returns same reference
+
+**Example:**
+```ts
+import { changeWaterfallType, applyWaterfallChange } from '@/lib/waterfall';
+
+// Type switching (schema-backed)
+const european = changeWaterfallType(american, 'EUROPEAN');
+
+// Field updates (type-safe with overloads)
+const updated = applyWaterfallChange(waterfall, 'hurdle', 0.10);
+```
+
+**See:** `client/src/lib/__tests__/waterfall.test.ts` for comprehensive examples (19 test cases)
+
 ### Path Aliases (vite.config.ts)
 - `@/` → `client/src/`
 - `@shared/` → `shared/`
