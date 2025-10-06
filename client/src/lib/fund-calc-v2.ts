@@ -17,7 +17,7 @@
  */
 
 import { Decimal } from 'decimal.js';
-import type { ExtendedFundModelInputs, FundModelOutputs } from '@shared/schemas/extended-fund-model';
+import type { ExtendedFundModelInputs, FundModelOutputs, SimulationResult } from '@shared/schemas/extended-fund-model';
 import { calculateCohortProgression } from '@shared/schemas/stage-profile';
 import { calculateManagementFees, type FeeCalculationContext } from '@shared/schemas/fee-profile';
 import { calculateCapitalCall } from '@shared/schemas/capital-call-policy';
@@ -76,7 +76,7 @@ interface FundState {
  * @param inputs - Complete fund model configuration
  * @returns Period-by-period simulation results
  */
-export function runFundModelV2(inputs: ExtendedFundModelInputs): FundModelOutputs {
+export function runFundModelV2(inputs: ExtendedFundModelInputs): SimulationResult {
   // Initialize fund state
   const state: FundState = {
     period: 0,
