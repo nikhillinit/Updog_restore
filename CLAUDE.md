@@ -13,6 +13,8 @@ This is a web-based venture-capital fund modeling and reporting platform built a
 - `npm run dev:api` - Backend API only (Express with hot reload)
 - `npm run build` - Production build (frontend + backend)
 - `npm run check` - TypeScript type checking
+- `npm run doctor:links` - Verify package junctions
+- `npm run doctor:quick` - Fast sidecar health check
 
 ### Testing & Quality
 - `npm test` - Run test suite with Vitest
@@ -99,6 +101,43 @@ This is a web-based venture-capital fund modeling and reporting platform built a
 - **Repository**: `nikhillinit/Updog_restore` on GitHub
 - **Auto-analysis**: Runs on all file edits and dependency changes
 - **Security**: Trivy scanning for vulnerabilities in dependencies
+
+## Windows Development: Sidecar Architecture
+
+⚠️ **Important:** All npm commands and linking scripts must be run from **PowerShell** or **CMD**. Running them from Git Bash or WSL can create incorrect junctions, causing build failures.
+
+This project uses an isolated sidecar workspace (`tools_local/`) to ensure reliable tool resolution on Windows.
+
+### Quick Start (Windows Setup)
+```bash
+# 1. Install all dependencies
+npm ci --prefix tools_local && npm install
+
+# 2. Verify everything is linked
+npm run doctor
+```
+
+### Health Checks
+- `npm run doctor` - Complete health check (all systems)
+- `npm run doctor:quick` - Fast module resolution check
+- `npm run doctor:links` - Full junction verification
+- `npm run doctor:sidecar` - Sidecar workspace validation
+
+### How It Works
+- **Sidecar workspace** (`tools_local/`) contains Vite + all plugins
+- **Windows junctions** link packages into root `node_modules/` with absolute paths
+- **Auto-healing**: `postinstall` hook recreates junctions after any `npm install`
+- **Config-driven**: Package list in `scripts/sidecar-packages.json`
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| `Cannot find package 'vite'` | `node scripts/link-sidecar-packages.mjs` |
+| Pre-commit fails | `npm run doctor:links` then retry |
+| After `npm install` | Auto-fixed by postinstall hook |
+
+See [SIDECAR_GUIDE.md](SIDECAR_GUIDE.md) for complete troubleshooting guide.
 - memory
 - memory
 - memory

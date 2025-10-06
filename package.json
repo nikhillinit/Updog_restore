@@ -11,7 +11,8 @@
   "scripts": {
     "preinstall": "npx only-allow npm",
     "postinstall": "node scripts/link-sidecar-packages.mjs",
-    "doctor": "node scripts/doctor.js",
+    "doctor": "npm-run-all --sequential doctor:sidecar doctor:links doctor:quick",
+    "doctor:parallel": "npm-run-all --parallel doctor:links doctor:quick",
     "doctor:sidecar": "node scripts/doctor-sidecar.js",
     "doctor:links": "node scripts/doctor-links.mjs",
     "reset:deps": "rimraf node_modules package-lock.json && npm cache clean --force && npm install",
@@ -233,6 +234,7 @@
     "test:main": "vitest run",
     "test:quarantine": "vitest -c vitest.config.quarantine.ts run",
     "test:ci": "vitest run",
+    "test:plan": "bash scripts/test-plan.sh",
     "predev": "node scripts/ensure-sidecar.mjs",
     "prebuild": "node scripts/ensure-sidecar.mjs",
     "pretest": "node scripts/ensure-sidecar.mjs",
