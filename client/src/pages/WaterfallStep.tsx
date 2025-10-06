@@ -10,14 +10,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Waterfall } from "@shared/types";
+import { applyWaterfallChange } from "@/lib/waterfall";
 
 interface WaterfallStepProps {
   data: Waterfall;
   onChange: (_data: Waterfall) => void;
 }
-
-// EUROPEAN-only fields that AMERICAN waterfall doesn't have
-const EUROPEAN_ONLY_FIELDS = ['hurdle', 'catchUp'] as const;
 
 // Exhaustiveness check helper
 function assertNever(x: never): never {
@@ -25,29 +23,18 @@ function assertNever(x: never): never {
 }
 
 export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
-  // Type-safe update with discriminated union guard
+  // Type-safe update using waterfall helper
   const handleChange = (field: string, value: any) => {
-    // Guard: prevent setting EUROPEAN-only fields on AMERICAN waterfall
-    if (data.type === 'AMERICAN' && EUROPEAN_ONLY_FIELDS.includes(field as any)) {
-      console.warn(`Field "${field}" is only valid for EUROPEAN waterfall`);
-      return;
-    }
-
-    // Safe update: preserve discriminant
-    onChange({
-      ...data,
-      [field]: value
-    } as Waterfall);
+    const updated = applyWaterfallChange(data, field, value);
+    onChange(updated);
   };
 
   const handleCarryVestingChange = (field: 'cliffYears' | 'vestingYears', value: number) => {
-    onChange({
-      ...data,
-      carryVesting: {
-        ...data.carryVesting,
-        [field]: value
-      }
+    const updated = applyWaterfallChange(data, 'carryVesting', {
+      ...data.carryVesting,
+      [field]: value
     });
+    onChange(updated);
   };
 
   const formatPercentage = (decimal: number) => {
