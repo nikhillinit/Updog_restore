@@ -1,5 +1,12 @@
 import React from 'react';
-import type { ScenarioRow } from './api';
+
+// TODO: Move to proper API types file when scenario API is implemented
+type ScenarioRow = {
+  name: string;
+  result_summary_json?: {
+    TVPI?: string | number;
+  };
+};
 
 export function ScenarioCompareChart({ scenarios }: { scenarios: ScenarioRow[] }) {
   const data = scenarios.map((s) => {

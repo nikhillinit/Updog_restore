@@ -8,10 +8,10 @@
  */
 
 import type { z } from 'zod';
-import type { KPIRawFactsResponseSchema } from '@shared/contracts/kpi-selector.contract';
+import type { KPIResponseSchema } from '@shared/contracts/kpi-selector.contract';
 import type { FundRawData } from '@/core/types/fund';
 
-type KPIApiResponse = z.infer<typeof KPIRawFactsResponseSchema>;
+type KPIApiResponse = z.infer<typeof KPIResponseSchema>;
 
 /**
  * Adapts API response to selector input format
@@ -52,8 +52,8 @@ export function isValidKpiResponse(
   data: unknown
 ): data is KPIApiResponse {
   try {
-    const { KPIRawFactsResponseSchema } = require('@shared/contracts/kpi-selector.contract');
-    KPIRawFactsResponseSchema.parse(data);
+    const { KPIResponseSchema } = require('@shared/contracts/kpi-selector.contract');
+    KPIResponseSchema.parse(data);
     return true;
   } catch {
     return false;

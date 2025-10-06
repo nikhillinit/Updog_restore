@@ -2,7 +2,8 @@
 /**
  * Runs the fund simulation off the main thread.
  */
-import { runSimulation } from '../lib/fund-calc';
+// TODO: Fix - runSimulation export missing from fund-calc
+// import { runSimulation } from '../lib/fund-calc';
 import type { SimulationInputs, SimulationResult } from '@shared/types';
 
 type RunMsg = { 
