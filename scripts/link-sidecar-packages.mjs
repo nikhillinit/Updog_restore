@@ -2,23 +2,37 @@
 // Creates Windows junctions (or Unix symlinks) from root node_modules to tools_local packages
 // This ensures vite + plugins resolve correctly in all runtime contexts (Vite, tsx, workers)
 
-import { existsSync, rmSync, mkdirSync } from 'node:fs';
+import { existsSync, rmSync, mkdirSync, readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const PACKAGES = [
-  'vite',
-  '@vitejs/plugin-react',
-  '@preact/preset-vite',
-  'rollup-plugin-visualizer',
-  'vite-plugin-virtual',
-  'vite-tsconfig-paths',
-  'autoprefixer',
-  'postcss',
-  'tailwindcss',
-  'preact',
-];
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load packages from config file for easier maintenance
+let PACKAGES;
+try {
+  const configPath = path.join(__dirname, 'sidecar-packages.json');
+  const config = JSON.parse(readFileSync(configPath, 'utf-8'));
+  PACKAGES = config.packages;
+  console.log(`[link-sidecar] Loaded ${PACKAGES.length} packages from sidecar-packages.json`);
+} catch (e) {
+  console.error('[link-sidecar] Failed to load sidecar-packages.json:', e.message);
+  console.error('[link-sidecar] Falling back to hardcoded package list');
+  PACKAGES = [
+    'vite',
+    '@vitejs/plugin-react',
+    '@preact/preset-vite',
+    'rollup-plugin-visualizer',
+    'vite-plugin-virtual',
+    'vite-tsconfig-paths',
+    'autoprefixer',
+    'postcss',
+    'tailwindcss',
+    'preact',
+  ];
+}
 
 function linkOne(pkg) {
   const parts = pkg.split('/');

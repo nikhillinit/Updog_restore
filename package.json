@@ -16,7 +16,7 @@
     "doctor:links": "node scripts/doctor-links.mjs",
     "reset:deps": "rimraf node_modules package-lock.json && npm cache clean --force && npm install",
     "reset:local-tools": "rimraf node_modules && npm cache clean --force && node scripts/ensure-complete-local.mjs",
-    "doctor:quick": "node -e \"try{require.resolve('rollup');require.resolve('postcss');require.resolve('chokidar');require.resolve('yargs');console.log('doctor:quick ✅ runtime modules OK')}catch(e){console.error('doctor:quick ❌',e.message);process.exit(1)}\"",
+    "doctor:quick": "node -e \"try{require.resolve('vite');require.resolve('@vitejs/plugin-react');require.resolve('autoprefixer');console.log('doctor:quick ✅ sidecar modules OK')}catch(e){console.error('doctor:quick ❌',e.message);process.exit(1)}\"",
     "dev": "node tools_local/node_modules/concurrently/dist/bin/concurrently.js -k \"npm run dev:client\" \"npm run dev:api\"",
     "dev:parallel": "node tools_local/node_modules/concurrently/dist/bin/concurrently.js -k -n \"CLIENT,API,WORKER-R,WORKER-P,METRICS\" -c \"cyan,green,yellow,magenta,blue\" \"npm run dev:client\" \"npm run dev:api\" \"npm run dev:worker:reserve\" \"npm run dev:worker:pacing\" \"npm run metrics:local\"",
     "dev:turbo": "node tools_local/node_modules/concurrently/dist/bin/concurrently.js -k -n \"CLIENT,API,TYPE,LINT\" -c \"cyan,green,yellow,blue\" \"npm run dev:client\" \"npm run dev:api\" \"npm run check:watch\" \"npm run lint:watch\"",

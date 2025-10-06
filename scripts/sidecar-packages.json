@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "description": "Configuration for sidecar packages to link into root node_modules",
+  "packages": [
+    "vite",
+    "@vitejs/plugin-react",
+    "@preact/preset-vite",
+    "rollup-plugin-visualizer",
+    "vite-plugin-virtual",
+    "vite-tsconfig-paths",
+    "autoprefixer",
+    "postcss",
+    "tailwindcss",
+    "preact"
+  ],
+  "_notes": {
+    "purpose": "Defines which packages from tools_local should be linked into root node_modules",
+    "usage": "Edit this list to add/remove linked packages without touching link-sidecar-packages.mjs",
+    "rationale": "Sidecar isolation prevents Windows Defender from blocking installations"
+  }
+}
