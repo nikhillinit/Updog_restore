@@ -74,6 +74,28 @@ try {
   console.log('[link-sidecar] Creating junctions for vite + plugins...');
   for (const p of PACKAGES) linkOne(p);
   console.log('[link-sidecar] ✅ Linked vite + plugins into root node_modules');
+
+  // CRITICAL: npm does NOT auto-create .bin shims for junctioned packages
+  // We must explicitly run `npm rebuild` to generate them
+  console.log('[link-sidecar] Creating .bin shims for junctioned packages...');
+
+  // Only rebuild packages that have bin scripts
+  const packagesWithBin = [];
+  for (const pkg of PACKAGES) {
+    const sidecarPkgJson = path.resolve('tools_local', 'node_modules', ...pkg.split('/'), 'package.json');
+    if (existsSync(sidecarPkgJson)) {
+      const pkgData = JSON.parse(readFileSync(sidecarPkgJson, 'utf-8'));
+      if (pkgData.bin) {
+        packagesWithBin.push(pkg);
+      }
+    }
+  }
+
+  if (packagesWithBin.length > 0) {
+    console.log(`[link-sidecar] Rebuilding ${packagesWithBin.length} packages with bin scripts...`);
+    execSync(`npm rebuild ${packagesWithBin.join(' ')} --ignore-scripts`, { stdio: 'inherit' });
+    console.log('[link-sidecar] ✅ Created .bin shims for npm scripts');
+  }
 } catch (e) {
   console.error('[link-sidecar] ✗ Failed:', e.message);
   console.error('[link-sidecar] On Windows, enable Developer Mode or run in an elevated shell.');

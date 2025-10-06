@@ -33,7 +33,17 @@ Updog_restore/
 ```bash
 npm ci --prefix tools_local
 npm install
-npm run doctor:links
+npm run doctor
+```
+
+### Individual Health Checks:
+
+```bash
+npm run doctor          # Full validation (recommended)
+npm run doctor:sidecar  # Validate tools_local workspace
+npm run doctor:shell    # Validate shell environment (Windows)
+npm run doctor:links    # Verify package junctions
+npm run doctor:quick    # Fast module resolution check
 ```
 
 ### If dev wipes `node_modules/`:
@@ -44,14 +54,31 @@ It's OK—postinstall will relink automatically. If not, run:
 node scripts/link-sidecar-packages.mjs
 ```
 
-### Fast verification:
+## Troubleshooting
 
-```bash
-npm run doctor:quick    # Check core modules resolve
-npm run doctor:links    # Verify all junctions
+### Problem: Running in Git Bash or WSL
+
+**Cause**: Git Bash creates POSIX symlinks instead of Windows junctions, breaking sidecar linking
+
+**Symptoms**:
+- `npm run doctor:shell` fails with shell mismatch error
+- Junction verification fails even after running link script
+
+**Fix**:
+```powershell
+# Close Git Bash/WSL and open PowerShell or CMD
+
+# Configure npm to use CMD (PowerShell/CMD only)
+npm config set script-shell "C:\Windows\System32\cmd.exe"
+
+# Recreate junctions
+node scripts/link-sidecar-packages.mjs
+
+# Verify
+npm run doctor
 ```
 
-## Troubleshooting
+**Prevention**: Always run npm commands from PowerShell or CMD on Windows
 
 ### Problem: "Cannot find package 'vite'"
 
@@ -81,6 +108,9 @@ npm run doctor:links
 # ALWAYS run from PowerShell/CMD, not Git Bash
 cmd /c rmdir node_modules\vite 2> NUL
 node scripts/link-sidecar-packages.mjs
+
+# Check shell environment is correct
+npm run doctor:shell
 ```
 
 ### Problem: Junctions break after `npm install`
