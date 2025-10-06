@@ -14,7 +14,9 @@
     "@tailwindcss/typography",
     "lightningcss",
     "preact",
-    "prettier"
+    "prettier",
+    "vitest",
+    "cross-env"
   ],
   "_notes": {
     "purpose": "Defines which packages from tools_local should be linked into root node_modules",
