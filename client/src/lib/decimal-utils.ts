@@ -120,8 +120,8 @@ export function safeDivide(numerator: Decimal | number, denominator: Decimal | n
  * sum([new Decimal('0.1'), new Decimal('0.2')]) // => Decimal(0.3)
  */
 export function sum(values: readonly (Decimal | number)[]): Decimal {
-  return values.reduce(
-    (total: Decimal, value: Decimal | number) => total.plus(value),
+  return values.reduce<Decimal>(
+    (total, value) => total.plus(value),
     new Decimal(0)
   );
 }
