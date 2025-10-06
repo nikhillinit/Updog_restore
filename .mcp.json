@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "multi-ai-collab": {
+      "command": "C:\\Python313\\python.exe",
+      "args": [
+        "C:\\Users\\nikhi\\AppData\\Roaming\\Claude\\Claude Extensions\\multi-ai-collab\\server.py"
+      ]
+    }
+  }
+}

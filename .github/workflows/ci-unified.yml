@@ -96,7 +96,14 @@ jobs:
         with:
           node-version: '22.16.0'
           cache: 'npm'
-      
+
+      - name: Pin npm version (CI)
+        run: |
+          corepack enable || true
+          npm install -g npm@10.9.2
+          npm --version
+          node --version
+
       - name: Generate cache key
         id: cache-key
         run: |
@@ -174,7 +181,14 @@ jobs:
         with:
           node-version: '22.16.0'
           cache: 'npm'
-      
+
+      - name: Pin npm version (CI)
+        run: |
+          corepack enable || true
+          npm install -g npm@10.9.2
+          npm --version
+          node --version
+
       - name: Restore TypeScript cache
         uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a
         with:
@@ -267,7 +281,14 @@ jobs:
         with:
           node-version: '22.16.0'
           cache: 'npm'
-      
+
+      - name: Pin npm version (CI)
+        run: |
+          corepack enable || true
+          npm install -g npm@10.9.2
+          npm --version
+          node --version
+
       - name: Cache test results
         uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a
         with:
@@ -349,7 +370,14 @@ jobs:
         with:
           node-version: '22.16.0'
           cache: 'npm'
-      
+
+      - name: Pin npm version (CI)
+        run: |
+          corepack enable || true
+          npm install -g npm@10.9.2
+          npm --version
+          node --version
+
       - name: Cache test results
         uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a
         with:
@@ -412,9 +440,16 @@ jobs:
         with:
           node-version: '22.16.0'
           cache: 'npm'
-      
+
+      - name: Pin npm version (CI)
+        run: |
+          corepack enable || true
+          npm install -g npm@10.9.2
+          npm --version
+          node --version
+
       - run: npm ci --prefer-offline --no-audit
-      
+
       - name: Build production bundle
         run: npm run build
         env:
@@ -472,9 +507,16 @@ jobs:
         with:
           node-version: '22.16.0'
           cache: 'npm'
-      
+
+      - name: Pin npm version (CI)
+        run: |
+          corepack enable || true
+          npm install -g npm@10.9.2
+          npm --version
+          node --version
+
       - run: npm ci --prefer-offline --no-audit
-      
+
       - name: Run security audit
         run: npm audit --audit-level=moderate
       
@@ -507,9 +549,16 @@ jobs:
         with:
           node-version: '22.16.0'
           cache: 'npm'
-      
+
+      - name: Pin npm version (CI)
+        run: |
+          corepack enable || true
+          npm install -g npm@10.9.2
+          npm --version
+          node --version
+
       - run: npm ci --prefer-offline --no-audit
-      
+
       - name: Run memory mode tests
         run: |
           npm run test:memory
@@ -545,9 +594,16 @@ jobs:
         with:
           node-version: '22.16.0'
           cache: 'npm'
-      
+
+      - name: Pin npm version (CI)
+        run: |
+          corepack enable || true
+          npm install -g npm@10.9.2
+          npm --version
+          node --version
+
       - run: npm ci --prefer-offline --no-audit
-      
+
       - name: Start test environment
         run: |
           npm run dev:api &

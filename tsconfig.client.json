@@ -4,7 +4,7 @@
     "composite": true,
     "tsBuildInfoFile": "./.tsbuildinfo.client",
     "jsx": "react-jsx",
-    "types": ["vite/client", "node"],
+    "types": ["node"],
     // Temporary relief for client-side code
     "strictNullChecks": true,
     "noUncheckedIndexedAccess": false,  // Temporarily relaxed for UI code

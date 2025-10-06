@@ -7,15 +7,24 @@
 
 // Extend the existing ImportMetaEnv interface instead of redefining it
 interface ImportMetaEnv {
-  // These are already defined in vite/client, so we don't need to redefine them
-  // MODE: string;
-  // BASE_URL: string;
-  // PROD: boolean;
-  // DEV: boolean;
-  // SSR: boolean;
-  
-  // Add our custom environment variables
+  // Base Vite environment variables
+  MODE: string;
+  BASE_URL: string;
+  PROD: boolean;
+  DEV: boolean;
+  SSR: boolean;
+
+  // Custom app environment variables
   VITE_APP_VERSION: string;
   VITE_GIT_SHA: string;
   VITE_BUILD_TIME: string;
+  VITE_ENV: string;
+  VITE_NEW_SELECTORS?: string;
+  VITE_WIZARD_DEBUG?: string;
+  VITE_NEW_IA?: string;
+  VITE_ENABLE_SELECTOR_KPIS?: string;
+  DEMO_MODE?: string;
+
+  // Support dynamic feature flags
+  [key: `VITE_FEATURE_${string}`]: string | undefined;
 }

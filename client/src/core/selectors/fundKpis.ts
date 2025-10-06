@@ -1,5 +1,5 @@
 
-import type { FundRawData, FundKpis, Investment } from '@core/types/fund';
+import type { FundRawData, FundKpis, Investment } from '@/core/types/fund';
 export const sum = (arr: number[]) => arr.reduce((a,b)=>a+b,0);
 export function calcCalled(cs:{amount:number}[]){return sum(cs.map(c=>c.amount));}
 export function calcDistributions(ds:{amount:number}[]){return sum(ds.map(d=>d.amount));}

@@ -198,48 +198,101 @@ export class CodexReviewAgent extends BaseAgent<FileChangeEvent, ReviewResult> {
   }
 
   /**
-   * Call MCP multi-AI code review (placeholder for MCP integration)
-   * In production, this would call the actual MCP server
+   * Call AI code review using in-repo orchestrator
+   * Uses the new AI orchestrator API instead of external MCP server
    */
   private async callMCPCodeReview(
     provider: string,
     filePath: string,
     content: string
   ): Promise<ReviewIssue[]> {
-    // TODO: Replace with actual MCP server call
-    // For now, return a simulated response
+    this.logger.debug(`Requesting ${provider} code review via in-repo orchestrator`, { filePath });
 
-    this.logger.debug(`Calling MCP ${provider}_code_review`, { filePath });
+    try {
+      // Call our in-repo AI orchestrator API
+      const response = await fetch('http://localhost:5000/api/ai/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `Review this code for security issues, bugs, and code quality. Provide specific, actionable feedback.
 
-    // Simulated MCP call - in production, this would be:
-    // const response = await mcpClient.call(`${provider}_code_review`, { code: content, focus: 'general' });
+File: ${filePath}
 
-    // For now, return basic static analysis
+\`\`\`
+${content}
+\`\`\`
+
+Focus on:
+- Security vulnerabilities
+- Performance issues
+- Code quality and maintainability
+- TypeScript best practices
+
+Format each issue as: [SEVERITY] Message`,
+          models: [provider as 'claude' | 'gpt' | 'gemini' | 'deepseek'],
+          tags: ['code-review', 'codex-agent'],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI orchestrator returned ${response.status}`);
+      }
+
+      const data = await response.json();
+      const result = data.results?.[0];
+
+      if (result?.error) {
+        this.logger.warn(`${provider} returned error: ${result.error}`);
+        return [];
+      }
+
+      if (!result?.text) {
+        return [];
+      }
+
+      // Parse AI response into structured issues
+      return this.parseAIResponse(result.text, provider);
+    } catch (error) {
+      this.logger.error(`Failed to get ${provider} review`, {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return [];
+    }
+  }
+
+  /**
+   * Parse AI response text into structured review issues
+   */
+  private parseAIResponse(text: string, provider: string): ReviewIssue[] {
     const issues: ReviewIssue[] = [];
+    const lines = text.split('\n');
 
-    // Basic checks
-    if (content.includes('any')) {
-      issues.push({
-        severity: 'medium',
-        message: 'Avoid using "any" type - use specific types for better type safety',
-        provider,
-      });
-    }
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
 
-    if (content.includes('console.log')) {
-      issues.push({
-        severity: 'low',
-        message: 'Remove console.log statements before committing',
-        provider,
-      });
-    }
+      // Parse format: [SEVERITY] Message or SEVERITY: Message
+      const severityMatch = trimmed.match(/^\[?(CRITICAL|HIGH|MEDIUM|LOW|INFO)\]?:?\s*(.+)/i);
+      if (severityMatch) {
+        const [, severityStr, message] = severityMatch;
+        const severity = severityStr.toLowerCase() as ReviewIssue['severity'];
 
-    if (content.includes('TODO') || content.includes('FIXME')) {
-      issues.push({
-        severity: 'info',
-        message: 'TODO/FIXME comment found - consider creating a ticket',
-        provider,
-      });
+        issues.push({
+          severity,
+          message: message.trim(),
+          provider,
+        });
+      } else if (trimmed.startsWith('-') || trimmed.startsWith('•') || /^\d+\./.test(trimmed)) {
+        // Bullet points or numbered lists - treat as medium severity
+        const message = trimmed.replace(/^[-•]\s*|\d+\.\s*/, '').trim();
+        if (message) {
+          issues.push({
+            severity: 'medium',
+            message,
+            provider,
+          });
+        }
+      }
     }
 
     return issues;

@@ -24,6 +24,13 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Pin npm version (CI)
+        run: |
+          corepack enable || true
+          npm install -g npm@10.9.2
+          npm --version
+          node --version
+
       - run: npm ci
 
       - run: npm run build
@@ -48,6 +55,13 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+
+      - name: Pin npm version (CI)
+        run: |
+          corepack enable || true
+          npm install -g npm@10.9.2
+          npm --version
+          node --version
 
       - run: npm ci
 

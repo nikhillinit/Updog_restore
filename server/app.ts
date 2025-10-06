@@ -8,6 +8,7 @@ import { flagsRouter } from './routes/flags.js';
 import cashflowRouter from './routes/cashflow.js';
 import healthRouter from './routes/health.js';
 import calculationsRouter from './routes/calculations.js';
+import aiRouter from './routes/ai.js';
 import { swaggerSpec } from './config/swagger.js';
 import { cspDirectives, buildCSPHeader, securityHeaders } from './config/csp.js';
 
@@ -117,6 +118,9 @@ export function makeApp() {
 
   // Fund calculations API (CSV export, deterministic engine)
   app.use('/api/calculations', calculationsRouter);
+
+  // AI orchestrator API (multi-model queries)
+  app.use('/api/ai', aiRouter);
 
   // API version endpoint for deployment verification
   app['get']('/api/version', (_req: Request, res: Response) => res.json({ 
