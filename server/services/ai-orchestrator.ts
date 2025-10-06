@@ -21,10 +21,10 @@ import pLimit from 'p-limit';
 // ============================================================================
 
 const CONFIG = {
-  dailyCallLimit: parseInt(process.env.AI_DAILY_CALL_LIMIT ?? '200', 10),
+  dailyCallLimit: parseInt(process.env['AI_DAILY_CALL_LIMIT'] ?? '200', 10),
   logPath: path.join(process.cwd(), 'logs', 'multi-ai.jsonl'),
   budgetPath: path.join(process.cwd(), 'logs', 'ai-budget.json'),
-  timeout: 10000, // 10s per model
+  timeout: parseInt(process.env['AI_TIMEOUT_MS'] ?? '90000', 10), // 90s default for complex prompts
   maxRetries: 2,
   concurrency: 3,
 } as const;
@@ -223,7 +223,7 @@ async function askClaude(prompt: string): Promise<AIResponse> {
     const response = await withRetryAndTimeout(
       () => anthropic.messages.create({
         model: process.env.CLAUDE_MODEL ?? 'claude-3-5-sonnet-latest',
-        max_tokens: 1500,
+        max_tokens: 8192,
         messages: [{ role: 'user', content: prompt }],
       }),
       'claude'
@@ -268,7 +268,7 @@ async function askGPT(prompt: string): Promise<AIResponse> {
       () => openai.chat.completions.create({
         model: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 1500,
+        max_tokens: 16384,
       }),
       'gpt'
     );
@@ -353,7 +353,7 @@ async function askDeepSeek(prompt: string): Promise<AIResponse> {
       () => deepseek.chat.completions.create({
         model: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 1500,
+        max_tokens: 8192,
       }),
       'deepseek'
     );
