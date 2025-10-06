@@ -250,7 +250,7 @@ export function useModelingWizard(options: UseModelingWizardOptions = {}): UseMo
     context,
     currentStep,
     currentStepIndex,
-    isSubmitting: state.matches('active.submitting'),
+    isSubmitting: state.matches({ active: 'submitting' }),
     isDirty: context.isDirty,
 
     // Navigation
