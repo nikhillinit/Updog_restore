@@ -273,6 +273,7 @@ export default function FundBasicsStep() {
         {/* Navigation */}
         <div className="flex justify-end pt-8 border-t border-[#E0D8D1] mt-8">
           <Button
+            data-testid="next-step"
             onClick={() => navigate('/fund-setup?step=2')}
             className="flex items-center gap-2 bg-[#292929] hover:bg-[#292929]/90 text-white px-8 py-3 h-auto font-poppins font-medium transition-all duration-200"
           >
