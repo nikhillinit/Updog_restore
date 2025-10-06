@@ -7,6 +7,9 @@ import { isEnabled } from '@/lib/feature-flags';
 import { metrics } from '@/metrics/reserves-metrics';
 import type { ReservesOutput, Company } from '@shared/types/reserves-v11';
 
+// Type-safe xlsx import
+type XLSXModule = typeof import('xlsx');
+
 export interface ExportOptions {
   format: 'csv' | 'excel' | 'json';
   filename?: string;
@@ -162,7 +165,7 @@ async function exportToExcel(data: ExportData, options: ExportOptions): Promise<
   
   try {
     // Dynamic import of xlsx with type assertion for compatibility
-    const XLSX = await import('xlsx') as any;
+    const XLSX = (await import('xlsx')) as unknown as XLSXModule;
     
     // Create workbook
     const wb = XLSX.utils.book_new();
