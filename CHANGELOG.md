@@ -8,6 +8,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] – 2025‑10‑06
 
 ### Added
+
+#### Phase 2 - Agent-Core Optimization (In Progress)
+
+**Phase 2 - Issue #1: Worker Thread Serialization** ✅ COMPLETE
+- Fixed critical async serialization flaw (was fake async, still blocked event loop)
+- Implemented Piscina worker thread pool for true async serialization
+- Small objects (< 1KB): Fast synchronous path
+- Large objects (≥ 1KB): Offload to worker thread
+- Performance: Event loop blocking 100-500ms → 0-5ms
+- Comprehensive test suite (25+ test cases)
+- See: [packages/agent-core/PHASE2_ISSUE1_COMPLETION.md](packages/agent-core/PHASE2_ISSUE1_COMPLETION.md)
+
+**Phase 2 - Issue #2: Redis L2 Cache** 🚧 Day 1/3 Complete
+- Created cache infrastructure foundation for serverless (Vercel) compatibility
+- CacheAdapter interface for pluggable backends (Upstash/ioredis/in-memory)
+- UpstashAdapter: HTTP Redis client optimized for Vercel serverless
+  - MessagePack serialization (30-50% smaller payload)
+  - gzip compression for objects > 2KB
+  - Circuit breaker fault tolerance (trip after 5 failures, 2min recovery)
+  - 25ms operation timeout with graceful degradation
+  - 128KB payload size limit
+- KeySchema: Versioned keys (`v1`) with tag-based bulk invalidation
+- CircuitBreaker: Automatic failure detection and recovery (CLOSED → OPEN → HALF_OPEN)
+- Status: Foundation complete (1,368 LOC), integration pending (Day 2-3)
+- Next: ConversationCache integration with Stale-While-Revalidate pattern
+- See: [packages/agent-core/PHASE2_ISSUE2_DETAILED_PLAN.md](packages/agent-core/PHASE2_ISSUE2_DETAILED_PLAN.md)
+
+**Multi-AI Review Results**:
+- 3 AI models (GPT-4, Gemini, DeepSeek) reviewed Phase 1 implementation
+- Average Score: 7.3/10, Confidence: 73%
+- Verdict: Conditional GO (fix 5 P0 issues before production)
+- All critical issues being addressed in Phase 2
+- See: [packages/agent-core/reviews/MULTI_AI_CONSENSUS_REPORT.md](packages/agent-core/reviews/MULTI_AI_CONSENSUS_REPORT.md)
+
+### Changed
+- **Development Dependencies Updated** - Merged Dependabot PR with 7 package updates
+  - `@playwright/test` 1.55.1 → 1.56.0 - Added Playwright Agents for LLM-guided test creation
+  - `@redocly/cli` 2.3.0 → 2.3.1 - JSONPath bug fixes for API documentation
+  - `@replit/vite-plugin-cartographer` 0.2.8 → 0.3.1 - Vite plugin improvements
+  - `@typescript-eslint/utils` 8.45.0 → 8.46.0 - ESLint rule improvements
+  - `tsx` 4.19.2 → 4.20.6 - TypeScript execution bug fixes
+  - `vite` 5.4.11 → 5.4.20 - Multiple security patches (fs.strict checks, request validation)
+  - Removed deprecated `@types/xlsx` stub package (xlsx provides own types)
+- **Sidecar Architecture Enhanced** - Added testing libraries to Windows sidecar workspace
+  - Added `jsdom`, `@testing-library/jest-dom`, `@testing-library/react`, `@testing-library/user-event`
+  - Ensures Vitest running from tools_local can find all test dependencies
+  - Updated tools_local to match Vite 5.4.20 and tsx 4.20.6 versions
+
+### Added
 - **Conversation Memory System** - Multi-turn conversation persistence for cross-agent workflows
   - Thread-based conversations with UUID tracking and parent/child chains
   - Cross-tool continuation (analyzer → fixer → validator with full context)
