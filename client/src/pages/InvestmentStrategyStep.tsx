@@ -618,6 +618,7 @@ export default function InvestmentStrategyStep() {
         {/* Navigation */}
         <div className="flex justify-between pt-8 border-t border-[#E0D8D1] mt-8">
           <Button
+            data-testid="previous-step"
             variant="outline"
             onClick={() => navigate('/fund-setup?step=2')}
             className="flex items-center gap-2 px-8 py-3 h-auto font-poppins font-medium border-[#E0D8D1] text-[#292929] hover:bg-[#E0D8D1]/20 hover:border-[#292929] transition-all duration-200"
@@ -626,6 +627,7 @@ export default function InvestmentStrategyStep() {
             Previous
           </Button>
           <Button
+            data-testid="next-step"
             onClick={() => navigate('/fund-setup?step=4')}
             className="flex items-center gap-2 bg-[#292929] hover:bg-[#292929]/90 text-white px-8 py-3 h-auto font-poppins font-medium transition-all duration-200"
           >
