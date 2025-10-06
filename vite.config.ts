@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import preact from '@preact/preset-vite';
