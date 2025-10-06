@@ -26,9 +26,11 @@ export interface RateLimiterConfig {
 export class RedisApprovalRateLimiter {
   private tokenBucketScript: string;
   private slidingWindowScript: string;
-  private redis: RedisClientType;
-  private connected: boolean = false;
-  
+  private redis: RedisClientType | null;
+  private connected = false;
+  private readonly useMemory: boolean;
+  private readonly memoryBuckets = new Map<string, number[]>();
+
   constructor(
     private config: RateLimiterConfig = {
       maxRequests: 3,
@@ -36,14 +38,18 @@ export class RedisApprovalRateLimiter {
       keyPrefix: 'rl' // Namespace keys properly
     }
   ) {
-    this.redis = createClient({
-      url: config.redisUrl || process.env['REDIS_URL'] || 'redis://localhost:6379',
-      socket: {
-        connectTimeout: 5000
-      },
-      // retryStrategy removed - not available in this Redis client version
-    });
-    
+    const resolvedRedisUrl = config.redisUrl ?? process.env['REDIS_URL'];
+    this.useMemory = !resolvedRedisUrl || resolvedRedisUrl === 'memory://';
+
+    this.redis = this.useMemory
+      ? null
+      : createClient({
+          url: resolvedRedisUrl,
+          socket: {
+            connectTimeout: 5000
+          },
+        });
+
     // Atomic token bucket Lua script
     this.tokenBucketScript = `
       local key = KEYS[1]
@@ -103,26 +109,39 @@ export class RedisApprovalRateLimiter {
       end
     `;
     
-    this.redis['on']('error', (err: any) => {
-      console.error('Redis rate limiter error:', err);
-      this.connected = false;
-    });
-    
-    this.redis['on']('connect', () => {
-      console.log('Redis rate limiter connected');
+    if (this.redis) {
+      this.redis['on']('error', (err: any) => {
+        console.error('Redis rate limiter error:', err);
+        this.connected = false;
+      });
+
+      this.redis['on']('connect', () => {
+        console.log('Redis rate limiter connected');
+        this.connected = true;
+      });
+    } else {
       this.connected = true;
-    });
+    }
   }
-  
+
   async connect(): Promise<void> {
-    if (!this.connected) {
+    if (this.useMemory) {
+      this.connected = true;
+      return;
+    }
+    if (!this.connected && this.redis) {
       await this.redis.connect();
       this.connected = true;
     }
   }
-  
+
   async disconnect(): Promise<void> {
-    if (this.connected) {
+    if (this.useMemory) {
+      this.connected = false;
+      this.memoryBuckets.clear();
+      return;
+    }
+    if (this.connected && this.redis) {
       await this.redis['quit']();
       this.connected = false;
     }
@@ -136,11 +155,34 @@ export class RedisApprovalRateLimiter {
     strategyId: string, 
     inputsHash: string
   ): Promise<RateLimitResult> {
+    if (this.useMemory) {
+      const key = `${this.config.keyPrefix}:approval:${strategyId}:${inputsHash}`;
+      const now = Date.now();
+      const windowStart = now - this.config.windowMs;
+      const timestamps = (this.memoryBuckets.get(key) || []).filter(ts => ts > windowStart);
+      if (timestamps.length >= this.config.maxRequests) {
+        const resetAt = timestamps[0] + this.config.windowMs;
+        this.memoryBuckets.set(key, timestamps);
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt,
+          retryAfter: Math.ceil((resetAt - now) / 1000)
+        };
+      }
+      timestamps.push(now);
+      this.memoryBuckets.set(key, timestamps);
+      return {
+        allowed: true,
+        remaining: this.config.maxRequests - timestamps.length,
+        resetAt: now + this.config.windowMs
+      };
+    }
+
     if (!this.connected) {
       try {
         await this.connect();
       } catch (error) {
-        // Fallback: allow but log error
         console.error('Redis connection failed, allowing request:', error);
         return {
           allowed: true,
@@ -149,40 +191,38 @@ export class RedisApprovalRateLimiter {
         };
       }
     }
-    
+
     const key = `${this.config.keyPrefix}:approval:${strategyId}:${inputsHash}`;
     const now = Date.now();
     const ttl = Math.ceil(this.config.windowMs / 1000);
     const identifier = `${now}-${Math.random().toString(36).substr(2, 9)}`;
-    
+
     try {
-      // Use sliding window for accuracy
-      const result = await this.redis.eval(
+      const result = await this.redis!.eval(
         this.slidingWindowScript,
         {
           keys: [key],
           arguments: [
             now.toString(),
-            this.config.windowMs.toString(), 
+            this.config.windowMs.toString(),
             this.config.maxRequests.toString(),
             identifier
           ]
         }
       ) as [number, number, number];
-      
+
       const [allowed, remaining, resetAt] = result;
-      
+
       return {
         allowed: allowed === 1,
         remaining,
         resetAt,
         retryAfter: allowed === 0 ? Math.ceil((resetAt - now) / 1000) : undefined
       };
-      
+
     } catch (error) {
       console.error('Redis rate limit check failed:', error);
-      
-      // Fallback policy: deny for safety on approval creation
+
       return {
         allowed: false,
         remaining: 0,
@@ -197,39 +237,55 @@ export class RedisApprovalRateLimiter {
    * Useful for testing or manual intervention
    */
   async clearLimit(strategyId: string, inputsHash: string): Promise<void> {
+    if (this.useMemory) {
+      const key = `${this.config.keyPrefix}:approval:${strategyId}:${inputsHash}`;
+      this.memoryBuckets.delete(key);
+      return;
+    }
+
     if (!this.connected) {
       await this.connect();
     }
-    
+
     const key = `${this.config.keyPrefix}:approval:${strategyId}:${inputsHash}`;
-    await this.redis['del'](key);
+    await this.redis!['del'](key);
   }
-  
+
   /**
    * Get current usage for monitoring
    */
   async getCurrentUsage(
-    strategyId: string, 
+    strategyId: string,
     inputsHash: string
   ): Promise<{ count: number; oldestRequest: number | null }> {
+    if (this.useMemory) {
+      const key = `${this.config.keyPrefix}:approval:${strategyId}:${inputsHash}`;
+      const now = Date.now();
+      const windowStart = now - this.config.windowMs;
+      const timestamps = (this.memoryBuckets.get(key) || []).filter(ts => ts > windowStart);
+      this.memoryBuckets.set(key, timestamps);
+      return {
+        count: timestamps.length,
+        oldestRequest: timestamps.length > 0 ? timestamps[0] : null,
+      };
+    }
+
     if (!this.connected) {
       await this.connect();
     }
-    
+
     const key = `${this.config.keyPrefix}:approval:${strategyId}:${inputsHash}`;
     const now = Date.now();
     const windowStart = now - this.config.windowMs;
-    
-    // Clean old entries
-    await this.redis.zRemRangeByScore(key, '-inf', windowStart.toString());
-    
-    // Get count and oldest
-    const count = await this.redis.zCard(key);
-    const oldest = await this.redis.zRange(key, 0, 0);
-    
+
+    await this.redis!.zRemRangeByScore(key, '-inf', windowStart.toString());
+
+    const count = await this.redis!.zCard(key);
+    const oldest = await this.redis!.zRange(key, 0, 0);
+
     return {
       count,
-      oldestRequest: oldest.length > 0 
+      oldestRequest: oldest.length > 0
         ? parseInt(oldest[0].split('-')[0])
         : null
     };
@@ -319,11 +375,12 @@ export async function createRateLimiter(
   config?: RateLimiterConfig
 ): Promise<RedisApprovalRateLimiter | InMemoryRateLimiter> {
   const isProduction = process.env['NODE_ENV'] === 'production';
-  const hasRedis = !!process.env['REDIS_URL'];
-  
-  if (isProduction || hasRedis) {
+  const redisUrl = config?.redisUrl ?? process.env['REDIS_URL'];
+  const shouldUseRedis = !!redisUrl && redisUrl !== 'memory://';
+
+  if (isProduction && shouldUseRedis) {
     try {
-      const redisLimiter = new RedisApprovalRateLimiter(config);
+      const redisLimiter = new RedisApprovalRateLimiter({ ...config, redisUrl });
       await redisLimiter.connect();
       console.log('Using Redis-backed rate limiter');
       return redisLimiter;
@@ -331,7 +388,7 @@ export async function createRateLimiter(
       console.warn('Failed to connect to Redis, falling back to in-memory rate limiter:', error);
     }
   }
-  
+
   console.log('Using in-memory rate limiter (development mode)');
   return new InMemoryRateLimiter(
     config?.maxRequests,

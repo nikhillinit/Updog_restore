@@ -24,10 +24,15 @@ const connection = {
   port: parseInt(process.env['REDIS_PORT'] || '6379'),
 };
 
-// Initialize queues
-const reserveQueue = new Queue('reserve-calc', { connection });
-const pacingQueue = new Queue('pacing-calc', { connection });
-const cohortQueue = new Queue('cohort-calc', { connection });
+const queuesEnabled =
+  process.env['ENABLE_QUEUES'] === '1' &&
+  process.env['REDIS_URL'] &&
+  process.env['REDIS_URL'] !== 'memory://';
+
+// Initialize queues only when Redis-backed queues are enabled
+const reserveQueue = queuesEnabled ? new Queue('reserve-calc', { connection }) : null;
+const pacingQueue = queuesEnabled ? new Queue('pacing-calc', { connection }) : null;
+const cohortQueue = queuesEnabled ? new Queue('cohort-calc', { connection }) : null;
 
 // Zod schema for draft validation. This ensures data passed to background
 // jobs conforms to the limits of downstream AI/ML models.
@@ -227,11 +232,13 @@ export function registerFundConfigRoutes(app: Express) {
         removeOnFail: false,
       };
 
-      await Promise.all([
-        reserveQueue.add('calculate', { fundId, correlationId }, jobOptions),
-        pacingQueue.add('calculate', { fundId, correlationId }, jobOptions),
-        cohortQueue.add('calculate', { fundId, correlationId }, jobOptions),
-      ]);
+      if (reserveQueue && pacingQueue && cohortQueue) {
+        await Promise.all([
+          reserveQueue.add('calculate', { fundId, correlationId }, jobOptions),
+          pacingQueue.add('calculate', { fundId, correlationId }, jobOptions),
+          cohortQueue.add('calculate', { fundId, correlationId }, jobOptions),
+        ]);
+      }
 
       // Log calculation trigger
       await db.insert(fundEvents).values({

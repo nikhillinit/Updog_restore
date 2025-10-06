@@ -7,6 +7,115 @@ import IORedis, { Redis, RedisOptions, SentinelAddress } from 'ioredis';
 import { logger } from '../lib/logger';
 import * as fs from 'fs';
 
+interface MemoryEntry {
+  value: string;
+  expiresAt?: number;
+}
+
+function normalizeValue(value: string | number | Buffer): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return value.toString();
+  return value.toString();
+}
+
+function createMemoryRedisClient(): Redis {
+  const store = new Map<string, MemoryEntry>();
+
+  const touch = (key: string): MemoryEntry | undefined => {
+    const entry = store.get(key);
+    if (!entry) return undefined;
+    if (entry.expiresAt !== undefined && entry.expiresAt <= Date.now()) {
+      store.delete(key);
+      return undefined;
+    }
+    return entry;
+  };
+
+  const stub: any = {
+    async get(key: string): Promise<string | null> {
+      const entry = touch(key);
+      return entry?.value ?? null;
+    },
+    async set(key: string, value: string | number | Buffer): Promise<'OK'> {
+      store.set(key, { value: normalizeValue(value) });
+      return 'OK';
+    },
+    async setex(key: string, ttlSeconds: number, value: string | number | Buffer): Promise<'OK'> {
+      store.set(key, {
+        value: normalizeValue(value),
+        expiresAt: Date.now() + ttlSeconds * 1000,
+      });
+      return 'OK';
+    },
+    async del(key: string): Promise<number> {
+      return store.delete(key) ? 1 : 0;
+    },
+    async incr(key: string): Promise<number> {
+      const current = Number(await stub.get(key) ?? '0');
+      const next = current + 1;
+      store.set(key, { value: next.toString() });
+      return next;
+    },
+    async expire(key: string, seconds: number): Promise<number> {
+      const entry = store.get(key);
+      if (!entry) return 0;
+      entry.expiresAt = Date.now() + seconds * 1000;
+      store.set(key, entry);
+      return 1;
+    },
+    async ping(): Promise<'PONG'> {
+      return 'PONG';
+    },
+    async quit(): Promise<'OK'> {
+      store.clear();
+      return 'OK';
+    },
+    duplicate(): Redis {
+      return stub as Redis;
+    },
+    async call(command: string, ...args: (string | number)[]): Promise<any> {
+      switch (command.toUpperCase()) {
+        case 'PING':
+          return 'PONG';
+        case 'GET':
+          return stub.get(String(args[0]));
+        case 'SET':
+          return stub.set(String(args[0]), String(args[1] ?? ''));
+        case 'SETEX':
+          return stub.setex(String(args[0]), Number(args[1] ?? 0), String(args[2] ?? ''));
+        case 'DEL':
+          return stub.del(String(args[0]));
+        case 'INCR':
+          return stub.incr(String(args[0]));
+        case 'EXPIRE':
+          return stub.expire(String(args[0]), Number(args[1] ?? 0));
+        default:
+          return null;
+      }
+    },
+    on(): Redis {
+      return stub as Redis;
+    },
+    once(): Redis {
+      return stub as Redis;
+    },
+    addListener(): Redis {
+      return stub as Redis;
+    },
+    removeListener(): Redis {
+      return stub as Redis;
+    },
+    off(): Redis {
+      return stub as Redis;
+    },
+    removeAllListeners(): Redis {
+      return stub as Redis;
+    },
+  };
+
+  return stub as Redis;
+}
+
 /**
  * Mask sensitive data in connection strings for logging
  */
@@ -127,6 +236,10 @@ function parseSentinelOptions(config: CreateRedisConfig): {
  * Create typed Redis client from configuration
  */
 export function createRedis(config: CreateRedisConfig = {}): Redis {
+  if (config.url === 'memory://' || process.env['REDIS_URL'] === 'memory://') {
+    logger.info('Redis memory mode enabled - using in-process stub');
+    return createMemoryRedisClient();
+  }
   // Start with defaults
   const options: RedisOptions = { ...DEFAULT_OPTIONS };
 
@@ -259,10 +372,16 @@ export async function checkRedisHealth(redis: Redis): Promise<boolean> {
  */
 export function createCacheFromEnv(): Redis {
   const config: CreateRedisConfig = {};
+  const redisUrl = process.env['REDIS_URL'];
+
+  if (redisUrl === 'memory://' || redisUrl === 'mock') {
+    logger.info('Redis memory mode detected (REDIS_URL=%s)', redisUrl);
+    return createMemoryRedisClient();
+  }
 
   // Parse URL if provided
-  if (process.env['REDIS_URL']) {
-    config.url = process.env['REDIS_URL'];
+  if (redisUrl) {
+    config.url = redisUrl;
   } else {
     // Use individual options
     if (process.env['REDIS_HOST']) {
