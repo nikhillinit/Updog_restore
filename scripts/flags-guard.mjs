@@ -5,9 +5,14 @@
  * Requires approval labels for sensitive changes
  */
 
-import { execSync } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
+import {
+  assertValidGitRef,
+  safeGitDiff,
+  safeGitDiffFiles,
+  safeGitDiffFile,
+} from './lib/git-security.mjs';
 
 // Sensitive flag patterns that require approval
 const SENSITIVE_FLAGS = [
@@ -23,21 +28,24 @@ const SENSITIVE_FLAGS = [
   /emergency/i
 ];
 
-// Get diff between branches
+// Get diff between branches (SAFE - uses validated refs)
 function getDiff(baseBranch = 'main') {
   try {
-    const diff = execSync(`git diff ${baseBranch}...HEAD --name-only`, { encoding: 'utf-8' });
-    return diff.split('\n').filter(f => f);
+    // Validate branch name before using
+    const validBranch = assertValidGitRef(baseBranch);
+    const files = safeGitDiffFiles(validBranch, 'HEAD');
+    return files;
   } catch (error) {
     console.error('Error getting diff:', error.message);
     return [];
   }
 }
 
-// Get file changes
+// Get file changes (SAFE - uses validated refs and file paths)
 function getFileChanges(file, baseBranch = 'main') {
   try {
-    const diff = execSync(`git diff ${baseBranch}...HEAD -- ${file}`, { encoding: 'utf-8' });
+    const validBranch = assertValidGitRef(baseBranch);
+    const diff = safeGitDiffFile(validBranch, 'HEAD', file);
     return diff;
   } catch (error) {
     return '';

@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-import { spawn } from 'child_process';
+import { spawn, execFile } from 'child_process';
+import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+const execFileAsync = promisify(execFile);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -469,23 +472,39 @@ class BundleAnalyzerGateway {
     }
   }
 
-  async exec(command) {
-    return new Promise((resolve, reject) => {
-      const child = spawn(command, { shell: true });
-      let output = '';
-      let error = '';
+  /**
+   * Execute a command safely without shell interpretation
+   * Parses command string into binary and arguments
+   */
+  async exec(commandString) {
+    // Parse command string into parts
+    // For npm commands, split properly
+    const parts = commandString.trim().split(/\s+/);
+    const binary = parts[0];
+    const args = parts.slice(1);
 
-      child.stdout.on('data', data => output += data);
-      child.stderr.on('data', data => error += data);
-
-      child.on('close', code => {
-        if (code === 0) {
-          resolve(output);
-        } else {
-          reject(new Error(error || output));
-        }
+    try {
+      const { stdout, stderr } = await execFileAsync(binary, args, {
+        maxBuffer: 10 * 1024 * 1024, // 10MB buffer
       });
-    });
+
+      if (stderr && !stderr.includes('npm WARN')) {
+        console.warn('Command stderr:', stderr);
+      }
+
+      return stdout;
+    } catch (error) {
+      throw new Error(`Command failed: ${binary} ${args.join(' ')}\n${error.message}`);
+    }
+  }
+
+  /**
+   * Execute npm script safely
+   */
+  async execNpm(script, ...args) {
+    return execFileAsync('npm', ['run', script, ...args], {
+      maxBuffer: 10 * 1024 * 1024,
+    }).then(({ stdout }) => stdout);
   }
 
   showHelp() {
