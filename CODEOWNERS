@@ -1,0 +1,24 @@
+# CODEOWNERS - Automated review routing
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# AI Agent System (Phase 1+)
+ai/**                          @nikhillinit
+server/agents/**               @nikhillinit
+docs/adr/**                    @nikhillinit
+docs/metrics-meanings.md       @nikhillinit
+docs/observability/**          @nikhillinit
+
+# Core Analytics (reserves, pacing, cohorts)
+core/reserves/**               @nikhillinit
+client/src/core/**             @nikhillinit
+
+# Test Infrastructure & Golden Fixtures
+tests/agents/**                @nikhillinit
+tests/agents/fixtures/**       @nikhillinit
+
+# CI/CD & Deployment
+.github/workflows/**           @nikhillinit
+scripts/verify-docs-and-env.sh @nikhillinit
+
+# Security & Compliance
+tools/eslint-plugin-povc-security/** @nikhillinit

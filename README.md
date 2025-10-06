@@ -103,10 +103,18 @@ tests/utils/
 
 This project follows the **Build → Measure → Analyze → Decide (BMAD)** workflow. The latest orchestration brief, including critical checkpoints and updated phases, can be found in `docs/bmad-brief.md`.
 
+## Architecture Decisions
+
+See [docs/adr/](docs/adr/) for architectural decision records covering:
+- **Evaluator Metrics** (IRR/TVPI/MOIC) - How we measure AI agent quality with venture-specific KPIs ([detailed definitions](docs/metrics-meanings.md))
+- **Token Budgeting** - Hard USD limits with graceful degradation for cost control
+- **SSE Streaming** - Real-time progress updates for long-running operations
+
 ## Documentation
 
 - [Schema Reference](docs/schema.md)
 - [Observability Guide](docs/observability.md)
+- [Metrics & Meanings](docs/metrics-meanings.md) - Fund performance metrics and AI evaluation KPIs
 
 ## Utilities
 

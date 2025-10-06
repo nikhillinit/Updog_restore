@@ -15,6 +15,7 @@ const __dirname = path.dirname(__filename);
 
 // Import custom rules
 const noHardcodedFundMetrics = require('./eslint-rules/no-hardcoded-fund-metrics.js');
+const povcSecurityPlugin = require('./tools/eslint-plugin-povc-security/index.js');
 
 // Boundary enforcement rules for server/client/shared separation
 const boundaryRules = {
@@ -119,7 +120,8 @@ export default [
         rules: {
           "no-hardcoded-fund-metrics": noHardcodedFundMetrics
         }
-      }
+      },
+      "povc-security": povcSecurityPlugin
     },
     rules: {
       // Type safety rules - ERROR to prevent new 'any' types
@@ -235,6 +237,13 @@ export default [
         // Node.js test environment
         global: "readonly"
       }
+    }
+  },
+  // AI and core reserves - deterministic math enforcement
+  {
+    files: ["ai/**/*.ts", "ai/**/*.tsx", "core/reserves/**/*.ts", "core/reserves/**/*.tsx"],
+    rules: {
+      "povc-security/no-floating-point-in-core": "error"
     }
   }
 ];
