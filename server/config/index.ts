@@ -19,8 +19,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(5000),
 
-  // Database
-  DATABASE_URL: z.string().min(1).default('postgresql://mock:mock@localhost:5432/mock'),
+  // Database (optional in memory mode)
+  DATABASE_URL: z.string().min(1).default('postgresql://mock:mock@localhost:5432/mock').optional(),
 
   // Cache & Queue - explicit scheme validation
   REDIS_URL: z.string().url().or(z.literal('memory://')).default('memory://'),

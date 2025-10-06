@@ -23,8 +23,11 @@ interface ImportMetaEnv {
   VITE_WIZARD_DEBUG?: string;
   VITE_NEW_IA?: string;
   VITE_ENABLE_SELECTOR_KPIS?: string;
+  VITE_ENABLE_MODELING_WIZARD?: string;
+  VITE_ENABLE_OPERATIONS_HUB?: string;
+  VITE_ENABLE_LP_REPORTING?: string;
   DEMO_MODE?: string;
 
-  // Support dynamic feature flags
-  [key: `VITE_FEATURE_${string}`]: string | undefined;
+  // Support dynamic feature flags AND general string indexing
+  [key: string]: string | boolean | undefined;
 }

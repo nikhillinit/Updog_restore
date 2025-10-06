@@ -18,23 +18,35 @@ import type { Socket } from 'net';
 
 async function bootstrap() {
   try {
+    console.log('[bootstrap] ===== PHASE 0: START =====');
     console.log('[bootstrap] Starting application...');
-    
+
+    console.log('[bootstrap] ===== PHASE 1: ENV LOAD =====');
     // Load and validate environment first
     const cfg = loadEnv();
     console.log(`[bootstrap] Environment: ${cfg.NODE_ENV}, Port: ${cfg.PORT}`);
-    
+    console.log(`[bootstrap] REDIS_URL: ${cfg.REDIS_URL}`);
+    console.log(`[bootstrap] DATABASE_URL: ${cfg.DATABASE_URL ? 'set' : 'undefined'}`);
+    console.log(`[bootstrap] ENABLE_QUEUES: ${cfg.ENABLE_QUEUES}`);
+    console.log(`[bootstrap] DISABLE_AUTH: ${process.env.DISABLE_AUTH}`);
+
+    console.log('[bootstrap] ===== PHASE 2: PROVIDERS =====');
     // Build providers based on configuration (single source of truth)
     const providers = await buildProviders(cfg);
+    console.log('[bootstrap] Providers built successfully');
     console.log(`[providers] Cache: ${providers.mode}, RateLimit: ${!!providers.rateLimitStore}, Queues: ${providers.queue?.enabled}`);
-    
+
+    console.log('[bootstrap] ===== PHASE 3: SERVER CREATE =====');
     // Create server with dependency injection
     const app = await createServer(cfg, providers);
-    
+    console.log('[bootstrap] Server created successfully');
+
+    console.log('[bootstrap] ===== PHASE 4: LISTEN =====');
     // Start server
     const server = app.listen(cfg.PORT, () => {
+      console.log('[bootstrap] ===== SERVER READY =====');
       console.log(`[startup] ${cfg.NODE_ENV} on :${cfg.PORT} | cache=${providers.mode} rl=${providers.rateLimitStore ? 'redis' : 'memory'}`);
-      
+
       // Mark server as ready for requests
       setReady(true);
       console.log('✅ Server ready for requests');

@@ -22,14 +22,14 @@ export function getInitialFlagStates(): Record<string, boolean> {
   const toBool = (v: unknown): boolean => String(v).toLowerCase() === 'true';
 
   return {
-    // Foundation flags (map from ENV)
-    enable_new_ia: toBool(import.meta.env.VITE_NEW_IA) ?? ALL_FLAGS.enable_new_ia.enabled,
-    enable_kpi_selectors: toBool(import.meta.env.VITE_ENABLE_SELECTOR_KPIS) ?? ALL_FLAGS.enable_kpi_selectors.enabled,
+    // Foundation flags (map from ENV) - using bracket notation for type safety
+    enable_new_ia: toBool(import.meta.env['VITE_NEW_IA']) ?? ALL_FLAGS.enable_new_ia.enabled,
+    enable_kpi_selectors: toBool(import.meta.env['VITE_ENABLE_SELECTOR_KPIS']) ?? ALL_FLAGS.enable_kpi_selectors.enabled,
     enable_cap_table_tabs: false, // Default off, enable via flag system
     enable_brand_tokens: true, // Always on (non-breaking CSS)
 
-    // Build flags (map from ENV where available)
-    enable_modeling_wizard: toBool(import.meta.env.VITE_ENABLE_MODELING_WIZARD) ?? false,
+    // Build flags (map from ENV where available) - using bracket notation
+    enable_modeling_wizard: toBool(import.meta.env['VITE_ENABLE_MODELING_WIZARD']) ?? false,
     enable_wizard_step_general: false,
     enable_wizard_step_sectors: false,
     enable_wizard_step_allocations: false,
@@ -39,10 +39,10 @@ export function getInitialFlagStates(): Record<string, boolean> {
     enable_wizard_step_results: false,
     enable_reserve_engine: false,
     enable_portfolio_table_v2: false,
-    enable_operations_hub: toBool(import.meta.env.VITE_ENABLE_OPERATIONS_HUB) ?? false,
+    enable_operations_hub: toBool(import.meta.env['VITE_ENABLE_OPERATIONS_HUB']) ?? false,
 
     // Polish flags
-    enable_lp_reporting: toBool(import.meta.env.VITE_ENABLE_LP_REPORTING) ?? false,
+    enable_lp_reporting: toBool(import.meta.env['VITE_ENABLE_LP_REPORTING']) ?? false,
     enable_route_redirects: false, // Keep soft redirects until Phase 3
     enable_observability: false,
   };

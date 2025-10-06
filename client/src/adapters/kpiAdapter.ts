@@ -25,27 +25,23 @@ export function mapKpiResponseToSelectorInput(
     fundId: apiResponse.fundId,
     asOf: apiResponse.asOf,
     committed: apiResponse.committed,
-    capitalCalls: apiResponse.capitalCalls.map(call => ({
-      date: call.date,
-      amount: call.amount,
-    })),
-    distributions: apiResponse.distributions.map(dist => ({
-      date: dist.date,
-      amount: dist.amount,
-    })),
-    navSeries: apiResponse.navSeries.map(nav => ({
-      date: nav.date,
-      value: nav.value,
-    })),
-    investments: apiResponse.investments.map(inv => ({
-      id: inv.id ?? `inv-${Date.now()}`, // Generate if missing
-      companyName: inv.companyName,
-      initialAmount: inv.initialAmount,
-      followOns: inv.followOns,
-      realized: inv.realized,
-      nav: inv.nav,
-      cashflows: inv.cashflows,
-    })),
+    // Schema only has scalar 'called', not 'capitalCalls' array - create single-element array
+    capitalCalls: [{
+      date: apiResponse.asOf,
+      amount: apiResponse.called,
+    }],
+    // Schema has 'distributions' as a number, not an array - create single-element array
+    distributions: [{
+      date: apiResponse.asOf,
+      amount: apiResponse.distributions,
+    }],
+    // Schema only has scalar 'nav', not 'navSeries' array - create single-element array
+    navSeries: [{
+      date: apiResponse.asOf,
+      value: apiResponse.nav,
+    }],
+    // Schema doesn't include investments array - return empty
+    investments: [],
   };
 }
 

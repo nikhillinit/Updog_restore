@@ -33,6 +33,12 @@ export async function exportCsv(rows: unknown[], filename = "results.csv") {
 }
 
 export async function exportXlsx(rows: unknown[], filename = "results.xlsx") {
+  // DEV MODE: Excel export temporarily disabled
+  console.warn('[dev] Excel export temporarily disabled - will be restored after core testing');
+  console.log('[dev] Would export', rows.length, 'rows to', filename);
+  return Promise.resolve();
+
+  /* ORIGINAL CODE - RESTORE AFTER TESTING
   const XLSX = await import("xlsx");
   const sanitizedRows = (rows as Record<string, unknown>[]).map(sanitizeRow);
   const ws = XLSX.utils.json_to_sheet(sanitizedRows);
@@ -53,6 +59,7 @@ export async function exportXlsx(rows: unknown[], filename = "results.xlsx") {
   XLSX.utils.book_append_sheet(wb, ws, "Results");
   const out = XLSX.write(wb, { type: "array", bookType: "xlsx" });
   downloadBlob(new Blob([out]), filename);
+  */
 }
 
 function downloadBlob(blob: Blob, filename: string) {
