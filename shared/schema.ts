@@ -755,11 +755,11 @@ export const fundBaselines = pgTable("fund_baselines", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 }, (table: any) => ({
-  fundBaselineIdx: index("fund_baselines_fund_idx")['on'](table.fundId, table.createdAt.desc()),
-  periodIdx: index("fund_baselines_period_idx")['on'](table.periodStart, table.periodEnd),
-  typeIdx: index("fund_baselines_type_idx")['on'](table.baselineType, table.isActive),
-  defaultIdx: index("fund_baselines_default_idx")['on'](table.fundId, table.isDefault, table.isActive),
-  snapshotIdx: index("fund_baselines_snapshot_idx")['on'](table.sourceSnapshotId),
+  fundBaselineIdx: index("fund_baselines_fund_idx").on(table.fundId, table.createdAt.desc()),
+  periodIdx: index("fund_baselines_period_idx").on(table.periodStart, table.periodEnd),
+  typeIdx: index("fund_baselines_type_idx").on(table.baselineType, table.isActive),
+  defaultIdx: index("fund_baselines_default_idx").on(table.fundId, table.isDefault, table.isActive),
+  snapshotIdx: index("fund_baselines_snapshot_idx").on(table.sourceSnapshotId),
   tagsGinIdx: index("fund_baselines_tags_gin_idx").using("gin", table.tags),
 }));
 

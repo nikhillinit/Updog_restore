@@ -71,8 +71,11 @@ export function validateReplayWindow(timestamp: number): { valid: boolean; reaso
 
 export function validateOrigin(origin: string | undefined, referer: string | undefined): boolean {
   if (!origin || !referer) return false;
-  
-  const allowedOrigins = (process.env['ALLOWED_ORIGINS'] || '').split(',').map(o => o.trim());
+
+  const allowedOrigins = (process.env['ALLOWED_ORIGINS'] ?? '')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean); // avoid [''] when env is unset
   if (allowedOrigins.length === 0) {
     // Default to public URL
     allowedOrigins.push(process.env['PUBLIC_URL'] || 'http://localhost:5173');

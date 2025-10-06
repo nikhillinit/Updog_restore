@@ -88,7 +88,7 @@ export async function getRuntimeConfig(force = false): Promise<RuntimeConfig> {
 }
 
 export function subscribeRuntimeConfig(cb: (_cfg: RuntimeConfig) => void) {
-  const handler = (e: Event) => cb((e as CustomEvent<RuntimeConfig>).detail);
+  const handler = (e: Event) => { cb((e as CustomEvent<RuntimeConfig>).detail); };
   window.addEventListener('runtime-config:update', handler);
   return () => window.removeEventListener('runtime-config:update', handler);
 }

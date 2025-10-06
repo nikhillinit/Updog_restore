@@ -6,8 +6,9 @@
  * Type-safe optional property helper - prevents undefined assignment
  */
 export const optionalProp = <K extends string, V>(
-  key: K, 
+  key: K,
   value: V | undefined
+// eslint-disable-next-line @typescript-eslint/ban-types
 ): Record<K, V> | {} => {
   return value !== undefined ? { [key]: value } as Record<K, V> : {};
 };

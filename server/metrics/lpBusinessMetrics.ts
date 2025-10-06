@@ -309,7 +309,7 @@ export class LPBusinessMetrics {
     };
     
     const healthScore = Object.values(healthFactors).reduce((a: any, b: any) => a + b, 0);
-    customerHealthScore['set'](
+    customerHealthScore.set(
       {
         lpId: context.userId,
         riskLevel: healthScore < 0.5 ? 'high' : healthScore < 0.8 ? 'medium' : 'low'

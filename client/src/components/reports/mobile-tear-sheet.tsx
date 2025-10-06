@@ -326,7 +326,7 @@ export default function MobileTearSheet({ tearSheet, onCommentaryUpdate, onExpor
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setIsEditingCommentary(!isEditingCommentary)}
+                onClick={() => { setIsEditingCommentary(!isEditingCommentary); }}
               >
                 <Edit3 className="h-4 w-4" />
               </Button>
