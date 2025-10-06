@@ -441,7 +441,7 @@
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "@typescript-eslint/utils": "^8.46.0",
-    "@vitejs/plugin-react": "^4.7.0",
+    "@vitejs/plugin-react": "^5.0.4",
     "@vitest/ui": "^3.2.4",
     "autoprefixer": "10.4.21",
     "axe-playwright": "^2.1.0",
