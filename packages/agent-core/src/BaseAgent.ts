@@ -1,6 +1,13 @@
 import { Logger } from './Logger';
 import { MetricsCollector } from './MetricsCollector';
 import { ETagLogger } from './ETagLogger';
+import {
+  createThread,
+  getThread,
+  addTurn,
+  buildConversationHistory,
+  type ThreadContext,
+} from './ConversationMemory';
 
 export interface AgentConfig {
   name: string;
@@ -8,6 +15,7 @@ export interface AgentConfig {
   retryDelay?: number;
   timeout?: number;
   logLevel?: 'debug' | 'info' | 'warn' | 'error';
+  enableConversationMemory?: boolean;
 }
 
 export interface AgentExecutionContext {
@@ -16,6 +24,8 @@ export interface AgentExecutionContext {
   agent: string;
   operation: string;
   metadata?: Record<string, unknown>;
+  continuationId?: string;
+  conversationHistory?: string;
 }
 
 export interface AgentResult<T = unknown> {
@@ -25,6 +35,8 @@ export interface AgentResult<T = unknown> {
   retries: number;
   duration: number;
   context: AgentExecutionContext;
+  continuationId?: string;
+  threadContext?: ThreadContext;
 }
 
 export abstract class BaseAgent<TInput = unknown, TOutput = unknown> {
@@ -53,16 +65,63 @@ export abstract class BaseAgent<TInput = unknown, TOutput = unknown> {
   /**
    * Main execution method - handles retry logic and logging
    */
-  async execute(input: TInput, operation = 'execute'): Promise<AgentResult<TOutput>> {
+  async execute(
+    input: TInput,
+    operation = 'execute',
+    options?: {
+      continuationId?: string;
+      parentThreadId?: string;
+      files?: string[];
+      images?: string[];
+    }
+  ): Promise<AgentResult<TOutput>> {
     const runId = this.generateRunId();
     const startTime = Date.now();
-    
+
+    // Handle conversation continuation
+    let continuationId = options?.continuationId;
+    let conversationHistory: string | undefined;
+    let threadContext: ThreadContext | null = null;
+
+    if (this.config.enableConversationMemory) {
+      if (continuationId) {
+        // Continue existing conversation
+        threadContext = await getThread(continuationId);
+        if (threadContext) {
+          const history = await buildConversationHistory(threadContext);
+          conversationHistory = history.history;
+          this.logger.info('Continuing conversation', {
+            threadId: continuationId,
+            turns: threadContext.turns.length,
+            historyTokens: history.tokens,
+          });
+        } else {
+          this.logger.warn('Continuation ID provided but thread not found', {
+            continuationId,
+          });
+        }
+      } else {
+        // Create new conversation thread
+        continuationId = await createThread(
+          this.config.name,
+          { input, operation },
+          options?.parentThreadId
+        );
+        this.logger.info('Created new conversation thread', {
+          threadId: continuationId,
+          parentThreadId: options?.parentThreadId,
+        });
+      }
+    }
+
     const context: AgentExecutionContext = {
       runId,
       timestamp: new Date().toISOString(),
       agent: this.config.name,
       operation,
       metadata: this.getExecutionMetadata(input),
+      continuationId,
+      conversationHistory,
     };
 
     this.logger.info('Starting agent execution', { context, input });
@@ -83,11 +142,34 @@ export abstract class BaseAgent<TInput = unknown, TOutput = unknown> {
           retries: i, // Number of retries made (0 for first attempt success)
           duration,
           context,
+          continuationId,
+          threadContext: threadContext || undefined,
         };
+
+        // Record agent response in conversation memory
+        if (this.config.enableConversationMemory && continuationId) {
+          await addTurn(
+            continuationId,
+            'assistant',
+            JSON.stringify(result, null, 2),
+            {
+              files: options?.files,
+              images: options?.images,
+              toolName: this.config.name,
+              modelName: this.config.name,
+              modelMetadata: {
+                operation,
+                duration,
+                retries: i,
+                success: true,
+              },
+            }
+          );
+        }
 
         // Generate ETag for caching
         const etag = ETagLogger.from(JSON.stringify(result));
-        
+
         this.logger.info('Agent execution completed successfully', {
           result: agentResult,
           retries: i,
