@@ -36,14 +36,16 @@ export default function HeaderKpis() {
       icon: DollarSign,
       value: metrics?.dpi ?? 0.85,
       color: 'text-green-600',
-      description: 'Distributions to Paid-In'
+      description: 'Distributions to Paid-In',
+      isCurrency: false
     },
     tvpi: {
       label: 'TVPI',
       icon: TrendingUp,
       value: metrics?.tvpi ?? 2.88,
       color: 'text-blue-600',
-      description: 'Total Value to Paid-In'
+      description: 'Total Value to Paid-In',
+      isCurrency: false
     },
     nav: {
       label: 'NAV',

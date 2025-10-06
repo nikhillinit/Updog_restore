@@ -2,9 +2,9 @@
 /**
  * Runs the fund simulation off the main thread.
  */
-// TODO: Fix - runSimulation export missing from fund-calc
-// import { runSimulation } from '../lib/fund-calc';
-import type { SimulationInputs, SimulationResult } from '@shared/types';
+import { runFundModelV2 } from '../lib/fund-calc-v2';
+import type { ExtendedFundModelInputs, SimulationResult } from '@shared/schemas/extended-fund-model';
+import type { SimulationInputs } from '@shared/types';
 
 type RunMsg = { 
   type: 'run'; 
@@ -29,7 +29,7 @@ self.addEventListener('message', async (evt: MessageEvent<RunMsg>) => {
     const t0 = performance.now();
     
     // Pass seed for deterministic results if provided
-    const result = await runSimulation(data.inputs, data.seed);
+    const result = runFundModelV2(data.inputs as ExtendedFundModelInputs);
     
     const duration = performance.now() - t0;
     

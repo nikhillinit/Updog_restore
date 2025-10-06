@@ -1,0 +1,212 @@
+[
+  {
+    "file": "client/src/hooks/useInvalidateQueries.ts",
+    "errors": [
+      {
+        "line": 19,
+        "issue": "readonly unknown[] vs unknown[]",
+        "rootCause": "TanStack Query's Query.queryKey is readonly unknown[], but invalidationPredicates.fund() expects { queryKey: unknown[] }. TypeScript's readonly constraint prevents assignment to mutable types.",
+        "fixes": [
+          {
+            "approach": "Change invalidationPredicates signatures to accept readonly arrays",
+            "safety": "high",
+            "code": "export const invalidationPredicates = {\n  fund: (fundId: number) => (query: { queryKey: readonly unknown[] }) => {\n    return Array.isArray(query.queryKey) &&\n           query.queryKey.includes('funds') &&\n           query.queryKey.includes(fundId);\n  },\n  allFunds: (query: { queryKey: readonly unknown[] }) => {\n    return Array.isArray(query.queryKey) &&\n           query.queryKey[0] === 'app' &&\n           query.queryKey[1] === 'funds';\n  },\n  allInvestments: (query: { queryKey: readonly unknown[] }) => {\n    return Array.isArray(query.queryKey) &&\n           query.queryKey[0] === 'app' &&\n           query.queryKey[1] === 'investments';\n  },\n};",
+            "reasoning": "Preserves immutability contract from TanStack Query. ReadonlyArray<T> is covariant with Array<T> for read operations (includes, Array.isArray, indexing). No runtime changes needed, only type signature update."
+          },
+          {
+            "approach": "Use type assertion with Query type import",
+            "safety": "medium",
+            "code": "import type { Query } from '@tanstack/react-query';\n\nexport const invalidationPredicates = {\n  fund: (fundId: number) => (query: Query) => {\n    return Array.isArray(query.queryKey) &&\n           query.queryKey.includes('funds') &&\n           query.queryKey.includes(fundId);\n  },\n  // ... similar for others\n};",
+            "reasoning": "Uses proper Query type from library, but requires additional import and couples to TanStack Query internal types."
+          },
+          {
+            "approach": "Cast queryKey to unknown[] in predicate body",
+            "safety": "low",
+            "code": "fund: (fundId: number) => (query: { queryKey: unknown[] }) => {\n  const key = query.queryKey as readonly unknown[];\n  return Array.isArray(key) && key.includes('funds') && key.includes(fundId);\n}",
+            "reasoning": "Unsafe - violates readonly contract and could allow mutations. Not recommended."
+          }
+        ],
+        "chosen": 0,
+        "notes": "The fix should be applied to client/src/lib/query-keys.ts in the invalidationPredicates export. All three predicates (fund, allFunds, allInvestments) need the same readonly unknown[] signature change."
+      },
+      {
+        "line": 29,
+        "issue": "Inline predicate with readonly array mismatch",
+        "rootCause": "Local predicate in invalidateMetrics uses query.queryKey (readonly unknown[]) with Array.includes() which is valid, but the parameter signature doesn't match Query type expectations.",
+        "fixes": [
+          {
+            "approach": "Update inline predicate signature to readonly",
+            "safety": "high",
+            "code": "invalidateMetrics: (fundId: number) => {\n  return queryClient.invalidateQueries({\n    queryKey: queryKeys.funds.detail(fundId),\n    predicate: (query: { queryKey: readonly unknown[] }) => {\n      return Array.isArray(query.queryKey) &&\n             query.queryKey.includes('metrics');\n    },\n  });\n}",
+            "reasoning": "Matches TanStack Query's Query type contract. Array.isArray and includes() work correctly with readonly arrays."
+          },
+          {
+            "approach": "Remove predicate, rely on queryKey prefix matching",
+            "safety": "high",
+            "code": "invalidateMetrics: (fundId: number) => {\n  return queryClient.invalidateQueries({\n    queryKey: [...queryKeys.funds.detail(fundId), 'metrics'],\n  });\n}",
+            "reasoning": "TanStack Query supports hierarchical invalidation - specifying ['app', 'funds', fundId, 'metrics'] will invalidate all queries starting with that prefix. Simpler and type-safe."
+          }
+        ],
+        "chosen": 1,
+        "notes": "Approach 1 (removing predicate) is preferred because it's simpler and leverages TanStack Query's built-in hierarchical invalidation. The queryKey approach is more declarative and doesn't require a custom predicate."
+      }
+    ]
+  },
+  {
+    "file": "client/src/lib/decimal-utils.ts",
+    "errors": [
+      {
+        "line": 122,
+        "issue": "sum() function parameter type mismatch",
+        "rootCause": "Function accepts (Decimal | number)[] but reduce callback expects accumulator type to match array element type. The reduce returns Decimal but TypeScript infers return type as Decimal | number when accumulator starts as Decimal(0).",
+        "fixes": [
+          {
+            "approach": "Explicitly type the reduce callback parameters",
+            "safety": "high",
+            "code": "export function sum(values: readonly (Decimal | number)[]): Decimal {\n  return values.reduce(\n    (total: Decimal, value: Decimal | number) => total.plus(value),\n    new Decimal(0)\n  );\n}",
+            "reasoning": "Explicit typing ensures TypeScript understands that 'total' is always Decimal (from accumulator), and total.plus() returns Decimal. Also accepts readonly arrays for better React Query compatibility."
+          },
+          {
+            "approach": "Use toDecimal helper for type safety",
+            "safety": "high",
+            "code": "export function sum(values: readonly (Decimal | number)[]): Decimal {\n  return values.reduce(\n    (total, value) => total.plus(toDecimal(value)),\n    new Decimal(0)\n  );\n}",
+            "reasoning": "Uses existing toDecimal helper to normalize types. Slightly more function calls but very explicit about type conversion."
+          }
+        ],
+        "chosen": 0,
+        "notes": "Also update cumulativeSum() with the same pattern and readonly array support for consistency."
+      }
+    ]
+  },
+  {
+    "file": "client/src/components/charts/investment-breakdown-chart.tsx",
+    "errors": [
+      {
+        "line": 71,
+        "issue": "SectorData[] not assignable to ChartDataInput[]",
+        "rootCause": "Recharts Pie component expects data: ChartDataInput[] where ChartDataInput = Record<string, unknown>. SectorData interface doesn't have an index signature [key: string]: unknown, so it's not structurally compatible.",
+        "fixes": [
+          {
+            "approach": "Add index signature to SectorData interface",
+            "safety": "high",
+            "code": "interface SectorData {\n  name: string;\n  value: number;\n  color: string;\n  amount?: number;\n  [key: string]: unknown;\n}",
+            "reasoning": "Makes SectorData structurally compatible with Record<string, unknown>. Explicitly documents that chart data can have additional properties. Type-safe and minimal changes."
+          },
+          {
+            "approach": "Create adapter function to convert to Record type",
+            "safety": "high",
+            "code": "const toChartData = (data: SectorData[]): Record<string, unknown>[] => {\n  return data.map(item => ({ ...item }));\n};\n\n// In component:\n<Pie data={toChartData(data)} ... />",
+            "reasoning": "Explicit type conversion with adapter pattern. More verbose but makes intent clear. Useful if you want to transform/sanitize data before charting."
+          },
+          {
+            "approach": "Type assertion at call site",
+            "safety": "medium",
+            "code": "<Pie data={data as Record<string, unknown>[]} ... />",
+            "reasoning": "Quick fix but bypasses type checking. Less safe if SectorData structure changes. Not recommended for production."
+          }
+        ],
+        "chosen": 0,
+        "notes": "Apply the same index signature fix to the mock sectorData constant. Also update lines 82 and 100 to use proper typing instead of 'any': data.map((entry: SectorData, index: number) => ...)"
+      }
+    ]
+  },
+  {
+    "file": "client/src/components/dashboard/portfolio-concentration.tsx",
+    "errors": [
+      {
+        "line": 115,
+        "issue": "ConcentrationData[] not assignable to ChartDataInput[]",
+        "rootCause": "Same as investment-breakdown-chart.tsx - ConcentrationData interface lacks index signature for Record<string, unknown> compatibility.",
+        "fixes": [
+          {
+            "approach": "Add index signature to ConcentrationData interface",
+            "safety": "high",
+            "code": "interface ConcentrationData {\n  name: string;\n  value: number;\n  companies: number;\n  color: string;\n  [key: string]: unknown;\n}",
+            "reasoning": "Makes ConcentrationData compatible with Recharts' ChartDataInput type. All existing properties remain strongly typed, index signature allows additional properties."
+          },
+          {
+            "approach": "Use adapter function with type narrowing",
+            "safety": "high",
+            "code": "const adaptConcentrationData = (data: readonly ConcentrationData[]): Record<string, unknown>[] => {\n  return data.map(item => ({\n    name: item.name,\n    value: item.value,\n    companies: item.companies,\n    color: item.color,\n  }));\n};\n\n<Pie data={adaptConcentrationData(data)} ... />",
+            "reasoning": "Explicit adapter creates clean separation. Allows validation/transformation. Accepts readonly arrays for React Query compatibility."
+          }
+        ],
+        "chosen": 0,
+        "notes": "Also replace 'any' types on lines 81, 123, 133, 218, 245, 251 with proper ConcentrationData or string types. For line 218: ['sector', 'stage', ...].map((tab: string) => ...). For line 245/251: use proper reduce typing with explicit accumulator type."
+      }
+    ]
+  },
+  {
+    "file": "client/src/components/forecasting/portfolio-insights.tsx",
+    "errors": [
+      {
+        "line": 110,
+        "issue": "CoInvestorData[] not assignable to ChartDataInput[]",
+        "rootCause": "CoInvestorData interface needs index signature for Recharts compatibility (same pattern as previous chart files).",
+        "fixes": [
+          {
+            "approach": "Add index signature to both data interfaces",
+            "safety": "high",
+            "code": "interface CoInvestorData {\n  name: string;\n  amount: number;\n  deals: number;\n  color: string;\n  [key: string]: unknown;\n}\n\ninterface SectorMOIC {\n  sector: string;\n  moic: number;\n  [key: string]: unknown;\n}",
+            "reasoning": "Both interfaces used in Recharts Pie/Bar components need Record compatibility. Index signature provides structural compatibility while maintaining strong typing for known properties."
+          },
+          {
+            "approach": "Create generic ChartData wrapper type",
+            "safety": "high",
+            "code": "type ChartCompatible<T> = T & Record<string, unknown>;\n\ninterface CoInvestorData {\n  name: string;\n  amount: number;\n  deals: number;\n  color: string;\n}\n\nconst coInvestorData: ChartCompatible<CoInvestorData>[] = [...];\n\n// Or use adapter:\nconst toChartCompatible = <T extends object>(data: T[]): (T & Record<string, unknown>)[] => data;",
+            "reasoning": "Generic approach works for all chart data types. More reusable but requires helper types or functions."
+          }
+        ],
+        "chosen": 0,
+        "notes": "Replace 'any' types on lines 85, 118, 128 with proper types: (sum: number, item: CoInvestorData) => .... Line 153 BarChart is fine with sectorMOICData after adding index signature."
+      }
+    ]
+  },
+  {
+    "file": "client/src/components/charts/nivo-allocation-pie.tsx",
+    "errors": [
+      {
+        "line": 70,
+        "issue": "Arithmetic operation on potentially undefined value",
+        "rootCause": "In label callback, 'value' parameter might be undefined (TypeScript infers value?: number from Recharts types). Performing arithmetic (value / total) without null check causes error TS2362.",
+        "fixes": [
+          {
+            "approach": "Add type guard with fallback",
+            "safety": "high",
+            "code": "label={({ name, value }) => {\n  const percentage = (value != null && total > 0) \n    ? ((value / total) * 100).toFixed(1) \n    : '0';\n  return `${name}: ${percentage}%`;\n}}",
+            "reasoning": "Explicit null/undefined check using != null (catches both null and undefined). Prevents division by zero with total > 0 check. Safe fallback to '0'."
+          },
+          {
+            "approach": "Use optional chaining with nullish coalescing",
+            "safety": "high",
+            "code": "label={({ name, value = 0 }) => {\n  const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';\n  return `${name}: ${percentage}%`;\n}}",
+            "reasoning": "Parameter default value (value = 0) ensures value is always a number. Cleaner syntax with modern JavaScript features."
+          },
+          {
+            "approach": "Extract to helper function with type narrowing",
+            "safety": "high",
+            "code": "const calculatePercentage = (value: number | undefined, total: number): string => {\n  if (value === undefined || total === 0) return '0';\n  return ((value / total) * 100).toFixed(1);\n};\n\nlabel={({ name, value }) => `${name}: ${calculatePercentage(value, total)}%`}",
+            "reasoning": "Separate function improves testability and reusability. Explicit type guards make logic clear."
+          }
+        ],
+        "chosen": 1,
+        "notes": "Similar issue on line 34 in CustomTooltip - use same pattern: const percentage = (total > 0 && data.value != null) ? ((data.value / total) * 100).toFixed(1) : '0'. Also replace 'any' types on lines 48, 49, 77 with proper types."
+      },
+      {
+        "line": 48,
+        "issue": "any type usage in reduce and map",
+        "rootCause": "Lines 48-49 use 'any' for accumulator and array elements, bypassing type safety.",
+        "fixes": [
+          {
+            "approach": "Add proper types to reduce and map",
+            "safety": "high",
+            "code": "const total = data.reduce((sum: number, item: AllocationData) => sum + item.value, 0);\nconst chartData = data.map((item: AllocationData, index: number) => ({\n  name: item.label,\n  value: item.value,\n  total: total,\n  fill: item.color || COLORS[index % COLORS.length]\n}));",
+            "reasoning": "Explicit types ensure type safety throughout the data transformation pipeline. AllocationData is already defined in the file."
+          }
+        ],
+        "chosen": 0,
+        "notes": "Also fix line 77 map callback: chartData.map((entry: typeof chartData[number], index: number) => ... or define explicit ChartDataPoint type."
+      }
+    ]
+  }
+]

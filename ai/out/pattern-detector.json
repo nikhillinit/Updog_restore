@@ -1,0 +1,196 @@
+[
+  {
+    "file": "client/src/core/flags/flagAdapter.ts",
+    "errorType": "none",
+    "autoFixable": false,
+    "currentState": "✅ FIXED",
+    "imports": {
+      "status": "correct",
+      "current": "import { isFlagEnabled, type FlagKey, ALL_FLAGS } from '@shared/feature-flags/flag-definitions';",
+      "analysis": "Using correct @shared alias and import type for tree-shaking"
+    },
+    "indexSignatureIssues": {
+      "status": "resolved",
+      "location": "Lines 26-27",
+      "pattern": "Using bracket notation with type-safe access",
+      "code": "ALL_FLAGS.enable_new_ia.enabled and ALL_FLAGS.enable_kpi_selectors.enabled",
+      "reasoning": "Bracket notation on import.meta.env (lines 26, 27, 32, 42, 45) is correct for ENV variables. Domain types use dot notation on ALL_FLAGS constant which provides full type safety."
+    },
+    "typeSystem": {
+      "flagStates": "Record<string, boolean>",
+      "flagKey": "FlagKey (union type from ALL_FLAGS)",
+      "adapter": "getInitialFlagStates() maps ENV → flag states, useFeatureFlag() wraps isFlagEnabled()",
+      "pattern": "Adapter pattern correctly implemented with comprehensive type safety"
+    },
+    "recommendations": [
+      "No changes needed - file follows best practices",
+      "Uses import type for tree-shaking optimization",
+      "Bracket notation on ENV is correct for runtime safety",
+      "Domain types provide full IntelliSense and type checking"
+    ]
+  },
+  {
+    "file": "client/src/adapters/kpiAdapter.ts",
+    "errorType": "none",
+    "autoFixable": false,
+    "currentState": "✅ FIXED",
+    "imports": {
+      "status": "correct",
+      "imports": [
+        "import type { z } from 'zod';",
+        "import type { KPIResponseSchema } from '@shared/contracts/kpi-selector.contract';",
+        "import type { FundRawData } from '@/core/types/fund';"
+      ],
+      "analysis": "All imports use 'import type' for tree-shaking, correct @ aliases"
+    },
+    "adapterPattern": {
+      "status": "correctly_implemented",
+      "function": "mapKpiResponseToSelectorInput",
+      "inputType": "KPIApiResponse (z.infer<typeof KPIResponseSchema>)",
+      "outputType": "FundRawData",
+      "purpose": "Maps Zod-validated API responses to selector input format, decouples UI from Zod schemas",
+      "architecture": "API (Zod) → Adapter → Selectors (Pure) → UI"
+    },
+    "typeGuard": {
+      "function": "isValidKpiResponse",
+      "uses": "Runtime validation with Zod schema parsing",
+      "returnType": "data is KPIApiResponse (type predicate)"
+    },
+    "recommendations": [
+      "No changes needed - exemplar adapter pattern implementation",
+      "Perfect use of import type throughout",
+      "Clean separation of concerns between API and UI layers"
+    ]
+  },
+  {
+    "file": "client/src/features/scenario/ScenarioCompareChart.tsx",
+    "errorType": "none",
+    "autoFixable": false,
+    "currentState": "✅ FIXED",
+    "imports": {
+      "status": "correct",
+      "current": "import React from 'react';",
+      "analysis": "No module resolution issues, React import is standard"
+    },
+    "typeDefinitions": {
+      "status": "inline_types",
+      "location": "Lines 4-9",
+      "types": {
+        "ScenarioRow": "{ name: string; result_summary_json?: { TVPI?: string | number; }; }"
+      },
+      "note": "TODO comment indicates planned migration to proper API types file when scenario API is implemented"
+    },
+    "dataFlow": {
+      "pattern": "Safe optional chaining with fallbacks",
+      "code": "s.result_summary_json?.TVPI ?? ''",
+      "validation": "Uses Number.isFinite() for type-safe numeric checks",
+      "sanitization": "Removes emoji characters and normalizes TVPI string format"
+    },
+    "recommendations": [
+      "No immediate changes needed - functional and type-safe",
+      "Future: Migrate types to dedicated API types file when scenario API is ready",
+      "Consider extracting inline styles to styled components or CSS modules for maintainability"
+    ]
+  },
+  {
+    "file": "client/src/features/scenario/summary.ts",
+    "errorType": "none",
+    "autoFixable": false,
+    "currentState": "✅ FIXED",
+    "imports": {
+      "status": "correct",
+      "current": "import { useFundContext } from '@/contexts/FundContext';",
+      "analysis": "Uses correct @/ alias for client/src paths"
+    },
+    "typeDefinitions": {
+      "status": "defined",
+      "exported": "ScenarioSummary = { TVPI?: string | number; DPI?: string | number; NAV?: string | number; IRR?: string | number | null; }",
+      "usage": "Return type for useScenarioSummary hook"
+    },
+    "hookImplementation": {
+      "name": "useScenarioSummary",
+      "pattern": "Defensive programming with multiple fallback strategies",
+      "fallbacks": [
+        "1. Direct KPI access: ctx?.kpis",
+        "2. Selector function: ctx?.selectFundKpis()",
+        "3. Demo-safe placeholder: '—' for all fields"
+      ],
+      "typeCoercion": "Uses explicit 'any' type with optional chaining for runtime safety"
+    },
+    "helperFunctions": {
+      "formatRatio": "formatRatio(x?: number): Formats as '2.50×' with fallback '—'",
+      "formatMoney": "formatMoney(x?: number): Formats as '$1.2M' with fallback '—'",
+      "formatPct": "formatPct(x?: number | null): Formats as '15.3%' with fallback '—'",
+      "pattern": "All use Number.isFinite() for safe numeric validation"
+    },
+    "recommendations": [
+      "No changes needed - robust error handling and type safety",
+      "Optional: Consider extracting formatters to shared utility module if reused elsewhere",
+      "The 'any' type on ctx is intentional for flexible context structure"
+    ]
+  },
+  {
+    "file": "client/src/utils/export-reserves.ts",
+    "errorType": "none",
+    "autoFixable": false,
+    "currentState": "✅ VERIFIED - No xlsx type errors",
+    "imports": {
+      "status": "correct",
+      "staticImports": [
+        "import { isEnabled } from '@/lib/feature-flags';",
+        "import { metrics } from '@/metrics/reserves-metrics';",
+        "import type { ReservesOutput, Company } from '@shared/types/reserves-v11';"
+      ],
+      "dynamicImports": [
+        "Line 45: const Papa = await import('papaparse'); // CSV export",
+        "Line 165: const XLSX = await import('xlsx') as any; // Excel export"
+      ],
+      "analysis": "Uses dynamic imports for code splitting, type assertion 'as any' for xlsx compatibility"
+    },
+    "typeDefinitions": {
+      "ExportOptions": "{ format: 'csv' | 'excel' | 'json'; filename?: string; includeMetadata?: boolean; includeSummary?: boolean; }",
+      "ExportData": "{ output: ReservesOutput; companies: Company[]; config?: any; timestamp?: Date; }",
+      "purpose": "Type-safe interfaces for export operations"
+    },
+    "xlsxHandling": {
+      "status": "✅ No type errors",
+      "approach": "Type assertion 'as any' at import (line 165)",
+      "reasoning": "xlsx package has complex CommonJS/ESM interop, type assertion provides stable interface",
+      "verification": "@types/xlsx is installed in dependencies",
+      "usage": [
+        "XLSX.utils.book_new()",
+        "XLSX.utils.json_to_sheet(data)",
+        "XLSX.utils.book_append_sheet(wb, ws, name)",
+        "XLSX.writeFile(wb, filename)"
+      ]
+    },
+    "helperFunctions": {
+      "toNumber": "Safe numeric conversion with fallback to 0",
+      "toCents": "Converts dollars to cents (rounds to integer)",
+      "toPercent": "Formats number as percentage string"
+    },
+    "exportFunctions": {
+      "exportToCSV": "Uses papaparse for CSV generation with summary rows",
+      "exportToExcel": "Multi-sheet workbook (Allocations, Summary, Configuration) with auto-sized columns",
+      "exportToJSON": "Structured JSON export with optional metadata and summary",
+      "exportReserves": "Main export function with format detection and metrics tracking"
+    },
+    "metricsInstrumentation": {
+      "pattern": "Timer-based performance tracking with error handling",
+      "timers": [
+        "export.csv, export.excel, export.json, export.total"
+      ],
+      "events": [
+        "export.csv.success, export.excel.success, export.json.success, export.success"
+      ],
+      "errorTracking": "metrics.recordError() in all catch blocks"
+    },
+    "recommendations": [
+      "✅ No changes needed - file is production-ready",
+      "xlsx type assertion is correct pattern for dynamic imports with complex types",
+      "Dynamic imports provide excellent code splitting (keeps bundle size small)",
+      "Comprehensive error handling and metrics tracking throughout",
+      "Optional: Consider extracting column width configurations to constants for reusability"
+    ]
+  }
+]

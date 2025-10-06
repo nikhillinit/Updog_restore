@@ -105,7 +105,7 @@ export function runFundModelV2(inputs: ExtendedFundModelInputs): SimulationResul
   // 2. NAV changes from uninvested cash
   // 3. Potential late exits beyond initial estimates
   // Fix for PR #112 review: Prevents understating expenses and overstating NAV/TVPI
-  const periods: FundModelOutputs['periods'] = [];
+  const periods: SimulationResult['periods'] = [];
   const maxMonths = inputs.fundTermMonths;
 
   for (let month = 0; month <= maxMonths; month += 3) { // TODO: Make period length configurable
@@ -208,7 +208,7 @@ function simulatePeriodV2(
   inputs: ExtendedFundModelInputs,
   state: FundState,
   currentMonth: number
-): FundModelOutputs['periods'][0] {
+): SimulationResult['periods'][number] {
   // 1. Capital Calls
   const capitalCall = calculateCapitalCall(
     inputs.capitalCallPolicy,
