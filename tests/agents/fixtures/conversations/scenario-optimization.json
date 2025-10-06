@@ -1,0 +1,39 @@
+{
+  "threadId": "test-thread-001",
+  "description": "Scenario optimization conversation with reserve allocation",
+  "turns": [
+    {
+      "role": "user",
+      "content": "Optimize my Construction scenario for max IRR with $5M in reserves",
+      "timestamp": "2025-01-15T10:00:00Z",
+      "files": ["portfolio-companies.json", "fund-setup.json"]
+    },
+    {
+      "role": "assistant",
+      "content": "I've analyzed your portfolio. Recommended optimizations:\n1. Allocate $2.5M to Company A (highest MOIC potential)\n2. Allocate $1.5M to Company B (graduation probability 85%)\n3. Reserve $1M for follow-on opportunities\n\nProjected IRR improvement: +2.5%",
+      "timestamp": "2025-01-15T10:00:15Z",
+      "toolName": "scenario-optimizer",
+      "modelName": "claude-sonnet-4"
+    },
+    {
+      "role": "user",
+      "content": "What's the risk profile of this allocation?",
+      "timestamp": "2025-01-15T10:01:00Z"
+    },
+    {
+      "role": "assistant",
+      "content": "Risk analysis:\n- Concentration: 50% in top 2 companies (acceptable)\n- Diversification score: 0.87\n- Expected loss scenario: -15% IRR if Company A fails\n- Upside scenario: +8% IRR if both graduate\n\nOverall: Moderate risk, high upside potential",
+      "timestamp": "2025-01-15T10:01:10Z",
+      "toolName": "scenario-optimizer",
+      "modelName": "claude-sonnet-4"
+    }
+  ],
+  "expectedOutput": {
+    "type": "optimization",
+    "metrics": {
+      "irrDelta": 0.025,
+      "tvpiDelta": 0.3,
+      "reserveUtilization": 0.8
+    }
+  }
+}

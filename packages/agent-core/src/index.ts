@@ -9,6 +9,10 @@ export { Orchestrator } from './Orchestrator';
 export { BacktestReporter } from './BacktestReporter';
 export { BacktestRunner } from './Backtest';
 
+// Performance Optimization exports
+export { serializeAsync, serializeSafely, serializeBatch } from './SerializationHelper';
+export { ConversationCache, getGlobalConversationCache, resetGlobalConversationCache } from './ConversationCache';
+
 // Conversation Memory exports
 export {
   initializeStorage,
@@ -88,3 +92,13 @@ export type {
   ThreadContext,
   ConversationStorage,
 } from './ConversationMemory';
+
+export type {
+  SerializationOptions,
+  SerializationResult,
+} from './SerializationHelper';
+
+export type {
+  CacheStats,
+  CachedConversation,
+} from './ConversationCache';
