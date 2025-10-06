@@ -1,7 +1,7 @@
 
 import React from 'react';
-import type { FundKpis, FundRawData } from '@core/types/fund';
-import { selectFundKpis } from '@core/selectors/fundKpis';
+import type { FundKpis, FundRawData } from '@/core/types/fund';
+import { selectFundKpis } from '@/core/selectors/fundKpis';
 const MOCK_RAW: FundRawData = { fundId:'DEMO', committed:100_000_000, capitalCalls:[{date:'2025-01-01',amount:35_000_000}], distributions:[{date:'2025-06-01',amount:5_000_000}], navSeries:[{date:'2025-10-02',value:40_000_000}], investments:[{id:'I1',companyName:'DemoCo',initialAmount:10_000_000,followOns:[22_000_000],nav:35_000_000}], asOf:'2025-10-02' };
 const MOCK = selectFundKpis(MOCK_RAW);
 type KpiItemProps = { label: string; value: string; delta?: string };
