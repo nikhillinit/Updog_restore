@@ -243,10 +243,10 @@
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
       "eslint --fix --max-warnings 0 --cache",
-      "prettier --write"
+      "node node_modules/prettier/bin/prettier.cjs --write"
     ],
     "*.{json,md,yml,yaml}": [
-      "prettier --write"
+      "node node_modules/prettier/bin/prettier.cjs --write"
     ]
   },
   "dependencies": {

@@ -7,13 +7,18 @@ set -e
 
 echo "🔍 Running pre-commit quality gates..."
 
-# 1. Run Gitleaks to prevent secret leaks
-echo "  → Scanning for secrets..."
-npx gitleaks protect --staged --verbose || {
-  echo "❌ Gitleaks detected potential secrets in staged files"
-  echo "💡 Remove sensitive data before committing"
-  exit 1
-}
+# 1. Run Gitleaks to prevent secret leaks (tolerant - warn if not installed)
+if command -v gitleaks >/dev/null 2>&1; then
+  echo "  → Scanning for secrets..."
+  npx gitleaks protect --staged --verbose || {
+    echo "❌ Gitleaks detected potential secrets in staged files"
+    echo "💡 Remove sensitive data before committing"
+    echo "💡 To override once: git commit --no-verify"
+    exit 1
+  }
+else
+  echo "ℹ️  gitleaks not found; skipping secret scan (install: https://github.com/gitleaks/gitleaks)"
+fi
 
 # 2. Run lint-staged (ESLint auto-fix + Prettier)
 echo "  → Auto-fixing linting issues..."
