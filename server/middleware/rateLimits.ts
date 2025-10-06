@@ -11,13 +11,16 @@ import { sendApiError, createErrorBody } from '../lib/apiError.js';
 // Redis client for distributed rate limiting (optional)
 let redisClient: Redis | null = null;
 
-if (process.env['REDIS_URL']) {
+// Only connect to Redis if not in memory mode
+if (process.env['REDIS_URL'] && process.env['REDIS_URL'] !== 'memory://') {
   try {
     redisClient = new Redis(process.env['REDIS_URL']);
     console.log('[RateLimit] Connected to Redis for distributed rate limiting');
   } catch (error) {
     console.warn('[RateLimit] Redis unavailable, falling back to memory store:', error.message);
   }
+} else if (process.env['REDIS_URL'] === 'memory://') {
+  console.log('[RateLimit] Memory mode detected, using in-memory rate limiting');
 }
 
 /**

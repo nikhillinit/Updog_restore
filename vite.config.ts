@@ -216,6 +216,15 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: '/', // Ensure absolute paths for assets
+  server: {
+    port: 3000,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      }
+    }
+  },
   plugins: [
     // Dev telemetry stub - always returns 204 for telemetry endpoints
     {
