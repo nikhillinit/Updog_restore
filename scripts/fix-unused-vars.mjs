@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { safeGitCommand } from './lib/git-security.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -114,11 +115,9 @@ async function main() {
 }
 
 function findTypeScriptFiles() {
-  const output = execSync('git ls-files "*.ts" "*.tsx"', { 
-    cwd: projectRoot,
-    encoding: 'utf8' 
-  });
-  
+  // Use safe Git command with array args
+  const output = safeGitCommand(['ls-files', '*.ts', '*.tsx']);
+
   return output.split('\n')
     .filter(Boolean)
     .map(file => path.join(projectRoot, file));
@@ -127,7 +126,8 @@ function findTypeScriptFiles() {
 function runEslintOnFile(filePath) {
   try {
     const relativePath = path.relative(projectRoot, filePath);
-    const output = execSync(`npx eslint "${relativePath}" --format json`, {
+    // Use execFileSync with array args (no shell)
+    const output = execFileSync('npx', ['eslint', relativePath, '--format', 'json'], {
       cwd: projectRoot,
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'ignore']
@@ -351,7 +351,8 @@ function fixUnusedVars(fileErrors, dryRun) {
     
     if (!dryRun) {
       try {
-        execSync(`npx eslint "${filePath}" --fix`, {
+        // Use execFileSync with array args (no shell)
+        execFileSync('npx', ['eslint', filePath, '--fix'], {
           cwd: projectRoot,
           stdio: 'ignore'
         });

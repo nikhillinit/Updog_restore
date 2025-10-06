@@ -10,6 +10,7 @@
 
 import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
+import { assertSecureURL, validateCORSOrigins } from '../lib/url-security.js';
 
 // Load .env file and override any existing env vars (important for NODE_ENV)
 loadDotenv({ override: true });
@@ -163,6 +164,29 @@ export function loadEnv() {
         '❌ CORS_ORIGIN must be specific production domains, not localhost or wildcard'
       );
       throw new Error('CORS_ORIGIN must be specific production domains');
+    }
+
+    // Validate CORS origins use HTTPS
+    try {
+      validateCORSOrigins(config.CORS_ORIGIN, config.NODE_ENV);
+    } catch (error) {
+      console.error('❌ CORS origin security validation failed:', error);
+      throw error;
+    }
+
+    // Validate external service URLs use HTTPS
+    const urlsToValidate = [
+      { url: config.PROMETHEUS_URL, context: 'PROMETHEUS_URL' },
+      { url: config.ERROR_TRACKING_DSN, context: 'ERROR_TRACKING_DSN' },
+    ].filter(({ url }) => url); // Only validate if defined
+
+    for (const { url, context } of urlsToValidate) {
+      try {
+        assertSecureURL(url!, context, config.NODE_ENV);
+      } catch (error) {
+        console.error(`❌ ${context} security validation failed:`, error);
+        throw error;
+      }
     }
 
     console.log('✅ Production environment validation passed');

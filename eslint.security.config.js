@@ -1,22 +1,23 @@
 /**
  * ESLint Security Configuration
  * Enforces security best practices and prevents common vulnerabilities
+ * Updated: 2025 - Command injection prevention
  */
 
 export default {
   rules: {
-    // Prevent command injection
+    // Prevent command injection - use safe wrappers
     'no-restricted-imports': ['error', {
       paths: [
         {
           name: 'child_process',
-          message: 'Use shared/security/process for safe process execution'
+          message: 'Import from child_process is restricted. Use execFile/execFileSync (not exec/execSync) with array args, or use scripts/lib/git-security.mjs for Git operations.'
         }
       ],
       patterns: [
         {
           group: ['*/child_process'],
-          message: 'Use shared/security/process for safe process execution'
+          message: 'Import from child_process is restricted. Use execFile/execFileSync (not exec/execSync) with array args, or use scripts/lib/git-security.mjs for Git operations.'
         }
       ]
     }],
@@ -26,27 +27,12 @@ export default {
       {
         object: 'child_process',
         property: 'exec',
-        message: 'Use execFileSafe from shared/security/process instead'
+        message: 'UNSAFE: exec() enables shell injection. Use execFile() with array args instead.'
       },
       {
         object: 'child_process',
         property: 'execSync',
-        message: 'Use execFileSafe from shared/security/process instead'
-      },
-      {
-        object: 'child_process',
-        property: 'spawn',
-        message: 'Use spawnSafe from shared/security/process instead (ensure shell: false)'
-      },
-      {
-        object: 'fs',
-        property: 'readFileSync',
-        message: 'Use safeReadFile from shared/security/paths for path validation'
-      },
-      {
-        object: 'yaml',
-        property: 'load',
-        message: 'Use parseYamlSafe from shared/security/yaml instead'
+        message: 'UNSAFE: execSync() enables shell injection. Use execFileSync() with array args instead.'
       },
       {
         object: 'eval',
@@ -64,7 +50,7 @@ export default {
     'no-proto': 'error',
     'no-extend-native': 'error',
     
-    // Enforce secure random generation
+    // Enforce secure patterns
     'no-restricted-syntax': ['error',
       {
         selector: 'CallExpression[callee.object.name="Math"][callee.property.name="random"]',
@@ -73,6 +59,16 @@ export default {
       {
         selector: 'MemberExpression[object.name="process"][property.name="env"]',
         message: 'Validate environment variables before use'
+      },
+      {
+        // Detect { shell: true } in spawn options
+        selector: 'ObjectExpression:has(Property[key.name="shell"][value.value=true])',
+        message: 'SECURITY: { shell: true } enables command injection. Use spawn/execFile with array args instead.'
+      },
+      {
+        // Detect template literals in execSync/exec calls (likely injection)
+        selector: 'CallExpression[callee.property.name=/^exec(Sync)?$/] > TemplateLiteral',
+        message: 'SECURITY: Template literals in exec() create injection risk. Use execFile() with array args.'
       }
     ],
     

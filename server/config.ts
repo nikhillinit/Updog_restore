@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import 'dotenv/config';
+import { assertSecureURL, validateCORSOrigins } from './lib/url-security.js';
 
 const bool = z.string().transform(v => v === "1" || v?.toLowerCase() === "true").or(z.boolean());
 
@@ -46,7 +47,28 @@ export function getConfig(force = false): AppConfig {
   if (cfg.JWT_ALG === "RS256" && !cfg.JWT_JWKS_URL) {
     throw new Error("JWT_ALG=RS256 requires JWT_JWKS_URL");
   }
-  
+
+  // Validate URL security in production
+  if (cfg.isProd) {
+    // Validate CLIENT_URL uses HTTPS
+    assertSecureURL(cfg.CLIENT_URL, 'CLIENT_URL', cfg.NODE_ENV);
+
+    // Validate JWKS URL if using RS256
+    if (cfg.JWT_JWKS_URL) {
+      assertSecureURL(cfg.JWT_JWKS_URL, 'JWT_JWKS_URL', cfg.NODE_ENV);
+    }
+
+    // Validate REDIS_URL if defined
+    if (cfg.REDIS_URL) {
+      const redisUrl = new URL(cfg.REDIS_URL);
+      // Redis can use redis://, rediss:// (TLS), or unix socket
+      if (redisUrl.protocol === 'redis:' && redisUrl.hostname !== 'localhost' && redisUrl.hostname !== '127.0.0.1') {
+        console.warn(`⚠️  WARNING: Redis using unencrypted connection in production: ${redisUrl.host}`);
+        console.warn('   Consider using rediss:// for TLS encryption');
+      }
+    }
+  }
+
   return (cache = cfg);
 }
 
