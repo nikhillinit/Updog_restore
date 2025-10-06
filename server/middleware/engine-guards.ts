@@ -51,7 +51,9 @@ export function assertFiniteDeep(
   const stack: Frame[] = [{ v: input, path: '$', depth: 0 }];
 
   while (stack.length) {
-    const { v, path, depth } = stack.pop() as Frame;
+    const frame = stack.pop();
+    if (!frame) break; // defensive in case of concurrent mutation
+    const { v, path, depth } = frame;
 
     if (depth > maxDepth) {
       return { ok: false, path, value: v, reason: 'too-deep' };
