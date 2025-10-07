@@ -379,6 +379,39 @@ export interface MetricsSource {
 }
 
 /**
+ * MetricSource - Data provenance for individual metric values
+ *
+ * Distinguishes between actual data, model projections, and forecasts
+ * Used for UI transparency and source badges
+ */
+export type MetricSource =
+  | 'actual'                // Real portfolio data from database
+  | 'model'                 // Monte Carlo / projection from current state
+  | 'construction_forecast' // J-curve forecast (no investments yet)
+  | 'forecast'              // Generic forecast
+  | 'N/A';                  // No data available
+
+/**
+ * MetricValue - Wrapped metric with source tracking
+ *
+ * Enables UI to display source badges and appropriate messaging
+ * for metrics that come from different sources (actual vs forecasted)
+ */
+export interface MetricValue<T = number> {
+  /** The metric value */
+  value: T;
+
+  /** Where this value came from */
+  source: MetricSource;
+
+  /** Optional confidence level for model-based metrics (0-1) */
+  confidence?: number;
+
+  /** Optional timestamp when this value was calculated */
+  calculatedAt?: string;
+}
+
+/**
  * Type guard to check if a value is UnifiedFundMetrics
  */
 export function isUnifiedFundMetrics(value: unknown): value is UnifiedFundMetrics {
