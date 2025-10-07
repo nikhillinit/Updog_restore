@@ -1,181 +1,230 @@
 /**
- * Sector Profiles Step
- * Step 2: Investment thesis and allocations
+ * Sector Profiles Step (Enhanced)
+ *
+ * Step 2: Investment thesis with detailed stage cohorts
+ *
+ * Features:
+ * - Sector profiles with allocation percentages
+ * - Detailed investment stage cohorts per sector
+ * - Round metrics (size, valuation, ESOP)
+ * - Graduation, exit, and failure rates
+ * - Timing metrics (months to graduate/exit)
+ * - Real-time validation and feedback
  */
 
 import React from 'react';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Info } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { sectorProfilesSchema, type SectorProfilesInput } from '@/schemas/modeling-wizard.schemas';
+import { SectorProfileCard, type SectorProfile } from './sector-profiles/SectorProfileCard';
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 export interface SectorProfilesStepProps {
   initialData?: Partial<SectorProfilesInput>;
   onSave: (data: SectorProfilesInput) => void;
 }
 
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
 export function SectorProfilesStep({ initialData, onSave }: SectorProfilesStepProps) {
   const {
-    register,
-    control,
-    handleSubmit,
+    setValue,
     watch,
+    handleSubmit,
     formState: { errors }
   } = useForm<SectorProfilesInput>({
     resolver: zodResolver(sectorProfilesSchema),
     defaultValues: initialData || {
-      sectorProfiles: [{ id: crypto.randomUUID(), name: '', allocation: 0 }],
-      stageAllocations: [
-        { stage: 'seed', allocation: 0 },
-        { stage: 'series-a', allocation: 0 }
+      sectorProfiles: [
+        {
+          id: `sector-${Date.now()}`,
+          name: '',
+          allocation: 100,
+          stages: [
+            {
+              id: `stage-${Date.now()}`,
+              stage: 'seed',
+              roundSize: 2.0,
+              valuation: 10.0,
+              esopPercentage: 10.0,
+              graduationRate: 50.0,
+              exitRate: 10.0,
+              failureRate: 40.0,
+              exitValuation: 50.0,
+              monthsToGraduate: 18,
+              monthsToExit: 24
+            }
+          ]
+        }
       ]
     }
   });
 
-  const { fields: sectorFields, append: appendSector, remove: removeSector } = useFieldArray({
-    control,
-    name: 'sectorProfiles'
-  });
+  const sectorProfiles = watch('sectorProfiles') || [];
+
+  // Calculate total allocation
+  const totalAllocation = React.useMemo(() => {
+    return sectorProfiles.reduce((sum, profile) => sum + (profile.allocation || 0), 0);
+  }, [sectorProfiles]);
+
+  const isAllocationValid = Math.abs(totalAllocation - 100) < 0.01;
 
   // Auto-save on form changes
   React.useEffect(() => {
     const subscription = watch((value) => {
-      sectorProfilesSchema.safeParse(value).success && onSave(value as SectorProfilesInput);
+      if (sectorProfilesSchema.safeParse(value).success) {
+        onSave(value as SectorProfilesInput);
+      }
     });
     return () => subscription.unsubscribe();
   }, [watch, onSave]);
 
-  const totalSectorAllocation = watch('sectorProfiles')?.reduce(
-    (sum, profile) => sum + (profile.allocation || 0),
-    0
-  ) || 0;
+  const addSectorProfile = () => {
+    const newProfile: SectorProfile = {
+      id: `sector-${Date.now()}`,
+      name: '',
+      allocation: 0,
+      stages: [
+        {
+          id: `stage-${Date.now()}`,
+          stage: 'seed',
+          roundSize: 2.0,
+          valuation: 10.0,
+          esopPercentage: 10.0,
+          graduationRate: 50.0,
+          exitRate: 10.0,
+          failureRate: 40.0,
+          exitValuation: 50.0,
+          monthsToGraduate: 18,
+          monthsToExit: 24
+        }
+      ]
+    };
+    setValue('sectorProfiles', [...sectorProfiles, newProfile]);
+  };
+
+  const updateSectorProfile = (id: string, updates: Partial<SectorProfile>) => {
+    setValue(
+      'sectorProfiles',
+      sectorProfiles.map(profile =>
+        profile.id === id ? { ...profile, ...updates } : profile
+      )
+    );
+  };
+
+  const removeSectorProfile = (id: string) => {
+    setValue(
+      'sectorProfiles',
+      sectorProfiles.filter(profile => profile.id !== id)
+    );
+  };
 
   return (
     <form onSubmit={handleSubmit(onSave)} className="space-y-8">
-      {/* Sector Profiles */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      {/* Info Alert */}
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription className="text-sm font-poppins">
+          <strong>Sector Profiles</strong> define investment stages and assumptions for each market segment.
+          Include later-stage rounds (even if your fund doesn't invest in them) for accurate FMV projections.
+        </AlertDescription>
+      </Alert>
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
           <h3 className="font-inter font-bold text-lg text-pov-charcoal">
             Sector Profiles
           </h3>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => appendSector({ id: crypto.randomUUID(), name: '', allocation: 0 })}
-            className="font-poppins"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Sector
-          </Button>
+          <p className="text-sm text-charcoal-600 font-poppins mt-1">
+            Define investment thesis and stage cohorts for each sector
+          </p>
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={addSectorProfile}
+          className="gap-2"
+          disabled={sectorProfiles.length >= 10}
+        >
+          <Plus className="w-4 h-4" />
+          Add Sector
+        </Button>
+      </div>
 
-        <div className="space-y-4">
-          {sectorFields.map((field, index) => (
-            <div key={field.id} className="flex gap-4 items-start p-4 bg-charcoal-50 rounded-lg">
-              <div className="flex-1 space-y-3">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor={`sector-name-${index}`} className="font-poppins text-sm">
-                      Sector Name
-                    </Label>
-                    <Input
-                      id={`sector-name-${index}`}
-                      {...register(`sectorProfiles.${index}.name`)}
-                      placeholder="e.g., SaaS, Fintech"
-                      className="mt-1"
-                    />
-                  </div>
+      {/* Sector Profiles List */}
+      <div className="space-y-6">
+        {sectorProfiles.map((profile, index) => (
+          <SectorProfileCard
+            key={profile.id}
+            profile={profile}
+            index={index}
+            onUpdate={updateSectorProfile}
+            onRemove={removeSectorProfile}
+            canRemove={sectorProfiles.length > 1}
+          />
+        ))}
+      </div>
 
-                  <div>
-                    <Label htmlFor={`sector-allocation-${index}`} className="font-poppins text-sm">
-                      Allocation (%)
-                    </Label>
-                    <Input
-                      id={`sector-allocation-${index}`}
-                      type="number"
-                      step="0.1"
-                      {...register(`sectorProfiles.${index}.allocation`, { valueAsNumber: true })}
-                      placeholder="e.g., 30"
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
+      {sectorProfiles.length >= 10 && (
+        <p className="text-sm text-charcoal-600 font-poppins text-center">
+          Maximum of 10 sector profiles reached
+        </p>
+      )}
 
-                <div>
-                  <Label htmlFor={`sector-description-${index}`} className="font-poppins text-sm">
-                    Description (optional)
-                  </Label>
-                  <Textarea
-                    id={`sector-description-${index}`}
-                    {...register(`sectorProfiles.${index}.description`)}
-                    placeholder="Investment thesis for this sector"
-                    className="mt-1 h-20"
-                  />
-                </div>
-              </div>
-
-              {sectorFields.length > 1 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeSector(index)}
-                  className="text-error hover:text-error hover:bg-error/10"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div className="flex items-center justify-between p-3 bg-charcoal-100 rounded">
-          <span className="font-poppins text-sm font-medium">Total Allocation:</span>
-          <span className={`font-poppins text-sm font-bold ${
-            Math.abs(totalSectorAllocation - 100) < 0.01 ? 'text-success' : 'text-error'
-          }`}>
-            {totalSectorAllocation.toFixed(1)}%
+      {/* Allocation Summary */}
+      <div className="bg-charcoal-50 rounded-lg p-4 border border-charcoal-200">
+        <div className="flex items-center justify-between">
+          <span className="font-inter font-bold text-sm text-pov-charcoal">
+            Total Sector Allocation:
           </span>
+          <div className="flex items-center gap-2">
+            <span
+              className={`font-inter font-bold text-lg ${
+                isAllocationValid ? 'text-success' : 'text-error'
+              }`}
+            >
+              {totalAllocation.toFixed(1)}%
+            </span>
+            {isAllocationValid ? (
+              <span className="text-success text-sm">✓</span>
+            ) : (
+              <span className="text-error text-sm">(must = 100%)</span>
+            )}
+          </div>
         </div>
-
-        {errors.sectorProfiles && (
-          <p className="text-sm text-error">{errors.sectorProfiles.message}</p>
-        )}
       </div>
 
-      {/* Stage Allocations */}
-      <div className="space-y-6 pt-6 border-t border-charcoal-200">
-        <h3 className="font-inter font-bold text-lg text-pov-charcoal">
-          Stage Allocations
-        </h3>
+      {/* Validation Errors */}
+      {errors.sectorProfiles && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {errors.sectorProfiles.message || 'Please fix errors in sector profiles'}
+          </AlertDescription>
+        </Alert>
+      )}
 
-        <div className="grid grid-cols-2 gap-4">
-          {['seed', 'series-a', 'series-b', 'series-c', 'growth'].map((stage, index) => (
-            <div key={stage}>
-              <Label htmlFor={`stage-${stage}`} className="font-poppins text-sm capitalize">
-                {stage.replace('-', ' ')} (%)
-              </Label>
-              <Input
-                id={`stage-${stage}`}
-                type="number"
-                step="0.1"
-                {...register(`stageAllocations.${index}.allocation`, { valueAsNumber: true })}
-                placeholder="0"
-                className="mt-1"
-              />
-            </div>
-          ))}
-        </div>
-
-        {errors.stageAllocations && (
-          <p className="text-sm text-error">{errors.stageAllocations.message}</p>
-        )}
-      </div>
+      {/* Common Pitfalls Info */}
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription className="text-xs font-poppins space-y-2">
+          <p><strong>Common Pitfalls:</strong></p>
+          <ul className="list-disc list-inside space-y-1 ml-2">
+            <li><strong>Incomplete Projections:</strong> Include later-stage rounds for accurate FMV tracking</li>
+            <li><strong>Exit Timing:</strong> "Months to Exit" starts from the current stage, not initial investment</li>
+            <li><strong>Final Stage:</strong> The last stage must have 0% graduation rate</li>
+            <li><strong>Rate Constraints:</strong> Graduation + Exit rates cannot exceed 100%</li>
+          </ul>
+        </AlertDescription>
+      </Alert>
     </form>
   );
 }

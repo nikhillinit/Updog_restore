@@ -176,6 +176,95 @@ export type GeneralInfoOutput = z.output<typeof generalInfoSchema>;
 // STEP 2: SECTOR/STAGE PROFILES
 // ============================================================================
 
+/**
+ * Investment stages enum
+ */
+export const investmentStageEnum = z.enum([
+  'pre-seed',
+  'seed',
+  'series-a',
+  'series-b',
+  'series-c',
+  'series-d',
+  'series-e-plus'
+], {
+  errorMap: () => ({ message: 'Invalid investment stage' })
+});
+
+export type InvestmentStage = z.infer<typeof investmentStageEnum>;
+
+/**
+ * Investment stage cohort schema
+ * Defines metrics for a specific financing stage
+ */
+export const investmentStageCohortSchema = z.object({
+  id: z.string().min(1, 'Stage ID is required'),
+
+  /** Stage name (Pre-Seed, Seed, Series A, etc.) */
+  stage: investmentStageEnum,
+
+  /** Typical capital raised in this round ($M) */
+  roundSize: positiveNumberSchema,
+
+  /** Pre- or post-money valuation ($M) */
+  valuation: positiveNumberSchema,
+
+  /** Employee stock option pool (%) */
+  esopPercentage: percentageSchema
+    .refine(
+      (val) => val >= 0 && val <= 30,
+      'ESOP typically ranges from 0% to 30%'
+    ),
+
+  /** Likelihood of graduating to next round (%) */
+  graduationRate: percentageSchema,
+
+  /** Likelihood of exit at this stage (%) */
+  exitRate: percentageSchema,
+
+  /** Likelihood of failure at this stage (%) - calculated field */
+  failureRate: percentageSchema.optional(),
+
+  /** Average exit valuation at this stage ($M) */
+  exitValuation: positiveNumberSchema,
+
+  /** Average months to graduate to next stage */
+  monthsToGraduate: z.number()
+    .int('Months must be a whole number')
+    .min(1, 'Must be at least 1 month')
+    .max(120, 'Cannot exceed 120 months'),
+
+  /** Average months from stage start to exit */
+  monthsToExit: z.number()
+    .int('Months must be a whole number')
+    .min(1, 'Must be at least 1 month')
+    .max(180, 'Cannot exceed 180 months')
+}).superRefine((data, ctx) => {
+  // Graduation + Exit cannot exceed 100%
+  const total = data.graduationRate + data.exitRate;
+  if (total > 100) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Graduation rate (${data.graduationRate}%) + Exit rate (${data.exitRate}%) cannot exceed 100%`,
+      path: ['graduationRate']
+    });
+  }
+
+  // Exit valuation should typically be higher than round valuation
+  if (data.exitValuation < data.valuation) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Exit valuation is typically higher than round valuation',
+      path: ['exitValuation']
+    });
+  }
+});
+
+export type InvestmentStageCohort = z.infer<typeof investmentStageCohortSchema>;
+
+/**
+ * Sector profile schema with investment stages
+ */
 export const sectorProfileSchema = z.object({
   id: z.string().min(1, 'Sector profile ID is required'),
 
@@ -187,24 +276,45 @@ export const sectorProfileSchema = z.object({
 
   description: z.string()
     .max(500, 'Description cannot exceed 500 characters')
-    .optional()
+    .optional(),
+
+  /** Investment stage cohorts for this sector */
+  stages: z.array(investmentStageCohortSchema)
+    .min(1, 'At least one investment stage is required')
+    .max(10, 'Cannot exceed 10 investment stages')
+}).superRefine((data, ctx) => {
+  // The final stage must have 0% graduation rate
+  if (data.stages.length > 0) {
+    const finalStage = data.stages[data.stages.length - 1];
+    if (finalStage && finalStage.graduationRate > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'The final stage must have a 0% graduation rate',
+        path: ['stages', data.stages.length - 1, 'graduationRate']
+      });
+    }
+  }
+
+  // Warn about incomplete projections (missing later stages)
+  const stageNames = data.stages.map(s => s.stage);
+  const hasEarlyStages = stageNames.includes('pre-seed') || stageNames.includes('seed');
+  const hasLateStages = stageNames.includes('series-c') || stageNames.includes('series-d');
+
+  if (hasEarlyStages && !hasLateStages) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Consider adding later-stage rounds for accurate FMV projections',
+      path: ['stages']
+    });
+  }
 });
 
-export const stageAllocationSchema = z.object({
-  stage: z.enum(['seed', 'series-a', 'series-b', 'series-c', 'growth'], {
-    errorMap: () => ({ message: 'Invalid investment stage' })
-  }),
-
-  allocation: percentageSchema
-});
+export type SectorProfile = z.infer<typeof sectorProfileSchema>;
 
 export const sectorProfilesSchema = z.object({
   sectorProfiles: z.array(sectorProfileSchema)
     .min(1, 'At least one sector profile is required')
-    .max(10, 'Cannot exceed 10 sector profiles'),
-
-  stageAllocations: z.array(stageAllocationSchema)
-    .min(1, 'At least one stage allocation is required')
+    .max(10, 'Cannot exceed 10 sector profiles')
 }).superRefine((data, ctx) => {
   // Validate sector allocations sum to 100%
   const totalSectorAllocation = data.sectorProfiles.reduce(
@@ -217,20 +327,6 @@ export const sectorProfilesSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: `Sector allocations must sum to 100% (currently ${totalSectorAllocation.toFixed(1)}%)`,
       path: ['sectorProfiles']
-    });
-  }
-
-  // Validate stage allocations sum to 100%
-  const totalStageAllocation = data.stageAllocations.reduce(
-    (sum, stage) => sum + stage.allocation,
-    0
-  );
-
-  if (Math.abs(totalStageAllocation - 100) > 0.01) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: `Stage allocations must sum to 100% (currently ${totalStageAllocation.toFixed(1)}%)`,
-      path: ['stageAllocations']
     });
   }
 
@@ -391,6 +487,186 @@ export const feesExpensesSchema = z.object({
 
 export type FeesExpensesInput = z.input<typeof feesExpensesSchema>;
 export type FeesExpensesOutput = z.output<typeof feesExpensesSchema>;
+
+// ============================================================================
+// STEP 4.5: FUND FINANCIALS
+// ============================================================================
+
+/**
+ * Individual expense item schema
+ */
+export const expenseItemSchema = z.object({
+  id: z.string().min(1, 'Expense ID is required'),
+
+  name: z.string()
+    .min(1, 'Expense name is required')
+    .max(100, 'Expense name cannot exceed 100 characters'),
+
+  amount: nonNegativeNumberSchema,
+
+  type: z.enum(['one-time', 'annual'], {
+    errorMap: () => ({ message: 'Expense type must be one-time or annual' })
+  }).default('one-time'),
+
+  description: z.string()
+    .max(500, 'Description cannot exceed 500 characters')
+    .optional(),
+
+  year: z.number()
+    .int('Year must be a whole number')
+    .min(1, 'Year must be at least 1')
+    .max(10, 'Year cannot exceed 10')
+    .optional() // Only required for one-time expenses
+}).superRefine((data, ctx) => {
+  // One-time expenses must specify a year
+  if (data.type === 'one-time' && !data.year) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Year is required for one-time expenses',
+      path: ['year']
+    });
+  }
+});
+
+export type ExpenseItem = z.infer<typeof expenseItemSchema>;
+
+/**
+ * Capital call schedule pattern
+ */
+export const capitalCallScheduleSchema = z.object({
+  type: z.enum(['even', 'front-loaded', 'back-loaded', 'custom'], {
+    errorMap: () => ({ message: 'Capital call schedule type is required' })
+  }).default('even'),
+
+  customSchedule: z.array(z.object({
+    year: z.number().int().min(1).max(10),
+    percentage: percentageSchema
+  })).optional()
+}).superRefine((data, ctx) => {
+  // Custom schedule must be provided when type is custom
+  if (data.type === 'custom' && !data.customSchedule) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Custom schedule is required when type is custom',
+      path: ['customSchedule']
+    });
+  }
+
+  // Custom schedule percentages must sum to 100%
+  if (data.type === 'custom' && data.customSchedule) {
+    const total = data.customSchedule.reduce((sum, item) => sum + item.percentage, 0);
+    if (Math.abs(total - 100) > 0.01) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Custom schedule percentages must sum to 100% (currently ${total.toFixed(1)}%)`,
+        path: ['customSchedule']
+      });
+    }
+  }
+});
+
+export type CapitalCallSchedule = z.infer<typeof capitalCallScheduleSchema>;
+
+export const fundFinancialsSchema = z.object({
+  fundSize: positiveNumberSchema
+    .refine(
+      (val) => val >= 1,
+      'Fund size must be at least $1M'
+    ),
+
+  orgExpenses: nonNegativeNumberSchema,
+
+  // Additional granular expenses
+  additionalExpenses: z.array(expenseItemSchema)
+    .max(20, 'Cannot exceed 20 additional expenses')
+    .optional()
+    .default([]),
+
+  investmentPeriod: z.number()
+    .int('Investment period must be a whole number of years')
+    .min(1, 'Investment period must be at least 1 year')
+    .max(10, 'Investment period cannot exceed 10 years'),
+
+  gpCommitment: percentageSchema
+    .refine(
+      (val) => val >= 0 && val <= 10,
+      'GP commitment must be between 0% and 10%'
+    ),
+
+  cashlessSplit: percentageSchema,
+
+  managementFee: z.object({
+    rate: percentageSchema
+      .refine(
+        (val) => val >= 0 && val <= 5,
+        'Management fee must be between 0% and 5%'
+      ),
+
+    stepDown: z.object({
+      enabled: z.boolean(),
+      afterYear: z.number()
+        .int('Step-down year must be a whole number')
+        .min(1, 'Step-down year must be at least 1')
+        .optional(),
+      newRate: percentageSchema.optional()
+    }).optional()
+  }),
+
+  // Capital call schedule
+  capitalCallSchedule: capitalCallScheduleSchema.optional()
+}).superRefine((data, ctx) => {
+  // Validate step-down configuration
+  if (data.managementFee.stepDown?.enabled) {
+    if (!data.managementFee.stepDown.afterYear) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Step-down year is required when step-down is enabled',
+        path: ['managementFee', 'stepDown', 'afterYear']
+      });
+    }
+
+    if (!data.managementFee.stepDown.newRate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'New rate is required when step-down is enabled',
+        path: ['managementFee', 'stepDown', 'newRate']
+      });
+    }
+
+    if (
+      data.managementFee.stepDown.newRate !== undefined &&
+      data.managementFee.stepDown.afterYear !== undefined &&
+      data.managementFee.stepDown.newRate >= data.managementFee.rate
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Step-down rate must be lower than initial rate',
+        path: ['managementFee', 'stepDown', 'newRate']
+      });
+    }
+  }
+
+  // Warn about high management fees
+  if (data.managementFee.rate > 3) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Management fee over 3% is above market standards',
+      path: ['managementFee', 'rate']
+    });
+  }
+
+  // Investment period should not exceed 10 years
+  if (data.investmentPeriod > data.fundSize / 10) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Investment period may be too long for fund size',
+      path: ['investmentPeriod']
+    });
+  }
+});
+
+export type FundFinancialsInput = z.input<typeof fundFinancialsSchema>;
+export type FundFinancialsOutput = z.output<typeof fundFinancialsSchema>;
 
 // ============================================================================
 // STEP 5: EXIT RECYCLING (OPTIONAL)
@@ -567,6 +843,7 @@ export const completeWizardSchema = z.object({
   sectorProfiles: sectorProfilesSchema,
   capitalAllocation: capitalAllocationSchema,
   feesExpenses: feesExpensesSchema,
+  fundFinancials: fundFinancialsSchema.optional(),
   exitRecycling: exitRecyclingSchema,
   waterfall: waterfallSchema,
   scenarios: scenariosSchema

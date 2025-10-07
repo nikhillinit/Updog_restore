@@ -20,6 +20,9 @@ export type { CapitalAllocationStepProps } from './CapitalAllocationStep';
 export { FeesExpensesStep } from './FeesExpensesStep';
 export type { FeesExpensesStepProps } from './FeesExpensesStep';
 
+export { FundFinancialsStep } from './FundFinancialsStep';
+export type { FundFinancialsStepProps } from './FundFinancialsStep';
+
 export { ExitRecyclingStep } from './ExitRecyclingStep';
 export type { ExitRecyclingStepProps } from './ExitRecyclingStep';
 
