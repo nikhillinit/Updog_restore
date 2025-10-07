@@ -1,0 +1,9 @@
+﻿[2025-08-12 19:51:09] Project Root: C:\dev\Updog_restore
+[2025-08-12 19:51:09] Timestamp: 20250812_195109
+[2025-08-12 19:51:09] Mode: DRY RUN (no changes)
+[2025-08-12 19:51:09] Step 1: Precheck and Snapshot
+[2025-08-12 19:51:09] OK Project root confirmed: C:\dev\Updog_restore
+[2025-08-12 19:51:09] Found existing .claude folder, backing up to C:\dev\Updog_restore\.claude.bak.20250812_195109 ...
+[2025-08-12 19:51:09] OK Backup created: C:\dev\Updog_restore\.claude.bak.20250812_195109
+[2025-08-12 19:51:09] OK User .claude folder exists: C:\Users\nikhi\.claude
+[2025-08-12 19:51:09] Step 2: Environment Variable Cleanup
