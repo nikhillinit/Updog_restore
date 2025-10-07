@@ -4,17 +4,17 @@
  * Provides secure HTML and input sanitization to prevent XSS attacks
  */
 
-import sanitizeHtml = require('sanitize-html');
+import sanitizeHtml from 'sanitize-html';
 
 /**
  * Sanitize input by stripping all HTML tags
  * Use this for user inputs that should not contain any HTML
  */
 export const sanitizeInput = (input: string): string => {
-  const options: sanitizeHtml.IOptions = {
+  const options = {
     allowedTags: [], // Strip all HTML by default
     allowedAttributes: {},
-    disallowedTagsMode: 'discard'
+    disallowedTagsMode: 'discard' as const
   };
   return sanitizeHtml(input, options);
 };
@@ -24,7 +24,7 @@ export const sanitizeInput = (input: string): string => {
  * Use this for content that may contain limited HTML formatting
  */
 export const sanitizeHTML = (html: string): string => {
-  const options: sanitizeHtml.IOptions = {
+  const options = {
     allowedTags: ['b', 'i', 'em', 'strong', 'a'],
     allowedAttributes: {
       'a': ['href']
