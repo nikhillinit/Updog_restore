@@ -4,7 +4,7 @@
  * Provides secure HTML and input sanitization to prevent XSS attacks
  */
 
-import sanitizeHtml from 'sanitize-html';
+import sanitizeHtml = require('sanitize-html');
 
 /**
  * Sanitize input by stripping all HTML tags
