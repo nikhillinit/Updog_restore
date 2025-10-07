@@ -99,15 +99,56 @@
 
 ---
 
+### 5. Backup Directories (4 directories, ~257KB)
+
+**Location:** `archive/2025-10-07/directories-backup/`
+
+See [directories-backup/README.md](directories-backup/README.md) for full details.
+
+#### Updog_restore-main/ (~44KB)
+- Empty directory with single `.claude/settings.local.json`
+- Appears to be old download/clone from August 9, 2025
+
+#### claude_code-multi-AI-MCP/ (~134KB)
+- Experimental Multi-AI MCP server (Python)
+- 15 files including server.py, requirements.txt
+- Last modified October 5, 2025
+- Referenced in docs but not actively used
+
+#### .claude.bak.20250812_212600/ (~4KB)
+- Backup of Claude settings from August 12, 2025
+- Redundant with current `.claude/` configuration
+
+#### server - memory shim/ (~75KB)
+- In-memory server prototype with circuit breaker
+- 25 TypeScript files
+- Development experiment, superseded by production `server/`
+
+---
+
+### 6. Cleanup Logs (3 files, ~7KB)
+
+**Location:** `archive/2025-10-07/cleanup-logs/`
+
+- `claude_cleanup_log_20250812_195109.txt` (634 bytes)
+- `claude_cleanup_log_20250812_212150.txt` (2.9KB)
+- `claude_cleanup_log_20250812_212600.txt` (3.3KB)
+
+Historical logs from Claude-assisted cleanup on August 12, 2025.
+
+---
+
 ## Total Space Reclaimed
 
-| Category | Files | Approximate Size |
-|----------|-------|------------------|
-| Legacy Wizard Components | 5 | ~56KB |
-| Manual Backup Files | 2 | ~28KB |
-| Duplicate Documentation | 8 | ~60KB |
-| Git Summary | 1 | ~8KB |
-| **TOTAL** | **16** | **~152KB** |
+| Category | Files/Dirs | Approximate Size |
+|----------|------------|------------------|
+| Legacy Wizard Components | 5 files | ~56KB |
+| Manual Backup Files | 2 files | ~28KB |
+| Duplicate Documentation | 8 files | ~60KB |
+| Git Summary | 1 file | ~8KB |
+| Backup Directories | 4 dirs | ~257KB |
+| Cleanup Logs | 3 files | ~7KB |
+| **TOTAL** | **19 files + 4 dirs** | **~416KB** |
 
 ---
 
