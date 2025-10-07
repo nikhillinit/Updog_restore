@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { DependencyAnalysisAgent } from '../DependencyAnalysisAgent';
-import type { DependencyAnalysisInput, DependencyAnalysis } from '../DependencyAnalysisAgent';
+import type { DependencyAnalysisInput } from '../DependencyAnalysisAgent';
 import * as fs from 'fs';
 import * as child_process from 'child_process';
 

@@ -14,8 +14,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Import custom rules
-const noHardcodedFundMetrics = require('./eslint-rules/no-hardcoded-fund-metrics.js');
-const povcSecurityPlugin = require('./tools/eslint-plugin-povc-security/index.js');
+const noHardcodedFundMetrics = require('./eslint-rules/no-hardcoded-fund-metrics.cjs');
+const povcSecurityPlugin = require('./tools/eslint-plugin-povc-security/index.cjs');
 
 // Boundary enforcement rules for server/client/shared separation
 const boundaryRules = {
