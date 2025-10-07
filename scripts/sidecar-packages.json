@@ -20,7 +20,14 @@
     "@testing-library/jest-dom",
     "@testing-library/react",
     "@testing-library/user-event",
-    "cross-env"
+    "cross-env",
+    "eslint",
+    "@eslint/js",
+    "@typescript-eslint/parser",
+    "@typescript-eslint/eslint-plugin",
+    "eslint-plugin-react",
+    "eslint-plugin-react-hooks",
+    "eslint-plugin-unused-imports"
   ],
   "_notes": {
     "purpose": "Defines which packages from tools_local should be linked into root node_modules",
