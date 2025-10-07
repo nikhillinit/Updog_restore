@@ -1,0 +1,225 @@
+{
+  "timestamp": "2025-01-07T14:06:00Z",
+  "phase": "Phase 0 - Repository Audit Complete",
+  "tests": {
+    "total": 583,
+    "passing": 570,
+    "failing": 13,
+    "details": {
+      "fund-setup-utils": {
+        "total": 20,
+        "passing": 8,
+        "failing": 12,
+        "reason": "Step mapping changed (6 steps now, was 5)"
+      },
+      "liquidity-engine": {
+        "total": 35,
+        "passing": 34,
+        "failing": 1,
+        "reason": "Minor assertion mismatch"
+      },
+      "all_other_tests": {
+        "total": 528,
+        "passing": 528,
+        "failing": 0
+      }
+    }
+  },
+  "typescript": {
+    "errors": 12,
+    "details": [
+      "client/src/lib/wizard-calculations.ts:29 - Cannot find module '@/schemas/wizard'",
+      "client/src/lib/wizard-calculations.ts:237 - Expected 1 arguments, but got 0",
+      "client/src/lib/wizard-calculations.ts:237 - 'new' expression lacks construct signature",
+      "client/src/lib/wizard-calculations.ts:279 - Type mismatch in calculateOptimalReserveAllocation argument",
+      "client/src/lib/wizard-calculations.ts:286 - Property 'totalAllocated' does not exist",
+      "client/src/lib/wizard-calculations.ts:287 - Property 'optimalMOIC' does not exist",
+      "client/src/lib/wizard-calculations.ts:288 - Property 'companiesWithReserves' does not exist",
+      "client/src/lib/wizard-calculations.ts:289 - Property 'totalAllocated' division error",
+      "client/src/lib/wizard-calculations.ts:294 - Property 'allocatedReserve' does not exist",
+      "client/src/lib/wizard-calculations.ts:295 - Property 'exitMOIC' does not exist",
+      "client/src/lib/wizard-calculations.ts:482 - Property 'investedAmount' does not exist",
+      "client/src/lib/wizard-calculations.ts:497 - Type '{}' missing required properties"
+    ],
+    "root_cause": "Missing schema imports and reserve adapter API mismatch"
+  },
+  "bundle": {
+    "size_kb": 380.5,
+    "threshold_kb": 400,
+    "headroom_kb": 19.5,
+    "status": "PASS (within budget)"
+  },
+  "wizard": {
+    "machine_file": "client/src/machines/modeling-wizard.machine.ts",
+    "storage_integration": "NOT_INTEGRATED (uses inline localStorage)",
+    "calculation_integration": "NOT_INTEGRATED (no calculation actor)",
+    "schemas_used": "inline type definitions",
+    "tests": {
+      "unit": 0,
+      "integration": 0,
+      "e2e": 0
+    },
+    "coverage": "unknown"
+  },
+  "schemas": {
+    "existing_files": [
+      {
+        "path": "client/src/schemas/modeling-wizard.schemas.ts",
+        "lines": 599,
+        "steps_covered": 7,
+        "validation_features": [
+          "Cross-field validation (superRefine)",
+          "LP-credible constraints",
+          "Detailed error messages",
+          "Input/Output types",
+          "Warning vs Error distinction"
+        ]
+      },
+      {
+        "path": "client/src/lib/wizard-schemas.ts",
+        "lines": 285,
+        "features": [
+          "Fund basics with fee structure",
+          "Stage allocations (sum to 100%)",
+          "Graduation rates with exit probabilities",
+          "Reserve strategy settings",
+          "Operations & policies"
+        ]
+      },
+      {
+        "path": "client/src/lib/wizard-types.ts",
+        "lines": 157,
+        "exports": [
+          "Stage types",
+          "Inferred types from schemas",
+          "Default values",
+          "Validation state interface"
+        ]
+      }
+    ],
+    "total_lines": 1041,
+    "recommendation": "USE_EXISTING (do not create new wizard.ts)"
+  },
+  "adapters": {
+    "reserves_adapter": {
+      "path": "client/src/adapters/reserves-adapter.ts",
+      "lines": 245,
+      "features": [
+        "Dollar ↔ Cents conversion",
+        "Decimal ↔ Basis points conversion",
+        "Data normalization (field name variations)",
+        "Validation helpers",
+        "Bidirectional conversion"
+      ],
+      "unit_conventions": {
+        "money": "cents (integer)",
+        "moic": "basis points (integer)",
+        "percentages": "basis points (integer)",
+        "ownership": "decimal 0-1 (float)"
+      },
+      "recommendation": "WRAP_DONT_REPLACE (create bridge layer)"
+    }
+  },
+  "repository_structure": {
+    "git_status": {
+      "branch": "chore/deps-safe-batch-oct07",
+      "main_branch": "main",
+      "recent_commits": [
+        "d1b03d3 - fix(env): restore dependencies and add smart NODE_ENV override",
+        "430810e - chore(security): patch CVE-2024-52798, document xlsx false positives",
+        "ea367dd - feat(tooling): add logger argument order codemod infrastructure",
+        "0d9015e - fix(types): resolve all TypeScript compilation errors",
+        "37d737f - fix(deps): resolve CVEs in xlsx and path-to-regexp"
+      ],
+      "untracked_files": [
+        "HANDOFF_MEMO_PRODUCTION_READY.md",
+        "ROADMAP_FINAL_FOR_AI_REVIEW.md",
+        "ROADMAP_PRODUCTION_READY.md",
+        "client/src/lib/__tests__/path-utils.test.ts",
+        "client/src/lib/__tests__/storage.test.ts",
+        "client/src/lib/path-utils.ts",
+        "client/src/lib/storage.ts",
+        "client/src/lib/wizard-calculations.ts",
+        "docs/fixes/vite-build-vercel-fix.md",
+        "reviews/gpt-wizard-review.json",
+        "scripts/analyze-repo-assets.mjs",
+        "scripts/analyze-roadmap.mjs",
+        "scripts/collaborative-roadmap-refinement.mjs",
+        "scripts/multi-ai-analysis.mjs",
+        "scripts/run-ai-review-final.mjs",
+        "scripts/scrutinize-tabular-spec.mjs"
+      ]
+    }
+  },
+  "recommendations": {
+    "immediate_actions": [
+      {
+        "action": "Add storableWizardSchema to modeling-wizard.schemas.ts",
+        "effort_hours": 0.5,
+        "priority": "P0",
+        "blocking": true
+      },
+      {
+        "action": "Add teamSchema to modeling-wizard.schemas.ts",
+        "effort_hours": 0.5,
+        "priority": "P1",
+        "blocking": false
+      },
+      {
+        "action": "Create wizard-reserve-bridge.ts wrapper",
+        "effort_hours": 3,
+        "priority": "P0",
+        "blocking": true
+      },
+      {
+        "action": "Update wizard-calculations.ts imports to use existing schemas",
+        "effort_hours": 1,
+        "priority": "P0",
+        "blocking": true
+      },
+      {
+        "action": "Update wizard-calculations.ts to use reserve bridge",
+        "effort_hours": 1,
+        "priority": "P0",
+        "blocking": true
+      }
+    ],
+    "do_not_do": [
+      "Create new client/src/schemas/wizard.ts (duplicates 1041 lines)",
+      "Create new reserve adapter (duplicates 245 lines)",
+      "Modify existing reserves-adapter.ts (breaking change)",
+      "Consolidate wizard-schemas.ts and modeling-wizard.schemas.ts (high risk)"
+    ]
+  },
+  "risk_assessment": {
+    "before_integration": {
+      "schema_duplication_risk": "HIGH (proposed plan would duplicate 1041 lines)",
+      "adapter_breaking_change_risk": "HIGH (proposed plan would replace working adapter)",
+      "integration_complexity_risk": "MEDIUM (12 TypeScript errors to resolve)",
+      "test_regression_risk": "MEDIUM (13 tests currently failing)",
+      "overall_risk": "7/10"
+    },
+    "after_recommended_approach": {
+      "schema_duplication_risk": "ELIMINATED (using existing schemas + 2 additions)",
+      "adapter_breaking_change_risk": "ELIMINATED (wrapper approach, no changes to adapter)",
+      "integration_complexity_risk": "LOW (clear integration path defined)",
+      "test_regression_risk": "LOW (existing tests will pass, new tests added)",
+      "overall_risk": "2/10"
+    },
+    "risk_reduction": "71%"
+  },
+  "next_phase": {
+    "phase": "Phase 1 - Schema Integration",
+    "estimated_hours": "2-3 hours",
+    "tasks": [
+      "Add storableWizardSchema (30 min)",
+      "Add teamSchema (30 min)",
+      "Update wizard-calculations.ts imports (1 hour)"
+    ],
+    "success_criteria": [
+      "TypeScript errors reduce from 12 to ~5",
+      "No duplicate schemas created",
+      "All imports resolve correctly"
+    ]
+  }
+}
