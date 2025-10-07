@@ -23,7 +23,15 @@ export function selectFundKpis(data: FundRawData): FundKpis {
   const invested=calcInvested(data.investments);
   const dpi=calculateDPI(dist, called);
   const tvpi=calculateTVPI(dist, nav, called);
-  const flows:number[]=[]; data.capitalCalls.forEach(c=>flows.push(-c.amount)); data.distributions.forEach(d=>flows.push(d.amount)); flows.push(nav);
+  // Build cash flow array: negative capital calls, positive distributions, and latest NAV
+  const flows: number[] = [];
+  for (const capitalCall of data.capitalCalls) {
+    flows.push(-capitalCall.amount);
+  }
+  for (const distribution of data.distributions) {
+    flows.push(distribution.amount);
+  }
+  flows.push(nav);
   const irr=calculateIRR(flows);
   return { committed:data.committed, called, uncalled:Math.max(0,data.committed-called), invested, nav, dpi:Number(dpi.toFixed(2)), tvpi:Number(tvpi.toFixed(2)), irr:irr!==null?Number((irr*100).toFixed(2)):null, asOf:data.asOf??new Date().toISOString().slice(0,10) };
 }
