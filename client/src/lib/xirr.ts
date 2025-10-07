@@ -323,9 +323,9 @@ export function buildCashflowSchedule(periodResults: PeriodResult[]): Cashflow[]
  * Convenience function that builds cashflow schedule and calculates XIRR.
  *
  * @param periodResults - Array of period results from fund model
- * @returns Annualized IRR as decimal (e.g., 0.15 = 15%)
+ * @returns Annualized IRR as decimal (e.g., 0.15 = 15%), or null if calculation fails
  */
-export function calculateIRRFromPeriods(periodResults: PeriodResult[]): number {
+export function calculateIRRFromPeriods(periodResults: PeriodResult[]): number | null {
   const cashflows = buildCashflowSchedule(periodResults);
   return calculateXIRR(cashflows);
 }
