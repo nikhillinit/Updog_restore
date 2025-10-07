@@ -81,6 +81,16 @@ export const portfolioCompanies = pgTable("portfoliocompanies", {
   description: text("description"),
   dealTags: text("deal_tags").array(),
   createdAt: timestamp("created_at").defaultNow(),
+  // Fund Allocation Management (Phase 1a) fields
+  deployedReservesCents: bigint("deployed_reserves_cents", { mode: "number" }).default(0).notNull(),
+  plannedReservesCents: bigint("planned_reserves_cents", { mode: "number" }).default(0).notNull(),
+  exitMoicBps: integer("exit_moic_bps"),
+  ownershipCurrentPct: decimal("ownership_current_pct", { precision: 7, scale: 4 }),
+  allocationCapCents: bigint("allocation_cap_cents", { mode: "number" }),
+  allocationReason: text("allocation_reason"),
+  allocationIteration: integer("allocation_iteration").default(0).notNull(),
+  lastAllocationAt: timestamp("last_allocation_at", { withTimezone: true }),
+  allocationVersion: integer("allocation_version").default(1).notNull(),
 });
 
 export const investments = pgTable("investments", {
@@ -1586,3 +1596,32 @@ export type ScenarioCase = typeof scenarioCases.$inferSelect;
 export type InsertScenarioCase = typeof scenarioCases.$inferInsert;
 export type ScenarioAuditLog = typeof scenarioAuditLogs.$inferSelect;
 export type InsertScenarioAuditLog = typeof scenarioAuditLogs.$inferInsert;
+
+// ============================================================================
+// FUND ALLOCATION MANAGEMENT (Phase 1b)
+// ============================================================================
+
+// Reallocation audit trail for tracking allocation changes
+export const reallocationAudit = pgTable("reallocation_audit", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  fundId: integer("fund_id").notNull().references(() => funds.id, { onDelete: "cascade" }),
+  userId: integer("user_id").references(() => users.id),
+  baselineVersion: integer("baseline_version").notNull(),
+  newVersion: integer("new_version").notNull(),
+  changesJson: jsonb("changes_json").notNull(),
+  reason: text("reason"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table: any) => ({
+  fundIdx: index("idx_reallocation_audit_fund")['on'](table.fundId, table.createdAt.desc()),
+  userIdx: index("idx_reallocation_audit_user")['on'](table.userId, table.createdAt.desc()),
+  versionsIdx: index("idx_reallocation_audit_versions")['on'](table.fundId, table.baselineVersion, table.newVersion),
+  changesGinIdx: index("idx_reallocation_audit_changes_gin").using("gin", table.changesJson),
+}));
+
+export const insertReallocationAuditSchema = createInsertSchema(reallocationAudit).omit({
+  id: true,
+  createdAt: true
+});
+
+export type ReallocationAudit = typeof reallocationAudit.$inferSelect;
+export type InsertReallocationAudit = typeof reallocationAudit.$inferInsert;
