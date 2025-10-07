@@ -8,7 +8,7 @@
  * Unified approach to error management across the application
  */
 
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import {
   isDeploymentError,
   isHealthCheckError,

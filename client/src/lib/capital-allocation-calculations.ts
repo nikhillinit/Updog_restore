@@ -9,7 +9,6 @@
 
 import type {
   SectorProfile,
-  InvestmentStageCohort,
   StageAllocation,
   PacingPeriod,
   CapitalAllocationInput

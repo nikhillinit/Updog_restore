@@ -1,6 +1,6 @@
-import { Decimal, toDecimal, sum, safeDivide, roundRatio, roundPercent } from './decimal-utils';
+import type { Decimal} from './decimal-utils';
+import { toDecimal, sum, safeDivide, roundRatio, roundPercent } from './decimal-utils';
 import { calculateIRRFromPeriods } from './xirr';
-import { computeReferenceMetrics } from './reference-formulas';
 import type { FundModelInputs, FundModelOutputs, PeriodResult } from '@shared/schemas/fund-model';
 
 /**

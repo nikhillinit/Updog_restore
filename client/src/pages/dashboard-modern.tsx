@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 import CashflowDashboard from "@/components/dashboard/CashflowDashboard";
 import ShareConfigModal from "@/components/sharing/ShareConfigModal";
-import { CreateShareLinkRequest } from "@shared/sharing-schema";
+import type { CreateShareLinkRequest } from "@shared/sharing-schema";
 
 export default function ModernDashboard() {
   const { currentFund, isLoading } = useFundContext();

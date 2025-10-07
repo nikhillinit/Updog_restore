@@ -5,7 +5,7 @@
  * Enforces 100% allocation constraint with live validation and visual feedback.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { formatPct, formatUSDShort, pctOfDollars } from '@/lib/formatting';

@@ -12,7 +12,6 @@
  */
 
 import { setup, assign, fromPromise } from 'xstate';
-import type { FundState } from '@/stores/fundStore';
 import {
   calculateReservesForWizard,
   validateWizardPortfolio,

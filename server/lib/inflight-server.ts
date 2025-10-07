@@ -3,7 +3,7 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { IdempotencyStore } from './idempotency';
+import type { IdempotencyStore } from './idempotency';
 
 export async function getOrStart<T>(
   store: IdempotencyStore,

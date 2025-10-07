@@ -17,7 +17,7 @@
  * const success = saveToStorage('my-key', data, MySchema);
  */
 
-import { z } from 'zod';
+import type { z } from 'zod';
 
 // ============================================================================
 // CONFIGURATION

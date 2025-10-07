@@ -4,7 +4,7 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import type { Express } from "express";
-import { Request, Response } from "./types/request-response";
+import type { Request, Response } from "./types/request-response";
 import { createServer, type Server } from "http";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";

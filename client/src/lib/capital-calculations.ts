@@ -7,7 +7,6 @@
  * - Allocation validation
  */
 
-import { formatUSD } from './formatting';
 
 export interface YearlyProjection {
   year: number;

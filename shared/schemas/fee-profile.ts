@@ -5,7 +5,7 @@
 
 import { z } from 'zod';
 import Decimal from 'decimal.js';
-import { ZodDecimal, ZodPercentage, ZodPositiveDecimal } from './decimal-zod';
+import { ZodPercentage, ZodPositiveDecimal } from './decimal-zod';
 
 /**
  * Fee calculation bases (what the fee percentage applies to)

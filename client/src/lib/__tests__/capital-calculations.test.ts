@@ -7,8 +7,7 @@ import {
   getSchedulePattern,
   calculateProjections,
   calculateNetInvestableCapital,
-  validateCapitalAllocation,
-  type CapitalCallScheduleType
+  validateCapitalAllocation
 } from '../capital-calculations';
 
 describe('getSchedulePattern', () => {

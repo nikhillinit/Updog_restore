@@ -3,7 +3,8 @@
  * Production-grade flag management with security and versioning
  */
 
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { getClientFlags, getFlags, getFlagsVersion, getFlagsHash, updateFlag, getFlagHistory, getCacheStatus, activateKillSwitch } from '../lib/flags.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../lib/auth/jwt.js';

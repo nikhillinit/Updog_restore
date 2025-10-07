@@ -5,7 +5,8 @@
  * quick preview calculations and precise fee drag computation.
  */
 
-import { Percentage, pctToFraction, asFraction, type Fraction } from '@shared/units';
+import type { Percentage} from '@shared/units';
+import { pctToFraction, type Fraction } from '@shared/units';
 
 export interface FeeTier {
   id: string;

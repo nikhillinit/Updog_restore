@@ -13,8 +13,7 @@ import {
   type WizardPortfolioCompany,
   type PortfolioValidationResult,
   type PortfolioSummary,
-  type EnrichedReserveAllocation,
-  type ReserveAllocation
+  type EnrichedReserveAllocation
 } from '@/lib/wizard-calculations';
 import type { ModelingWizardContext } from '@/machines/modeling-wizard.machine';
 

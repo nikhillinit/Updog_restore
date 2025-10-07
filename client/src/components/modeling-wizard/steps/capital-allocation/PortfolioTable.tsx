@@ -28,7 +28,7 @@ import {
   AlertDialogTitle
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { CompanyData } from './CompanyDialog';
+import type { CompanyData } from './CompanyDialog';
 import { Pencil, Trash2, TrendingUp, TrendingDown } from 'lucide-react';
 
 export interface PortfolioTableProps {

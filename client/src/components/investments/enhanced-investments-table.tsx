@@ -30,8 +30,6 @@ import {
   Tag,
   MoreHorizontal,
   Eye,
-  Edit,
-  Trash2,
   Upload
 } from 'lucide-react';
 import BulkImportModal from './BulkImportModal';

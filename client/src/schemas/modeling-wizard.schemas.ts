@@ -1060,35 +1060,105 @@ export type WaterfallInput = z.input<typeof waterfallSchema>;
 export type WaterfallOutput = z.output<typeof waterfallSchema>;
 
 // ============================================================================
-// STEP 7: SCENARIOS
+// STEP 7: SCENARIOS (WHAT-IF ANALYSIS)
 // ============================================================================
 
-export const scenarioSchema = z.object({
+/**
+ * Individual scenario adjustment configuration
+ * Represents multipliers/deltas applied to base model assumptions
+ */
+export const scenarioAdjustmentSchema = z.object({
+  /** Unique identifier */
   id: z.string().min(1, 'Scenario ID is required'),
 
+  /** Scenario name (e.g., "Base Case", "Optimistic", "Pessimistic") */
   name: z.string()
     .min(1, 'Scenario name is required')
-    .max(100, 'Scenario name cannot exceed 100 characters'),
+    .max(50, 'Scenario name cannot exceed 50 characters')
+    .trim(),
 
-  assumptions: z.record(z.any())
+  /** Optional description */
+  description: z.string()
+    .max(200, 'Description cannot exceed 200 characters')
+    .optional(),
+
+  /** MOIC adjustment multiplier (0.5 = 50% lower, 1.0 = no change, 2.0 = 200%) */
+  moicMultiplier: z.number()
+    .min(0.1, 'MOIC multiplier must be at least 0.1 (10% of base)')
+    .max(5.0, 'MOIC multiplier cannot exceed 5.0 (500% of base)')
+    .default(1.0),
+
+  /** Exit timing adjustment in months (+/- from base case) */
+  exitTimingDelta: z.number()
+    .int('Exit timing delta must be whole months')
+    .min(-48, 'Cannot exit more than 48 months earlier')
+    .max(48, 'Cannot exit more than 48 months later')
+    .default(0),
+
+  /** Loss rate adjustment in percentage points (+/- from base case) */
+  lossRateDelta: z.number()
+    .min(-50, 'Loss rate delta must be at least -50%')
+    .max(50, 'Loss rate delta cannot exceed +50%')
+    .default(0),
+
+  /** Follow-on participation rate adjustment in percentage points (+/-) */
+  participationRateDelta: z.number()
+    .min(-50, 'Participation rate delta must be at least -50%')
+    .max(50, 'Participation rate delta cannot exceed +50%')
+    .default(0)
 });
 
+export type ScenarioAdjustment = z.infer<typeof scenarioAdjustmentSchema>;
+
+/**
+ * Step 7: Scenarios configuration
+ * Enables "what-if" analysis with multiple scenario variants
+ */
 export const scenariosSchema = z.object({
-  scenarioType: z.enum(['construction', 'current_state', 'comparison'], {
-    errorMap: () => ({ message: 'Scenario type is required' })
-  }),
+  /** Enable scenario analysis (false = base case only) */
+  enabled: z.boolean().default(true),
 
-  baseCase: z.object({
-    name: z.string()
-      .min(1, 'Base case name is required')
-      .max(100, 'Base case name cannot exceed 100 characters'),
+  /** Scenario configurations (1-5 scenarios allowed) */
+  scenarios: z.array(scenarioAdjustmentSchema)
+    .min(1, 'At least one scenario is required')
+    .max(5, 'Maximum 5 scenarios allowed')
+}).superRefine((data, ctx) => {
+  // Validate unique scenario names
+  const names = data.scenarios.map(s => s.name.toLowerCase());
+  const duplicates = names.filter((name, index) => names.indexOf(name) !== index);
 
-    assumptions: z.record(z.any())
-  }),
+  if (duplicates.length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Duplicate scenario names: ${[...new Set(duplicates)].join(', ')}`,
+      path: ['scenarios']
+    });
+  }
 
-  scenarios: z.array(scenarioSchema)
-    .max(10, 'Cannot exceed 10 comparison scenarios')
-    .optional()
+  // Warn if enabled but no scenarios defined
+  if (data.enabled && data.scenarios.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Enable scenario analysis or add at least one scenario',
+      path: ['scenarios']
+    });
+  }
+
+  // Require at least one base case (1.0x multipliers, 0 deltas)
+  const hasBaseCase = data.scenarios.some(s =>
+    s.moicMultiplier === 1.0 &&
+    s.exitTimingDelta === 0 &&
+    s.lossRateDelta === 0 &&
+    s.participationRateDelta === 0
+  );
+
+  if (data.enabled && data.scenarios.length > 1 && !hasBaseCase) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Consider adding a "Base Case" scenario (1.0x multipliers, 0 deltas) for comparison',
+      path: ['scenarios']
+    });
+  }
 });
 
 export type ScenariosInput = z.input<typeof scenariosSchema>;

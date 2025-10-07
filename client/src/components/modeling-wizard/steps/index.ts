@@ -32,8 +32,20 @@ export type { FundFinancialsStepProps } from './FundFinancialsStep';
 export { ExitRecyclingStep } from './ExitRecyclingStep';
 export type { ExitRecyclingStepProps } from './ExitRecyclingStep';
 
+// Exit Recycling sub-components (exported for testing/reuse)
+export { RecyclingSummaryCard } from './exit-recycling/RecyclingSummaryCard';
+
 export { WaterfallStep } from './WaterfallStep';
 export type { WaterfallStepProps } from './WaterfallStep';
 
+// Waterfall sub-components (exported for testing/reuse)
+export { WaterfallConfig } from './waterfall/WaterfallConfig';
+export { WaterfallSummaryCard } from './waterfall/WaterfallSummaryCard';
+
 export { ScenariosStep } from './ScenariosStep';
 export type { ScenariosStepProps } from './ScenariosStep';
+
+// Scenarios sub-components (exported for testing/reuse)
+export { ScenarioCard } from './scenarios/ScenarioCard';
+export { ScenarioComparisonTable } from './scenarios/ScenarioComparisonTable';
+export { DefaultScenarioButton } from './scenarios/DefaultScenarioButton';

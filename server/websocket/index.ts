@@ -1,4 +1,4 @@
-import { Server as HTTPServer } from 'http';
+import type { Server as HTTPServer } from 'http';
 import DevDashboardWebSocket from './dev-dashboard.js';
 
 let devDashboardWS: DevDashboardWebSocket | null = null;

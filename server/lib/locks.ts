@@ -4,7 +4,7 @@
  */
 
 import crypto from 'crypto';
-import { RLSRequest } from '../middleware/with-rls-transaction.js';
+import type { RLSRequest } from '../middleware/with-rls-transaction.js';
 
 /**
  * Generate a deterministic 64-bit integer from org and fund IDs

@@ -9,7 +9,7 @@ import { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
-import { Clock, TrendingUp } from 'lucide-react';
+import { Clock } from 'lucide-react';
 
 export type Stage = 'preSeed' | 'seed' | 'seriesA' | 'seriesB' | 'seriesC' | 'seriesD';
 

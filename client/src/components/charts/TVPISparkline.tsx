@@ -5,7 +5,6 @@
  * Full implementation deferred to Phase 3.
  */
 
-import React from 'react';
 
 interface TVPISparklineProps {
   data?: Array<{ quarter: number; tvpi: number }>;

@@ -14,7 +14,7 @@
  * @module server/services/__tests__/unified-metrics-contract
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import type {
   UnifiedFundMetrics,

@@ -12,7 +12,8 @@
  * @version 1.0 - Production Ready
  */
 
-import { Pool, PoolClient } from '@neondatabase/serverless';
+import type { PoolClient } from '@neondatabase/serverless';
+import { Pool } from '@neondatabase/serverless';
 import { EventEmitter } from 'events';
 
 // ============================================================================

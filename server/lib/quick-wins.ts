@@ -6,7 +6,7 @@
 
 import crypto from 'crypto';
 import { LRUCache } from 'lru-cache';
-import { Worker } from 'worker_threads';
+import type { Worker } from 'worker_threads';
 
 /**
  * 1. APPROVAL SIGNER UNIQUENESS

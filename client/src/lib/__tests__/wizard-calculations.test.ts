@@ -18,10 +18,7 @@ import {
   generatePortfolioSummary,
   calculateReservesForWizard,
   type WizardPortfolioCompany,
-  type ReserveAllocation,
-  type PortfolioValidationResult,
-  type EnrichedReserveAllocation,
-  type PortfolioSummary
+  type ReserveAllocation
 } from '../wizard-calculations';
 import type { ModelingWizardContext } from '@/machines/modeling-wizard.machine';
 import * as bridgeModule from '../wizard-reserve-bridge';

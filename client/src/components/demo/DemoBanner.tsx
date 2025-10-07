@@ -3,7 +3,7 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { AlertCircle, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
 import { useFundContext } from "@/contexts/FundContext";
 
 export default function DemoBanner() {

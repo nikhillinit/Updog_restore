@@ -5,8 +5,8 @@
  * Types are inferred from Zod schemas for type safety.
  */
 
-import { z } from 'zod';
-import {
+import type { z } from 'zod';
+import type {
   fundBasicsSchema,
   stageAllocationSchema,
   graduationRatesSchema,
@@ -46,7 +46,7 @@ export type OpsPolicy = z.infer<typeof opsPolicySchema>;
 /**
  * Reserve Strategy Types (inferred from schema for consistency)
  */
-import { reserveSettingsSchema } from './wizard-schemas';
+import type { reserveSettingsSchema } from './wizard-schemas';
 export type ReserveSettings = z.infer<typeof reserveSettingsSchema>;
 
 /**

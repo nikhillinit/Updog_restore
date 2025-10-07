@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useLocation } from 'wouter';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,6 @@ import { Plus, Trash2, ArrowLeft, ArrowRight, Edit } from "lucide-react";
 import { useFundContext } from '@/contexts/FundContext';
 import { useFundSelector } from '@/stores/useFundSelector';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
-import { solveCapitalAllocation, type AllocationInputs, type FollowOnStrategy } from '@/core/capitalAllocationSolver';
 
 // Capital Allocation interface
 interface CapitalAllocation {
