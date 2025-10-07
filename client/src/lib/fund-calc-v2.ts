@@ -119,6 +119,10 @@ export function runFundModelV2(inputs: ExtendedFundModelInputs): SimulationResul
 
   // Calculate final metrics
   const finalPeriod = periods[periods.length - 1];
+  if (!finalPeriod) {
+    throw new Error('No periods generated in fund simulation');
+  }
+
   const finalMetrics = {
     tvpi: finalPeriod.tvpi,
     dpi: finalPeriod.dpi,

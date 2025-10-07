@@ -88,9 +88,10 @@ class BackpressureMonitor {
         return { underPressure: true, reason: 'Custom health check failed' };
       }
     } catch (error) {
-      return { 
-        underPressure: true, 
-        reason: `Health check error: ${error.message}` 
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        underPressure: true,
+        reason: `Health check error: ${errorMessage}`
       };
     }
     
@@ -188,9 +189,10 @@ export function backpressureMetricsHandler(req: Request, res: Response) {
       }
     });
   } catch (error) {
-    res.status(500).json({ 
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({
       error: 'Metrics unavailable',
-      message: error.message 
+      message: errorMessage
     });
   }
 }

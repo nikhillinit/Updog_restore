@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import type { Request, Response } from 'express';
 import { z } from 'zod';
 import {
   askAllAIs,
@@ -19,7 +20,7 @@ const askSchema = z.object({
 });
 
 // POST /api/ai/ask - Query multiple AI models
-router.post('/ask', async (req, res) => {
+router.post('/ask', async (req: Request, res: Response) => {
   try {
     const { prompt, models, tags } = askSchema.parse(req.body);
 
@@ -46,7 +47,7 @@ router.post('/ask', async (req, res) => {
 });
 
 // GET /api/ai/usage - Get current usage statistics
-router.get('/usage', async (req, res) => {
+router.get('/usage', async (req: Request, res: Response) => {
   try {
     const stats = await getUsageStats();
     res.json(stats);
@@ -65,7 +66,7 @@ const debateSchema = z.object({
   tags: z.array(z.string()).optional(),
 });
 
-router.post('/debate', async (req, res) => {
+router.post('/debate', async (req: Request, res: Response) => {
   try {
     const { topic, ai1, ai2, tags } = debateSchema.parse(req.body);
     const result = await aiDebate({ topic, ai1, ai2, tags });
@@ -93,7 +94,7 @@ const consensusSchema = z.object({
   tags: z.array(z.string()).optional(),
 });
 
-router.post('/consensus', async (req, res) => {
+router.post('/consensus', async (req: Request, res: Response) => {
   try {
     const { question, options, models, tags } = consensusSchema.parse(req.body);
     const result = await aiConsensus({ question, options, models, tags });
@@ -121,7 +122,7 @@ const collaborateSchema = z.object({
   tags: z.array(z.string()).optional(),
 });
 
-router.post('/collaborate', async (req, res) => {
+router.post('/collaborate', async (req: Request, res: Response) => {
   try {
     const { problem, approach, models, tags } = collaborateSchema.parse(req.body);
     const result = await collaborativeSolve({ problem, approach, models, tags });

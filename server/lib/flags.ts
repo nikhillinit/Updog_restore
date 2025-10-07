@@ -369,7 +369,8 @@ export async function updateFlag(
     
   } catch (error) {
     console.error('Failed to update flag:', error);
-    throw new Error(`Failed to update flag '${key}': ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to update flag '${key}': ${errorMessage}`);
   }
 }
 

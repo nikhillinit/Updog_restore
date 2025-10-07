@@ -208,9 +208,10 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: AuthenticatedR
     
   } catch (error) {
     console.error('Error updating flag:', error);
-    res.status(500).json({ 
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update flag';
+    res.status(500).json({
       error: 'update_failed',
-      message: error.message || 'Failed to update flag' 
+      message: errorMessage
     });
   }
 });

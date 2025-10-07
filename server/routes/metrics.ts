@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import type { Request, Response } from 'express';
 import client from 'prom-client';
 
 // Create metrics router
@@ -84,7 +85,7 @@ export function updateCircuitBreakerMetrics(
 }
 
 // Metrics endpoint
-metricsRouter['get']('/metrics', async (_req: any, res: any) => {
+metricsRouter['get']('/metrics', async (_req: Request, res: Response) => {
   try {
     // Update circuit breaker metrics from registry
     const { breakerRegistry } = await import('../infra/circuit-breaker/breaker-registry');
@@ -105,7 +106,7 @@ metricsRouter['get']('/metrics', async (_req: any, res: any) => {
 });
 
 // Health metrics endpoint (lightweight)
-metricsRouter['get']('/metrics/health', async (_req: any, res: any) => {
+metricsRouter['get']('/metrics/health', async (_req: Request, res: Response) => {
   try {
     const { breakerRegistry } = await import('../infra/circuit-breaker/breaker-registry');
     

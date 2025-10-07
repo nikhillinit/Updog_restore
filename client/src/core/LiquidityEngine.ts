@@ -492,6 +492,8 @@ export class LiquidityEngine {
 
     const first = values[0];
     const last = values[values.length - 1];
+    if (first === undefined || last === undefined) return 'stable';
+
     const threshold = Math.abs(first) * 0.1; // 10% threshold
 
     if (last > first + threshold) return 'increasing';
@@ -525,7 +527,11 @@ export class LiquidityEngine {
     let totalGap = 0;
 
     for (let i = 1; i < dates.length; i++) {
-      totalGap += dates[i] - dates[i - 1];
+      const current = dates[i];
+      const previous = dates[i - 1];
+      if (current !== undefined && previous !== undefined) {
+        totalGap += current - previous;
+      }
     }
 
     return totalGap / (dates.length - 1) / (24 * 60 * 60 * 1000); // Days
@@ -742,14 +748,20 @@ export class LiquidityEngine {
 
     callsByMonth.forEach(monthCalls => {
       if (monthCalls.length === 1) {
-        consolidatedCalls.push(monthCalls[0]);
+        const singleCall = monthCalls[0];
+        if (singleCall) {
+          consolidatedCalls.push(singleCall);
+        }
       } else {
         // Merge multiple calls in the same month
+        const firstCall = monthCalls[0];
+        if (!firstCall) return;
+
         const mergedCall: OptimizedCapitalCall = {
           id: `consolidated-${consolidatedCalls.length}`,
           amount: monthCalls.reduce((sum, call) => sum + call.amount, 0),
-          noticeDate: monthCalls[0].noticeDate,
-          dueDate: monthCalls[0].dueDate,
+          noticeDate: firstCall.noticeDate,
+          dueDate: firstCall.dueDate,
           purpose: `Consolidated capital call for ${monthCalls.length} investments`,
           investments: monthCalls.flatMap(call => call.investments),
           priority: Math.min(...monthCalls.map(call => call.priority)),
