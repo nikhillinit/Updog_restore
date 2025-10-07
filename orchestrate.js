@@ -1,3 +1,5 @@
+/* eslint-env node */
+
 // orchestrate.js - SCHEMA → ENGINES → INTEGRATION → TESTING
 
 class Orchestrator {
