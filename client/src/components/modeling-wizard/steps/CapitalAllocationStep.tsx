@@ -84,7 +84,7 @@ export function CapitalAllocationStep({
 
   // Watch all form values for calculations
   const formValues = watch();
-  const entryStrategy = watch('entryStrategy');
+  const entryStrategy = watch('entryStrategy') || 'amount-based';
   const reserveRatio = watch('followOnStrategy.reserveRatio');
 
   // Calculate all metrics in real-time

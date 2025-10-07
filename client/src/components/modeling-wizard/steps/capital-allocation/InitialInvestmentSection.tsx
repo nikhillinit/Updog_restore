@@ -159,7 +159,7 @@ export function InitialInvestmentSection({
                 Calculated Check Size:
               </span>
               <span className="font-inter font-bold text-base text-pov-charcoal">
-                ${(calculations.avgRoundSize * ((register('targetEntryOwnership' as any).value || 15) / 100)).toFixed(2)}M
+                ${(calculations.avgRoundSize * 0.15).toFixed(2)}M
               </span>
             </div>
             <p className="text-xs text-charcoal-600 mt-1 font-poppins">
@@ -213,7 +213,7 @@ export function InitialInvestmentSection({
 
       {/* Warning for high allocation */}
       {calculations.initialCapitalAllocated > (calculations.totalCapitalAllocated + calculations.remainingCapital) * 0.7 && (
-        <Alert variant="warning">
+        <Alert >
           <Info className="h-4 w-4" />
           <AlertDescription className="text-sm font-poppins">
             Initial investments consume {((calculations.initialCapitalAllocated / (calculations.totalCapitalAllocated + calculations.remainingCapital)) * 100).toFixed(1)}% of fund.
