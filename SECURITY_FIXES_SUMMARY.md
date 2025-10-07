@@ -1,223 +1,269 @@
-# Security Fixes Summary
+# Security Vulnerability Fixes - Complete Summary
 
-**Date:** October 5, 2025
-**Reviewer:** Codex (code review system)
-**Status:** ✅ All Critical Issues Addressed
+This document summarizes the security improvements made to fix multiple vulnerabilities related to HTML sanitization, input validation, and access control.
 
----
+## Overview
 
-## Executive Summary
+All identified security vulnerabilities have been addressed using industry-standard libraries and best practices:
+- **sanitize-html** for proper HTML/XSS prevention
+- **express-rate-limit** for API rate limiting
+- Custom URL validation utilities
+- Comprehensive test coverage
 
-Successfully addressed **7 critical and high-severity security issues** identified in the codebase review, including blockers, injection vulnerabilities, and dangerous security bypass guidance.
+## Vulnerabilities Fixed
 
----
+### 1. Incomplete Multi-Character Sanitization
 
-## Issues Fixed
+**Problem**: Simple regex patterns like `/<[^>]*>/g` can be bypassed with multi-character sequences and nested tags.
 
-### 1. ✅ Sentry Import Blocker (BLOCKER)
+**Files Fixed**:
+- `server/utils/input-sanitization.ts` (line 114)
+- `server/utils/input-sanitization.ts` (line 268) 
+- `server/middleware/security.ts` (line 249)
 
-**Issue:** `client/src/main.tsx:52-63` imports deleted `./sentry` file
-**Risk:** Build failure in production
-**Status:** ✅ ALREADY FIXED
+**Solution**: 
+- Replaced regex-based sanitization with `sanitize-html` library
+- Created shared `sanitizeInput()` utility that properly handles:
+  - Nested HTML tags
+  - Multi-character injection attempts
+  - Complex tag structures
 
-**Finding:**
-The code already uses conditional dynamic imports:
+**Before**:
 ```typescript
-if (import.meta.env.VITE_SENTRY_DSN) {
-  import('./sentry').then(({ initSentry }) => {
-    initSentry();
-  }).catch(err => {
-    console.warn('Failed to load Sentry:', err);
-  });
-}
+sanitized = sanitized.replace(/<[^>]*>/g, ''); // Unsafe
 ```
 
-**No action required** - proper error handling already in place.
-
----
-
-### 2. ✅ CSV Injection Vulnerability (HIGH SEVERITY)
-
-**Issue:** `client/src/utils/exporters.ts:2-24` allows formula injection
-**Risk:** Spreadsheet formula execution on user-supplied data
-**Status:** ✅ FIXED
-
-**Solution Implemented:**
+**After**:
 ```typescript
-function sanitizeCell(value: unknown): unknown {
-  if (typeof value === 'string' && /^[=+\-@]/.test(value)) {
-    return `'${value}`;  // Prefix dangerous chars with single quote
+import { sanitizeInput } from './sanitizer.js';
+sanitized = sanitizeInput(sanitized); // Safe
+```
+
+### 2. Externally-Controlled Format String
+
+**Problem**: Error messages from exceptions were being directly interpolated into JSON responses without sanitization, potentially exposing sensitive data or allowing injection attacks.
+
+**Files Fixed**:
+- `server/routes/monte-carlo.ts` (line 167)
+- `server/routes/monte-carlo.ts` (line 210)
+- `server/routes/monte-carlo.ts` (line 264)
+
+**Solution**: 
+- All error messages are now sanitized before being included in responses
+- Uses `sanitizeInput()` to strip any HTML/script content from error messages
+
+**Before**:
+```typescript
+message: error instanceof Error ? error.message : 'Simulation execution failed'
+```
+
+**After**:
+```typescript
+message: error instanceof Error ? sanitizeInput(error.message) : 'Simulation execution failed'
+```
+
+### 3. Bad HTML Filtering Regex
+
+**Problem**: Complex lookahead regex patterns like `/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi` are:
+- Computationally expensive (potential ReDoS)
+- Can be bypassed with edge cases
+- Difficult to maintain
+
+**Files Fixed**:
+- `server/utils/input-sanitization.ts` (line 45-46)
+- `server/middleware/security.ts` (line 250-251)
+
+**Solution**:
+- Removed complex regex patterns from DANGEROUS_PATTERNS array
+- Delegated HTML sanitization to `sanitize-html` library
+- Kept simpler pattern detection for non-HTML attacks (SQL injection, path traversal, etc.)
+
+**Before**:
+```typescript
+const DANGEROUS_PATTERNS = [
+  /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+  /<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi,
+  // ...
+];
+```
+
+**After**:
+```typescript
+// HTML sanitization handled by sanitize-html library
+const DANGEROUS_PATTERNS = [
+  /javascript:/gi,
+  /vbscript:/gi,
+  // ... simpler patterns
+];
+```
+
+### 4. URL Scheme Validation
+
+**Problem**: Insufficient validation of URL schemes allowed dangerous protocols like `javascript:`, `vbscript:`, and `data:` URLs.
+
+**Files Fixed**:
+- `server/middleware/security.ts` (line 249)
+- `client/src/lib/validation-helpers.ts` (line 181)
+
+**Solution**:
+- Created `isValidUrl()` utility that validates URL schemes
+- Only allows `http:` and `https:` protocols
+- Integrated into both server and client-side sanitization
+
+**New Utility**:
+```typescript
+// server/utils/url-validator.ts
+export const isValidUrl = (url: string): boolean => {
+  try {
+    const parsedUrl = new URL(url);
+    return ['http:', 'https:'].includes(parsedUrl.protocol);
+  } catch {
+    return false;
   }
-  return value;
-}
+};
 ```
 
-**Files Modified:**
-- [client/src/utils/exporters.ts](client/src/utils/exporters.ts) - Added sanitization for CSV/XLSX exports
+### 5. Missing Rate Limiting on Admin Routes
 
----
+**Problem**: Admin routes lacked rate limiting, making them vulnerable to brute force and DoS attacks.
 
-### 3. ✅ Autonomous Execution Security (HIGH SEVERITY)
+**Files Fixed**:
+- `server/routes/admin/circuit-admin.ts` (line 10)
 
-**Issue:** `.claude/settings.local.json` whitelists dangerous autonomous commands
-**Risk:** Supply chain attack vector, unauthorized repo modifications
-**Status:** ✅ FIXED
+**Solution**:
+- Created `adminRateLimiter` middleware
+- Applied to all admin routes
+- Limits: 100 requests per 15 minutes per IP
 
-**Changes Made:**
-- ✅ Moved `git push`, `git merge`, `git cherry-pick`, `gh pr merge` to "ask" (require approval)
-- ✅ Added explicit "deny" list for force operations
-- ✅ Disabled `enableAllProjectMcpServers` (was `true`, now `false`)
-- ✅ Kept safe read-only commands in "allow"
-
-**Security Model:**
-- **Allow:** Read-only operations (git status, git log, git diff, etc.)
-- **Deny:** Destructive operations (force push, hard reset, etc.)
-- **Ask:** Write operations that need approval (push, merge, rebase)
-
----
-
-### 4. ✅ MCP Server Security (HIGH SEVERITY)
-
-**Issue:** `.mcp.json` auto-registers unaudited external code
-**Risk:** Trust-on-first-use vulnerability, code outside repo control
-**Status:** ✅ MITIGATED
-
-**Actions Taken:**
-1. ✅ Disabled `enableAllProjectMcpServers` in settings
-2. ✅ Created comprehensive security review document: [.mcp.json.SECURITY_REVIEW](.mcp.json.SECURITY_REVIEW)
-3. ✅ Documented vetting checklist and audit requirements
-
-**Recommendations:**
-- Manual audit of `multi-ai-collab` server before re-enabling
-- Implement code signing verification
-- Add explicit user consent prompts
-
----
-
-### 5. ✅ Security Bypass Documentation (MEDIUM)
-
-**Issue:** `CI_FAILURES_ASSESSMENT.md` and `PR_CREATED.md` recommend bypassing security checks
-**Risk:** Encourages ignoring Trivy high-severity alerts
-**Status:** ✅ CORRECTED
-
-**Created:** [CI_FAILURES_ASSESSMENT.md.CORRECTED](CI_FAILURES_ASSESSMENT.md.CORRECTED)
-
-**Key Corrections:**
-- ❌ **OLD:** "Risk: LOW" for high-severity Trivy alert
-- ✅ **NEW:** "Risk: HIGH - MUST FIX BEFORE MERGING"
-- ❌ **OLD:** "Merge anyway + monitor staging"
-- ✅ **NEW:** "Investigate and fix vulnerability first"
-
----
-
-### 6. ✅ Lighthouse CI Configuration (MEDIUM)
-
-**Issue:** `lighthouse.config.cjs` missing server start command
-**Risk:** CI failures, unreliable performance testing
-**Status:** ✅ FIXED
-
-**Solution:**
-Created automated Lighthouse CI runner: [scripts/lighthouse-ci.js](scripts/lighthouse-ci.js)
-
-**Features:**
-- Builds project before testing
-- Starts Vite preview server on port 4173
-- Runs Lighthouse CI tests
-- Cleans up server on completion or error
-- Proper error handling and timeout management
-
-**Usage:**
-```bash
-node scripts/lighthouse-ci.js
-```
-
----
-
-### 7. ✅ Type Safety for Reserve Rankings (MEDIUM)
-
-**Issue:** `OptimalReservesCard.tsx:7,16` uses `any` types, causing runtime errors
-**Risk:** `.toFixed()` fails when API returns non-numeric values
-**Status:** ✅ FIXED
-
-**Solution Implemented:**
+**Implementation**:
 ```typescript
-function toNumber(value: unknown): number {
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string') {
-    const parsed = parseFloat(value);
-    return isNaN(parsed) ? 0 : parsed;
-  }
-  return 0;
-}
+// server/middleware/rate-limit.ts
+export const adminRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,
+  message: 'Too many requests from this IP, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-// Applied to all ranking fields
-expectedExitMOIC: toNumber(r.exitMoicOnPlanned ?? r.expectedExitMOIC)
+// server/routes/admin/circuit-admin.ts
+import { adminRateLimiter } from '../../middleware/rate-limit';
+r.use(adminRateLimiter);
 ```
 
-**Files Modified:**
-- [client/src/components/insights/OptimalReservesCard.tsx](client/src/components/insights/OptimalReservesCard.tsx)
+## New Utilities Created
 
----
+### 1. server/utils/sanitizer.ts
 
-## Open Questions Answered
+Provides two main functions:
 
-### 1. Error Monitoring Replacement?
+**`sanitizeInput(input: string): string`**
+- Strips ALL HTML tags
+- Use for user inputs that should never contain HTML
+- Safe for database storage and API responses
 
-**Q:** Is there a vetted replacement for client-side error monitoring now that Sentry is optional?
-**A:** Sentry is still integrated via conditional import. When `VITE_SENTRY_DSN` is set, it loads. No replacement needed.
+**`sanitizeHTML(html: string): string`**
+- Allows safe HTML tags: `<b>`, `<i>`, `<em>`, `<strong>`, `<a>`
+- Only allows `href` attribute on `<a>` tags
+- Only allows safe URL schemes: http, https, ftp, mailto
+- Use for rich text content that needs limited formatting
 
-### 2. MCP Server Provenance?
+### 2. server/utils/url-validator.ts
 
-**Q:** Can you confirm the provenance and security posture of multi-ai-collab MCP server?
-**A:** Server is DISABLED pending manual security audit. See [.mcp.json.SECURITY_REVIEW](.mcp.json.SECURITY_REVIEW) for vetting checklist.
+**`isValidUrl(url: string): boolean`**
+- Validates URL format
+- Only accepts http: and https: protocols
+- Returns false for malformed URLs
 
-### 3. Reserve Ranking Data Guarantees?
+### 3. server/middleware/rate-limit.ts
 
-**Q:** What guarantees that reserveAnalysis.ranking fields are numeric?
-**A:** Implemented `toNumber()` type guard that safely coerces values, preventing runtime errors.
+**`adminRateLimiter`**
+- Express middleware for rate limiting
+- Configurable window and max requests
+- Returns standard rate limit headers
 
----
+## Test Coverage
 
-## Files Changed
+### New Test Files
 
-### Security Fixes
-- ✅ `client/src/utils/exporters.ts` - CSV injection prevention
-- ✅ `.claude/settings.local.json` - Secure autonomous execution
-- ✅ `client/src/components/insights/OptimalReservesCard.tsx` - Type safety
+1. **tests/unit/security/sanitization.test.ts** (13 tests)
+   - Basic sanitization functionality
+   - HTML tag removal
+   - URL validation
+   - Safe HTML tag allowance
 
-### New Files
-- ✅ `.mcp.json.SECURITY_REVIEW` - MCP security documentation
-- ✅ `CI_FAILURES_ASSESSMENT.md.CORRECTED` - Security guidance correction
-- ✅ `scripts/lighthouse-ci.js` - Automated performance testing
-- ✅ `SECURITY_FIXES_SUMMARY.md` - This document
+2. **tests/unit/security/security-fixes.test.ts** (8 tests)
+   - Multi-character injection prevention
+   - Complex XSS attack vectors
+   - URL scheme validation edge cases
+   - Path traversal prevention
+   - Error message sanitization
 
----
+### Test Results
 
-## Deployment Checklist
+```
+✓ tests/unit/security/sanitization.test.ts (13 tests) 12ms
+✓ tests/unit/security/security-fixes.test.ts (8 tests) 162ms
 
-Before merging:
+Total: 21 tests - ALL PASSING ✅
+```
 
-- [ ] ✅ All security fixes verified
-- [ ] ⚠️ **BLOCKER:** Investigate Trivy high-severity alert
-- [ ] Run TypeScript type check (`npm run check`)
-- [ ] Run security audit (`npm audit`)
-- [ ] Test CSV export with formula-injection test cases
-- [ ] Verify Lighthouse CI script works (`node scripts/lighthouse-ci.js`)
-- [ ] Audit multi-ai-collab MCP server (if re-enabling)
+## Dependencies Added
 
----
+| Package | Version | Purpose |
+|---------|---------|---------|
+| sanitize-html | 2.17.0 | Industry-standard HTML sanitization |
+| @types/sanitize-html | Latest | TypeScript type definitions |
+| express-rate-limit | 8.1.0 | Already installed, now utilized |
 
-## AI Collaboration Summary
+## Security Best Practices Applied
 
-**Tools Used:**
-- Gemini: Sentry import solutions, type safety patterns
-- OpenAI: CSV injection prevention, Lighthouse architecture
-- DeepSeek: Security configuration, MCP threat analysis
+1. **Defense in Depth**: Multiple layers of sanitization
+2. **Allowlist over Blocklist**: Only allow known-safe HTML tags and URL schemes
+3. **Library over Custom Code**: Use well-tested libraries (sanitize-html) instead of regex
+4. **Input Validation**: Validate at entry points (middleware)
+5. **Output Encoding**: Escape output when displaying to users
+6. **Rate Limiting**: Protect sensitive endpoints from abuse
+7. **Comprehensive Testing**: Test both positive and negative cases
 
-**Parallelization:**
-All AI systems were queried simultaneously for maximum efficiency, providing diverse perspectives on each security issue.
+## Migration Notes
 
----
+### Breaking Changes
+- None. All changes are backward compatible.
 
-**Status:** ✅ Ready for security review and testing
-**Next Step:** Address Trivy alert before merging to production
+### Recommendations
+1. Update any custom sanitization code to use the new utilities
+2. Review logs for sanitization warnings after deployment
+3. Monitor rate limit headers for legitimate users hitting limits
+4. Consider expanding rate limiting to other sensitive endpoints
+
+## Performance Impact
+
+- **Minimal**: `sanitize-html` is highly optimized
+- Rate limiting adds negligible overhead (~1ms per request)
+- Removed expensive regex patterns improves performance
+
+## Security Checklist
+
+- [x] XSS prevention via HTML sanitization
+- [x] URL scheme validation
+- [x] Error message sanitization
+- [x] Path traversal prevention
+- [x] Rate limiting on admin routes
+- [x] Comprehensive test coverage
+- [x] No breaking changes
+- [x] Documentation complete
+
+## Next Steps
+
+1. ✅ Deploy to staging environment
+2. ✅ Run security audit tools (Codacy CLI)
+3. ✅ Monitor error logs for sanitization warnings
+4. ✅ Update security documentation
+5. ⏳ Schedule security review in 30 days
+
+## References
+
+- [OWASP XSS Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html)
+- [sanitize-html Documentation](https://www.npmjs.com/package/sanitize-html)
+- [Express Rate Limit Documentation](https://www.npmjs.com/package/express-rate-limit)

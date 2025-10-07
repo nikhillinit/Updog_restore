@@ -18,6 +18,7 @@ import type { Request, Response, NextFunction } from '../types/request-response'
 import { assertFiniteDeep } from '../middleware/engine-guards';
 import { recordHttpMetrics } from '../metrics';
 import { toNumber } from '@shared/number';
+import { sanitizeInput } from '../utils/sanitizer.js';
 
 const router = Router();
 
@@ -169,7 +170,7 @@ router.post('/simulate', validateRequest(simulationConfigSchema), async (req: Re
     res.status(500).json({
       error: 'SIMULATION_FAILED',
       correlationId,
-      message: error instanceof Error ? error.message : 'Simulation execution failed',
+      message: error instanceof Error ? sanitizeInput(error.message) : 'Simulation execution failed',
       timestamp: new Date().toISOString()
     });
   }
@@ -212,7 +213,7 @@ router.post('/batch', validateRequest(batchSimulationSchema), async (req: Reques
     res.status(500).json({
       error: 'BATCH_SIMULATION_FAILED',
       correlationId,
-      message: error instanceof Error ? error.message : 'Batch simulation execution failed',
+      message: error instanceof Error ? sanitizeInput(error.message) : 'Batch simulation execution failed',
       timestamp: new Date().toISOString()
     });
   }
@@ -266,7 +267,7 @@ router.post('/multi-environment', validateRequest(multiEnvironmentSchema), async
     res.status(500).json({
       error: 'MULTI_ENVIRONMENT_FAILED',
       correlationId,
-      message: error instanceof Error ? error.message : 'Multi-environment simulation failed',
+      message: error instanceof Error ? sanitizeInput(error.message) : 'Multi-environment simulation failed',
       timestamp: new Date().toISOString()
     });
   }
