@@ -21,7 +21,7 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "skipLibCheck": true, // Skip type checking of declaration files in node_modules
-    "types": ["node", "vite/client"],
+    "types": ["node"],
     "paths": {
       "@/*": ["./client/src/*"],
       "@/core/*": ["./client/src/core/*"],
