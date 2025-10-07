@@ -2,11 +2,13 @@ import { Router } from 'express';
 import type { CircuitBreaker } from '../../infra/circuit-breaker/CircuitBreaker';
 import { breakerRegistry } from '../../infra/circuit-breaker/breaker-registry';
 import { requireAuth, requireRole } from '../../lib/auth/jwt';
+import { adminRateLimiter } from '../../middleware/rate-limit';
 
 export function circuitAdmin(breakers?: Record<string, CircuitBreaker<any>>) {
   const r = Router();
 
-  // Apply authentication and admin role requirement to all routes
+  // Apply rate limiting, authentication and admin role requirement to all routes
+  r.use(adminRateLimiter);
   r.use(requireAuth(), requireRole("admin"));
   r['get']('/state', (_req: any, res: any) => {
     // Use registry if available, fallback to passed breakers

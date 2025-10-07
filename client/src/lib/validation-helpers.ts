@@ -178,12 +178,29 @@ export function sanitizeUserInput(input: unknown, maxLength: number = 1000): str
   const str = ensureDisplayString(input);
 
   // Remove potentially dangerous characters and limit length
-  return str
+  let sanitized = str
     .replace(/[<>]/g, '') // Remove HTML brackets
     .replace(/[{}]/g, '') // Remove object notation
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
     .slice(0, maxLength)
     .trim();
+
+  // Validate and remove dangerous URL schemes
+  if (sanitized.includes('://')) {
+    try {
+      const url = new URL(sanitized);
+      if (!['http:', 'https:', 'ftp:', 'mailto:'].includes(url.protocol)) {
+        sanitized = sanitized.replace(url.protocol, '');
+      }
+    } catch {
+      // If not a valid URL, remove protocol-like patterns
+      sanitized = sanitized.replace(/\w+:/gi, '');
+    }
+  } else {
+    // Remove protocol patterns like javascript:, vbscript:, etc.
+    sanitized = sanitized.replace(/javascript:/gi, '').replace(/vbscript:/gi, '');
+  }
+
+  return sanitized;
 }
 
 /**

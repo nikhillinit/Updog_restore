@@ -17,6 +17,8 @@ import rateLimit from 'express-rate-limit';
 import { createClient } from 'redis';
 import RedisStore from 'rate-limit-redis';
 import { logSecurity, logContext } from '../utils/logger.js';
+import { sanitizeInput } from '../utils/sanitizer.js';
+import { isValidUrl } from '../utils/url-validator.js';
 
 // Security configuration
 const SECURITY_CONFIG = {
@@ -241,17 +243,19 @@ export const ipFilter = (req: Request, res: Response, next: NextFunction) => {
 // INPUT SANITIZATION MIDDLEWARE
 // =============================================================================
 
-// HTML/Script sanitization
+// HTML/Script sanitization using sanitize-html library
 const sanitizeString = (value: any): any => {
   if (typeof value !== 'string') return value;
-
-  // Remove potential XSS vectors
-  return value
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
-    .replace(/javascript:/gi, '')
-    .replace(/on\w+\s*=/gi, '')
-    .trim();
+  
+  // Use sanitize-html for proper XSS prevention
+  const sanitized = sanitizeInput(value);
+  
+  // Validate URLs if the value looks like a URL
+  if (sanitized.includes('://') && !isValidUrl(sanitized)) {
+    return ''; // Remove invalid URLs
+  }
+  
+  return sanitized.trim();
 };
 
 // Recursive object sanitization
