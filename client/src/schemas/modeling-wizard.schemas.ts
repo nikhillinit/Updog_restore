@@ -61,6 +61,28 @@ export const yearSchema = z.number()
 export const isoDateSchema = z.string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format');
 
+/**
+ * Team composition schema
+ * Captures fund team structure
+ */
+export const teamSchema = z.object({
+  partners: z.number()
+    .int('Partners must be a whole number')
+    .min(0, 'Partners must be non-negative'),
+
+  associates: z.number()
+    .int('Associates must be a whole number')
+    .min(0, 'Associates must be non-negative')
+    .optional(),
+
+  advisors: z.array(z.object({
+    name: z.string().min(1, 'Advisor name is required'),
+    role: z.string().min(1, 'Advisor role is required')
+  })).optional()
+});
+
+export type Team = z.infer<typeof teamSchema>;
+
 // ============================================================================
 // STEP 1: GENERAL INFO
 // ============================================================================
@@ -95,7 +117,9 @@ export const generalInfoSchema = z.object({
     .int('Investment period must be a whole number of years')
     .min(1, 'Investment period must be at least 1 year')
     .max(10, 'Investment period cannot exceed 10 years')
-    .optional()
+    .optional(),
+
+  team: teamSchema.optional()
 }).superRefine((data, ctx) => {
   // Validate evergreen vs fixed-term structure
   if (!data.isEvergreen) {
@@ -597,3 +621,30 @@ export function isWarning(error: z.ZodIssue): boolean {
       error.message.includes('may not provide'))
   );
 }
+
+// ============================================================================
+// STORAGE SCHEMA
+// ============================================================================
+
+/**
+ * Schema for wizard data stored in localStorage
+ * Combines wizard data with UI state (current step, completed steps, etc.)
+ *
+ * Used by storage layer to persist progress across sessions
+ */
+export const storableWizardSchema = completeWizardSchema.deepPartial().extend({
+  currentStep: z.enum([
+    'generalInfo',
+    'sectorProfiles',
+    'capitalAllocation',
+    'feesExpenses',
+    'exitRecycling',
+    'waterfall',
+    'scenarios'
+  ]).optional(),
+  completedSteps: z.array(z.string()).optional(),
+  visitedSteps: z.array(z.string()).optional(),
+  skipOptionalSteps: z.boolean().optional()
+});
+
+export type StorableWizard = z.infer<typeof storableWizardSchema>;
