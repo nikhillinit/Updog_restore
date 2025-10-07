@@ -5,6 +5,18 @@ import { vi } from 'vitest';
 import crypto from 'crypto';
 
 /**
+ * Crypto Polyfill for Node.js Test Environment
+ *
+ * Ensures `globalThis.crypto` is available for UUID generation and other crypto operations.
+ * Node.js 18+ has `crypto.webcrypto`, but it's not automatically exposed as `globalThis.crypto`.
+ * This polyfill prevents "crypto is not defined" errors in tests that use Web Crypto API.
+ */
+if (!globalThis.crypto) {
+  // @ts-expect-error - Node.js crypto.webcrypto is compatible with Web Crypto API
+  globalThis.crypto = crypto.webcrypto;
+}
+
+/**
  * TestStateManager - Captures and restores test state
  * Ensures complete isolation between tests
  */
@@ -230,4 +242,145 @@ export async function runTestMultiple<T>(
     failures,
     passRate: (iterations - failures) / iterations
   };
+}
+
+/**
+ * Financial Calculation Tolerance Helpers
+ *
+ * IRR/XIRR calculations use iterative numerical methods (Newton-Raphson, Brent's method)
+ * which introduce floating-point drift. These helpers provide:
+ * - Excel-parity tolerance (1e-7 for XIRR, matching Excel precision)
+ * - General financial tolerance (1e-6 for most calculations)
+ * - Clear error messages for debugging
+ */
+
+/**
+ * Standard tolerance for XIRR/IRR comparisons
+ *
+ * Why 1e-7?
+ * - Excel XIRR function uses ~7 decimal places of precision
+ * - Newton-Raphson typically converges to 1e-7 tolerance
+ * - Handles floating-point drift from:
+ *   - Date arithmetic (milliseconds -> years conversion)
+ *   - Compound interest calculations (Math.pow with fractional exponents)
+ *   - Iterative root-finding algorithms
+ *
+ * Use this for validating IRR/XIRR results against Excel golden sets.
+ */
+export const EXCEL_IRR_TOLERANCE = 1e-7;
+
+/**
+ * General financial calculation tolerance
+ *
+ * Use for:
+ * - MOIC, DPI, TVPI (ratio calculations)
+ * - Fee calculations
+ * - NAV computations
+ * - Capital allocation percentages
+ */
+export const FINANCIAL_TOLERANCE = 1e-6;
+
+/**
+ * Assert that two IRR/XIRR values are approximately equal
+ *
+ * @param actual - Computed IRR value
+ * @param expected - Expected IRR value (from Excel or golden set)
+ * @param tolerance - Allowed difference (default: EXCEL_IRR_TOLERANCE)
+ * @throws Error with clear message if values differ beyond tolerance
+ *
+ * @example
+ * ```ts
+ * const irr = xirrNewtonBisection(flows).irr;
+ * assertIRREquals(irr, 0.148698355); // Excel XIRR result
+ * ```
+ */
+export function assertIRREquals(
+  actual: number | null,
+  expected: number,
+  tolerance: number = EXCEL_IRR_TOLERANCE
+): void {
+  if (actual === null) {
+    throw new Error(
+      `IRR assertion failed: actual is null, expected ${expected.toFixed(9)}`
+    );
+  }
+
+  const diff = Math.abs(actual - expected);
+  if (diff > tolerance) {
+    throw new Error(
+      `IRR assertion failed:\n` +
+        `  Expected: ${expected.toFixed(9)}\n` +
+        `  Actual:   ${actual.toFixed(9)}\n` +
+        `  Diff:     ${diff.toExponential(2)} (tolerance: ${tolerance.toExponential(2)})`
+    );
+  }
+}
+
+/**
+ * Assert that a financial ratio/percentage is approximately equal
+ *
+ * @param actual - Computed value (MOIC, DPI, TVPI, etc.)
+ * @param expected - Expected value
+ * @param tolerance - Allowed difference (default: FINANCIAL_TOLERANCE)
+ * @throws Error with clear message if values differ beyond tolerance
+ *
+ * @example
+ * ```ts
+ * const tvpi = calculateTVPI(deployed, distributions, nav);
+ * assertFinancialEquals(tvpi, 2.35, 1e-4); // 4 decimal places
+ * ```
+ */
+export function assertFinancialEquals(
+  actual: number | null | undefined,
+  expected: number,
+  tolerance: number = FINANCIAL_TOLERANCE
+): void {
+  if (actual === null || actual === undefined) {
+    throw new Error(
+      `Financial assertion failed: actual is ${actual}, expected ${expected.toFixed(6)}`
+    );
+  }
+
+  const diff = Math.abs(actual - expected);
+  if (diff > tolerance) {
+    throw new Error(
+      `Financial assertion failed:\n` +
+        `  Expected: ${expected.toFixed(6)}\n` +
+        `  Actual:   ${actual.toFixed(6)}\n` +
+        `  Diff:     ${diff.toExponential(2)} (tolerance: ${tolerance.toExponential(2)})`
+    );
+  }
+}
+
+/**
+ * Check if two IRR values are approximately equal (boolean variant)
+ *
+ * Useful for conditional logic in tests without throwing errors.
+ *
+ * @example
+ * ```ts
+ * if (!isIRRClose(computed, expected)) {
+ *   console.warn('IRR mismatch, falling back to alternative method');
+ * }
+ * ```
+ */
+export function isIRRClose(
+  actual: number | null,
+  expected: number,
+  tolerance: number = EXCEL_IRR_TOLERANCE
+): boolean {
+  if (actual === null) return false;
+  return Math.abs(actual - expected) <= tolerance;
+}
+
+/**
+ * Check if two financial values are approximately equal (boolean variant)
+ */
+export function isFinancialClose(
+  actual: number | null | undefined,
+  expected: number,
+  tolerance: number = FINANCIAL_TOLERANCE
+): boolean {
+  if (actual === null || actual === undefined) return false;
+  return Math.abs(actual - expected) <= tolerance;
 }
