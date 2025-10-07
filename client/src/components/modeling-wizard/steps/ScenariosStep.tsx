@@ -88,9 +88,9 @@ export function ScenariosStep({ initialData, onSave }: ScenariosStepProps) {
   }), []);
 
   // Calculate scenario results in real-time
-  const { results, comparison } = useScenarioCalculations({
+  const { results, comparison} = useScenarioCalculations({
     baseModel,
-    scenarios,
+    scenarios: scenarios as ScenarioAdjustment[],
     enabled
   });
 
