@@ -72,12 +72,12 @@ export function useAgentStream(runId: string | null): AgentStreamResult {
       const data = JSON.parse(e.data);
       setError(data.message || 'Unknown error');
       setStatus('error');
-      logger.error('Agent run error', { runId, errorData: data });
+      logger.error('Agent run error', undefined, { runId, errorData: data });
       es.close();
     });
 
     es.onerror = () => {
-      logger.error('SSE connection error', { runId });
+      logger.error('SSE connection error', undefined, { runId });
       setStatus('error');
       setError('Connection failed');
       es.close();
@@ -108,7 +108,8 @@ export function useAgentStream(runId: string | null): AgentStreamResult {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Cancel failed';
-      logger.error('Failed to cancel agent run', { runId, errorMessage });
+      const error = err instanceof Error ? err : undefined;
+      logger.error('Failed to cancel agent run', error, { runId, errorMessage });
       setError(errorMessage);
     }
   }, [runId]);
