@@ -160,6 +160,8 @@ export function ModelingWizard({
         <CapitalAllocationStep
           initialData={wizard.getStepData('capitalAllocation')}
           onSave={(data) => wizard.saveStep('capitalAllocation', data)}
+          fundFinancials={wizard.getStepData('fundFinancials') || { fundSize: 100, investmentPeriod: 5 }}
+          sectorProfiles={wizard.getStepData('sectorProfiles')?.sectorProfiles || []}
         />
       )}
 

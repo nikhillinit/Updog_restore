@@ -130,6 +130,16 @@ export default [
       '@typescript-eslint/no-unsafe-return': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
 
+      // Consistent type imports (TS1361 auto-fix)
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        {
+          prefer: 'type-imports',
+          fixStyle: 'separate-type-imports',
+          disallowTypeAnnotations: false,
+        },
+      ],
+
       // Unused imports and variables
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
