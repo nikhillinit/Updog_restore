@@ -13,6 +13,15 @@
 
 import { setup, assign, fromPromise } from 'xstate';
 import type { FundState } from '@/stores/fundStore';
+import {
+  calculateReservesForWizard,
+  validateWizardPortfolio,
+  enrichWizardMetrics,
+  type ReserveAllocation,
+  type EnrichedReserveAllocation,
+  type PortfolioValidationResult,
+  type WizardPortfolioCompany
+} from '@/lib/wizard-calculations';
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -65,6 +74,7 @@ export interface CapitalAllocationData {
     investmentsPerYear: number;
     deploymentCurve: 'linear' | 'front-loaded' | 'back-loaded';
   };
+  syntheticPortfolio?: WizardPortfolioCompany[];
 }
 
 export interface FeesExpensesData {
@@ -141,6 +151,15 @@ export interface ModelingWizardContext {
   validationErrors: Record<WizardStep, string[]>;
   isStepValid: Record<WizardStep, boolean>;
 
+  // Reactive portfolio validation
+  portfolioValidation?: PortfolioValidationResult;
+
+  // Calculation results
+  calculations?: {
+    reserves?: ReserveAllocation;
+    enrichedReserves?: EnrichedReserveAllocation;
+  };
+
   // Persistence state
   lastSaved: number | null;
   isDirty: boolean;
@@ -166,7 +185,9 @@ export type ModelingWizardEvents =
   | { type: 'RETRY_SUBMIT' }
   | { type: 'CANCEL_SUBMISSION' }
   | { type: 'RESET' }
-  | { type: 'LOAD_FROM_STORAGE' };
+  | { type: 'LOAD_FROM_STORAGE' }
+  | { type: 'PORTFOLIO_CHANGED' }
+  | { type: 'CALCULATE_RESERVES' };
 
 // ============================================================================
 // STEP CONFIGURATION
@@ -437,7 +458,34 @@ export const modelingWizardMachine = setup({
   },
 
   actors: {
-    submitFundModel
+    submitFundModel,
+
+    /**
+     * Calculate reserves for wizard portfolio
+     * Assumes portfolio has already been validated (reactive validation)
+     */
+    calculateReserves: fromPromise(async ({ input }: { input: ModelingWizardContext }) => {
+      const capitalAllocation = input.steps.capitalAllocation;
+      if (!capitalAllocation?.syntheticPortfolio) {
+        throw new Error('No portfolio data available');
+      }
+
+      // Validation should already be done (reactive)
+      if (!input.portfolioValidation?.valid) {
+        throw new Error('Portfolio validation must pass before calculation');
+      }
+
+      // Calculate reserves
+      const allocation = await calculateReservesForWizard(
+        input,
+        capitalAllocation.syntheticPortfolio
+      );
+
+      // Enrich with insights
+      const enriched = enrichWizardMetrics(allocation, input);
+
+      return { allocation, enriched };
+    })
   },
 
   actions: {
@@ -468,6 +516,59 @@ export const modelingWizardMachine = setup({
           [step]: errors.length === 0
         },
         isDirty: true
+      };
+    }),
+
+    /**
+     * Validate portfolio reactively (called on portfolio changes)
+     * This allows UI to show errors before user clicks "calculate"
+     */
+    validatePortfolio: assign(({ context }) => {
+      const portfolio = context.steps.capitalAllocation?.syntheticPortfolio;
+
+      if (!portfolio || portfolio.length === 0) {
+        return {
+          ...context,
+          portfolioValidation: undefined
+        };
+      }
+
+      const validation = validateWizardPortfolio(portfolio);
+
+      return {
+        ...context,
+        portfolioValidation: validation
+      };
+    }),
+
+    /**
+     * Save reserve calculation results
+     */
+    saveReserveCalculation: assign(({ context, event }) => {
+      // XState v5 invoke done events pass output directly
+      const output = (event as any).output;
+
+      return {
+        ...context,
+        calculations: {
+          ...context.calculations,
+          reserves: output.allocation,
+          enrichedReserves: output.enriched
+        }
+      };
+    }),
+
+    /**
+     * Clear reserve calculation (on error or reset)
+     */
+    clearReserveCalculation: assign(({ context }) => {
+      return {
+        ...context,
+        calculations: {
+          ...context.calculations,
+          reserves: undefined,
+          enrichedReserves: undefined
+        }
       };
     }),
 
@@ -729,9 +830,38 @@ export const modelingWizardMachine = setup({
               actions: ['toggleSkipOptional', 'persistToStorage']
             },
 
+            // Reactive validation on portfolio changes
+            PORTFOLIO_CHANGED: {
+              actions: 'validatePortfolio'
+            },
+
+            // Calculate reserves (only enabled if valid)
+            CALCULATE_RESERVES: {
+              target: 'calculatingReserves'
+              // Note: UI should guard this with context.portfolioValidation?.valid check
+            },
+
             SUBMIT: {
               guard: 'isCurrentStepValid',
               target: 'submitting'
+            }
+          }
+        },
+
+        /**
+         * Calculating reserves
+         */
+        calculatingReserves: {
+          invoke: {
+            src: 'calculateReserves',
+            input: ({ context }) => context,
+            onDone: {
+              target: 'editing',
+              actions: ['saveReserveCalculation']
+            },
+            onError: {
+              target: 'editing',
+              actions: ['clearReserveCalculation']
             }
           }
         },
@@ -828,6 +958,8 @@ function createInitialContext(input: {
       waterfall: false,
       scenarios: false
     },
+    portfolioValidation: undefined,
+    calculations: undefined,
     lastSaved: null,
     isDirty: false,
     submissionError: null,
