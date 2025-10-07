@@ -1,0 +1,42 @@
+This repo bundle adds the non-blocking memory-mode + health endpoints.
+Integrate by importing in your existing server/bootstrap.ts:
+
+import { log } from "./log";
+import { env, isMemoryMode } from "./env";
+import { tryConnectDb } from "./db";
+import { makeRepos } from "./repos";
+import { makeHealthRouter } from "./routes/health";
+
+// Then, inside your bootstrap() function:
+// (1) banner + env
+log.banner("bootstrap");
+log.info("[phase] parse env", { env: { ...env, DATABASE_URL: env.DATABASE_URL ? "set" : "empty" } });
+
+// (2) cache mode
+const cacheMode = isMemoryMode() ? "memory" : "none";
+
+// (3) db attempt (non-blocking)
+const { db, ok: dbAvailable, error } = await tryConnectDb(2500);
+if (!dbAvailable) log.warn("[phase] db unavailable → continuing in memory mode", { error });
+
+// (4) repos
+const repos = makeRepos({ db });
+
+// (5) routes
+app.use(makeHealthRouter({ dbAvailable, cache: cacheMode as any, queuesEnabled: env.ENABLE_QUEUES }));
+
+// (6) sample API
+app.get("/api/fund/metrics", async (_req, res) => {
+  try {
+    const fundId = await repos.fund.getCurrentFundId();
+    if (!fundId) return res.status(404).json({ error: "no-fund" });
+    const metrics = await repos.fund.getFundMetrics(fundId);
+    if (!metrics) return res.status(404).json({ error: "no-metrics" });
+    res.json(metrics);
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message ?? "unknown" });
+  }
+});
+
+// (7) server listen logging should say:
+// [phase] server listening { port: 5000 }
