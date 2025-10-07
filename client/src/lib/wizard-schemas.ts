@@ -115,7 +115,7 @@ export const graduationRatesSchema = z
     checks.forEach(([gradKey, exitKey]) => {
       const grad = g[gradKey];
       const exit = g[exitKey];
-      if (typeof exit === 'number' && grad + exit > 100) {
+      if (typeof exit === 'number' && typeof grad === 'number' && grad + exit > 100) {
         ctx.addIssue({
           code: 'custom',
           message: `Graduation (${grad}%) + Exit (${exit}%) cannot exceed 100%`,
