@@ -1,4 +1,5 @@
-import express, { Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import express from 'express';
 import { FundModelInputsSchema } from '@shared/schemas/fund-model';
 import type { FundModelInputs } from '@shared/schemas/fund-model';
 import { runFundModel } from '../../client/src/lib/fund-calc.js';

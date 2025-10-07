@@ -12,7 +12,8 @@
  */
 
 import { MonteCarloEngine } from './monte-carlo-engine';
-import { StreamingMonteCarloEngine, StreamingConfig } from './streaming-monte-carlo-engine';
+import type { StreamingConfig } from './streaming-monte-carlo-engine';
+import { StreamingMonteCarloEngine } from './streaming-monte-carlo-engine';
 import { databasePoolManager } from './database-pool-manager';
 import type {
   SimulationConfig,

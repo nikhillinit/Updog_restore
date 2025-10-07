@@ -13,8 +13,7 @@ import {
   DollarSign,
   Clock,
   AlertTriangle,
-  Monitor,
-  PieChart
+  Monitor
 } from 'lucide-react';
 
 // 5-item simplified IA (NEW_IA enabled)

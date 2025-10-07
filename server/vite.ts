@@ -8,7 +8,7 @@ import fs from "fs";
 import path from "path";
 import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
-import { Request, Response, NextFunction } from "./types/request-response";
+import type { Request, Response, NextFunction } from "./types/request-response";
 import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
 

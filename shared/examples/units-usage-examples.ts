@@ -20,7 +20,6 @@ import {
 } from '../units';
 
 import {
-  FractionSchema,
   PercentageSchema,
   DollarsSchema,
 } from '../schemas/unit-schemas';

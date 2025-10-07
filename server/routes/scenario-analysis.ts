@@ -10,7 +10,7 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { db } from '../db';
 import { scenarios, scenarioCases, scenarioAuditLogs, portfolioCompanies } from '@shared/schema';
-import { eq, and, sql, count } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import {
   calculateWeightedSummary,
   validateProbabilities,
@@ -18,8 +18,6 @@ import {
   addMOICToCases
 } from '@shared/utils/scenario-math';
 import type {
-  ScenarioCase,
-  UpdateScenarioCasesRequest,
   ScenarioAnalysisResponse
 } from '@shared/types/scenario';
 

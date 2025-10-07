@@ -27,7 +27,6 @@ import {
   type FieldErrors,
 } from '@/lib/validation';
 import { computeFeePreview } from '@/lib/fees-wizard';
-import { pctOfDollars } from '@/lib/formatting';
 import type {
   StageAllocation,
   GraduationRates,

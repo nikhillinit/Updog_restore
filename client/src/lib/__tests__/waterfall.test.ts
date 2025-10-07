@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { applyWaterfallChange, changeWaterfallType, isAmerican, isEuropean } from '../waterfall';
-import { WaterfallSchema, type Waterfall } from '@shared/types';
+import { type Waterfall } from '@shared/types';
 
 describe('Waterfall type guards', () => {
   it('isAmerican identifies AMERICAN waterfall correctly', () => {

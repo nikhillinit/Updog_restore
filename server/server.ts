@@ -8,7 +8,8 @@
  * Consumes providers instead of creating global connections
  */
 
-import express, { type Express, type Request, Response, NextFunction } from 'express';
+import type { Response, NextFunction } from 'express';
+import express, { type Express, type Request } from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
 import bodyParser from 'body-parser';

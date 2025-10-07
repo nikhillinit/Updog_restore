@@ -1,5 +1,5 @@
 import { differenceInDays } from 'date-fns';
-import { Decimal, toDecimal } from './decimal-utils';
+import { toDecimal } from './decimal-utils';
 import type { PeriodResult } from '@shared/schemas/fund-model';
 
 /**

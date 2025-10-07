@@ -3,7 +3,7 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { db } from './db';
 import { healthStatus } from './metrics';
 import { getEnv } from './env';

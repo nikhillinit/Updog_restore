@@ -3,7 +3,8 @@
  * Requires both partners to approve changes to reserve strategies
  */
 
-import { Router, Response } from 'express';
+import type { Response } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../../lib/auth/jwt.js';
 import { db } from '../../db';

@@ -6,7 +6,7 @@
 
 import { z } from 'zod';
 import Decimal from 'decimal.js';
-import { ZodDecimal, ZodPercentage, ZodPositiveDecimal } from './decimal-zod';
+import { ZodPercentage, ZodPositiveDecimal } from './decimal-zod';
 
 /**
  * Investment stage types

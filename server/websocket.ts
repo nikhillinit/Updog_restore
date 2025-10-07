@@ -3,8 +3,9 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { Server as HttpServer } from 'http';
-import { Server as SocketIOServer, Socket } from 'socket.io';
+import type { Server as HttpServer } from 'http';
+import type { Socket } from 'socket.io';
+import { Server as SocketIOServer } from 'socket.io';
 // Redis pub/sub disabled in dev - will be injected via providers when needed
 import { logger } from './logger';
 import { z } from 'zod';

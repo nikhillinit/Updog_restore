@@ -3,7 +3,7 @@
  * Derives user context from JWT claims only, never trusts client headers
  */
 
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from './auth/jwt';
 import { db } from '../db.js';
 import { sql } from 'drizzle-orm';

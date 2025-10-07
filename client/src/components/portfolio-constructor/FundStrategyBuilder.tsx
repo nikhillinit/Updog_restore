@@ -5,11 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Progress } from "@/components/ui/progress";
+import type {
+  DropResult
+} from 'react-beautiful-dnd';
 import {
   DragDropContext,
   Droppable,
-  Draggable,
-  DropResult
+  Draggable
 } from 'react-beautiful-dnd';
 import {
   PieChart,

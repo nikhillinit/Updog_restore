@@ -4,7 +4,7 @@
  * Tools for working with Zod validation errors in wizard forms.
  */
 
-import { ZodError } from 'zod';
+import type { ZodError } from 'zod';
 
 /**
  * Field error mapping (path → messages)

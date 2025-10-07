@@ -36,7 +36,7 @@ export function memoryStore(): IdempotencyStore {
 
 // (Optional) Hook up a Redis-backed store implementing IdempotencyStore in production.
 
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 
 /**
  * Express middleware for idempotency support

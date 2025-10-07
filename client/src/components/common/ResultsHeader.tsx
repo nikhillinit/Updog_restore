@@ -1,6 +1,7 @@
 import React from "react";
 import { useQueryParam } from "@/utils/useQueryParam";
-import { StatusChip, Status } from "@/components/common/StatusChip";
+import type { Status } from "@/components/common/StatusChip";
+import { StatusChip } from "@/components/common/StatusChip";
 
 const ALLOWED = new Set(["construction", "current"]);
 

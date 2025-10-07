@@ -18,7 +18,6 @@ import type { UnifiedFundMetrics, MetricsCalculationError } from '@shared/types/
 import { ActualMetricsCalculator } from './actual-metrics-calculator';
 import { ProjectedMetricsCalculator } from './projected-metrics-calculator';
 import { VarianceCalculator } from './variance-calculator';
-import { ConstructionForecastCalculator } from './construction-forecast-calculator';
 import { getFundAge, isConstructionPhase } from '@shared/lib/lifecycle-rules';
 import type { Fund } from '@shared/schema';
 

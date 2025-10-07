@@ -3,7 +3,7 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { z } from 'zod';
+import type { z } from 'zod';
 import {
   InvestmentStrategySchema,
   ExitRecyclingSchema,

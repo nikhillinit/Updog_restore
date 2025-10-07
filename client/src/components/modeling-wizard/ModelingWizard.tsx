@@ -178,6 +178,7 @@ export function ModelingWizard({
         <ExitRecyclingStep
           initialData={wizard.getStepData('exitRecycling')}
           onSave={(data) => wizard.saveStep('exitRecycling', data)}
+          fundFinancials={(wizard as any).getStepData?.('fundFinancials') || { fundSize: 100, investmentPeriod: 5, orgExpenses: 0, additionalExpenses: [], gpCommitment: 1, cashlessSplit: 50, managementFee: { rate: 2, stepDown: { enabled: false } } }}
         />
       )}
 

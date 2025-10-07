@@ -4,7 +4,7 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { randomUUID } from 'node:crypto';
-import { Request, Response, NextFunction } from '../types/request-response';
+import type { Request, Response, NextFunction } from '../types/request-response';
 
 // Request interface augmentation is now centralized in types/express.d.ts
 

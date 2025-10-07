@@ -12,7 +12,6 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { DeterministicReserveEngine } from '../DeterministicReserveEngine';
-import type { ReserveAllocationInput, PortfolioCompany } from '@shared/schemas/reserves-schemas';
 
 // Arbitraries for generating test data
 const portfolioCompanyArbitrary = fc.record({

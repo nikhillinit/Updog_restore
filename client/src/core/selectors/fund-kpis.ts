@@ -20,8 +20,6 @@
 import type {
   FundData,
   FundKPIs,
-  CapitalCall,
-  Distribution,
   Investment,
   Valuation,
   CashFlowEvent,

@@ -10,7 +10,7 @@
  * - Real-time monitoring
  */
 
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { db } from '../db.js';
 import { fundEvents, auditLog } from '@shared/schema';
 import { auditLogger, logAudit, securityLogger } from '../utils/logger.js';

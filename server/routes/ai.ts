@@ -6,8 +6,7 @@ import {
   getUsageStats,
   aiDebate,
   aiConsensus,
-  collaborativeSolve,
-  type ModelName
+  collaborativeSolve
 } from '../services/ai-orchestrator';
 
 const router = Router();

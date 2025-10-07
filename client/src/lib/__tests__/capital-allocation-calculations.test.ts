@@ -18,8 +18,7 @@ import {
 } from '../capital-allocation-calculations';
 import type {
   SectorProfile,
-  CapitalAllocationInput,
-  PacingPeriod
+  CapitalAllocationInput
 } from '@/schemas/modeling-wizard.schemas';
 
 // ============================================================================

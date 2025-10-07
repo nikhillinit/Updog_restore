@@ -9,7 +9,7 @@ import React, { useMemo } from 'react';
 import { CollapsibleCard } from '@/components/wizard/CollapsibleCard';
 import { EnhancedField } from '@/components/wizard/EnhancedField';
 import { formatUSD, pctOfDollars } from '@/lib/formatting';
-import { STAGES, STAGE_LABEL, type Stage } from './\./_types';
+import { STAGES, STAGE_LABEL } from './\./_types';
 import type { FieldErrors } from '@/lib/validation';
 import { firstError } from '@/lib/validation';
 

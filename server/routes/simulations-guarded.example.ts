@@ -4,7 +4,7 @@
  * This shows how to protect simulation endpoints from NaN/Infinity leaks
  */
 
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { assertFiniteDeep } from '../middleware/engine-guards';
 // TODO: Import your actual engine/simulation functions
 // import { runMonteCarlo, runSimulation } from '../engine/simulations';

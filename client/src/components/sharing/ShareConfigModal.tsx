@@ -13,7 +13,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Share2, Copy, Eye, Clock, Shield, Users } from 'lucide-react';
-import { ShareAccessLevel, ShareAccessLevelType, LP_HIDDEN_METRICS, CreateShareLinkRequest } from '@shared/sharing-schema';
+import type { CreateShareLinkRequest } from '@shared/sharing-schema';
+import { LP_HIDDEN_METRICS } from '@shared/sharing-schema';
 
 interface ShareConfigModalProps {
   fundId: string;

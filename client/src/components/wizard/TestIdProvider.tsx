@@ -4,7 +4,8 @@
  * Ensures E2E tests remain stable across UI changes
  */
 
-import React, { ReactElement, cloneElement } from 'react';
+import type { ReactElement} from 'react';
+import React, { cloneElement } from 'react';
 
 export interface TestIdProps {
   testId?: string;

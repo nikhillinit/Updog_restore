@@ -9,7 +9,6 @@
  */
 
 import React from 'react';
-import { Progress } from '@/components/ui/progress';
 
 export interface CapitalHeaderProps {
   fundSize: number;

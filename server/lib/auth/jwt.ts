@@ -3,7 +3,8 @@
  * Production-grade token validation with RS256/JWKS and strict validation
  */
 
-import jwt, { Algorithm, JwtPayload } from 'jsonwebtoken';
+import type { Algorithm, JwtPayload } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
 import { getConfig } from '../../config';
 import { authMetrics } from '../../telemetry';

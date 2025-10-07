@@ -2,7 +2,7 @@
  * Express middleware for backpressure monitoring
  * Prevents server overload by rejecting requests when system resources are constrained
  */
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import * as os from 'os';
 import * as v8 from 'v8';
 

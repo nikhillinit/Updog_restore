@@ -1,5 +1,5 @@
 // server/middleware/audit.ts
-import { Request } from 'express';
+import type { Request } from 'express';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { scrubPII } from '../../shared/privacy/pii-scrubber';
