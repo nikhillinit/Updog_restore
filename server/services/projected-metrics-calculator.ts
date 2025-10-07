@@ -19,6 +19,8 @@ import { generateReserveSummary } from '../../client/src/core/reserves/ReserveEn
 import { generatePacingSummary } from '../../client/src/core/pacing/PacingEngine.js';
 import { generateCohortSummary } from '../../client/src/core/cohorts/CohortEngine.js';
 import type { ReserveInput, PacingInput, CohortInput } from '@shared/types';
+import { ConstructionForecastCalculator } from './construction-forecast-calculator';
+import Decimal from 'decimal.js';
 
 interface FundConfig {
   targetIRR?: number;
@@ -29,6 +31,10 @@ interface FundConfig {
   graduationMatrix?: unknown;
 }
 
+interface CalculationOptions {
+  useConstructionForecast?: boolean;
+}
+
 export class ProjectedMetricsCalculator {
   /**
    * Calculate projected metrics using deterministic engines
@@ -36,14 +42,21 @@ export class ProjectedMetricsCalculator {
    * @param fund - Fund record
    * @param companies - Portfolio companies
    * @param config - Fund configuration and assumptions
+   * @param options - Calculation options (e.g., construction forecast)
    * @returns Complete ProjectedMetrics object
    */
   async calculate(
     fund: Fund,
     companies: PortfolioCompany[],
-    config: FundConfig
+    config: FundConfig,
+    options: CalculationOptions = {}
   ): Promise<ProjectedMetrics> {
     const asOfDate = new Date().toISOString();
+
+    // Route to J-curve construction forecast if requested
+    if (options.useConstructionForecast) {
+      return this.calculateConstructionForecast(fund, config, asOfDate);
+    }
 
     // Run engines in parallel for performance
     const [reserveResults, pacingResults, cohortResults] = await Promise.all([
@@ -308,5 +321,77 @@ export class ProjectedMetricsCalculator {
     const years = now.getFullYear() - date.getFullYear();
     const months = now.getMonth() - date.getMonth();
     return years * 12 + months;
+  }
+
+  /**
+   * Calculate construction forecast using J-curve engine
+   *
+   * Used for funds with no investments yet (construction phase)
+   *
+   * @param fund - Fund record
+   * @param config - Fund configuration
+   * @param asOfDate - ISO timestamp for metrics
+   * @returns ProjectedMetrics with J-curve based forecast
+   */
+  private async calculateConstructionForecast(
+    fund: Fund,
+    config: FundConfig,
+    asOfDate: string
+  ): Promise<ProjectedMetrics> {
+    const fundSize = new Decimal(fund.size.toString());
+    const targetTVPI = config.targetTVPI || 2.5;
+    const investmentPeriodYears = config.investmentPeriodYears || 5;
+    const fundLifeYears = config.fundTermYears || 10;
+
+    // Generate J-curve construction forecast
+    const forecast = ConstructionForecastCalculator.generateForecast({
+      fundSize,
+      establishmentDate: fund.establishmentDate || fund.createdAt,
+      targetTVPI,
+      investmentPeriodYears,
+      fundLifeYears,
+      navCalculationMode: 'standard',
+      finalDistributionCoefficient: 0.7
+    });
+
+    // Convert J-curve path to quarterly arrays
+    const numQuarters = fundLifeYears * 4;
+    const projectedDeployment: number[] = [];
+    const projectedDistributions: number[] = [];
+    const projectedNAV: number[] = [];
+
+    for (let i = 0; i < numQuarters; i++) {
+      const point = forecast.jCurvePath.mainPath[i];
+      if (point) {
+        // Deployment decreases over investment period
+        const inInvestmentPeriod = i < (investmentPeriodYears * 4);
+        const deploymentAmount = inInvestmentPeriod
+          ? fundSize.div(investmentPeriodYears * 4).toNumber()
+          : 0;
+        projectedDeployment.push(deploymentAmount);
+
+        // Use J-curve projections
+        projectedDistributions.push(parseFloat(point.distributions.toString()));
+        projectedNAV.push(parseFloat(point.nav.toString()));
+      }
+    }
+
+    return {
+      asOfDate,
+      projectionDate: new Date().toISOString(),
+      projectedDeployment,
+      projectedDistributions,
+      projectedNAV,
+      expectedTVPI: forecast.projected.tvpi,
+      expectedIRR: config.targetIRR || 0.25, // J-curve doesn't calculate IRR
+      expectedDPI: forecast.projected.dpi,
+      totalReserveNeeds: 0, // No reserves needed in construction phase
+      allocatedReserves: 0,
+      unallocatedReserves: 0,
+      reserveAllocationRate: 0,
+      deploymentPace: 'on-track', // Default for construction phase
+      quartersRemaining: investmentPeriodYears * 4,
+      recommendedQuarterlyDeployment: fundSize.div(investmentPeriodYears * 4).toNumber()
+    };
   }
 }

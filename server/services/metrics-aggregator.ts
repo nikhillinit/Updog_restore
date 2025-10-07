@@ -18,6 +18,8 @@ import type { UnifiedFundMetrics, MetricsCalculationError } from '@shared/types/
 import { ActualMetricsCalculator } from './actual-metrics-calculator';
 import { ProjectedMetricsCalculator } from './projected-metrics-calculator';
 import { VarianceCalculator } from './variance-calculator';
+import { ConstructionForecastCalculator } from './construction-forecast-calculator';
+import { getFundAge, isConstructionPhase } from '@shared/lib/lifecycle-rules';
 import type { Fund } from '@shared/schema';
 
 interface CacheClient {
@@ -175,7 +177,21 @@ export class MetricsAggregator {
         warnings.push('Projections skipped for performance');
       } else {
         try {
-          projected = await this.projectedCalculator.calculate(fund, companies, config);
+          // Check if fund is in construction phase (no investments yet)
+          const hasInvestments = companies.length > 0;
+          const fundAge = getFundAge(fund.establishmentDate || fund.createdAt);
+          const isConstruction = isConstructionPhase(fundAge, hasInvestments);
+
+          if (isConstruction) {
+            // Route to J-curve construction forecast
+            warnings.push('Using J-curve construction forecast (no investments yet)');
+            projected = await this.projectedCalculator.calculate(fund, companies, config, {
+              useConstructionForecast: true
+            });
+          } else {
+            // Use standard projection engines
+            projected = await this.projectedCalculator.calculate(fund, companies, config);
+          }
         } catch (error) {
           projectedStatus = 'failed';
           warnings.push(`Projected metrics calculation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
