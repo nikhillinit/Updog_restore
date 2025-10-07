@@ -10,7 +10,7 @@
   "packageManager": "npm@10.9.2",
   "scripts": {
     "preinstall": "npx only-allow npm",
-    "postinstall": "node scripts/link-sidecar-packages.mjs",
+    "postinstall": "node scripts/link-sidecar-packages.mjs || true",
     "doctor": "npm-run-all --sequential doctor:sidecar doctor:shell doctor:links doctor:quick",
     "doctor:parallel": "npm-run-all --parallel doctor:links doctor:quick",
     "doctor:sidecar": "node scripts/doctor-sidecar.js",
