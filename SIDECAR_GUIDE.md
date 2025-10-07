@@ -1,6 +1,8 @@
 # Sidecar Architecture Guide
 
-This project uses a **sidecar workspace** (`tools_local/`) to isolate Vite and related dependencies from the main `node_modules`, preventing Windows-specific installation issues and ensuring reliable module resolution.
+This project uses a **sidecar workspace** (`tools_local/`) to isolate Vite and
+related dependencies from the main `node_modules`, preventing Windows-specific
+installation issues and ensuring reliable module resolution.
 
 ## Architecture Overview
 
@@ -21,10 +23,28 @@ Updog_restore/
 
 ## Why Sidecar?
 
-1. **Windows Defender Immunity**: Dependencies in sidecar aren't blocked by real-time protection
-2. **Absolute Path Resolution**: Windows junctions with absolute paths ensure Node ESM can always resolve modules
+1. **Windows Defender Immunity**: Dependencies in sidecar aren't blocked by
+   real-time protection
+2. **Absolute Path Resolution**: Windows junctions with absolute paths ensure
+   Node ESM can always resolve modules
 3. **Deterministic**: `npm ci --prefix tools_local` gives exact reproducibility
-4. **Self-Healing**: Postinstall hook automatically recreates junctions after any `npm install`
+4. **Self-Healing**: Postinstall hook automatically recreates junctions after
+   any `npm install`
+
+## CI/CD Behavior
+
+**The sidecar is automatically disabled on CI environments** (Vercel, GitHub
+Actions, etc.):
+
+- **Detection:** Checks `CI`, `VERCEL`, or `GITHUB_ACTIONS` environment
+  variables
+- **Behavior:** Sidecar linking is skipped, build uses root `node_modules/`
+- **Why:** Sidecar was designed for Windows development issues, not needed on
+  Linux CI
+- **Result:** Faster builds, no junction/symlink complexity on cloud platforms
+
+All build-critical packages (vite, tailwindcss, etc.) are present in root
+`package.json` to ensure CI builds work without the sidecar.
 
 ## Quick Start
 
@@ -58,13 +78,16 @@ node scripts/link-sidecar-packages.mjs
 
 ### Problem: Running in Git Bash or WSL
 
-**Cause**: Git Bash creates POSIX symlinks instead of Windows junctions, breaking sidecar linking
+**Cause**: Git Bash creates POSIX symlinks instead of Windows junctions,
+breaking sidecar linking
 
 **Symptoms**:
+
 - `npm run doctor:shell` fails with shell mismatch error
 - Junction verification fails even after running link script
 
 **Fix**:
+
 ```powershell
 # Close Git Bash/WSL and open PowerShell or CMD
 
@@ -85,6 +108,7 @@ npm run doctor
 **Cause**: Junction missing or pointing to wrong path
 
 **Fix**:
+
 ```powershell
 # Stop Node processes (PowerShell/CMD)
 Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
@@ -104,6 +128,7 @@ npm run doctor:links
 **Cause**: POSIX symlink created instead of Windows junction (Git Bash issue)
 
 **Fix**:
+
 ```powershell
 # ALWAYS run from PowerShell/CMD, not Git Bash
 cmd /c rmdir node_modules\vite 2> NUL
@@ -118,6 +143,7 @@ npm run doctor:shell
 **Cause**: Postinstall hook failed or was skipped
 
 **Fix**:
+
 ```bash
 # Manually run postinstall
 node scripts/link-sidecar-packages.mjs
@@ -129,7 +155,9 @@ npm install
 ### Problem: New package needs to be in sidecar
 
 **Fix**:
+
 1. Add to `tools_local/package.json`:
+
    ```json
    {
      "dependencies": {
@@ -139,12 +167,10 @@ npm install
    ```
 
 2. Add to `scripts/sidecar-packages.json`:
+
    ```json
    {
-     "packages": [
-       "vite",
-       "new-package"
-     ]
+     "packages": ["vite", "new-package"]
    }
    ```
 
@@ -175,11 +201,15 @@ npm install
 ## Platform Notes
 
 ### Windows
-- **Execute link scripts from PowerShell/CMD** (not Git Bash) to create proper junctions
+
+- **Execute link scripts from PowerShell/CMD** (not Git Bash) to create proper
+  junctions
 - Enable Developer Mode or run elevated shell if mklink fails
-- Junctions use absolute paths: `C:\dev\Updog_restore\tools_local\node_modules\vite`
+- Junctions use absolute paths:
+  `C:\dev\Updog_restore\tools_local\node_modules\vite`
 
 ### Unix/macOS
+
 - Automatically creates relative symlinks
 - No special permissions needed
 - Works identically but uses `ln -s` instead of `mklink /J`
@@ -190,7 +220,8 @@ npm install
 
 1. Edit `scripts/sidecar-packages.json` (no code changes needed)
 2. Add to `tools_local/package.json` dependencies
-3. Run `npm install --prefix tools_local && node scripts/link-sidecar-packages.mjs`
+3. Run
+   `npm install --prefix tools_local && node scripts/link-sidecar-packages.mjs`
 
 ### Verifying junction health:
 
@@ -219,4 +250,5 @@ npm run doctor:links
 
 - [WINDOWS_NPX_WORKAROUND.md](WINDOWS_NPX_WORKAROUND.md) - Original NPX issues
 - [REMEDIATION_SUMMARY.md](REMEDIATION_SUMMARY.md) - Evolution of the fix
-- [scripts/sidecar-packages.json](scripts/sidecar-packages.json) - Package configuration
+- [scripts/sidecar-packages.json](scripts/sidecar-packages.json) - Package
+  configuration

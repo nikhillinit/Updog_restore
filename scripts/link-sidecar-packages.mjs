@@ -10,6 +10,14 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Skip sidecar linking on CI environments (Vercel, GitHub Actions, etc.)
+// The sidecar is only needed for Windows development to work around Windows Defender issues
+if (process.env.CI || process.env.VERCEL || process.env.GITHUB_ACTIONS) {
+  console.log('[link-sidecar] Skipping sidecar linking in CI environment');
+  console.log('[link-sidecar] Build will use packages from root node_modules/');
+  process.exit(0);
+}
+
 // Load packages from config file for easier maintenance
 let PACKAGES;
 try {
