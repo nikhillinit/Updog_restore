@@ -76,7 +76,7 @@ export function CalculationSummaryCard({
 
       {/* Warnings */}
       {validation.warnings.length > 0 && validation.isValid && (
-        <Alert variant="warning">
+        <Alert >
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             <div className="space-y-1">
