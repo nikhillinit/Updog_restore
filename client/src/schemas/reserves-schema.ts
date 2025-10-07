@@ -5,6 +5,10 @@
 
 import { z } from 'zod';
 import { nonNegative, bounded01, positiveInt, yearRange } from '@shared/schema-helpers';
+import {
+  dollarsToCentsValidated as dollarsToCentsCore,
+  percentToBpsValidated as percentToBpsCore
+} from '@/lib/units';
 
 // Company schema with validation rules
 export const CompanySchema = z.object({
@@ -199,27 +203,32 @@ export function adaptAndValidateCompanies(rawData: unknown[]): {
   return { valid, invalid };
 }
 
-// Money utilities with validation
+// Money utilities with validation (wraps centralized units.ts with Zod validation)
 export function dollarsToCentsValidated(dollars: unknown): number {
   const parsed = z.number().safeParse(dollars);
   if (!parsed.success) return 0;
-  
-  const cents = Math.floor(parsed.data * 100);
-  if (cents < 0) return 0;
-  if (cents > Number.MAX_SAFE_INTEGER) {
-    throw new Error('Amount exceeds maximum safe integer');
+
+  // Delegate to centralized units.ts (enforces precision rules)
+  try {
+    return dollarsToCentsCore(parsed.data);
+  } catch {
+    // If validation fails, return 0 (backward compatibility)
+    return 0;
   }
-  
-  return cents;
 }
 
 export function percentToBpsValidated(percent: unknown): number {
   const parsed = z.number().safeParse(percent);
   if (!parsed.success) return 0;
-  
-  const bps = Math.round(parsed.data * 100);
-  if (bps < 0) return 0;
-  if (bps > 10000) return 10000; // Cap at 100%
-  
-  return bps;
+
+  // Delegate to centralized units.ts (enforces precision rules)
+  try {
+    return percentToBpsCore(parsed.data);
+  } catch {
+    // If validation fails, clamp to valid range
+    const value = parsed.data;
+    if (value < 0) return 0;
+    if (value > 100) return 10000;
+    return Math.round(value * 100);
+  }
 }

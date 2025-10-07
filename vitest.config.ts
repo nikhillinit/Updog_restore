@@ -4,15 +4,23 @@ import path from 'path';
 export default defineConfig({
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './client/src'),
+      // Primary path aliases (mirrors vite.config.ts)
+      // Note: '@/' must come before '@' to match more specific paths first
       '@/core': path.resolve(__dirname, './client/src/core'),
       '@/lib': path.resolve(__dirname, './client/src/lib'),
       '@/server': path.resolve(__dirname, './server'),
       '@/metrics/reserves-metrics': path.resolve(__dirname, './tests/mocks/metrics-mock.ts'),
+      '@/': path.resolve(__dirname, './client/src/'),
+      '@': path.resolve(__dirname, './client/src'),
+
+      // Shared and assets
       '@shared': path.resolve(__dirname, './shared'),
       '@assets': path.resolve(__dirname, './assets'),
+
+      // Server-side path (without @ prefix)
       '@server': path.resolve(__dirname, './server'),
-      // Mock @upstash/redis for tests
+
+      // Test mocks
       '@upstash/redis': path.resolve(__dirname, './tests/mocks/upstash-redis.ts'),
     },
   },
@@ -63,7 +71,7 @@ export default defineConfig({
         resources: 'usable',     // be lenient loading resources
       },
     },
-    setupFiles: ['tests/test-infrastructure.ts', 'tests/unit/setup.ts'],
+    setupFiles: ['./tests/setup/test-infrastructure.ts', './tests/unit/setup.ts'],
     include: ['tests/unit/**/*.{test,spec}.ts?(x)'],
     exclude: [
       'tests/integration/**/*',

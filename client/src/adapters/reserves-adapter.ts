@@ -5,6 +5,7 @@
 
 import type { Company, ReservesInput, ReservesConfig } from '@shared/types/reserves-v11';
 import { getCurrentQuarterIndex } from '@/lib/quarter-time';
+import { dollarsToCents, moicToBps, percentToBps } from '@/lib/units';
 
 // Existing fund/company types (adapt based on your actual types)
 interface ExistingCompany {
@@ -32,22 +33,6 @@ interface ExistingFund {
   reserveRatio?: number;
 }
 
-// Money conversion utilities
-export function dollarsToCents(dollars: number | undefined | null): number {
-  if (dollars == null || isNaN(dollars)) return 0;
-  return Math.floor(dollars * 100);
-}
-
-export function centsToDollars(cents: number): number {
-  return cents / 100;
-}
-
-// Convert percentage to basis points
-export function percentToBps(percent: number | undefined | null): number {
-  if (percent == null || isNaN(percent)) return 0;
-  return Math.round(percent * 100);
-}
-
 // Company adapter
 export function adaptCompany(existing: ExistingCompany): Company {
   // Generate ID if missing
@@ -59,10 +44,10 @@ export function adaptCompany(existing: ExistingCompany): Company {
   // Convert invested amount to cents
   const investedDollars = existing.investedAmount || existing.invested || 0;
   const invested_cents = dollarsToCents(investedDollars);
-  
-  // Convert exit multiple to basis points
+
+  // Convert exit multiple to basis points (CRITICAL: use moicToBps to prevent 100× error)
   const exitMultiple = existing.exitMultiple || existing.targetMoic || 1.0;
-  const exit_moic_bps = percentToBps(exitMultiple * 100); // Convert 2.5x to 25000 bps
+  const exit_moic_bps = moicToBps(exitMultiple); // 2.5x → 25000 bps (NOT percentToBps!)
   
   // Get ownership percentage
   const ownership = existing.ownershipPercentage || existing.ownership || 0;
