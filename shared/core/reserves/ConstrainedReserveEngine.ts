@@ -1,4 +1,4 @@
-import { ReserveInput } from '../../schemas.js';
+import type { ReserveInput } from '../../schemas.js';
 import { toCents, fromCents, addCents, conservationCheck, type Cents } from '../../money.js';
 
 export class ConstrainedReserveEngine {

@@ -3,10 +3,10 @@
  * Ensures every request runs in a database transaction with proper RLS context
  */
 
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { db } from '../db.js';
-import { UserContext } from '../lib/secure-context.js';
-import { Pool } from 'pg';
+import type { UserContext } from '../lib/secure-context.js';
+import type { Pool } from 'pg';
 
 export interface RLSRequest extends Request {
   context?: UserContext;

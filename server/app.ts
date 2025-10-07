@@ -1,4 +1,5 @@
-import express, { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
+import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import crypto from 'node:crypto';
@@ -9,6 +10,7 @@ import cashflowRouter from './routes/cashflow.js';
 import healthRouter from './routes/health.js';
 import calculationsRouter from './routes/calculations.js';
 import aiRouter from './routes/ai.js';
+import scenarioAnalysisRouter from './routes/scenario-analysis.js';
 import { swaggerSpec } from './config/swagger.js';
 import { cspDirectives, buildCSPHeader, securityHeaders } from './config/csp.js';
 
@@ -121,6 +123,9 @@ export function makeApp() {
 
   // AI orchestrator API (multi-model queries)
   app.use('/api/ai', aiRouter);
+
+  // Scenario Analysis API (Construction vs Current, deal modeling)
+  app.use('/api', scenarioAnalysisRouter);
 
   // API version endpoint for deployment verification
   app['get']('/api/version', (_req: Request, res: Response) => res.json({ 

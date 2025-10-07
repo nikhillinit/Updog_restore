@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { engineMetrics } from '../telemetry';
 
 function isFiniteDeep(v: unknown, depth = 0, seen = new WeakSet<object>()): boolean {

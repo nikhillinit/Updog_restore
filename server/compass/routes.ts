@@ -3,14 +3,12 @@
  * RESTful endpoints for valuation sandbox
  */
 
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import {
   calculateSandboxValuation,
-  calculateMedianMultiple,
-  calculateValuationRange,
 } from './calculator';
 import type {
-  GetValuationContextRequest,
   GetValuationContextResponse,
   SearchCompsRequest,
   SearchCompsResponse,

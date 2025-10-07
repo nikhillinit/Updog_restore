@@ -5,7 +5,7 @@
  * API endpoints, and database operations with intelligent alerting.
  */
 
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { performance } from 'perf_hooks';
 import EventEmitter from 'events';
 

@@ -3,8 +3,8 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { Request, Response, NextFunction } from 'express';
-import { ApiError } from '@shared/types';
+import type { Request, Response, NextFunction } from 'express';
+import type { ApiError } from '@shared/types';
 
 /**
  * Wraps async route handlers to properly catch errors

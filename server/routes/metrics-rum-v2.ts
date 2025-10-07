@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import * as client from 'prom-client';
 
 // Create dedicated registry for RUM v2 metrics

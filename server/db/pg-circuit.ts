@@ -2,7 +2,8 @@
  * PostgreSQL connection pool with circuit breaker protection
  * Provides resilient database access with automatic failure handling
  */
-import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+import type { PoolClient, QueryResult, QueryResultRow } from 'pg';
+import { Pool } from 'pg';
 import { TypedCircuitBreaker } from '../infra/circuit-breaker/typed-breaker';
 import { breakerRegistry } from '../infra/circuit-breaker/breaker-registry';
 

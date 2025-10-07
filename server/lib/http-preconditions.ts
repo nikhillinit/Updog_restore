@@ -3,7 +3,7 @@
  * Implements If-Match/ETag semantics (RFC 7232)
  */
 
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 
 export interface PreconditionRequest extends Request {

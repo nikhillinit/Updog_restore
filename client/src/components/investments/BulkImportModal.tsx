@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Download, FileText, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { Upload, Download, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface BulkImportModalProps {
   onImportComplete: (investments: any[]) => Promise<void>;

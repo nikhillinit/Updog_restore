@@ -8,7 +8,6 @@ import { readinessCheck, livenessCheck } from '../health';
 import { storage } from '../storage';
 import { rateLimitDetailed } from '../middleware/rateLimitDetailed';
 import { setReady, registerInvalidator } from '../health/state';
-import { register as metricsRegister } from '../metrics';
 import type { Request, Response } from '../types/request-response';
 import { TTLCache, MemoryKV } from '../lib/ttl-cache';
 import { getVersionInfo } from '../version';

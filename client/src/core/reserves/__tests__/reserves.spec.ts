@@ -4,7 +4,8 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { describe, it, expect } from "vitest";
-import { computeReservesFromGraduation, FundDataForReserves } from "../../reserves/computeReservesFromGraduation";
+import type { FundDataForReserves } from "../../reserves/computeReservesFromGraduation";
+import { computeReservesFromGraduation } from "../../reserves/computeReservesFromGraduation";
 
 const base: FundDataForReserves = {
   totalCommitment: 50_000_000,

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, decimal, timestamp, jsonb, varchar, index, unique, uuid, date, pgEnum, uniqueIndex, bigint } from "drizzle-orm/pg-core";
+import { bigint, boolean, date, decimal, index, integer, jsonb, pgEnum, pgTable, serial, text, timestamp, unique, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
 export const funds = pgTable("funds", {
@@ -9,6 +9,7 @@ export const funds = pgTable("funds", {
   managementFee: decimal("management_fee", { precision: 5, scale: 4 }).notNull(),
   carryPercentage: decimal("carry_percentage", { precision: 5, scale: 4 }).notNull(),
   vintageYear: integer("vintage_year").notNull(),
+  establishmentDate: date("establishment_date"),
   status: text("status").notNull().default("active"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
@@ -71,7 +72,9 @@ export const portfolioCompanies = pgTable("portfoliocompanies", {
   name: text("name").notNull(),
   sector: text("sector").notNull(),
   stage: text("stage").notNull(),
+  currentStage: text("current_stage"),
   investmentAmount: decimal("investment_amount", { precision: 15, scale: 2 }).notNull(),
+  investmentDate: timestamp("investment_date"),
   currentValuation: decimal("current_valuation", { precision: 15, scale: 2 }),
   foundedYear: integer("founded_year"),
   status: text("status").notNull().default("active"),
@@ -92,6 +95,59 @@ export const investments = pgTable("investments", {
   dealTags: text("deal_tags").array(),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Scenario Analysis Tables
+export const scenarios = pgTable("scenarios", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  companyId: integer("company_id").notNull().references(() => portfolioCompanies.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  version: integer("version").notNull().default(1),
+  isDefault: boolean("is_default").notNull().default(false),
+  lockedAt: timestamp("locked_at"),
+  createdBy: uuid("created_by"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  companyIdIdx: index("idx_scenarios_company_id")['on'](table.companyId),
+  createdByIdx: index("idx_scenarios_created_by")['on'](table.createdBy),
+  createdAtIdx: index("idx_scenarios_created_at")['on'](table.createdAt.desc()),
+}));
+
+export const scenarioCases = pgTable("scenario_cases", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  scenarioId: uuid("scenario_id").notNull().references(() => scenarios.id, { onDelete: "cascade" }),
+  caseName: varchar("case_name", { length: 255 }).notNull(),
+  description: text("description"),
+  probability: decimal("probability", { precision: 10, scale: 8 }).notNull(),
+  investment: decimal("investment", { precision: 15, scale: 2 }).notNull().default("0"),
+  followOns: decimal("follow_ons", { precision: 15, scale: 2 }).notNull().default("0"),
+  exitProceeds: decimal("exit_proceeds", { precision: 15, scale: 2 }).notNull().default("0"),
+  exitValuation: decimal("exit_valuation", { precision: 15, scale: 2 }).notNull().default("0"),
+  monthsToExit: integer("months_to_exit"),
+  ownershipAtExit: decimal("ownership_at_exit", { precision: 5, scale: 4 }),
+  fmv: decimal("fmv", { precision: 15, scale: 2 }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  scenarioIdIdx: index("idx_scenario_cases_scenario_id")['on'](table.scenarioId),
+  createdAtIdx: index("idx_scenario_cases_created_at")['on'](table.createdAt.desc()),
+}));
+
+export const scenarioAuditLogs = pgTable("scenario_audit_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: varchar("user_id", { length: 255 }),
+  entityType: varchar("entity_type", { length: 50 }).notNull(),
+  entityId: uuid("entity_id").notNull(),
+  action: varchar("action", { length: 20 }).notNull(),
+  diff: jsonb("diff"),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+}, (table) => ({
+  entityIdIdx: index("idx_audit_logs_entity_id")['on'](table.entityId),
+  userIdIdx: index("idx_audit_logs_user_id")['on'](table.userId),
+  timestampIdx: index("idx_audit_logs_timestamp")['on'](table.timestamp.desc()),
+  entityTypeIdx: index("idx_audit_logs_entity_type")['on'](table.entityType),
+}));
 
 export const fundMetrics = pgTable("fund_metrics", {
   id: serial("id").primaryKey(),
@@ -1520,3 +1576,13 @@ export type InsertScenarioComparison = typeof scenarioComparisons.$inferInsert;
 export type MonteCarloSimulation = typeof monteCarloSimulations.$inferSelect;
 export type InsertMonteCarloSimulation = typeof monteCarloSimulations.$inferInsert;
 
+// ============================================================================
+// TYPE EXPORTS FOR SCENARIO ANALYSIS
+// ============================================================================
+
+export type Scenario = typeof scenarios.$inferSelect;
+export type InsertScenario = typeof scenarios.$inferInsert;
+export type ScenarioCase = typeof scenarioCases.$inferSelect;
+export type InsertScenarioCase = typeof scenarioCases.$inferInsert;
+export type ScenarioAuditLog = typeof scenarioAuditLogs.$inferSelect;
+export type InsertScenarioAuditLog = typeof scenarioAuditLogs.$inferInsert;

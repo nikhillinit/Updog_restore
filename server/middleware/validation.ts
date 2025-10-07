@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { ZodSchema } from 'zod';
-import { ApiError } from '@shared/types';
+import type { Request, Response, NextFunction } from 'express';
+import type { ZodSchema } from 'zod';
+import type { ApiError } from '@shared/types';
 
 interface ValidationSchemas {
   body?: ZodSchema<unknown>;

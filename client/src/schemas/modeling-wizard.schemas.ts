@@ -61,6 +61,28 @@ export const yearSchema = z.number()
 export const isoDateSchema = z.string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format');
 
+/**
+ * Team composition schema
+ * Captures fund team structure
+ */
+export const teamSchema = z.object({
+  partners: z.number()
+    .int('Partners must be a whole number')
+    .min(0, 'Partners must be non-negative'),
+
+  associates: z.number()
+    .int('Associates must be a whole number')
+    .min(0, 'Associates must be non-negative')
+    .optional(),
+
+  advisors: z.array(z.object({
+    name: z.string().min(1, 'Advisor name is required'),
+    role: z.string().min(1, 'Advisor role is required')
+  })).optional()
+});
+
+export type Team = z.infer<typeof teamSchema>;
+
 // ============================================================================
 // STEP 1: GENERAL INFO
 // ============================================================================
@@ -95,7 +117,9 @@ export const generalInfoSchema = z.object({
     .int('Investment period must be a whole number of years')
     .min(1, 'Investment period must be at least 1 year')
     .max(10, 'Investment period cannot exceed 10 years')
-    .optional()
+    .optional(),
+
+  team: teamSchema.optional()
 }).superRefine((data, ctx) => {
   // Validate evergreen vs fixed-term structure
   if (!data.isEvergreen) {
@@ -152,6 +176,95 @@ export type GeneralInfoOutput = z.output<typeof generalInfoSchema>;
 // STEP 2: SECTOR/STAGE PROFILES
 // ============================================================================
 
+/**
+ * Investment stages enum
+ */
+export const investmentStageEnum = z.enum([
+  'pre-seed',
+  'seed',
+  'series-a',
+  'series-b',
+  'series-c',
+  'series-d',
+  'series-e-plus'
+], {
+  errorMap: () => ({ message: 'Invalid investment stage' })
+});
+
+export type InvestmentStage = z.infer<typeof investmentStageEnum>;
+
+/**
+ * Investment stage cohort schema
+ * Defines metrics for a specific financing stage
+ */
+export const investmentStageCohortSchema = z.object({
+  id: z.string().min(1, 'Stage ID is required'),
+
+  /** Stage name (Pre-Seed, Seed, Series A, etc.) */
+  stage: investmentStageEnum,
+
+  /** Typical capital raised in this round ($M) */
+  roundSize: positiveNumberSchema,
+
+  /** Pre- or post-money valuation ($M) */
+  valuation: positiveNumberSchema,
+
+  /** Employee stock option pool (%) */
+  esopPercentage: percentageSchema
+    .refine(
+      (val) => val >= 0 && val <= 30,
+      'ESOP typically ranges from 0% to 30%'
+    ),
+
+  /** Likelihood of graduating to next round (%) */
+  graduationRate: percentageSchema,
+
+  /** Likelihood of exit at this stage (%) */
+  exitRate: percentageSchema,
+
+  /** Likelihood of failure at this stage (%) - calculated field */
+  failureRate: percentageSchema.optional(),
+
+  /** Average exit valuation at this stage ($M) */
+  exitValuation: positiveNumberSchema,
+
+  /** Average months to graduate to next stage */
+  monthsToGraduate: z.number()
+    .int('Months must be a whole number')
+    .min(1, 'Must be at least 1 month')
+    .max(120, 'Cannot exceed 120 months'),
+
+  /** Average months from stage start to exit */
+  monthsToExit: z.number()
+    .int('Months must be a whole number')
+    .min(1, 'Must be at least 1 month')
+    .max(180, 'Cannot exceed 180 months')
+}).superRefine((data, ctx) => {
+  // Graduation + Exit cannot exceed 100%
+  const total = data.graduationRate + data.exitRate;
+  if (total > 100) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Graduation rate (${data.graduationRate}%) + Exit rate (${data.exitRate}%) cannot exceed 100%`,
+      path: ['graduationRate']
+    });
+  }
+
+  // Exit valuation should typically be higher than round valuation
+  if (data.exitValuation < data.valuation) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Exit valuation is typically higher than round valuation',
+      path: ['exitValuation']
+    });
+  }
+});
+
+export type InvestmentStageCohort = z.infer<typeof investmentStageCohortSchema>;
+
+/**
+ * Sector profile schema with investment stages
+ */
 export const sectorProfileSchema = z.object({
   id: z.string().min(1, 'Sector profile ID is required'),
 
@@ -163,24 +276,45 @@ export const sectorProfileSchema = z.object({
 
   description: z.string()
     .max(500, 'Description cannot exceed 500 characters')
-    .optional()
+    .optional(),
+
+  /** Investment stage cohorts for this sector */
+  stages: z.array(investmentStageCohortSchema)
+    .min(1, 'At least one investment stage is required')
+    .max(10, 'Cannot exceed 10 investment stages')
+}).superRefine((data, ctx) => {
+  // The final stage must have 0% graduation rate
+  if (data.stages.length > 0) {
+    const finalStage = data.stages[data.stages.length - 1];
+    if (finalStage && finalStage.graduationRate > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'The final stage must have a 0% graduation rate',
+        path: ['stages', data.stages.length - 1, 'graduationRate']
+      });
+    }
+  }
+
+  // Warn about incomplete projections (missing later stages)
+  const stageNames = data.stages.map(s => s.stage);
+  const hasEarlyStages = stageNames.includes('pre-seed') || stageNames.includes('seed');
+  const hasLateStages = stageNames.includes('series-c') || stageNames.includes('series-d');
+
+  if (hasEarlyStages && !hasLateStages) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Consider adding later-stage rounds for accurate FMV projections',
+      path: ['stages']
+    });
+  }
 });
 
-export const stageAllocationSchema = z.object({
-  stage: z.enum(['seed', 'series-a', 'series-b', 'series-c', 'growth'], {
-    errorMap: () => ({ message: 'Invalid investment stage' })
-  }),
-
-  allocation: percentageSchema
-});
+export type SectorProfile = z.infer<typeof sectorProfileSchema>;
 
 export const sectorProfilesSchema = z.object({
   sectorProfiles: z.array(sectorProfileSchema)
     .min(1, 'At least one sector profile is required')
-    .max(10, 'Cannot exceed 10 sector profiles'),
-
-  stageAllocations: z.array(stageAllocationSchema)
-    .min(1, 'At least one stage allocation is required')
+    .max(10, 'Cannot exceed 10 sector profiles')
 }).superRefine((data, ctx) => {
   // Validate sector allocations sum to 100%
   const totalSectorAllocation = data.sectorProfiles.reduce(
@@ -193,20 +327,6 @@ export const sectorProfilesSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: `Sector allocations must sum to 100% (currently ${totalSectorAllocation.toFixed(1)}%)`,
       path: ['sectorProfiles']
-    });
-  }
-
-  // Validate stage allocations sum to 100%
-  const totalStageAllocation = data.stageAllocations.reduce(
-    (sum, stage) => sum + stage.allocation,
-    0
-  );
-
-  if (Math.abs(totalStageAllocation - 100) > 0.01) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: `Stage allocations must sum to 100% (currently ${totalStageAllocation.toFixed(1)}%)`,
-      path: ['stageAllocations']
     });
   }
 
@@ -229,47 +349,188 @@ export type SectorProfilesOutput = z.output<typeof sectorProfilesSchema>;
 // STEP 3: CAPITAL ALLOCATION
 // ============================================================================
 
-export const capitalAllocationSchema = z.object({
-  initialCheckSize: positiveNumberSchema,
+/**
+ * Entry strategy for initial investments
+ */
+export const entryStrategyEnum = z.enum(['amount-based', 'ownership-based'], {
+  errorMap: () => ({ message: 'Entry strategy must be amount-based or ownership-based' })
+});
 
+export type EntryStrategy = z.infer<typeof entryStrategyEnum>;
+
+/**
+ * Per-stage follow-on allocation configuration
+ */
+export const stageAllocationSchema = z.object({
+  /** Stage identifier (matches investment stage from sector profiles) */
+  stageId: z.string().min(1, 'Stage ID is required'),
+
+  /** Stage name for display */
+  stageName: z.string().min(1, 'Stage name is required'),
+
+  /** Target ownership percentage to maintain after dilution */
+  maintainOwnership: percentageSchema
+    .refine(
+      (val) => val >= 0 && val <= 50,
+      'Maintain ownership must be between 0% and 50%'
+    ),
+
+  /** Percentage of graduates that will receive follow-on investment */
+  participationRate: percentageSchema
+});
+
+export type StageAllocation = z.infer<typeof stageAllocationSchema>;
+
+/**
+ * Investment pacing period configuration
+ */
+export const pacingPeriodSchema = z.object({
+  id: z.string().min(1, 'Period ID is required'),
+
+  /** Starting month (relative to vintage year, 0-indexed) */
+  startMonth: z.number()
+    .int('Start month must be a whole number')
+    .min(0, 'Start month must be at least 0')
+    .max(120, 'Start month cannot exceed 120 (10 years)'),
+
+  /** Ending month (relative to vintage year, 0-indexed) */
+  endMonth: z.number()
+    .int('End month must be a whole number')
+    .min(0, 'End month must be at least 0')
+    .max(120, 'End month cannot exceed 120 (10 years)'),
+
+  /** Percentage of total capital to deploy in this period */
+  allocationPercent: percentageSchema
+}).superRefine((data, ctx) => {
+  // End month must be after start month
+  if (data.endMonth <= data.startMonth) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'End month must be after start month',
+      path: ['endMonth']
+    });
+  }
+});
+
+export type PacingPeriod = z.infer<typeof pacingPeriodSchema>;
+
+/**
+ * Capital allocation schema - defines how fund deploys capital
+ * Integrates with DeterministicReserveEngine for portfolio modeling
+ */
+export const capitalAllocationSchema = z.object({
+  /** Entry strategy: amount-based (fixed check size) or ownership-based (target %) */
+  entryStrategy: entryStrategyEnum.default('amount-based'),
+
+  /** Initial check size for first investment ($M) */
+  initialCheckSize: positiveNumberSchema
+    .refine(
+      (val) => val >= 0.1,
+      'Minimum check size is $0.1M'
+    )
+    .refine(
+      (val) => val <= 50,
+      'Maximum check size is $50M'
+    ),
+
+  /** Target entry ownership percentage (used for ownership-based strategy) */
+  targetEntryOwnership: percentageSchema
+    .refine(
+      (val) => val >= 5 && val <= 30,
+      'Target entry ownership typically ranges from 5% to 30%'
+    )
+    .optional(),
+
+  /** Follow-on investment strategy */
   followOnStrategy: z.object({
+    /** Percentage of fund reserved for follow-on investments (decimal 0-1) */
     reserveRatio: decimalPercentageSchema
       .refine(
         (val) => val >= 0.3 && val <= 0.7,
         'Reserve ratio typically ranges from 30% to 70%'
       ),
 
-    followOnChecks: z.object({
-      A: positiveNumberSchema,
-      B: positiveNumberSchema,
-      C: positiveNumberSchema
-    }).refine(
-      (checks) => checks.A <= checks.B && checks.B <= checks.C,
-      'Follow-on check sizes should increase: A ≤ B ≤ C'
-    )
+    /** Per-stage follow-on allocation configurations */
+    stageAllocations: z.array(stageAllocationSchema)
+      .min(1, 'At least one stage allocation is required')
+      .max(10, 'Cannot exceed 10 stage allocations')
   }),
 
+  /** Investment pacing model */
   pacingModel: z.object({
+    /** Number of new investments per year during investment period */
     investmentsPerYear: z.number()
       .int('Investments per year must be a whole number')
       .min(1, 'Must make at least 1 investment per year')
       .max(50, 'Cannot exceed 50 investments per year'),
 
+    /** Deployment curve pattern (matches capital call schedule options) */
     deploymentCurve: z.enum(['linear', 'front-loaded', 'back-loaded'], {
       errorMap: () => ({ message: 'Invalid deployment curve type' })
     })
-  })
-}).superRefine((data, ctx) => {
-  // Warn if initial check is unusually large relative to follow-on checks
-  const avgFollowOn = (data.followOnStrategy.followOnChecks.A +
-    data.followOnStrategy.followOnChecks.B +
-    data.followOnStrategy.followOnChecks.C) / 3;
+  }),
 
-  if (data.initialCheckSize > avgFollowOn * 2) {
+  /** Investment pacing horizon (time-based capital deployment) */
+  pacingHorizon: z.array(pacingPeriodSchema)
+    .min(1, 'At least one pacing period is required')
+    .max(10, 'Cannot exceed 10 pacing periods')
+}).superRefine((data, ctx) => {
+  // Ownership-based strategy requires targetEntryOwnership
+  if (data.entryStrategy === 'ownership-based' && !data.targetEntryOwnership) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'Initial check size is unusually large compared to follow-on checks',
-      path: ['initialCheckSize']
+      message: 'Target entry ownership is required for ownership-based strategy',
+      path: ['targetEntryOwnership']
+    });
+  }
+
+  // Pacing horizon allocations must sum to 100%
+  const totalPacingAllocation = data.pacingHorizon.reduce(
+    (sum, period) => sum + period.allocationPercent,
+    0
+  );
+
+  if (Math.abs(totalPacingAllocation - 100) > 0.01) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Pacing allocations must sum to 100% (currently ${totalPacingAllocation.toFixed(1)}%)`,
+      path: ['pacingHorizon']
+    });
+  }
+
+  // Check for overlapping pacing periods
+  for (let i = 0; i < data.pacingHorizon.length; i++) {
+    for (let j = i + 1; j < data.pacingHorizon.length; j++) {
+      const period1 = data.pacingHorizon[i];
+      const period2 = data.pacingHorizon[j];
+
+      if (period1 && period2) {
+        const overlaps =
+          (period1.startMonth <= period2.startMonth && period1.endMonth > period2.startMonth) ||
+          (period2.startMonth <= period1.startMonth && period2.endMonth > period1.startMonth);
+
+        if (overlaps) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Pacing periods cannot overlap',
+            path: ['pacingHorizon', j]
+          });
+        }
+      }
+    }
+  }
+
+  // Warn about high participation rates across all stages
+  const avgParticipation = data.followOnStrategy.stageAllocations.reduce(
+    (sum, stage) => sum + stage.participationRate,
+    0
+  ) / Math.max(1, data.followOnStrategy.stageAllocations.length);
+
+  if (avgParticipation > 80) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Average participation rate exceeds 80% - may require significant reserves',
+      path: ['followOnStrategy', 'stageAllocations']
     });
   }
 });
@@ -281,21 +542,104 @@ export type CapitalAllocationOutput = z.output<typeof capitalAllocationSchema>;
 // STEP 4: FEES & EXPENSES
 // ============================================================================
 
+/**
+ * Fee calculation basis types
+ */
 export const feeBasisSchema = z.enum(
   ['committed', 'called', 'fmv'],
   { errorMap: () => ({ message: 'Invalid fee basis' }) }
 );
 
+export type FeeBasis = z.infer<typeof feeBasisSchema>;
+
+/**
+ * Waterfall type for carried interest distribution
+ */
+export const waterfallTypeEnum = z.enum(['american', 'european'], {
+  errorMap: () => ({ message: 'Waterfall type must be american or european' })
+});
+
+export type WaterfallType = z.infer<typeof waterfallTypeEnum>;
+
+/**
+ * Carried interest (carry) configuration
+ */
+export const carriedInterestSchema = z.object({
+  /** Enable carried interest */
+  enabled: z.boolean().default(false),
+
+  /** Carried interest rate (%) - GP's share of profits */
+  rate: percentageSchema
+    .refine(
+      (val) => val >= 10 && val <= 30,
+      'Carried interest typically ranges from 10% to 30%'
+    )
+    .default(20),
+
+  /** Hurdle rate (%) - Minimum return before carry kicks in */
+  hurdleRate: percentageSchema
+    .refine(
+      (val) => val >= 0 && val <= 20,
+      'Hurdle rate typically ranges from 0% to 20%'
+    )
+    .default(8),
+
+  /** Catch-up percentage - How fast GP catches up to carry rate */
+  catchUpPercentage: percentageSchema
+    .refine(
+      (val) => val === 0 || val === 80 || val === 100,
+      'Catch-up typically 0% (none), 80%, or 100% (full)'
+    )
+    .default(100),
+
+  /** Waterfall type: American (deal-by-deal) or European (whole fund) */
+  waterfallType: waterfallTypeEnum.default('american')
+});
+
+export type CarriedInterest = z.infer<typeof carriedInterestSchema>;
+
+/**
+ * Fee recycling configuration
+ */
+export const feeRecyclingSchema = z.object({
+  /** Enable fee recycling */
+  enabled: z.boolean().default(false),
+
+  /** Maximum recyclable amount as % of committed capital */
+  recyclingCapPercent: percentageSchema
+    .refine(
+      (val) => val >= 0 && val <= 20,
+      'Recycling cap typically ranges from 0% to 20%'
+    )
+    .default(10),
+
+  /** Period during which fees can be recycled (months) */
+  recyclingTermMonths: z.number()
+    .int('Recycling term must be a whole number of months')
+    .min(12, 'Recycling term must be at least 12 months')
+    .max(180, 'Recycling term cannot exceed 180 months (15 years)')
+    .default(84) // 7 years
+});
+
+export type FeeRecycling = z.infer<typeof feeRecyclingSchema>;
+
+/**
+ * Complete fees & expenses schema
+ */
 export const feesExpensesSchema = z.object({
+  /** Management fee configuration */
   managementFee: z.object({
+    /** Annual management fee rate (%) */
     rate: percentageSchema
       .refine(
         (val) => val >= 0 && val <= 5,
         'Management fee must be between 0% and 5%'
       ),
 
+    /** Fee basis - what the percentage applies to */
     basis: feeBasisSchema,
 
+    /** Optional step-down configuration */
     stepDown: z.object({
       enabled: z.boolean(),
       afterYear: z.number()
@@ -306,9 +650,18 @@ export const feesExpensesSchema = z.object({
     }).optional()
   }),
 
-  adminExpenses: z.object({
-    annualAmount: positiveNumberSchema,
+  /** Carried interest configuration (optional) */
+  carriedInterest: carriedInterestSchema.optional(),
 
+  /** Fee recycling configuration (optional) */
+  feeRecycling: feeRecyclingSchema.optional(),
+
+  /** Administrative expenses */
+  adminExpenses: z.object({
+    /** Annual admin expense amount ($M) */
+    annualAmount: nonNegativeNumberSchema,
+
+    /** Annual growth rate of admin expenses (%) */
     growthRate: percentageSchema
       .refine(
         (val) => val >= -10 && val <= 20,
@@ -335,13 +688,35 @@ export const feesExpensesSchema = z.object({
     }
 
     if (
-      data.managementFee.stepDown.newRate &&
+      data.managementFee.stepDown.newRate !== undefined &&
       data.managementFee.stepDown.newRate >= data.managementFee.rate
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Step-down rate must be lower than initial rate',
         path: ['managementFee', 'stepDown', 'newRate']
+      });
+    }
+  }
+
+  // Validate carried interest configuration
+  if (data.carriedInterest?.enabled) {
+    if (data.carriedInterest.hurdleRate === 0 && data.carriedInterest.catchUpPercentage > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Catch-up percentage should be 0% when there is no hurdle rate',
+        path: ['carriedInterest', 'catchUpPercentage']
+      });
+    }
+  }
+
+  // Validate fee recycling configuration
+  if (data.feeRecycling?.enabled) {
+    if (data.feeRecycling.recyclingCapPercent === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Recycling cap percentage must be greater than 0% when recycling is enabled',
+        path: ['feeRecycling', 'recyclingCapPercent']
       });
     }
   }
@@ -363,10 +738,199 @@ export const feesExpensesSchema = z.object({
       path: ['managementFee', 'rate']
     });
   }
+
+  // Warn about high carried interest
+  if (data.carriedInterest?.enabled && data.carriedInterest.rate > 25) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Carried interest over 25% is above typical market rates',
+      path: ['carriedInterest', 'rate']
+    });
+  }
 });
 
 export type FeesExpensesInput = z.input<typeof feesExpensesSchema>;
 export type FeesExpensesOutput = z.output<typeof feesExpensesSchema>;
+
+// ============================================================================
+// STEP 4.5: FUND FINANCIALS
+// ============================================================================
+
+/**
+ * Individual expense item schema
+ */
+export const expenseItemSchema = z.object({
+  id: z.string().min(1, 'Expense ID is required'),
+
+  name: z.string()
+    .min(1, 'Expense name is required')
+    .max(100, 'Expense name cannot exceed 100 characters'),
+
+  amount: nonNegativeNumberSchema,
+
+  type: z.enum(['one-time', 'annual'], {
+    errorMap: () => ({ message: 'Expense type must be one-time or annual' })
+  }).default('one-time'),
+
+  description: z.string()
+    .max(500, 'Description cannot exceed 500 characters')
+    .optional(),
+
+  year: z.number()
+    .int('Year must be a whole number')
+    .min(1, 'Year must be at least 1')
+    .max(10, 'Year cannot exceed 10')
+    .optional() // Only required for one-time expenses
+}).superRefine((data, ctx) => {
+  // One-time expenses must specify a year
+  if (data.type === 'one-time' && !data.year) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Year is required for one-time expenses',
+      path: ['year']
+    });
+  }
+});
+
+export type ExpenseItem = z.infer<typeof expenseItemSchema>;
+
+/**
+ * Capital call schedule pattern
+ */
+export const capitalCallScheduleSchema = z.object({
+  type: z.enum(['even', 'front-loaded', 'back-loaded', 'custom'], {
+    errorMap: () => ({ message: 'Capital call schedule type is required' })
+  }).default('even'),
+
+  customSchedule: z.array(z.object({
+    year: z.number().int().min(1).max(10),
+    percentage: percentageSchema
+  })).optional()
+}).superRefine((data, ctx) => {
+  // Custom schedule must be provided when type is custom
+  if (data.type === 'custom' && !data.customSchedule) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Custom schedule is required when type is custom',
+      path: ['customSchedule']
+    });
+  }
+
+  // Custom schedule percentages must sum to 100%
+  if (data.type === 'custom' && data.customSchedule) {
+    const total = data.customSchedule.reduce((sum, item) => sum + item.percentage, 0);
+    if (Math.abs(total - 100) > 0.01) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Custom schedule percentages must sum to 100% (currently ${total.toFixed(1)}%)`,
+        path: ['customSchedule']
+      });
+    }
+  }
+});
+
+export type CapitalCallSchedule = z.infer<typeof capitalCallScheduleSchema>;
+
+export const fundFinancialsSchema = z.object({
+  fundSize: positiveNumberSchema
+    .refine(
+      (val) => val >= 1,
+      'Fund size must be at least $1M'
+    ),
+
+  orgExpenses: nonNegativeNumberSchema,
+
+  // Additional granular expenses
+  additionalExpenses: z.array(expenseItemSchema)
+    .max(20, 'Cannot exceed 20 additional expenses')
+    .optional()
+    .default([]),
+
+  investmentPeriod: z.number()
+    .int('Investment period must be a whole number of years')
+    .min(1, 'Investment period must be at least 1 year')
+    .max(10, 'Investment period cannot exceed 10 years'),
+
+  gpCommitment: percentageSchema
+    .refine(
+      (val) => val >= 0 && val <= 10,
+      'GP commitment must be between 0% and 10%'
+    ),
+
+  cashlessSplit: percentageSchema,
+
+  managementFee: z.object({
+    rate: percentageSchema
+      .refine(
+        (val) => val >= 0 && val <= 5,
+        'Management fee must be between 0% and 5%'
+      ),
+
+    stepDown: z.object({
+      enabled: z.boolean(),
+      afterYear: z.number()
+        .int('Step-down year must be a whole number')
+        .min(1, 'Step-down year must be at least 1')
+        .optional(),
+      newRate: percentageSchema.optional()
+    }).optional()
+  }),
+
+  // Capital call schedule
+  capitalCallSchedule: capitalCallScheduleSchema.optional()
+}).superRefine((data, ctx) => {
+  // Validate step-down configuration
+  if (data.managementFee.stepDown?.enabled) {
+    if (!data.managementFee.stepDown.afterYear) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Step-down year is required when step-down is enabled',
+        path: ['managementFee', 'stepDown', 'afterYear']
+      });
+    }
+
+    if (!data.managementFee.stepDown.newRate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'New rate is required when step-down is enabled',
+        path: ['managementFee', 'stepDown', 'newRate']
+      });
+    }
+
+    if (
+      data.managementFee.stepDown.newRate !== undefined &&
+      data.managementFee.stepDown.afterYear !== undefined &&
+      data.managementFee.stepDown.newRate >= data.managementFee.rate
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Step-down rate must be lower than initial rate',
+        path: ['managementFee', 'stepDown', 'newRate']
+      });
+    }
+  }
+
+  // Warn about high management fees
+  if (data.managementFee.rate > 3) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Management fee over 3% is above market standards',
+      path: ['managementFee', 'rate']
+    });
+  }
+
+  // Investment period should not exceed 10 years
+  if (data.investmentPeriod > data.fundSize / 10) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Investment period may be too long for fund size',
+      path: ['investmentPeriod']
+    });
+  }
+});
+
+export type FundFinancialsInput = z.input<typeof fundFinancialsSchema>;
+export type FundFinancialsOutput = z.output<typeof fundFinancialsSchema>;
 
 // ============================================================================
 // STEP 5: EXIT RECYCLING (OPTIONAL)
@@ -496,35 +1060,105 @@ export type WaterfallInput = z.input<typeof waterfallSchema>;
 export type WaterfallOutput = z.output<typeof waterfallSchema>;
 
 // ============================================================================
-// STEP 7: SCENARIOS
+// STEP 7: SCENARIOS (WHAT-IF ANALYSIS)
 // ============================================================================
 
-export const scenarioSchema = z.object({
+/**
+ * Individual scenario adjustment configuration
+ * Represents multipliers/deltas applied to base model assumptions
+ */
+export const scenarioAdjustmentSchema = z.object({
+  /** Unique identifier */
   id: z.string().min(1, 'Scenario ID is required'),
 
+  /** Scenario name (e.g., "Base Case", "Optimistic", "Pessimistic") */
   name: z.string()
     .min(1, 'Scenario name is required')
-    .max(100, 'Scenario name cannot exceed 100 characters'),
+    .max(50, 'Scenario name cannot exceed 50 characters')
+    .trim(),
 
-  assumptions: z.record(z.any())
+  /** Optional description */
+  description: z.string()
+    .max(200, 'Description cannot exceed 200 characters')
+    .optional(),
+
+  /** MOIC adjustment multiplier (0.5 = 50% lower, 1.0 = no change, 2.0 = 200%) */
+  moicMultiplier: z.number()
+    .min(0.1, 'MOIC multiplier must be at least 0.1 (10% of base)')
+    .max(5.0, 'MOIC multiplier cannot exceed 5.0 (500% of base)')
+    .default(1.0),
+
+  /** Exit timing adjustment in months (+/- from base case) */
+  exitTimingDelta: z.number()
+    .int('Exit timing delta must be whole months')
+    .min(-48, 'Cannot exit more than 48 months earlier')
+    .max(48, 'Cannot exit more than 48 months later')
+    .default(0),
+
+  /** Loss rate adjustment in percentage points (+/- from base case) */
+  lossRateDelta: z.number()
+    .min(-50, 'Loss rate delta must be at least -50%')
+    .max(50, 'Loss rate delta cannot exceed +50%')
+    .default(0),
+
+  /** Follow-on participation rate adjustment in percentage points (+/-) */
+  participationRateDelta: z.number()
+    .min(-50, 'Participation rate delta must be at least -50%')
+    .max(50, 'Participation rate delta cannot exceed +50%')
+    .default(0)
 });
 
+export type ScenarioAdjustment = z.infer<typeof scenarioAdjustmentSchema>;
+
+/**
+ * Step 7: Scenarios configuration
+ * Enables "what-if" analysis with multiple scenario variants
+ */
 export const scenariosSchema = z.object({
-  scenarioType: z.enum(['construction', 'current_state', 'comparison'], {
-    errorMap: () => ({ message: 'Scenario type is required' })
-  }),
+  /** Enable scenario analysis (false = base case only) */
+  enabled: z.boolean().default(true),
 
-  baseCase: z.object({
-    name: z.string()
-      .min(1, 'Base case name is required')
-      .max(100, 'Base case name cannot exceed 100 characters'),
+  /** Scenario configurations (1-5 scenarios allowed) */
+  scenarios: z.array(scenarioAdjustmentSchema)
+    .min(1, 'At least one scenario is required')
+    .max(5, 'Maximum 5 scenarios allowed')
+}).superRefine((data, ctx) => {
+  // Validate unique scenario names
+  const names = data.scenarios.map(s => s.name.toLowerCase());
+  const duplicates = names.filter((name, index) => names.indexOf(name) !== index);
 
-    assumptions: z.record(z.any())
-  }),
+  if (duplicates.length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Duplicate scenario names: ${[...new Set(duplicates)].join(', ')}`,
+      path: ['scenarios']
+    });
+  }
 
-  scenarios: z.array(scenarioSchema)
-    .max(10, 'Cannot exceed 10 comparison scenarios')
-    .optional()
+  // Warn if enabled but no scenarios defined
+  if (data.enabled && data.scenarios.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Enable scenario analysis or add at least one scenario',
+      path: ['scenarios']
+    });
+  }
+
+  // Require at least one base case (1.0x multipliers, 0 deltas)
+  const hasBaseCase = data.scenarios.some(s =>
+    s.moicMultiplier === 1.0 &&
+    s.exitTimingDelta === 0 &&
+    s.lossRateDelta === 0 &&
+    s.participationRateDelta === 0
+  );
+
+  if (data.enabled && data.scenarios.length > 1 && !hasBaseCase) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Consider adding a "Base Case" scenario (1.0x multipliers, 0 deltas) for comparison',
+      path: ['scenarios']
+    });
+  }
 });
 
 export type ScenariosInput = z.input<typeof scenariosSchema>;
@@ -543,6 +1177,7 @@ export const completeWizardSchema = z.object({
   sectorProfiles: sectorProfilesSchema,
   capitalAllocation: capitalAllocationSchema,
   feesExpenses: feesExpensesSchema,
+  fundFinancials: fundFinancialsSchema.optional(),
   exitRecycling: exitRecyclingSchema,
   waterfall: waterfallSchema,
   scenarios: scenariosSchema
@@ -597,3 +1232,30 @@ export function isWarning(error: z.ZodIssue): boolean {
       error.message.includes('may not provide'))
   );
 }
+
+// ============================================================================
+// STORAGE SCHEMA
+// ============================================================================
+
+/**
+ * Schema for wizard data stored in localStorage
+ * Combines wizard data with UI state (current step, completed steps, etc.)
+ *
+ * Used by storage layer to persist progress across sessions
+ */
+export const storableWizardSchema = completeWizardSchema.deepPartial().extend({
+  currentStep: z.enum([
+    'generalInfo',
+    'sectorProfiles',
+    'capitalAllocation',
+    'feesExpenses',
+    'exitRecycling',
+    'waterfall',
+    'scenarios'
+  ]).optional(),
+  completedSteps: z.array(z.string()).optional(),
+  visitedSteps: z.array(z.string()).optional(),
+  skipOptionalSteps: z.boolean().optional()
+});
+
+export type StorableWizard = z.infer<typeof storableWizardSchema>;

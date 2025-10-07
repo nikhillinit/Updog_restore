@@ -2,7 +2,8 @@
  * Metrics endpoint for Prometheus scraping
  */
 
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { getMetrics, getContentType } from '../observability/production-metrics.js';
 
 export const metricsRouter = Router();

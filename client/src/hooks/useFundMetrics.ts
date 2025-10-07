@@ -13,7 +13,8 @@
  * @module client/hooks/useFundMetrics
  */
 
-import { useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
+import type { UseQueryResult } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { UnifiedFundMetrics } from '@shared/types/metrics';
 import { useFundContext } from '@/contexts/FundContext';
 

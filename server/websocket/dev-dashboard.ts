@@ -1,5 +1,5 @@
 import { Server as SocketIOServer } from 'socket.io';
-import { Server as HTTPServer } from 'http';
+import type { Server as HTTPServer } from 'http';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 

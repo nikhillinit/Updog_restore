@@ -5,9 +5,9 @@
  * into the Updog VC fund modeling platform for production deployment.
  */
 
-import express from 'express';
+import type express from 'express';
 type Application = ReturnType<typeof express>;
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 
 // Security middleware imports
 import {

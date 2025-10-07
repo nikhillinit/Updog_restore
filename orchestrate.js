@@ -1,3 +1,5 @@
+/* eslint-env node */
+
 // orchestrate.js - SCHEMA → ENGINES → INTEGRATION → TESTING
 
 class Orchestrator {
@@ -12,11 +14,7 @@ class Orchestrator {
       // Create directories based on agent
       if (agent === 'ENGINES') {
         const { existsSync, mkdirSync } = await import('fs');
-        const dirs = [
-          'client/src/core/reserves',
-          'client/src/core/pacing',
-          'tests/fixtures'
-        ];
+        const dirs = ['client/src/core/reserves', 'client/src/core/pacing', 'tests/fixtures'];
 
         for (const dir of dirs) {
           if (!existsSync(dir)) {
@@ -27,12 +25,12 @@ class Orchestrator {
       }
 
       // Simulate agent processing time
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 1000));
 
       // Simulate occasional failure for testing
       if (Math.random() < 0.1) {
         console.log(`🛑 ${agent} agent failed - retrying...`);
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
       console.log(`✅ ${agent} agent completed\n`);
@@ -48,14 +46,21 @@ class Orchestrator {
       {
         name: 'ReserveEngine API',
         url: 'http://localhost:3000/api/reserves/1',
-        validator: (data) => Array.isArray(data) && data.length > 0 && data[0].allocation !== undefined && data[0].confidence !== undefined
+        validator: (data) =>
+          Array.isArray(data) &&
+          data.length > 0 &&
+          data[0].allocation !== undefined &&
+          data[0].confidence !== undefined,
       },
       {
         name: 'PacingEngine API',
         url: 'http://localhost:3000/api/pacing/summary',
-        validator: (data) => Array.isArray(data) && data.length > 0 &&
-                             data[0].quarter !== undefined && data[0].deployment !== undefined
-      }
+        validator: (data) =>
+          Array.isArray(data) &&
+          data.length > 0 &&
+          data[0].quarter !== undefined &&
+          data[0].deployment !== undefined,
+      },
     ];
 
     for (const test of tests) {
@@ -74,7 +79,6 @@ class Orchestrator {
         } else {
           console.log(`🛑 ${test.name} - FAIL (invalid response structure)`);
         }
-
       } catch (error) {
         console.log(`🛑 ${test.name} - FAIL (${error.message})`);
       }
@@ -96,12 +100,6 @@ class Orchestrator {
 }
 
 // CLI handling
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 if (process.argv[1] && process.argv[1].includes('orchestrate.js')) {
   const orchestrator = new Orchestrator();
   const command = process.argv[2];

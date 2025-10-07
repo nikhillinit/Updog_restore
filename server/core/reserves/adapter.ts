@@ -5,7 +5,7 @@
 
 import { reserveDecisions } from '@schema';
 import { db } from '../../db.js';
-import { 
+import type { 
   ReserveEnginePort, 
   PortfolioCompany, 
   MarketConditions, 
@@ -13,9 +13,9 @@ import {
   ReserveEngineOptions,
   PredictionExplanation 
 } from './ports.js';
-import { DeterministicReserveEngine } from '@shared/core/reserves/DeterministicReserveEngine.js';
-import { ConstrainedReserveEngine } from '@shared/core/reserves/ConstrainedReserveEngine.js';
-import { MlClient } from './mlClient.js';
+import type { DeterministicReserveEngine } from '@shared/core/reserves/DeterministicReserveEngine.js';
+import type { ConstrainedReserveEngine } from '@shared/core/reserves/ConstrainedReserveEngine.js';
+import type { MlClient } from './mlClient.js';
 import { logger } from '../../lib/logger.js';
 import { nanoid } from 'nanoid';
 // import { performanceMonitor } from '@shared/lib/performance-monitor.js';

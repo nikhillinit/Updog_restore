@@ -12,7 +12,8 @@ import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
 import { assertSecureURL, validateCORSOrigins } from '../lib/url-security.js';
 
-const shouldOverrideEnv = process.env.DOTENV_OVERRIDE === 'true';
+// TEMP FIX: Windows system has NODE_ENV=production set globally, override it
+const shouldOverrideEnv = true;
 // Load .env file; allow opt-in overriding via DOTENV_OVERRIDE
 loadDotenv({ override: shouldOverrideEnv });
 

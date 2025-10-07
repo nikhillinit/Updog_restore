@@ -4,7 +4,7 @@
  */
 
 import fetch, { AbortError } from 'node-fetch';
-import { PortfolioCompany, MarketConditions, ReserveDecision, ReserveEngineOptions } from './ports.js';
+import type { PortfolioCompany, MarketConditions, ReserveDecision, ReserveEngineOptions } from './ports.js';
 import { logger } from '../../lib/logger.js';
 
 export interface MLServiceConfig {

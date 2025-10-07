@@ -1,6 +1,6 @@
-import { Decimal, toDecimal, sum, safeDivide, roundRatio, roundPercent } from './decimal-utils';
+import type { Decimal} from './decimal-utils';
+import { toDecimal, sum, safeDivide, roundRatio, roundPercent } from './decimal-utils';
 import { calculateIRRFromPeriods } from './xirr';
-import { computeReferenceMetrics } from './reference-formulas';
 import type { FundModelInputs, FundModelOutputs, PeriodResult } from '@shared/schemas/fund-model';
 
 /**
@@ -46,11 +46,7 @@ export function runFundModel(inputs: FundModelInputs): FundModelOutputs {
     kpis,
   };
 
-  // Add reference metrics for three-way validation
-  return {
-    ...outputs,
-    referenceMetrics: computeReferenceMetrics(outputs),
-  };
+  return outputs;
 }
 
 /**
@@ -126,7 +122,8 @@ export function calculateKPIs(periodResults: PeriodResult[]): {
   // Calculate IRR using XIRR
   let irr = 0;
   try {
-    irr = calculateIRRFromPeriods(periodResults);
+    const calculatedIrr = calculateIRRFromPeriods(periodResults);
+    irr = calculatedIrr ?? 0; // Default to 0 if null
   } catch (err) {
     // If IRR calculation fails (e.g., no cashflows), default to 0
     console.warn('IRR calculation failed, defaulting to 0:', err);

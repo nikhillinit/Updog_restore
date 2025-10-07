@@ -21,8 +21,6 @@ import {
   getConversationImageList,
   buildConversationHistory,
   clearAllThreads,
-  type ThreadContext,
-  type ConversationTurn,
 } from '../ConversationMemory';
 
 describe('ConversationMemory', () => {

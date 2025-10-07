@@ -19,9 +19,10 @@ import type {
 } from '@shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
+import type {
+  PowerLawDistribution} from './power-law-distribution';
 import {
   createVCPowerLawDistribution,
-  PowerLawDistribution,
   type InvestmentStage
 } from './power-law-distribution';
 import { PRNG } from '@shared/utils/prng';

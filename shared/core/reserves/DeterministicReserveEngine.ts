@@ -18,7 +18,7 @@ import {
   DEFAULT_STAGE_STRATEGIES,
 } from '@shared/schemas/reserves-schemas';
 import { getLogger, getPerf } from '@shared/instrumentation';
-import { validateReserveAllocationConservation, assertConservation } from '@shared/validation/conservation';
+import { validateReserveAllocationConservation } from '@shared/validation/conservation';
 
 // Get instrumentation instances
 const logger = getLogger();

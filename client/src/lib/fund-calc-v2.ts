@@ -17,11 +17,10 @@
  */
 
 import { Decimal } from 'decimal.js';
-import type { ExtendedFundModelInputs, FundModelOutputs, SimulationResult } from '@shared/schemas/extended-fund-model';
-import { calculateCohortProgression } from '@shared/schemas/stage-profile';
+import type { ExtendedFundModelInputs, SimulationResult } from '@shared/schemas/extended-fund-model';
 import { calculateManagementFees, type FeeCalculationContext } from '@shared/schemas/fee-profile';
 import { calculateCapitalCall } from '@shared/schemas/capital-call-policy';
-import { calculateEuropeanWaterfall, calculateAmericanWaterfall } from '@shared/schemas/waterfall-policy';
+import { calculateEuropeanWaterfall } from '@shared/schemas/waterfall-policy';
 import { calculateRecyclingAvailability, shouldRecycleNow, type RecyclingContext } from '@shared/schemas/recycling-policy';
 
 /**

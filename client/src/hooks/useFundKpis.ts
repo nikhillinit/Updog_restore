@@ -10,7 +10,7 @@
  * @module useFundKpis
  */
 
-import { useQuery, UseQueryOptions } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { FundData, FundKPIs } from '@/core/types/fund-domain';
 import {

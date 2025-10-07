@@ -1,0 +1,104 @@
+{
+  "model": "gpt",
+  "verdict": "NEEDS_FIXES",
+  "confidence": 0.86,
+  "overall_score": 8.2,
+  "timestamp": "2025-10-07T05:45:00Z",
+  "fix_scores": {
+    "persist_scheduler": {
+      "correctness": 9,
+      "completeness": 9,
+      "notes": "Race eliminated by nulling the timer before sendBack; teardown clears pending timeout. Good. Consider coalescing back-to-back FLUSH_PERSIST with a guard if you ever batch events, but not required."
+    },
+    "deepset": {
+      "correctness": 8,
+      "completeness": 7,
+      "notes": "Preserves arrays and guards empty paths. Still susceptible to double-dot paths creating stray keys at wrong depth; filter empty segments up-front. Circular structures would still throw on spread, but unlikely in this form context."
+    },
+    "zustand_import": {
+      "correctness": 7,
+      "completeness": 6,
+      "notes": "Exact-key pass is solid. Fuzzy fallback still matches 'fundingHistory'/'fundRaising2024'. Add a word-boundary/sep check and/or schema-shape validation."
+    },
+    "component_success_flow": {
+      "correctness": 9,
+      "completeness": 8,
+      "notes": "Redirect now uses router with cleanup. Add a safety fallback (e.g., if route missing, push '/') and optional error boundary/logging for navigation failures."
+    },
+    "quota_handling": {
+      "correctness": 9,
+      "completeness": 7,
+      "notes": "Prevents crashes on QuotaExceededError. Recommend surfacing a non-blocking toast and optionally pruning oldest draft keys to recover space."
+    },
+    "interval_guard": {
+      "correctness": 9,
+      "completeness": 8,
+      "notes": "Ref-based interval prevents leaks even if send changes. If fundId can change and you recreate the machine/component, this still behaves; interval remains single-instance."
+    },
+    "metrics_format": {
+      "correctness": 8,
+      "completeness": 7,
+      "notes": "Assumes IRR as decimal; correct if API contract enforces it. If API sometimes returns percentages, add a feature flag or detect values >1 to avoid 2850% misrendering."
+    },
+    "full_validation": {
+      "correctness": 7,
+      "completeness": 6,
+      "notes": "Validates present sections, but has a copy-paste bug on TEAM (uses key 'pacing'). Also, consider explicit required-field assertions for steps you deem mandatory."
+    },
+    "submit_fetch": {
+      "correctness": 8,
+      "completeness": 7,
+      "notes": "Timeout + richer errors = good. Wrap both error and success json parsing to handle malformed/HTML responses; optionally gate by content-type."
+    },
+    "dirty_prompt": {
+      "correctness": 8,
+      "completeness": 7,
+      "notes": "Works, but dependency-driven listener churn. Prefer ref-based state read to add the listener once and avoid re-adds on every keystroke."
+    }
+  },
+  "critical_issues": [
+    {
+      "severity": "P0",
+      "fix_id": "zustand_import",
+      "issue": "Fuzzy localStorage key regex still matches unrelated keys like 'fundingHistory' or 'fundRaising2024', risking bad imports.",
+      "fix": "Tighten the fallback key match and keep exact-list bypass:\n\nfor (let i = 0; i < localStorage.length; i++) {\n  const k = localStorage.key(i) || '';\n  if (exact.includes(k)) continue; // handled above\n  if (!/^(fund|zustand)[\\W_-]/i.test(k)) continue; // require separator after prefix\n  const raw = localStorage.getItem(k);\n  if (!raw) continue;\n  const parsed = JSON.parse(raw);\n  const imported = extractFundData(parsed);\n  if (imported) return imported;\n}\n\n// Optionally also validate a minimal shape:\n// if (!('fundName' in parsed || 'state' in parsed)) continue;"
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "P1",
+      "fix_id": "deepset",
+      "suggestion": "Filter empty segments before iterating to handle double-dot paths cleanly:\nconst parts = path.split('.').filter(Boolean);"
+    },
+    {
+      "priority": "P1",
+      "fix_id": "full_validation",
+      "suggestion": "Fix TEAM schema key bug: FormSchemaByStep.TEAM.parse({ team: form.team }); and add required-field checks for steps you treat as mandatory pre-submit."
+    },
+    {
+      "priority": "P2",
+      "fix_id": "submit_fetch",
+      "suggestion": "Handle malformed JSON and non-JSON responses:\nconst ct = res.headers.get('content-type') || '';\nif (!res.ok) { let msg = `HTTP ${res.status}`; if (ct.includes('application/json')) { try { const j = await res.json(); msg = j.message || j.error || msg; } catch (e) { console.warn('[Submit] parse error', e); } } else { const txt = await res.text().catch(() => ''); if (txt) msg = txt.slice(0, 200); } throw new Error(msg); }\nreturn ct.includes('application/json') ? res.json().catch(() => { throw new Error('Server returned invalid JSON'); }) : Promise.reject(new Error('Unexpected content type'))"
+    },
+    {
+      "priority": "P2",
+      "fix_id": "dirty_prompt",
+      "suggestion": "Use a ref to read state inside the beforeunload handler so the effect installs once:\nconst stateRef = useRef(state); useEffect(() => { stateRef.current = state; }, [state]); useEffect(() => { const handler = (e) => { const s = stateRef.current; const hasData = !!s.context.form.general.fundName || (s.context.form.general.fundSize ?? 0) > 0; if (hasData && s.status !== 'done') { e.preventDefault(); e.returnValue = ''; } }; window.addEventListener('beforeunload', handler); return () => window.removeEventListener('beforeunload', handler); }, []);"
+    },
+    {
+      "priority": "P2",
+      "fix_id": "metrics_format",
+      "suggestion": "Defend against mixed IRR units: if (percent && v > 1.0) treat as already-percentage; or enforce a strict API contract and document it."
+    },
+    {
+      "priority": "P2",
+      "fix_id": "component_success_flow",
+      "suggestion": "If navigate('/dashboard') fails (route unavailable), fallback to navigate('/') or window.location.assign('/'). Add an error boundary or console warn for navigation failures."
+    },
+    {
+      "priority": "P2",
+      "fix_id": "quota_handling",
+      "suggestion": "Emit a non-blocking toast/banner when persistence is skipped due to quota; optionally prune LRU draft keys to reclaim space."
+    }
+  ]
+}

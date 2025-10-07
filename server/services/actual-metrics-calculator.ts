@@ -17,7 +17,7 @@
 import Decimal from 'decimal.js';
 import { storage } from '../storage';
 import type { ActualMetrics } from '@shared/types/metrics';
-import type { Fund, PortfolioCompany, Investment } from '@shared/schema';
+import type { PortfolioCompany } from '@shared/schema';
 
 // Configure Decimal.js for financial precision
 Decimal.set({ precision: 28, rounding: Decimal.ROUND_HALF_UP });

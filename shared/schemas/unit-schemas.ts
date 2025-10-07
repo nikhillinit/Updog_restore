@@ -11,10 +11,6 @@ import {
   asPercentage,
   asBasisPoints,
   asDollars,
-  type Fraction,
-  type Percentage,
-  type BasisPoints,
-  type Dollars,
 } from '../units';
 
 // ============================================================================
