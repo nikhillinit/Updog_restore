@@ -1,0 +1,43 @@
+﻿[2025-08-12 21:21:50] [INFO] === CLAUDE CODE MODEL CLEANUP v4.3 STARTED ===
+[2025-08-12 21:21:50] [INFO] Project Root: C:\dev\Updog_restore
+[2025-08-12 21:21:50] [INFO] Timestamp: 20250812_212150
+[2025-08-12 21:21:50] [INFO] Mode: DRY RUN (no changes)
+[2025-08-12 21:21:50] [DEBUG] Debug logging enabled
+[2025-08-12 21:21:50] [INFO] Step 1: Precheck and Snapshot
+[2025-08-12 21:21:50] [INFO] OK Project root confirmed: C:\dev\Updog_restore
+[2025-08-12 21:21:50] [INFO] Found existing .claude folder, will backup to: C:\dev\Updog_restore\.claude.bak.20250812_212150
+[2025-08-12 21:21:50] [INFO] [DRY-RUN] Would backup .claude folder
+[2025-08-12 21:21:50] [INFO] OK User .claude folder exists: C:\Users\nikhi\.claude
+[2025-08-12 21:21:50] [INFO] Step 2: Environment Variable Cleanup
+[2025-08-12 21:21:50] [INFO] No environment variables needed clearing
+[2025-08-12 21:21:50] [INFO] Step 3: Scanning and fixing polluted model settings
+[2025-08-12 21:21:50] [INFO] Processing: C:\dev\Updog_restore\.claude
+[2025-08-12 21:21:50] [DEBUG] Found 0 candidate command files
+[2025-08-12 21:21:50] [DEBUG] No 'model' property in C:\dev\Updog_restore\.claude\settings.local.json
+[2025-08-12 21:21:50] [INFO] Processing: C:\Users\nikhi\.claude
+[2025-08-12 21:21:50] [DEBUG] Found 0 candidate command files
+[2025-08-12 21:21:50] [INFO] [DRY-RUN] Patched JSON model in C:\Users\nikhi\.claude\settings.json -> sonnet
+[2025-08-12 21:21:50] [DEBUG] No 'model' property in C:\Users\nikhi\.claude\settings.local.json
+[2025-08-12 21:21:50] [INFO] Files fixed: 1
+[2025-08-12 21:21:50] [INFO] Step 4: Restoring cleaned project config
+[2025-08-12 21:21:50] [INFO] Step 5: .gitignore check
+[2025-08-12 21:21:50] [INFO] .claude/ already ignored or empty .gitignore
+[2025-08-12 21:21:50] [INFO] 
+[2025-08-12 21:21:50] [INFO] === CLEANUP SUMMARY ===
+[2025-08-12 21:21:50] [INFO] Mode: DRY RUN
+[2025-08-12 21:21:50] [INFO] Environment variables cleared: (none)
+[2025-08-12 21:21:50] [INFO] Files modified: 1
+[2025-08-12 21:21:50] [INFO]   - C:\Users\nikhi\.claude\settings.json
+[2025-08-12 21:21:50] [INFO] Log file: C:\dev\Updog_restore\claude_cleanup_log_20250812_212150.txt
+[2025-08-12 21:21:50] [INFO] 
+[2025-08-12 21:21:50] [INFO] === TEST CHECKLIST ===
+[2025-08-12 21:21:50] [INFO] 1) Navigate to: C:\dev\Updog_restore
+[2025-08-12 21:21:50] [INFO] 3) Start Claude Code here
+[2025-08-12 21:21:50] [INFO] 4) Run: /clear
+[2025-08-12 21:21:50] [INFO] 5) Run: /model  (choose Default or Sonnet). Confirm there is no '/ultrathink' text.
+[2025-08-12 21:21:50] [INFO] 6) Run: /doctor  (should be green apart from npm-global mismatch, which is harmless)
+[2025-08-12 21:21:50] [INFO] 7) Send: hi  (verify there is no 400 'model length' error)
+[2025-08-12 21:21:50] [INFO] 
+[2025-08-12 21:21:50] [INFO] === DRY RUN COMPLETED ===
+[2025-08-12 21:21:50] [INFO] To apply changes, run again without -DryRun
+[2025-08-12 21:21:50] [INFO] === CLEANUP COMPLETED ===
