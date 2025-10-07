@@ -5,7 +5,7 @@
 
 import type { Company, ReservesInput, ReservesConfig } from '@shared/types/reserves-v11';
 import { getCurrentQuarterIndex } from '@/lib/quarter-time';
-import { dollarsToCents, moicToBps, percentToBps } from '@/lib/units';
+import { dollarsToCents, centsToDollars, moicToBps, percentToBps } from '@/lib/units';
 
 // Existing fund/company types (adapt based on your actual types)
 interface ExistingCompany {
