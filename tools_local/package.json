@@ -27,5 +27,8 @@
     "vite-plugin-virtual": "^0.4.0",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.4"
+  },
+  "devDependencies": {
+    "@types/sanitize-html": "^2.16.0"
   }
 }

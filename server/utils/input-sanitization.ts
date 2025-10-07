@@ -11,8 +11,8 @@
  * - File upload validation
  */
 
-// DOMPurify not available in server environment, using built-in sanitization
 import validator from 'validator';
+import sanitizeHtml from 'sanitize-html';
 import { logValidationError, securityLogger } from './logger.js';
 
 // =============================================================================
@@ -109,9 +109,13 @@ export function sanitizeString(
       sanitized = sanitized.substring(0, opts.maxLength);
     }
 
-    // Basic HTML sanitization - strip all HTML tags for security
-    // In a production environment, consider using a proper HTML sanitization library
-    sanitized = sanitized.replace(/<[^>]*>/g, '');
+    // HTML sanitization using sanitize-html library to prevent XSS
+    // This prevents incomplete multi-character sanitization vulnerabilities
+    sanitized = sanitizeHtml(sanitized, {
+      allowedTags: opts.allowedTags || [],
+      allowedAttributes: opts.allowedAttributes || {},
+      disallowedTagsMode: 'recursiveEscape'
+    });
 
     // Check for dangerous patterns
     if (opts.strictMode) {
