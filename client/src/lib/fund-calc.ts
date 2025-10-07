@@ -1,5 +1,6 @@
 import { Decimal, toDecimal, sum, safeDivide, roundRatio, roundPercent } from './decimal-utils';
 import { calculateIRRFromPeriods } from './xirr';
+import { computeReferenceMetrics } from './reference-formulas';
 import type { FundModelInputs, FundModelOutputs, PeriodResult } from '@shared/schemas/fund-model';
 
 /**
@@ -39,10 +40,16 @@ export function runFundModel(inputs: FundModelInputs): FundModelOutputs {
   // =====================
   const kpis = calculateKPIs(periodResults);
 
-  return {
+  const outputs: FundModelOutputs = {
     periodResults,
     companyLedger: companies,
     kpis,
+  };
+
+  // Add reference metrics for three-way validation
+  return {
+    ...outputs,
+    referenceMetrics: computeReferenceMetrics(outputs),
   };
 }
 
