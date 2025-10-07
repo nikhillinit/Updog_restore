@@ -542,21 +542,104 @@ export type CapitalAllocationOutput = z.output<typeof capitalAllocationSchema>;
 // STEP 4: FEES & EXPENSES
 // ============================================================================
 
+/**
+ * Fee calculation basis types
+ */
 export const feeBasisSchema = z.enum(
   ['committed', 'called', 'fmv'],
   { errorMap: () => ({ message: 'Invalid fee basis' }) }
 );
 
+export type FeeBasis = z.infer<typeof feeBasisSchema>;
+
+/**
+ * Waterfall type for carried interest distribution
+ */
+export const waterfallTypeEnum = z.enum(['american', 'european'], {
+  errorMap: () => ({ message: 'Waterfall type must be american or european' })
+});
+
+export type WaterfallType = z.infer<typeof waterfallTypeEnum>;
+
+/**
+ * Carried interest (carry) configuration
+ */
+export const carriedInterestSchema = z.object({
+  /** Enable carried interest */
+  enabled: z.boolean().default(false),
+
+  /** Carried interest rate (%) - GP's share of profits */
+  rate: percentageSchema
+    .refine(
+      (val) => val >= 10 && val <= 30,
+      'Carried interest typically ranges from 10% to 30%'
+    )
+    .default(20),
+
+  /** Hurdle rate (%) - Minimum return before carry kicks in */
+  hurdleRate: percentageSchema
+    .refine(
+      (val) => val >= 0 && val <= 20,
+      'Hurdle rate typically ranges from 0% to 20%'
+    )
+    .default(8),
+
+  /** Catch-up percentage - How fast GP catches up to carry rate */
+  catchUpPercentage: percentageSchema
+    .refine(
+      (val) => val === 0 || val === 80 || val === 100,
+      'Catch-up typically 0% (none), 80%, or 100% (full)'
+    )
+    .default(100),
+
+  /** Waterfall type: American (deal-by-deal) or European (whole fund) */
+  waterfallType: waterfallTypeEnum.default('american')
+});
+
+export type CarriedInterest = z.infer<typeof carriedInterestSchema>;
+
+/**
+ * Fee recycling configuration
+ */
+export const feeRecyclingSchema = z.object({
+  /** Enable fee recycling */
+  enabled: z.boolean().default(false),
+
+  /** Maximum recyclable amount as % of committed capital */
+  recyclingCapPercent: percentageSchema
+    .refine(
+      (val) => val >= 0 && val <= 20,
+      'Recycling cap typically ranges from 0% to 20%'
+    )
+    .default(10),
+
+  /** Period during which fees can be recycled (months) */
+  recyclingTermMonths: z.number()
+    .int('Recycling term must be a whole number of months')
+    .min(12, 'Recycling term must be at least 12 months')
+    .max(180, 'Recycling term cannot exceed 180 months (15 years)')
+    .default(84) // 7 years
+});
+
+export type FeeRecycling = z.infer<typeof feeRecyclingSchema>;
+
+/**
+ * Complete fees & expenses schema
+ */
 export const feesExpensesSchema = z.object({
+  /** Management fee configuration */
   managementFee: z.object({
+    /** Annual management fee rate (%) */
     rate: percentageSchema
       .refine(
         (val) => val >= 0 && val <= 5,
         'Management fee must be between 0% and 5%'
       ),
 
+    /** Fee basis - what the percentage applies to */
     basis: feeBasisSchema,
 
+    /** Optional step-down configuration */
     stepDown: z.object({
       enabled: z.boolean(),
       afterYear: z.number()
@@ -567,9 +650,18 @@ export const feesExpensesSchema = z.object({
     }).optional()
   }),
 
-  adminExpenses: z.object({
-    annualAmount: positiveNumberSchema,
+  /** Carried interest configuration (optional) */
+  carriedInterest: carriedInterestSchema.optional(),
 
+  /** Fee recycling configuration (optional) */
+  feeRecycling: feeRecyclingSchema.optional(),
+
+  /** Administrative expenses */
+  adminExpenses: z.object({
+    /** Annual admin expense amount ($M) */
+    annualAmount: nonNegativeNumberSchema,
+
+    /** Annual growth rate of admin expenses (%) */
     growthRate: percentageSchema
       .refine(
         (val) => val >= -10 && val <= 20,
@@ -596,13 +688,35 @@ export const feesExpensesSchema = z.object({
     }
 
     if (
-      data.managementFee.stepDown.newRate &&
+      data.managementFee.stepDown.newRate !== undefined &&
       data.managementFee.stepDown.newRate >= data.managementFee.rate
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Step-down rate must be lower than initial rate',
         path: ['managementFee', 'stepDown', 'newRate']
+      });
+    }
+  }
+
+  // Validate carried interest configuration
+  if (data.carriedInterest?.enabled) {
+    if (data.carriedInterest.hurdleRate === 0 && data.carriedInterest.catchUpPercentage > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Catch-up percentage should be 0% when there is no hurdle rate',
+        path: ['carriedInterest', 'catchUpPercentage']
+      });
+    }
+  }
+
+  // Validate fee recycling configuration
+  if (data.feeRecycling?.enabled) {
+    if (data.feeRecycling.recyclingCapPercent === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Recycling cap percentage must be greater than 0% when recycling is enabled',
+        path: ['feeRecycling', 'recyclingCapPercent']
       });
     }
   }
@@ -622,6 +736,15 @@ export const feesExpensesSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: 'Management fee under 1.5% may be unsustainable for fund operations',
       path: ['managementFee', 'rate']
+    });
+  }
+
+  // Warn about high carried interest
+  if (data.carriedInterest?.enabled && data.carriedInterest.rate > 25) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Carried interest over 25% is above typical market rates',
+      path: ['carriedInterest', 'rate']
     });
   }
 });
