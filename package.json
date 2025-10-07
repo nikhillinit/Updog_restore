@@ -41,6 +41,8 @@
     "dev:fix": "node scripts/dev-dashboard.js fix",
     "fix:typescript": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/automated-error-fixes.ts fix",
     "fix:typescript:help": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/automated-error-fixes.ts help",
+    "codemod:logger": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/codemods/fix-logger-order.ts",
+    "codemod:logger:write": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/codemods/fix-logger-order.ts --write",
     "dev:infra": "docker compose -f docker-compose.dev.yml up -d --wait",
     "dev:client": "node tools_local/node_modules/vite/bin/vite.js",
     "dev:web:react": "node tools_local/node_modules/vite/bin/vite.js --mode react",
@@ -389,7 +391,7 @@
     "winston": "^3.17.0",
     "wouter": "^3.3.5",
     "ws": "^8.18.0",
-    "xlsx": "0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz",
     "xstate": "^5.22.1",
     "yaml": "^2.8.1",
     "zod": "^3.25.76",
@@ -403,7 +405,7 @@
   "overrides": {
     "nats": "2.16.0",
     "esbuild": "^0.25.10",
-    "path-to-regexp": "0.1.10"
+    "path-to-regexp": "0.1.12"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.2",
@@ -459,6 +461,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-unused-imports": "^4.2.0",
     "fast-check": "^4.2.0",
+    "fast-glob": "3.3.3",
     "get-port": "^7.1.0",
     "gitleaks": "^1.0.0",
     "glob": "^11.0.3",
@@ -484,6 +487,7 @@
     "terser": "^5.43.1",
     "tinybench": "^4.0.1",
     "ts-jest": "^29.4.0",
+    "ts-morph": "27.0.0",
     "tsx": "4.20.6",
     "typescript": "^5.9.3",
     "vite": "5.4.20",
