@@ -167,25 +167,33 @@ export const ReferenceFormulas = {
 export function computeReferenceMetrics(
   outputs: FundModelOutputs
 ): Record<MetricKey, Decimal> {
-  // Use final period for cumulative values
-  const lastPeriod = outputs.periodResults[outputs.periodResults.length - 1];
-
-  if (!lastPeriod) {
+  if (outputs.periodResults.length === 0) {
     throw new Error('Fund model outputs must contain at least one period');
   }
 
-  const calledCapital = toDecimal(lastPeriod.capitalCalledCumulative ?? 0);
-  const distributions = toDecimal(lastPeriod.distributionsCumulative ?? 0);
-  const nav = toDecimal(lastPeriod.navEnd ?? 0);
-  const invested = toDecimal(lastPeriod.investedCapital ?? 0);
-  const fees = toDecimal(lastPeriod.feesCumulative ?? 0);
+  // Compute cumulative values by summing all periods
+  let calledCapital = new Decimal(0);
+  let distributions = new Decimal(0);
+  let invested = new Decimal(0);
+  let fees = new Decimal(0);
+
+  for (const period of outputs.periodResults) {
+    calledCapital = calledCapital.plus(period.contributions);
+    distributions = distributions.plus(period.distributions);
+    invested = invested.plus(period.investments);
+    fees = fees.plus(period.managementFees);
+  }
+
+  // Use final period for NAV (end-of-life value)
+  const lastPeriod = outputs.periodResults[outputs.periodResults.length - 1];
+  const nav = toDecimal(lastPeriod.nav);
 
   return {
     DPI: ReferenceFormulas.DPI(distributions, calledCapital),
     TVPI: ReferenceFormulas.TVPI(distributions, nav, calledCapital),
     GrossMOIC: ReferenceFormulas.GrossMOIC(distributions.plus(nav), invested),
     NetMOIC: ReferenceFormulas.NetMOIC(distributions, nav, invested, fees),
-    IRR: toDecimal(outputs.kpis.irrAnnualized ?? 0), // From XIRR calculation
+    IRR: toDecimal(outputs.kpis.irrAnnualized), // From XIRR calculation
     NAV: nav,
   };
 }
