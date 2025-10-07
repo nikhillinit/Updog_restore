@@ -17,6 +17,12 @@ export type { SectorProfilesStepProps } from './SectorProfilesStep';
 export { CapitalAllocationStep } from './CapitalAllocationStep';
 export type { CapitalAllocationStepProps } from './CapitalAllocationStep';
 
+// Capital Allocation sub-components (exported for testing/reuse)
+export { InitialInvestmentSection } from './capital-allocation/InitialInvestmentSection';
+export { FollowOnStrategyTable } from './capital-allocation/FollowOnStrategyTable';
+export { PacingHorizonBuilder } from './capital-allocation/PacingHorizonBuilder';
+export { CalculationSummaryCard } from './capital-allocation/CalculationSummaryCard';
+
 export { FeesExpensesStep } from './FeesExpensesStep';
 export type { FeesExpensesStepProps } from './FeesExpensesStep';
 
