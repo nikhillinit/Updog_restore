@@ -349,47 +349,188 @@ export type SectorProfilesOutput = z.output<typeof sectorProfilesSchema>;
 // STEP 3: CAPITAL ALLOCATION
 // ============================================================================
 
-export const capitalAllocationSchema = z.object({
-  initialCheckSize: positiveNumberSchema,
+/**
+ * Entry strategy for initial investments
+ */
+export const entryStrategyEnum = z.enum(['amount-based', 'ownership-based'], {
+  errorMap: () => ({ message: 'Entry strategy must be amount-based or ownership-based' })
+});
 
+export type EntryStrategy = z.infer<typeof entryStrategyEnum>;
+
+/**
+ * Per-stage follow-on allocation configuration
+ */
+export const stageAllocationSchema = z.object({
+  /** Stage identifier (matches investment stage from sector profiles) */
+  stageId: z.string().min(1, 'Stage ID is required'),
+
+  /** Stage name for display */
+  stageName: z.string().min(1, 'Stage name is required'),
+
+  /** Target ownership percentage to maintain after dilution */
+  maintainOwnership: percentageSchema
+    .refine(
+      (val) => val >= 0 && val <= 50,
+      'Maintain ownership must be between 0% and 50%'
+    ),
+
+  /** Percentage of graduates that will receive follow-on investment */
+  participationRate: percentageSchema
+});
+
+export type StageAllocation = z.infer<typeof stageAllocationSchema>;
+
+/**
+ * Investment pacing period configuration
+ */
+export const pacingPeriodSchema = z.object({
+  id: z.string().min(1, 'Period ID is required'),
+
+  /** Starting month (relative to vintage year, 0-indexed) */
+  startMonth: z.number()
+    .int('Start month must be a whole number')
+    .min(0, 'Start month must be at least 0')
+    .max(120, 'Start month cannot exceed 120 (10 years)'),
+
+  /** Ending month (relative to vintage year, 0-indexed) */
+  endMonth: z.number()
+    .int('End month must be a whole number')
+    .min(0, 'End month must be at least 0')
+    .max(120, 'End month cannot exceed 120 (10 years)'),
+
+  /** Percentage of total capital to deploy in this period */
+  allocationPercent: percentageSchema
+}).superRefine((data, ctx) => {
+  // End month must be after start month
+  if (data.endMonth <= data.startMonth) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'End month must be after start month',
+      path: ['endMonth']
+    });
+  }
+});
+
+export type PacingPeriod = z.infer<typeof pacingPeriodSchema>;
+
+/**
+ * Capital allocation schema - defines how fund deploys capital
+ * Integrates with DeterministicReserveEngine for portfolio modeling
+ */
+export const capitalAllocationSchema = z.object({
+  /** Entry strategy: amount-based (fixed check size) or ownership-based (target %) */
+  entryStrategy: entryStrategyEnum.default('amount-based'),
+
+  /** Initial check size for first investment ($M) */
+  initialCheckSize: positiveNumberSchema
+    .refine(
+      (val) => val >= 0.1,
+      'Minimum check size is $0.1M'
+    )
+    .refine(
+      (val) => val <= 50,
+      'Maximum check size is $50M'
+    ),
+
+  /** Target entry ownership percentage (used for ownership-based strategy) */
+  targetEntryOwnership: percentageSchema
+    .refine(
+      (val) => val >= 5 && val <= 30,
+      'Target entry ownership typically ranges from 5% to 30%'
+    )
+    .optional(),
+
+  /** Follow-on investment strategy */
   followOnStrategy: z.object({
+    /** Percentage of fund reserved for follow-on investments (decimal 0-1) */
     reserveRatio: decimalPercentageSchema
       .refine(
         (val) => val >= 0.3 && val <= 0.7,
         'Reserve ratio typically ranges from 30% to 70%'
       ),
 
-    followOnChecks: z.object({
-      A: positiveNumberSchema,
-      B: positiveNumberSchema,
-      C: positiveNumberSchema
-    }).refine(
-      (checks) => checks.A <= checks.B && checks.B <= checks.C,
-      'Follow-on check sizes should increase: A ≤ B ≤ C'
-    )
+    /** Per-stage follow-on allocation configurations */
+    stageAllocations: z.array(stageAllocationSchema)
+      .min(1, 'At least one stage allocation is required')
+      .max(10, 'Cannot exceed 10 stage allocations')
   }),
 
+  /** Investment pacing model */
   pacingModel: z.object({
+    /** Number of new investments per year during investment period */
     investmentsPerYear: z.number()
       .int('Investments per year must be a whole number')
       .min(1, 'Must make at least 1 investment per year')
       .max(50, 'Cannot exceed 50 investments per year'),
 
+    /** Deployment curve pattern (matches capital call schedule options) */
     deploymentCurve: z.enum(['linear', 'front-loaded', 'back-loaded'], {
       errorMap: () => ({ message: 'Invalid deployment curve type' })
     })
-  })
-}).superRefine((data, ctx) => {
-  // Warn if initial check is unusually large relative to follow-on checks
-  const avgFollowOn = (data.followOnStrategy.followOnChecks.A +
-    data.followOnStrategy.followOnChecks.B +
-    data.followOnStrategy.followOnChecks.C) / 3;
+  }),
 
-  if (data.initialCheckSize > avgFollowOn * 2) {
+  /** Investment pacing horizon (time-based capital deployment) */
+  pacingHorizon: z.array(pacingPeriodSchema)
+    .min(1, 'At least one pacing period is required')
+    .max(10, 'Cannot exceed 10 pacing periods')
+}).superRefine((data, ctx) => {
+  // Ownership-based strategy requires targetEntryOwnership
+  if (data.entryStrategy === 'ownership-based' && !data.targetEntryOwnership) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'Initial check size is unusually large compared to follow-on checks',
-      path: ['initialCheckSize']
+      message: 'Target entry ownership is required for ownership-based strategy',
+      path: ['targetEntryOwnership']
+    });
+  }
+
+  // Pacing horizon allocations must sum to 100%
+  const totalPacingAllocation = data.pacingHorizon.reduce(
+    (sum, period) => sum + period.allocationPercent,
+    0
+  );
+
+  if (Math.abs(totalPacingAllocation - 100) > 0.01) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Pacing allocations must sum to 100% (currently ${totalPacingAllocation.toFixed(1)}%)`,
+      path: ['pacingHorizon']
+    });
+  }
+
+  // Check for overlapping pacing periods
+  for (let i = 0; i < data.pacingHorizon.length; i++) {
+    for (let j = i + 1; j < data.pacingHorizon.length; j++) {
+      const period1 = data.pacingHorizon[i];
+      const period2 = data.pacingHorizon[j];
+
+      if (period1 && period2) {
+        const overlaps =
+          (period1.startMonth <= period2.startMonth && period1.endMonth > period2.startMonth) ||
+          (period2.startMonth <= period1.startMonth && period2.endMonth > period1.startMonth);
+
+        if (overlaps) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Pacing periods cannot overlap',
+            path: ['pacingHorizon', j]
+          });
+        }
+      }
+    }
+  }
+
+  // Warn about high participation rates across all stages
+  const avgParticipation = data.followOnStrategy.stageAllocations.reduce(
+    (sum, stage) => sum + stage.participationRate,
+    0
+  ) / Math.max(1, data.followOnStrategy.stageAllocations.length);
+
+  if (avgParticipation > 80) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Average participation rate exceeds 80% - may require significant reserves',
+      path: ['followOnStrategy', 'stageAllocations']
     });
   }
 });
