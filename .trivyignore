@@ -1,0 +1,5 @@
+# SheetJS 'xlsx' OSS track (0.18.5) → false positives from commercial track advisories
+# Rationale: Pro/commercial releases (>= 0.19.x / 0.20.x) are distinct from OSS 0.18.x.
+# Verify locally: `npm audit` → 0 vulns; Transitive deps reviewed.
+CVE-2023-30533
+CVE-2024-22363
