@@ -1,0 +1,23 @@
+Performance Baseline Summary - Async Infrastructure PR
+
+Infrastructure Added:
+✅ Vitest benchmark setup (tests/load/async-batch.bench.ts)
+✅ Smart migration script with dry-run (scripts/smart-fix.js)
+✅ Performance baseline CI workflow (.github/workflows/perf-baseline.yml)
+✅ ESLint rule for async safety (eslint-rules/no-async-array-methods.js)
+✅ Pre-push performance hooks (.husky/pre-push)
+✅ PR template with perf tracking (.github/pull_request_template.md)
+✅ VS Code dev snippets (.vscode/project.code-snippets)
+✅ Migration progress log (.async-migration-log)
+
+Async Utilities Ready:
+- forEachAsync: Serial processing with early termination
+- mapAsync: Parallel/batched mapping with concurrency control
+- processAsync: Void operations with error handling
+
+Next Steps:
+1. Trigger CI baseline run
+2. Create batch-1 migration PR (80 files max)
+3. Monitor performance regression gates
+
+This PR establishes the foundation for safe, measured async iteration migration.

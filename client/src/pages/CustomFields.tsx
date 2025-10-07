@@ -8,7 +8,8 @@ import { useFundContext } from '@/contexts/FundContext';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useLocation } from 'wouter';
-import CustomFieldsManager, { CustomField } from '@/components/custom-fields/custom-fields-manager';
+import type { CustomField } from '@/components/custom-fields/custom-fields-manager';
+import CustomFieldsManager from '@/components/custom-fields/custom-fields-manager';
 
 // Sample custom fields for demonstration
 const SAMPLE_CUSTOM_FIELDS: CustomField[] = [

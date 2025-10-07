@@ -10,7 +10,7 @@
  *   </FlagGate>
  */
 
-import { PropsWithChildren, ReactNode } from 'react';
+import type { PropsWithChildren, ReactNode } from 'react';
 
 export interface FlagGateProps {
   /** Whether to render children (flag enabled) or fallback (flag disabled) */

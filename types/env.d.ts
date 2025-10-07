@@ -57,10 +57,30 @@ declare namespace NodeJS {
 
 // Extend the Vite environment variables
 interface ImportMetaEnv {
+  // Base Vite environment variables
+  readonly MODE: string;
+  readonly BASE_URL: string;
+  readonly PROD: boolean;
+  readonly DEV: boolean;
+  readonly SSR: boolean;
+
+  // Custom app environment variables
   readonly VITE_APP_VERSION: string;
   readonly VITE_GIT_SHA: string;
   readonly VITE_BUILD_TIME: string;
   readonly VITE_API_BASE_URL: string;
+  readonly VITE_ENV?: string;
+  readonly VITE_NEW_SELECTORS?: string;
+  readonly VITE_WIZARD_DEBUG?: string;
+  readonly VITE_NEW_IA?: string;
+  readonly VITE_ENABLE_SELECTOR_KPIS?: string;
+  readonly VITE_ENABLE_MODELING_WIZARD?: string;
+  readonly VITE_ENABLE_OPERATIONS_HUB?: string;
+  readonly VITE_ENABLE_LP_REPORTING?: string;
+  readonly DEMO_MODE?: string;
+
+  // Support dynamic feature flags AND general string indexing
+  readonly [key: string]: string | boolean | undefined;
 }
 
 interface ImportMeta {

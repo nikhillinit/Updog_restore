@@ -2,7 +2,8 @@
 /**
  * Local metrics demo server (for quick /metrics smoke testing)
  */
-import express, { Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import express from 'express';
 import { withRequestMetrics, installMetricsRoute } from './metrics';
 
 const app = express();

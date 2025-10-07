@@ -6,11 +6,12 @@
 
 import { ConstrainedReserveEngine } from '@/core/reserves/ConstrainedReserveEngine';
 import type { Company, StagePolicy, ReserveConstraints } from '@/types/domain-min';
-import {
+import type {
   EngineCompany,
   EngineStagePolicy,
   EngineInput,
-  EngineResult,
+  EngineResult} from '@/core/reserves/types';
+import {
   normalizeStage,
   isRawCompany,
   isRawStagePolicy

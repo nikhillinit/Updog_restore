@@ -13,8 +13,7 @@ import {
   DollarSign,
   Clock,
   AlertTriangle,
-  Monitor,
-  PieChart
+  Monitor
 } from 'lucide-react';
 
 // 5-item simplified IA (NEW_IA enabled)
@@ -26,14 +25,10 @@ const SIMPLE_NAV = [
   { id: 'reports', label: 'Report', icon: FileText }
 ];
 
-// Full 25-item navigation (legacy)
+// Full navigation (streamlined)
 const FULL_NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
   { id: 'portfolio', label: 'Portfolio', icon: Building2 },
-  { id: 'investments', label: 'Investments', icon: TrendingUp },
-  { id: 'investments-table', label: 'Investments Table', icon: TrendingUp },
-  { id: 'cap-tables', label: 'Cap Tables', icon: Calculator },
-  { id: 'kpi-manager', label: 'KPI Manager', icon: Activity },
   { id: 'allocation-manager', label: 'Allocation Manager', icon: Calculator },
   { id: 'planning', label: 'Planning', icon: Briefcase },
   { id: 'forecasting', label: 'Forecasting', icon: TrendingUp },
@@ -54,7 +49,13 @@ const FULL_NAV = [
   { id: 'portfolio-constructor', label: 'Portfolio Constructor', icon: Settings },
   { id: 'dev-dashboard', label: 'Dev Dashboard', icon: Monitor },
   { id: 'reports', label: 'Reports', icon: FileText },
+  { id: 'settings', label: 'Settings', icon: Settings }, // KPI Manager, preferences, etc.
 ];
+
+// Note: Removed redundant items:
+// - 'investments' and 'investments-table' (redundant with Portfolio)
+// - 'cap-tables' (not relevant for fund dashboard)
+// - 'kpi-manager' (moved to Settings page)
 
 export function getNavigationItems() {
   return FLAGS.NEW_IA ? SIMPLE_NAV : FULL_NAV;

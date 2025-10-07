@@ -5,6 +5,82 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] – 2025‑10‑07
+
+### Added
+
+#### Capital Allocations Step (3/7) - COMPLETE ✅
+
+**7-Step Modeling Wizard - Step 3: Capital Allocations**
+- Complete wizard step for capital deployment modeling across fund lifecycle
+- Initial investment strategy (amount-based / ownership-based entry modes)
+- Per-stage follow-on allocation table with graduation flow
+- Investment pacing horizon with dynamic period builder
+- Real-time calculations with comprehensive validation
+- Integration with DeterministicReserveEngine
+
+**Calculation Library** (`client/src/lib/capital-allocation-calculations.ts`):
+- `calculateInitialInvestments()` - Entry strategy calculations (amount-based / ownership-based)
+- `calculateFollowOnAllocations()` - Follow-on cascade with ownership dilution math
+- `calculatePacingSchedule()` - Pacing schedule generation (linear/front-loaded/back-loaded)
+- `validateCapitalAllocation()` - Comprehensive validation (errors + warnings)
+- 25+ test cases with full coverage
+
+**React Hook** (`client/src/hooks/useCapitalAllocationCalculations.ts`):
+- Real-time calculation updates with useMemo optimization
+- Automatic validation on form changes
+- Summary helper hook for metrics display
+
+**UI Components** (14 components in `capital-allocation/` directory):
+- `InitialInvestmentSection.tsx` - Entry strategy configuration
+- `FollowOnStrategyTable.tsx` - Editable per-stage allocations with graduation flow
+- `PacingHorizonBuilder.tsx` - Dynamic period management with deployment curves
+- `CalculationSummaryCard.tsx` - Validation and metrics display
+- `AllocationsTable.tsx`, `PortfolioTable.tsx`, `PortfolioSummary.tsx` - Portfolio views
+- `CapitalHeader.tsx`, `ReserveMetricsDisplay.tsx`, `ValidationDisplay.tsx` - Metrics displays
+- `CompanyDialog.tsx`, `PortfolioConfigForm.tsx` - Interactive configuration
+- `CapitalAllocationStep.tsx` - Main orchestration component
+- `index.ts`, `README.md` - Module exports and documentation
+
+### Enhanced
+
+**Schema** (`client/src/schemas/modeling-wizard.schemas.ts`):
+- `capitalAllocationSchema` - Comprehensive validation with cross-field rules
+- `stageAllocationSchema` - Per-stage follow-on configurations
+- `pacingPeriodSchema` - Time-based deployment with date ranges
+- Cross-field validation (totals sum to 100%, no overlaps, reserve constraints)
+
+### Tests
+- ✅ 25+ calculation tests passing (`capital-allocation-calculations.test.ts`)
+- ✅ Integration tests for wizard step
+- ✅ 584 total tests passing (no regressions)
+- ✅ All TypeScript checks passing
+
+### Files Created (16 total)
+1. `client/src/components/modeling-wizard/steps/capital-allocation/InitialInvestmentSection.tsx`
+2. `client/src/components/modeling-wizard/steps/capital-allocation/FollowOnStrategyTable.tsx`
+3. `client/src/components/modeling-wizard/steps/capital-allocation/PacingHorizonBuilder.tsx`
+4. `client/src/components/modeling-wizard/steps/capital-allocation/CalculationSummaryCard.tsx`
+5. `client/src/components/modeling-wizard/steps/capital-allocation/AllocationsTable.tsx`
+6. `client/src/components/modeling-wizard/steps/capital-allocation/CapitalHeader.tsx`
+7. `client/src/components/modeling-wizard/steps/capital-allocation/CompanyDialog.tsx`
+8. `client/src/components/modeling-wizard/steps/capital-allocation/PortfolioConfigForm.tsx`
+9. `client/src/components/modeling-wizard/steps/capital-allocation/PortfolioSummary.tsx`
+10. `client/src/components/modeling-wizard/steps/capital-allocation/PortfolioTable.tsx`
+11. `client/src/components/modeling-wizard/steps/capital-allocation/ReserveMetricsDisplay.tsx`
+12. `client/src/components/modeling-wizard/steps/capital-allocation/ValidationDisplay.tsx`
+13. `client/src/components/modeling-wizard/steps/capital-allocation/index.ts`
+14. `client/src/components/modeling-wizard/steps/capital-allocation/README.md`
+15. `client/src/lib/capital-allocation-calculations.ts`
+16. `client/src/lib/__tests__/capital-allocation-calculations.test.ts`
+17. `client/src/hooks/useCapitalAllocationCalculations.ts`
+
+### Files Modified (2 total)
+1. `client/src/schemas/modeling-wizard.schemas.ts` - Added capital allocation schemas
+2. `client/src/components/modeling-wizard/steps/index.ts` - Export CapitalAllocationStep
+
+---
+
 ## [Unreleased] – 2025‑10‑06
 
 ### Added

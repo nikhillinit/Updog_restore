@@ -1,6 +1,8 @@
 /**
  * Capital Allocation Step
- * Step 3: Initial checks, follow-on strategy, pacing
+ *
+ * Step 3: Initial investment strategy, follow-on allocations, and pacing schedule.
+ * Integrates with calculation engines to model capital deployment across portfolio.
  */
 
 import React from 'react';
@@ -8,154 +10,222 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { capitalAllocationSchema, type CapitalAllocationInput } from '@/schemas/modeling-wizard.schemas';
+import {
+  capitalAllocationSchema,
+  type CapitalAllocationInput,
+  type FundFinancialsOutput,
+  type SectorProfile
+} from '@/schemas/modeling-wizard.schemas';
+import { useCapitalAllocationCalculations } from '@/hooks/useCapitalAllocationCalculations';
+import { InitialInvestmentSection } from './capital-allocation/InitialInvestmentSection';
+import { FollowOnStrategyTable } from './capital-allocation/FollowOnStrategyTable';
+import { PacingHorizonBuilder } from './capital-allocation/PacingHorizonBuilder';
+import { CalculationSummaryCard } from './capital-allocation/CalculationSummaryCard';
+import { generateDefaultPacingPeriods } from '@/lib/capital-allocation-calculations';
+
+// ============================================================================
+// COMPONENT PROPS
+// ============================================================================
 
 export interface CapitalAllocationStepProps {
   initialData?: Partial<CapitalAllocationInput>;
   onSave: (data: CapitalAllocationInput) => void;
+  fundFinancials: FundFinancialsOutput;
+  sectorProfiles: SectorProfile[];
 }
 
-export function CapitalAllocationStep({ initialData, onSave }: CapitalAllocationStepProps) {
+// ============================================================================
+// DEFAULT VALUES
+// ============================================================================
+
+const DEFAULT_CAPITAL_ALLOCATION: Partial<CapitalAllocationInput> = {
+  entryStrategy: 'amount-based',
+  initialCheckSize: 1.0,
+  followOnStrategy: {
+    reserveRatio: 0.5,
+    stageAllocations: []
+  },
+  pacingModel: {
+    investmentsPerYear: 10,
+    deploymentCurve: 'linear'
+  },
+  pacingHorizon: []
+};
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
+export function CapitalAllocationStep({
+  initialData,
+  onSave,
+  fundFinancials,
+  sectorProfiles
+}: CapitalAllocationStepProps) {
+  // Form setup
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    control,
     formState: { errors }
   } = useForm<CapitalAllocationInput>({
     resolver: zodResolver(capitalAllocationSchema),
-    defaultValues: initialData || {
-      followOnStrategy: {
-        reserveRatio: 0.5,
-        followOnChecks: { A: 0, B: 0, C: 0 }
-      },
-      pacingModel: {
-        investmentsPerYear: 10,
-        deploymentCurve: 'linear'
-      }
+    defaultValues: {
+      ...DEFAULT_CAPITAL_ALLOCATION,
+      ...initialData,
+      // Initialize pacing horizon if not provided
+      pacingHorizon:
+        initialData?.pacingHorizon ||
+        generateDefaultPacingPeriods(fundFinancials.investmentPeriod, 'linear')
     }
   });
 
+  // Watch all form values for calculations
+  const formValues = watch();
+  const entryStrategy = watch('entryStrategy') || 'amount-based';
+  const reserveRatio = watch('followOnStrategy.reserveRatio');
+
+  // Calculate all metrics in real-time
+  const { calculations, validation } = useCapitalAllocationCalculations({
+    formValues,
+    fundFinancials,
+    sectorProfiles,
+    vintageYear: new Date().getFullYear()
+  });
+
+  // Auto-save effect
   React.useEffect(() => {
-    const subscription = watch((value) => {
-      capitalAllocationSchema.safeParse(value).success && onSave(value as CapitalAllocationInput);
+    const subscription = watch(value => {
+      const result = capitalAllocationSchema.safeParse(value);
+      if (result.success) {
+        onSave(result.data);
+      }
     });
     return () => subscription.unsubscribe();
   }, [watch, onSave]);
 
   return (
     <form onSubmit={handleSubmit(onSave)} className="space-y-8">
-      <div className="space-y-6">
-        <h3 className="font-inter font-bold text-lg text-pov-charcoal">Initial Investment</h3>
-        <div>
-          <Label htmlFor="initialCheckSize" className="font-poppins">
-            Initial Check Size ($M) *
-          </Label>
-          <Input
-            id="initialCheckSize"
-            type="number"
-            step="0.1"
-            {...register('initialCheckSize', { valueAsNumber: true })}
-            placeholder="e.g., 1.0"
-            className="mt-2"
-          />
-          {errors.initialCheckSize && (
-            <p className="text-sm text-error mt-1">{errors.initialCheckSize.message}</p>
-          )}
-        </div>
+      {/* Section A: Initial Investment Strategy */}
+      <div className="bg-charcoal-50 rounded-lg p-6">
+        <InitialInvestmentSection
+          control={control}
+          register={register}
+          calculations={calculations}
+          errors={errors}
+          entryStrategy={entryStrategy}
+        />
       </div>
 
-      <div className="space-y-6 pt-6 border-t border-charcoal-200">
-        <h3 className="font-inter font-bold text-lg text-pov-charcoal">Follow-On Strategy</h3>
-
-        <div>
-          <Label htmlFor="reserveRatio" className="font-poppins">
-            Reserve Ratio (0-1) *
-          </Label>
-          <Input
-            id="reserveRatio"
-            type="number"
-            step="0.01"
-            {...register('followOnStrategy.reserveRatio', { valueAsNumber: true })}
-            placeholder="e.g., 0.5"
-            className="mt-2"
-          />
-          {errors.followOnStrategy?.reserveRatio && (
-            <p className="text-sm text-error mt-1">{errors.followOnStrategy.reserveRatio.message}</p>
-          )}
-        </div>
-
-        <div className="grid grid-cols-3 gap-4">
+      {/* Reserve Ratio Configuration */}
+      <div className="bg-charcoal-50 rounded-lg p-6">
+        <div className="space-y-4">
+          <h3 className="font-inter font-bold text-lg text-pov-charcoal">
+            Reserve Strategy
+          </h3>
           <div>
-            <Label htmlFor="checkA" className="font-poppins">Check A ($M)</Label>
+            <div className="flex justify-between items-center mb-3">
+              <Label htmlFor="reserveRatio" className="font-poppins text-charcoal-700">
+                Reserve Ratio (% of fund for follow-ons) *
+              </Label>
+              <span className="font-inter font-bold text-pov-charcoal">
+                {(reserveRatio * 100).toFixed(0)}%
+              </span>
+            </div>
             <Input
-              id="checkA"
-              type="number"
-              step="0.1"
-              {...register('followOnStrategy.followOnChecks.A', { valueAsNumber: true })}
-              className="mt-2"
+              id="reserveRatio"
+              type="range"
+              min="30"
+              max="70"
+              step="5"
+              value={reserveRatio * 100}
+              onChange={e =>
+                setValue(
+                  'followOnStrategy.reserveRatio',
+                  parseFloat(e.target.value) / 100
+                )
+              }
+              className="w-full"
             />
-          </div>
-          <div>
-            <Label htmlFor="checkB" className="font-poppins">Check B ($M)</Label>
-            <Input
-              id="checkB"
-              type="number"
-              step="0.1"
-              {...register('followOnStrategy.followOnChecks.B', { valueAsNumber: true })}
-              className="mt-2"
-            />
-          </div>
-          <div>
-            <Label htmlFor="checkC" className="font-poppins">Check C ($M)</Label>
-            <Input
-              id="checkC"
-              type="number"
-              step="0.1"
-              {...register('followOnStrategy.followOnChecks.C', { valueAsNumber: true })}
-              className="mt-2"
-            />
+            {errors.followOnStrategy?.reserveRatio && (
+              <p className="text-sm text-error mt-1">
+                {errors.followOnStrategy.reserveRatio.message}
+              </p>
+            )}
+            <div className="flex justify-between text-xs text-charcoal-600 font-poppins mt-1">
+              <span>30% (Conservative)</span>
+              <span>50% (Balanced)</span>
+              <span>70% (Aggressive)</span>
+            </div>
+            <div className="mt-2 text-sm font-poppins text-charcoal-700">
+              Available reserves: ${(fundFinancials.fundSize * reserveRatio).toFixed(1)}M
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="space-y-6 pt-6 border-t border-charcoal-200">
-        <h3 className="font-inter font-bold text-lg text-pov-charcoal">Pacing Model</h3>
+      {/* Section B: Follow-On Strategy Table */}
+      <div className="bg-charcoal-50 rounded-lg p-6">
+        <FollowOnStrategyTable
+          sectorProfiles={sectorProfiles}
+          stageAllocations={formValues.followOnStrategy.stageAllocations}
+          calculations={calculations.followOnAllocations}
+          onChange={allocations =>
+            setValue('followOnStrategy.stageAllocations', allocations)
+          }
+          errors={errors.followOnStrategy}
+        />
+      </div>
 
-        <div className="grid grid-cols-2 gap-4">
+      {/* Investments Per Year */}
+      <div className="bg-charcoal-50 rounded-lg p-6">
+        <div className="space-y-4">
+          <h3 className="font-inter font-bold text-lg text-pov-charcoal">
+            Pacing Model
+          </h3>
           <div>
-            <Label htmlFor="investmentsPerYear" className="font-poppins">
+            <Label htmlFor="investmentsPerYear" className="font-poppins text-charcoal-700">
               Investments Per Year *
             </Label>
             <Input
               id="investmentsPerYear"
               type="number"
+              min="1"
+              max="50"
               {...register('pacingModel.investmentsPerYear', { valueAsNumber: true })}
               className="mt-2"
             />
-          </div>
-
-          <div>
-            <Label htmlFor="deploymentCurve" className="font-poppins">
-              Deployment Curve *
-            </Label>
-            <Select
-              defaultValue={initialData?.pacingModel?.deploymentCurve || 'linear'}
-              onValueChange={(value) => setValue('pacingModel.deploymentCurve', value as any)}
-            >
-              <SelectTrigger className="mt-2">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="linear">Linear</SelectItem>
-                <SelectItem value="front-loaded">Front-Loaded</SelectItem>
-                <SelectItem value="back-loaded">Back-Loaded</SelectItem>
-              </SelectContent>
-            </Select>
+            {errors.pacingModel?.investmentsPerYear && (
+              <p className="text-sm text-error mt-1">
+                {errors.pacingModel.investmentsPerYear.message}
+              </p>
+            )}
+            <p className="text-xs text-charcoal-600 mt-1 font-poppins">
+              Number of new portfolio companies to invest in each year during the{' '}
+              {fundFinancials.investmentPeriod}-year investment period
+            </p>
           </div>
         </div>
       </div>
+
+      {/* Section C: Pacing Horizon */}
+      <div className="bg-charcoal-50 rounded-lg p-6">
+        <PacingHorizonBuilder
+          periods={formValues.pacingHorizon}
+          fundFinancials={fundFinancials}
+          onChange={periods => setValue('pacingHorizon', periods)}
+          errors={errors.pacingHorizon as any}
+        />
+      </div>
+
+      {/* Section D: Calculation Summary */}
+      <CalculationSummaryCard
+        calculations={calculations}
+        validation={validation}
+        fundSize={fundFinancials.fundSize}
+      />
     </form>
   );
 }

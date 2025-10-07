@@ -1,0 +1,10 @@
+# Exclude sidecar workspace from Vercel deployments
+# The sidecar is for Windows development only and not needed on Linux CI
+tools_local/
+
+# Exclude development-only directories
+.vscode/
+.idea/
+*.log
+coverage/
+.nyc_output/

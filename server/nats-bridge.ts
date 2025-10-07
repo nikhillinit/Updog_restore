@@ -3,9 +3,10 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { connect, NatsConnection, StringCodec } from 'nats';
+import type { NatsConnection} from 'nats';
+import { connect, StringCodec } from 'nats';
 import { WebSocketServer } from 'ws';
-import { Server as HttpServer } from 'http';
+import type { Server as HttpServer } from 'http';
 import { logger } from './logger';
 import { z } from 'zod';
 import crypto from 'crypto';

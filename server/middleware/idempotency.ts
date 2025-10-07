@@ -2,7 +2,7 @@
  * Idempotency Middleware
  * Ensures exactly-once processing for critical operations
  */
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { redis as redisClient } from '../db/redis-circuit';
 

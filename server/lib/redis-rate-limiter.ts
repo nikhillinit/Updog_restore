@@ -3,7 +3,8 @@
  * Provides consistent rate limiting across multiple server instances
  */
 
-import { createClient, RedisClientType } from 'redis';
+import type { RedisClientType } from 'redis';
+import { createClient } from 'redis';
 
 export interface RateLimitResult {
   allowed: boolean;

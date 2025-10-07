@@ -1,6 +1,8 @@
 /**
  * Exit Recycling Step
- * Step 5: Optional recycling configuration
+ *
+ * Step 5: Configure exit recycling policy to extend fund deployment capacity.
+ * Allows recycling of exit proceeds back into new investments within policy limits.
  */
 
 import React from 'react';
@@ -9,16 +11,46 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
-import { exitRecyclingSchema, type ExitRecyclingInput } from '@/schemas/modeling-wizard.schemas';
+import {
+  exitRecyclingSchema,
+  type ExitRecyclingInput,
+  type FundFinancialsOutput
+} from '@/schemas/modeling-wizard.schemas';
+import { useExitRecyclingCalculations } from '@/hooks/useExitRecyclingCalculations';
+import { RecyclingSummaryCard } from './exit-recycling/RecyclingSummaryCard';
+
+// ============================================================================
+// COMPONENT PROPS
+// ============================================================================
 
 export interface ExitRecyclingStepProps {
   initialData?: Partial<ExitRecyclingInput>;
   onSave: (data: ExitRecyclingInput) => void;
+  fundFinancials: FundFinancialsOutput;
 }
 
-export function ExitRecyclingStep({ initialData, onSave }: ExitRecyclingStepProps) {
+// ============================================================================
+// DEFAULT VALUES
+// ============================================================================
+
+const DEFAULT_EXIT_RECYCLING: Partial<ExitRecyclingInput> = {
+  enabled: false,
+  recyclingCap: 15, // 15% typical
+  recyclingPeriod: 5, // 5 years typical
+  exitRecyclingRate: 75, // 75% of exit proceeds
+  mgmtFeeRecyclingRate: 0 // Uncommon, default off
+};
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
+export function ExitRecyclingStep({
+  initialData,
+  onSave,
+  fundFinancials
+}: ExitRecyclingStepProps) {
+  // Form setup
   const {
     register,
     handleSubmit,
@@ -27,127 +59,226 @@ export function ExitRecyclingStep({ initialData, onSave }: ExitRecyclingStepProp
     formState: { errors }
   } = useForm<ExitRecyclingInput>({
     resolver: zodResolver(exitRecyclingSchema),
-    defaultValues: initialData || {
-      enabled: false
+    defaultValues: {
+      ...DEFAULT_EXIT_RECYCLING,
+      ...initialData
     }
   });
 
-  const enabled = watch('enabled');
+  // Watch all form values for calculations
+  const formValues = watch();
+  const enabled = watch('enabled') || false;
+  const recyclingCap = watch('recyclingCap') || 15;
+  const exitRecyclingRate = watch('exitRecyclingRate') || 75;
 
+  // Calculate all metrics in real-time
+  const { calculations, validation } = useExitRecyclingCalculations({
+    formValues,
+    fundSize: fundFinancials.fundSize
+  });
+
+  // Auto-save effect
   React.useEffect(() => {
-    const subscription = watch((value) => {
-      exitRecyclingSchema.safeParse(value).success && onSave(value as ExitRecyclingInput);
+    const subscription = watch(value => {
+      const result = exitRecyclingSchema.safeParse(value);
+      if (result.success) {
+        onSave(result.data);
+      }
     });
     return () => subscription.unsubscribe();
   }, [watch, onSave]);
 
   return (
     <form onSubmit={handleSubmit(onSave)} className="space-y-8">
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertDescription className="font-poppins">
-          Exit recycling allows you to reinvest distributions from exits back into the fund.
-          This step is optional and can be skipped if not applicable.
-        </AlertDescription>
-      </Alert>
-
-      <div className="space-y-6">
-        <div className="flex items-center space-x-3 p-4 bg-charcoal-50 rounded-lg">
-          <Switch
-            id="enabled"
-            checked={enabled}
-            onCheckedChange={(checked) => setValue('enabled', checked)}
-          />
-          <Label htmlFor="enabled" className="cursor-pointer font-poppins font-medium">
-            Enable Exit Recycling
-          </Label>
-        </div>
-
-        {enabled && (
-          <div className="space-y-6 pt-4">
-            <h3 className="font-inter font-bold text-lg text-pov-charcoal">
-              Recycling Configuration
+      {/* Section A: Enable/Disable Toggle */}
+      <div className="bg-charcoal-50 rounded-lg p-6">
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-inter font-bold text-lg text-pov-charcoal mb-2">
+              Exit Recycling
             </h3>
+            <p className="text-sm text-charcoal-700 font-poppins mb-4">
+              Exit recycling allows you to reinvest proceeds from early exits back into new
+              portfolio companies, extending your fund's deployment capacity within policy limits.
+            </p>
+          </div>
 
-            <div className="grid grid-cols-2 gap-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="enabled" className="font-poppins text-charcoal-700">
+                Enable Exit Recycling
+              </Label>
+              <p className="text-xs text-charcoal-600 font-poppins">
+                Allows recycling of exit proceeds during the recycling period
+              </p>
+            </div>
+            <Switch
+              id="enabled"
+              checked={enabled}
+              onCheckedChange={value => setValue('enabled', value)}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Sections B-D: Configuration (only shown when enabled) */}
+      {enabled && (
+        <>
+          {/* Section B: Recycling Configuration */}
+          <div className="bg-charcoal-50 rounded-lg p-6">
+            <div className="space-y-4">
+              <h3 className="font-inter font-bold text-lg text-pov-charcoal">
+                Recycling Policy
+              </h3>
+
+              {/* Recycling Cap */}
               <div>
-                <Label htmlFor="recyclingCap" className="font-poppins">
-                  Recycling Cap (%) *
-                </Label>
+                <div className="flex justify-between items-center mb-3">
+                  <Label htmlFor="recyclingCap" className="font-poppins text-charcoal-700">
+                    Recycling Cap (% of committed capital) *
+                  </Label>
+                  <span className="font-inter font-bold text-pov-charcoal">
+                    {recyclingCap.toFixed(0)}%
+                  </span>
+                </div>
                 <Input
                   id="recyclingCap"
-                  type="number"
-                  step="0.1"
-                  {...register('recyclingCap', { valueAsNumber: true })}
-                  placeholder="e.g., 20"
-                  className="mt-2"
+                  type="range"
+                  min="5"
+                  max="25"
+                  step="1"
+                  value={recyclingCap}
+                  onChange={e => setValue('recyclingCap', parseFloat(e.target.value))}
+                  className="w-full"
                 />
                 {errors.recyclingCap && (
                   <p className="text-sm text-error mt-1">{errors.recyclingCap.message}</p>
                 )}
-                <p className="text-xs text-charcoal-500 mt-1">
-                  Maximum % of fund size that can be recycled
-                </p>
+                <div className="flex justify-between text-xs text-charcoal-600 font-poppins mt-1">
+                  <span>5% (Conservative)</span>
+                  <span>15% (Typical)</span>
+                  <span>25% (Aggressive)</span>
+                </div>
+                <div className="mt-2 text-sm font-poppins text-charcoal-700">
+                  Maximum recyclable: $
+                  {((fundFinancials.fundSize * recyclingCap) / 100).toFixed(1)}M
+                </div>
               </div>
 
+              {/* Recycling Period */}
               <div>
-                <Label htmlFor="recyclingPeriod" className="font-poppins">
+                <Label htmlFor="recyclingPeriod" className="font-poppins text-charcoal-700">
                   Recycling Period (years) *
                 </Label>
                 <Input
                   id="recyclingPeriod"
                   type="number"
+                  min="1"
+                  max="10"
+                  step="1"
                   {...register('recyclingPeriod', { valueAsNumber: true })}
-                  placeholder="e.g., 5"
                   className="mt-2"
                 />
                 {errors.recyclingPeriod && (
                   <p className="text-sm text-error mt-1">{errors.recyclingPeriod.message}</p>
                 )}
-                <p className="text-xs text-charcoal-500 mt-1">
-                  Years during which recycling is allowed
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="exitRecyclingRate" className="font-poppins">
-                  Exit Recycling Rate (%)
-                </Label>
-                <Input
-                  id="exitRecyclingRate"
-                  type="number"
-                  step="0.1"
-                  {...register('exitRecyclingRate', { valueAsNumber: true })}
-                  placeholder="e.g., 100"
-                  className="mt-2"
-                />
-                <p className="text-xs text-charcoal-500 mt-1">
-                  % of exit proceeds to recycle
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="mgmtFeeRecyclingRate" className="font-poppins">
-                  Mgmt Fee Recycling Rate (%)
-                </Label>
-                <Input
-                  id="mgmtFeeRecyclingRate"
-                  type="number"
-                  step="0.1"
-                  {...register('mgmtFeeRecyclingRate', { valueAsNumber: true })}
-                  placeholder="e.g., 0"
-                  className="mt-2"
-                />
-                <p className="text-xs text-charcoal-500 mt-1">
-                  % of management fees to recycle
+                <p className="text-xs text-charcoal-600 mt-1 font-poppins">
+                  Only exits within this period are eligible for recycling. Typical: 3-7 years.
                 </p>
               </div>
             </div>
           </div>
-        )}
-      </div>
+
+          {/* Section C: Recycling Rates */}
+          <div className="bg-charcoal-50 rounded-lg p-6">
+            <div className="space-y-4">
+              <h3 className="font-inter font-bold text-lg text-pov-charcoal">
+                Recycling Rates
+              </h3>
+
+              {/* Exit Recycling Rate */}
+              <div>
+                <div className="flex justify-between items-center mb-3">
+                  <Label htmlFor="exitRecyclingRate" className="font-poppins text-charcoal-700">
+                    Exit Recycling Rate (% of exit proceeds) *
+                  </Label>
+                  <span className="font-inter font-bold text-pov-charcoal">
+                    {exitRecyclingRate.toFixed(0)}%
+                  </span>
+                </div>
+                <Input
+                  id="exitRecyclingRate"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={exitRecyclingRate}
+                  onChange={e => setValue('exitRecyclingRate', parseFloat(e.target.value))}
+                  className="w-full"
+                />
+                {errors.exitRecyclingRate && (
+                  <p className="text-sm text-error mt-1">{errors.exitRecyclingRate.message}</p>
+                )}
+                <div className="flex justify-between text-xs text-charcoal-600 font-poppins mt-1">
+                  <span>0% (None)</span>
+                  <span>50% (Moderate)</span>
+                  <span>75% (Typical)</span>
+                  <span>100% (Maximum)</span>
+                </div>
+                <p className="text-xs text-charcoal-600 mt-2 font-poppins">
+                  Percentage of exit proceeds to recycle back into new investments. Remaining
+                  proceeds are distributed to LPs.
+                </p>
+              </div>
+
+              {/* Management Fee Recycling Rate (Optional/Advanced) */}
+              <div>
+                <Label
+                  htmlFor="mgmtFeeRecyclingRate"
+                  className="font-poppins text-charcoal-700"
+                >
+                  Management Fee Recycling Rate (% of fees) - Optional
+                </Label>
+                <Input
+                  id="mgmtFeeRecyclingRate"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="5"
+                  {...register('mgmtFeeRecyclingRate', { valueAsNumber: true })}
+                  className="mt-2"
+                  placeholder="0"
+                />
+                {errors.mgmtFeeRecyclingRate && (
+                  <p className="text-sm text-error mt-1">
+                    {errors.mgmtFeeRecyclingRate.message}
+                  </p>
+                )}
+                <p className="text-xs text-charcoal-600 mt-1 font-poppins">
+                  Uncommon provision. Allows recycling unused management fees. Typically 0%.
+                  Requires specific LPA provisions.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Section D: Summary */}
+          <RecyclingSummaryCard
+            calculations={calculations}
+            validation={validation}
+            fundSize={fundFinancials.fundSize}
+          />
+        </>
+      )}
+
+      {/* Summary when disabled */}
+      {!enabled && (
+        <RecyclingSummaryCard
+          calculations={calculations}
+          validation={validation}
+          fundSize={fundFinancials.fundSize}
+        />
+      )}
     </form>
   );
 }

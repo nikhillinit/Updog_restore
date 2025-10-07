@@ -10,7 +10,8 @@
  * - Touch-optimized spacing and targets
  */
 
-import React, { useState, useEffect, useRef, ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
 // Breakpoint definitions aligned with Tailwind CSS

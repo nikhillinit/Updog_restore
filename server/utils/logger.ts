@@ -13,7 +13,7 @@
 import winston from 'winston';
 import path from 'path';
 import fs from 'fs';
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 
 // Ensure logs directory exists
 const logsDir = path.join(process.cwd(), 'logs');

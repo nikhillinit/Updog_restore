@@ -8,9 +8,8 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Eye, Clock, AlertCircle, CheckCircle } from 'lucide-react';
-import { ShareConfig, ShareAnalytics } from '@shared/sharing-schema';
+import type { ShareConfig, ShareAnalytics } from '@shared/sharing-schema';
 
 // Mock hook for shared dashboard data - replace with actual API
 const useSharedDashboard = (shareId: string, passkey?: string) => {

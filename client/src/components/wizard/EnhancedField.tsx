@@ -16,7 +16,7 @@
  */
 
 import React, { useEffect, useId, useState } from 'react';
-import { parseUSDStrict, formatUSD, formatPct } from '@/lib/formatting';
+import { parseUSDStrict, formatUSD } from '@/lib/formatting';
 import { cn } from '@/lib/utils';
 
 type Format = 'usd' | 'percent' | 'number' | 'date' | 'select';

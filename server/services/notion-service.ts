@@ -6,14 +6,14 @@
 import { Client } from '@notionhq/client';
 import { APIResponseError } from '@notionhq/client';
 import crypto from 'crypto';
-import {
+import type {
   NotionWorkspaceConnection,
   NotionDatabaseMapping,
   NotionSyncJob,
   NotionPage,
   NotionDatabase,
-  NotionExtractedContent,
-  PortfolioCompanyNotionConfig,
+  PortfolioCompanyNotionConfig} from '@shared/notion-schema';
+import {
   extractPlainText,
   parseNotionNumber,
   parseNotionDate,

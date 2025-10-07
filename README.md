@@ -10,6 +10,17 @@ This repository contains the POVC Fund-Modeling Platform, a sophisticated applic
 * Interactive Monte-Carlo risk engine for real-time exploration.
 * Construction vs. Current variance tracking to surface strategy drift.
 
+### Core Features
+
+**7-Step Fund Modeling Wizard:**
+1. ✅ **Fund Financials** - Capital structure, expenses, and capital call schedules
+2. ✅ **Sector Profiles** - Investment stage cohorts with graduation and exit rates
+3. ✅ **Capital Allocations** - Initial investment strategy, follow-on allocations, and pacing
+4. 🚧 **Fees & Expenses** - Management fee structures and operating expenses
+5. 🚧 **Exit & Recycling** - Exit strategy and capital recycling policies
+6. 🚧 **Waterfall** - Distribution waterfall configuration (American/European/Hybrid)
+7. 🚧 **Scenarios** - Scenario planning and variance analysis
+
 ## Performance Status
 
 [![Guardian](https://github.com/nikhillinit/Updog_restore/actions/workflows/guardian.yml/badge.svg)](https://github.com/nikhillinit/Updog_restore/actions/workflows/guardian.yml)

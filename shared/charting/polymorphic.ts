@@ -3,11 +3,12 @@
  * Eliminates the need for @ts-expect-error comments around polymorphic components
  */
 
-import {
+import type {
   ComponentPropsWithoutRef,
   ElementType,
   ForwardedRef,
-  ReactNode,
+  ReactNode} from 'react';
+import {
   forwardRef
 } from 'react';
 

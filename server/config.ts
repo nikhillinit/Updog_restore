@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import 'dotenv/config';
-import { assertSecureURL, validateCORSOrigins } from './lib/url-security.js';
+import { assertSecureURL } from './lib/url-security.js';
 
 const bool = z.string().transform(v => v === "1" || v?.toLowerCase() === "true").or(z.boolean());
 
