@@ -17,7 +17,7 @@ interface WaterfallConfigProps {
   waterfall: Waterfall;
   errors: FieldErrors<Waterfall>;
   onTypeChange: (type: Waterfall['type']) => void;
-  onFieldChange: <K extends keyof Waterfall>(field: K, value: Waterfall[K]) => void;
+  onFieldChange: (field: string, value: unknown) => void;
 }
 
 export function WaterfallConfig({
@@ -101,7 +101,7 @@ export function WaterfallConfig({
                     max="100"
                     step="0.5"
                     value={isEuropeanWaterfall && 'hurdle' in waterfall ? waterfall.hurdle * 100 : 8}
-                    onChange={(e) => onFieldChange('hurdle' as keyof Waterfall, parseFloat(e.target.value) / 100)}
+                    onChange={(e) => onFieldChange('hurdle', parseFloat(e.target.value) / 100)}
                     placeholder="e.g., 8"
                     className="flex-1"
                   />
@@ -127,7 +127,7 @@ export function WaterfallConfig({
                     max="100"
                     step="1"
                     value={isEuropeanWaterfall && 'catchUp' in waterfall ? waterfall.catchUp * 100 : 100}
-                    onChange={(e) => onFieldChange('catchUp' as keyof Waterfall, parseFloat(e.target.value) / 100)}
+                    onChange={(e) => onFieldChange('catchUp', parseFloat(e.target.value) / 100)}
                     placeholder="e.g., 100"
                     className="flex-1"
                   />

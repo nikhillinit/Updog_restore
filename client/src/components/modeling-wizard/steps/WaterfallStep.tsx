@@ -63,15 +63,18 @@ export function WaterfallStep({ initialData, onSave }: WaterfallStepProps) {
    * Handle field updates with validation and clamping
    * Uses existing helper for type-safe updates
    */
-  const handleFieldChange = React.useCallback(<K extends keyof Waterfall>(
-    field: K,
-    value: Waterfall[K]
+  const handleFieldChange = React.useCallback((
+    field: string,
+    value: unknown
   ) => {
-    const updated = applyWaterfallChange(waterfall, field as string, value);
+    const updated = applyWaterfallChange(waterfall, field, value);
 
     // Only update if value changed (performance optimization)
     if (updated !== waterfall) {
-      setValue(field, updated[field], { shouldValidate: true });
+      // Use type assertion since we know the structure is valid
+      Object.keys(updated).forEach((key) => {
+        setValue(key as 'type' | 'carryVesting', (updated as any)[key], { shouldValidate: true });
+      });
     }
   }, [waterfall, setValue]);
 
