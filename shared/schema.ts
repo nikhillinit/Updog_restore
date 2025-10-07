@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, decimal, timestamp, jsonb, varchar, index, unique, uuid, date, pgEnum, uniqueIndex, bigint } from "drizzle-orm/pg-core";
+import { bigint, boolean, date, decimal, index, integer, jsonb, pgEnum, pgTable, serial, text, timestamp, unique, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
 export const funds = pgTable("funds", {
@@ -9,6 +9,7 @@ export const funds = pgTable("funds", {
   managementFee: decimal("management_fee", { precision: 5, scale: 4 }).notNull(),
   carryPercentage: decimal("carry_percentage", { precision: 5, scale: 4 }).notNull(),
   vintageYear: integer("vintage_year").notNull(),
+  establishmentDate: date("establishment_date"),
   status: text("status").notNull().default("active"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
@@ -71,7 +72,9 @@ export const portfolioCompanies = pgTable("portfoliocompanies", {
   name: text("name").notNull(),
   sector: text("sector").notNull(),
   stage: text("stage").notNull(),
+  currentStage: text("current_stage"),
   investmentAmount: decimal("investment_amount", { precision: 15, scale: 2 }).notNull(),
+  investmentDate: timestamp("investment_date"),
   currentValuation: decimal("current_valuation", { precision: 15, scale: 2 }),
   foundedYear: integer("founded_year"),
   status: text("status").notNull().default("active"),
@@ -1519,4 +1522,3 @@ export type ScenarioComparison = typeof scenarioComparisons.$inferSelect;
 export type InsertScenarioComparison = typeof scenarioComparisons.$inferInsert;
 export type MonteCarloSimulation = typeof monteCarloSimulations.$inferSelect;
 export type InsertMonteCarloSimulation = typeof monteCarloSimulations.$inferInsert;
-
