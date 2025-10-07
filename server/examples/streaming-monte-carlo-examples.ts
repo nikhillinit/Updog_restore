@@ -57,7 +57,11 @@ export async function basicStreamingSimulation() {
     return result;
 
   } catch (error) {
-    console.error('❌ Simulation failed:', error.message);
+    if (error instanceof Error) {
+      console.error('❌ Simulation failed:', error.message);
+    } else {
+      console.error('❌ Simulation failed:', String(error));
+    }
     throw error;
   }
 }
@@ -478,10 +482,11 @@ export async function stressTest(fundId: number, startRuns: number = 1000, maxRu
       console.log(`  ✅ ${runs}: ${result.executionTimeMs}ms (${result.performance.engineUsed})`);
 
     } catch (error) {
-      console.log(`  ❌ ${runs}: Failed - ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.log(`  ❌ ${runs}: Failed - ${errorMessage}`);
       results.push({
         runs,
-        error: error.message
+        error: errorMessage
       });
     }
   }

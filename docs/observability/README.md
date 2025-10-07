@@ -6,26 +6,39 @@ This directory contains code reviews, metrics documentation, and observability g
 
 ## 📋 Code Reviews
 
-### PR #113 Review (2025-10-06)
+### PR #113 Review (2025-10-06) - Editorial v2
 
-**Status:** 🟡 Requires Changes
+**Status:** 🟡 Blocked pending fixes
 
 A comprehensive review of PR #113 which contains two separate features that need to be split:
 1. RS256 JWT Authentication (P0 security fix)
 2. Deterministic Fund Calculation Engine (new feature)
 
-**Quick Start:**
-- 📄 **[PR #113 Summary](./pr-113-summary.md)** - Start here for overview
-- 🔀 **[Split Instructions](./pr-113-split-instructions.md)** - How to split the PR
-- 🔒 **[Auth Review](./pr-113-auth-comment.md)** - Security fixes required
-- 📊 **[Fund Calc Review](./pr-113-fundcalc-comment.md)** - Feature improvements
-- 📖 **[Full Review](./pr-113-review.md)** - Complete technical analysis
+**Paste-Ready PR Comments (Editorial v2):**
+- 🔒 **[Auth Review](./auth-comment.md)** - Blocking security fixes (async errors, JWKS, verification)
+- 📊 **[Fund Calc Review](./fundcalc-comment.md)** - Required changes (inputs, reserves, tests)
+- 🔀 **[Split Plan](./split-plan-comment.md)** - How to split into two PRs
+
+**What Changed in v2:**
+- Clarified fee accrual is already periodized; added golden test recommendation
+- Removed brittle CI specifics; links to latest CI run instead
+- Softened tone to "Blocked pending fixes"
+- Added aud/iss exact-match guidance (trailing slash pitfalls)
+- Added `npm pkg set dependencies.jose="^5"` command
+- Enforced `alg` allowlist pre-check before verification
+- Added dual entry-point guidance (keep `jose` server-only)
+- Added clock-skew edge test (±300s) and CSV header stability test
+- Added follow-on reserve cap + structured warning guidance
 
 **Key Issues Identified:**
-- Async error handling in JWT middleware
-- JWKS cache invalidation missing
+- Async error handling in JWT middleware (Express 4 doesn't auto-catch)
+- Missing `alg` allowlist pre-check before verification
+- JWKS cache invalidation endpoint missing
 - Hard-coded fund start date and ownership percentages
-- Reserve pool allocation logic (per-stage vs pool-level)
+- Reserve pool allocation logic (per-stage vs pool-level double-counting)
+
+**Archive:**
+- [v1 documents](./archive/2025-10-06/) - Original review with detailed analysis
 
 ---
 
@@ -173,11 +186,16 @@ curl http://localhost:9090/api/v1/query?query=ai_agent_operations_total \
 docs/observability/
 ├── README.md                          # This file
 ├── ai-metrics.md                      # AI agent metrics guide
-├── pr-113-summary.md                  # PR #113 review summary
-├── pr-113-review.md                   # PR #113 full review
-├── pr-113-auth-comment.md            # Auth changes review
-├── pr-113-fundcalc-comment.md        # Fund calc changes review
-└── pr-113-split-instructions.md      # PR splitting guide
+├── auth-comment.md                    # PR #113 Auth review (v2, paste-ready)
+├── fundcalc-comment.md               # PR #113 Fund calc review (v2, paste-ready)
+├── split-plan-comment.md             # PR #113 Split instructions (v2, paste-ready)
+└── archive/
+    └── 2025-10-06/                    # v1 documents (detailed analysis)
+        ├── pr-113-review-v1.md
+        ├── pr-113-auth-comment-v1.md
+        ├── pr-113-fundcalc-comment-v1.md
+        ├── pr-113-split-instructions-v1.md
+        └── pr-113-summary-v1.md
 
 docs/
 ├── metrics-meanings.md                # Fund metrics reference

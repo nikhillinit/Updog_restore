@@ -382,7 +382,8 @@ export class ProductionMonitor {
       } catch (error) {
         results[component] = false;
         systemHealth.labels(component)['set'](0);
-        (logger as any).warn('Health check failed', { component, error: error.message });
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        (logger as any).warn('Health check failed', { component, error: errorMessage });
       }
     }
 

@@ -166,7 +166,7 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
             case 'AMERICAN':
               return null; // No financial terms for AMERICAN
             default:
-              return assertNever(data); // Exhaustiveness check
+              return assertNever(data.type); // Exhaustiveness check
           }
         })()}
       </div>

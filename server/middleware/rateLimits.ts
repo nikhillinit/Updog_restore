@@ -17,7 +17,8 @@ if (process.env['REDIS_URL'] && process.env['REDIS_URL'] !== 'memory://') {
     redisClient = new Redis(process.env['REDIS_URL']);
     console.log('[RateLimit] Connected to Redis for distributed rate limiting');
   } catch (error) {
-    console.warn('[RateLimit] Redis unavailable, falling back to memory store:', error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.warn('[RateLimit] Redis unavailable, falling back to memory store:', errorMessage);
   }
 } else if (process.env['REDIS_URL'] === 'memory://') {
   console.log('[RateLimit] Memory mode detected, using in-memory rate limiting');

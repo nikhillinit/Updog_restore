@@ -373,9 +373,10 @@ router.post('/calculate',
       //   }
       // );
 
+      const errorMessage = error instanceof Error ? error.message : String(error);
       (logger as any).error('Reserve calculation failed', {
         correlationId,
-        error: error.message,
+        error: errorMessage,
         duration,
         input: req.body ? {
           portfolioSize: req.body.portfolio?.length,
@@ -472,10 +473,11 @@ router.post('/validate-parity',
 
     } catch (error) {
       const duration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : String(error);
 
       (logger as any).error('Parity validation failed', {
         correlationId,
-        error: error.message,
+        error: errorMessage,
         duration,
       });
 

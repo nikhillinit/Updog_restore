@@ -38,7 +38,7 @@ const FundCalculationDTO = z.object({
 });
 type FundCalculationDTO = z.infer<typeof FundCalculationDTO>;
 
-router.post('/funds', idempotency, async (req: any, res: any) => {
+router.post('/funds', idempotency, async (req: Request, res: Response) => {
   const parsed = CreateFundSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400);
