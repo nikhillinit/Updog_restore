@@ -45,11 +45,11 @@ const logger = new Logger({ level: 'info', agent: 'conversation-memory' });
 
 // Configuration constants from environment
 const MAX_CONVERSATION_TURNS = parseInt(
-  process.env.MAX_CONVERSATION_TURNS || '50',
+  process.env['MAX_CONVERSATION_TURNS'] || '50',
   10
 );
 const CONVERSATION_TIMEOUT_HOURS = parseInt(
-  process.env.CONVERSATION_TIMEOUT_HOURS || '3',
+  process.env['CONVERSATION_TIMEOUT_HOURS'] || '3',
   10
 );
 const CONVERSATION_TIMEOUT_MS = CONVERSATION_TIMEOUT_HOURS * 3600 * 1000;
@@ -233,10 +233,10 @@ export async function createThread(
 
   // Filter out non-serializable parameters
   const filtered = { ...initialContext };
-  delete filtered.temperature;
-  delete filtered.thinking_mode;
-  delete filtered.model;
-  delete filtered.continuation_id;
+  delete filtered['temperature'];
+  delete filtered['thinking_mode'];
+  delete filtered['model'];
+  delete filtered['continuation_id'];
 
   const context: ThreadContext = {
     threadId,
