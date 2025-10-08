@@ -85,9 +85,9 @@ export interface WizardValidationState {
  * Default Values for Wizard
  */
 export const DEFAULT_FUND_BASICS: FundBasics = {
-  fundName: 'Untitled Fund',
+  fundName: '',
   establishmentDate: new Date().toISOString().split('T')[0], // Today's date
-  committedCapitalUSD: undefined, // Calculated from LP commitments
+  committedCapitalUSD: 0,
   gpCommitmentUSD: 0,
   managementFeeBasis: 'committed',
   mgmtFeeEarlyPct: 2.0,

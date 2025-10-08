@@ -25,9 +25,9 @@ export const zPct = z.number().min(0, 'Min 0%').max(100, 'Max 100%');
  */
 export const fundBasicsSchema = z
   .object({
-    fundName: z.string().optional().default('Untitled Fund'),
+    fundName: z.string().min(1, 'Fund name is required'),
     establishmentDate: z.string().optional().default(new Date().toISOString().split('T')[0]), // ISO date string, defaults to today
-    committedCapitalUSD: zUSD.optional(), // Can be calculated from LP commitments
+    committedCapitalUSD: zUSD, // Total capital committed by LPs
     gpCommitmentUSD: zUSD.default(0),
 
     /** Fee basis (committed is most common for preview) */
