@@ -1,19 +1,9 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig, mergeConfig } from 'vitest/config';
+import baseConfig from '../../vitest.config.base';
 
-export default defineConfig({
-  test: {
-    environment: 'node',
-    globals: true,
-    include: ['src/**/*.{test,spec}.ts'],
-    coverage: {
-      reporter: ['text', 'json', 'html'],
-      exclude: [
-        'node_modules/',
-        'dist/',
-        '**/*.d.ts',
-        '**/*.config.*',
-        '**/index.ts'
-      ]
-    }
-  }
-});
+export default mergeConfig(
+  baseConfig,
+  defineConfig({
+    // No overrides needed - using all base config defaults
+  })
+);

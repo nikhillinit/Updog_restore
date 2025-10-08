@@ -1,23 +1,18 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig, mergeConfig } from 'vitest/config';
+import path from 'path';
+import baseConfig from '../../vitest.config.base';
 
-export default defineConfig({
-  test: {
-    globals: true,
-    environment: 'node',
-    include: ['src/**/*.test.ts'],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: [
-        'node_modules/',
-        'dist/',
-        '**/*.test.ts',
-      ],
+export default mergeConfig(
+  baseConfig,
+  defineConfig({
+    test: {
+      // Override: include only .test.ts (not .spec.ts)
+      include: ['src/**/*.test.ts'],
     },
-  },
-  resolve: {
-    alias: {
-      '@povc/agent-core': '../agent-core/src',
+    resolve: {
+      alias: {
+        '@povc/agent-core': path.resolve(__dirname, '../agent-core/src'),
+      },
     },
-  },
-});
+  })
+);

@@ -52,20 +52,20 @@ export default function DynamicFundHeader() {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
-  // Sample metrics for demo (TODO: Remove once calculated-metrics API is stable)
+  // Default metrics for new fund (no investments yet)
   const sampleMetrics: FundMetrics = {
-    totalCommitted: currentFund?.size || 100000000,
-    totalInvested: 65000000,
-    totalValue: 187500000,
-    irr: 28.5,
-    moic: 2.88,
-    dpi: 0.85,
-    tvpi: 2.88,
-    activeInvestments: 23,
-    exited: 4,
-    avgCheckSize: 2800000,
-    deploymentRate: 65,
-    remainingCapital: 35000000
+    totalCommitted: currentFund?.size || 0,
+    totalInvested: 0,
+    totalValue: 0,
+    irr: 0,
+    moic: 0,
+    dpi: 0,
+    tvpi: 0,
+    activeInvestments: 0,
+    exited: 0,
+    avgCheckSize: 0,
+    deploymentRate: 0,
+    remainingCapital: currentFund?.size || 0
   };
 
   // Ensure all values are properly defined
