@@ -9,12 +9,11 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Pin npm version (CI)
-        run: |
-          corepack enable || true
-          npm install -g npm@10.9.2
-          npm --version
-          node --version
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
       - name: Smoke test
         run: |
