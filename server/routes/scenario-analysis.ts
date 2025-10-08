@@ -135,7 +135,7 @@ router.get('/funds/:fundId/portfolio-analysis',
         .where(eq(portfolioCompanies.fundId, fundId));
 
       // Transform to ComparisonRow format
-      const rows = results.map(company => ({
+      const rows = results.map((company: typeof results[number]) => ({
         entry_round: company.entry_round,
         construction_value: company.construction_investment || 0,
         actual_value: company.total_invested || 0,
@@ -206,7 +206,7 @@ router.get('/companies/:companyId/scenarios/:scenarioId',
       if (include.includes('rounds')) {
         rounds = await db.query.investmentRounds.findMany({
           where: eq(investmentRounds.companyId, companyId),
-          orderBy: (rounds, { asc }) => [asc(rounds.round_date)]
+          orderBy: (rounds: any, { asc }: any) => [asc(rounds.round_date)]
         });
       }
 
@@ -331,7 +331,7 @@ router.patch('/companies/:companyId/scenarios/:scenarioId',
       }
 
       // Delete existing cases and insert new ones (transaction)
-      await db.transaction(async (tx) => {
+      await db.transaction(async (tx: any) => {
         await tx.delete(scenarioCases)
           .where(eq(scenarioCases.scenarioId, scenarioId));
 

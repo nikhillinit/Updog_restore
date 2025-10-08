@@ -212,7 +212,7 @@ export class PortfolioPerformancePredictorService {
       }
     });
 
-    return companies.map(company => ({
+    return companies.map((company: any) => ({
       ...company,
       totalInvestment: company.investments?.reduce((sum: any, inv: any) =>
         sum + parseFloat(inv.amount.toString()), 0) || 0,

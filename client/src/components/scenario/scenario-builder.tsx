@@ -182,6 +182,8 @@ export default function ScenarioBuilder() {
     if (!newScenarioName.trim()) return;
     
     const baseScenario = scenarios.find(s => s.id === selectedScenario) || scenarios[0];
+    if (!baseScenario) return;
+
     const newScenario: Scenario = {
       id: `custom-${Date.now()}`,
       name: newScenarioName,

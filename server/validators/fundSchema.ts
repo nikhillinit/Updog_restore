@@ -28,7 +28,7 @@ export const fundSchema = CompleteFundSetupSchema
   .refine(
     (data: any) => {
       // Validation Rule: Each stage graduation + exit ≤ 100%
-      return data.investmentStrategy.stages.every(stage => 
+      return data.investmentStrategy.stages.every((stage: any) => 
         (stage.graduationRate + stage.exitRate) <= 100
       );
     },
@@ -116,7 +116,7 @@ export const investmentStrategySchema = InvestmentStrategySchema
   )
   .refine(
     (data: any) => {
-      return data.stages.every(stage => (stage.graduationRate + stage.exitRate) <= 100);
+      return data.stages.every((stage: any) => (stage.graduationRate + stage.exitRate) <= 100);
     },
     {
       message: "For each stage, graduation rate + exit rate cannot exceed 100%",

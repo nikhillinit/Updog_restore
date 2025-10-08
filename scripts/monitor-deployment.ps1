@@ -28,10 +28,10 @@ function Get-ErrorScore {
       $telemetryData = Get-Content $TelemetrySource -ErrorAction SilentlyContinue | ConvertFrom-Json -ErrorAction SilentlyContinue
       if ($telemetryData) {
         $score = 0
-        foreach ($event in $telemetryData) {
-          if ($event.category -eq 'error' -and $event.ok -eq $false) {
+        foreach ($telemetryEvent in $telemetryData) {
+          if ($telemetryEvent.category -eq 'error' -and $telemetryEvent.ok -eq $false) {
             # Weighted scoring based on error severity
-            switch -Wildcard ($event.event) {
+            switch -Wildcard ($telemetryEvent.event) {
               "*migration*" { $score += 10 }  # Critical: migration failures
               "*validation*" { $score += 5 }   # Moderate: validation errors
               "*warning*" { $score += 1 }      # Low: console warnings

@@ -16,16 +16,25 @@ export const options = {
   },
 };
 
-const BASE_URL = __ENV.BASE_URL || 'http://localhost:5000';
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:5000'; // eslint-disable-line no-undef
+
+// Constants for test scenarios (using explicit values for Codacy precision checks)
+const TEN_MILLION = 10_000_000;
+const TWENTY_FIVE_MILLION = 25_000_000;
+const FIVE_MILLION = 5_000_000;
+const TWO_MILLION = 2_000_000;
+const HALF_MILLION = 500_000;
+const ONE_HUNDRED_THOUSAND = 100_000;
+const FIFTY_THOUSAND = 50_000;
 
 // Test payloads
 const testInputs = [
   {
-    availableReserves: 10000000,
+    availableReserves: TEN_MILLION,
     companies: [
-      { id: 'c1', name: 'Startup A', stage: 'seed', invested: 500000, ownership: 0.15 },
-      { id: 'c2', name: 'Startup B', stage: 'series_a', invested: 2000000, ownership: 0.12 },
-      { id: 'c3', name: 'Startup C', stage: 'preseed', invested: 100000, ownership: 0.20 },
+      { id: 'c1', name: 'Startup A', stage: 'seed', invested: HALF_MILLION, ownership: 0.15 },
+      { id: 'c2', name: 'Startup B', stage: 'series_a', invested: TWO_MILLION, ownership: 0.12 },
+      { id: 'c3', name: 'Startup C', stage: 'preseed', invested: ONE_HUNDRED_THOUSAND, ownership: 0.20 },
     ],
     stagePolicies: [
       { stage: 'preseed', reserveMultiple: 3, weight: 1 },
@@ -33,18 +42,18 @@ const testInputs = [
       { stage: 'series_a', reserveMultiple: 2, weight: 1.5 },
     ],
     constraints: {
-      minCheck: 50000,
-      maxPerCompany: 5000000,
+      minCheck: FIFTY_THOUSAND,
+      maxPerCompany: FIVE_MILLION,
       discountRateAnnual: 0.12
     }
   },
   {
-    availableReserves: 25000000,
+    availableReserves: TWENTY_FIVE_MILLION,
     companies: Array.from({ length: 15 }, (_, i) => ({
       id: `comp_${i}`,
       name: `Company ${i}`,
       stage: ['preseed', 'seed', 'series_a', 'series_b'][i % 4],
-      invested: Math.random() * 5000000 + 100000,
+      invested: Math.random() * FIVE_MILLION + ONE_HUNDRED_THOUSAND,
       ownership: Math.random() * 0.3 + 0.05,
     })),
     stagePolicies: [

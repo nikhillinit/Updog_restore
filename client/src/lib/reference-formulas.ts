@@ -186,7 +186,7 @@ export function computeReferenceMetrics(
 
   // Use final period for NAV (end-of-life value)
   const lastPeriod = outputs.periodResults[outputs.periodResults.length - 1];
-  const nav = toDecimal(lastPeriod.nav);
+  const nav = toDecimal(lastPeriod?.nav ?? 0);
 
   return {
     DPI: ReferenceFormulas.DPI(distributions, calledCapital),

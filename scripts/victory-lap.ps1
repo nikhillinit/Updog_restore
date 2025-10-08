@@ -91,10 +91,10 @@ try {
             $totalEvents = $telemetry.Count
             $telemetryFound = $true
             
-            foreach ($event in $telemetry) {
-                if ($event.category -eq "error") { $errorCount++ }
-                if ($event.category -eq "migration") { $migrationCount++ }
-                if ($event.category -eq "validation") { $validationCount++ }
+            foreach ($telemetryEvent in $telemetry) {
+                if ($telemetryEvent.category -eq "error") { $errorCount++ }
+                if ($telemetryEvent.category -eq "migration") { $migrationCount++ }
+                if ($telemetryEvent.category -eq "validation") { $validationCount++ }
             }
         }
     }

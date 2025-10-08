@@ -5,7 +5,7 @@
  * and monitoring systems.
  */
 
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { monitor, monteCarloTracker } from '../middleware/performance-monitor.js';
 
 const router = Router();
@@ -14,7 +14,7 @@ const router = Router();
  * GET /api/performance/summary
  * Get overall performance summary
  */
-router.get('/summary', (req, res) => {
+router.get('/summary', (req: Request, res: Response) => {
   try {
     const timeWindow = parseInt(req.query.window as string) || (60 * 60 * 1000); // Default 1 hour
     const metrics = monitor.exportMetrics();
@@ -48,7 +48,7 @@ router.get('/summary', (req, res) => {
  * GET /api/performance/monte-carlo
  * Get Monte Carlo specific performance metrics
  */
-router.get('/monte-carlo', (req, res) => {
+router.get('/monte-carlo', (req: Request, res: Response) => {
   try {
     const timeWindow = parseInt(req.query.window as string) || (60 * 60 * 1000);
     const stats = monitor.getStats('monte_carlo_simulation', timeWindow);
@@ -86,7 +86,7 @@ router.get('/monte-carlo', (req, res) => {
  * GET /api/performance/alerts
  * Get recent performance alerts
  */
-router.get('/alerts', (req, res) => {
+router.get('/alerts', (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
     const alerts = monitor.getRecentAlerts(limit);
@@ -120,7 +120,7 @@ router.get('/alerts', (req, res) => {
  * GET /api/performance/realtime
  * Get real-time performance stream (SSE)
  */
-router.get('/realtime', (req, res) => {
+router.get('/realtime', (req: Request, res: Response) => {
   // Set up Server-Sent Events
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -181,7 +181,7 @@ router.get('/realtime', (req, res) => {
  * GET /api/performance/operations
  * Get performance stats for all operations
  */
-router.get('/operations', (req, res) => {
+router.get('/operations', (req: Request, res: Response) => {
   try {
     const timeWindow = parseInt(req.query.window as string) || (60 * 60 * 1000);
     const category = req.query.category as string;
@@ -232,7 +232,7 @@ router.get('/operations', (req, res) => {
  * POST /api/performance/simulate
  * Trigger a test Monte Carlo simulation for performance testing
  */
-router.post('/simulate', async (req, res) => {
+router.post('/simulate', async (req: Request, res: Response) => {
   try {
     const { runs = 100, fundId = 1 } = req.body;
 

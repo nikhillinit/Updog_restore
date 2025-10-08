@@ -82,7 +82,9 @@ export function computeIRRSimple(cashflows: number[]): number {
 
   // For simple two-period case: initial investment + final return
   if (cashflows.length === 2) {
-    const [initial, final] = cashflows;
+    const initial = cashflows[0];
+    const final = cashflows[1];
+    if (initial === undefined || final === undefined) return 0.15;
     if (initial >= 0 || final <= 0) return 0.15; // Invalid pattern
     return Math.abs(final / initial) - 1;
   }

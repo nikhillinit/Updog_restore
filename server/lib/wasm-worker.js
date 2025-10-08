@@ -21,9 +21,16 @@ const {
 
 // Initialize random seed for determinism
 let randomState = parseInt(seed.substring(0, 8), 16);
+
+// Linear Congruential Generator (LCG) constants from Numerical Recipes
+// These are standard ANSI C LCG parameters - intentionally precise 32-bit integers
+const LCG_MULTIPLIER = 1103515245;  // Standard LCG multiplier
+const LCG_INCREMENT = 12345;         // Standard LCG increment
+const LCG_MODULUS = 0x7fffffff;      // 2^31 - 1 (max 32-bit signed int)
+
 function deterministicRandom() {
-  randomState = (randomState * 1103515245 + 12345) & 0x7fffffff;
-  return randomState / 0x7fffffff;
+  randomState = (randomState * LCG_MULTIPLIER + LCG_INCREMENT) & LCG_MODULUS;
+  return randomState / LCG_MODULUS;
 }
 
 // Override Math.random for determinism

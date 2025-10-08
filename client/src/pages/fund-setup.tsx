@@ -16,14 +16,14 @@ import { ModernWizardProgress } from '@/components/wizard/ModernWizardProgress';
 // Feature flag for new selector pattern migration
 const useNewSelectors = import.meta.env['VITE_NEW_SELECTORS'] === 'true';
 
-const STEP_COMPONENTS: Record<StepKey, React.ComponentType<any>> = {
-  'fund-basics':        FundBasicsStep,
-  'investment-rounds':  InvestmentRoundsStep,
-  'capital-structure':  CapitalStructureStep,
+const STEP_COMPONENTS: Record<StepKey, React.ComponentType> = {
+  'fund-basics': FundBasicsStep,
+  'investment-rounds': InvestmentRoundsStep,
+  'capital-structure': CapitalStructureStep,
   'investment-strategy': useNewSelectors ? InvestmentStrategyStepNew : InvestmentStrategyStep,
-  'distributions':      DistributionsStep,
+  distributions: DistributionsStep,
   'cashflow-management': CashflowManagementStep,
-  'not-found':          StepNotFound,
+  'not-found': StepNotFound,
 };
 
 // Modern wizard steps configuration
@@ -32,50 +32,50 @@ const WIZARD_STEPS = [
     id: 'fund-basics',
     number: 1,
     title: 'FUND BASICS',
-    description: 'Name, currency, and fund lifecycle'
+    description: 'Fund lifecycle and economics structure',
   },
   {
     id: 'investment-rounds',
     number: 2,
     title: 'INVESTMENT ROUNDS',
-    description: 'Define stages, valuations, and progression rates'
+    description: 'Define stages, valuations, and progression rates',
   },
   {
     id: 'capital-structure',
     number: 3,
     title: 'CAPITAL ALLOCATION',
-    description: 'Investment stage allocations and deal modeling'
+    description: 'Investment stage allocations and deal modeling',
   },
   {
     id: 'investment-strategy',
     number: 4,
     title: 'INVESTMENT STRATEGY',
-    description: 'Stages, sectors, and allocations'
+    description: 'Stages, sectors, and allocations',
   },
   {
     id: 'distributions',
     number: 5,
     title: 'EXIT RECYCLING',
-    description: 'Proceeds recycling configuration'
+    description: 'Proceeds recycling configuration',
   },
   {
     id: 'cashflow-management',
     number: 6,
     title: 'WATERFALL & CARRY',
-    description: 'Distribution terms and carry structure'
+    description: 'Distribution terms and carry structure',
   },
   {
     id: 'review',
     number: 7,
     title: 'ADVANCED SETTINGS',
-    description: 'Fund structure and expenses'
+    description: 'Fund structure and expenses',
   },
   {
     id: 'complete',
     number: 8,
     title: 'REVIEW & CREATE',
-    description: 'Final review and fund creation'
-  }
+    description: 'Final review and fund creation',
+  },
 ];
 
 function useStepKey(): StepKey {
@@ -96,7 +96,9 @@ function useStepKey(): StepKey {
     // Debug logging
     if (import.meta.env.DEV) {
       const stepParam = new URLSearchParams(search)['get']('step');
-      console.log(`[FundSetup Debug] fullLocation='${fullLocation}', stepParam='${stepParam}', resolved key='${key}'`);
+      console.log(
+        `[FundSetup Debug] fullLocation='${fullLocation}', stepParam='${stepParam}', resolved key='${key}'`
+      );
     }
 
     if (key === 'not-found' && import.meta.env.DEV) {
@@ -116,45 +118,40 @@ export default function FundSetup() {
   React.useEffect(() => {
     const ttfmp = performance.now();
     emitWizard({
-      type: "step_loaded",
+      type: 'step_loaded',
       step: key,
       route: window.location.pathname + window.location.search,
-      ttfmp
+      ttfmp,
     });
   }, [key]);
 
   // Add completed status to steps based on current progress
-  const stepsWithStatus = WIZARD_STEPS.map(step => ({
+  const stepsWithStatus = WIZARD_STEPS.map((step) => ({
     ...step,
-    completed: WIZARD_STEPS.findIndex(s => s.id === key) > WIZARD_STEPS.findIndex(s => s.id === step.id),
-    current: step.id === key
+    completed:
+      WIZARD_STEPS.findIndex((s) => s.id === key) > WIZARD_STEPS.findIndex((s) => s.id === step.id),
+    current: step.id === key,
   }));
 
   return (
     <ErrorBoundary
       fallback={<StepNotFound />}
-      onError={(error: any) => {
+      onError={(error: Error) => {
         if (import.meta.env.DEV) {
           console.error(`[FundSetup] Error in step ${key}:`, error);
         }
         // Emit telemetry on error
         emitWizard({
-          type: "wizard_error",
+          type: 'wizard_error',
           step: key,
           message: String(error),
-          stack: error instanceof Error ? error.stack?.slice(0, 500) : undefined
+          stack: error instanceof Error ? error.stack?.slice(0, 500) : undefined,
         });
       }}
     >
-      <div
-        data-testid="fund-setup-wizard"
-        className="min-h-screen bg-gray-50"
-      >
+      <div data-testid="fund-setup-wizard" className="min-h-screen bg-gray-50">
         {/* Modern Progress Header */}
-        <ModernWizardProgress
-          steps={stepsWithStatus}
-          currentStepId={key}
-        />
+        <ModernWizardProgress steps={stepsWithStatus} currentStepId={key} />
 
         {/* Step Content */}
         <div data-testid={`wizard-step-${key}-container`} className="relative">
