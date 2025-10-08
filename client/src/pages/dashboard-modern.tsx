@@ -16,6 +16,7 @@ import { Cell } from 'recharts/es6/component/Cell';
 import React, { useState } from 'react';
 import { useFundContext } from "@/contexts/FundContext";
 import { PremiumCard } from "@/components/ui/PremiumCard";
+import { KpiCard } from "@/components/ui/KpiCard";
 import { POVBrandHeader } from "@/components/ui/POVLogo";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -197,87 +198,59 @@ export default function ModernDashboard() {
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-8">
             
-            {/* Key Metrics Cards */}
+            {/* Key Metrics Cards - Press On Branded */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <PremiumCard className="border-0 shadow-elevated hover:shadow-lg transition-all duration-300">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 bg-pov-charcoal/10 rounded-lg">
-                    <DollarSign className="h-5 w-5 text-pov-charcoal" />
-                  </div>
-                  <Badge variant="outline" className="text-pov-success border-pov-success/20 bg-pov-success/5">
-                    +15.2%
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  <p className="font-poppins text-sm text-[#292929]/70">Total Value</p>
-                  <p className="font-inter font-bold text-3xl text-[#292929]">
-                    ${(fundMetrics.totalValue / 1000000).toFixed(1)}M
-                  </p>
-                  <p className="font-mono text-xs text-[#292929]/60">
-                    {fundMetrics.moic.toFixed(2)}x MOIC
-                  </p>
-                </div>
-              </PremiumCard>
+              <KpiCard
+                label="Total Value"
+                value={`$${(fundMetrics.totalValue / 1000000).toFixed(1)}M`}
+                delta="+15.2%"
+                intent="positive"
+              />
 
-              <PremiumCard className="border-0 shadow-elevated hover:shadow-lg transition-all duration-300">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 bg-pov-success/10 rounded-lg">
-                    <TrendingUp className="h-5 w-5 text-pov-success" />
-                  </div>
-                  <Badge variant="outline" className="text-pov-success border-pov-success/20 bg-pov-success/5">
-                    {fundMetrics.irr}%
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  <p className="font-poppins text-sm text-[#292929]/70">IRR</p>
-                  <p className="font-inter font-bold text-3xl text-[#292929]">
-                    {fundMetrics.irr}%
-                  </p>
-                  <p className="font-mono text-xs text-[#292929]/60">
-                    Net IRR to LPs
-                  </p>
-                </div>
-              </PremiumCard>
+              <KpiCard
+                label="Net IRR"
+                value={`${fundMetrics.irr.toFixed(1)}%`}
+                delta="+2.1%"
+                intent="positive"
+              />
 
-              <PremiumCard className="border-0 shadow-elevated hover:shadow-lg transition-all duration-300">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 bg-pov-beige/50 rounded-lg">
-                    <Target className="h-5 w-5 text-pov-charcoal" />
-                  </div>
-                  <Badge variant="outline" className="text-pov-charcoal border-pov-beige bg-pov-beige/20">
-                    {fundMetrics.deploymentRate}%
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  <p className="font-poppins text-sm text-[#292929]/70">Deployed</p>
-                  <p className="font-inter font-bold text-3xl text-[#292929]">
-                    ${(fundMetrics.totalInvested / 1000000).toFixed(1)}M
-                  </p>
-                  <p className="font-mono text-xs text-[#292929]/60">
-                    of ${(fundMetrics.totalCommitted / 1000000).toFixed(1)}M committed
-                  </p>
-                </div>
-              </PremiumCard>
+              <KpiCard
+                label="MOIC"
+                value={`${fundMetrics.moic.toFixed(2)}x`}
+                delta="+0.3x"
+                intent="positive"
+              />
 
-              <PremiumCard className="border-0 shadow-elevated hover:shadow-lg transition-all duration-300">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 bg-pov-charcoal/10 rounded-lg">
-                    <Users className="h-5 w-5 text-pov-charcoal" />
-                  </div>
-                  <div className="flex items-center space-x-1 text-xs text-gray-500">
-                    <span>{fundMetrics.exitedInvestments} exited</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <p className="font-poppins text-sm text-[#292929]/70">Portfolio</p>
-                  <p className="font-inter font-bold text-3xl text-[#292929]">
-                    {fundMetrics.activeInvestments}
-                  </p>
-                  <p className="font-mono text-xs text-[#292929]/60">
-                    Active companies
-                  </p>
-                </div>
-              </PremiumCard>
+              <KpiCard
+                label="DPI"
+                value={`${fundMetrics.dpi.toFixed(2)}x`}
+                delta="Realized returns"
+                intent="neutral"
+              />
+            </div>
+
+            {/* Secondary Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <KpiCard
+                label="Deployed Capital"
+                value={`$${(fundMetrics.totalInvested / 1000000).toFixed(1)}M`}
+                delta={`${fundMetrics.deploymentRate}% of committed`}
+                intent="neutral"
+              />
+
+              <KpiCard
+                label="Active Companies"
+                value={`${fundMetrics.activeInvestments}`}
+                delta={`${fundMetrics.exitedInvestments} exited`}
+                intent="neutral"
+              />
+
+              <KpiCard
+                label="TVPI"
+                value={`${((fundMetrics.totalValue / fundMetrics.totalInvested)).toFixed(2)}x`}
+                delta="Total value to paid-in"
+                intent="positive"
+              />
             </div>
 
             {/* Charts Section */}
