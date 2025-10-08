@@ -312,10 +312,10 @@ export class MonteCarloEngine {
     const cvar10 = irrScenarios.slice(0, var10Index).reduce((sum: number, val: number) => sum + val, 0) / var10Index;
 
     // Probability of loss (IRR < 0)
-    const probabilityOfLoss = irrScenarios.filter(irr => irr < 0).length / irrScenarios.length;
+    const probabilityOfLoss = irrScenarios.filter((irr: number) => irr < 0).length / irrScenarios.length;
 
     // Downside risk (standard deviation of negative returns)
-    const negativeReturns = irrScenarios.filter(irr => irr < performanceResults.irr.statistics.mean);
+    const negativeReturns = irrScenarios.filter((irr: number) => irr < performanceResults.irr.statistics.mean);
     const downsideVariance = negativeReturns.reduce((sum: number, ret: number) => {
       return sum + Math.pow(ret - performanceResults.irr.statistics.mean, 2);
     }, 0) / negativeReturns.length;

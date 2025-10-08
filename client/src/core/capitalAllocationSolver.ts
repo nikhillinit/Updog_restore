@@ -86,6 +86,8 @@ function calculateRequiredCapital(
     const currentStage = subsequentStages[i];
     const nextStage = subsequentStages[i + 1];
 
+    if (!currentStage) continue; // Skip if current stage is undefined
+
     if (!nextStage) {
       // Last stage - no follow-on
       breakdown.push({

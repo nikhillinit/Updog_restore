@@ -1,0 +1,21 @@
+---
+engines:
+  eslint:
+    enabled: true
+  duplication:
+    enabled: true
+    config:
+      languages:
+        - javascript
+        - typescript
+
+exclude_paths:
+  - 'archive/**'
+  - 'node_modules/**'
+  - 'dist/**'
+  - 'build/**'
+  - 'coverage/**'
+  - '**/*.test.ts'
+  - '**/*.test.tsx'
+  - '**/*.spec.ts'
+  - '**/*.spec.tsx'

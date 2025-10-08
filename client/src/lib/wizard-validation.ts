@@ -158,7 +158,7 @@ function validateInvestmentStrategy(
   // Last stage graduation rate must be 0
   if (strategy.stages.length > 0) {
     const lastStage = strategy.stages[strategy.stages.length - 1];
-    if (lastStage.graduationRate > 0) {
+    if (lastStage && lastStage.graduationRate > 0) {
       errors.push({
         field: `investmentStrategy.stages[${strategy.stages.length - 1}].graduationRate`,
         message: `${lastStage.name} (final stage) must have graduation rate of 0%`,

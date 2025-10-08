@@ -82,7 +82,10 @@ export function computeReservesFromGraduation(f: FundDataForReserves): ReservesR
   let companiesRemaining = f.targetCompanies;
   for (let i = 0; i < deploymentQuarters && companiesRemaining > 0; i++) {
     const take = Math.min(perQuarter, companiesRemaining);
-    seedNewCosByQuarter[startQ + i] += take;
+    const targetIndex = startQ + i;
+    if (targetIndex < horizon) {
+      seedNewCosByQuarter[targetIndex] = (seedNewCosByQuarter[targetIndex] ?? 0) + take;
+    }
     companiesRemaining -= take;
   }
 
@@ -101,62 +104,80 @@ export function computeReservesFromGraduation(f: FundDataForReserves): ReservesR
 
   // First pass: Standard graduation + track remain companies
   for (let quarter = 0; quarter < horizon; quarter++) {
-    const totalSeed = seedNewCosByQuarter[quarter];
+    const totalSeed = seedNewCosByQuarter[quarter] ?? 0;
     const grads = totalSeed * (f.graduationRates.seedToA.graduate / 100);
     const remains = totalSeed * (f.graduationRates.seedToA.remain / 100);
-    
+
     const when = quarter + tA;
     if (when < horizon) {
-      AByQuarter[when] += grads;
-      if (remainAttempts > 0) seedRemainByQuarter[when + remainDelayQuarters] += remains;
+      AByQuarter[when] = (AByQuarter[when] ?? 0) + grads;
+      const remainIndex = when + remainDelayQuarters;
+      if (remainAttempts > 0 && remainIndex < horizon) {
+        seedRemainByQuarter[remainIndex] = (seedRemainByQuarter[remainIndex] ?? 0) + remains;
+      }
     }
   }
 
   for (let quarter = 0; quarter < horizon; quarter++) {
-    const totalA = AByQuarter[quarter];
+    const totalA = AByQuarter[quarter] ?? 0;
     const grads = totalA * (f.graduationRates.aToB.graduate / 100);
     const remains = totalA * (f.graduationRates.aToB.remain / 100);
-    
+
     const when = quarter + tB;
     if (when < horizon) {
-      BByQuarter[when] += grads;
-      if (remainAttempts > 0) ARemainByQuarter[when + remainDelayQuarters] += remains;
+      BByQuarter[when] = (BByQuarter[when] ?? 0) + grads;
+      const remainIndex = when + remainDelayQuarters;
+      if (remainAttempts > 0 && remainIndex < horizon) {
+        ARemainByQuarter[remainIndex] = (ARemainByQuarter[remainIndex] ?? 0) + remains;
+      }
     }
   }
 
   for (let quarter = 0; quarter < horizon; quarter++) {
-    const totalB = BByQuarter[quarter];
+    const totalB = BByQuarter[quarter] ?? 0;
     const grads = totalB * (f.graduationRates.bToC.graduate / 100);
     const remains = totalB * (f.graduationRates.bToC.remain / 100);
-    
+
     const when = quarter + tC;
     if (when < horizon) {
-      CByQuarter[when] += grads;
-      if (remainAttempts > 0) BRemainByQuarter[when + remainDelayQuarters] += remains;
+      CByQuarter[when] = (CByQuarter[when] ?? 0) + grads;
+      const remainIndex = when + remainDelayQuarters;
+      if (remainAttempts > 0 && remainIndex < horizon) {
+        BRemainByQuarter[remainIndex] = (BRemainByQuarter[remainIndex] ?? 0) + remains;
+      }
     }
   }
 
   // v1.1: Second pass - Remain attempts with reduced success rates
   if (remainAttempts > 0) {
     const remainSuccessRate = 0.6; // 60% success rate for remain attempts (more realistic)
-    
+
     for (let quarter = 0; quarter < horizon; quarter++) {
-      if (seedRemainByQuarter[quarter] > 0) {
-        const remainGrads = seedRemainByQuarter[quarter] * (f.graduationRates.seedToA.graduate / 100) * remainSuccessRate;
+      const seedRemain = seedRemainByQuarter[quarter] ?? 0;
+      if (seedRemain > 0) {
+        const remainGrads = seedRemain * (f.graduationRates.seedToA.graduate / 100) * remainSuccessRate;
         const when = quarter + tA;
-        if (when < horizon) AByQuarter[when] += remainGrads;
+        if (when < horizon) {
+          AByQuarter[when] = (AByQuarter[when] ?? 0) + remainGrads;
+        }
       }
-      
-      if (ARemainByQuarter[quarter] > 0) {
-        const remainGrads = ARemainByQuarter[quarter] * (f.graduationRates.aToB.graduate / 100) * remainSuccessRate;
+
+      const aRemain = ARemainByQuarter[quarter] ?? 0;
+      if (aRemain > 0) {
+        const remainGrads = aRemain * (f.graduationRates.aToB.graduate / 100) * remainSuccessRate;
         const when = quarter + tB;
-        if (when < horizon) BByQuarter[when] += remainGrads;
+        if (when < horizon) {
+          BByQuarter[when] = (BByQuarter[when] ?? 0) + remainGrads;
+        }
       }
-      
-      if (BRemainByQuarter[quarter] > 0) {
-        const remainGrads = BRemainByQuarter[quarter] * (f.graduationRates.bToC.graduate / 100) * remainSuccessRate;
+
+      const bRemain = BRemainByQuarter[quarter] ?? 0;
+      if (bRemain > 0) {
+        const remainGrads = bRemain * (f.graduationRates.bToC.graduate / 100) * remainSuccessRate;
         const when = quarter + tC;
-        if (when < horizon) CByQuarter[when] += remainGrads;
+        if (when < horizon) {
+          CByQuarter[when] = (CByQuarter[when] ?? 0) + remainGrads;
+        }
       }
     }
   }
@@ -165,9 +186,9 @@ export function computeReservesFromGraduation(f: FundDataForReserves): ReservesR
   let sumA = 0, sumB = 0, sumC = 0;
 
   for (let quarter = 0; quarter < horizon; quarter++) {
-    const A$ = Math.round(AByQuarter[quarter] * f.followOnChecks.A);
-    const B$ = Math.round(BByQuarter[quarter] * f.followOnChecks.B);
-    const C$ = Math.round(CByQuarter[quarter] * f.followOnChecks.C);
+    const A$ = Math.round((AByQuarter[quarter] ?? 0) * f.followOnChecks.A);
+    const B$ = Math.round((BByQuarter[quarter] ?? 0) * f.followOnChecks.B);
+    const C$ = Math.round((CByQuarter[quarter] ?? 0) * f.followOnChecks.C);
     const total = A$ + B$ + C$;
     if (total > 0) followOnByQuarter[quarter] = { A: A$, B: B$, C: C$, total };
     sumA += A$; sumB += B$; sumC += C$;

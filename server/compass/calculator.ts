@@ -72,10 +72,12 @@ export function calculateMedianMultiple(comps: ComparableCompany[]): number {
 
   if (sortedMultiples.length % 2 === 0) {
     // Even number: average of two middle values
-    return (sortedMultiples[mid - 1] + sortedMultiples[mid]) / 2;
+    const prev = sortedMultiples[mid - 1] ?? 0;
+    const curr = sortedMultiples[mid] ?? 0;
+    return (prev + curr) / 2;
   } else {
     // Odd number: middle value
-    return sortedMultiples[mid];
+    return sortedMultiples[mid] ?? 0;
   }
 }
 

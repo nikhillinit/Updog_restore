@@ -119,8 +119,8 @@ export default function PortfolioCostValueChart() {
   const [selectedPeriod, setSelectedPeriod] = useState('Aug 2023');
   
   const latestData = SAMPLE_DATA.length > 0 ? SAMPLE_DATA[SAMPLE_DATA.length - 1] : { realizedValue: 0, unrealizedValue: 0 };
-  const realizedAmount = latestData.realizedValue;
-  const unrealizedAmount = latestData.unrealizedValue;
+  const realizedAmount = latestData?.realizedValue ?? 0;
+  const unrealizedAmount = latestData?.unrealizedValue ?? 0;
 
   return (
     <Card className="w-full">

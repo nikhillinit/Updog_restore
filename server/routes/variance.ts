@@ -75,7 +75,7 @@ router.post('/api/funds/:id/baselines', idempotency, async (req: AuthenticatedRe
     // Parse and validate fund ID
     let fundId: number;
     try {
-      fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+      fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
       if (err instanceof NumberParseError) {
         const error: ApiError = {
@@ -144,7 +144,7 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
   try {
     let fundId: number;
     try {
-      fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+      fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
       if (err instanceof NumberParseError) {
         const error: ApiError = {
@@ -157,9 +157,9 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
     }
 
     // Parse query parameters
-    const baselineType = req.query.baselineType as string;
-    const isDefault = req.query.isDefault === 'true' ? true : req.query.isDefault === 'false' ? false : undefined;
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const baselineType = req.query['baselineType'] as string;
+    const isDefault = req.query['isDefault'] === 'true' ? true : req.query['isDefault'] === 'false' ? false : undefined;
+    const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
 
     const baselines = await varianceTrackingService.baselines.getBaselines(fundId, {
       baselineType,
@@ -190,7 +190,7 @@ router.post('/api/funds/:id/baselines/:baselineId/set-default', async (req: Requ
   try {
     let fundId: number;
     try {
-      fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+      fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
       if (err instanceof NumberParseError) {
         const error: ApiError = {
@@ -202,7 +202,7 @@ router.post('/api/funds/:id/baselines/:baselineId/set-default', async (req: Requ
       throw err;
     }
 
-    const baselineId = req.params.baselineId;
+    const baselineId = req.params['baselineId'];
     if (!baselineId) {
       const error: ApiError = {
         error: 'Invalid baseline ID',
@@ -233,7 +233,7 @@ router.post('/api/funds/:id/baselines/:baselineId/set-default', async (req: Requ
  */
 router.delete('/api/funds/:id/baselines/:baselineId', async (req: Request, res: Response) => {
   try {
-    const baselineId = req.params.baselineId;
+    const baselineId = req.params['baselineId'];
     if (!baselineId) {
       const error: ApiError = {
         error: 'Invalid baseline ID',
@@ -268,7 +268,7 @@ router.post('/api/funds/:id/variance-reports', idempotency, async (req: Authenti
   try {
     let fundId: number;
     try {
-      fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+      fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
       if (err instanceof NumberParseError) {
         const error: ApiError = {
@@ -326,7 +326,7 @@ router['get']('/api/funds/:id/variance-reports', async (req: Request, res: Respo
   try {
     let fundId: number;
     try {
-      fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+      fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
       if (err instanceof NumberParseError) {
         const error: ApiError = {
@@ -364,7 +364,7 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
   try {
     let fundId: number;
     try {
-      fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+      fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
       if (err instanceof NumberParseError) {
         const error: ApiError = {
@@ -376,7 +376,7 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
       throw err;
     }
 
-    const reportId = req.params.reportId;
+    const reportId = req.params['reportId'];
     if (!reportId) {
       const error: ApiError = {
         error: 'Invalid report ID',
@@ -411,7 +411,7 @@ router.post('/api/funds/:id/alert-rules', async (req: AuthenticatedRequest, res:
   try {
     let fundId: number;
     try {
-      fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+      fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
       if (err instanceof NumberParseError) {
         const error: ApiError = {
@@ -482,7 +482,7 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
   try {
     let fundId: number;
     try {
-      fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+      fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
       if (err instanceof NumberParseError) {
         const error: ApiError = {
@@ -495,9 +495,9 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
     }
 
     // Parse query parameters
-    const severity = req.query.severity ? (req.query.severity as string).split(',') : undefined;
-    const category = req.query.category ? (req.query.category as string).split(',') : undefined;
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const severity = req.query['severity'] ? (req.query['severity'] as string).split(',') : undefined;
+    const category = req.query['category'] ? (req.query['category'] as string).split(',') : undefined;
+    const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
 
     const alerts = await varianceTrackingService.alerts.getActiveAlerts(fundId, {
       severity,
@@ -526,7 +526,7 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
  */
 router.post('/api/alerts/:alertId/acknowledge', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const alertId = req.params.alertId;
+    const alertId = req.params['alertId'];
     if (!alertId) {
       const error: ApiError = {
         error: 'Invalid alert ID',
@@ -576,7 +576,7 @@ router.post('/api/alerts/:alertId/acknowledge', async (req: AuthenticatedRequest
  */
 router.post('/api/alerts/:alertId/resolve', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const alertId = req.params.alertId;
+    const alertId = req.params['alertId'];
     if (!alertId) {
       const error: ApiError = {
         error: 'Invalid alert ID',
@@ -630,7 +630,7 @@ router.post('/api/funds/:id/variance-analysis', idempotency, async (req: Authent
   try {
     let fundId: number;
     try {
-      fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+      fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
       if (err instanceof NumberParseError) {
         const error: ApiError = {
@@ -697,7 +697,7 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
   try {
     let fundId: number;
     try {
-      fundId = toNumber(req.params.id, 'fund ID', { integer: true, min: 1 });
+      fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
       if (err instanceof NumberParseError) {
         const error: ApiError = {

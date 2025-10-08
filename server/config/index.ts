@@ -152,10 +152,10 @@ export function loadEnv() {
     }
 
     // Validate database URL doesn't use default credentials
-    if (
+    if (config.DATABASE_URL && (
       config.DATABASE_URL.includes('postgres:postgres') ||
       config.DATABASE_URL.includes('user:password')
-    ) {
+    )) {
       console.error('❌ Database URL contains default credentials');
       throw new Error('Database URL contains default credentials - use secure credentials');
     }
@@ -214,7 +214,7 @@ export function loadEnv() {
   // Log configuration (redact sensitive values)
   const logConfig = {
     ...config,
-    DATABASE_URL: config.DATABASE_URL.replace(/\/\/[^@]+@/, '//***:***@'),
+    DATABASE_URL: config.DATABASE_URL?.replace(/\/\/[^@]+@/, '//***:***@') ?? '',
     REDIS_URL: config.REDIS_URL.startsWith('redis://') ? 'redis://***' : config.REDIS_URL,
     ERROR_TRACKING_DSN: config.ERROR_TRACKING_DSN ? '***' : undefined,
     HEALTH_KEY: config.HEALTH_KEY ? '***' : undefined,

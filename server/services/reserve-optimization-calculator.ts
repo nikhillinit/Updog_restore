@@ -380,7 +380,7 @@ export class ReserveOptimizationCalculatorService {
 
     return {
       fund,
-      companies: companies.map(company => ({
+      companies: companies.map((company: any) => ({
         ...company,
         totalInvestment: company.investments?.reduce((sum: any, inv: any) =>
           sum + parseFloat(inv.amount.toString()), 0) || 0

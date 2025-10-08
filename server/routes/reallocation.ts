@@ -260,7 +260,7 @@ async function verifyVersionConsistency(
     [fundId]
   );
 
-  const actualVersions = result.rows.map(r => r.allocation_version);
+  const actualVersions = result.rows.map((r: { allocation_version: number }) => r.allocation_version);
   const consistent = actualVersions.length === 1 && actualVersions[0] === expectedVersion;
 
   return { consistent, actualVersions };
@@ -422,7 +422,7 @@ router.post(
       const { current_version, proposed_allocations, reason, user_id } = parseResult.data;
 
       // Execute transaction
-      const result = await transaction(async (client) => {
+      const result = await transaction(async (client: any) => {
         // Step 1: Verify version and lock rows
         const versionCheck = await client.query<{ allocation_version: number }>(
           `SELECT allocation_version
@@ -436,7 +436,7 @@ router.post(
           throw new Error('Fund has no portfolio companies');
         }
 
-        const actualVersions = [...new Set(versionCheck.rows.map(r => r.allocation_version))];
+        const actualVersions = [...new Set(versionCheck.rows.map((r: { allocation_version: number }) => r.allocation_version))];
         if (actualVersions.length !== 1 || actualVersions[0] !== current_version) {
           throw new Error(
             `Version conflict: expected ${current_version}, found ${actualVersions.join(', ')}`

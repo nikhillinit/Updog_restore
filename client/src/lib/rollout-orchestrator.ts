@@ -111,24 +111,26 @@ export class AutomatedRolloutOrchestrator {
         }
         
         const stage = this.stages[i];
+        if (!stage) continue;
+
         this.currentStage = i;
         this.stageStartTime = new Date();
-        
+
         console.log(`\n📊 Stage ${i + 1}/${this.stages.length}: ${stage.name}`);
         console.log(`   Target: ${stage.percent}% | Duration: ${stage.duration / 1000}s`);
-        
+
         // Enable for percentage
         await this.enableStage(flagName, stage);
-        
+
         // Skip monitoring for immediate stages
         if (stage.duration === 0) {
           console.log('   ✅ Immediate stage - no monitoring required');
           continue;
         }
-        
+
         // Monitor for duration
         const success = await this.monitorStage(stage);
-        
+
         if (success) {
           console.log(`   ✅ Stage ${stage.name} completed successfully`);
           await this.recordStageSuccess(stage);
@@ -267,14 +269,15 @@ export class AutomatedRolloutOrchestrator {
     console.log(`\n🔄 Initiating rollback for stage: ${stage.name}`);
     
     // Determine rollback target
-    const rollbackTarget = stageIndex > 0 
-      ? this.stages[stageIndex - 1].percent / 2  // Roll back to half of previous stage
+    const prevStage = stageIndex > 0 ? this.stages[stageIndex - 1] : null;
+    const rollbackTarget = prevStage
+      ? prevStage.percent / 2  // Roll back to half of previous stage
       : 0; // Complete rollback
-    
+
     // Intelligent rollback based on severity
     const lastMetrics = this.metrics[this.metrics.length - 1];
-    
-    if (lastMetrics.errorRate > stage.criteria.maxErrorRate * 10) {
+
+    if (lastMetrics && lastMetrics.errorRate > stage.criteria.maxErrorRate * 10) {
       // Critical failure - immediate full rollback
       console.log('   🚨 Critical failure detected - emergency rollback');
       await this.emergencyRollback();
@@ -426,7 +429,7 @@ export class AutomatedRolloutOrchestrator {
   }
   
   getCurrentStage(): string {
-    return this.currentStage >= 0 ? this.stages[this.currentStage].name : 'Not started';
+    return this.currentStage >= 0 ? (this.stages[this.currentStage]?.name ?? 'Unknown') : 'Not started';
   }
   
   getMetrics(): RolloutMetrics[] {
