@@ -618,12 +618,30 @@ export default function InvestmentStrategyStep() {
           </div>
         </div>
 
+        {/* Pre-Recycling Validation Notice */}
+        <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
+          <p className="text-sm font-poppins text-blue-900 leading-relaxed">
+            <strong>📊 Capital Allocation Validation:</strong> The estimated initial and follow-on capital
+            shown above represent <strong>gross investable capital</strong> before recycling.
+            These estimates do <strong>not yet factor in</strong>:
+          </p>
+          <ul className="mt-2 ml-6 text-sm font-poppins text-blue-800 space-y-1">
+            <li>• Exit proceeds that may be recycled back into new investments</li>
+            <li>• Management fees and fund expenses (configured in later steps)</li>
+            <li>• Reserve allocation timing and deployment schedules</li>
+          </ul>
+          <p className="mt-3 text-sm font-poppins text-blue-900">
+            <strong>Next:</strong> In Step 5 (Exit Recycling), you'll configure how exit proceeds
+            are reinvested, which will adjust the final capital deployment schedule.
+          </p>
+        </div>
+
         {/* Navigation */}
         <div className="flex justify-between pt-8 border-t border-[#E0D8D1] mt-8">
           <Button
             data-testid="previous-step"
             variant="outline"
-            onClick={() => navigate('/fund-setup?step=2')}
+            onClick={() => navigate('/fund-setup?step=3')}
             className="flex items-center gap-2 px-8 py-3 h-auto font-poppins font-medium border-[#E0D8D1] text-[#292929] hover:bg-[#E0D8D1]/20 hover:border-[#292929] transition-all duration-200"
           >
             <ArrowLeft className="h-4 w-4" />

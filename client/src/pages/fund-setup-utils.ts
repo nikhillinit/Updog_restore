@@ -2,13 +2,13 @@
  * Pure utility functions for fund-setup wizard
  * Extracted for easier unit testing without DOM dependencies
  *
- * NOTE: Exit Recycling (distributions) step removed to simplify model validation
- * Assumes no recycling - users validate initial + follow-on capital per cohort
+ * NOTE: Step 4 shows pre-recycling allocations for validation
+ * Step 5 (distributions/recycling) parameters are set after user validates base allocations
  */
 
 export type StepKey = 'fund-basics' | 'investment-rounds' | 'capital-structure' | 'investment-strategy' | 'distributions' | 'cashflow-management' | 'not-found';
 
-export const VALID_STEPS = ['1', '2', '3', '4', '5', '6', '7'] as const;
+export const VALID_STEPS = ['1', '2', '3', '4', '5', '6'] as const;
 export type ValidStep = typeof VALID_STEPS[number];
 
 export const NUM_TO_KEY = {
@@ -16,9 +16,8 @@ export const NUM_TO_KEY = {
   '2': 'investment-rounds',
   '3': 'capital-structure',
   '4': 'investment-strategy',
-  '5': 'cashflow-management',  // Was step 6, now step 5 (skipping distributions)
-  '6': 'cashflow-management',  // Keep for backward compatibility
-  '7': 'cashflow-management',  // Future: review/complete steps
+  '5': 'distributions',
+  '6': 'cashflow-management',
 } as const satisfies Record<ValidStep, Exclude<StepKey, 'not-found'>>;
 
 export function isValidStep(v: unknown): v is ValidStep {
