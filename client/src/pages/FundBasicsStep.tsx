@@ -13,6 +13,8 @@ export default function FundBasicsStep() {
   const [, navigate] = useLocation();
 
   // State
+  const fundName = useFundSelector((s) => s.fundName);
+  const fundSize = useFundSelector((s) => s.fundSize);
   const isEvergreen = useFundSelector((s) => s.isEvergreen);
   const fundLife = useFundSelector((s) => s.fundLife);
   const investmentPeriod = useFundSelector((s) => s.investmentPeriod);
@@ -35,22 +37,28 @@ export default function FundBasicsStep() {
     }
   }, [fundLife, investmentPeriod, updateFundBasics]);
 
-  const handleInputChange = (field: string, value: number | undefined) => {
-    const updateData: Record<string, number | undefined> = { [field]: value };
+  const handleInputChange = (field: string, value: string | number | undefined) => {
+    const updateData: Record<string, string | number | undefined> = { [field]: value };
 
     // Update the fund store
     updateFundBasics(updateData);
 
     // Sync critical fields to FundContext
-    if (currentFund && (field === 'managementFeeRate' || field === 'carriedInterest')) {
+    if (currentFund) {
       const updatedFund = { ...currentFund };
 
       switch (field) {
+        case 'fundName':
+          updatedFund.name = (value as string) || 'Untitled Fund';
+          break;
+        case 'fundSize':
+          updatedFund.size = value ? (value as number) * 1000000 : 0; // Convert from M to dollars
+          break;
         case 'managementFeeRate':
-          updatedFund.managementFee = value ? value / 100 : 0; // Convert from percentage to decimal
+          updatedFund.managementFee = value ? (value as number) / 100 : 0; // Convert from percentage to decimal
           break;
         case 'carriedInterest':
-          updatedFund.carryPercentage = value ? value / 100 : 0; // Convert from percentage to decimal
+          updatedFund.carryPercentage = value ? (value as number) / 100 : 0; // Convert from percentage to decimal
           break;
       }
 
@@ -68,11 +76,52 @@ export default function FundBasicsStep() {
   };
 
   return (
-    <ModernStepContainer title="Fund Basics" description="Fund lifecycle and economics structure">
+    <ModernStepContainer title="Fund Basics" description="Fund identity, capital, and economics structure">
       <div className="space-y-8">
         {/* Fund Structure Section */}
         <div className="space-y-6">
-          <div className="flex items-center space-x-3">
+          <div className="space-y-3">
+            <Label htmlFor="fund-name" className="text-sm font-poppins font-medium text-[#292929]">
+              Fund Name *
+            </Label>
+            <Input
+              id="fund-name"
+              value={fundName || ''}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                handleInputChange('fundName', e.target.value)
+              }
+              placeholder="Enter your fund name"
+              data-testid="fund-name"
+              className="h-12 text-base font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
+            />
+          </div>
+
+          <div className="space-y-3">
+            <Label
+              htmlFor="capital-committed"
+              className="text-sm font-poppins font-medium text-[#292929]"
+            >
+              Capital Committed ($M) *
+            </Label>
+            <Input
+              id="capital-committed"
+              type="number"
+              min="0"
+              step="0.1"
+              value={fundSize || ''}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                handleInputChange('fundSize', parseFloat(e.target.value) || undefined)
+              }
+              placeholder="e.g., 100"
+              data-testid="capital-committed"
+              className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
+            />
+            <p className="text-sm font-poppins text-[#292929]/60">
+              Total capital committed by LPs
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-3 pt-6 border-t border-[#E0D8D1]">
             <Switch
               id="evergreen"
               checked={isEvergreen || false}

@@ -32,7 +32,7 @@ const WIZARD_STEPS = [
     id: 'fund-basics',
     number: 1,
     title: 'FUND BASICS',
-    description: 'Fund lifecycle and economics structure',
+    description: 'Fund identity, capital, and economics structure',
   },
   {
     id: 'investment-rounds',
