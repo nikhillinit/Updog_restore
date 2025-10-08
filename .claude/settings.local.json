@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash($env:TZ='UTC')"
+      "Bash($env:TZ='UTC')",
+      "Bash(gh pr comment:*)"
     ],
     "deny": [],
     "ask": [],
