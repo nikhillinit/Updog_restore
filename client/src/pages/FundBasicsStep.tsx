@@ -1,101 +1,56 @@
 import React from 'react';
 import { useLocation } from 'wouter';
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { ArrowRight } from "lucide-react";
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { ArrowRight } from 'lucide-react';
 import { useFundSelector, useFundAction } from '@/stores/useFundSelector';
 import { useFundContext } from '@/contexts/FundContext';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
 
 export default function FundBasicsStep() {
   const [, navigate] = useLocation();
-  
+
   // State
-  const fundName = useFundSelector(s => s.fundName);
-  const establishmentDate = useFundSelector(s => s.establishmentDate);
-  const vintageYear = useFundSelector(s => s.vintageYear);
-  const isEvergreen = useFundSelector(s => s.isEvergreen);
-  const fundLife = useFundSelector(s => s.fundLife);
-  const investmentPeriod = useFundSelector(s => s.investmentPeriod);
-  const fundSize = useFundSelector(s => s.fundSize);
-  const managementFeeRate = useFundSelector(s => s.managementFeeRate);
-  const carriedInterest = useFundSelector(s => s.carriedInterest);
+  const isEvergreen = useFundSelector((s) => s.isEvergreen);
+  const fundLife = useFundSelector((s) => s.fundLife);
+  const investmentPeriod = useFundSelector((s) => s.investmentPeriod);
+  const managementFeeRate = useFundSelector((s) => s.managementFeeRate);
+  const carriedInterest = useFundSelector((s) => s.carriedInterest);
 
   // Actions
-  const updateFundBasics = useFundAction(s => s.updateFundBasics);
+  const updateFundBasics = useFundAction((s) => s.updateFundBasics);
   const { currentFund, setCurrentFund } = useFundContext();
 
-  // Auto-populate with defaults for easy testing
+  // Initialize with sensible defaults (10 year term, 5 year investment period)
   React.useEffect(() => {
-    if (!fundName && currentFund) {
-      const currentDate = new Date();
-      const establishmentDateStr = currentDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
-
-      const defaults = {
-        fundName: 'Test Fund I',
-        establishmentDate: establishmentDateStr,
-        vintageYear: currentDate.getFullYear(),
-        fundSize: 50, // $50M
+    if (fundLife === undefined && investmentPeriod === undefined) {
+      updateFundBasics({
+        fundLife: 10,
+        investmentPeriod: 5,
         managementFeeRate: 2.0,
         carriedInterest: 20,
-        fundLife: 10,
-        investmentPeriod: 3
-      };
-
-      // Update fund store
-      updateFundBasics(defaults);
-
-      // Update fund context with converted values
-      const updatedFund = {
-        ...currentFund,
-        name: defaults.fundName,
-        establishmentDate: defaults.establishmentDate,
-        vintageYear: defaults.vintageYear,
-        size: defaults.fundSize * 1000000, // Convert to dollars
-        managementFee: defaults.managementFeeRate / 100, // Convert to decimal
-        carryPercentage: defaults.carriedInterest / 100 // Convert to decimal
-      };
-
-      setCurrentFund(updatedFund);
+      });
     }
-  }, [fundName, updateFundBasics, currentFund, setCurrentFund]);
+  }, [fundLife, investmentPeriod, updateFundBasics]);
 
-  const handleInputChange = (field: string, value: any) => {
-    let updateData: any = { [field]: value };
-
-    // Auto-derive vintage year from establishment date
-    if (field === 'establishmentDate' && value) {
-      const date = new Date(value);
-      updateData.vintageYear = date.getFullYear();
-    }
+  const handleInputChange = (field: string, value: number | undefined) => {
+    const updateData: Record<string, number | undefined> = { [field]: value };
 
     // Update the fund store
     updateFundBasics(updateData);
 
     // Sync critical fields to FundContext
-    if (currentFund && (field === 'fundSize' || field === 'fundName' || field === 'managementFeeRate' || field === 'carriedInterest' || field === 'establishmentDate')) {
+    if (currentFund && (field === 'managementFeeRate' || field === 'carriedInterest')) {
       const updatedFund = { ...currentFund };
 
       switch (field) {
-        case 'fundSize':
-          updatedFund.size = value ? value * 1000000 : 0; // Convert from M to dollars
-          break;
-        case 'fundName':
-          updatedFund.name = value || 'Untitled Fund';
-          break;
         case 'managementFeeRate':
           updatedFund.managementFee = value ? value / 100 : 0; // Convert from percentage to decimal
           break;
         case 'carriedInterest':
           updatedFund.carryPercentage = value ? value / 100 : 0; // Convert from percentage to decimal
-          break;
-        case 'establishmentDate':
-          updatedFund.establishmentDate = value;
-          if (value) {
-            updatedFund.vintageYear = new Date(value).getFullYear();
-          }
           break;
       }
 
@@ -104,76 +59,30 @@ export default function FundBasicsStep() {
   };
 
   const handleEvergreenToggle = (checked: boolean) => {
-    updateFundBasics({ 
+    updateFundBasics({
       isEvergreen: checked,
       // Clear closed-end specific fields when switching to evergreen
       fundLife: checked ? undefined : fundLife,
-      investmentPeriod: checked ? undefined : investmentPeriod
+      investmentPeriod: checked ? undefined : investmentPeriod,
     });
   };
 
   return (
-    <ModernStepContainer
-      title="Fund Basics"
-      description="Name, currency, and fund lifecycle"
-    >
+    <ModernStepContainer title="Fund Basics" description="Fund lifecycle and economics structure">
       <div className="space-y-8">
         {/* Fund Structure Section */}
         <div className="space-y-6">
-          <div className="space-y-3">
-            <Label htmlFor="fund-name" className="text-sm font-poppins font-medium text-[#292929]">Fund Name *</Label>
-            <Input
-              id="fund-name"
-              value={fundName || ''}
-              onChange={(e: any) => handleInputChange('fundName', e.target.value)}
-              placeholder="Enter your fund name"
-              data-testid="fund-name"
-              className="h-12 text-base font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <Label htmlFor="establishment-date" className="text-sm font-poppins font-medium text-[#292929]">Establishment Date *</Label>
-              <Input
-                id="establishment-date"
-                type="date"
-                value={establishmentDate || ''}
-                onChange={(e: any) => handleInputChange('establishmentDate', e.target.value)}
-                data-testid="establishment-date"
-                className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
-              />
-              <p className="text-sm font-poppins text-[#292929]/60">
-                Used for accurate IRR calculations and performance modeling
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <Label htmlFor="vintage-year" className="text-sm font-poppins font-medium text-[#292929]">Vintage Year</Label>
-              <Input
-                id="vintage-year"
-                type="number"
-                value={vintageYear || ''}
-                onChange={(e: any) => handleInputChange('vintageYear', parseFloat(e.target.value) || undefined)}
-                placeholder="Auto-filled from establishment date"
-                data-testid="vintage-year"
-                className="h-12 bg-[#F2F2F2] font-poppins border-[#E0D8D1]"
-                readOnly
-              />
-              <p className="text-sm font-poppins text-[#292929]/60">
-                Automatically derived from establishment date
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-3 py-6 border-t border-[#E0D8D1]">
+          <div className="flex items-center space-x-3">
             <Switch
               id="evergreen"
               checked={isEvergreen || false}
               onCheckedChange={handleEvergreenToggle}
               data-testid="evergreen-toggle"
             />
-            <Label htmlFor="evergreen" className="cursor-pointer text-sm font-poppins font-medium text-[#292929]">
+            <Label
+              htmlFor="evergreen"
+              className="cursor-pointer text-sm font-poppins font-medium text-[#292929]"
+            >
               Evergreen Fund Structure
             </Label>
           </div>
@@ -181,14 +90,21 @@ export default function FundBasicsStep() {
           {!isEvergreen && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
-                <Label htmlFor="fund-life" className="text-sm font-poppins font-medium text-[#292929]">Fund Life (years)</Label>
+                <Label
+                  htmlFor="fund-life"
+                  className="text-sm font-poppins font-medium text-[#292929]"
+                >
+                  Fund Life (years)
+                </Label>
                 <Input
                   id="fund-life"
                   type="number"
                   min="1"
                   max="20"
                   value={fundLife || ''}
-                  onChange={(e: any) => handleInputChange('fundLife', parseFloat(e.target.value) || undefined)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    handleInputChange('fundLife', parseFloat(e.target.value) || undefined)
+                  }
                   placeholder="e.g., 10"
                   data-testid="fund-life"
                   className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
@@ -196,14 +112,21 @@ export default function FundBasicsStep() {
               </div>
 
               <div className="space-y-3">
-                <Label htmlFor="investment-period" className="text-sm font-poppins font-medium text-[#292929]">Investment Period (years)</Label>
+                <Label
+                  htmlFor="investment-period"
+                  className="text-sm font-poppins font-medium text-[#292929]"
+                >
+                  Investment Period (years)
+                </Label>
                 <Input
                   id="investment-period"
                   type="number"
                   min="1"
                   max="10"
                   value={investmentPeriod || ''}
-                  onChange={(e: any) => handleInputChange('investmentPeriod', parseFloat(e.target.value) || undefined)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    handleInputChange('investmentPeriod', parseFloat(e.target.value) || undefined)
+                  }
                   placeholder="e.g., 3"
                   data-testid="investment-period"
                   className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
@@ -211,24 +134,6 @@ export default function FundBasicsStep() {
               </div>
             </div>
           )}
-
-          <div className="space-y-3">
-            <Label htmlFor="fund-size" className="text-sm font-poppins font-medium text-[#292929]">Target Fund Size ($M)</Label>
-            <Input
-              id="fund-size"
-              type="number"
-              min="0"
-              step="0.1"
-              value={fundSize || ''}
-              onChange={(e: any) => handleInputChange('fundSize', parseFloat(e.target.value) || undefined)}
-              placeholder="e.g., 100"
-              data-testid="fund-size"
-              className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
-            />
-            <p className="text-sm font-poppins text-[#292929]/60">
-              This will be automatically calculated from LP commitments if not specified
-            </p>
-          </div>
         </div>
 
         {/* Economics Section */}
@@ -237,7 +142,9 @@ export default function FundBasicsStep() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="mgmt-fee" className="text-sm font-poppins font-medium text-[#292929]">Management Fee (%)</Label>
+              <Label htmlFor="mgmt-fee" className="text-sm font-poppins font-medium text-[#292929]">
+                Management Fee (%)
+              </Label>
               <Input
                 id="mgmt-fee"
                 type="number"
@@ -245,7 +152,9 @@ export default function FundBasicsStep() {
                 max="5"
                 step="0.1"
                 value={managementFeeRate || ''}
-                onChange={(e: any) => handleInputChange('managementFeeRate', parseFloat(e.target.value) || undefined)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  handleInputChange('managementFeeRate', parseFloat(e.target.value) || undefined)
+                }
                 placeholder="e.g., 2.0"
                 data-testid="mgmt-fee"
                 className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
@@ -253,7 +162,12 @@ export default function FundBasicsStep() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="carried-interest" className="text-sm font-poppins font-medium text-[#292929]">Carried Interest (%)</Label>
+              <Label
+                htmlFor="carried-interest"
+                className="text-sm font-poppins font-medium text-[#292929]"
+              >
+                Carried Interest (%)
+              </Label>
               <Input
                 id="carried-interest"
                 type="number"
@@ -261,7 +175,9 @@ export default function FundBasicsStep() {
                 max="50"
                 step="1"
                 value={carriedInterest || ''}
-                onChange={(e: any) => handleInputChange('carriedInterest', parseFloat(e.target.value) || undefined)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  handleInputChange('carriedInterest', parseFloat(e.target.value) || undefined)
+                }
                 placeholder="e.g., 20"
                 data-testid="carried-interest"
                 className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
