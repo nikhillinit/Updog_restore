@@ -49,7 +49,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
-      
+
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -71,7 +71,7 @@ jobs:
               - 'docs/**'
               - '.github/*.md'
               - '!CHANGELOG.md'
-      
+
       - name: Detect affected tests
         id: affected
         if: github.event_name == 'pull_request'
@@ -91,24 +91,17 @@ jobs:
       bundle-baseline: ${{ steps.baseline.outputs.stats }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '22.16.0'
           cache: 'npm'
 
-      - name: Pin npm version (CI)
-        run: |
-          corepack enable || true
-          npm install -g npm@10.9.2
-          npm --version
-          node --version
-
       - name: Generate cache key
         id: cache-key
         run: |
           echo "key=tsc-${{ hashFiles('**/*.ts', '**/*.tsx', '**/tsconfig*.json', 'package-lock.json') }}" >> $GITHUB_OUTPUT
-      
+
       - name: Cache TypeScript build
         id: tsc-cache
         uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a
@@ -121,9 +114,9 @@ jobs:
           key: ${{ steps.cache-key.outputs.key }}
           restore-keys: |
             tsc-
-      
+
       - run: npm ci --prefer-offline --no-audit
-      
+
       - name: Build TypeScript incrementally
         run: |
           if [ -f ".tsbuildinfo.client" ] && [ -f ".tsbuildinfo.server" ]; then
@@ -134,7 +127,7 @@ jobs:
             echo "Full compilation required"
             npx tsc -b tsconfig.client.json tsconfig.server.json --incremental
           fi
-      
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         with:
@@ -143,7 +136,7 @@ jobs:
             .tsbuildinfo.*
             **/*.tsbuildinfo
           retention-days: 1
-      
+
       - name: Fetch baseline bundle stats
         id: baseline
         if: github.event_name == 'pull_request'
@@ -176,18 +169,11 @@ jobs:
         job: [client, server, shared, lint, unit-fast]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '22.16.0'
           cache: 'npm'
-
-      - name: Pin npm version (CI)
-        run: |
-          corepack enable || true
-          npm install -g npm@10.9.2
-          npm --version
-          node --version
 
       - name: Restore TypeScript cache
         uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a
@@ -197,14 +183,14 @@ jobs:
             **/*.tsbuildinfo
             node_modules/.cache
           key: ${{ needs.setup.outputs.cache-key }}
-      
+
       - run: npm ci --prefer-offline --no-audit
-      
+
       - name: Download build artifacts
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
           name: tsbuild
-      
+
       - name: Run check
         run: |
           case "${{ matrix.job }}" in
@@ -261,7 +247,7 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-      
+
       redis:
         image: redis:7-alpine
         options: >-
@@ -271,23 +257,16 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
-    
+
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
-      
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '22.16.0'
           cache: 'npm'
-
-      - name: Pin npm version (CI)
-        run: |
-          corepack enable || true
-          npm install -g npm@10.9.2
-          npm --version
-          node --version
 
       - name: Cache test results
         uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a
@@ -298,14 +277,14 @@ jobs:
           key: test-affected-${{ github.sha }}
           restore-keys: |
             test-affected-
-      
+
       - run: npm ci --prefer-offline --no-audit
-      
+
       - name: Setup database
         run: npm run db:push
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
-      
+
       - name: Run affected tests
         run: |
           npm run test:affected || npm run test:smart || npm run test:quick
@@ -337,7 +316,7 @@ jobs:
           - group: e2e
             needs-db: true
             needs-redis: true
-    
+
     services:
       postgres:
         image: ${{ matrix.needs-db && 'postgres:16-alpine' || '' }}
@@ -352,7 +331,7 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-      
+
       redis:
         image: ${{ matrix.needs-redis && 'redis:7-alpine' || '' }}
         options: >-
@@ -362,21 +341,14 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
-    
+
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '22.16.0'
           cache: 'npm'
-
-      - name: Pin npm version (CI)
-        run: |
-          corepack enable || true
-          npm install -g npm@10.9.2
-          npm --version
-          node --version
 
       - name: Cache test results
         uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a
@@ -387,19 +359,19 @@ jobs:
           key: test-${{ matrix.group }}-${{ github.sha }}
           restore-keys: |
             test-${{ matrix.group }}-
-      
+
       - run: npm ci --prefer-offline --no-audit
-      
+
       - name: Setup database
         if: matrix.needs-db
         run: npm run db:push
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
-      
+
       - name: Install Playwright
         if: matrix.group == 'e2e'
         run: npx playwright install --with-deps chromium
-      
+
       - name: Run tests
         run: |
           case "${{ matrix.group }}" in
@@ -418,7 +390,7 @@ jobs:
           DATABASE_URL: ${{ matrix.needs-db && 'postgresql://postgres:postgres@localhost:5432/test' || '' }}
           REDIS_URL: ${{ matrix.needs-redis && 'redis://localhost:6379' || '' }}
           TZ: UTC
-      
+
       - name: Upload coverage
         if: matrix.group == 'unit'
         uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673
@@ -435,18 +407,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '22.16.0'
           cache: 'npm'
-
-      - name: Pin npm version (CI)
-        run: |
-          corepack enable || true
-          npm install -g npm@10.9.2
-          npm --version
-          node --version
 
       - run: npm ci --prefer-offline --no-audit
 
@@ -454,14 +419,14 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
-      
+
       - name: Generate bundle stats
         id: bundle-stats
         run: |
           node scripts/bundle-stats.cjs > bundle-stats.json || echo '{}' > bundle-stats.json
           TOTAL_KB=$(du -sk dist/public/assets/*.js 2>/dev/null | awk '{sum+=$1} END {print sum}' || echo "0")
           echo "total_kb=${TOTAL_KB}" >> $GITHUB_OUTPUT
-      
+
       - name: Dynamic bundle size check
         run: |
           if [ -n "${{ needs.setup.outputs.bundle-baseline }}" ] && [ "${{ needs.setup.outputs.bundle-baseline }}" != "{}" ]; then
@@ -474,14 +439,14 @@ jobs:
             # Fallback to static limit if no baseline
             npm run bundle:check || true
           fi
-      
+
       - name: Upload bundle stats
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         with:
           name: bundle-stats
           path: bundle-stats.json
           retention-days: 30
-      
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         with:
@@ -491,7 +456,7 @@ jobs:
             !dist/**/*.map
           retention-days: 7
 
-  # Conditional: Security tests (label or input triggered)  
+  # Conditional: Security tests (label or input triggered)
   security-tests:
     name: Security Tests
     needs: [changes, setup]
@@ -502,29 +467,22 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '22.16.0'
           cache: 'npm'
 
-      - name: Pin npm version (CI)
-        run: |
-          corepack enable || true
-          npm install -g npm@10.9.2
-          npm --version
-          node --version
-
       - run: npm ci --prefer-offline --no-audit
 
       - name: Run security audit
         run: npm audit --audit-level=moderate
-      
+
       - name: Run security tests
         if: hashFiles('tests/security/**/*.test.ts') != ''
         run: npm run test:security || vitest run tests/security
         continue-on-error: true
-      
+
       - name: OWASP dependency check
         uses: dependency-check/Dependency-Check_Action@main
         with:
@@ -544,18 +502,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '22.16.0'
           cache: 'npm'
-
-      - name: Pin npm version (CI)
-        run: |
-          corepack enable || true
-          npm install -g npm@10.9.2
-          npm --version
-          node --version
 
       - run: npm ci --prefer-offline --no-audit
 
@@ -589,18 +540,11 @@ jobs:
           --mount type=bind,source=${{ github.workspace }}/monitoring/alertmanager.yml,target=/etc/alertmanager/alertmanager.yml,readonly
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '22.16.0'
           cache: 'npm'
-
-      - name: Pin npm version (CI)
-        run: |
-          corepack enable || true
-          npm install -g npm@10.9.2
-          npm --version
-          node --version
 
       - run: npm ci --prefer-offline --no-audit
 
@@ -608,20 +552,20 @@ jobs:
         run: |
           npm run dev:api &
           npx wait-on http://localhost:5000/api/health --timeout 60000
-      
+
       - name: Run alert drills
         run: |
           node scripts/alert-drill-runner.js \
             lcpBreach \
             inpBreach \
             rumRejectHigh
-      
+
       - name: Verify alerts fired
         run: |
           node scripts/verify-alerts.js \
             --alerts LCPBudgetFastBurn,INPBudgetFastBurn,RUMIngestRejectRatioHigh \
             --require
-      
+
       - name: Upload drill results
         if: always()
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
@@ -641,14 +585,14 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
-      
+
       - name: Feature flags guard
         id: flags-guard
         run: |
           PR_LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}' \
           node scripts/flags-guard.mjs
         continue-on-error: true
-      
+
       - name: Check for perf budget changes
         id: perf-files
         uses: tj-actions/changed-files@v45
@@ -656,7 +600,7 @@ jobs:
           files: |
             **/*.perf-budget.json
             **/perf-budget.*
-      
+
       - name: Performance budget guard
         id: perf-guard
         if: steps.perf-files.outputs.any_changed == 'true'
@@ -667,7 +611,7 @@ jobs:
             echo "❌ Performance budget changes require 'approved:perf-budget-change' label"
             exit 1
           fi
-      
+
       - name: Comment guard results
         if: always()
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
@@ -675,7 +619,7 @@ jobs:
           script: |
             const flagsBlocked = "${{ steps.flags-guard.outcome }}" === "failure";
             const perfBlocked = "${{ steps.perf-guard.outcome }}" === "failure";
-            
+
             if (flagsBlocked || perfBlocked) {
               let comment = "## 🚨 Governance Guards\n\n";
               if (flagsBlocked) comment += "❌ **Feature flags changes blocked** - requires approval labels\n";
@@ -706,7 +650,7 @@ jobs:
           else
             TEST_RESULT="${{ needs.test-full.result }}"
           fi
-          
+
           if [[ "${{ needs.check.result }}" != "success" || 
                 "$TEST_RESULT" != "success" || 
                 "${{ needs.build.result }}" != "success" ]]; then
@@ -717,7 +661,7 @@ jobs:
             exit 1
           fi
           echo "✅ CI Gate Passed"
-      
+
       - name: Comment PR status
         if: github.event_name == 'pull_request'
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
@@ -726,7 +670,7 @@ jobs:
             const status = "${{ steps.status.outcome }}";
             const emoji = status === "success" ? "✅" : "❌";
             const testType = "${{ needs.test-affected.result }}" ? "affected" : "full";
-            
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,

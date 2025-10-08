@@ -462,9 +462,9 @@ export function sanitizeDistributionParams(params: any): any {
 export class SanitizationError extends Error {
   constructor(
     message: string,
-    public field?: string,
-    public originalValue?: any,
-    public sanitizedValue?: any
+    public _field?: string,
+    public _originalValue?: any,
+    public _sanitizedValue?: any
   ) {
     super(message);
     this.name = 'SanitizationError';
@@ -479,7 +479,7 @@ export function createSanitizationMiddleware(options: {
   sanitizeQuery?: boolean;
   sanitizeParams?: boolean;
   strictMode?: boolean;
-  customSanitizers?: Record<string, (value: any) => any>;
+  customSanitizers?: Record<string, (_value: any) => any>;
 } = {}) {
   return (req: any, res: any, next: any) => {
     try {
@@ -537,7 +537,7 @@ export function createSanitizationMiddleware(options: {
       res.status(400).json({
         error: 'Invalid input data',
         message: error instanceof Error ? error.message : 'Request contains invalid data',
-        field: error instanceof SanitizationError ? error.field : undefined
+        field: error instanceof SanitizationError ? error._field : undefined
       });
     }
   };

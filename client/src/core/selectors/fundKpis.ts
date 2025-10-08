@@ -3,7 +3,7 @@ import type { FundRawData, FundKpis, Investment } from '@/core/types/fund';
 export const sum = (arr: number[]) => arr.reduce((a,b)=>a+b,0);
 export function calcCalled(cs:{amount:number}[]){return sum(cs.map(c=>c.amount));}
 export function calcDistributions(ds:{amount:number}[]){return sum(ds.map(d=>d.amount));}
-export function calcLatestNav(ns:{value:number;date:string}[]){return ns.length?ns[ns.length-1].value:0;}
+export function calcLatestNav(ns:{value:number;date:string}[]){return ns.length?(ns[ns.length-1]?.value ?? 0):0;}
 export function calcInvested(inv:Investment[]){return sum(inv.map(i=>i.initialAmount))+sum(inv.flatMap(i=>i.followOns??[]));}
 export function calculateDPI(dist:number, called:number){return called>0?dist/called:0;}
 export function calculateTVPI(dist:number, nav:number, called:number){return called>0?(dist+nav)/called:0;}

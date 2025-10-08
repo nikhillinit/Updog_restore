@@ -207,11 +207,11 @@ export class BaselineService {
 
     // Identify top performers (top 20% by current valuation)
     const sortedCompanies = companies
-      .filter(c => c.currentValuation)
-      .sort((a, b) => parseFloat(b.currentValuation!.toString()) - parseFloat(a.currentValuation!.toString()));
+      .filter((c: any) => c.currentValuation)
+      .sort((a: any, b: any) => parseFloat(b.currentValuation!.toString()) - parseFloat(a.currentValuation!.toString()));
 
     const topPerformersCount = Math.ceil(sortedCompanies.length * 0.2);
-    const topPerformers = sortedCompanies.slice(0, topPerformersCount).map(c => ({
+    const topPerformers = sortedCompanies.slice(0, topPerformersCount).map((c: any) => ({
       id: c.id,
       name: c.name,
       sector: c.sector,

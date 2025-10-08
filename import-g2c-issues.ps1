@@ -36,17 +36,17 @@ for ($i = 0; $i -lt $content.Length; $i++) {
 # Create each issue
 foreach ($issue in $issues) {
     Write-Host "Creating issue: $($issue.Id): $($issue.Title)"
-    
-    $args = @(
+
+    $ghArgs = @(
         "issue", "create",
         "--repo", $REPO,
         "--title", "$($issue.Id): $($issue.Title)",
         "--body", $issue.Body,
         "--assignee", "@me"
     )
-    
-    & $GH_PATH @args
-        
+
+    & $GH_PATH @ghArgs
+
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Successfully created issue: $($issue.Id)" -ForegroundColor Green
     } else {

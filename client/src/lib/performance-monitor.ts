@@ -248,19 +248,19 @@ export class PerformanceMonitor {
     }
     
     // Generate recommendations
-    if (summary.averages['calculation_duration'] > this.thresholds.calculationTime.warning) {
+    if ((summary.averages['calculation_duration'] ?? 0) > this.thresholds.calculationTime.warning) {
       recommendations.push('Consider optimizing calculation algorithms or implementing better caching');
     }
-    
-    if (summary.averages['cache_hit_rate'] < this.thresholds.cacheHitRate.warning) {
+
+    if ((summary.averages['cache_hit_rate'] ?? 1) < this.thresholds.cacheHitRate.warning) {
       recommendations.push('Review cache strategy - hit rate is below optimal levels');
     }
-    
-    if (summary.averages['error_rate'] > this.thresholds.errorRate.warning) {
+
+    if ((summary.averages['error_rate'] ?? 0) > this.thresholds.errorRate.warning) {
       recommendations.push('Investigate error patterns and improve error handling');
     }
-    
-    if (summary.averages['memory_used'] > this.thresholds.memoryUsage.warning) {
+
+    if ((summary.averages['memory_used'] ?? 0) > this.thresholds.memoryUsage.warning) {
       recommendations.push('Monitor memory usage - consider implementing memory optimization');
     }
     

@@ -3,7 +3,7 @@
  * Production-grade flag management with security and versioning
  */
 
-import type { Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { getClientFlags, getFlags, getFlagsVersion, getFlagsHash, updateFlag, getFlagHistory, getCacheStatus, activateKillSwitch } from '../lib/flags.js';
@@ -91,7 +91,7 @@ const adminRateLimit = rateLimit({
 });
 
 // Security headers for admin routes
-adminRouter.use((req: Request, res: Response, next) => {
+adminRouter.use((req: Request, res: Response, next: NextFunction) => {
   // Never cache admin responses
   res['setHeader']('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res['setHeader']('Pragma', 'no-cache');

@@ -29,27 +29,20 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Pin npm version (CI)
-        run: |
-          corepack enable || true
-          npm install -g npm@10.9.2
-          npm --version
-          node --version
-
       - run: npm ci
-      
+
       - name: TypeScript Check
         id: ts-check
         run: |
           echo "🔍 Checking TypeScript compilation..."
-          
+
           # Run typecheck and capture output
           npm run check 2>&1 | tee ts-output.log || true
-          
+
           # Count errors safely (works even with 0 matches)
           TS_ERRORS=$(grep -c "error TS" ts-output.log || echo "0")
           TS_ERRORS="${TS_ERRORS:-0}"
-          
+
           # Ensure it's a number
           if [[ "$TS_ERRORS" =~ ^[0-9]+$ ]]; then
             echo "errors=$TS_ERRORS" >> $GITHUB_OUTPUT
@@ -65,21 +58,21 @@ jobs:
             echo "errors=0" >> $GITHUB_OUTPUT
             exit 1
           fi
-      
+
       - name: Block new @ts-ignore
         if: github.event_name == 'pull_request'
         run: |
           echo "🔍 Checking for new @ts-ignore comments..."
-          
+
           # Get the base branch
           BASE_BRANCH="${{ github.base_ref }}"
-          
+
           # Check for new @ts-ignore
           if git diff origin/${BASE_BRANCH}...HEAD | grep -E '^\+.*@ts-ignore'; then
             echo "❌ New @ts-ignore detected. Fix the type error properly."
             exit 1
           fi
-          
+
           echo "✅ No new @ts-ignore comments"
 
   # Gate 2: Tests
@@ -95,40 +88,33 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Pin npm version (CI)
-        run: |
-          corepack enable || true
-          npm install -g npm@10.9.2
-          npm --version
-          node --version
-
       - run: npm ci
-      
+
       - name: Unit Tests
         run: |
           echo "🧪 Running unit tests..."
-          
+
           # Run tests and capture output
           npm run test:unit 2>&1 | tee unit-test.log || true
-          
+
           # Extract test count
           PASSING=$(grep -oP '\d+(?= passing)' unit-test.log | head -1 || echo "0")
           FAILING=$(grep -oP '\d+(?= failing)' unit-test.log | head -1 || echo "0")
-          
+
           echo "📊 Test Results: $PASSING passing, $FAILING failing"
-          
+
           if [ "$FAILING" -gt 0 ]; then
             echo "❌ Tests failed"
             exit 1
           fi
-          
+
           if [ "$PASSING" -lt 50 ]; then
             echo "❌ Insufficient test coverage (only $PASSING tests)"
             exit 1
           fi
-          
+
           echo "✅ Unit tests: $PASSING tests passed"
-      
+
       - name: Integration Tests
         run: |
           echo "🔗 Running integration tests..."
@@ -149,39 +135,32 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Pin npm version (CI)
-        run: |
-          corepack enable || true
-          npm install -g npm@10.9.2
-          npm --version
-          node --version
-
       - run: npm ci
-      
+
       - name: Build Application
         run: |
           echo "🔨 Building application..."
-          
+
           # Build and capture output
           npm run build 2>&1 | tee build.log
-          
+
           echo "✅ Build completed"
-      
+
       - name: Extract Bundle Size
         run: |
           echo "📦 Extracting bundle size..."
-          
+
           # Make script executable
           chmod +x scripts/extract-bundle-size.mjs
-          
+
           # Run extraction
           node scripts/extract-bundle-size.mjs
-      
+
       - name: Check Bundle Budget
         run: |
           BUDGET_KB=400
           WARNING_KB=380
-          
+
           if [ -f "dist/.app-size-kb" ]; then
             SIZE_KB=$(cat dist/.app-size-kb)
             echo "📦 Bundle size: ${SIZE_KB}KB / ${BUDGET_KB}KB"
@@ -197,7 +176,7 @@ jobs:
           else
             echo "⚠️ Could not determine bundle size"
           fi
-      
+
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         if: always()
         with:
@@ -211,13 +190,13 @@ jobs:
   ci-health:
     name: CI Health Check
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
         with:
           script: |
             console.log('🔍 Checking CI health...');
-            
+
             // Check recent CI runs on main branch
             try {
               const { data: runs } = await github.rest.actions.listWorkflowRuns({
@@ -254,21 +233,21 @@ jobs:
   guardian-window:
     name: Guardian Window Check
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '20'
-      
+
       - name: Check Guardian Window
         run: |
           echo "🛡️ Checking Guardian window..."
-          
+
           # Make script executable
           chmod +x tools/check-guardian-window.mjs
-          
+
           # Run check
           node tools/check-guardian-window.mjs || echo "⚠️ Guardian check not critical for now"
         env:
@@ -291,24 +270,17 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Pin npm version (CI)
-        run: |
-          corepack enable || true
-          npm install -g npm@10.9.2
-          npm --version
-          node --version
-
       - run: npm ci
-      
+
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
-      
+
       - name: Start Application
         run: |
           npm run build
           npm start &
           echo "SERVER_PID=$!" >> $GITHUB_ENV
-          
+
           # Wait for server
           for i in {1..30}; do
             if curl -f http://localhost:5000/healthz 2>/dev/null; then
@@ -317,18 +289,18 @@ jobs:
             fi
             sleep 2
           done
-      
+
       - name: Run E2E Tests
         run: |
           npm run test:e2e:wizard || npx playwright test tests/e2e/wizard.spec.ts || echo "E2E tests need configuration"
         env:
           E2E_BASE_URL: http://localhost:5000
-      
+
       - name: Cleanup
         if: always()
         run: |
           [[ -n "${SERVER_PID:-}" ]] && kill $SERVER_PID || true
-      
+
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         if: always()
         with:
@@ -342,20 +314,20 @@ jobs:
     needs: [typecheck, tests, build, ci-health, guardian-window]
     if: always()
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Evaluate Gates
         id: evaluate
         run: |
           echo "📊 Evaluating gate status..."
-          
+
           # Check job statuses
           TS_STATUS="${{ needs.typecheck.result }}"
           TEST_STATUS="${{ needs.tests.result }}"
           BUILD_STATUS="${{ needs.build.result }}"
           CI_STATUS="${{ needs.ci-health.result }}"
           GUARDIAN_STATUS="${{ needs.guardian-window.result }}"
-          
+
           # Count successes
           SUCCESS_COUNT=0
           [ "$TS_STATUS" = "success" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
@@ -363,10 +335,10 @@ jobs:
           [ "$BUILD_STATUS" = "success" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
           [ "$CI_STATUS" = "success" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
           [ "$GUARDIAN_STATUS" = "success" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
-          
+
           echo "gates_passed=$SUCCESS_COUNT" >> $GITHUB_OUTPUT
           echo "all_green=$( [ $SUCCESS_COUNT -eq 5 ] && echo true || echo false )" >> $GITHUB_OUTPUT
-      
+
       - name: Post PR Comment
         if: github.event_name == 'pull_request'
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
@@ -379,12 +351,12 @@ jobs:
               'CI Health': '${{ needs.ci-health.result }}' === 'success',
               'Guardian': '${{ needs.guardian-window.result }}' === 'success'
             };
-            
+
             const passedCount = Object.values(gates).filter(v => v).length;
             const allGreen = passedCount === 5;
-            
+
             let summary = '## 📊 Green Scoreboard\n\n';
-            
+
             if (allGreen) {
               summary += '### 🟢 ALL GATES GREEN - Ready to merge\n\n';
             } else if (passedCount >= 3) {
@@ -392,10 +364,10 @@ jobs:
             } else {
               summary += `### 🔴 GATES FAILING - ${passedCount}/5 gates green\n\n`;
             }
-            
+
             summary += '| Gate | Status | Details |\n';
             summary += '|------|--------|---------|\\n';
-            
+
             for (const [gate, passed] of Object.entries(gates)) {
               const icon = passed ? '✅' : '❌';
               let details = '';
@@ -414,7 +386,7 @@ jobs:
               
               summary += `| ${gate} | ${icon} | ${details} |\\n`;
             }
-            
+
             if (!allGreen) {
               summary += '\n### 🔧 Required Actions\n\n';
               
@@ -434,21 +406,21 @@ jobs:
                 summary += '5. Fix Guardian canary health checks\n';
               }
             }
-            
+
             summary += '\n---\n';
             summary += '_Last updated: ' + new Date().toISOString() + '_';
-            
+
             // Find and update or create comment
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number
             });
-            
+
             const botComment = comments.find(c => 
               c.user.type === 'Bot' && c.body.includes('Green Scoreboard')
             );
-            
+
             if (botComment) {
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
@@ -464,7 +436,7 @@ jobs:
                 body: summary
               });
             }
-            
+
             // Set final status
             if (!allGreen) {
               core.setFailed(`Only ${passedCount}/5 gates passed`);
