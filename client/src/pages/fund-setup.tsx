@@ -28,6 +28,8 @@ const STEP_COMPONENTS: Record<StepKey, React.ComponentType> = {
 };
 
 // Modern wizard steps configuration
+// NOTE: Exit Recycling step removed to simplify validation and build trust
+// Users can focus on initial + follow-on capital per cohort without recycling complexity
 const WIZARD_STEPS = [
   {
     id: 'fund-basics',
@@ -53,27 +55,22 @@ const WIZARD_STEPS = [
     title: 'INVESTMENT STRATEGY',
     description: 'Stages, sectors, and allocations',
   },
-  {
-    id: 'distributions',
-    number: 5,
-    title: 'EXIT RECYCLING',
-    description: 'Proceeds recycling configuration',
-  },
+  // distributions step (Exit Recycling) removed - no recycling assumption
   {
     id: 'cashflow-management',
-    number: 6,
+    number: 5,
     title: 'WATERFALL & CARRY',
     description: 'Distribution terms and carry structure',
   },
   {
     id: 'review',
-    number: 7,
+    number: 6,
     title: 'ADVANCED SETTINGS',
     description: 'Fund structure and expenses',
   },
   {
     id: 'complete',
-    number: 8,
+    number: 7,
     title: 'REVIEW & CREATE',
     description: 'Final review and fund creation',
   },
