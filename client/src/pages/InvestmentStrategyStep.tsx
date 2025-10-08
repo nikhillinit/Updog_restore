@@ -317,39 +317,41 @@ export default function InvestmentStrategyStep() {
                         </div>
                       </div>
 
-                      {/* Stages Summary with Fixed Column Widths */}
-                      <div className="space-y-4">
-                        {/* Header with Fixed Column Grid - Press On Branded */}
-                        <div className="grid text-sm font-poppins font-bold text-white py-4 px-2 bg-[#292929] rounded-xl border border-[#292929]" style={{
-                          gridTemplateColumns: '140px 100px 80px 120px 90px 90px 100px 90px 140px'
-                        }}>
-                          <div className="text-white px-3">Round</div>
-                          <div className="text-white px-3 text-center">Size ($M)</div>
-                          <div className="text-white px-3 text-center">Type</div>
-                          <div className="text-white px-3 text-center">Valuation ($M)</div>
-                          <div className="text-white px-3 text-center">ESOP (%)</div>
-                          <div className="text-[#E0D8D1] px-3 text-center">Grad (%)</div>
-                          <div className="text-[#E0D8D1] px-3 text-center">Mo to Grad</div>
-                          <div className="text-[#E0D8D1] px-3 text-center">Exit (%)</div>
-                          <div className="text-[#E0D8D1] px-3 text-center">Exit Val ($M)</div>
-                        </div>
-
-                        {/* Rows with Matching Fixed Column Grid */}
-                        {profile.stages.map((stage: any, index: any) => (
-                          <div key={stage.id} className="grid text-base py-4 px-2 bg-white rounded-xl border border-[#E0D8D1] hover:bg-[#F2F2F2] hover:border-[#292929] hover:shadow-md transition-all duration-200" style={{
+                      {/* Stages Summary with Horizontal Scroll */}
+                      <div className="overflow-x-auto -mx-4 px-4">
+                        <div className="space-y-4 min-w-[1100px]">
+                          {/* Header with Fixed Column Grid - Press On Branded */}
+                          <div className="grid text-sm font-poppins font-bold text-white py-4 px-2 bg-[#292929] rounded-xl border border-[#292929]" style={{
                             gridTemplateColumns: '140px 100px 80px 120px 90px 90px 100px 90px 140px'
                           }}>
-                            <div className="font-inter font-bold text-[#292929] text-lg px-3">{stage.name}</div>
-                            <div className="font-poppins font-semibold text-[#292929] px-3 text-center">${stage.roundSize}M</div>
-                            <div className="font-poppins text-[#292929]/70 px-3 text-center">{stage.valuationType}</div>
-                            <div className="font-poppins font-semibold text-[#292929] px-3 text-center">${stage.valuation}M</div>
-                            <div className="font-poppins font-semibold text-[#292929] px-3 text-center">{stage.esopPct}%</div>
-                            <div className="font-poppins font-bold text-[#292929] px-3 text-center">{stage.graduationRate}%</div>
-                            <div className="font-poppins font-bold text-[#292929] px-3 text-center">{stage.monthsToGraduate}mo</div>
-                            <div className="font-poppins font-bold text-[#292929] px-3 text-center">{stage.exitRate}%</div>
-                            <div className="font-poppins font-semibold text-[#292929] px-3 text-center">${stage.exitValuation}M</div>
+                            <div className="text-white px-3">Round</div>
+                            <div className="text-white px-3 text-center">Size ($M)</div>
+                            <div className="text-white px-3 text-center">Type</div>
+                            <div className="text-white px-3 text-center">Valuation ($M)</div>
+                            <div className="text-white px-3 text-center">ESOP (%)</div>
+                            <div className="text-[#E0D8D1] px-3 text-center">Grad (%)</div>
+                            <div className="text-[#E0D8D1] px-3 text-center">Mo to Grad</div>
+                            <div className="text-[#E0D8D1] px-3 text-center">Exit (%)</div>
+                            <div className="text-[#E0D8D1] px-3 text-center">Exit Val ($M)</div>
                           </div>
-                        ))}
+
+                          {/* Rows with Matching Fixed Column Grid */}
+                          {profile.stages.map((stage: any, index: any) => (
+                            <div key={stage.id} className="grid text-base py-4 px-2 bg-white rounded-xl border border-[#E0D8D1] hover:bg-[#F2F2F2] hover:border-[#292929] hover:shadow-md transition-all duration-200" style={{
+                              gridTemplateColumns: '140px 100px 80px 120px 90px 90px 100px 90px 140px'
+                            }}>
+                              <div className="font-inter font-bold text-[#292929] text-lg px-3">{stage.name}</div>
+                              <div className="font-poppins font-semibold text-[#292929] px-3 text-center tabular-nums">${stage.roundSize}M</div>
+                              <div className="font-poppins text-[#292929]/70 px-3 text-center">{stage.valuationType}</div>
+                              <div className="font-poppins font-semibold text-[#292929] px-3 text-center tabular-nums">${stage.valuation}M</div>
+                              <div className="font-poppins font-semibold text-[#292929] px-3 text-center tabular-nums">{stage.esopPct}%</div>
+                              <div className="font-poppins font-bold text-[#292929] px-3 text-center tabular-nums">{stage.graduationRate}%</div>
+                              <div className="font-poppins font-bold text-[#292929] px-3 text-center tabular-nums">{stage.monthsToGraduate}mo</div>
+                              <div className="font-poppins font-bold text-[#292929] px-3 text-center tabular-nums">{stage.exitRate}%</div>
+                              <div className="font-poppins font-semibold text-[#292929] px-3 text-center tabular-nums">${stage.exitValuation}M</div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -390,26 +392,26 @@ export default function InvestmentStrategyStep() {
                             Add Round
                           </Button>
                         </div>
-
-                        {/* Column Headers with Fixed Column Grid */}
-                        <div className="grid text-base font-poppins font-bold text-white py-4 px-2 bg-[#292929] rounded-xl border border-[#292929]" style={{
-                          gridTemplateColumns: '140px 100px 80px 120px 90px 90px 100px 90px 140px 120px'
-                        }}>
-                          <div className="text-white px-3">Round</div>
-                          <div className="text-white px-3 text-center">Size ($M)</div>
-                          <div className="text-white px-3 text-center">Type</div>
-                          <div className="text-white px-3 text-center">Valuation ($M)</div>
-                          <div className="text-white px-3 text-center">ESOP (%)</div>
-                          <div className="text-[#E0D8D1] px-3 text-center">Grad (%)</div>
-                          <div className="text-[#E0D8D1] px-3 text-center">Mo to Grad</div>
-                          <div className="text-[#E0D8D1] px-3 text-center">Exit (%)</div>
-                          <div className="text-[#E0D8D1] px-3 text-center">Exit Val ($M)</div>
-                          <div className="text-[#F2F2F2] px-3 text-center">Actions</div>
-                        </div>
                       </div>
 
-                      {/* Stages with Fixed Column Grid Matching Headers */}
-                      <div className="space-y-4">
+                      {/* Stages with Fixed Column Grid Matching Headers - Scrollable */}
+                      <div className="overflow-x-auto -mx-4 px-4">
+                        <div className="space-y-4 min-w-[1220px]">
+                          {/* Column Headers with Fixed Column Grid */}
+                          <div className="grid text-base font-poppins font-bold text-white py-4 px-2 bg-[#292929] rounded-xl border border-[#292929]" style={{
+                            gridTemplateColumns: '140px 100px 80px 120px 90px 90px 100px 90px 140px 120px'
+                          }}>
+                            <div className="text-white px-3">Round</div>
+                            <div className="text-white px-3 text-center">Size ($M)</div>
+                            <div className="text-white px-3 text-center">Type</div>
+                            <div className="text-white px-3 text-center">Valuation ($M)</div>
+                            <div className="text-white px-3 text-center">ESOP (%)</div>
+                            <div className="text-[#E0D8D1] px-3 text-center">Grad (%)</div>
+                            <div className="text-[#E0D8D1] px-3 text-center">Mo to Grad</div>
+                            <div className="text-[#E0D8D1] px-3 text-center">Exit (%)</div>
+                            <div className="text-[#E0D8D1] px-3 text-center">Exit Val ($M)</div>
+                            <div className="text-[#F2F2F2] px-3 text-center">Actions</div>
+                          </div>
                         {profile.stages.map((stage: any, stageIndex: any) => (
                           <div key={stage.id} className="grid items-center py-4 px-2 bg-white rounded-xl border border-[#E0D8D1] shadow-sm hover:shadow-lg hover:border-[#292929] transition-all duration-200" style={{
                             gridTemplateColumns: '140px 100px 80px 120px 90px 90px 100px 90px 140px 120px'
@@ -586,6 +588,7 @@ export default function InvestmentStrategyStep() {
                             </div>
                           </div>
                         ))}
+                        </div>
                       </div>
 
                       {/* Important Considerations */}
@@ -628,7 +631,7 @@ export default function InvestmentStrategyStep() {
           </Button>
           <Button
             data-testid="next-step"
-            onClick={() => navigate('/fund-setup?step=4')}
+            onClick={() => navigate('/fund-setup?step=5')}
             className="flex items-center gap-2 bg-[#292929] hover:bg-[#292929]/90 text-white px-8 py-3 h-auto font-poppins font-medium transition-all duration-200"
           >
             Next Step
