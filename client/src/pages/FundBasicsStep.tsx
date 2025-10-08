@@ -8,6 +8,8 @@ import { ArrowRight } from 'lucide-react';
 import { useFundSelector, useFundAction } from '@/stores/useFundSelector';
 import { useFundContext } from '@/contexts/FundContext';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
+import { NumericInput } from '@/components/ui/NumericInput';
+import { WizardCard } from '@/components/wizard/WizardCard';
 
 export default function FundBasicsStep() {
   const [, navigate] = useLocation();
@@ -96,30 +98,16 @@ export default function FundBasicsStep() {
             />
           </div>
 
-          <div className="space-y-3">
-            <Label
-              htmlFor="capital-committed"
-              className="text-sm font-poppins font-medium text-[#292929]"
-            >
-              Capital Committed ($M) *
-            </Label>
-            <Input
-              id="capital-committed"
-              type="number"
-              min="0"
-              step="0.1"
-              value={fundSize || ''}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                handleInputChange('fundSize', parseFloat(e.target.value) || undefined)
-              }
-              placeholder="e.g., 100"
-              data-testid="capital-committed"
-              className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
-            />
-            <p className="text-sm font-poppins text-[#292929]/60">
-              Total capital committed by LPs
-            </p>
-          </div>
+          <NumericInput
+            label="Capital Committed ($M) *"
+            value={fundSize}
+            onChange={(value: number | undefined) => handleInputChange('fundSize', value)}
+            mode="number"
+            min={0}
+            step={0.1}
+            help="Total capital committed by LPs"
+            required
+          />
 
           <div className="flex items-center space-x-3 pt-6 border-t border-[#E0D8D1]">
             <Switch
@@ -186,54 +174,31 @@ export default function FundBasicsStep() {
         </div>
 
         {/* Economics Section */}
-        <div className="space-y-6 pt-8 border-t border-[#E0D8D1]">
-          <h3 className="text-lg font-inter font-bold text-[#292929]">Economics</h3>
-
+        <WizardCard title="Economics" description="Management fee and carry structure">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="mgmt-fee" className="text-sm font-poppins font-medium text-[#292929]">
-                Management Fee (%)
-              </Label>
-              <Input
-                id="mgmt-fee"
-                type="number"
-                min="0"
-                max="5"
-                step="0.1"
-                value={managementFeeRate || ''}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  handleInputChange('managementFeeRate', parseFloat(e.target.value) || undefined)
-                }
-                placeholder="e.g., 2.0"
-                data-testid="mgmt-fee"
-                className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
-              />
-            </div>
+            <NumericInput
+              label="Management Fee"
+              value={managementFeeRate}
+              onChange={(value: number | undefined) => handleInputChange('managementFeeRate', value)}
+              mode="percentage"
+              min={0}
+              max={5}
+              step={0.1}
+              help="Annual management fee (typically 2%)"
+            />
 
-            <div className="space-y-2">
-              <Label
-                htmlFor="carried-interest"
-                className="text-sm font-poppins font-medium text-[#292929]"
-              >
-                Carried Interest (%)
-              </Label>
-              <Input
-                id="carried-interest"
-                type="number"
-                min="0"
-                max="50"
-                step="1"
-                value={carriedInterest || ''}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  handleInputChange('carriedInterest', parseFloat(e.target.value) || undefined)
-                }
-                placeholder="e.g., 20"
-                data-testid="carried-interest"
-                className="h-12 font-poppins border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929]"
-              />
-            </div>
+            <NumericInput
+              label="Carried Interest"
+              value={carriedInterest}
+              onChange={(value: number | undefined) => handleInputChange('carriedInterest', value)}
+              mode="percentage"
+              min={0}
+              max={50}
+              step={1}
+              help="GP performance fee (typically 20%)"
+            />
           </div>
-        </div>
+        </WizardCard>
 
         {/* Navigation */}
         <div className="flex justify-end pt-8 border-t border-[#E0D8D1] mt-8">
