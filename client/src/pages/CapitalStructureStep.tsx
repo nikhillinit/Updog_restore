@@ -8,6 +8,8 @@ import { Plus, Trash2, ArrowLeft, ArrowRight, Edit } from "lucide-react";
 import { useFundContext } from '@/contexts/FundContext';
 import { useFundSelector } from '@/stores/useFundSelector';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
+import { AllocationSliders, Allocation } from '@/components/ui/AllocationSliders';
+import { WizardCard } from '@/components/wizard/WizardCard';
 
 // Capital Allocation interface
 interface CapitalAllocation {
@@ -46,6 +48,13 @@ export default function CapitalStructureStep() {
 
   // Get investment strategy stages for graduation rate modeling
   const stages = useFundSelector(s => s.stages);
+
+  // State for high-level stage allocations (using AllocationSliders)
+  const [stageAllocations, setStageAllocations] = useState<Allocation[]>([
+    { id: 'preseed_seed', label: 'Pre-Seed + Seed', pct: 43 },
+    { id: 'series_a', label: 'Series A', pct: 14 },
+    { id: 'reserved', label: 'Reserved', pct: 43 }
+  ]);
 
   // Mock allocations (this would come from store)
   const [allocations, setAllocations] = useState<CapitalAllocation[]>([
@@ -410,6 +419,20 @@ export default function CapitalStructureStep() {
             <p><strong>📊 Capital Allocation:</strong> Follow-on projections use binary search algorithm with graduation rates from Investment Strategy. Allocations will be refined after expenses (Step 5) and recycling (Step 6).</p>
           </div>
         </div>
+
+        {/* Stage-Level Capital Allocation */}
+        <WizardCard
+          title="Capital Allocation by Stage"
+          description="Distribute investable capital across investment stages. Allocations must sum to 100%."
+        >
+          <AllocationSliders
+            initial={stageAllocations}
+            onChange={(rows: Allocation[]) => {
+              setStageAllocations(rows);
+              // Optionally sync to fund store/context
+            }}
+          />
+        </WizardCard>
 
         {/* Current Allocations */}
         <div className="space-y-6">
