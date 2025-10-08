@@ -34,5 +34,9 @@ if git status -s | grep -Eq "(playwright-report|test-results|coverage)"; then
     echo "test-results/"
     echo "coverage/"
   } >> .gitignore
-  git add .gitignore && git commit -m "chore: ignore test artifacts" || true
+  if git add .gitignore && git commit -m "chore: ignore test artifacts"; then
+    echo "✅ .gitignore committed"
+  else
+    echo "ℹ️  No .gitignore changes to commit"
+  fi
 fi

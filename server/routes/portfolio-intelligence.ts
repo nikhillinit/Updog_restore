@@ -138,7 +138,7 @@ const QuickScenarioSchema = z.object({
 router.post('/api/portfolio/strategies', idempotency, async (req: AuthenticatedRequest, res: Response) => {
   try {
     // Get fund ID from query parameter
-    const fundId = req.query.fundId;
+    const fundId = req.query['fundId'];
     if (!fundId) {
       const error: ApiError = {
         error: 'Missing fund ID',
@@ -224,7 +224,7 @@ router['get']('/api/portfolio/strategies/:fundId', async (req: Request, res: Res
   try {
     let fundId: number;
     try {
-      fundId = toNumber(req.params.fundId, 'fund ID', { integer: true, min: 1 });
+      fundId = toNumber(req.params['fundId'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
       if (err instanceof NumberParseError) {
         const error: ApiError = {
@@ -237,15 +237,16 @@ router['get']('/api/portfolio/strategies/:fundId', async (req: Request, res: Res
     }
 
     // Parse query parameters
-    const isActive = req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined;
-    const modelType = req.query.modelType as string;
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    // TODO: These will be used when database service is implemented
+    const _isActive = req.query['isActive'] === 'true' ? true : req.query['isActive'] === 'false' ? false : undefined;
+    const _modelType = req.query['modelType'] as string;
+    const _limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
 
     // TODO: Implement with actual database service
     // const strategies = await portfolioIntelligenceService.strategies.getByFund(fundId, {
-    //   isActive,
-    //   modelType,
-    //   limit
+    //   isActive: _isActive,
+    //   modelType: _modelType,
+    //   limit: _limit
     // });
 
     // Mock response for now
@@ -281,7 +282,7 @@ router['get']('/api/portfolio/strategies/:fundId', async (req: Request, res: Res
  */
 router.put('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const strategyId = req.params.id;
+    const strategyId = req.params['id'];
     if (!strategyId) {
       const error: ApiError = {
         error: 'Invalid strategy ID',
@@ -337,7 +338,7 @@ router.put('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest, re
  */
 router.delete('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const strategyId = req.params.id;
+    const strategyId = req.params['id'];
     if (!strategyId) {
       const error: ApiError = {
         error: 'Invalid strategy ID',
@@ -382,7 +383,7 @@ router.delete('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest,
  */
 router.post('/api/portfolio/scenarios', idempotency, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const fundId = req.query.fundId;
+    const fundId = req.query['fundId'];
     if (!fundId) {
       const error: ApiError = {
         error: 'Missing fund ID',
@@ -458,7 +459,7 @@ router['get']('/api/portfolio/scenarios/:fundId', async (req: Request, res: Resp
   try {
     let fundId: number;
     try {
-      fundId = toNumber(req.params.fundId, 'fund ID', { integer: true, min: 1 });
+      fundId = toNumber(req.params['fundId'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
       if (err instanceof NumberParseError) {
         const error: ApiError = {
@@ -470,9 +471,9 @@ router['get']('/api/portfolio/scenarios/:fundId', async (req: Request, res: Resp
       throw err;
     }
 
-    const scenarioType = req.query.scenarioType as string;
-    const status = req.query.status as string;
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const scenarioType = req.query['scenarioType'] as string;
+    const status = req.query['status'] as string;
+    const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
 
     // TODO: Implement database query
     const scenarios = [
@@ -567,7 +568,7 @@ router.post('/api/portfolio/scenarios/compare', idempotency, async (req: Authent
  */
 router.post('/api/portfolio/scenarios/:id/simulate', idempotency, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const scenarioId = req.params.id;
+    const scenarioId = req.params['id'];
     if (!scenarioId) {
       const error: ApiError = {
         error: 'Invalid scenario ID',
@@ -654,7 +655,7 @@ router.post('/api/portfolio/scenarios/:id/simulate', idempotency, async (req: Au
  */
 router.post('/api/portfolio/reserves/optimize', idempotency, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const fundId = req.query.fundId;
+    const fundId = req.query['fundId'];
     if (!fundId) {
       const error: ApiError = {
         error: 'Missing fund ID',
@@ -743,7 +744,7 @@ router['get']('/api/portfolio/reserves/strategies/:fundId', async (req: Request,
   try {
     let fundId: number;
     try {
-      fundId = toNumber(req.params.fundId, 'fund ID', { integer: true, min: 1 });
+      fundId = toNumber(req.params['fundId'], 'fund ID', { integer: true, min: 1 });
     } catch (err) {
       if (err instanceof NumberParseError) {
         const error: ApiError = {
@@ -755,8 +756,8 @@ router['get']('/api/portfolio/reserves/strategies/:fundId', async (req: Request,
       throw err;
     }
 
-    const strategyType = req.query.strategyType as string;
-    const isActive = req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined;
+    const strategyType = req.query['strategyType'] as string;
+    const isActive = req.query['isActive'] === 'true' ? true : req.query['isActive'] === 'false' ? false : undefined;
 
     // TODO: Implement database query
     const strategies = [
@@ -864,7 +865,7 @@ router.post('/api/portfolio/reserves/backtest', idempotency, async (req: Authent
  */
 router.post('/api/portfolio/forecasts', idempotency, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const fundId = req.query.fundId;
+    const fundId = req.query['fundId'];
     if (!fundId) {
       const error: ApiError = {
         error: 'Missing fund ID',
@@ -951,7 +952,7 @@ router.post('/api/portfolio/forecasts', idempotency, async (req: AuthenticatedRe
  */
 router['get']('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: Response) => {
   try {
-    const scenarioId = req.params.scenarioId;
+    const scenarioId = req.params['scenarioId'];
     if (!scenarioId) {
       const error: ApiError = {
         error: 'Invalid scenario ID',
@@ -960,8 +961,8 @@ router['get']('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: 
       return res.status(400).json(error);
     }
 
-    const forecastType = req.query.forecastType as string;
-    const status = req.query.status as string;
+    const forecastType = req.query['forecastType'] as string;
+    const status = req.query['status'] as string;
 
     // TODO: Implement database query
     const forecasts = [
@@ -1068,8 +1069,8 @@ router.post('/api/portfolio/forecasts/validate', async (req: AuthenticatedReques
  */
 router['get']('/api/portfolio/templates', async (req: Request, res: Response) => {
   try {
-    const category = req.query.category as string;
-    const riskProfile = req.query.riskProfile as string;
+    const category = req.query['category'] as string;
+    const riskProfile = req.query['riskProfile'] as string;
 
     // TODO: Implement template query
     const templates = [
@@ -1198,7 +1199,7 @@ router.post('/api/portfolio/quick-scenario', async (req: AuthenticatedRequest, r
  */
 router['get']('/api/portfolio/metrics/:scenarioId', async (req: Request, res: Response) => {
   try {
-    const scenarioId = req.params.scenarioId;
+    const scenarioId = req.params['scenarioId'];
     if (!scenarioId) {
       const error: ApiError = {
         error: 'Invalid scenario ID',
@@ -1207,8 +1208,8 @@ router['get']('/api/portfolio/metrics/:scenarioId', async (req: Request, res: Re
       return res.status(400).json(error);
     }
 
-    const metricType = req.query.metricType as string;
-    const timeRange = req.query.timeRange as string || '1y';
+    const metricType = req.query['metricType'] as string;
+    const timeRange = req.query['timeRange'] as string || '1y';
 
     // TODO: Implement real-time metrics calculation
     const metrics = {

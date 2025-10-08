@@ -143,8 +143,9 @@ export function validateFeeTiers(tiers: FeeTier[]): string[] {
   for (let i = 1; i < sortedTiers.length; i++) {
     const prev = sortedTiers[i - 1];
     const curr = sortedTiers[i];
+    if (!prev || !curr) continue;
     const prevEnd = prev.endMonth ?? Infinity;
-    
+
     if (curr.startMonth <= prevEnd) {
       errors.push(`Overlapping fee periods: "${prev.name}" and "${curr.name}"`);
     }

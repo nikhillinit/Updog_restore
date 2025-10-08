@@ -265,7 +265,7 @@ export class PerformancePredictionEngine {
     const currentStage = this.determineFundStage(fundAgeYears, monthlyPerformance);
 
     // Calculate comparative metrics
-    const cohortPerformance = await this.getCohortPerformance(cohortFunds.map(f => f.id));
+    const cohortPerformance = await this.getCohortPerformance(cohortFunds.map((f: any) => f.id));
     const fundPerformance = monthlyPerformance[monthlyPerformance.length - 1] || 0;
 
     const percentileRank = this.calculatePercentileRank(fundPerformance, cohortPerformance);
@@ -738,7 +738,7 @@ export class PerformancePredictionEngine {
       orderBy: fundMetrics.asOfDate
     });
 
-    return metrics.map(m => parseFloat(m.irr?.toString() || '0'));
+    return metrics.map((m: any) => parseFloat(m.irr?.toString() || '0'));
   }
 
   private determineFundStage(ageYears: number, performance: number[]): 'investment' | 'growth' | 'harvest' | 'mature' {

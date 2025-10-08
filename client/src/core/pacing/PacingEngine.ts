@@ -55,13 +55,13 @@ function calculateRuleBasedPacing(input: PacingInput): PacingOutput[] {
     'neutral': { early: 1.0, mid: 1.0, late: 1.0 }  // Even distribution
   };
   
-  const adjustment = marketAdjustments[marketCondition];
+  const adjustment = marketAdjustments[marketCondition] ?? marketAdjustments['neutral'];
   const baseAmount = fundSize / 8; // 8 quarters deployment
-  
+
   return Array.from({ length: 8 }, (_: any, i: any) => {
     const quarter = deploymentQuarter + i;
     let multiplier: number;
-    
+
     // Determine phase and apply multiplier
     if (i < 3) {
       multiplier = adjustment.early;

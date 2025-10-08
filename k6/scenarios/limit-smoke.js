@@ -28,16 +28,19 @@ export const options = {
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:5000';
 
+// Constants for test payloads (using explicit values for Codacy precision checks)
+const FIFTY_MILLION = 50_000_000;
+
 export default function () {
   // Test general API rate limiting (100 req/min)
   group('API Rate Limiting', () => {
     const res = http.get(`${BASE_URL}/api/v1/funds`, {
       headers: { 'Content-Type': 'application/json' },
     });
-    
+
     const isRateLimited = res.status === 429;
     rateLimitErrors.add(isRateLimited);
-    
+
     if (isRateLimited) {
       requestsBlocked.add(1);
       const retryAfter = res.headers['Retry-After'];
@@ -45,20 +48,20 @@ export default function () {
         retryAfterValues.add(parseInt(retryAfter));
       }
     }
-    
+
     check(res, {
       'status is 200 or 429': (r) => r.status === 200 || r.status === 429,
-      'has rate limit headers': (r) => 
+      'has rate limit headers': (r) =>
         r.headers['RateLimit-Limit'] !== undefined ||
         r.headers['X-RateLimit-Limit'] !== undefined,
     });
   });
-  
+
   // Test simulation rate limiting (10 req/hour)
   if (__VU <= 5) { // Only first 5 VUs test simulation endpoint
     group('Simulation Rate Limiting', () => {
       const simulationPayload = JSON.stringify({
-        fundSize: 50000000,
+        fundSize: FIFTY_MILLION,
         deploymentPeriod: 3,
         targetMultiple: 3.0,
         managementFee: 0.02,

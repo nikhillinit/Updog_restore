@@ -374,12 +374,14 @@ export function generateDefaultPacingPeriods(
   };
 
   const multipliers = curveMultipliers[deploymentCurve] || curveMultipliers['linear'];
+  if (!multipliers) return periods;
+
   const periodsToGenerate = Math.min(investmentPeriod, multipliers.length);
 
   const totalMultiplier = multipliers.slice(0, periodsToGenerate).reduce((sum, m) => sum + m, 0);
 
   for (let i = 0; i < periodsToGenerate; i++) {
-    const multiplier = multipliers[i] || 1;
+    const multiplier = multipliers[i] ?? 1;
     const allocationPercent = (multiplier / totalMultiplier) * 100;
 
     periods.push({

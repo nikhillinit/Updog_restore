@@ -340,10 +340,15 @@ function simulatePeriods(
 
   const period0NAV = cumulativeInvestments.plus(uninvestedCash);
 
+  const firstPeriod = periodDates[0];
+  if (!firstPeriod) {
+    throw new Error('Period dates must have at least one period');
+  }
+
   periods.push({
     periodIndex: 0,
-    periodStart: periodDates[0].start,
-    periodEnd: periodDates[0].end,
+    periodStart: firstPeriod.start,
+    periodEnd: firstPeriod.end,
     contributions: period0Contributions.toNumber(),
     investments: period0Investments.toNumber(),
     managementFees: period0Fees,
@@ -413,10 +418,13 @@ function simulatePeriods(
     );
     const periodDPI = safeDivide(cumulativeDistributions, cumulativeContributions);
 
+    const currentPeriod = periodDates[periodIndex];
+    if (!currentPeriod) continue;
+
     periods.push({
       periodIndex,
-      periodStart: periodDates[periodIndex].start,
-      periodEnd: periodDates[periodIndex].end,
+      periodStart: currentPeriod.start,
+      periodEnd: currentPeriod.end,
       contributions: 0,  // Only period 0 has contributions
       investments: 0,    // Only period 0 has initial investments
       managementFees: periodFees,

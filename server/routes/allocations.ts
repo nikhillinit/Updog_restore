@@ -450,7 +450,7 @@ router.get('/funds/:fundId/companies', asyncHandler(async (req: Request, res: Re
     : null;
 
   // Convert database results to response format
-  const responseCompanies: CompanyListItem[] = companies.map(row => ({
+  const responseCompanies: CompanyListItem[] = companies.map((row: typeof results[number]) => ({
     id: row.id,
     name: row.name,
     sector: row.sector,

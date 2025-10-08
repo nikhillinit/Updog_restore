@@ -554,7 +554,9 @@ export class ExcelParityValidator {
     if (history.length === 0) return recommendations;
 
     const latestResult = history[history.length - 1];
-    
+
+    if (!latestResult) return recommendations;
+
     if (latestResult.overallParity.parityPercentage < 0.9) {
       recommendations.push('Parity rate below 90% - investigate calculation differences');
     }

@@ -233,7 +233,7 @@ describe('FundSetup Wizard - Core Functionality', () => {
       expect(buttons.length).toBeGreaterThan(0);
 
       // All buttons should have accessible names
-      buttons.forEach(button => {
+      buttons.forEach((button: HTMLElement) => {
         expect(button).toHaveTextContent(/.+/); // Non-empty text content
       });
     });

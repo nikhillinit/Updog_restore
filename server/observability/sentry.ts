@@ -20,7 +20,7 @@ if (sentryDSN) {
     ],
     
     // Privacy: Scrub sensitive data
-    beforeSend(event) {
+    beforeSend(event: Sentry.ErrorEvent) {
       // Remove auth headers
       if (event.request?.headers) {
         delete event.request.headers.authorization;

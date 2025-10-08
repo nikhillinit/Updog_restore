@@ -52,14 +52,20 @@ let redisClient: any = null;
 
 export const initializeSecurityMiddleware = async () => {
   try {
-    if (process.env['REDIS_URL'] && process.env['REDIS_URL'] !== 'memory://') {
+    const redisUrl = process.env['REDIS_URL'];
+    if (redisUrl && redisUrl !== 'memory://') {
       redisClient = createClient({
-        url: process.env['REDIS_URL']
+        url: redisUrl
       });
 
       await redisClient.connect();
+
+      // Hide credentials by extracting host portion after '@'
+      const urlParts = redisUrl.split('@');
+      const sanitizedUrl = urlParts.length > 1 ? urlParts[1] : redisUrl;
+
       logSecurity('Redis client connected for rate limiting', {
-        url: process.env['REDIS_URL']?.split('@')[1] // Hide credentials
+        url: sanitizedUrl
       });
     }
   } catch (error) {
@@ -276,18 +282,18 @@ const sanitizeObject = (obj: any): any => {
 
 export const inputSanitization = (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Sanitize request body
-    if (req.body) {
+    // Sanitize request body (check for non-empty body)
+    if (req.body && Object.keys(req.body).length > 0) {
       req.body = sanitizeObject(req.body);
     }
 
-    // Sanitize query parameters
-    if (req.query) {
+    // Sanitize query parameters (check for specific properties)
+    if (Object.keys(req.query).length > 0) {
       req.query = sanitizeObject(req.query);
     }
 
-    // Sanitize route parameters
-    if (req.params) {
+    // Sanitize route parameters (check for specific properties)
+    if (Object.keys(req.params).length > 0) {
       req.params = sanitizeObject(req.params);
     }
 

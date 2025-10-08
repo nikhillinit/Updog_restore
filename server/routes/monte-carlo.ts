@@ -101,14 +101,15 @@ const guardResponse = (req: Request, res: Response, next: NextFunction) => {
   (res as any).json = function(data: any) {
     const guard = assertFiniteDeep(data);
     if (!guard.ok) {
-      const failure = guard as { ok: false; path: string; value: unknown; reason: string };
+      const failure = guard as { ok: false; path: string | string[]; value: unknown; reason: string };
       const correlationId = req.headers['x-correlation-id'] || 'unknown';
+      const failurePath = Array.isArray(failure.path) ? failure.path.join('/') : failure.path;
 
-      console.error(`[ENGINE_NONFINITE] Correlation: ${correlationId}, Path: ${failure.path}, Reason: ${failure.reason}`);
+      console.error(`[ENGINE_NONFINITE] Correlation: ${correlationId}, Path: ${failurePath}, Reason: ${failure.reason}`);
 
       return res.status(422).json({
         error: 'ENGINE_NONFINITE',
-        path: failure.path,
+        path: failurePath,
         reason: failure.reason,
         correlationId,
         message: 'Simulation produced invalid numeric values'
@@ -396,7 +397,7 @@ router.delete('/cache', async (req: Request, res: Response) => {
 // ============================================================================
 
 // Route-specific error handler
-router.use((error: Error, req: Request, res: Response, next: Function) => {
+router.use((error: Error, req: Request, res: Response, _next: Function) => {
   console.error('[MONTE_CARLO_ROUTES] Error:', error);
 
   res.status(500).json({
