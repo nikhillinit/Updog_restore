@@ -9,9 +9,9 @@
     "module": "ESNext",
     "strict": true,
     "noUncheckedIndexedAccess": true,  // Re-enabled for base (shared/server)
-    // TODO(tech-debt): Re-enable exactOptionalPropertyTypes after fixing ~1.6k diagnostics
+    // TODO(#135): Re-enable exactOptionalPropertyTypes after fixing ~1.6k diagnostics
     // Discovered during Oct 2025 refactor: affects charts, dashboards, forms, drag/drop
-    // Estimated effort: 2-3 focused days. See tracking issue for details.
+    // Estimated effort: 2-3 focused days. See https://github.com/nikhillinit/Updog_restore/issues/135
     // Progress: Fixed critical paths (kpiAdapter, ErrorBoundary, reserve-engine-client, flags)
     "exactOptionalPropertyTypes": false,
     "noImplicitOverride": true,
