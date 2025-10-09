@@ -9,8 +9,8 @@ function getFlag(envKey: string, localStorageKey: string): boolean {
   }
 
   // 2. Fall back to environment variable
-  const envValue = import.meta.env[envKey];
-  return String(envValue).toLowerCase() === 'true';
+  const envValue = (import.meta.env as Record<string, unknown>)[envKey];
+  return String(envValue ?? '').toLowerCase() === 'true';
 }
 
 export const FLAGS = {

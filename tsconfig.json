@@ -9,7 +9,7 @@
     "module": "ESNext",
     "strict": true,
     "noUncheckedIndexedAccess": true,  // Re-enabled for base (shared/server)
-    "exactOptionalPropertyTypes": false, // TODO: Re-enable after chart library consolidation (316 errors)
+    "exactOptionalPropertyTypes": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,  // Re-enabled for base
     "noFallthroughCasesInSwitch": true,
@@ -20,8 +20,9 @@
     "allowImportingTsExtensions": true,
     "moduleResolution": "bundler",
     "baseUrl": ".",
+    "typeRoots": ["./types", "./node_modules/@types"],
     "skipLibCheck": true, // Skip type checking of declaration files in node_modules
-    "types": ["node", "vite/client"],
+    "types": ["node", "vite/client", "vitest/client"],
     "paths": {
       "@/*": ["./client/src/*"],
       "@/core/*": ["./client/src/core/*"],

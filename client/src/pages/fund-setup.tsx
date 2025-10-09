@@ -14,7 +14,8 @@ import { emitWizard } from '@/lib/wizard-telemetry';
 import { ModernWizardProgress } from '@/components/wizard/ModernWizardProgress';
 
 // Feature flag for new selector pattern migration
-const useNewSelectors = import.meta.env['VITE_NEW_SELECTORS'] === 'true';
+const useNewSelectors =
+  (import.meta.env['VITE_NEW_SELECTORS'] as string | undefined)?.toLowerCase() === 'true';
 
 const STEP_COMPONENTS: Record<StepKey, React.ComponentType<any>> = {
   'fund-basics':        FundBasicsStep,
@@ -95,12 +96,12 @@ function useStepKey(): StepKey {
 
     // Debug logging
     if (import.meta.env.DEV) {
-      const stepParam = new URLSearchParams(search)['get']('step');
+      const stepParam = new URLSearchParams(search).get('step');
       console.log(`[FundSetup Debug] fullLocation='${fullLocation}', stepParam='${stepParam}', resolved key='${key}'`);
     }
 
     if (key === 'not-found' && import.meta.env.DEV) {
-      const val = new URLSearchParams(search)['get']('step');
+      const val = new URLSearchParams(search).get('step');
       console.warn(`[FundSetup] Invalid step '${val}', defaulting to not-found`);
     }
 

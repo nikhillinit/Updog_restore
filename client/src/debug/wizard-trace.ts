@@ -3,7 +3,8 @@ export function traceWizard(
   detail?: unknown,
   opts?: { component?: string }
 ) {
-  if (import.meta.env['VITE_WIZARD_DEBUG'] !== '1') return;
+  const env = import.meta.env as Record<string, string | undefined>;
+  if (env['VITE_WIZARD_DEBUG'] !== '1') return;
   const entry = {
     ts: new Date().toISOString(),
     t: Math.round(performance.now()), // ms since navigationStart
@@ -19,7 +20,13 @@ export function traceWizard(
 function sanitize(v: unknown) {
   try {
     const s = JSON.stringify(v);
-    return s && s.length > 140 ? JSON.parse(`${s.slice(0, 140)  }"…]"`) : v;
+    if (!s) {
+      return v;
+    }
+    if (s.length <= 140) {
+      return JSON.parse(s);
+    }
+    return `${s.slice(0, 140)}…`;
   } catch {
     return String(v);
   }

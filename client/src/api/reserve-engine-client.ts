@@ -51,14 +51,14 @@ export class ReserveEngineError extends Error {
 }
 
 export class ValidationError extends ReserveEngineError {
-  constructor(public readonly response: ValidationErrorResponse) {
+  constructor(override readonly response: ValidationErrorResponse) {
     super('Validation failed', response);
     this.name = 'ValidationError';
   }
 }
 
 export class RateLimitError extends ReserveEngineError {
-  constructor(public readonly response: RateLimitResponse) {
+  constructor(override readonly response: RateLimitResponse) {
     super(`Rate limit exceeded. Retry after ${response.retryAfter}s`, response);
     this.name = 'RateLimitError';
   }
@@ -92,14 +92,20 @@ export class ReserveEngineClient {
   };
 
   constructor(config: ReserveEngineClientConfig) {
-    this.config = {
+    const requiredConfig: Required<
+      Omit<ReserveEngineClientConfig, 'apiKey' | 'onError' | 'onRateLimit'>
+    > = {
       baseUrl: config.baseUrl,
-      apiKey: config.apiKey,
       timeout: config.timeout ?? 30000,
       retryAttempts: config.retryAttempts ?? 3,
       retryDelay: config.retryDelay ?? 1000,
-      onError: config.onError,
-      onRateLimit: config.onRateLimit,
+    };
+
+    this.config = {
+      ...requiredConfig,
+      ...(config.apiKey !== undefined ? { apiKey: config.apiKey } : {}),
+      ...(config.onError ? { onError: config.onError } : {}),
+      ...(config.onRateLimit ? { onRateLimit: config.onRateLimit } : {}),
     };
   }
 
@@ -245,12 +251,17 @@ export class ReserveEngineClient {
 
         const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-        const response = await fetch(url, {
+        const requestInit: RequestInit = {
           method,
           headers: this.buildHeaders(options?.headers),
-          body: body ? JSON.stringify(body) : undefined,
           signal,
-        });
+        };
+
+        if (body !== undefined) {
+          requestInit.body = JSON.stringify(body);
+        }
+
+        const response = await fetch(url, requestInit);
 
         clearTimeout(timeoutId);
 

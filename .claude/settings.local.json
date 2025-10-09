@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash($env:TZ='UTC')",
-      "Bash(gh pr comment:*)"
+      "Bash(gh pr comment:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": [],

@@ -2,8 +2,8 @@
  * Sidebar Component Tests
  *
  * Tests sidebar rendering with feature flags:
- * - NEW_IA=false → 26 legacy items
- * - NEW_IA=true → 5 new IA items
+ * - NEW_IA=false -> 26 legacy items
+ * - NEW_IA=true -> 5 new IA items
  */
 
 import { render, screen } from '@testing-library/react';
@@ -104,3 +104,4 @@ describe('Sidebar', () => {
     });
   });
 });
+

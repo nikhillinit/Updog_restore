@@ -4,6 +4,12 @@ import featureConfig from '../config/features.json';
 
 type FeatureFlagName = keyof typeof featureConfig;
 
+const envVars = import.meta.env as Record<string, string | undefined>;
+
+function readEnvOverride(flagName: FeatureFlagName): string | undefined {
+  return envVars[`VITE_FEATURE_${flagName.toUpperCase().replace(/-/g, '_')}`];
+}
+
 /**
  * Hook to check if a feature flag is enabled
  * @param flagName - The name of the feature flag
@@ -15,7 +21,7 @@ export function useFeatureFlag(flagName: FeatureFlagName, defaultValue = false):
 
   useEffect(() => {
     // Check environment variable override first
-    const envOverride = import.meta.env[`VITE_FEATURE_${flagName.toUpperCase().replace(/-/g, '_')}`];
+    const envOverride = readEnvOverride(flagName);
     if (envOverride !== undefined) {
       setIsEnabled(envOverride === 'true');
       return;
@@ -43,9 +49,8 @@ export function useAllFeatureFlags(): Record<FeatureFlagName, boolean> {
   useEffect(() => {
     const allFlags: Record<string, boolean> = {};
     
-    Object.keys(featureConfig).forEach((key: any) => {
-      const flagName = key as FeatureFlagName;
-      const envOverride = import.meta.env[`VITE_FEATURE_${flagName.toUpperCase().replace(/-/g, '_')}`];
+    (Object.keys(featureConfig) as FeatureFlagName[]).forEach(flagName => {
+      const envOverride = readEnvOverride(flagName);
       
       if (envOverride !== undefined) {
         allFlags[flagName] = envOverride === 'true';
