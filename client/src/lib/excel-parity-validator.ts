@@ -73,25 +73,7 @@ function toEngineStagePolicy(input: ParityStagePolicy): EngineStagePolicy {
   };
 }
 
-// Keep old functions for backward compatibility but mark as deprecated
-/** @deprecated Use toEngineCompany instead */
-function toCompany(input: ParityCompany): Company {
-  return {
-    id: input.id,
-    name: input.name,
-    stage: input.stage,
-    allocated: input.allocated
-  };
-}
-
-/** @deprecated Use toEngineStagePolicy instead */
-function toStagePolicy(input: ParityStagePolicy): StagePolicy {
-  return {
-    stage: input.stage,
-    max_check_size_cents: input.max_check_size_cents ?? (input.maxInvestment ? input.maxInvestment * 100 : 0),
-    reserve_ratio: input.reserve_ratio ?? input.reserveMultiple ?? 1.0
-  };
-}
+// Deprecated functions removed - use toEngineCompany and toEngineStagePolicy instead
 
 function toConstraints(input: ParityConstraints): ReserveConstraints {
   return {
