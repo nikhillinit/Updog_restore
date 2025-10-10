@@ -26,7 +26,7 @@ function sanitize(v: unknown) {
     if (s.length <= 140) {
       return JSON.parse(s);
     }
-    return `${s.slice(0, 140)}…`;
+    return `${s.slice(0, 140)}...`;
   } catch {
     return String(v);
   }
