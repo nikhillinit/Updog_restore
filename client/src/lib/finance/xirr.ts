@@ -48,7 +48,7 @@ export function xirrNewtonBisection(
 
   // Quick sanity: need at least one negative and one positive
   const hasNeg = flows.some((cf) => cf.amount < 0);
-  const hasPos = flows.some((cf) => cf.amount > 0);
+  const hasPos = flows.some(cf => cf.amount > 0);
   if (!hasNeg || !hasPos) return { irr: null, converged: false, iterations: 0, method: 'none' };
 
   // 1. Try Newton-Raphson (fast)
