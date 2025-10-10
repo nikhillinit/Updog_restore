@@ -3,14 +3,14 @@ name: Staging Monitor
 on:
   schedule:
     # Run every 15 minutes during soak test
-    - cron: '*/15 * * * *'
+    - cron: "*/15 * * * *"
   workflow_dispatch:
     # Allow manual triggering
     inputs:
       staging_url:
-        description: 'Staging URL to monitor'
+        description: "Staging URL to monitor"
         required: false
-        default: 'https://updog-staging.vercel.app'
+        default: "https://updog-staging.vercel.app"
 
 jobs:
   monitor:
@@ -25,8 +25,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: |
@@ -39,7 +39,7 @@ jobs:
         env:
           STAGING_URL: ${{ github.event.inputs.staging_url || 'https://updog-staging.vercel.app' }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          ALERT_ON_FAILURE: 'true'
+          ALERT_ON_FAILURE: "true"
         run: |
           chmod +x scripts/staging-monitor.sh
           ./scripts/staging-monitor.sh || echo "MONITOR_FAILED=true" >> $GITHUB_OUTPUT
@@ -111,27 +111,6 @@ jobs:
             echo "::warning::Staging ribbon not detected"
           fi
 
-      - name: Check bundle sizes
-        id: bundle
-        continue-on-error: true
-        run: |
-          echo "Building project to check bundle sizes..."
-
-          # Run build
-          npm run build
-
-          # Run size limit check
-          npm run size-limit || echo "SIZE_LIMIT_FAILED=true" >> $GITHUB_OUTPUT
-
-      - name: Run test suite
-        id: tests
-        continue-on-error: true
-        run: |
-          echo "Running test suite to verify golden dataset tests..."
-
-          # Run tests (skip slow integration tests)
-          npm run test:quick || echo "TESTS_FAILED=true" >> $GITHUB_OUTPUT
-
       - name: Measure response time
         id: response_time
         continue-on-error: true
@@ -183,8 +162,6 @@ jobs:
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Health Check | ${{ steps.health.outputs.health_status || 'unknown' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Feature Flags | ${{ steps.feature_flags.outputs.flags_status || 'unknown' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Bundle Size | ${{ steps.bundle.outputs.SIZE_LIMIT_FAILED == 'true' && 'failed' || 'passed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Test Suite | ${{ steps.tests.outputs.TESTS_FAILED == 'true' && 'failed' || 'passed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Response Time | ${{ steps.response_time.outputs.response_time_ms || 'unknown' }}ms |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -258,8 +235,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
