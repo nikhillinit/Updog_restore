@@ -82,7 +82,7 @@ pool.on('connect', async (client: PoolClient) => {
     
     // Optimize for OLTP workloads
     await client.query('SET work_mem = "8MB"');
-    await client.query('SET effective_cache_size = "1GB"');
+    await client.query("SET effective_cache_size = '1GB'");
     
     // Enable query timing for better metrics
     await client.query('SET track_io_timing = ON');
