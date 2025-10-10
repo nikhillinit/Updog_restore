@@ -3,6 +3,9 @@
 # Enhanced Pre-Commit Hook with Quality Gates
 # Runs: lint-staged (ESLint auto-fix + format), TypeScript type check, quality metrics
 
+# Skip in CI environments
+[ -n "$CI" ] && exit 0
+
 set -e
 
 echo "🔍 Running pre-commit quality gates..."

@@ -3,6 +3,9 @@
 # Commit Message Linter
 # Enforces conventional commit format: type(scope): message
 
+# Skip in CI environments
+[ -n "$CI" ] && exit 0
+
 COMMIT_MSG_FILE=$1
 COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
 
