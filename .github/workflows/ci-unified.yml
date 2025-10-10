@@ -45,8 +45,8 @@ jobs:
     name: Detect Changes
     runs-on: ubuntu-latest
     outputs:
-      code: ${{ steps.filter.outputs.code || 'false' }}
-      affected_tests: ${{ steps.affected.outputs.tests }}
+      code: ${{ steps.filter.outputs.code }}
+      affected_tests: ${{ fromJSON(steps.affected.outputs.tests) || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -69,9 +69,20 @@ jobs:
               - 'scripts/**'
               - 'tests/**'
 
+      - name: Setup Node.js for affected tests detection
+        if: github.event_name == 'pull_request' && steps.filter.outputs.code == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies for test detection
+        if: github.event_name == 'pull_request' && steps.filter.outputs.code == 'true'
+        run: npm ci --prefer-offline --no-audit
+
       - name: Detect affected tests
         id: affected
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.filter.outputs.code == 'true'
         run: |
           AFFECTED=$(node scripts/test-smart.mjs --list-only 2>/dev/null || echo "all")
           echo "tests=${AFFECTED}" >> $GITHUB_OUTPUT
@@ -163,7 +174,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        job: [client, server, shared, lint, unit-fast]
+        job: [client, server, shared, lint, "unit (quick)"]
     steps:
       - uses: actions/checkout@v4
 
@@ -190,44 +201,19 @@ jobs:
 
       - name: Run check
         run: |
-          case "${{ matrix.job }}" in
-            client)
-              if [ -f ".tsbuildinfo.client" ]; then
-                npx tsc -p tsconfig.client.json --incremental --noEmit
-              else
-                npm run check:client
-              fi
-              ;;
-            server)
-              if [ -f ".tsbuildinfo.server" ]; then
-                npx tsc -p tsconfig.server.json --incremental --noEmit
-              else
-                npm run check:server
-              fi
-              ;;
-            shared)
-              if [ -f ".tsbuildinfo.shared" ]; then
-                npx tsc -p tsconfig.shared.json --incremental --noEmit
-              else
-                npm run check:shared
-              fi
-              ;;
-            lint)
-              npm run lint
-              ;;
-            unit-fast)
-              npm run test:unit -- --bail --reporter=dot || npm run test:quick
-              ;;
-          esac
+          npm run check:${{ matrix.job }} -- \
+            --tsbuildinfo-check \
+            --incremental \
+            --noEmit
 
   # Phase 4A: Smart test execution for PRs
   test-affected:
     name: Test (Affected Only)
     needs: [changes, check]
     if: |
-      github.event_name == 'pull_request' && 
+      github.event_name == 'pull_request' &&
       needs.changes.outputs.code == 'true' &&
-      github.event.inputs.run_full_suite != 'true'
+      (github.event.inputs.run_full_suite || false) == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -252,8 +238,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        ports:
-          - 6379:6379
+        ports: [6379:6379]
 
     steps:
       - uses: actions/checkout@v4
@@ -283,9 +268,9 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
 
       - name: Run affected tests
-        run: |
-          npm run test:affected || npm run test:smart || npm run test:quick
+        run: npm run test:strategic
         env:
+          FALLBACK_STRATEGY: "smart,quick"
           NODE_ENV: test
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
           REDIS_URL: redis://localhost:6379
@@ -318,9 +303,9 @@ jobs:
       postgres:
         image: ${{ matrix.needs-db && 'postgres:16-alpine' || '' }}
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ${{ secrets.CI_DB_PASSWORD }}
+          POSTGRES_DB: ci_${{ github.run_id }}
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -421,8 +406,7 @@ jobs:
         id: bundle-stats
         run: |
           node scripts/bundle-stats.cjs > bundle-stats.json || echo '{}' > bundle-stats.json
-          TOTAL_KB=$(du -sk dist/public/assets/*.js 2>/dev/null | awk '{sum+=$1} END {print sum}' || echo "0")
-          echo "total_kb=${TOTAL_KB}" >> $GITHUB_OUTPUT
+          node scripts/calculate-bundle-size.js
 
       - name: Dynamic bundle size check
         run: |
@@ -642,11 +626,7 @@ jobs:
         id: status
         run: |
           # For PRs, check test-affected; for main, check test-full
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            TEST_RESULT="${{ needs.test-affected.result }}"
-          else
-            TEST_RESULT="${{ needs.test-full.result }}"
-          fi
+          TEST_RESULT="${{ github.event_name == 'pull_request' && needs.test-affected.result || needs.test-full.result }}"
 
           if [[ "${{ needs.check.result }}" != "success" || 
                 "$TEST_RESULT" != "success" || 
