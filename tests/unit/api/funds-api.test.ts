@@ -126,28 +126,32 @@ const buildWizardPayload = () => ({
 });
 
 describe('POST /funds (wizard payload)', () => {
+  // Helper to format rates as decimal strings with four places
+  const toDecimalString = (rate: number) => (rate / 100).toFixed(4);
+
   it('persists fund and returns identifier', async () => {
     const app = express();
     app.use(express.json());
     app.use(fundsRouter);
 
-    const response = await request(app).post('/funds').send(buildWizardPayload());
+    const payload = buildWizardPayload();
+    const response = await request(app).post('/funds').send(payload);
 
     expect(response.status).toBe(201);
     expect(response.body).toEqual({ id: 42 });
     expect(transactionMock).toHaveBeenCalledTimes(1);
     expect(fundValuesSpy).toHaveBeenCalledWith({
-      name: 'Test Fund',
-      size: '150000000',
-      managementFee: '0.0200',
-      carryPercentage: '0.2000',
-      vintageYear: 2024,
-      establishmentDate: new Date('2024-01-01'),
+      name: payload.generalInfo.fundName,
+      size: payload.generalInfo.fundSize.toString(),
+      managementFee: toDecimalString(payload.feesExpenses.managementFee.rate),
+      carryPercentage: toDecimalString(payload.feesExpenses.carriedInterest.rate),
+      vintageYear: payload.generalInfo.vintageYear,
+      establishmentDate: new Date(payload.generalInfo.establishmentDate),
       status: 'active',
     });
     expect(configValuesSpy).toHaveBeenCalledWith({
       fundId: 42,
-      config: buildWizardPayload(),
+      config: payload,
       isDraft: true,
       isPublished: false,
     });
