@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 describe('In-flight Request Tracking', () => {
   // Simple in-memory implementation for testing
@@ -44,6 +44,7 @@ describe('In-flight Request Tracking', () => {
   }
 
   it('should track requests while in-flight', async () => {
+    vi.useRealTimers(); // Use real timers for this test
     const registry = new InflightRegistry();
     const hash = 'test-hash-123';
     
@@ -62,8 +63,9 @@ describe('In-flight Request Tracking', () => {
     resolvePromise('done');
     
     // Wait for promise to complete and cleanup to happen
+    // Use longer timeout and wait for next tick to ensure microtask cleanup completes
     await promise;
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise(resolve => setTimeout(resolve, 50));
     
     // Should no longer be in-flight
     expect(registry.isInFlight(hash)).toBe(false);

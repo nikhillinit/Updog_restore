@@ -165,3 +165,4 @@ STREAMLINED_*.md
 .claude/settings.local.json
 .github/instructions/
 tools_local/node_modules/
+reports/
