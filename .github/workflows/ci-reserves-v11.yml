@@ -1,4 +1,4 @@
-name: CI - Reserves v1.1
+name: CI – Reserves v1.1
 
 on:
   pull_request:
@@ -9,167 +9,47 @@ on:
       - 'client/src/schemas/reserves-schema.ts'
       - 'client/src/components/wizard/ReserveStep.tsx'
       - 'client/src/components/reserves/ReservesTable.tsx'
+      - 'shared/lib/reserves-v11.ts'
+      - 'shared/schemas/reserves-schemas.ts'
+      - 'shared/types/reserves-v11.ts'
       - 'tests/unit/reserves-v11.test.ts'
+      - 'tests/integration/reserves-integration.test.ts'
       - 'tests/perf/reserves-budget.mjs'
       - '.github/workflows/ci-reserves-v11.yml'
+      - '.github/workflows/reusable-ci-core.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
   push:
-    branches: [ main, feat/reserves-v11 ]
+    branches: [main, feat/reserves-v11]
   workflow_dispatch:
 
 concurrency:
-  group: ci-reserves-${{ github.ref }}
+  group: ci-reserves-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+env:
+  NODE_VERSION_FILE: .nvmrc
+
 jobs:
-  test-reserves:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
-        with:
-          node-version: '22.16.0'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit
-      
-      - name: Type check
-        run: npx tsc --noEmit --project tsconfig.json
-      
-      - name: Unit tests
-        run: npx vitest run tests/unit/reserves-v11.test.ts --reporter=verbose
-      
-      - name: Performance budget test
-        run: node tests/perf/reserves-budget.mjs
-        env:
-          PERF_BUDGET_MS: 100
-      
-      - name: Bundle size check
-        run: |
-          npm run build
-          # Check that xlsx and papaparse are not in main bundle
-          if grep -q "xlsx\|papaparse" dist/assets/index-*.js; then
-            echo "❌ Export libraries found in main bundle!"
-            exit 1
-          fi
-          echo "✅ Export libraries successfully code-split"
-      
-      - name: Audit dependencies
-        run: npm audit --audit-level=high
-        continue-on-error: true
-      
-      - name: Coverage report
-        if: always()
-        run: npx vitest run tests/unit/reserves-v11.test.ts --coverage
-      
-      - name: Upload coverage
-        if: always()
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
-        with:
-          name: coverage-reserves
-          path: coverage/
-
-  integration-test:
-    runs-on: ubuntu-latest
-    needs: test-reserves
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
-        with:
-          node-version: '22.16.0'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit
-      
-      - name: Start test server
-        run: |
-          npm run dev:api &
-          npx wait-on http://localhost:5000/api/health --timeout 30000
-      
-      - name: Integration tests
-        run: |
-          # Create integration test for reserves endpoint
-          cat > tests/integration/reserves-v11.test.ts << 'EOF'
-          import { describe, it, expect } from 'vitest';
-          
-          describe('Reserves v1.1 API Integration', () => {
-            it('should calculate reserves via API', async () => {
-              const response = await fetch('http://localhost:5000/api/reserves/calculate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  companies: [
-                    { id: '1', name: 'Test', invested_cents: 1000000, exit_moic_bps: 30000 }
-                  ],
-                  config: { reserve_bps: 1500, remain_passes: 0 }
-                })
-              });
-              
-              expect(response.ok).toBe(true);
-              const result = await response.json();
-              expect(result.ok).toBe(true);
-            });
-          });
-          EOF
-          
-          npx vitest run tests/integration/reserves-v11.test.ts
-
-  visual-regression:
-    runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.labels.*.name, 'visual-test')
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
-        with:
-          node-version: '22.16.0'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: |
-          npm ci --prefer-offline --no-audit
-          npx playwright install --with-deps chromium
-      
-      - name: Visual regression tests
-        run: |
-          npm run dev &
-          npx wait-on http://localhost:5173 --timeout 30000
-          npx playwright test tests/visual/reserves-ui.spec.ts
-      
-      - name: Upload visual diff
-        if: failure()
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
-        with:
-          name: visual-diff
-          path: test-results/
-
-  comment-results:
-    runs-on: ubuntu-latest
-    needs: [test-reserves, integration-test]
-    if: always()
-    steps:
-      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
-        with:
-          script: |
-            const testStatus = "${{ needs.test-reserves.result }}";
-            const integrationStatus = "${{ needs.integration-test.result }}";
-            
-            const emoji = (testStatus === "success" && integrationStatus === "success") ? "✅" : "❌";
-            const status = (testStatus === "success" && integrationStatus === "success") ? "PASSED" : "FAILED";
-            
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `${emoji} **Reserves v1.1 CI Results**
-              
-              • Unit Tests: ${testStatus}
-              • Integration Tests: ${integrationStatus}
-              • Performance: Within budget ✅
-              • Bundle Size: Optimized ✅
-              
-              Status: **${status}**`
-            });
+  call-core-ci:
+    name: Core CI
+    uses: ./.github/workflows/reusable-ci-core.yml
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    with:
+      run-unit-tests: true
+      unit-test-path: tests/unit/reserves-v11.test.ts
+      run-integration-tests: true
+      integration-test-path: tests/integration/reserves-integration.test.ts
+      run-bundle-analysis: true
+      # Uncomment to enable visual regression tests when PR has 'visual-test' label
+      # run-visual-regression: ${{ contains(github.event.pull_request.labels.*.name, 'visual-test') }}
+      # visual-regression-path: tests/e2e/reserves-demo.spec.ts

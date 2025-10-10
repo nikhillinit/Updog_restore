@@ -23,22 +23,24 @@ const CreateFundSchema = z.object({
     modelVersion: z.literal('reserves-ev1'),
   }),
   strategy: z.object({
-    stages: z.array(z.object({
-      name: z.string().min(1),
-      graduate: percent100(),
-      exit: percent100(),
-      months: positiveInt(),
-    })),
+    stages: z.array(
+      z.object({
+        name: z.string().min(1),
+        graduate: percent100(),
+        exit: percent100(),
+        months: positiveInt(),
+      })
+    ),
   }),
 });
 
 // Local fund calculation DTO for this endpoint
-const FundCalculationDTO = z.object({
-  fundSize: z.coerce.number().positive().int().default(100_000_000)
+const FundCalculationDTOSchema = z.object({
+  fundSize: z.coerce.number().positive().int().default(100_000_000),
 });
-type FundCalculationDTO = z.infer<typeof FundCalculationDTO>;
+type FundCalculationDTO = z.infer<typeof FundCalculationDTOSchema>;
 
-router.post('/funds', idempotency, async (req: any, res: any) => {
+router.post('/funds', idempotency, async (req: Request, res: Response) => {
   const parsed = CreateFundSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400);
@@ -46,23 +48,28 @@ router.post('/funds', idempotency, async (req: any, res: any) => {
   }
 
   // TODO: persist fund with Drizzle
-  const fundId = `fund_${  Math.random().toString(36).slice(2)}`;
+  const fundId = `fund_${Math.random().toString(36).slice(2)}`;
   res.status(201);
   return res.json({ id: fundId });
 });
 
 router.post('/api/funds/calculate', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const dto = FundCalculationDTO.parse(req.body as FundCalculationDTO);
+    const dto = FundCalculationDTOSchema.parse(req.body as FundCalculationDTO);
     const idemHeader = String(req.header('Idempotency-Key') || '');
     const key = idemHeader || `calc:${hashPayload(dto)}`;
 
     const endTimer = calcDurationMs.startTimer();
-    const { status, promise } = await getOrStart(idem, key, async (_signal: any) => {
-      const model = new EnhancedFundModel(dto);
-      const out = await model.calculate();
-      return out;
-    }, 60_000);
+    const { status, promise } = await getOrStart(
+      idem,
+      key,
+      async (_signal: any) => {
+        const model = new EnhancedFundModel(dto);
+        const out = await model.calculate();
+        return out;
+      },
+      60_000
+    );
 
     if (status === 'created') {
       res['setHeader']('Idempotency-Status', 'created');
