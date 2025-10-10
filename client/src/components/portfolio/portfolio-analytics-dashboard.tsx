@@ -341,7 +341,7 @@ export default function PortfolioAnalyticsDashboard() {
       chartType: currentChart.type,
       xAxis: currentChart.xAxis,
       yAxis: currentChart.yAxis,
-      groupBy: currentChart.groupBy,
+      ...(currentChart.groupBy !== undefined ? { groupBy: currentChart.groupBy } : {}),
       filters: currentChart.filters,
       notes: viewNotes,
       createdAt: new Date().toISOString(),

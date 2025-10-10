@@ -1,5 +1,11 @@
 {
-  "include": ["types/**/*.d.ts", "client/src/**/*", "shared/**/*", "server/**/*", "schema/src/**/*"],
+  "include": [
+    "types/**/*.d.ts",
+    "client/src/**/*",
+    "shared/**/*",
+    "server/**/*",
+    "schema/src/**/*"
+  ],
   "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
   "compilerOptions": {
     "incremental": true,
@@ -8,10 +14,10 @@
     "target": "ES2020",
     "module": "ESNext",
     "strict": true,
-    "noUncheckedIndexedAccess": true,  // Re-enabled for base (shared/server)
-    "exactOptionalPropertyTypes": false, // TODO: Re-enable after chart library consolidation (316 errors)
+    "noUncheckedIndexedAccess": true, // Re-enabled for base (shared/server)
+    "exactOptionalPropertyTypes": true, // Enabled to improve type safety
     "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,  // Re-enabled for base
+    "noPropertyAccessFromIndexSignature": true, // Re-enabled for base
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],

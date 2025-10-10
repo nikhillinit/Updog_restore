@@ -11,7 +11,7 @@ import { CollapsibleCard } from '@/components/wizard/CollapsibleCard';
 import { EnhancedField } from '@/components/wizard/EnhancedField';
 import { formatUSD } from '@/lib/formatting';
 import { computeImpliedMultiple } from '@/lib/exits';
-import { STAGES, STAGE_LABEL, type Stage } from './\./_types';
+import { STAGES, STAGE_LABEL, type Stage } from './_types';
 import type { FieldErrors } from '@/lib/validation';
 import { firstError } from '@/lib/validation';
 
@@ -80,7 +80,7 @@ export function ExitValuesCard({
       title="Exit Values by Stage (equity dollars)"
       summary={summary}
       defaultExpanded
-      className={className}
+      {...(className !== undefined ? { className } : {})}
     >
       <div className="grid gap-4">
         {STAGES.map((s) => {
@@ -100,7 +100,7 @@ export function ExitValuesCard({
                   value={st?.low ?? 0}
                   onChange={(v: number) => set(s, 'low', v)}
                   aria-invalid={!!errFor(s, 'low')}
-                  error={errFor(s, 'low')}
+                  {...(errFor(s, 'low') !== undefined ? { error: errFor(s, 'low') } : {})}
                   disabled={disabled}
                 />
                 <EnhancedField
@@ -111,7 +111,7 @@ export function ExitValuesCard({
                   onChange={(v: number) => set(s, 'median', v)}
                   required
                   aria-invalid={!!errFor(s, 'median')}
-                  error={errFor(s, 'median')}
+                  {...(errFor(s, 'median') !== undefined ? { error: errFor(s, 'median') } : {})}
                   disabled={disabled}
                 />
                 <EnhancedField
@@ -121,7 +121,7 @@ export function ExitValuesCard({
                   value={st?.high ?? 0}
                   onChange={(v: number) => set(s, 'high', v)}
                   aria-invalid={!!errFor(s, 'high')}
-                  error={errFor(s, 'high')}
+                  {...(errFor(s, 'high') !== undefined ? { error: errFor(s, 'high') } : {})}
                   disabled={disabled}
                 />
               </div>
@@ -146,7 +146,7 @@ export function ExitValuesCard({
                     value={st?.weights?.low ?? 0}
                     onChange={(v: number) => set(s, 'weights', { ...(st?.weights ?? {}), low: v })}
                     aria-invalid={!!errFor(s, 'weights.low')}
-                    error={errFor(s, 'weights.low')}
+                    {...(errFor(s, 'weights.low') !== undefined ? { error: errFor(s, 'weights.low') } : {})}
                     disabled={disabled}
                   />
                   <EnhancedField
@@ -156,7 +156,7 @@ export function ExitValuesCard({
                     value={st?.weights?.median ?? 100}
                     onChange={(v: number) => set(s, 'weights', { ...(st?.weights ?? {}), median: v })}
                     aria-invalid={!!errFor(s, 'weights.median')}
-                    error={errFor(s, 'weights.median')}
+                    {...(errFor(s, 'weights.median') !== undefined ? { error: errFor(s, 'weights.median') } : {})}
                     disabled={disabled}
                   />
                   <EnhancedField
@@ -166,7 +166,7 @@ export function ExitValuesCard({
                     value={st?.weights?.high ?? 0}
                     onChange={(v: number) => set(s, 'weights', { ...(st?.weights ?? {}), high: v })}
                     aria-invalid={!!errFor(s, 'weights.high')}
-                    error={errFor(s, 'weights.high')}
+                    {...(errFor(s, 'weights.high') !== undefined ? { error: errFor(s, 'weights.high') } : {})}
                     disabled={disabled}
                   />
                 </div>

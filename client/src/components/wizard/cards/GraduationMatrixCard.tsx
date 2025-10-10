@@ -69,7 +69,7 @@ export function GraduationMatrixCard({
         value={value[id] ?? 0}
         onChange={(v: number) => set(id, v)}
         aria-invalid={!!err}
-        error={err}
+        {...(err !== undefined ? { error: err } : {})}
         disabled={disabled}
       />
     );
@@ -80,7 +80,7 @@ export function GraduationMatrixCard({
       title="Graduation Rates (advance to next stage)"
       summary={summary}
       defaultExpanded
-      className={className}
+      {...(className !== undefined ? { className } : {})}
     >
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {row('preSeedToSeed', 'Pre-Seed → Seed')}

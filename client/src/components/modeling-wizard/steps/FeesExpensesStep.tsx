@@ -95,7 +95,7 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
           <div className="flex items-center space-x-3">
             <Switch
               id="stepDownEnabled"
-              checked={stepDownEnabled}
+              {...(stepDownEnabled !== undefined ? { checked: stepDownEnabled } : {})}
               onCheckedChange={(checked) => setValue('managementFee.stepDown.enabled', checked)}
             />
             <Label htmlFor="stepDownEnabled" className="cursor-pointer font-poppins">
