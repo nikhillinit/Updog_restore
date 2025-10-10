@@ -45,10 +45,10 @@ jobs:
     name: Detect Changes
     runs-on: ubuntu-latest
     outputs:
-      code: ${{ steps.filter.outputs.code }}
-      affected_tests: ${{ fromJSON(steps.affected.outputs.tests) || '' }}
-    steps:
-      - uses: actions/checkout@v4
+      code: ${{ steps.filter.outputs.code || 'false' }}
+      affected_tests: ${{ steps.affected.outputs.tests || 'all' }}
+    steps: # This job detects changes in the codebase to enable smart test selection.
+      - uses: actions/checkout@v4 # Checkout the repository to access the code.
         with:
           fetch-depth: 0
 
@@ -74,7 +74,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
+          cache: 'npm'
 
       - name: Install dependencies for test detection
         if: github.event_name == 'pull_request' && steps.filter.outputs.code == 'true'
@@ -174,7 +174,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        job: [client, server, shared, lint, "unit (quick)"]
+        job: [client, server, shared, lint, 'unit (quick)']
     steps:
       - uses: actions/checkout@v4
 
@@ -270,7 +270,7 @@ jobs:
       - name: Run affected tests
         run: npm run test:strategic
         env:
-          FALLBACK_STRATEGY: "smart,quick"
+          FALLBACK_STRATEGY: 'smart,quick'
           NODE_ENV: test
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
           REDIS_URL: redis://localhost:6379
@@ -303,8 +303,8 @@ jobs:
       postgres:
         image: ${{ matrix.needs-db && 'postgres:16-alpine' || '' }}
         env:
-          POSTGRES_USER: ci_user
-          POSTGRES_PASSWORD: ${{ secrets.CI_DB_PASSWORD }}
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${{ secrets.CI_DB_PASSWORD || 'postgres' }}
           POSTGRES_DB: ci_${{ github.run_id }}
         options: >-
           --health-cmd pg_isready

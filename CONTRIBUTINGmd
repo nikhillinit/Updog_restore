@@ -1,12 +1,10 @@
 # Contributing to POVC Fund Model
 
-Thank you for contributing to the POVC Fund Model application! This guide will
-help you get started with contributing to the project.
+Thank you for contributing to the POVC Fund Model application! This guide will help you get started with contributing to the project.
 
 ## 🚀 Getting Started
 
 ### 1. Fork & Clone
-
 ```bash
 # Fork the repository on GitHub, then clone your fork
 git clone https://github.com/YOUR_USERNAME/UpDawg.git
@@ -17,13 +15,11 @@ git remote add upstream https://github.com/nikhillinit/UpDawg.git
 ```
 
 ### 2. Install Dependencies
-
 ```bash
 npm install
 ```
 
 ### 3. Start Development Server
-
 ```bash
 npm run dev
 ```
@@ -31,7 +27,6 @@ npm run dev
 ## 🏗 Development Workflow
 
 ### Branch Naming Convention
-
 - `feature/feature-name` - New features
 - `fix/bug-description` - Bug fixes
 - `docs/update-description` - Documentation updates
@@ -39,7 +34,6 @@ npm run dev
 - `test/test-description` - Test additions/updates
 
 ### Example:
-
 ```bash
 git checkout -b feature/portfolio-analytics
 git checkout -b fix/chart-loading-issue
@@ -47,7 +41,6 @@ git checkout -b docs/api-documentation
 ```
 
 ### Commit Message Format
-
 Use conventional commits format:
 
 ```
@@ -59,7 +52,6 @@ type(scope): description
 ```
 
 **Types:**
-
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation changes
@@ -69,7 +61,6 @@ type(scope): description
 - `chore`: Maintenance tasks
 
 **Examples:**
-
 ```bash
 git commit -m "feat(dashboard): add real-time fund metrics display"
 git commit -m "fix(portfolio): resolve chart rendering issue on mobile"
@@ -79,7 +70,6 @@ git commit -m "docs(readme): update installation instructions"
 ## 📝 Code Style Guidelines
 
 ### TypeScript
-
 - Use strict TypeScript configuration
 - Always define interfaces for component props
 - Use type imports when importing types only
@@ -97,7 +87,6 @@ import type { Fund, PortfolioCompany } from '@shared/schema';
 ```
 
 ### React Components
-
 - Use functional components with hooks
 - Extract complex logic into custom hooks
 - Use proper prop destructuring
@@ -113,9 +102,9 @@ interface ComponentProps {
 
 export default function Component({ title, data, onUpdate }: ComponentProps) {
   const [loading, setLoading] = useState(false);
-
+  
   // Component logic here
-
+  
   return (
     <div className="p-4">
       {/* JSX here */}
@@ -125,7 +114,6 @@ export default function Component({ title, data, onUpdate }: ComponentProps) {
 ```
 
 ### CSS/Styling
-
 - Use Tailwind CSS utility classes
 - Follow responsive design principles
 - Use POVC custom classes for branding
@@ -143,7 +131,6 @@ export default function Component({ title, data, onUpdate }: ComponentProps) {
 ```
 
 ### Backend Code
-
 - Use async/await for asynchronous operations
 - Implement proper error handling
 - Validate inputs with Zod schemas
@@ -151,22 +138,22 @@ export default function Component({ title, data, onUpdate }: ComponentProps) {
 
 ```typescript
 // Good API route structure
-app.get('/api/funds/:id', async (req, res) => {
+app.get("/api/funds/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
-      return res.status(400).json({ message: 'Invalid fund ID' });
+      return res.status(400).json({ message: "Invalid fund ID" });
     }
-
+    
     const fund = await storage.getFund(id);
     if (!fund) {
-      return res.status(404).json({ message: 'Fund not found' });
+      return res.status(404).json({ message: "Fund not found" });
     }
-
+    
     res.json(fund);
   } catch (error) {
     console.error('Error fetching fund:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: "Internal server error" });
   }
 });
 ```
@@ -174,23 +161,19 @@ app.get('/api/funds/:id', async (req, res) => {
 ## 🧪 Testing Guidelines
 
 ### Component Testing
-
 - Test component rendering
 - Test user interactions
 - Test error states
 - Mock external dependencies
 
 ### API Testing
-
 - Test all API endpoints
 - Test error conditions
 - Validate response formats
 - Test authentication/authorization
 
 ### Manual Testing Checklist
-
 Before submitting a PR, test:
-
 - [ ] All pages load correctly
 - [ ] Navigation works between modules
 - [ ] Charts render properly
@@ -202,13 +185,11 @@ Before submitting a PR, test:
 ## 📦 Adding New Features
 
 ### 1. Plan Your Feature
-
 - Create a GitHub issue describing the feature
 - Discuss implementation approach with team
 - Break down into smaller tasks if needed
 
 ### 2. Implement Frontend
-
 ```typescript
 // Add new component
 export default function NewFeature() {
@@ -229,21 +210,19 @@ export default function NewFeature() {
 ```
 
 ### 3. Implement Backend
-
 ```typescript
 // Add new API route
-app.get('/api/new-feature', async (req, res) => {
+app.get("/api/new-feature", async (req, res) => {
   try {
     const data = await storage.getNewFeatureData();
     res.json(data);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch data' });
+    res.status(500).json({ message: "Failed to fetch data" });
   }
 });
 ```
 
 ### 4. Update Types
-
 ```typescript
 // Add to shared/schema.ts
 export interface NewFeature {
@@ -259,19 +238,16 @@ export type InsertNewFeature = z.infer<typeof insertNewFeatureSchema>;
 ## 🐛 Bug Fix Process
 
 ### 1. Reproduce the Bug
-
 - Create a minimal reproduction
 - Document steps to reproduce
 - Identify root cause
 
 ### 2. Fix Implementation
-
 - Make minimal changes to fix the issue
 - Add tests to prevent regression
 - Update documentation if needed
 
 ### 3. Testing
-
 - Verify fix resolves the issue
 - Test related functionality
 - Run full test suite
@@ -279,7 +255,6 @@ export type InsertNewFeature = z.infer<typeof insertNewFeatureSchema>;
 ## 📋 Pull Request Process
 
 ### 1. Before Submitting
-
 - [ ] Code follows style guidelines
 - [ ] All tests pass
 - [ ] Documentation is updated
@@ -287,14 +262,11 @@ export type InsertNewFeature = z.infer<typeof insertNewFeatureSchema>;
 - [ ] Commit messages follow convention
 
 ### 2. PR Description Template
-
 ```markdown
 ## Description
-
 Brief description of changes
 
 ## Type of Change
-
 - [ ] Bug fix
 - [ ] New feature
 - [ ] Documentation update
@@ -302,17 +274,14 @@ Brief description of changes
 - [ ] Other (please describe)
 
 ## Testing
-
 - [ ] Unit tests added/updated
 - [ ] Manual testing completed
 - [ ] All existing tests pass
 
 ## Screenshots (if applicable)
-
 Add screenshots of UI changes
 
 ## Checklist
-
 - [ ] Code follows project style guidelines
 - [ ] Self-review of code completed
 - [ ] Documentation updated
@@ -320,7 +289,6 @@ Add screenshots of UI changes
 ```
 
 ### 3. Review Process
-
 - At least one team member must review
 - Address all feedback before merging
 - Update PR based on review comments
@@ -332,38 +300,33 @@ Add screenshots of UI changes
 
 ## 🛡️ Advanced Pull Request Guide
 
-This section covers advanced workflows for reviving old PRs and ensuring a
-clean, professional process from start to finish.
+This section covers advanced workflows for reviving old PRs and ensuring a clean, professional process from start to finish.
 
 ### The Core Decision: Revive or Rebuild?
 
-The fundamental choice is whether to reopen an old PR for speed or create a new,
-clean one.
+The fundamental choice is whether to reopen an old PR for speed or create a new, clean one.
 
 #### Option 1: Reopen the Existing PR (The Fast Path ⚡)
 
 This is the go-to if the fixes are still relevant and the history is manageable.
 
-- **Reopen the PR directly with the GitHub CLI:**
-  ```bash
-  gh pr reopen <PR_NUMBER>
-  ```
-- **Check out the branch (even without knowing the name):**
-  ```bash
-  gh pr checkout <PR_NUMBER>
-  ```
-- **Recovering a Deleted PR Branch:** If the remote branch was deleted, you can
-  still recover the exact code from the PR's ref:
-  ```bash
-  # Fetch the PR's head and create a local branch from it
-  git fetch origin pull/<PR_NUMBER>/head:tmp/pr-<PR_NUMBER> && git checkout tmp/pr-<PR_NUMBER>
-  ```
+*   **Reopen the PR directly:**
+    ```bash
+    gh pr reopen <PR_NUMBER>
+    ```
+*   **Check out the branch (even without knowing the name):**
+    ```bash
+    gh pr checkout <PR_NUMBER>
+    ```
+*   **Recovering a Deleted PR Branch:** If the remote branch was deleted, you can still recover the exact code from the PR's ref:
+    ```bash
+    # Fetch the PR's head and create a local branch from it
+    git fetch origin pull/<PR_NUMBER>/head:tmp/pr-<PR_NUMBER> && git checkout tmp/pr-<PR_NUMBER>
+    ```
 
 #### Option 2: Create a New PR (The Clean Path ✨)
 
-Use this method for complex histories or when you only need a subset of the
-original changes. The `cherry-pick` command is your best tool. To **preserve the
-original author's information** in the commit history, use the `-x` flag:
+Use this method for complex histories or when you only need a subset of the original changes. The `cherry-pick` command is your best tool. To **preserve the original author's information** in the commit history, use the `-x` flag:
 
 ```bash
 # Create a fresh branch from main
@@ -375,52 +338,35 @@ git cherry-pick -x <commitA> <commitB>
 
 ### Best Practices for PR Management
 
-1.  **Confirm the Base Branch**: Before merging, always **click "Edit" on the
-    PR** to ensure the base branch is correct (e.g., `main`, `develop`). This
-    prevents merging into the wrong place.
+1.  **Confirm the Base Branch**: Before merging, always **click "Edit" on the PR** to ensure the base branch is correct (e.g., `main`, `develop`). This prevents merging into the wrong place.
 
-2.  **Use Draft Mode & Labels**: While stabilizing a branch, **convert the PR to
-    a "Draft."** Add descriptive labels like `tests`, `flaky`, or `needs-ci` so
-    your team can easily understand the PR's status.
+2.  **Use Draft Mode & Labels**: While stabilizing a branch, **convert the PR to a "Draft."** Add descriptive labels like `tests`, `flaky`, or `needs-ci` so your team can easily understand the PR's status.
 
-3.  **Stabilize Flaky Tests Locally**: Don't rely on CI alone. Replicate and fix
-    flaky tests with a tight local loop:
-    - **Reproduce with a seed**: `CI=1 pnpm test -- --runInBand --seed 1234`
-    - **Stress test the fix**: `for i in {1..20}; do pnpm test || exit 1; done`
+3.  **Stabilize Flaky Tests Locally**: Don't rely on CI alone. Replicate and fix flaky tests with a tight local loop:
+    *   **Reproduce with a seed**: `CI=1 npm test -- --runInBand --seed 1234`
+    *   **Stress test the fix**: `for i in {1..20}; do npm test || exit 1; done`
 
 4.  **Handle CI/CD Edge Cases**:
-    - **Secrets on Forks**: If CI checks fail to start, it might be because
-      GitHub Actions secrets are not available on PRs from forks. A maintainer
-      may need to create a branch in the main repository.
-    - **Re-running Checks**: To re-run stuck or failed jobs, you can push an
-      empty commit (`git commit --allow-empty -m "Trigger CI"`) or use the
-      "Re-run all jobs" button in the GitHub UI.
+    *   **Secrets on Forks**: If CI checks fail to start, it might be because GitHub Actions secrets are not available on PRs from forks. A maintainer may need to create a branch in the main repository.
+    *   **Re-running Checks**: To re-run stuck or failed jobs, you can push an empty commit (`git commit --allow-empty -m "Trigger CI"`) or use the "Re-run all jobs" button in the GitHub UI.
 
 5.  **Practice Good PR Hygiene**:
-    - **Update the Description**: Add a brief "Why now?" section to the PR body.
-      Link to any relevant issues.
-    - **Choose Your Merge Strategy**:
-      - **Squash and merge**: Best for a noisy commit history. It condenses all
-        changes into a single, clean commit on `main`.
-      - **Rebase and merge**: Ideal for a clean, linear history when the
-        branch's commits are logical and self-contained.
-    - **Push Safely**: Always prefer `git push --force-with-lease` over
-      `git push --force` after a rebase. It's a crucial safeguard that prevents
-      you from overwriting remote work.
+    *   **Update the Description**: Add a brief "Why now?" section to the PR body. Link to any relevant issues.
+    *   **Choose Your Merge Strategy**:
+        *   **Squash and merge**: Best for a noisy commit history. It condenses all changes into a single, clean commit on `main`.
+        *   **Rebase and merge**: Ideal for a clean, linear history when the branch's commits are logical and self-contained.
+    *   **Push Safely**: Always prefer `git push --force-with-lease` over `git push --force` after a rebase. It's a crucial safeguard that prevents you from overwriting remote work.
 
 ---
 
 ### Version Numbering
-
 Follow semantic versioning (semver):
-
 - MAJOR.MINOR.PATCH
 - MAJOR: Breaking changes
 - MINOR: New features (backward compatible)
 - PATCH: Bug fixes
 
 ### Release Steps
-
 1. Update version in package.json
 2. Update CHANGELOG.md
 3. Create release tag
@@ -430,22 +376,18 @@ Follow semantic versioning (semver):
 ## ❓ Getting Help
 
 ### Resources
-
 - Check existing documentation
 - Review similar implementations in codebase
 - Search GitHub issues for similar problems
 
 ### Asking for Help
-
 1. **GitHub Discussions**: For general questions
 2. **GitHub Issues**: For bug reports and feature requests
 3. **Pull Request Comments**: For code-specific questions
 4. **Team Chat**: For real-time discussions
 
 ### Issue Template
-
 When creating issues, include:
-
 - Clear description of problem/feature
 - Steps to reproduce (for bugs)
 - Expected vs actual behavior
@@ -455,32 +397,27 @@ When creating issues, include:
 ## 🎯 Best Practices
 
 ### Performance
-
 - Optimize component re-renders
 - Use proper loading states
 - Implement efficient data fetching
 - Optimize chart rendering
 
 ### Accessibility
-
 - Use semantic HTML elements
 - Add proper ARIA labels
 - Ensure keyboard navigation
 - Maintain color contrast ratios
 
 ### Security
-
 - Validate all inputs
 - Sanitize user data
 - Use HTTPS in production
 - Keep dependencies updated
 
 ### Documentation
-
 - Comment complex logic
 - Update README for new features
 - Document API changes
 - Maintain changelog
 
-Thank you for contributing to POVC Fund Model! Your contributions help make this
-application better for everyone.
+Thank you for contributing to POVC Fund Model! Your contributions help make this application better for everyone.
