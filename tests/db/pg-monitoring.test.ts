@@ -186,10 +186,10 @@ describe('PostgreSQL Monitoring', () => {
   afterAll(async () => {
     if (!skipTests) {
       // Clean up test tables
-      await query('DROP TABLE IF EXISTS test_constraint');
-      await query('DROP TABLE IF EXISTS test_insert');
-      await query('DROP TABLE IF EXISTS test_update');
-      await query('DROP TABLE IF EXISTS test_delete');
+      try { await query('DROP TABLE IF EXISTS test_constraint'); } catch (e) {}
+      try { await query('DROP TABLE IF EXISTS test_insert'); } catch (e) {}
+      try { await query('DROP TABLE IF EXISTS test_update'); } catch (e) {}
+      try { await query('DROP TABLE IF EXISTS test_delete'); } catch (e) {}
     }
   });
 });
