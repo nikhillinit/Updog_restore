@@ -193,13 +193,23 @@ describe('In-flight Capacity Management', () => {
   });
 
   it('should support manual cancellation', async () => {
+    vi.useRealTimers(); // Use real timers for this test
     const payload = { name: 'Test Fund', size: 1000000 };
     const finalizedPayload = { ...payload, modelVersion: 'reserves-ev1' };
     const hash = computeCreateFundHash(finalizedPayload);
     
-    // Create a controlled deferred promise that won't resolve
-    const deferredRequest = deferred();
-    (global.fetch as any).mockReturnValue(deferredRequest.promise);
+    // Mock fetch to handle abort signal properly
+    (global.fetch as any).mockImplementation((url: string, options: any) => {
+      return new Promise((resolve, reject) => {
+        const signal = options?.signal;
+        if (signal) {
+          signal.addEventListener('abort', () => {
+            reject(new Error('The operation was aborted'));
+          });
+        }
+        // Don't resolve - let it be cancelled
+      });
+    });
     
     // Start request 
     const promise = startCreateFund(payload);
@@ -222,9 +232,6 @@ describe('In-flight Capacity Management', () => {
     
     // Second cancel should return false
     expect(cancelCreateFund(hash)).toBe(false);
-    
-    // Clean up the deferred promise
-    deferredRequest.reject(new Error('Test cleanup'));
   });
 
   it('should not deduplicate when dedupe option is false', async () => {
