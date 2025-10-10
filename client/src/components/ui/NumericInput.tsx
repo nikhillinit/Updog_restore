@@ -265,7 +265,7 @@ export function NumericInput({
             'py-2',
 
             // Focus states (Press On brand)
-            'focus:outline-none focus:ring-2 focus:ring-beige focus:border-beige',
+            'focus:outline-none focus:ring-2 focus:ring-pov-beige focus:border-pov-beige',
 
             // Error states
             error
