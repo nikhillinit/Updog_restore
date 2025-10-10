@@ -2,7 +2,7 @@ name: Quarantine Tests (Nightly)
 
 on:
   schedule:
-    - cron: "23 3 * * *" # 03:23 UTC nightly
+    - cron: '23 3 * * *' # 03:23 UTC nightly
   workflow_dispatch:
 
 permissions:
@@ -22,10 +22,13 @@ jobs:
           cache: 'npm'
 
       - name: Install
+        id: install_deps
         run: npm ci
+        continue-on-error: true
 
       - name: Run quarantine tests (JSON)
         id: run_quarantine
+        if: steps.install_deps.outcome == 'success'
         shell: bash
         run: |
           mkdir -p reports
@@ -42,28 +45,43 @@ jobs:
           if-no-files-found: ignore
 
       - name: Open issue on failure
-        if: failure() || (steps.run_quarantine.outputs.exit_code != '0' && steps.run_quarantine.outputs.exit_code != '')
+        if: failure() || steps.install_deps.outcome == 'failure' || (steps.run_quarantine.outputs.exit_code != '0' && steps.run_quarantine.outputs.exit_code != '')
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
         with:
           script: |
             const date = new Date().toISOString().split('T')[0];
+            const installStatus = '${{ steps.install_deps.outcome }}';
+            const testExitCode = '${{ steps.run_quarantine.outputs.exit_code }}';
+
+            let failureReason = '';
+            if (installStatus === 'failure') {
+              failureReason = '**Installation failed** - Check workflow logs for npm ci errors';
+            } else if (testExitCode && testExitCode !== '0') {
+              failureReason = `**Tests failed** - Exit code: ${testExitCode}`;
+            } else {
+              failureReason = '**Unknown failure** - Check workflow logs';
+            }
+
             const body = `
             ## Quarantine Tests Failed - ${date}
-            
+
             The nightly quarantine test run has failed.
-            
-            - **Exit code:** ${{ steps.run_quarantine.outputs.exit_code }}
+
+            - **Failure reason:** ${failureReason}
+            - **Installation status:** ${installStatus}
+            - **Test exit code:** ${testExitCode || 'N/A'}
             - **Workflow run:** [View run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             - **Artifacts:** vitest-quarantine-reports
-            
+
             ### Next Steps
             1. Download the test artifacts to see detailed failure information
-            2. Fix the failing tests or adjust timeouts if needed
-            3. When tests pass 10/10 times, graduate them back to the main suite
-            
+            2. If installation failed, check for dependency or script issues
+            3. If tests failed, fix the failing tests or adjust timeouts if needed
+            4. When tests pass 10/10 times, graduate them back to the main suite
+
             _This issue was automatically created by the nightly quarantine runner._
             `;
-            
+
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
