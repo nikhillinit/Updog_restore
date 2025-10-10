@@ -1,32 +1,58 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  TrendingUp, 
-  Target, 
-  Calculator, 
-  BarChart3,
-  CheckCircle,
-  Activity,
-  Clock,
-  DollarSign,
-  ArrowUp,
-  ArrowDown
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    Activity,
+    ArrowDown,
+    ArrowUp,
+    BarChart3,
+    Calculator,
+    CheckCircle,
+    Clock,
+    DollarSign,
+    Target,
+    TrendingUp
 } from "lucide-react";
-import { useFundContext } from "@/contexts/FundContext";
+import { ElementType } from "react";
+import { Link } from "react-router-dom"; // Assuming you use React Router
 
 interface DataDrivenInsightsProps {
   className?: string;
 }
 
-export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
-  const { currentFund } = useFundContext();
+type Trend = "up" | "down" | "neutral";
 
+interface Metric {
+  label: string;
+  value: string;
+  trend: Trend;
+}
+
+interface Workflow {
+  id: number;
+  title: string;
+  description: string;
+  status: string;
+  metrics: Metric[];
+  lastUpdated: string;
+  icon: ElementType;
+  iconBgClass: string;
+  iconTextClass: string;
+  route: string;
+}
+
+// Color mapping to ensure Tailwind CSS detects the classes
+const colorMap = {
+  blue: { bg: "bg-blue-100", text: "text-blue-600" },
+  green: { bg: "bg-green-100", text: "text-green-600" },
+  purple: { bg: "bg-purple-100", text: "text-purple-600" },
+  orange: { bg: "bg-orange-100", text: "text-orange-600" },
+  emerald: { bg: "bg-emerald-100", text: "text-emerald-600" },
+  indigo: { bg: "bg-indigo-100", text: "text-indigo-600" },
+};
+
+export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
+  
   // Sample data for the six workflows
   const workflowInsights = {
     currentForecast: {
@@ -68,7 +94,7 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
     }
   };
 
-  const workflows = [
+  const workflows: Workflow[] = [
     {
       id: 1,
       title: "Current Fund Forecast",
@@ -81,8 +107,9 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
       ],
       lastUpdated: workflowInsights.currentForecast.lastUpdated,
       icon: TrendingUp,
-      color: "blue",
-      route: "/forecasting"
+      iconBgClass: colorMap.blue.bg,
+      iconTextClass: colorMap.blue.text,
+      route: "/forecasting",
     },
     {
       id: 2,
@@ -96,8 +123,9 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
       ],
       lastUpdated: "Real-time",
       icon: Target,
-      color: "green",
-      route: "/forecasting"
+      iconBgClass: colorMap.green.bg,
+      iconTextClass: colorMap.green.text,
+      route: "/forecasting",
     },
     {
       id: 3,
@@ -111,8 +139,9 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
       ],
       lastUpdated: workflowInsights.scenarios.lastReview,
       icon: BarChart3,
-      color: "purple",
-      route: "/scenario-builder"
+      iconBgClass: colorMap.purple.bg,
+      iconTextClass: colorMap.purple.text,
+      route: "/scenario-builder",
     },
     {
       id: 4,
@@ -126,8 +155,9 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
       ],
       lastUpdated: "Daily refresh",
       icon: Calculator,
-      color: "orange",
-      route: "/planning"
+      iconBgClass: colorMap.orange.bg,
+      iconTextClass: colorMap.orange.text,
+      route: "/planning",
     },
     {
       id: 5,
@@ -141,8 +171,9 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
       ],
       lastUpdated: "Weekly analysis",
       icon: DollarSign,
-      color: "emerald",
-      route: "/partial-sales"
+      iconBgClass: colorMap.emerald.bg,
+      iconTextClass: colorMap.emerald.text,
+      route: "/partial-sales",
     },
     {
       id: 6,
@@ -156,8 +187,9 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
       ],
       lastUpdated: workflowInsights.kpis.lastSync,
       icon: Activity,
-      color: "indigo",
-      route: "/analytics"
+      iconBgClass: colorMap.indigo.bg,
+      iconTextClass: colorMap.indigo.text,
+      route: "/analytics",
     }
   ];
 
@@ -178,7 +210,7 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
     }
   };
 
-  const getTrendIcon = (trend: string) => {
+  const getTrendIcon = (trend: Trend) => {
     switch (trend) {
       case "up":
         return <ArrowUp className="h-3 w-3 text-green-600" />;
@@ -192,22 +224,22 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
   return (
     <div className={className}>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-2">Data-Driven Fund Management</h2>
+        <h2 className="text-2xl font-bold mb-2">Data-Driven Fund Management Workflows</h2>
         <p className="text-muted-foreground">
-          Six core workflows that successful data-driven venture managers follow consistently
+          Six core workflows that successful data-driven venture managers follow consistently.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {workflows.map((workflow: any) => {
+        {workflows.map((workflow) => {
           const IconComponent = workflow.icon;
           return (
             <Card key={workflow.id} className="hover:shadow-lg transition-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <div className={`p-2 rounded-lg bg-${workflow.color}-100`}>
-                      <IconComponent className={`h-4 w-4 text-${workflow.color}-600`} />
+                    <div className={`p-2 rounded-lg ${workflow.iconBgClass}`}>
+                      <IconComponent className={`h-4 w-4 ${workflow.iconTextClass}`} />
                     </div>
                     <span className="font-semibold text-sm">{workflow.id}</span>
                   </div>
@@ -222,7 +254,7 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
               <CardContent className="space-y-4">
                 {/* Metrics */}
                 <div className="grid grid-cols-1 gap-2">
-                  {workflow.metrics.map((metric: any, index: any) => (
+                  {workflow.metrics.map((metric, index) => (
                     <div key={index} className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">{metric.label}</span>
                       <div className="flex items-center space-x-1">
@@ -239,13 +271,8 @@ export function DataDrivenInsights({ className }: DataDrivenInsightsProps) {
                     <Clock className="h-3 w-3" />
                     <span>Updated {workflow.lastUpdated}</span>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-6 text-xs px-2"
-                    onClick={() => window.location.href = workflow.route}
-                  >
-                    View →
+                  <Button asChild variant="ghost" size="sm" className="h-6 text-xs px-2">
+                    <Link to={workflow.route}>View →</Link>
                   </Button>
                 </div>
               </CardContent>
