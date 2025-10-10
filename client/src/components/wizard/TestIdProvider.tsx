@@ -57,13 +57,15 @@ export const WIZARD_TEST_IDS = {
 /**
  * Higher-order component to add test IDs
  */
-export function withTestId<P extends { 'data-testid'?: string }>(
+export function withTestId<P extends object>(
   Component: React.ComponentType<P>,
   testId: string
 ) {
-  return React.forwardRef<any, P>((props: any, ref: any) => {
-      return <Component {...(props as P)} ref={ref} />;
-    });
+  const WithTestId = React.forwardRef<unknown, P>((props, ref) => {
+    return <Component {...props} data-testid={testId} ref={ref} />;
+  });
+  WithTestId.displayName = `WithTestId(${Component.displayName || Component.name || 'Component'})`;
+  return WithTestId;
 }
 
 /**
