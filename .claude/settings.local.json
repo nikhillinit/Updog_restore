@@ -3,7 +3,14 @@
     "allow": [
       "Bash($env:TZ='UTC')",
       "Bash(gh pr comment:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(gh issue create:*)",
+      "Bash(git push:*)",
+      "Bash(git fsck:*)",
+      "Bash(npm run check:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run build:web:*)",
+      "Bash(npm run dev:client:*)"
     ],
     "deny": [],
     "ask": [],
