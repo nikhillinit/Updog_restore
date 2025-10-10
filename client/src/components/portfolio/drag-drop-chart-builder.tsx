@@ -73,10 +73,10 @@ interface DragDropChartBuilderProps {
 export default function DragDropChartBuilder({ onChartChange }: DragDropChartBuilderProps): JSX.Element {
   const [selectedChartType, setSelectedChartType] = useState('bar');
   const [chartAreas, setChartAreas] = useState<ChartArea[]>([
-    { id: 'x-axis', label: 'X-Axis', accepts: ['dimension'], field: undefined },
-    { id: 'y-axis', label: 'Y-Axis', accepts: ['financial', 'growth', 'operational'], field: undefined },
-    { id: 'group-by', label: 'Group By (Optional)', accepts: ['dimension'], field: undefined },
-    { id: 'filter', label: 'Filter By (Optional)', accepts: ['dimension'], field: undefined },
+    { id: 'x-axis', label: 'X-Axis', accepts: ['dimension'] },
+    { id: 'y-axis', label: 'Y-Axis', accepts: ['financial', 'growth', 'operational'] },
+    { id: 'group-by', label: 'Group By (Optional)', accepts: ['dimension'] },
+    { id: 'filter', label: 'Filter By (Optional)', accepts: ['dimension'] },
   ]);
 
   const addFieldToArea = (field: MetricField, areaId: string) => {

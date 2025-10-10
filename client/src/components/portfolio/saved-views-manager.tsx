@@ -116,7 +116,7 @@ export default function SavedViewsManager({
       chartType: currentView.chartType || 'bar',
       xAxis: currentView.xAxis || '',
       yAxis: currentView.yAxis || '',
-      groupBy: currentView.groupBy,
+      ...(currentView.groupBy !== undefined ? { groupBy: currentView.groupBy } : {}),
       filters: currentView.filters || {},
       notes: formData.notes,
       createdBy: 'Current User', // Replace with actual user

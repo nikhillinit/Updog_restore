@@ -180,7 +180,10 @@ export default function KPIManager() {
 
         <div className="space-y-3">
           <Label>Type</Label>
-          <Select value={newKPI.type} onValueChange={(value: 'quantitative' | 'qualitative') => setNewKPI(prev => ({ ...prev, type: value }))}>
+          <Select 
+            {...(newKPI.type !== undefined ? { value: newKPI.type } : {})}
+            onValueChange={(value: 'quantitative' | 'qualitative') => setNewKPI(prev => ({ ...prev, type: value }))}
+          >
             <SelectTrigger className="border-gray-300">
               <SelectValue />
             </SelectTrigger>
@@ -193,7 +196,10 @@ export default function KPIManager() {
 
         <div className="space-y-3">
           <Label>Frequency</Label>
-          <Select value={newKPI.frequency} onValueChange={(value: any) => setNewKPI(prev => ({ ...prev, frequency: value }))}>
+          <Select 
+            {...(newKPI.frequency !== undefined ? { value: newKPI.frequency } : {})}
+            onValueChange={(value: any) => setNewKPI(prev => ({ ...prev, frequency: value }))}
+          >
             <SelectTrigger className="border-gray-300">
               <SelectValue />
             </SelectTrigger>
@@ -226,7 +232,10 @@ export default function KPIManager() {
               className="flex-1 border-gray-300"
               placeholder="66"
             />
-            <Select value={newKPI.termUnit} onValueChange={(value: any) => setNewKPI(prev => ({ ...prev, termUnit: value }))}>
+            <Select 
+              {...(newKPI.termUnit !== undefined ? { value: newKPI.termUnit } : {})}
+              onValueChange={(value: any) => setNewKPI(prev => ({ ...prev, termUnit: value }))}
+            >
               <SelectTrigger className="w-32 border-gray-300">
                 <SelectValue />
               </SelectTrigger>
@@ -241,7 +250,10 @@ export default function KPIManager() {
 
         <div className="space-y-3">
           <Label>Number Format</Label>
-          <Select value={newKPI.numberFormat} onValueChange={(value: any) => setNewKPI(prev => ({ ...prev, numberFormat: value }))}>
+          <Select 
+            {...(newKPI.numberFormat !== undefined ? { value: newKPI.numberFormat } : {})}
+            onValueChange={(value: any) => setNewKPI(prev => ({ ...prev, numberFormat: value }))}
+          >
             <SelectTrigger className="border-gray-300">
               <SelectValue />
             </SelectTrigger>
@@ -260,7 +272,7 @@ export default function KPIManager() {
           <div className="flex items-center space-x-2">
             <Checkbox 
               id="upload-docs"
-              checked={newKPI.askToUploadDocuments}
+              {...(newKPI.askToUploadDocuments !== undefined ? { checked: newKPI.askToUploadDocuments } : {})}
               onCheckedChange={(checked: any) => setNewKPI(prev => ({ ...prev, askToUploadDocuments: !!checked }))}
             />
             <Label htmlFor="upload-docs" className="text-sm">Ask to upload documents</Label>
@@ -269,7 +281,7 @@ export default function KPIManager() {
           <div className="flex items-center space-x-2">
             <Checkbox 
               id="show-projection"
-              checked={newKPI.showFullProjectionPeriod}
+              {...(newKPI.showFullProjectionPeriod !== undefined ? { checked: newKPI.showFullProjectionPeriod } : {})}
               onCheckedChange={(checked: any) => setNewKPI(prev => ({ ...prev, showFullProjectionPeriod: !!checked }))}
             />
             <Label htmlFor="show-projection" className="text-sm">Show full projection period</Label>
@@ -278,7 +290,7 @@ export default function KPIManager() {
           <div className="flex items-center space-x-2">
             <Checkbox 
               id="hide-historicals"
-              checked={newKPI.hidePastHistoricals}
+              {...(newKPI.hidePastHistoricals !== undefined ? { checked: newKPI.hidePastHistoricals } : {})}
               onCheckedChange={(checked: any) => setNewKPI(prev => ({ ...prev, hidePastHistoricals: !!checked }))}
             />
             <Label htmlFor="hide-historicals" className="text-sm">Hide past historicals</Label>
