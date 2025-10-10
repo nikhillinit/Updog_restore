@@ -8,7 +8,7 @@
 import React from 'react';
 import { CollapsibleCard } from '@/components/wizard/CollapsibleCard';
 import { EnhancedField } from '@/components/wizard/EnhancedField';
-import { STAGES, STAGE_LABEL, type Stage } from './\./_types';
+import { STAGES, STAGE_LABEL, type Stage } from './_types';
 import type { FieldErrors } from '@/lib/validation';
 import { firstError } from '@/lib/validation';
 
@@ -59,7 +59,7 @@ export function ExitTimingCard({
     <CollapsibleCard
       title="Exit Timing (years from entry)"
       summary={summary}
-      className={className}
+      {...(className !== undefined ? { className } : {})}
     >
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
         {STAGES.map((s) => {
@@ -77,7 +77,7 @@ export function ExitTimingCard({
               onChange={(v: number) => set(s, v)}
               contextChip="Range: 4–8y"
               aria-invalid={!!err}
-              error={err}
+              {...(err !== undefined ? { error: err } : {})}
               disabled={disabled}
             />
           );

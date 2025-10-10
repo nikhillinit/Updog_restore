@@ -94,12 +94,12 @@ export class ReserveEngineClient {
   constructor(config: ReserveEngineClientConfig) {
     this.config = {
       baseUrl: config.baseUrl,
-      apiKey: config.apiKey,
+      ...(config.apiKey !== undefined ? { apiKey: config.apiKey } : {}),
       timeout: config.timeout ?? 30000,
       retryAttempts: config.retryAttempts ?? 3,
       retryDelay: config.retryDelay ?? 1000,
-      onError: config.onError,
-      onRateLimit: config.onRateLimit,
+      ...(config.onError !== undefined ? { onError: config.onError } : {}),
+      ...(config.onRateLimit !== undefined ? { onRateLimit: config.onRateLimit } : {}),
     };
   }
 

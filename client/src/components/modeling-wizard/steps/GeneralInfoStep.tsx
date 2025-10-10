@@ -154,7 +154,7 @@ export function GeneralInfoStep({ initialData, onSave }: GeneralInfoStepProps) {
           <div className="flex items-center space-x-3 py-4 border-t border-charcoal-200">
             <Switch
               id="isEvergreen"
-              checked={isEvergreen}
+              {...(isEvergreen !== undefined ? { checked: isEvergreen } : {})}
               onCheckedChange={(checked) => setValue('isEvergreen', checked)}
             />
             <Label htmlFor="isEvergreen" className="cursor-pointer font-poppins">

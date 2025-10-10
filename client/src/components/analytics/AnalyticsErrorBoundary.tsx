@@ -188,7 +188,10 @@ export function withAnalyticsErrorBoundary<P extends object>(
 ) {
   return function WrappedComponent(props: P) {
     return (
-      <AnalyticsErrorBoundary fallback={options?.fallback} onError={options?.onError}>
+      <AnalyticsErrorBoundary 
+        {...(options?.fallback !== undefined ? { fallback: options.fallback } : {})}
+        {...(options?.onError !== undefined ? { onError: options.onError } : {})}
+      >
         <Component {...props} />
       </AnalyticsErrorBoundary>
     );

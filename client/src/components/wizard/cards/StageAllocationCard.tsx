@@ -9,7 +9,7 @@ import React, { useMemo } from 'react';
 import { CollapsibleCard } from '@/components/wizard/CollapsibleCard';
 import { EnhancedField } from '@/components/wizard/EnhancedField';
 import { formatUSD, pctOfDollars } from '@/lib/formatting';
-import { STAGES, STAGE_LABEL } from './\./_types';
+import { STAGES, STAGE_LABEL } from './_types';
 import type { FieldErrors } from '@/lib/validation';
 import { firstError } from '@/lib/validation';
 
@@ -105,7 +105,7 @@ export function StageAllocationCard({
                 contextChip="0–100%"
                 aria-label={`${STAGE_LABEL[stage]} allocation percent`}
                 aria-invalid={!!err}
-                error={err}
+                {...(err !== undefined ? { error: err } : {})}
                 disabled={disabled}
               />
               <div className="text-sm tabular-nums text-muted-foreground">
@@ -130,7 +130,7 @@ export function StageAllocationCard({
                 contextChip="Common: 40–60%"
                 aria-label="Reserves percent"
                 aria-invalid={!!err}
-                error={err}
+                {...(err !== undefined ? { error: err } : {})}
                 disabled={disabled}
               />
               <div className="text-sm tabular-nums text-muted-foreground">

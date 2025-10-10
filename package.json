@@ -392,7 +392,7 @@
     "winston": "^3.17.0",
     "wouter": "^3.3.5",
     "ws": "^8.18.0",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz",
+    "xlsx": "^0.18.5",
     "xstate": "^5.22.1",
     "yaml": "^2.8.1",
     "zod": "^3.25.76",
