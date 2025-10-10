@@ -28,7 +28,8 @@ This repository contains the POVC Fund-Modeling Platform, a sophisticated applic
 ## Core Technology Stack
 
 * **Backend:** Node.js, Fastify, NATS
-* **Database:** PostgreSQL with Drizzle ORM
+* **Backend:** Node.js, Express, BullMQ
+* **Database:** PostgreSQL with Drizzle ORM and Redis
 * **Simulation Engine:** Rust compiled to WASM
 * **CI/CD:** GitHub Actions
 * **Testing:** Playwright (E2E), k6 (Performance)
