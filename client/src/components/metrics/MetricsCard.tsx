@@ -182,25 +182,34 @@ export function CompactMetricsCard({
 /**
  * Format a value based on type
  */
+/**
+ * Shared utility for formatting currency values with K/M/B suffixes.
+ */
+function formatCurrency(value: number): string {
+  if (Math.abs(value) >= 1_000_000_000) {
+    return `$${(value / 1_000_000_000).toFixed(1)}B`;
+  }
+  if (Math.abs(value) >= 1_000_000) {
+    return `$${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (Math.abs(value) >= 1_000) {
+    return `$${(value / 1_000).toFixed(0)}K`;
+  }
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+/**
+ * Format a value based on type
+ */
 function formatValue(value: number, format: MetricsCardProps['format']): string {
   switch (format) {
     case 'currency':
-      // Format large numbers with M/B suffix
-      if (Math.abs(value) >= 1_000_000_000) {
-        return `$${(value / 1_000_000_000).toFixed(1)}B`;
-      }
-      if (Math.abs(value) >= 1_000_000) {
-        return `$${(value / 1_000_000).toFixed(1)}M`;
-      }
-      if (Math.abs(value) >= 1_000) {
-        return `$${(value / 1_000).toFixed(0)}K`;
-      }
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(value);
+      return formatCurrency(value);
 
     case 'percentage':
       return `${(value * 100).toFixed(1)}%`;
