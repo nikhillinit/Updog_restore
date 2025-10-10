@@ -67,6 +67,12 @@ Specialized PR setup for fund store integration.
 - Sets up branch protection requirements
 - Prepares deployment pipeline
 
+### `mark-pr-files-viewed.sh`
+Automates marking all changed files in a PR as viewed.
+- Uses GitHub CLI and GraphQL API
+- Marks all changed files as viewed automatically
+- Useful for bulk PR file review operations
+
 ## 📋 Streamlined Deployment Flow
 
 ### One-Command Progressive Rollout
