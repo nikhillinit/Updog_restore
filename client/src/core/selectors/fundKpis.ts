@@ -23,7 +23,6 @@ export function selectFundKpis(data: FundRawData): FundKpis {
   const invested=calcInvested(data.investments);
   const dpi=calculateDPI(dist, called);
   const tvpi=calculateTVPI(dist, nav, called);
-  // @ts-expect-error TODO: Add explicit types for callbacks
   const flows:number[]=[]; data.capitalCalls.forEach(c=>flows.push(-c.amount)); data.distributions.forEach(d=>flows.push(d.amount)); flows.push(nav);
   const irr=calculateIRR(flows);
   return { committed:data.committed, called, uncalled:Math.max(0,data.committed-called), invested, nav, dpi:Number(dpi.toFixed(2)), tvpi:Number(tvpi.toFixed(2)), irr:irr!==null?Number((irr*100).toFixed(2)):null, asOf:data.asOf??new Date().toISOString().slice(0,10) };

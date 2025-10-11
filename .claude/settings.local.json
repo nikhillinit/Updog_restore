@@ -16,7 +16,14 @@
       "Bash(npx jscodeshift:*)",
       "Bash(git mv:*)",
       "Bash(npm install:*)",
-      "Bash(git grep:*)"
+      "Bash(git grep:*)",
+      "Bash(for:*)",
+      "Bash(do)",
+      "Bash(if [ -f \"$file\" ])",
+      "Bash(then)",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(echo \"\n\n✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅\n   ZERO TYPESCRIPT ERRORS!   \n✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅ ✅\n\")"
     ],
     "deny": [],
     "ask": [],

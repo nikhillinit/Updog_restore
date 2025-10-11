@@ -30,6 +30,7 @@
     "paths": {
       "@/*": ["./client/src/*"],
       "@/core/*": ["./client/src/core/*"],
+      "@core/*": ["./client/src/core/*"],
       "@/lib/*": ["./client/src/lib/*"],
       "@shared/*": ["./shared/*"],
       "@server/*": ["./server/*"],
