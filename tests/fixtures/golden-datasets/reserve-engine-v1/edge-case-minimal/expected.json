@@ -1,0 +1,37 @@
+{
+  "contractVersion": "1.0.0",
+  "optimizationId": "64f57bad-1361-4c6e-b84d-4e647912b6b8",
+  "fundId": "9eda29fe-bf1d-47c1-8b7a-8ecfe4abe7d5",
+  "timestamp": "2025-10-11T07:56:20.156Z",
+  "companyAllocations": [
+    {
+      "companyId": "b2f7558e-fd9d-464b-ad44-244f5973f8fb",
+      "companyName": "Company 1",
+      "currentStage": "series-d-plus",
+      "allocatedReserve": 6958594,
+      "allocationPriority": 1,
+      "projectedOwnershipAtExit": 23.06381151312962,
+      "expectedDilution": 27.832566131837666,
+      "projectedMultiple": 3.5292934821918607,
+      "rationale": "Growth stage, SaaS sector (enhanced rules)",
+      "constraints": [],
+      "graduationProbability": 65.88865767233074,
+      "capitalEfficiencyScore": 70
+    }
+  ],
+  "totalAllocated": 6958594,
+  "totalAvailable": 13764148,
+  "unallocatedReserves": 6805554,
+  "portfolioMetrics": {
+    "averageOwnershipAtExit": 23.06381151312962,
+    "totalProjectedValue": 24558920.449419387,
+    "weightedAverageMultiple": 3.5292934821918602,
+    "capitalEfficiency": 78.67737761698663
+  },
+  "constraints": [
+    "Total available reserves: $13.8M",
+    "Portfolio size: 1 companies"
+  ],
+  "seedUsed": 999,
+  "algorithmVersion": "v1.0-rule-based"
+}

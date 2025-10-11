@@ -1,5 +1,5 @@
 /**
- * RESERVE ENGINE API CONTRACT (FROZEN v1.0)
+ * RESERVE ENGINE API CONTRACT (VERSIONED v1.0)
  *
  * Deterministic reserve allocation engine with auditability.
  * Addresses executive feedback: "Centralized, Deterministic Reserve Engine"
@@ -9,9 +9,48 @@
  * - Deterministic: Same inputs → same outputs (reproducible seed)
  * - Auditable: Every allocation includes human-readable rationale
  * - Explainable: Returns constraints and trade-offs made
+ * - Versioned: Breaking changes require version bump and migration path
+ *
+ * Contract Versioning Strategy:
+ * - MAJOR: Breaking changes to input/output schemas (v1 → v2)
+ * - MINOR: Backward-compatible additions (v1.0 → v1.1)
+ * - PATCH: Bug fixes, no schema changes (v1.0.0 → v1.0.1)
+ *
+ * Version History:
+ * - v1.0.0 (2025-10-11): Initial contract definition with Zod validation
  */
 
 import { z } from 'zod';
+
+// ============================================================================
+// CONTRACT VERSIONING
+// ============================================================================
+
+/**
+ * Current contract version (semver)
+ * All requests/responses MUST include this version for validation
+ */
+export const CONTRACT_VERSION = '1.0.0' as const;
+
+/**
+ * Contract version schema
+ * Validates semantic versioning format
+ */
+export const ContractVersionSchema = z.string().regex(/^\d+\.\d+\.\d+$/, {
+  message: 'Contract version must be in semver format (e.g., "1.0.0")',
+});
+
+/**
+ * Version compatibility check
+ * Returns true if requestVersion is compatible with current contract
+ */
+export function isVersionCompatible(requestVersion: string): boolean {
+  const [reqMajor] = requestVersion.split('.').map(Number);
+  const [contractMajor] = CONTRACT_VERSION.split('.').map(Number);
+
+  // Major version must match exactly (breaking changes)
+  return reqMajor === contractMajor;
+}
 
 // ============================================================================
 // PORTFOLIO COMPANY INPUT
@@ -87,6 +126,9 @@ export type StageStrategy = z.infer<typeof StageStrategySchema>;
 // ============================================================================
 
 export const ReserveOptimizationRequestSchema = z.object({
+  // Contract metadata
+  contractVersion: ContractVersionSchema.default(CONTRACT_VERSION),
+
   fundId: z.string().uuid(),
   optimizationId: z.string().uuid().optional(), // For idempotency
 
@@ -108,7 +150,13 @@ export const ReserveOptimizationRequestSchema = z.object({
 
   // Reproducibility
   randomSeed: z.number().int().optional(), // For deterministic Monte Carlo if needed
-});
+}).refine(
+  (data) => isVersionCompatible(data.contractVersion),
+  {
+    message: `Incompatible contract version. Expected major version ${CONTRACT_VERSION.split('.')[0]}, but received different major version.`,
+    path: ['contractVersion'],
+  }
+);
 
 export type ReserveOptimizationRequest = z.infer<typeof ReserveOptimizationRequestSchema>;
 
@@ -142,6 +190,9 @@ export const CompanyAllocationSchema = z.object({
 export type CompanyAllocation = z.infer<typeof CompanyAllocationSchema>;
 
 export const ReserveOptimizationResponseSchema = z.object({
+  // Contract metadata
+  contractVersion: ContractVersionSchema.default(CONTRACT_VERSION),
+
   optimizationId: z.string().uuid(),
   fundId: z.string().uuid(),
   timestamp: z.string().datetime(),

@@ -1,0 +1,37 @@
+{
+  "name": "reserve-v1",
+  "description": "Golden dataset for reserve engine with 15 companies",
+  "assumptions": [
+    "Deterministic allocation using fixed random seed",
+    "Contract version: 1.0.0",
+    "Rule-based allocation algorithm",
+    "Portfolio size: 15",
+    "Random seed: 42"
+  ],
+  "expectedOutcomes": {
+    "totalAllocated": 90290597,
+    "averageConfidence": 0.65,
+    "strategicCompanyCount": 3
+  },
+  "tolerances": {
+    "absolute": 0.000001,
+    "relative": 0.000001,
+    "description": "Precision-aware comparison using 6 decimal places"
+  },
+  "validation": {
+    "checkpoints": [
+      0,
+      7,
+      14
+    ],
+    "criticalMetrics": [
+      "totalAllocated",
+      "totalAvailable",
+      "unallocatedReserves",
+      "averageOwnershipAtExit"
+    ]
+  },
+  "version": "1.0.0",
+  "author": "generate-golden-reserve-fixture.ts",
+  "createdDate": "2025-10-11T07:54:19.407Z"
+}

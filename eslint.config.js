@@ -15,6 +15,7 @@ const __dirname = path.dirname(__filename);
 
 // Import custom rules
 const noHardcodedFundMetrics = require('./eslint-rules/no-hardcoded-fund-metrics.cjs');
+const requireTsExpectErrorComment = require('./eslint-rules/require-ts-expect-error-comment.cjs');
 
 // Boundary enforcement rules for server/client/shared separation
 const boundaryRules = {
@@ -116,6 +117,7 @@ export default [
       custom: {
         rules: {
           'no-hardcoded-fund-metrics': noHardcodedFundMetrics,
+          'require-ts-expect-error-comment': requireTsExpectErrorComment,
         },
       },
     },
@@ -144,6 +146,9 @@ export default [
 
       // Custom rules - Unified Metrics Layer enforcement
       'custom/no-hardcoded-fund-metrics': 'error',
+
+      // Require descriptive comments for @ts-expect-error
+      'custom/require-ts-expect-error-comment': ['error', { minCommentLength: 20 }],
 
       // Existing rules
       'no-console': 'off',

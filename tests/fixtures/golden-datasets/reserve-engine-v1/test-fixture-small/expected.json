@@ -1,0 +1,93 @@
+{
+  "contractVersion": "1.0.0",
+  "optimizationId": "79e22dfc-13cd-4dd1-ae99-ecc7c3793262",
+  "fundId": "41936071-dfd7-4ad9-82fe-e8284fd2d700",
+  "timestamp": "2025-10-11T07:52:56.825Z",
+  "companyAllocations": [
+    {
+      "companyId": "dda69bbb-f713-472c-ac63-4045ef3d9552",
+      "companyName": "Company 1",
+      "currentStage": "series-b",
+      "allocatedReserve": 12778733,
+      "allocationPriority": 1,
+      "projectedOwnershipAtExit": 8.321180498460308,
+      "expectedDilution": 11.762500908225775,
+      "projectedMultiple": 2.73184359469451,
+      "rationale": "Series B stage, SaaS sector (enhanced rules)",
+      "constraints": [],
+      "graduationProbability": 48.90217063948512,
+      "capitalEfficiencyScore": 70
+    },
+    {
+      "companyId": "139b733b-edbd-4622-aaf6-b601dfc2647d",
+      "companyName": "Company 2",
+      "currentStage": "series-b",
+      "allocatedReserve": 5285852,
+      "allocationPriority": 2,
+      "projectedOwnershipAtExit": 10.829903754638508,
+      "expectedDilution": 10.513278096914291,
+      "projectedMultiple": 2.3418438576627523,
+      "rationale": "Series B stage, SaaS sector (enhanced rules)",
+      "constraints": [],
+      "graduationProbability": 44.738400150090456,
+      "capitalEfficiencyScore": 70
+    },
+    {
+      "companyId": "749b8936-6e3e-4f9e-8488-ffbd49a057cf",
+      "companyName": "Company 3",
+      "currentStage": "series-a",
+      "allocatedReserve": 4922425,
+      "allocationPriority": 3,
+      "projectedOwnershipAtExit": 20.88262425386347,
+      "expectedDilution": 29.892685506492853,
+      "projectedMultiple": 3.5596081709954888,
+      "rationale": "Series A stage, SaaS sector (enhanced rules)",
+      "constraints": [],
+      "graduationProbability": 59.98706912621856,
+      "capitalEfficiencyScore": 70
+    },
+    {
+      "companyId": "0dbeb8ff-9c08-493b-8f75-990691214486",
+      "companyName": "Company 4",
+      "currentStage": "series-b",
+      "allocatedReserve": 10539481,
+      "allocationPriority": 4,
+      "projectedOwnershipAtExit": 21.58160759252496,
+      "expectedDilution": 27.2291237488389,
+      "projectedMultiple": 2.7894093294162303,
+      "rationale": "Series B stage, SaaS sector (enhanced rules)",
+      "constraints": [],
+      "graduationProbability": 43.63000625744462,
+      "capitalEfficiencyScore": 70
+    },
+    {
+      "companyId": "ab942315-7cad-44b6-9b8c-a4cfce298b06",
+      "companyName": "Company 5",
+      "currentStage": "series-b",
+      "allocatedReserve": 5028995,
+      "allocationPriority": 5,
+      "projectedOwnershipAtExit": 22.262506360420957,
+      "expectedDilution": 29.00176553055644,
+      "projectedMultiple": 3.7736663373652846,
+      "rationale": "Series B stage, SaaS sector (enhanced rules)",
+      "constraints": [],
+      "graduationProbability": 75.57875825092196,
+      "capitalEfficiencyScore": 70
+    }
+  ],
+  "totalAllocated": 38555486,
+  "totalAvailable": 12439340,
+  "unallocatedReserves": 0,
+  "portfolioMetrics": {
+    "averageOwnershipAtExit": 16.77556449198164,
+    "totalProjectedValue": 113186719.95507164,
+    "weightedAverageMultiple": 2.9356839116247073,
+    "capitalEfficiency": 86.01016739849001
+  },
+  "constraints": [
+    "Total available reserves: $12.4M",
+    "Portfolio size: 5 companies"
+  ],
+  "seedUsed": 42,
+  "algorithmVersion": "v1.0-rule-based"
+}

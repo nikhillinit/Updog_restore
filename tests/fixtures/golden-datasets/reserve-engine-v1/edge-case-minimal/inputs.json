@@ -1,0 +1,94 @@
+{
+  "contractVersion": "1.0.0",
+  "fundId": "9eda29fe-bf1d-47c1-8b7a-8ecfe4abe7d5",
+  "optimizationId": "64f57bad-1361-4c6e-b84d-4e647912b6b8",
+  "portfolio": [
+    {
+      "companyId": "b2f7558e-fd9d-464b-ad44-244f5973f8fb",
+      "companyName": "Company 1",
+      "currentStage": "series-d-plus",
+      "currentValuation": 65943112,
+      "currentOwnership": 19.947647275403142,
+      "initialInvestment": 4393052,
+      "revenueGrowthRate": 75.47096973285079,
+      "burnRate": 452757,
+      "monthsToNextRound": 18,
+      "isStrategic": false,
+      "hasFollowOnRights": true,
+      "maxDilutionTolerance": 55
+    }
+  ],
+  "graduationMatrix": {
+    "pre-seed": 38,
+    "seed": 32,
+    "series-a": 54,
+    "series-b": 57,
+    "series-c": 69,
+    "series-d-plus": 87,
+    "late-stage": 0
+  },
+  "stageStrategies": [
+    {
+      "stage": "pre-seed",
+      "targetReserveMultiple": 1.8872752441093326,
+      "minReserveAmount": 184838,
+      "maxReserveAmount": 7896524,
+      "targetOwnershipAtExit": 17,
+      "proRataParticipation": 81
+    },
+    {
+      "stage": "seed",
+      "targetReserveMultiple": 3.23087938176468,
+      "minReserveAmount": 85630,
+      "maxReserveAmount": 6754456,
+      "targetOwnershipAtExit": 19,
+      "proRataParticipation": 92
+    },
+    {
+      "stage": "series-a",
+      "targetReserveMultiple": 2.4172605872154236,
+      "minReserveAmount": 173831,
+      "maxReserveAmount": 7316933,
+      "targetOwnershipAtExit": 22,
+      "proRataParticipation": 88
+    },
+    {
+      "stage": "series-b",
+      "targetReserveMultiple": 2.5234625949524343,
+      "minReserveAmount": 166100,
+      "maxReserveAmount": 9378221,
+      "targetOwnershipAtExit": 20,
+      "proRataParticipation": 95
+    },
+    {
+      "stage": "series-c",
+      "targetReserveMultiple": 2.5140369655564427,
+      "minReserveAmount": 76417,
+      "maxReserveAmount": 5220130,
+      "targetOwnershipAtExit": 24,
+      "proRataParticipation": 84
+    },
+    {
+      "stage": "series-d-plus",
+      "targetReserveMultiple": 2.288064355496317,
+      "minReserveAmount": 147010,
+      "maxReserveAmount": 7622123,
+      "targetOwnershipAtExit": 11,
+      "proRataParticipation": 86
+    },
+    {
+      "stage": "late-stage",
+      "targetReserveMultiple": 2.136849405243993,
+      "minReserveAmount": 67130,
+      "maxReserveAmount": 8718654,
+      "targetOwnershipAtExit": 21,
+      "proRataParticipation": 88
+    }
+  ],
+  "availableReserves": 13764148,
+  "minAllocationPerCompany": 61669,
+  "maxAllocationPerCompany": 6842697,
+  "optimizationGoal": "minimize-dilution",
+  "prioritizeStrategic": true,
+  "randomSeed": 999
+}
