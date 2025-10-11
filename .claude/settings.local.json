@@ -15,7 +15,8 @@
       "Bash(git commit:*)",
       "Bash(npx jscodeshift:*)",
       "Bash(git mv:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git grep:*)"
     ],
     "deny": [],
     "ask": [],

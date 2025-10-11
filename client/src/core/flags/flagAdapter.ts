@@ -23,8 +23,8 @@ export function getInitialFlagStates(): Record<string, boolean> {
 
   return {
     // Foundation flags (map from ENV)
-    enable_new_ia: toBool(import.meta.env.VITE_NEW_IA) ?? ALL_FLAGS.enable_new_ia.enabled,
-    enable_kpi_selectors: toBool(import.meta.env.VITE_ENABLE_SELECTOR_KPIS) ?? ALL_FLAGS.enable_kpi_selectors.enabled,
+    enable_new_ia: toBool(import.meta.env['VITE_NEW_IA']) ?? ALL_FLAGS.enable_new_ia.enabled,
+    enable_kpi_selectors: toBool(import.meta.env['VITE_ENABLE_SELECTOR_KPIS']) ?? ALL_FLAGS.enable_kpi_selectors.enabled,
     enable_cap_table_tabs: false, // Default off, enable via flag system
     enable_brand_tokens: true, // Always on (non-breaking CSS)
 
