@@ -1,6 +1,8 @@
 import { defineConfig } from 'vitest/config';
+import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
+  plugins: [tsconfigPaths()],
   test: {
     // Core-first: run deterministic engine, selectors, services used by Settings MVP
     environment: 'node', // avoids "fs externalized" warnings in unit setup
