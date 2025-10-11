@@ -1,5 +1,5 @@
 
-import type { FundRawData } from '@core/types/fund';
+import type { FundRawData } from '@core/types';
 export async function fetchFundData(fundId: string, asOf?: string): Promise<FundRawData> {
   const url = new URL(`/api/funds/${fundId}/kpis`, window.location.origin);
   if (asOf) url.searchParams.set('asOf', asOf);
