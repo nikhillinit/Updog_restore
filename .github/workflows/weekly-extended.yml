@@ -1,0 +1,106 @@
+name: Weekly Extended Tests (advisory)
+
+on:
+  schedule:
+    - cron: '30 8 * * 1' # Monday 08:30 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  strict-typecheck:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      CI: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Client strict typecheck
+        run: npx tsc --noEmit -p tsconfig.client.strict.json
+
+      - name: Server strict typecheck
+        run: npx tsc --noEmit -p tsconfig.server.strict.json
+
+  extended-tests:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      CI: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Integration tests
+        run: npm run test:integration || true
+
+      - name: E2E tests
+        run: npm run test:e2e || true
+
+      - name: Accessibility tests
+        run: npm run test:e2e:accessibility || true
+
+      - name: Visual tests
+        run: npm run test:e2e:visual || true
+
+  parity-harness:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      CI: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run parity harness
+        run: npm run parity
+
+  invariants:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      CI: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run engine invariants
+        run: npx vitest run --config vitest.core.config.ts --reporter=dot --include "**/engine.invariants.test.ts"

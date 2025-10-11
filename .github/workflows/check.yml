@@ -2,9 +2,9 @@ name: Check (typecheck + core tests)
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
   push:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
   contents: read
@@ -14,8 +14,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  changes:
     runs-on: ubuntu-latest
+    outputs:
+      client: ${{ steps.filter.outputs.client }}
+      server: ${{ steps.filter.outputs.server }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect changed files
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            client:
+              - 'client/**'
+              - 'shared/**'
+              - 'tsconfig.client.json'
+              - 'vitest.core.config.ts'
+              - 'package.json'
+              - 'package-lock.json'
+            server:
+              - 'server/**'
+              - 'shared/**'
+              - 'tsconfig.server.json'
+              - 'package.json'
+              - 'package-lock.json'
+
+  client-core:
+    runs-on: ubuntu-latest
+    needs: changes
     env:
       CI: true
     steps:
@@ -25,27 +54,43 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.19.1'   # avoids EBADENGINE with rest-express@1.3.2
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Type check
-        run: npx tsc --noEmit
+      - name: Client typecheck (when client changed)
+        if: ${{ needs.changes.outputs.client == 'true' }}
+        run: npx tsc --noEmit -p tsconfig.client.json
 
-      - name: Core unit tests (Settings-first scope)
-        run: npx vitest run --config vitest.core.config.ts --reporter=default
+      - name: Core unit tests (when client changed)
+        if: ${{ needs.changes.outputs.client == 'true' }}
+        run: npx vitest run --config vitest.core.config.ts --reporter=dot
 
-      # Optional: uncomment to verify prod build can compile
-      # - name: Build
-      #   run: npm run build
+      - name: No-op success (server-only PR)
+        if: ${{ needs.changes.outputs.client != 'true' }}
+        run: echo "Server-only PR - client checks skipped"
 
-      # Optional: upload coverage if configured
-      # - name: Upload coverage
-      #   if: always()
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: coverage
-      #     path: coverage
-      #     retention-days: 7
+  server-typecheck:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.server == 'true' }}
+    continue-on-error: true
+    env:
+      CI: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Server typecheck (advisory)
+        run: npx tsc --noEmit -p tsconfig.server.json

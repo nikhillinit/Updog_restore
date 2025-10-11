@@ -4,8 +4,11 @@
   "type": "module",
   "license": "MIT",
   "engines": {
-    "node": "20.x",
-    "npm": ">=10.9.0"
+    "node": "20.19.1",
+    "npm": ">=10.8.0"
+  },
+  "volta": {
+    "node": "20.19.1"
   },
   "packageManager": "npm@10.9.2",
   "scripts": {
