@@ -1,0 +1,150 @@
+{
+  "contractVersion": "1.0.0",
+  "fundId": "41936071-dfd7-4ad9-82fe-e8284fd2d700",
+  "optimizationId": "79e22dfc-13cd-4dd1-ae99-ecc7c3793262",
+  "portfolio": [
+    {
+      "companyId": "dda69bbb-f713-472c-ac63-4045ef3d9552",
+      "companyName": "Company 1",
+      "currentStage": "series-b",
+      "currentValuation": 98097168,
+      "currentOwnership": 7.059454624541104,
+      "initialInvestment": 4646812,
+      "revenueGrowthRate": 130.57350877206773,
+      "burnRate": 244830,
+      "monthsToNextRound": 15,
+      "isStrategic": false,
+      "hasFollowOnRights": true,
+      "maxDilutionTolerance": 33
+    },
+    {
+      "companyId": "139b733b-edbd-4622-aaf6-b601dfc2647d",
+      "companyName": "Company 2",
+      "currentStage": "series-b",
+      "currentValuation": 91807976,
+      "currentOwnership": 8.951602769084275,
+      "initialInvestment": 1922128,
+      "revenueGrowthRate": 103.00341106485575,
+      "burnRate": 168843,
+      "monthsToNextRound": 11,
+      "isStrategic": false,
+      "hasFollowOnRights": false,
+      "maxDilutionTolerance": 50
+    },
+    {
+      "companyId": "749b8936-6e3e-4f9e-8488-ffbd49a057cf",
+      "companyName": "Company 3",
+      "currentStage": "series-a",
+      "currentValuation": 8636903,
+      "currentOwnership": 16.513555725105107,
+      "initialInvestment": 1864555,
+      "revenueGrowthRate": 114.50797866564244,
+      "burnRate": 350579,
+      "monthsToNextRound": 12,
+      "isStrategic": false,
+      "hasFollowOnRights": true,
+      "maxDilutionTolerance": 52
+    },
+    {
+      "companyId": "0dbeb8ff-9c08-493b-8f75-990691214486",
+      "companyName": "Company 4",
+      "currentStage": "series-b",
+      "currentValuation": 97606883,
+      "currentOwnership": 18.37160286027938,
+      "initialInvestment": 3193782,
+      "revenueGrowthRate": 86.13766476046294,
+      "burnRate": 365190,
+      "monthsToNextRound": 9,
+      "isStrategic": false,
+      "hasFollowOnRights": true,
+      "maxDilutionTolerance": 57
+    },
+    {
+      "companyId": "ab942315-7cad-44b6-9b8c-a4cfce298b06",
+      "companyName": "Company 5",
+      "currentStage": "series-b",
+      "currentValuation": 9984191,
+      "currentOwnership": 21.56145737040788,
+      "initialInvestment": 1523938,
+      "revenueGrowthRate": 88.65605730097741,
+      "burnRate": 488236,
+      "monthsToNextRound": 14,
+      "isStrategic": false,
+      "hasFollowOnRights": true,
+      "maxDilutionTolerance": 33
+    }
+  ],
+  "graduationMatrix": {
+    "pre-seed": 36,
+    "seed": 44,
+    "series-a": 44,
+    "series-b": 54,
+    "series-c": 61,
+    "series-d-plus": 87,
+    "late-stage": 0
+  },
+  "stageStrategies": [
+    {
+      "stage": "pre-seed",
+      "targetReserveMultiple": 3.460564321372658,
+      "minReserveAmount": 109938,
+      "maxReserveAmount": 7169513,
+      "targetOwnershipAtExit": 11,
+      "proRataParticipation": 82
+    },
+    {
+      "stage": "seed",
+      "targetReserveMultiple": 3.182054666802287,
+      "minReserveAmount": 88729,
+      "maxReserveAmount": 7242935,
+      "targetOwnershipAtExit": 19,
+      "proRataParticipation": 87
+    },
+    {
+      "stage": "series-a",
+      "targetReserveMultiple": 2.941056228708476,
+      "minReserveAmount": 94342,
+      "maxReserveAmount": 6158768,
+      "targetOwnershipAtExit": 25,
+      "proRataParticipation": 96
+    },
+    {
+      "stage": "series-b",
+      "targetReserveMultiple": 1.5996459973976016,
+      "minReserveAmount": 179447,
+      "maxReserveAmount": 5919370,
+      "targetOwnershipAtExit": 14,
+      "proRataParticipation": 86
+    },
+    {
+      "stage": "series-c",
+      "targetReserveMultiple": 3.342443421948701,
+      "minReserveAmount": 170679,
+      "maxReserveAmount": 7312200,
+      "targetOwnershipAtExit": 10,
+      "proRataParticipation": 96
+    },
+    {
+      "stage": "series-d-plus",
+      "targetReserveMultiple": 2.373526871204376,
+      "minReserveAmount": 184057,
+      "maxReserveAmount": 5204489,
+      "targetOwnershipAtExit": 21,
+      "proRataParticipation": 81
+    },
+    {
+      "stage": "late-stage",
+      "targetReserveMultiple": 2.9716078653000295,
+      "minReserveAmount": 91559,
+      "maxReserveAmount": 6294365,
+      "targetOwnershipAtExit": 23,
+      "proRataParticipation": 94
+    }
+  ],
+  "availableReserves": 12439340,
+  "minAllocationPerCompany": 91059,
+  "maxAllocationPerCompany": 5899013,
+  "optimizationGoal": "maximize-ownership",
+  "prioritizeStrategic": true,
+  "randomSeed": 42
+}

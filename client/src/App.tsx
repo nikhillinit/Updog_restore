@@ -212,38 +212,98 @@ function Router() {
       <Switch>
         <Route path="/" component={HomeRoute} />
         <Route path="/fund-setup" component={FundSetup} />
-        <Route path="/dashboard">{() => <ProtectedRoute component={Dashboard} />}</Route>
-        <Route path="/portfolio">{() => <ProtectedRoute component={Portfolio} />}</Route>
-        <Route path="/investments">{() => <ProtectedRoute component={Investments} />}</Route>
-        <Route path="/investments/:id">{() => <ProtectedRoute component={InvestmentDetail} />}</Route>
-        <Route path="/custom-fields">{() => <ProtectedRoute component={CustomFields} />}</Route>
-        <Route path="/investments-table">{() => <ProtectedRoute component={InvestmentsTable} />}</Route>
-        <Route path="/investments/company/:id">{() => <ProtectedRoute component={Investments} />}</Route>
-        <Route path="/cap-tables">{() => <ProtectedRoute component={CapTables} />}</Route>
-        <Route path="/kpi-manager">{() => <ProtectedRoute component={KPIManager} />}</Route>
+        <Route path="/dashboard">
+          <ProtectedRoute component={Dashboard} />
+        </Route>
+        <Route path="/portfolio">
+          <ProtectedRoute component={Portfolio} />
+        </Route>
+        <Route path="/investments">
+          <ProtectedRoute component={Investments} />
+        </Route>
+        <Route path="/investments/:id">
+          <ProtectedRoute component={InvestmentDetail} />
+        </Route>
+        <Route path="/custom-fields">
+          <ProtectedRoute component={CustomFields} />
+        </Route>
+        <Route path="/investments-table">
+          <ProtectedRoute component={InvestmentsTable} />
+        </Route>
+        <Route path="/investments/company/:id">
+          <ProtectedRoute component={Investments} />
+        </Route>
+        <Route path="/cap-tables">
+          <ProtectedRoute component={CapTables} />
+        </Route>
+        <Route path="/kpi-manager">
+          <ProtectedRoute component={KPIManager} />
+        </Route>
         <Route path="/kpi-submission" component={KPISubmission} />
-        <Route path="/allocation-manager">{() => <AllocationManagerPage />}</Route>
-        <Route path="/planning">{() => <ProtectedRoute component={Planning} />}</Route>
-        <Route path="/forecasting">{() => <ProtectedRoute component={ForecastingPage} />}</Route>
-        <Route path="/scenario-builder">{() => <ProtectedRoute component={ScenarioBuilderPage} />}</Route>
-        <Route path="/reserves-demo">{() => <ProtectedRoute component={ReservesDemo} />}</Route>
-        <Route path="/moic-analysis">{() => <ProtectedRoute component={MOICAnalysisPage} />}</Route>
-        <Route path="/return-the-fund">{() => <ProtectedRoute component={ReturnTheFundPage} />}</Route>
-        <Route path="/partial-sales">{() => <ProtectedRoute component={PartialSalesPage} />}</Route>
-        <Route path="/financial-modeling">{() => <ProtectedRoute component={FinancialModeling} />}</Route>
-        <Route path="/performance">{() => <ProtectedRoute component={Performance} />}</Route>
-        <Route path="/analytics">{() => <ProtectedRoute component={Analytics} />}</Route>
-        <Route path="/portfolio-analytics">{() => <ProtectedRoute component={EnhancedPortfolioAnalytics} />}</Route>
-        <Route path="/cash-management">{() => <ProtectedRoute component={CashManagement} />}</Route>
-        <Route path="/sensitivity-analysis">{() => <ProtectedRoute component={SensitivityAnalysisPage} />}</Route>
-        <Route path="/time-travel">{() => <ProtectedRoute component={TimeTravelPage} />}</Route>
-        <Route path="/variance-tracking">{() => <ProtectedRoute component={VarianceTrackingPage} />}</Route>
-        <Route path="/portfolio-constructor">{() => <ProtectedRoute component={PortfolioConstructor} />}</Route>
-        <Route path="/secondary-market">{() => <ProtectedRoute component={SecondaryMarketPage} />}</Route>
-        <Route path="/notion-integration">{() => <ProtectedRoute component={NotionIntegrationPage} />}</Route>
+        <Route path="/allocation-manager">
+          <AllocationManagerPage />
+        </Route>
+        <Route path="/planning">
+          <ProtectedRoute component={Planning} />
+        </Route>
+        <Route path="/forecasting">
+          <ProtectedRoute component={ForecastingPage} />
+        </Route>
+        <Route path="/scenario-builder">
+          <ProtectedRoute component={ScenarioBuilderPage} />
+        </Route>
+        <Route path="/reserves-demo">
+          <ProtectedRoute component={ReservesDemo} />
+        </Route>
+        <Route path="/moic-analysis">
+          <ProtectedRoute component={MOICAnalysisPage} />
+        </Route>
+        <Route path="/return-the-fund">
+          <ProtectedRoute component={ReturnTheFundPage} />
+        </Route>
+        <Route path="/partial-sales">
+          <ProtectedRoute component={PartialSalesPage} />
+        </Route>
+        <Route path="/financial-modeling">
+          <ProtectedRoute component={FinancialModeling} />
+        </Route>
+        <Route path="/performance">
+          <ProtectedRoute component={Performance} />
+        </Route>
+        <Route path="/analytics">
+          <ProtectedRoute component={Analytics} />
+        </Route>
+        <Route path="/portfolio-analytics">
+          <ProtectedRoute component={EnhancedPortfolioAnalytics} />
+        </Route>
+        <Route path="/cash-management">
+          <ProtectedRoute component={CashManagement} />
+        </Route>
+        <Route path="/sensitivity-analysis">
+          <ProtectedRoute component={SensitivityAnalysisPage} />
+        </Route>
+        <Route path="/time-travel">
+          <ProtectedRoute component={TimeTravelPage} />
+        </Route>
+        <Route path="/variance-tracking">
+          <ProtectedRoute component={VarianceTrackingPage} />
+        </Route>
+        <Route path="/portfolio-constructor">
+          <ProtectedRoute component={PortfolioConstructor} />
+        </Route>
+        <Route path="/secondary-market">
+          <ProtectedRoute component={SecondaryMarketPage} />
+        </Route>
+        <Route path="/notion-integration">
+          <ProtectedRoute component={NotionIntegrationPage} />
+        </Route>
         <Route path="/dev-dashboard" component={DevDashboardPage} />
-        <Route path="/mobile-executive-dashboard">{() => <ProtectedRoute component={MobileExecutiveDashboardPage} />}</Route>
-        <Route path="/reports">{() => <ProtectedRoute component={Reports} />}</Route>
+        <Route path="/mobile-executive-dashboard">
+          <ProtectedRoute component={MobileExecutiveDashboardPage} />
+        </Route>
+        <Route path="/reports">
+          <ProtectedRoute component={Reports} />
+        </Route>
         {/* LP Sharing - No authentication required */}
         <Route path="/shared/:shareId" component={SharedDashboard} />
         <Route component={NotFound} />

@@ -22,20 +22,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-<<<<<<< HEAD
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-=======
       - uses: actions/checkout@v4
->>>>>>> main
         with:
           fetch-depth: 0 # Need full history for smart detection
 
       - name: Use Node.js
-<<<<<<< HEAD
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
-=======
         uses: actions/setup-node@v4
->>>>>>> main
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -61,11 +53,7 @@ jobs:
       cache-key: ${{ steps.cache-key.outputs.key }}
       build-matrix: ${{ steps.build-matrix.outputs.matrix }}
     steps:
-<<<<<<< HEAD
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-=======
       - uses: actions/checkout@v4
->>>>>>> main
 
       - name: Generate cache key
         id: cache-key
@@ -73,22 +61,14 @@ jobs:
           echo "key=node-${{ env.CACHE_VERSION }}-${{ runner.os }}-${{ hashFiles('**/package-lock.json', 'vite.config.ts', 'tsconfig*.json') }}" >> $GITHUB_OUTPUT
 
       - name: Use Node.js
-<<<<<<< HEAD
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
-=======
         uses: actions/setup-node@v4
->>>>>>> main
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Cache all build artifacts
         id: cache-all
-<<<<<<< HEAD
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a
-=======
         uses: actions/cache@v4
->>>>>>> main
         with:
           path: |
             node_modules/.cache
@@ -124,27 +104,16 @@ jobs:
       matrix:
         target: [client, server, shared]
     steps:
-<<<<<<< HEAD
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Use Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
-=======
       - uses: actions/checkout@v4
 
       - name: Use Node.js
         uses: actions/setup-node@v4
->>>>>>> main
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Restore cache
-<<<<<<< HEAD
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a
-=======
         uses: actions/cache@v4
->>>>>>> main
         with:
           path: |
             node_modules/.cache
@@ -161,40 +130,24 @@ jobs:
   test-lint:
     name: Test & Lint
     runs-on: ubuntu-latest
-<<<<<<< HEAD
     needs: [setup, typecheck]
-=======
-    needs: setup
->>>>>>> main
     strategy:
       fail-fast: false
       matrix:
         task: [lint, test-unit, test-integration]
     steps:
-<<<<<<< HEAD
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-=======
       - uses: actions/checkout@v4
->>>>>>> main
         with:
           fetch-depth: 0 # For smart test selection
 
       - name: Use Node.js
-<<<<<<< HEAD
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
-=======
         uses: actions/setup-node@v4
->>>>>>> main
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Restore cache
-<<<<<<< HEAD
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a
-=======
         uses: actions/cache@v4
->>>>>>> main
         with:
           path: |
             node_modules/.cache
@@ -228,27 +181,16 @@ jobs:
       matrix:
         variant: ${{ fromJson(needs.setup.outputs.build-matrix) }}
     steps:
-<<<<<<< HEAD
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Use Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
-=======
       - uses: actions/checkout@v4
 
       - name: Use Node.js
         uses: actions/setup-node@v4
->>>>>>> main
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Restore cache
-<<<<<<< HEAD
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a
-=======
         uses: actions/cache@v4
->>>>>>> main
         with:
           path: |
             node_modules/.cache
@@ -272,11 +214,7 @@ jobs:
           npm run bundle:report || true
 
       - name: Upload build artifacts
-<<<<<<< HEAD
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
-=======
         uses: actions/upload-artifact@v4
->>>>>>> main
         with:
           name: build-${{ matrix.variant }}-${{ github.sha }}
           path: dist/public
@@ -289,20 +227,12 @@ jobs:
     needs: setup
     if: github.event_name == 'pull_request'
     steps:
-<<<<<<< HEAD
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-=======
       - uses: actions/checkout@v4
->>>>>>> main
         with:
           fetch-depth: 0
 
       - name: Use Node.js
-<<<<<<< HEAD
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
-=======
         uses: actions/setup-node@v4
->>>>>>> main
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -337,17 +267,10 @@ jobs:
     needs: build
     if: github.ref == 'refs/heads/main'
     steps:
-<<<<<<< HEAD
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
-=======
       - uses: actions/checkout@v4
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
->>>>>>> main
         with:
           name: build-preact-${{ github.sha }}
           path: dist/public
@@ -357,10 +280,10 @@ jobs:
           # Check if bundle size is within budget
           BUNDLE_SIZE=$(du -sb dist/public | cut -f1)
           MAX_SIZE=$((350 * 1024)) # 350KB from .perf-budget.json
-          
+
           if [ $BUNDLE_SIZE -gt $MAX_SIZE ]; then
             echo "Bundle size ($BUNDLE_SIZE) exceeds budget ($MAX_SIZE)"
             exit 1
           fi
-          
+
           echo "Bundle size OK: $BUNDLE_SIZE bytes"
