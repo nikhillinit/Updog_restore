@@ -1,9 +1,13 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
-import { Resource } from '@opentelemetry/sdk-node';
+import { createRequire } from 'node:module';
 import { SemanticResourceAttributes as S } from '@opentelemetry/semantic-conventions';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+
+// Use createRequire for CommonJS-only modules in ES module context
+const require = createRequire(import.meta.url);
+const { Resource } = require('@opentelemetry/resources');
 
 export const sdk = new NodeSDK({
   resource: new Resource({
