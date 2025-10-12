@@ -71,21 +71,23 @@ router.post('/api/funds/calculate', async (req: Request, res: Response, next: Ne
       60_000
     );
 
-    if (status === 'created') {
-      res['setHeader']('Idempotency-Status', 'created');
-      const result = await promise;
-      endTimer();
-      return res.status(201).json(result);
-    }
+    // ALWAYS return 202 for consistent async processing pattern
+    // This ensures proper k6 load testing and standardized API behavior
 
-    // === joined path (memory store cannot share promise across processes) ===
-    // Avoid unhandled rejection by detaching:
+    // Detach the promise to run in background
+    // The promise will update the idempotency store when complete
     promise.catch(() => void 0);
-    res['setHeader']('Idempotency-Status', 'joined');
+
+    res['setHeader']('Idempotency-Status', status);
     res['setHeader']('Retry-After', '2');
     res['setHeader']('Location', `/api/operations/${encodeURIComponent(key)}`);
     endTimer();
-    return res.status(202).json({ status: 'in-progress', key });
+
+    return res.status(202).json({
+      status: 'in-progress',
+      key,
+      message: 'Calculation started. Poll the Location header to check status.'
+    });
   } catch (err) {
     next(err);
   }

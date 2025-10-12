@@ -1,0 +1,931 @@
+client/src/components/cash-management/cash-management-dashboard.tsx(167,9): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+client/src/components/charts/portfolio-cost-value-chart.tsx(122,26): error TS18048: 'latestData' is possibly 'undefined'.
+client/src/components/charts/portfolio-cost-value-chart.tsx(123,28): error TS18048: 'latestData' is possibly 'undefined'.
+client/src/components/dashboard/enhanced-dashboard-integration.tsx(80,7): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+client/src/components/demo/ai-enhanced-components-demo.tsx(81,7): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+client/src/components/demo/ai-enhanced-components-demo.tsx(184,37): error TS2532: Object is possibly 'undefined'.
+client/src/components/investments/BulkImportModal.tsx(104,21): error TS2532: Object is possibly 'undefined'.
+client/src/components/reserves/optimal-reserves-ranking.tsx(357,69): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+client/src/components/scenario/scenario-builder.tsx(189,21): error TS18048: 'baseScenario' is possibly 'undefined'.
+client/src/components/ui/input-otp.tsx(41,11): error TS2339: Property 'char' does not exist on type 'SlotProps | undefined'.
+client/src/components/ui/input-otp.tsx(41,17): error TS2339: Property 'hasFakeCaret' does not exist on type 'SlotProps | undefined'.
+client/src/components/ui/input-otp.tsx(41,31): error TS2339: Property 'isActive' does not exist on type 'SlotProps | undefined'.
+client/src/components/wizard/ReserveStep.tsx(184,61): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'SetStateAction<number>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<number>'.
+client/src/components/wizard/ReserveStep.tsx(256,66): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'SetStateAction<number>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<number>'.
+client/src/core/capitalAllocationSolver.ts(92,20): error TS18048: 'currentStage' is possibly 'undefined'.
+client/src/core/capitalAllocationSolver.ts(94,25): error TS18048: 'currentStage' is possibly 'undefined'.
+client/src/core/capitalAllocationSolver.ts(112,52): error TS18048: 'currentStage' is possibly 'undefined'.
+client/src/core/capitalAllocationSolver.ts(121,18): error TS18048: 'currentStage' is possibly 'undefined'.
+client/src/core/capitalAllocationSolver.ts(123,23): error TS18048: 'currentStage' is possibly 'undefined'.
+client/src/core/cohorts/CohortEngine.ts(115,5): error TS2322: Type '{ id: any; name: string; stage: string | undefined; valuation: number; }[]' is not assignable to type '{ id: number; name: string; stage: string; valuation: number; }[]'.
+  Type '{ id: any; name: string; stage: string | undefined; valuation: number; }' is not assignable to type '{ id: number; name: string; stage: string; valuation: number; }'.
+    Types of property 'stage' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+client/src/core/flags/flagAdapter.ts(26,62): error TS2532: Object is possibly 'undefined'.
+client/src/core/flags/flagAdapter.ts(27,83): error TS2532: Object is possibly 'undefined'.
+client/src/core/LiquidityEngine.ts(495,32): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+client/src/core/LiquidityEngine.ts(497,9): error TS18048: 'last' is possibly 'undefined'.
+client/src/core/LiquidityEngine.ts(497,16): error TS18048: 'first' is possibly 'undefined'.
+client/src/core/LiquidityEngine.ts(498,9): error TS18048: 'last' is possibly 'undefined'.
+client/src/core/LiquidityEngine.ts(498,16): error TS18048: 'first' is possibly 'undefined'.
+client/src/core/LiquidityEngine.ts(528,19): error TS2532: Object is possibly 'undefined'.
+client/src/core/LiquidityEngine.ts(528,30): error TS2532: Object is possibly 'undefined'.
+client/src/core/LiquidityEngine.ts(745,32): error TS2345: Argument of type 'OptimizedCapitalCall | undefined' is not assignable to parameter of type 'OptimizedCapitalCall'.
+  Type 'undefined' is not assignable to type 'OptimizedCapitalCall'.
+client/src/core/LiquidityEngine.ts(751,23): error TS2532: Object is possibly 'undefined'.
+client/src/core/LiquidityEngine.ts(752,20): error TS2532: Object is possibly 'undefined'.
+client/src/core/LiquidityEngine.ts(785,28): error TS2532: Object is possibly 'undefined'.
+client/src/core/LiquidityEngine.ts(785,60): error TS2532: Object is possibly 'undefined'.
+client/src/core/pacing/PacingEngine.ts(67,20): error TS18048: 'adjustment' is possibly 'undefined'.
+client/src/core/pacing/PacingEngine.ts(69,20): error TS18048: 'adjustment' is possibly 'undefined'.
+client/src/core/pacing/PacingEngine.ts(71,20): error TS18048: 'adjustment' is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(85,5): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(105,19): error TS18048: 'totalSeed' is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(106,21): error TS18048: 'totalSeed' is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(110,7): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(111,31): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(117,19): error TS18048: 'totalA' is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(118,21): error TS18048: 'totalA' is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(122,7): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(123,31): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(129,19): error TS18048: 'totalB' is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(130,21): error TS18048: 'totalB' is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(134,7): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(135,31): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(144,11): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(145,29): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(147,29): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(150,11): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(151,29): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(153,29): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(156,11): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(157,29): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(159,29): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(168,27): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(169,27): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/computeReservesFromGraduation.ts(170,27): error TS2532: Object is possibly 'undefined'.
+client/src/core/reserves/DeterministicReserveEngine.ts(260,58): error TS18048: 'calc' is possibly 'undefined'.
+client/src/core/reserves/DeterministicReserveEngine.ts(274,9): error TS2345: Argument of type 'MOICCalculation | undefined' is not assignable to parameter of type 'MOICCalculation'.
+  Type 'undefined' is not assignable to type 'MOICCalculation'.
+client/src/core/reserves/DeterministicReserveEngine.ts(283,11): error TS2345: Argument of type 'MOICCalculation | undefined' is not assignable to parameter of type 'MOICCalculation'.
+  Type 'undefined' is not assignable to type 'MOICCalculation'.
+client/src/core/selectors/fundKpis.ts(6,81): error TS2532: Object is possibly 'undefined'.
+client/src/lib/__tests__/type-guards.spec.ts(307,12): error TS2532: Object is possibly 'undefined'.
+client/src/lib/capital-first.ts(16,48): error TS2322: Type 'StageKey | undefined' is not assignable to type 'StageKey | null'.
+  Type 'undefined' is not assignable to type 'StageKey | null'.
+client/src/lib/demo-data.ts(468,3): error TS2322: Type 'DemoScenario | undefined' is not assignable to type 'DemoScenario'.
+  Type 'undefined' is not assignable to type 'DemoScenario'.
+client/src/lib/excel-parity.ts(558,9): error TS18048: 'latestResult' is possibly 'undefined'.
+client/src/lib/excel-parity.ts(562,9): error TS18048: 'latestResult' is possibly 'undefined'.
+client/src/lib/excel-parity.ts(566,10): error TS18048: 'latestResult' is possibly 'undefined'.
+client/src/lib/excel-parity.ts(570,10): error TS18048: 'latestResult' is possibly 'undefined'.
+client/src/lib/excel-parity.ts(574,10): error TS18048: 'latestResult' is possibly 'undefined'.
+client/src/lib/fees.ts(145,21): error TS18048: 'prev' is possibly 'undefined'.
+client/src/lib/fees.ts(147,9): error TS18048: 'curr' is possibly 'undefined'.
+client/src/lib/fees.ts(148,48): error TS18048: 'prev' is possibly 'undefined'.
+client/src/lib/fees.ts(148,67): error TS18048: 'curr' is possibly 'undefined'.
+client/src/lib/fund-calc.ts(269,9): error TS2322: Type '"secondary" | "ipo" | "failure" | "acquired" | undefined' is not assignable to type '"secondary" | "ipo" | "failure" | "acquired"'.
+  Type 'undefined' is not assignable to type '"secondary" | "ipo" | "failure" | "acquired"'.
+client/src/lib/fund-calc.ts(341,18): error TS2532: Object is possibly 'undefined'.
+client/src/lib/fund-calc.ts(342,16): error TS2532: Object is possibly 'undefined'.
+client/src/lib/fund-calc.ts(414,20): error TS2532: Object is possibly 'undefined'.
+client/src/lib/fund-calc.ts(415,18): error TS2532: Object is possibly 'undefined'.
+client/src/lib/fund-calc.ts(447,3): error TS2322: Type 'Decimal | undefined' is not assignable to type 'Decimal'.
+  Type 'undefined' is not assignable to type 'Decimal'.
+client/src/lib/inflight.ts(38,29): error TS2322: Type 'AbortSignal | undefined' is not assignable to type 'AbortSignal'.
+  Type 'undefined' is not assignable to type 'AbortSignal'.
+client/src/lib/irr.ts(86,9): error TS18048: 'initial' is possibly 'undefined'.
+client/src/lib/irr.ts(86,25): error TS18048: 'final' is possibly 'undefined'.
+client/src/lib/irr.ts(87,21): error TS18048: 'final' is possibly 'undefined'.
+client/src/lib/irr.ts(87,29): error TS18048: 'initial' is possibly 'undefined'.
+client/src/lib/nav.ts(172,23): error TS2532: Object is possibly 'undefined'.
+client/src/lib/performance-monitor.ts(251,9): error TS2532: Object is possibly 'undefined'.
+client/src/lib/performance-monitor.ts(255,9): error TS2532: Object is possibly 'undefined'.
+client/src/lib/performance-monitor.ts(259,9): error TS2532: Object is possibly 'undefined'.
+client/src/lib/performance-monitor.ts(263,9): error TS2532: Object is possibly 'undefined'.
+client/src/lib/rollout-orchestrator.ts(117,67): error TS18048: 'stage' is possibly 'undefined'.
+client/src/lib/rollout-orchestrator.ts(118,35): error TS18048: 'stage' is possibly 'undefined'.
+client/src/lib/rollout-orchestrator.ts(118,65): error TS18048: 'stage' is possibly 'undefined'.
+client/src/lib/rollout-orchestrator.ts(121,42): error TS2345: Argument of type 'RolloutStage | undefined' is not assignable to parameter of type 'RolloutStage'.
+  Type 'undefined' is not assignable to type 'RolloutStage'.
+client/src/lib/rollout-orchestrator.ts(124,13): error TS18048: 'stage' is possibly 'undefined'.
+client/src/lib/rollout-orchestrator.ts(130,49): error TS2345: Argument of type 'RolloutStage | undefined' is not assignable to parameter of type 'RolloutStage'.
+  Type 'undefined' is not assignable to type 'RolloutStage'.
+client/src/lib/rollout-orchestrator.ts(133,37): error TS18048: 'stage' is possibly 'undefined'.
+client/src/lib/rollout-orchestrator.ts(134,41): error TS2345: Argument of type 'RolloutStage | undefined' is not assignable to parameter of type 'RolloutStage'.
+  Type 'undefined' is not assignable to type 'RolloutStage'.
+client/src/lib/rollout-orchestrator.ts(136,37): error TS18048: 'stage' is possibly 'undefined'.
+client/src/lib/rollout-orchestrator.ts(137,41): error TS2345: Argument of type 'RolloutStage | undefined' is not assignable to parameter of type 'RolloutStage'.
+  Type 'undefined' is not assignable to type 'RolloutStage'.
+client/src/lib/rollout-orchestrator.ts(271,9): error TS2532: Object is possibly 'undefined'.
+client/src/lib/rollout-orchestrator.ts(277,9): error TS18048: 'lastMetrics' is possibly 'undefined'.
+client/src/lib/rollout-orchestrator.ts(288,45): error TS2345: Argument of type 'RolloutMetrics | undefined' is not assignable to parameter of type 'RolloutMetrics'.
+  Type 'undefined' is not assignable to type 'RolloutMetrics'.
+client/src/lib/rollout-orchestrator.ts(429,37): error TS2532: Object is possibly 'undefined'.
+client/src/lib/schema-adapter.ts(118,32): error TS2532: Object is possibly 'undefined'.
+client/src/lib/validation-helpers.ts(92,5): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+client/src/lib/validation-helpers.ts(95,3): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+client/src/lib/wizard-validation.ts(161,9): error TS18048: 'lastStage' is possibly 'undefined'.
+client/src/lib/wizard-validation.ts(164,21): error TS18048: 'lastStage' is possibly 'undefined'.
+client/src/lib/xirr.ts(104,48): error TS2532: Object is possibly 'undefined'.
+client/src/lib/xirr.ts(188,44): error TS2532: Object is possibly 'undefined'.
+client/src/machines/modeling-wizard.machine.ts(208,44): error TS2345: Argument of type 'WizardStep | undefined' is not assignable to parameter of type 'WizardStep'.
+  Type 'undefined' is not assignable to type 'WizardStep'.
+client/src/machines/modeling-wizard.machine.ts(212,5): error TS2322: Type 'WizardStep | undefined' is not assignable to type 'WizardStep | null'.
+  Type 'undefined' is not assignable to type 'WizardStep | null'.
+client/src/machines/modeling-wizard.machine.ts(228,44): error TS2345: Argument of type 'WizardStep | undefined' is not assignable to parameter of type 'WizardStep'.
+  Type 'undefined' is not assignable to type 'WizardStep'.
+client/src/machines/modeling-wizard.machine.ts(232,5): error TS2322: Type 'WizardStep | undefined' is not assignable to type 'WizardStep | null'.
+  Type 'undefined' is not assignable to type 'WizardStep | null'.
+client/src/pages/fund-setup.test.tsx(236,23): error TS7006: Parameter 'button' implicitly has an 'any' type.
+client/src/pages/InvestmentStrategyStep.tsx(246,10): error TS2322: Type 'InvestmentStage | undefined' is not assignable to type 'InvestmentStage'.
+  Type 'undefined' is not assignable to type 'InvestmentStage'.
+client/src/pages/InvestmentStrategyStep.tsx(246,30): error TS2322: Type 'InvestmentStage | undefined' is not assignable to type 'InvestmentStage'.
+  Type 'undefined' is not assignable to type 'InvestmentStage'.
+client/src/pages/kpi-manager.tsx(556,43): error TS2532: Object is possibly 'undefined'.
+client/src/pages/return-the-fund.tsx(382,72): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+client/src/pages/return-the-fund.tsx(402,57): error TS18048: 'selectedData' is possibly 'undefined'.
+client/src/pages/return-the-fund.tsx(407,44): error TS18048: 'selectedData' is possibly 'undefined'.
+client/src/pages/return-the-fund.tsx(412,58): error TS18048: 'selectedData' is possibly 'undefined'.
+client/src/pages/return-the-fund.tsx(416,57): error TS18048: 'selectedData' is possibly 'undefined'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(6,11): error TS2339: Property 'flags' does not exist on type 'FeatureFlags'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(21,8): error TS2339: Property 'unstubAllEnvs' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(22,8): error TS2339: Property 'stubGlobal' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(31,10): error TS2339: Property 'stubEnv' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(47,10): error TS2339: Property 'stubEnv' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(66,10): error TS2339: Property 'stubEnv' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(77,10): error TS2339: Property 'stubEnv' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(106,12): error TS2339: Property 'stubGlobal' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(107,12): error TS2339: Property 'unstubAllEnvs' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(132,12): error TS2339: Property 'stubGlobal' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(133,12): error TS2339: Property 'unstubAllEnvs' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(152,10): error TS2339: Property 'stubGlobal' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(153,10): error TS2339: Property 'stubEnv' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(167,10): error TS2339: Property 'stubGlobal' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(168,10): error TS2339: Property 'unstubAllEnvs' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(181,10): error TS2339: Property 'stubGlobal' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(182,10): error TS2339: Property 'unstubAllEnvs' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(197,10): error TS2339: Property 'stubEnv' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(210,10): error TS2339: Property 'stubEnv' does not exist on type 'Vi'.
+client/src/providers/__tests__/FeatureFlagProvider.test.tsx(223,10): error TS2339: Property 'stubEnv' does not exist on type 'Vi'.
+client/src/shared/useFlags.ts(90,9): error TS2532: Object is possibly 'undefined'.
+client/src/shared/useFlags.ts(103,3): error TS2322: Type 'boolean | undefined' is not assignable to type 'boolean'.
+  Type 'undefined' is not assignable to type 'boolean'.
+client/src/shared/useFlags.ts(116,7): error TS2532: Object is possibly 'undefined'.
+client/src/shared/useFlags.ts(126,16): error TS2532: Object is possibly 'undefined'.
+client/src/utils/array-safety-enhanced.ts(241,20): error TS2345: Argument of type 'T | undefined' is not assignable to parameter of type 'T'.
+  'T' could be instantiated with an arbitrary type which could be unrelated to 'T | undefined'.
+client/src/utils/async-iteration.ts(52,15): error TS18048: 'result' is possibly 'undefined'.
+client/src/utils/async-iteration.ts(53,58): error TS18048: 'result' is possibly 'undefined'.
+client/src/utils/async-iteration.ts(53,65): error TS2339: Property 'reason' does not exist on type 'PromiseSettledResult<void>'.
+  Property 'reason' does not exist on type 'PromiseFulfilledResult<void>'.
+client/src/utils/async-iteration.ts(67,25): error TS2345: Argument of type 'T | undefined' is not assignable to parameter of type 'T'.
+  'T' could be instantiated with an arbitrary type which could be unrelated to 'T | undefined'.
+client/src/utils/async-iteration.ts(98,15): error TS18048: 'result' is possibly 'undefined'.
+client/src/utils/async-iteration.ts(99,71): error TS18048: 'result' is possibly 'undefined'.
+client/src/utils/async-iteration.ts(99,78): error TS2339: Property 'reason' does not exist on type 'PromiseSettledResult<void>'.
+  Property 'reason' does not exist on type 'PromiseFulfilledResult<void>'.
+client/src/utils/async-iteration.ts(133,20): error TS2345: Argument of type 'T | undefined' is not assignable to parameter of type 'T'.
+  'T' could be instantiated with an arbitrary type which could be unrelated to 'T | undefined'.
+client/src/utils/async-iteration.ts(182,37): error TS2345: Argument of type 'T | undefined' is not assignable to parameter of type 'T'.
+  'T' could be instantiated with an arbitrary type which could be unrelated to 'T | undefined'.
+client/src/utils/async-iteration.ts(219,25): error TS2345: Argument of type 'T | undefined' is not assignable to parameter of type 'T'.
+  'T' could be instantiated with an arbitrary type which could be unrelated to 'T | undefined'.
+client/src/utils/async-iteration.ts(238,46): error TS2345: Argument of type 'T | undefined' is not assignable to parameter of type 'T'.
+  'T' could be instantiated with an arbitrary type which could be unrelated to 'T | undefined'.
+client/src/utils/async-iteration.ts(253,25): error TS2345: Argument of type 'T | undefined' is not assignable to parameter of type 'T'.
+  'T' could be instantiated with an arbitrary type which could be unrelated to 'T | undefined'.
+client/src/utils/async-iteration.ts(270,27): error TS2345: Argument of type 'T | undefined' is not assignable to parameter of type 'T'.
+  'T' could be instantiated with an arbitrary type which could be unrelated to 'T | undefined'.
+server/app.ts(64,46): error TS4111: Property 'sendStatus' comes from an index signature, so it must be accessed with ['sendStatus'].
+server/app.ts(65,35): error TS4111: Property 'sendStatus' comes from an index signature, so it must be accessed with ['sendStatus'].
+server/compass/calculator.ts(75,13): error TS2532: Object is possibly 'undefined'.
+server/compass/calculator.ts(75,40): error TS2532: Object is possibly 'undefined'.
+server/compass/calculator.ts(78,5): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/compass/calculator.ts(177,5): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/compass/calculator.ts(191,30): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/compass/calculator.ts(195,31): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/compass/routes.ts(54,9): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/config.ts(11,47): error TS4111: Property 'npm_package_version' comes from an index signature, so it must be accessed with ['npm_package_version'].
+server/config/swagger.ts(1,26): error TS7016: Could not find a declaration file for module 'swagger-jsdoc'. 'c:/dev/Updog_restore/node_modules/swagger-jsdoc/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/swagger-jsdoc` if it exists or add a new declaration (.d.ts) file containing `declare module 'swagger-jsdoc';`
+server/core/market/score.ts(234,40): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
+server/core/market/score.ts(247,45): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
+server/core/reserves/mlClient.ts(6,35): error TS7016: Could not find a declaration file for module 'node-fetch'. 'c:/dev/Updog_restore/node_modules/node-fetch/lib/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/node-fetch` if it exists or add a new declaration (.d.ts) file containing `declare module 'node-fetch';`
+server/db/pg-circuit.ts(158,30): error TS2344: Type 'T' does not satisfy the constraint 'QueryResultRow'.
+server/db/pg-circuit.ts(184,32): error TS2538: Type 'undefined' cannot be used as an index type.
+server/db/redis-circuit.ts(82,25): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/db/redis-factory.ts(6,19): error TS2614: Module '"ioredis"' has no exported member 'Redis'. Did you mean to use 'import Redis from "ioredis"' instead?
+server/db/redis-factory.ts(6,26): error TS2614: Module '"ioredis"' has no exported member 'RedisOptions'. Did you mean to use 'import RedisOptions from "ioredis"' instead?
+server/db/redis-factory.ts(6,40): error TS2614: Module '"ioredis"' has no exported member 'SentinelAddress'. Did you mean to use 'import SentinelAddress from "ioredis"' instead?
+server/db/redis-factory.ts(91,17): error TS2339: Property 'tls' does not exist on type 'CreateRedisConfig'.
+server/db/redis-factory.ts(119,63): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(obj: string, msg?: undefined): void', gave the following error.
+    Argument of type '{ error: unknown; }' is not assignable to parameter of type 'undefined'.
+  Overload 2 of 3, '(obj: string, msg?: undefined, ...args: unknown[]): void', gave the following error.
+    Argument of type '{ error: unknown; }' is not assignable to parameter of type 'undefined'.
+server/db/redis-factory.ts(137,70): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(obj: string, msg?: undefined): void', gave the following error.
+    Argument of type '{ sentinelCount: number; masterName: string | undefined; }' is not assignable to parameter of type 'undefined'.
+  Overload 2 of 3, '(obj: string, msg?: undefined, ...args: unknown[]): void', gave the following error.
+    Argument of type '{ sentinelCount: number; masterName: string | undefined; }' is not assignable to parameter of type 'undefined'.
+server/db/redis-factory.ts(164,31): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/db/redis-factory.ts(172,59): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(obj: string, msg?: undefined): void', gave the following error.
+    Argument of type '{ connection: string; }' is not assignable to parameter of type 'undefined'.
+  Overload 2 of 3, '(obj: string, msg?: undefined, ...args: unknown[]): void', gave the following error.
+    Argument of type '{ connection: string; }' is not assignable to parameter of type 'undefined'.
+server/db/redis-factory.ts(176,61): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(obj: string, msg?: undefined): void', gave the following error.
+    Argument of type '{ url: string; error: unknown; }' is not assignable to parameter of type 'undefined'.
+  Overload 2 of 3, '(obj: string, msg?: undefined, ...args: unknown[]): void', gave the following error.
+    Argument of type '{ url: string; error: unknown; }' is not assignable to parameter of type 'undefined'.
+server/db/redis-factory.ts(193,40): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(obj: string, msg?: undefined): void', gave the following error.
+    Argument of type '{ connection: string; }' is not assignable to parameter of type 'undefined'.
+  Overload 2 of 3, '(obj: string, msg?: undefined, ...args: unknown[]): void', gave the following error.
+    Argument of type '{ connection: string; }' is not assignable to parameter of type 'undefined'.
+server/db/redis-factory.ts(201,9): error TS4111: Property 'on' comes from an index signature, so it must be accessed with ['on'].
+server/db/redis-factory.ts(202,43): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(obj: string, msg?: undefined): void', gave the following error.
+    Argument of type '{ connection: string; }' is not assignable to parameter of type 'undefined'.
+  Overload 2 of 3, '(obj: string, msg?: undefined, ...args: unknown[]): void', gave the following error.
+    Argument of type '{ connection: string; }' is not assignable to parameter of type 'undefined'.
+server/db/redis-factory.ts(207,9): error TS4111: Property 'on' comes from an index signature, so it must be accessed with ['on'].
+server/db/redis-factory.ts(211,9): error TS4111: Property 'on' comes from an index signature, so it must be accessed with ['on'].
+server/db/redis-factory.ts(212,40): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(obj: string, msg?: undefined): void', gave the following error.
+    Argument of type '{ error: string; connection: string; }' is not assignable to parameter of type 'undefined'.
+  Overload 2 of 3, '(obj: string, msg?: undefined, ...args: unknown[]): void', gave the following error.
+    Argument of type '{ error: string; connection: string; }' is not assignable to parameter of type 'undefined'.
+server/db/redis-factory.ts(218,9): error TS4111: Property 'on' comes from an index signature, so it must be accessed with ['on'].
+server/db/redis-factory.ts(219,44): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(obj: string, msg?: undefined): void', gave the following error.
+    Argument of type '{ connection: string; }' is not assignable to parameter of type 'undefined'.
+  Overload 2 of 3, '(obj: string, msg?: undefined, ...args: unknown[]): void', gave the following error.
+    Argument of type '{ connection: string; }' is not assignable to parameter of type 'undefined'.
+server/db/redis-factory.ts(224,9): error TS4111: Property 'on' comes from an index signature, so it must be accessed with ['on'].
+server/db/redis-factory.ts(250,47): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(obj: string, msg?: undefined): void', gave the following error.
+    Argument of type '{ error: string; }' is not assignable to parameter of type 'undefined'.
+  Overload 2 of 3, '(obj: string, msg?: undefined, ...args: unknown[]): void', gave the following error.
+    Argument of type '{ error: string; }' is not assignable to parameter of type 'undefined'.
+server/db/redis-factory.ts(269,14): error TS2339: Property 'host' does not exist on type 'CreateRedisConfig'.
+server/db/redis-factory.ts(272,14): error TS2339: Property 'port' does not exist on type 'CreateRedisConfig'.
+server/db/redis-factory.ts(278,12): error TS2339: Property 'password' does not exist on type 'CreateRedisConfig'.
+server/db/redis-factory.ts(281,12): error TS2339: Property 'username' does not exist on type 'CreateRedisConfig'.
+server/db/redis-factory.ts(284,12): error TS2339: Property 'db' does not exist on type 'CreateRedisConfig'.
+server/examples/streaming-monte-carlo-examples.ts(60,43): error TS18046: 'error' is of type 'unknown'.
+server/examples/streaming-monte-carlo-examples.ts(142,27): error TS2532: Object is possibly 'undefined'.
+server/examples/streaming-monte-carlo-examples.ts(481,44): error TS18046: 'error' is of type 'unknown'.
+server/examples/streaming-monte-carlo-examples.ts(484,16): error TS18046: 'error' is of type 'unknown'.
+server/examples/streaming-monte-carlo-examples.ts(494,33): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/examples/streaming-monte-carlo-examples.ts(497,104): error TS2532: Object is possibly 'undefined'.
+server/health.ts(110,26): error TS4111: Property 'npm_package_version' comes from an index signature, so it must be accessed with ['npm_package_version'].
+server/health.ts(130,28): error TS4111: Property 'npm_package_version' comes from an index signature, so it must be accessed with ['npm_package_version'].
+server/infra/circuit-breaker-cache.ts(40,17): error TS2322: Type '<T>(key: string) => Promise<T | undefined>' is not assignable to type '<K = string>(key: string) => Promise<K | null>'.
+  Type 'Promise<K | null | undefined>' is not assignable to type 'Promise<K | null>'.
+    Type 'K | null | undefined' is not assignable to type 'K | null'.
+      Type 'undefined' is not assignable to type 'K | null'.
+server/infra/circuit-breaker-cache.ts(122,9): error TS2416: Property 'get' in type 'CircuitBreakerCache' is not assignable to the same property in base type 'Cache<string>'.
+  Type '<T>(key: string) => Promise<T | undefined>' is not assignable to type '<K = string>(key: string) => Promise<K | null>'.
+    Type 'Promise<K | null | undefined>' is not assignable to type 'Promise<K | null>'.
+      Type 'K | null | undefined' is not assignable to type 'K | null'.
+        Type 'undefined' is not assignable to type 'K | null'.
+server/infra/circuit-breaker-cache.ts(135,9): error TS2322: Type 'T | null' is not assignable to type 'T | undefined'.
+  Type 'null' is not assignable to type 'T | undefined'.
+server/infra/circuit-breaker-cache.ts(149,9): error TS2322: Type 'Awaited<T> | null' is not assignable to type 'T | undefined'.
+  Type 'null' is not assignable to type 'T | undefined'.
+server/infra/circuit-breaker-cache.ts(154,9): error TS2322: Type 'T | null' is not assignable to type 'T | undefined'.
+  Type 'null' is not assignable to type 'T | undefined'.
+server/infra/circuit-breaker-cache.ts(162,7): error TS2322: Type 'T | null' is not assignable to type 'T | undefined'.
+  Type 'null' is not assignable to type 'T | undefined'.
+server/infra/circuit-breaker-cache.ts(171,7): error TS2322: Type 'Awaited<T> | null' is not assignable to type 'T | undefined'.
+  Type 'null' is not assignable to type 'T | undefined'.
+server/infra/circuit-breaker-cache.ts(176,7): error TS2322: Type 'T | null' is not assignable to type 'T | undefined'.
+  Type 'null' is not assignable to type 'T | undefined'.
+server/infra/circuit-breaker/CircuitBreaker.ts(128,42): error TS2532: Object is possibly 'undefined'.
+server/infra/observability/middleware/degraded-header.ts(9,12): error TS4111: Property 'locals' comes from an index signature, so it must be accessed with ['locals'].
+server/lib/apiError.ts(42,7): error TS4111: Property 'type' comes from an index signature, so it must be accessed with ['type'].
+server/lib/auth/jwt.ts(39,17): error TS4111: Property 'header' comes from an index signature, so it must be accessed with ['header'].
+server/lib/auth/jwt.ts(44,16): error TS4111: Property 'sendStatus' comes from an index signature, so it must be accessed with ['sendStatus'].
+server/lib/auth/jwt.ts(53,16): error TS4111: Property 'sendStatus' comes from an index signature, so it must be accessed with ['sendStatus'].
+server/lib/auth/jwt.ts(59,47): error TS4111: Property 'sendStatus' comes from an index signature, so it must be accessed with ['sendStatus'].
+server/lib/errorHandling.ts(130,18): error TS4111: Property 'headersSent' comes from an index signature, so it must be accessed with ['headersSent'].
+server/lib/errorHandling.ts(136,18): error TS4111: Property 'headersSent' comes from an index signature, so it must be accessed with ['headersSent'].
+server/lib/flags.ts(125,22): error TS18048: 'flag.targeting.rules' is possibly 'undefined'.
+server/lib/flags.ts(372,56): error TS18046: 'error' is of type 'unknown'.
+server/lib/locks.ts(100,20): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+server/lib/locks.ts(101,18): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+server/lib/redis-rate-limiter.ts(233,20): error TS2532: Object is possibly 'undefined'.
+server/lib/redis-rate-limiter.ts(233,20): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/lib/secure-context.ts(57,20): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/lib/secure-context.ts(58,35): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/metrics/lpBusinessMetrics.ts(169,23): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ enterprise: number; growth: number; startup: number; }'.
+  No index signature with a parameter of type 'string' was found on type '{ enterprise: number; growth: number; startup: number; }'.
+server/metrics/lpBusinessMetrics.ts(299,32): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ enterprise: number; growth: number; startup: number; }'.
+  No index signature with a parameter of type 'string' was found on type '{ enterprise: number; growth: number; startup: number; }'.
+server/middleware/async.ts(20,15): error TS4111: Property 'headersSent' comes from an index signature, so it must be accessed with ['headersSent'].
+server/middleware/asyncErrorHandler.ts(74,14): error TS4111: Property 'headersSent' comes from an index signature, so it must be accessed with ['headersSent'].
+server/middleware/auditLog.ts(49,47): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/auditLog.ts(65,36): error TS4111: Property 'connection' comes from an index signature, so it must be accessed with ['connection'].
+server/middleware/auditLog.ts(71,27): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/auditLog.ts(104,18): error TS2322: Type 'string | undefined' is not assignable to type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.
+server/middleware/auditLog.ts(110,18): error TS2322: Type 'string | undefined' is not assignable to type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.
+server/middleware/auditLog.ts(117,23): error TS4111: Property 'sessionId' comes from an index signature, so it must be accessed with ['sessionId'].
+server/middleware/auth-metrics.ts(25,30): error TS4111: Property 'authorization' comes from an index signature, so it must be accessed with ['authorization'].
+server/middleware/backpressure.ts(93,40): error TS18046: 'error' is of type 'unknown'.
+server/middleware/backpressure.ts(193,16): error TS18046: 'error' is of type 'unknown'.
+server/middleware/correlation.ts(8,7): error TS4111: Property 'header' comes from an index signature, so it must be accessed with ['header'].
+server/middleware/dedupe.ts(40,25): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/middleware/dedupe.ts(278,56): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/dedupe.ts(284,27): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/dedupe.ts(285,24): error TS4111: Property 'getHeaders' comes from an index signature, so it must be accessed with ['getHeaders'].
+server/middleware/dedupe.ts(302,69): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/dedupe.ts(312,56): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/dedupe.ts(318,27): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/dedupe.ts(319,24): error TS4111: Property 'getHeaders' comes from an index signature, so it must be accessed with ['getHeaders'].
+server/middleware/dedupe.ts(336,69): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/engine-guards.ts(138,19): error TS2488: Type '[string, unknown] | undefined' must have a '[Symbol.iterator]()' method that returns an iterator.
+server/middleware/engineGuardExpress.ts(45,12): error TS4111: Property 'type' comes from an index signature, so it must be accessed with ['type'].
+server/middleware/enhanced-audit.ts(241,46): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/enhanced-audit.ts(258,36): error TS4111: Property 'connection' comes from an index signature, so it must be accessed with ['connection'].
+server/middleware/enhanced-audit.ts(262,27): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/enhanced-audit.ts(283,25): error TS4111: Property 'protocol' comes from an index signature, so it must be accessed with ['protocol'].
+server/middleware/enhanced-audit.ts(284,23): error TS4111: Property 'secure' comes from an index signature, so it must be accessed with ['secure'].
+server/middleware/enhanced-audit.ts(286,24): error TS4111: Property 'baseUrl' comes from an index signature, so it must be accessed with ['baseUrl'].
+server/middleware/enhanced-audit.ts(287,25): error TS4111: Property 'hostname' comes from an index signature, so it must be accessed with ['hostname'].
+server/middleware/enhanced-audit.ts(324,27): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/enhanced-audit.ts(393,11): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/enhanced-audit.ts(395,48): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/enhanced-audit.ts(398,11): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/enhanced-audit.ts(398,37): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/enhanced-audit.ts(404,11): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/enhanced-audit.ts(414,5): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/middleware/enhanced-audit.ts(428,21): error TS2322: Type 'string | undefined' is not assignable to type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.
+server/middleware/enhanced-audit.ts(479,52): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/middleware/enhanced-audit.ts(516,25): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/idempotency.ts(37,25): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/middleware/idempotency.ts(251,71): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/idempotency.ts(257,27): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/idempotency.ts(258,24): error TS4111: Property 'getHeaders' comes from an index signature, so it must be accessed with ['getHeaders'].
+server/middleware/idempotency.ts(274,71): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/idempotency.ts(280,27): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/idempotency.ts(281,24): error TS4111: Property 'getHeaders' comes from an index signature, so it must be accessed with ['getHeaders'].
+server/middleware/performance-monitor.ts(156,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/middleware/performance-monitor.ts(157,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/middleware/performance-monitor.ts(184,48): error TS4111: Property 'route' comes from an index signature, so it must be accessed with ['route'].
+server/middleware/performance-monitor.ts(189,27): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/performance-monitor.ts(190,26): error TS4111: Property 'get' comes from an index signature, so it must be accessed with ['get'].
+server/middleware/performance-monitor.ts(194,40): error TS2345: Argument of type 'any[]' is not assignable to parameter of type '[]'.
+  Target allows only 0 element(s) but source may have more.
+server/middleware/rateLimits.ts(19,82): error TS18046: 'error' is of type 'unknown'.
+server/middleware/requestId.ts(27,9): error TS4111: Property 'requestId' comes from an index signature, so it must be accessed with ['requestId'].
+server/middleware/requestId.ts(29,9): error TS4111: Property 'locals' comes from an index signature, so it must be accessed with ['locals'].
+server/middleware/requestId.ts(33,11): error TS4111: Property 'log' comes from an index signature, so it must be accessed with ['log'].
+server/middleware/requestId.ts(42,42): error TS4111: Property 'locals' comes from an index signature, so it must be accessed with ['locals'].
+server/middleware/requestId.ts(43,15): error TS4111: Property 'log' comes from an index signature, so it must be accessed with ['log'].
+server/middleware/requestId.ts(44,13): error TS4111: Property 'log' comes from an index signature, so it must be accessed with ['log'].
+server/middleware/requestId.ts(55,9): error TS4111: Property 'locals' comes from an index signature, so it must be accessed with ['locals'].
+server/middleware/requireAuth.ts(43,29): error TS4111: Property 'API_KEY' comes from an index signature, so it must be accessed with ['API_KEY'].
+server/middleware/requireAuth.ts(43,63): error TS4111: Property 'API_KEY' comes from an index signature, so it must be accessed with ['API_KEY'].
+server/middleware/requireAuth.ts(67,34): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/middleware/requireAuth.ts(70,5): error TS2322: Type 'Response' is not assignable to type 'void'.
+server/middleware/requireAuth.ts(79,5): error TS2322: Type 'Response' is not assignable to type 'void'.
+server/middleware/security.ts(209,34): error TS4111: Property 'connection' comes from an index signature, so it must be accessed with ['connection'].
+server/middleware/security.ts(345,16): error TS4111: Property 'url' comes from an index signature, so it must be accessed with ['url'].
+server/middleware/with-rls-transaction.ts(79,36): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/middleware/with-rls-transaction.ts(88,39): error TS2345: Argument of type 'any[]' is not assignable to parameter of type '[]'.
+  Target allows only 0 element(s) but source may have more.
+server/observability/metrics.ts(44,74): error TS4111: Property 'route' comes from an index signature, so it must be accessed with ['route'].
+server/observability/metrics.ts(45,57): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/observability/production-monitoring.ts(385,73): error TS18046: 'error' is of type 'unknown'.
+server/observability/sentry.ts(26,38): error TS4111: Property 'authorization' comes from an index signature, so it must be accessed with ['authorization'].
+server/observability/sentry.ts(27,38): error TS4111: Property 'cookie' comes from an index signature, so it must be accessed with ['cookie'].
+server/providers.ts(164,27): error TS4111: Property 'setex' comes from an index signature, so it must be accessed with ['setex'].
+server/routes.ts(87,34): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes.ts(171,37): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes.ts(206,34): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes.ts(266,38): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes.ts(291,37): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes.ts(347,38): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes.ts(399,39): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes.ts(408,37): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes.ts(436,34): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes.ts(491,34): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes.ts(524,34): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes.ts(557,38): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes.ts(600,39): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes.ts(610,39): error TS4111: Property 'fundSize' comes from an index signature, so it must be accessed with ['fundSize'].
+server/routes.ts(611,38): error TS4111: Property 'deploymentQuarter' comes from an index signature, so it must be accessed with ['deploymentQuarter'].
+server/routes.ts(612,46): error TS4111: Property 'marketCondition' comes from an index signature, so it must be accessed with ['marketCondition'].
+server/routes.ts(648,37): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes.ts(649,42): error TS4111: Property 'vintageYear' comes from an index signature, so it must be accessed with ['vintageYear'].
+server/routes.ts(650,41): error TS4111: Property 'cohortSize' comes from an index signature, so it must be accessed with ['cohortSize'].
+server/routes/calculations.ts(7,24): error TS2339: Property 'Router' does not exist on type 'typeof createApplication'.
+server/routes/calculations.ts(57,9): error TS4111: Property 'setHeader' comes from an index signature, so it must be accessed with ['setHeader'].
+server/routes/calculations.ts(58,9): error TS4111: Property 'setHeader' comes from an index signature, so it must be accessed with ['setHeader'].
+server/routes/dev-dashboard.ts(77,9): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/routes/dev-dashboard.ts(78,24): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/routes/dev-dashboard.ts(79,18): error TS2532: Object is possibly 'undefined'.
+server/routes/error-budget.ts(24,66): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/routes/flags.ts(93,47): error TS7006: Parameter 'next' implicitly has an 'any' type.
+server/routes/flags.ts(197,22): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/routes/flags.ts(213,16): error TS18046: 'error' is of type 'unknown'.
+server/routes/fund-config.ts(45,38): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes/fund-config.ts(122,38): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes/fund-config.ts(165,38): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes/fund-config.ts(270,38): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes/fund-metrics.ts(53,36): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes/fund-metrics.ts(64,33): error TS4111: Property 'skipCache' comes from an index signature, so it must be accessed with ['skipCache'].
+server/routes/fund-metrics.ts(65,39): error TS4111: Property 'skipProjections' comes from an index signature, so it must be accessed with ['skipProjections'].
+server/routes/fund-metrics.ts(74,9): error TS4111: Property 'setHeader' comes from an index signature, so it must be accessed with ['setHeader'].
+server/routes/fund-metrics.ts(75,9): error TS4111: Property 'setHeader' comes from an index signature, so it must be accessed with ['setHeader'].
+server/routes/fund-metrics.ts(129,36): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes/funds.ts(59,35): error TS4111: Property 'header' comes from an index signature, so it must be accessed with ['header'].
+server/routes/health.ts(44,25): error TS4111: Property 'app' comes from an index signature, so it must be accessed with ['app'].
+server/routes/health.ts(48,26): error TS4111: Property 'npm_package_version' comes from an index signature, so it must be accessed with ['npm_package_version'].
+server/routes/health.ts(54,25): error TS4111: Property 'app' comes from an index signature, so it must be accessed with ['app'].
+server/routes/health.ts(58,26): error TS4111: Property 'npm_package_version' comes from an index signature, so it must be accessed with ['npm_package_version'].
+server/routes/health.ts(92,28): error TS4111: Property 'npm_package_version' comes from an index signature, so it must be accessed with ['npm_package_version'].
+server/routes/health.ts(169,63): error TS7006: Parameter 'req' implicitly has an 'any' type.
+server/routes/health.ts(169,68): error TS7006: Parameter 'res' implicitly has an 'any' type.
+server/routes/health.ts(199,22): error TS4111: Property 'dbLatencyMs' comes from an index signature, so it must be accessed with ['dbLatencyMs'].
+server/routes/health.ts(212,20): error TS4111: Property 'uptimeSeconds' comes from an index signature, so it must be accessed with ['uptimeSeconds'].
+server/routes/health.ts(213,20): error TS4111: Property 'memoryMB' comes from an index signature, so it must be accessed with ['memoryMB'].
+server/routes/health.ts(214,20): error TS4111: Property 'version' comes from an index signature, so it must be accessed with ['version'].
+server/routes/health.ts(214,42): error TS4111: Property 'npm_package_version' comes from an index signature, so it must be accessed with ['npm_package_version'].
+server/routes/health.ts(305,27): error TS4111: Property 'REDIS_HOST' comes from an index signature, so it must be accessed with ['REDIS_HOST'].
+server/routes/health.ts(306,36): error TS4111: Property 'REDIS_PORT' comes from an index signature, so it must be accessed with ['REDIS_PORT'].
+server/routes/health.ts(358,26): error TS7053: Element implicitly has an 'any' type because expression of type '"query"' can't be used to index type 'MemStorage | DatabaseStorage'.
+  Property 'query' does not exist on type 'MemStorage | DatabaseStorage'.
+server/routes/health.ts(387,26): error TS7053: Element implicitly has an 'any' type because expression of type '"query"' can't be used to index type 'MemStorage | DatabaseStorage'.
+  Property 'query' does not exist on type 'MemStorage | DatabaseStorage'.
+server/routes/health.ts(413,31): error TS4111: Property 'npm_package_version' comes from an index signature, so it must be accessed with ['npm_package_version'].
+server/routes/health.ts(508,53): error TS4111: Property 'WORKER_HEALTH_PORT' comes from an index signature, so it must be accessed with ['WORKER_HEALTH_PORT'].
+server/routes/health.ts(511,31): error TS4111: Property 'WORKER_HEALTH_HOST' comes from an index signature, so it must be accessed with ['WORKER_HEALTH_HOST'].
+server/routes/metrics-rum-v2.ts(146,32): error TS4111: Property 'timestamp' comes from an index signature, so it must be accessed with ['timestamp'].
+server/routes/metrics.ts(16,30): error TS4111: Property 'npm_package_version' comes from an index signature, so it must be accessed with ['npm_package_version'].
+server/routes/monte-carlo.ts(116,36): error TS2554: Expected 1 arguments, but got 2.
+server/routes/monte-carlo.ts(127,23): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/routes/monte-carlo.ts(332,40): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes/monte-carlo.ts(333,37): error TS4111: Property 'runs' comes from an index signature, so it must be accessed with ['runs'].
+server/routes/monte-carlo.ts(334,49): error TS4111: Property 'timeHorizonYears' comes from an index signature, so it must be accessed with ['timeHorizonYears'].
+server/routes/monte-carlo.ts(335,30): error TS4111: Property 'engine' comes from an index signature, so it must be accessed with ['engine'].
+server/routes/operations.ts(13,33): error TS4111: Property 'key' comes from an index signature, so it must be accessed with ['key'].
+server/routes/performance-metrics.ts(17,25): error TS7006: Parameter 'req' implicitly has an 'any' type.
+server/routes/performance-metrics.ts(17,30): error TS7006: Parameter 'res' implicitly has an 'any' type.
+server/routes/performance-metrics.ts(51,29): error TS7006: Parameter 'req' implicitly has an 'any' type.
+server/routes/performance-metrics.ts(51,34): error TS7006: Parameter 'res' implicitly has an 'any' type.
+server/routes/performance-metrics.ts(89,24): error TS7006: Parameter 'req' implicitly has an 'any' type.
+server/routes/performance-metrics.ts(89,29): error TS7006: Parameter 'res' implicitly has an 'any' type.
+server/routes/performance-metrics.ts(123,26): error TS7006: Parameter 'req' implicitly has an 'any' type.
+server/routes/performance-metrics.ts(123,31): error TS7006: Parameter 'res' implicitly has an 'any' type.
+server/routes/performance-metrics.ts(184,28): error TS7006: Parameter 'req' implicitly has an 'any' type.
+server/routes/performance-metrics.ts(184,33): error TS7006: Parameter 'res' implicitly has an 'any' type.
+server/routes/performance-metrics.ts(235,33): error TS7006: Parameter 'req' implicitly has an 'any' type.
+server/routes/performance-metrics.ts(235,38): error TS7006: Parameter 'res' implicitly has an 'any' type.
+server/routes/portfolio-intelligence.ts(141,30): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes/portfolio-intelligence.ts(227,36): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes/portfolio-intelligence.ts(240,32): error TS4111: Property 'isActive' comes from an index signature, so it must be accessed with ['isActive'].
+server/routes/portfolio-intelligence.ts(240,71): error TS4111: Property 'isActive' comes from an index signature, so it must be accessed with ['isActive'].
+server/routes/portfolio-intelligence.ts(241,33): error TS4111: Property 'modelType' comes from an index signature, so it must be accessed with ['modelType'].
+server/routes/portfolio-intelligence.ts(242,29): error TS4111: Property 'limit' comes from an index signature, so it must be accessed with ['limit'].
+server/routes/portfolio-intelligence.ts(242,56): error TS4111: Property 'limit' comes from an index signature, so it must be accessed with ['limit'].
+server/routes/portfolio-intelligence.ts(284,35): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes/portfolio-intelligence.ts(340,35): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes/portfolio-intelligence.ts(385,30): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes/portfolio-intelligence.ts(461,36): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes/portfolio-intelligence.ts(473,36): error TS4111: Property 'scenarioType' comes from an index signature, so it must be accessed with ['scenarioType'].
+server/routes/portfolio-intelligence.ts(474,30): error TS4111: Property 'status' comes from an index signature, so it must be accessed with ['status'].
+server/routes/portfolio-intelligence.ts(475,29): error TS4111: Property 'limit' comes from an index signature, so it must be accessed with ['limit'].
+server/routes/portfolio-intelligence.ts(475,56): error TS4111: Property 'limit' comes from an index signature, so it must be accessed with ['limit'].
+server/routes/portfolio-intelligence.ts(570,35): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes/portfolio-intelligence.ts(657,30): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes/portfolio-intelligence.ts(746,36): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes/portfolio-intelligence.ts(758,36): error TS4111: Property 'strategyType' comes from an index signature, so it must be accessed with ['strategyType'].
+server/routes/portfolio-intelligence.ts(759,32): error TS4111: Property 'isActive' comes from an index signature, so it must be accessed with ['isActive'].
+server/routes/portfolio-intelligence.ts(759,71): error TS4111: Property 'isActive' comes from an index signature, so it must be accessed with ['isActive'].
+server/routes/portfolio-intelligence.ts(867,30): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/routes/portfolio-intelligence.ts(954,35): error TS4111: Property 'scenarioId' comes from an index signature, so it must be accessed with ['scenarioId'].
+server/routes/portfolio-intelligence.ts(963,36): error TS4111: Property 'forecastType' comes from an index signature, so it must be accessed with ['forecastType'].
+server/routes/portfolio-intelligence.ts(964,30): error TS4111: Property 'status' comes from an index signature, so it must be accessed with ['status'].
+server/routes/portfolio-intelligence.ts(1071,32): error TS4111: Property 'category' comes from an index signature, so it must be accessed with ['category'].
+server/routes/portfolio-intelligence.ts(1072,35): error TS4111: Property 'riskProfile' comes from an index signature, so it must be accessed with ['riskProfile'].
+server/routes/portfolio-intelligence.ts(1201,35): error TS4111: Property 'scenarioId' comes from an index signature, so it must be accessed with ['scenarioId'].
+server/routes/portfolio-intelligence.ts(1210,34): error TS4111: Property 'metricType' comes from an index signature, so it must be accessed with ['metricType'].
+server/routes/portfolio-intelligence.ts(1211,33): error TS4111: Property 'timeRange' comes from an index signature, so it must be accessed with ['timeRange'].
+server/routes/reserves-api.ts(378,16): error TS18046: 'error' is of type 'unknown'.
+server/routes/reserves-api.ts(478,16): error TS18046: 'error' is of type 'unknown'.
+server/routes/reserves-api.ts(656,16): error TS18046: 'error' is of type 'unknown'.
+server/routes/v1/reserve-approvals.ts(85,69): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(left: PgColumn<{ name: "deactivated"; tableName: "approval_partners"; dataType: "date"; columnType: "PgTimestamp"; data: Date; driverParam: string; notNull: false; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>, right: Date | SQLWrapper): SQL<...>', gave the following error.
+    Argument of type 'null' is not assignable to parameter of type 'Date | SQLWrapper'.
+  Overload 2 of 3, '(left: Aliased<null>, right: SQLWrapper | null): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "deactivated"; tableName: "approval_partners"; dataType: "date"; columnType: "PgTimestamp"; data: Date; driverParam: string; notNull: false; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'Aliased<null>'.
+      Type 'PgColumn<{ name: "deactivated"; tableName: "approval_partners"; dataType: "date"; columnType: "PgTimestamp"; data: Date; driverParam: string; notNull: false; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>' is missing the following properties from type 'Aliased<null>': sql, fieldAlias
+  Overload 3 of 3, '(left: never, right: unknown): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "deactivated"; tableName: "approval_partners"; dataType: "date"; columnType: "PgTimestamp"; data: Date; driverParam: string; notNull: false; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'never'.
+server/routes/v1/reserve-approvals.ts(110,30): error TS4111: Property 'status' comes from an index signature, so it must be accessed with ['status'].
+server/routes/v1/reserve-approvals.ts(127,30): error TS7031: Binding element 'approval' implicitly has an 'any' type.
+server/routes/v1/reserve-approvals.ts(127,40): error TS7031: Binding element 'signatureCount' implicitly has an 'any' type.
+server/routes/v1/reserve-approvals.ts(164,14): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(left: PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>, right: string | SQLWrapper): SQL<...>', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | SQLWrapper'.
+      Type 'undefined' is not assignable to type 'string | SQLWrapper'.
+  Overload 2 of 3, '(left: Aliased<string | undefined>, right: string | SQLWrapper | undefined): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'Aliased<string | undefined>'.
+      Type 'PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is missing the following properties from type 'Aliased<string | undefined>': sql, fieldAlias
+  Overload 3 of 3, '(left: never, right: unknown): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'never'.
+server/routes/v1/reserve-approvals.ts(173,14): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(left: PgColumn<{ name: "approval_id"; tableName: "approval_signatures"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>, right: string | SQLWrapper): SQL<...>', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | SQLWrapper'.
+      Type 'undefined' is not assignable to type 'string | SQLWrapper'.
+  Overload 2 of 3, '(left: Aliased<string | undefined>, right: string | SQLWrapper | undefined): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "approval_id"; tableName: "approval_signatures"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'Aliased<string | undefined>'.
+      Type 'PgColumn<{ name: "approval_id"; tableName: "approval_signatures"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>' is missing the following properties from type 'Aliased<string | undefined>': sql, fieldAlias
+  Overload 3 of 3, '(left: never, right: unknown): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "approval_id"; tableName: "approval_signatures"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'never'.
+server/routes/v1/reserve-approvals.ts(178,14): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(left: PgColumn<{ name: "approval_id"; tableName: "approval_audit_log"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>, right: string | SQLWrapper): SQL<...>', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | SQLWrapper'.
+      Type 'undefined' is not assignable to type 'string | SQLWrapper'.
+  Overload 2 of 3, '(left: Aliased<string | undefined>, right: string | SQLWrapper | undefined): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "approval_id"; tableName: "approval_audit_log"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'Aliased<string | undefined>'.
+      Type 'PgColumn<{ name: "approval_id"; tableName: "approval_audit_log"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>' is missing the following properties from type 'Aliased<string | undefined>': sql, fieldAlias
+  Overload 3 of 3, '(left: never, right: unknown): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "approval_id"; tableName: "approval_audit_log"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'never'.
+server/routes/v1/reserve-approvals.ts(185,53): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/routes/v1/reserve-approvals.ts(216,14): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(left: PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>, right: string | SQLWrapper): SQL<...>', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | SQLWrapper'.
+      Type 'undefined' is not assignable to type 'string | SQLWrapper'.
+  Overload 2 of 3, '(left: Aliased<string | undefined>, right: string | SQLWrapper | undefined): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'Aliased<string | undefined>'.
+      Type 'PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is missing the following properties from type 'Aliased<string | undefined>': sql, fieldAlias
+  Overload 3 of 3, '(left: never, right: unknown): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'never'.
+server/routes/v1/reserve-approvals.ts(230,16): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(left: PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>, right: string | SQLWrapper): SQL<...>', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | SQLWrapper'.
+      Type 'undefined' is not assignable to type 'string | SQLWrapper'.
+  Overload 2 of 3, '(left: Aliased<string | undefined>, right: string | SQLWrapper | undefined): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'Aliased<string | undefined>'.
+      Type 'PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is missing the following properties from type 'Aliased<string | undefined>': sql, fieldAlias
+  Overload 3 of 3, '(left: never, right: unknown): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'never'.
+server/routes/v1/reserve-approvals.ts(240,11): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(left: PgColumn<{ name: "approval_id"; tableName: "approval_signatures"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>, right: string | SQLWrapper): SQL<...>', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | SQLWrapper'.
+      Type 'undefined' is not assignable to type 'string | SQLWrapper'.
+  Overload 2 of 3, '(left: Aliased<string | undefined>, right: string | SQLWrapper | undefined): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "approval_id"; tableName: "approval_signatures"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'Aliased<string | undefined>'.
+      Type 'PgColumn<{ name: "approval_id"; tableName: "approval_signatures"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>' is missing the following properties from type 'Aliased<string | undefined>': sql, fieldAlias
+  Overload 3 of 3, '(left: never, right: unknown): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "approval_id"; tableName: "approval_signatures"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'never'.
+server/routes/v1/reserve-approvals.ts(276,22): error TS4111: Property 'session' comes from an index signature, so it must be accessed with ['session'].
+server/routes/v1/reserve-approvals.ts(292,64): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(left: PgColumn<{ name: "approval_id"; tableName: "approval_signatures"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>, right: string | SQLWrapper): SQL<...>', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | SQLWrapper'.
+      Type 'undefined' is not assignable to type 'string | SQLWrapper'.
+  Overload 2 of 3, '(left: Aliased<string | undefined>, right: string | SQLWrapper | undefined): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "approval_id"; tableName: "approval_signatures"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'Aliased<string | undefined>'.
+      Type 'PgColumn<{ name: "approval_id"; tableName: "approval_signatures"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>' is missing the following properties from type 'Aliased<string | undefined>': sql, fieldAlias
+  Overload 3 of 3, '(left: never, right: unknown): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "approval_id"; tableName: "approval_signatures"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'never'.
+server/routes/v1/reserve-approvals.ts(298,16): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(left: PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>, right: string | SQLWrapper): SQL<...>', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | SQLWrapper'.
+      Type 'undefined' is not assignable to type 'string | SQLWrapper'.
+  Overload 2 of 3, '(left: Aliased<string | undefined>, right: string | SQLWrapper | undefined): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'Aliased<string | undefined>'.
+      Type 'PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is missing the following properties from type 'Aliased<string | undefined>': sql, fieldAlias
+  Overload 3 of 3, '(left: never, right: unknown): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'never'.
+server/routes/v1/reserve-approvals.ts(356,14): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(left: PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>, right: string | SQLWrapper): SQL<...>', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | SQLWrapper'.
+      Type 'undefined' is not assignable to type 'string | SQLWrapper'.
+  Overload 2 of 3, '(left: Aliased<string | undefined>, right: string | SQLWrapper | undefined): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'Aliased<string | undefined>'.
+      Type 'PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is missing the following properties from type 'Aliased<string | undefined>': sql, fieldAlias
+  Overload 3 of 3, '(left: never, right: unknown): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'never'.
+server/routes/variance.ts(78,36): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes/variance.ts(147,36): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes/variance.ts(160,36): error TS4111: Property 'baselineType' comes from an index signature, so it must be accessed with ['baselineType'].
+server/routes/variance.ts(161,33): error TS4111: Property 'isDefault' comes from an index signature, so it must be accessed with ['isDefault'].
+server/routes/variance.ts(161,73): error TS4111: Property 'isDefault' comes from an index signature, so it must be accessed with ['isDefault'].
+server/routes/variance.ts(162,29): error TS4111: Property 'limit' comes from an index signature, so it must be accessed with ['limit'].
+server/routes/variance.ts(162,56): error TS4111: Property 'limit' comes from an index signature, so it must be accessed with ['limit'].
+server/routes/variance.ts(193,36): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes/variance.ts(205,35): error TS4111: Property 'baselineId' comes from an index signature, so it must be accessed with ['baselineId'].
+server/routes/variance.ts(236,35): error TS4111: Property 'baselineId' comes from an index signature, so it must be accessed with ['baselineId'].
+server/routes/variance.ts(271,36): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes/variance.ts(329,36): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes/variance.ts(367,36): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes/variance.ts(379,33): error TS4111: Property 'reportId' comes from an index signature, so it must be accessed with ['reportId'].
+server/routes/variance.ts(414,36): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes/variance.ts(485,36): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes/variance.ts(498,32): error TS4111: Property 'severity' comes from an index signature, so it must be accessed with ['severity'].
+server/routes/variance.ts(498,54): error TS4111: Property 'severity' comes from an index signature, so it must be accessed with ['severity'].
+server/routes/variance.ts(499,32): error TS4111: Property 'category' comes from an index signature, so it must be accessed with ['category'].
+server/routes/variance.ts(499,54): error TS4111: Property 'category' comes from an index signature, so it must be accessed with ['category'].
+server/routes/variance.ts(500,29): error TS4111: Property 'limit' comes from an index signature, so it must be accessed with ['limit'].
+server/routes/variance.ts(500,56): error TS4111: Property 'limit' comes from an index signature, so it must be accessed with ['limit'].
+server/routes/variance.ts(529,32): error TS4111: Property 'alertId' comes from an index signature, so it must be accessed with ['alertId'].
+server/routes/variance.ts(579,32): error TS4111: Property 'alertId' comes from an index signature, so it must be accessed with ['alertId'].
+server/routes/variance.ts(633,36): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/routes/variance.ts(700,36): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+server/security/csp.ts(15,7): error TS4111: Property 'locals' comes from an index signature, so it must be accessed with ['locals'].
+server/security/integration-guide.ts(318,28): error TS4111: Property 'npm_package_version' comes from an index signature, so it must be accessed with ['npm_package_version'].
+server/server.ts(60,7): error TS4111: Property 'locals' comes from an index signature, so it must be accessed with ['locals'].
+server/server.ts(61,7): error TS4111: Property 'locals' comes from an index signature, so it must be accessed with ['locals'].
+server/server.ts(62,7): error TS4111: Property 'locals' comes from an index signature, so it must be accessed with ['locals'].
+server/server.ts(179,52): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/server.ts(198,27): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/server.ts(239,28): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/server.ts(239,48): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/services/actual-metrics-calculator.ts(87,32): error TS2339: Property 'establishmentDate' does not exist on type '{ id: number; name: string; size: string; status: string; createdAt: Date | null; vintageYear: number; deployedCapital: string | null; managementFee: string; carryPercentage: string; }'.
+server/services/actual-metrics-calculator.ts(88,49): error TS2339: Property 'establishmentDate' does not exist on type '{ id: number; name: string; size: string; status: string; createdAt: Date | null; vintageYear: number; deployedCapital: string | null; managementFee: string; carryPercentage: string; }'.
+server/services/actual-metrics-calculator.ts(260,24): error TS2339: Property 'investmentDate' does not exist on type '{ id: number; name: string; status: string; description: string | null; fundId: number | null; createdAt: Date | null; stage: string; sector: string; currentValuation: string | null; investmentAmount: string; foundedYear: number | null; dealTags: string[] | null; }'.
+server/services/actual-metrics-calculator.ts(262,26): error TS2339: Property 'investmentDate' does not exist on type '{ id: number; name: string; status: string; description: string | null; fundId: number | null; createdAt: Date | null; stage: string; sector: string; currentValuation: string | null; investmentAmount: string; foundedYear: number | null; dealTags: string[] | null; }'.
+server/services/actual-metrics-calculator.ts(263,19): error TS2339: Property 'initialInvestment' does not exist on type '{ id: number; name: string; status: string; description: string | null; fundId: number | null; createdAt: Date | null; stage: string; sector: string; currentValuation: string | null; investmentAmount: string; foundedYear: number | null; dealTags: string[] | null; }'.
+server/services/actual-metrics-calculator.ts(263,52): error TS2339: Property 'initialInvestment' does not exist on type '{ id: number; name: string; status: string; description: string | null; fundId: number | null; createdAt: Date | null; stage: string; sector: string; currentValuation: string | null; investmentAmount: string; foundedYear: number | null; dealTags: string[] | null; }'.
+server/services/database-pool-manager.ts(306,58): error TS18048: 'config.maxConnections' is possibly 'undefined'.
+server/services/database-pool-manager.ts(309,35): error TS18048: 'config.maxConnections' is possibly 'undefined'.
+server/services/database-pool-manager.ts(310,40): error TS18048: 'config.maxConnections' is possibly 'undefined'.
+server/services/database-pool-manager.ts(315,35): error TS18048: 'config.maxConnections' is possibly 'undefined'.
+server/services/database-pool-manager.ts(315,59): error TS18048: 'config.minConnections' is possibly 'undefined'.
+server/services/database-pool-manager.ts(316,40): error TS18048: 'config.maxConnections' is possibly 'undefined'.
+server/services/database-pool-manager.ts(316,67): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/services/metrics-aggregator.ts(175,64): error TS2345: Argument of type '{ id: number; name: string; size: string; status: string; createdAt: Date | null; vintageYear: number; deployedCapital: string | null; managementFee: string; carryPercentage: string; }' is not assignable to parameter of type '{ id: number; name: string; size: string; status: string; createdAt: Date | null; isActive: boolean | null; vintageYear: number; deployedCapital: string | null; managementFee: string; carryPercentage: string; }'.
+  Property 'isActive' is missing in type '{ id: number; name: string; size: string; status: string; createdAt: Date | null; vintageYear: number; deployedCapital: string | null; managementFee: string; carryPercentage: string; }' but required in type '{ id: number; name: string; size: string; status: string; createdAt: Date | null; isActive: boolean | null; vintageYear: number; deployedCapital: string | null; managementFee: string; carryPercentage: string; }'.
+server/services/metrics-aggregator.ts(186,44): error TS2345: Argument of type '{ id: number; name: string; size: string; status: string; createdAt: Date | null; vintageYear: number; deployedCapital: string | null; managementFee: string; carryPercentage: string; }' is not assignable to parameter of type '{ id: number; name: string; size: string; status: string; createdAt: Date | null; isActive: boolean | null; vintageYear: number; deployedCapital: string | null; managementFee: string; carryPercentage: string; }'.
+  Property 'isActive' is missing in type '{ id: number; name: string; size: string; status: string; createdAt: Date | null; vintageYear: number; deployedCapital: string | null; managementFee: string; carryPercentage: string; }' but required in type '{ id: number; name: string; size: string; status: string; createdAt: Date | null; isActive: boolean | null; vintageYear: number; deployedCapital: string | null; managementFee: string; carryPercentage: string; }'.
+server/services/monte-carlo-engine.ts(37,34): error TS4111: Property 'DEMO_MODE' comes from an index signature, so it must be accessed with ['DEMO_MODE'].
+server/services/monte-carlo-engine.ts(38,30): error TS4111: Property 'DEMO_MODE' comes from an index signature, so it must be accessed with ['DEMO_MODE'].
+server/services/monte-carlo-engine.ts(40,48): error TS4111: Property 'DEMO_MODE' comes from an index signature, so it must be accessed with ['DEMO_MODE'].
+server/services/monte-carlo-engine.ts(292,55): error TS18046: 'error' is of type 'unknown'.
+server/services/monte-carlo-engine.ts(315,51): error TS7006: Parameter 'irr' implicitly has an 'any' type.
+server/services/monte-carlo-engine.ts(318,49): error TS7006: Parameter 'irr' implicitly has an 'any' type.
+server/services/monte-carlo-engine.ts(396,9): error TS2532: Object is possibly 'undefined'.
+server/services/monte-carlo-engine.ts(423,97): error TS4111: Property 'DEMO_MODE' comes from an index signature, so it must be accessed with ['DEMO_MODE'].
+server/services/monte-carlo-engine.ts(704,5): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/services/monte-carlo-service-unified.ts(97,79): error TS18046: 'error' is of type 'unknown'.
+server/services/monte-carlo-service-unified.ts(101,79): error TS18046: 'error' is of type 'unknown'.
+server/services/monte-carlo-service-unified.ts(270,63): error TS18046: 'error' is of type 'unknown'.
+server/services/monte-carlo-service-unified.ts(279,61): error TS18046: 'error' is of type 'unknown'.
+server/services/monte-carlo-simulation.ts(198,7): error TS2322: Type 'SimulationResult | undefined' is not assignable to type 'SimulationResult'.
+  Type 'undefined' is not assignable to type 'SimulationResult'.
+server/services/monte-carlo-simulation.ts(198,37): error TS4111: Property 'totalValue' comes from an index signature, so it must be accessed with ['totalValue'].
+server/services/monte-carlo-simulation.ts(199,7): error TS2322: Type 'SimulationResult | undefined' is not assignable to type 'SimulationResult'.
+  Type 'undefined' is not assignable to type 'SimulationResult'.
+server/services/monte-carlo-simulation.ts(199,30): error TS4111: Property 'irr' comes from an index signature, so it must be accessed with ['irr'].
+server/services/monte-carlo-simulation.ts(200,7): error TS2322: Type 'SimulationResult | undefined' is not assignable to type 'SimulationResult'.
+  Type 'undefined' is not assignable to type 'SimulationResult'.
+server/services/monte-carlo-simulation.ts(200,35): error TS4111: Property 'multiple' comes from an index signature, so it must be accessed with ['multiple'].
+server/services/monte-carlo-simulation.ts(201,7): error TS2322: Type 'SimulationResult | undefined' is not assignable to type 'SimulationResult'.
+  Type 'undefined' is not assignable to type 'SimulationResult'.
+server/services/monte-carlo-simulation.ts(201,30): error TS4111: Property 'dpi' comes from an index signature, so it must be accessed with ['dpi'].
+server/services/monte-carlo-simulation.ts(202,7): error TS2322: Type 'SimulationResult | undefined' is not assignable to type 'SimulationResult'.
+  Type 'undefined' is not assignable to type 'SimulationResult'.
+server/services/monte-carlo-simulation.ts(202,31): error TS4111: Property 'tvpi' comes from an index signature, so it must be accessed with ['tvpi'].
+server/services/monte-carlo-simulation.ts(382,7): error TS18048: 'results.totalValue' is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(382,15): error TS4111: Property 'totalValue' comes from an index signature, so it must be accessed with ['totalValue'].
+server/services/monte-carlo-simulation.ts(383,7): error TS18048: 'results.irr' is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(383,15): error TS4111: Property 'irr' comes from an index signature, so it must be accessed with ['irr'].
+server/services/monte-carlo-simulation.ts(384,7): error TS18048: 'results.multiple' is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(384,15): error TS4111: Property 'multiple' comes from an index signature, so it must be accessed with ['multiple'].
+server/services/monte-carlo-simulation.ts(385,7): error TS18048: 'results.dpi' is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(385,15): error TS4111: Property 'dpi' comes from an index signature, so it must be accessed with ['dpi'].
+server/services/monte-carlo-simulation.ts(386,7): error TS18048: 'results.tvpi' is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(386,15): error TS4111: Property 'tvpi' comes from an index signature, so it must be accessed with ['tvpi'].
+server/services/monte-carlo-simulation.ts(418,74): error TS4111: Property 'totalValueVariance' comes from an index signature, so it must be accessed with ['totalValueVariance'].
+server/services/monte-carlo-simulation.ts(425,67): error TS4111: Property 'dpiVariance' comes from an index signature, so it must be accessed with ['dpiVariance'].
+server/services/monte-carlo-simulation.ts(432,68): error TS4111: Property 'tvpiVariance' comes from an index signature, so it must be accessed with ['tvpiVariance'].
+server/services/monte-carlo-simulation.ts(499,60): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server/services/monte-carlo-simulation.ts(503,39): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server/services/monte-carlo-simulation.ts(515,59): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server/services/monte-carlo-simulation.ts(519,39): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server/services/monte-carlo-simulation.ts(595,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/services/monte-carlo-simulation.ts(624,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/services/monte-carlo-simulation.ts(636,33): error TS18048: 'simulationResults.totalValue' is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(636,51): error TS4111: Property 'totalValue' comes from an index signature, so it must be accessed with ['totalValue'].
+server/services/monte-carlo-simulation.ts(637,26): error TS18048: 'simulationResults.irr' is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(637,44): error TS4111: Property 'irr' comes from an index signature, so it must be accessed with ['irr'].
+server/services/monte-carlo-simulation.ts(643,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/services/monte-carlo-simulation.ts(650,63): error TS18048: 'varValue' is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(655,22): error TS18048: 'simulationResults.totalValue' is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(655,40): error TS4111: Property 'totalValue' comes from an index signature, so it must be accessed with ['totalValue'].
+server/services/monte-carlo-simulation.ts(660,24): error TS18048: 'simulationResults.irr' is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(660,42): error TS4111: Property 'irr' comes from an index signature, so it must be accessed with ['irr'].
+server/services/monte-carlo-simulation.ts(661,56): error TS18048: 'simulationResults.irr' is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(661,74): error TS4111: Property 'irr' comes from an index signature, so it must be accessed with ['irr'].
+server/services/monte-carlo-simulation.ts(787,57): error TS18048: 'simulationResults.totalValue' is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(787,75): error TS4111: Property 'totalValue' comes from an index signature, so it must be accessed with ['totalValue'].
+server/services/monte-carlo-simulation.ts(788,26): error TS18048: 'simulationResults.totalValue' is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(788,44): error TS4111: Property 'totalValue' comes from an index signature, so it must be accessed with ['totalValue'].
+server/services/monte-carlo-simulation.ts(789,29): error TS18048: 'totalValue' is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(798,28): error TS18048: 'simulationResults.irr' is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(798,46): error TS4111: Property 'irr' comes from an index signature, so it must be accessed with ['irr'].
+server/services/monte-carlo-simulation.ts(799,24): error TS18048: 'simulationResults.irr' is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(799,42): error TS4111: Property 'irr' comes from an index signature, so it must be accessed with ['irr'].
+server/services/monte-carlo-simulation.ts(827,36): error TS7006: Parameter 'company' implicitly has an 'any' type.
+server/services/monte-carlo-simulation.ts(880,25): error TS2532: Object is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(887,32): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.
+server/services/notion-service.ts(89,24): error TS4111: Property 'NOTION_CLIENT_ID' comes from an index signature, so it must be accessed with ['NOTION_CLIENT_ID'].
+server/services/notion-service.ts(89,56): error TS4111: Property 'NOTION_CLIENT_SECRET' comes from an index signature, so it must be accessed with ['NOTION_CLIENT_SECRET'].
+server/services/notion-service.ts(102,37): error TS4111: Property 'NOTION_REDIRECT_URI' comes from an index signature, so it must be accessed with ['NOTION_REDIRECT_URI'].
+server/services/notion-service.ts(572,41): error TS4111: Property 'NOTION_ENCRYPTION_KEY' comes from an index signature, so it must be accessed with ['NOTION_ENCRYPTION_KEY'].
+server/services/notion-service.ts(584,41): error TS4111: Property 'NOTION_ENCRYPTION_KEY' comes from an index signature, so it must be accessed with ['NOTION_ENCRYPTION_KEY'].
+server/services/notion-service.ts(586,28): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(arrayBuffer: WithImplicitCoercion<ArrayBufferLike>, byteOffset?: number | undefined, length?: number | undefined): Buffer<ArrayBufferLike>', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'WithImplicitCoercion<ArrayBufferLike>'.
+      Type 'undefined' is not assignable to type 'WithImplicitCoercion<ArrayBufferLike>'.
+  Overload 2 of 4, '(string: WithImplicitCoercion<string>, encoding?: BufferEncoding | undefined): Buffer<ArrayBuffer>', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'WithImplicitCoercion<string>'.
+      Type 'undefined' is not assignable to type 'WithImplicitCoercion<string>'.
+server/services/notion-service.ts(590,37): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(data: ArrayBufferView<ArrayBufferLike>, inputEncoding: undefined, outputEncoding: Encoding): string', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'ArrayBufferView<ArrayBufferLike>'.
+      Type 'undefined' is not assignable to type 'ArrayBufferView<ArrayBufferLike>'.
+  Overload 2 of 4, '(data: string, inputEncoding: Encoding | undefined, outputEncoding: Encoding): string', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+server/services/notion-service.ts(591,5): error TS2322: Type 'string' is not assignable to type 'Buffer<ArrayBufferLike> & string'.
+  Type 'string' is not assignable to type 'Buffer<ArrayBufferLike>'.
+server/services/performance-prediction.ts(157,57): error TS18046: 'error' is of type 'unknown'.
+server/services/performance-prediction.ts(190,53): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(268,79): error TS7006: Parameter 'f' implicitly has an 'any' type.
+server/services/performance-prediction.ts(368,55): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(376,27): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(427,29): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(427,55): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(431,20): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(431,52): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(435,27): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(440,30): error TS18048: 'lastValue' is possibly 'undefined'.
+server/services/performance-prediction.ts(457,60): error TS2345: Argument of type '(number | undefined)[]' is not assignable to parameter of type 'number[]'.
+  Type 'number | undefined' is not assignable to type 'number'.
+    Type 'undefined' is not assignable to type 'number'.
+server/services/performance-prediction.ts(489,55): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(490,61): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(510,27): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(575,49): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(576,59): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(577,59): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(582,20): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(616,65): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(619,65): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(625,36): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(632,67): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(641,58): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(658,55): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(670,23): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(670,35): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(670,52): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(690,12): error TS18048: 'curr' is possibly 'undefined'.
+server/services/performance-prediction.ts(690,19): error TS18048: 'prev' is possibly 'undefined'.
+server/services/performance-prediction.ts(690,27): error TS18048: 'curr' is possibly 'undefined'.
+server/services/performance-prediction.ts(690,34): error TS18048: 'next' is possibly 'undefined'.
+server/services/performance-prediction.ts(690,44): error TS18048: 'curr' is possibly 'undefined'.
+server/services/performance-prediction.ts(690,51): error TS18048: 'prev' is possibly 'undefined'.
+server/services/performance-prediction.ts(690,59): error TS18048: 'curr' is possibly 'undefined'.
+server/services/performance-prediction.ts(690,66): error TS18048: 'next' is possibly 'undefined'.
+server/services/performance-prediction.ts(725,21): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(725,42): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(729,31): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(741,24): error TS7006: Parameter 'm' implicitly has an 'any' type.
+server/services/performance-prediction.ts(774,32): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/services/performance-prediction.ts(774,47): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(774,65): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(780,5): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/services/portfolio-performance-predictor.ts(215,26): error TS7006: Parameter 'company' implicitly has an 'any' type.
+server/services/power-law-distribution.ts(475,10): error TS2532: Object is possibly 'undefined'.
+server/services/power-law-distribution.ts(475,34): error TS2532: Object is possibly 'undefined'.
+server/services/power-law-distribution.ts(499,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/services/power-law-distribution.ts(523,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/services/projected-metrics-calculator.ts(111,9): error TS2353: Object literal may only specify known properties, and 'fundSize' does not exist in type '{ id: number; invested: number; ownership: number; stage: string; sector: string; }'.
+server/services/projected-metrics-calculator.ts(116,27): error TS2339: Property 'currentStage' does not exist on type '{ id: number; name: string; status: string; description: string | null; fundId: number | null; createdAt: Date | null; stage: string; sector: string; currentValuation: string | null; investmentAmount: string; foundedYear: number | null; dealTags: string[] | null; }'.
+server/services/projected-metrics-calculator.ts(117,43): error TS2339: Property 'initialInvestment' does not exist on type '{ id: number; name: string; status: string; description: string | null; fundId: number | null; createdAt: Date | null; stage: string; sector: string; currentValuation: string | null; investmentAmount: string; foundedYear: number | null; dealTags: string[] | null; }'.
+server/services/projected-metrics-calculator.ts(119,42): error TS2339: Property 'ownershipPercent' does not exist on type '{ id: number; name: string; status: string; description: string | null; fundId: number | null; createdAt: Date | null; stage: string; sector: string; currentValuation: string | null; investmentAmount: string; foundedYear: number | null; dealTags: string[] | null; }'.
+server/services/projected-metrics-calculator.ts(125,29): error TS2554: Expected 2 arguments, but got 1.
+server/services/projected-metrics-calculator.ts(128,32): error TS2339: Property 'totalReserves' does not exist on type '{ fundId: number; allocations: { allocation: number; confidence: number; rationale: string; }[]; generatedAt: Date; totalAllocation: number; avgConfidence: number; highConfidenceCount: number; }'.
+server/services/projected-metrics-calculator.ts(129,36): error TS2339: Property 'allocatedReserves' does not exist on type '{ fundId: number; allocations: { allocation: number; confidence: number; rationale: string; }[]; generatedAt: Date; totalAllocation: number; avgConfidence: number; highConfidenceCount: number; }'.
+server/services/projected-metrics-calculator.ts(130,35): error TS2339: Property 'companyReserves' does not exist on type '{ fundId: number; allocations: { allocation: number; confidence: number; rationale: string; }[]; generatedAt: Date; totalAllocation: number; avgConfidence: number; highConfidenceCount: number; }'.
+server/services/projected-metrics-calculator.ts(155,34): error TS2339: Property 'establishmentDate' does not exist on type '{ id: number; name: string; size: string; status: string; createdAt: Date | null; isActive: boolean | null; vintageYear: number; deployedCapital: string | null; managementFee: string; carryPercentage: string; }'.
+server/services/projected-metrics-calculator.ts(156,42): error TS2339: Property 'establishmentDate' does not exist on type '{ id: number; name: string; size: string; status: string; createdAt: Date | null; isActive: boolean | null; vintageYear: number; deployedCapital: string | null; managementFee: string; carryPercentage: string; }'.
+server/services/projected-metrics-calculator.ts(161,9): error TS2353: Object literal may only specify known properties, and 'deployedCapital' does not exist in type '{ fundSize: number; deploymentQuarter: number; marketCondition: "bull" | "bear" | "neutral"; }'.
+server/services/projected-metrics-calculator.ts(192,46): error TS2339: Property 'deploymentSchedule' does not exist on type '{ fundSize: number; generatedAt: Date; marketCondition: "bull" | "bear" | "neutral"; totalQuarters: number; avgQuarterlyDeployment: number; deployments: { note: string; quarter: number; deployment: number; }[]; }'.
+server/services/projected-metrics-calculator.ts(216,9): error TS2353: Object literal may only specify known properties, and 'fundSize' does not exist in type '{ fundId: number; vintageYear: number; cohortSize: number; }'.
+server/services/projected-metrics-calculator.ts(220,30): error TS2339: Property 'investmentDate' does not exist on type '{ id: number; name: string; status: string; description: string | null; fundId: number | null; createdAt: Date | null; stage: string; sector: string; currentValuation: string | null; investmentAmount: string; foundedYear: number | null; dealTags: string[] | null; }'.
+server/services/projected-metrics-calculator.ts(221,27): error TS2339: Property 'currentStage' does not exist on type '{ id: number; name: string; status: string; description: string | null; fundId: number | null; createdAt: Date | null; stage: string; sector: string; currentValuation: string | null; investmentAmount: string; foundedYear: number | null; dealTags: string[] | null; }'.
+server/services/projected-metrics-calculator.ts(230,31): error TS2339: Property 'expectedTVPI' does not exist on type '{ performance: { multiple: number; dpi: number; irr: number; }; generatedAt: Date; vintageYear: number; cohortId: string; companies: { id: number; name: string; stage: string; valuation: number; }[]; totalCompanies: number; avgValuation: number; stageDistribution: Record<...>; metadata?: { ...; } | undefined; }'.
+server/services/projected-metrics-calculator.ts(231,30): error TS2339: Property 'expectedIRR' does not exist on type '{ performance: { multiple: number; dpi: number; irr: number; }; generatedAt: Date; vintageYear: number; cohortId: string; companies: { id: number; name: string; stage: string; valuation: number; }[]; totalCompanies: number; avgValuation: number; stageDistribution: Record<...>; metadata?: { ...; } | undefined; }'.
+server/services/projected-metrics-calculator.ts(232,30): error TS2339: Property 'expectedDPI' does not exist on type '{ performance: { multiple: number; dpi: number; irr: number; }; generatedAt: Date; vintageYear: number; cohortId: string; companies: { id: number; name: string; stage: string; valuation: number; }[]; totalCompanies: number; avgValuation: number; stageDistribution: Record<...>; metadata?: { ...; } | undefined; }'.
+server/services/projected-metrics-calculator.ts(233,39): error TS2339: Property 'distributionSchedule' does not exist on type '{ performance: { multiple: number; dpi: number; irr: number; }; generatedAt: Date; vintageYear: number; cohortId: string; companies: { id: number; name: string; stage: string; valuation: number; }[]; totalCompanies: number; avgValuation: number; stageDistribution: Record<...>; metadata?: { ...; } | undefined; }'.
+server/services/projected-metrics-calculator.ts(234,33): error TS2339: Property 'navProgression' does not exist on type '{ performance: { multiple: number; dpi: number; irr: number; }; generatedAt: Date; vintageYear: number; cohortId: string; companies: { id: number; name: string; stage: string; valuation: number; }[]; totalCompanies: number; avgValuation: number; stageDistribution: Record<...>; metadata?: { ...; } | undefined; }'.
+server/services/reserve-optimization-calculator.ts(383,32): error TS7006: Parameter 'company' implicitly has an 'any' type.
+server/services/streaming-monte-carlo-engine.ts(140,11): error TS2564: Property 'aggregatedData' has no initializer and is not definitely assigned in the constructor.
+server/services/streaming-monte-carlo-engine.ts(224,22): error TS18048: 'max' is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(224,28): error TS18048: 'min' is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(225,42): error TS18048: 'min' is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(398,67): error TS18046: 'error' is of type 'unknown'.
+server/services/streaming-monte-carlo-engine.ts(549,35): error TS4111: Property 'irr' comes from an index signature, so it must be accessed with ['irr'].
+server/services/streaming-monte-carlo-engine.ts(550,42): error TS4111: Property 'totalValue' comes from an index signature, so it must be accessed with ['totalValue'].
+server/services/streaming-monte-carlo-engine.ts(553,18): error TS18048: 'irrDist' is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(553,51): error TS18048: 'irrDist' is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(554,19): error TS18048: 'irrDist' is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(554,53): error TS18048: 'irrDist' is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(561,49): error TS18048: 'irrDist' is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(561,63): error TS18048: 'irrDist' is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(564,26): error TS18048: 'irrDist' is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(568,26): error TS18048: 'irrDist' is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(569,40): error TS18048: 'irrDist' is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(573,26): error TS18048: 'totalValueDist' is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(573,47): error TS18048: 'totalValueDist' is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(573,69): error TS18048: 'totalValueDist' is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(606,54): error TS18048: 'distributions.irr' is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(606,68): error TS4111: Property 'irr' comes from an index signature, so it must be accessed with ['irr'].
+server/services/streaming-monte-carlo-engine.ts(607,48): error TS18048: 'distributions.irr' is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(607,62): error TS4111: Property 'irr' comes from an index signature, so it must be accessed with ['irr'].
+server/services/streaming-monte-carlo-engine.ts(627,9): error TS2532: Object is possibly 'undefined'.
+server/services/variance-tracking.ts(210,15): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server/services/variance-tracking.ts(211,14): error TS7006: Parameter 'a' implicitly has an 'any' type.
+server/services/variance-tracking.ts(211,17): error TS7006: Parameter 'b' implicitly has an 'any' type.
+server/services/variance-tracking.ts(214,76): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server/services/variance-tracking.ts(837,25): error TS2532: Object is possibly 'undefined'.
+server/utils/logger.ts(64,28): error TS4111: Property 'npm_package_version' comes from an index signature, so it must be accessed with ['npm_package_version'].
+server/utils/logger.ts(210,20): error TS4111: Property 'get' comes from an index signature, so it must be accessed with ['get'].
+server/utils/logger.ts(343,26): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/utils/logger.ts(348,23): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/utils/logger.ts(358,25): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
+server/validators/fundSchema.ts(31,51): error TS7006: Parameter 'stage' implicitly has an 'any' type.
+server/validators/fundSchema.ts(119,32): error TS7006: Parameter 'stage' implicitly has an 'any' type.
+server/version.ts(25,30): error TS4111: Property 'npm_package_version' comes from an index signature, so it must be accessed with ['npm_package_version'].
+server/version.ts(26,29): error TS4111: Property 'VERCEL_GIT_COMMIT_SHA' comes from an index signature, so it must be accessed with ['VERCEL_GIT_COMMIT_SHA'].
+server/version.ts(26,66): error TS4111: Property 'COMMIT_REF' comes from an index signature, so it must be accessed with ['COMMIT_REF'].
+server/vite.ts(51,21): error TS4111: Property 'originalUrl' comes from an index signature, so it must be accessed with ['originalUrl'].
+server/websocket/dev-dashboard.ts(221,26): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/websocket/dev-dashboard.ts(222,20): error TS2532: Object is possibly 'undefined'.
+server/websocket/dev-dashboard.ts(314,75): error TS18046: 'error' is of type 'unknown'.
+vite.config.ts(1,29): error TS2305: Module '"vite"' has no exported member 'Plugin'.
+vite.config.ts(210,32): error TS7031: Binding element 'mode' implicitly has an 'any' type.
+vite.config.ts(214,17): error TS4111: Property 'VITE_USE_PREACT' comes from an index signature, so it must be accessed with ['VITE_USE_PREACT'].
+vite.config.ts(223,23): error TS7006: Parameter 'server' implicitly has an 'any' type.
+vite.config.ts(224,64): error TS7006: Parameter 'req' implicitly has an 'any' type.
+vite.config.ts(224,69): error TS7006: Parameter 'res' implicitly has an 'any' type.
+vite.config.ts(289,28): error TS4111: Property 'VITE_SOURCEMAP' comes from an index signature, so it must be accessed with ['VITE_SOURCEMAP'].
+vite.config.ts(298,29): error TS7006: Parameter 'filename' implicitly has an 'any' type.
+vite.config.ts(298,39): error TS7006: Parameter 'deps' implicitly has an 'any' type.
+vite.config.ts(298,47): error TS7031: Binding element 'hostId' implicitly has an 'any' type.
+vite.config.ts(298,55): error TS7031: Binding element 'hostType' implicitly has an 'any' type.
+vite.config.ts(299,28): error TS7006: Parameter 'dep' implicitly has an 'any' type.

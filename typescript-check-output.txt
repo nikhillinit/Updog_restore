@@ -1,0 +1,10 @@
+
+> rest-express@1.3.2 check
+> npm run build:types && npm run check:client && npm run check:shared && npm run check:server
+
+
+> rest-express@1.3.2 build:types
+> tsc -b tsconfig.shared.json
+
+'tsc' is not recognized as an internal or external command,
+operable program or batch file.

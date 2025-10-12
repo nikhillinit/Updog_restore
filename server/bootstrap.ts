@@ -9,6 +9,11 @@
  * Eliminates side-effect imports that auto-connect to Redis
  */
 
+// Configure NeonDB WebSocket support for Node.js environment
+import { neonConfig } from '@neondatabase/serverless';
+import ws from 'ws';
+neonConfig.webSocketConstructor = ws;
+
 // Environment should already be loaded by process
 import { loadEnv } from './config/index.js';
 import { buildProviders } from './providers.js';

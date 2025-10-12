@@ -1,0 +1,478 @@
+Here’s a tight, engineering-grade critique of your **“Optimal Build Strategy … Final Evaluation”** with specific improvements you can apply immediately. I’m grounding this in your attached docs, your current app scaffolding, and upstream best-practice references.
+
+---
+
+## What to keep (good calls in the doc)
+
+* **Evidence-based & production-first.** The 10–12 week framing that prioritizes hardening before net-new features is sound. 
+* **Selective BMAD usage.** Planning/docs only; CI/CD gets purpose-built agents. 
+* **Wizard-first feature line-up.** Finish construction flow and defer XState migration; aligns with your Tactyc parity target.
+
+---
+
+## What to change (the deltas that will materially improve the build)
+
+### 1) CI/CD: collapse, modernize, and gate on what matters
+
+* **Consolidate to ~15 workflows** (not 30). Make these *required*: typecheck, unit/integration, e2e, perf-smoke, bundle size, security scan, and “calc-parity”. 
+* **Standardize Actions to v4/v5** and remove conflict-ridden/custom flows. Prefer `actions/checkout@v4` and `actions/setup-node@v4` (or Marketplace “Setup Node.js” latest) with built-in caching. ([GitHub Docs][1])
+* **Pin Node properly for CI & deploy.** Use `engines.node` in `package.json` (and/or Vercel setting) so local/CI/prod use the same major. ([Vercel][2])
+
+**Why this helps:** a lean pipeline with a few required gates cuts noise, speeds reviews, and still enforces correctness.
+
+---
+
+### 2) Performance & bundling: stop hand-splitting, use route-level splits
+
+* Your `vite.config.ts` uses `manualChunks` for vendors. That’s easy to regress (and can *interfere* with ideal splitting). Prefer **dynamic imports** at route/page boundaries; let Rollup pick chunks.  ([Vite][3])
+
+**Action:** Remove `manualChunks`, add `import()` on heavy routes, keep a **bundle size gate**.
+
+---
+
+### 3) Reserves: replace the 40% constant with a policy adapter
+
+* In your context, `availableReserves = totalCapital * 0.4` is hard-coded. Swap this for a **`ReservePolicy` adapter** (Fixed %, Graduation-weighted, or “Exit-MOIC-on-Planned-Reserves”) and wire it to the reserve engine call. 
+* The “follow-on optimization / reserve sizing by graduation & exit timings” matches the Tactyc approach; mirror it so your wizard feels familiar to power users. 
+
+---
+
+### 4) Waterfall & fees: finish gross→net (American & European)
+
+* Implement carry tiers (Tier1 return of capital → optional pref IRR → GP catch-up → carry), and expose both **American** and **European** variants in the wizard. That’s the fastest path to CFO-credible net metrics. 
+
+---
+
+### 5) Determinism + parity: lock Excel-parity tests (XIRR/TVPI/DPI)
+
+* Add a **calc-parity** job that runs golden datasets and asserts Excel-equivalence (e.g., XIRR per Microsoft’s definition). ([Microsoft Support][4])
+* Keep the deterministic progression you’ve implemented; it’s ideal for regression diffs and parity dashboards. (Your app shell makes surfacing these status hints easy.) 
+
+---
+
+### 6) Observability & perf gating: minimal, useful, automatic
+
+* Add **OpenTelemetry** span timing around `POST /calculate` and the reserve engine; export to console or your APM later. Gate on **p95** in CI (“perf-smoke” via k6). ([OpenTelemetry][5])
+
+---
+
+### 7) Testing ergonomics: MSW for stability, fewer flakes
+
+* Use **MSW** to intercept API calls in e2e/integration so CI doesn’t flake on network. Keep a nightly quarantine, but graduate passing tests back. ([Mock Service Worker][6])
+
+---
+
+### 8) Brand/UI: apply the Press On system now (and be done)
+
+* Bake in **Inter (headlines) + Poppins (body)**, neutral palette, and safe-zones from your guide. It’ll lift perceived quality across the wizard and dashboards without blocking engine work. 
+
+---
+
+## “Redlines” to the strategy document (concrete edits)
+
+* **CI/CD consolidation**: change target from “56 → 30” to **“56 → 15”**, and mark the six required checks above as **branch-protection**. 
+* **Agentic workflows**: explicitly add *Calculation-Validator*, *CSV-Validator*, *Wizard-Validator*, *Migration-Validator*, *Security-Scanner*, *Performance-Detector*, *Docs-Validator*, *Golden-Dataset-Tester*; keep all non-critical monitors optional. 
+* **Reserve policy**: replace the “40% reserves” mention with “policy-driven reserves; default Fixed %, with options for Graduation-weighted and Exit-MOIC-based.” 
+* **Wizard scope**: keep “finish query-param wizard; defer XState migration.” Tie steps to *Fees & Expenses*, *Exit/Recycling (toggle off by default)*, and *Waterfall*, mirroring the reference flow.
+* **Build**: add “remove `manualChunks`; use route-level `import()`; enforce bundle budget.” 
+* **Parity**: add an explicit “Excel parity (XIRR/TVPI/DPI) gate” with Microsoft XIRR as oracle. ([Microsoft Support][4])
+
+---
+
+## 10-day “do now” checklist (small PRs, high leverage)
+
+1. **Fix CI & pin Node** (checkout/setup-node v4; cache; engines.node). ([GitHub Docs][1])
+2. **Collapse workflows to ~15** and add required gates listed above. 
+3. **Delete `manualChunks`** and add route-level dynamic imports; keep bundle budget gate.  ([Vite][3])
+4. **Add `ReservePolicy` adapter**; remove the 40% literal; keep interface stable for your reserve engine callsite. 
+5. **Implement waterfall tiers** (American & European) and expose in wizard; wire fees into net metrics. 
+6. **Calc-parity job** (golden datasets + XIRR parity vs Excel). ([Microsoft Support][4])
+7. **MSW in tests + k6 perf-smoke**; add simple OTel spans around calc endpoints. ([Mock Service Worker][6])
+8. **Apply Press On fonts/colors** and safe-zones globally (Tailwind tokens or CSS vars). 
+9. **Drizzle migration validator** in CI (forward/rollback/integrity). ([Drizzle ORM][7])
+10. **Document** `/calculate`, `/reserves`, `/funds` JSON contracts and publish with the preview build (your shell makes this trivial). 
+
+---
+
+## Why this is consistent with your earlier artifacts
+
+* Your prior evaluation and 8-week plan already point to a wizard-centric, parity-first MVP; the upgrades above sharpen the CI/CD and modeling edges without changing direction.
+* The modeling design doc still fits: deterministic engine, explainability, Excel mirror. The parity gate + reserve policy adapter are the missing glue. 
+
+---
+
+### One last nit: keep the UI fast while you iterate
+
+Your app shell is clean (`FundProvider` + `MainDashboardV2`). Apply brand tokens once and move on; do not block on visual polish while the reserve policy, waterfall, and parity land. 
+
+---
+
+If you want, I’ll turn the “do now” list into four PR templates (CI, reserves, waterfall+fees, parity) so you can start merging against this refactor immediately.
+
+[1]: https://docs.github.com/en/actions/use-cases-and-examples/building-and-testing/building-and-testing-nodejs?utm_source=chatgpt.com "Building and testing Node.js - GitHub Actions"
+[2]: https://vercel.com/docs/functions/runtimes/node-js/node-js-versions?utm_source=chatgpt.com "Supported Node.js versions"
+[3]: https://v3.vitejs.dev/guide/build?utm_source=chatgpt.com "Building for Production"
+[4]: https://support.microsoft.com/en-us/office/xirr-function-de1242ec-6477-445b-b11b-a303ad9adc9d?utm_source=chatgpt.com "XIRR function"
+[5]: https://opentelemetry.io/docs/languages/js/getting-started/?utm_source=chatgpt.com "Getting Started"
+[6]: https://mswjs.io/docs/?utm_source=chatgpt.com "Introduction"
+[7]: https://orm.drizzle.team/docs/migrations?utm_source=chatgpt.com "Migrations - Drizzle ORM"
+
+Absolutely—here’s the upgraded, “ready-to-merge” package. I’ve folded in your refinements (early feedback loop, CI emergency protocol, formal standards, risk matrix, staggered agent rollout) and added tight PR templates with acceptance criteria, code stubs, and CI snippets. Citations back up the few places we depend on external standards or tooling behavior.
+
+---
+
+# What’s new vs. the prior plan (fast read)
+
+* **Early, continuous user feedback**: 30-min Friday demos starting **Week 2/4** depending on your calendar; 2-user beta by Week 6.
+* **CI Emergency Protocol**: a minimal, **temporary** required check to unblock merges if the main pipeline takes >1 working day to stabilize. Uses `setup-node@v4` with built-in/auto caching and a slim test surface. ([GitHub][1])
+* **Formal technical standards** (precision + contracts) committed in `docs/architecture/coding-standards.md`.
+* **Risk register + per-phase mitigations** embedded into `CURRENT_ROADMAP.md`.
+* **Staggered agent rollout** (Calc → CSV → Wizard → Migrations → Perf → Security → Golden → Docs).
+* **Vite build hygiene**: remove hand-tuned `manualChunks`; prefer route-level `import()` and let Rollup split. (Avoids common chunking footguns.) ([GitHub][2])
+* **Branch protection**: make the six checks below *required* on `main`. ([GitHub Docs][3])
+
+**Required checks (Branch protection)**
+
+1. typecheck/lint  2) unit/integration  3) contract (Zod→OpenAPI)  4) **calc-parity** (Excel XIRR/TVPI/DPI)  5) **perf-smoke** (k6)  6) e2e (MSW, Preview). ([GitHub Docs][3])
+
+---
+
+# PR 01 — **CI Consolidation + Emergency Protocol**
+
+**Goal:** Collapse to ~15 workflows, fix the main pipeline, and introduce a safe **temporary** “minimal CI” if the fix takes >1 day.
+
+**Scope**
+
+* Replace scattered YAML with one `ci-core.yml` (matrix: client/server; cache; typecheck; tests).
+* Add **branch protection** requiring `ci-core`, `calc-parity`, `perf-smoke`, `e2e-preview`. ([GitHub Docs][3])
+* **Emergency fallback**: `ci-minimal.yml` (TypeScript + core unit tests + build) marked *required* only while the main CI is under repair.
+* Use `actions/setup-node@v4` (auto caching when `packageManager` is defined) and stick to the recommended Node setup. ([GitHub][4])
+
+**ci-minimal.yml (drop-in, temporary)**
+
+```yaml
+name: ci-minimal
+on: [pull_request]
+jobs:
+  minimal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test --workspaces -- --runInBand
+      - run: npm run build --workspaces
+```
+
+**Accept/Exit**
+
+* Main CI green with consolidated jobs; emergency workflow removed from “required” within 5 business days.
+
+---
+
+# PR 02 — **ReservePolicy Adapter (replace 40%)**
+
+**Goal:** Turn the fixed `0.40` reserve into a **configurable policy** with tests and explainability.
+
+**Scope**
+
+* `shared/engine/reserves/ReservePolicy.ts`
+
+  ```ts
+  export type ReservePolicyKind = 'fixed' | 'graduationWeighted' | 'exitMOIC';
+  export interface ReservePolicy { kind: ReservePolicyKind; params: Record<string, unknown>; }
+  ```
+* Implement `applyReservePolicy(fund, policy)` and ensure per-company breadcrumbs (why X% held back).
+* Wizard step exposes policy and params; persisted via Drizzle migrations. ([Drizzle ORM][5])
+
+**Tests**
+
+* Golden fixtures for each policy with expected allocations.
+* Contract snapshot ensures API responses include `policy` + `explain[]`.
+
+**Accept/Exit**
+
+* Engine output unchanged for `fixed(40%)`; diffs only when choosing other policies.
+
+---
+
+# PR 03 — **Waterfall & Fees (Net) + Wizard**
+
+**Goal:** Ship CFO-credible **net** metrics (American + European) using high-precision math.
+
+**Scope**
+
+* Implement mgmt fee schedule (commitment vs. called), carry with catch-up, and expenses using a decimal library end-to-end.
+* Extend wizard (Fees/Expenses, Waterfall variant).
+* Add OpenAPI generation from Zod (contract check in CI). ([GitHub][6])
+
+**Notes**
+
+* **Precision**: use `decimal.js` for all rate/money math.
+* **Contract**: CI job generates OpenAPI from Zod and fails on drift. ([GitHub][6])
+
+**Accept/Exit**
+
+* Net TVPI/DPI/XIRR returned; contracts published as PR artifact.
+
+---
+
+# PR 04 — **Excel Parity & Golden Datasets**
+
+**Goal:** A deterministic gate that proves parity with Excel for XIRR/TVPI/DPI.
+
+**Scope**
+
+* `tests/parity/golden/*.csv` with cashflows & expected results.
+* Test harness with tolerances pinned to Microsoft’s XIRR semantics. ([Microsoft Support][7])
+* CI job **calc-parity** publishes a small HTML report (pass/fail + diffs).
+
+**Accept/Exit**
+
+* 100% pass on the golden set; harness runs in ~30s.
+
+---
+
+# PR 05 — **Observability + Perf Smoke (k6) + E2E via MSW**
+
+**Goal:** Make performance and stability visible, cheap, and enforceable.
+
+**Scope**
+
+* **OTel**: instrument `POST /calculate`, reserves, and metrics (Node SDK; log/export later). ([OpenTelemetry][8])
+* **k6 perf-smoke**: tiny ramp + p95 SLO assertions for `/calculate`. Wire into CI as **perf-smoke**. ([Grafana Labs][9])
+* **MSW**: stabilize integration/e2e by intercepting network calls in Node/Browser tests. ([Mock Service Worker][10])
+
+**k6 example (smoke)**
+
+```js
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+export const options = { stages: [{ duration: '30s', target: 10 }, { duration: '1m', target: 10 }] };
+export default function () {
+  const res = http.post(`${__ENV.BASE_URL}/api/calculate`, JSON.stringify({/* seed */}), { headers: { 'Content-Type': 'application/json' }});
+  check(res, { 'status 200': r => r.status === 200, 'p95 < 500ms': r => r.timings.duration < 500 });
+  sleep(1);
+}
+```
+
+*(Make the p95 gate your branch-protection status.)* ([GitHub Docs][3])
+
+---
+
+## Docs & Ops (commit with PR 01)
+
+### `docs/architecture/coding-standards.md` (excerpt)
+
+```md
+## Precision
+All monetary values and financial rates MUST use a high-precision decimal library.
+JavaScript `number` is forbidden in engine math.
+
+## API Contracts
+All endpoints MUST be schema-validated with Zod.
+OpenAPI is generated from Zod in CI; merges are blocked on drift.
+```
+
+*(Zod→OpenAPI libs: `zod-openapi` / `zod-to-openapi`.)* ([GitHub][6])
+
+### `CURRENT_ROADMAP.md` (risk register excerpt)
+
+| Risk                       | Likelihood | Impact | Mitigation                                                                           |
+| -------------------------- | ---------: | -----: | ------------------------------------------------------------------------------------ |
+| CI consolidation stalls    |        Med |    Med | **Emergency** `ci-minimal.yml`; keep it required max 5 biz days. ([GitHub Docs][11]) |
+| Reserve policy regressions |        Low |    Med | Golden fixtures + parity harness on cashflows. ([Microsoft Support][7])              |
+| Perf on prod data          |        Low |   High | k6 **perf-smoke** in CI + OTel timings. ([Grafana Labs][9])                          |
+
+### Stakeholder Communication (add to README or `/docs/ops.md`)
+
+* **Week 2:** Wizard Steps 1–3 demo
+* **Weekly Fridays:** 30-min internal review (5 users)
+* **Week 6:** 2-user beta; feed issues into Week 7–8
+* **Week 10:** handoff + training & runbooks
+
+---
+
+## Agentic Validators — revised rollout
+
+**Week 1–2 (Foundational):** Calculation Validator, CSV Validator
+**Week 3–5:** Wizard Validator, Migration Validator (Drizzle) ([Drizzle ORM][5])
+**Week 6–8:** Performance Detector (k6), Security Scanner
+**Week 9–10:** Golden Dataset Tester, Docs Validator
+
+---
+
+## One-liners you can paste into branch protection
+
+* Require: `ci-core`, `calc-parity`, `perf-smoke`, `e2e-preview`, `contract-check`, `unit-integration`.
+* Enforce “Require status checks before merging” (GitHub rules UI). ([GitHub Docs][3])
+
+---
+
+## Small but high-impact build nits
+
+* **Kill `manualChunks`** and use route-level `import()` for code-splitting; let Rollup decide. Reduces risk of fragile chunk graphs. ([GitHub][2])
+* **MSW everywhere tests run** (browser + Node) to slash flake rate and keep e2e fast. ([Mock Service Worker][10])
+* **Parity is your trust anchor**: keep Excel’s XIRR as the oracle in tests. ([Microsoft Support][7])
+
+---
+
+### Done & dusted ✅
+
+If you want, I can turn each PR spec above into GitHub-ready bodies (checklists + task lists) and commit the **ci-minimal**, **k6 smoke**, **OTel boilerplate**, and **standards/docs** files as starter stubs—everything here is trimmed for copy-paste so you can open PRs immediately.
+
+[1]: https://github.com/actions/setup-node?utm_source=chatgpt.com "actions/setup-node"
+[2]: https://github.com/vitejs/vite/issues/12209?utm_source=chatgpt.com "Using manualChunks breaks code-splitting · Issue #12209"
+[3]: https://docs.github.com/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches?utm_source=chatgpt.com "About protected branches"
+[4]: https://github.com/actions/setup-node/releases?utm_source=chatgpt.com "Releases · actions/setup-node"
+[5]: https://orm.drizzle.team/docs/migrations?utm_source=chatgpt.com "Migrations - Drizzle ORM"
+[6]: https://github.com/samchungy/zod-openapi?utm_source=chatgpt.com "samchungy/zod-openapi: Use Zod Schemas to create ..."
+[7]: https://support.microsoft.com/en-us/office/xirr-function-de1242ec-6477-445b-b11b-a303ad9adc9d?utm_source=chatgpt.com "XIRR function"
+[8]: https://opentelemetry.io/docs/languages/js/getting-started/nodejs/?utm_source=chatgpt.com "Node.js"
+[9]: https://grafana.com/docs/k6/latest/examples/get-started-with-k6/?utm_source=chatgpt.com "Get started with k6"
+[10]: https://mswjs.io/docs/?utm_source=chatgpt.com "Introduction"
+[11]: https://docs.github.com/actions/guides/building-and-testing-nodejs?utm_source=chatgpt.com "Building and testing Node.js"
+
+Love this—your “Final Strategic Endorsement” is aligned with the hybrid plan we just locked. Below is a crisp review plus a few **surgical upgrades** that will make the execution even harder to break in the wild.
+
+---
+
+# Verdict
+
+Your approach is **approved**. It nails: early demos, standards enforcement (precision + contracts), risk tracking, and day-one CI/CD consolidation. Minor deltas below tighten the screws on CI gates, performance, and parity.
+
+---
+
+# High-leverage deltas (keep the plan, sharpen the edges)
+
+1. **Make the six checks truly blocking via branch protection**
+   Call out (in the doc) that these are **required status checks** on `main`: `typecheck-lint`, `unit-integration`, `contract-check` (Zod→OpenAPI), `calc-parity`, `perf-smoke`, `e2e-preview`. GitHub only enforces them if they’re configured as *required* and have run recently. Add a one-liner linking to the repo rule. ([GitHub Docs][1])
+
+2. **Lean on `setup-node@v4`’s built-in package-manager cache**
+   Your CI examples can drop custom cache boilerplate: `actions/setup-node` now **auto-caches** when `package.json` has a `packageManager` field (or set `cache: 'npm'`). It’s simpler and faster than DIY cache keys. ([GitHub][2])
+
+3. **Parity: use Excel’s XIRR as the oracle (don’t hardcode a tolerance)**
+   Keep the golden datasets, but anchor acceptance to **Excel’s XIRR** output so finance users trust the numbers. Mention Excel explicitly in the plan; it’s the model-of-record for LPs. ([Microsoft Support][3])
+
+4. **Precision standard: cite a proven decimal lib and the “0.1 + 0.2” pitfall**
+   Name a specific lib (e.g., `decimal.js`) in the standards section and explain *why* (IEEE-754 drift). This makes code review easy (“no `number` in engine math”). ([Mike McL][4])
+
+5. **Perf gate: encode p95 thresholds as k6 “thresholds”**
+   Your `perf-smoke` job should **fail the run** when `http_req_duration{…}:p(95)` > budget (start at 500ms). That’s the cleanest way to promote SLOs to policy. ([Grafana Labs][5])
+
+6. **Observability: minimal OpenTelemetry spans now, vendor later**
+   Add spans around `POST /calculate`, reserves, and metrics. You can start with console/exporter and wire to an APM when ready—keep it frictionless. ([OpenTelemetry][6])
+
+7. **Build hygiene: prefer dynamic `import()` over hand-rolled `manualChunks`**
+   Your plan hints at bundle budgets; also state: “we’ll remove manual chunking and rely on route-level code-splitting to avoid fragile graphs.” (Vite/rollup recommend this; manualChunks can surprise.) ([vitejs][7])
+
+8. **Stabilize tests: MSW everywhere tests run (Node + browser)**
+   Fold this into the testing section so e2e/integration are fast and flake-free during the weekly demos and beta. ([Mock Service Worker][8])
+
+9. **Contract automation: pick one Zod→OpenAPI path and gate on drift**
+   Name the tool in the plan (e.g., `@asteasolutions/zod-to-openapi` or `zod-openapi`) and add a CI job that fails on contract diff. This turns your “non-negotiable” API standard into a green/red light. ([GitHub][9])
+
+---
+
+# Tiny but impactful text edits you can paste into your doc
+
+* **Branch protection (under “CI/CD Consolidation”)**
+  “Mark the following checks as *Required* on `main`: `typecheck-lint`, `unit-integration`, `contract-check`, `calc-parity`, `perf-smoke`, `e2e-preview`. PRs cannot merge unless these pass.” ([GitHub Docs][1])
+
+* **Contract validation job**
+  “Generate OpenAPI from Zod in CI and fail on drift (single source of truth).” ([GitHub][9])
+
+* **Performance gate**
+  “k6 thresholds: fail if `http_req_duration{endpoint:/api/calculate}:p(95) > 500ms`.” ([Grafana Labs][5])
+
+* **Precision**
+  “All financial math uses `decimal.js`; JavaScript `number` is disallowed in engine code.” ([Mike McL][4])
+
+* **Build**
+  “Remove `manualChunks`; use route-level `import()` so Rollup/Vite split automatically.” ([vitejs][7])
+
+* **Testing**
+  “Use MSW for API interception in Node + browser tests to reduce flake.” ([Mock Service Worker][8])
+
+---
+
+# Ready-to-ship snippets (drop into your repo today)
+
+**Minimal emergency CI (timeboxed fallback)**
+Use only if main CI takes >1 day to repair; make it temporarily required, then remove.
+
+```yaml
+# .github/workflows/ci-minimal.yml
+name: ci-minimal
+on: [pull_request]
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm  # or rely on packageManager auto-cache
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test --workspaces -- --runInBand
+      - run: npm run build --workspaces
+```
+
+(Keep the main consolidated CI as the long-term required set.) ([GitHub][2])
+
+**k6 perf-smoke threshold (p95 gate)**
+
+```js
+import http from 'k6/http';
+import { check } from 'k6';
+export const options = {
+  vus: 10, duration: '1m',
+  thresholds: { 'http_req_duration{endpoint:api_calculate}': ['p(95)<500'] }
+};
+export default function () {
+  const res = http.post(`${__ENV.BASE_URL}/api/calculate`, JSON.stringify({/* seed */}), { headers: { 'content-type': 'application/json' }});
+  check(res, { 'status 200': r => r.status === 200 });
+}
+```
+
+(Thresholds make the job fail if the SLO is breached.) ([Grafana Labs][5])
+
+**Contract check (Zod→OpenAPI)**
+
+```bash
+# package.json scripts (example)
+"generate:openapi": "zod-to-openapi --input src/schemas --output openapi.json",
+"test:contract": "node ./scripts/assert-contract-drift.js"
+```
+
+(Gate merges on diffs from `openapi.json`.) ([GitHub][9])
+
+---
+
+# Your timeline still works—here’s the polished cadence
+
+* **Week 1–2:** CI consolidation + standards + Calculation/CSV validators; MSW on all tests. ([Mock Service Worker][8])
+* **Week 3–5:** Reserve policy, contract gate live, first perf-smoke thresholds. ([Grafana Labs][5])
+* **Week 4–7:** Weekly demos (Wizard→Reserves→Waterfall→Scenarios).
+* **Week 6–8:** Beta to two users; OTel spans enabled. ([OpenTelemetry][6])
+* **Week 9–10:** Full internal release, training, runbooks; branch protection rules verified. ([GitHub Docs][1])
+
+---
+
+If you want, I can turn these edits into four small PRs (CI, Contracts, Perf, Precision) so you can merge immediately.
+
+[1]: https://docs.github.com/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches?utm_source=chatgpt.com "About protected branches"
+[2]: https://github.com/actions/setup-node?utm_source=chatgpt.com "actions/setup-node"
+[3]: https://support.microsoft.com/en-us/office/xirr-function-de1242ec-6477-445b-b11b-a303ad9adc9d?utm_source=chatgpt.com "XIRR function"
+[4]: https://mikemcl.github.io/decimal.js/?utm_source=chatgpt.com "decimal.js API - GitHub Pages"
+[5]: https://grafana.com/docs/k6/latest/using-k6/thresholds/?utm_source=chatgpt.com "Thresholds | Grafana k6 documentation"
+[6]: https://opentelemetry.io/docs/languages/js/getting-started/nodejs/?utm_source=chatgpt.com "Node.js"
+[7]: https://vite.dev/guide/build?utm_source=chatgpt.com "Building for Production"
+[8]: https://mswjs.io/docs/?utm_source=chatgpt.com "Introduction"
+[9]: https://github.com/asteasolutions/zod-to-openapi?utm_source=chatgpt.com "asteasolutions/zod-to-openapi: A library that generates ..."
