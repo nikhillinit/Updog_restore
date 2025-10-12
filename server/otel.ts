@@ -1,18 +1,17 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
-import { createRequire } from 'node:module';
-import { SemanticResourceAttributes as S } from '@opentelemetry/semantic-conventions';
+import { resourceFromAttributes } from '@opentelemetry/resources';
+import {
+  ATTR_SERVICE_NAME,
+  ATTR_DEPLOYMENT_ENVIRONMENT
+} from '@opentelemetry/semantic-conventions';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 
-// Use createRequire for CommonJS-only modules in ES module context
-const require = createRequire(import.meta.url);
-const { Resource } = require('@opentelemetry/resources');
-
 export const sdk = new NodeSDK({
-  resource: new Resource({
-    [S.SERVICE_NAME]: 'updog-api',
-    [S.DEPLOYMENT_ENVIRONMENT]: process.env['NODE_ENV'] || 'dev'
+  resource: resourceFromAttributes({
+    [ATTR_SERVICE_NAME]: 'updog-api',
+    [ATTR_DEPLOYMENT_ENVIRONMENT]: process.env['NODE_ENV'] || 'dev'
   }),
   metricReader: new PeriodicExportingMetricReader({
     exporter: new OTLPMetricExporter({
