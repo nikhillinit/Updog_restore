@@ -1,6 +1,23 @@
 import { makeApp } from './app.js';
-import { sdk } from './otel.js';
 
+// Conditionally initialize OpenTelemetry based on environment
+async function initializeObservability() {
+  // Skip OTel in test and development environments
+  if (process.env.NODE_ENV === 'test' || process.env.OTEL_SDK_DISABLED === 'true') {
+    console.log('[otel] Skipping initialization (test mode or disabled)');
+    return {
+      start: async () => {},
+      shutdown: async () => {}
+    };
+  }
+
+  // Only load OTel module in production/staging
+  const { sdk } = await import('./otel.js');
+  return sdk;
+}
+
+// Initialize OTel and start server
+const sdk = await initializeObservability();
 await sdk.start();
 
 const app = makeApp();
