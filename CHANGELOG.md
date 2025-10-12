@@ -60,3 +60,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Previous Releases
 
 <!-- Add previous releases here as they are tagged -->
+
+### 2025-10-12 17:45 UTC - OpenTelemetry Resource Import Fix
+
+**Changed:**
+- Fixed `server/otel.ts` to use `resourceFromAttributes()` factory function instead of `Resource` constructor
+- Updated imports from `@opentelemetry/resources` to match OpenTelemetry v2.x API
+
+**Technical Details:**
+- OpenTelemetry v2.x no longer exports Resource as a constructor class
+- Must use `resourceFromAttributes()` utility function for creating Resource instances
+- Pattern confirmed by official OpenTelemetry documentation and npm package examples
+
+**Files Modified:**
+- `server/otel.ts` - Changed from `new Resource()` to `resourceFromAttributes()`
+
+**Commit:** 5520994
+
+
+### 2025-10-12 18:00 UTC - k6 Performance Testing Investigation
+
+**Status:**
+- k6 test files exist and are well-configured in `k6/scenarios/` and `tests/k6/`
+- k6 binary not installed on Windows development machine
+- npm script `test:baseline` exists but requires k6 installation
+
+**Installation Options Researched:**
+1. **WinGet (Recommended):** `winget install k6 --source winget` - Built into Windows 10/11
+2. **MSI Installer:** Direct download from GitHub releases
+3. **Standalone ZIP:** Portable installation option
+4. **Docker:** For CI/CD and local testing without installation
+
+**Next Steps:**
+- User to choose installation method (WinGet recommended)
+- After install: verify with `k6 version` and `npm run test:baseline`
+- Consider adding Docker-based scripts for portable testing
+
+**Related:** OpenTelemetry Resource fix (commit 5520994) completed - server ready for instrumentation
+
