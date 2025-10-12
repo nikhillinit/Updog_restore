@@ -1,3 +1,7 @@
+<!-- badges: start -->
+[![calc-parity](https://github.com/nikhillinit/Updog_restore/actions/workflows/calc-parity.yml/badge.svg?branch=main)](https://github.com/nikhillinit/Updog_restore/actions/workflows/calc-parity.yml) [![perf-smoke](https://github.com/nikhillinit/Updog_restore/actions/workflows/perf-smoke.yml/badge.svg?branch=main)](https://github.com/nikhillinit/Updog_restore/actions/workflows/perf-smoke.yml)
+<!-- badges: end -->
+
 # POVC Fund-Modeling Platform
 
 ## Overview
