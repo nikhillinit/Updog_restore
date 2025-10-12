@@ -19,7 +19,7 @@ jobs:
       - name: Install
         run: npm ci
       - name: Run parity tests (no server required)
-        run: npx vitest run tests/parity --reporter=default
+        run: npx vitest run --config vitest.parity.config.ts --reporter=default
       - name: Upload parity artifacts
         if: always()
         uses: actions/upload-artifact@v4
