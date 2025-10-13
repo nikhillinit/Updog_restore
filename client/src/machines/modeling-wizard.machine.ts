@@ -151,13 +151,13 @@ export interface ModelingWizardContext {
   isStepValid: Record<WizardStep, boolean>;
 
   // Reactive portfolio validation
-  portfolioValidation?: PortfolioValidationResult;
+  portfolioValidation?: PortfolioValidationResult | undefined;
 
   // Calculation results
   calculations?: {
-    reserves?: ReserveAllocation;
-    enrichedReserves?: EnrichedReserveAllocation;
-  };
+    reserves?: ReserveAllocation | undefined;
+    enrichedReserves?: EnrichedReserveAllocation | undefined;
+  } | undefined;
 
   // Persistence state
   lastSaved: number | null;
@@ -526,10 +526,9 @@ export const modelingWizardMachine = setup({
       const portfolio = context.steps.capitalAllocation?.syntheticPortfolio;
 
       if (!portfolio || portfolio.length === 0) {
-        return {
-          ...context,
-          portfolioValidation: undefined
-        };
+        // Omit portfolioValidation instead of setting to undefined (exactOptionalPropertyTypes)
+        const { portfolioValidation, ...rest } = context;
+        return rest;
       }
 
       const validation = validateWizardPortfolio(portfolio);
@@ -561,14 +560,9 @@ export const modelingWizardMachine = setup({
      * Clear reserve calculation (on error or reset)
      */
     clearReserveCalculation: assign(({ context }) => {
-      return {
-        ...context,
-        calculations: {
-          ...context.calculations,
-          reserves: undefined,
-          enrichedReserves: undefined
-        }
-      };
+      // Omit calculations entirely instead of setting nested fields to undefined (exactOptionalPropertyTypes)
+      const { calculations, ...rest } = context;
+      return rest;
     }),
 
     /**
@@ -932,6 +926,7 @@ function createInitialContext(input: {
 } = {}): ModelingWizardContext {
   const skipOptionalSteps = input.skipOptionalSteps ?? false;
 
+  // Omit optional fields that would be undefined (exactOptionalPropertyTypes)
   return {
     steps: {},
     currentStep: 'generalInfo',
@@ -957,15 +952,14 @@ function createInitialContext(input: {
       waterfall: false,
       scenarios: false
     },
-    portfolioValidation: undefined,
-    calculations: undefined,
+    // portfolioValidation and calculations omitted (undefined) per exactOptionalPropertyTypes
     lastSaved: null,
     isDirty: false,
     submissionError: null,
     submissionRetryCount: 0,
     skipOptionalSteps,
     autoSaveInterval: input.autoSaveInterval ?? 30000 // 30 seconds default
-  };
+  } as ModelingWizardContext;
 }
 
 // ============================================================================
