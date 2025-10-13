@@ -480,7 +480,7 @@ export function ScenarioComparison({
                           onValueChange={([value]) => updateScenarioParameter(selectedScenario, 'deploymentSpeed', value)}
                           max={100}
                           step={5}
-                          disabled={selectedScenarioData.isBaseline ?? undefined}
+                          disabled={selectedScenarioData.isBaseline ?? false}
                         />
                         <div className="text-sm text-gray-600">
                           {selectedScenarioData.parameters.deploymentSpeed}% of target pace
@@ -498,7 +498,7 @@ export function ScenarioComparison({
                           min={1}
                           max={10}
                           step={0.5}
-                          disabled={selectedScenarioData.isBaseline ?? undefined}
+                          disabled={selectedScenarioData.isBaseline ?? false}
                         />
                         <div className="text-sm text-gray-600">
                           {selectedScenarioData.parameters.riskTolerance}/10 (Conservative → Aggressive)

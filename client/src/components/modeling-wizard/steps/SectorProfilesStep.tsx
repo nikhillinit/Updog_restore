@@ -88,14 +88,14 @@ export function SectorProfilesStep({ initialData, onSave }: SectorProfilesStepPr
   }, [watch, onSave]);
 
   const addSectorProfile = () => {
-    const newProfile: SectorProfile = {
+    const newProfile = {
       id: `sector-${Date.now()}`,
       name: '',
       allocation: 0,
       stages: [
         {
           id: `stage-${Date.now()}`,
-          stage: 'seed',
+          stage: 'seed' as const,
           roundSize: 2.0,
           valuation: 10.0,
           esopPercentage: 10.0,
