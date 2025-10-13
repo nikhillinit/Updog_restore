@@ -7,6 +7,8 @@
  * Based on multi-AI collaborative design (GEMINI + OpenAI consensus)
  */
 
+import { isDefined } from '@/lib/isDefined';
+
 export interface StageData {
   name: string;
   roundSize: number; // in dollars
@@ -85,6 +87,10 @@ function calculateRequiredCapital(
   for (let i = 0; i < subsequentStages.length; i++) {
     const currentStage = subsequentStages[i];
     const nextStage = subsequentStages[i + 1];
+
+    if (!isDefined(currentStage)) {
+      continue;
+    }
 
     if (!nextStage) {
       // Last stage - no follow-on
