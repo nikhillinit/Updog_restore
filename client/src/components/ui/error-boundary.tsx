@@ -34,14 +34,14 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   override render() {
     if (this.state.hasError) {
-      const reset = () => this.setState({ hasError: false, error: undefined });
-      
+      const reset = () => this.setState({ hasError: false, error: undefined as Error | undefined });
+
       if (this.props.fallback) {
         const FallbackComponent = this.props.fallback;
-        return <FallbackComponent error={this.state.error} reset={reset} />;
+        return <FallbackComponent error={this.state.error ?? undefined} reset={reset} />;
       }
 
-      return <DefaultErrorFallback error={this.state.error} reset={reset} />;
+      return <DefaultErrorFallback error={this.state.error ?? undefined} reset={reset} />;
     }
 
     return this.props.children;
