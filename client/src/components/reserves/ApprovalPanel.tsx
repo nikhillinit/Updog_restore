@@ -38,6 +38,7 @@ import {
   FileText,
   Hash,
 } from 'lucide-react';
+import { spreadIfDefined } from '@/lib/spreadIfDefined';
 
 interface Approval {
   id: string;
@@ -431,12 +432,12 @@ export function ApprovalPanel() {
             <Button variant="outline" onClick={() => setShowSignDialog(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={() => {
                 if (selectedApproval) {
-                  signMutation.mutate({ 
-                    id: selectedApproval, 
-                    code: verificationCode || undefined 
+                  signMutation.mutate({
+                    id: selectedApproval,
+                    ...spreadIfDefined("code", verificationCode || undefined)
                   });
                 }
               }}
