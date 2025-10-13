@@ -750,6 +750,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     app.use('/api/dev-dashboard', devDashboardRoutes.default);
   }
 
+  // AI routes (Portkey + Vercel AI SDK)
+  const aiRoutes = await import('./routes/portkey-ai.js');
+  app.use('/api/ai', aiRoutes.default);
+
+  // Strategy consensus routes (MetaGPT-inspired multi-agent)
+  const strategyConsensusRoutes = await import('./routes/strategy-consensus.js');
+  app.use('/api/strategy', strategyConsensusRoutes.default);
+
+  // Consensus workflow routes (code review, ADR, bug analysis, etc.)
+  const consensusWorkflowRoutes = await import('./routes/consensus-workflows.js');
+  app.use('/api/workflows', consensusWorkflowRoutes.default);
+
   const httpServer = createServer(app as any);
 
   // Setup WebSocket servers
