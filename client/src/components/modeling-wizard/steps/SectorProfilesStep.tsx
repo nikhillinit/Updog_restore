@@ -51,16 +51,16 @@ export function SectorProfilesStep({ initialData, onSave }: SectorProfilesStepPr
           stages: [
             {
               id: `stage-${Date.now()}`,
-              stage: 'seed',
+              stage: 'seed' as const,
               roundSize: 2.0,
               valuation: 10.0,
               esopPercentage: 10.0,
               graduationRate: 50.0,
               exitRate: 10.0,
-              failureRate: 40.0,
               exitValuation: 50.0,
               monthsToGraduate: 18,
-              monthsToExit: 24
+              monthsToExit: 24,
+              failureRate: 40.0
             }
           ]
         }
@@ -88,7 +88,7 @@ export function SectorProfilesStep({ initialData, onSave }: SectorProfilesStepPr
   }, [watch, onSave]);
 
   const addSectorProfile = () => {
-    const newProfile = {
+    const newProfile: SectorProfile = {
       id: `sector-${Date.now()}`,
       name: '',
       allocation: 0,
@@ -101,10 +101,10 @@ export function SectorProfilesStep({ initialData, onSave }: SectorProfilesStepPr
           esopPercentage: 10.0,
           graduationRate: 50.0,
           exitRate: 10.0,
-          failureRate: 40.0,
           exitValuation: 50.0,
           monthsToGraduate: 18,
-          monthsToExit: 24
+          monthsToExit: 24,
+          failureRate: 40.0
         }
       ]
     };
@@ -114,9 +114,40 @@ export function SectorProfilesStep({ initialData, onSave }: SectorProfilesStepPr
   const updateSectorProfile = (id: string, updates: Partial<SectorProfile>) => {
     setValue(
       'sectorProfiles',
-      sectorProfiles.map(profile =>
-        profile.id === id ? { ...profile, ...updates } : profile
-      )
+      sectorProfiles.map(profile => {
+        if (profile.id !== id) return profile;
+
+        // Determine stages array with conditional spreading for optional properties
+        const stagesArray = updates.stages !== undefined ? updates.stages : profile.stages;
+        const normalizedStages = stagesArray.map(stage => ({
+          id: stage.id,
+          stage: stage.stage,
+          roundSize: stage.roundSize,
+          valuation: stage.valuation,
+          esopPercentage: stage.esopPercentage,
+          graduationRate: stage.graduationRate,
+          exitRate: stage.exitRate,
+          exitValuation: stage.exitValuation,
+          monthsToGraduate: stage.monthsToGraduate,
+          monthsToExit: stage.monthsToExit,
+          ...(stage.failureRate !== undefined ? { failureRate: stage.failureRate } : {})
+        }));
+
+        // Build updated profile with conditional spreading for optional properties
+        const updated: SectorProfile = {
+          id: profile.id,
+          name: updates.name !== undefined ? updates.name : profile.name,
+          allocation: updates.allocation !== undefined ? updates.allocation : profile.allocation,
+          stages: normalizedStages,
+          ...(updates.description !== undefined
+            ? { description: updates.description }
+            : profile.description !== undefined
+            ? { description: profile.description }
+            : {})
+        };
+
+        return updated;
+      })
     );
   };
 
@@ -162,16 +193,39 @@ export function SectorProfilesStep({ initialData, onSave }: SectorProfilesStepPr
 
       {/* Sector Profiles List */}
       <div className="space-y-6">
-        {sectorProfiles.map((profile, index) => (
-          <SectorProfileCard
-            key={profile.id}
-            profile={profile}
-            index={index}
-            onUpdate={updateSectorProfile}
-            onRemove={removeSectorProfile}
-            canRemove={sectorProfiles.length > 1}
-          />
-        ))}
+        {sectorProfiles.map((profile, index) => {
+          // Normalize profile to satisfy exactOptionalPropertyTypes
+          const normalizedProfile: SectorProfile = {
+            id: profile.id,
+            name: profile.name,
+            allocation: profile.allocation,
+            stages: profile.stages.map(stage => ({
+              id: stage.id,
+              stage: stage.stage,
+              roundSize: stage.roundSize,
+              valuation: stage.valuation,
+              esopPercentage: stage.esopPercentage,
+              graduationRate: stage.graduationRate,
+              exitRate: stage.exitRate,
+              exitValuation: stage.exitValuation,
+              monthsToGraduate: stage.monthsToGraduate,
+              monthsToExit: stage.monthsToExit,
+              ...(stage.failureRate !== undefined ? { failureRate: stage.failureRate } : {})
+            })),
+            ...(profile.description !== undefined ? { description: profile.description } : {})
+          };
+
+          return (
+            <SectorProfileCard
+              key={profile.id}
+              profile={normalizedProfile}
+              index={index}
+              onUpdate={updateSectorProfile}
+              onRemove={removeSectorProfile}
+              canRemove={sectorProfiles.length > 1}
+            />
+          );
+        })}
       </div>
 
       {sectorProfiles.length >= 10 && (
