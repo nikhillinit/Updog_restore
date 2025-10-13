@@ -5,6 +5,7 @@ import type {
   RecurringExpense,
   CashTransactionType,
 } from '@shared/types';
+import { isDefined } from '@/lib/isDefined';
 
 // =============================================================================
 // LIQUIDITY ANALYTICS ENGINE
@@ -490,8 +491,11 @@ export class LiquidityEngine {
   private calculateTrend(values: number[]): 'increasing' | 'decreasing' | 'stable' {
     if (values.length < 2) return 'stable';
 
-    const first = values[0];
-    const last = values[values.length - 1];
+    const first = values.at(0);
+    const last = values.at(-1);
+
+    if (!isDefined(first) || !isDefined(last)) return 'stable';
+
     const threshold = Math.abs(first) * 0.1; // 10% threshold
 
     if (last > first + threshold) return 'increasing';
@@ -525,7 +529,11 @@ export class LiquidityEngine {
     let totalGap = 0;
 
     for (let i = 1; i < dates.length; i++) {
-      totalGap += dates[i] - dates[i - 1];
+      const currentDate = dates.at(i);
+      const previousDate = dates.at(i - 1);
+      if (isDefined(currentDate) && isDefined(previousDate)) {
+        totalGap += currentDate - previousDate;
+      }
     }
 
     return totalGap / (dates.length - 1) / (24 * 60 * 60 * 1000); // Days
@@ -741,15 +749,16 @@ export class LiquidityEngine {
     });
 
     callsByMonth.forEach(monthCalls => {
-      if (monthCalls.length === 1) {
-        consolidatedCalls.push(monthCalls[0]);
-      } else {
+      const firstCall = monthCalls.at(0);
+      if (monthCalls.length === 1 && isDefined(firstCall)) {
+        consolidatedCalls.push(firstCall);
+      } else if (isDefined(firstCall)) {
         // Merge multiple calls in the same month
         const mergedCall: OptimizedCapitalCall = {
           id: `consolidated-${consolidatedCalls.length}`,
           amount: monthCalls.reduce((sum, call) => sum + call.amount, 0),
-          noticeDate: monthCalls[0].noticeDate,
-          dueDate: monthCalls[0].dueDate,
+          noticeDate: firstCall.noticeDate,
+          dueDate: firstCall.dueDate,
           purpose: `Consolidated capital call for ${monthCalls.length} investments`,
           investments: monthCalls.flatMap(call => call.investments),
           priority: Math.min(...monthCalls.map(call => call.priority)),
@@ -782,9 +791,13 @@ export class LiquidityEngine {
 
     // Penalize calls too close together
     for (let i = 1; i < calls.length; i++) {
-      const daysBetween = (calls[i].noticeDate.getTime() - calls[i-1].noticeDate.getTime()) / (24 * 60 * 60 * 1000);
-      if (daysBetween < 30) { // Less than 30 days apart
-        score -= 5;
+      const currentCall = calls.at(i);
+      const previousCall = calls.at(i - 1);
+      if (isDefined(currentCall) && isDefined(previousCall)) {
+        const daysBetween = (currentCall.noticeDate.getTime() - previousCall.noticeDate.getTime()) / (24 * 60 * 60 * 1000);
+        if (daysBetween < 30) { // Less than 30 days apart
+          score -= 5;
+        }
       }
     }
 
