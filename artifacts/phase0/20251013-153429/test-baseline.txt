@@ -1,0 +1,23 @@
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mc:/dev/Updog_restore[39m
+
+[1m[43m DEPRECATED [49m[22m [33m'basic' reporter is deprecated and will be removed in Vitest v3.
+Remove 'basic' from 'reporters' option. To match 'basic' reporter 100%, use configuration:
+{
+  "test": {
+    "reporters": [
+      [
+        "default",
+        {
+          "summary": false
+        }
+      ]
+    ]
+  }
+}[39m
+No test files found, exiting with code 0
+
+[2mfilter: [22m[33mclient/src/core/[39m
+[2minclude: [22m[33mtests/unit/**/*.{test,spec}.ts?(x)[39m
+[2mexclude:  [22m[33mtests/integration/**/*[2m, [22mtests/synthetics/**/*[2m, [22mtests/quarantine/**/*[2m, [22m**/*.quarantine.{test,spec}.ts?(x)[2m, [22mtests/unit/fund-setup.smoke.test.tsx[2m, [22mtests/e2e/**/*[39m
+

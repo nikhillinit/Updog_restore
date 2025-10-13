@@ -1,0 +1,4 @@
+❌ Strictness audit failed:
+   - tsconfig.client.json: "strict" must be true (found: undefined)
+   - tsconfig.client.json: "exactOptionalPropertyTypes" must be true (found: undefined)
+   - tsconfig.shared.json: "exactOptionalPropertyTypes" must be true (found: false)
