@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import { NumericInput } from './NumericInput';
+import { spreadIfDefined } from '@/lib/spreadIfDefined';
 
 /**
  * Example 1: Currency Input
@@ -105,7 +106,7 @@ export function ErrorStateExample() {
         value={value}
         onChange={setValue}
         mode="currency"
-        error={error}
+        {...spreadIfDefined('error', error)}
         required
       />
     </div>
