@@ -95,28 +95,30 @@ export default function CashflowManagementStep() {
         const scaleFactor = Math.min(Math.max(fundSize / 100, 0.5), 3);
         const monthlyAmount = Math.round((baseAmount * scaleFactor) / 12);
 
-        addFundExpense({
+        const expense: FundExpense = {
           id: `auto-${expenseTemplate.category}-${index}`,
           category: expenseTemplate.label,
           monthlyAmount,
           startMonth: 1,
-          ...spreadIfDefined("endMonth", undefined), // Ongoing
-        });
+        };
+        // Ongoing expense, no endMonth
+        addFundExpense(expense);
       });
     }
   }, [fundExpenses.length, fundSize, addFundExpense]);
 
   const handleAddExpense = () => {
-    const expense: FundExpense = {
+    const baseExpense: FundExpense = {
       id: `expense-${Date.now()}`,
       category: newExpense.category,
       monthlyAmount: newExpense.monthlyAmount,
       startMonth: newExpense.startMonth,
-      ...(newExpense.isRecurring
-        ? spreadIfDefined("endMonth", undefined)
-        : spreadIfDefined("endMonth", newExpense.endMonth)
-      ),
     };
+
+    // Only add endMonth for fixed-term expenses
+    const expense = newExpense.isRecurring
+      ? baseExpense
+      : { ...baseExpense, ...spreadIfDefined("endMonth", newExpense.endMonth) };
 
     addFundExpense(expense);
 

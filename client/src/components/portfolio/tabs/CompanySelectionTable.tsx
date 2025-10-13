@@ -54,7 +54,7 @@ export function CompanySelectionTable({
         name: company.name,
         currentAllocation: company.plannedReservesCents || 0,
         newAllocation: company.plannedReservesCents || 0,
-        ...spreadIfDefined("cap", company.allocationCapCents),
+        ...spreadIfDefined("cap", company.allocationCapCents ?? undefined),
       };
       onSelectionChange([...selectedCompanies, newSelection]);
     } else {
