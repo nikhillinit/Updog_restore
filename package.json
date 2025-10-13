@@ -4,10 +4,10 @@
   "type": "module",
   "license": "MIT",
   "engines": {
-    "node": ">=20.19.0 <21",
+    "node": "20.19.x",
     "npm": ">=10.8.0"
   },
-  "packageManager": "npm@10.9.2",
+  "packageManager": "npm@10.9.0",
   "scripts": {
     "preinstall": "npx only-allow npm",
     "postinstall": "node scripts/link-sidecar-packages.mjs || true",
@@ -252,7 +252,13 @@
     "predev": "node scripts/ensure-sidecar.mjs",
     "prebuild": "node scripts/ensure-sidecar.mjs",
     "pretest": "node scripts/ensure-sidecar.mjs",
-    "prepreview": "node scripts/ensure-sidecar.mjs"
+    "prepreview": "node scripts/ensure-sidecar.mjs",
+    "phase0": "bash scripts/phase0.sh",
+    "validate-cluster": "bash scripts/validate-cluster.sh",
+    "gen-rollback": "bash scripts/gen-rollback-plans.sh",
+    "test:priority": "node scripts/__tests__/calculate-priority.test.cjs",
+    "audit:strictness": "node scripts/audit-tsconfig.mjs",
+    "audit:strictness:full": "node scripts/audit-tsconfig.mjs --scope=full"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
