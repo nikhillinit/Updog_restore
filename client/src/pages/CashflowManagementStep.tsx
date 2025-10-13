@@ -12,6 +12,7 @@ import { ArrowLeft, Plus, Trash2, AlertCircle, DollarSign, Check } from "lucide-
 import { useFundSelector, useFundActions } from '@/stores/useFundSelector';
 import { useFundContext } from '@/contexts/FundContext';
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { spreadIfDefined } from '@/lib/spreadIfDefined';
 import type { FundExpense } from '@/stores/fundStore';
 import type { ExpenseCategory } from '@shared/types';
 
@@ -99,7 +100,7 @@ export default function CashflowManagementStep() {
           category: expenseTemplate.label,
           monthlyAmount,
           startMonth: 1,
-          endMonth: undefined, // Ongoing
+          ...spreadIfDefined("endMonth", undefined), // Ongoing
         });
       });
     }
@@ -111,7 +112,10 @@ export default function CashflowManagementStep() {
       category: newExpense.category,
       monthlyAmount: newExpense.monthlyAmount,
       startMonth: newExpense.startMonth,
-      endMonth: newExpense.isRecurring ? undefined : newExpense.endMonth,
+      ...(newExpense.isRecurring
+        ? spreadIfDefined("endMonth", undefined)
+        : spreadIfDefined("endMonth", newExpense.endMonth)
+      ),
     };
 
     addFundExpense(expense);
