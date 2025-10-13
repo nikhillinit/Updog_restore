@@ -15,6 +15,7 @@ import { useFundTuple, useFundAction } from '@/stores/useFundSelector';
 import { signatureForStrategy } from '@/domain/strategy-signature';
 import { traceWizard } from '@/debug/wizard-trace';
 import { useRenderTracking } from '@/utils/performance-baseline';
+import { spreadIfDefined } from '@/lib/spreadIfDefined';
 import CapitalFirstCalculator from '@/components/CapitalFirstCalculator';
 import type { Stage, SectorProfile, Allocation } from "@shared/types";
 
@@ -105,8 +106,8 @@ export default function InvestmentStrategyStep() {
     }
     if ('graduationRate' in updates || 'exitRate' in updates) {
       updateStageRate(index, {
-        graduate: updates.graduationRate,
-        exit: updates.exitRate
+        ...spreadIfDefined('graduate', updates.graduationRate),
+        ...spreadIfDefined('exit', updates.exitRate)
       });
     }
   };
