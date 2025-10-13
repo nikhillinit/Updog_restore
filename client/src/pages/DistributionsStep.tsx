@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, AlertCircle, ArrowLeft, ArrowRight } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { spreadIfDefined } from '@/lib/spreadIfDefined';
 import { useFundTuple, useFundAction } from '@/stores/useFundSelector';
 import { useFundContext } from '@/contexts/FundContext';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
@@ -238,7 +239,7 @@ export default function DistributionsStep() {
                           <Select
                             value={tier.condition || 'none'}
                             onValueChange={(value: any) =>
-                              updateWaterfallTier(tier.id, { condition: value as WaterfallTier['condition'] })
+                              updateWaterfallTier(tier.id, { ...spreadIfDefined("condition", value as WaterfallTier['condition']) })
                             }
                           >
                             <SelectTrigger className="h-12">
