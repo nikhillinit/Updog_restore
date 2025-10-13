@@ -84,13 +84,14 @@ export function ExitValuesCard({
     >
       <div className="grid gap-4">
         {STAGES.map((s) => {
-          const st = value[s];
-          const cost = costBasisAtStageUSD[s] ?? 0;
+          const st = value[s as keyof ExitValuesByStage];
+          const cost = costBasisAtStageUSD[s as keyof typeof costBasisAtStageUSD] ?? 0;
           const mult = computeImpliedMultiple(st?.median ?? 0, cost);
+          const stageLabel = STAGE_LABEL[s as keyof typeof STAGE_LABEL];
 
           return (
             <div key={s} className="rounded-md border p-3">
-              <div className="mb-2 font-medium">{STAGE_LABEL[s]}</div>
+              <div className="mb-2 font-medium">{stageLabel}</div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <EnhancedField
