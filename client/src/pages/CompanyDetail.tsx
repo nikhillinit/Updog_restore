@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Building2, TrendingUp, FileText, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { spreadIfDefined } from '@/lib/spreadIfDefined';
 
 // Import existing cap table component
 // Update this import path based on your actual file structure
@@ -294,15 +295,15 @@ export default function CompanyDetail() {
         </TabsList>
 
         <TabsContent value="summary" className="mt-6">
-          <CompanySummary companyId={companyId ?? undefined} />
+          <CompanySummary {...spreadIfDefined("companyId", companyId)} />
         </TabsContent>
 
         <TabsContent value="rounds" className="mt-6">
-          <InvestmentRounds companyId={companyId ?? undefined} />
+          <InvestmentRounds {...spreadIfDefined("companyId", companyId)} />
         </TabsContent>
 
         <TabsContent value="cap-table" className="mt-6">
-          <CapTablePlaceholder companyId={companyId ?? undefined} />
+          <CapTablePlaceholder {...spreadIfDefined("companyId", companyId)} />
           <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-sm font-poppins text-amber-800">
               <strong>🔧 Integration Needed:</strong> Replace CapTablePlaceholder with your
