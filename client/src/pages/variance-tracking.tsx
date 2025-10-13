@@ -54,6 +54,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
+import { spreadIfDefined } from '@/lib/spreadIfDefined';
 
 export default function VarianceTrackingPage() {
   const { currentFund } = useFundContext();
@@ -212,7 +213,16 @@ export default function VarianceTrackingPage() {
     try {
       await createAlertRuleMutation.mutateAsync({
         fundId: currentFund.id,
-        ...alertRuleForm
+        name: alertRuleForm.name,
+        description: alertRuleForm.description,
+        ruleType: alertRuleForm.ruleType,
+        metricName: alertRuleForm.metricName,
+        operator: alertRuleForm.operator,
+        thresholdValue: alertRuleForm.thresholdValue,
+        severity: alertRuleForm.severity,
+        category: alertRuleForm.category,
+        checkFrequency: alertRuleForm.checkFrequency,
+        ...spreadIfDefined('secondaryThreshold', alertRuleForm.secondaryThreshold)
       });
 
       toast({
