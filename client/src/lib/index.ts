@@ -29,7 +29,7 @@ export const api = {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: data ? JSON.stringify(data) : undefined,
+      ...(data ? { body: JSON.stringify(data) } : {}),
       credentials: 'include',
     });
     
