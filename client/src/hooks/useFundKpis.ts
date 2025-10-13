@@ -31,9 +31,9 @@ import {
  */
 interface UseFundKpisOptions {
   fundId: number;
-  asOf?: string; // Optional "as of" date for historical snapshots
-  enabled?: boolean; // Whether to enable the query
-  refetchInterval?: number; // Auto-refetch interval in milliseconds
+  asOf?: string | undefined; // Optional "as of" date for historical snapshots
+  enabled?: boolean | undefined; // Whether to enable the query
+  refetchInterval?: number | undefined; // Auto-refetch interval in milliseconds
 }
 
 /**
@@ -42,8 +42,8 @@ interface UseFundKpisOptions {
  */
 interface UseKpiSelectorOptions<T> {
   fundId: number;
-  asOf?: string;
-  enabled?: boolean;
+  asOf?: string | undefined;
+  enabled?: boolean | undefined;
   selector: (data: FundData, asOf?: string) => T;
 }
 
@@ -101,7 +101,7 @@ export function useFundKpis(options: UseFundKpisOptions) {
     enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
-    refetchInterval,
+    ...(refetchInterval !== undefined ? { refetchInterval } : {}),
     refetchOnWindowFocus: true,
   });
 
@@ -109,7 +109,7 @@ export function useFundKpis(options: UseFundKpisOptions) {
   // This prevents recalculation on every render
   const kpis = useMemo(() => {
     if (!query.data) return null;
-    return selectAllKPIs(query.data, asOf);
+    return selectAllKPIs(query.data, asOf ?? undefined);
   }, [query.data, asOf]);
 
   return {
@@ -154,7 +154,7 @@ export function useKpiSelector<T>(options: UseKpiSelectorOptions<T>) {
 
   const selectedValue = useMemo(() => {
     if (!query.data) return null;
-    return selector(query.data, asOf);
+    return selector(query.data, asOf ?? undefined);
   }, [query.data, asOf, selector]);
 
   return {
@@ -168,74 +168,74 @@ export function useKpiSelector<T>(options: UseKpiSelectorOptions<T>) {
  * These wrap useKpiSelector with predefined selectors
  */
 
-export function useCommitted(fundId: number, asOf?: string) {
+export function useCommitted(fundId: number, asOf?: string | undefined) {
   return useKpiSelector({
     fundId,
-    asOf,
+    ...(asOf !== undefined ? { asOf } : {}),
     selector: selectCommitted,
   });
 }
 
-export function useCalled(fundId: number, asOf?: string) {
+export function useCalled(fundId: number, asOf?: string | undefined) {
   return useKpiSelector({
     fundId,
-    asOf,
+    ...(asOf !== undefined ? { asOf } : {}),
     selector: selectCalled,
   });
 }
 
-export function useUncalled(fundId: number, asOf?: string) {
+export function useUncalled(fundId: number, asOf?: string | undefined) {
   return useKpiSelector({
     fundId,
-    asOf,
+    ...(asOf !== undefined ? { asOf } : {}),
     selector: selectUncalled,
   });
 }
 
-export function useInvested(fundId: number, asOf?: string) {
+export function useInvested(fundId: number, asOf?: string | undefined) {
   return useKpiSelector({
     fundId,
-    asOf,
+    ...(asOf !== undefined ? { asOf } : {}),
     selector: selectInvested,
   });
 }
 
-export function useDistributions(fundId: number, asOf?: string) {
+export function useDistributions(fundId: number, asOf?: string | undefined) {
   return useKpiSelector({
     fundId,
-    asOf,
+    ...(asOf !== undefined ? { asOf } : {}),
     selector: selectDistributions,
   });
 }
 
-export function useNAV(fundId: number, asOf?: string) {
+export function useNAV(fundId: number, asOf?: string | undefined) {
   return useKpiSelector({
     fundId,
-    asOf,
+    ...(asOf !== undefined ? { asOf } : {}),
     selector: selectNAV,
   });
 }
 
-export function useDPI(fundId: number, asOf?: string) {
+export function useDPI(fundId: number, asOf?: string | undefined) {
   return useKpiSelector({
     fundId,
-    asOf,
+    ...(asOf !== undefined ? { asOf } : {}),
     selector: selectDPI,
   });
 }
 
-export function useTVPI(fundId: number, asOf?: string) {
+export function useTVPI(fundId: number, asOf?: string | undefined) {
   return useKpiSelector({
     fundId,
-    asOf,
+    ...(asOf !== undefined ? { asOf } : {}),
     selector: selectTVPI,
   });
 }
 
-export function useIRR(fundId: number, asOf?: string) {
+export function useIRR(fundId: number, asOf?: string | undefined) {
   return useKpiSelector({
     fundId,
-    asOf,
+    ...(asOf !== undefined ? { asOf } : {}),
     selector: selectIRR,
   });
 }
@@ -280,7 +280,7 @@ export function useKpiHistory(options: {
 
   const snapshots = useMemo(() => {
     if (!query.data) return [];
-    return dates.map((date) => selectAllKPIs(query.data, date));
+    return dates.map((date) => selectAllKPIs(query.data, date ?? undefined));
   }, [query.data, dates]);
 
   return {

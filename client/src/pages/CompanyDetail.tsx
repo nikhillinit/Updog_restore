@@ -294,15 +294,15 @@ export default function CompanyDetail() {
         </TabsList>
 
         <TabsContent value="summary" className="mt-6">
-          <CompanySummary companyId={companyId} />
+          <CompanySummary companyId={companyId ?? undefined} />
         </TabsContent>
 
         <TabsContent value="rounds" className="mt-6">
-          <InvestmentRounds companyId={companyId} />
+          <InvestmentRounds companyId={companyId ?? undefined} />
         </TabsContent>
 
         <TabsContent value="cap-table" className="mt-6">
-          <CapTablePlaceholder companyId={companyId} />
+          <CapTablePlaceholder companyId={companyId ?? undefined} />
           <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-sm font-poppins text-amber-800">
               <strong>🔧 Integration Needed:</strong> Replace CapTablePlaceholder with your
