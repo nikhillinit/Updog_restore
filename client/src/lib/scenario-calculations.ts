@@ -12,6 +12,7 @@
  */
 
 import { type ScenarioAdjustment } from '@/schemas/modeling-wizard.schemas';
+import { spreadIfDefined } from '@/lib/spreadIfDefined';
 
 // Re-export type for convenience
 export type { ScenarioAdjustment } from '@/schemas/modeling-wizard.schemas';
@@ -296,7 +297,7 @@ export function generateScenarioResults(
 ): ScenarioResult[] {
   return adjustments.map(adjustment => ({
     name: adjustment.name,
-    description: adjustment.description,
+    ...spreadIfDefined('description', adjustment.description),
     metrics: applyScenarioAdjustments(baseModel, adjustment),
     adjustment
   }));
