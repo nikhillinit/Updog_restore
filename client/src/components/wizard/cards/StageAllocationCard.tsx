@@ -9,6 +9,7 @@ import React, { useMemo } from 'react';
 import { CollapsibleCard } from '@/components/wizard/CollapsibleCard';
 import { EnhancedField } from '@/components/wizard/EnhancedField';
 import { formatUSD, pctOfDollars } from '@/lib/formatting';
+import { spreadIfDefined } from '@/lib/spreadIfDefined';
 import { STAGES, STAGE_LABEL } from './_types';
 import type { FieldErrors } from '@/lib/validation';
 import { firstError } from '@/lib/validation';
@@ -84,7 +85,7 @@ export function StageAllocationCard({
       title="Stage Allocation (must sum to 100%)"
       summary={summary}
       defaultExpanded
-      className={className}
+      {...spreadIfDefined("className", className)}
     >
       <div className="space-y-3">
         {/* Stage Fields */}
