@@ -58,7 +58,7 @@ function toEngineCompany(input: ParityCompany): EngineCompany {
     stage: normalizeStage(input.stage),
     invested: Number(input.invested ?? input.allocated ?? 0),
     ownership: Number(input.ownership ?? 0),
-    reserveCap: input.reserveCap != null ? Number(input.reserveCap) : undefined
+    ...(input.reserveCap != null ? { reserveCap: Number(input.reserveCap) } : {})
   };
 }
 
@@ -81,7 +81,7 @@ function toCompany(input: ParityCompany): Company {
     id: input.id,
     name: input.name,
     stage: input.stage,
-    allocated: input.allocated
+    ...(input.allocated !== undefined ? { allocated: input.allocated } : {})
   };
 }
 

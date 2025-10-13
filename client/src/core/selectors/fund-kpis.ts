@@ -458,7 +458,7 @@ export function selectAllKPIs(data: FundData, asOf?: string): FundKPIs {
     tvpi,
     irr,
     calculatedAt: new Date().toISOString(),
-    asOf,
+    ...(asOf !== undefined ? { asOf } : {}),
   };
 }
 
