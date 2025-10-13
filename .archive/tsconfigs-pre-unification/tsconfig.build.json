@@ -8,14 +8,9 @@
     "strictPropertyInitialization": false,
     "noImplicitThis": false,
     "noImplicitReturns": false,
-    "alwaysStrict": false
+    "alwaysStrict": false,
+    "types": []
   },
-  "include": [
-    "client/src/**/*.ts",
-    "client/src/**/*.tsx",
-    "server/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["client/src/**/*.ts", "client/src/**/*.tsx", "server/**/*.ts"],
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.spec.ts", "**/__tests__/**"]
 }

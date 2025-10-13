@@ -24,17 +24,12 @@
     "skipLibCheck": true,
     "composite": true,
     "tsBuildInfoFile": "./.tsbuildinfo.server",
-    // Disable strict checks for production build
-    "strict": false,
-    "noUncheckedIndexedAccess": false,
-    "noPropertyAccessFromIndexSignature": false,
-    "noImplicitOverride": false,
-    "strictNullChecks": false,
-    "noImplicitAny": false
+    // Inherit strict settings from base; only relax noPropertyAccessFromIndexSignature for Express idioms
+    "noPropertyAccessFromIndexSignature": false
   },
   "include": [
-    "types", 
-    "server/**/*", 
+    "types",
+    "server/**/*",
     "shared/**/*",
     "schema/src/**/*",
     "lib/**/*",

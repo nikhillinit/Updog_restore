@@ -14,15 +14,6 @@
     "noEmit": true,
     "checkJs": false
   },
-  "include": [
-    "client/src/**/*.ts",
-    "client/src/**/*.tsx",
-    "server/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "**/*.test.ts",
-    "**/*.spec.ts",
-    "**/__tests__/**"
-  ]
+  "include": ["client/src/**/*.ts", "client/src/**/*.tsx", "server/**/*.ts"],
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.spec.ts", "**/__tests__/**"]
 }
