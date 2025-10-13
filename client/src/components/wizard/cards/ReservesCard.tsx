@@ -94,13 +94,13 @@ export function ReservesCard({
 
   // Safe calculation with guards for zero/undefined capital
   const reservesDollars =
-    Number.isFinite(committedCapitalUSD) && committedCapitalUSD! > 0
-      ? pctOfDollars(committedCapitalUSD!, value.reserveRatioPct)
+    Number.isFinite(committedCapitalUSD) && (committedCapitalUSD ?? 0) > 0
+      ? pctOfDollars(committedCapitalUSD ?? 0, value.reserveRatioPct)
       : 0;
 
   const summary = (
     <div className="text-sm text-muted-foreground">
-      {value.strategy} · Reserves {value.reserveRatioPct.toFixed(0)}% · Pro-rata{' '}
+      {value.strategy ?? 'proRata'} · Reserves {value.reserveRatioPct.toFixed(0)}% · Pro-rata{' '}
       {value.proRataParticipationRatePct.toFixed(0)}%
     </div>
   );
@@ -263,13 +263,13 @@ export function ReservesCard({
             <div className="text-center p-3 rounded-lg bg-white border">
               <p className="text-xs text-gray-600 mb-1">Initial Investments</p>
               <p className="font-bold text-lg">
-                {formatUSD(Math.max(0, committedCapitalUSD - reservesDollars))}
+                {formatUSD(Math.max(0, (committedCapitalUSD ?? 0) - reservesDollars))}
               </p>
             </div>
 
             <div className="text-center p-3 rounded-lg bg-white border col-span-2 md:col-span-1">
               <p className="text-xs text-gray-600 mb-1">Follow-on Multiple</p>
-              <p className="font-bold text-lg">{value.followOnMultiple.toFixed(1)}×</p>
+              <p className="font-bold text-lg">{(value.followOnMultiple ?? 0).toFixed(1)}×</p>
             </div>
           </div>
         )}
