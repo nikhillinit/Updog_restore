@@ -166,7 +166,7 @@ router['get']('/readyz', async (req: Request, res: Response) => {
 });
 
 // Detailed health endpoint for diagnostics (protected + rate limited)
-router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res: Response) => {
+router['get']('/health/detailed', rateLimitDetailed(), async (req, res) => {
   // Protect sensitive health details
   const healthKey = process.env['HEALTH_KEY'];
   if (healthKey && req['get']('X-Health-Key') !== healthKey) {

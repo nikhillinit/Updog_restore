@@ -1,0 +1,250 @@
+
+> rest-express@1.3.2 test:integration
+> cross-env TZ=UTC vitest -c vitest.config.int.ts run
+
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mc:/dev/Updog_restore[39m
+
+[90mstdout[2m | tests/integration/fund-idempotency.spec.ts
+[22m[39mStarting test server...
+
+[90mstderr[2m | tests/integration/fund-idempotency.spec.ts
+[22m[39mServer error: c:\dev\Updog_restore\server\db.ts:23
+  const { databaseMock } = require('../tests/helpers/database-mock');
+                           ^
+
+
+ReferenceError: require is not defined in ES module scope, you can use import instead
+    at <anonymous> (c:\dev\Updog_restore\server\db.ts:23:28)
+    at ModuleJob.run (node:internal/modules/esm/module_job:263:25)
+    at async ModuleLoader.import (node:internal/modules/esm/loader:540:24)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v20.19.0
+
+
+[90mstdout[2m | tests/integration/fund-idempotency.spec.ts
+[22m[39mShutting down test server...
+
+ [31m❯[39m [30m[45m integration [49m[39m tests/integration/fund-idempotency.spec.ts [2m([22m[2m6 tests[22m[2m | [22m[33m6 skipped[39m[2m)[22m[33m 60535[2mms[22m[39m
+   [2m[90m↓[39m[22m Fund Creation Idempotency[2m > [22mDouble-submit prevention[2m > [22mshould handle concurrent identical requests gracefully
+   [2m[90m↓[39m[22m Fund Creation Idempotency[2m > [22mDouble-submit prevention[2m > [22mshould return 409 for duplicate submission with same idempotency key
+   [2m[90m↓[39m[22m Fund Creation Idempotency[2m > [22mInflight map cleanup[2m > [22mshould clean up inflight map on AbortError
+   [2m[90m↓[39m[22m Fund Creation Idempotency[2m > [22mInflight map cleanup[2m > [22mshould handle network errors gracefully
+   [2m[90m↓[39m[22m Fund Creation Idempotency[2m > [22mEdge cases[2m > [22mshould handle rapid sequential requests
+   [2m[90m↓[39m[22m Fund Creation Idempotency[2m > [22mEdge cases[2m > [22mshould differentiate between different fund data
+[90mstdout[2m | tests/integration/security/injection.int.spec.ts
+[22m[39mStarting test server...
+
+[90mstderr[2m | tests/integration/security/injection.int.spec.ts
+[22m[39mServer error: c:\dev\Updog_restore\server\db.ts:23
+  const { databaseMock } = require('../tests/helpers/database-mock');
+                           ^
+
+
+ReferenceError: require is not defined in ES module scope, you can use import instead
+    at <anonymous> (c:\dev\Updog_restore\server\db.ts:23:28)
+    at ModuleJob.run (node:internal/modules/esm/module_job:263:25)
+    at async ModuleLoader.import (node:internal/modules/esm/loader:540:24)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v20.19.0
+
+
+[90mstdout[2m | tests/integration/security/injection.int.spec.ts
+[22m[39mShutting down test server...
+
+ [31m❯[39m [30m[45m integration [49m[39m tests/integration/security/injection.int.spec.ts [2m([22m[2m1 test[22m[2m | [22m[33m1 skipped[39m[2m)[22m[33m 60444[2mms[22m[39m
+   [2m[90m↓[39m[22m basic SQLi probe does not expose raw errors
+[90mstdout[2m | tests/integration/security/headers.int.spec.ts
+[22m[39mStarting test server...
+
+[90mstderr[2m | tests/integration/security/headers.int.spec.ts
+[22m[39mServer error: c:\dev\Updog_restore\server\db.ts:23
+  const { databaseMock } = require('../tests/helpers/database-mock');
+                           ^
+
+
+ReferenceError: require is not defined in ES module scope, you can use import instead
+    at <anonymous> (c:\dev\Updog_restore\server\db.ts:23:28)
+    at ModuleJob.run (node:internal/modules/esm/module_job:263:25)
+    at async ModuleLoader.import (node:internal/modules/esm/loader:540:24)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v20.19.0
+
+
+[90mstdout[2m | tests/integration/security/headers.int.spec.ts
+[22m[39mShutting down test server...
+
+ [31m❯[39m [30m[45m integration [49m[39m tests/integration/security/headers.int.spec.ts [2m([22m[2m1 test[22m[2m | [22m[33m1 skipped[39m[2m)[22m[33m 60494[2mms[22m[39m
+   [2m[90m↓[39m[22m security headers present
+[90mstdout[2m | tests/integration/security/auth.int.spec.ts
+[22m[39mStarting test server...
+
+[90mstderr[2m | tests/integration/security/auth.int.spec.ts
+[22m[39mServer error: c:\dev\Updog_restore\server\db.ts:23
+  const { databaseMock } = require('../tests/helpers/database-mock');
+                           ^
+
+
+ReferenceError: require is not defined in ES module scope, you can use import instead
+    at <anonymous> (c:\dev\Updog_restore\server\db.ts:23:28)
+    at ModuleJob.run (node:internal/modules/esm/module_job:263:25)
+    at async ModuleLoader.import (node:internal/modules/esm/loader:540:24)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v20.19.0
+
+
+[90mstdout[2m | tests/integration/security/auth.int.spec.ts
+[22m[39mShutting down test server...
+
+ [31m❯[39m [30m[45m integration [49m[39m tests/integration/security/auth.int.spec.ts [2m([22m[2m1 test[22m[2m | [22m[33m1 skipped[39m[2m)[22m[33m 60376[2mms[22m[39m
+   [2m[90m↓[39m[22m JWT rejects expired tokens
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Suites 5 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m [30m[45m integration [49m[39m tests/integration/fund-idempotency.spec.ts[2m [ tests/integration/fund-idempotency.spec.ts ][22m
+[41m[1m FAIL [22m[49m [30m[45m integration [49m[39m tests/integration/security/auth.int.spec.ts[2m [ tests/integration/security/auth.int.spec.ts ][22m
+[41m[1m FAIL [22m[49m [30m[45m integration [49m[39m tests/integration/security/headers.int.spec.ts[2m [ tests/integration/security/headers.int.spec.ts ][22m
+[41m[1m FAIL [22m[49m [30m[45m integration [49m[39m tests/integration/security/injection.int.spec.ts[2m [ tests/integration/security/injection.int.spec.ts ][22m
+[31m[1mError[22m: Server failed to start within 30 seconds. Check //healthz[39m
+[36m [2m❯[22m tests/integration/setup.ts:[2m80:11[22m[39m
+    [90m 78| [39m  [35mconst[39m isReady [33m=[39m [35mawait[39m [34mwaitForServer[39m(healthUrl[33m,[39m [34m30000[39m)[33m;[39m
+    [90m 79| [39m  [35mif[39m ([33m![39misReady) {
+    [90m 80| [39m    throw new Error(`Server failed to start within 30 seconds. Check $…
+    [90m   | [39m          [31m^[39m
+    [90m 81| [39m  }
+    [90m 82| [39m  
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m integration [49m[39m tests/integration/fund-idempotency.spec.ts[2m [ tests/integration/fund-idempotency.spec.ts ][22m
+[41m[1m FAIL [22m[49m [30m[45m integration [49m[39m tests/integration/security/auth.int.spec.ts[2m [ tests/integration/security/auth.int.spec.ts ][22m
+[41m[1m FAIL [22m[49m [30m[45m integration [49m[39m tests/integration/security/headers.int.spec.ts[2m [ tests/integration/security/headers.int.spec.ts ][22m
+[41m[1m FAIL [22m[49m [30m[45m integration [49m[39m tests/integration/security/injection.int.spec.ts[2m [ tests/integration/security/injection.int.spec.ts ][22m
+[31m[1mError[22m: Hook timed out in 30000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".[39m
+[36m [2m❯[22m tests/integration/setup.ts:[2m86:1[22m[39m
+    [90m 84| [39m}[33m,[39m [34m60000[39m)[33m;[39m [90m// Increase timeout for server startup[39m
+    [90m 85| [39m
+    [90m 86| [39m[34mafterAll[39m([35masync[39m () [33m=>[39m {
+    [90m   | [39m[31m^[39m
+    [90m 87| [39m  [35mif[39m (serverProcess) {
+    [90m 88| [39m    console[33m.[39m[34mlog[39m([32m'Shutting down test server...'[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m integration [49m[39m tests/integration/monte-carlo-2025-market-validation.spec.ts[2m [ tests/integration/monte-carlo-2025-market-validation.spec.ts ][22m
+[31m[1mError[22m: Cannot find package '@shared/utils/prng' imported from 'c:/dev/Updog_restore/server/services/monte-carlo-simulation.ts'[39m
+[36m [2m❯[22m server/services/monte-carlo-simulation.ts:[2m6:31[22m[39m
+    [90m  6| [39m */[39m
+    [90m  7| [39m
+    [90m  8| [39m[35mimport[39m { db } [35mfrom[39m [32m'../db'[39m[33m;[39m
+    [90m   | [39m                    [31m^[39m
+    [90m  9| [39m[35mimport[39m {
+    [90m 10| [39m  fundBaselines[33m,[39m
+
+[31m[1mCaused by: Error[22m: Failed to load url @shared/utils/prng (resolved id: @shared/utils/prng) in C:/dev/Updog_restore/server/services/monte-carlo-simulation.ts. Does the file exist?[39m
+[90m [2m❯[22m loadAndTransform tools_local/node_modules/vite/dist/node/chunks/dep-D_zLpgQd.js:[2m51968:17[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Unhandled Errors [49m[22m[31m⎯⎯⎯⎯⎯⎯[39m
+[31m[1m
+Vitest caught 4 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.[22m[39m
+
+[31m⎯⎯⎯⎯[39m[1m[41m Unhandled Rejection [49m[22m[31m⎯⎯⎯⎯⎯[39m
+[31m[1mTypeError[22m: The "delay" argument must be of type number. Received function [39m
+[90m [2m❯[22m Proxy.setTimeout c:/dev/Updog_restore/node:timers/promises:[2m55:7[22m[39m
+[36m [2m❯[22m tests/integration/setup.ts:[2m95:9[22m[39m
+    [90m 93| [39m      [35mif[39m (serverProcess) {
+    [90m 94| [39m        serverProcess[33m.[39m[34mon[39m([32m'exit'[39m[33m,[39m resolve)[33m;[39m
+    [90m 95| [39m        [34msetTimeout[39m(() [33m=>[39m {
+    [90m   | [39m        [31m^[39m
+    [90m 96| [39m          [35mif[39m (serverProcess [33m&&[39m [33m![39mserverProcess[33m.[39mkilled) {
+    [90m 97| [39m            serverProcess[33m.[39m[34mkill[39m([32m'SIGKILL'[39m)[33m;[39m
+[90m [2m❯[22m tests/integration/setup.ts:[2m92:11[22m[39m
+[90m [2m❯[22m tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1897:20[22m[39m
+[90m [2m❯[22m runWithTimeout tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1863:10[22m[39m
+[90m [2m❯[22m runHook tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1436:51[22m[39m
+[90m [2m❯[22m callSuiteHook tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1442:25[22m[39m
+[90m [2m❯[22m runSuite tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1738:10[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'ERR_INVALID_ARG_TYPE' }[39m
+[31mThis error originated in "[1mtests/integration/fund-idempotency.spec.ts[22m" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.[39m
+
+[31m⎯⎯⎯⎯[39m[1m[41m Unhandled Rejection [49m[22m[31m⎯⎯⎯⎯⎯[39m
+[31m[1mTypeError[22m: The "delay" argument must be of type number. Received function [39m
+[90m [2m❯[22m Proxy.setTimeout c:/dev/Updog_restore/node:timers/promises:[2m55:7[22m[39m
+[36m [2m❯[22m tests/integration/setup.ts:[2m95:9[22m[39m
+    [90m 93| [39m      [35mif[39m (serverProcess) {
+    [90m 94| [39m        serverProcess[33m.[39m[34mon[39m([32m'exit'[39m[33m,[39m resolve)[33m;[39m
+    [90m 95| [39m        [34msetTimeout[39m(() [33m=>[39m {
+    [90m   | [39m        [31m^[39m
+    [90m 96| [39m          [35mif[39m (serverProcess [33m&&[39m [33m![39mserverProcess[33m.[39mkilled) {
+    [90m 97| [39m            serverProcess[33m.[39m[34mkill[39m([32m'SIGKILL'[39m)[33m;[39m
+[90m [2m❯[22m tests/integration/setup.ts:[2m92:11[22m[39m
+[90m [2m❯[22m tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1897:20[22m[39m
+[90m [2m❯[22m runWithTimeout tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1863:10[22m[39m
+[90m [2m❯[22m runHook tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1436:51[22m[39m
+[90m [2m❯[22m callSuiteHook tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1442:25[22m[39m
+[90m [2m❯[22m runSuite tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1738:10[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'ERR_INVALID_ARG_TYPE' }[39m
+[31mThis error originated in "[1mtests/integration/security/injection.int.spec.ts[22m" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.[39m
+
+[31m⎯⎯⎯⎯[39m[1m[41m Unhandled Rejection [49m[22m[31m⎯⎯⎯⎯⎯[39m
+[31m[1mTypeError[22m: The "delay" argument must be of type number. Received function [39m
+[90m [2m❯[22m Proxy.setTimeout c:/dev/Updog_restore/node:timers/promises:[2m55:7[22m[39m
+[36m [2m❯[22m tests/integration/setup.ts:[2m95:9[22m[39m
+    [90m 93| [39m      [35mif[39m (serverProcess) {
+    [90m 94| [39m        serverProcess[33m.[39m[34mon[39m([32m'exit'[39m[33m,[39m resolve)[33m;[39m
+    [90m 95| [39m        [34msetTimeout[39m(() [33m=>[39m {
+    [90m   | [39m        [31m^[39m
+    [90m 96| [39m          [35mif[39m (serverProcess [33m&&[39m [33m![39mserverProcess[33m.[39mkilled) {
+    [90m 97| [39m            serverProcess[33m.[39m[34mkill[39m([32m'SIGKILL'[39m)[33m;[39m
+[90m [2m❯[22m tests/integration/setup.ts:[2m92:11[22m[39m
+[90m [2m❯[22m tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1897:20[22m[39m
+[90m [2m❯[22m runWithTimeout tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1863:10[22m[39m
+[90m [2m❯[22m runHook tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1436:51[22m[39m
+[90m [2m❯[22m callSuiteHook tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1442:25[22m[39m
+[90m [2m❯[22m runSuite tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1738:10[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'ERR_INVALID_ARG_TYPE' }[39m
+[31mThis error originated in "[1mtests/integration/security/headers.int.spec.ts[22m" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.[39m
+
+[31m⎯⎯⎯⎯[39m[1m[41m Unhandled Rejection [49m[22m[31m⎯⎯⎯⎯⎯[39m
+[31m[1mTypeError[22m: The "delay" argument must be of type number. Received function [39m
+[90m [2m❯[22m Proxy.setTimeout c:/dev/Updog_restore/node:timers/promises:[2m55:7[22m[39m
+[36m [2m❯[22m tests/integration/setup.ts:[2m95:9[22m[39m
+    [90m 93| [39m      [35mif[39m (serverProcess) {
+    [90m 94| [39m        serverProcess[33m.[39m[34mon[39m([32m'exit'[39m[33m,[39m resolve)[33m;[39m
+    [90m 95| [39m        [34msetTimeout[39m(() [33m=>[39m {
+    [90m   | [39m        [31m^[39m
+    [90m 96| [39m          [35mif[39m (serverProcess [33m&&[39m [33m![39mserverProcess[33m.[39mkilled) {
+    [90m 97| [39m            serverProcess[33m.[39m[34mkill[39m([32m'SIGKILL'[39m)[33m;[39m
+[90m [2m❯[22m tests/integration/setup.ts:[2m92:11[22m[39m
+[90m [2m❯[22m tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1897:20[22m[39m
+[90m [2m❯[22m runWithTimeout tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1863:10[22m[39m
+[90m [2m❯[22m runHook tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1436:51[22m[39m
+[90m [2m❯[22m callSuiteHook tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1442:25[22m[39m
+[90m [2m❯[22m runSuite tools_local/node_modules/@vitest/runner/dist/chunk-hooks.js:[2m1738:10[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'ERR_INVALID_ARG_TYPE' }[39m
+[31mThis error originated in "[1mtests/integration/security/auth.int.spec.ts[22m" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.[39m
+[31m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39m
+
+
+[2m Test Files [22m [1m[31m5 failed[39m[22m[90m (5)[39m
+[2m      Tests [22m [33m9 skipped[39m[90m (9)[39m
+[2m     Errors [22m [1m[31m4 errors[39m[22m
+[2m   Start at [22m 15:43:43
+[2m   Duration [22m 248.64s[2m (transform 2.94s, setup 1.01s, collect 662ms, tests 241.85s, environment 0ms, prepare 888ms)[22m
+

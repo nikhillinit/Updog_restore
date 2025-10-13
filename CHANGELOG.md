@@ -60,3 +60,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Previous Releases
 
 <!-- Add previous releases here as they are tagged -->
+
+### 2025-10-12 17:45 UTC - OpenTelemetry Resource Import Fix
+
+**Changed:**
+- Fixed `server/otel.ts` to use `resourceFromAttributes()` factory function instead of `Resource` constructor
+- Updated imports from `@opentelemetry/resources` to match OpenTelemetry v2.x API
+
+**Technical Details:**
+- OpenTelemetry v2.x no longer exports Resource as a constructor class
+- Must use `resourceFromAttributes()` utility function for creating Resource instances
+- Pattern confirmed by official OpenTelemetry documentation and npm package examples
+
+**Files Modified:**
+- `server/otel.ts` - Changed from `new Resource()` to `resourceFromAttributes()`
+
+**Commit:** 5520994
+
+
+### 2025-10-12 18:00 UTC - k6 Performance Testing Investigation
+
+**Status:**
+- k6 test files exist and are well-configured in `k6/scenarios/` and `tests/k6/`
+- k6 binary not installed on Windows development machine
+- npm script `test:baseline` exists but requires k6 installation
+
+**Installation Options Researched:**
+1. **WinGet (Recommended):** `winget install k6 --source winget` - Built into Windows 10/11
+2. **MSI Installer:** Direct download from GitHub releases
+3. **Standalone ZIP:** Portable installation option
+4. **Docker:** For CI/CD and local testing without installation
+
+**Next Steps:**
+- User to choose installation method (WinGet recommended)
+- After install: verify with `k6 version` and `npm run test:baseline`
+- Consider adding Docker-based scripts for portable testing
+
+**Related:** OpenTelemetry Resource fix (commit 5520994) completed - server ready for instrumentation
+
+
+### 2025-10-12 18:30 UTC - Performance Gates Workflow Security & Consistency Improvements
+
+**Changed:**
+- Updated `.github/workflows/performance-gates.yml` with comprehensive security and consistency fixes
+
+**Security Improvements:**
+- All GitHub Actions now use SHA-pinned versions instead of tags (prevents tag manipulation attacks)
+- Fixed `github-script` action to use environment variables instead of direct variable interpolation (prevents script injection)
+- Changed from `${{ vars.PERF_GATES_ENFORCE }}` to `process.env.PERF_GATES_ENFORCE` access pattern
+
+**Consistency Improvements:**
+- Standardized Node.js setup to use `.nvmrc` file consistently
+- Added `retention-days` to artifact uploads (30 days for bundle metrics, 7 days for k6 results)
+- Quoted cache parameter consistently: `cache: 'npm'`
+- All Docker images use Alpine variants for smaller size
+
+**Actions Updated:**
+- `actions/checkout@v4` → SHA-pinned with comment
+- `actions/setup-node@v5` → SHA-pinned with comment
+- `actions/upload-artifact@v4` → SHA-pinned with comment
+- `actions/download-artifact@v4` → SHA-pinned with comment
+- `actions/github-script@v7` → SHA-pinned with comment
+
+**Agent Analysis:**
+- Ran comprehensive workflow consistency check across 57 workflow files
+- Identified and fixed inconsistencies in action versions, Node.js setup, and security patterns
+- Aligns with GitHub Actions security best practices and project conventions
+
+**Commit:** d04e30c
+

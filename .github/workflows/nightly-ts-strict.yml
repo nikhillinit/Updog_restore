@@ -1,0 +1,42 @@
+name: Nightly (TypeScript strictness)
+
+on:
+  schedule:
+    # 03:45 America/Chicago (08:45 UTC)
+    - cron: '45 8 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-ts-strict
+  cancel-in-progress: false
+
+jobs:
+  strict:
+    runs-on: ubuntu-latest
+    continue-on-error: true  # non-blocking ratchet
+    env:
+      CI: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.1'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TS Strict (client)
+        run: npx tsc --noEmit -p tsconfig.client.strict.json || true
+
+      - name: TS Strict (server)
+        run: npx tsc --noEmit -p tsconfig.server.strict.json || true
+
+      - name: Summarize
+        run: echo "Nightly strictness complete (non-blocking). Review logs above."

@@ -63,7 +63,7 @@ export default defineConfig({
         resources: 'usable',     // be lenient loading resources
       },
     },
-    setupFiles: ['tests/test-infrastructure.ts', 'tests/unit/setup.ts'],
+    setupFiles: ['tests/test-infrastructure.ts', 'tests/unit/setup.ts', 'tests/setup/quarantine.setup.ts'],
     include: ['tests/unit/**/*.{test,spec}.ts?(x)'],
     exclude: [
       'tests/integration/**/*',

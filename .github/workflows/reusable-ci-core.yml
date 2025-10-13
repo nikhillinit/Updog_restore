@@ -1,0 +1,324 @@
+name: Reusable Core CI
+
+on:
+  workflow_call:
+    inputs:
+      run-unit-tests:
+        type: boolean
+        default: true
+      unit-test-path:
+        type: string
+        default: ''
+      run-integration-tests:
+        type: boolean
+        default: true
+      integration-test-path:
+        type: string
+        default: ''
+      integration-test-config:
+        type: string
+        default: 'vitest.config.ts'
+      run-bundle-analysis:
+        type: boolean
+        default: true
+      run-visual-regression:
+        type: boolean
+        default: false
+      visual-regression-path:
+        type: string
+        default: ''
+      unit-test-config:
+        type: string
+        default: 'vitest.config.ts'
+      tsconfig-path:
+        type: string
+        default: 'tsconfig.json'
+    outputs:
+      unit-tests:
+        value: ${{ jobs.unit-tests.outputs.conclusion }}
+      integration-tests:
+        value: ${{ jobs.integration-tests.outputs.conclusion }}
+      bundle-analysis:
+        value: ${{ jobs.bundle-analysis.outputs.conclusion }}
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+env:
+  NODE_VERSION_FILE: .nvmrc
+
+jobs:
+  setup:
+    name: Setup & Install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ${{ env.NODE_VERSION_FILE }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+  unit-tests:
+    if: ${{ inputs.run-unit-tests }}
+    name: Unit & Performance Tests
+    runs-on: ubuntu-latest
+    needs: setup
+    outputs:
+      conclusion: ${{ steps.out.outputs.conclusion }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ${{ env.NODE_VERSION_FILE }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit --project "${{ inputs.tsconfig-path }}"
+
+      - name: Run unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          UNIT_PATH="${{ inputs.unit-test-path }}"
+          CONFIG_FILE="${{ inputs.unit-test-config }}"
+          CMD=(npx vitest run --config "${CONFIG_FILE}")
+          if [[ -n "$UNIT_PATH" ]]; then
+            CMD+=("$UNIT_PATH")
+          fi
+          CMD+=(--reporter=verbose)
+          echo "Executing: ${CMD[*]}"
+          "${CMD[@]}"
+
+      - name: Performance budget test
+        if: contains(inputs.unit-test-path, 'reserves')
+        run: node tests/perf/reserves-budget.mjs
+        env:
+          PERF_BUDGET_MS: 100
+
+      - name: Coverage report
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          UNIT_PATH="${{ inputs.unit-test-path }}"
+          CONFIG_FILE="${{ inputs.unit-test-config }}"
+          CMD=(npx vitest run --coverage --config "${CONFIG_FILE}")
+          if [[ -n "$UNIT_PATH" ]]; then
+            CMD+=("$UNIT_PATH")
+          fi
+          echo "Executing coverage: ${CMD[*]}"
+          "${CMD[@]}"
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.run_id }}
+          path: coverage/
+          retention-days: 7
+
+      - id: out
+        if: ${{ always() }}
+        run: echo "conclusion=${{ job.status }}" >> "$GITHUB_OUTPUT"
+
+  bundle-analysis:
+    if: ${{ inputs.run-bundle-analysis }}
+    name: Bundle Analysis
+    runs-on: ubuntu-latest
+    needs: setup
+    outputs:
+      conclusion: ${{ steps.out.outputs.conclusion }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ${{ env.NODE_VERSION_FILE }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Assert vendor-split (xlsx/papaparse)
+        run: |
+          echo "Checking main entry chunk for export libs..."
+          if grep -qE "xlsx|papaparse" dist/assets/index-*.js; then
+            echo "ERROR: Export libs leaked into entry chunk"
+            exit 1
+          fi
+          echo "SUCCESS: Export libs vendor-split OK"
+
+          # Verify vendor chunk exists and contains the expected libs
+          if ls dist/assets/*vendor*.js 1> /dev/null 2>&1; then
+            echo "SUCCESS: Vendor chunk found"
+            if grep -qE "xlsx|papaparse" dist/assets/*vendor*.js; then
+              echo "SUCCESS: Export libs correctly placed in vendor chunk"
+            else
+              echo "WARNING: Vendor chunk exists but doesn't contain export libs"
+            fi
+          else
+            echo "WARNING: No vendor chunk found (may use default Vite chunking)"
+          fi
+
+      - name: Upload bundle stats
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-stats-${{ github.run_id }}
+          path: stats.html
+          retention-days: 7
+
+      - id: out
+        if: ${{ always() }}
+        run: echo "conclusion=${{ job.status }}" >> "$GITHUB_OUTPUT"
+
+  integration-tests:
+    if: ${{ inputs.run-integration-tests }}
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: setup
+    outputs:
+      conclusion: ${{ steps.out.outputs.conclusion }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ${{ env.NODE_VERSION_FILE }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: API + integration tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          TEST_PATH="${{ inputs.integration-test-path }}"
+          CONFIG_FILE="${{ inputs.integration-test-config }}"
+          CMD=(npx vitest run --config "${CONFIG_FILE}")
+          if [[ -n "$TEST_PATH" ]]; then
+            CMD+=("$TEST_PATH")
+          fi
+          CMD+=(--reporter=verbose)
+          printf -v VITEST_CMD '%q ' "${CMD[@]}"
+          VITEST_CMD=${VITEST_CMD% }
+          echo "Launching integration tests with: ${VITEST_CMD}"
+          npx start-server-and-test "npm:dev:api" http://localhost:5000/api/health "${VITEST_CMD}"
+
+      - id: out
+        if: ${{ always() }}
+        run: echo "conclusion=${{ job.status }}" >> "$GITHUB_OUTPUT"
+
+  visual-regression:
+    if: ${{ inputs.run-visual-regression }}
+    name: Visual Regression
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ${{ env.NODE_VERSION_FILE }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Run visual regression tests
+        run: npx start-server-and-test "npm:dev" http://localhost:5173 "npx playwright test ${{ inputs.visual-regression-path }}"
+
+      - name: Upload visual diff on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diff-${{ github.run_id }}
+          path: test-results/
+          retention-days: 7
+
+  report:
+    name: PR Summary
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    needs: [unit-tests, integration-tests, bundle-analysis]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate and post PR summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const unit = "${{ needs.unit-tests.result == '' && !inputs.run-unit-tests && 'skipped' || needs.unit-tests.result }}";
+            const integ = "${{ needs.integration-tests.result == '' && !inputs.run-integration-tests && 'skipped' || needs.integration-tests.result }}";
+            const bundle = "${{ needs.bundle-analysis.result == '' && !inputs.run-bundle-analysis && 'skipped' || needs.bundle-analysis.result }}";
+
+            const statusEmoji = (status) => {
+              switch(status) {
+                case 'success': return ':white_check_mark:';
+                case 'skipped': return ':fast_forward:';
+                case 'failure': return ':x:';
+                case 'cancelled': return ':no_entry_sign:';
+                default: return ':warning:';
+              }
+            };
+
+            const allPassed = [unit, integ, bundle].every(s => s === 'success' || s === 'skipped');
+            const overallEmoji = allPassed ? ':white_check_mark:' : ':x:';
+            const overallStatus = allPassed ? 'PASSED' : 'FAILED';
+
+            const body = `${overallEmoji} **Core CI Summary**
+
+            **Test Results:**
+            ${statusEmoji(unit)} Unit Tests: \`${unit}\`
+            ${statusEmoji(integ)} Integration Tests: \`${integ}\`
+            ${statusEmoji(bundle)} Bundle Analysis: \`${bundle}\`
+
+            **Overall Status:** **${overallStatus}**
+
+            ---
+            _Workflow: ${context.workflow} | Run: [#${context.runNumber}](${context.payload.repository.html_url}/actions/runs/${context.runId})_`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: body
+            });
+
+            // Also write to job summary
+            await core.summary
+              .addHeading('Core CI Results')
+              .addTable([
+                [{data: 'Test Type', header: true}, {data: 'Status', header: true}],
+                ['Unit Tests', unit],
+                ['Integration Tests', integ],
+                ['Bundle Analysis', bundle]
+              ])
+              .write();

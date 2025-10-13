@@ -1,3 +1,7 @@
+<!-- badges: start -->
+[![calc-parity](https://github.com/nikhillinit/Updog_restore/actions/workflows/calc-parity.yml/badge.svg?branch=main)](https://github.com/nikhillinit/Updog_restore/actions/workflows/calc-parity.yml) [![perf-smoke](https://github.com/nikhillinit/Updog_restore/actions/workflows/perf-smoke.yml/badge.svg?branch=main)](https://github.com/nikhillinit/Updog_restore/actions/workflows/perf-smoke.yml)
+<!-- badges: end -->
+
 # POVC Fund-Modeling Platform
 
 ## Overview
@@ -28,7 +32,8 @@ This repository contains the POVC Fund-Modeling Platform, a sophisticated applic
 ## Core Technology Stack
 
 * **Backend:** Node.js, Fastify, NATS
-* **Database:** PostgreSQL with Drizzle ORM
+* **Backend:** Node.js, Express, BullMQ
+* **Database:** PostgreSQL with Drizzle ORM and Redis
 * **Simulation Engine:** Rust compiled to WASM
 * **CI/CD:** GitHub Actions
 * **Testing:** Playwright (E2E), k6 (Performance)

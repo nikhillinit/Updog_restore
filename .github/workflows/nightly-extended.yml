@@ -1,0 +1,63 @@
+name: Nightly (extended suites)
+
+on:
+  schedule:
+    # 03:30 America/Chicago (08:30 UTC)
+    - cron: '30 8 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-extended
+  cancel-in-progress: false
+
+jobs:
+  extended:
+    runs-on: ubuntu-latest
+    continue-on-error: true   # detect bit-rot; never block development
+    env:
+      CI: true
+      VITE_WIZARD_ENABLED: 'true'   # enable wizard tests when present
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.1'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare artifact dir
+        run: mkdir -p artifacts
+
+      - name: Wizard step utilities
+        shell: bash
+        run: |
+          npx vitest run "tests/**/fund-setup-utils.*" | tee artifacts/wizard.txt
+          test ${PIPESTATUS[0]} -eq 0 || true
+
+      - name: Monte-Carlo suites
+        shell: bash
+        run: |
+          npx vitest run "tests/**/monte-carlo*" | tee artifacts/monte-carlo.txt
+          test ${PIPESTATUS[0]} -eq 0 || true
+
+      - name: Prediction engine suites
+        shell: bash
+        run: |
+          npx vitest run "tests/**/services/performance-prediction*" | tee artifacts/prediction.txt
+          test ${PIPESTATUS[0]} -eq 0 || true
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-extended-logs
+          path: artifacts
+          retention-days: 7

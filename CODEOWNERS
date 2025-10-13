@@ -1,0 +1,111 @@
+# CODEOWNERS for Updog Repository
+#
+# This file defines code ownership and review requirements.
+# At least one owner must approve changes to protected paths.
+#
+# Syntax: path/pattern @owner1 @owner2
+# More specific rules override less specific rules.
+#
+# See: https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# =============================================================================
+# CRITICAL PATHS (Require Core Team Review)
+# =============================================================================
+
+# Financial calculation engines (core business logic)
+/shared/core/reserves/              @core-team
+/client/src/core/                   @core-team
+/server/services/*engine*           @core-team
+
+# Golden datasets (source of truth for parity testing)
+/tests/parity/golden/**             @core-team
+
+# Test infrastructure and parity validation
+/scripts/parity-check.mjs           @core-team
+/scripts/perf-smoke.mjs             @core-team
+/scripts/golden-update.mjs          @core-team
+
+# Architecture Decision Records (governance)
+/docs/adrs/**                       @core-team
+
+# Database schema (migration risk)
+/shared/schema/**                   @core-team
+/server/db/**                       @core-team
+
+# =============================================================================
+# CI/CD INFRASTRUCTURE
+# =============================================================================
+
+# GitHub workflows (CI/CD pipeline changes)
+/.github/workflows/**               @core-team
+
+# Package management (dependency changes)
+/package.json                       @core-team
+/package-lock.json                  @core-team
+
+# TypeScript configuration (affects entire codebase)
+/tsconfig*.json                     @core-team
+
+# =============================================================================
+# QUALITY & GOVERNANCE
+# =============================================================================
+
+# Contributing guidelines
+/CONTRIBUTING.md                    @core-team
+
+# Code of conduct and project governance
+/CODE_OF_CONDUCT.md                 @core-team
+
+# Security policies
+/SECURITY.md                        @core-team
+/.github/SECURITY.md                @core-team
+
+# =============================================================================
+# DOCUMENTATION (Recommend Review, Not Required)
+# =============================================================================
+
+# Main documentation
+/docs/**                            @core-team
+
+# README updates
+/README.md                          @core-team
+
+# =============================================================================
+# SPECIAL FILES
+# =============================================================================
+
+# License changes (legal implications)
+/LICENSE                            @core-team
+
+# Environment configuration templates
+/.env.example                       @core-team
+
+# Docker and deployment configs
+/Dockerfile                         @core-team
+/docker-compose*.yml                @core-team
+/vercel.json                        @core-team
+
+# =============================================================================
+# NOTES FOR REVIEWERS
+# =============================================================================
+#
+# 1. @core-team is a placeholder - replace with actual GitHub usernames:
+#    Example: @nikhillinit @other-maintainer
+#
+# 2. To bypass CODEOWNERS for a specific PR (emergency hotfix):
+#    - Maintainer must explicitly approve with "CODEOWNERS bypass: <reason>"
+#    - Document in PR why bypass was necessary
+#
+# 3. For Dependabot PRs (package-lock.json):
+#    - Auto-merge allowed for patch updates if CI green
+#    - Major/minor versions require review
+#
+# 4. Adding new paths:
+#    - Financial logic: Always add to CODEOWNERS
+#    - UI components: Generally don't need CODEOWNERS unless critical
+#    - Tests: Add if they validate invariants or parity
+#
+# =============================================================================
+
+# Default: All other files don't require specific owner approval
+*

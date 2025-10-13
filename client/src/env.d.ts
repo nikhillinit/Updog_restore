@@ -2,7 +2,9 @@
 
 interface ImportMetaEnv {
   readonly MODE: string;
+  readonly VITE_API_URL?: string;
   readonly VITE_API_BASE_URL?: string;
+  readonly VITE_WIZARD_ENABLED?: 'true' | 'false';
   readonly VITE_SENTRY_DSN?: string;
   readonly VITE_SENTRY_TRACES_RATE?: string;
   readonly VITE_SENTRY_ERROR_RATE?: string;
@@ -17,6 +19,13 @@ interface ImportMetaEnv {
   readonly VITE_IDEMPOTENCY_MAX?: string;
   readonly VITE_API_VERSION?: string;
   readonly VITE_ENABLE_RUM_V2?: string;
+  readonly VITE_ENV?: string;
+  readonly VITE_NEW_IA?: string;
+  readonly VITE_ENABLE_SELECTOR_KPIS?: string;
+  readonly VITE_ENABLE_MODELING_WIZARD?: string;
+  readonly VITE_ENABLE_OPERATIONS_HUB?: string;
+  readonly VITE_ENABLE_LP_REPORTING?: string;
+  readonly DEMO_MODE?: string;
 }
 
 interface ImportMeta {

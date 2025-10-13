@@ -1,0 +1,83 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@vercel/node": {
+      "name": "@vercel/node",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        "path-to-regexp"
+      ],
+      "effects": [],
+      "range": "",
+      "nodes": [
+        "node_modules/@vercel/node"
+      ],
+      "fixAvailable": true
+    },
+    "express": {
+      "name": "express",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        "path-to-regexp"
+      ],
+      "effects": [],
+      "range": "4.0.0-rc1 - 4.21.1 || 5.0.0-alpha.1 - 5.0.0-beta.3",
+      "nodes": [
+        "node_modules/express"
+      ],
+      "fixAvailable": true
+    },
+    "path-to-regexp": {
+      "name": "path-to-regexp",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1105199,
+          "name": "path-to-regexp",
+          "dependency": "path-to-regexp",
+          "title": "path-to-regexp contains a ReDoS",
+          "url": "https://github.com/advisories/GHSA-rhx6-c78j-4q9w",
+          "severity": "high",
+          "cwe": [
+            "CWE-1333"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<0.1.12"
+        }
+      ],
+      "effects": [
+        "@vercel/node",
+        "express"
+      ],
+      "range": "<0.1.12",
+      "nodes": [
+        "node_modules/path-to-regexp"
+      ],
+      "fixAvailable": true
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 3,
+      "critical": 0,
+      "total": 3
+    },
+    "dependencies": {
+      "prod": 953,
+      "dev": 1437,
+      "optional": 118,
+      "peer": 11,
+      "peerOptional": 0,
+      "total": 2432
+    }
+  }
+}
