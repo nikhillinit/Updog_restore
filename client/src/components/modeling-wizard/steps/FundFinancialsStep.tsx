@@ -306,7 +306,7 @@ export function FundFinancialsStep({ initialData, onSave }: FundFinancialsStepPr
         <CapitalCallSchedule
           scheduleType={scheduleType}
           investmentPeriod={investmentPeriod}
-          customSchedule={customSchedule ?? undefined}
+          {...(customSchedule !== undefined ? { customSchedule } : {})}
           onChange={(type, custom) => {
             setValue('capitalCallSchedule.type', type);
             if (custom) {
