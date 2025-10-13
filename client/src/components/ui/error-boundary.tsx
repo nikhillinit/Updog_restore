@@ -7,6 +7,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { spreadIfDefined } from '@/lib/spreadIfDefined';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -34,14 +35,14 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   override render() {
     if (this.state.hasError) {
-      const reset = () => this.setState({ hasError: false, error: undefined as Error | undefined });
+      const reset = () => this.setState({ hasError: false });
 
       if (this.props.fallback) {
         const FallbackComponent = this.props.fallback;
-        return <FallbackComponent error={this.state.error ?? undefined} reset={reset} />;
+        return <FallbackComponent {...spreadIfDefined("error", this.state.error)} reset={reset} />;
       }
 
-      return <DefaultErrorFallback error={this.state.error ?? undefined} reset={reset} />;
+      return <DefaultErrorFallback {...spreadIfDefined("error", this.state.error)} reset={reset} />;
     }
 
     return this.props.children;
