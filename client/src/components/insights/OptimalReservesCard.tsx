@@ -34,7 +34,7 @@ export function OptimalReservesCard() {
     company: String(r['company'] ?? r['name'] ?? ''),
     plannedReserve: toNumber(r['plannedReserves'] ?? r['plannedReserve']),
     expectedExitMOIC: toNumber(r['exitMoicOnPlanned'] ?? r['expectedExitMOIC']),
-    rationale: r['rationale'] ? String(r['rationale']) : undefined
+    ...(r['rationale'] ? { rationale: String(r['rationale']) } : {})
   }));
 
   return (
