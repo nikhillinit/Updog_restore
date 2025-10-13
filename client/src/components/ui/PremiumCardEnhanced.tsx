@@ -5,6 +5,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React from 'react';
 import { cn } from "@/lib/utils";
+import { spreadIfDefined } from '@/lib/spreadIfDefined';
 
 // Confidence level mapping for better UX
 const confidenceConfig = {
@@ -286,9 +287,9 @@ export function MetricCardEnhanced({
     <PremiumCardEnhanced
       variant="interactive"
       className={cn("card-metric-enhanced", className)}
-      onClick={onClick}
+      {...spreadIfDefined('onClick', onClick)}
       isUpdating={isUpdating}
-      confidence={confidence}
+      {...spreadIfDefined('confidence', confidence)}
       aria-label={`${title}: ${value}${change ? `, ${change}` : ''}`}
     >
       <div className="flex items-center justify-between">
