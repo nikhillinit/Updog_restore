@@ -359,7 +359,7 @@ export default function PortfolioAnalyticsDashboard() {
       title: view.name,
       xAxis: view.xAxis,
       yAxis: view.yAxis,
-      groupBy: view.groupBy,
+      ...(view.groupBy !== undefined ? { groupBy: view.groupBy } : {}),
       filters: view.filters,
     });
     setViewNotes(view.notes);

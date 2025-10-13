@@ -369,9 +369,9 @@ export function ExecutiveDashboard({
         value: `$${(portfolioValue / 1000000).toFixed(1)}M`,
         subtitle: `${moic.toFixed(2)}x MOIC`,
         change: '+15.2%',
-        trend: 'up',
-        severity: 'success',
-        icon: DollarSign,
+        trend: 'up' as const,
+        severity: 'success' as const,
+        icon: DollarSign as React.ComponentType<{ className?: string }>,
         priority: 1
       },
       {
@@ -380,9 +380,9 @@ export function ExecutiveDashboard({
         value: `${irr.toFixed(1)}%`,
         subtitle: 'vs 22% benchmark',
         change: '+2.8%',
-        trend: 'up',
-        severity: 'success',
-        icon: TrendingUp,
+        trend: 'up' as const,
+        severity: 'success' as const,
+        icon: TrendingUp as React.ComponentType<{ className?: string }>,
         priority: 2
       },
       {
@@ -391,9 +391,9 @@ export function ExecutiveDashboard({
         value: `$${(currentFund.deployedCapital / 1000000).toFixed(1)}M`,
         subtitle: `${deploymentRate.toFixed(0)}% of fund`,
         change: '+8.5%',
-        trend: 'up',
-        severity: deploymentRate > 70 ? 'warning' : 'neutral',
-        icon: Target,
+        trend: 'up' as const,
+        severity: deploymentRate > 70 ? ('warning' as const) : ('neutral' as const),
+        icon: Target as React.ComponentType<{ className?: string }>,
         priority: 3
       },
       {
@@ -402,9 +402,9 @@ export function ExecutiveDashboard({
         value: '24',
         subtitle: '8 exits completed',
         change: '+3',
-        trend: 'up',
-        severity: 'neutral',
-        icon: Users,
+        trend: 'up' as const,
+        severity: 'neutral' as const,
+        icon: Users as React.ComponentType<{ className?: string }>,
         priority: 4
       }
     ];
