@@ -176,8 +176,8 @@ export function computeJCurvePath(
     calls,
     fees: feesOut,
     params: paramsRecord,
-    fitRMSE: rmse,
-    sensitivityBands,
+    ...(rmse !== undefined ? { fitRMSE: rmse } : {}),
+    ...(sensitivityBands !== undefined ? { sensitivityBands } : {}),
   };
 }
 
