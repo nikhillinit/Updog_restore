@@ -102,7 +102,7 @@ export function FundFinancialsStep({ initialData, onSave }: FundFinancialsStepPr
       stepDownRate,
       scheduleType,
       customSchedule,
-      additionalExpenses
+      additionalExpenses: additionalExpenses ?? []
     });
   }, [
     fundSize,
@@ -290,7 +290,7 @@ export function FundFinancialsStep({ initialData, onSave }: FundFinancialsStepPr
           <CollapsibleContent>
             <div className="pt-4">
               <ExpenseList
-                expenses={additionalExpenses}
+                expenses={additionalExpenses ?? []}
                 onChange={(expenses) => setValue('additionalExpenses', expenses)}
               />
             </div>
@@ -306,7 +306,7 @@ export function FundFinancialsStep({ initialData, onSave }: FundFinancialsStepPr
         <CapitalCallSchedule
           scheduleType={scheduleType}
           investmentPeriod={investmentPeriod}
-          customSchedule={customSchedule}
+          customSchedule={customSchedule ?? undefined}
           onChange={(type, custom) => {
             setValue('capitalCallSchedule.type', type);
             if (custom) {
@@ -403,7 +403,7 @@ export function FundFinancialsStep({ initialData, onSave }: FundFinancialsStepPr
           projections={projections}
           organizationExpense={orgExpenses}
           netInvestableCapital={netInvestableCapital}
-          additionalExpenses={additionalExpenses}
+          additionalExpenses={additionalExpenses ?? []}
         />
       </div>
     </form>
