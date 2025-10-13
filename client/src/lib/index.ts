@@ -6,6 +6,7 @@
 export * from '../utils/async-iteration';
 export * from './type-guards';
 export * from './validation-helpers';
+export * from './spreadIfDefined';
 
 // Simple API client
 export const api = {
