@@ -615,7 +615,7 @@ export default function CapitalStructureStep() {
                               type="text"
                               value={allocation.initialCheckAmount ? formatCurrency(allocation.initialCheckAmount) : ''}
                               onChange={(e: any) => handleUpdateAllocation(allocation.id, {
-                                initialCheckAmount: parseCurrency(e.target.value) || undefined
+                                ...(parseCurrency(e.target.value) ? { initialCheckAmount: parseCurrency(e.target.value) } : {})
                               })}
                               placeholder="e.g., 500,000"
                               className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
@@ -631,7 +631,7 @@ export default function CapitalStructureStep() {
                               step="0.1"
                               value={allocation.initialOwnershipPct || ''}
                               onChange={(e: any) => handleUpdateAllocation(allocation.id, {
-                                initialOwnershipPct: parseFloat(e.target.value) || undefined
+                                ...(parseFloat(e.target.value) ? { initialOwnershipPct: parseFloat(e.target.value) } : {})
                               })}
                               placeholder="e.g., 10"
                               className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
@@ -697,7 +697,7 @@ export default function CapitalStructureStep() {
                               type="text"
                               value={allocation.followOnAmount ? formatCurrency(allocation.followOnAmount) : ''}
                               onChange={(e: any) => handleUpdateAllocation(allocation.id, {
-                                followOnAmount: parseCurrency(e.target.value) || undefined
+                                ...(parseCurrency(e.target.value) ? { followOnAmount: parseCurrency(e.target.value) } : {})
                               })}
                               placeholder="e.g., 1,000,000"
                               className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
