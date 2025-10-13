@@ -61,7 +61,7 @@ export function ReallocationTab() {
       (company) => ({
         company_id: company.id,
         planned_reserves_cents: company.newAllocation,
-        allocation_cap_cents: company.cap,
+        ...(company.cap !== undefined ? { allocation_cap_cents: company.cap } : {}),
       })
     );
 
@@ -123,7 +123,7 @@ export function ReallocationTab() {
       (company) => ({
         company_id: company.id,
         planned_reserves_cents: company.newAllocation,
-        allocation_cap_cents: company.cap,
+        ...(company.cap !== undefined ? { allocation_cap_cents: company.cap } : {}),
       })
     );
 
