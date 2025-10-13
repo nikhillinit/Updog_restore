@@ -16,7 +16,8 @@
 import { storage } from '../storage';
 import type { UnifiedFundMetrics, MetricsCalculationError } from '@shared/types/metrics';
 import { ActualMetricsCalculator } from './actual-metrics-calculator';
-import { ProjectedMetricsCalculator } from './projected-metrics-calculator';
+// ARCHIVED: ProjectedMetricsCalculator removed along with Monte Carlo dependencies
+// import { ProjectedMetricsCalculator } from './projected-metrics-calculator';
 import { VarianceCalculator } from './variance-calculator';
 import type { Fund } from '@shared/schema';
 
@@ -64,7 +65,8 @@ class InMemoryCache implements CacheClient {
 
 export class MetricsAggregator {
   private actualCalculator = new ActualMetricsCalculator();
-  private projectedCalculator = new ProjectedMetricsCalculator();
+  // ARCHIVED: ProjectedMetricsCalculator removed along with Monte Carlo dependencies
+  // private projectedCalculator = new ProjectedMetricsCalculator();
   private varianceCalculator = new VarianceCalculator();
   private cache: CacheClient;
 
@@ -166,19 +168,10 @@ export class MetricsAggregator {
         throw error; // Re-throw for now; could provide fallback in the future
       }
 
-      if (options.skipProjections) {
-        projected = this.getDefaultProjectedMetrics();
-        projectedStatus = 'skipped';
-        warnings.push('Projections skipped for performance');
-      } else {
-        try {
-          projected = await this.projectedCalculator.calculate(fund, companies, config);
-        } catch (error) {
-          projectedStatus = 'failed';
-          warnings.push(`Projected metrics calculation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          projected = this.getDefaultProjectedMetrics(); // Use fallback
-        }
-      }
+      // ARCHIVED: ProjectedMetricsCalculator removed - always use default metrics
+      projected = this.getDefaultProjectedMetrics();
+      projectedStatus = 'skipped';
+      warnings.push('Projections engine archived - using default metrics');
 
       // Extract target metrics from config
       let target;

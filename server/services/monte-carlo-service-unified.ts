@@ -12,7 +12,8 @@
  */
 
 import { MonteCarloEngine } from './monte-carlo-engine';
-import { StreamingMonteCarloEngine, StreamingConfig } from './streaming-monte-carlo-engine';
+// TEMPORARILY DISABLED: Streaming engine archived
+// import { StreamingMonteCarloEngine, StreamingConfig } from './streaming-monte-carlo-engine';
 import { databasePoolManager } from './database-pool-manager';
 import type {
   SimulationConfig,
@@ -26,6 +27,11 @@ export type { MarketEnvironment, SimulationConfig, SimulationResults };
 // ============================================================================
 // UNIFIED SERVICE INTERFACE
 // ============================================================================
+
+// Temporary StreamingConfig stub (replace with actual when restoring streaming engine)
+interface StreamingConfig extends SimulationConfig {
+  batchSize?: number;
+}
 
 export interface UnifiedSimulationConfig extends StreamingConfig {
   forceEngine?: 'streaming' | 'traditional' | 'auto'; // Default: 'auto'
@@ -57,7 +63,8 @@ export interface PerformanceMetrics {
 
 export class UnifiedMonteCarloService {
   private traditionalEngine: MonteCarloEngine;
-  private streamingEngine: StreamingMonteCarloEngine;
+  // TEMPORARILY DISABLED: Streaming engine archived
+  // private streamingEngine: StreamingMonteCarloEngine;
   private performanceHistory: PerformanceMetrics[] = [];
 
   // Engine selection thresholds
@@ -67,8 +74,9 @@ export class UnifiedMonteCarloService {
 
   constructor() {
     this.traditionalEngine = new MonteCarloEngine();
-    this.streamingEngine = new StreamingMonteCarloEngine();
-    this.initializePooling();
+    // TEMPORARILY DISABLED: Streaming engine archived
+    // this.streamingEngine = new StreamingMonteCarloEngine();
+    // this.initializePooling();
   }
 
   /**
@@ -271,11 +279,13 @@ export class UnifiedMonteCarloService {
     }
 
     // Test streaming engine
+    // TEMPORARILY DISABLED: Streaming engine archived
     try {
-      const streamingStats = this.streamingEngine.getStreamingStats();
-      const connectionStats = this.streamingEngine.getConnectionStats();
-      checks.streaming = streamingStats !== null;
-    } catch (error) {
+      // const streamingStats = this.streamingEngine.getStreamingStats();
+      // const connectionStats = this.streamingEngine.getConnectionStats();
+      // checks.streaming = streamingStats !== null;
+      checks.streaming = false; // Streaming engine not available
+    } catch (error: any) {
       console.warn('Streaming engine health check failed:', error.message);
     }
 
@@ -334,6 +344,10 @@ export class UnifiedMonteCarloService {
   }
 
   private selectEngine(criteria: EngineSelectionCriteria): 'streaming' | 'traditional' {
+    // TEMPORARILY DISABLED: Always use traditional engine (streaming engine archived)
+    return 'traditional';
+
+    /* Original logic - restore when streaming engine is back
     // Forced selection
     if (criteria.enginePreference !== 'auto') {
       return criteria.enginePreference;
@@ -354,10 +368,14 @@ export class UnifiedMonteCarloService {
 
     // Default to traditional for smaller workloads
     return 'traditional';
+    */
   }
 
   private async executeStreamingSimulation(config: UnifiedSimulationConfig): Promise<SimulationResults> {
-    return await this.streamingEngine.runStreamingSimulation(config);
+    // TEMPORARILY DISABLED: Streaming engine archived - fallback to traditional
+    console.warn('Streaming engine not available, falling back to traditional engine');
+    return await this.executeTraditionalSimulation(config);
+    // return await this.streamingEngine.runStreamingSimulation(config);
   }
 
   private async executeTraditionalSimulation(config: SimulationConfig): Promise<SimulationResults> {
