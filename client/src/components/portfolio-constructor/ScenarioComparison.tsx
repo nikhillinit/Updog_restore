@@ -27,6 +27,7 @@ import {
   Plus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { spreadIfDefined } from '@/lib/spreadIfDefined';
 import type { PortfolioState } from "@/pages/portfolio-constructor";
 
 interface Scenario {
@@ -515,7 +516,7 @@ export function ScenarioComparison({
                           onValueChange={([value]) => updateScenarioParameter(selectedScenario, 'reserveRatio', (value ?? 0) / 100)}
                           max={50}
                           step={2.5}
-                          disabled={selectedScenarioData.isBaseline ?? undefined}
+                          {...spreadIfDefined("disabled", selectedScenarioData.isBaseline)}
                         />
                         <div className="text-sm text-gray-600">
                           {(selectedScenarioData.parameters.reserveRatio * 100).toFixed(1)}% held in reserves
@@ -529,7 +530,7 @@ export function ScenarioComparison({
                       <Select
                         value={selectedScenarioData.parameters.sectorFocus}
                         onValueChange={(value: any) => updateScenarioParameter(selectedScenario, 'sectorFocus', value)}
-                        disabled={selectedScenarioData.isBaseline ?? undefined}
+                        {...spreadIfDefined("disabled", selectedScenarioData.isBaseline)}
                       >
                         <SelectTrigger>
                           <SelectValue />
