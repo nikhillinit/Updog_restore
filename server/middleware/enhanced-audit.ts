@@ -476,7 +476,7 @@ async function logFinancialOperation(
   correlationId: string
 ): Promise<void> {
   try {
-    const fundId = req['body']?.fundId || req.params?.fundId || responseBody?.fundId;
+    const fundId = req['body']?.['fundId'] || req.params?.fundId || responseBody?.fundId;
     if (!fundId) return;
 
     const operation = determineFinancialOperation(req.path, req.method);

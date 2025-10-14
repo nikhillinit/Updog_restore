@@ -114,6 +114,6 @@ function extractSessionId(req: Request): string | null {
   // Extract session ID from request (cookie, header, etc.)
   return req['get']('x-session-id') ||
          (req as any).session?.id ||
-         req['cookies']?.sessionId ||
+         req['cookies']?.['sessionId'] ||
          null;
 }
