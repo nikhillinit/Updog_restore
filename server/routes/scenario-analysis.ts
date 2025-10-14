@@ -20,6 +20,7 @@ import {
 import type {
   ScenarioAnalysisResponse
 } from '@shared/types/scenario';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 const router = Router();
 
@@ -218,7 +219,7 @@ router.get('/companies/:companyId/scenarios/:scenarioId',
           cases: casesWithMOIC
         },
         cases: casesWithMOIC,
-        weighted_summary,
+        weighted_summary: weighted_summary ?? null,
         rounds: include.includes('rounds') ? rounds : undefined,
       };
 
@@ -246,18 +247,20 @@ router.post('/companies/:companyId/scenarios',
       const { companyId } = req.params;
       const { name, description } = req.body;
 
+      const userId = req["userId"] || 'system';
+
       const scenario = await db.insert(scenarios).values({
         company_id: companyId,
         name: name || 'New Scenario',
         description,
         version: 1,
         is_default: false,
-        created_by: req["userId"],
+        created_by: userId,
       }).returning();
 
       // Audit log
       await auditLog({
-        userId: req["userId"],
+        userId,
         entityType: 'scenario',
         entityId: scenario[0].id,
         action: 'CREATE',
@@ -340,14 +343,14 @@ router.patch('/companies/:companyId/scenarios/:scenarioId',
             cases.map(c => ({
               scenario_id: scenarioId,
               case_name: c.case_name,
-              description: c.description,
+              ...spreadIfDefined('description', c.description),
               probability: c.probability,
               investment: c.investment,
               follow_ons: c.follow_ons,
               exit_proceeds: c.exit_proceeds,
               exit_valuation: c.exit_valuation,
-              months_to_exit: c.months_to_exit,
-              ownership_at_exit: c.ownership_at_exit,
+              ...spreadIfDefined('months_to_exit', c.months_to_exit),
+              ...spreadIfDefined('ownership_at_exit', c.ownership_at_exit),
             }))
           );
         }
@@ -362,8 +365,9 @@ router.patch('/companies/:companyId/scenarios/:scenarioId',
       });
 
       // BLOCKER #2 FIX: Audit logging
+      const userId = req["userId"] || 'system';
       await auditLog({
-        userId: req["userId"],
+        userId,
         entityType: 'scenario',
         entityId: scenarioId,
         action: 'UPDATE',
@@ -439,8 +443,9 @@ router.delete('/companies/:companyId/scenarios/:scenarioId',
         .where(eq(scenarios.id, scenarioId));
 
       // Audit log
+      const userId = req["userId"] || 'system';
       await auditLog({
-        userId: req["userId"],
+        userId,
         entityType: 'scenario',
         entityId: scenarioId,
         action: 'DELETE',
