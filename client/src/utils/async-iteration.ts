@@ -49,7 +49,7 @@ export async function processAsync<T>(
         // Handle errors from Promise.allSettled
         for (let i = 0; i < results.length; i++) {
           const result = results[i];
-          if (result.status === 'rejected') {
+          if (result && result.status === 'rejected') {
             logger.error(`Failed to process item ${i}:`, result.reason);
           }
         }
@@ -95,7 +95,7 @@ async function processBatches<T>(
         
         for (let i = 0; i < results.length; i++) {
           const result = results[i];
-          if (result.status === 'rejected') {
+          if (result && result.status === 'rejected') {
             logger.error(`Failed to process item ${batchStart + i}:`, result.reason);
           }
         }

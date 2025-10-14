@@ -64,11 +64,11 @@ function calculateRuleBasedPacing(input: PacingInput): PacingOutput[] {
 
     // Determine phase and apply multiplier
     if (i < 3) {
-      multiplier = adjustment.early;
+      multiplier = adjustment?.early ?? 1.0;
     } else if (i < 6) {
-      multiplier = adjustment.mid;
+      multiplier = adjustment?.mid ?? 1.0;
     } else {
-      multiplier = adjustment.late;
+      multiplier = adjustment?.late ?? 1.0;
     }
     
     // Add some variability to avoid perfectly smooth deployment
