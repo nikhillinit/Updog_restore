@@ -1,22 +1,32 @@
 /**
  * Conditionally spreads a property into an object if the value is defined.
- * Used with exactOptionalPropertyTypes to omit undefined props rather than pass them explicitly.
+ * Used with exactOptionalPropertyTypes to **omit undefined** props rather than pass them explicitly.
+ *
+ * **Philosophy:** Only coalesce when the callee disallows `undefined`. Otherwise, omit the property entirely.
  *
  * @example
  * ```tsx
- * // Omit 'error' prop if undefined
+ * // ✅ Omit 'error' prop if undefined (preferred)
  * <Input {...spreadIfDefined("error", errorMessage)} />
  *
- * // Instead of (which fails with exactOptionalPropertyTypes)
- * <Input error={errorMessage} />  // ❌ if errorMessage can be undefined
+ * // ❌ Fails with exactOptionalPropertyTypes
+ * <Input error={errorMessage} />  // if errorMessage can be undefined
+ *
+ * // ✅ Multiple optional props
+ * <Component
+ *   requiredProp={value}
+ *   {...spreadIfDefined("optional1", val1)}
+ *   {...spreadIfDefined("optional2", val2)}
+ * />
  * ```
  *
  * @param key - Property key to conditionally spread
  * @param val - Value to spread (omitted if undefined)
  * @returns Empty object if undefined, or object with single key-value pair
  */
-export const spreadIfDefined = <K extends string, V>(
+export function spreadIfDefined<K extends string, V>(
   key: K,
   val: V | undefined
-): Record<K, V> | Record<string, never> =>
-  val === undefined ? {} as Record<string, never> : { [key]: val } as Record<K, V>;
+): {} | { [P in K]: V } {
+  return val === undefined ? {} : { [key]: val as V };
+}
