@@ -95,10 +95,14 @@ export class PowerLawDistribution {
       alpha: 1.16,           // Zipf's law parameter for VC returns
       xMin: 3.0,             // Power law starts at 3x returns
       maxReturn: 200.0,      // Cap unicorns at 200x
-      ...config
+      ...Object.fromEntries(
+        Object.entries(config || {}).filter(([_, v]) => v !== undefined)
+      )
     };
 
-    this.randomSeed = randomSeed;
+    if (randomSeed !== undefined) {
+      this.randomSeed = randomSeed;
+    }
     this.rng = this.createRandomGenerator(randomSeed);
     this.stageProfiles = this.initializeStageProfiles();
   }
@@ -471,9 +475,17 @@ export class PowerLawDistribution {
 
     // Basic statistics
     const mean = values.reduce((sum, val) => sum + val, 0) / n;
+
+    // Guard: ensure array indices are valid for median calculation
+    const medianIdx1 = sortedValues[n/2 - 1];
+    const medianIdx2 = sortedValues[n/2];
+    if (n % 2 === 0 && (medianIdx1 === undefined || medianIdx2 === undefined)) {
+      throw new Error('Invalid array indices for median calculation');
+    }
+
     const median = n % 2 === 0
-      ? (sortedValues[n/2 - 1] + sortedValues[n/2]) / 2
-      : sortedValues[Math.floor(n/2)];
+      ? (medianIdx1! + medianIdx2!) / 2
+      : sortedValues[Math.floor(n/2)]!;
 
     // Variance and standard deviation
     const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / (n - 1);
@@ -487,11 +499,14 @@ export class PowerLawDistribution {
 
     // Estimate power law alpha from tail data (values > 3x)
     const tailValues = values.filter(v => v >= 3);
-    let powerLawAlpha = 1.16; // Default
+    let powerLawAlpha: number;
     if (tailValues.length > 10) {
       // Maximum likelihood estimator for power law
       const logSum = tailValues.reduce((sum, val) => sum + Math.log(val / 3), 0);
       powerLawAlpha = 1 + tailValues.length / logSum;
+    } else {
+      // Default when insufficient tail data
+      powerLawAlpha = 1.16;
     }
 
     return {
@@ -520,7 +535,11 @@ export class PowerLawDistribution {
 
     const getPercentile = (p: number): number => {
       const index = Math.floor((p / 100) * (n - 1));
-      return sorted[index];
+      const value = sorted[index];
+      if (value === undefined) {
+        throw new Error(`Percentile calculation failed: index ${index} out of bounds for array length ${n}`);
+      }
+      return value;
     };
 
     return {
