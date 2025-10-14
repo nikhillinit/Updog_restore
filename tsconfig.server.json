@@ -59,6 +59,10 @@
     "dist",
     "node_modules/**/@types/**",
     "node_modules/**/dist/**",
-    "node_modules/**/*.d.ts"
+    "node_modules/**/*.d.ts",
+    "server/services/streaming-monte-carlo-engine.ts",
+    "server/services/monte-carlo-simulation.ts",
+    "server/services/database-pool-manager.ts",
+    "server/examples/streaming-monte-carlo-examples.ts"
   ]
 }
