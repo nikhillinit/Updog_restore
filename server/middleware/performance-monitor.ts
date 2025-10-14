@@ -8,6 +8,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { performance } from 'perf_hooks';
 import EventEmitter from 'events';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 interface PerformanceMetric {
   operation: string;
@@ -94,7 +95,7 @@ class PerformanceMonitor extends EventEmitter {
       operation,
       duration,
       timestamp: Date.now(),
-      metadata,
+      ...spreadIfDefined('metadata', metadata),
       category,
       severity
     };

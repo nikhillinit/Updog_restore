@@ -32,6 +32,7 @@ import { serveStatic } from './vite.js';
 import { errorHandler } from './errors.js';
 import { metricsRouter } from './routes/metrics-endpoint.js';
 import type { Providers } from './providers.js';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 // CORS configuration with origin validation
 function parseOrigins(raw?: string): string[] {
@@ -207,7 +208,7 @@ export async function createServer(
   });
   
   // Rate limiter: pass store; undefined => memory store (no redis)
-  app.use('/health/detailed', rateLimitDetailed({ store: providers.rateLimitStore }));
+  app.use('/health/detailed', rateLimitDetailed({ ...spreadIfDefined('store', providers.rateLimitStore) }));
   
   // Metrics endpoints (public, no auth required)
   app.use('/metrics', metricsRouter);

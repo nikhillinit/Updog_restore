@@ -99,9 +99,9 @@ class MemoryCache {
       const firstKey = this.cache.keys().next().value;
       this.cache.delete(firstKey);
     }
-    
+
     const expiry = ttl ? Date.now() + (ttl * 1000) : undefined;
-    this.cache['set'](key, { value, expiry });
+    this.cache['set'](key, { value, ...spreadIfDefined('expiry', expiry) });
   }
   
   get(key: string): any | null {

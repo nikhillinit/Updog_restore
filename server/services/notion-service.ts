@@ -20,6 +20,7 @@ import {
   parseNotionSelect,
   parseNotionMultiSelect
 } from '@shared/notion-schema';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 // =============================================================================
 // NOTION API SERVICE
@@ -193,7 +194,7 @@ export class NotionService {
 
         const response = await client.search({
           filter: { property: 'object', value: 'database' },
-          start_cursor: nextCursor,
+          ...spreadIfDefined('start_cursor', nextCursor),
           page_size: 100
         });
 
@@ -374,7 +375,7 @@ export class NotionService {
 
       const response = await client.databases.query({
         database_id: databaseId,
-        start_cursor: nextCursor,
+        ...spreadIfDefined('start_cursor', nextCursor),
         page_size: 100
       });
 

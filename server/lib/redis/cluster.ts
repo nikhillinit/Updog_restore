@@ -3,6 +3,7 @@
  */
 import { parseRedisConfig } from '../../config/redis';
 import * as fs from 'fs';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 export interface RedisConn {
   conn: any; // RedisClientType or RedisClusterType
@@ -92,7 +93,7 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
   }
 
   const client = createClient({
-    url: cfg.url,
+    ...spreadIfDefined('url', cfg.url),
     socket: socketOptions
   });
 

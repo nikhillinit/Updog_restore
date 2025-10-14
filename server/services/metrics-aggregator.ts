@@ -20,6 +20,7 @@ import { ProjectedMetricsCalculator } from './projected-metrics-calculator';
 import { VarianceCalculator } from './variance-calculator';
 import { getFundAge, isConstructionPhase } from '@shared/lib/lifecycle-rules';
 import type { Fund } from '@shared/schema';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 interface CacheClient {
   get<T>(key: string): Promise<T | null>;
@@ -249,7 +250,7 @@ export class MetricsAggregator {
             target: targetStatus,
             variance: varianceStatus,
           },
-          warnings: warnings.length > 0 ? warnings : undefined,
+          ...spreadIfDefined('warnings', warnings.length > 0 ? warnings : undefined),
           computeTimeMs,
         },
       };
@@ -338,11 +339,11 @@ export class MetricsAggregator {
       targetFundSize,
       targetIRR: config.targetIRR,
       targetTVPI: config.targetTVPI,
-      targetDPI: config.targetDPI,
+      ...spreadIfDefined('targetDPI', config.targetDPI),
       targetDeploymentYears: config.investmentPeriodYears,
       targetCompanyCount,
       targetAverageCheckSize: targetFundSize / targetCompanyCount,
-      targetReserveRatio: config.reserveRatio,
+      ...spreadIfDefined('targetReserveRatio', config.reserveRatio),
     };
   }
 

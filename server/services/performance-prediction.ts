@@ -13,6 +13,7 @@ import {
 } from '@shared/schema';
 import { eq, and, desc, gte, sql, inArray } from 'drizzle-orm';
 import { isDefined } from '@shared/lib/ts/isDefined';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -190,7 +191,7 @@ export class PerformancePredictionEngine {
       trendVelocity: trendCoefficient,
       inflectionPoints: inflectionPoints.map(idx => timeSeries[idx]).filter(isDefined).map(ts => ts.timestamp),
       seasonalityDetected: seasonality.detected,
-      cyclePeriod: seasonality.period
+      ...spreadIfDefined('cyclePeriod', seasonality.period)
     };
   }
 

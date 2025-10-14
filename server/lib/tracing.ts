@@ -7,6 +7,8 @@
  * Distributed tracing utilities for deployment and operational monitoring
  */
 
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
+
 export interface TraceSpan {
   id: string;
   parentId?: string;
@@ -35,7 +37,7 @@ class TracingService {
   startSpan(operationName: string, parentId?: string, tags: Record<string, any> = {}): TraceSpan {
     const span: TraceSpan = {
       id: this.generateSpanId(),
-      parentId,
+      ...spreadIfDefined('parentId', parentId),
       operationName,
       startTime: Date.now(),
       tags: this.sanitizeTags(tags),
@@ -82,7 +84,7 @@ class TracingService {
       timestamp: Date.now(),
       message,
       level,
-      fields
+      ...spreadIfDefined('fields', fields)
     });
 
     // Also log to console for immediate visibility

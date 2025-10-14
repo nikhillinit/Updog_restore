@@ -4,6 +4,7 @@
  */
 
 import type { Request, Response, NextFunction } from 'express';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 import { verifyAccessToken } from './auth/jwt';
 import { db } from '../db.js';
 import { sql } from 'drizzle-orm';
@@ -50,7 +51,7 @@ export function extractUserContext(req: Request): UserContext | null {
       email: claims.email,
       role: claims.role,
       orgId: claims.org_id || '', // Will be resolved from database if not in JWT
-      partnerId: claims.partner_id
+      ...spreadIfDefined('partnerId', claims.partner_id)
     };
     
     // Fund ID comes from route params, not headers

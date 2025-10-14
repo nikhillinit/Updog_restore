@@ -5,6 +5,7 @@
 
 import type { RedisClientType } from 'redis';
 import { createClient } from 'redis';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -45,7 +46,7 @@ export class RedisApprovalRateLimiter {
     this.redis = this.useMemory
       ? null
       : createClient({
-          url: resolvedRedisUrl,
+          ...spreadIfDefined('url', resolvedRedisUrl),
           socket: {
             connectTimeout: 5000
           },
@@ -222,7 +223,7 @@ export class RedisApprovalRateLimiter {
         allowed: allowed === 1,
         remaining,
         resetAt,
-        retryAfter: allowed === 0 ? Math.ceil((resetAt - now) / 1000) : undefined
+        ...spreadIfDefined('retryAfter', allowed === 0 ? Math.ceil((resetAt - now) / 1000) : undefined)
       };
 
     } catch (error) {
@@ -386,7 +387,12 @@ export async function createRateLimiter(
 
   if (isProduction && shouldUseRedis) {
     try {
-      const redisLimiter = new RedisApprovalRateLimiter({ ...config, redisUrl });
+      const redisLimiter = new RedisApprovalRateLimiter({
+        maxRequests: config?.maxRequests ?? 3,
+        windowMs: config?.windowMs ?? 60000,
+        ...spreadIfDefined('keyPrefix', config?.keyPrefix),
+        ...spreadIfDefined('redisUrl', redisUrl)
+      });
       await redisLimiter.connect();
       console.log('Using Redis-backed rate limiter');
       return redisLimiter;

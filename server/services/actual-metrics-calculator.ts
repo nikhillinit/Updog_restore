@@ -18,6 +18,7 @@ import Decimal from 'decimal.js';
 import { storage } from '../storage';
 import type { ActualMetrics } from '@shared/types/metrics';
 import type { PortfolioCompany } from '@shared/schema';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 // Configure Decimal.js for financial precision
 Decimal.set({ precision: 28, rounding: Decimal.ROUND_HALF_UP });
@@ -107,7 +108,7 @@ export class ActualMetricsCalculator {
       totalCompanies,
       deploymentRate: deploymentRate.toNumber(),
       averageCheckSize: averageCheckSize.toNumber(),
-      fundAgeMonths,
+      ...spreadIfDefined('fundAgeMonths', fundAgeMonths),
     };
   }
 

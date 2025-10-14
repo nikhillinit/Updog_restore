@@ -5,6 +5,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { redis as redisClient } from '../db/redis-circuit';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 interface IdempotencyOptions {
   ttl?: number;                    // TTL in seconds (default: 300 = 5 minutes)
@@ -199,10 +200,10 @@ export function idempotency(options: IdempotencyOptions = {}) {
   const config = {
     ttl: options.ttl || 300,
     prefix: options.prefix || 'idem',
-    generateKey: options.generateKey,
     skipPaths: options.skipPaths || [],
     memoryFallback: options.memoryFallback !== false,
     includeStatusCodes: options.includeStatusCodes || [200, 201],
+    ...spreadIfDefined('generateKey', options.generateKey),
   };
   
   return async (req: Request, res: Response, next: NextFunction) => {

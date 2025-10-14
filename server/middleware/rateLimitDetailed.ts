@@ -12,6 +12,7 @@ import type { Request, Response } from 'express';
 import type { RateLimitRequestHandler , Store } from 'express-rate-limit';
 
 import { sendApiError, createErrorBody } from '../lib/apiError.js';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 export function rateLimitDetailed(opts?: { store?: Store }): RateLimitRequestHandler {
   return rateLimit({
@@ -19,7 +20,7 @@ export function rateLimitDetailed(opts?: { store?: Store }): RateLimitRequestHan
     max: 30, // 30 requests per minute
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-    store: opts?.store, // Injected store (undefined => memory store)
+    ...spreadIfDefined('store', opts?.store), // Injected store (undefined => memory store)
     keyGenerator: (req: Request) => {
       // Use library's IPv6-safe key generator
       return `${ipKeyGenerator(req)}:health-detailed`;
