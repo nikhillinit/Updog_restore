@@ -52,4 +52,7 @@ if [ -n "$STAGED_TS_FILES" ]; then
   fi
 fi
 
+# 6. Week 2 server strictness guard (scoped to server/shared + client core/lib/utils)
+. "$(dirname "$0")/guards/week2-server-ts.sh"
+
 echo "✅ Pre-commit checks passed!"
