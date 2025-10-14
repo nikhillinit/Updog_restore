@@ -212,7 +212,7 @@ export default defineConfig(({ mode }) => {
   const usePreact = 
     process.env.BUILD_WITH_PREACT === '1' || 
     process.env.BUILD_WITH_PREACT === 'true' || 
-    process.env.VITE_USE_PREACT === '1' ||
+    process.env["VITE_USE_PREACT"] === '1' ||
     mode === 'preact';
 
   const parsePort = (value: string | undefined, fallback: number) => {
@@ -220,9 +220,9 @@ export default defineConfig(({ mode }) => {
     return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
   };
 
-  const clientPort = parsePort(process.env.VITE_CLIENT_PORT, 5173);
-  const apiPort = parsePort(process.env.VITE_API_PORT ?? process.env.PORT, 5000);
-  const apiTarget = process.env.VITE_API_URL ?? `http://localhost:${apiPort}`;
+  const clientPort = parsePort(process.env["VITE_CLIENT_PORT"], 5173);
+  const apiPort = parsePort(process.env["VITE_API_PORT"] ?? process.env.PORT, 5000);
+  const apiTarget = process.env["VITE_API_URL"] ?? `http://localhost:${apiPort}`;
 
   return {
     base: '/', // Ensure absolute paths for assets
@@ -312,7 +312,7 @@ export default defineConfig(({ mode }) => {
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist'),
     emptyOutDir: true,
-    sourcemap: process.env.VITE_SOURCEMAP === 'true' ? true : true, // Always enable source maps for profiling (keeping environment option)
+    sourcemap: process.env["VITE_SOURCEMAP"] === 'true' ? true : true, // Always enable source maps for profiling (keeping environment option)
     minify: 'esbuild',
     target: 'es2020', // More compatible target for production
     cssMinify: 'lightningcss',

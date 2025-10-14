@@ -76,7 +76,7 @@ export function withRLSTransaction() {
           transactionCompleted = true;
           
           // Commit or rollback based on response status
-          const shouldCommit = res.statusCode < 400;
+          const shouldCommit = res["statusCode"] < 400;
           
           client.query(shouldCommit ? 'COMMIT' : 'ROLLBACK')
             .catch(err => console.error('Transaction finalization error:', err))

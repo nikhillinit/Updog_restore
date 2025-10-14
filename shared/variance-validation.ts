@@ -579,7 +579,7 @@ export const createValidationMiddleware = <T extends z.ZodTypeAny>(schema: T) =>
         details: result.error.flatten()
       });
     }
-    req.validatedBody = result.data;
+    req["validatedBody"] = result.data;
     next();
   };
 };

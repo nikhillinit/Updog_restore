@@ -12,7 +12,7 @@ declare global {
 }
 
 export function withNonce(_req: Request, res: Response, next: NextFunction) {
-  res.locals.cspNonce = crypto.randomBytes(16).toString("base64");
+  res.locals["cspNonce"] = crypto.randomBytes(16).toString("base64");
   next();
 }
 

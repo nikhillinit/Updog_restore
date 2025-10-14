@@ -40,21 +40,21 @@ router['get']('/healthz', (_req: Request, res: Response) => {
 
 // Legacy health endpoints (for backward compatibility)
 router['get']('/health', (req: Request, res: Response) => {
-  const providers = req.app.locals.providers as any;
+  const providers = req.app.locals["providers"] as any;
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
   res.json({
     status: 'ok',
-    version: process.env.npm_package_version || '1.3.2',
+    version: process.env["npm_package_version"] || '1.3.2',
     mode,
     ts: new Date().toISOString()
   });
 });
 router['get']('/api/health', (req: Request, res: Response) => {
-  const providers = req.app.locals.providers as any;
+  const providers = req.app.locals["providers"] as any;
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
   res.json({
     status: 'ok',
-    version: process.env.npm_package_version || '1.3.2',
+    version: process.env["npm_package_version"] || '1.3.2',
     mode,
     ts: new Date().toISOString()
   });
@@ -88,7 +88,7 @@ router['get']('/health/detailed-json', async (req: Request, res: Response) => {
       uptime_sec: process.uptime(),
       heap_mb: Math.round(process.memoryUsage().heapUsed / 1048576),
       timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version || 'unknown',
+      version: process.env["npm_package_version"] || 'unknown',
       last_deploy: fs.existsSync('.last-deploy')
         ? fs.readFileSync('.last-deploy', 'utf8').trim()
         : 'unknown',
@@ -175,7 +175,7 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
                       clientIp === '::1' || 
                       clientIp === '::ffff:127.0.0.1' ||
                       clientIp === undefined || // Test environment
-                      req.hostname === 'localhost';
+                      req["hostname"] === 'localhost';
     
     if (!isInternal) {
       return res.status(403).json({ error: 'Forbidden' });
@@ -195,7 +195,7 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
     const start = Date.now();
     await storage.getAllFunds();
     detailed.database = "ok";
-    detailed.metrics.dbLatencyMs = Date.now() - start;
+    detailed.metrics["dbLatencyMs"] = Date.now() - start;
   } catch (error) {
     detailed.database = "fail";
   }
@@ -208,9 +208,9 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
   detailed.workers = redisHealthy ? "ok" : "idle";
   
   // Memory and uptime
-  detailed.metrics.uptimeSeconds = Math.floor(process.uptime());
-  detailed.metrics.memoryMB = Math.round(process.memoryUsage().heapUsed / 1048576);
-  detailed.metrics.version = process.env.npm_package_version || "1.3.2";
+  detailed.metrics["uptimeSeconds"] = Math.floor(process.uptime());
+  detailed.metrics["memoryMB"] = Math.round(process.memoryUsage().heapUsed / 1048576);
+  detailed.metrics["version"] = process.env.npm_package_version || "1.3.2";
   
   res.json(detailed);
 });
@@ -301,8 +301,8 @@ router['get']('/api/health/queues', async (req: Request, res: Response) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dynamic import type incompatibility
       const Redis: any = IORedis.default;
       const redis = new Redis({
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379'),
+        host: process.env["REDIS_HOST"] || 'localhost',
+        port: parseInt(process.env["REDIS_PORT"] || '6379'),
         maxRetriesPerRequest: 1,
         retryStrategy: () => null,
       });
@@ -409,7 +409,7 @@ router['get']('/api/health/migrations', async (req: Request, res: Response) => {
 
 // Version endpoint
 router['get']('/api/version', (req: Request, res: Response) => {
-  const version = process.env.npm_package_version || '1.3.2';
+  const version = process.env["npm_package_version"] || '1.3.2';
   const nodeVersion = process.version;
   const platform = process.platform;
   const arch = process.arch;
@@ -504,10 +504,10 @@ router['get']('/api/health/workers/:workerType', async (req: Request, res: Respo
     try {
       const http = await import('http');
 
-      const workerHealthPort = parseInt(process.env.WORKER_HEALTH_PORT || '9000');
+      const workerHealthPort = parseInt(process.env["WORKER_HEALTH_PORT"] || '9000');
 
       const options = {
-        hostname: process.env.WORKER_HEALTH_HOST || 'localhost',
+        hostname: process.env["WORKER_HEALTH_HOST"] || 'localhost',
         port: workerHealthPort,
         path: '/health',
         method: 'GET',

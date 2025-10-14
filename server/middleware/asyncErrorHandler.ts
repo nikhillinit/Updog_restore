@@ -71,7 +71,7 @@ export function asyncErrorHandler() {
     captureErrorAsync(err, context);
     
     // Send response immediately
-    if (!res.headersSent) {
+    if (!res["headersSent"]) {
       const status = err.status || err.statusCode || 500;
       const message = status >= 500 ? 'Internal Server Error' : err.message;
       

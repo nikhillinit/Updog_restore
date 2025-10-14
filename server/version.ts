@@ -22,8 +22,8 @@ export const ENGINE_VERSION = '1.0.0';
 export function getVersionInfo() {
   return {
     engine_version: ENGINE_VERSION,
-    app_version: process.env.npm_package_version || ENGINE_VERSION,
-    commit_sha: process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_REF || 'local',
+    app_version: process.env["npm_package_version"] || ENGINE_VERSION,
+    commit_sha: process.env["VERCEL_GIT_COMMIT_SHA"] || process.env.COMMIT_REF || 'local',
     node_version: process.version,
     environment: process.env.NODE_ENV || 'development',
   };

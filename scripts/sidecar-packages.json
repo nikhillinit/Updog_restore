@@ -27,7 +27,9 @@
     "@typescript-eslint/eslint-plugin",
     "eslint-plugin-react",
     "eslint-plugin-react-hooks",
-    "eslint-plugin-unused-imports"
+    "eslint-plugin-unused-imports",
+    "ts-morph",
+    "tsx"
   ],
   "_notes": {
     "purpose": "Defines which packages from tools_local should be linked into root node_modules",

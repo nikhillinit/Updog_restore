@@ -17,7 +17,7 @@ export function asyncHandler(
       console.error('Async handler error:', error);
       
       // Check if response was already sent
-      if (res.headersSent) {
+      if (res["headersSent"]) {
         return next(error);
       }
 

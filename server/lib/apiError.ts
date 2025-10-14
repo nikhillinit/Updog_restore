@@ -39,7 +39,7 @@ export function sendApiError(res: Response, status: number, body: ApiErrorBody) 
     ...body,
     code: body.code ?? httpCodeToAppCode(status)
   };
-  res.type('application/json').status(status).json(finalBody);
+  res["type"]('application/json').status(status).json(finalBody);
 }
 
 /**

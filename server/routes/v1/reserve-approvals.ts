@@ -108,7 +108,7 @@ router.post('/', requireRole('reserve_admin'), async (req: AuthenticatedRequest,
  */
 router['get']('/', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const status = req.query.status as string || 'pending';
+    const status = req.query["status"] as string || 'pending';
     
     const approvals = await db.select({
       approval: reserveApprovals,
@@ -274,7 +274,7 @@ router.post('/:id/sign', requireRole('partner'), async (req: AuthenticatedReques
       signature,
       ipAddress: req.ip || 'unknown',
       userAgent: req.headers['user-agent'],
-      sessionId: req.session?.id,
+      sessionId: req["session"]?.id,
       twoFactorVerified: verificationCode ? new Date() : null,
       verificationCode: verificationCode ? crypto.createHash('sha256').update(verificationCode).digest('hex') : null
     } as any);

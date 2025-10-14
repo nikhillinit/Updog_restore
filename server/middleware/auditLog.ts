@@ -46,7 +46,7 @@ export function auditLog(config: AuditConfig = {}) {
     // Log after response finishes
     res['on']('finish', async () => {
       // Skip logging if configured to only log successes and this isn't a success
-      if (mergedConfig.logSuccessOnly && (res.statusCode >= 400)) {
+      if (mergedConfig["logSuccessOnly"] && (res.statusCode >= 400)) {
         return;
       }
 
@@ -62,13 +62,13 @@ export function auditLog(config: AuditConfig = {}) {
             params: req.params,
             query: req.query,
           } : null,
-          ipAddress: req.ip || req.connection.remoteAddress || null,
+          ipAddress: req["ip"] || req.connection.remoteAddress || null,
           userAgent: req['get']('User-Agent') || null,
           correlationId: correlationId || null,
           sessionId: extractSessionId(req),
           requestPath: req.path,
           httpMethod: req.method,
-          statusCode: res.statusCode,
+          statusCode: res["statusCode"],
         };
 
         // Log asynchronously to avoid blocking the response
@@ -114,6 +114,6 @@ function extractSessionId(req: Request): string | null {
   // Extract session ID from request (cookie, header, etc.)
   return req['get']('x-session-id') || 
          (req as any).session?.id || 
-         req.cookies?.sessionId || 
+         req["cookies"]?.sessionId || 
          null;
 }

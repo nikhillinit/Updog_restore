@@ -22,7 +22,7 @@ export function authenticateMetrics(req: Request, res: Response, next: NextFunct
   if (allowFrom.length && callerIp && allowFrom.includes(callerIp)) return next();
 
   if (metricsKey) {
-    const auth = req.headers.authorization;
+    const auth = req.headers["authorization"];
     if (typeof auth === 'string') {
       const [scheme, token] = auth.split(' ');
       if (scheme === 'Bearer' && token === metricsKey) return next();

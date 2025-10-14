@@ -6,7 +6,7 @@ export function setDegradedHeaders(state: 'CLOSED' | 'OPEN' | 'HALF_OPEN') {
     if (state !== 'CLOSED') {
       // Surfaced in timelines
       res['setHeader']('Server-Timing', `circuit;desc="${state}"`);
-      (res.locals as any).degraded = true;
+      (res["locals"] as any).degraded = true;
     }
     next();
   };

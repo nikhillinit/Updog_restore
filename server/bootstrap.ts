@@ -28,7 +28,7 @@ async function bootstrap() {
     console.log(`[bootstrap] REDIS_URL: ${cfg.REDIS_URL}`);
     console.log(`[bootstrap] DATABASE_URL: ${cfg.DATABASE_URL ? 'set' : 'undefined'}`);
     console.log(`[bootstrap] ENABLE_QUEUES: ${cfg.ENABLE_QUEUES}`);
-    console.log(`[bootstrap] DISABLE_AUTH: ${process.env.DISABLE_AUTH}`);
+    console["log"](`[bootstrap] DISABLE_AUTH: ${process.env.DISABLE_AUTH}`);
 
     console.log('[bootstrap] ===== PHASE 2: PROVIDERS =====');
     // Build providers based on configuration (single source of truth)

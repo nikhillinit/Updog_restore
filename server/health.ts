@@ -107,7 +107,7 @@ async function performHealthCheck(): Promise<HealthResponse> {
     status: isHealthy ? 'healthy' : 'unhealthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    version: process.env.npm_package_version || 'unknown',
+    version: process.env["npm_package_version"] || 'unknown',
     circuitBreaker: {
       trips: 0 // Circuit breaker disabled in dev mode
     },
@@ -127,7 +127,7 @@ export async function healthCheck(req: Request, res: Response) {
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      version: process.env.npm_package_version || 'unknown',
+      version: process.env["npm_package_version"] || 'unknown',
       circuitBreaker: {
         trips: 0
       },

@@ -177,7 +177,7 @@ router.get('/companies/:companyId/scenarios/:scenarioId',
   async (req: Request, res: Response) => {
     try {
       const { companyId, scenarioId } = req.params;
-      const include = (req.query.include as string)?.split(',') || ['cases', 'weighted_summary'];
+      const include = (req.query["include"] as string)?.split(',') || ['cases', 'weighted_summary'];
 
       const scenario = await db.query.scenarios.findFirst({
         where: and(
@@ -252,12 +252,12 @@ router.post('/companies/:companyId/scenarios',
         description,
         version: 1,
         is_default: false,
-        created_by: req.userId,
+        created_by: req["userId"],
       }).returning();
 
       // Audit log
       await auditLog({
-        userId: req.userId,
+        userId: req["userId"],
         entityType: 'scenario',
         entityId: scenario[0].id,
         action: 'CREATE',
@@ -363,7 +363,7 @@ router.patch('/companies/:companyId/scenarios/:scenarioId',
 
       // BLOCKER #2 FIX: Audit logging
       await auditLog({
-        userId: req.userId,
+        userId: req["userId"],
         entityType: 'scenario',
         entityId: scenarioId,
         action: 'UPDATE',
@@ -440,7 +440,7 @@ router.delete('/companies/:companyId/scenarios/:scenarioId',
 
       // Audit log
       await auditLog({
-        userId: req.userId,
+        userId: req["userId"],
         entityType: 'scenario',
         entityId: scenarioId,
         action: 'DELETE',

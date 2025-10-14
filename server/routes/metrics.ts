@@ -14,7 +14,7 @@ export function setupMetrics() {
       prefix: 'updog_',
       labels: {
         app: 'updog',
-        version: process.env.npm_package_version || '1.0.0'
+        version: process.env["npm_package_version"] || '1.0.0'
       }
     });
     defaultMetricsCollected = true;

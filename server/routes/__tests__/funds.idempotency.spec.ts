@@ -20,7 +20,7 @@ app.post('/api/test', (req: Request, res: Response) => {
 
 describe('API Idempotency Contract', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi["clearAllMocks"]();
   });
 
   it('returns 409 when same key used with different request body', async () => {

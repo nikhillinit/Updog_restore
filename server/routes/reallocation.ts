@@ -303,7 +303,7 @@ router.post(
   '/api/funds/:fundId/reallocation/preview',
   async (req: Request, res: Response) => {
     try {
-      const fundId = parseInt(req.params.fundId, 10);
+      const fundId = parseInt(req.params["fundId"], 10);
       if (isNaN(fundId) || fundId <= 0) {
         return res.status(400).json({ error: 'Invalid fund ID' });
       }
@@ -405,7 +405,7 @@ router.post(
   '/api/funds/:fundId/reallocation/commit',
   async (req: Request, res: Response) => {
     try {
-      const fundId = parseInt(req.params.fundId, 10);
+      const fundId = parseInt(req.params["fundId"], 10);
       if (isNaN(fundId) || fundId <= 0) {
         return res.status(400).json({ error: 'Invalid fund ID' });
       }

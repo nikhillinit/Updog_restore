@@ -37,12 +37,12 @@ export function verifyAccessToken(token: string): JWTClaims {
 }
 
 export const requireAuth = () => (req: Request, res: Response, next: NextFunction) => {
-  const h = req.header("authorization") || "";
+  const h = req["header"]("authorization") || "";
   const token = h.startsWith("Bearer ") ? h.slice(7) : undefined;
   
   if (!token) {
     authMetrics.jwtMissingToken.inc?.();
-    return res.sendStatus(401);
+    return res["sendStatus"](401);
   }
   
   try {
@@ -51,13 +51,13 @@ export const requireAuth = () => (req: Request, res: Response, next: NextFunctio
   } catch (err: any) {
     console.warn("JWT verification failed", { name: err?.name, message: err?.message });
     authMetrics.jwtVerificationFailed.inc?.();
-    return res.sendStatus(401);
+    return res["sendStatus"](401);
   }
 };
 
 export const requireRole = (role: string) => (req: Request, res: Response, next: NextFunction) => {
   const user = (req as any).user as JWTClaims | undefined;
-  if (!user || user.role !== role) return res.sendStatus(403);
+  if (!user || user["role"] !== role) return res.sendStatus(403);
   next();
 };
 

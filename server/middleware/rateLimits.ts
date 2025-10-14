@@ -105,7 +105,7 @@ function createRateLimiter(
     },
     skip: (req: Request) => {
       // Allow bypass for internal health checks with valid key
-      const healthKey = process.env.HEALTH_KEY;
+      const healthKey = process.env["HEALTH_KEY"];
       if (healthKey && req['get']('X-Health-Key') === healthKey) {
         return true;
       }

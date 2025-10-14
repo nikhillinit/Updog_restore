@@ -16,7 +16,7 @@ const router = Router();
  */
 router.get('/summary', (req: Request, res: Response) => {
   try {
-    const timeWindow = parseInt(req.query.window as string) || (60 * 60 * 1000); // Default 1 hour
+    const timeWindow = parseInt(req.query["window"] as string) || (60 * 60 * 1000); // Default 1 hour
     const metrics = monitor.exportMetrics();
 
     const summary = {
@@ -50,7 +50,7 @@ router.get('/summary', (req: Request, res: Response) => {
  */
 router.get('/monte-carlo', (req: Request, res: Response) => {
   try {
-    const timeWindow = parseInt(req.query.window as string) || (60 * 60 * 1000);
+    const timeWindow = parseInt(req.query["window"] as string) || (60 * 60 * 1000);
     const stats = monitor.getStats('monte_carlo_simulation', timeWindow);
 
     const monteCarloMetrics = {
@@ -88,7 +88,7 @@ router.get('/monte-carlo', (req: Request, res: Response) => {
  */
 router.get('/alerts', (req: Request, res: Response) => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
+    const limit = parseInt(req.query["limit"] as string) || 50;
     const alerts = monitor.getRecentAlerts(limit);
 
     const formattedAlerts = alerts.map(alert => ({
@@ -122,7 +122,7 @@ router.get('/alerts', (req: Request, res: Response) => {
  */
 router.get('/realtime', (req: Request, res: Response) => {
   // Set up Server-Sent Events
-  res.writeHead(200, {
+  res["writeHead"](200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
@@ -142,7 +142,7 @@ router.get('/realtime', (req: Request, res: Response) => {
       }
     });
 
-    res.write(`data: ${data}\n\n`);
+    res["write"](`data: ${data}\n\n`);
   };
 
   const sendAlert = (alert: any) => {
@@ -157,7 +157,7 @@ router.get('/realtime', (req: Request, res: Response) => {
       }
     });
 
-    res.write(`data: ${data}\n\n`);
+    res["write"](`data: ${data}\n\n`);
   };
 
   // Listen for new metrics and alerts
@@ -166,11 +166,11 @@ router.get('/realtime', (req: Request, res: Response) => {
 
   // Send heartbeat every 30 seconds
   const heartbeat = setInterval(() => {
-    res.write(`data: ${JSON.stringify({ type: 'heartbeat', timestamp: Date.now() })}\n\n`);
+    res["write"](`data: ${JSON.stringify({ type: 'heartbeat', timestamp: Date.now() })}\n\n`);
   }, 30000);
 
   // Clean up on disconnect
-  req.on('close', () => {
+  req["on"]('close', () => {
     monitor.removeListener('metric_recorded', sendMetric);
     monitor.removeListener('performance_alert', sendAlert);
     clearInterval(heartbeat);
@@ -183,8 +183,8 @@ router.get('/realtime', (req: Request, res: Response) => {
  */
 router.get('/operations', (req: Request, res: Response) => {
   try {
-    const timeWindow = parseInt(req.query.window as string) || (60 * 60 * 1000);
-    const category = req.query.category as string;
+    const timeWindow = parseInt(req.query["window"] as string) || (60 * 60 * 1000);
+    const category = req.query["category"] as string;
 
     const metrics = monitor.exportMetrics();
     let operations = Object.entries(metrics.summary);
