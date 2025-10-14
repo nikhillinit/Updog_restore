@@ -314,7 +314,8 @@ class DevDashboardWebSocket {
         }, 2000);
       });
     } catch (error) {
-      console.warn('File watcher setup failed (chokidar not installed):', error.message);
+      const err = error instanceof Error ? error : new Error(String(error));
+      console.warn('File watcher setup failed (chokidar not installed):', err.message);
     }
   }
 

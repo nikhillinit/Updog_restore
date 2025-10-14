@@ -395,7 +395,8 @@ export class StreamingMonteCarloEngine {
       return results;
 
     } catch (error) {
-      throw new Error(`Streaming Monte Carlo simulation failed: ${error.message}`);
+      const err = error instanceof Error ? error : new Error(String(error));
+      throw new Error(`Streaming Monte Carlo simulation failed: ${err.message}`);
     } finally {
       // Cleanup resources
       await this.cleanup();

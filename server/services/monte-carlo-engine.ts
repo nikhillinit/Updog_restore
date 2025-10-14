@@ -289,7 +289,8 @@ export class MonteCarloEngine {
     } catch (error) {
       // Track failed simulation
       monteCarloTracker.endSimulation(simulationId, null);
-      throw new Error(`Portfolio simulation failed: ${error.message}`);
+      const err = error instanceof Error ? error : new Error(String(error));
+      throw new Error(`Portfolio simulation failed: ${err.message}`);
     }
   }
 

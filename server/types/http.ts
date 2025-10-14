@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
+import type * as core from 'express-serve-static-core';
 
 /**
  * User interface for authenticated requests
@@ -43,7 +44,8 @@ export function authed(
     if (!user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    return handler(Object.assign(req, { user }) as AuthenticatedRequest, res, next);
+    const result = handler(Object.assign(req, { user }) as AuthenticatedRequest, res as Response, next);
+    return result as any;
   };
 }
 
@@ -67,8 +69,8 @@ export type TypedHandler<
   ReqBody = any,
   ReqQuery = any
 > = (
-  req: Request<P, ResBody, ReqBody, ReqQuery>,
-  res: Response<ResBody>,
+  req: core.Request<P, ResBody, ReqBody, ReqQuery>,
+  res: core.Response<ResBody>,
   next: NextFunction
 ) => Promise<void> | void;
 
@@ -81,7 +83,7 @@ export type AuthedTypedHandler<
   ReqBody = any,
   ReqQuery = any
 > = (
-  req: Request<P, ResBody, ReqBody, ReqQuery> & { user: User },
-  res: Response<ResBody>,
+  req: core.Request<P, ResBody, ReqBody, ReqQuery> & { user: User },
+  res: core.Response<ResBody>,
   next: NextFunction
 ) => Promise<void> | void;

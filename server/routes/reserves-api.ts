@@ -653,10 +653,11 @@ router.post('/calculate-protected',
 
     } catch (error) {
       const duration = Date.now() - startTime;
-      
+
+      const err = error instanceof Error ? error : new Error(String(error));
       (logger as any).error('Protected reserve calculation failed', {
         correlationId,
-        error: error.message,
+        error: err.message,
         duration,
         approvalId: req.approval?.id,
       });

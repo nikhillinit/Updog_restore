@@ -156,7 +156,8 @@ export class PerformancePredictionEngine {
       return predictions;
 
     } catch (error) {
-      throw new Error(`Performance prediction failed: ${error.message}`);
+      const err = error instanceof Error ? error : new Error(String(error));
+      throw new Error(`Performance prediction failed: ${err.message}`);
     }
   }
 
