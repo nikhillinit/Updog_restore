@@ -65,8 +65,8 @@ export function makeApp() {
       res['setHeader']('Access-Control-Allow-Headers', 'content-type, authorization, x-request-id');
       res['setHeader']('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
     }
-    if (req["method"] === 'OPTIONS') return res.sendStatus(ok ? 200 : 403);
-    if (!ok && origin) return res["sendStatus"](403);
+    if (req["method"] === 'OPTIONS') return res['sendStatus'](ok ? 200 : 403);
+    if (!ok && origin) return res['sendStatus'](403);
     next();
   });
 

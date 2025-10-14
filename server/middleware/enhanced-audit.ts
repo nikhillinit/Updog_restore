@@ -238,7 +238,7 @@ export function enhancedAuditMiddleware(config: AuditConfig = {}) {
     // Log audit entry when response finishes
     res['on']('finish', async () => {
       // Skip if configured to only log successes and this isn't a success
-      if (mergedConfig["logSuccessOnly"] && res.statusCode >= 400) {
+      if (mergedConfig["logSuccessOnly"] && res['statusCode'] >= 400) {
         return;
       }
 
@@ -255,7 +255,7 @@ export function enhancedAuditMiddleware(config: AuditConfig = {}) {
           action: `${req.method} ${req.path}`,
           entityType: extractEntityType(req.path),
           entityId: extractEntityId(req.path),
-          ipAddress: req["ip"] || req.connection.remoteAddress || null,
+          ipAddress: req["ip"] || req['connection'].remoteAddress || null,
           userAgent: req['get']('User-Agent') || null,
           requestPath: req.path,
           httpMethod: req.method,
@@ -390,18 +390,18 @@ export function financialAuditMiddleware(req: Request, res: Response, next: Next
 
 function determineRiskLevel(req: Request, res: Response, executionTime: number): 'low' | 'medium' | 'high' | 'critical' {
   // Critical risk indicators
-  if (res["statusCode"] >= 500) return 'critical';
+  if (res['statusCode'] >= 500) return 'critical';
   if (req.path.includes('/admin') && req.method === 'DELETE') return 'critical';
-  if (req.path["includes"]('/monte-carlo') && res.statusCode >= 400) return 'critical';
+  if (req.path.includes('/monte-carlo') && res['statusCode'] >= 400) return 'critical';
 
   // High risk indicators
-  if (res["statusCode"] === 401 || res.statusCode === 403) return 'high';
+  if (res['statusCode'] === 401 || res['statusCode'] === 403) return 'high';
   if (req.method === 'DELETE') return 'high';
   if (executionTime > 30000) return 'high'; // 30+ seconds
   if (req.path.includes('/financial') || req.path.includes('/simulation')) return 'high';
 
   // Medium risk indicators
-  if (res["statusCode"] >= 400) return 'medium';
+  if (res['statusCode'] >= 400) return 'medium';
   if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') return 'medium';
   if (executionTime > 5000) return 'medium'; // 5+ seconds
 
@@ -476,7 +476,7 @@ async function logFinancialOperation(
   correlationId: string
 ): Promise<void> {
   try {
-    const fundId = req["body"]?.fundId || req.params?.fundId || responseBody?.fundId;
+    const fundId = req['body']?.fundId || req.params?.fundId || responseBody?.fundId;
     if (!fundId) return;
 
     const operation = determineFinancialOperation(req.path, req.method);
@@ -513,7 +513,7 @@ async function logFinancialOperation(
       entityType: 'financial_operation',
       metadata: {
         executionTimeMs: executionTime,
-        statusCode: res["statusCode"],
+        statusCode: res['statusCode'],
         ipAddress: req.ip,
         userAgent: req['get']('User-Agent')
       }

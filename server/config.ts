@@ -9,7 +9,7 @@ const Env = z.object({
   PORT: z.coerce.number().int().positive().default(5000),
   CLIENT_URL: z.string().url().default('http://localhost:5173'),
   REDIS_URL: z.string().url().optional(),
-  APP_VERSION: z["string"]().default(process.env.npm_package_version || '0.0.1'),
+  APP_VERSION: z["string"]().default(process.env['npm_package_version'] || '0.0.1'),
   
   // Auth
   JWT_ALG: z.enum(["HS256","RS256"]).default("HS256"),

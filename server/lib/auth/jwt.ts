@@ -57,7 +57,7 @@ export const requireAuth = () => (req: Request, res: Response, next: NextFunctio
 
 export const requireRole = (role: string) => (req: Request, res: Response, next: NextFunction) => {
   const user = (req as any).user as JWTClaims | undefined;
-  if (!user || user["role"] !== role) return res.sendStatus(403);
+  if (!user || user["role"] !== role) return res['sendStatus'](403);
   next();
 };
 

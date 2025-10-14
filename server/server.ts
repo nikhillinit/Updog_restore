@@ -58,9 +58,9 @@ export async function createServer(
   console.log('[server] Creating Express application...');
   
   // Bind providers to app.locals for routes/services
-  app.locals["providers"] = providers;
-  app.locals["cache"] = providers.cache;
-  app.locals["config"] = config;
+  app['locals']["providers"] = providers;
+  app['locals']["cache"] = providers.cache;
+  app['locals']["config"] = config;
   
   // Security first - disable version disclosure
   app['disable']('x-powered-by');
@@ -176,8 +176,8 @@ export async function createServer(
       const duration = Date.now() - start;
       if (path.startsWith("/api")) {
         const version = config.APP_VERSION;
-        
-        let logLine = `${req["method"]} ${path} ${res.statusCode} in ${duration}ms [v${version}]`;
+
+        let logLine = `${req["method"]} ${path} ${res['statusCode']} in ${duration}ms [v${version}]`;
         if (capturedJsonResponse) {
           logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
         }
