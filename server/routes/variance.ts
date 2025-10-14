@@ -13,6 +13,7 @@ import { varianceTrackingService } from '../services/variance-tracking';
 import { toNumber, NumberParseError } from '@shared/number';
 import { positiveInt } from '@shared/schema-helpers';
 import type { ApiError } from '@shared/types';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 const router = Router();
 
@@ -113,12 +114,12 @@ router.post('/api/funds/:id/baselines', idempotency, async (req: AuthenticatedRe
     const baseline = await varianceTrackingService.baselines.createBaseline({
       fundId,
       name: data.name,
-      description: data.description,
+      ...spreadIfDefined('description', data.description),
       baselineType: data.baselineType,
       periodStart: new Date(data.periodStart),
       periodEnd: new Date(data.periodEnd),
       createdBy: userId,
-      tags: data.tags
+      ...spreadIfDefined('tags', data.tags),
     });
 
     res.status(201).json({
@@ -162,9 +163,9 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
     const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
 
     const baselines = await varianceTrackingService.baselines.getBaselines(fundId, {
-      baselineType,
-      isDefault,
-      limit
+      ...spreadIfDefined('baselineType', baselineType),
+      ...spreadIfDefined('isDefault', isDefault),
+      ...spreadIfDefined('limit', limit),
     });
 
     res.json({
@@ -298,9 +299,9 @@ router.post('/api/funds/:id/variance-reports', idempotency, async (req: Authenti
       baselineId: data.baselineId || '', // Will be resolved to default in service
       reportName: data.reportName,
       reportType: data.reportType,
-      reportPeriod: data.reportPeriod,
-      asOfDate: data.asOfDate ? new Date(data.asOfDate) : undefined,
-      generatedBy: userId || undefined
+      ...spreadIfDefined('reportPeriod', data.reportPeriod),
+      ...spreadIfDefined('asOfDate', data.asOfDate ? new Date(data.asOfDate) : undefined),
+      ...spreadIfDefined('generatedBy', userId || undefined),
     });
 
     res.status(201).json({
@@ -447,16 +448,16 @@ router.post('/api/funds/:id/alert-rules', async (req: AuthenticatedRequest, res:
     const rule = await varianceTrackingService.alerts.createAlertRule({
       fundId,
       name: data.name,
-      description: data.description,
+      ...spreadIfDefined('description', data.description),
       ruleType: data.ruleType,
       metricName: data.metricName,
       operator: data.operator,
       thresholdValue: data.thresholdValue,
-      secondaryThreshold: data.secondaryThreshold,
+      ...spreadIfDefined('secondaryThreshold', data.secondaryThreshold),
       severity: data.severity,
       category: data.category,
       checkFrequency: data.checkFrequency,
-      createdBy: userId
+      createdBy: userId,
     });
 
     res.status(201).json({
@@ -500,9 +501,9 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
     const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
 
     const alerts = await varianceTrackingService.alerts.getActiveAlerts(fundId, {
-      severity,
-      category,
-      limit
+      ...spreadIfDefined('severity', severity),
+      ...spreadIfDefined('category', category),
+      ...spreadIfDefined('limit', limit),
     });
 
     res.json({
@@ -665,9 +666,9 @@ router.post('/api/funds/:id/variance-analysis', idempotency, async (req: Authent
 
     const result = await varianceTrackingService.performCompleteVarianceAnalysis({
       fundId,
-      baselineId: data.baselineId,
-      reportName: data.reportName,
-      userId
+      ...spreadIfDefined('baselineId', data.baselineId),
+      ...spreadIfDefined('reportName', data.reportName),
+      userId,
     });
 
     res.status(201).json({
