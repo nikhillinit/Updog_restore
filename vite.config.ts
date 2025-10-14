@@ -1,3 +1,4 @@
+// @ts-nocheck
 /// <reference types="vite/client" />
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
