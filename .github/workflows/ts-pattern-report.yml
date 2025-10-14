@@ -1,0 +1,71 @@
+name: TypeScript Pattern Report
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ remediation/week2-server-strictness ]
+
+jobs:
+  pattern-analysis:
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+      - name: Install deps
+        run: npm ci --prefer-offline --no-audit --fund=false
+      - name: Generate strict baseline (server)
+        continue-on-error: true
+        run: |
+          mkdir -p artifacts/week2
+          npx tsc -p tsconfig.server.json --noEmit 2>&1 | tee artifacts/week2/baseline-ci.txt || true
+          echo "ERRORS=$(grep -c 'error TS' artifacts/week2/baseline-ci.txt || echo 0)" >> $GITHUB_ENV
+      - name: Run pattern analyzer (with timeout)
+        continue-on-error: true
+        run: |
+          chmod +x scripts/run-pattern-analysis.sh || true
+          if [ -x scripts/run-pattern-analysis.sh ]; then
+            scripts/run-pattern-analysis.sh artifacts/week2/baseline-ci.txt
+          else
+            echo "Wrapper not found; trying raw analyzer"
+            chmod +x scripts/identify-fix-patterns.sh || true
+            timeout 120s scripts/identify-fix-patterns.sh artifacts/week2/baseline-ci.txt \
+              | tee artifacts/week2/pattern-analysis.out || echo "⚠ Timed out"
+            # Always-write placeholders
+            : > artifacts/week2/error-distribution.txt
+            : > artifacts/week2/top-files-by-errors.txt
+            : > artifacts/week2/pattern-summary.txt
+          fi
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ts-patterns-${{ github.sha }}
+          path: artifacts/week2/*
+          retention-days: 30
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const errors = process.env.ERRORS || 'unknown';
+            let body = `## 📊 TypeScript Pattern Report\n\n**Current errors:** ${errors}\n\n`;
+            try {
+              const summary = fs.readFileSync('artifacts/week2/pattern-summary.txt','utf8');
+              body += '```\n' + summary + '\n```';
+            } catch {
+              body += '*Pattern analysis not available*';
+            }
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
