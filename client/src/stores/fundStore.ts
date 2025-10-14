@@ -277,18 +277,12 @@ function createFundStore() {
         (set, get): FundState => ({
           hydrated: false,
           setHydrated: (v: any) => set({ hydrated: v }),
-          
+
           // Fund Basics defaults
-          fundName: undefined,
+          // Note: undefined optional fields are omitted per exactOptionalPropertyTypes
           isEvergreen: false,
-          fundLife: undefined,
-          investmentPeriod: undefined,
-          fundSize: undefined,
-          managementFeeRate: undefined,
-          carriedInterest: undefined,
 
           // Capital Structure defaults
-          gpCommitment: undefined,
           lpClasses: [],
           lps: [],
 
@@ -325,8 +319,6 @@ function createFundStore() {
           ],
           recyclingEnabled: false,
           recyclingType: 'exits',
-          recyclingCap: undefined,
-          recyclingPeriod: undefined,
           exitRecyclingRate: 100,
           mgmtFeeRecyclingRate: 0,
           allowFutureRecycling: false,

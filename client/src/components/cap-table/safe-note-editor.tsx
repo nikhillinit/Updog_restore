@@ -62,14 +62,14 @@ export default function SAFENoteEditor({ safesNotes, onSafesNotesChange, pricePe
       id: `${formData.type}-${Date.now()}`,
       type: formData.type as 'safe' | 'note',
       principal: formData.principal,
-      valuationCap: formData.valuationCap,
-      discount: formData.discount,
-      interestRate: formData.interestRate,
-      maturityDate: formData.maturityDate,
       holderName: formData.holderName!,
       investmentDate: formData.investmentDate!,
-      mostFavoredNation: formData.mostFavoredNation,
-      proRataRights: formData.proRataRights,
+      ...(formData.valuationCap !== undefined ? { valuationCap: formData.valuationCap } : {}),
+      ...(formData.discount !== undefined ? { discount: formData.discount } : {}),
+      ...(formData.interestRate !== undefined ? { interestRate: formData.interestRate } : {}),
+      ...(formData.maturityDate !== undefined ? { maturityDate: formData.maturityDate } : {}),
+      ...(formData.mostFavoredNation !== undefined ? { mostFavoredNation: formData.mostFavoredNation } : {}),
+      ...(formData.proRataRights !== undefined ? { proRataRights: formData.proRataRights } : {}),
     };
 
     onSafesNotesChange([...safesNotes, newInstrument]);

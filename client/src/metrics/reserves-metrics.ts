@@ -3,6 +3,8 @@
  * Browser-compatible with graceful degradation
  */
 
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
+
 interface MetricEvent {
   type: string;
   value: number | string;
@@ -264,14 +266,16 @@ class ReservesAuditLog {
     warnings?: string[];
     user_id?: string;
   }): void {
+    const userId = entry.user_id ?? this.getUserId();
+
     const auditEntry: AuditEntry = {
       operation: entry.operation,
       input_hash: this.hashLite(entry.input),
       output_hash: this.hashLite(entry.output),
       duration_ms: entry.duration_ms,
-      warnings: entry.warnings,
       timestamp: new Date().toISOString(),
-      user_id: entry.user_id || this.getUserId()
+      ...spreadIfDefined("warnings", entry.warnings),
+      ...spreadIfDefined("user_id", userId)
     };
     
     // Store in localStorage for debugging (in production, send to server)

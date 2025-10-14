@@ -1,3 +1,26 @@
+## TypeScript Remediation — Quick Smoke
+
+- [ ] Type-check passes (`npm run check:client` + `npm run check:shared`)
+- [ ] Build succeeds (`npm run build`)
+- [ ] Dev server starts without new errors (`npm run dev`)
+- [ ] **Core test failures ≤ Phase 0 baseline** (see `artifacts/phase0/latest/test-failures-baseline.txt`)
+
+**Scope:** types-only (no runtime/config changes)
+
+**Artifacts:** `artifacts/phase0/latest/`
+
+**Phase 0 Summary** (paste link to file in your branch):
+```
+artifacts/phase0/latest/phase0-summary.txt
+```
+
+**Notes:**
+<!-- Add any relevant context, known issues, or testing notes -->
+
+---
+
+## Standard PR Template (use for non-TypeScript PRs)
+
 ## Description
 <!-- Brief description of the changes in this PR -->
 
@@ -17,18 +40,9 @@
 
 ### Migration Progress (if applicable)
 <!-- auto-filled by smart-fix.js -->
-- Files in this batch: 
+- Files in this batch:
 - Total files migrated: /
-- Estimated completion: 
-
-## Type of Change
-
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Performance optimization
-- [ ] Async iteration migration
-- [ ] Documentation update
+- Estimated completion:
 
 ## Quality Checklist
 

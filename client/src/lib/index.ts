@@ -6,6 +6,7 @@
 export * from '../utils/async-iteration';
 export * from './type-guards';
 export * from './validation-helpers';
+export * from './ts/spreadIfDefined';
 
 // Simple API client
 export const api = {
@@ -28,7 +29,7 @@ export const api = {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: data ? JSON.stringify(data) : undefined,
+      ...(data ? { body: JSON.stringify(data) } : {}),
       credentials: 'include',
     });
     

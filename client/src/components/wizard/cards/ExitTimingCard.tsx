@@ -64,16 +64,18 @@ export function ExitTimingCard({
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
         {STAGES.map((s) => {
           const err = firstError(errors ?? {}, s);
+          const stageLabel = STAGE_LABEL[s as keyof typeof STAGE_LABEL];
+          const stageValue = value[s as keyof ExitTiming];
           return (
             <EnhancedField
               key={s}
               id={`time-${s}-years`}
-              label={STAGE_LABEL[s]}
+              label={stageLabel}
               format="number"
               step={0.5}
               min={1}
               max={10}
-              value={value[s]}
+              value={stageValue}
               onChange={(v: number) => set(s, v)}
               contextChip="Range: 4–8y"
               aria-invalid={!!err}

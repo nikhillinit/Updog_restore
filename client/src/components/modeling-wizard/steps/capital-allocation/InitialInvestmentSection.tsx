@@ -67,7 +67,7 @@ export function InitialInvestmentSection({
           control={control}
           render={({ field }) => (
             <RadioGroup
-              value={field.value}
+              value={field.value ?? null}
               onValueChange={field.onChange}
               className="mt-3 space-y-3"
             >

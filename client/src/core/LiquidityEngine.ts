@@ -5,6 +5,7 @@ import type {
   RecurringExpense,
   CashTransactionType,
 } from '@shared/types';
+import { isDefined } from '@/lib/isDefined';
 
 // =============================================================================
 // LIQUIDITY ANALYTICS ENGINE
@@ -490,9 +491,10 @@ export class LiquidityEngine {
   private calculateTrend(values: number[]): 'increasing' | 'decreasing' | 'stable' {
     if (values.length < 2) return 'stable';
 
-    const first = values[0];
-    const last = values[values.length - 1];
-    if (first === undefined || last === undefined) return 'stable';
+    const first = values.at(0);
+    const last = values.at(-1);
+
+    if (!isDefined(first) || !isDefined(last)) return 'stable';
 
     const threshold = Math.abs(first) * 0.1; // 10% threshold
 
@@ -527,10 +529,10 @@ export class LiquidityEngine {
     let totalGap = 0;
 
     for (let i = 1; i < dates.length; i++) {
-      const current = dates[i];
-      const previous = dates[i - 1];
-      if (current !== undefined && previous !== undefined) {
-        totalGap += current - previous;
+      const currentDate = dates.at(i);
+      const previousDate = dates.at(i - 1);
+      if (isDefined(currentDate) && isDefined(previousDate)) {
+        totalGap += currentDate - previousDate;
       }
     }
 
@@ -747,15 +749,11 @@ export class LiquidityEngine {
     });
 
     callsByMonth.forEach(monthCalls => {
-      if (monthCalls.length === 1) {
-        const singleCall = monthCalls[0];
-        if (singleCall) {
-          consolidatedCalls.push(singleCall);
-        }
-      } else {
+      const firstCall = monthCalls.at(0);
+      if (monthCalls.length === 1 && isDefined(firstCall)) {
+        consolidatedCalls.push(firstCall);
+      } else if (isDefined(firstCall)) {
         // Merge multiple calls in the same month
-        const firstCall = monthCalls[0];
-        if (!firstCall) return;
 
         const mergedCall: OptimizedCapitalCall = {
           id: `consolidated-${consolidatedCalls.length}`,
@@ -794,9 +792,13 @@ export class LiquidityEngine {
 
     // Penalize calls too close together
     for (let i = 1; i < calls.length; i++) {
-      const daysBetween = (calls[i].noticeDate.getTime() - calls[i-1].noticeDate.getTime()) / (24 * 60 * 60 * 1000);
-      if (daysBetween < 30) { // Less than 30 days apart
-        score -= 5;
+      const currentCall = calls.at(i);
+      const previousCall = calls.at(i - 1);
+      if (isDefined(currentCall) && isDefined(previousCall)) {
+        const daysBetween = (currentCall.noticeDate.getTime() - previousCall.noticeDate.getTime()) / (24 * 60 * 60 * 1000);
+        if (daysBetween < 30) { // Less than 30 days apart
+          score -= 5;
+        }
       }
     }
 

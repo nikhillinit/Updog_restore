@@ -94,13 +94,13 @@ export function ReservesCard({
 
   // Safe calculation with guards for zero/undefined capital
   const reservesDollars =
-    Number.isFinite(committedCapitalUSD) && committedCapitalUSD! > 0
-      ? pctOfDollars(committedCapitalUSD!, value.reserveRatioPct)
+    Number.isFinite(committedCapitalUSD) && (committedCapitalUSD ?? 0) > 0
+      ? pctOfDollars(committedCapitalUSD ?? 0, value.reserveRatioPct)
       : 0;
 
   const summary = (
     <div className="text-sm text-muted-foreground">
-      {value.strategy} · Reserves {value.reserveRatioPct.toFixed(0)}% · Pro-rata{' '}
+      {value.strategy ?? 'proRata'} · Reserves {value.reserveRatioPct.toFixed(0)}% · Pro-rata{' '}
       {value.proRataParticipationRatePct.toFixed(0)}%
     </div>
   );
@@ -173,8 +173,8 @@ export function ReservesCard({
             onChange={(v: number) => updateField('reserveRatioPct', v)}
             contextChip="Common: 40–60%"
             helpText="% of total fund allocated to follow-on investments"
-            {...(firstError(errors ?? {}, 'reserveRatioPct') !== undefined ? { error: firstError(errors ?? {}, 'reserveRatioPct') } : {})}
             disabled={disabled}
+            {...(firstError(errors ?? {}, 'reserveRatioPct') !== undefined ? { error: firstError(errors ?? {}, 'reserveRatioPct')! } : {})}
           />
 
           <EnhancedField
@@ -184,8 +184,8 @@ export function ReservesCard({
             value={value.proRataParticipationRatePct}
             onChange={(v: number) => updateField('proRataParticipationRatePct', v)}
             helpText="How often you exercise your pro-rata rights"
-            {...(firstError(errors ?? {}, 'proRataParticipationRatePct') !== undefined ? { error: firstError(errors ?? {}, 'proRataParticipationRatePct') } : {})}
             disabled={disabled}
+            {...(firstError(errors ?? {}, 'proRataParticipationRatePct') !== undefined ? { error: firstError(errors ?? {}, 'proRataParticipationRatePct')! } : {})}
           />
 
           <EnhancedField
@@ -198,8 +198,8 @@ export function ReservesCard({
             onChange={(v: number) => updateField('followOnMultiple', v)}
             contextChip="Typical: 1.0–2.0×"
             helpText="Average dollar of follow-on per $1 initial (e.g., 1.5× means 150% of initial)"
-            {...(firstError(errors ?? {}, 'followOnMultiple') !== undefined ? { error: firstError(errors ?? {}, 'followOnMultiple') } : {})}
             disabled={disabled}
+            {...(firstError(errors ?? {}, 'followOnMultiple') !== undefined ? { error: firstError(errors ?? {}, 'followOnMultiple')! } : {})}
           />
 
           <EnhancedField
@@ -212,8 +212,8 @@ export function ReservesCard({
             value={value.maxFollowOnRounds ?? 3}
             onChange={(v: number) => updateField('maxFollowOnRounds', v)}
             helpText="Maximum number of follow-on investments per company"
-            {...(firstError(errors ?? {}, 'maxFollowOnRounds') !== undefined ? { error: firstError(errors ?? {}, 'maxFollowOnRounds') } : {})}
             disabled={disabled}
+            {...(firstError(errors ?? {}, 'maxFollowOnRounds') !== undefined ? { error: firstError(errors ?? {}, 'maxFollowOnRounds')! } : {})}
           />
         </div>
 
@@ -230,8 +230,8 @@ export function ReservesCard({
               value={value.targetReserveRatio ?? 1.0}
               onChange={(v: number) => updateField('targetReserveRatio', v)}
               helpText={`Reserve $${(value.targetReserveRatio ?? 1.0).toFixed(1)} for every $1 initial investment`}
-              {...(firstError(errors ?? {}, 'targetReserveRatio') !== undefined ? { error: firstError(errors ?? {}, 'targetReserveRatio') } : {})}
               disabled={disabled}
+              {...(firstError(errors ?? {}, 'targetReserveRatio') !== undefined ? { error: firstError(errors ?? {}, 'targetReserveRatio')! } : {})}
             />
           </div>
         )}
@@ -246,8 +246,8 @@ export function ReservesCard({
               onChange={(v: number) => updateField('topPerformersPct', v)}
               contextChip="Common: 20–40%"
               helpText={`Reserve capital for the top ${value.topPerformersPct ?? 30}% of portfolio by performance`}
-              {...(firstError(errors ?? {}, 'topPerformersPct') !== undefined ? { error: firstError(errors ?? {}, 'topPerformersPct') } : {})}
               disabled={disabled}
+              {...(firstError(errors ?? {}, 'topPerformersPct') !== undefined ? { error: firstError(errors ?? {}, 'topPerformersPct')! } : {})}
             />
           </div>
         )}
@@ -263,13 +263,13 @@ export function ReservesCard({
             <div className="text-center p-3 rounded-lg bg-white border">
               <p className="text-xs text-gray-600 mb-1">Initial Investments</p>
               <p className="font-bold text-lg">
-                {formatUSD(Math.max(0, committedCapitalUSD - reservesDollars))}
+                {formatUSD(Math.max(0, (committedCapitalUSD ?? 0) - reservesDollars))}
               </p>
             </div>
 
             <div className="text-center p-3 rounded-lg bg-white border col-span-2 md:col-span-1">
               <p className="text-xs text-gray-600 mb-1">Follow-on Multiple</p>
-              <p className="font-bold text-lg">{value.followOnMultiple.toFixed(1)}×</p>
+              <p className="font-bold text-lg">{(value.followOnMultiple ?? 0).toFixed(1)}×</p>
             </div>
           </div>
         )}

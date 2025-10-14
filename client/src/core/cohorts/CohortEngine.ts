@@ -58,7 +58,7 @@ function generateMockCompanies(cohortSize: number, _vintageYear: number) {
     return {
       id: i + 1,
       name: `${companyPrefixes[Math.floor(Math.random() * companyPrefixes.length)]}${companySuffixes[Math.floor(Math.random() * companySuffixes.length)]}`,
-      stage: stages[Math.floor(Math.random() * stages.length)],
+      stage: stages[Math.floor(Math.random() * stages.length)] ?? 'Seed',
       valuation: Math.round(baseValuation * growthFactor)
     };
   });

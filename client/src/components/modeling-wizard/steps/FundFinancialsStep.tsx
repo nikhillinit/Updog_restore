@@ -91,6 +91,16 @@ export function FundFinancialsStep({ initialData, onSave }: FundFinancialsStepPr
 
   // Calculate projections
   const projections = React.useMemo(() => {
+    // Filter out undefined optional properties to satisfy exactOptionalPropertyTypes
+    const safeExpenses = (additionalExpenses ?? []).map(exp => ({
+      id: exp.id,
+      name: exp.name,
+      amount: exp.amount,
+      ...(exp.type !== undefined ? { type: exp.type } : {}),
+      ...(exp.description !== undefined ? { description: exp.description } : {}),
+      ...(exp.year !== undefined ? { year: exp.year } : {})
+    }));
+
     return calculateProjections({
       targetFundSize: fundSize,
       investmentPeriod,
@@ -98,11 +108,11 @@ export function FundFinancialsStep({ initialData, onSave }: FundFinancialsStepPr
       cashlessSplit,
       managementFeeRate,
       stepDownEnabled,
-      stepDownYear,
-      stepDownRate,
-      scheduleType,
-      customSchedule,
-      additionalExpenses
+      ...(stepDownYear !== undefined ? { stepDownYear } : {}),
+      ...(stepDownRate !== undefined ? { stepDownRate } : {}),
+      ...(scheduleType !== undefined ? { scheduleType } : {}),
+      ...(customSchedule !== undefined ? { customSchedule } : {}),
+      additionalExpenses: safeExpenses
     });
   }, [
     fundSize,
@@ -290,7 +300,14 @@ export function FundFinancialsStep({ initialData, onSave }: FundFinancialsStepPr
           <CollapsibleContent>
             <div className="pt-4">
               <ExpenseList
-                expenses={additionalExpenses}
+                expenses={(additionalExpenses ?? []).map(exp => ({
+                  id: exp.id,
+                  name: exp.name,
+                  amount: exp.amount,
+                  ...(exp.type !== undefined ? { type: exp.type } : {}),
+                  ...(exp.description !== undefined ? { description: exp.description } : {}),
+                  ...(exp.year !== undefined ? { year: exp.year } : {})
+                }))}
                 onChange={(expenses) => setValue('additionalExpenses', expenses)}
               />
             </div>
@@ -306,7 +323,7 @@ export function FundFinancialsStep({ initialData, onSave }: FundFinancialsStepPr
         <CapitalCallSchedule
           scheduleType={scheduleType}
           investmentPeriod={investmentPeriod}
-          customSchedule={customSchedule}
+          {...(customSchedule !== undefined ? { customSchedule } : {})}
           onChange={(type, custom) => {
             setValue('capitalCallSchedule.type', type);
             if (custom) {
@@ -403,7 +420,13 @@ export function FundFinancialsStep({ initialData, onSave }: FundFinancialsStepPr
           projections={projections}
           organizationExpense={orgExpenses}
           netInvestableCapital={netInvestableCapital}
-          additionalExpenses={additionalExpenses}
+          additionalExpenses={(additionalExpenses ?? []).map(exp => ({
+            id: exp.id,
+            name: exp.name,
+            amount: exp.amount,
+            ...(exp.type !== undefined ? { type: exp.type } : {}),
+            ...(exp.year !== undefined ? { year: exp.year } : {})
+          }))}
         />
       </div>
     </form>

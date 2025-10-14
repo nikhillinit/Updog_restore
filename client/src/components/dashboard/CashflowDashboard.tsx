@@ -213,44 +213,44 @@ export default function CashflowDashboard({ fundId, className = '' }: CashflowDa
         <MetricCard
           title="Available Cash"
           value={analytics.liquidityForecast?.openingCash ? formatCurrencyShort(analytics.liquidityForecast.openingCash / 1000000) : '--'}
-          change={analytics.cashFlowAnalysis?.summary.netCashFlow ?
-            `${analytics.cashFlowAnalysis.summary.netCashFlow > 0 ? '+' : ''}${formatCurrencyShort(analytics.cashFlowAnalysis.summary.netCashFlow / 1000000)} this month` :
-            undefined}
-          trend={analytics.cashFlowAnalysis?.patterns.netFlowTrend}
-          icon={DollarSign}
+          {...(analytics.cashFlowAnalysis?.summary.netCashFlow ? {
+            change: `${analytics.cashFlowAnalysis.summary.netCashFlow > 0 ? '+' : ''}${formatCurrencyShort(analytics.cashFlowAnalysis.summary.netCashFlow / 1000000)} this month`
+          } : {})}
+          {...(analytics.cashFlowAnalysis?.patterns.netFlowTrend ? { trend: analytics.cashFlowAnalysis.patterns.netFlowTrend } : {})}
+          icon={DollarSign as React.ComponentType<{ className?: string }>}
           loading={analytics.isLoadingAnalysis}
         />
 
         <MetricCard
           title="Liquidity Ratio"
           value={analytics.liquidityForecast?.liquidityRatio ? analytics.liquidityForecast.liquidityRatio.toFixed(2) : '--'}
-          change={analytics.liquidityForecast?.liquidityRatio ?
-            `${analytics.liquidityForecast.liquidityRatio >= 1.5 ? 'Healthy' : 'Low'}` :
-            undefined}
+          {...(analytics.liquidityForecast?.liquidityRatio ? {
+            change: `${analytics.liquidityForecast.liquidityRatio >= 1.5 ? 'Healthy' : 'Low'}`
+          } : {})}
           trend={analytics.liquidityForecast?.liquidityRatio && analytics.liquidityForecast.liquidityRatio >= 1.5 ? 'stable' : 'decreasing'}
-          icon={Target}
+          icon={Target as React.ComponentType<{ className?: string }>}
           loading={analytics.isLoadingForecast}
         />
 
         <MetricCard
           title="Burn Rate"
           value={analytics.liquidityForecast?.burnRate ? `${formatCurrencyShort(analytics.liquidityForecast.burnRate / 1000000)  }/mo` : '--'}
-          change={liquidityMetrics?.deploymentRate ?
-            `${(liquidityMetrics.deploymentRate * 100).toFixed(1)}% deployment rate` :
-            undefined}
-          trend={analytics.cashFlowAnalysis?.patterns.outflowTrend}
-          icon={Activity}
+          {...(liquidityMetrics?.deploymentRate ? {
+            change: `${(liquidityMetrics.deploymentRate * 100).toFixed(1)}% deployment rate`
+          } : {})}
+          {...(analytics.cashFlowAnalysis?.patterns.outflowTrend ? { trend: analytics.cashFlowAnalysis.patterns.outflowTrend } : {})}
+          icon={Activity as React.ComponentType<{ className?: string }>}
           loading={analytics.isLoadingAnalysis}
         />
 
         <MetricCard
           title="Cash Runway"
           value={analytics.liquidityForecast?.runwayMonths ? `${analytics.liquidityForecast.runwayMonths.toFixed(1)}mo` : '--'}
-          change={analytics.liquidityForecast?.runwayMonths ?
-            `${analytics.liquidityForecast.runwayMonths >= 12 ? 'Excellent' : analytics.liquidityForecast.runwayMonths >= 6 ? 'Good' : 'Critical'}` :
-            undefined}
+          {...(analytics.liquidityForecast?.runwayMonths ? {
+            change: `${analytics.liquidityForecast.runwayMonths >= 12 ? 'Excellent' : analytics.liquidityForecast.runwayMonths >= 6 ? 'Good' : 'Critical'}`
+          } : {})}
           trend={analytics.liquidityForecast?.runwayMonths && analytics.liquidityForecast.runwayMonths >= 12 ? 'increasing' : analytics.liquidityForecast?.runwayMonths && analytics.liquidityForecast.runwayMonths >= 6 ? 'stable' : 'decreasing'}
-          icon={Clock}
+          icon={Clock as React.ComponentType<{ className?: string }>}
           loading={analytics.isLoadingForecast}
         />
       </div>

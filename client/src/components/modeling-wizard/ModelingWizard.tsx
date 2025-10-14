@@ -119,6 +119,15 @@ export function ModelingWizard({
     }
   };
 
+  // Gather step data (types-only optimization for exactOptionalPropertyTypes)
+  const generalInfoData = wizard.getStepData('generalInfo');
+  const sectorProfilesData = wizard.getStepData('sectorProfiles');
+  const capitalAllocationData = wizard.getStepData('capitalAllocation');
+  const feesExpensesData = wizard.getStepData('feesExpenses');
+  const exitRecyclingData = wizard.getStepData('exitRecycling');
+  const waterfallData = wizard.getStepData('waterfall');
+  const scenariosData = wizard.getStepData('scenarios');
+
   return (
     <WizardShell
       currentStep={wizard.currentStep}
@@ -142,7 +151,7 @@ export function ModelingWizard({
       {/* Step 1: General Info */}
       {wizard.currentStep === 'generalInfo' && (
         <GeneralInfoStep
-          {...(wizard.getStepData('generalInfo') !== undefined ? { initialData: wizard.getStepData('generalInfo') } : {})}
+          {...(generalInfoData !== undefined ? { initialData: generalInfoData } : {})}
           onSave={(data) => wizard.saveStep('generalInfo', data)}
         />
       )}
@@ -150,7 +159,7 @@ export function ModelingWizard({
       {/* Step 2: Sector Profiles */}
       {wizard.currentStep === 'sectorProfiles' && (
         <SectorProfilesStep
-          {...(wizard.getStepData('sectorProfiles') !== undefined ? { initialData: wizard.getStepData('sectorProfiles') } : {})}
+          {...(sectorProfilesData !== undefined ? { initialData: sectorProfilesData } : {})}
           onSave={(data) => wizard.saveStep('sectorProfiles', data)}
         />
       )}
@@ -158,7 +167,7 @@ export function ModelingWizard({
       {/* Step 3: Capital Allocation */}
       {wizard.currentStep === 'capitalAllocation' && (
         <CapitalAllocationStep
-          {...(wizard.getStepData('capitalAllocation') !== undefined ? { initialData: wizard.getStepData('capitalAllocation') } : {})}
+          {...(capitalAllocationData !== undefined ? { initialData: capitalAllocationData } : {})}
           onSave={(data) => wizard.saveStep('capitalAllocation', data)}
           fundFinancials={(wizard as any).getStepData?.('fundFinancials') || { fundSize: 100, investmentPeriod: 5, orgExpenses: 0, additionalExpenses: [], gpCommitment: 1, cashlessSplit: 50, managementFee: { rate: 2, stepDown: { enabled: false } } }}
           sectorProfiles={(wizard as any).getStepData?.('sectorProfiles')?.sectorProfiles || []}
@@ -168,7 +177,7 @@ export function ModelingWizard({
       {/* Step 4: Fees & Expenses */}
       {wizard.currentStep === 'feesExpenses' && (
         <FeesExpensesStep
-          {...(wizard.getStepData('feesExpenses') !== undefined ? { initialData: wizard.getStepData('feesExpenses') } : {})}
+          {...(feesExpensesData !== undefined ? { initialData: feesExpensesData } : {})}
           onSave={(data) => wizard.saveStep('feesExpenses', data)}
         />
       )}
@@ -176,7 +185,7 @@ export function ModelingWizard({
       {/* Step 5: Exit Recycling (Optional) */}
       {wizard.currentStep === 'exitRecycling' && (
         <ExitRecyclingStep
-          {...(wizard.getStepData('exitRecycling') !== undefined ? { initialData: wizard.getStepData('exitRecycling') } : {})}
+          {...(exitRecyclingData !== undefined ? { initialData: exitRecyclingData } : {})}
           onSave={(data) => wizard.saveStep('exitRecycling', data)}
           fundFinancials={(wizard as any).getStepData?.('fundFinancials') || { fundSize: 100, investmentPeriod: 5, orgExpenses: 0, additionalExpenses: [], gpCommitment: 1, cashlessSplit: 50, managementFee: { rate: 2, stepDown: { enabled: false } } }}
         />
@@ -185,7 +194,7 @@ export function ModelingWizard({
       {/* Step 6: Waterfall */}
       {wizard.currentStep === 'waterfall' && (
         <WaterfallStep
-          {...(wizard.getStepData('waterfall') !== undefined ? { initialData: wizard.getStepData('waterfall') } : {})}
+          {...(waterfallData !== undefined ? { initialData: waterfallData } : {})}
           onSave={(data) => wizard.saveStep('waterfall', data)}
         />
       )}
@@ -193,7 +202,7 @@ export function ModelingWizard({
       {/* Step 7: Scenarios */}
       {wizard.currentStep === 'scenarios' && (
         <ScenariosStep
-          {...(wizard.getStepData('scenarios') !== undefined ? { initialData: wizard.getStepData('scenarios') } : {})}
+          {...(scenariosData !== undefined ? { initialData: scenariosData } : {})}
           onSave={(data) => wizard.saveStep('scenarios', data)}
         />
       )}

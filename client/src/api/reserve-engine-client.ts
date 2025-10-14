@@ -245,12 +245,17 @@ export class ReserveEngineClient {
 
         const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-        const response = await fetch(url, {
+        const fetchOptions: RequestInit = {
           method,
           headers: this.buildHeaders(options?.headers),
-          body: body ? JSON.stringify(body) : undefined,
           signal,
-        });
+        };
+
+        if (body !== undefined) {
+          fetchOptions.body = JSON.stringify(body);
+        }
+
+        const response = await fetch(url, fetchOptions);
 
         clearTimeout(timeoutId);
 

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/table';
 import { formatCents, dollarsToCents } from '@/lib/units';
 import { getDeltaIcon, getDeltaColorClass } from '@/lib/reallocation-utils';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import type { SelectedCompany } from '@/types/reallocation';
 import type { PortfolioCompany } from '@shared/schema';
 
@@ -53,7 +54,7 @@ export function CompanySelectionTable({
         name: company.name,
         currentAllocation: company.plannedReservesCents || 0,
         newAllocation: company.plannedReservesCents || 0,
-        cap: company.allocationCapCents || undefined,
+        ...spreadIfDefined("cap", company.allocationCapCents ?? undefined),
       };
       onSelectionChange([...selectedCompanies, newSelection]);
     } else {

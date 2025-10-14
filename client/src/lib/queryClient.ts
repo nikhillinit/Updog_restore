@@ -20,8 +20,10 @@ export async function apiRequest(
 ): Promise<Response> {
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
+    ...(data ? {
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    } : {}),
     credentials: "include",
   });
 

@@ -103,7 +103,7 @@ export function calculateWeightedSummary(cases: ScenarioCase[]): WeightedSummary
     follow_ons: weightedValues['follow_ons'] || 0,
     exit_proceeds: weightedValues['exit_proceeds'] || 0,
     exit_valuation: weightedValues['exit_valuation'] || 0,
-    months_to_exit: weightedValues['months_to_exit'],
+    ...(weightedValues['months_to_exit'] !== undefined ? { months_to_exit: weightedValues['months_to_exit'] } : {}),
   };
 }
 
@@ -202,7 +202,7 @@ export function addMOICToCase(scenarioCase: ScenarioCase): ScenarioCase {
   const moicValue = calculateMOIC(scenarioCase.exit_proceeds, scenarioCase.investment);
   return {
     ...scenarioCase,
-    moic: moicValue ?? undefined,
+    ...(moicValue !== null ? { moic: moicValue } : {}),
   };
 }
 

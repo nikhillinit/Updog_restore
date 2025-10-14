@@ -166,3 +166,6 @@ STREAMLINED_*.md
 .github/instructions/
 tools_local/node_modules/
 reports/
+
+# lockfile backups
+.package-lock.json.backup.*

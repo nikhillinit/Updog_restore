@@ -98,7 +98,7 @@ export function ApiErrorState({
       title={title}
       message={message}
       error={error}
-      onRetry={onRetry}
+      {...(onRetry !== undefined ? { onRetry } : {})}
       className={className}
       showDetails={true}
     />
