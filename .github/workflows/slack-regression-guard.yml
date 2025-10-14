@@ -14,8 +14,10 @@ jobs:
       - name: Check for Slack references (shard ${{ matrix.shard }})
         run: |
           set -euo pipefail
-          # Split files across shards for faster execution
+          # Split files across shards for faster execution (disable pipefail for this command to handle SIGPIPE)
+          set +o pipefail
           files=$(git ls-files | head -n $((${{ matrix.shard }} * 500)))
+          set -o pipefail
 
           # Search tracked files for Slack indicators; allow known workflows; ignore backups/artifacts
           if git grep -n -i \
