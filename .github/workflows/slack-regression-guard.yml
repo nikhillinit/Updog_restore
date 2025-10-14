@@ -35,11 +35,12 @@ jobs:
             ':!**/*.backup*' \
             ':!**/.package-lock.json*' \
             ':!artifacts/**' \
+            ':!archive/**' \
             ':!docs/legacy/*' \
             ':!.migration/*' \
             ':!.config/*' \
             ':!*.md' \
-            ':!tatus' \
+            ':!**/*tatus*' \
             ':!docs/*' \
             ':!observability/*' \
             ':!packages/*/README.md' \
