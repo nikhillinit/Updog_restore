@@ -56,8 +56,8 @@ export function authed(
  * interface FundQuery { includeMetrics?: string; }
  *
  * const getFund: TypedHandler<FundParams, any, any, FundQuery> = async (req, res) => {
- *   const fundId = req.params.id;  // Typed as string
- *   const metrics = req.query.includeMetrics === 'true';  // Typed
+ *   const fundId = req.params["id"];  // Typed as string
+ *   const metrics = req.query["includeMetrics"] === 'true';  // Typed
  * };
  * ```
  */

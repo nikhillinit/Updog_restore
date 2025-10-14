@@ -240,7 +240,7 @@ async function getDevServerMetrics(): Promise<DevHealthMetrics['devServer']> {
 
   return {
     status: 'running',
-    port: parseInt(process.env.PORT || '5000'),
+    port: parseInt(process.env["PORT"] || '5000'),
     memory,
     uptime
   };

@@ -96,7 +96,7 @@ export function corsMiddleware(allowedOrigins?: string[]) {
     .filter(Boolean);
   
   return (req: any, res: any, next: any) => {
-    const origin = req.headers.origin;
+    const origin = req.headers["origin"];
     
     if (!origin || origins.length === 0 || origins.includes(origin)) {
       res['setHeader']('Access-Control-Allow-Origin', origin || '*');

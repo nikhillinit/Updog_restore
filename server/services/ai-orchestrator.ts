@@ -30,12 +30,12 @@ const CONFIG = {
 } as const;
 
 // Initialize AI clients (only if API keys present)
-const anthropic = process.env.ANTHROPIC_API_KEY
-  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const anthropic = process.env["ANTHROPIC_API_KEY"]
+  ? new Anthropic({ apiKey: process.env["ANTHROPIC_API_KEY"] })
   : null;
 
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+const openai = process.env["OPENAI_API_KEY"]
+  ? new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] })
   : null;
 
 const gemini = process.env["GOOGLE_API_KEY"]

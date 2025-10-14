@@ -52,11 +52,11 @@ router['get'](
   }),
   asyncHandler(async (req: any, res: any) => {
     const startTimer = Date.now();
-    const fundIdNum = parseInt(req.params.fundId, 10);
-    const startTimeStr = typeof req.query.startTime === 'string' ? req.query.startTime : undefined;
-    const endTimeStr = typeof req.query.endTime === 'string' ? req.query.endTime : undefined;
-    const limitNum = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : 100;
-    const offsetNum = typeof req.query.offset === 'string' ? parseInt(req.query.offset, 10) : 0;
+    const fundIdNum = parseInt(req.params["fundId"], 10);
+    const startTimeStr = typeof req.query["startTime"] === 'string' ? req.query["startTime"] : undefined;
+    const endTimeStr = typeof req.query["endTime"] === 'string' ? req.query["endTime"] : undefined;
+    const limitNum = typeof req.query["limit"] === 'string' ? parseInt(req.query["limit"], 10) : 100;
+    const offsetNum = typeof req.query["offset"] === 'string' ? parseInt(req.query["offset"], 10) : 0;
 
     // Build query conditions
     const conditions = [eq(fundEvents.fundId, fundIdNum)];
@@ -138,9 +138,9 @@ router['get'](
   }),
   asyncHandler(async (req: any, res: any) => {
     const startTimer = Date.now();
-    const fundIdNum = parseInt(req.params.fundId, 10);
-    const timestampStr = typeof req.query.timestamp === 'string' ? req.query.timestamp : '';
-    const includeEventsFlag = typeof req.query.includeEvents === 'string' ? req.query.includeEvents === 'true' : false;
+    const fundIdNum = parseInt(req.params["fundId"], 10);
+    const timestampStr = typeof req.query["timestamp"] === 'string' ? req.query["timestamp"] : '';
+    const includeEventsFlag = typeof req.query["includeEvents"] === 'string' ? req.query["includeEvents"] === 'true' : false;
     
     if (!timestampStr) {
       throw new ValidationError('timestamp is required');
@@ -223,7 +223,7 @@ router.post(
   }),
   asyncHandler(async (req: any, res: any) => {
     const startTimer = Date.now();
-    const fundIdNum = parseInt(req.params.fundId, 10);
+    const fundIdNum = parseInt(req.params["fundId"], 10);
     const { type, _description } = req.body;
 
     // Verify fund exists

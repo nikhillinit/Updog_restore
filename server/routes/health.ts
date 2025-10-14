@@ -419,7 +419,7 @@ router['get']('/api/version', (req: Request, res: Response) => {
     nodeVersion,
     platform,
     arch,
-    environment: process.env.NODE_ENV || 'development',
+    environment: process.env["NODE_ENV"] || 'development',
     timestamp: new Date().toISOString(),
   });
 });

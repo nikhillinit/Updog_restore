@@ -237,7 +237,7 @@ export async function createServer(
         email: 'dev@example.com',
         role: 'admin',
         orgId: 'dev-org',
-        fundId: req.params["fundId"] || req.query.fundId as string
+        fundId: req.params["fundId"] || req.query["fundId"] as string
       };
       return next();
     }

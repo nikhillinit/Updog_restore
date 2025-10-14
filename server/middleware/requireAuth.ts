@@ -40,7 +40,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
   // Option 2: API key auth (temporary for testing)
   const apiKey = req.headers['x-api-key'] as string;
-  if (apiKey && process.env["API_KEY"] && apiKey === process.env.API_KEY) {
+  if (apiKey && process.env["API_KEY"] && apiKey === process.env["API_KEY"]) {
     // Mock user for API key auth
     authReq.user = {
       id: 'api-key-user',

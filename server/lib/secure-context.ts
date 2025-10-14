@@ -55,7 +55,7 @@ export function extractUserContext(req: Request): UserContext | null {
     
     // Fund ID comes from route params, not headers
     if (req.params["fundId"]) {
-      context["fundId"] = req.params.fundId;
+      context["fundId"] = req.params["fundId"];
     }
     
     return context;

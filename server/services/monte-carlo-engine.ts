@@ -37,7 +37,7 @@ import { PRNG } from '@shared/utils/prng';
 const DEFAULT_RUNS = process.env["DEMO_MODE"] === 'true' ? 2_000 : 10_000;
 const MAX_RUNS = process.env["DEMO_MODE"] === 'true' ? 5_000 : 50_000;
 
-console["log"](`[Monte Carlo] Mode: ${process.env.DEMO_MODE === 'true' ? 'DEMO' : 'PRODUCTION'}, Default runs: ${DEFAULT_RUNS}, Max runs: ${MAX_RUNS}`);
+console["log"](`[Monte Carlo] Mode: ${process.env["DEMO_MODE"] === 'true' ? 'DEMO' : 'PRODUCTION'}, Default runs: ${DEFAULT_RUNS}, Max runs: ${MAX_RUNS}`);
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -420,7 +420,7 @@ export class MonteCarloEngine {
     const cappedRuns = Math.min(runs, MAX_RUNS);
 
     if (cappedRuns < runs) {
-      console["log"](`[Monte Carlo] Capped runs from ${runs} to ${cappedRuns} (mode: ${process.env.DEMO_MODE ? 'demo' : 'prod'})`);
+      console["log"](`[Monte Carlo] Capped runs from ${runs} to ${cappedRuns} (mode: ${process.env["DEMO_MODE"] ? 'demo' : 'prod'})`);
       config.runs = cappedRuns;
     }
 

@@ -749,7 +749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/admin/engine', engineAdminRoutes);
 
   // Development dashboard routes (development only)
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env["NODE_ENV"] === 'development') {
     const devDashboardRoutes = await import('./routes/dev-dashboard.js');
     app.use('/api/dev-dashboard', devDashboardRoutes.default);
   }
