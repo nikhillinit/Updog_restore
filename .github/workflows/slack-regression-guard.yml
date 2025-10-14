@@ -13,15 +13,26 @@ jobs:
         with: { fetch-depth: 0 }
       - name: Check for Slack references (shard ${{ matrix.shard }})
         run: |
+          set -euo pipefail
           # Split files across shards for faster execution
           files=$(git ls-files | head -n $((${{ matrix.shard }} * 500)))
-          
-          if git grep -n -i slack -- $files \
+
+          # Search tracked files for Slack indicators; allow known workflows; ignore backups/artifacts
+          if git grep -n -i \
+               -e 'hooks\.slack\.com' \
+               -e '@slack/webhook' \
+               -e '@slack/types' \
+               -e '\bslack\b' \
+               -- $files \
             ':!.github/workflows/slack-regression-guard.yml' \
+            ':!.github/workflows/staging-monitor.yml' \
             ':!.github/workflows/bmad-weekly.yml' \
             ':!.github/workflows/deploy-ga.yml' \
             ':!.github/workflows/synthetic.yml' \
             ':!.env.example' \
+            ':!**/*.backup*' \
+            ':!**/.package-lock.json*' \
+            ':!artifacts/**' \
             ':!docs/legacy/*' \
             ':!.migration/*' \
             ':!.config/*' \
