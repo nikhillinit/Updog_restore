@@ -834,7 +834,12 @@ export class VarianceTrackingService {
       if (!defaultBaseline.length) {
         throw new Error('No default baseline found for fund');
       }
-      finalBaselineId = defaultBaseline[0].id;
+      // Guard: ensure first baseline exists (redundant but satisfies TS2532)
+      const firstBaseline = defaultBaseline[0];
+      if (!firstBaseline) {
+        throw new Error('No default baseline found for fund');
+      }
+      finalBaselineId = firstBaseline.id;
     }
 
     // Generate variance report

@@ -216,6 +216,9 @@ class DevDashboardWebSocket {
       let match;
 
       while ((match = errorRegex.exec(output)) !== null) {
+        // Guard: ensure all match groups exist
+        if (!match[1] || !match[2] || !match[3]) continue;
+
         errors.push({
           file: match[1],
           line: parseInt(match[2]),
