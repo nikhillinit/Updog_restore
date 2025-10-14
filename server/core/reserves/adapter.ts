@@ -18,6 +18,7 @@ import type { ConstrainedReserveEngine } from '@shared/core/reserves/Constrained
 import type { MlClient } from './mlClient.js';
 import { logger } from '../../lib/logger.js';
 import { nanoid } from 'nanoid';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 // import { performanceMonitor } from '@shared/lib/performance-monitor.js';
 
 export interface FeatureFlagConfig {
@@ -285,10 +286,11 @@ export class FeatureFlaggedReserveEngine implements ReserveEnginePort {
       ].slice(0, 8),
     };
 
+    const perRound = ml.prediction.perRound || rules.prediction.perRound;
     const hybridDecision: ReserveDecision = {
       prediction: {
         recommendedReserve: Math.max(0, combinedReserve),
-        perRound: ml.prediction.perRound || rules.prediction.perRound,
+        ...spreadIfDefined('perRound', perRound),
         confidence: {
           low: Math.min(
             ml.prediction.confidence?.low || combinedReserve,

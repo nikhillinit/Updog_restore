@@ -10,6 +10,7 @@
  */
 
 import type { ValuationInputs, ValuationResult, ComparableCompany, PortfolioCompanyMetrics } from './types';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 /**
  * Validates valuation inputs are within logical ranges
@@ -137,7 +138,7 @@ export function calculateSandboxValuation(
       evWithControl: Math.round(evWithControl),
       finalValue: Math.round(finalValue),
       impliedMultiple: Math.round(impliedMultiple * 100) / 100, // Round to 2 decimals
-      vsLastRound,
+      ...spreadIfDefined('vsLastRound', vsLastRound),
     },
     calculatedAt: new Date(),
   };
