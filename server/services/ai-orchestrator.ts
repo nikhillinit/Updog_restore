@@ -528,14 +528,20 @@ export async function aiDebate({
     askAllAIs({ prompt: counterPrompt, models: [ai2], tags: [...tags, 'debate', 'counter'] }),
   ]);
 
-  const totalCost = (opening[0].cost_usd ?? 0) + (counter[0].cost_usd ?? 0);
+  const openingResponse = opening[0];
+  const counterResponse = counter[0];
+  if (!openingResponse || !counterResponse) {
+    throw new Error('Failed to get responses from AIs');
+  }
+
+  const totalCost = (openingResponse.cost_usd ?? 0) + (counterResponse.cost_usd ?? 0);
 
   return {
     topic,
     ai1,
     ai2,
-    opening: opening[0],
-    counter: counter[0],
+    opening: openingResponse,
+    counter: counterResponse,
     totalCost,
     elapsedMs: Date.now() - startTime,
   };
@@ -631,11 +637,16 @@ export async function collaborativeSolve({
         tags: [...tags, 'collaborative', 'sequential', `step-${i + 1}`],
       });
 
-      steps.push(result[0]);
+      const stepResponse = result[0];
+      if (!stepResponse) {
+        throw new Error(`Failed to get response from ${model}`);
+      }
+
+      steps.push(stepResponse);
 
       // Accumulate insights for next AI
-      if (result[0].text) {
-        cumulativeInsights += `\n\n## ${model.toUpperCase()}:\n${result[0].text}`;
+      if (stepResponse.text) {
+        cumulativeInsights += `\n\n## ${model.toUpperCase()}:\n${stepResponse.text}`;
       }
     }
   } else {
