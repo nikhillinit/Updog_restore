@@ -1,0 +1,2001 @@
+rest-express@1.3.2 c:\dev\Updog_restore
+├── @alloc/quick-lru@5.2.0 extraneous
+├─┬ @anthropic-ai/sdk@0.65.0
+│ ├─┬ json-schema-to-ts@3.1.1
+│ │ ├── @babel/runtime@7.28.4 deduped
+│ │ └── ts-algebra@2.0.0
+│ └── zod@3.25.76 deduped
+├── @google/generative-ai@0.24.1
+├─┬ @hookform/resolvers@3.10.0
+│ └── react-hook-form@7.65.0 deduped
+├─┬ @isaacs/cliui@8.0.2 extraneous
+│ ├── ansi-regex@6.2.2 extraneous
+│ ├── string-width-cjs@npm:string-width@4.2.3 deduped
+│ ├─┬ string-width@5.1.2 extraneous
+│ │ ├── eastasianwidth@0.2.0 deduped
+│ │ ├── emoji-regex@9.2.2 deduped
+│ │ └── strip-ansi@7.1.2 deduped
+│ ├── strip-ansi-cjs@npm:strip-ansi@6.0.1 deduped
+│ ├─┬ strip-ansi@7.1.2 extraneous
+│ │ └── ansi-regex@6.2.2 deduped
+│ ├── wrap-ansi-cjs@npm:wrap-ansi@7.0.0 deduped
+│ └── wrap-ansi@8.1.0 deduped
+├─┬ @jridgewell/gen-mapping@0.3.13 extraneous
+│ ├── @jridgewell/sourcemap-codec@1.5.5
+│ └── @jridgewell/trace-mapping@0.3.31 deduped
+├─┬ @jridgewell/trace-mapping@0.3.31
+│ ├── @jridgewell/resolve-uri@3.1.2
+│ └── @jridgewell/sourcemap-codec@1.5.5 deduped
+├─┬ @neondatabase/serverless@0.10.4
+│ └─┬ @types/pg@8.11.6
+│   ├── @types/node@20.19.21 deduped
+│   ├── pg-protocol@1.10.3
+│   └── pg-types@4.1.0
+├─┬ @nivo/line@0.99.0
+│ ├─┬ @nivo/annotations@0.99.0
+│ │ ├── @nivo/colors@0.99.0 deduped
+│ │ ├── @nivo/core@0.99.0 deduped
+│ │ ├── @nivo/theming@0.99.0 deduped
+│ │ ├── @react-spring/web@10.0.3 deduped
+│ │ ├── lodash@4.17.21 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @nivo/axes@0.99.0
+│ │ ├── @nivo/core@0.99.0 deduped
+│ │ ├── @nivo/scales@0.99.0 deduped
+│ │ ├── @nivo/text@0.99.0
+│ │ ├── @nivo/theming@0.99.0 deduped
+│ │ ├── @react-spring/web@10.0.3 deduped
+│ │ ├── @types/d3-format@1.4.5
+│ │ ├── @types/d3-time-format@2.3.4
+│ │ ├── d3-format@1.4.5
+│ │ ├── d3-time-format@3.0.0
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @nivo/colors@0.99.0
+│ │ ├── @nivo/core@0.99.0 deduped
+│ │ ├── @nivo/theming@0.99.0 deduped
+│ │ ├── @types/d3-color@3.1.3
+│ │ ├── @types/d3-scale-chromatic@3.1.0
+│ │ ├── @types/d3-scale@4.0.9 deduped
+│ │ ├── d3-color@3.1.0
+│ │ ├── d3-scale-chromatic@3.1.0
+│ │ ├── d3-scale@4.0.2 deduped
+│ │ ├── lodash@4.17.21 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @nivo/core@0.99.0
+│ │ ├── @nivo/theming@0.99.0 deduped
+│ │ ├── @nivo/tooltip@0.99.0 deduped
+│ │ ├── @react-spring/web@10.0.3 deduped
+│ │ ├── @types/d3-shape@3.1.7 deduped
+│ │ ├── d3-color@3.1.0 deduped
+│ │ ├── d3-format@1.4.5 deduped
+│ │ ├── d3-interpolate@3.0.1
+│ │ ├── d3-scale-chromatic@3.1.0 deduped
+│ │ ├── d3-scale@4.0.2 deduped
+│ │ ├── d3-shape@3.2.0 deduped
+│ │ ├── d3-time-format@3.0.0 deduped
+│ │ ├── lodash@4.17.21 deduped
+│ │ ├── react-virtualized-auto-sizer@1.0.26
+│ │ ├── react@18.3.1 deduped
+│ │ └── use-debounce@10.0.6
+│ ├─┬ @nivo/legends@0.99.0
+│ │ ├── @nivo/colors@0.99.0 deduped
+│ │ ├── @nivo/core@0.99.0 deduped
+│ │ ├── @nivo/text@0.99.0 deduped
+│ │ ├── @nivo/theming@0.99.0 deduped
+│ │ ├── @types/d3-scale@4.0.9 deduped
+│ │ ├── d3-scale@4.0.2 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @nivo/scales@0.99.0
+│ │ ├── @types/d3-interpolate@3.0.4
+│ │ ├── @types/d3-scale@4.0.9 deduped
+│ │ ├── @types/d3-time-format@3.0.4
+│ │ ├── @types/d3-time@1.1.4
+│ │ ├── d3-interpolate@3.0.1 deduped
+│ │ ├── d3-scale@4.0.2 deduped
+│ │ ├── d3-time-format@3.0.0 deduped
+│ │ ├── d3-time@1.1.0
+│ │ └── lodash@4.17.21 deduped
+│ ├─┬ @nivo/theming@0.99.0
+│ │ ├── lodash@4.17.21 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @nivo/tooltip@0.99.0
+│ │ ├── @nivo/core@0.99.0 deduped
+│ │ ├── @nivo/theming@0.99.0 deduped
+│ │ ├── @react-spring/web@10.0.3 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @nivo/voronoi@0.99.0
+│ │ ├── @nivo/core@0.99.0 deduped
+│ │ ├── @nivo/theming@0.99.0 deduped
+│ │ ├── @nivo/tooltip@0.99.0 deduped
+│ │ ├── @types/d3-delaunay@6.0.4
+│ │ ├── @types/d3-scale@4.0.9 deduped
+│ │ ├── d3-delaunay@6.0.4
+│ │ ├── d3-scale@4.0.2 deduped
+│ │ └── react@18.3.1 deduped
+│ ├── @react-spring/web@10.0.3 deduped
+│ ├─┬ @types/d3-shape@3.1.7
+│ │ └── @types/d3-path@3.1.1
+│ ├─┬ d3-shape@3.2.0
+│ │ └── d3-path@3.1.0
+│ └── react@18.3.1 deduped
+├─┬ @nivo/scatterplot@0.99.0
+│ ├── @nivo/annotations@0.99.0 deduped
+│ ├── @nivo/axes@0.99.0 deduped
+│ ├── @nivo/colors@0.99.0 deduped
+│ ├── @nivo/core@0.99.0 deduped
+│ ├── @nivo/legends@0.99.0 deduped
+│ ├── @nivo/scales@0.99.0 deduped
+│ ├── @nivo/theming@0.99.0 deduped
+│ ├── @nivo/tooltip@0.99.0 deduped
+│ ├── @nivo/voronoi@0.99.0 deduped
+│ ├── @react-spring/web@10.0.3 deduped
+│ ├─┬ @types/d3-scale@4.0.9
+│ │ └── @types/d3-time@1.1.4 deduped
+│ ├── @types/d3-shape@3.1.7 deduped
+│ ├─┬ d3-scale@4.0.2
+│ │ ├── d3-array@3.2.4
+│ │ ├── d3-format@1.4.5 deduped
+│ │ ├── d3-interpolate@3.0.1 deduped
+│ │ ├── d3-time-format@3.0.0 deduped
+│ │ └── d3-time@3.1.0
+│ ├── d3-shape@3.2.0 deduped
+│ ├── lodash@4.17.21
+│ └── react@18.3.1 deduped
+├── @notionhq/client@4.0.2
+├─┬ @opentelemetry/auto-instrumentations-node@0.65.0
+│ ├── @opentelemetry/api@1.9.0
+│ ├─┬ @opentelemetry/core@2.1.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-amqplib@0.53.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ └── @opentelemetry/instrumentation@0.206.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-aws-lambda@0.58.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ ├── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ │ └── @types/aws-lambda@8.10.152
+│ ├─┬ @opentelemetry/instrumentation-aws-sdk@0.62.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-bunyan@0.52.0
+│ │ ├── @opentelemetry/api-logs@0.206.0 deduped
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @types/bunyan@1.8.11
+│ ├─┬ @opentelemetry/instrumentation-cassandra-driver@0.52.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ └── @opentelemetry/instrumentation@0.206.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-connect@0.50.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ ├── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ │ └── @types/connect@3.4.38
+│ ├─┬ @opentelemetry/instrumentation-cucumber@0.22.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-dataloader@0.24.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ └── @opentelemetry/instrumentation@0.206.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-dns@0.50.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ └── @opentelemetry/instrumentation@0.206.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-express@0.55.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-fastify@0.51.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-fs@0.26.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ └── @opentelemetry/instrumentation@0.206.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-generic-pool@0.50.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ └── @opentelemetry/instrumentation@0.206.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-graphql@0.54.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ └── @opentelemetry/instrumentation@0.206.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-grpc@0.206.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-hapi@0.53.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-http@0.206.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ ├── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ │ └── forwarded-parse@2.1.2
+│ ├─┬ @opentelemetry/instrumentation-ioredis@0.54.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @opentelemetry/redis-common@0.38.2
+│ ├─┬ @opentelemetry/instrumentation-kafkajs@0.16.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-knex@0.51.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-koa@0.55.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-lru-memoizer@0.51.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ └── @opentelemetry/instrumentation@0.206.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-memcached@0.50.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @types/memcached@2.2.10
+│ ├─┬ @opentelemetry/instrumentation-mongodb@0.59.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ └── @opentelemetry/instrumentation@0.206.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-mongoose@0.53.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ └── @opentelemetry/instrumentation@0.206.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-mysql@0.52.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @types/mysql@2.15.27
+│ ├─┬ @opentelemetry/instrumentation-mysql2@0.53.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @opentelemetry/sql-common@0.41.2
+│ ├─┬ @opentelemetry/instrumentation-nestjs-core@0.53.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-net@0.50.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ └── @opentelemetry/instrumentation@0.206.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-oracledb@0.32.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ ├── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ │ └── @types/oracledb@6.5.2
+│ ├─┬ @opentelemetry/instrumentation-pg@0.59.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ ├── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ │ ├── @opentelemetry/sql-common@0.41.2 deduped
+│ │ ├── @types/pg-pool@2.0.6
+│ │ └── @types/pg@8.15.5
+│ ├─┬ @opentelemetry/instrumentation-pino@0.53.0
+│ │ ├── @opentelemetry/api-logs@0.206.0 deduped
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ └── @opentelemetry/instrumentation@0.206.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-redis@0.55.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ ├── @opentelemetry/redis-common@0.38.2 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-restify@0.52.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-router@0.51.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-runtime-node@0.20.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ └── @opentelemetry/instrumentation@0.206.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-socket.io@0.53.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ └── @opentelemetry/instrumentation@0.206.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-tedious@0.25.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @types/tedious@4.0.14
+│ ├─┬ @opentelemetry/instrumentation-undici@0.17.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/instrumentation-winston@0.51.0
+│ │ ├── @opentelemetry/api-logs@0.206.0 deduped
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ └── @opentelemetry/instrumentation@0.206.0 deduped
+│ ├─┬ @opentelemetry/instrumentation@0.206.0
+│ │ ├── @opentelemetry/api-logs@0.206.0 deduped
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── import-in-the-middle@1.15.0
+│ │ └── require-in-the-middle@8.0.0
+│ ├─┬ @opentelemetry/resource-detector-alibaba-cloud@0.31.9
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ └── @opentelemetry/resources@2.1.0 deduped
+│ ├─┬ @opentelemetry/resource-detector-aws@2.6.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/resources@2.1.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/resource-detector-azure@0.14.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/resources@2.1.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/resource-detector-container@0.7.9
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ └── @opentelemetry/resources@2.1.0 deduped
+│ ├─┬ @opentelemetry/resource-detector-gcp@0.41.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/resources@2.1.0 deduped
+│ │ └── gcp-metadata@6.1.1
+│ ├── @opentelemetry/resources@2.1.0 deduped
+│ └── @opentelemetry/sdk-node@0.206.0 deduped
+├─┬ @opentelemetry/exporter-metrics-otlp-http@0.206.0
+│ ├── @opentelemetry/api@1.9.0 deduped
+│ ├── @opentelemetry/core@2.1.0 deduped
+│ ├─┬ @opentelemetry/otlp-exporter-base@0.206.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ └── @opentelemetry/otlp-transformer@0.206.0 deduped
+│ ├─┬ @opentelemetry/otlp-transformer@0.206.0
+│ │ ├── @opentelemetry/api-logs@0.206.0 deduped
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/resources@2.1.0 deduped
+│ │ ├── @opentelemetry/sdk-logs@0.206.0 deduped
+│ │ ├── @opentelemetry/sdk-metrics@2.1.0 deduped
+│ │ ├── @opentelemetry/sdk-trace-base@2.1.0 deduped
+│ │ └── protobufjs@7.5.4
+│ ├── @opentelemetry/resources@2.1.0 deduped
+│ └─┬ @opentelemetry/sdk-metrics@2.1.0
+│   ├── @opentelemetry/api@1.9.0 deduped
+│   ├── @opentelemetry/core@2.1.0 deduped
+│   └── @opentelemetry/resources@2.1.0 deduped
+├─┬ @opentelemetry/resources@2.1.0
+│ ├── @opentelemetry/api@1.9.0 deduped
+│ ├── @opentelemetry/core@2.1.0 deduped
+│ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+├─┬ @opentelemetry/sdk-node@0.206.0
+│ ├─┬ @opentelemetry/api-logs@0.206.0
+│ │ └── @opentelemetry/api@1.9.0 deduped
+│ ├── @opentelemetry/api@1.9.0 deduped
+│ ├── @opentelemetry/core@2.1.0 deduped
+│ ├─┬ @opentelemetry/exporter-logs-otlp-grpc@0.206.0
+│ │ ├── @grpc/grpc-js@1.14.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/otlp-exporter-base@0.206.0 deduped
+│ │ ├── @opentelemetry/otlp-grpc-exporter-base@0.206.0
+│ │ ├── @opentelemetry/otlp-transformer@0.206.0 deduped
+│ │ └── @opentelemetry/sdk-logs@0.206.0 deduped
+│ ├─┬ @opentelemetry/exporter-logs-otlp-http@0.206.0
+│ │ ├── @opentelemetry/api-logs@0.206.0 deduped
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/otlp-exporter-base@0.206.0 deduped
+│ │ ├── @opentelemetry/otlp-transformer@0.206.0 deduped
+│ │ └── @opentelemetry/sdk-logs@0.206.0 deduped
+│ ├─┬ @opentelemetry/exporter-logs-otlp-proto@0.206.0
+│ │ ├── @opentelemetry/api-logs@0.206.0 deduped
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/otlp-exporter-base@0.206.0 deduped
+│ │ ├── @opentelemetry/otlp-transformer@0.206.0 deduped
+│ │ ├── @opentelemetry/resources@2.1.0 deduped
+│ │ ├── @opentelemetry/sdk-logs@0.206.0 deduped
+│ │ └── @opentelemetry/sdk-trace-base@2.1.0 deduped
+│ ├─┬ @opentelemetry/exporter-metrics-otlp-grpc@0.206.0
+│ │ ├── @grpc/grpc-js@1.14.0 deduped
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/exporter-metrics-otlp-http@0.206.0 deduped
+│ │ ├── @opentelemetry/otlp-exporter-base@0.206.0 deduped
+│ │ ├── @opentelemetry/otlp-grpc-exporter-base@0.206.0 deduped
+│ │ ├── @opentelemetry/otlp-transformer@0.206.0 deduped
+│ │ ├── @opentelemetry/resources@2.1.0 deduped
+│ │ └── @opentelemetry/sdk-metrics@2.1.0 deduped
+│ ├── @opentelemetry/exporter-metrics-otlp-http@0.206.0 deduped
+│ ├─┬ @opentelemetry/exporter-metrics-otlp-proto@0.206.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/exporter-metrics-otlp-http@0.206.0 deduped
+│ │ ├── @opentelemetry/otlp-exporter-base@0.206.0 deduped
+│ │ ├── @opentelemetry/otlp-transformer@0.206.0 deduped
+│ │ ├── @opentelemetry/resources@2.1.0 deduped
+│ │ └── @opentelemetry/sdk-metrics@2.1.0 deduped
+│ ├─┬ @opentelemetry/exporter-prometheus@0.206.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/resources@2.1.0 deduped
+│ │ └── @opentelemetry/sdk-metrics@2.1.0 deduped
+│ ├─┬ @opentelemetry/exporter-trace-otlp-grpc@0.206.0
+│ │ ├── @grpc/grpc-js@1.14.0 deduped
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/otlp-exporter-base@0.206.0 deduped
+│ │ ├── @opentelemetry/otlp-grpc-exporter-base@0.206.0 deduped
+│ │ ├── @opentelemetry/otlp-transformer@0.206.0 deduped
+│ │ ├── @opentelemetry/resources@2.1.0 deduped
+│ │ └── @opentelemetry/sdk-trace-base@2.1.0 deduped
+│ ├─┬ @opentelemetry/exporter-trace-otlp-http@0.206.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/otlp-exporter-base@0.206.0 deduped
+│ │ ├── @opentelemetry/otlp-transformer@0.206.0 deduped
+│ │ ├── @opentelemetry/resources@2.1.0 deduped
+│ │ └── @opentelemetry/sdk-trace-base@2.1.0 deduped
+│ ├─┬ @opentelemetry/exporter-trace-otlp-proto@0.206.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/otlp-exporter-base@0.206.0 deduped
+│ │ ├── @opentelemetry/otlp-transformer@0.206.0 deduped
+│ │ ├── @opentelemetry/resources@2.1.0 deduped
+│ │ └── @opentelemetry/sdk-trace-base@2.1.0 deduped
+│ ├─┬ @opentelemetry/exporter-zipkin@2.1.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/resources@2.1.0 deduped
+│ │ ├── @opentelemetry/sdk-trace-base@2.1.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├── @opentelemetry/instrumentation@0.206.0 deduped
+│ ├─┬ @opentelemetry/propagator-b3@2.1.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ └── @opentelemetry/core@2.1.0 deduped
+│ ├─┬ @opentelemetry/propagator-jaeger@2.1.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ └── @opentelemetry/core@2.1.0 deduped
+│ ├── @opentelemetry/resources@2.1.0 deduped
+│ ├─┬ @opentelemetry/sdk-logs@0.206.0
+│ │ ├── @opentelemetry/api-logs@0.206.0 deduped
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ └── @opentelemetry/resources@2.1.0 deduped
+│ ├── @opentelemetry/sdk-metrics@2.1.0 deduped
+│ ├─┬ @opentelemetry/sdk-trace-base@2.1.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ ├── @opentelemetry/resources@2.1.0 deduped
+│ │ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+│ ├─┬ @opentelemetry/sdk-trace-node@2.1.0
+│ │ ├── @opentelemetry/api@1.9.0 deduped
+│ │ ├── @opentelemetry/context-async-hooks@2.1.0
+│ │ ├── @opentelemetry/core@2.1.0 deduped
+│ │ └── @opentelemetry/sdk-trace-base@2.1.0 deduped
+│ └── @opentelemetry/semantic-conventions@1.37.0 deduped
+├── @opentelemetry/semantic-conventions@1.37.0
+├── @pkgjs/parseargs@0.11.0 extraneous
+├─┬ @radix-ui/react-accordion@1.2.12
+│ ├── @radix-ui/primitive@1.1.3
+│ ├── @radix-ui/react-collapsible@1.1.12 deduped
+│ ├─┬ @radix-ui/react-collection@1.1.7
+│ │ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ │ ├── @radix-ui/react-context@1.1.2 deduped
+│ │ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ │ ├── @radix-ui/react-slot@1.2.3 deduped
+│ │ ├── @types/react-dom@18.3.7 deduped
+│ │ ├── @types/react@18.3.26 deduped
+│ │ ├── react-dom@18.3.1 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @radix-ui/react-compose-refs@1.1.2
+│ │ ├── @types/react@18.3.26 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @radix-ui/react-context@1.1.2
+│ │ ├── @types/react@18.3.26 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @radix-ui/react-direction@1.1.1
+│ │ ├── @types/react@18.3.26 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @radix-ui/react-id@1.1.1
+│ │ ├── @radix-ui/react-use-layout-effect@1.1.1 deduped
+│ │ ├── @types/react@18.3.26 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @radix-ui/react-primitive@2.1.3
+│ │ ├── @radix-ui/react-slot@1.2.3 deduped
+│ │ ├── @types/react-dom@18.3.7 deduped
+│ │ ├── @types/react@18.3.26 deduped
+│ │ ├── react-dom@18.3.1 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @radix-ui/react-use-controllable-state@1.2.2
+│ │ ├── @radix-ui/react-use-effect-event@0.0.2
+│ │ ├── @radix-ui/react-use-layout-effect@1.1.1 deduped
+│ │ ├── @types/react@18.3.26 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @types/react-dom@18.3.7
+│ │ └── @types/react@18.3.26 deduped
+│ ├─┬ @types/react@18.3.26
+│ │ ├── @types/prop-types@15.7.15
+│ │ └── csstype@3.1.3
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-alert-dialog@1.1.15
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-dialog@1.1.15 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-slot@1.2.3 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-aspect-ratio@1.1.7
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-avatar@1.1.10
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├─┬ @radix-ui/react-use-callback-ref@1.1.1
+│ │ ├── @types/react@18.3.26 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @radix-ui/react-use-is-hydrated@0.1.0
+│ │ ├── @types/react@18.3.26 deduped
+│ │ ├── react@18.3.1 deduped
+│ │ └── use-sync-external-store@1.6.0 deduped
+│ ├─┬ @radix-ui/react-use-layout-effect@1.1.1
+│ │ ├── @types/react@18.3.26 deduped
+│ │ └── react@18.3.1 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-checkbox@1.3.3
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├─┬ @radix-ui/react-presence@1.1.5
+│ │ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ │ ├── @radix-ui/react-use-layout-effect@1.1.1 deduped
+│ │ ├── @types/react-dom@18.3.7 deduped
+│ │ ├── @types/react@18.3.26 deduped
+│ │ ├── react-dom@18.3.1 deduped
+│ │ └── react@18.3.1 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├─┬ @radix-ui/react-use-previous@1.1.1
+│ │ ├── @types/react@18.3.26 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @radix-ui/react-use-size@1.1.1
+│ │ ├── @radix-ui/react-use-layout-effect@1.1.1 deduped
+│ │ ├── @types/react@18.3.26 deduped
+│ │ └── react@18.3.1 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-collapsible@1.1.12
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-id@1.1.1 deduped
+│ ├── @radix-ui/react-presence@1.1.5 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├── @radix-ui/react-use-layout-effect@1.1.1 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-context-menu@2.2.16
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├─┬ @radix-ui/react-menu@2.1.16
+│ │ ├── @radix-ui/primitive@1.1.3 deduped
+│ │ ├── @radix-ui/react-collection@1.1.7 deduped
+│ │ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ │ ├── @radix-ui/react-context@1.1.2 deduped
+│ │ ├── @radix-ui/react-direction@1.1.1 deduped
+│ │ ├── @radix-ui/react-dismissable-layer@1.1.11 deduped
+│ │ ├── @radix-ui/react-focus-guards@1.1.3 deduped
+│ │ ├── @radix-ui/react-focus-scope@1.1.7 deduped
+│ │ ├── @radix-ui/react-id@1.1.1 deduped
+│ │ ├── @radix-ui/react-popper@1.2.8 deduped
+│ │ ├── @radix-ui/react-portal@1.1.9 deduped
+│ │ ├── @radix-ui/react-presence@1.1.5 deduped
+│ │ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ │ ├── @radix-ui/react-roving-focus@1.1.11 deduped
+│ │ ├── @radix-ui/react-slot@1.2.3 deduped
+│ │ ├── @radix-ui/react-use-callback-ref@1.1.1 deduped
+│ │ ├── @types/react-dom@18.3.7 deduped
+│ │ ├── @types/react@18.3.26 deduped
+│ │ ├── aria-hidden@1.2.6 deduped
+│ │ ├── react-dom@18.3.1 deduped
+│ │ ├── react-remove-scroll@2.7.1 deduped
+│ │ └── react@18.3.1 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-use-callback-ref@1.1.1 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-dialog@1.1.15
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├─┬ @radix-ui/react-dismissable-layer@1.1.11
+│ │ ├── @radix-ui/primitive@1.1.3 deduped
+│ │ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ │ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ │ ├── @radix-ui/react-use-callback-ref@1.1.1 deduped
+│ │ ├── @radix-ui/react-use-escape-keydown@1.1.1
+│ │ ├── @types/react-dom@18.3.7 deduped
+│ │ ├── @types/react@18.3.26 deduped
+│ │ ├── react-dom@18.3.1 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @radix-ui/react-focus-guards@1.1.3
+│ │ ├── @types/react@18.3.26 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @radix-ui/react-focus-scope@1.1.7
+│ │ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ │ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ │ ├── @radix-ui/react-use-callback-ref@1.1.1 deduped
+│ │ ├── @types/react-dom@18.3.7 deduped
+│ │ ├── @types/react@18.3.26 deduped
+│ │ ├── react-dom@18.3.1 deduped
+│ │ └── react@18.3.1 deduped
+│ ├── @radix-ui/react-id@1.1.1 deduped
+│ ├─┬ @radix-ui/react-portal@1.1.9
+│ │ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ │ ├── @radix-ui/react-use-layout-effect@1.1.1 deduped
+│ │ ├── @types/react-dom@18.3.7 deduped
+│ │ ├── @types/react@18.3.26 deduped
+│ │ ├── react-dom@18.3.1 deduped
+│ │ └── react@18.3.1 deduped
+│ ├── @radix-ui/react-presence@1.1.5 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-slot@1.2.3 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├─┬ aria-hidden@1.2.6
+│ │ └── tslib@2.8.1 deduped
+│ ├── react-dom@18.3.1 deduped
+│ ├─┬ react-remove-scroll@2.7.1
+│ │ ├── @types/react@18.3.26 deduped
+│ │ ├── react-remove-scroll-bar@2.3.8
+│ │ ├── react-style-singleton@2.2.3
+│ │ ├── react@18.3.1 deduped
+│ │ ├── tslib@2.8.1 deduped
+│ │ ├── use-callback-ref@1.3.3
+│ │ └── use-sidecar@1.1.3
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-dropdown-menu@2.1.16
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-id@1.1.1 deduped
+│ ├── @radix-ui/react-menu@2.1.16 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-hover-card@1.1.15
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-dismissable-layer@1.1.11 deduped
+│ ├─┬ @radix-ui/react-popper@1.2.8
+│ │ ├── @floating-ui/react-dom@2.1.6
+│ │ ├── @radix-ui/react-arrow@1.1.7
+│ │ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ │ ├── @radix-ui/react-context@1.1.2 deduped
+│ │ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ │ ├── @radix-ui/react-use-callback-ref@1.1.1 deduped
+│ │ ├── @radix-ui/react-use-layout-effect@1.1.1 deduped
+│ │ ├── @radix-ui/react-use-rect@1.1.1
+│ │ ├── @radix-ui/react-use-size@1.1.1 deduped
+│ │ ├── @radix-ui/rect@1.1.1
+│ │ ├── @types/react-dom@18.3.7 deduped
+│ │ ├── @types/react@18.3.26 deduped
+│ │ ├── react-dom@18.3.1 deduped
+│ │ └── react@18.3.1 deduped
+│ ├── @radix-ui/react-portal@1.1.9 deduped
+│ ├── @radix-ui/react-presence@1.1.5 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-label@2.1.7
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-menubar@1.1.16
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-collection@1.1.7 deduped
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-direction@1.1.1 deduped
+│ ├── @radix-ui/react-id@1.1.1 deduped
+│ ├── @radix-ui/react-menu@2.1.16 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├─┬ @radix-ui/react-roving-focus@1.1.11
+│ │ ├── @radix-ui/primitive@1.1.3 deduped
+│ │ ├── @radix-ui/react-collection@1.1.7 deduped
+│ │ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ │ ├── @radix-ui/react-context@1.1.2 deduped
+│ │ ├── @radix-ui/react-direction@1.1.1 deduped
+│ │ ├── @radix-ui/react-id@1.1.1 deduped
+│ │ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ │ ├── @radix-ui/react-use-callback-ref@1.1.1 deduped
+│ │ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ │ ├── @types/react-dom@18.3.7 deduped
+│ │ ├── @types/react@18.3.26 deduped
+│ │ ├── react-dom@18.3.1 deduped
+│ │ └── react@18.3.1 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-navigation-menu@1.2.14
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-collection@1.1.7 deduped
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-direction@1.1.1 deduped
+│ ├── @radix-ui/react-dismissable-layer@1.1.11 deduped
+│ ├── @radix-ui/react-id@1.1.1 deduped
+│ ├── @radix-ui/react-presence@1.1.5 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-use-callback-ref@1.1.1 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├── @radix-ui/react-use-layout-effect@1.1.1 deduped
+│ ├── @radix-ui/react-use-previous@1.1.1 deduped
+│ ├─┬ @radix-ui/react-visually-hidden@1.2.3
+│ │ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ │ ├── @types/react-dom@18.3.7 deduped
+│ │ ├── @types/react@18.3.26 deduped
+│ │ ├── react-dom@18.3.1 deduped
+│ │ └── react@18.3.1 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-popover@1.1.15
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-dismissable-layer@1.1.11 deduped
+│ ├── @radix-ui/react-focus-guards@1.1.3 deduped
+│ ├── @radix-ui/react-focus-scope@1.1.7 deduped
+│ ├── @radix-ui/react-id@1.1.1 deduped
+│ ├── @radix-ui/react-popper@1.2.8 deduped
+│ ├── @radix-ui/react-portal@1.1.9 deduped
+│ ├── @radix-ui/react-presence@1.1.5 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-slot@1.2.3 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── aria-hidden@1.2.6 deduped
+│ ├── react-dom@18.3.1 deduped
+│ ├── react-remove-scroll@2.7.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-progress@1.1.7
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-radio-group@1.3.8
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-direction@1.1.1 deduped
+│ ├── @radix-ui/react-presence@1.1.5 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-roving-focus@1.1.11 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├── @radix-ui/react-use-previous@1.1.1 deduped
+│ ├── @radix-ui/react-use-size@1.1.1 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-scroll-area@1.2.10
+│ ├── @radix-ui/number@1.1.1
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-direction@1.1.1 deduped
+│ ├── @radix-ui/react-presence@1.1.5 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-use-callback-ref@1.1.1 deduped
+│ ├── @radix-ui/react-use-layout-effect@1.1.1 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-select@2.2.6
+│ ├── @radix-ui/number@1.1.1 deduped
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-collection@1.1.7 deduped
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-direction@1.1.1 deduped
+│ ├── @radix-ui/react-dismissable-layer@1.1.11 deduped
+│ ├── @radix-ui/react-focus-guards@1.1.3 deduped
+│ ├── @radix-ui/react-focus-scope@1.1.7 deduped
+│ ├── @radix-ui/react-id@1.1.1 deduped
+│ ├── @radix-ui/react-popper@1.2.8 deduped
+│ ├── @radix-ui/react-portal@1.1.9 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-slot@1.2.3 deduped
+│ ├── @radix-ui/react-use-callback-ref@1.1.1 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├── @radix-ui/react-use-layout-effect@1.1.1 deduped
+│ ├── @radix-ui/react-use-previous@1.1.1 deduped
+│ ├── @radix-ui/react-visually-hidden@1.2.3 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── aria-hidden@1.2.6 deduped
+│ ├── react-dom@18.3.1 deduped
+│ ├── react-remove-scroll@2.7.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-separator@1.1.7
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-slider@1.3.6
+│ ├── @radix-ui/number@1.1.1 deduped
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-collection@1.1.7 deduped
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-direction@1.1.1 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├── @radix-ui/react-use-layout-effect@1.1.1 deduped
+│ ├── @radix-ui/react-use-previous@1.1.1 deduped
+│ ├── @radix-ui/react-use-size@1.1.1 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-slot@1.2.3
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @types/react@18.3.26 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-switch@1.2.6
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├── @radix-ui/react-use-previous@1.1.1 deduped
+│ ├── @radix-ui/react-use-size@1.1.1 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-tabs@1.1.13
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-direction@1.1.1 deduped
+│ ├── @radix-ui/react-id@1.1.1 deduped
+│ ├── @radix-ui/react-presence@1.1.5 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-roving-focus@1.1.11 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-toast@1.2.15
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-collection@1.1.7 deduped
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-dismissable-layer@1.1.11 deduped
+│ ├── @radix-ui/react-portal@1.1.9 deduped
+│ ├── @radix-ui/react-presence@1.1.5 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-use-callback-ref@1.1.1 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├── @radix-ui/react-use-layout-effect@1.1.1 deduped
+│ ├── @radix-ui/react-visually-hidden@1.2.3 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-toggle-group@1.1.11
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-direction@1.1.1 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-roving-focus@1.1.11 deduped
+│ ├── @radix-ui/react-toggle@1.1.10 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-toggle@1.1.10
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @radix-ui/react-tooltip@1.2.8
+│ ├── @radix-ui/primitive@1.1.3 deduped
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @radix-ui/react-context@1.1.2 deduped
+│ ├── @radix-ui/react-dismissable-layer@1.1.11 deduped
+│ ├── @radix-ui/react-id@1.1.1 deduped
+│ ├── @radix-ui/react-popper@1.2.8 deduped
+│ ├── @radix-ui/react-portal@1.1.9 deduped
+│ ├── @radix-ui/react-presence@1.1.5 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── @radix-ui/react-slot@1.2.3 deduped
+│ ├── @radix-ui/react-use-controllable-state@1.2.2 deduped
+│ ├── @radix-ui/react-visually-hidden@1.2.3 deduped
+│ ├── @types/react-dom@18.3.7 deduped
+│ ├── @types/react@18.3.26 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @react-spring/web@10.0.3
+│ ├─┬ @react-spring/animated@10.0.3
+│ │ ├── @react-spring/shared@10.0.3 deduped
+│ │ ├── @react-spring/types@10.0.3 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @react-spring/core@10.0.3
+│ │ ├── @react-spring/animated@10.0.3 deduped
+│ │ ├── @react-spring/shared@10.0.3 deduped
+│ │ ├── @react-spring/types@10.0.3 deduped
+│ │ └── react@18.3.1 deduped
+│ ├─┬ @react-spring/shared@10.0.3
+│ │ ├── @react-spring/rafz@10.0.3
+│ │ ├── @react-spring/types@10.0.3 deduped
+│ │ └── react@18.3.1 deduped
+│ ├── @react-spring/types@10.0.3
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ @sentry/react@10.19.0
+│ ├─┬ @sentry/browser@10.19.0
+│ │ ├── @sentry-internal/browser-utils@10.19.0
+│ │ ├── @sentry-internal/feedback@10.19.0
+│ │ ├── @sentry-internal/replay-canvas@10.19.0
+│ │ ├── @sentry-internal/replay@10.19.0
+│ │ └── @sentry/core@10.19.0 deduped
+│ ├── @sentry/core@10.19.0
+│ ├─┬ hoist-non-react-statics@3.3.2
+│ │ └── react-is@16.13.1
+│ └── react@18.3.1 deduped
+├─┬ @slack/webhook@7.0.6
+│ ├── @slack/types@2.17.0
+│ ├─┬ @types/node@20.19.21
+│ │ └── undici-types@6.21.0
+│ └─┬ axios@1.12.2
+│   ├── follow-redirects@1.15.11
+│   ├── form-data@4.0.4
+│   └── proxy-from-env@1.1.0
+├─┬ @tanstack/react-query@5.90.3
+│ ├── @tanstack/query-core@5.90.3
+│ └── react@18.3.1 deduped
+├─┬ @types/jsonwebtoken@9.0.10
+│ ├── @types/ms@2.1.0
+│ └── @types/node@20.19.21 deduped
+├─┬ @types/papaparse@5.3.16
+│ └── @types/node@20.19.21 deduped
+├─┬ @types/react-beautiful-dnd@13.1.8
+│ └── @types/react@18.3.26 deduped
+├─┬ @types/swagger-ui-express@4.1.8
+│ ├─┬ @types/express@4.17.23
+│ │ ├── @types/body-parser@1.19.6
+│ │ ├── @types/express-serve-static-core@4.19.7
+│ │ ├── @types/qs@6.14.0
+│ │ └── @types/serve-static@1.15.9 deduped
+│ └─┬ @types/serve-static@1.15.9
+│   ├── @types/http-errors@2.0.5
+│   ├── @types/node@20.19.21 deduped
+│   └── @types/send@0.17.5
+├── @types/uuid@10.0.0
+├── @types/validator@13.15.3
+├─┬ @use-gesture/react@10.3.1
+│ ├── @use-gesture/core@10.3.1
+│ └── react@18.3.1 deduped
+├─┬ @vercel/node@2.15.10
+│ ├── @edge-runtime/node-utils@2.0.3
+│ ├── @edge-runtime/primitives@2.1.2
+│ ├─┬ @edge-runtime/vm@3.0.1
+│ │ └── @edge-runtime/primitives@3.0.1
+│ ├─┬ @types/node-fetch@2.6.3
+│ │ ├── @types/node@14.18.33 deduped
+│ │ └── form-data@3.0.4
+│ ├── @types/node@14.18.33
+│ ├── @vercel/build-utils@6.8.3
+│ ├── @vercel/error-utils@1.0.10
+│ ├─┬ @vercel/static-config@2.0.17
+│ │ ├── ajv@8.6.3
+│ │ ├── json-schema-to-ts@1.6.4
+│ │ └── ts-morph@12.0.0
+│ ├── async-listen@3.0.0
+│ ├── content-type@1.0.5
+│ ├─┬ edge-runtime@2.4.4
+│ │ ├── @edge-runtime/format@2.1.0
+│ │ ├── @edge-runtime/vm@3.0.3
+│ │ ├── async-listen@3.0.0 deduped
+│ │ ├── mri@1.2.0
+│ │ ├── picocolors@1.0.0
+│ │ ├── pretty-bytes@5.6.0
+│ │ ├── pretty-ms@7.0.1
+│ │ ├── signal-exit@4.0.2 deduped
+│ │ └── time-span@4.0.0
+│ ├─┬ esbuild@0.25.10 overridden
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/aix-ppc64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/android-arm@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/android-arm64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/android-x64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/darwin-arm64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/darwin-x64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/freebsd-arm64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/freebsd-x64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/linux-arm@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/linux-arm64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/linux-ia32@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/linux-loong64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/linux-mips64el@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/linux-ppc64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/linux-riscv64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/linux-s390x@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/linux-x64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/netbsd-arm64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/netbsd-x64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/openbsd-arm64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/openbsd-x64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/openharmony-arm64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/sunos-x64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/win32-arm64@0.25.10
+│ │ ├── UNMET OPTIONAL DEPENDENCY @esbuild/win32-ia32@0.25.10
+│ │ └── @esbuild/win32-x64@0.25.10
+│ ├── exit-hook@2.2.1
+│ ├─┬ node-fetch@2.6.9
+│ │ ├── UNMET OPTIONAL DEPENDENCY encoding@^0.1.0
+│ │ └── whatwg-url@5.0.0
+│ ├── path-to-regexp@0.1.12 overridden
+│ ├─┬ ts-morph@12.0.0
+│ │ ├── @ts-morph/common@0.11.1
+│ │ └── code-block-writer@10.1.1
+│ ├─┬ ts-node@10.9.1
+│ │ ├── @cspotcode/source-map-support@0.8.1
+│ │ ├── UNMET OPTIONAL DEPENDENCY @swc/core@>=1.2.50
+│ │ ├── UNMET OPTIONAL DEPENDENCY @swc/wasm@>=1.2.50
+│ │ ├── @tsconfig/node10@1.0.11
+│ │ ├── @tsconfig/node12@1.0.11
+│ │ ├── @tsconfig/node14@1.0.3
+│ │ ├── @tsconfig/node16@1.0.4
+│ │ ├── @types/node@20.19.21 deduped
+│ │ ├── acorn-walk@8.3.4
+│ │ ├── acorn@8.15.0
+│ │ ├── arg@4.1.3
+│ │ ├── create-require@1.1.1
+│ │ ├── diff@4.0.2
+│ │ ├── make-error@1.3.6
+│ │ ├── typescript@5.9.3
+│ │ ├── v8-compile-cache-lib@3.0.1
+│ │ └── yn@3.1.1
+│ └── typescript@4.9.5
+├─┬ @xstate/react@6.0.0
+│ ├── react@18.3.1 deduped
+│ ├─┬ use-isomorphic-layout-effect@1.2.1
+│ │ └── react@18.3.1 deduped
+│ ├─┬ use-sync-external-store@1.6.0
+│ │ └── react@18.3.1 deduped
+│ └── xstate@5.23.0 deduped
+├── any-promise@1.3.0 extraneous
+├─┬ anymatch@3.1.3 extraneous
+│ ├── normalize-path@3.0.0 deduped
+│ └── picomatch@2.3.1
+├── arg@5.0.2 extraneous
+├── binary-extensions@2.3.0 extraneous
+├─┬ body-parser@2.2.0
+│ ├── bytes@3.1.2
+│ ├── content-type@1.0.5 deduped
+│ ├─┬ debug@4.4.3
+│ │ └── ms@2.1.3 deduped
+│ ├─┬ http-errors@2.0.0
+│ │ ├── depd@2.0.0 deduped
+│ │ ├── inherits@2.0.4
+│ │ ├── setprototypeof@1.2.0 deduped
+│ │ ├── statuses@2.0.1 deduped
+│ │ └── toidentifier@1.0.1
+│ ├─┬ iconv-lite@0.6.3
+│ │ └── safer-buffer@2.1.2
+│ ├─┬ on-finished@2.4.1
+│ │ └── ee-first@1.1.1
+│ ├─┬ qs@6.14.0
+│ │ └── side-channel@1.1.0
+│ ├─┬ raw-body@3.0.1
+│ │ ├── bytes@3.1.2 deduped
+│ │ ├── http-errors@2.0.0 deduped
+│ │ ├── iconv-lite@0.7.0
+│ │ └── unpipe@1.0.0
+│ └─┬ type-is@2.0.1
+│   ├── content-type@1.0.5 deduped
+│   ├── media-typer@1.1.0
+│   └── mime-types@3.0.1
+├─┬ bufferutil@4.0.9
+│ └── node-gyp-build@4.8.4
+├─┬ bullmq@5.61.0
+│ ├─┬ cron-parser@4.9.0
+│ │ └── luxon@3.7.2
+│ ├── ioredis@5.8.1 deduped
+│ ├─┬ msgpackr@1.11.5
+│ │ └── msgpackr-extract@3.0.3
+│ ├── node-abort-controller@3.1.1
+│ ├── semver@7.7.3
+│ ├── tslib@2.8.1
+│ └── uuid@11.1.0 deduped
+├── camelcase-css@2.0.1 extraneous
+├── chalk@5.6.2
+├─┬ chart.js@4.5.1
+│ └── @kurkle/color@0.3.4
+├─┬ chokidar@3.6.0 extraneous
+│ ├── anymatch@3.1.3 deduped
+│ ├─┬ braces@3.0.3
+│ │ └── fill-range@7.1.1
+│ ├── UNMET OPTIONAL DEPENDENCY fsevents@~2.3.2
+│ ├─┬ glob-parent@5.1.2
+│ │ └── is-glob@4.0.3 deduped
+│ ├── is-binary-path@2.1.0 deduped
+│ ├─┬ is-glob@4.0.3
+│ │ └── is-extglob@2.1.1
+│ ├── normalize-path@3.0.0 deduped
+│ └── readdirp@3.6.0 deduped
+├─┬ class-variance-authority@0.7.1
+│ └── clsx@2.1.1 deduped
+├── clsx@2.1.1
+├─┬ cmdk@1.1.1
+│ ├── @radix-ui/react-compose-refs@1.1.2 deduped
+│ ├── @radix-ui/react-dialog@1.1.15 deduped
+│ ├── @radix-ui/react-id@1.1.1 deduped
+│ ├── @radix-ui/react-primitive@2.1.3 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ compression@1.8.1
+│ ├── bytes@3.1.2 deduped
+│ ├─┬ compressible@2.0.18
+│ │ └── mime-db@1.54.0
+│ ├─┬ debug@2.6.9
+│ │ └── ms@2.0.0
+│ ├── negotiator@0.6.4
+│ ├── on-headers@1.1.0
+│ ├── safe-buffer@5.2.1
+│ └── vary@1.1.2
+├─┬ connect-pg-simple@10.0.0
+│ └─┬ pg@8.16.3
+│   ├── pg-cloudflare@1.2.7
+│   ├── pg-connection-string@2.9.1
+│   ├── UNMET OPTIONAL DEPENDENCY pg-native@>=3.0.1
+│   ├── pg-pool@3.10.1
+│   ├── pg-protocol@1.10.3 deduped
+│   ├── pg-types@2.2.0
+│   └── pgpass@1.0.5
+├─┬ cors@2.8.5
+│ ├── object-assign@4.1.1
+│ └── vary@1.1.2 deduped
+├─┬ cross-spawn@7.0.6 extraneous
+│ ├── path-key@3.1.1 deduped
+│ ├── shebang-command@2.0.0 deduped
+│ └── which@2.0.2 deduped
+├── cssesc@3.0.0 extraneous
+├── csv-stringify@6.6.0
+├── date-fns@3.6.0
+├── decimal.js@10.6.0
+├── didyoumean@1.2.2 extraneous
+├── dlv@1.1.3 extraneous
+├── dotenv@17.2.3
+├─┬ drizzle-orm@0.44.6
+│ ├── UNMET OPTIONAL DEPENDENCY @aws-sdk/client-rds-data@>=3
+│ ├── UNMET OPTIONAL DEPENDENCY @cloudflare/workers-types@>=4
+│ ├── UNMET OPTIONAL DEPENDENCY @electric-sql/pglite@>=0.2.0
+│ ├── UNMET OPTIONAL DEPENDENCY @libsql/client-wasm@>=0.10.0
+│ ├── UNMET OPTIONAL DEPENDENCY @libsql/client@>=0.10.0
+│ ├── @neondatabase/serverless@0.10.4 deduped
+│ ├── UNMET OPTIONAL DEPENDENCY @op-engineering/op-sqlite@>=2
+│ ├── @opentelemetry/api@1.9.0 deduped
+│ ├── UNMET OPTIONAL DEPENDENCY @planetscale/database@>=1.13
+│ ├── UNMET OPTIONAL DEPENDENCY @prisma/client@*
+│ ├── UNMET OPTIONAL DEPENDENCY @tidbcloud/serverless@*
+│ ├── UNMET OPTIONAL DEPENDENCY @types/better-sqlite3@*
+│ ├── @types/pg@8.11.6 deduped
+│ ├── UNMET OPTIONAL DEPENDENCY @types/sql.js@*
+│ ├── UNMET OPTIONAL DEPENDENCY @upstash/redis@>=1.34.7
+│ ├── UNMET OPTIONAL DEPENDENCY @vercel/postgres@>=0.8.0
+│ ├── UNMET OPTIONAL DEPENDENCY @xata.io/client@*
+│ ├── UNMET OPTIONAL DEPENDENCY better-sqlite3@>=7
+│ ├── UNMET OPTIONAL DEPENDENCY bun-types@*
+│ ├── UNMET OPTIONAL DEPENDENCY expo-sqlite@>=14.0.0
+│ ├── UNMET OPTIONAL DEPENDENCY gel@>=2
+│ ├── UNMET OPTIONAL DEPENDENCY knex@*
+│ ├── UNMET OPTIONAL DEPENDENCY kysely@*
+│ ├── mysql2@3.15.2 deduped
+│ ├── pg@8.16.3 deduped
+│ ├── UNMET OPTIONAL DEPENDENCY postgres@>=3
+│ ├── UNMET OPTIONAL DEPENDENCY sql.js@>=1
+│ └── UNMET OPTIONAL DEPENDENCY sqlite3@>=5
+├─┬ drizzle-zod@0.8.3
+│ ├── drizzle-orm@0.44.6 deduped
+│ └── zod@3.25.76 deduped
+├── eastasianwidth@0.2.0 extraneous
+├─┬ embla-carousel-react@8.6.0
+│ ├─┬ embla-carousel-reactive-utils@8.6.0
+│ │ └── embla-carousel@8.6.0 deduped
+│ ├── embla-carousel@8.6.0
+│ └── react@18.3.1 deduped
+├── emoji-regex@9.2.2 extraneous
+├─┬ express-rate-limit@8.1.0
+│ ├── express@4.21.2 deduped
+│ └── ip-address@10.0.1
+├─┬ express-session@1.18.2
+│ ├── cookie-signature@1.0.7
+│ ├── cookie@0.7.2
+│ ├─┬ debug@2.6.9
+│ │ └── ms@2.0.0
+│ ├── depd@2.0.0
+│ ├── on-headers@1.1.0 deduped
+│ ├── parseurl@1.3.3
+│ ├── safe-buffer@5.2.1 deduped
+│ └─┬ uid-safe@2.1.5
+│   └── random-bytes@1.0.0
+├─┬ express@4.21.2
+│ ├─┬ accepts@1.3.8
+│ │ ├── mime-types@2.1.35
+│ │ └── negotiator@0.6.3
+│ ├── array-flatten@1.1.1
+│ ├─┬ body-parser@1.20.3
+│ │ ├── bytes@3.1.2 deduped
+│ │ ├── content-type@1.0.5 deduped
+│ │ ├── debug@2.6.9 deduped
+│ │ ├── depd@2.0.0 deduped
+│ │ ├── destroy@1.2.0
+│ │ ├── http-errors@2.0.0 deduped
+│ │ ├── iconv-lite@0.4.24
+│ │ ├── on-finished@2.4.1 deduped
+│ │ ├── qs@6.13.0 deduped
+│ │ ├── raw-body@2.5.2
+│ │ ├── type-is@1.6.18 deduped
+│ │ └── unpipe@1.0.0 deduped
+│ ├─┬ content-disposition@0.5.4
+│ │ └── safe-buffer@5.2.1 deduped
+│ ├── content-type@1.0.5 deduped
+│ ├── cookie-signature@1.0.6
+│ ├── cookie@0.7.1
+│ ├─┬ debug@2.6.9
+│ │ └── ms@2.0.0
+│ ├── depd@2.0.0 deduped
+│ ├── encodeurl@2.0.0
+│ ├── escape-html@1.0.3
+│ ├── etag@1.8.1
+│ ├─┬ finalhandler@1.3.1
+│ │ ├── debug@2.6.9
+│ │ ├── encodeurl@2.0.0 deduped
+│ │ ├── escape-html@1.0.3 deduped
+│ │ ├── on-finished@2.4.1 deduped
+│ │ ├── parseurl@1.3.3 deduped
+│ │ ├── statuses@2.0.1 deduped
+│ │ └── unpipe@1.0.0 deduped
+│ ├── fresh@0.5.2
+│ ├── http-errors@2.0.0 deduped
+│ ├── merge-descriptors@1.0.3
+│ ├── methods@1.1.2
+│ ├── on-finished@2.4.1 deduped
+│ ├── parseurl@1.3.3 deduped
+│ ├── path-to-regexp@0.1.12 deduped
+│ ├─┬ proxy-addr@2.0.7
+│ │ ├── forwarded@0.2.0
+│ │ └── ipaddr.js@1.9.1
+│ ├─┬ qs@6.13.0
+│ │ └── side-channel@1.1.0 deduped
+│ ├── range-parser@1.2.1
+│ ├── safe-buffer@5.2.1 deduped
+│ ├─┬ send@0.19.0
+│ │ ├── debug@2.6.9
+│ │ ├── depd@2.0.0 deduped
+│ │ ├── destroy@1.2.0 deduped
+│ │ ├── encodeurl@1.0.2
+│ │ ├── escape-html@1.0.3 deduped
+│ │ ├── etag@1.8.1 deduped
+│ │ ├── fresh@0.5.2 deduped
+│ │ ├── http-errors@2.0.0 deduped
+│ │ ├── mime@1.6.0
+│ │ ├── ms@2.1.3 deduped
+│ │ ├── on-finished@2.4.1 deduped
+│ │ ├── range-parser@1.2.1 deduped
+│ │ └── statuses@2.0.1 deduped
+│ ├─┬ serve-static@1.16.2
+│ │ ├── encodeurl@2.0.0 deduped
+│ │ ├── escape-html@1.0.3 deduped
+│ │ ├── parseurl@1.3.3 deduped
+│ │ └── send@0.19.0 deduped
+│ ├── setprototypeof@1.2.0
+│ ├── statuses@2.0.1
+│ ├─┬ type-is@1.6.18
+│ │ ├── media-typer@0.3.0
+│ │ └── mime-types@2.1.35 deduped
+│ ├── utils-merge@1.0.1
+│ └── vary@1.1.2 deduped
+├── fast-deep-equal@3.1.3
+├─┬ foreground-child@3.3.1 extraneous
+│ ├── cross-spawn@7.0.6 deduped
+│ └── signal-exit@4.0.2
+├─┬ framer-motion@11.18.2
+│ ├─┬ @emotion/is-prop-valid@1.2.2
+│ │ └── @emotion/memoize@0.8.1
+│ ├─┬ motion-dom@11.18.1
+│ │ └── motion-utils@11.18.1 deduped
+│ ├── motion-utils@11.18.1
+│ ├── react-dom@18.3.1 deduped
+│ ├── react@18.3.1 deduped
+│ └── tslib@2.8.1 deduped
+├── helmet@8.1.0
+├── immer@10.1.3
+├─┬ input-otp@1.4.2
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ ioredis@5.8.1
+│ ├── @ioredis/commands@1.4.0
+│ ├── cluster-key-slot@1.1.2
+│ ├── debug@4.4.3 deduped
+│ ├── denque@2.1.0
+│ ├── lodash.defaults@4.2.0
+│ ├── lodash.isarguments@3.1.0
+│ ├── redis-errors@1.2.0
+│ ├─┬ redis-parser@3.0.0
+│ │ └── redis-errors@1.2.0 deduped
+│ └── standard-as-callback@2.1.0
+├─┬ is-binary-path@2.1.0 extraneous
+│ └── binary-extensions@2.3.0 deduped
+├─┬ is-core-module@2.16.1 extraneous
+│ └─┬ hasown@2.0.2
+│   └── function-bind@1.1.2
+├── isexe@2.0.0 extraneous
+├── jiti@2.6.1 extraneous
+├─┬ jsonwebtoken@9.0.2
+│ ├─┬ jws@3.2.2
+│ │ ├── jwa@1.4.2
+│ │ └── safe-buffer@5.2.1 deduped
+│ ├── lodash.includes@4.3.0
+│ ├── lodash.isboolean@3.0.3
+│ ├── lodash.isinteger@4.0.4
+│ ├── lodash.isnumber@3.0.3
+│ ├── lodash.isplainobject@4.0.6
+│ ├── lodash.isstring@4.0.1
+│ ├── lodash.once@4.1.1
+│ ├── ms@2.1.3
+│ └── semver@7.7.3
+├─┬ jwks-rsa@3.2.0
+│ ├── @types/express@4.17.23 deduped
+│ ├── @types/jsonwebtoken@9.0.10 deduped
+│ ├── debug@4.4.3 deduped
+│ ├── jose@4.15.9
+│ ├── limiter@1.1.5
+│ └─┬ lru-memoizer@2.3.0
+│   ├── lodash.clonedeep@4.5.0
+│   └── lru-cache@6.0.0
+├── lilconfig@3.1.3 extraneous
+├── lines-and-columns@1.2.4 extraneous
+├── lru-cache@11.2.2
+├─┬ lucide-react@0.545.0
+│ └── react@18.3.1 deduped
+├─┬ memorystore@1.6.7
+│ ├── debug@4.4.3 deduped
+│ └─┬ lru-cache@4.1.5
+│   ├── pseudomap@1.0.2
+│   └── yallist@2.1.2
+├── minipass@7.1.2 extraneous
+├─┬ ml-levenberg-marquardt@4.1.3
+│ ├── is-any-array@2.0.1
+│ └─┬ ml-matrix@6.12.1
+│   ├── is-any-array@2.0.1 deduped
+│   └── ml-array-rescale@1.3.7
+├─┬ mysql2@3.15.2
+│ ├── aws-ssl-profiles@1.1.2
+│ ├── denque@2.1.0 deduped
+│ ├─┬ generate-function@2.3.1
+│ │ └── is-property@1.0.2
+│ ├─┬ iconv-lite@0.7.0
+│ │ └── safer-buffer@2.1.2 deduped
+│ ├── long@5.3.2
+│ ├── lru.min@1.1.2
+│ ├─┬ named-placeholders@1.1.3
+│ │ └── lru-cache@7.18.3
+│ ├── seq-queue@0.0.5
+│ └── sqlstring@2.3.3
+├─┬ mz@2.7.0 extraneous
+│ ├── any-promise@1.3.0 deduped
+│ ├── object-assign@4.1.1 deduped
+│ └── thenify-all@1.6.0 deduped
+├── nanoid@3.3.11 extraneous
+├─┬ nats@2.16.0 overridden
+│ └─┬ nkeys.js@1.0.5
+│   └── tweetnacl@1.0.3
+├─┬ next-themes@0.4.6
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ node-jose@2.2.0
+│ ├── base64url@3.0.1
+│ ├─┬ buffer@6.0.3
+│ │ ├── base64-js@1.5.1
+│ │ └── ieee754@1.2.1
+│ ├── es6-promise@4.2.8
+│ ├── lodash@4.17.21 deduped
+│ ├── long@5.3.2 deduped
+│ ├── node-forge@1.3.1
+│ ├── pako@2.1.0
+│ ├── process@0.11.10
+│ └── uuid@9.0.1
+├── normalize-path@3.0.0 extraneous
+├── object-hash@3.0.0 extraneous
+├─┬ ollama@0.6.0
+│ └── whatwg-fetch@3.6.20
+├─┬ openai@6.3.0
+│ ├── ws@8.18.3 deduped
+│ └── zod@3.25.76 deduped
+├─┬ p-limit@7.1.1
+│ └── yocto-queue@1.2.1
+├── package-json-from-dist@1.0.1 extraneous
+├── papaparse@5.5.3
+├─┬ passport-local@1.0.0
+│ └── passport-strategy@1.0.0
+├─┬ passport@0.7.0
+│ ├── passport-strategy@1.0.0 deduped
+│ ├── pause@0.0.1
+│ └── utils-merge@1.0.1 deduped
+├── path-key@3.1.1 extraneous
+├── path-parse@1.0.7 extraneous
+├── picocolors@1.1.1 extraneous
+├─┬ pino-http@10.5.0
+│ ├── get-caller-file@2.0.5
+│ ├── pino-std-serializers@7.0.0
+│ ├── pino@9.13.1 deduped
+│ └── process-warning@5.0.0
+├─┬ pino-pretty@13.1.2
+│ ├── colorette@2.0.20
+│ ├── dateformat@4.6.3
+│ ├── fast-copy@3.0.2
+│ ├── fast-safe-stringify@2.1.1
+│ ├── help-me@5.0.0
+│ ├── joycon@3.1.1
+│ ├── minimist@1.2.8
+│ ├── on-exit-leak-free@2.1.2
+│ ├─┬ pino-abstract-transport@2.0.0
+│ │ └── split2@4.2.0
+│ ├─┬ pump@3.0.3
+│ │ ├── end-of-stream@1.4.5
+│ │ └── once@1.4.0
+│ ├── secure-json-parse@4.1.0
+│ ├─┬ sonic-boom@4.2.0
+│ │ └── atomic-sleep@1.0.0 deduped
+│ └── strip-json-comments@5.0.3
+├─┬ pino@9.13.1
+│ ├── atomic-sleep@1.0.0
+│ ├── on-exit-leak-free@2.1.2 deduped
+│ ├── pino-abstract-transport@2.0.0 deduped
+│ ├── pino-std-serializers@7.0.0 deduped
+│ ├── process-warning@5.0.0 deduped
+│ ├── quick-format-unescaped@4.0.4
+│ ├── real-require@0.2.0
+│ ├── safe-stable-stringify@2.5.0
+│ ├── slow-redact@0.3.2
+│ ├── sonic-boom@4.2.0 deduped
+│ └─┬ thread-stream@3.1.0
+│   └── real-require@0.2.0 deduped
+├── pirates@4.0.7 extraneous
+├─┬ postcss-import@15.1.0 extraneous
+│ ├── postcss-value-parser@4.2.0 deduped
+│ ├─┬ postcss@8.5.6 -> .\tools_local\node_modules\postcss
+│ │ ├── nanoid@3.3.11
+│ │ ├── picocolors@1.1.1
+│ │ └── source-map-js@1.2.1
+│ ├── read-cache@1.0.0 deduped
+│ └── resolve@1.22.10 deduped
+├─┬ postcss-js@4.1.0 extraneous
+│ ├── camelcase-css@2.0.1 deduped
+│ └── postcss@8.5.6 deduped -> .\tools_local\node_modules\postcss
+├─┬ postcss-load-config@6.0.1 extraneous
+│ ├── jiti@2.6.1 deduped
+│ ├── lilconfig@3.1.3 deduped
+│ ├── postcss@8.5.6 deduped -> .\tools_local\node_modules\postcss
+│ ├─┬ tsx@4.20.6
+│ │ ├── esbuild@0.25.10 deduped
+│ │ ├── UNMET OPTIONAL DEPENDENCY fsevents@~2.3.3
+│ │ └── get-tsconfig@4.12.0
+│ └── yaml@2.8.1 deduped
+├─┬ postcss-nested@6.2.0 extraneous
+│ ├─┬ postcss-selector-parser@6.1.2 extraneous
+│ │ ├── cssesc@3.0.0 deduped
+│ │ └── util-deprecate@1.0.2
+│ └── postcss@8.5.6 deduped -> .\tools_local\node_modules\postcss
+├── postcss-value-parser@4.2.0 extraneous
+├─┬ prom-client@15.1.3
+│ ├── @opentelemetry/api@1.9.0 deduped
+│ └─┬ tdigest@0.1.2
+│   └── bintrees@1.0.2
+├─┬ rate-limit-redis@4.2.2
+│ └── express-rate-limit@8.1.0 deduped
+├─┬ react-beautiful-dnd@13.1.1
+│ ├── @babel/runtime@7.28.4
+│ ├─┬ css-box-model@1.2.1
+│ │ └── tiny-invariant@1.3.3 deduped
+│ ├── memoize-one@5.2.1
+│ ├── raf-schd@4.0.3
+│ ├── react-dom@18.3.1 deduped
+│ ├─┬ react-redux@7.2.9
+│ │ ├── @babel/runtime@7.28.4 deduped
+│ │ ├── @types/react-redux@7.1.34
+│ │ ├── hoist-non-react-statics@3.3.2 deduped
+│ │ ├── loose-envify@1.4.0 deduped
+│ │ ├── prop-types@15.8.1
+│ │ ├── react-is@17.0.2
+│ │ └── react@18.3.1 deduped
+│ ├── react@18.3.1 deduped
+│ ├─┬ redux@4.2.1
+│ │ └── @babel/runtime@7.28.4 deduped
+│ └─┬ use-memo-one@1.1.3
+│   └── react@18.3.1 deduped
+├─┬ react-chartjs-2@5.3.0
+│ ├── chart.js@4.5.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ react-day-picker@8.10.1
+│ ├── date-fns@3.6.0 deduped
+│ └── react@18.3.1 deduped
+├─┬ react-dom@18.3.1
+│ ├─┬ loose-envify@1.4.0
+│ │ └── js-tokens@4.0.0
+│ ├── react@18.3.1 deduped
+│ └─┬ scheduler@0.23.2
+│   └── loose-envify@1.4.0 deduped
+├─┬ react-hook-form@7.65.0
+│ └── react@18.3.1 deduped
+├─┬ react-icons@5.5.0
+│ └── react@18.3.1 deduped
+├─┬ react-resizable-panels@2.1.9
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├─┬ react-router-dom@7.9.4
+│ ├── react-dom@18.3.1 deduped
+│ ├─┬ react-router@7.9.4
+│ │ ├── cookie@1.0.2
+│ │ ├── react-dom@18.3.1 deduped
+│ │ ├── react@18.3.1 deduped
+│ │ └── set-cookie-parser@2.7.1
+│ └── react@18.3.1 deduped
+├─┬ react@18.3.1
+│ └── loose-envify@1.4.0 deduped
+├─┬ read-cache@1.0.0 extraneous
+│ └── pify@2.3.0 extraneous
+├─┬ readdirp@3.6.0 extraneous
+│ └── picomatch@2.3.1 deduped
+├─┬ recharts@3.2.1
+│ ├─┬ @reduxjs/toolkit@2.9.0
+│ │ ├── @standard-schema/spec@1.0.0
+│ │ ├── @standard-schema/utils@0.3.0
+│ │ ├── immer@10.1.3 deduped
+│ │ ├── react-redux@7.2.9 deduped
+│ │ ├── react@18.3.1 deduped
+│ │ ├── redux-thunk@3.1.0
+│ │ ├── redux@5.0.1
+│ │ └── reselect@5.1.1 deduped
+│ ├── clsx@2.1.1 deduped
+│ ├── decimal.js-light@2.5.1
+│ ├── es-toolkit@1.40.0
+│ ├── eventemitter3@5.0.1
+│ ├── immer@10.1.3 deduped
+│ ├── react-dom@18.3.1 deduped
+│ ├── react-is@19.2.0
+│ ├─┬ react-redux@9.2.0
+│ │ ├── @types/react@18.3.26 deduped
+│ │ ├── @types/use-sync-external-store@0.0.6
+│ │ ├── react@18.3.1 deduped
+│ │ ├── redux@5.0.1
+│ │ └── use-sync-external-store@1.6.0 deduped
+│ ├── react@18.3.1 deduped
+│ ├── reselect@5.1.1
+│ ├── tiny-invariant@1.3.3
+│ ├── use-sync-external-store@1.6.0 deduped
+│ └─┬ victory-vendor@37.3.6
+│   ├── @types/d3-array@3.2.2
+│   ├── @types/d3-ease@3.0.2
+│   ├── @types/d3-interpolate@3.0.4 deduped
+│   ├── @types/d3-scale@4.0.9 deduped
+│   ├── @types/d3-shape@3.1.7 deduped
+│   ├── @types/d3-time@3.0.4
+│   ├── @types/d3-timer@3.0.2
+│   ├── d3-array@3.2.4 deduped
+│   ├── d3-ease@3.0.1
+│   ├── d3-interpolate@3.0.1 deduped
+│   ├── d3-scale@4.0.2 deduped
+│   ├── d3-shape@3.2.0 deduped
+│   ├── d3-time@3.1.0
+│   └── d3-timer@3.0.1
+├─┬ redis@4.7.1
+│ ├─┬ @redis/bloom@1.2.0
+│ │ └── @redis/client@1.6.1 deduped
+│ ├─┬ @redis/client@1.6.1
+│ │ ├── cluster-key-slot@1.1.2 deduped
+│ │ ├── generic-pool@3.9.0
+│ │ └── yallist@4.0.0
+│ ├─┬ @redis/graph@1.1.1
+│ │ └── @redis/client@1.6.1 deduped
+│ ├─┬ @redis/json@1.0.7
+│ │ └── @redis/client@1.6.1 deduped
+│ ├─┬ @redis/search@1.2.0
+│ │ └── @redis/client@1.6.1 deduped
+│ └─┬ @redis/time-series@1.1.0
+│   └── @redis/client@1.6.1 deduped
+├─┬ resolve@1.22.10 extraneous
+│ ├── is-core-module@2.16.1 deduped
+│ ├── path-parse@1.0.7 deduped
+│ └── supports-preserve-symlinks-flag@1.0.0 deduped
+├─┬ sanitize-html@2.17.0
+│ ├── deepmerge@4.3.1
+│ ├── escape-string-regexp@4.0.0
+│ ├─┬ htmlparser2@8.0.2
+│ │ ├── domelementtype@2.3.0
+│ │ ├── domhandler@5.0.3
+│ │ ├── domutils@3.2.2
+│ │ └── entities@4.5.0
+│ ├── is-plain-object@5.0.0
+│ ├── parse-srcset@1.0.2
+│ └── postcss@8.5.6 deduped -> .\tools_local\node_modules\postcss
+├─┬ shebang-command@2.0.0 extraneous
+│ └── shebang-regex@3.0.0 deduped
+├── shebang-regex@3.0.0 extraneous
+├─┬ socket.io-client@4.8.1
+│ ├── @socket.io/component-emitter@3.1.2
+│ ├─┬ debug@4.3.7
+│ │ └── ms@2.1.3 deduped
+│ ├─┬ engine.io-client@6.6.3
+│ │ ├── @socket.io/component-emitter@3.1.2 deduped
+│ │ ├── debug@4.3.7
+│ │ ├── engine.io-parser@5.2.3
+│ │ ├── ws@8.17.1
+│ │ └── xmlhttprequest-ssl@2.1.2
+│ └─┬ socket.io-parser@4.2.4
+│   ├── @socket.io/component-emitter@3.1.2 deduped
+│   └── debug@4.3.7
+├─┬ socket.io@4.8.1
+│ ├── accepts@1.3.8 deduped
+│ ├── base64id@2.0.0
+│ ├── cors@2.8.5 deduped
+│ ├─┬ debug@4.3.7
+│ │ └── ms@2.1.3 deduped
+│ ├─┬ engine.io@6.6.4
+│ │ ├── @types/cors@2.8.19
+│ │ ├── @types/node@20.19.21 deduped
+│ │ ├── accepts@1.3.8 deduped
+│ │ ├── base64id@2.0.0 deduped
+│ │ ├── cookie@0.7.2 deduped
+│ │ ├── cors@2.8.5 deduped
+│ │ ├── debug@4.3.7
+│ │ ├── engine.io-parser@5.2.3 deduped
+│ │ └── ws@8.17.1
+│ ├─┬ socket.io-adapter@2.5.5
+│ │ ├── debug@4.3.7
+│ │ └── ws@8.17.1
+│ └── socket.io-parser@4.2.4 deduped
+├── source-map-js@1.2.1 extraneous
+├─┬ string-width-cjs@npm:string-width@4.2.3 extraneous
+│ ├── emoji-regex@8.0.0 extraneous
+│ ├── is-fullwidth-code-point@3.0.0 extraneous
+│ └─┬ strip-ansi@6.0.1
+│   └── ansi-regex@5.0.1 deduped
+├─┬ strip-ansi-cjs@npm:strip-ansi@6.0.1 extraneous
+│ └── ansi-regex@5.0.1
+├─┬ sucrase@3.35.0 extraneous
+│ ├── @jridgewell/gen-mapping@0.3.13 deduped
+│ ├─┬ brace-expansion@2.0.2 extraneous
+│ │ └── balanced-match@1.0.2
+│ ├── commander@4.1.1 extraneous
+│ ├─┬ glob@10.4.5 extraneous
+│ │ ├── foreground-child@3.3.1 deduped
+│ │ ├── jackspeak@3.4.3 deduped
+│ │ ├── minimatch@9.0.5 deduped
+│ │ ├── minipass@7.1.2 deduped
+│ │ ├── package-json-from-dist@1.0.1 deduped
+│ │ └── path-scurry@1.11.1 deduped
+│ ├─┬ jackspeak@3.4.3 extraneous
+│ │ ├── @isaacs/cliui@8.0.2 deduped
+│ │ └── @pkgjs/parseargs@0.11.0 deduped
+│ ├── lines-and-columns@1.2.4 deduped
+│ ├── lru-cache@10.4.3 extraneous
+│ ├─┬ minimatch@9.0.5 extraneous
+│ │ └── brace-expansion@2.0.2 deduped
+│ ├── mz@2.7.0 deduped
+│ ├─┬ path-scurry@1.11.1 extraneous
+│ │ ├── lru-cache@10.4.3 deduped
+│ │ └── minipass@7.1.2 deduped
+│ ├── pirates@4.0.7 deduped
+│ └── ts-interface-checker@0.1.13 deduped
+├── supports-preserve-symlinks-flag@1.0.0 extraneous
+├─┬ swagger-jsdoc@6.2.8
+│ ├── commander@6.2.0
+│ ├─┬ doctrine@3.0.0
+│ │ └── esutils@2.0.3
+│ ├─┬ glob@7.1.6
+│ │ ├── fs.realpath@1.0.0
+│ │ ├── inflight@1.0.6
+│ │ ├── inherits@2.0.4 deduped
+│ │ ├── minimatch@3.1.2
+│ │ ├── once@1.4.0 deduped
+│ │ └── path-is-absolute@1.0.1
+│ ├── lodash.mergewith@4.6.2
+│ ├─┬ swagger-parser@10.0.3
+│ │ └── @apidevtools/swagger-parser@10.0.3
+│ └── yaml@2.0.0-1
+├─┬ swagger-ui-express@5.0.1
+│ ├── express@4.21.2 deduped
+│ └─┬ swagger-ui-dist@5.29.4
+│   └── @scarf/scarf@1.4.0
+├── tailwind-merge@2.6.0
+├─┬ tailwindcss-animate@1.0.7
+│ └─┬ tailwindcss@3.4.18 -> .\tools_local\node_modules\tailwindcss
+│   ├── @alloc/quick-lru@5.2.0
+│   ├── UNMET DEPENDENCY @swc/cli@0.1.62
+│   ├── UNMET DEPENDENCY @swc/core@1.3.55
+│   ├── UNMET DEPENDENCY @swc/jest@0.2.26
+│   ├── UNMET DEPENDENCY @swc/register@0.1.10
+│   ├── arg@5.0.2
+│   ├── autoprefixer@10.4.21 -> .\tools_local\node_modules\autoprefixer
+│   ├── browserslist@4.26.3
+│   ├── chokidar@3.6.0
+│   ├── concurrently@9.2.1 invalid: "^8.2.2" from tools_local/node_modules/tailwindcss
+│   ├── UNMET DEPENDENCY cssnano@^6.1.2
+│   ├── didyoumean@1.2.2
+│   ├── dlv@1.1.3
+│   ├── esbuild@0.25.10 invalid: "^0.24.0" from tools_local/node_modules/tailwindcss
+│   ├── UNMET DEPENDENCY eslint-config-prettier@^8.10.0
+│   ├── UNMET DEPENDENCY eslint-plugin-prettier@^4.2.1
+│   ├── eslint@9.37.0 invalid: "^8.57.1" from tools_local/node_modules/tailwindcss -> .\tools_local\node_modules\eslint
+│   ├── fast-glob@3.3.3
+│   ├── glob-parent@6.0.2
+│   ├── is-glob@4.0.3
+│   ├── UNMET DEPENDENCY jest-diff@^29.7.0
+│   ├── UNMET DEPENDENCY jest@^29.7.0
+│   ├── jiti@1.21.7
+│   ├── lightningcss@1.30.2 invalid: "1.27.0" from tools_local/node_modules/tailwindcss -> .\tools_local\node_modules\lightningcss
+│   ├── lilconfig@3.1.3
+│   ├── micromatch@4.0.8
+│   ├── normalize-path@3.0.0
+│   ├── object-hash@3.0.0
+│   ├── picocolors@1.1.1 deduped
+│   ├── postcss-import@15.1.0
+│   ├── postcss-js@4.1.0
+│   ├── postcss-load-config@6.0.1
+│   ├── postcss-nested@6.2.0
+│   ├── postcss-selector-parser@6.1.2
+│   ├── postcss@8.5.6 deduped -> .\tools_local\node_modules\postcss
+│   ├── prettier@3.6.2 invalid: "^2.8.8" from tools_local/node_modules/tailwindcss -> .\tools_local\node_modules\prettier
+│   ├── resolve@1.22.10
+│   ├── UNMET DEPENDENCY rimraf@^5.0.10
+│   ├── source-map-js@1.2.1 deduped
+│   ├── sucrase@3.35.0
+│   └── UNMET DEPENDENCY turbo@^1.13.4
+├─┬ thenify-all@1.6.0 extraneous
+│ └── thenify@3.3.1 deduped
+├─┬ thenify@3.3.1 extraneous
+│ └── any-promise@1.3.0 deduped
+├── ts-interface-checker@0.1.13 extraneous
+├─┬ tsconfig-paths@4.2.0
+│ ├── json5@2.2.3
+│ ├── minimist@1.2.8 deduped
+│ └── strip-bom@3.0.0
+├── tw-animate-css@1.4.0
+├── ulid@3.0.1
+├── uuid@11.1.0
+├── validator@13.15.15
+├─┬ vaul@1.1.2
+│ ├── @radix-ui/react-dialog@1.1.15 deduped
+│ ├── react-dom@18.3.1 deduped
+│ └── react@18.3.1 deduped
+├── web-vitals@5.1.0
+├─┬ which@2.0.2 extraneous
+│ └── isexe@2.0.0 deduped
+├─┬ winston@3.18.3
+│ ├── @colors/colors@1.6.0
+│ ├─┬ @dabh/diagnostics@2.0.8
+│ │ ├── @so-ric/colorspace@1.1.6
+│ │ ├── enabled@2.0.0
+│ │ └── kuler@2.0.0
+│ ├── async@3.2.6
+│ ├── is-stream@2.0.1
+│ ├─┬ logform@2.7.0
+│ │ ├── @colors/colors@1.6.0 deduped
+│ │ ├── @types/triple-beam@1.3.5
+│ │ ├── fecha@4.2.3
+│ │ ├── ms@2.1.3 deduped
+│ │ ├── safe-stable-stringify@2.5.0 deduped
+│ │ └── triple-beam@1.4.1 deduped
+│ ├─┬ one-time@1.0.0
+│ │ └── fn.name@1.1.0
+│ ├─┬ readable-stream@3.6.2
+│ │ ├── inherits@2.0.4 deduped
+│ │ ├── string_decoder@1.3.0
+│ │ └── util-deprecate@1.0.2 deduped
+│ ├── safe-stable-stringify@2.5.0 deduped
+│ ├── stack-trace@0.0.10
+│ ├── triple-beam@1.4.1
+│ └─┬ winston-transport@4.9.0
+│   ├── logform@2.7.0 deduped
+│   ├── readable-stream@3.6.2 deduped
+│   └── triple-beam@1.4.1 deduped
+├─┬ wouter@3.7.1
+│ ├── mitt@3.0.1
+│ ├── react@18.3.1 deduped
+│ ├── regexparam@3.0.0
+│ └── use-sync-external-store@1.6.0 deduped
+├─┬ wrap-ansi-cjs@npm:wrap-ansi@7.0.0 extraneous
+│ ├─┬ ansi-styles@4.3.0 extraneous
+│ │ └── color-convert@2.0.1 deduped
+│ ├─┬ color-convert@2.0.1 extraneous
+│ │ └── color-name@1.1.4 deduped
+│ ├── color-name@1.1.4 extraneous
+│ ├── emoji-regex@8.0.0 extraneous
+│ ├── is-fullwidth-code-point@3.0.0 extraneous
+│ ├─┬ string-width@4.2.3 extraneous
+│ │ ├── emoji-regex@8.0.0 deduped
+│ │ ├── is-fullwidth-code-point@3.0.0 deduped
+│ │ └── strip-ansi@6.0.1 deduped
+│ └── strip-ansi@6.0.1 deduped
+├─┬ wrap-ansi@8.1.0 extraneous
+│ ├── ansi-regex@6.2.2 extraneous
+│ ├── ansi-styles@6.2.3 extraneous
+│ ├─┬ string-width@5.1.2 extraneous
+│ │ ├── eastasianwidth@0.2.0 deduped
+│ │ ├── emoji-regex@9.2.2 deduped
+│ │ └── strip-ansi@7.1.2 deduped
+│ └─┬ strip-ansi@7.1.2 extraneous
+│   └── ansi-regex@6.2.2 deduped
+├─┬ ws@8.18.3
+│ ├── bufferutil@4.0.9 deduped
+│ └── UNMET OPTIONAL DEPENDENCY utf-8-validate@>=5.0.2
+├─┬ xlsx@0.18.5
+│ ├── adler-32@1.3.1
+│ ├─┬ cfb@1.2.2
+│ │ ├── adler-32@1.3.1 deduped
+│ │ └── crc-32@1.2.2 deduped
+│ ├── codepage@1.15.0
+│ ├── crc-32@1.2.2
+│ ├─┬ ssf@0.11.2
+│ │ └── frac@1.1.2
+│ ├── wmf@1.0.2
+│ └── word@0.3.0
+├── xstate@5.23.0
+├── yaml@2.8.1
+├─┬ zod-validation-error@3.5.3
+│ └── zod@3.25.76 deduped
+├── zod@3.25.76
+└─┬ zustand@5.0.8
+  ├── @types/react@18.3.26 deduped
+  ├── immer@10.1.3 deduped
+  ├── react@18.3.1 deduped
+  └── use-sync-external-store@1.6.0 deduped
+
+npm error code ELSPROBLEMS
+npm error extraneous: @alloc/quick-lru@5.2.0 c:\dev\Updog_restore\node_modules\@alloc\quick-lru
+npm error extraneous: @isaacs/cliui@8.0.2 c:\dev\Updog_restore\node_modules\@isaacs\cliui
+npm error extraneous: @jridgewell/gen-mapping@0.3.13 c:\dev\Updog_restore\node_modules\@jridgewell\gen-mapping
+npm error extraneous: @pkgjs/parseargs@0.11.0 c:\dev\Updog_restore\node_modules\@pkgjs\parseargs
+npm error extraneous: any-promise@1.3.0 c:\dev\Updog_restore\node_modules\any-promise
+npm error extraneous: anymatch@3.1.3 c:\dev\Updog_restore\node_modules\anymatch
+npm error extraneous: arg@5.0.2 c:\dev\Updog_restore\node_modules\arg
+npm error extraneous: binary-extensions@2.3.0 c:\dev\Updog_restore\node_modules\binary-extensions
+npm error extraneous: camelcase-css@2.0.1 c:\dev\Updog_restore\node_modules\camelcase-css
+npm error extraneous: chokidar@3.6.0 c:\dev\Updog_restore\node_modules\chokidar
+npm error extraneous: cross-spawn@7.0.6 c:\dev\Updog_restore\node_modules\cross-spawn
+npm error extraneous: cssesc@3.0.0 c:\dev\Updog_restore\node_modules\cssesc
+npm error extraneous: didyoumean@1.2.2 c:\dev\Updog_restore\node_modules\didyoumean
+npm error extraneous: dlv@1.1.3 c:\dev\Updog_restore\node_modules\dlv
+npm error extraneous: eastasianwidth@0.2.0 c:\dev\Updog_restore\node_modules\eastasianwidth
+npm error extraneous: emoji-regex@9.2.2 c:\dev\Updog_restore\node_modules\emoji-regex
+npm error extraneous: foreground-child@3.3.1 c:\dev\Updog_restore\node_modules\foreground-child
+npm error extraneous: is-binary-path@2.1.0 c:\dev\Updog_restore\node_modules\is-binary-path
+npm error extraneous: is-core-module@2.16.1 c:\dev\Updog_restore\node_modules\is-core-module
+npm error extraneous: isexe@2.0.0 c:\dev\Updog_restore\node_modules\isexe
+npm error extraneous: jiti@2.6.1 c:\dev\Updog_restore\node_modules\jiti
+npm error extraneous: lilconfig@3.1.3 c:\dev\Updog_restore\node_modules\lilconfig
+npm error extraneous: lines-and-columns@1.2.4 c:\dev\Updog_restore\node_modules\lines-and-columns
+npm error extraneous: minipass@7.1.2 c:\dev\Updog_restore\node_modules\minipass
+npm error extraneous: mz@2.7.0 c:\dev\Updog_restore\node_modules\mz
+npm error extraneous: nanoid@3.3.11 c:\dev\Updog_restore\node_modules\nanoid
+npm error extraneous: normalize-path@3.0.0 c:\dev\Updog_restore\node_modules\normalize-path
+npm error extraneous: object-hash@3.0.0 c:\dev\Updog_restore\node_modules\object-hash
+npm error extraneous: package-json-from-dist@1.0.1 c:\dev\Updog_restore\node_modules\package-json-from-dist
+npm error extraneous: path-key@3.1.1 c:\dev\Updog_restore\node_modules\path-key
+npm error extraneous: path-parse@1.0.7 c:\dev\Updog_restore\node_modules\path-parse
+npm error extraneous: picocolors@1.1.1 c:\dev\Updog_restore\node_modules\picocolors
+npm error extraneous: pirates@4.0.7 c:\dev\Updog_restore\node_modules\pirates
+npm error extraneous: postcss-import@15.1.0 c:\dev\Updog_restore\node_modules\postcss-import
+npm error extraneous: postcss-js@4.1.0 c:\dev\Updog_restore\node_modules\postcss-js
+npm error extraneous: postcss-load-config@6.0.1 c:\dev\Updog_restore\node_modules\postcss-load-config
+npm error extraneous: postcss-nested@6.2.0 c:\dev\Updog_restore\node_modules\postcss-nested
+npm error extraneous: postcss-value-parser@4.2.0 c:\dev\Updog_restore\node_modules\postcss-value-parser
+npm error extraneous: read-cache@1.0.0 c:\dev\Updog_restore\node_modules\read-cache
+npm error extraneous: readdirp@3.6.0 c:\dev\Updog_restore\node_modules\readdirp
+npm error extraneous: resolve@1.22.10 c:\dev\Updog_restore\node_modules\resolve
+npm error extraneous: shebang-command@2.0.0 c:\dev\Updog_restore\node_modules\shebang-command
+npm error extraneous: shebang-regex@3.0.0 c:\dev\Updog_restore\node_modules\shebang-regex
+npm error extraneous: source-map-js@1.2.1 c:\dev\Updog_restore\node_modules\source-map-js
+npm error extraneous: string-width-cjs@npm:string-width@4.2.3 c:\dev\Updog_restore\node_modules\string-width-cjs
+npm error extraneous: strip-ansi-cjs@npm:strip-ansi@6.0.1 c:\dev\Updog_restore\node_modules\strip-ansi-cjs
+npm error extraneous: sucrase@3.35.0 c:\dev\Updog_restore\node_modules\sucrase
+npm error extraneous: supports-preserve-symlinks-flag@1.0.0 c:\dev\Updog_restore\node_modules\supports-preserve-symlinks-flag
+npm error extraneous: thenify-all@1.6.0 c:\dev\Updog_restore\node_modules\thenify-all
+npm error extraneous: thenify@3.3.1 c:\dev\Updog_restore\node_modules\thenify
+npm error extraneous: ts-interface-checker@0.1.13 c:\dev\Updog_restore\node_modules\ts-interface-checker
+npm error extraneous: which@2.0.2 c:\dev\Updog_restore\node_modules\which
+npm error extraneous: wrap-ansi-cjs@npm:wrap-ansi@7.0.0 c:\dev\Updog_restore\node_modules\wrap-ansi-cjs
+npm error extraneous: wrap-ansi@8.1.0 c:\dev\Updog_restore\node_modules\wrap-ansi
+npm error extraneous: ansi-regex@6.2.2 c:\dev\Updog_restore\node_modules\@isaacs\cliui\node_modules\ansi-regex
+npm error extraneous: string-width@5.1.2 c:\dev\Updog_restore\node_modules\@isaacs\cliui\node_modules\string-width
+npm error extraneous: strip-ansi@7.1.2 c:\dev\Updog_restore\node_modules\@isaacs\cliui\node_modules\strip-ansi
+npm error extraneous: postcss-selector-parser@6.1.2 c:\dev\Updog_restore\node_modules\postcss-nested\node_modules\postcss-selector-parser
+npm error extraneous: pify@2.3.0 c:\dev\Updog_restore\node_modules\read-cache\node_modules\pify
+npm error extraneous: emoji-regex@8.0.0 c:\dev\Updog_restore\node_modules\string-width-cjs\node_modules\emoji-regex
+npm error extraneous: is-fullwidth-code-point@3.0.0 c:\dev\Updog_restore\node_modules\string-width-cjs\node_modules\is-fullwidth-code-point
+npm error extraneous: brace-expansion@2.0.2 c:\dev\Updog_restore\node_modules\sucrase\node_modules\brace-expansion
+npm error extraneous: commander@4.1.1 c:\dev\Updog_restore\node_modules\sucrase\node_modules\commander
+npm error extraneous: glob@10.4.5 c:\dev\Updog_restore\node_modules\sucrase\node_modules\glob
+npm error extraneous: jackspeak@3.4.3 c:\dev\Updog_restore\node_modules\sucrase\node_modules\jackspeak
+npm error extraneous: lru-cache@10.4.3 c:\dev\Updog_restore\node_modules\sucrase\node_modules\lru-cache
+npm error extraneous: minimatch@9.0.5 c:\dev\Updog_restore\node_modules\sucrase\node_modules\minimatch
+npm error extraneous: path-scurry@1.11.1 c:\dev\Updog_restore\node_modules\sucrase\node_modules\path-scurry
+npm error extraneous: ansi-styles@4.3.0 c:\dev\Updog_restore\node_modules\wrap-ansi-cjs\node_modules\ansi-styles
+npm error extraneous: color-convert@2.0.1 c:\dev\Updog_restore\node_modules\wrap-ansi-cjs\node_modules\color-convert
+npm error extraneous: color-name@1.1.4 c:\dev\Updog_restore\node_modules\wrap-ansi-cjs\node_modules\color-name
+npm error extraneous: emoji-regex@8.0.0 c:\dev\Updog_restore\node_modules\wrap-ansi-cjs\node_modules\emoji-regex
+npm error extraneous: is-fullwidth-code-point@3.0.0 c:\dev\Updog_restore\node_modules\wrap-ansi-cjs\node_modules\is-fullwidth-code-point
+npm error extraneous: string-width@4.2.3 c:\dev\Updog_restore\node_modules\wrap-ansi-cjs\node_modules\string-width
+npm error extraneous: ansi-regex@6.2.2 c:\dev\Updog_restore\node_modules\wrap-ansi\node_modules\ansi-regex
+npm error extraneous: ansi-styles@6.2.3 c:\dev\Updog_restore\node_modules\wrap-ansi\node_modules\ansi-styles
+npm error extraneous: string-width@5.1.2 c:\dev\Updog_restore\node_modules\wrap-ansi\node_modules\string-width
+npm error extraneous: strip-ansi@7.1.2 c:\dev\Updog_restore\node_modules\wrap-ansi\node_modules\strip-ansi
+npm error missing: @swc/cli@0.1.62, required by tailwindcss@3.4.18
+npm error missing: @swc/core@1.3.55, required by tailwindcss@3.4.18
+npm error missing: @swc/jest@0.2.26, required by tailwindcss@3.4.18
+npm error missing: @swc/register@0.1.10, required by tailwindcss@3.4.18
+npm error invalid: concurrently@9.2.1 c:\dev\Updog_restore\tools_local\node_modules\concurrently
+npm error missing: cssnano@^6.1.2, required by tailwindcss@3.4.18
+npm error invalid: esbuild@0.25.10 c:\dev\Updog_restore\tools_local\node_modules\esbuild
+npm error missing: eslint-config-prettier@^8.10.0, required by tailwindcss@3.4.18
+npm error missing: eslint-plugin-prettier@^4.2.1, required by tailwindcss@3.4.18
+npm error invalid: eslint@9.37.0 c:\dev\Updog_restore\node_modules\eslint
+npm error missing: jest-diff@^29.7.0, required by tailwindcss@3.4.18
+npm error missing: jest@^29.7.0, required by tailwindcss@3.4.18
+npm error invalid: lightningcss@1.30.2 c:\dev\Updog_restore\node_modules\lightningcss
+npm error invalid: prettier@3.6.2 c:\dev\Updog_restore\node_modules\prettier
+npm error missing: rimraf@^5.0.10, required by tailwindcss@3.4.18
+npm error missing: turbo@^1.13.4, required by tailwindcss@3.4.18
+npm error A complete log of this run can be found in: C:\Users\nikhi\AppData\Local\npm-cache\_logs\2025-10-14T06_46_59_542Z-debug-0.log

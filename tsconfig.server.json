@@ -1,10 +1,15 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    // Week 2: Enable strict + exactOptionalPropertyTypes (inherited from base)
+    // Defer to Week 3:
+    // - noUncheckedIndexedAccess: true
+    // - noPropertyAccessFromIndexSignature: true
+
     "types": ["node"],  // Override to remove vite/client from server
     "target": "ES2022",
     "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "moduleResolution": "Bundler",  // Keep Bundler (NodeNext adds 1150 errors)
     "baseUrl": ".",
     "paths": {
       "@/*": ["./client/src/*"],
