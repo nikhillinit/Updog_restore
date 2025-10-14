@@ -64,7 +64,9 @@ export async function processAsync<T>(
     // Sequential processing
     for (let i = 0; i < items.length; i++) {
       try {
-        await processor(items[i], i);
+        const item = items[i];
+        if (item === undefined) continue;
+        await processor(item, i);
       } catch (error) {
         if (!continueOnError) throw error;
         logger.error(`Processing error at index ${i}:`, error as Error);
@@ -128,11 +130,13 @@ export async function forEachAsync<T>(
   if (!Array.isArray(items)) return;
   
   const start = withMetrics ? performance.now() : 0;
-  
+
   for (let i = 0; i < items.length; i++) {
-    await callback(items[i], i, items);
+    const item = items[i];
+    if (item === undefined) continue;
+    await callback(item, i, items);
   }
-  
+
   if (withMetrics && items.length > 100) {
     console.info(`[async-metrics] forEachAsync: ${items.length} items in ${(performance.now() - start).toFixed(1)}ms`);
   }
@@ -179,7 +183,9 @@ export async function mapAsync<T, R>(
     // Sequential processing
     results = [];
     for (let i = 0; i < items.length; i++) {
-      const result = await callback(items[i], i, items);
+      const item = items[i];
+      if (item === undefined) continue;
+      const result = await callback(item, i, items);
       results.push(result);
     }
   }
@@ -214,10 +220,12 @@ export async function findAsync<T>(
   predicate: (_item: T, _index: number, _array: T[]) => Promise<boolean>
 ): Promise<T | undefined> {
   if (!Array.isArray(items)) return undefined;
-  
+
   for (let i = 0; i < items.length; i++) {
-    if (await predicate(items[i], i, items)) {
-      return items[i];
+    const item = items[i];
+    if (item === undefined) continue;
+    if (await predicate(item, i, items)) {
+      return item;
     }
   }
   return undefined;
@@ -232,10 +240,12 @@ export async function reduceAsync<T, R>(
   initialValue: R
 ): Promise<R> {
   if (!Array.isArray(items)) return initialValue;
-  
+
   let accumulator = initialValue;
   for (let i = 0; i < items.length; i++) {
-    accumulator = await reducer(accumulator, items[i], i, items);
+    const item = items[i];
+    if (item === undefined) continue;
+    accumulator = await reducer(accumulator, item, i, items);
   }
   return accumulator;
 }
@@ -248,9 +258,11 @@ export async function someAsync<T>(
   predicate: (_item: T, _index: number, _array: T[]) => Promise<boolean>
 ): Promise<boolean> {
   if (!Array.isArray(items)) return false;
-  
+
   for (let i = 0; i < items.length; i++) {
-    if (await predicate(items[i], i, items)) {
+    const item = items[i];
+    if (item === undefined) continue;
+    if (await predicate(item, i, items)) {
       return true;
     }
   }
@@ -265,9 +277,11 @@ export async function everyAsync<T>(
   predicate: (_item: T, _index: number, _array: T[]) => Promise<boolean>
 ): Promise<boolean> {
   if (!Array.isArray(items)) return true;
-  
+
   for (let i = 0; i < items.length; i++) {
-    if (!(await predicate(items[i], i, items))) {
+    const item = items[i];
+    if (item === undefined) continue;
+    if (!(await predicate(item, i, items))) {
       return false;
     }
   }

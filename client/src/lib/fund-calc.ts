@@ -456,5 +456,5 @@ function getExitMultiple(exitBucket: 'failure' | 'acquired' | 'ipo' | 'secondary
     secondary: toDecimal(5.0),  // 5x
   };
 
-  return multiples[exitBucket];
+  return multiples[exitBucket] ?? toDecimal(1.0);
 }

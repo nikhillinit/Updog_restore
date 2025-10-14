@@ -81,6 +81,8 @@ export function deepSet<T extends object>(
   for (let i = 0; i < parts.length - 1; i++) {
     const key = parts[i];
     const nextKey = parts[i + 1];
+    if (key === undefined || nextKey === undefined) continue; // Guard against undefined indices
+
     const shouldBeArray = isIndex(nextKey);
 
     // Check if current node is not an object or is null
@@ -99,6 +101,7 @@ export function deepSet<T extends object>(
 
   // Set the final value
   const lastKey = parts[parts.length - 1];
+  if (lastKey === undefined) return obj; // Guard against undefined index
   node[lastKey] = value;
 
   return obj;
@@ -178,12 +181,15 @@ export function deepDelete<T extends object>(obj: T, path: string): T {
   // Traverse to parent
   for (let i = 0; i < parts.length - 1; i++) {
     if (typeof node !== 'object' || node === null) return obj;
-    node = node[parts[i]];
+    const key = parts[i];
+    if (key === undefined) return obj; // Guard against undefined index
+    node = node[key];
     if (node == null) return obj;
   }
 
   // Delete the final key
   const lastKey = parts[parts.length - 1];
+  if (lastKey === undefined) return obj; // Guard against undefined index
   if (typeof node === 'object' && node !== null) {
     delete node[lastKey];
   }

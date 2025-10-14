@@ -465,5 +465,9 @@ export function loadDemoScenarioSafe(id: string): DemoScenario {
 
   // Fallback to default SaaS scenario
   console.warn(`Demo scenario ${id} not found, using default SaaS scenario`);
-  return DEMO_SCENARIOS[0]; // SaaS Ventures I
+  const defaultScenario = DEMO_SCENARIOS[0];
+  if (!defaultScenario) {
+    throw new Error('No demo scenarios available');
+  }
+  return defaultScenario;
 }
