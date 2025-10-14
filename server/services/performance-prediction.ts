@@ -12,6 +12,7 @@ import {
   performanceForecasts
 } from '@shared/schema';
 import { eq, and, desc, gte, sql, inArray } from 'drizzle-orm';
+import { isDefined } from '@shared/lib/ts/isDefined';
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -187,7 +188,7 @@ export class PerformancePredictionEngine {
       trendDirection,
       trendStrength,
       trendVelocity: trendCoefficient,
-      inflectionPoints: inflectionPoints.map(idx => timeSeries[idx].timestamp),
+      inflectionPoints: inflectionPoints.map(idx => timeSeries[idx]).filter(isDefined).map(ts => ts.timestamp),
       seasonalityDetected: seasonality.detected,
       cyclePeriod: seasonality.period
     };
@@ -365,7 +366,7 @@ export class PerformancePredictionEngine {
     // Calculate regression coefficients
     const sumX = x.reduce((a: any, b: any) => a + b, 0);
     const sumY = y.reduce((a: any, b: any) => a + b, 0);
-    const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+    const sumXY = x.reduce((sum, xi, i) => sum + xi * (y[i] ?? 0), 0);
     const sumX2 = x.reduce((sum: any, xi: any) => sum + xi * xi, 0);
 
     const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
@@ -373,7 +374,9 @@ export class PerformancePredictionEngine {
 
     // Generate predictions
     const predictions = [];
-    const lastTimestamp = timeSeries[timeSeries.length - 1].timestamp;
+    const lastEntry = timeSeries[timeSeries.length - 1];
+    if (!lastEntry) throw new Error('No time series data available');
+    const lastTimestamp = lastEntry.timestamp;
     const monthMs = 30 * 24 * 60 * 60 * 1000;
 
     for (let i = 1; i <= config.predictionHorizon; i++) {
@@ -422,18 +425,20 @@ export class PerformancePredictionEngine {
     const values = timeSeries.map(d => d.value);
 
     // Apply exponential smoothing
-    const smoothed = [values[0]];
+    const smoothed = [values[0] ?? 0];
     for (let i = 1; i < values.length; i++) {
-      smoothed.push(alpha * values[i] + (1 - alpha) * smoothed[i - 1]);
+      smoothed.push(alpha * (values[i] ?? 0) + (1 - alpha) * (smoothed[i - 1] ?? 0));
     }
 
     // Calculate trend
-    const trend = (smoothed[smoothed.length - 1] - smoothed[0]) / smoothed.length;
+    const trend = ((smoothed[smoothed.length - 1] ?? 0) - (smoothed[0] ?? 0)) / smoothed.length;
 
     // Generate predictions
     const predictions = [];
-    const lastTimestamp = timeSeries[timeSeries.length - 1].timestamp;
-    const lastValue = smoothed[smoothed.length - 1];
+    const lastEntry = timeSeries[timeSeries.length - 1];
+    if (!lastEntry) throw new Error('No time series data available');
+    const lastTimestamp = lastEntry.timestamp;
+    const lastValue = smoothed[smoothed.length - 1] ?? 0;
     const monthMs = 30 * 24 * 60 * 60 * 1000;
 
     for (let i = 1; i <= config.predictionHorizon; i++) {
@@ -486,8 +491,8 @@ export class PerformancePredictionEngine {
     const sumX3 = x.reduce((sum: any, xi: any) => sum + xi * xi * xi, 0);
     const sumX4 = x.reduce((sum: any, xi: any) => sum + xi * xi * xi * xi, 0);
     const sumY = y.reduce((a: any, b: any) => a + b, 0);
-    const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
-    const sumX2Y = x.reduce((sum, xi, i) => sum + xi * xi * y[i], 0);
+    const sumXY = x.reduce((sum, xi, i) => sum + xi * (y[i] ?? 0), 0);
+    const sumX2Y = x.reduce((sum, xi, i) => sum + xi * xi * (y[i] ?? 0), 0);
 
     // Solve system of equations using Cramer's rule (simplified)
     const det = n * sumX2 * sumX4 + sumX * sumX3 * sumX2 + sumX2 * sumX * sumX3
@@ -507,7 +512,9 @@ export class PerformancePredictionEngine {
 
     // Generate predictions
     const predictions = [];
-    const lastTimestamp = timeSeries[timeSeries.length - 1].timestamp;
+    const lastEntry = timeSeries[timeSeries.length - 1];
+    if (!lastEntry) throw new Error('No time series data available');
+    const lastTimestamp = lastEntry.timestamp;
     const monthMs = 30 * 24 * 60 * 60 * 1000;
 
     for (let i = 1; i <= config.predictionHorizon; i++) {
@@ -571,15 +578,19 @@ export class PerformancePredictionEngine {
       let upperBound = 0;
 
       models.forEach((model: any, mi: any) => {
-        if (model.predictions[i]) {
-          value += model.predictions[i].value * normalizedWeights[mi];
-          lowerBound += model.predictions[i].lowerBound * normalizedWeights[mi];
-          upperBound += model.predictions[i].upperBound * normalizedWeights[mi];
+        const pred = model.predictions[i];
+        if (pred) {
+          value += pred.value * (normalizedWeights[mi] ?? 0);
+          lowerBound += pred.lowerBound * (normalizedWeights[mi] ?? 0);
+          upperBound += pred.upperBound * (normalizedWeights[mi] ?? 0);
         }
       });
 
+      const firstPred = models[0]?.predictions[i];
+      if (!firstPred) continue;
+
       ensemblePredictions.push({
-        timestamp: models[0].predictions[i].timestamp,
+        timestamp: firstPred.timestamp,
         value,
         lowerBound,
         upperBound,
@@ -613,23 +624,23 @@ export class PerformancePredictionEngine {
     const n = actual.length;
 
     // Mean Absolute Error
-    const mae = actual.reduce((sum, a, i) => sum + Math.abs(a - predicted[i]), 0) / n;
+    const mae = actual.reduce((sum, a, i) => sum + Math.abs(a - (predicted[i] ?? 0)), 0) / n;
 
     // Root Mean Square Error
-    const mse = actual.reduce((sum, a, i) => sum + Math.pow(a - predicted[i], 2), 0) / n;
+    const mse = actual.reduce((sum, a, i) => sum + Math.pow(a - (predicted[i] ?? 0), 2), 0) / n;
     const rmse = Math.sqrt(mse);
 
     // Mean Absolute Percentage Error
     const mape = actual.reduce((sum, a, i) => {
       if (a !== 0) {
-        return sum + Math.abs((a - predicted[i]) / a);
+        return sum + Math.abs((a - (predicted[i] ?? 0)) / a);
       }
       return sum;
     }, 0) / n;
 
     // R-squared
     const meanActual = actual.reduce((sum: any, a: any) => sum + a, 0) / n;
-    const ssRes = actual.reduce((sum, a, i) => sum + Math.pow(a - predicted[i], 2), 0);
+    const ssRes = actual.reduce((sum, a, i) => sum + Math.pow(a - (predicted[i] ?? 0), 2), 0);
     const ssTot = actual.reduce((sum: any, a: any) => sum + Math.pow(a - meanActual, 2), 0);
     const r2Score = ssTot === 0 ? 0 : 1 - (ssRes / ssTot);
 
@@ -638,7 +649,7 @@ export class PerformancePredictionEngine {
 
   private calculateStandardError(actual: number[], predicted: number[]): number {
     const n = actual.length;
-    const residuals = actual.map((a: any, i: any) => a - predicted[i]);
+    const residuals = actual.map((a: any, i: any) => a - (predicted[i] ?? 0));
     const sse = residuals.reduce((sum: any, r: any) => sum + r * r, 0);
     return Math.sqrt(sse / (n - 2));
   }
@@ -655,7 +666,7 @@ export class PerformancePredictionEngine {
 
     const sumX = x.reduce((a: any, b: any) => a + b, 0);
     const sumY = y.reduce((a: any, b: any) => a + b, 0);
-    const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+    const sumXY = x.reduce((sum, xi, i) => sum + xi * (y[i] ?? 0), 0);
     const sumX2 = x.reduce((sum: any, xi: any) => sum + xi * xi, 0);
 
     return (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
