@@ -37,14 +37,14 @@ export type AuthenticatedRequest = Request & { user: User };
  * @returns Express RequestHandler that validates authentication
  */
 export function authed(
-  handler: (req: AuthenticatedRequest, res: Response, next: NextFunction) => unknown
+  handler: (req: AuthenticatedRequest, res: core.Response, next: NextFunction) => unknown
 ): RequestHandler {
   return (req, res, next) => {
     const user = (req as any).user;
     if (!user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    const result = handler(Object.assign(req, { user }) as AuthenticatedRequest, res as Response, next);
+    const result = handler(Object.assign(req, { user }) as AuthenticatedRequest, res, next);
     return result as any;
   };
 }

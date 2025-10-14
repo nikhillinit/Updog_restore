@@ -119,28 +119,24 @@ export class ProjectedMetricsCalculator {
     reserveByCompany: Array<{ companyId: number; reserveAmount: number }>;
   } | null> {
     try {
-      // Build input for reserve engine
-      const reserveInput: ReserveInput = {
-        fundSize: parseFloat(fund.size.toString()),
-        deployedCapital: parseFloat(fund.deployedCapital?.toString() || '0'),
-        companies: companies.map((c) => ({
-          id: c.id,
-          name: c.name,
-          currentStage: c.currentStage || 'seed',
-          initialInvestment: parseFloat(c.initialInvestment?.toString() || '0'),
-          currentValuation: parseFloat(c.currentValuation?.toString() || '0'),
-          ownershipPercent: parseFloat(c.ownershipPercent?.toString() || '0'),
-        })),
-        reserveRatio: config.reserveRatio || 0.5,
-        graduationMatrix: config.graduationMatrix,
-      };
+      // Build input for reserve engine (array of ReserveInput)
+      const reserveInputs: ReserveInput[] = companies.map((c) => ({
+        id: c.id,
+        stage: c.stage || 'Seed',
+        sector: c.sector || 'SaaS',
+        invested: parseFloat(c.investmentAmount?.toString() || '0'),
+        ownership: parseFloat(c.ownershipStake?.toString() || '0') / 100, // Convert percentage to decimal
+      }));
 
-      const summary = await generateReserveSummary(reserveInput);
+      const summary = generateReserveSummary(fund.id, reserveInputs);
 
       return {
-        totalReserves: summary.totalReserves,
-        allocatedReserves: summary.allocatedReserves,
-        reserveByCompany: summary.companyReserves || [],
+        totalReserves: summary.totalAllocation,
+        allocatedReserves: summary.totalAllocation, // All reserves are allocated by the engine
+        reserveByCompany: summary.allocations.map((alloc, idx) => ({
+          companyId: companies[idx]?.id || 0,
+          reserveAmount: alloc.allocation,
+        })),
       };
     } catch (error) {
       console.error('Reserve calculation failed:', error);
@@ -171,13 +167,11 @@ export class ProjectedMetricsCalculator {
 
       const pacingInput: PacingInput = {
         fundSize,
-        deployedCapital: deployed,
-        investmentPeriodYears,
-        currentFundAgeMonths: fundAgeMonths,
-        targetCompanyCount: config.investmentPeriodYears ? Math.round(fundSize / 2000000) : 20,
+        deploymentQuarter: Math.floor(fundAgeMonths / 3), // Current quarter
+        marketCondition: 'neutral' as const,
       };
 
-      const summary = await generatePacingSummary(pacingInput);
+      const summary = generatePacingSummary(pacingInput);
 
       // Determine pace status
       const expectedDeploymentRate = fundAgeMonths / (investmentPeriodYears * 12);

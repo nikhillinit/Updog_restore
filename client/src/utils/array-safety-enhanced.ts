@@ -236,9 +236,11 @@ export async function forEachAsync<T>(
   callback: (_item: T, _index: number) => Promise<void>
 ): Promise<void> {
   if (!isSafeArray(array)) return;
-  
+
   for (let i = 0; i < array.length; i++) {
-    await callback(array[i], i);
+    const item = array[i];
+    if (item === undefined) continue; // Array bounds safety
+    await callback(item, i);
   }
 }
 
