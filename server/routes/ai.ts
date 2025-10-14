@@ -8,6 +8,7 @@ import {
   aiConsensus,
   collaborativeSolve
 } from '../services/ai-orchestrator';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 const router = Router();
 
@@ -23,7 +24,11 @@ router.post('/ask', async (req: Request, res: Response) => {
   try {
     const { prompt, models, tags } = askSchema.parse(req.body);
 
-    const results = await askAllAIs({ prompt, models, tags });
+    const results = await askAllAIs({
+      prompt,
+      ...spreadIfDefined('models', models),
+      ...spreadIfDefined('tags', tags),
+    });
 
     res.json({
       success: true,
@@ -68,7 +73,12 @@ const debateSchema = z.object({
 router.post('/debate', async (req: Request, res: Response) => {
   try {
     const { topic, ai1, ai2, tags } = debateSchema.parse(req.body);
-    const result = await aiDebate({ topic, ai1, ai2, tags });
+    const result = await aiDebate({
+      topic,
+      ...spreadIfDefined('ai1', ai1),
+      ...spreadIfDefined('ai2', ai2),
+      ...spreadIfDefined('tags', tags),
+    });
     res.json({ success: true, result });
   } catch (error: any) {
     if (error.name === 'ZodError') {
@@ -96,7 +106,12 @@ const consensusSchema = z.object({
 router.post('/consensus', async (req: Request, res: Response) => {
   try {
     const { question, options, models, tags } = consensusSchema.parse(req.body);
-    const result = await aiConsensus({ question, options, models, tags });
+    const result = await aiConsensus({
+      question,
+      ...spreadIfDefined('options', options),
+      ...spreadIfDefined('models', models),
+      ...spreadIfDefined('tags', tags),
+    });
     res.json({ success: true, result });
   } catch (error: any) {
     if (error.name === 'ZodError') {
@@ -124,7 +139,12 @@ const collaborateSchema = z.object({
 router.post('/collaborate', async (req: Request, res: Response) => {
   try {
     const { problem, approach, models, tags } = collaborateSchema.parse(req.body);
-    const result = await collaborativeSolve({ problem, approach, models, tags });
+    const result = await collaborativeSolve({
+      problem,
+      ...spreadIfDefined('approach', approach),
+      ...spreadIfDefined('models', models),
+      ...spreadIfDefined('tags', tags),
+    });
     res.json({ success: true, result });
   } catch (error: any) {
     if (error.name === 'ZodError') {

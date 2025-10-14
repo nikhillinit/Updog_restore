@@ -15,6 +15,7 @@ import { createHash } from 'crypto';
 import { promises as fs } from 'fs';
 import path from 'path';
 import pLimit from 'p-limit';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 // ============================================================================
 // Configuration
@@ -285,7 +286,7 @@ async function askGPT(prompt: string): Promise<AIResponse> {
     return {
       model: 'gpt',
       text,
-      usage,
+      ...spreadIfDefined('usage', usage),
       cost_usd: estimateCost('gpt', usage),
       elapsed_ms: Date.now() - startTime,
     };
@@ -328,7 +329,7 @@ async function askGemini(prompt: string): Promise<AIResponse> {
     return {
       model: 'gemini',
       text,
-      usage,
+      ...spreadIfDefined('usage', usage),
       cost_usd: estimateCost('gemini', usage),
       elapsed_ms: Date.now() - startTime,
     };
@@ -370,7 +371,7 @@ async function askDeepSeek(prompt: string): Promise<AIResponse> {
     return {
       model: 'deepseek',
       text,
-      usage,
+      ...spreadIfDefined('usage', usage),
       cost_usd: estimateCost('deepseek', usage),
       elapsed_ms: Date.now() - startTime,
     };
@@ -591,7 +592,7 @@ export async function aiConsensus({
 
   return {
     question,
-    options,
+    ...spreadIfDefined('options', options),
     responses,
     consensus,
     totalCost,
