@@ -179,11 +179,13 @@ router['get']('/:id', async (req: AuthenticatedRequest, res: Response) => {
       .where(eq(approvalAuditLog.approvalId, id))
       .orderBy(approvalAuditLog.timestamp);
     
+    const userEmail = req.user?.email || '';
+
     res.json({
       approval,
       signatures,
       auditLog,
-      canSign: await canPartnerSign(req.user.email, id),
+      canSign: userEmail ? await canPartnerSign(userEmail, id) : false,
       isExpired: approval.expiresAt < new Date(),
       isApproved: signatures.length >= 2
     } as any);

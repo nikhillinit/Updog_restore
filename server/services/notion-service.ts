@@ -584,9 +584,14 @@ export class NotionService {
     const algorithm = 'aes-256-gcm';
     const key = Buffer["from"](process.env["NOTION_ENCRYPTION_KEY"] || '', 'hex');
     const parts = encryptedToken.split(':');
-    const iv = Buffer.from(parts[0], 'hex');
+    const ivHex = parts[0];
     const encrypted = parts[1];
 
+    if (!ivHex || !encrypted) {
+      throw new Error('Invalid encrypted token format');
+    }
+
+    const iv = Buffer.from(ivHex, 'hex');
     const decipher = crypto.createDecipher(algorithm, key);
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');

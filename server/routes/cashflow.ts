@@ -203,7 +203,9 @@ router.put('/:fundId/transactions/:transactionId', async (req: Request, res: Res
 
     const updatedTransaction: CashTransaction = {
       ...existingTransaction,
-      ...updates,
+      ...Object.fromEntries(
+        Object.entries(updates).filter(([_, v]) => v !== undefined)
+      ),
       updatedAt: new Date(),
     };
 
@@ -481,13 +483,13 @@ router.get('/:fundId/cash-position', async (req: Request, res: Response) => {
             level: 'warning' as const,
             message: 'Liquidity ratio below recommended threshold',
             threshold: 1.5,
-            current: metrics.liquidityRatio,
+            current: metrics.liquidityRatio
           }] : []),
           ...(metrics.runwayMonths < 6 ? [{
             level: 'critical' as const,
             message: 'Cash runway below 6 months',
             threshold: 6,
-            current: metrics.runwayMonths,
+            current: metrics.runwayMonths
           }] : []),
         ],
       },

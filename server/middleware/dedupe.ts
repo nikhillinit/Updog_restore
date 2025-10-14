@@ -33,13 +33,15 @@ class MemoryDedupeStore {
   set(key: string, data: DedupedResponse, ttl: number): void {
     // Cleanup expired entries
     this.cleanup();
-    
+
     // Evict oldest if at capacity
     if (this.store.size >= this.maxSize) {
       const firstKey = this.store.keys().next().value;
-      this.store.delete(firstKey);
+      if (firstKey !== undefined) {
+        this.store.delete(firstKey);
+      }
     }
-    
+
     const expiry = Date.now() + (ttl * 1000);
     this.store['set'](key, { data, expiry });
   }

@@ -353,7 +353,7 @@ export function createRedis(config: CreateRedisConfig = {}): RedisAPI {
 
       // Extract DB from pathname (e.g., /0, /1)
       const dbMatch = url.pathname.match(/^\/(\d+)$/);
-      if (dbMatch) {
+      if (dbMatch && dbMatch[1] !== undefined) {
         options.db = parseInt(dbMatch[1], 10);
       }
 

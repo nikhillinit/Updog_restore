@@ -71,20 +71,20 @@ export function withRLSTransaction() {
 
       // Auto-commit on successful response
       const originalEnd = res.end;
-      res.end = function(...args: any[]) {
+      res.end = function(...args: []) {
         if (!transactionCompleted) {
           transactionCompleted = true;
-          
+
           // Commit or rollback based on response status
           const shouldCommit = res["statusCode"] < 400;
-          
+
           client.query(shouldCommit ? 'COMMIT' : 'ROLLBACK')
             .catch(err => console.error('Transaction finalization error:', err))
             .finally(() => {
               client.release();
             });
         }
-        
+
         return originalEnd.apply(res, args);
       };
 

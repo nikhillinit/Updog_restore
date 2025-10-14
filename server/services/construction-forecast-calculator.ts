@@ -123,47 +123,58 @@ export class ConstructionForecastCalculator {
 
     // Configure J-curve computation
     const jCurveConfig: JCurveConfig = {
-      fundSize,
-      targetTVPI,
-      investmentPeriodQuarters: investmentPeriodYears * 4,
-      fundLifeQuarters: fundLifeYears * 4,
-      actualTVPIPoints: [], // No actuals in construction phase
+      kind: 'gompertz',
+      horizonYears: fundLifeYears,
+      investYears: investmentPeriodYears,
+      targetTVPI: new Decimal(targetTVPI),
+      step: 'quarter',
       navCalculationMode,
-      finalDistributionCoefficient,
-      feeBasisTimeline
+      finalDistributionCoefficient
     };
 
+    // Compute fee timeline (empty for construction phase)
+    const numQuarters = fundLifeYears * 4;
+    const feeTimeline = feeBasisTimeline
+      ? feeBasisTimeline.periods.map(p => p.fee)
+      : Array(numQuarters).fill(new Decimal(0));
+
     // Compute J-curve path
-    const jCurvePath = computeJCurvePath(jCurveConfig);
+    const jCurvePath = computeJCurvePath(jCurveConfig, feeTimeline);
 
     // Extract current metrics (quarter 0)
-    const currentPoint = jCurvePath.mainPath[0];
-    if (!currentPoint) {
+    const currentTVPI = jCurvePath.tvpi[0];
+    const currentNAV = jCurvePath.nav[0];
+    const currentDPI = jCurvePath.dpi[0];
+
+    if (!currentTVPI || !currentNAV || !currentDPI) {
       throw new Error('J-curve computation failed: no data points');
     }
 
     const current = {
-      tvpi: currentPoint.tvpi,
-      dpi: currentPoint.dpi,
-      rvpi: currentPoint.rvpi,
-      nav: new Decimal(currentPoint.nav),
-      calledCapital: new Decimal(currentPoint.calledCapital),
-      distributions: new Decimal(currentPoint.distributions)
+      tvpi: currentTVPI.toNumber(),
+      dpi: currentDPI.toNumber(),
+      rvpi: currentTVPI.minus(currentDPI).toNumber(),
+      nav: currentNAV,
+      calledCapital: new Decimal(0), // No calls yet in construction
+      distributions: currentDPI
     };
 
     // Extract projected metrics (final quarter)
-    const finalPoint = jCurvePath.mainPath[jCurvePath.mainPath.length - 1];
-    if (!finalPoint) {
+    const finalTVPI = jCurvePath.tvpi[jCurvePath.tvpi.length - 1];
+    const finalNAV = jCurvePath.nav[jCurvePath.nav.length - 1];
+    const finalDPI = jCurvePath.dpi[jCurvePath.dpi.length - 1];
+
+    if (!finalTVPI || !finalNAV || !finalDPI) {
       throw new Error('J-curve computation failed: no final point');
     }
 
     const projected = {
-      tvpi: finalPoint.tvpi,
-      dpi: finalPoint.dpi,
-      rvpi: finalPoint.rvpi,
-      nav: new Decimal(finalPoint.nav),
-      calledCapital: new Decimal(finalPoint.calledCapital),
-      distributions: new Decimal(finalPoint.distributions)
+      tvpi: finalTVPI.toNumber(),
+      dpi: finalDPI.toNumber(),
+      rvpi: finalTVPI.minus(finalDPI).toNumber(),
+      nav: finalNAV,
+      calledCapital: fundSize, // Fully called by end
+      distributions: finalDPI
     };
 
     return {

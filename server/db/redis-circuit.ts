@@ -97,7 +97,9 @@ class MemoryCache {
     // Evict oldest entries if cache is full
     if (this.cache.size >= this.maxSize) {
       const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
     }
 
     const expiry = ttl ? Date.now() + (ttl * 1000) : undefined;

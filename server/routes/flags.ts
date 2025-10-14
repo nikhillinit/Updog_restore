@@ -161,14 +161,14 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: AuthenticatedR
     }
     
     // Version-based concurrency control
-    const expectedVersion = req.headers['if-match'] as string;
+    const expectedVersion = req.headers['if-match'] as string | undefined;
     if (!expectedVersion) {
       return res.status(400).json({
         error: 'version_required',
         message: 'If-Match header with current version required'
       });
     }
-    
+
     const currentVersion = await getFlagsVersion();
     if (expectedVersion !== currentVersion) {
       return res.status(409).json({
@@ -180,7 +180,7 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: AuthenticatedR
     }
     
     const { reason, dryRun, ...updates } = validation.data;
-    
+
     // Dry run support
     if (dryRun) {
       // TODO: Preview changes without committing
@@ -189,13 +189,21 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: AuthenticatedR
         preview: {
           key,
           updates,
-          actor: req.user.email,
+          actor: req.user?.email || 'unknown',
           timestamp: new Date().toISOString()
         }
       });
     }
-    
-    await updateFlag(key, updates, req.user, reason);
+
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: 'User context required' });
+    }
+    if (!reason) {
+      return res.status(400).json({ error: 'Reason is required' });
+    }
+
+    await updateFlag(key, updates, user, reason);
     
     const newVersion = await getFlagsVersion();
     
