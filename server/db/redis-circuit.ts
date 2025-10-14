@@ -5,6 +5,7 @@
 import { CircuitBreaker } from '../infra/circuit-breaker/CircuitBreaker';
 import { breakerRegistry } from '../infra/circuit-breaker/breaker-registry';
 import { createCacheFromEnv } from './redis-factory';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 // Redis connection configuration
 const redisConfig = {
@@ -236,7 +237,7 @@ export async function get(key: string): Promise<string | null> {
       key,
       duration: Date.now() - start,
       hit,
-      error,
+      ...spreadIfDefined('error', error),
       fallback,
     });
   }
@@ -293,7 +294,7 @@ export async function set(
       key,
       duration: Date.now() - start,
       hit: true,
-      error,
+      ...spreadIfDefined('error', error),
       fallback,
     });
   }
@@ -332,7 +333,7 @@ export async function del(key: string): Promise<void> {
       key,
       duration: Date.now() - start,
       hit: false,
-      error,
+      ...spreadIfDefined('error', error),
     });
   }
 }

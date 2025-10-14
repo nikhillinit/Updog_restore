@@ -1,6 +1,7 @@
 import Redis from 'ioredis';
 import { logger } from '../lib/logger';
 import * as fs from 'fs';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 // Explicit interface to avoid TS4111 index signature errors
 export interface RedisAPI {
@@ -271,9 +272,10 @@ function parseSentinelOptions(config: CreateRedisConfig): {
 } {
   // Use config sentinels if provided
   if (config.sentinels) {
+    const sentinelName = config.name || process.env['REDIS_SENTINEL_NAME'];
     return {
       sentinels: config.sentinels,
-      name: config.name || process.env['REDIS_SENTINEL_NAME'],
+      ...spreadIfDefined('name', sentinelName),
     };
   }
 
@@ -282,9 +284,10 @@ function parseSentinelOptions(config: CreateRedisConfig): {
   if (sentinelsEnv) {
     try {
       const sentinels = JSON.parse(sentinelsEnv) as SentinelAddress[];
+      const sentinelName = config.name || process.env['REDIS_SENTINEL_NAME'];
       return {
         sentinels,
-        name: config.name || process.env['REDIS_SENTINEL_NAME'],
+        ...spreadIfDefined('name', sentinelName),
       };
     } catch (error) {
       logger.error(

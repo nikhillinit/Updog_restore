@@ -6,6 +6,7 @@ import type { PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { Pool } from 'pg';
 import { TypedCircuitBreaker } from '../infra/circuit-breaker/typed-breaker';
 import { breakerRegistry } from '../infra/circuit-breaker/breaker-registry';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 // PostgreSQL connection pool configuration
 const poolConfig = {
@@ -126,7 +127,7 @@ async function _query<T extends QueryResultRow = any>(
       query: text,
       duration,
       rowCount: result?.rowCount || 0,
-      error,
+      ...spreadIfDefined('error', error),
     });
   }
 }
