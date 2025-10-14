@@ -67,19 +67,21 @@ export function requireFundAccess(req: Request, res: Response, next: NextFunctio
   const fundIdParam = req.params["fundId"];
 
   if (!fundIdParam) {
-    return res.status(400).json({
+    res.status(400).json({
       error: 'Bad Request',
       message: 'Fund ID is required',
     });
+    return;
   }
 
   const fundId = parseInt(fundIdParam, 10);
 
   if (isNaN(fundId)) {
-    return res.status(400).json({
+    res.status(400).json({
       error: 'Bad Request',
       message: 'Invalid fund ID',
     });
+    return;
   }
 
   // Check if user has access to this fund

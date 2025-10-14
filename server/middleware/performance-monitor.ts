@@ -154,9 +154,9 @@ class PerformanceMonitor extends EventEmitter {
     return {
       count,
       avgDuration: sum / count,
-      minDuration: durations[0],
-      maxDuration: durations[count - 1],
-      p95Duration: durations[p95Index] || 0,
+      minDuration: durations[0] ?? 0,
+      maxDuration: durations[count - 1] ?? 0,
+      p95Duration: durations[p95Index] ?? 0,
       slowCount: filteredMetrics.filter(m => m.severity === 'slow').length,
       criticalCount: filteredMetrics.filter(m => m.severity === 'critical').length
     };
@@ -180,7 +180,7 @@ class PerformanceMonitor extends EventEmitter {
       const startTime = performance.now();
       const originalEnd = res.end;
 
-      res.end = function(this: Response, ...args: any[]) {
+      res.end = function(this: Response, ...args: []) {
         const duration = performance.now() - startTime;
         const operation = `${req["method"]} ${req['route']?.path || req.path}`;
 

@@ -270,9 +270,10 @@ export class RedisApprovalRateLimiter {
       const windowStart = now - this.config.windowMs;
       const timestamps = (this.memoryBuckets.get(key) || []).filter(ts => ts > windowStart);
       this.memoryBuckets.set(key, timestamps);
+      const oldestTimestamp = timestamps[0];
       return {
         count: timestamps.length,
-        oldestRequest: timestamps.length > 0 ? timestamps[0] : null,
+        oldestRequest: oldestTimestamp !== undefined ? oldestTimestamp : null,
       };
     }
 
@@ -290,10 +291,11 @@ export class RedisApprovalRateLimiter {
     const oldest = await this.redis!.zRange(key, 0, 0);
 
     const firstEntry = oldest[0];
+    const firstPart = firstEntry?.split('-')[0];
     return {
       count,
-      oldestRequest: firstEntry !== undefined
-        ? parseInt(firstEntry.split('-')[0])
+      oldestRequest: firstPart !== undefined
+        ? parseInt(firstPart)
         : null
     };
   }

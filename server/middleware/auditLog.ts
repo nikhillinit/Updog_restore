@@ -101,13 +101,13 @@ async function logAuditEntry(entry: InsertAuditLog) {
 function extractEntityType(path: string): string | null {
   // Extract entity type from API path
   const match = path.match(/^\/api\/([^\/]+)/);
-  return match ? match[1] : null;
+  return match ? (match[1] ?? null) : null;
 }
 
 function extractEntityId(path: string): string | null {
   // Extract entity ID from API path (assumes UUIDs or numeric IDs)
   const match = path.match(/\/([a-f0-9-]{36}|\d+)(?:\/|$)/);
-  return match ? match[1] : null;
+  return match ? (match[1] ?? null) : null;
 }
 
 function extractSessionId(req: Request): string | null {

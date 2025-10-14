@@ -102,24 +102,14 @@ server/compass/calculator.ts(198,31): error TS2345: Argument of type 'number | u
   Type 'undefined' is not assignable to type 'number'.
 server/compass/routes.ts(52,9): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
   Type 'undefined' is not assignable to type 'string'.
-server/config/swagger.ts(1,26): error TS7016: Could not find a declaration file for module 'swagger-jsdoc'. 'c:/dev/Updog_restore/node_modules/swagger-jsdoc/index.js' implicitly has an 'any' type.
-  Try `npm i --save-dev @types/swagger-jsdoc` if it exists or add a new declaration (.d.ts) file containing `declare module 'swagger-jsdoc';`
+server/config/swagger.ts(3,30): error TS2503: Cannot find namespace 'swaggerJSDoc'.
 server/core/market/score.ts(234,40): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
 server/core/market/score.ts(247,45): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
-server/core/reserves/mlClient.ts(6,35): error TS7016: Could not find a declaration file for module 'node-fetch'. 'c:/dev/Updog_restore/node_modules/node-fetch/lib/index.js' implicitly has an 'any' type.
-  Try `npm i --save-dev @types/node-fetch` if it exists or add a new declaration (.d.ts) file containing `declare module 'node-fetch';`
-server/core/reserves/mlClient.ts(137,9): error TS2375: Type '{ recommendedReserve: number; perRound: Record<string, number> | undefined; confidence: { low: number; high: number; } | undefined; notes: string[]; }' is not assignable to type 'ReservePrediction' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'perRound' are incompatible.
-    Type 'Record<string, number> | undefined' is not assignable to type 'Record<string, number>'.
-      Type 'undefined' is not assignable to type 'Record<string, number>'.
+server/core/reserves/mlClient.ts(6,17): error TS2614: Module '"node-fetch"' has no exported member 'AbortError'. Did you mean to use 'import AbortError from "node-fetch"' instead?
 server/db/pg-circuit.ts(160,30): error TS2344: Type 'T' does not satisfy the constraint 'QueryResultRow'.
 server/db/pg-circuit.ts(186,32): error TS2538: Type 'undefined' cannot be used as an index type.
 server/db/redis-circuit.ts(100,25): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
   Type 'undefined' is not assignable to type 'string'.
-server/db/redis-circuit.ts(104,28): error TS2379: Argument of type '{ value: any; expiry: number | undefined; }' is not assignable to parameter of type '{ value: any; expiry?: number; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'expiry' are incompatible.
-    Type 'number | undefined' is not assignable to type 'number'.
-      Type 'undefined' is not assignable to type 'number'.
 server/db/redis-factory.ts(357,31): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
   Type 'undefined' is not assignable to type 'string'.
 server/infra/circuit-breaker-cache.ts(40,17): error TS2322: Type '<T>(key: string) => Promise<T | undefined>' is not assignable to type '<K = string>(key: string) => Promise<K | null>'.
@@ -150,52 +140,10 @@ server/lib/http-preconditions.ts(192,5): error TS2412: Type 'string | undefined'
 server/lib/locks.ts(100,20): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
 server/lib/locks.ts(101,18): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
 server/lib/locks.ts(292,7): error TS2412: Type 'undefined' is not assignable to type 'Timeout' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the type of the target.
-server/lib/logger.ts(3,28): error TS2769: No overload matches this call.
-  Overload 1 of 2, '(optionsOrStream?: DestinationStream | LoggerOptions<never, boolean> | undefined): Logger<never, boolean>', gave the following error.
-    Argument of type '{ level: string; redact: string[]; transport: { target: string; } | undefined; }' is not assignable to parameter of type 'DestinationStream | LoggerOptions<never, boolean> | undefined'.
-      Type '{ level: string; redact: string[]; transport: { target: string; } | undefined; }' is not assignable to type 'LoggerOptions<never, boolean>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-        Types of property 'transport' are incompatible.
-          Type '{ target: string; } | undefined' is not assignable to type 'TransportSingleOptions<Record<string, any>> | TransportMultiOptions<Record<string, any>> | TransportPipelineOptions<Record<string, any>>'.
-            Type 'undefined' is not assignable to type 'TransportSingleOptions<Record<string, any>> | TransportMultiOptions<Record<string, any>> | TransportPipelineOptions<Record<string, any>>'.
-  Overload 2 of 2, '(options: LoggerOptions<never, boolean>, stream?: DestinationStream | undefined): Logger<never, boolean>', gave the following error.
-    Argument of type '{ level: string; redact: string[]; transport: { target: string; } | undefined; }' is not assignable to parameter of type 'LoggerOptions<never, boolean>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-      Types of property 'transport' are incompatible.
-        Type '{ target: string; } | undefined' is not assignable to type 'TransportSingleOptions<Record<string, any>> | TransportMultiOptions<Record<string, any>> | TransportPipelineOptions<Record<string, any>>'.
-          Type 'undefined' is not assignable to type 'TransportSingleOptions<Record<string, any>> | TransportMultiOptions<Record<string, any>> | TransportPipelineOptions<Record<string, any>>'.
-server/lib/rateLimitStore.ts(56,3): error TS2375: Type '{ store: Store | undefined; skipSuccessfulRequests: false; skipFailedRequests: false; windowMs?: number; max?: number; message?: string | object; statusCode?: number; headers?: boolean; keyGenerator?: (req: Request) => string; handler?: (req: Request, res: Response, next: NextFunction) => void; onLimitReached?: (req...' is not assignable to type 'Partial<Options>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'store' are incompatible.
-    Type 'Store | undefined' is not assignable to type 'Store'.
-      Type 'undefined' is not assignable to type 'Store'.
-server/lib/redis-rate-limiter.ts(47,22): error TS2379: Argument of type '{ url: string | undefined; socket: { connectTimeout: number; }; }' is not assignable to parameter of type 'RedisClientOptions<RedisModules, Record<string, never>, Record<string, never>>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'url' are incompatible.
-    Type 'string | undefined' is not assignable to type 'string'.
-      Type 'undefined' is not assignable to type 'string'.
-server/lib/redis-rate-limiter.ts(221,7): error TS2375: Type '{ allowed: boolean; remaining: number; resetAt: number; retryAfter: number | undefined; }' is not assignable to type 'RateLimitResult' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'retryAfter' are incompatible.
-    Type 'number | undefined' is not assignable to type 'number'.
-      Type 'undefined' is not assignable to type 'number'.
-server/lib/redis-rate-limiter.ts(274,9): error TS2322: Type 'number | null | undefined' is not assignable to type 'number | null'.
+server/lib/redis-rate-limiter.ts(275,9): error TS2322: Type 'number | null | undefined' is not assignable to type 'number | null'.
   Type 'undefined' is not assignable to type 'number | null'.
-server/lib/redis-rate-limiter.ts(295,20): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+server/lib/redis-rate-limiter.ts(296,20): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
   Type 'undefined' is not assignable to type 'string'.
-server/lib/redis-rate-limiter.ts(389,57): error TS2379: Argument of type '{ redisUrl: string; maxRequests?: number; windowMs?: number; keyPrefix?: string; }' is not assignable to parameter of type 'RateLimiterConfig' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Property 'maxRequests' is optional in type '{ redisUrl: string; maxRequests?: number; windowMs?: number; keyPrefix?: string; }' but required in type 'RateLimiterConfig'.
-server/lib/redis/cluster.ts(94,31): error TS2379: Argument of type '{ url: string | undefined; socket: any; }' is not assignable to parameter of type 'RedisClientOptions<RedisModules, RedisFunctions, RedisScripts>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'url' are incompatible.
-    Type 'string | undefined' is not assignable to type 'string'.
-      Type 'undefined' is not assignable to type 'string'.
-server/lib/secure-context.ts(48,11): error TS2375: Type '{ userId: string; email: string; role: string; orgId: string; partnerId: string | undefined; }' is not assignable to type 'UserContext' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'partnerId' are incompatible.
-    Type 'string | undefined' is not assignable to type 'string'.
-      Type 'undefined' is not assignable to type 'string'.
-server/lib/tracing.ts(36,11): error TS2375: Type '{ id: string; parentId: string | undefined; operationName: string; startTime: number; tags: Record<string, string | number | boolean>; logs: never[]; status: "active"; }' is not assignable to type 'TraceSpan' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'parentId' are incompatible.
-    Type 'string | undefined' is not assignable to type 'string'.
-      Type 'undefined' is not assignable to type 'string'.
-server/lib/tracing.ts(81,20): error TS2379: Argument of type '{ timestamp: number; message: string; level: "error" | "info" | "warn" | "debug"; fields: Record<string, any> | undefined; }' is not assignable to parameter of type '{ timestamp: number; message: string; level: "error" | "info" | "warn" | "debug"; fields?: Record<string, any>; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'fields' are incompatible.
-    Type 'Record<string, any> | undefined' is not assignable to type 'Record<string, any>'.
-      Type 'undefined' is not assignable to type 'Record<string, any>'.
 server/metrics/lpBusinessMetrics.ts(169,23): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ enterprise: number; growth: number; startup: number; }'.
   No index signature with a parameter of type 'string' was found on type '{ enterprise: number; growth: number; startup: number; }'.
 server/metrics/lpBusinessMetrics.ts(299,32): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ enterprise: number; growth: number; startup: number; }'.
@@ -212,67 +160,20 @@ server/middleware/enhanced-audit.ts(414,5): error TS2322: Type 'string | undefin
   Type 'undefined' is not assignable to type 'string'.
 server/middleware/enhanced-audit.ts(428,21): error TS2322: Type 'string | undefined' is not assignable to type 'string | null'.
   Type 'undefined' is not assignable to type 'string | null'.
-server/middleware/enhanced-audit.ts(479,59): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
-server/middleware/idempotency.ts(37,25): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+server/middleware/enhanced-audit.ts(479,62): error TS4111: Property 'fundId' comes from an index signature, so it must be accessed with ['fundId'].
+server/middleware/idempotency.ts(38,25): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
   Type 'undefined' is not assignable to type 'string'.
-server/middleware/idempotency.ts(215,40): error TS2379: Argument of type '{ ttl: number; prefix: string; generateKey: ((req: Request) => string | undefined) | undefined; skipPaths: string[]; memoryFallback: boolean; includeStatusCodes: number[]; }' is not assignable to parameter of type 'IdempotencyOptions' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'generateKey' are incompatible.
-    Type '((req: Request) => string | undefined) | undefined' is not assignable to type '(req: Request) => string | undefined'.
-      Type 'undefined' is not assignable to type '(req: Request) => string | undefined'.
-server/middleware/idempotency.ts(223,48): error TS2379: Argument of type '{ ttl: number; prefix: string; generateKey: ((req: Request) => string | undefined) | undefined; skipPaths: string[]; memoryFallback: boolean; includeStatusCodes: number[]; }' is not assignable to parameter of type 'IdempotencyOptions' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'generateKey' are incompatible.
-    Type '((req: Request) => string | undefined) | undefined' is not assignable to type '(req: Request) => string | undefined'.
-      Type 'undefined' is not assignable to type '(req: Request) => string | undefined'.
-server/middleware/idempotency.ts(251,74): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
-server/middleware/idempotency.ts(263,38): error TS2379: Argument of type '{ ttl: number; prefix: string; generateKey: ((req: Request) => string | undefined) | undefined; skipPaths: string[]; memoryFallback: boolean; includeStatusCodes: number[]; }' is not assignable to parameter of type 'IdempotencyOptions' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'generateKey' are incompatible.
-    Type '((req: Request) => string | undefined) | undefined' is not assignable to type '(req: Request) => string | undefined'.
-      Type 'undefined' is not assignable to type '(req: Request) => string | undefined'.
-server/middleware/idempotency.ts(274,74): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
-server/middleware/idempotency.ts(286,38): error TS2379: Argument of type '{ ttl: number; prefix: string; generateKey: ((req: Request) => string | undefined) | undefined; skipPaths: string[]; memoryFallback: boolean; includeStatusCodes: number[]; }' is not assignable to parameter of type 'IdempotencyOptions' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'generateKey' are incompatible.
-    Type '((req: Request) => string | undefined) | undefined' is not assignable to type '(req: Request) => string | undefined'.
-      Type 'undefined' is not assignable to type '(req: Request) => string | undefined'.
-server/middleware/performance-monitor.ts(93,11): error TS2375: Type '{ operation: string; duration: number; timestamp: number; metadata: Record<string, any> | undefined; category: "api" | "monte_carlo" | "database" | "computation"; severity: "normal" | ... 1 more ... | "slow"; }' is not assignable to type 'PerformanceMetric' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'metadata' are incompatible.
-    Type 'Record<string, any> | undefined' is not assignable to type 'Record<string, any>'.
-      Type 'undefined' is not assignable to type 'Record<string, any>'.
-server/middleware/performance-monitor.ts(156,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
-  Type 'undefined' is not assignable to type 'number'.
 server/middleware/performance-monitor.ts(157,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
   Type 'undefined' is not assignable to type 'number'.
-server/middleware/performance-monitor.ts(184,51): error TS4111: Property 'route' comes from an index signature, so it must be accessed with ['route'].
-server/middleware/performance-monitor.ts(194,40): error TS2345: Argument of type 'any[]' is not assignable to parameter of type '[]'.
+server/middleware/performance-monitor.ts(158,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/middleware/performance-monitor.ts(195,40): error TS2345: Argument of type 'any[]' is not assignable to parameter of type '[]'.
   Target allows only 0 element(s) but source may have more.
-server/middleware/rateLimitDetailed.ts(17,20): error TS2379: Argument of type '{ windowMs: number; max: number; standardHeaders: boolean; legacyHeaders: boolean; store: Store | undefined; keyGenerator: (req: Request) => string; skip: (req: Request) => boolean; handler: (req: Request, res: Response) => void; }' is not assignable to parameter of type 'Partial<Options>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'store' are incompatible.
-    Type 'Store | undefined' is not assignable to type 'Store'.
-      Type 'undefined' is not assignable to type 'Store'.
-server/middleware/rateLimits.ts(89,20): error TS2379: Argument of type '{ windowMs: number; max: number; standardHeaders: boolean; legacyHeaders: boolean; store: RedisStore | undefined; keyGenerator: (req: Request) => string; skip: (req: Request) => boolean; handler: (req: Request, res: Response) => void; }' is not assignable to parameter of type 'Partial<Options>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'store' are incompatible.
-    Type 'RedisStore | undefined' is not assignable to type 'Store'.
-      Type 'undefined' is not assignable to type 'Store'.
-server/middleware/requestId.ts(29,9): error TS4111: Property 'locals' comes from an index signature, so it must be accessed with ['locals'].
-server/middleware/requestId.ts(42,45): error TS4111: Property 'locals' comes from an index signature, so it must be accessed with ['locals'].
-server/middleware/requestId.ts(44,13): error TS4111: Property 'log' comes from an index signature, so it must be accessed with ['log'].
-server/middleware/requestId.ts(55,9): error TS4111: Property 'locals' comes from an index signature, so it must be accessed with ['locals'].
 server/middleware/requireAuth.ts(70,5): error TS2322: Type 'Response' is not assignable to type 'void'.
 server/middleware/requireAuth.ts(79,5): error TS2322: Type 'Response' is not assignable to type 'void'.
-server/middleware/security.ts(217,37): error TS4111: Property 'connection' comes from an index signature, so it must be accessed with ['connection'].
 server/middleware/with-rls-transaction.ts(88,39): error TS2345: Argument of type 'any[]' is not assignable to parameter of type '[]'.
   Target allows only 0 element(s) but source may have more.
-server/observability/metrics.ts(44,77): error TS4111: Property 'route' comes from an index signature, so it must be accessed with ['route'].
-server/observability/metrics.ts(45,57): error TS4111: Property 'statusCode' comes from an index signature, so it must be accessed with ['statusCode'].
 server/observability/sentry.ts(6,25): error TS2307: Cannot find module '@sentry/node' or its corresponding type declarations.
-server/otel.ts(15,38): error TS2379: Argument of type '{ url: string | undefined; }' is not assignable to parameter of type 'OTLPExporterNodeConfigBase & OTLPMetricExporterOptions' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Type '{ url: string | undefined; }' is not assignable to type 'OTLPExporterNodeConfigBase' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-    Types of property 'url' are incompatible.
-      Type 'string | undefined' is not assignable to type 'string'.
-        Type 'undefined' is not assignable to type 'string'.
-server/providers.ts(85,3): error TS2375: Type '{ mode: ProviderMode; cache: Cache; rateLimitStore: RateLimitStore | undefined; queue: { enabled: boolean; close(): Promise<void>; }; sessions: { ...; }; teardown: () => Promise<...>; }' is not assignable to type 'Providers' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'rateLimitStore' are incompatible.
-    Type 'Store | undefined' is not assignable to type 'Store'.
-      Type 'undefined' is not assignable to type 'Store'.
 server/routes/calculations.ts(8,24): error TS2339: Property 'Router' does not exist on type 'typeof createApplication'.
 server/routes/cashflow.ts(204,11): error TS2322: Type '{ updatedAt: Date; type: "management_fee" | "investment" | "capital_call" | "distribution" | "expense" | "carry_distribution" | "interest_income" | "other_income" | "recapitalization" | "bridge_loan" | "follow_on" | undefined; ... 17 more ...; fundId: string; }' is not assignable to type '{ type: "management_fee" | "investment" | "capital_call" | "distribution" | "expense" | "carry_distribution" | "interest_income" | "other_income" | "recapitalization" | "bridge_loan" | "follow_on"; ... 18 more ...; documentRef?: string | undefined; }'.
   Types of property 'type' are incompatible.
@@ -289,7 +190,6 @@ server/routes/flags.ts(198,22): error TS2345: Argument of type 'string | undefin
   Type 'undefined' is not assignable to type 'string'.
 server/routes/health.ts(43,25): error TS4111: Property 'app' comes from an index signature, so it must be accessed with ['app'].
 server/routes/health.ts(53,25): error TS4111: Property 'app' comes from an index signature, so it must be accessed with ['app'].
-server/routes/health.ts(213,45): error TS4111: Property 'npm_package_version' comes from an index signature, so it must be accessed with ['npm_package_version'].
 server/routes/health.ts(357,26): error TS7053: Element implicitly has an 'any' type because expression of type '"query"' can't be used to index type 'DatabaseStorage | MemStorage'.
   Property 'query' does not exist on type 'DatabaseStorage | MemStorage'.
 server/routes/health.ts(386,26): error TS7053: Element implicitly has an 'any' type because expression of type '"query"' can't be used to index type 'DatabaseStorage | MemStorage'.
@@ -521,22 +421,14 @@ server/routes/v1/reserve-approvals.ts(357,14): error TS2769: No overload matches
   Overload 3 of 3, '(left: never, right: unknown): SQL<unknown>', gave the following error.
     Argument of type 'PgColumn<{ name: "id"; tableName: "reserve_approvals"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'never'.
 server/security/csp.ts(15,7): error TS4111: Property 'locals' comes from an index signature, so it must be accessed with ['locals'].
-server/server.ts(210,49): error TS2379: Argument of type '{ store: Store | undefined; }' is not assignable to parameter of type '{ store?: Store; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'store' are incompatible.
-    Type 'Store | undefined' is not assignable to type 'Store'.
-      Type 'undefined' is not assignable to type 'Store'.
-server/services/actual-metrics-calculator.ts(59,42): error TS2345: Argument of type '{ status: string; id: number; name: string; createdAt: Date | null; fundId: number | null; sector: string; stage: string; investmentAmount: string; currentValuation: string | null; foundedYear: number | null; description: string | null; dealTags: string[] | null; }[]' is not assignable to parameter of type '{ status: string; id: number; name: string; createdAt: Date | null; fundId: number | null; sector: string; stage: string; investmentAmount: string; currentValuation: string | null; ... 13 more ...; allocationVersion: number; }[]'.
-  Type '{ status: string; id: number; name: string; createdAt: Date | null; fundId: number | null; sector: string; stage: string; investmentAmount: string; currentValuation: string | null; foundedYear: number | null; description: string | null; dealTags: string[] | null; }' is missing the following properties from type '{ status: string; id: number; name: string; createdAt: Date | null; fundId: number | null; sector: string; stage: string; investmentAmount: string; currentValuation: string | null; ... 13 more ...; allocationVersion: number; }': investmentDate, currentStage, deployedReservesCents, plannedReservesCents, and 7 more.
-server/services/actual-metrics-calculator.ts(87,32): error TS2339: Property 'establishmentDate' does not exist on type '{ status: string; id: number; name: string; createdAt: Date | null; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; }'.
-server/services/actual-metrics-calculator.ts(88,49): error TS2339: Property 'establishmentDate' does not exist on type '{ status: string; id: number; name: string; createdAt: Date | null; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; }'.
-server/services/actual-metrics-calculator.ts(91,5): error TS2375: Type '{ asOfDate: string; totalCommitted: number; totalCalled: number; totalDeployed: number; totalUncalled: number; currentNAV: number; totalDistributions: number; totalValue: number; irr: number; ... 9 more ...; fundAgeMonths: number | undefined; }' is not assignable to type 'ActualMetrics' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'fundAgeMonths' are incompatible.
-    Type 'number | undefined' is not assignable to type 'number'.
-      Type 'undefined' is not assignable to type 'number'.
-server/services/actual-metrics-calculator.ts(260,24): error TS2339: Property 'investmentDate' does not exist on type '{ status: string; id: number; name: string; createdAt: Date | null; fundId: number | null; sector: string; stage: string; investmentAmount: string; currentValuation: string | null; foundedYear: number | null; description: string | null; dealTags: string[] | null; }'.
-server/services/actual-metrics-calculator.ts(262,26): error TS2339: Property 'investmentDate' does not exist on type '{ status: string; id: number; name: string; createdAt: Date | null; fundId: number | null; sector: string; stage: string; investmentAmount: string; currentValuation: string | null; foundedYear: number | null; description: string | null; dealTags: string[] | null; }'.
-server/services/actual-metrics-calculator.ts(263,19): error TS2339: Property 'initialInvestment' does not exist on type '{ status: string; id: number; name: string; createdAt: Date | null; fundId: number | null; sector: string; stage: string; investmentAmount: string; currentValuation: string | null; foundedYear: number | null; description: string | null; dealTags: string[] | null; }'.
-server/services/actual-metrics-calculator.ts(263,52): error TS2339: Property 'initialInvestment' does not exist on type '{ status: string; id: number; name: string; createdAt: Date | null; fundId: number | null; sector: string; stage: string; investmentAmount: string; currentValuation: string | null; foundedYear: number | null; description: string | null; dealTags: string[] | null; }'.
+server/services/actual-metrics-calculator.ts(60,42): error TS2345: Argument of type '{ status: string; fundId: number | null; id: number; name: string; createdAt: Date | null; sector: string; stage: string; investmentAmount: string; currentValuation: string | null; foundedYear: number | null; description: string | null; dealTags: string[] | null; }[]' is not assignable to parameter of type '{ status: string; fundId: number | null; id: number; name: string; createdAt: Date | null; sector: string; stage: string; investmentAmount: string; currentValuation: string | null; ... 13 more ...; allocationVersion: number; }[]'.
+  Type '{ status: string; fundId: number | null; id: number; name: string; createdAt: Date | null; sector: string; stage: string; investmentAmount: string; currentValuation: string | null; foundedYear: number | null; description: string | null; dealTags: string[] | null; }' is missing the following properties from type '{ status: string; fundId: number | null; id: number; name: string; createdAt: Date | null; sector: string; stage: string; investmentAmount: string; currentValuation: string | null; ... 13 more ...; allocationVersion: number; }': investmentDate, currentStage, deployedReservesCents, plannedReservesCents, and 7 more.
+server/services/actual-metrics-calculator.ts(88,32): error TS2339: Property 'establishmentDate' does not exist on type '{ status: string; id: number; name: string; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; createdAt: Date | null; }'.
+server/services/actual-metrics-calculator.ts(89,49): error TS2339: Property 'establishmentDate' does not exist on type '{ status: string; id: number; name: string; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; createdAt: Date | null; }'.
+server/services/actual-metrics-calculator.ts(261,24): error TS2339: Property 'investmentDate' does not exist on type '{ status: string; fundId: number | null; id: number; name: string; createdAt: Date | null; sector: string; stage: string; investmentAmount: string; currentValuation: string | null; foundedYear: number | null; description: string | null; dealTags: string[] | null; }'.
+server/services/actual-metrics-calculator.ts(263,26): error TS2339: Property 'investmentDate' does not exist on type '{ status: string; fundId: number | null; id: number; name: string; createdAt: Date | null; sector: string; stage: string; investmentAmount: string; currentValuation: string | null; foundedYear: number | null; description: string | null; dealTags: string[] | null; }'.
+server/services/actual-metrics-calculator.ts(264,19): error TS2339: Property 'initialInvestment' does not exist on type '{ status: string; fundId: number | null; id: number; name: string; createdAt: Date | null; sector: string; stage: string; investmentAmount: string; currentValuation: string | null; foundedYear: number | null; description: string | null; dealTags: string[] | null; }'.
+server/services/actual-metrics-calculator.ts(264,52): error TS2339: Property 'initialInvestment' does not exist on type '{ status: string; fundId: number | null; id: number; name: string; createdAt: Date | null; sector: string; stage: string; investmentAmount: string; currentValuation: string | null; foundedYear: number | null; description: string | null; dealTags: string[] | null; }'.
 server/services/ai-orchestrator.ts(146,5): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
   Type 'undefined' is not assignable to type 'string'.
 server/services/ai-orchestrator.ts(637,18): error TS2322: Type 'ModelName | undefined' is not assignable to type 'ModelName'.
@@ -556,25 +448,13 @@ server/services/database-pool-manager.ts(316,59): error TS18048: 'config.minConn
 server/services/database-pool-manager.ts(317,40): error TS18048: 'config.maxConnections' is possibly 'undefined'.
 server/services/database-pool-manager.ts(317,67): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
   Type 'undefined' is not assignable to type 'number'.
-server/services/metrics-aggregator.ts(181,43): error TS2339: Property 'establishmentDate' does not exist on type '{ status: string; id: number; name: string; createdAt: Date | null; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; }'.
-server/services/metrics-aggregator.ts(187,66): error TS2345: Argument of type '{ status: string; id: number; name: string; createdAt: Date | null; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; }' is not assignable to parameter of type '{ status: string; id: number; name: string; createdAt: Date | null; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; establishmentDate: string | null; isActive: boolean | null; }'.
-  Type '{ status: string; id: number; name: string; createdAt: Date | null; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; }' is missing the following properties from type '{ status: string; id: number; name: string; createdAt: Date | null; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; establishmentDate: string | null; isActive: boolean | null; }': establishmentDate, isActive
-server/services/metrics-aggregator.ts(192,66): error TS2345: Argument of type '{ status: string; id: number; name: string; createdAt: Date | null; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; }' is not assignable to parameter of type '{ status: string; id: number; name: string; createdAt: Date | null; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; establishmentDate: string | null; isActive: boolean | null; }'.
-  Type '{ status: string; id: number; name: string; createdAt: Date | null; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; }' is missing the following properties from type '{ status: string; id: number; name: string; createdAt: Date | null; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; establishmentDate: string | null; isActive: boolean | null; }': establishmentDate, isActive
-server/services/metrics-aggregator.ts(204,44): error TS2345: Argument of type '{ status: string; id: number; name: string; createdAt: Date | null; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; }' is not assignable to parameter of type '{ status: string; id: number; name: string; createdAt: Date | null; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; establishmentDate: string | null; isActive: boolean | null; }'.
-  Type '{ status: string; id: number; name: string; createdAt: Date | null; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; }' is missing the following properties from type '{ status: string; id: number; name: string; createdAt: Date | null; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; establishmentDate: string | null; isActive: boolean | null; }': establishmentDate, isActive
-server/services/metrics-aggregator.ts(214,73): error TS2379: Argument of type '{ targetFundSize: number; targetIRR: number; targetTVPI: number; targetDPI: number | undefined; targetDeploymentYears: number; targetCompanyCount: number; targetAverageCheckSize: number; targetReserveRatio: number | undefined; }' is not assignable to parameter of type 'TargetMetrics' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'targetDPI' are incompatible.
-    Type 'number | undefined' is not assignable to type 'number'.
-      Type 'undefined' is not assignable to type 'number'.
-server/services/metrics-aggregator.ts(237,9): error TS2375: Type '{ targetFundSize: number; targetIRR: number; targetTVPI: number; targetDPI: number | undefined; targetDeploymentYears: number; targetCompanyCount: number; targetAverageCheckSize: number; targetReserveRatio: number | undefined; }' is not assignable to type 'TargetMetrics' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'targetDPI' are incompatible.
-    Type 'number | undefined' is not assignable to type 'number'.
-      Type 'undefined' is not assignable to type 'number'.
-server/services/metrics-aggregator.ts(244,9): error TS2375: Type '{ quality: "partial" | "fallback" | "complete"; engines: { actual: "success"; projected: "failed" | "success" | "skipped"; target: "success"; variance: "success"; }; warnings: string[] | undefined; computeTimeMs: number; }' is not assignable to type '{ quality: "partial" | "fallback" | "complete"; engines: { actual: "failed" | "partial" | "success"; projected: "failed" | "partial" | "success" | "skipped"; target: "failed" | "partial" | "success"; variance: "failed" | ... 1 more ... | "success"; }; warnings?: string[]; computeTimeMs?: number; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'warnings' are incompatible.
-    Type 'string[] | undefined' is not assignable to type 'string[]'.
-      Type 'undefined' is not assignable to type 'string[]'.
+server/services/metrics-aggregator.ts(182,43): error TS2339: Property 'establishmentDate' does not exist on type '{ status: string; id: number; name: string; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; createdAt: Date | null; }'.
+server/services/metrics-aggregator.ts(188,66): error TS2345: Argument of type '{ status: string; id: number; name: string; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; createdAt: Date | null; }' is not assignable to parameter of type '{ status: string; id: number; name: string; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; createdAt: Date | null; establishmentDate: string | null; isActive: boolean | null; }'.
+  Type '{ status: string; id: number; name: string; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; createdAt: Date | null; }' is missing the following properties from type '{ status: string; id: number; name: string; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; createdAt: Date | null; establishmentDate: string | null; isActive: boolean | null; }': establishmentDate, isActive
+server/services/metrics-aggregator.ts(193,66): error TS2345: Argument of type '{ status: string; id: number; name: string; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; createdAt: Date | null; }' is not assignable to parameter of type '{ status: string; id: number; name: string; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; createdAt: Date | null; establishmentDate: string | null; isActive: boolean | null; }'.
+  Type '{ status: string; id: number; name: string; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; createdAt: Date | null; }' is missing the following properties from type '{ status: string; id: number; name: string; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; createdAt: Date | null; establishmentDate: string | null; isActive: boolean | null; }': establishmentDate, isActive
+server/services/metrics-aggregator.ts(205,44): error TS2345: Argument of type '{ status: string; id: number; name: string; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; createdAt: Date | null; }' is not assignable to parameter of type '{ status: string; id: number; name: string; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; createdAt: Date | null; establishmentDate: string | null; isActive: boolean | null; }'.
+  Type '{ status: string; id: number; name: string; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; createdAt: Date | null; }' is missing the following properties from type '{ status: string; id: number; name: string; size: string; deployedCapital: string | null; managementFee: string; carryPercentage: string; vintageYear: number; createdAt: Date | null; establishmentDate: string | null; isActive: boolean | null; }': establishmentDate, isActive
 server/services/monte-carlo-engine.ts(292,55): error TS18046: 'error' is of type 'unknown'.
 server/services/monte-carlo-engine.ts(396,9): error TS2532: Object is possibly 'undefined'.
 server/services/monte-carlo-engine.ts(704,5): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
@@ -598,16 +478,11 @@ server/services/monte-carlo-simulation.ts(202,7): error TS2322: Type 'Simulation
   Type 'undefined' is not assignable to type 'SimulationResult'.
 server/services/monte-carlo-simulation.ts(203,7): error TS2322: Type 'SimulationResult | undefined' is not assignable to type 'SimulationResult'.
   Type 'undefined' is not assignable to type 'SimulationResult'.
-server/services/monte-carlo-simulation.ts(383,7): error TS18048: 'results.totalValue' is possibly 'undefined'.
-server/services/monte-carlo-simulation.ts(383,15): error TS4111: Property 'totalValue' comes from an index signature, so it must be accessed with ['totalValue'].
-server/services/monte-carlo-simulation.ts(384,7): error TS18048: 'results.irr' is possibly 'undefined'.
-server/services/monte-carlo-simulation.ts(384,15): error TS4111: Property 'irr' comes from an index signature, so it must be accessed with ['irr'].
-server/services/monte-carlo-simulation.ts(385,7): error TS18048: 'results.multiple' is possibly 'undefined'.
-server/services/monte-carlo-simulation.ts(385,15): error TS4111: Property 'multiple' comes from an index signature, so it must be accessed with ['multiple'].
-server/services/monte-carlo-simulation.ts(386,7): error TS18048: 'results.dpi' is possibly 'undefined'.
-server/services/monte-carlo-simulation.ts(386,15): error TS4111: Property 'dpi' comes from an index signature, so it must be accessed with ['dpi'].
-server/services/monte-carlo-simulation.ts(387,7): error TS18048: 'results.tvpi' is possibly 'undefined'.
-server/services/monte-carlo-simulation.ts(387,15): error TS4111: Property 'tvpi' comes from an index signature, so it must be accessed with ['tvpi'].
+server/services/monte-carlo-simulation.ts(383,7): error TS2532: Object is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(384,7): error TS2532: Object is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(385,7): error TS2532: Object is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(386,7): error TS2532: Object is possibly 'undefined'.
+server/services/monte-carlo-simulation.ts(387,7): error TS2532: Object is possibly 'undefined'.
 server/services/monte-carlo-simulation.ts(596,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
   Type 'undefined' is not assignable to type 'number'.
 server/services/monte-carlo-simulation.ts(625,7): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
@@ -629,65 +504,47 @@ server/services/monte-carlo-simulation.ts(828,36): error TS7006: Parameter 'comp
 server/services/monte-carlo-simulation.ts(881,25): error TS2532: Object is possibly 'undefined'.
 server/services/monte-carlo-simulation.ts(888,32): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string | null'.
   Type 'undefined' is not assignable to type 'string | null'.
-server/services/notion-service.ts(194,46): error TS2379: Argument of type '{ filter: { property: "object"; value: "database"; }; start_cursor: string | undefined; page_size: number; }' is not assignable to parameter of type 'WithAuth<SearchBodyParameters>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Type '{ filter: { property: "object"; value: "database"; }; start_cursor: string | undefined; page_size: number; }' is not assignable to type 'SearchBodyParameters' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-    Types of property 'start_cursor' are incompatible.
-      Type 'string | undefined' is not assignable to type 'string'.
-        Type 'undefined' is not assignable to type 'string'.
-server/services/notion-service.ts(375,53): error TS2379: Argument of type '{ database_id: string; start_cursor: string | undefined; page_size: number; }' is not assignable to parameter of type 'WithAuth<QueryDatabaseParameters>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Type '{ database_id: string; start_cursor: string | undefined; page_size: number; }' is not assignable to type 'QueryDatabaseBodyParameters' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-    Types of property 'start_cursor' are incompatible.
-      Type 'string | undefined' is not assignable to type 'string'.
-        Type 'undefined' is not assignable to type 'string'.
-server/services/notion-service.ts(586,28): error TS2769: No overload matches this call.
+server/services/notion-service.ts(587,28): error TS2769: No overload matches this call.
   Overload 1 of 4, '(arrayBuffer: WithImplicitCoercion<ArrayBufferLike>, byteOffset?: number | undefined, length?: number | undefined): Buffer<ArrayBufferLike>', gave the following error.
     Argument of type 'string | undefined' is not assignable to parameter of type 'WithImplicitCoercion<ArrayBufferLike>'.
       Type 'undefined' is not assignable to type 'WithImplicitCoercion<ArrayBufferLike>'.
   Overload 2 of 4, '(string: WithImplicitCoercion<string>, encoding?: BufferEncoding | undefined): Buffer<ArrayBuffer>', gave the following error.
     Argument of type 'string | undefined' is not assignable to parameter of type 'WithImplicitCoercion<string>'.
       Type 'undefined' is not assignable to type 'WithImplicitCoercion<string>'.
-server/services/notion-service.ts(590,37): error TS2769: No overload matches this call.
+server/services/notion-service.ts(591,37): error TS2769: No overload matches this call.
   Overload 1 of 4, '(data: ArrayBufferView<ArrayBufferLike>, inputEncoding: undefined, outputEncoding: Encoding): string', gave the following error.
     Argument of type 'string | undefined' is not assignable to parameter of type 'ArrayBufferView<ArrayBufferLike>'.
       Type 'undefined' is not assignable to type 'ArrayBufferView<ArrayBufferLike>'.
   Overload 2 of 4, '(data: string, inputEncoding: Encoding | undefined, outputEncoding: Encoding): string', gave the following error.
     Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
       Type 'undefined' is not assignable to type 'string'.
-server/services/notion-service.ts(591,5): error TS2322: Type 'string' is not assignable to type 'Buffer<ArrayBufferLike> & string'.
+server/services/notion-service.ts(592,5): error TS2322: Type 'string' is not assignable to type 'Buffer<ArrayBufferLike> & string'.
   Type 'string' is not assignable to type 'Buffer<ArrayBufferLike>'.
-server/services/performance-prediction.ts(158,57): error TS18046: 'error' is of type 'unknown'.
-server/services/performance-prediction.ts(187,5): error TS2375: Type '{ trendDirection: "stable" | "upward" | "downward"; trendStrength: number; trendVelocity: number; inflectionPoints: Date[]; seasonalityDetected: boolean; cyclePeriod: number | undefined; }' is not assignable to type 'TrendAnalysis' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'cyclePeriod' are incompatible.
-    Type 'number | undefined' is not assignable to type 'number'.
-      Type 'undefined' is not assignable to type 'number'.
-server/services/performance-prediction.ts(681,23): error TS2532: Object is possibly 'undefined'.
-server/services/performance-prediction.ts(681,35): error TS2532: Object is possibly 'undefined'.
-server/services/performance-prediction.ts(681,52): error TS2532: Object is possibly 'undefined'.
-server/services/performance-prediction.ts(701,12): error TS18048: 'curr' is possibly 'undefined'.
-server/services/performance-prediction.ts(701,19): error TS18048: 'prev' is possibly 'undefined'.
-server/services/performance-prediction.ts(701,27): error TS18048: 'curr' is possibly 'undefined'.
-server/services/performance-prediction.ts(701,34): error TS18048: 'next' is possibly 'undefined'.
-server/services/performance-prediction.ts(701,44): error TS18048: 'curr' is possibly 'undefined'.
-server/services/performance-prediction.ts(701,51): error TS18048: 'prev' is possibly 'undefined'.
-server/services/performance-prediction.ts(701,59): error TS18048: 'curr' is possibly 'undefined'.
-server/services/performance-prediction.ts(701,66): error TS18048: 'next' is possibly 'undefined'.
-server/services/performance-prediction.ts(736,21): error TS2532: Object is possibly 'undefined'.
-server/services/performance-prediction.ts(736,42): error TS2532: Object is possibly 'undefined'.
-server/services/performance-prediction.ts(740,31): error TS2532: Object is possibly 'undefined'.
-server/services/performance-prediction.ts(785,32): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+server/services/performance-prediction.ts(159,57): error TS18046: 'error' is of type 'unknown'.
+server/services/performance-prediction.ts(682,23): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(682,35): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(682,52): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(702,12): error TS18048: 'curr' is possibly 'undefined'.
+server/services/performance-prediction.ts(702,19): error TS18048: 'prev' is possibly 'undefined'.
+server/services/performance-prediction.ts(702,27): error TS18048: 'curr' is possibly 'undefined'.
+server/services/performance-prediction.ts(702,34): error TS18048: 'next' is possibly 'undefined'.
+server/services/performance-prediction.ts(702,44): error TS18048: 'curr' is possibly 'undefined'.
+server/services/performance-prediction.ts(702,51): error TS18048: 'prev' is possibly 'undefined'.
+server/services/performance-prediction.ts(702,59): error TS18048: 'curr' is possibly 'undefined'.
+server/services/performance-prediction.ts(702,66): error TS18048: 'next' is possibly 'undefined'.
+server/services/performance-prediction.ts(737,21): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(737,42): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(741,31): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(786,32): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
   Type 'undefined' is not assignable to type 'number'.
-server/services/performance-prediction.ts(785,47): error TS2532: Object is possibly 'undefined'.
-server/services/performance-prediction.ts(785,65): error TS2532: Object is possibly 'undefined'.
-server/services/performance-prediction.ts(791,5): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+server/services/performance-prediction.ts(786,47): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(786,65): error TS2532: Object is possibly 'undefined'.
+server/services/performance-prediction.ts(792,5): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
   Type 'undefined' is not assignable to type 'number'.
 server/services/portfolio-performance-predictor.ts(13,97): error TS6307: File 'c:/dev/Updog_restore/server/services/monte-carlo-simulation.ts' is not listed within the file list of project 'c:/dev/Updog_restore/tsconfig.server.json'. Projects must list all files or use an 'include' pattern.
   The file is in the program because:
     Imported via './monte-carlo-simulation' from file 'c:/dev/Updog_restore/server/services/portfolio-performance-predictor.ts'
     Imported via './monte-carlo-simulation' from file 'c:/dev/Updog_restore/server/services/reserve-optimization-calculator.ts'
-server/services/portfolio-performance-predictor.ts(160,11): error TS2375: Type '{ fundId: number; scenarios: number; timeHorizonYears: number; confidenceIntervals: number[]; baselineId: string | undefined; }' is not assignable to type 'SimulationParameters' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'baselineId' are incompatible.
-    Type 'string | undefined' is not assignable to type 'string'.
-      Type 'undefined' is not assignable to type 'string'.
 server/services/power-law-distribution.ts(101,5): error TS2412: Type 'number | undefined' is not assignable to type 'number' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the type of the target.
   Type 'undefined' is not assignable to type 'number'.
 server/services/power-law-distribution.ts(475,10): error TS2532: Object is possibly 'undefined'.
@@ -731,10 +588,8 @@ server/services/streaming-monte-carlo-engine.ts(569,40): error TS18048: 'irrDist
 server/services/streaming-monte-carlo-engine.ts(573,26): error TS18048: 'totalValueDist' is possibly 'undefined'.
 server/services/streaming-monte-carlo-engine.ts(573,47): error TS18048: 'totalValueDist' is possibly 'undefined'.
 server/services/streaming-monte-carlo-engine.ts(573,69): error TS18048: 'totalValueDist' is possibly 'undefined'.
-server/services/streaming-monte-carlo-engine.ts(606,57): error TS18048: 'distributions.irr' is possibly 'undefined'.
-server/services/streaming-monte-carlo-engine.ts(606,71): error TS4111: Property 'irr' comes from an index signature, so it must be accessed with ['irr'].
-server/services/streaming-monte-carlo-engine.ts(607,48): error TS18048: 'distributions.irr' is possibly 'undefined'.
-server/services/streaming-monte-carlo-engine.ts(607,62): error TS4111: Property 'irr' comes from an index signature, so it must be accessed with ['irr'].
+server/services/streaming-monte-carlo-engine.ts(606,57): error TS2532: Object is possibly 'undefined'.
+server/services/streaming-monte-carlo-engine.ts(607,48): error TS2532: Object is possibly 'undefined'.
 server/services/streaming-monte-carlo-engine.ts(627,9): error TS2532: Object is possibly 'undefined'.
 server/services/variance-tracking.ts(837,25): error TS2532: Object is possibly 'undefined'.
 server/types/http.ts(46,74): error TS2345: Argument of type 'Response<any, Record<string, any>, number>' is not assignable to parameter of type 'Response'.
@@ -744,21 +599,7 @@ server/types/http.ts(70,8): error TS2315: Type 'Request' is not generic.
 server/types/http.ts(71,8): error TS2315: Type 'Response' is not generic.
 server/types/http.ts(84,8): error TS2315: Type 'Request' is not generic.
 server/types/http.ts(85,8): error TS2315: Type 'Response' is not generic.
-server/utils/sanitizer.ts(7,26): error TS7016: Could not find a declaration file for module 'sanitize-html'. 'c:/dev/Updog_restore/node_modules/sanitize-html/index.js' implicitly has an 'any' type.
-  Try `npm i --save-dev @types/sanitize-html` if it exists or add a new declaration (.d.ts) file containing `declare module 'sanitize-html';`
 server/websocket/dev-dashboard.ts(221,26): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
   Type 'undefined' is not assignable to type 'string'.
 server/websocket/dev-dashboard.ts(222,20): error TS2532: Object is possibly 'undefined'.
 server/websocket/dev-dashboard.ts(314,75): error TS18046: 'error' is of type 'unknown'.
-vite.config.ts(2,29): error TS2305: Module '"vite"' has no exported member 'Plugin'.
-vite.config.ts(4,20): error TS2307: Cannot find module '@preact/preset-vite' or its corresponding type declarations.
-vite.config.ts(10,27): error TS2307: Cannot find module 'vite-tsconfig-paths' or its corresponding type declarations.
-vite.config.ts(211,32): error TS7031: Binding element 'mode' implicitly has an 'any' type.
-vite.config.ts(243,25): error TS7006: Parameter 'server' implicitly has an 'any' type.
-vite.config.ts(244,66): error TS7006: Parameter 'req' implicitly has an 'any' type.
-vite.config.ts(244,71): error TS7006: Parameter 'res' implicitly has an 'any' type.
-vite.config.ts(324,29): error TS7006: Parameter 'filename' implicitly has an 'any' type.
-vite.config.ts(324,39): error TS7006: Parameter 'deps' implicitly has an 'any' type.
-vite.config.ts(324,47): error TS7031: Binding element 'hostId' implicitly has an 'any' type.
-vite.config.ts(324,55): error TS7031: Binding element 'hostType' implicitly has an 'any' type.
-vite.config.ts(325,28): error TS7006: Parameter 'dep' implicitly has an 'any' type.

@@ -185,12 +185,19 @@ export class MetricsAggregator {
           if (isConstruction) {
             // Route to J-curve construction forecast
             warnings.push('Using J-curve construction forecast (no investments yet)');
-            projected = await this.projectedCalculator.calculate(fund, companies, config, {
-              useConstructionForecast: true
-            });
+            projected = await this.projectedCalculator.calculate(
+              fund as any,
+              companies as any,
+              config,
+              { useConstructionForecast: true }
+            );
           } else {
             // Use standard projection engines
-            projected = await this.projectedCalculator.calculate(fund, companies, config);
+            projected = await this.projectedCalculator.calculate(
+              fund as any,
+              companies as any,
+              config
+            );
           }
         } catch (error) {
           projectedStatus = 'failed';
@@ -202,7 +209,7 @@ export class MetricsAggregator {
       // Extract target metrics from config
       let target;
       try {
-        target = this.extractTargetMetrics(fund, config);
+        target = this.extractTargetMetrics(fund as any, config);
       } catch (error) {
         targetStatus = 'failed';
         warnings.push(`Target metrics extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);

@@ -134,12 +134,14 @@ async function getBudgetData(): Promise<BudgetData> {
 async function getTodaysCalls(): Promise<number> {
   const budget = await getBudgetData();
   const today = new Date().toISOString().split('T')[0];
+  if (!today) return 0;
   return budget.date === today ? budget.count : 0;
 }
 
 async function incrementBudget(calls: number, cost: number): Promise<number> {
   await ensureLogDir();
   const today = new Date().toISOString().split('T')[0];
+  if (!today) throw new Error('Failed to get today\'s date');
   const current = await getBudgetData();
 
   const updated: BudgetData = {
@@ -623,6 +625,7 @@ export async function collaborativeSolve({
 
     for (let i = 0; i < models.length; i++) {
       const model = models[i];
+      if (!model) continue;
       let prompt = `Step ${i + 1}: Analyze this problem: ${problem}.`;
 
       if (cumulativeInsights) {
