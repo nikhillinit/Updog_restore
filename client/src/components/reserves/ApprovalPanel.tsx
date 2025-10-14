@@ -38,7 +38,7 @@ import {
   FileText,
   Hash,
 } from 'lucide-react';
-import { spreadIfDefined } from '@/lib/spreadIfDefined';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 
 interface Approval {
   id: string;

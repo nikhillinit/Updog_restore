@@ -27,7 +27,7 @@ import {
   Plus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { spreadIfDefined } from '@/lib/spreadIfDefined';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import type { PortfolioState } from "@/pages/portfolio-constructor";
 
 interface Scenario {

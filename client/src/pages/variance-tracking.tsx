@@ -54,7 +54,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
-import { spreadIfDefined } from '@/lib/spreadIfDefined';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 
 export default function VarianceTrackingPage() {
   const { currentFund } = useFundContext();

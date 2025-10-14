@@ -12,7 +12,7 @@ import { calculateReserves } from '@/lib/reserves-v11';
 import { adaptFundToReservesInput, adaptReservesConfig } from '@/adapters/reserves-adapter';
 import { metrics, auditLog } from '@/metrics/reserves-metrics';
 import { formatQuarter, getCurrentQuarter } from '@/lib/quarter-time';
-import { spreadIfDefined } from '@/lib/spreadIfDefined';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 
 interface ReserveStepProps {
   fund: any; // Your existing fund type

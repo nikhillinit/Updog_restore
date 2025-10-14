@@ -15,7 +15,7 @@ import { useFundTuple, useFundAction } from '@/stores/useFundSelector';
 import { signatureForStrategy } from '@/domain/strategy-signature';
 import { traceWizard } from '@/debug/wizard-trace';
 import { useRenderTracking } from '@/utils/performance-baseline';
-import { spreadIfDefined } from '@/lib/spreadIfDefined';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import CapitalFirstCalculator from '@/components/CapitalFirstCalculator';
 import type { Stage, SectorProfile, Allocation } from "@shared/types";
 

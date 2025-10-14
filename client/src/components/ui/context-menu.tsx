@@ -8,7 +8,7 @@ import * as ContextMenuPrimitive from "@radix-ui/react-context-menu"
 import { Check, ChevronRight, Circle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { spreadIfDefined } from "@/lib/spreadIfDefined"
+import { spreadIfDefined } from "@/lib/ts/spreadIfDefined"
 
 const ContextMenu = ContextMenuPrimitive.Root
 

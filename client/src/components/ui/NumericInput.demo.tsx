@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { NumericInput } from './NumericInput';
-import { spreadIfDefined } from '@/lib/spreadIfDefined';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 
 export function NumericInputDemo() {
   const [currency, setCurrency] = useState<number | undefined>(1000000);

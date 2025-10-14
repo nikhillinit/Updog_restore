@@ -44,7 +44,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO, subDays, addDays } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
-import { spreadIfDefined } from '@/lib/spreadIfDefined';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 
 export default function TimeTravelPage() {
   const { currentFund } = useFundContext();

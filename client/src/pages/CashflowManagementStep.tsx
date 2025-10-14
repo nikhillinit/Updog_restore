@@ -12,7 +12,7 @@ import { ArrowLeft, Plus, Trash2, AlertCircle, DollarSign, Check } from "lucide-
 import { useFundSelector, useFundActions } from '@/stores/useFundSelector';
 import { useFundContext } from '@/contexts/FundContext';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { spreadIfDefined } from '@/lib/spreadIfDefined';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import type { FundExpense } from '@/stores/fundStore';
 import type { ExpenseCategory } from '@shared/types';
 

@@ -12,7 +12,7 @@
  */
 
 import { type ScenarioAdjustment } from '@/schemas/modeling-wizard.schemas';
-import { spreadIfDefined } from '@/lib/spreadIfDefined';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 
 // Re-export type for convenience
 export type { ScenarioAdjustment } from '@/schemas/modeling-wizard.schemas';

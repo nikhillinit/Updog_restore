@@ -10,7 +10,7 @@ import * as MenubarPrimitive from "@radix-ui/react-menubar"
 import { Check, ChevronRight, Circle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { spreadIfDefined } from "@/lib/spreadIfDefined"
+import { spreadIfDefined } from "@/lib/ts/spreadIfDefined"
 
 function MenubarMenu({
   ...props

@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { formatCents, dollarsToCents } from '@/lib/units';
 import { getDeltaIcon, getDeltaColorClass } from '@/lib/reallocation-utils';
-import { spreadIfDefined } from '@/lib/spreadIfDefined';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import type { SelectedCompany } from '@/types/reallocation';
 import type { PortfolioCompany } from '@shared/schema';
 
