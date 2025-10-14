@@ -26,13 +26,13 @@ export function csp() {
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: [
-          "'self'", 
-          (_req: any, res: any) => `'nonce-${res.locals.cspNonce}'`, 
+          "'self'",
+          (_req: any, res: any) => `'nonce-${res['locals'].cspNonce}'`,
           isDev ? "'unsafe-eval'" : null
         ].filter(Boolean) as string[],
         styleSrc:  [
-          "'self'", 
-          (_req: any, res: any) => `'nonce-${res.locals.cspNonce}'`, 
+          "'self'",
+          (_req: any, res: any) => `'nonce-${res['locals'].cspNonce}'`,
           isDev ? "'unsafe-inline'" : null
         ].filter(Boolean) as string[],
         imgSrc:    ["'self'", "data:", "blob:"],

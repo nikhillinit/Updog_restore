@@ -603,8 +603,8 @@ export class StreamingMonteCarloEngine {
 
     for (const ratio of reserveRatios) {
       // Estimate performance for this reserve ratio
-      const expectedIRR = this["estimateReserveImpact"](distributions.irr.mean, ratio, portfolioInputs);
-      const riskAdjustedReturn = expectedIRR / distributions.irr["standardDeviation"];
+      const expectedIRR = this['estimateReserveImpact'](distributions['irr'].mean, ratio, portfolioInputs);
+      const riskAdjustedReturn = expectedIRR / distributions['irr']['standardDeviation'];
       const followOnCoverage = this.estimateFollowOnCoverage(ratio);
 
       allocationAnalysis.push({

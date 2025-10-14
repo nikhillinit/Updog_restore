@@ -41,8 +41,8 @@ export const redisLatency = new client.Gauge({
 export function withRequestMetrics() {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!FEATURES.metrics) return next();
-    const stop = httpDuration["startTimer"]({ method: req.method, path: req.route?.path ?? req.path });
-    res['on']('finish', () => stop({ status: String(res.statusCode) }));
+    const stop = httpDuration["startTimer"]({ method: req.method, path: req['route']?.path ?? req.path });
+    res['on']('finish', () => stop({ status: String(res['statusCode']) }));
     next();
   };
 }

@@ -249,13 +249,13 @@ export function idempotency(options: IdempotencyOptions = {}) {
     
     // Override send method
     res.send = function(body?: any) {
-      if (!responseCaptured && config.includeStatusCodes["includes"](res.statusCode)) {
+      if (!responseCaptured && config.includeStatusCodes["includes"](res['statusCode'])) {
         responseBody = body;
         responseCaptured = true;
-        
+
         // Store response asynchronously
         const response: IdempotentResponse = {
-          statusCode: res["statusCode"],
+          statusCode: res['statusCode'],
           headers: res["getHeaders"]() as Record<string, string>,
           body: typeof body === 'string' ? JSON.parse(body) : body,
           timestamp: Date.now(),
@@ -272,13 +272,13 @@ export function idempotency(options: IdempotencyOptions = {}) {
     
     // Override json method
     res.json = function(body?: any) {
-      if (!responseCaptured && config.includeStatusCodes["includes"](res.statusCode)) {
+      if (!responseCaptured && config.includeStatusCodes["includes"](res['statusCode'])) {
         responseBody = body;
         responseCaptured = true;
-        
+
         // Store response asynchronously
         const response: IdempotentResponse = {
-          statusCode: res["statusCode"],
+          statusCode: res['statusCode'],
           headers: res["getHeaders"]() as Record<string, string>,
           body,
           timestamp: Date.now(),

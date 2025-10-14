@@ -182,7 +182,7 @@ class PerformanceMonitor extends EventEmitter {
 
       res.end = function(this: Response, ...args: any[]) {
         const duration = performance.now() - startTime;
-        const operation = `${req["method"]} ${req.route?.path || req.path}`;
+        const operation = `${req["method"]} ${req['route']?.path || req.path}`;
 
         monitor.track(operation, duration, 'api', {
           method: req.method,

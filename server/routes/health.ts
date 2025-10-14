@@ -40,7 +40,7 @@ router['get']('/healthz', (_req: Request, res: Response) => {
 
 // Legacy health endpoints (for backward compatibility)
 router['get']('/health', (req: Request, res: Response) => {
-  const providers = req.app.locals["providers"] as any;
+  const providers = req.app['locals']["providers"] as any;
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
   res.json({
     status: 'ok',
@@ -50,7 +50,7 @@ router['get']('/health', (req: Request, res: Response) => {
   });
 });
 router['get']('/api/health', (req: Request, res: Response) => {
-  const providers = req.app.locals["providers"] as any;
+  const providers = req.app['locals']["providers"] as any;
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
   res.json({
     status: 'ok',
@@ -210,7 +210,7 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
   // Memory and uptime
   detailed.metrics["uptimeSeconds"] = Math.floor(process.uptime());
   detailed.metrics["memoryMB"] = Math.round(process.memoryUsage().heapUsed / 1048576);
-  detailed.metrics["version"] = process.env.npm_package_version || "1.3.2";
+  detailed.metrics["version"] = process.env["npm_package_version"] || "1.3.2";
   
   res.json(detailed);
 });

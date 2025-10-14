@@ -26,7 +26,7 @@ export function requestId() {
     // Use server ID as authoritative
     req["requestId"] = serverRid;
     res['setHeader']('X-Request-ID', serverRid);
-    res.locals["requestId"] = serverRid;
+    res['locals']["requestId"] = serverRid;
 
     // If logger exists, create child logger with request context
     if ((global as any).logger) {
@@ -39,9 +39,9 @@ export function requestId() {
 
     // Log request completion
     res['on']('finish', () => {
-      const duration = Date["now"]() - (res.locals.startTime || Date.now());
+      const duration = Date["now"]() - (res['locals'].startTime || Date.now());
       if (req["log"]) {
-        req.log["info"]({
+        req['log']["info"]({
           status: res.statusCode,
           duration,
           path: req.path,
@@ -52,7 +52,7 @@ export function requestId() {
     });
 
     // Track start time for duration calculation
-    res.locals["startTime"] = Date.now();
+    res['locals']["startTime"] = Date.now();
 
     next();
   };

@@ -214,7 +214,7 @@ export const monteCarloRateLimit = createRateLimiter({
 // =============================================================================
 
 export const ipFilter = (req: Request, res: Response, next: NextFunction) => {
-  const clientIP = req["ip"] || req.connection.remoteAddress || 'unknown';
+  const clientIP = req["ip"] || req['connection'].remoteAddress || 'unknown';
 
   // Check if IP is blocked
   if (SECURITY_CONFIG.blockedIPs.has(clientIP)) {

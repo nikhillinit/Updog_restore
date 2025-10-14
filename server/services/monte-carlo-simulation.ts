@@ -380,11 +380,11 @@ export class MonteCarloSimulationService {
         stageDistribution
       );
 
-      results.totalValue.push(scenario['totalValue']);
-      results.irr.push(scenario['irr']);
-      results.multiple.push(scenario['multiple']);
-      results.dpi.push(scenario['dpi']);
-      results.tvpi.push(scenario['tvpi']);
+      results['totalValue'].push(scenario['totalValue']);
+      results['irr'].push(scenario['irr']);
+      results['multiple'].push(scenario['multiple']);
+      results['dpi'].push(scenario['dpi']);
+      results['tvpi'].push(scenario['tvpi']);
     }
 
     // Convert to SimulationResult format
