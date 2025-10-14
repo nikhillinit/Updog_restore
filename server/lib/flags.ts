@@ -118,7 +118,7 @@ export function inBucket(userId: string, percent: number): boolean {
  * Evaluate targeting rules for a flag
  */
 function evaluateTargeting(flag: FlagValue, userContext?: UserContext): boolean {
-  if (!flag.targeting?.enabled || !userContext) {
+  if (!flag.targeting?.enabled || !userContext || !flag.targeting.rules) {
     return flag.enabled;
   }
 

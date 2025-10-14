@@ -162,7 +162,11 @@ export class RedisApprovalRateLimiter {
       const windowStart = now - this.config.windowMs;
       const timestamps = (this.memoryBuckets.get(key) || []).filter(ts => ts > windowStart);
       if (timestamps.length >= this.config.maxRequests) {
-        const resetAt = timestamps[0] + this.config.windowMs;
+        const oldestTimestamp = timestamps[0];
+        if (oldestTimestamp === undefined) {
+          throw new Error('Unexpected empty timestamps array');
+        }
+        const resetAt = oldestTimestamp + this.config.windowMs;
         this.memoryBuckets.set(key, timestamps);
         return {
           allowed: false,
@@ -284,10 +288,11 @@ export class RedisApprovalRateLimiter {
     const count = await this.redis!.zCard(key);
     const oldest = await this.redis!.zRange(key, 0, 0);
 
+    const firstEntry = oldest[0];
     return {
       count,
-      oldestRequest: oldest.length > 0
-        ? parseInt(oldest[0].split('-')[0])
+      oldestRequest: firstEntry !== undefined
+        ? parseInt(firstEntry.split('-')[0])
         : null
     };
   }
