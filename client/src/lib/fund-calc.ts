@@ -261,7 +261,7 @@ function deployCompanies(inputs: FundModelInputs): CompanyResult[] {
       // Deterministic exit bucket assignment (cycle through buckets)
       const exitBuckets: Array<'failure' | 'acquired' | 'ipo' | 'secondary'> =
         ['failure', 'acquired', 'ipo', 'secondary'];
-      const exitBucket = exitBuckets[globalCompanyIndex % 4];
+      const exitBucket = exitBuckets[globalCompanyIndex % 4] ?? 'failure';
 
       companies.push({
         companyId,
