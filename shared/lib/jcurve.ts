@@ -68,6 +68,7 @@ export interface JCurvePath {
  * @param dpiSoFar - Optional: actual distributions to-date (Current mode)
  * @returns Complete J-curve path with sensitivity bands
  */
+/* eslint-disable-next-line complexity, max-lines-per-function -- TEMP: Track 1A types-only; refactor in follow-up */
 export function computeJCurvePath(
   cfg: JCurveConfig,
   feeTimelinePerPeriod: Decimal[],
