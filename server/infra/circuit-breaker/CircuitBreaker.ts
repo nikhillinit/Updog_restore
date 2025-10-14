@@ -125,7 +125,9 @@ export class CircuitBreaker<T> {
       const now = Date.now();
       const cutoff = now - this.options.monitoringPeriod;
       this.failureTimes.push(now);
-      while (this.failureTimes.length && this.failureTimes[0] < cutoff) this.failureTimes.shift();
+      while (this.failureTimes.length && this.failureTimes[0] !== undefined && this.failureTimes[0] < cutoff) {
+        this.failureTimes.shift();
+      }
     } else {
       this.failures++;
     }
