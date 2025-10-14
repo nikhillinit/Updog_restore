@@ -113,11 +113,15 @@ export default function DragDropChartBuilder({ onChartChange }: DragDropChartBui
   };
 
   const removeFieldFromArea = (areaId: string) => {
-    const newAreas = chartAreas.map(a => 
-      a.id === areaId ? { ...a, field: undefined } : a
-    );
+    const newAreas = chartAreas.map(a => {
+      if (a.id === areaId) {
+        const { field, ...rest } = a;
+        return rest as ChartArea;
+      }
+      return a;
+    });
     setChartAreas(newAreas);
-    
+
     const config = {
       type: selectedChartType,
       xAxis: newAreas.find(a => a.id === 'x-axis')?.field?.name || '',

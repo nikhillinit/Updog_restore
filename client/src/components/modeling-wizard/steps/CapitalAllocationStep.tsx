@@ -175,7 +175,7 @@ export function CapitalAllocationStep({
           onChange={allocations =>
             setValue('followOnStrategy.stageAllocations', allocations)
           }
-          errors={errors.followOnStrategy}
+          {...(errors.followOnStrategy !== undefined ? { errors: errors.followOnStrategy } : {})}
         />
       </div>
 

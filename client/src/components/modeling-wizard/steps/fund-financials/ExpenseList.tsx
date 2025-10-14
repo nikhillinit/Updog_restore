@@ -149,7 +149,7 @@ export function ExpenseList({ expenses, onChange }: ExpenseListProps) {
                 Type *
               </Label>
               <Select
-                value={expense.type}
+                value={expense.type ?? 'one-time'}
                 onValueChange={(value) =>
                   updateExpense(expense.id, { type: value as 'one-time' | 'annual' })
                 }

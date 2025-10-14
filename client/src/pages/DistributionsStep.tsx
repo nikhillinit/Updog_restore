@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, AlertCircle, ArrowLeft, ArrowRight } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import { useFundTuple, useFundAction } from '@/stores/useFundSelector';
 import { useFundContext } from '@/contexts/FundContext';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
@@ -238,7 +239,7 @@ export default function DistributionsStep() {
                           <Select
                             value={tier.condition || 'none'}
                             onValueChange={(value: any) =>
-                              updateWaterfallTier(tier.id, { condition: value as WaterfallTier['condition'] })
+                              updateWaterfallTier(tier.id, { ...spreadIfDefined("condition", value as WaterfallTier['condition']) })
                             }
                           >
                             <SelectTrigger className="h-12">
@@ -264,7 +265,7 @@ export default function DistributionsStep() {
                             step={tier.condition === 'irr' ? "0.1" : "0.01"}
                             value={tier.conditionValue || ''}
                             onChange={(e: any) => updateWaterfallTier(tier.id, {
-                              conditionValue: parseFloat(e.target.value) || undefined
+                              ...(parseFloat(e.target.value) ? { conditionValue: parseFloat(e.target.value) } : {})
                             })}
                             placeholder={tier.condition === 'irr' ? "e.g., 8.0" : "e.g., 1.5"}
                             className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
@@ -446,7 +447,7 @@ export default function DistributionsStep() {
                                 min="1"
                                 value={tier.endMonth || ''}
                                 onChange={(e: any) => updateFeeTier(profile.id, tier.id, {
-                                  endMonth: parseInt(e.target.value) || undefined
+                                  ...(parseInt(e.target.value) ? { endMonth: parseInt(e.target.value) } : {})
                                 })}
                                 placeholder="120"
                                 className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
@@ -461,7 +462,7 @@ export default function DistributionsStep() {
                                 max="100"
                                 value={tier.recyclingPercentage || ''}
                                 onChange={(e: any) => updateFeeTier(profile.id, tier.id, {
-                                  recyclingPercentage: parseFloat(e.target.value) || undefined
+                                  ...(parseFloat(e.target.value) ? { recyclingPercentage: parseFloat(e.target.value) } : {})
                                 })}
                                 placeholder="0"
                                 className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
@@ -552,7 +553,7 @@ export default function DistributionsStep() {
                             min="1"
                             value={expense.endMonth || ''}
                             onChange={(e: any) => updateFundExpense(expense.id, {
-                              endMonth: parseInt(e.target.value) || undefined
+                              ...(parseInt(e.target.value) ? { endMonth: parseInt(e.target.value) } : {})
                             })}
                             placeholder="120"
                             className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"
@@ -674,7 +675,7 @@ export default function DistributionsStep() {
                         max="10"
                         value={recyclingPeriod || ''}
                         onChange={(e: any) => updateDistributions({
-                          recyclingPeriod: parseFloat(e.target.value) || undefined
+                          ...(parseFloat(e.target.value) ? { recyclingPeriod: parseFloat(e.target.value) } : {})
                         })}
                         placeholder="3"
                         className="h-12 border-[#E0D8D1] focus:border-[#292929] focus:ring-[#292929] font-poppins"

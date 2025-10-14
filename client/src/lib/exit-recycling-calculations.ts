@@ -448,7 +448,7 @@ export function calculateExitRecycling(
   return {
     enabled: true,
     capacity,
-    schedule,
+    ...(schedule !== undefined ? { schedule } : {}),
     extendedInvestmentCapacity,
     effectiveDeploymentRate
   };

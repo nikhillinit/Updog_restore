@@ -14,6 +14,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import {
   ChevronLeft,
   ChevronRight
@@ -459,7 +460,7 @@ export function SwipeableMetricCards({
               isActive={index === currentIndex}
               onClick={() => handleCardClick(metric, index)}
               compactMode={compactMode}
-              className={cardClassName}
+              {...spreadIfDefined('className', cardClassName)}
             />
           </div>
         ))}

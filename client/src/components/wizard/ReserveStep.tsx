@@ -12,6 +12,7 @@ import { calculateReserves } from '@/lib/reserves-v11';
 import { adaptFundToReservesInput, adaptReservesConfig } from '@/adapters/reserves-adapter';
 import { metrics, auditLog } from '@/metrics/reserves-metrics';
 import { formatQuarter, getCurrentQuarter } from '@/lib/quarter-time';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 
 interface ReserveStepProps {
   fund: any; // Your existing fund type
@@ -58,10 +59,11 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
         reservePercentage: reservePercent / 100,
         enableRemainPass,
         capPercent: defaultCapPercent / 100,
-        stageCaps: capPolicy === 'stage' ? 
-          Object.fromEntries(
+        ...(capPolicy === 'stage' ? {
+          stageCaps: Object.fromEntries(
             Object.entries(stageCaps).map(([k, v]) => [k, v / 100])
-          ) : undefined,
+          )
+        } : {}),
         auditLevel: 'detailed'
       });
       
@@ -93,7 +95,7 @@ export default function ReserveStep({ fund, onComplete, onBack }: ReserveStepPro
           output: result.data,
           config,
           duration_ms: result.metrics?.duration_ms || 0,
-          warnings: result.warnings
+          ...spreadIfDefined("warnings", result.warnings)
         });
       }
       

@@ -9,6 +9,7 @@ import React, { useMemo } from 'react';
 import { CollapsibleCard } from '@/components/wizard/CollapsibleCard';
 import { EnhancedField } from '@/components/wizard/EnhancedField';
 import { formatUSD, pctOfDollars } from '@/lib/formatting';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import { STAGES, STAGE_LABEL } from './_types';
 import type { FieldErrors } from '@/lib/validation';
 import { firstError } from '@/lib/validation';
@@ -75,7 +76,7 @@ export function StageAllocationCard({
     <div className="text-sm text-muted-foreground">
       Total: <span className={isValid ? 'text-green-700' : 'text-red-700'}>{totalPct.toFixed(0)}%</span>
       {' · '}
-      Reserves: {value.reserves.toFixed(0)}% ({formatUSD(pctOfDollars(committedCapitalUSD, value.reserves))})
+      Reserves: {(value.reserves ?? 0).toFixed(0)}% ({formatUSD(pctOfDollars(committedCapitalUSD, value.reserves ?? 0))})
     </div>
   );
 
@@ -84,32 +85,34 @@ export function StageAllocationCard({
       title="Stage Allocation (must sum to 100%)"
       summary={summary}
       defaultExpanded
-      className={className}
+      {...spreadIfDefined("className", className)}
     >
       <div className="space-y-3">
         {/* Stage Fields */}
         {STAGES.map((stage) => {
           const err = firstError(errors ?? {}, stage);
+          const stageLabel = STAGE_LABEL[stage as keyof typeof STAGE_LABEL];
+          const stageValue = value[stage as keyof StageAllocation] ?? 0;
           return (
             <div
               key={stage}
               className="grid grid-cols-[1fr,120px,1fr] sm:grid-cols-[1fr,140px,200px] items-center gap-3"
             >
-              <div className="font-medium">{STAGE_LABEL[stage]}</div>
+              <div className="font-medium">{stageLabel}</div>
               <EnhancedField
                 id={`alloc-${stage}-pct`}
                 label=""
                 format="percent"
-                value={value[stage]}
+                value={stageValue}
                 onChange={(v: number) => setPct(stage, v)}
                 contextChip="0–100%"
-                aria-label={`${STAGE_LABEL[stage]} allocation percent`}
+                aria-label={`${stageLabel} allocation percent`}
                 aria-invalid={!!err}
                 {...(err !== undefined ? { error: err } : {})}
                 disabled={disabled}
               />
               <div className="text-sm tabular-nums text-muted-foreground">
-                {formatUSD(pctOfDollars(committedCapitalUSD, value[stage]))}
+                {formatUSD(pctOfDollars(committedCapitalUSD, stageValue))}
               </div>
             </div>
           );
@@ -118,6 +121,7 @@ export function StageAllocationCard({
         {/* Reserves Row */}
         {(() => {
           const err = firstError(errors ?? {}, 'reserves');
+          const reservesValue = value.reserves ?? 0;
           return (
             <div className="grid grid-cols-[1fr,120px,1fr] sm:grid-cols-[1fr,140px,200px] items-center gap-3 border-t pt-3">
               <div className="font-medium">Reserves</div>
@@ -125,7 +129,7 @@ export function StageAllocationCard({
                 id="alloc-reserves-pct"
                 label=""
                 format="percent"
-                value={value.reserves}
+                value={reservesValue}
                 onChange={(v: number) => setPct('reserves', v)}
                 contextChip="Common: 40–60%"
                 aria-label="Reserves percent"
@@ -134,7 +138,7 @@ export function StageAllocationCard({
                 disabled={disabled}
               />
               <div className="text-sm tabular-nums text-muted-foreground">
-                {formatUSD(pctOfDollars(committedCapitalUSD, value.reserves))}
+                {formatUSD(pctOfDollars(committedCapitalUSD, reservesValue))}
               </div>
             </div>
           );

@@ -61,7 +61,7 @@ const VIEW_CONFIGS: Record<ViewLevel, ViewConfig> = {
     level: 'executive',
     title: 'Executive Overview',
     description: 'Key metrics and high-level insights',
-    icon: Eye,
+    icon: Eye as React.ComponentType<{ className?: string }>,
     complexity: 1,
     userTypes: ['LP', 'Limited Partner', 'Board Member', 'Executive']
   },
@@ -69,7 +69,7 @@ const VIEW_CONFIGS: Record<ViewLevel, ViewConfig> = {
     level: 'strategic',
     title: 'Strategic Analysis',
     description: 'Portfolio composition and scenario comparisons',
-    icon: Target,
+    icon: Target as React.ComponentType<{ className?: string }>,
     complexity: 2,
     userTypes: ['GP', 'Investment Committee', 'Portfolio Manager']
   },
@@ -77,7 +77,7 @@ const VIEW_CONFIGS: Record<ViewLevel, ViewConfig> = {
     level: 'analytical',
     title: 'Analytical Deep Dive',
     description: 'Full Monte Carlo results and statistical analysis',
-    icon: BarChart3,
+    icon: BarChart3 as React.ComponentType<{ className?: string }>,
     complexity: 3,
     userTypes: ['Analyst', 'Quantitative Researcher', 'Risk Manager']
   },
@@ -85,7 +85,7 @@ const VIEW_CONFIGS: Record<ViewLevel, ViewConfig> = {
     level: 'technical',
     title: 'Technical Details',
     description: 'Raw data, calculations, and model parameters',
-    icon: Code2,
+    icon: Code2 as React.ComponentType<{ className?: string }>,
     complexity: 4,
     userTypes: ['Data Scientist', 'Developer', 'Model Validator']
   }

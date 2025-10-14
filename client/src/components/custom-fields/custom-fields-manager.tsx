@@ -72,7 +72,7 @@ export default function CustomFieldsManager({ fields, onFieldsChange, className 
       name: newField.name,
       type: newField.type as CustomField['type'],
       required: newField.required || false,
-      options: newField.type === 'color' ? COLOR_PRESETS : undefined,
+      ...(newField.type === 'color' ? { options: COLOR_PRESETS } : {}),
     };
 
     onFieldsChange([...fields, field]);

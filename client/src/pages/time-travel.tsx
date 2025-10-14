@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO, subDays, addDays } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 
 export default function TimeTravelPage() {
   const { currentFund } = useFundContext();
@@ -129,7 +130,7 @@ export default function TimeTravelPage() {
       await createSnapshotMutation.mutateAsync({
         fundId: currentFund.id,
         type,
-        description
+        ...spreadIfDefined('description', description)
       });
 
       toast({

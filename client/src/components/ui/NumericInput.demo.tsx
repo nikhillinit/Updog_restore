@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import { NumericInput } from './NumericInput';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 
 export function NumericInputDemo() {
   const [currency, setCurrency] = useState<number | undefined>(1000000);
@@ -81,7 +82,7 @@ export function NumericInputDemo() {
               value={errorField}
               onChange={setErrorField}
               mode="currency"
-              error={error}
+              {...spreadIfDefined('error', error)}
               required
             />
             <div className="mt-2 text-sm text-charcoal/70 font-mono">

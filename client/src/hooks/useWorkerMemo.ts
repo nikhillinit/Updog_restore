@@ -6,7 +6,7 @@ export type WorkerResult<TOut> = {
   data: TOut | null;
   loading: boolean;
   error: Error | null;
-  timing?: number;
+  timing?: number | undefined;
 };
 
 /**
@@ -77,5 +77,11 @@ export function useWorkerMemo<TIn, TOut>(
     };
   }, [makeWorker, input]);
 
-  return { data, loading, error, timing };
+  const result: WorkerResult<TOut> = {
+    data,
+    loading,
+    error,
+    ...(timing !== undefined ? { timing } : {}),
+  };
+  return result;
 }

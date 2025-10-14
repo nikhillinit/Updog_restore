@@ -91,7 +91,7 @@ export function ScenariosStep({ initialData, onSave }: ScenariosStepProps) {
   const { results, comparison} = useScenarioCalculations({
     baseModel,
     scenarios: scenarios as ScenarioAdjustment[],
-    enabled
+    enabled: enabled ?? false
   });
 
   // Auto-save on form changes
@@ -156,7 +156,7 @@ export function ScenariosStep({ initialData, onSave }: ScenariosStepProps) {
             control={control}
             render={({ field }) => (
               <Switch
-                checked={field.value}
+                checked={field.value ?? false}
                 onCheckedChange={field.onChange}
               />
             )}

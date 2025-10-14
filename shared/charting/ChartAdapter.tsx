@@ -216,7 +216,7 @@ export const AdaptedAreaChart: React.FC<AreaChartProps> = ({
           key={s.key}
           type={curve}
           dataKey={s.key}
-          stackId={stacked ? '1' : undefined}
+          {...(stacked ? { stackId: '1' } : {})}
           stroke={s.color || mergedConfig.colors[index % mergedConfig.colors.length]}
           fill={s.color || mergedConfig.colors[index % mergedConfig.colors.length]}
           fillOpacity={0.6}
@@ -287,7 +287,7 @@ export const AdaptedBarChart: React.FC<BarChartProps> = ({
         <Bar
           key={s.key}
           dataKey={s.key}
-          stackId={stacked ? '1' : undefined}
+          {...(stacked ? { stackId: '1' } : {})}
           fill={s.color || mergedConfig.colors[index % mergedConfig.colors.length]}
           name={s.name}
         />

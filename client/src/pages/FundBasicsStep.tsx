@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { ArrowRight } from 'lucide-react';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import { useFundSelector, useFundAction } from '@/stores/useFundSelector';
 import { useFundContext } from '@/contexts/FundContext';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
@@ -69,12 +70,18 @@ export default function FundBasicsStep() {
   };
 
   const handleEvergreenToggle = (checked: boolean) => {
-    updateFundBasics({
-      isEvergreen: checked,
-      // Clear closed-end specific fields when switching to evergreen
-      fundLife: checked ? undefined : fundLife,
-      investmentPeriod: checked ? undefined : investmentPeriod,
-    });
+    const baseUpdate = { isEvergreen: checked };
+
+    // Clear closed-end specific fields when switching to evergreen
+    const update = checked
+      ? baseUpdate // Evergreen: omit fundLife and investmentPeriod entirely
+      : {
+          ...baseUpdate,
+          ...spreadIfDefined("fundLife", fundLife),
+          ...spreadIfDefined("investmentPeriod", investmentPeriod),
+        };
+
+    updateFundBasics(update);
   };
 
   return (

@@ -157,7 +157,7 @@ export function CompanyDialog({
                 Sector *
               </Label>
               <Select
-                defaultValue={company?.sector}
+                {...(company?.sector !== undefined ? { defaultValue: company.sector } : {})}
                 onValueChange={(value) => setValue('sector', value)}
               >
                 <SelectTrigger className="mt-2">

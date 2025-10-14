@@ -87,7 +87,7 @@ export class PerformanceMonitor {
       value,
       unit,
       timestamp: new Date(),
-      context
+      ...(context !== undefined ? { context } : {})
     };
     
     // Determine threshold level
@@ -314,7 +314,7 @@ export class PerformanceMonitor {
           threshold: this.getThresholdValue(metric.name, metric.threshold),
           message: this.generateAlertMessage(metric),
           timestamp: new Date(),
-          context: metric.context
+          ...(metric.context !== undefined ? { context: metric.context } : {})
         };
         
         this.alerts.push(alert);

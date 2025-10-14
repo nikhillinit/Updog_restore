@@ -61,12 +61,13 @@ export function GraduationMatrixCard({
 
   const row = (id: keyof GraduationRates, label: string) => {
     const err = firstError(errors ?? {}, id as string);
+    const currentValue = value[id as keyof GraduationRates] ?? 0;
     return (
       <EnhancedField
         id={`grad-${String(id)}-pct`}
         label={label}
         format="percent"
-        value={value[id] ?? 0}
+        value={typeof currentValue === 'number' ? currentValue : 0}
         onChange={(v: number) => set(id, v)}
         aria-invalid={!!err}
         {...(err !== undefined ? { error: err } : {})}

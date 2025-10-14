@@ -176,7 +176,7 @@ export function calculateReservesSafe(
     return {
       ok: true,
       data: output,
-      warnings: warnings.length > 0 ? warnings : undefined,
+      ...(warnings.length > 0 ? { warnings } : {}),
       metrics: {
         duration_ms: performance.now() - startTime,
         company_count: input.companies.length,

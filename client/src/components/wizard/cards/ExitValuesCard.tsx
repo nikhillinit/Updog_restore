@@ -84,13 +84,14 @@ export function ExitValuesCard({
     >
       <div className="grid gap-4">
         {STAGES.map((s) => {
-          const st = value[s];
-          const cost = costBasisAtStageUSD[s] ?? 0;
+          const st = value[s as keyof ExitValuesByStage];
+          const cost = costBasisAtStageUSD[s as keyof typeof costBasisAtStageUSD] ?? 0;
           const mult = computeImpliedMultiple(st?.median ?? 0, cost);
+          const stageLabel = STAGE_LABEL[s as keyof typeof STAGE_LABEL];
 
           return (
             <div key={s} className="rounded-md border p-3">
-              <div className="mb-2 font-medium">{STAGE_LABEL[s]}</div>
+              <div className="mb-2 font-medium">{stageLabel}</div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <EnhancedField
@@ -100,8 +101,8 @@ export function ExitValuesCard({
                   value={st?.low ?? 0}
                   onChange={(v: number) => set(s, 'low', v)}
                   aria-invalid={!!errFor(s, 'low')}
-                  {...(errFor(s, 'low') !== undefined ? { error: errFor(s, 'low') } : {})}
                   disabled={disabled}
+                  {...(errFor(s, 'low') !== undefined ? { error: errFor(s, 'low')! } : {})}
                 />
                 <EnhancedField
                   id={`exit-${s}-median`}
@@ -111,8 +112,8 @@ export function ExitValuesCard({
                   onChange={(v: number) => set(s, 'median', v)}
                   required
                   aria-invalid={!!errFor(s, 'median')}
-                  {...(errFor(s, 'median') !== undefined ? { error: errFor(s, 'median') } : {})}
                   disabled={disabled}
+                  {...(errFor(s, 'median') !== undefined ? { error: errFor(s, 'median')! } : {})}
                 />
                 <EnhancedField
                   id={`exit-${s}-high`}
@@ -121,8 +122,8 @@ export function ExitValuesCard({
                   value={st?.high ?? 0}
                   onChange={(v: number) => set(s, 'high', v)}
                   aria-invalid={!!errFor(s, 'high')}
-                  {...(errFor(s, 'high') !== undefined ? { error: errFor(s, 'high') } : {})}
                   disabled={disabled}
+                  {...(errFor(s, 'high') !== undefined ? { error: errFor(s, 'high')! } : {})}
                 />
               </div>
 
@@ -146,8 +147,8 @@ export function ExitValuesCard({
                     value={st?.weights?.low ?? 0}
                     onChange={(v: number) => set(s, 'weights', { ...(st?.weights ?? {}), low: v })}
                     aria-invalid={!!errFor(s, 'weights.low')}
-                    {...(errFor(s, 'weights.low') !== undefined ? { error: errFor(s, 'weights.low') } : {})}
                     disabled={disabled}
+                    {...(errFor(s, 'weights.low') !== undefined ? { error: errFor(s, 'weights.low')! } : {})}
                   />
                   <EnhancedField
                     id={`exit-${s}-w-med`}
@@ -156,8 +157,8 @@ export function ExitValuesCard({
                     value={st?.weights?.median ?? 100}
                     onChange={(v: number) => set(s, 'weights', { ...(st?.weights ?? {}), median: v })}
                     aria-invalid={!!errFor(s, 'weights.median')}
-                    {...(errFor(s, 'weights.median') !== undefined ? { error: errFor(s, 'weights.median') } : {})}
                     disabled={disabled}
+                    {...(errFor(s, 'weights.median') !== undefined ? { error: errFor(s, 'weights.median')! } : {})}
                   />
                   <EnhancedField
                     id={`exit-${s}-w-high`}
@@ -166,8 +167,8 @@ export function ExitValuesCard({
                     value={st?.weights?.high ?? 0}
                     onChange={(v: number) => set(s, 'weights', { ...(st?.weights ?? {}), high: v })}
                     aria-invalid={!!errFor(s, 'weights.high')}
-                    {...(errFor(s, 'weights.high') !== undefined ? { error: errFor(s, 'weights.high') } : {})}
                     disabled={disabled}
+                    {...(errFor(s, 'weights.high') !== undefined ? { error: errFor(s, 'weights.high')! } : {})}
                   />
                 </div>
               )}

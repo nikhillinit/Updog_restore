@@ -1,0 +1,71 @@
+=== PHASE 0 GROUND TRUTH SUMMARY ===
+Run ID: 20251013-153429
+Timestamp: Mon, Oct 13, 2025  3:37:15 PM
+Toolchain: Node v20.19.0, npm 10.9.2
+
+TYPESCRIPT ERRORS:
+- Client: 88
+- Server: 1
+- Shared: 00
+- TOTAL: 89
+
+SCENARIO ASSESSMENT:
+Scenario: A*
+Reason: Server <=10 and Total <=220
+Recommended Track: 1A (borderline)
+Estimated Timeline: 4-6 hours
+
+QUALITY BASELINES:
+- Core test failures (timeout 60s): 0
+0
+- Bundle baseline (JS+CSS only):
+  * Total bytes: 1961634 (1915KB)
+  * Asset count: 114
+- Drift thresholds: 50KB AND 5%
+
+SECURITY SNAPSHOT:
+- Critical vulnerabilities: N/A
+- High vulnerabilities: N/A
+
+MERGE RISK:
+- Base (main) ahead: 0 commits
+- TS churn upstream: 0
+0 files
+- Potential conflicts: 30 files
+
+ESCALATION TRIGGERS:
+- None detected
+
+TRACK 1A+ VALIDATION GATES:
+1. ✅ Client + Shared TS errors = 0
+2. ✅ Test failures ≤ 0
+0 (no new failures)
+3. ✅ Bundle size within 5% of baseline
+4. ✅ Build succeeds
+5. ✅ Dev server starts without errors
+
+ARTIFACTS:
+- Output directory: artifacts/phase0/20251013-153429
+- Priority fixes: artifacts/phase0/20251013-153429/priority-fixes.txt
+- Full baseline: artifacts/phase0/20251013-153429/baseline.txt
+- Test baseline: artifacts/phase0/20251013-153429/test-baseline.txt
+- Bundle baseline: artifacts/phase0/20251013-153429/bundle/
+
+TOP 5 ERROR CODES:
+     63 TS2375
+     10 TS2379
+      7 TS2322
+      5 TS2345
+      2 TS2769
+
+TOP 10 FILES BY PRIORITY:
+17	7	client/src/components/modeling-wizard/ModelingWizard.tsx
+9	6	client/src/components/wizard/cards/ReservesCard.tsx
+9	6	client/src/components/wizard/cards/ExitValuesCard.tsx
+6	4	client/src/components/portfolio-constructor/ScenarioComparison.tsx
+6	4	client/src/components/modeling-wizard/steps/FundFinancialsStep.tsx
+5	3	client/src/components/ui/error-boundary.tsx
+3	3	client/src/pages/CompanyDetail.tsx
+3	3	client/src/machines/modeling-wizard.machine.ts
+3	2	client/src/components/wizard/ReserveStep.tsx
+3	2	client/src/components/portfolio/tabs/ReallocationTab.tsx

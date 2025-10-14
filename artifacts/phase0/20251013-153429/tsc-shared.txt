@@ -1,0 +1,4 @@
+
+> rest-express@1.3.2 check:shared
+> tsc -p tsconfig.shared.json --noEmit
+

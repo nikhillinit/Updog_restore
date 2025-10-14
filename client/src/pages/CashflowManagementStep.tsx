@@ -12,6 +12,7 @@ import { ArrowLeft, Plus, Trash2, AlertCircle, DollarSign, Check } from "lucide-
 import { useFundSelector, useFundActions } from '@/stores/useFundSelector';
 import { useFundContext } from '@/contexts/FundContext';
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import type { FundExpense } from '@/stores/fundStore';
 import type { ExpenseCategory } from '@shared/types';
 
@@ -94,25 +95,30 @@ export default function CashflowManagementStep() {
         const scaleFactor = Math.min(Math.max(fundSize / 100, 0.5), 3);
         const monthlyAmount = Math.round((baseAmount * scaleFactor) / 12);
 
-        addFundExpense({
+        const expense: FundExpense = {
           id: `auto-${expenseTemplate.category}-${index}`,
           category: expenseTemplate.label,
           monthlyAmount,
           startMonth: 1,
-          endMonth: undefined, // Ongoing
-        });
+        };
+        // Ongoing expense, no endMonth
+        addFundExpense(expense);
       });
     }
   }, [fundExpenses.length, fundSize, addFundExpense]);
 
   const handleAddExpense = () => {
-    const expense: FundExpense = {
+    const baseExpense: FundExpense = {
       id: `expense-${Date.now()}`,
       category: newExpense.category,
       monthlyAmount: newExpense.monthlyAmount,
       startMonth: newExpense.startMonth,
-      endMonth: newExpense.isRecurring ? undefined : newExpense.endMonth,
     };
+
+    // Only add endMonth for fixed-term expenses
+    const expense = newExpense.isRecurring
+      ? baseExpense
+      : { ...baseExpense, ...spreadIfDefined("endMonth", newExpense.endMonth) };
 
     addFundExpense(expense);
 

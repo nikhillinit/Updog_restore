@@ -9,6 +9,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { spreadIfDefined } from '@/lib/ts/spreadIfDefined';
 import {
   BarChart3,
   PieChart,
@@ -455,7 +456,7 @@ export function IntelligentSkeleton({
       <TableSkeleton
         rows={variant.rows || 5}
         columns={variant.columns || 4}
-        showHeaders={variant.showHeaders}
+        {...spreadIfDefined('showHeaders', variant.showHeaders)}
         animated={animated}
       />
     ),

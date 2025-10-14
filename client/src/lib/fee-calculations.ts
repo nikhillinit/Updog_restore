@@ -528,12 +528,16 @@ export function calculateFeeImpact(
     feeRate: feeStructure.managementFee.rate,
     basis: feeStructure.managementFee.basis,
     fundTerm,
-    stepDown: feeStructure.managementFee.stepDown?.enabled
+    ...(feeStructure.managementFee.stepDown?.enabled &&
+      feeStructure.managementFee.stepDown.afterYear !== undefined &&
+      feeStructure.managementFee.stepDown.newRate !== undefined
       ? {
-          afterYear: feeStructure.managementFee.stepDown.afterYear!,
-          newRate: feeStructure.managementFee.stepDown.newRate!,
+          stepDown: {
+            afterYear: feeStructure.managementFee.stepDown.afterYear,
+            newRate: feeStructure.managementFee.stepDown.newRate,
+          },
         }
-      : undefined,
+      : {}),
   };
 
   const managementFees = calculateManagementFees(managementFeeConfig);

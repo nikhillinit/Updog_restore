@@ -393,10 +393,10 @@ export default function PerformanceCaseTabs({ investment }: PerformanceCaseTabsP
         isOpen={showLiqPrefsDialog}
         onOpenChange={setShowLiqPrefsDialog}
         investment={investment}
-        performanceCase={selectedCase ? {
+        {...(selectedCase !== null ? { performanceCase: {
           id: selectedCase.id,
           name: selectedCase.name
-        } : undefined}
+        } } : {})}
       />
     </div>
   );

@@ -1,0 +1,397 @@
+
+> rest-express@1.3.2 check
+> npm run build:types && npm run check:client && npm run check:shared && npm run check:server
+
+
+> rest-express@1.3.2 build:types
+> tsc -b tsconfig.shared.json
+
+
+> rest-express@1.3.2 check:client
+> tsc -p tsconfig.client.json --noEmit
+
+client/src/components/analytics/ErrorState.tsx(97,6): error TS2375: Type '{ title: string; message: string; error: string | Error; onRetry: (() => void) | undefined; className: string; showDetails: true; }' is not assignable to type 'ErrorStateProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'onRetry' are incompatible.
+    Type '(() => void) | undefined' is not assignable to type '() => void'.
+      Type 'undefined' is not assignable to type '() => void'.
+client/src/components/cap-table/safe-note-editor.tsx(61,11): error TS2375: Type '{ id: string; type: "safe" | "note"; principal: number; valuationCap: number | undefined; discount: number | undefined; interestRate: number | undefined; maturityDate: string | undefined; holderName: string; investmentDate: string; mostFavoredNation: boolean | undefined; proRataRights: boolean | undefined; }' is not assignable to type 'SAFENote' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'valuationCap' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+client/src/components/custom-fields/custom-fields-manager.tsx(70,11): error TS2375: Type '{ id: string; name: string; type: CustomField["type"]; required: boolean; options: string[] | undefined; }' is not assignable to type 'CustomField' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'options' are incompatible.
+    Type 'string[] | undefined' is not assignable to type 'string[]'.
+      Type 'undefined' is not assignable to type 'string[]'.
+client/src/components/insights/OptimalReservesCard.tsx(32,9): error TS2322: Type '{ companyId: string; company: string; plannedReserve: number; expectedExitMOIC: number; rationale: string | undefined; }[]' is not assignable to type 'ReserveRow[]'.
+  Type '{ companyId: string; company: string; plannedReserve: number; expectedExitMOIC: number; rationale: string | undefined; }' is not assignable to type 'ReserveRow' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Types of property 'rationale' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+client/src/components/investments/add-event-dropdown.tsx(139,8): error TS2375: Type '{ isOpen: boolean; onOpenChange: Dispatch<SetStateAction<boolean>>; investment: { id: string; company: string; currentOwnership: number; } | undefined; }' is not assignable to type 'OwnershipUpdateDialogProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'investment' are incompatible.
+    Type '{ id: string; company: string; currentOwnership: number; } | undefined' is not assignable to type '{ id: string; company: string; currentOwnership: number; }'.
+      Type 'undefined' is not assignable to type '{ id: string; company: string; currentOwnership: number; }'.
+client/src/components/investments/add-event-dropdown.tsx(145,8): error TS2375: Type '{ isOpen: boolean; onOpenChange: Dispatch<SetStateAction<boolean>>; investment: { id: string; company: string; currentOwnership: number; } | undefined; }' is not assignable to type 'NewRoundDialogProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'investment' are incompatible.
+    Type '{ id: string; company: string; currentOwnership: number; } | undefined' is not assignable to type '{ id: string; company: string; }'.
+      Type 'undefined' is not assignable to type '{ id: string; company: string; }'.
+client/src/components/investments/performance-case-tabs.tsx(392,8): error TS2375: Type '{ isOpen: boolean; onOpenChange: Dispatch<SetStateAction<boolean>>; investment: { id: string; company: string; amount: number; }; performanceCase: { id: string; name: string; } | undefined; }' is not assignable to type 'LiquidationPreferencesDialogProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'performanceCase' are incompatible.
+    Type '{ id: string; name: string; } | undefined' is not assignable to type '{ id: string; name: string; }'.
+      Type 'undefined' is not assignable to type '{ id: string; name: string; }'.
+client/src/components/modeling-wizard/ModelingWizard.tsx(144,10): error TS2375: Type '{ initialData: Partial<{ fundSize: number; currency: "USD" | "EUR" | "GBP"; vintageYear: number; fundName: string; establishmentDate: string; isEvergreen?: boolean | undefined; fundLife?: number | undefined; investmentPeriod?: number | undefined; team?: { ...; } | undefined; }> | undefined; onSave: (data: { ...; }) ...' is not assignable to type 'GeneralInfoStepProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'initialData' are incompatible.
+    Type 'Partial<{ fundSize: number; currency: "USD" | "EUR" | "GBP"; vintageYear: number; fundName: string; establishmentDate: string; isEvergreen?: boolean | undefined; fundLife?: number | undefined; investmentPeriod?: number | undefined; team?: { ...; } | undefined; }> | undefined' is not assignable to type 'Partial<{ fundSize: number; currency: "USD" | "EUR" | "GBP"; vintageYear: number; fundName: string; establishmentDate: string; isEvergreen?: boolean | undefined; fundLife?: number | undefined; investmentPeriod?: number | undefined; team?: { ...; } | undefined; }>'.
+      Type 'undefined' is not assignable to type 'Partial<{ fundSize: number; currency: "USD" | "EUR" | "GBP"; vintageYear: number; fundName: string; establishmentDate: string; isEvergreen?: boolean | undefined; fundLife?: number | undefined; investmentPeriod?: number | undefined; team?: { ...; } | undefined; }>'.
+client/src/components/modeling-wizard/ModelingWizard.tsx(152,10): error TS2375: Type '{ initialData: Partial<{ sectorProfiles: { id: string; name: string; allocation: number; stages: { id: string; stage: "seed" | "pre-seed" | "series-a" | "series-b" | "series-c" | "series-d" | "series-e-plus"; ... 8 more ...; failureRate?: number | undefined; }[]; description?: string | undefined; }[]; }> | undefined...' is not assignable to type 'SectorProfilesStepProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'initialData' are incompatible.
+    Type 'Partial<{ sectorProfiles: { id: string; name: string; allocation: number; stages: { id: string; stage: "seed" | "pre-seed" | "series-a" | "series-b" | "series-c" | "series-d" | "series-e-plus"; ... 8 more ...; failureRate?: number | undefined; }[]; description?: string | undefined; }[]; }> | undefined' is not assignable to type 'Partial<{ sectorProfiles: { id: string; name: string; allocation: number; stages: { id: string; stage: "seed" | "pre-seed" | "series-a" | "series-b" | "series-c" | "series-d" | "series-e-plus"; ... 8 more ...; failureRate?: number | undefined; }[]; description?: string | undefined; }[]; }>'.
+      Type 'undefined' is not assignable to type 'Partial<{ sectorProfiles: { id: string; name: string; allocation: number; stages: { id: string; stage: "seed" | "pre-seed" | "series-a" | "series-b" | "series-c" | "series-d" | "series-e-plus"; ... 8 more ...; failureRate?: number | undefined; }[]; description?: string | undefined; }[]; }>'.
+client/src/components/modeling-wizard/ModelingWizard.tsx(160,10): error TS2375: Type '{ initialData: Partial<{ followOnStrategy: { reserveRatio: number; stageAllocations: { maintainOwnership: number; participationRate: number; stageId: string; stageName: string; }[]; }; initialCheckSize: number; pacingModel: { ...; }; pacingHorizon: { ...; }[]; entryStrategy?: "amount-based" | ... 1 more ... | undefi...' is not assignable to type 'CapitalAllocationStepProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'initialData' are incompatible.
+    Type 'Partial<{ followOnStrategy: { reserveRatio: number; stageAllocations: { maintainOwnership: number; participationRate: number; stageId: string; stageName: string; }[]; }; initialCheckSize: number; pacingModel: { ...; }; pacingHorizon: { ...; }[]; entryStrategy?: "amount-based" | ... 1 more ... | undefined; targetEntr...' is not assignable to type 'Partial<{ followOnStrategy: { reserveRatio: number; stageAllocations: { maintainOwnership: number; participationRate: number; stageId: string; stageName: string; }[]; }; initialCheckSize: number; pacingModel: { ...; }; pacingHorizon: { ...; }[]; entryStrategy?: "amount-based" | ... 1 more ... | undefined; targetEntr...'. Two different types with this name exist, but they are unrelated.
+      Type 'undefined' is not assignable to type 'Partial<{ followOnStrategy: { reserveRatio: number; stageAllocations: { maintainOwnership: number; participationRate: number; stageId: string; stageName: string; }[]; }; initialCheckSize: number; pacingModel: { ...; }; pacingHorizon: { ...; }[]; entryStrategy?: "amount-based" | ... 1 more ... | undefined; targetEntr...'.
+client/src/components/modeling-wizard/ModelingWizard.tsx(170,10): error TS2375: Type '{ initialData: Partial<{ managementFee: { basis: "committed" | "fmv" | "called"; rate: number; stepDown?: { enabled: boolean; newRate?: number | undefined; afterYear?: number | undefined; } | undefined; }; adminExpenses: { ...; }; carriedInterest?: { ...; } | undefined; feeRecycling?: { ...; } | undefined; }> | unde...' is not assignable to type 'FeesExpensesStepProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'initialData' are incompatible.
+    Type 'Partial<{ managementFee: { basis: "committed" | "fmv" | "called"; rate: number; stepDown?: { enabled: boolean; newRate?: number | undefined; afterYear?: number | undefined; } | undefined; }; adminExpenses: { ...; }; carriedInterest?: { ...; } | undefined; feeRecycling?: { ...; } | undefined; }> | undefined' is not assignable to type 'Partial<{ managementFee: { basis: "committed" | "fmv" | "called"; rate: number; stepDown?: { enabled: boolean; newRate?: number | undefined; afterYear?: number | undefined; } | undefined; }; adminExpenses: { ...; }; carriedInterest?: { ...; } | undefined; feeRecycling?: { ...; } | undefined; }>'.
+      Type 'undefined' is not assignable to type 'Partial<{ managementFee: { basis: "committed" | "fmv" | "called"; rate: number; stepDown?: { enabled: boolean; newRate?: number | undefined; afterYear?: number | undefined; } | undefined; }; adminExpenses: { ...; }; carriedInterest?: { ...; } | undefined; feeRecycling?: { ...; } | undefined; }>'.
+client/src/components/modeling-wizard/ModelingWizard.tsx(178,10): error TS2375: Type '{ initialData: Partial<{ enabled?: boolean | undefined; recyclingCap?: number | undefined; recyclingPeriod?: number | undefined; exitRecyclingRate?: number | undefined; mgmtFeeRecyclingRate?: number | undefined; }> | undefined; onSave: (data: { ...; }) => void; fundFinancials: any; }' is not assignable to type 'ExitRecyclingStepProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'initialData' are incompatible.
+    Type 'Partial<{ enabled?: boolean | undefined; recyclingCap?: number | undefined; recyclingPeriod?: number | undefined; exitRecyclingRate?: number | undefined; mgmtFeeRecyclingRate?: number | undefined; }> | undefined' is not assignable to type 'Partial<{ enabled?: boolean | undefined; recyclingCap?: number | undefined; recyclingPeriod?: number | undefined; exitRecyclingRate?: number | undefined; mgmtFeeRecyclingRate?: number | undefined; }>'.
+      Type 'undefined' is not assignable to type 'Partial<{ enabled?: boolean | undefined; recyclingCap?: number | undefined; recyclingPeriod?: number | undefined; exitRecyclingRate?: number | undefined; mgmtFeeRecyclingRate?: number | undefined; }>'.
+client/src/components/modeling-wizard/ModelingWizard.tsx(187,10): error TS2375: Type '{ initialData: Partial<{ type: "AMERICAN"; carryVesting: { cliffYears: number; vestingYears: number; }; }> | Partial<{ type: "EUROPEAN"; catchUp: number; carryVesting: { cliffYears: number; vestingYears: number; }; hurdle: number; }> | undefined; onSave: (data: { ...; } | { ...; }) => void; }' is not assignable to type 'WaterfallStepProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'initialData' are incompatible.
+    Type 'Partial<{ type: "AMERICAN"; carryVesting: { cliffYears: number; vestingYears: number; }; }> | Partial<{ type: "EUROPEAN"; catchUp: number; carryVesting: { cliffYears: number; vestingYears: number; }; hurdle: number; }> | undefined' is not assignable to type 'Partial<{ type: "AMERICAN"; carryVesting: { cliffYears: number; vestingYears: number; }; } | { type: "EUROPEAN"; catchUp: number; carryVesting: { cliffYears: number; vestingYears: number; }; hurdle: number; }>'.
+      Type 'undefined' is not assignable to type 'Partial<{ type: "AMERICAN"; carryVesting: { cliffYears: number; vestingYears: number; }; } | { type: "EUROPEAN"; catchUp: number; carryVesting: { cliffYears: number; vestingYears: number; }; hurdle: number; }>'.
+client/src/components/modeling-wizard/ModelingWizard.tsx(195,10): error TS2375: Type '{ initialData: Partial<{ scenarios: { id: string; name: string; description?: string | undefined; moicMultiplier?: number | undefined; exitTimingDelta?: number | undefined; lossRateDelta?: number | undefined; participationRateDelta?: number | undefined; }[]; enabled?: boolean | undefined; }> | undefined; onSave: (da...' is not assignable to type 'ScenariosStepProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'initialData' are incompatible.
+    Type 'Partial<{ scenarios: { id: string; name: string; description?: string | undefined; moicMultiplier?: number | undefined; exitTimingDelta?: number | undefined; lossRateDelta?: number | undefined; participationRateDelta?: number | undefined; }[]; enabled?: boolean | undefined; }> | undefined' is not assignable to type 'Partial<{ scenarios: { id: string; name: string; description?: string | undefined; moicMultiplier?: number | undefined; exitTimingDelta?: number | undefined; lossRateDelta?: number | undefined; participationRateDelta?: number | undefined; }[]; enabled?: boolean | undefined; }>'.
+      Type 'undefined' is not assignable to type 'Partial<{ scenarios: { id: string; name: string; description?: string | undefined; moicMultiplier?: number | undefined; exitTimingDelta?: number | undefined; lossRateDelta?: number | undefined; participationRateDelta?: number | undefined; }[]; enabled?: boolean | undefined; }>'.
+client/src/components/modeling-wizard/steps/capital-allocation/CompanyDialog.tsx(159,16): error TS2375: Type '{ children: Element[]; defaultValue: string | undefined; onValueChange: (value: string) => void; }' is not assignable to type '{ value?: string; defaultValue?: string; onValueChange?(value: string): void; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'defaultValue' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/modeling-wizard/steps/capital-allocation/InitialInvestmentSection.tsx(69,14): error TS2375: Type '{ children: Element[]; value: "amount-based" | "ownership-based" | undefined; onValueChange: (...event: any[]) => void; className: string; }' is not assignable to type 'Omit<RadioGroupProps & RefAttributes<HTMLDivElement>, "ref">' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'value' are incompatible.
+    Type '"amount-based" | "ownership-based" | undefined' is not assignable to type 'string | null'.
+      Type 'undefined' is not assignable to type 'string | null'.
+client/src/components/modeling-wizard/steps/CapitalAllocationStep.tsx(171,10): error TS2375: Type '{ sectorProfiles: { id: string; name: string; allocation: number; stages: { id: string; stage: "seed" | "pre-seed" | "series-a" | "series-b" | "series-c" | "series-d" | "series-e-plus"; valuation: number; ... 7 more ...; failureRate?: number | undefined; }[]; description?: string | undefined; }[]; stageAllocations: ...' is not assignable to type 'FollowOnStrategyTableProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'errors' are incompatible.
+    Type 'Merge<FieldError, FieldErrorsImpl<{ reserveRatio: number; stageAllocations: { maintainOwnership: number; participationRate: number; stageId: string; stageName: string; }[]; }>> | undefined' is not assignable to type '{ message?: string; }'.
+      Type 'undefined' is not assignable to type '{ message?: string; }'.
+client/src/components/modeling-wizard/steps/fund-financials/ExpenseList.tsx(151,16): error TS2375: Type '{ children: Element[]; value: "annual" | "one-time" | undefined; onValueChange: (value: string) => void; }' is not assignable to type '{ value?: string; defaultValue?: string; onValueChange?(value: string): void; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'value' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/modeling-wizard/steps/FundFinancialsStep.tsx(105,7): error TS2322: Type '{ id: string; name: string; amount: number; type?: "annual" | "one-time" | undefined; description?: string | undefined; year?: number | undefined; }[]' is not assignable to type '{ id: string; name: string; amount: number; type?: "annual" | "one-time"; description?: string; year?: number; }[]'.
+  Type '{ id: string; name: string; amount: number; type?: "annual" | "one-time" | undefined; description?: string | undefined; year?: number | undefined; }' is not assignable to type '{ id: string; name: string; amount: number; type?: "annual" | "one-time"; description?: string; year?: number; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Types of property 'type' are incompatible.
+      Type '"annual" | "one-time" | undefined' is not assignable to type '"annual" | "one-time"'.
+        Type 'undefined' is not assignable to type '"annual" | "one-time"'.
+client/src/components/modeling-wizard/steps/FundFinancialsStep.tsx(293,17): error TS2322: Type '{ id: string; name: string; amount: number; type?: "annual" | "one-time" | undefined; description?: string | undefined; year?: number | undefined; }[]' is not assignable to type 'ExpenseItem[]'.
+  Type '{ id: string; name: string; amount: number; type?: "annual" | "one-time" | undefined; description?: string | undefined; year?: number | undefined; }' is not assignable to type 'ExpenseItem' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Types of property 'type' are incompatible.
+      Type '"annual" | "one-time" | undefined' is not assignable to type '"annual" | "one-time"'.
+        Type 'undefined' is not assignable to type '"annual" | "one-time"'.
+client/src/components/modeling-wizard/steps/FundFinancialsStep.tsx(306,10): error TS2375: Type '{ scheduleType: "custom" | "front-loaded" | "back-loaded" | "even"; investmentPeriod: number; customSchedule: { percentage: number; year: number; }[] | undefined; onChange: (type: CapitalCallScheduleType, custom: { ...; }[] | undefined) => void; }' is not assignable to type 'CapitalCallScheduleProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'customSchedule' are incompatible.
+    Type '{ percentage: number; year: number; }[] | undefined' is not assignable to type '{ year: number; percentage: number; }[]'.
+      Type 'undefined' is not assignable to type '{ year: number; percentage: number; }[]'.
+client/src/components/modeling-wizard/steps/FundFinancialsStep.tsx(406,11): error TS2322: Type '{ id: string; name: string; amount: number; type?: "annual" | "one-time" | undefined; description?: string | undefined; year?: number | undefined; }[]' is not assignable to type '{ id: string; name: string; amount: number; type?: "annual" | "one-time"; year?: number; }[]'.
+  Type '{ id: string; name: string; amount: number; type?: "annual" | "one-time" | undefined; description?: string | undefined; year?: number | undefined; }' is not assignable to type '{ id: string; name: string; amount: number; type?: "annual" | "one-time"; year?: number; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Types of property 'type' are incompatible.
+      Type '"annual" | "one-time" | undefined' is not assignable to type '"annual" | "one-time"'.
+        Type 'undefined' is not assignable to type '"annual" | "one-time"'.
+client/src/components/modeling-wizard/steps/ScenariosStep.tsx(91,58): error TS2379: Argument of type '{ baseModel: { grossMOIC: number; netMOIC: number; grossIRR: number; netIRR: number; lossRate: number; avgExitYears: number; participationRate: number; }; scenarios: ScenarioAdjustment[]; enabled: boolean | undefined; }' is not assignable to parameter of type 'UseScenarioCalculationsOptions' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'enabled' are incompatible.
+    Type 'boolean | undefined' is not assignable to type 'boolean'.
+      Type 'undefined' is not assignable to type 'boolean'.
+client/src/components/modeling-wizard/steps/ScenariosStep.tsx(158,16): error TS2375: Type '{ checked: boolean | undefined; onCheckedChange: (...event: any[]) => void; }' is not assignable to type 'Omit<SwitchProps & RefAttributes<HTMLButtonElement>, "ref">' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'checked' are incompatible.
+    Type 'boolean | undefined' is not assignable to type 'boolean'.
+      Type 'undefined' is not assignable to type 'boolean'.
+client/src/components/modeling-wizard/steps/SectorProfilesStep.tsx(168,13): error TS2375: Type '{ id: string; name: string; allocation: number; stages: { id: string; stage: "seed" | "pre-seed" | "series-a" | "series-b" | "series-c" | "series-d" | "series-e-plus"; valuation: number; graduationRate: number; ... 6 more ...; failureRate?: number | undefined; }[]; description?: string | undefined; }' is not assignable to type 'SectorProfile' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'description' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/portfolio-constructor/ScenarioComparison.tsx(478,26): error TS2375: Type '{ value: number[]; onValueChange: ([value]: number[]) => void; max: number; step: number; disabled: boolean | undefined; }' is not assignable to type 'Omit<SliderProps & RefAttributes<HTMLSpanElement>, "ref">' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'disabled' are incompatible.
+    Type 'boolean | undefined' is not assignable to type 'boolean'.
+      Type 'undefined' is not assignable to type 'boolean'.
+client/src/components/portfolio-constructor/ScenarioComparison.tsx(495,26): error TS2375: Type '{ value: number[]; onValueChange: ([value]: number[]) => void; min: number; max: number; step: number; disabled: boolean | undefined; }' is not assignable to type 'Omit<SliderProps & RefAttributes<HTMLSpanElement>, "ref">' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'disabled' are incompatible.
+    Type 'boolean | undefined' is not assignable to type 'boolean'.
+      Type 'undefined' is not assignable to type 'boolean'.
+client/src/components/portfolio-constructor/ScenarioComparison.tsx(513,26): error TS2375: Type '{ value: number[]; onValueChange: ([value]: number[]) => void; max: number; step: number; disabled: boolean | undefined; }' is not assignable to type 'Omit<SliderProps & RefAttributes<HTMLSpanElement>, "ref">' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'disabled' are incompatible.
+    Type 'boolean | undefined' is not assignable to type 'boolean'.
+      Type 'undefined' is not assignable to type 'boolean'.
+client/src/components/portfolio-constructor/ScenarioComparison.tsx(529,24): error TS2375: Type '{ children: Element[]; value: string; onValueChange: (value: any) => void; disabled: boolean | undefined; }' is not assignable to type 'SelectSharedProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'disabled' are incompatible.
+    Type 'boolean | undefined' is not assignable to type 'boolean'.
+      Type 'undefined' is not assignable to type 'boolean'.
+client/src/components/portfolio/drag-drop-chart-builder.tsx(119,19): error TS2345: Argument of type '(ChartArea | { field: undefined; id: string; label: string; accepts: string[]; })[]' is not assignable to parameter of type 'SetStateAction<ChartArea[]>'.
+  Type '(ChartArea | { field: undefined; id: string; label: string; accepts: string[]; })[]' is not assignable to type 'ChartArea[]'.
+    Type 'ChartArea | { field: undefined; id: string; label: string; accepts: string[]; }' is not assignable to type 'ChartArea' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Type '{ field: undefined; id: string; label: string; accepts: string[]; }' is not assignable to type 'ChartArea' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'field' are incompatible.
+          Type 'undefined' is not assignable to type 'MetricField'.
+client/src/components/portfolio/drag-drop-chart-builder.tsx(126,33): error TS2345: Argument of type '(ChartArea | { field: undefined; id: string; label: string; accepts: string[]; })[]' is not assignable to parameter of type 'ChartArea[]'.
+  Type 'ChartArea | { field: undefined; id: string; label: string; accepts: string[]; }' is not assignable to type 'ChartArea' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Type '{ field: undefined; id: string; label: string; accepts: string[]; }' is not assignable to type 'ChartArea' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Types of property 'field' are incompatible.
+        Type 'undefined' is not assignable to type 'MetricField'.
+client/src/components/portfolio/tabs/CompanySelectionTable.tsx(51,13): error TS2375: Type '{ id: number; name: string; currentAllocation: number; newAllocation: number; cap: number | undefined; }' is not assignable to type 'SelectedCompany' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'cap' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+client/src/components/portfolio/tabs/ReallocationTab.tsx(60,11): error TS2322: Type '{ company_id: number; planned_reserves_cents: number; allocation_cap_cents: number | undefined; }[]' is not assignable to type 'ProposedAllocation[]'.
+  Type '{ company_id: number; planned_reserves_cents: number; allocation_cap_cents: number | undefined; }' is not assignable to type 'ProposedAllocation' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Types of property 'allocation_cap_cents' are incompatible.
+      Type 'number | undefined' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.
+client/src/components/portfolio/tabs/ReallocationTab.tsx(122,11): error TS2322: Type '{ company_id: number; planned_reserves_cents: number; allocation_cap_cents: number | undefined; }[]' is not assignable to type 'ProposedAllocation[]'.
+  Type '{ company_id: number; planned_reserves_cents: number; allocation_cap_cents: number | undefined; }' is not assignable to type 'ProposedAllocation' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Types of property 'allocation_cap_cents' are incompatible.
+      Type 'number | undefined' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.
+client/src/components/reserves/ApprovalPanel.tsx(437,39): error TS2379: Argument of type '{ id: string; code: string | undefined; }' is not assignable to parameter of type '{ id: string; code?: string; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'code' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/ui/context-menu.tsx(99,4): error TS2375: Type '{ children: (ReactNode | Element)[]; style?: CSSProperties | undefined; slot?: string | undefined; title?: string | undefined; key?: Key | null | undefined; ... 265 more ...; checked: CheckedState | undefined; }' is not assignable to type 'ContextMenuCheckboxItemProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'checked' are incompatible.
+    Type 'CheckedState | undefined' is not assignable to type 'CheckedState'.
+      Type 'undefined' is not assignable to type 'CheckedState'.
+client/src/components/ui/dropdown-menu.tsx(102,4): error TS2375: Type '{ children: (ReactNode | Element)[]; style?: CSSProperties | undefined; slot?: string | undefined; title?: string | undefined; key?: Key | null | undefined; ... 265 more ...; checked: CheckedState | undefined; }' is not assignable to type 'DropdownMenuCheckboxItemProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'checked' are incompatible.
+    Type 'CheckedState | undefined' is not assignable to type 'CheckedState'.
+      Type 'undefined' is not assignable to type 'CheckedState'.
+client/src/components/ui/error-boundary.tsx(37,41): error TS2345: Argument of type '{ hasError: false; error: Error | undefined; }' is not assignable to parameter of type 'ErrorBoundaryState | ((prevState: Readonly<ErrorBoundaryState>, props: Readonly<ErrorBoundaryProps>) => ErrorBoundaryState | ... 1 more ... | null) | Pick<...> | null'.
+  Type '{ hasError: false; error: Error | undefined; }' is not assignable to type 'Pick<ErrorBoundaryState, "error" | "hasError">' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Types of property 'error' are incompatible.
+      Type 'Error | undefined' is not assignable to type 'Error'.
+        Type 'undefined' is not assignable to type 'Error'.
+client/src/components/ui/error-boundary.tsx(41,17): error TS2375: Type '{ error: Error | undefined; reset: () => void; }' is not assignable to type '{ error?: Error; reset: () => void; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'error' are incompatible.
+    Type 'Error | undefined' is not assignable to type 'Error'.
+      Type 'undefined' is not assignable to type 'Error'.
+client/src/components/ui/error-boundary.tsx(44,15): error TS2375: Type '{ error: Error | undefined; reset: () => void; }' is not assignable to type '{ error?: Error; reset: () => void; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'error' are incompatible.
+    Type 'Error | undefined' is not assignable to type 'Error'.
+      Type 'undefined' is not assignable to type 'Error'.
+client/src/components/ui/intelligent-skeleton.tsx(455,8): error TS2375: Type '{ rows: number; columns: number; showHeaders: boolean | undefined; animated: boolean; }' is not assignable to type '{ rows?: number; columns?: number; showHeaders?: boolean; animated?: boolean; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'showHeaders' are incompatible.
+    Type 'boolean | undefined' is not assignable to type 'boolean'.
+      Type 'undefined' is not assignable to type 'boolean'.
+client/src/components/ui/menubar.tsx(157,4): error TS2375: Type '{ children: (ReactNode | Element)[]; style?: CSSProperties | undefined; slot?: string | undefined; title?: string | undefined; key?: Key | null | undefined; ... 265 more ...; checked: CheckedState | undefined; }' is not assignable to type 'MenubarCheckboxItemProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'checked' are incompatible.
+    Type 'CheckedState | undefined' is not assignable to type 'CheckedState'.
+      Type 'undefined' is not assignable to type 'CheckedState'.
+client/src/components/ui/NumericInput.demo.tsx(79,14): error TS2375: Type '{ label: string; value: number | undefined; onChange: Dispatch<SetStateAction<number | undefined>>; mode: "currency"; error: string | undefined; required: true; }' is not assignable to type 'NumericInputProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'error' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/ui/NumericInput.examples.tsx(103,8): error TS2375: Type '{ label: string; value: number | undefined; onChange: Dispatch<SetStateAction<number | undefined>>; mode: "currency"; error: string | undefined; required: true; }' is not assignable to type 'NumericInputProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'error' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/ui/PremiumCardEnhanced.tsx(286,6): error TS2375: Type '{ children: Element; variant: "interactive"; className: string; onClick: (() => void) | undefined; isUpdating: boolean; confidence: "high" | "low" | "medium" | "excellent" | "critical" | undefined; "aria-label": string; }' is not assignable to type 'PremiumCardEnhancedProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'confidence' are incompatible.
+    Type '"high" | "low" | "medium" | "excellent" | "critical" | undefined' is not assignable to type '"high" | "low" | "medium" | "excellent" | "critical"'.
+      Type 'undefined' is not assignable to type '"high" | "low" | "medium" | "excellent" | "critical"'.
+client/src/components/ui/SwipeableMetricCards.tsx(457,14): error TS2375: Type '{ metric: MetricCardData; isActive: boolean; onClick: () => void; compactMode: boolean; className: string | undefined; }' is not assignable to type '{ metric: MetricCardData; isActive?: boolean; onClick?: () => void; compactMode?: boolean; className?: string; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'className' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/wizard/cards/ExitValuesCard.tsx(97,18): error TS2375: Type '{ disabled: boolean; error?: string | undefined; id: string; label: string; format: "usd"; value: number; onChange: (v: number) => void; "aria-invalid": boolean; }' is not assignable to type 'EnhancedFieldProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'error' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/wizard/cards/ExitValuesCard.tsx(107,18): error TS2375: Type '{ disabled: boolean; error?: string | undefined; id: string; label: string; format: "usd"; value: number; onChange: (v: number) => void; required: true; "aria-invalid": boolean; }' is not assignable to type 'EnhancedFieldProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'error' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/wizard/cards/ExitValuesCard.tsx(118,18): error TS2375: Type '{ disabled: boolean; error?: string | undefined; id: string; label: string; format: "usd"; value: number; onChange: (v: number) => void; "aria-invalid": boolean; }' is not assignable to type 'EnhancedFieldProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'error' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/wizard/cards/ExitValuesCard.tsx(143,20): error TS2375: Type '{ disabled: boolean; error?: string | undefined; id: string; label: string; format: "percent"; value: number; onChange: (v: number) => void; "aria-invalid": boolean; }' is not assignable to type 'EnhancedFieldProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'error' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/wizard/cards/ExitValuesCard.tsx(153,20): error TS2375: Type '{ disabled: boolean; error?: string | undefined; id: string; label: string; format: "percent"; value: number; onChange: (v: number) => void; "aria-invalid": boolean; }' is not assignable to type 'EnhancedFieldProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'error' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/wizard/cards/ExitValuesCard.tsx(163,20): error TS2375: Type '{ disabled: boolean; error?: string | undefined; id: string; label: string; format: "percent"; value: number; onChange: (v: number) => void; "aria-invalid": boolean; }' is not assignable to type 'EnhancedFieldProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'error' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/wizard/cards/ReservesCard.tsx(168,12): error TS2375: Type '{ disabled: boolean; error?: string | undefined; id: string; label: string; format: "percent"; value: number; onChange: (v: number) => void; contextChip: string; helpText: string; }' is not assignable to type 'EnhancedFieldProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'error' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/wizard/cards/ReservesCard.tsx(180,12): error TS2375: Type '{ disabled: boolean; error?: string | undefined; id: string; label: string; format: "percent"; value: number; onChange: (v: number) => void; helpText: string; }' is not assignable to type 'EnhancedFieldProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'error' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/wizard/cards/ReservesCard.tsx(191,12): error TS2375: Type '{ disabled: boolean; error?: string | undefined; id: string; label: string; format: "number"; step: number; min: number; value: number; onChange: (v: number) => void; contextChip: string; helpText: string; }' is not assignable to type 'EnhancedFieldProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'error' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/wizard/cards/ReservesCard.tsx(205,12): error TS2375: Type '{ disabled: boolean; error?: string | undefined; id: string; label: string; format: "number"; step: number; min: number; max: number; value: number; onChange: (v: number) => void; helpText: string; }' is not assignable to type 'EnhancedFieldProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'error' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/wizard/cards/ReservesCard.tsx(223,14): error TS2375: Type '{ disabled: boolean; error?: string | undefined; id: string; label: string; format: "number"; step: number; min: number; max: number; value: number; onChange: (v: number) => void; helpText: string; }' is not assignable to type 'EnhancedFieldProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'error' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/wizard/cards/ReservesCard.tsx(241,14): error TS2375: Type '{ disabled: boolean; error?: string | undefined; id: string; label: string; format: "percent"; value: number; onChange: (v: number) => void; contextChip: string; helpText: string; }' is not assignable to type 'EnhancedFieldProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'error' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/wizard/cards/StageAllocationCard.tsx(83,6): error TS2375: Type '{ children: Element; title: string; summary: Element; defaultExpanded: true; className: string | undefined; }' is not assignable to type 'CollapsibleCardProps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'className' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/components/wizard/ReserveStep.tsx(57,42): error TS2379: Argument of type '{ reservePercentage: number; enableRemainPass: boolean; capPercent: number; stageCaps: { [k: string]: number; } | undefined; auditLevel: "detailed"; }' is not assignable to parameter of type '{ reservePercentage?: number; reserveRatio?: number; enableRemainPass?: boolean; capPercent?: number; stageCaps?: Record<string, number>; auditLevel?: "basic" | "detailed" | "debug"; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'stageCaps' are incompatible.
+    Type '{ [k: string]: number; } | undefined' is not assignable to type 'Record<string, number>'.
+      Type 'undefined' is not assignable to type 'Record<string, number>'.
+client/src/components/wizard/ReserveStep.tsx(90,25): error TS2379: Argument of type '{ operation: string; input: ReservesInput; output: ReservesOutput | undefined; config: ReservesConfig; duration_ms: number; warnings: string[] | undefined; }' is not assignable to parameter of type '{ operation: string; input: any; output: any; config: any; duration_ms: number; warnings?: string[]; user_id?: string; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'warnings' are incompatible.
+    Type 'string[] | undefined' is not assignable to type 'string[]'.
+      Type 'undefined' is not assignable to type 'string[]'.
+client/src/core/selectors/fund-kpis.ts(451,3): error TS2375: Type '{ committed: number; called: number; uncalled: number; invested: number; nav: number; dpi: number; tvpi: number; irr: number; calculatedAt: string; asOf: string | undefined; }' is not assignable to type 'FundKPIs' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'asOf' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/lib/excel-parity-validator.ts(55,3): error TS2375: Type '{ id: string; name: string; stage: Stage; invested: number; ownership: number; reserveCap: number | undefined; }' is not assignable to type 'EngineCompany' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'reserveCap' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+client/src/lib/excel-parity-validator.ts(80,3): error TS2375: Type '{ id: string; name: string; stage: CompanyStage; allocated: number | undefined; }' is not assignable to type 'Company' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'allocated' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+client/src/lib/exit-recycling-calculations.ts(448,3): error TS2375: Type '{ enabled: true; capacity: RecyclingCapacity; schedule: RecyclingSchedule | undefined; extendedInvestmentCapacity: number; effectiveDeploymentRate: number; }' is not assignable to type 'ExitRecyclingCalculations' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'schedule' are incompatible.
+    Type 'RecyclingSchedule | undefined' is not assignable to type 'RecyclingSchedule'.
+      Type 'undefined' is not assignable to type 'RecyclingSchedule'.
+client/src/lib/fee-calculations.ts(526,9): error TS2375: Type '{ fundSize: number; feeRate: number; basis: "committed" | "fmv" | "called"; fundTerm: number; stepDown: { afterYear: number; newRate: number; } | undefined; }' is not assignable to type 'ManagementFeeConfig' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'stepDown' are incompatible.
+    Type '{ afterYear: number; newRate: number; } | undefined' is not assignable to type '{ afterYear: number; newRate: number; }'.
+      Type 'undefined' is not assignable to type '{ afterYear: number; newRate: number; }'.
+client/src/lib/index.ts(26,39): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(input: string | URL | Request, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Argument of type '{ method: string; headers: { 'Content-Type': string; }; body: string | undefined; credentials: "include"; }' is not assignable to parameter of type 'RequestInit' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Types of property 'body' are incompatible.
+        Type 'string | undefined' is not assignable to type 'BodyInit | null'.
+          Type 'undefined' is not assignable to type 'BodyInit | null'.
+  Overload 2 of 3, '(input: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Argument of type '{ method: string; headers: { 'Content-Type': string; }; body: string | undefined; credentials: "include"; }' is not assignable to parameter of type 'RequestInit' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Types of property 'body' are incompatible.
+        Type 'string | undefined' is not assignable to type 'BodyInit | null'.
+          Type 'undefined' is not assignable to type 'BodyInit | null'.
+  Overload 3 of 3, '(input: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Argument of type '{ method: string; headers: { 'Content-Type': string; }; body: string | undefined; credentials: "include"; }' is not assignable to parameter of type 'RequestInit' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Types of property 'body' are incompatible.
+        Type 'string | undefined' is not assignable to type 'BodyInit | null'.
+          Type 'undefined' is not assignable to type 'BodyInit | null'.
+client/src/lib/performance-monitor.ts(85,11): error TS2375: Type '{ name: string; value: number; unit: string; timestamp: Date; context: Record<string, any> | undefined; }' is not assignable to type 'PerformanceMetric' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'context' are incompatible.
+    Type 'Record<string, any> | undefined' is not assignable to type 'Record<string, any>'.
+      Type 'undefined' is not assignable to type 'Record<string, any>'.
+client/src/lib/performance-monitor.ts(309,15): error TS2375: Type '{ id: string; level: "warning" | "critical"; metric: string; value: number; threshold: number; message: string; timestamp: Date; context: Record<string, any> | undefined; }' is not assignable to type 'PerformanceAlert' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'context' are incompatible.
+    Type 'Record<string, any> | undefined' is not assignable to type 'Record<string, any>'.
+      Type 'undefined' is not assignable to type 'Record<string, any>'.
+client/src/lib/queryClient.ts(21,32): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(input: string | URL | Request, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Argument of type '{ method: string; headers: { "Content-Type": string; } | {}; body: string | undefined; credentials: "include"; }' is not assignable to parameter of type 'RequestInit' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Types of property 'body' are incompatible.
+        Type 'string | undefined' is not assignable to type 'BodyInit | null'.
+          Type 'undefined' is not assignable to type 'BodyInit | null'.
+  Overload 2 of 3, '(input: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Argument of type '{ method: string; headers: { "Content-Type": string; } | {}; body: string | undefined; credentials: "include"; }' is not assignable to parameter of type 'RequestInit' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Types of property 'body' are incompatible.
+        Type 'string | undefined' is not assignable to type 'BodyInit | null'.
+          Type 'undefined' is not assignable to type 'BodyInit | null'.
+  Overload 3 of 3, '(input: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Argument of type '{ method: string; headers: { "Content-Type": string; } | {}; body: string | undefined; credentials: "include"; }' is not assignable to parameter of type 'RequestInit' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Types of property 'body' are incompatible.
+        Type 'string | undefined' is not assignable to type 'BodyInit | null'.
+          Type 'undefined' is not assignable to type 'BodyInit | null'.
+client/src/lib/reserves-v11.ts(176,5): error TS2375: Type '{ ok: true; data: ReservesOutput; warnings: string[] | undefined; metrics: { duration_ms: number; company_count: number; policy_type: "custom" | "fixed_percent" | "stage_based"; }; }' is not assignable to type 'ReservesResult' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'warnings' are incompatible.
+    Type 'string[] | undefined' is not assignable to type 'string[]'.
+      Type 'undefined' is not assignable to type 'string[]'.
+client/src/lib/scenario-calculations.ts(297,3): error TS2322: Type '{ name: string; description: string | undefined; metrics: ModelOutput; adjustment: { id: string; name: string; moicMultiplier: number; exitTimingDelta: number; lossRateDelta: number; participationRateDelta: number; description?: string | undefined; }; }[]' is not assignable to type 'ScenarioResult[]'.
+  Type '{ name: string; description: string | undefined; metrics: ModelOutput; adjustment: { id: string; name: string; moicMultiplier: number; exitTimingDelta: number; lossRateDelta: number; participationRateDelta: number; description?: string | undefined; }; }' is not assignable to type 'ScenarioResult' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Types of property 'description' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+client/src/machines/modeling-wizard.machine.ts(525,31): error TS2345: Argument of type '({ context }: AssignArgs<ModelingWizardContext, ModelingWizardEvents, ModelingWizardEvents, Values<{ submitFundModel: { src: "submitFundModel"; logic: PromiseActorLogic<...>; id: string | undefined; }; calculateReserves: { ...; }; }>>) => { ...; } | { ...; }' is not assignable to parameter of type 'Assigner<ModelingWizardContext, ModelingWizardEvents, unknown, ModelingWizardEvents, Values<{ submitFundModel: { src: "submitFundModel"; logic: PromiseActorLogic<...>; id: string | undefined; }; calculateReserves: { ...; }; }>> | PropertyAssigner<...>'.
+  Type '({ context }: AssignArgs<ModelingWizardContext, ModelingWizardEvents, ModelingWizardEvents, Values<{ submitFundModel: { src: "submitFundModel"; logic: PromiseActorLogic<...>; id: string | undefined; }; calculateReserves: { ...; }; }>>) => { ...; } | { ...; }' is not assignable to type 'Assigner<ModelingWizardContext, ModelingWizardEvents, unknown, ModelingWizardEvents, Values<{ submitFundModel: { src: "submitFundModel"; logic: PromiseActorLogic<...>; id: string | undefined; }; calculateReserves: { ...; }; }>>'.
+    Type '{ portfolioValidation: undefined; steps: { generalInfo?: GeneralInfoData; sectorProfiles?: SectorProfilesData; capitalAllocation?: CapitalAllocationData; feesExpenses?: FeesExpensesData; exitRecycling?: ExitRecyclingData; waterfall?: WaterfallData; scenarios?: ScenariosData; }; ... 13 more ...; autoSaveInterval: num...' is not assignable to type 'Partial<ModelingWizardContext>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Type '{ portfolioValidation: undefined; steps: { generalInfo?: GeneralInfoData; sectorProfiles?: SectorProfilesData; capitalAllocation?: CapitalAllocationData; feesExpenses?: FeesExpensesData; exitRecycling?: ExitRecyclingData; waterfall?: WaterfallData; scenarios?: ScenariosData; }; ... 13 more ...; autoSaveInterval: num...' is not assignable to type 'Partial<ModelingWizardContext>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'portfolioValidation' are incompatible.
+          Type 'undefined' is not assignable to type 'PortfolioValidationResult'.
+client/src/machines/modeling-wizard.machine.ts(563,37): error TS2345: Argument of type '({ context }: AssignArgs<ModelingWizardContext, ModelingWizardEvents, ModelingWizardEvents, Values<{ submitFundModel: { src: "submitFundModel"; logic: PromiseActorLogic<...>; id: string | undefined; }; calculateReserves: { ...; }; }>>) => { ...; }' is not assignable to parameter of type 'Assigner<ModelingWizardContext, ModelingWizardEvents, unknown, ModelingWizardEvents, Values<{ submitFundModel: { src: "submitFundModel"; logic: PromiseActorLogic<...>; id: string | undefined; }; calculateReserves: { ...; }; }>> | PropertyAssigner<...>'.
+  Type '({ context }: AssignArgs<ModelingWizardContext, ModelingWizardEvents, ModelingWizardEvents, Values<{ submitFundModel: { src: "submitFundModel"; logic: PromiseActorLogic<...>; id: string | undefined; }; calculateReserves: { ...; }; }>>) => { ...; }' is not assignable to type 'Assigner<ModelingWizardContext, ModelingWizardEvents, unknown, ModelingWizardEvents, Values<{ submitFundModel: { src: "submitFundModel"; logic: PromiseActorLogic<...>; id: string | undefined; }; calculateReserves: { ...; }; }>>'.
+    Call signature return types '{ calculations: { reserves: undefined; enrichedReserves: undefined; }; steps: { generalInfo?: GeneralInfoData; sectorProfiles?: SectorProfilesData; ... 4 more ...; scenarios?: ScenariosData; }; ... 13 more ...; autoSaveInterval: number; }' and 'Partial<ModelingWizardContext>' are incompatible.
+      The types of 'calculations.reserves' are incompatible between these types.
+        Type 'undefined' is not assignable to type 'ReserveAllocation'.
+client/src/machines/modeling-wizard.machine.ts(935,3): error TS2375: Type '{ steps: {}; currentStep: "generalInfo"; currentStepIndex: number; totalSteps: number; completedSteps: Set<WizardStep>; visitedSteps: Set<"generalInfo">; validationErrors: { ...; }; ... 8 more ...; autoSaveInterval: number; }' is not assignable to type 'ModelingWizardContext' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'portfolioValidation' are incompatible.
+    Type 'undefined' is not assignable to type 'PortfolioValidationResult'.
+client/src/metrics/reserves-metrics.ts(267,11): error TS2375: Type '{ operation: string; input_hash: string; output_hash: string; duration_ms: number; warnings: string[] | undefined; timestamp: string; user_id: string | undefined; }' is not assignable to type 'AuditEntry' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'warnings' are incompatible.
+    Type 'string[] | undefined' is not assignable to type 'string[]'.
+      Type 'undefined' is not assignable to type 'string[]'.
+client/src/pages/CashflowManagementStep.tsx(97,24): error TS2379: Argument of type '{ id: string; category: string; monthlyAmount: number; startMonth: number; endMonth: undefined; }' is not assignable to parameter of type 'FundExpense' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'endMonth' are incompatible.
+    Type 'undefined' is not assignable to type 'number'.
+client/src/pages/CashflowManagementStep.tsx(109,11): error TS2375: Type '{ id: string; category: "other" | "legal" | "audit" | "tax" | "administration" | "custodian" | "consulting" | "travel" | "technology" | "office" | "insurance" | "regulatory" | "marketing" | "due_diligence" | "closing_costs"; monthlyAmount: number; startMonth: number; endMonth: number | undefined; }' is not assignable to type 'FundExpense' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'endMonth' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+client/src/pages/CompanyDetail.tsx(297,12): error TS2375: Type '{ companyId: string | undefined; }' is not assignable to type '{ companyId?: string; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'companyId' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/pages/CompanyDetail.tsx(301,12): error TS2375: Type '{ companyId: string | undefined; }' is not assignable to type '{ companyId?: string; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'companyId' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/pages/CompanyDetail.tsx(305,12): error TS2375: Type '{ companyId: string | undefined; }' is not assignable to type '{ companyId?: string; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'companyId' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/pages/DistributionsStep.tsx(241,60): error TS2379: Argument of type '{ condition: WaterfallTier["condition"]; }' is not assignable to parameter of type 'Partial<WaterfallTier>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'condition' are incompatible.
+    Type '"none" | "irr" | "moic" | undefined' is not assignable to type '"none" | "irr" | "moic"'.
+      Type 'undefined' is not assignable to type '"none" | "irr" | "moic"'.
+client/src/pages/FundBasicsStep.tsx(72,22): error TS2379: Argument of type '{ isEvergreen: boolean; fundLife: number | undefined; investmentPeriod: number | undefined; }' is not assignable to parameter of type 'Partial<Pick<FundState, "fundSize" | "vintageYear" | "isEvergreen" | "fundName" | "establishmentDate" | "fundLife" | "investmentPeriod" | "managementFeeRate" | "carriedInterest">>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'fundLife' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+client/src/pages/InvestmentStrategyStepNew.tsx(107,30): error TS2379: Argument of type '{ graduate: number | undefined; exit: number | undefined; }' is not assignable to parameter of type 'Partial<Pick<StrategyStage, "graduate" | "exit" | "months">>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'graduate' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+client/src/pages/time-travel.tsx(129,48): error TS2379: Argument of type '{ fundId: number; type: "manual" | "auto" | "scheduled"; description: string | undefined; }' is not assignable to parameter of type '{ fundId: number; type?: "manual" | "auto" | "scheduled"; description?: string; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'description' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+client/src/pages/variance-tracking.tsx(213,49): error TS2379: Argument of type '{ name: string; description: string; ruleType: "threshold" | "trend" | "deviation" | "pattern"; metricName: string; operator: "gt" | "lt" | "eq" | "gte" | "lte" | "between"; thresholdValue: number; ... 4 more ...; fundId: number; }' is not assignable to parameter of type '{ fundId: number; name: string; description?: string; ruleType: "pattern" | "trend" | "threshold" | "deviation"; metricName: string; operator: "gte" | "gt" | "lte" | "lt" | "eq" | "between"; ... 4 more ...; checkFrequency?: "daily" | ... 2 more ... | "weekly"; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'secondaryThreshold' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+client/src/stores/fundStore.ts(277,35): error TS2375: Type '{ hydrated: false; setHydrated: (v: any) => unknown; fundName: undefined; isEvergreen: false; fundLife: undefined; investmentPeriod: undefined; fundSize: undefined; managementFeeRate: undefined; ... 46 more ...; fromInvestmentStrategy: (strategy: InvestmentStrategy) => unknown; }' is not assignable to type 'FundState' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'fundName' are incompatible.
+    Type 'undefined' is not assignable to type 'string'.
+packages/agent-core/src/Logger.ts(81,7): error TS2412: Type 'string | undefined' is not assignable to type 'string' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the type of the target.
+  Type 'undefined' is not assignable to type 'string'.

@@ -78,7 +78,10 @@ export class Logger {
 
     if (data instanceof Error) {
       entry.error = data.message;
-      entry.stack = data.stack;
+      const stack = data.stack;
+      if (stack !== undefined) {
+        entry.stack = stack;
+      }
       entry.data = undefined;
     }
 

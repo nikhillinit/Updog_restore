@@ -139,13 +139,13 @@ export default function AddEventDropdown({
       <OwnershipUpdateDialog
         isOpen={showOwnershipDialog}
         onOpenChange={setShowOwnershipDialog}
-        investment={investment}
+        {...(investment !== undefined ? { investment } : {})}
       />
-      
+
       <NewRoundDialog
         isOpen={showNewRoundDialog}
         onOpenChange={setShowNewRoundDialog}
-        investment={investment}
+        {...(investment !== undefined ? { investment } : {})}
       />
       
       <ValuationUpdateDialog
