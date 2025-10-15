@@ -179,6 +179,7 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: AuthenticatedR
       });
     }
     
+    // Extract reason and dryRun, rest are flag updates
     const { reason, dryRun, ...updates } = validation.data;
 
     // Dry run support
@@ -199,12 +200,12 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: AuthenticatedR
     if (!user) {
       return res.status(401).json({ error: 'User context required' });
     }
-    if (!reason || typeof reason !== 'string') {
+    if (!reason) {
       return res.status(400).json({ error: 'Reason is required' });
     }
-    // Now reason is narrowed to string
 
-    await updateFlag(key, updates, user as { sub: string; email: string; ip: string; userAgent: string }, reason);
+    // Use non-null assertion - reason is guaranteed by Zod schema and runtime guard
+    await updateFlag(key, updates, user as { sub: string; email: string; ip: string; userAgent: string }, reason!);
     
     const newVersion = await getFlagsVersion();
     

@@ -126,10 +126,8 @@ const monitorPerformance = (req: Request, res: Response, next: Function) => {
 
   res['on']('finish', () => {
     const duration = (Date.now() - startTime) / 1000;
-    const path = req.path;
-    if (typeof path === 'string') {
-      recordHttpMetrics(req.method, path, res.statusCode, duration);
-    }
+    // Type assertion: req.path is declared as string in custom Request type
+    recordHttpMetrics(req.method, req.path as string, res.statusCode, duration);
   });
 
   next();
