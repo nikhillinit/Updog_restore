@@ -290,7 +290,7 @@ export class DistributedLock {
   private stopLeaseRenewal(): void {
     if (this.leaseTimer) {
       clearInterval(this.leaseTimer);
-      this.leaseTimer = undefined;
+      delete (this as any).leaseTimer; // exactOptionalPropertyTypes requires delete, not undefined
     }
   }
 }
