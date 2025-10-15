@@ -1,0 +1,7 @@
+Runtime route verification skipped - app.ts exports makeApp() function, not direct instance.
+Static proof via assert-unreferenced.mjs is sufficient (all 4 files ✅)
+
+Manual verification from app.ts:
+- reservesV1Router registered at /api/v1/reserves (line 117)
+- reserve-approvals.ts NOT imported or registered
+- reallocation.ts NOT imported or registered

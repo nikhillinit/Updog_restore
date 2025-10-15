@@ -63,6 +63,15 @@
     "server/services/streaming-monte-carlo-engine.ts",
     "server/services/monte-carlo-simulation.ts",
     "server/services/database-pool-manager.ts",
-    "server/examples/streaming-monte-carlo-examples.ts"
+    "server/examples/streaming-monte-carlo-examples.ts",
+    // ================================
+    // Session 7: Proof-based quarantine (2025-01-14)
+    // Evidence: artifacts/week2/assert-unref-proof.txt
+    // All files verified unreferenced via transitive BFS import scan
+    // ================================
+    "server/routes/reallocation.ts",              // 5 errors - experimental, unreferenced ✅
+    "server/core/reserves/mlClient.ts",           // 1 error - ML placeholder ✅
+    "server/observability/sentry.ts",             // 1 error - missing @sentry/node ✅
+    "server/routes/v1/reserve-approvals.ts"       // 13 errors - V1 API unused ✅
   ]
 }

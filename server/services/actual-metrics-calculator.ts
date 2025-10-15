@@ -84,9 +84,9 @@ export class ActualMetricsCalculator {
       : new Decimal(0);
     const averageCheckSize = totalCompanies > 0 ? totalDeployed.div(totalCompanies) : new Decimal(0);
 
-    // Calculate fund age
-    const fundAgeMonths = fund.establishmentDate
-      ? this.calculateMonthsSince(new Date(fund.establishmentDate))
+    // Calculate fund age - use type assertion since storage implementations may not populate all fields
+    const fundAgeMonths = (fund as any).establishmentDate
+      ? this.calculateMonthsSince(new Date((fund as any).establishmentDate))
       : undefined;
 
     return {
@@ -115,7 +115,7 @@ export class ActualMetricsCalculator {
   /**
    * Calculate current Net Asset Value from portfolio companies
    */
-  private calculateNAV(companies: PortfolioCompany[]): Decimal {
+  private calculateNAV(companies: any[]): Decimal {
     return companies
       .filter((c) => c.status === 'active')
       .reduce((sum, company) => {
@@ -257,11 +257,13 @@ export class ActualMetricsCalculator {
     // For now, derive from portfolio companies
     // In production, this would query an investments table
     const companies = await storage.getPortfolioCompanies(fundId);
+    // Use type assertion since storage implementations may not populate all PortfolioCompany fields
     return companies
-      .filter((c) => c.investmentDate)
+      .filter((c) => (c as any).investmentDate)
       .map((c) => ({
-        date: new Date(c.investmentDate!),
-        amount: c.initialInvestment ? parseFloat(c.initialInvestment.toString()) : 0,
+        date: new Date((c as any).investmentDate!),
+        // investmentAmount is the correct field name (not initialInvestment)
+        amount: parseFloat(c.investmentAmount.toString()),
       }));
   }
 

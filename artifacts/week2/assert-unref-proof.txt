@@ -1,0 +1,4 @@
+✅ Unreferenced: server\routes\reallocation.ts — safe to quarantine
+✅ Unreferenced: server\core\reserves\mlClient.ts — safe to quarantine
+✅ Unreferenced: server\observability\sentry.ts — safe to quarantine
+✅ Unreferenced: server\routes\v1\reserve-approvals.ts — safe to quarantine
