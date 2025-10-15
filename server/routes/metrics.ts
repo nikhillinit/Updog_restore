@@ -98,7 +98,8 @@ metricsRouter['get']('/metrics', async (_req: Request, res: Response) => {
     }
     
     res['set']('Content-Type', client.register.contentType);
-    res.end(await client.register.metrics());
+    const metricsOutput = await client.register.metrics();
+    res.send(metricsOutput);
   } catch (error) {
     console.error('Failed to generate metrics:', error);
     res.status(500).send('Internal Server Error');

@@ -199,11 +199,12 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: AuthenticatedR
     if (!user) {
       return res.status(401).json({ error: 'User context required' });
     }
-    if (!reason) {
+    if (!reason || typeof reason !== 'string') {
       return res.status(400).json({ error: 'Reason is required' });
     }
+    // Now reason is narrowed to string
 
-    await updateFlag(key, updates, user, reason);
+    await updateFlag(key, updates, user as { sub: string; email: string; ip: string; userAgent: string }, reason);
     
     const newVersion = await getFlagsVersion();
     

@@ -97,7 +97,7 @@ const validateRequest = (schema: z.ZodSchema) => {
 
 // Response guard middleware
 const guardResponse = (req: Request, res: Response, next: NextFunction) => {
-  const originalJson = res.json;
+  const originalJson = res.json.bind(res);
   (res as any).json = function(data: any) {
     const guard = assertFiniteDeep(data);
     if (!guard.ok) {
@@ -115,7 +115,7 @@ const guardResponse = (req: Request, res: Response, next: NextFunction) => {
         message: 'Simulation produced invalid numeric values'
       });
     }
-    return originalJson.call(this, data);
+    return originalJson(data);
   };
   next();
 };
@@ -126,7 +126,10 @@ const monitorPerformance = (req: Request, res: Response, next: Function) => {
 
   res['on']('finish', () => {
     const duration = (Date.now() - startTime) / 1000;
-    recordHttpMetrics(req.method, req.path, res.statusCode, duration);
+    const path = req.path;
+    if (typeof path === 'string') {
+      recordHttpMetrics(req.method, path, res.statusCode, duration);
+    }
   });
 
   next();
