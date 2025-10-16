@@ -20,6 +20,7 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { globSync } from 'glob';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,7 +30,7 @@ const REPO_ROOT = path.join(__dirname, '..');
 const DRY_RUN = process.argv.includes('--dry-run');
 const SKIP_TESTS = process.argv.includes('--skip-tests');
 
-const TARGETS = [
+const TARGET_PATTERNS = [
   'server/**/*.ts',
   'lib/**/*.ts',
   // Note: Client code handled separately (different patterns)
@@ -116,19 +117,36 @@ function main() {
   console.log(`🚀 Step 4: Running codemod ${DRY_RUN ? '(DRY-RUN)' : ''}...`);
   console.log('');
 
+  // Expand glob patterns to actual file paths
+  const targetFiles = [];
+  for (const pattern of TARGET_PATTERNS) {
+    const files = globSync(pattern, {
+      cwd: REPO_ROOT,
+      absolute: false,
+      ignore: ['**/node_modules/**', '**/dist/**', '**/*.test.ts', '**/*.spec.ts']
+    });
+    targetFiles.push(...files);
+  }
+
+  if (targetFiles.length === 0) {
+    console.error('❌ No files found matching patterns');
+    console.error('   Patterns:', TARGET_PATTERNS);
+    process.exit(1);
+  }
+
+  console.log(`   Found ${targetFiles.length} files to process`);
+  console.log('');
+
   const codemodPath = path.join(__dirname, 'codemods', 'fix-ts4111.ts');
   const codemodCommand = [
     'npx jscodeshift',
     `-t "${codemodPath}"`,
-    ...TARGETS.map(t => `"${t}"`),
+    ...targetFiles.map(f => `"${f}"`),
     '--parser=tsx',
     '--extensions=ts,tsx',
     DRY_RUN ? '--dry' : '',
     '--verbose=2'
   ].filter(Boolean).join(' ');
-
-  console.log(`   Command: ${codemodCommand}`);
-  console.log('');
 
   try {
     execCommand(codemodCommand);
