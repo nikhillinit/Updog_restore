@@ -31,6 +31,9 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     }
 
     if (type === 'monte-carlo') {
+      // Reset PRNG to ensure deterministic results across multiple simulations
+      prng.reset(999);
+
       const runs: number = payload.runs ?? 1000;
       const chunkSize = payload.chunkSize ?? 100;
       const flowsBase = payload.cashFlows as Array<{ date: string; amount: number }>;

@@ -122,9 +122,12 @@ function calculateMLBasedPacing(input: PacingInput): PacingOutput[] {
  * @returns Array of quarterly deployment allocations
  */
 export function PacingEngine(input: unknown): PacingOutput[] {
+  // Reset PRNG to ensure deterministic results across multiple invocations
+  prng.reset(123);
+
   const validatedInput = validatePacingInput(input);
   const useAlgorithm = isAlgorithmModeEnabled();
-  
+
   // Use ML algorithm if enabled
   if (useAlgorithm) {
     return calculateMLBasedPacing(validatedInput);

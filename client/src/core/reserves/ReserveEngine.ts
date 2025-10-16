@@ -128,16 +128,19 @@ function calculateMLBasedAllocation(company: ReserveInput): ReserveOutput {
 // MAIN ENGINE FUNCTIONS
 // =============================================================================
 
-/** 
- * Primary ReserveEngine function with input validation 
+/**
+ * Primary ReserveEngine function with input validation
  * @param portfolio Array of portfolio companies
  * @returns Array of reserve allocations with confidence scores
  */
 export function ReserveEngine(portfolio: unknown[]): ReserveOutput[] {
+  // Reset PRNG to ensure deterministic results across multiple invocations
+  prng.reset(42);
+
   if (!Array.isArray(portfolio) || portfolio.length === 0) {
     return [];
   }
-  
+
   // Validate all inputs
   const validatedPortfolio: ReserveInput[] = map(portfolio, (company: unknown, index: number) => {
     try {
@@ -146,7 +149,7 @@ export function ReserveEngine(portfolio: unknown[]): ReserveOutput[] {
       throw new Error(`Invalid company data at index ${index}: ${error instanceof Error ? error.message : String(error)}`);
     }
   });
-  
+
   const useAlgorithm = isAlgorithmModeEnabled();
 
   return map(validatedPortfolio, (company: ReserveInput) => {
