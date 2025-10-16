@@ -5,17 +5,21 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 // PacingEngine.ts - Type-safe fund deployment pacing engine
 
-import type { 
-  PacingInput, 
-  PacingOutput, 
-  PacingSummary 
+import type {
+  PacingInput,
+  PacingOutput,
+  PacingSummary
 } from '@shared/types';
 import { PacingInputSchema, PacingOutputSchema } from '@shared/types';
 import { map, reduce } from '@/utils/array-safety';
+import { PRNG } from '@shared/utils/prng';
 
 // =============================================================================
 // CONFIGURATION & VALIDATION
 // =============================================================================
+
+// Seeded PRNG instance for deterministic calculations
+const prng = new PRNG(123); // Fixed seed for determinism
 
 /** Validate and parse pacing input with Zod */
 function validatePacingInput(input: unknown): PacingInput {
@@ -71,8 +75,8 @@ function calculateRuleBasedPacing(input: PacingInput): PacingOutput[] {
       multiplier = adjustment?.late ?? 1.0;
     }
     
-    // Add some variability to avoid perfectly smooth deployment
-    const variability = 0.9 + (Math.random() * 0.2); // ±10% variance
+    // Add some variability to avoid perfectly smooth deployment - using deterministic PRNG
+    const variability = 0.9 + (prng.next() * 0.2); // ±10% variance
     const deployment = baseAmount * multiplier * variability;
     
     let phaseNote = '';
@@ -96,8 +100,8 @@ function calculateMLBasedPacing(input: PacingInput): PacingOutput[] {
   
   // Simulate ML enhancement with trend analysis
   return map(ruleBased, (item: any, _index: any) => {
-    // ML adjusts based on simulated market trends and fund performance
-    const trendAdjustment = 0.85 + (Math.random() * 0.3); // 0.85 to 1.15
+    // ML adjusts based on simulated market trends and fund performance - using deterministic PRNG
+    const trendAdjustment = 0.85 + (prng.next() * 0.3); // 0.85 to 1.15
     const mlEnhancedDeployment = item.deployment * trendAdjustment;
     
     return {

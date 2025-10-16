@@ -1,16 +1,20 @@
 // ReserveEngine.ts - Type-safe reserve allocation engine
 
-import type { 
-  ReserveInput, 
-  ReserveOutput, 
-  ReserveSummary 
+import type {
+  ReserveInput,
+  ReserveOutput,
+  ReserveSummary
 } from '@shared/types';
 import { ReserveInputSchema, ReserveOutputSchema , ConfidenceLevel } from '@shared/types';
 import { map, reduce } from '@/utils/array-safety';
+import { PRNG } from '@shared/utils/prng';
 
 // =============================================================================
 // CONFIGURATION & VALIDATION
 // =============================================================================
+
+// Seeded PRNG instance for deterministic calculations
+const prng = new PRNG(42); // Fixed seed for determinism
 
 /** Algorithm mode detection with type safety */
 function isAlgorithmModeEnabled(): boolean {
@@ -106,17 +110,17 @@ function calculateRuleBasedAllocation(company: ReserveInput): ReserveOutput {
 function calculateMLBasedAllocation(company: ReserveInput): ReserveOutput {
   // This would call actual ML model in production
   const baseAllocation = calculateRuleBasedAllocation(company);
-  
-  // Simulate ML enhancement
-  const mlAdjustment = 0.8 + (Math.random() * 0.4); // 0.8 to 1.2 multiplier
+
+  // Simulate ML enhancement - using deterministic PRNG
+  const mlAdjustment = 0.8 + (prng.next() * 0.4); // 0.8 to 1.2 multiplier
   const enhancedAllocation = baseAllocation.allocation * mlAdjustment;
-  
+
   const output = {
     allocation: Math.round(enhancedAllocation),
     confidence: Math.min(ConfidenceLevel.ML_ENHANCED, baseAllocation.confidence + 0.3),
     rationale: `ML-enhanced allocation (${baseAllocation.rationale.replace('(cold-start mode)', '').replace('(enhanced rules)', '').trim()})`
   };
-  
+
   return validateReserveOutput(output);
 }
 
@@ -146,8 +150,8 @@ export function ReserveEngine(portfolio: unknown[]): ReserveOutput[] {
   const useAlgorithm = isAlgorithmModeEnabled();
 
   return map(validatedPortfolio, (company: ReserveInput) => {
-    // Use ML algorithm if enabled and confidence threshold met
-    if (useAlgorithm && Math.random() > 0.3) { // 70% chance of using ML in algorithm mode
+    // Use ML algorithm if enabled and confidence threshold met - using deterministic PRNG
+    if (useAlgorithm && prng.next() > 0.3) { // 70% chance of using ML in algorithm mode
       return calculateMLBasedAllocation(company);
     } else {
       return calculateRuleBasedAllocation(company);
