@@ -40,21 +40,21 @@ router['get']('/healthz', (_req: Request, res: Response) => {
 
 // Legacy health endpoints (for backward compatibility)
 router['get']('/health', (req: Request, res: Response) => {
-  const providers = req.app.locals.providers as any;
+  const providers = req['app'].locals.providers as any;
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
   res.json({
     status: 'ok',
-    version: process.env.npm_package_version || '1.3.2',
+    version: process.env['npm_package_version'] || '1.3.2',
     mode,
     ts: new Date().toISOString()
   });
 });
 router['get']('/api/health', (req: Request, res: Response) => {
-  const providers = req.app.locals.providers as any;
+  const providers = req['app'].locals.providers as any;
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
   res.json({
     status: 'ok',
-    version: process.env.npm_package_version || '1.3.2',
+    version: process.env['npm_package_version'] || '1.3.2',
     mode,
     ts: new Date().toISOString()
   });

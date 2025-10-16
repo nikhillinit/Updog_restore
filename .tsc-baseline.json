@@ -58,25 +58,7 @@
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
       "total": 53,
-      "lastUpdated": "2025-10-16T05:19:16.115Z"
-    },
-    "unknown": {
-      "errors": [
-        "lib/logger.ts:TS4111:bf58048c",
-        "vite.config.ts:TS4111:2cf82128",
-        "vite.config.ts:TS4111:6dc6508f",
-        "vite.config.ts:TS4111:aff1c7f6",
-        "vite.config.ts:TS4111:cdb0632b",
-        "vite.config.ts:TS4111:da8f2a75",
-        "vite.config.ts:TS7006:118fabe7",
-        "vite.config.ts:TS7006:2e94b76d",
-        "vite.config.ts:TS7006:3c74f88a",
-        "vite.config.ts:TS7006:6bf7ca4c",
-        "vite.config.ts:TS7031:3c74f88a",
-        "vite.config.ts:TS7031:6f06ec55"
-      ],
-      "total": 12,
-      "lastUpdated": "2025-10-16T05:19:16.115Z"
+      "lastUpdated": "2025-10-16T06:39:54.521Z"
     },
     "server": {
       "errors": [
@@ -263,9 +245,7 @@
         "server/routes/health.ts:TS4111:73ec7992",
         "server/routes/health.ts:TS4111:96cca5f1",
         "server/routes/health.ts:TS4111:b16429cc",
-        "server/routes/health.ts:TS4111:b3e1d408",
         "server/routes/health.ts:TS4111:be9b8560",
-        "server/routes/health.ts:TS4111:d377c681",
         "server/routes/health.ts:TS7053:6dff0ecb",
         "server/routes/metrics-rum-v2.ts:TS4111:eefae09d",
         "server/routes/metrics.ts:TS2554:9c488ddf",
@@ -515,19 +495,36 @@
         "server/websocket/dev-dashboard.ts:TS2345:ed62011f",
         "server/websocket/dev-dashboard.ts:TS2532:de791f79"
       ],
-      "total": 434,
-      "lastUpdated": "2025-10-16T05:19:16.115Z"
+      "total": 432,
+      "lastUpdated": "2025-10-16T06:39:54.521Z"
     },
     "shared": {
       "errors": [
         "shared/variance-validation.ts:TS4111:236f2efb"
       ],
       "total": 1,
-      "lastUpdated": "2025-10-16T05:19:16.115Z"
+      "lastUpdated": "2025-10-16T06:39:54.521Z"
+    },
+    "unknown": {
+      "errors": [
+        "vite.config.ts:TS4111:2cf82128",
+        "vite.config.ts:TS4111:6dc6508f",
+        "vite.config.ts:TS4111:aff1c7f6",
+        "vite.config.ts:TS4111:cdb0632b",
+        "vite.config.ts:TS4111:da8f2a75",
+        "vite.config.ts:TS7006:118fabe7",
+        "vite.config.ts:TS7006:2e94b76d",
+        "vite.config.ts:TS7006:3c74f88a",
+        "vite.config.ts:TS7006:6bf7ca4c",
+        "vite.config.ts:TS7031:3c74f88a",
+        "vite.config.ts:TS7031:6f06ec55"
+      ],
+      "total": 11,
+      "lastUpdated": "2025-10-16T06:39:54.521Z"
     }
   },
-  "totalErrors": 500,
-  "timestamp": "2025-10-16T05:19:16.115Z",
+  "totalErrors": 497,
+  "timestamp": "2025-10-16T06:39:54.521Z",
   "buildMode": "per-project",
-  "elapsedMs": 21540
+  "elapsedMs": 31283
 }

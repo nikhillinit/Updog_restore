@@ -13,11 +13,11 @@ const devFormat = printf(({ level, message, timestamp, ...metadata }) => {
 
 // Create logger instance
 export const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env['LOG_LEVEL'] || 'info',
   format: combine(
     errors({ stack: true }),
     timestamp(),
-    process.env.NODE_ENV === 'production' ? json() : devFormat
+    process.env['NODE_ENV'] === 'production' ? json() : devFormat
   ),
   transports: [
     new winston.transports.Console({
@@ -27,7 +27,7 @@ export const logger = winston.createLogger({
 });
 
 // Add file transport in production
-if (process.env.NODE_ENV === 'production') {
+if (process.env['NODE_ENV'] === 'production') {
   logger.add(
     new winston.transports.File({
       filename: 'logs/error.log',
