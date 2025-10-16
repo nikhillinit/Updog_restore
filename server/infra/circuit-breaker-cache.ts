@@ -37,9 +37,9 @@ export async function createBreakerCache(
         
         // Create Upstash-backed cache
         backingStore = {
-          async get<T>(key: string): Promise<T | undefined> {
+          async get<T>(key: string): Promise<T | null> {
             const raw = await redis['get'](`cb:${key}`);
-            return raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw as T) : undefined;
+            return raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw as T) : null;
           },
           async set<T>(key: string, value: T, ttl?: number): Promise<void> {
             const ttlSeconds = ttl ? Math.ceil(ttl / 1000) : 300; // Default 5 min
@@ -119,7 +119,7 @@ export class CircuitBreakerCache implements Cache {
     this.halfOpenInFlight = 0;
   }
   
-  async get<T>(key: string): Promise<T | undefined> {
+  async get<T>(key: string): Promise<T | null> {
     const now = this.getCurrentTime();
 
     // If OPEN, see if the window has elapsed; if yes, move to HALF-OPEN before any early return.
@@ -137,7 +137,7 @@ export class CircuitBreakerCache implements Cache {
       this.halfOpenInFlight++;
       try {
         const v = await this.backingStore.get<T>(key);
-        // Treat undefined as a valid value; success means "primary responded without throwing"
+        // Treat null as a valid value; success means "primary responded without throwing"
         this.successes++;
         this.lastSuccessTime = now;
         if (this.successes >= this.halfOpenSuccessTarget) {

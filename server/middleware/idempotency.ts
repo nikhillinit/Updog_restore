@@ -5,6 +5,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { redis as redisClient } from '../db/redis-circuit';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 interface IdempotencyOptions {
   ttl?: number;                    // TTL in seconds (default: 300 = 5 minutes)
@@ -30,13 +31,15 @@ class MemoryIdempotencyStore {
   set(key: string, data: IdempotentResponse, ttl: number): void {
     // Cleanup expired entries
     this.cleanup();
-    
+
     // Evict oldest if at capacity
     if (this.store.size >= this.maxSize) {
       const firstKey = this.store.keys().next().value;
-      this.store.delete(firstKey);
+      if (firstKey !== undefined) {
+        this.store.delete(firstKey);
+      }
     }
-    
+
     const expiry = Date.now() + (ttl * 1000);
     this.store['set'](key, { data, expiry });
   }
@@ -199,10 +202,10 @@ export function idempotency(options: IdempotencyOptions = {}) {
   const config = {
     ttl: options.ttl || 300,
     prefix: options.prefix || 'idem',
-    generateKey: options.generateKey,
     skipPaths: options.skipPaths || [],
     memoryFallback: options.memoryFallback !== false,
     includeStatusCodes: options.includeStatusCodes || [200, 201],
+    ...spreadIfDefined('generateKey', options.generateKey),
   };
   
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -248,14 +251,14 @@ export function idempotency(options: IdempotencyOptions = {}) {
     
     // Override send method
     res.send = function(body?: any) {
-      if (!responseCaptured && config.includeStatusCodes.includes(res.statusCode)) {
+      if (!responseCaptured && config.includeStatusCodes["includes"](res['statusCode'])) {
         responseBody = body;
         responseCaptured = true;
-        
+
         // Store response asynchronously
         const response: IdempotentResponse = {
-          statusCode: res.statusCode,
-          headers: res.getHeaders() as Record<string, string>,
+          statusCode: res['statusCode'],
+          headers: res["getHeaders"]() as Record<string, string>,
           body: typeof body === 'string' ? JSON.parse(body) : body,
           timestamp: Date.now(),
         };
@@ -271,14 +274,14 @@ export function idempotency(options: IdempotencyOptions = {}) {
     
     // Override json method
     res.json = function(body?: any) {
-      if (!responseCaptured && config.includeStatusCodes.includes(res.statusCode)) {
+      if (!responseCaptured && config.includeStatusCodes["includes"](res['statusCode'])) {
         responseBody = body;
         responseCaptured = true;
-        
+
         // Store response asynchronously
         const response: IdempotentResponse = {
-          statusCode: res.statusCode,
-          headers: res.getHeaders() as Record<string, string>,
+          statusCode: res['statusCode'],
+          headers: res["getHeaders"]() as Record<string, string>,
           body,
           timestamp: Date.now(),
         };

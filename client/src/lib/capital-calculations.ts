@@ -124,7 +124,11 @@ export function getSchedulePattern(
         for (let i = 0; i < investmentPeriod; i++) {
           const pct = remaining / (investmentPeriod - i) * 1.3;
           pattern[i] = Math.min(pct, remaining);
-          remaining -= pattern[i];
+          const currentValue = pattern[i];
+          if (currentValue === undefined) {
+            throw new Error(`Pattern value at index ${i} is undefined`);
+          }
+          remaining -= currentValue;
         }
       }
       break;
@@ -190,7 +194,11 @@ export function calculateProjections(data: {
     let calledCapital = 0;
     if (isInvestmentPeriod) {
       const yearIndex = year - 1;
-      const percentage = schedule[yearIndex] / 100;
+      const scheduleValue = schedule[yearIndex];
+      if (scheduleValue === undefined) {
+        throw new Error(`Schedule value at year ${year} (index ${yearIndex}) is undefined`);
+      }
+      const percentage = scheduleValue / 100;
       calledCapital = data.targetFundSize * percentage;
     }
 

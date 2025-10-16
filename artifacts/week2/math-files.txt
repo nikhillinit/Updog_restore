@@ -1,0 +1,7 @@
+server/services/performance-prediction.ts
+server/services/monte-carlo-simulation.ts
+server/services/streaming-monte-carlo-engine.ts
+server/services/power-law-distribution.ts
+server/services/database-pool-manager.ts
+client/src/lib/xirr.ts
+client/src/lib/capital-calculations.ts

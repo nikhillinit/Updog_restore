@@ -7,7 +7,7 @@ export function setupWebSocketServers(server: HTTPServer) {
   console.log('[websocket] Setting up WebSocket servers...');
 
   // Setup dev dashboard WebSocket only in development
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env["NODE_ENV"] === 'development') {
     devDashboardWS = new DevDashboardWebSocket(server);
     console.log('[websocket] Dev dashboard WebSocket enabled');
   }

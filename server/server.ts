@@ -32,6 +32,7 @@ import { serveStatic } from './vite.js';
 import { errorHandler } from './errors.js';
 import { metricsRouter } from './routes/metrics-endpoint.js';
 import type { Providers } from './providers.js';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 // CORS configuration with origin validation
 function parseOrigins(raw?: string): string[] {
@@ -58,9 +59,9 @@ export async function createServer(
   console.log('[server] Creating Express application...');
   
   // Bind providers to app.locals for routes/services
-  app.locals.providers = providers;
-  app.locals.cache = providers.cache;
-  app.locals.config = config;
+  app['locals']["providers"] = providers;
+  app['locals']["cache"] = providers.cache;
+  app['locals']["config"] = config;
   
   // Security first - disable version disclosure
   app['disable']('x-powered-by');
@@ -176,8 +177,8 @@ export async function createServer(
       const duration = Date.now() - start;
       if (path.startsWith("/api")) {
         const version = config.APP_VERSION;
-        
-        let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms [v${version}]`;
+
+        let logLine = `${req["method"]} ${path} ${res['statusCode']} in ${duration}ms [v${version}]`;
         if (capturedJsonResponse) {
           logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
         }
@@ -196,7 +197,7 @@ export async function createServer(
           environment: config.NODE_ENV,
           method: req.method,
           path,
-          statusCode: res.statusCode,
+          statusCode: res["statusCode"],
           duration,
           requestId: (req as any).requestId
         }));
@@ -207,7 +208,7 @@ export async function createServer(
   });
   
   // Rate limiter: pass store; undefined => memory store (no redis)
-  app.use('/health/detailed', rateLimitDetailed({ store: providers.rateLimitStore }));
+  app.use('/health/detailed', rateLimitDetailed({ ...spreadIfDefined('store', providers.rateLimitStore) }));
   
   // Metrics endpoints (public, no auth required)
   app.use('/metrics', metricsRouter);
@@ -237,7 +238,7 @@ export async function createServer(
         email: 'dev@example.com',
         role: 'admin',
         orgId: 'dev-org',
-        fundId: req.params.fundId || req.query.fundId as string
+        fundId: req.params["fundId"] || req.query["fundId"] as string
       };
       return next();
     }

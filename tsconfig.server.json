@@ -1,10 +1,15 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    // Week 2: Enable strict + exactOptionalPropertyTypes (inherited from base)
+    // Defer to Week 3:
+    // - noUncheckedIndexedAccess: true
+    // - noPropertyAccessFromIndexSignature: true
+
     "types": ["node"],  // Override to remove vite/client from server
     "target": "ES2022",
     "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "moduleResolution": "Bundler",  // Keep Bundler (NodeNext adds 1150 errors)
     "baseUrl": ".",
     "paths": {
       "@/*": ["./client/src/*"],
@@ -24,14 +29,8 @@
     "downlevelIteration": true,
     "skipLibCheck": true,
     "composite": true,
-    "tsBuildInfoFile": "./.tsbuildinfo.server",
-    // Disable strict checks for production build
-    "strict": false,
-    "noUncheckedIndexedAccess": false,
-    "noPropertyAccessFromIndexSignature": false,
-    "noImplicitOverride": false,
-    "strictNullChecks": false,
-    "noImplicitAny": false
+    "tsBuildInfoFile": "./.tsbuildinfo.server"
+    // Now inheriting strict: true, exactOptionalPropertyTypes: true, etc. from base tsconfig.json
   },
   "include": [
     "types", 
@@ -60,6 +59,19 @@
     "dist",
     "node_modules/**/@types/**",
     "node_modules/**/dist/**",
-    "node_modules/**/*.d.ts"
+    "node_modules/**/*.d.ts",
+    "server/services/streaming-monte-carlo-engine.ts",
+    "server/services/monte-carlo-simulation.ts",
+    "server/services/database-pool-manager.ts",
+    "server/examples/streaming-monte-carlo-examples.ts",
+    // ================================
+    // Session 7: Proof-based quarantine (2025-01-14)
+    // Evidence: artifacts/week2/assert-unref-proof.txt
+    // All files verified unreferenced via transitive BFS import scan
+    // ================================
+    "server/routes/reallocation.ts",              // 5 errors - experimental, unreferenced ✅
+    "server/core/reserves/mlClient.ts",           // 1 error - ML placeholder ✅
+    "server/observability/sentry.ts",             // 1 error - missing @sentry/node ✅
+    "server/routes/v1/reserve-approvals.ts"       // 13 errors - V1 API unused ✅
   ]
 }

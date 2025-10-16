@@ -13,7 +13,7 @@ const devFormat = printf(({ level, message, timestamp, ...metadata }) => {
 
 // Create logger instance
 export const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env["LOG_LEVEL"] || 'info',
   format: combine(
     errors({ stack: true }),
     timestamp(),

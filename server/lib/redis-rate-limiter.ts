@@ -5,6 +5,7 @@
 
 import type { RedisClientType } from 'redis';
 import { createClient } from 'redis';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -45,7 +46,7 @@ export class RedisApprovalRateLimiter {
     this.redis = this.useMemory
       ? null
       : createClient({
-          url: resolvedRedisUrl,
+          ...spreadIfDefined('url', resolvedRedisUrl),
           socket: {
             connectTimeout: 5000
           },
@@ -162,7 +163,11 @@ export class RedisApprovalRateLimiter {
       const windowStart = now - this.config.windowMs;
       const timestamps = (this.memoryBuckets.get(key) || []).filter(ts => ts > windowStart);
       if (timestamps.length >= this.config.maxRequests) {
-        const resetAt = timestamps[0] + this.config.windowMs;
+        const oldestTimestamp = timestamps[0];
+        if (oldestTimestamp === undefined) {
+          throw new Error('Unexpected empty timestamps array');
+        }
+        const resetAt = oldestTimestamp + this.config.windowMs;
         this.memoryBuckets.set(key, timestamps);
         return {
           allowed: false,
@@ -218,7 +223,7 @@ export class RedisApprovalRateLimiter {
         allowed: allowed === 1,
         remaining,
         resetAt,
-        retryAfter: allowed === 0 ? Math.ceil((resetAt - now) / 1000) : undefined
+        ...spreadIfDefined('retryAfter', allowed === 0 ? Math.ceil((resetAt - now) / 1000) : undefined)
       };
 
     } catch (error) {
@@ -265,9 +270,10 @@ export class RedisApprovalRateLimiter {
       const windowStart = now - this.config.windowMs;
       const timestamps = (this.memoryBuckets.get(key) || []).filter(ts => ts > windowStart);
       this.memoryBuckets.set(key, timestamps);
+      const oldestTimestamp = timestamps[0];
       return {
         count: timestamps.length,
-        oldestRequest: timestamps.length > 0 ? timestamps[0] : null,
+        oldestRequest: oldestTimestamp !== undefined ? oldestTimestamp : null,
       };
     }
 
@@ -284,10 +290,12 @@ export class RedisApprovalRateLimiter {
     const count = await this.redis!.zCard(key);
     const oldest = await this.redis!.zRange(key, 0, 0);
 
+    const firstEntry = oldest[0];
+    const firstPart = firstEntry?.split('-')[0];
     return {
       count,
-      oldestRequest: oldest.length > 0
-        ? parseInt(oldest[0].split('-')[0])
+      oldestRequest: firstPart !== undefined
+        ? parseInt(firstPart)
         : null
     };
   }
@@ -381,7 +389,12 @@ export async function createRateLimiter(
 
   if (isProduction && shouldUseRedis) {
     try {
-      const redisLimiter = new RedisApprovalRateLimiter({ ...config, redisUrl });
+      const redisLimiter = new RedisApprovalRateLimiter({
+        maxRequests: config?.maxRequests ?? 3,
+        windowMs: config?.windowMs ?? 60000,
+        ...spreadIfDefined('keyPrefix', config?.keyPrefix),
+        ...spreadIfDefined('redisUrl', redisUrl)
+      });
       await redisLimiter.connect();
       console.log('Using Redis-backed rate limiter');
       return redisLimiter;

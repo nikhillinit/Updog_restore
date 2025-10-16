@@ -4,6 +4,7 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
 import type { Store, Options } from 'express-rate-limit';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 /**
  * Factory for rate limit stores
@@ -52,10 +53,10 @@ export async function createRateLimitStore(): Promise<Store | undefined> {
  */
 export async function createRateLimitOptions(baseOptions: Partial<Options>): Promise<Partial<Options>> {
   const store = await createRateLimitStore();
-  
+
   return {
     ...baseOptions,
-    store,
+    ...spreadIfDefined('store', store),
     // Ensure we don't leak store type in response
     skipSuccessfulRequests: false,
     skipFailedRequests: false,

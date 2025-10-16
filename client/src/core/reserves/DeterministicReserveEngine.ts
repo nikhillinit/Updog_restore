@@ -257,6 +257,7 @@ export class DeterministicReserveEngine {
 
     for (let i = 0; i < sorted.length; i++) {
       const calc = sorted[i];
+      if (!calc) continue; // Array bounds safety
       const company = input.portfolio.find(c => c.id === calc.companyId)!;
       const stageStrategy = this.findStageStrategy(company.currentStage, input.stageStrategies);
 
