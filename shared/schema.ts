@@ -1625,3 +1625,100 @@ export const insertReallocationAuditSchema = createInsertSchema(reallocationAudi
 
 export type ReallocationAudit = typeof reallocationAudit.$inferSelect;
 export type InsertReallocationAudit = typeof reallocationAudit.$inferInsert;
+
+// ============================================================================
+// AI USAGE TRACKING SCHEMA
+// Reserve→Settle→Void ledger for AI API call tracking
+// ============================================================================
+
+// AI Ledger State Enum
+export const aiLedgerState = pgEnum('ai_ledger_state', ['reserved', 'settled', 'void']);
+
+// AI Usage Ledger - Reserve→Settle→Void pattern for API call tracking
+export const aiUsageLedger = pgTable("ai_usage_ledger", {
+  id: uuid("id").defaultRandom().primaryKey(),
+
+  // Idempotency and tracking
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  requestId: text("request_id"),
+  correlationId: text("correlation_id"),
+
+  // Ledger state management
+  state: aiLedgerState("state").notNull().default("reserved"),
+  reservedAt: timestamp("reserved_at", { withTimezone: true }).notNull().defaultNow(),
+  settledAt: timestamp("settled_at", { withTimezone: true }),
+  voidedAt: timestamp("voided_at", { withTimezone: true }),
+
+  // AI request metadata
+  userId: integer("user_id").references(() => users.id),
+  promptHash: text("prompt_hash").notNull(),
+  models: jsonb("models").notNull().default([]), // Array of model names
+  tags: jsonb("tags").default([]),
+
+  // Usage tracking
+  successfulCalls: integer("successful_calls").default(0),
+  failedCalls: integer("failed_calls").default(0),
+  totalTokens: integer("total_tokens").default(0),
+  costUsd: decimal("cost_usd", { precision: 10, scale: 6 }).default("0"),
+
+  // Response storage (JSONB)
+  responses: jsonb("responses"), // Array of AIResponse objects
+
+  // Timing and performance
+  elapsedMs: integer("elapsed_ms"),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+
+  // Error tracking
+  errorMessage: text("error_message"),
+  errorDetails: jsonb("error_details"),
+
+  // Metadata
+  metadata: jsonb("metadata"),
+
+  // Timestamps
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table: any) => ({
+  stateIdx: index("idx_ai_usage_ledger_state")['on'](table.state, table.createdAt.desc()),
+  userDateIdx: index("idx_ai_usage_ledger_user_date")['on'](table.userId, table.createdAt.desc()),
+  promptHashIdx: index("idx_ai_usage_ledger_prompt_hash")['on'](table.promptHash, table.createdAt.desc()),
+  reservedAtIdx: index("idx_ai_usage_ledger_reserved_at")['on'](table.reservedAt.desc()),
+  settledAtIdx: index("idx_ai_usage_ledger_settled_at")['on'](table.settledAt.desc()),
+  requestIdIdx: index("idx_ai_usage_ledger_request_id")['on'](table.requestId),
+  correlationIdIdx: index("idx_ai_usage_ledger_correlation_id")['on'](table.correlationId),
+  modelsGinIdx: index("idx_ai_usage_ledger_models_gin").using("gin", table.models),
+  tagsGinIdx: index("idx_ai_usage_ledger_tags_gin").using("gin", table.tags),
+  responsesGinIdx: index("idx_ai_usage_ledger_responses_gin").using("gin", table.responses),
+}));
+
+// AI Usage Daily Statistics (Materialized View)
+// Note: Materialized views are created in migrations, this is just for TypeScript typing
+export const aiUsageDailyStats = pgTable("ai_usage_daily_stats", {
+  usageDate: timestamp("usage_date", { withTimezone: true }).notNull(),
+  userId: integer("user_id"),
+  state: aiLedgerState("state"),
+  requestCount: bigint("request_count", { mode: "number" }),
+  totalSuccessfulCalls: bigint("total_successful_calls", { mode: "number" }),
+  totalFailedCalls: bigint("total_failed_calls", { mode: "number" }),
+  totalTokensUsed: bigint("total_tokens_used", { mode: "number" }),
+  totalCostUsd: decimal("total_cost_usd", { precision: 15, scale: 6 }),
+  avgElapsedMs: decimal("avg_elapsed_ms", { precision: 10, scale: 2 }),
+  modelsUsed: jsonb("models_used"),
+  tagsUsed: jsonb("tags_used"),
+}, (table: any) => ({
+  dateIdx: index("idx_ai_usage_daily_stats_date")['on'](table.usageDate.desc()),
+  userDateIdx: index("idx_ai_usage_daily_stats_user_date")['on'](table.userId, table.usageDate.desc()),
+}));
+
+// Insert Schemas
+export const insertAiUsageLedgerSchema = createInsertSchema(aiUsageLedger).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Type Exports
+export type AiUsageLedger = typeof aiUsageLedger.$inferSelect;
+export type InsertAiUsageLedger = typeof aiUsageLedger.$inferInsert;
+export type AiUsageDailyStats = typeof aiUsageDailyStats.$inferSelect;
+export type AiLedgerState = 'reserved' | 'settled' | 'void';
