@@ -7,6 +7,7 @@ import path from 'path';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath } from 'url';
 import { defineConfig, type Plugin } from 'vite';
+import type { ViteDevServer } from 'vite';
 import virtual from 'vite-plugin-virtual';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
@@ -186,7 +187,7 @@ const getGitSha = () => {
 const getAppVersion = () => {
   try {
     const packagePath = path.join(rootDir, 'package.json');
-    const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+    const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8')) as { version?: string };
     return pkg.version || 'unknown';
   } catch {
     return '1.3.2';
@@ -198,20 +199,12 @@ const getAppVersion = () => {
 const sentryOn = !!process.env['VITE_SENTRY_DSN'];
 const sentryNoop = path.resolve(import.meta.dirname, 'client/src/monitoring/noop.ts');
 
-// Preact alias set covers all common React entry points (incl. automatic JSX runtime)
-const preactAliases = [
-  { find: 'react', replacement: 'preact/compat' },
-  { find: 'react-dom/test-utils', replacement: 'preact/test-utils' },
-  { find: 'react-dom/client', replacement: 'preact/compat' },
-  { find: 'react-dom', replacement: 'preact/compat' },
-  { find: 'react/jsx-runtime', replacement: 'preact/jsx-runtime' },
-  { find: 'react/jsx-dev-runtime', replacement: 'preact/jsx-dev-runtime' },
-];
+// Preact aliases defined inline below (see resolve.alias)
 
 export default defineConfig(({ mode }: { mode: string }) => {
-  const usePreact = 
-    process.env.BUILD_WITH_PREACT === '1' || 
-    process.env.BUILD_WITH_PREACT === 'true' || 
+  const usePreact =
+    process.env.BUILD_WITH_PREACT === '1' ||
+    process.env.BUILD_WITH_PREACT === 'true' ||
     process.env.VITE_USE_PREACT === '1' ||
     mode === 'preact';
 
@@ -220,9 +213,9 @@ export default defineConfig(({ mode }: { mode: string }) => {
     return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
   };
 
-  const clientPort = parsePort(process.env.VITE_CLIENT_PORT, 5173);
-  const apiPort = parsePort(process.env.VITE_API_PORT ?? process.env.PORT, 5000);
-  const apiTarget = process.env.VITE_API_URL ?? `http://localhost:${apiPort}`;
+  const clientPort = parsePort(process.env['VITE_CLIENT_PORT'], 5173);
+  const apiPort = parsePort(process.env['VITE_API_PORT'] ?? process.env['PORT'], 5000);
+  const apiTarget = process.env['VITE_API_URL'] ?? `http://localhost:${apiPort}`;
 
   return {
     base: '/', // Ensure absolute paths for assets
@@ -233,14 +226,14 @@ export default defineConfig(({ mode }: { mode: string }) => {
         '/api': {
           target: apiTarget,
           changeOrigin: true,
-        }
-      }
+        },
+      },
     },
     plugins: [
       // Dev telemetry stub - always returns 204 for telemetry endpoints
       {
         name: 'dev-telemetry-stub',
-        configureServer(server) {
+        configureServer(server: ViteDevServer) {
           server.middlewares.use('/api/telemetry/wizard', async (req, res) => {
             try {
               let body = '';
@@ -253,7 +246,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
               res.end('Bad payload');
             }
           });
-        }
+        },
       },
       // Use absolute path so Vite doesn't ever look for "client/client/tsconfig.json"
       tsconfigPaths({
@@ -261,8 +254,8 @@ export default defineConfig(({ mode }: { mode: string }) => {
         // ignoreConfigErrors: true // (optional) uncomment if a transient parse error blocks local runs
       }),
       virtual({
-        "winston": winstonMock,
-        "prom-client": promClientMock
+        winston: winstonMock,
+        'prom-client': promClientMock,
       }),
       // Conditional React/Preact plugin
       usePreact ? preact({ devtoolsInProd: false }) : react(),
@@ -272,113 +265,146 @@ export default defineConfig(({ mode }: { mode: string }) => {
         template: 'treemap',
         gzipSize: true,
         brotliSize: true,
-        open: false
+        open: false,
       }),
     ].filter(Boolean) as Plugin[],
-  esbuild: {
-    legalComments: 'none', // Remove all legal comments
-    // Remove only non-critical console calls
-    pure: ['console.log', 'console.info', 'console.debug', 'console.trace'],
-    // Always drop debugger statements
-    drop: ['debugger'],
-    minifyIdentifiers: true,
-    minifySyntax: true, 
-    minifyWhitespace: true,
-    treeShaking: true,
-    target: 'esnext',
-    tsconfigRaw: {
-      compilerOptions: {
-        skipLibCheck: true,
-        noImplicitAny: false,
-        strictNullChecks: false,
-        strictFunctionTypes: false,
-        strictPropertyInitialization: false,
-        noImplicitThis: false,
-        noImplicitReturns: false,
-        alwaysStrict: false
-      }
-    }
-  },
-  define: {
-    'import.meta.env.VITE_APP_VERSION': JSON.stringify(getAppVersion()),
-    'import.meta.env.VITE_GIT_SHA': JSON.stringify(process.env['GITHUB_SHA'] || getGitSha()),
-    'import.meta.env.VITE_BUILD_TIME': JSON.stringify(new Date().toISOString()),
-    '__SENTRY__': JSON.stringify(Boolean(process.env['VITE_SENTRY_DSN'])),
-    '__DEV__': 'false', // Strip dev-only blocks
-    'process.env.DEBUG': 'false', // Strip debug blocks
-    'process.env.NODE_ENV': JSON.stringify('production') // Ensure production mode
-  },
-  root: path.resolve(import.meta.dirname, 'client'),
-  build: {
-    outDir: path.resolve(import.meta.dirname, 'dist'),
-    emptyOutDir: true,
-    sourcemap: process.env.VITE_SOURCEMAP === 'true' ? true : true, // Always enable source maps for profiling (keeping environment option)
-    minify: 'esbuild',
-    target: 'es2020', // More compatible target for production
-    cssMinify: 'lightningcss',
-    reportCompressedSize: false, // Skip compression size reporting for faster builds
-    chunkSizeWarningLimit: 500,
-    manifest: true, // Generate manifest for bundle analysis
-    modulePreload: {
-      // Only preload critical modules, not charts
-      resolveDependencies: (_filename: string, deps: string[], { hostId: _hostId, hostType: _hostType }) => {
-        return deps.filter(dep => !dep.includes('vendor-charts') && !dep.includes('vendor-nivo'));
-      }
-    },
-    rollupOptions: { 
-      input: path.resolve(import.meta.dirname, 'client/index.html'),
-      treeshake: {
-        moduleSideEffects: 'no-external',
-        propertyReadSideEffects: false,
-      },
-      output: {
-        // Aggressive output settings
-        compact: true,
-        generatedCode: {
-          arrowFunctions: true,
-          constBindings: true,
-          objectShorthand: true,
+    esbuild: {
+      legalComments: 'none', // Remove all legal comments
+      // Remove only non-critical console calls
+      pure: ['console.log', 'console.info', 'console.debug', 'console.trace'],
+      // Always drop debugger statements
+      drop: ['debugger'],
+      minifyIdentifiers: true,
+      minifySyntax: true,
+      minifyWhitespace: true,
+      treeShaking: true,
+      target: 'esnext',
+      tsconfigRaw: {
+        compilerOptions: {
+          skipLibCheck: true,
+          noImplicitAny: false,
+          strictNullChecks: false,
+          strictFunctionTypes: false,
+          strictPropertyInitialization: false,
+          noImplicitThis: false,
+          noImplicitReturns: false,
+          alwaysStrict: false,
         },
-        minifyInternalExports: true,
-        manualChunks: undefined,
-      }
-    }
-  },
-  resolve: {
-    conditions: ["browser", "import", "module", "default"],
-    alias: [
-      // CRITICAL: Proper Preact aliasing for production builds (not in optimizeDeps!)
-      ...(usePreact ? [
-        { find: 'react', replacement: 'preact/compat' },
-        { find: 'react-dom', replacement: 'preact/compat' },
-        { find: 'react-dom/test-utils', replacement: 'preact/test-utils' },
-        { find: 'react-dom/client', replacement: 'preact/compat' },
-        // CRITICAL: JSX runtime aliases - missing these breaks hooks with Preact
-        { find: 'react/jsx-runtime', replacement: 'preact/jsx-runtime' },
-        { find: 'react/jsx-dev-runtime', replacement: 'preact/jsx-dev-runtime' },
-      ] : []),
-      
-      // Sentry no-op (when disabled)
-      !sentryOn && { find: /^@sentry\//, replacement: sentryNoop },
-      
-      // Path aliases
-      { find: '@', replacement: path.resolve(import.meta.dirname, 'client/src') },
-      { find: '@/core', replacement: path.resolve(import.meta.dirname, 'client/src/core') },
-      { find: '@/lib', replacement: path.resolve(import.meta.dirname, 'client/src/lib') },
-      { find: '@shared', replacement: path.resolve(import.meta.dirname, 'shared') },
-      { find: '@assets', replacement: path.resolve(import.meta.dirname, 'assets') },
-    ].filter(Boolean),
-    dedupe: usePreact ? ['react', 'react-dom', 'react/jsx-runtime', 'react-dom/client'] : ['react', 'react-dom'],
-  },
-  optimizeDeps: usePreact
-    ? {
-        // Keep dev prebundle from pulling React by accident
-        exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser', '@sentry/browser', '@sentry/react', 'react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
-        include: ['preact', 'preact/hooks', 'preact/compat', 'preact/jsx-runtime'],
-        // REMOVED: esbuildOptions.alias - aliases belong in resolve.alias for production builds
-      }
-    : {
-        exclude: ['winston', 'prom-client', 'express', 'fastify', 'serve-static', 'body-parser', '@sentry/browser', '@sentry/react'],
-      }
+      },
+    },
+    define: {
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(getAppVersion()),
+      'import.meta.env.VITE_GIT_SHA': JSON.stringify(process.env['GITHUB_SHA'] || getGitSha()),
+      'import.meta.env.VITE_BUILD_TIME': JSON.stringify(new Date().toISOString()),
+      __SENTRY__: JSON.stringify(Boolean(process.env['VITE_SENTRY_DSN'])),
+      __DEV__: 'false', // Strip dev-only blocks
+      'process.env.DEBUG': 'false', // Strip debug blocks
+      'process.env.NODE_ENV': JSON.stringify('production'), // Ensure production mode
+    },
+    root: path.resolve(import.meta.dirname, 'client'),
+    build: {
+      outDir: path.resolve(import.meta.dirname, 'dist'),
+      emptyOutDir: true,
+      sourcemap: process.env.VITE_SOURCEMAP === 'true' ? true : true, // Always enable source maps for profiling (keeping environment option)
+      minify: 'esbuild',
+      target: 'es2020', // More compatible target for production
+      cssMinify: 'lightningcss',
+      reportCompressedSize: false, // Skip compression size reporting for faster builds
+      chunkSizeWarningLimit: 500,
+      manifest: true, // Generate manifest for bundle analysis
+      modulePreload: {
+        // Only preload critical modules, not charts
+        resolveDependencies: (
+          _filename: string,
+          deps: string[],
+          { hostId: _hostId, hostType: _hostType }
+        ) => {
+          return deps.filter(
+            (dep) => !dep.includes('vendor-charts') && !dep.includes('vendor-nivo')
+          );
+        },
+      },
+      rollupOptions: {
+        input: path.resolve(import.meta.dirname, 'client/index.html'),
+        treeshake: {
+          moduleSideEffects: 'no-external',
+          propertyReadSideEffects: false,
+        },
+        output: {
+          // Aggressive output settings
+          compact: true,
+          generatedCode: {
+            arrowFunctions: true,
+            constBindings: true,
+            objectShorthand: true,
+          },
+          minifyInternalExports: true,
+          manualChunks: undefined,
+        },
+      },
+    },
+    resolve: {
+      conditions: ['browser', 'import', 'module', 'default'],
+      alias: [
+        // CRITICAL: Proper Preact aliasing for production builds (not in optimizeDeps!)
+        ...(usePreact
+          ? [
+              { find: 'react', replacement: 'preact/compat' },
+              { find: 'react-dom', replacement: 'preact/compat' },
+              { find: 'react-dom/test-utils', replacement: 'preact/test-utils' },
+              { find: 'react-dom/client', replacement: 'preact/compat' },
+              // CRITICAL: JSX runtime aliases - missing these breaks hooks with Preact
+              { find: 'react/jsx-runtime', replacement: 'preact/jsx-runtime' },
+              { find: 'react/jsx-dev-runtime', replacement: 'preact/jsx-dev-runtime' },
+            ]
+          : []),
+
+        // Sentry no-op (when disabled)
+        !sentryOn && { find: /^@sentry\//, replacement: sentryNoop },
+
+        // Path aliases
+        { find: '@', replacement: path.resolve(import.meta.dirname, 'client/src') },
+        { find: '@/core', replacement: path.resolve(import.meta.dirname, 'client/src/core') },
+        { find: '@/lib', replacement: path.resolve(import.meta.dirname, 'client/src/lib') },
+        { find: '@shared', replacement: path.resolve(import.meta.dirname, 'shared') },
+        { find: '@assets', replacement: path.resolve(import.meta.dirname, 'assets') },
+      ].filter(Boolean),
+      dedupe: usePreact
+        ? ['react', 'react-dom', 'react/jsx-runtime', 'react-dom/client']
+        : ['react', 'react-dom'],
+    },
+    optimizeDeps: usePreact
+      ? {
+          // Keep dev prebundle from pulling React by accident
+          exclude: [
+            'winston',
+            'prom-client',
+            'express',
+            'fastify',
+            'serve-static',
+            'body-parser',
+            '@sentry/browser',
+            '@sentry/react',
+            'react',
+            'react-dom',
+            'react-dom/client',
+            'react/jsx-runtime',
+            'react/jsx-dev-runtime',
+          ],
+          include: ['preact', 'preact/hooks', 'preact/compat', 'preact/jsx-runtime'],
+          // REMOVED: esbuildOptions.alias - aliases belong in resolve.alias for production builds
+        }
+      : {
+          exclude: [
+            'winston',
+            'prom-client',
+            'express',
+            'fastify',
+            'serve-static',
+            'body-parser',
+            '@sentry/browser',
+            '@sentry/react',
+          ],
+        },
   }; // end of return object
 }); // end of defineConfig

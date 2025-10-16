@@ -1,7 +1,6 @@
 # Build Readiness Verification Report
 
-**Date**: October 16, 2025
-**Validator**: Comprehensive codebase analysis
+**Date**: October 16, 2025 **Validator**: Comprehensive codebase analysis
 **Status**: VERIFICATION COMPLETE
 
 ---
@@ -10,9 +9,11 @@
 
 **Overall Readiness**: 65% (Substantial foundation, CLI work needed)
 
-This document provides evidence-based verification of the build proposal claims and documents remaining work to achieve production readiness.
+This document provides evidence-based verification of the build proposal claims
+and documents remaining work to achieve production readiness.
 
 **Key Findings**:
+
 - ✅ **PR #162 EXISTS** - TypeScript baseline system (OPEN, production-ready)
 - ✅ **PR #159 EXISTS** - Excel parity testing (OPEN, 60% complete)
 - ✅ **TypeScript baseline script** - 448 lines, fully functional
@@ -45,6 +46,7 @@ PR #159: "feat: Add Excel parity testing infrastructure"
 ```
 
 **Other Active PRs** (context):
+
 ```
 PR #161: AI proposal workflow (OPEN)
 PR #158: AI security audit (OPEN)
@@ -58,6 +60,7 @@ PR #156: Week 2 server strictness (DRAFT)
 ### ✅ TEST 2: TypeScript Baseline Implementation - VERIFIED
 
 **Script Details**:
+
 ```
 File: scripts/typescript-baseline.cjs
 Size: 14,421 bytes (14.4KB)
@@ -66,6 +69,7 @@ Last Modified: October 16, 2025 00:19:34 AM
 ```
 
 **npm Scripts** (verified in package.json lines 69-72):
+
 ```json
 "baseline:save": "node scripts/typescript-baseline.cjs save",
 "baseline:check": "node scripts/typescript-baseline.cjs check",
@@ -74,6 +78,7 @@ Last Modified: October 16, 2025 00:19:34 AM
 ```
 
 **Git History** (feat/typescript-baseline-system branch):
+
 ```
 840cdf2 - fix(agents): Update post-commit hook for cross-platform compatibility
 353fafe - fix(types): Resolve TS4111 errors in logger and health routes
@@ -82,6 +87,7 @@ Last Modified: October 16, 2025 00:19:34 AM
 ```
 
 **Current Branch Status**:
+
 - You are ON feat/typescript-baseline-system branch
 - Behind main by 1 commit (docs already merged: 9195b3a)
 - Needs sync before merge: `git merge origin/main`
@@ -89,6 +95,7 @@ Last Modified: October 16, 2025 00:19:34 AM
 **Assessment**: ✅ Fully functional, production-ready script exists
 
 **Remaining Work**:
+
 - Sync with main branch (resolve any conflicts)
 - Add CI integration (workflow update)
 - Test in CI environment
@@ -101,6 +108,7 @@ Last Modified: October 16, 2025 00:19:34 AM
 **What EXISTS**:
 
 1. **ExcelParityValidator Class** (457 lines)
+
    ```
    Location: client/src/lib/excel-parity-validator.ts
    Features:
@@ -112,6 +120,7 @@ Last Modified: October 16, 2025 00:19:34 AM
    ```
 
 2. **Golden Fixtures** (3 scenarios verified):
+
    ```
    tests/fixtures/excel-parity/baseline/expected.csv
    tests/fixtures/excel-parity/aggressive/expected.csv
@@ -126,6 +135,7 @@ Last Modified: October 16, 2025 00:19:34 AM
 **What DOES NOT EXIST**:
 
 ❌ **CLI Scripts** (verified via grep/find):
+
 ```bash
 # Searched for but NOT FOUND:
 scripts/parity-generate.mjs
@@ -134,6 +144,7 @@ scripts/parity-all.mjs
 ```
 
 ❌ **npm Scripts** (verified in package.json):
+
 ```bash
 # Searched for but NOT FOUND:
 "parity:generate"
@@ -143,15 +154,15 @@ scripts/parity-all.mjs
 
 **Gap Analysis**:
 
-| Component | Status | Completion | Effort Remaining |
-|-----------|--------|------------|------------------|
-| Validator class | ✅ Complete | 100% | 0 hours |
-| Built-in datasets | ✅ Complete | 100% | 0 hours |
-| Golden fixtures | ⚠️ Partial | 60% (3 of 5) | 10-15 hours |
-| CLI generate script | ❌ Missing | 0% | 8-10 hours |
-| CLI compare script | ❌ Missing | 0% | 4-6 hours |
-| npm integration | ❌ Missing | 0% | 2-3 hours |
-| **OVERALL** | **Partial** | **60%** | **24-34 hours** |
+| Component           | Status      | Completion   | Effort Remaining |
+| ------------------- | ----------- | ------------ | ---------------- |
+| Validator class     | ✅ Complete | 100%         | 0 hours          |
+| Built-in datasets   | ✅ Complete | 100%         | 0 hours          |
+| Golden fixtures     | ⚠️ Partial  | 60% (3 of 5) | 10-15 hours      |
+| CLI generate script | ❌ Missing  | 0%           | 8-10 hours       |
+| CLI compare script  | ❌ Missing  | 0%           | 4-6 hours        |
+| npm integration     | ❌ Missing  | 0%           | 2-3 hours        |
+| **OVERALL**         | **Partial** | **60%**      | **24-34 hours**  |
 
 **Assessment**: ⚠️ Foundation is excellent, but CLI layer is missing
 
@@ -170,6 +181,7 @@ scripts/parity-all.mjs
    - Exit codes for CI
 
 3. **Add npm scripts** (1 hour)
+
    ```json
    "parity:generate": "node scripts/parity-generate.mjs",
    "parity:compare": "node scripts/parity-compare.mjs",
@@ -185,73 +197,102 @@ scripts/parity-all.mjs
 
 ---
 
-### ❌ TEST 4: Native Dependency & Docker Validation - INCOMPLETE
+### ⚠️ TEST 4: Linux Build Validation - PENDING WSL2 TEST
 
 **What Was Tested**:
+
 ```bash
-# Document only tested keywords in package.json:
+# Keyword search in package.json:
 grep -E "(canvas|sharp|sqlite|bcrypt|argon2|esbuild|swc|sass)" package.json
-# Result: No direct native dependencies found
+# Result: No direct native dependencies found ✅
+
+# System capabilities verified:
+- WSL2: INSTALLED ✅ (Ubuntu-22.04, Version 2)
+- Docker: INSTALLED but problematic (consistent issues)
+- Node.js: 20.19.0 (Windows side)
 ```
 
-**What Was NOT Tested**:
-```bash
-# Actual Docker build test (NOT PERFORMED):
-docker run --rm -v ${PWD}:/app -w /app node:20 bash -c "
-  npm ci && npm run build && npm test
-"
-# Reason: Docker daemon not running during verification
-```
+**Sidecar Architecture Already Handles Linux**:
 
-**Docker Status**:
-```
-Docker Version: 28.3.0 (INSTALLED ✅)
-Docker Daemon: NOT RUNNING ❌
-Error: "The system cannot find the file specified"
-```
+```javascript
+// scripts/link-sidecar-packages.mjs (lines 15-18):
+if (process.env.CI || process.env.VERCEL || process.env.GITHUB_ACTIONS) {
+  console.log('[link-sidecar] Skipping sidecar linking in CI environment');
+  console.log('[link-sidecar] Build will use packages from root node_modules/');
+  process.exit(0);
+}
 
-**Sidecar Architecture Evidence**:
-```json
-// package.json line 13:
-"postinstall": "node scripts/link-sidecar-packages.mjs || true"
-
-// The "|| true" means failures are SILENTLY IGNORED
-// This could hide Linux compatibility issues
+// ✅ Sidecar automatically disables in Linux CI
+// ✅ No Windows junctions used in GitHub Actions
+// ✅ Build uses standard node_modules layout
 ```
 
 **Risk Assessment**:
 
-| Risk | Severity | Status |
-|------|----------|--------|
-| Native dependencies in transitive deps | Low-Medium | Not tested |
-| Sidecar junction compatibility on Linux | Medium-High | Not tested |
-| Build failures in CI | Medium | Not tested |
+| Risk                                   | Severity   | Status                  |
+| -------------------------------------- | ---------- | ----------------------- |
+| Native dependencies in transitive deps | Low        | No direct deps found ✅ |
+| Sidecar compatibility on Linux         | **LOW**    | Auto-disabled in CI ✅  |
+| Build failures in CI                   | Low-Medium | Needs verification      |
 
-**Assessment**: ❌ Validation is incomplete and superficial
+**Assessment**: ⚠️ Risk is lower than initially thought; sidecar already handles
+Linux
+
+**RECOMMENDED: WSL2 Native Build Test** (5-10 minutes):
+
+WSL2 is superior to Docker for this use case:
+
+- ✅ Already installed (Ubuntu-22.04)
+- ✅ Faster than Docker (native Linux kernel)
+- ✅ More reliable (no Docker Desktop issues)
+- ✅ Exact CI environment match
+- ✅ Lower resource usage
 
 **Required Work**:
 
-1. **Start Docker Desktop** (manual action required)
+1. **Verify Node.js in WSL2** (1 minute):
 
-2. **Run comprehensive Linux build test** (30 minutes):
    ```bash
-   docker run --rm -v ${PWD}:/app -w /app node:20 bash -c "
-     echo '=== npm ci ===' && \
-     npm ci && \
-     echo '=== typecheck ===' && \
-     npm run typecheck && \
-     echo '=== build ===' && \
-     npm run build && \
-     echo '=== test ===' && \
-     npm test
-   "
+   wsl node -v  # Check if installed
+   wsl npm -v
+
+   # If not installed:
+   wsl
+   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+   sudo apt-get install -y nodejs
+   exit
+   ```
+
+2. **Run WSL2 build test** (5-10 minutes):
+
+   ```bash
+   # Start WSL2
+   wsl
+
+   # Navigate to project
+   cd /mnt/c/dev/Updog_restore
+
+   # Set CI flag (disables sidecar)
+   export CI=true
+
+   # Clean install
+   npm ci
+
+   # Full validation
+   time (npm run typecheck && npm run build && npm test)
+
+   # Exit WSL2
+   exit
    ```
 
 3. **Document results** in this file
 
-4. **If fails**: Investigate sidecar compatibility issues (1-2 days)
+4. **Alternative: GitHub Actions test** (create workflow and run manually)
 
-**Timeline**: 30 minutes (if Docker works) to 2-3 days (if issues found)
+**Timeline**: 5-10 minutes (WSL2) or 3-5 minutes (GitHub Actions)
+
+**Why Not Docker?**: User reported "consistently had trouble with Docker on
+Windows" - WSL2 avoids this issue entirely
 
 ---
 
@@ -260,6 +301,7 @@ Error: "The system cannot find the file specified"
 **Workflow Count**: 54 workflows (verified via directory listing)
 
 **Notable Workflows**:
+
 ```
 ci-unified.yml - 683 lines (primary orchestrator)
 ci-optimized.yml - 365 lines (BROKEN - git merge conflicts)
@@ -269,6 +311,7 @@ performance-gates.yml - Bundle size and latency checks
 ```
 
 **Git Log Evidence of Issues**:
+
 ```
 * 9a49463 test: Verify automated review system
 * 0c50d48 feat: Automate AGENTS.md review system in git hooks
@@ -277,15 +320,15 @@ performance-gates.yml - Bundle size and latency checks
 
 **Consolidation Opportunity**:
 
-| Category | Count | Consolidation Target |
-|----------|-------|---------------------|
-| CI/Testing | ~15 | → 3-4 workflows |
-| Security | ~4 | → 1-2 workflows |
-| Performance | ~6 | → 1-2 workflows |
-| Deployment | ~5 | → 3 workflows |
-| Monitoring | ~8 | → 2-3 workflows |
-| Miscellaneous | ~16 | → Archive most |
-| **TOTAL** | **54** | **→ 20-25 workflows** |
+| Category      | Count  | Consolidation Target  |
+| ------------- | ------ | --------------------- |
+| CI/Testing    | ~15    | → 3-4 workflows       |
+| Security      | ~4     | → 1-2 workflows       |
+| Performance   | ~6     | → 1-2 workflows       |
+| Deployment    | ~5     | → 3 workflows         |
+| Monitoring    | ~8     | → 2-3 workflows       |
+| Miscellaneous | ~16    | → Archive most        |
+| **TOTAL**     | **54** | **→ 20-25 workflows** |
 
 **Assessment**: ✅ Significant consolidation opportunity confirmed
 
@@ -297,24 +340,24 @@ performance-gates.yml - Bundle size and latency checks
 
 ### Document's Proposed Timeline: 4-6 Weeks
 
-| Phase | Proposed Duration | Assumptions |
-|-------|------------------|-------------|
-| Phase 0: Quick Wins | 1 week | PRs merge immediately, no conflicts |
-| Phase 1: Dual Ratchet | 1-2 weeks | CI integration trivial |
-| Phase 2: Security | 1 week | Tools work out-of-box |
-| Phase 3: Foundation | 1-2 weeks | External review fast |
-| **TOTAL** | **4-6 weeks** | All assumptions hold |
+| Phase                 | Proposed Duration | Assumptions                         |
+| --------------------- | ----------------- | ----------------------------------- |
+| Phase 0: Quick Wins   | 1 week            | PRs merge immediately, no conflicts |
+| Phase 1: Dual Ratchet | 1-2 weeks         | CI integration trivial              |
+| Phase 2: Security     | 1 week            | Tools work out-of-box               |
+| Phase 3: Foundation   | 1-2 weeks         | External review fast                |
+| **TOTAL**             | **4-6 weeks**     | All assumptions hold                |
 
 ### Realistic Timeline: 8-11 Weeks
 
-| Phase | Realistic Duration | Reality |
-|-------|-------------------|---------|
-| **Phase -1: Verification** | **1 week** | **Missing from proposal** |
-| Phase 0: Integration | 2 weeks | Build CLI, resolve conflicts |
-| Phase 1: Dual Ratchet | 2-3 weeks | CI integration complex |
-| Phase 2: Security | 1-2 weeks | Tool tuning needed |
-| Phase 3: Foundation | 2-3 weeks | External review + fixtures |
-| **TOTAL** | **8-11 weeks** | With realistic buffers |
+| Phase                      | Realistic Duration | Reality                      |
+| -------------------------- | ------------------ | ---------------------------- |
+| **Phase -1: Verification** | **1 week**         | **Missing from proposal**    |
+| Phase 0: Integration       | 2 weeks            | Build CLI, resolve conflicts |
+| Phase 1: Dual Ratchet      | 2-3 weeks          | CI integration complex       |
+| Phase 2: Security          | 1-2 weeks          | Tool tuning needed           |
+| Phase 3: Foundation        | 2-3 weeks          | External review + fixtures   |
+| **TOTAL**                  | **8-11 weeks**     | With realistic buffers       |
 
 **Why the Difference**:
 
@@ -344,15 +387,18 @@ performance-gates.yml - Bundle size and latency checks
 ### Gap 1: No Stakeholder Approval Process
 
 **Document Assumption**:
+
 > "Merge PR #162 and #159 immediately (Day 1)"
 
 **Reality**:
+
 - No review process mentioned
 - No approval gates
 - No conflict resolution time
 - No integration testing
 
 **Required Process**:
+
 1. PR review (2-4 hours per PR)
 2. Address feedback (variable)
 3. Stakeholder approval (if required)
@@ -367,14 +413,17 @@ performance-gates.yml - Bundle size and latency checks
 ### Gap 2: Parity CLI Implementation
 
 **Document Assumption**:
+
 > "PR #159 substantially implements parity infrastructure"
 
 **Reality**:
+
 - Validator class: ✅ Complete (60% of work)
 - CLI scripts: ❌ Missing (40% of work)
 - npm integration: ❌ Missing
 
 **Required Work**:
+
 ```javascript
 // scripts/parity-generate.mjs (NEW FILE - 8-10 hours)
 - Load fund configuration from various sources
@@ -400,14 +449,17 @@ performance-gates.yml - Bundle size and latency checks
 ### Gap 3: Docker Validation Not Performed
 
 **Document Claim**:
+
 > "30-minute Docker build test validates Linux compatibility"
 
 **Reality**:
+
 - Docker daemon not running during verification
 - No actual build test performed
 - Sidecar risk dismissed based on keyword search only
 
 **Required Test**:
+
 ```bash
 # Full validation (30 minutes):
 1. Start Docker Desktop
@@ -430,6 +482,7 @@ performance-gates.yml - Bundle size and latency checks
 **Document Omission**: No rollback strategy if merged work breaks main
 
 **Required**:
+
 ```markdown
 ## Rollback Plan
 
@@ -459,12 +512,14 @@ performance-gates.yml - Bundle size and latency checks
 **Must complete before Phase 0:**
 
 #### Day 1-2: PR Review & Approval
+
 - [ ] Review PR #162 code and tests
 - [ ] Review PR #159 code and tests
 - [ ] Address reviewer feedback
 - [ ] Get stakeholder sign-off (if required)
 
 #### Day 3: Conflict Resolution
+
 - [ ] Sync feat/typescript-baseline-system with main
   ```bash
   git checkout feat/typescript-baseline-system
@@ -476,18 +531,21 @@ performance-gates.yml - Bundle size and latency checks
 - [ ] Update PR if needed
 
 #### Day 4-5: Build Parity CLI (Critical Path)
+
 - [ ] Implement scripts/parity-generate.mjs (8-10 hours)
 - [ ] Implement scripts/parity-compare.mjs (4-6 hours)
 - [ ] Add npm scripts to package.json
 - [ ] Test end-to-end locally
 
 #### Day 5: Docker Validation
+
 - [ ] Start Docker Desktop
 - [ ] Run comprehensive Linux build test (30 min)
 - [ ] Document results in this file
 - [ ] If issues: Debug sidecar (add 1-2 days)
 
 **Exit Criteria**:
+
 - ✅ Both PRs approved
 - ✅ All conflicts resolved
 - ✅ Parity CLI working locally
@@ -499,12 +557,14 @@ performance-gates.yml - Bundle size and latency checks
 ### Revised Phase 0: Integration (2 Weeks, Not 1)
 
 **Week 1: Merge & Monitor**
+
 - [ ] Merge PR #162 with monitoring period
 - [ ] Merge PR #159 (after CLI complete)
 - [ ] Monitor for 2-3 days before enforcement
 - [ ] Fix any integration issues
 
 **Week 2: Consolidation**
+
 - [ ] Audit 54 workflows (parallel task)
 - [ ] Create consolidation plan
 - [ ] Archive redundant workflows
@@ -515,6 +575,7 @@ performance-gates.yml - Bundle size and latency checks
 ## Success Criteria
 
 ### Phase -1 (Verification)
+
 - [ ] PRs reviewed and approved
 - [ ] Conflicts resolved
 - [ ] Parity CLI implemented and tested
@@ -522,17 +583,20 @@ performance-gates.yml - Bundle size and latency checks
 - [ ] Rollback plan documented
 
 ### Phase 0 (Integration)
+
 - [ ] Both PRs merged to main
 - [ ] No regressions detected
 - [ ] Workflows consolidated (54 → 20-25)
 - [ ] CI pipeline stable
 
 ### Phase 1 (Dual Ratchet)
+
 - [ ] TypeScript baseline blocking new errors
 - [ ] Parity tests blocking calculation drift
 - [ ] Developer documentation complete
 
 ### Overall
+
 - [ ] Zero new TypeScript errors
 - [ ] Zero calculation drift
 - [ ] Zero security vulnerabilities
@@ -564,6 +628,7 @@ performance-gates.yml - Bundle size and latency checks
 ### Revised Overall Score: 7.5/10
 
 **Rationale**:
+
 - Strategic vision is excellent
 - PRs do exist (major validation win)
 - Foundation is substantial (60-70% complete)
@@ -653,6 +718,5 @@ docker run --rm -v ${PWD}:/app -w /app node:20 bash -c "
 
 ---
 
-**Last Updated**: October 16, 2025
-**Status**: Verification Phase Complete
+**Last Updated**: October 16, 2025 **Status**: Verification Phase Complete
 **Next Phase**: Phase -1 (PR Review & CLI Implementation)
