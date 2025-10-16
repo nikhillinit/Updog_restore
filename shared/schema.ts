@@ -1625,3 +1625,48 @@ export const insertReallocationAuditSchema = createInsertSchema(reallocationAudi
 
 export type ReallocationAudit = typeof reallocationAudit.$inferSelect;
 export type InsertReallocationAudit = typeof reallocationAudit.$inferInsert;
+
+// ============================================================================
+// AI PROPOSAL WORKFLOW (Multi-Agent Iteration)
+// ============================================================================
+
+// Proposal workflows - Track multi-agent proposal generation
+export const proposalWorkflows = pgTable("proposal_workflows", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  // Input
+  topic: text("topic").notNull(),
+  complexity: text("complexity").notNull(), // 'simple', 'standard', 'complex', 'critical'
+
+  // Idempotency
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+
+  // Outputs
+  initialProposal: text("initial_proposal"), // First draft
+  finalProposal: text("final_proposal"), // Final converged proposal
+
+  // Metrics
+  iterationCount: integer("iteration_count").notNull().default(0),
+  converged: boolean("converged").default(false),
+  convergenceScore: decimal("convergence_score", { precision: 5, scale: 4 }),
+  totalCostUsd: decimal("total_cost_usd", { precision: 10, scale: 4 }),
+  elapsedMs: integer("elapsed_ms"),
+
+  // User context
+  userId: integer("user_id").references(() => users.id),
+  metadata: text("metadata"), // JSON string with additional metadata
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table: any) => ({
+  userIdx: index("idx_proposal_workflows_user")['on'](table.userId, table.createdAt.desc()),
+  complexityIdx: index("idx_proposal_workflows_complexity")['on'](table.complexity, table.createdAt.desc()),
+  idempotencyIdx: uniqueIndex("idx_proposal_workflows_idempotency")['on'](table.idempotencyKey),
+}));
+
+export const insertProposalWorkflowSchema = createInsertSchema(proposalWorkflows).omit({
+  id: true,
+  createdAt: true
+});
+
+export type ProposalWorkflow = typeof proposalWorkflows.$inferSelect;
+export type InsertProposalWorkflow = typeof proposalWorkflows.$inferInsert;
