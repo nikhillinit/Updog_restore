@@ -2,6 +2,9 @@
 
 echo "🔍 Pre-push validation..."
 
+# AGENTS.md daily review (automated, only shows if activity detected)
+node scripts/agents-daily-review.mjs 2>/dev/null || true
+
 # TypeScript baseline check
 echo "📋 Checking TypeScript baseline..."
 npm run baseline:check || {
