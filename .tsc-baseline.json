@@ -58,7 +58,7 @@
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
       "total": 53,
-      "lastUpdated": "2025-10-16T07:55:55.881Z"
+      "lastUpdated": "2025-10-16T08:23:08.917Z"
     },
     "server": {
       "errors": [
@@ -440,14 +440,14 @@
         "server/websocket/dev-dashboard.ts:TS2532:de791f79"
       ],
       "total": 376,
-      "lastUpdated": "2025-10-16T07:55:55.881Z"
+      "lastUpdated": "2025-10-16T08:23:08.917Z"
     },
     "shared": {
       "errors": [
         "shared/variance-validation.ts:TS4111:236f2efb"
       ],
       "total": 1,
-      "lastUpdated": "2025-10-16T07:55:55.881Z"
+      "lastUpdated": "2025-10-16T08:23:08.917Z"
     },
     "unknown": {
       "errors": [
@@ -458,17 +458,15 @@
         "vite.config.ts:TS4111:da8f2a75",
         "vite.config.ts:TS7006:118fabe7",
         "vite.config.ts:TS7006:2e94b76d",
-        "vite.config.ts:TS7006:3c74f88a",
-        "vite.config.ts:TS7006:6bf7ca4c",
-        "vite.config.ts:TS7031:3c74f88a",
+        "vite.config.ts:TS7031:65f5d6a1",
         "vite.config.ts:TS7031:6f06ec55"
       ],
-      "total": 11,
-      "lastUpdated": "2025-10-16T07:55:55.881Z"
+      "total": 9,
+      "lastUpdated": "2025-10-16T08:23:08.917Z"
     }
   },
-  "totalErrors": 441,
-  "timestamp": "2025-10-16T07:55:55.881Z",
+  "totalErrors": 439,
+  "timestamp": "2025-10-16T08:23:08.917Z",
   "buildMode": "per-project",
-  "elapsedMs": 68820
+  "elapsedMs": 21875
 }

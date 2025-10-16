@@ -1,14 +1,14 @@
 /// <reference types="vite/client" />
-import { defineConfig, type Plugin } from 'vite';
-import react from '@vitejs/plugin-react';
 import preact from '@preact/preset-vite';
-import path from 'path';
+import react from '@vitejs/plugin-react';
+import { execSync } from 'child_process';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
+import path from 'path';
 import { visualizer } from 'rollup-plugin-visualizer';
+import { fileURLToPath } from 'url';
+import { defineConfig, type Plugin } from 'vite';
 import virtual from 'vite-plugin-virtual';
 import tsconfigPaths from 'vite-tsconfig-paths';
-import { execSync } from 'child_process';
 
 // Comprehensive winston mock
 const winstonMock = `
@@ -208,7 +208,7 @@ const preactAliases = [
   { find: 'react/jsx-dev-runtime', replacement: 'preact/jsx-dev-runtime' },
 ];
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode }: { mode: string }) => {
   const usePreact = 
     process.env.BUILD_WITH_PREACT === '1' || 
     process.env.BUILD_WITH_PREACT === 'true' || 
@@ -273,7 +273,7 @@ export default defineConfig(({ mode }) => {
         gzipSize: true,
         brotliSize: true,
         open: false
-      })
+      }),
     ].filter(Boolean) as Plugin[],
   esbuild: {
     legalComments: 'none', // Remove all legal comments
@@ -321,7 +321,7 @@ export default defineConfig(({ mode }) => {
     manifest: true, // Generate manifest for bundle analysis
     modulePreload: {
       // Only preload critical modules, not charts
-      resolveDependencies: (filename, deps, { hostId, hostType }) => {
+      resolveDependencies: (_filename: string, deps: string[], { hostId: _hostId, hostType: _hostType }) => {
         return deps.filter(dep => !dep.includes('vendor-charts') && !dep.includes('vendor-nivo'));
       }
     },
