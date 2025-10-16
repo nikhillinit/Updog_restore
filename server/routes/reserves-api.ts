@@ -236,15 +236,15 @@ const reserveEngine = new ServerReserveEngine();
 const router = Router();
 
 // Apply middleware
-router.use(requestId);
-router.use(requireAuth()); // Require authentication for all routes
-router.use(reserveCalculationLimiter);
+router["use"](requestId);
+router["use"](requireAuth()); // Require authentication for all routes
+router["use"](reserveCalculationLimiter);
 
 /**
  * POST /api/reserves/calculate
  * Calculate optimal reserve allocation
  */
-router.post('/calculate', 
+router["post"]('/calculate', 
   async (req: Request & { user?: any; approval?: any }, res: Response, next: NextFunction) => {
     const startTime = Date.now();
     const correlationId = (req as any).id;
@@ -289,7 +289,7 @@ router.post('/calculate',
         });
 
         if (!verification.ok) {
-          return res.status(403).json({
+          return res["status"](403)["json"]({
             error: 'approval_required',
             message: verification.reason,
             approvalId: approvalCheck.approvalId,
@@ -345,7 +345,7 @@ router.post('/calculate',
         totalAllocated: result.inputSummary.totalAllocated,
       });
 
-      res.json({
+      res["json"]({
         success: true,
         data: result,
         metadata: {
@@ -394,7 +394,7 @@ router.post('/calculate',
  * POST /api/reserves/validate-parity
  * Validate Excel parity
  */
-router.post('/validate-parity',
+router["post"]('/validate-parity',
   async (req: Request, res: Response, next: NextFunction) => {
     const startTime = Date.now();
     const correlationId = (req as any).id;
@@ -462,7 +462,7 @@ router.post('/validate-parity',
         maxDrift: mockParityResult.overallParity.maxDrift,
       });
 
-      res.json({
+      res["json"]({
         success: true,
         data: mockParityResult,
         metadata: {
@@ -492,7 +492,7 @@ router.post('/validate-parity',
  * Health check endpoint
  */
 router['get']('/health', (req: Request, res: Response) => {
-  res.json({
+  res["json"]({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
@@ -505,7 +505,7 @@ router['get']('/health', (req: Request, res: Response) => {
  * Get configuration and limits
  */
 router['get']('/config', (req: Request, res: Response) => {
-  res.json({
+  res["json"]({
     rateLimits: {
       calculation: {
         windowMs: 15 * 60 * 1000,
@@ -530,7 +530,7 @@ router['get']('/config', (req: Request, res: Response) => {
 });
 
 // Error handling middleware
-router.use((error: any, req: Request, res: Response, _next: NextFunction) => {
+router["use"]((error: any, req: Request, res: Response, _next: NextFunction) => {
   const correlationId = (req as any).id;
 
   // Handle validation errors
@@ -540,7 +540,7 @@ router.use((error: any, req: Request, res: Response, _next: NextFunction) => {
       errors: error.errors,
     });
 
-    return res.status(400).json({
+    return res["status"](400)["json"]({
       success: false,
       error: 'Validation error',
       details: error.errors,
@@ -557,7 +557,7 @@ router.use((error: any, req: Request, res: Response, _next: NextFunction) => {
       context: error.context,
     });
 
-    return res.status(400).json({
+    return res["status"](400)["json"]({
       success: false,
       error: error.message,
       code: error.code,
@@ -572,7 +572,7 @@ router.use((error: any, req: Request, res: Response, _next: NextFunction) => {
       ip: req.ip,
     });
 
-    return res.status(429).json({
+    return res["status"](429)["json"]({
       success: false,
       error: 'Rate limit exceeded',
       retryAfter: error.retryAfter,
@@ -587,7 +587,7 @@ router.use((error: any, req: Request, res: Response, _next: NextFunction) => {
     stack: error.stack,
   });
 
-  res.status(500).json({
+  res["status"](500)["json"]({
     success: false,
     error: 'Internal server error',
     correlationId,
@@ -598,7 +598,7 @@ router.use((error: any, req: Request, res: Response, _next: NextFunction) => {
  * POST /api/reserves/calculate-protected
  * Protected endpoint that always requires dual approval
  */
-router.post('/calculate-protected',
+router["post"]('/calculate-protected',
   requireApproval({ minApprovals: 2 }),
   heavyCalculationLimiter,
   async (req: Request & { approval?: any }, res: Response, next: NextFunction) => {
@@ -635,7 +635,7 @@ router.post('/calculate-protected',
         approvalId: req.approval.id,
       });
 
-      res.json({
+      res["json"]({
         success: true,
         data: result,
         metadata: {

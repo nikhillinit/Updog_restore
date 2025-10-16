@@ -240,7 +240,7 @@ async function getDevServerMetrics(): Promise<DevHealthMetrics['devServer']> {
 
   return {
     status: 'running',
-    port: parseInt(process.env.PORT || '5000'),
+    port: parseInt(process.env["PORT"] || '5000'),
     memory,
     uptime
   };
@@ -282,7 +282,7 @@ async function getGitMetrics(): Promise<DevHealthMetrics['git']> {
 }
 
 // Main dashboard endpoint
-router.get('/health', async (req: Request, res: Response) => {
+router["get"]('/health', async (req: Request, res: Response) => {
   try {
     const [
       typescript,
@@ -312,13 +312,13 @@ router.get('/health', async (req: Request, res: Response) => {
       git
     };
 
-    res.json({
+    res["json"]({
       timestamp: new Date().toISOString(),
       overall: calculateOverallHealth(metrics),
       metrics
     });
   } catch (error) {
-    res.status(500).json({
+    res["status"](500)["json"]({
       error: 'Failed to gather dev health metrics',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
@@ -326,36 +326,36 @@ router.get('/health', async (req: Request, res: Response) => {
 });
 
 // Quick fix endpoints
-router.post('/fix/typescript', async (req: Request, res: Response) => {
+router["post"]('/fix/typescript', async (req: Request, res: Response) => {
   try {
     await execAsync('npm run check && npm run lint:fix');
-    res.json({ success: true, message: 'TypeScript issues fixed' });
+    res["json"]({ success: true, message: 'TypeScript issues fixed' });
   } catch (error) {
-    res.status(500).json({
+    res["status"](500)["json"]({
       success: false,
       message: error instanceof Error ? error.message : 'Fix failed'
     });
   }
 });
 
-router.post('/fix/tests', async (req: Request, res: Response) => {
+router["post"]('/fix/tests', async (req: Request, res: Response) => {
   try {
     await execAsync('npm run test:quick');
-    res.json({ success: true, message: 'Tests executed' });
+    res["json"]({ success: true, message: 'Tests executed' });
   } catch (error) {
-    res.status(500).json({
+    res["status"](500)["json"]({
       success: false,
       message: error instanceof Error ? error.message : 'Tests failed'
     });
   }
 });
 
-router.post('/fix/build', async (req: Request, res: Response) => {
+router["post"]('/fix/build', async (req: Request, res: Response) => {
   try {
     await execAsync('npm run build:fast');
-    res.json({ success: true, message: 'Build completed' });
+    res["json"]({ success: true, message: 'Build completed' });
   } catch (error) {
-    res.status(500).json({
+    res["status"](500)["json"]({
       success: false,
       message: error instanceof Error ? error.message : 'Build failed'
     });

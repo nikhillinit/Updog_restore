@@ -17,7 +17,7 @@ import { metrics } from '../metrics/index';
 const router = Router();
 
 // POST /api/reserves/calculate
-router.post('/reserves/calculate', idempotency, async (req: Request, res: Response) => {
+router["post"]('/reserves/calculate', idempotency, async (req: Request, res: Response) => {
   const startTime = Date.now();
   
   try {
@@ -26,7 +26,7 @@ router.post('/reserves/calculate', idempotency, async (req: Request, res: Respon
     
     if (!validation.success) {
       metrics.recordReservesError('validation_failed');
-      return res.status(400).json({
+      return res["status"](400)["json"]({
         ok: false,
         error: 'Invalid request',
         details: validation.error.errors
@@ -70,7 +70,7 @@ router.post('/reserves/calculate', idempotency, async (req: Request, res: Respon
       }
     };
     
-    res.json(response);
+    res["json"](response);
     
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -79,7 +79,7 @@ router.post('/reserves/calculate', idempotency, async (req: Request, res: Respon
     
     console.error('Reserves calculation error:', error);
     
-    res.status(500).json({
+    res["status"](500)["json"]({
       ok: false,
       error: 'Internal server error',
       serverMetrics: {
@@ -92,7 +92,7 @@ router.post('/reserves/calculate', idempotency, async (req: Request, res: Respon
 
 // GET /api/reserves/health
 router['get']('/reserves/health', (req: Request, res: Response) => {
-  res.json({
+  res["json"]({
     status: 'healthy',
     version: '1.1.0',
     features: {
@@ -106,12 +106,12 @@ router['get']('/reserves/health', (req: Request, res: Response) => {
 });
 
 // POST /api/reserves/validate
-router.post('/reserves/validate', (req: Request, res: Response) => {
+router["post"]('/reserves/validate', (req: Request, res: Response) => {
   try {
     const inputValidation = ReservesInputSchema.safeParse(req.body.input);
     const configValidation = ReservesConfigSchema.safeParse(req.body.config);
     
-    res.json({
+    res["json"]({
       ok: true,
       input: {
         valid: inputValidation.success,
@@ -123,7 +123,7 @@ router.post('/reserves/validate', (req: Request, res: Response) => {
       }
     });
   } catch (error) {
-    res.status(400).json({
+    res["status"](400)["json"]({
       ok: false,
       error: 'Validation failed'
     });

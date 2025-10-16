@@ -62,7 +62,7 @@ export function getPoolMetrics() {
 // Graceful shutdown
 export async function closePool() {
   try {
-    await pool.end();
+    await pool["end"]();
     logger.info('Database pool closed', { database: dbName });
   } catch (error) {
     logger.error('Error closing database pool', { error, database: dbName });

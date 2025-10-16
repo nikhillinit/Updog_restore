@@ -41,9 +41,8 @@ export function engineGuardExpress() {
     res.json = (body: any) => {
       if (!isFiniteDeep(body)) {
         engineMetrics.nonFinite422.inc?.();
-        return res.status(422)
-          .type("application/problem+json")
-          .send({ 
+        return res["status"](422)
+          .type("application/problem+json")["send"]({ 
             type: "about:blank", 
             title: "Non-finite numeric output", 
             status: 422, 

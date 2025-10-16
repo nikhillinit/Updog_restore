@@ -78,7 +78,7 @@ const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9
  * GET /api/cashflow/:fundId/transactions
  * Retrieve cash transactions for a fund with filtering and pagination
  */
-router.get('/:fundId/transactions', async (req: Request, res: Response) => {
+router["get"]('/:fundId/transactions', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
     const queryParams = TransactionQueryParams.parse(req.query);
@@ -122,7 +122,7 @@ router.get('/:fundId/transactions', async (req: Request, res: Response) => {
       queryParams.offset + queryParams.limit
     );
 
-    res.json({
+    res["json"]({
       success: true,
       data: {
         transactions: paginatedTransactions,
@@ -143,7 +143,7 @@ router.get('/:fundId/transactions', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error fetching transactions:', error);
-    res.status(400).json({
+    res["status"](400)["json"]({
       error: 'Invalid request parameters',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -154,7 +154,7 @@ router.get('/:fundId/transactions', async (req: Request, res: Response) => {
  * POST /api/cashflow/:fundId/transactions
  * Create a new cash transaction
  */
-router.post('/:fundId/transactions', async (req: Request, res: Response) => {
+router["post"]('/:fundId/transactions', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
     const transactionData = CreateTransactionRequest.parse(req.body);
@@ -169,14 +169,14 @@ router.post('/:fundId/transactions', async (req: Request, res: Response) => {
 
     transactions.set(transaction.id, transaction);
 
-    res.status(201).json({
+    res["status"](201)["json"]({
       success: true,
       data: transaction,
       timestamp: new Date(),
     });
   } catch (error) {
     console.error('Error creating transaction:', error);
-    res.status(400).json({
+    res["status"](400)["json"]({
       error: 'Invalid transaction data',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -187,7 +187,7 @@ router.post('/:fundId/transactions', async (req: Request, res: Response) => {
  * PUT /api/cashflow/:fundId/transactions/:transactionId
  * Update an existing transaction
  */
-router.put('/:fundId/transactions/:transactionId', async (req: Request, res: Response) => {
+router["put"]('/:fundId/transactions/:transactionId', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
     const { transactionId } = z.object({ transactionId: z.string() }).parse(req.params);
@@ -195,7 +195,7 @@ router.put('/:fundId/transactions/:transactionId', async (req: Request, res: Res
 
     const existingTransaction = transactions.get(transactionId);
     if (!existingTransaction || existingTransaction.fundId !== fundId) {
-      return res.status(404).json({
+      return res["status"](404)["json"]({
         error: 'Transaction not found',
         message: 'Transaction does not exist or does not belong to this fund',
       });
@@ -209,14 +209,14 @@ router.put('/:fundId/transactions/:transactionId', async (req: Request, res: Res
 
     transactions.set(transactionId, updatedTransaction);
 
-    res.json({
+    res["json"]({
       success: true,
       data: updatedTransaction,
       timestamp: new Date(),
     });
   } catch (error) {
     console.error('Error updating transaction:', error);
-    res.status(400).json({
+    res["status"](400)["json"]({
       error: 'Invalid update data',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -227,14 +227,14 @@ router.put('/:fundId/transactions/:transactionId', async (req: Request, res: Res
  * DELETE /api/cashflow/:fundId/transactions/:transactionId
  * Delete a transaction
  */
-router.delete('/:fundId/transactions/:transactionId', async (req: Request, res: Response) => {
+router["delete"]('/:fundId/transactions/:transactionId', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
     const { transactionId } = z.object({ transactionId: z.string() }).parse(req.params);
 
     const existingTransaction = transactions.get(transactionId);
     if (!existingTransaction || existingTransaction.fundId !== fundId) {
-      return res.status(404).json({
+      return res["status"](404)["json"]({
         error: 'Transaction not found',
         message: 'Transaction does not exist or does not belong to this fund',
       });
@@ -242,14 +242,14 @@ router.delete('/:fundId/transactions/:transactionId', async (req: Request, res: 
 
     transactions.delete(transactionId);
 
-    res.json({
+    res["json"]({
       success: true,
       message: 'Transaction deleted successfully',
       timestamp: new Date(),
     });
   } catch (error) {
     console.error('Error deleting transaction:', error);
-    res.status(400).json({
+    res["status"](400)["json"]({
       error: 'Invalid request',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -264,7 +264,7 @@ router.delete('/:fundId/transactions/:transactionId', async (req: Request, res: 
  * GET /api/cashflow/:fundId/capital-calls
  * Retrieve capital calls for a fund
  */
-router.get('/:fundId/capital-calls', async (req: Request, res: Response) => {
+router["get"]('/:fundId/capital-calls', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
 
@@ -272,7 +272,7 @@ router.get('/:fundId/capital-calls', async (req: Request, res: Response) => {
       .filter(cc => cc.fundId === fundId)
       .sort((a, b) => new Date(b.noticeDate).getTime() - new Date(a.noticeDate).getTime());
 
-    res.json({
+    res["json"]({
       success: true,
       data: {
         capitalCalls: fundCapitalCalls,
@@ -288,7 +288,7 @@ router.get('/:fundId/capital-calls', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error fetching capital calls:', error);
-    res.status(400).json({
+    res["status"](400)["json"]({
       error: 'Invalid request parameters',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -299,7 +299,7 @@ router.get('/:fundId/capital-calls', async (req: Request, res: Response) => {
  * POST /api/cashflow/:fundId/capital-calls
  * Create a new capital call
  */
-router.post('/:fundId/capital-calls', async (req: Request, res: Response) => {
+router["post"]('/:fundId/capital-calls', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
     const capitalCallData = CreateCapitalCallRequest.parse(req.body);
@@ -314,14 +314,14 @@ router.post('/:fundId/capital-calls', async (req: Request, res: Response) => {
 
     capitalCalls.set(capitalCall.id, capitalCall);
 
-    res.status(201).json({
+    res["status"](201)["json"]({
       success: true,
       data: capitalCall,
       timestamp: new Date(),
     });
   } catch (error) {
     console.error('Error creating capital call:', error);
-    res.status(400).json({
+    res["status"](400)["json"]({
       error: 'Invalid capital call data',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -336,7 +336,7 @@ router.post('/:fundId/capital-calls', async (req: Request, res: Response) => {
  * GET /api/cashflow/:fundId/liquidity-forecast
  * Generate liquidity forecast for a fund
  */
-router.get('/:fundId/liquidity-forecast', async (req: Request, res: Response) => {
+router["get"]('/:fundId/liquidity-forecast', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
     const { months = 12 } = z.object({
@@ -418,14 +418,14 @@ router.get('/:fundId/liquidity-forecast', async (req: Request, res: Response) =>
       lastUpdated: new Date(),
     };
 
-    res.json({
+    res["json"]({
       success: true,
       data: forecast,
       timestamp: new Date(),
     });
   } catch (error) {
     console.error('Error generating liquidity forecast:', error);
-    res.status(400).json({
+    res["status"](400)["json"]({
       error: 'Invalid request parameters',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -436,7 +436,7 @@ router.get('/:fundId/liquidity-forecast', async (req: Request, res: Response) =>
  * GET /api/cashflow/:fundId/cash-position
  * Get current cash position for a fund
  */
-router.get('/:fundId/cash-position', async (req: Request, res: Response) => {
+router["get"]('/:fundId/cash-position', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
 
@@ -471,7 +471,7 @@ router.get('/:fundId/cash-position', async (req: Request, res: Response) => {
     const upcomingOutflows = 5000000; // Next 3 months
     const metrics = calculateLiquidityMetrics(position, upcomingOutflows);
 
-    res.json({
+    res["json"]({
       success: true,
       data: {
         position,
@@ -495,7 +495,7 @@ router.get('/:fundId/cash-position', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error fetching cash position:', error);
-    res.status(400).json({
+    res["status"](400)["json"]({
       error: 'Invalid request parameters',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -510,7 +510,7 @@ router.get('/:fundId/cash-position', async (req: Request, res: Response) => {
  * GET /api/cashflow/:fundId/recurring-expenses
  * Get recurring expenses for a fund
  */
-router.get('/:fundId/recurring-expenses', async (req: Request, res: Response) => {
+router["get"]('/:fundId/recurring-expenses', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
 
@@ -524,7 +524,7 @@ router.get('/:fundId/recurring-expenses', async (req: Request, res: Response) =>
       return sum + (expense.amount * multiplier);
     }, 0);
 
-    res.json({
+    res["json"]({
       success: true,
       data: {
         expenses: fundExpenses,
@@ -541,7 +541,7 @@ router.get('/:fundId/recurring-expenses', async (req: Request, res: Response) =>
     });
   } catch (error) {
     console.error('Error fetching recurring expenses:', error);
-    res.status(400).json({
+    res["status"](400)["json"]({
       error: 'Invalid request parameters',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -552,7 +552,7 @@ router.get('/:fundId/recurring-expenses', async (req: Request, res: Response) =>
  * POST /api/cashflow/:fundId/recurring-expenses
  * Create a new recurring expense
  */
-router.post('/:fundId/recurring-expenses', async (req: Request, res: Response) => {
+router["post"]('/:fundId/recurring-expenses', async (req: Request, res: Response) => {
   try {
     const { fundId } = FundIdParams.parse(req.params);
     const expenseData = CreateRecurringExpenseRequest.parse(req.body);
@@ -566,14 +566,14 @@ router.post('/:fundId/recurring-expenses', async (req: Request, res: Response) =
 
     recurringExpenses.set(expense.id, expense);
 
-    res.status(201).json({
+    res["status"](201)["json"]({
       success: true,
       data: expense,
       timestamp: new Date(),
     });
   } catch (error) {
     console.error('Error creating recurring expense:', error);
-    res.status(400).json({
+    res["status"](400)["json"]({
       error: 'Invalid expense data',
       message: error instanceof Error ? error.message : 'Unknown error',
     });

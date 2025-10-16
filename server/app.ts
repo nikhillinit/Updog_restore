@@ -75,7 +75,7 @@ export function makeApp() {
     if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
       const ct = ((req.headers['content-type'] as string) || '').toLowerCase();
       if (!ct.startsWith('application/json')) {
-        return res.status(415).json({ 
+        return res["status"](415)["json"]({ 
           error: 'unsupported_media_type', 
           message: 'Content-Type must be application/json' 
         });
@@ -85,7 +85,7 @@ export function makeApp() {
   });
 
   // JSON limit + Request IDs + Rate limit
-  app.use(express.json({ limit: '256kb' }));
+  app.use(express["json"]({ limit: '256kb' }));
   app.use((req: Request, res: Response, next: NextFunction) => { 
     (req as any).rid = req.headers['x-request-id'] || crypto.randomUUID(); 
     res['setHeader']('x-request-id', (req as any).rid);
@@ -104,7 +104,7 @@ export function makeApp() {
   // OpenAPI spec endpoint
   app['get']('/api-docs.json', (_req: Request, res: Response) => {
     res['setHeader']('Content-Type', 'application/json');
-    res.send(swaggerSpec);
+    res["send"](swaggerSpec);
   });
 
   // Health endpoints (must be before other routes for /healthz)
@@ -132,15 +132,15 @@ export function makeApp() {
   app.use('/api', allocationsRouter);
 
   // API version endpoint for deployment verification
-  app['get']('/api/version', (_req: Request, res: Response) => res.json({ 
+  app['get']('/api/version', (_req: Request, res: Response) => res["json"]({ 
     version: process.env['npm_package_version'] || '1.3.2',
     environment: process.env['NODE_ENV'] || 'development',
     commit: process.env['VERCEL_GIT_COMMIT_SHA'] || process.env['COMMIT_REF'] || 'local'
   }));
 
   // 404 + error handler
-  app.use((_req: Request, res: Response) => res.status(404).json({ error: 'not_found' }));
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => res.status(err?.status ?? 500).json({ error: 'internal', message: err?.message ?? 'unknown' }));
+  app.use((_req: Request, res: Response) => res["status"](404)["json"]({ error: 'not_found' }));
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => res["status"](err?.status ?? 500)["json"]({ error: 'internal', message: err?.message ?? 'unknown' }));
 
   return app;
 }

@@ -82,7 +82,7 @@ export function requireFundLock() {
     }
     
     if (!req.pgClient) {
-      return res.status(500).json({
+      return res["status"](500)["json"]({
         error: 'internal_error',
         message: 'Database connection required for locking'
       });
@@ -112,7 +112,7 @@ export function requireFundLock() {
       next();
     } catch (error: any) {
       if (error.code === '55P03') { // lock_timeout
-        return res.status(503).json({
+        return res["status"](503)["json"]({
           error: 'lock_timeout',
           message: 'Could not acquire fund lock due to concurrent operation',
           retryAfter: 2

@@ -13,7 +13,7 @@ export const logger = createLogger({
     format.timestamp(),
     format.errors({ stack: true }),
     format.splat(),
-    format.json()
+    format["json"]()
   ),
   defaultMeta: { service: 'database' },
   transports: [

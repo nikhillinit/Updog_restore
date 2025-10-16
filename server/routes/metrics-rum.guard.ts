@@ -28,7 +28,7 @@ export function rumOriginGuard(req: Request, res: Response, next: NextFunction) 
   
   if (!ok) {
     console.warn(`RUM origin blocked: ${origin || referer}`);
-    return res.status(403).json({ error: 'forbidden_origin' });
+    return res["status"](403)["json"]({ error: 'forbidden_origin' });
   }
   
   next();
@@ -49,7 +49,7 @@ export function rumSamplingGuard(req: Request, res: Response, next: NextFunction
   }
   
   // Return 204 for non-sampled requests
-  res.status(204).end();
+  res["status"](204)["end"]();
 }
 
 /**

@@ -299,19 +299,19 @@ async function getFundSize(fundId: number): Promise<number> {
  *
  * @returns ReallocationPreviewResponse with deltas, warnings, and validation
  */
-router.post(
+router["post"](
   '/api/funds/:fundId/reallocation/preview',
   async (req: Request, res: Response) => {
     try {
       const fundId = parseInt(req.params.fundId, 10);
       if (isNaN(fundId) || fundId <= 0) {
-        return res.status(400).json({ error: 'Invalid fund ID' });
+        return res["status"](400)["json"]({ error: 'Invalid fund ID' });
       }
 
       // Validate request body
       const parseResult = ReallocationPreviewRequestSchema.safeParse(req.body);
       if (!parseResult.success) {
-        return res.status(400).json({
+        return res["status"](400)["json"]({
           error: 'Invalid request body',
           details: parseResult.error.format(),
         });
@@ -322,7 +322,7 @@ router.post(
       // Fetch current allocations
       const currentAllocations = await fetchCurrentAllocations(fundId);
       if (currentAllocations.length === 0) {
-        return res.status(404).json({ error: 'Fund has no portfolio companies' });
+        return res["status"](404)["json"]({ error: 'Fund has no portfolio companies' });
       }
 
       // Verify version consistency
@@ -331,7 +331,7 @@ router.post(
         current_version
       );
       if (!consistent) {
-        return res.status(409).json({
+        return res["status"](409)["json"]({
           error: 'Version conflict',
           message: `Expected version ${current_version}, but found ${actualVersions.join(', ')}`,
           current_versions: actualVersions,
@@ -376,10 +376,10 @@ router.post(
         },
       };
 
-      return res.status(200).json(response);
+      return res["status"](200)["json"](response);
     } catch (error) {
       console.error('[Reallocation Preview] Error:', error);
-      return res.status(500).json({
+      return res["status"](500)["json"]({
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -401,19 +401,19 @@ router.post(
  *
  * @returns ReallocationCommitResponse with success status, new version, and audit ID
  */
-router.post(
+router["post"](
   '/api/funds/:fundId/reallocation/commit',
   async (req: Request, res: Response) => {
     try {
       const fundId = parseInt(req.params.fundId, 10);
       if (isNaN(fundId) || fundId <= 0) {
-        return res.status(400).json({ error: 'Invalid fund ID' });
+        return res["status"](400)["json"]({ error: 'Invalid fund ID' });
       }
 
       // Validate request body
       const parseResult = ReallocationCommitRequestSchema.safeParse(req.body);
       if (!parseResult.success) {
-        return res.status(400).json({
+        return res["status"](400)["json"]({
           error: 'Invalid request body',
           details: parseResult.error.format(),
         });
@@ -576,13 +576,13 @@ router.post(
         timestamp: new Date().toISOString(),
       };
 
-      return res.status(200).json(response);
+      return res["status"](200)["json"](response);
     } catch (error) {
       console.error('[Reallocation Commit] Error:', error);
 
       // Check for version conflict
       if (error instanceof Error && error.message.includes('Version conflict')) {
-        return res.status(409).json({
+        return res["status"](409)["json"]({
           error: 'Version conflict',
           message: error.message,
         });
@@ -590,13 +590,13 @@ router.post(
 
       // Check for validation errors
       if (error instanceof Error && error.message.includes('Validation failed')) {
-        return res.status(400).json({
+        return res["status"](400)["json"]({
           error: 'Validation failed',
           message: error.message,
         });
       }
 
-      return res.status(500).json({
+      return res["status"](500)["json"]({
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
       });

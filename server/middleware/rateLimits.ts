@@ -105,7 +105,7 @@ function createRateLimiter(
     },
     skip: (req: Request) => {
       // Allow bypass for internal health checks with valid key
-      const healthKey = process.env.HEALTH_KEY;
+      const healthKey = process.env["HEALTH_KEY"];
       if (healthKey && req['get']('X-Health-Key') === healthKey) {
         return true;
       }
@@ -242,7 +242,7 @@ export function costBasedRateLimit(getCost: (_req: Request) => number) {
     
     if (!allowed) {
       res['setHeader']('Retry-After', '3600'); // 1 hour
-      return res.status(429).json({
+      return res["status"](429)["json"]({
         error: 'Rate limit exceeded',
         message: `Operation cost (${cost}) exceeds remaining quota (${remaining})`,
         remaining,

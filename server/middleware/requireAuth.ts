@@ -40,7 +40,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
   // Option 2: API key auth (temporary for testing)
   const apiKey = req.headers['x-api-key'] as string;
-  if (apiKey && process.env.API_KEY && apiKey === process.env.API_KEY) {
+  if (apiKey && process.env["API_KEY"] && apiKey === process.env["API_KEY"]) {
     // Mock user for API key auth
     authReq.user = {
       id: 'api-key-user',
@@ -51,7 +51,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   }
 
   // No authentication found
-  res.status(401).json({
+  res["status"](401)["json"]({
     error: 'Unauthorized',
     message: 'Authentication required. Please provide valid credentials.',
   });
@@ -67,7 +67,7 @@ export function requireFundAccess(req: Request, res: Response, next: NextFunctio
   const fundIdParam = req.params.fundId;
 
   if (!fundIdParam) {
-    return res.status(400).json({
+    return res["status"](400)["json"]({
       error: 'Bad Request',
       message: 'Fund ID is required',
     });
@@ -76,7 +76,7 @@ export function requireFundAccess(req: Request, res: Response, next: NextFunctio
   const fundId = parseInt(fundIdParam, 10);
 
   if (isNaN(fundId)) {
-    return res.status(400).json({
+    return res["status"](400)["json"]({
       error: 'Bad Request',
       message: 'Invalid fund ID',
     });
@@ -96,7 +96,7 @@ export function requireFundAccess(req: Request, res: Response, next: NextFunctio
   }
 
   // User doesn't have access to this fund
-  res.status(403).json({
+  res["status"](403)["json"]({
     error: 'Forbidden',
     message: `You do not have access to fund ${fundId}`,
   });
@@ -120,7 +120,7 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
     return next();
   }
 
-  res.status(403).json({
+  res["status"](403)["json"]({
     error: 'Forbidden',
     message: 'Admin access required',
   });
