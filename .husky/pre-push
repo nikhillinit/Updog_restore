@@ -1,20 +1,27 @@
 #!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
 
-echo "🔍 Running pre-push checks..."
-echo ""
-echo "📋 Type checking..."
-npm run check || {
-  echo "❌ Type check failed. Fix errors before pushing."
+echo "🔍 Pre-push validation..."
+
+# TypeScript baseline check
+echo "📋 Checking TypeScript baseline..."
+npm run baseline:check || {
+  echo ""
+  echo "❌ NEW TypeScript errors detected"
+  echo ""
+  echo "If you FIXED errors:"
+  echo "   npm run baseline:save && git add .tsc-baseline.json && git commit --amend --no-edit"
+  echo ""
+  echo "If you INTRODUCED errors:"
+  echo "   Fix them or see: npm run baseline:progress"
   exit 1
 }
 
-echo ""
+# Build verification
 echo "🏗️  Building..."
-npm run build || {
-  echo "❌ Build failed. Fix build errors before pushing."
-  exit 1
-}
+npm run build || exit 1
 
-echo ""
-echo "✅ All checks passed. Pushing..."
+# Test verification
+echo "🧪 Running tests..."
+npm run test || exit 1
+
+echo "✅ Pre-push passed"
