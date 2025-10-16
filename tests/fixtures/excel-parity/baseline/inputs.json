@@ -1,0 +1,48 @@
+{
+  "fundSize": 100000000,
+  "fundTermYears": 10,
+  "periodLengthMonths": 3,
+  "managementFeeRate": 0.02,
+  "managementFeeYears": 10,
+  "carryRate": 0.20,
+  "reservePoolPct": 0.30,
+  "stageAllocations": [
+    {
+      "stage": "seed",
+      "allocationPct": 0.40
+    },
+    {
+      "stage": "series_a",
+      "allocationPct": 0.40
+    },
+    {
+      "stage": "series_b",
+      "allocationPct": 0.20
+    }
+  ],
+  "averageCheckSizes": {
+    "seed": 1000000,
+    "series_a": 2000000,
+    "series_b": 4000000
+  },
+  "monthsToGraduate": {
+    "seed": 24,
+    "series_a": 36,
+    "series_b": 48
+  },
+  "monthsToExit": {
+    "seed": 84,
+    "series_a": 84,
+    "series_b": 84
+  },
+  "exitMultiples": {
+    "seed": 3.0,
+    "series_a": 3.0,
+    "series_b": 3.0
+  },
+  "failureRates": {
+    "seed": 0.50,
+    "series_a": 0.30,
+    "series_b": 0.20
+  }
+}
