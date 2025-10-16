@@ -233,7 +233,7 @@ export function dedupe(options: DedupeOptions = {}) {
         }
       });
       
-      return res.status(cached.statusCode).json(cached.body);
+      return res["status"](cached.statusCode)["json"](cached.body);
     }
     
     // Use singleflight pattern for in-flight deduplication
@@ -246,7 +246,7 @@ export function dedupe(options: DedupeOptions = {}) {
         res['setHeader']('X-Request-Dedup', 'inflight');
         res['setHeader']('X-Dedup-Key', key.substring(0, 8));
         
-        return res.status(result.statusCode).json(result.body);
+        return res["status"](result.statusCode)["json"](result.body);
       } catch (error) {
         // If in-flight request failed, proceed normally
         console.error('[Dedupe] In-flight request failed:', error);
@@ -380,7 +380,7 @@ export function getDedupeStats() {
  * Express route handler for deduplication status
  */
 export function dedupeStatusHandler(req: Request, res: Response) {
-  res.json({
+  res["json"]({
     status: 'active',
     stats: getDedupeStats(),
     timestamp: new Date().toISOString(),

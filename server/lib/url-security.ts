@@ -15,7 +15,7 @@
 export function assertSecureURL(
   urlString: string,
   context: string,
-  nodeEnv: string = process.env.NODE_ENV || 'development'
+  nodeEnv: string = process.env["NODE_ENV"] || 'development'
 ): URL {
   const url = new URL(urlString);
 
@@ -57,7 +57,7 @@ export function assertSecureURLs(
 /**
  * Helper to validate CORS origins
  */
-export function validateCORSOrigins(origins: string, nodeEnv: string = process.env.NODE_ENV || 'development'): void {
+export function validateCORSOrigins(origins: string, nodeEnv: string = process.env["NODE_ENV"] || 'development'): void {
   const originList = origins.split(',').map(o => o.trim());
 
   for (const origin of originList) {

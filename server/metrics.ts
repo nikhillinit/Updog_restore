@@ -154,6 +154,6 @@ export const register = promClient.register;
 export const metricsRouter = Router();
 metricsRouter['get']('/metrics', async (_req: any, res: any) => {
   res['set']('Content-Type', register.contentType);
-  res.end(await register.metrics());
+  res["end"](await register.metrics());
 });
 

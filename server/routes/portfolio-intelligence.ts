@@ -135,7 +135,7 @@ const QuickScenarioSchema = z.object({
  * Create a new fund strategy model
  * POST /api/portfolio/strategies
  */
-router.post('/api/portfolio/strategies', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/strategies', idempotency, async (req: AuthenticatedRequest, res: Response) => {
   try {
     // Get fund ID from query parameter
     const fundId = req.query['fundId'];
@@ -144,7 +144,7 @@ router.post('/api/portfolio/strategies', idempotency, async (req: AuthenticatedR
         error: 'Missing fund ID',
         message: 'Fund ID is required in query parameters'
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     let parsedFundId: number;
@@ -156,7 +156,7 @@ router.post('/api/portfolio/strategies', idempotency, async (req: AuthenticatedR
           error: 'Invalid fund ID',
           message: err.message
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       throw err;
     }
@@ -169,7 +169,7 @@ router.post('/api/portfolio/strategies', idempotency, async (req: AuthenticatedR
         message: 'Invalid strategy data',
         details: validation.error.flatten()
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const data = validation.data;
@@ -180,7 +180,7 @@ router.post('/api/portfolio/strategies', idempotency, async (req: AuthenticatedR
         error: 'Authentication required',
         message: 'User must be authenticated to create strategies'
       };
-      return res.status(401).json(error);
+      return res["status"](401)["json"](error);
     }
 
     // TODO: Implement with actual database service
@@ -201,7 +201,7 @@ router.post('/api/portfolio/strategies', idempotency, async (req: AuthenticatedR
       updatedAt: new Date().toISOString()
     };
 
-    res.status(201).json({
+    res["status"](201)["json"]({
       success: true,
       data: strategy,
       message: 'Strategy model created successfully'
@@ -212,7 +212,7 @@ router.post('/api/portfolio/strategies', idempotency, async (req: AuthenticatedR
       error: 'Failed to create strategy',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -231,7 +231,7 @@ router['get']('/api/portfolio/strategies/:fundId', async (req: Request, res: Res
           error: 'Invalid fund ID',
           message: err.message
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       throw err;
     }
@@ -261,7 +261,7 @@ router['get']('/api/portfolio/strategies/:fundId', async (req: Request, res: Res
       }
     ];
 
-    res.json({
+    res["json"]({
       success: true,
       data: strategies,
       count: strategies.length
@@ -272,7 +272,7 @@ router['get']('/api/portfolio/strategies/:fundId', async (req: Request, res: Res
       error: 'Failed to fetch strategies',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -280,7 +280,7 @@ router['get']('/api/portfolio/strategies/:fundId', async (req: Request, res: Res
  * Update a strategy
  * PUT /api/portfolio/strategies/:id
  */
-router.put('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest, res: Response) => {
+router["put"]('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const strategyId = req.params['id'];
     if (!strategyId) {
@@ -288,7 +288,7 @@ router.put('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest, re
         error: 'Invalid strategy ID',
         message: 'Strategy ID is required'
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const validation = UpdateStrategySchema.safeParse(req.body);
@@ -298,7 +298,7 @@ router.put('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest, re
         message: 'Invalid strategy update data',
         details: validation.error.flatten()
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const userId = parseInt(req.user?.id || '0');
@@ -307,7 +307,7 @@ router.put('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest, re
         error: 'Authentication required',
         message: 'User must be authenticated to update strategies'
       };
-      return res.status(401).json(error);
+      return res["status"](401)["json"](error);
     }
 
     // TODO: Implement update logic
@@ -317,7 +317,7 @@ router.put('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest, re
       updatedAt: new Date().toISOString()
     };
 
-    res.json({
+    res["json"]({
       success: true,
       data: updatedStrategy,
       message: 'Strategy updated successfully'
@@ -328,7 +328,7 @@ router.put('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest, re
       error: 'Failed to update strategy',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -336,7 +336,7 @@ router.put('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest, re
  * Delete a strategy
  * DELETE /api/portfolio/strategies/:id
  */
-router.delete('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest, res: Response) => {
+router["delete"]('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const strategyId = req.params['id'];
     if (!strategyId) {
@@ -344,7 +344,7 @@ router.delete('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest,
         error: 'Invalid strategy ID',
         message: 'Strategy ID is required'
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const userId = parseInt(req.user?.id || '0');
@@ -353,13 +353,13 @@ router.delete('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest,
         error: 'Authentication required',
         message: 'User must be authenticated to delete strategies'
       };
-      return res.status(401).json(error);
+      return res["status"](401)["json"](error);
     }
 
     // TODO: Implement soft delete (set isActive: false)
     // await portfolioIntelligenceService.strategies.deactivate(strategyId, userId);
 
-    res.json({
+    res["json"]({
       success: true,
       message: 'Strategy deactivated successfully'
     });
@@ -369,7 +369,7 @@ router.delete('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest,
       error: 'Failed to delete strategy',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -381,7 +381,7 @@ router.delete('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest,
  * Create a portfolio scenario
  * POST /api/portfolio/scenarios
  */
-router.post('/api/portfolio/scenarios', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/scenarios', idempotency, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const fundId = req.query['fundId'];
     if (!fundId) {
@@ -389,7 +389,7 @@ router.post('/api/portfolio/scenarios', idempotency, async (req: AuthenticatedRe
         error: 'Missing fund ID',
         message: 'Fund ID is required in query parameters'
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     let parsedFundId: number;
@@ -401,7 +401,7 @@ router.post('/api/portfolio/scenarios', idempotency, async (req: AuthenticatedRe
           error: 'Invalid fund ID',
           message: err.message
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       throw err;
     }
@@ -413,7 +413,7 @@ router.post('/api/portfolio/scenarios', idempotency, async (req: AuthenticatedRe
         message: 'Invalid scenario data',
         details: validation.error.flatten()
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const userId = parseInt(req.user?.id || '0');
@@ -422,7 +422,7 @@ router.post('/api/portfolio/scenarios', idempotency, async (req: AuthenticatedRe
         error: 'Authentication required',
         message: 'User must be authenticated to create scenarios'
       };
-      return res.status(401).json(error);
+      return res["status"](401)["json"](error);
     }
 
     // TODO: Implement scenario creation
@@ -436,7 +436,7 @@ router.post('/api/portfolio/scenarios', idempotency, async (req: AuthenticatedRe
       updatedAt: new Date().toISOString()
     };
 
-    res.status(201).json({
+    res["status"](201)["json"]({
       success: true,
       data: scenario,
       message: 'Portfolio scenario created successfully'
@@ -447,7 +447,7 @@ router.post('/api/portfolio/scenarios', idempotency, async (req: AuthenticatedRe
       error: 'Failed to create scenario',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -466,7 +466,7 @@ router['get']('/api/portfolio/scenarios/:fundId', async (req: Request, res: Resp
           error: 'Invalid fund ID',
           message: err.message
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       throw err;
     }
@@ -487,7 +487,7 @@ router['get']('/api/portfolio/scenarios/:fundId', async (req: Request, res: Resp
       }
     ];
 
-    res.json({
+    res["json"]({
       success: true,
       data: scenarios,
       count: scenarios.length
@@ -498,7 +498,7 @@ router['get']('/api/portfolio/scenarios/:fundId', async (req: Request, res: Resp
       error: 'Failed to fetch scenarios',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -506,7 +506,7 @@ router['get']('/api/portfolio/scenarios/:fundId', async (req: Request, res: Resp
  * Compare multiple scenarios
  * POST /api/portfolio/scenarios/compare
  */
-router.post('/api/portfolio/scenarios/compare', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/scenarios/compare', idempotency, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const validation = CompareScenarioSchema.safeParse(req.body);
     if (!validation.success) {
@@ -515,7 +515,7 @@ router.post('/api/portfolio/scenarios/compare', idempotency, async (req: Authent
         message: 'Invalid scenario comparison data',
         details: validation.error.flatten()
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const userId = parseInt(req.user?.id || '0');
@@ -524,7 +524,7 @@ router.post('/api/portfolio/scenarios/compare', idempotency, async (req: Authent
         error: 'Authentication required',
         message: 'User must be authenticated to compare scenarios'
       };
-      return res.status(401).json(error);
+      return res["status"](401)["json"](error);
     }
 
     const data = validation.data;
@@ -547,7 +547,7 @@ router.post('/api/portfolio/scenarios/compare', idempotency, async (req: Authent
       createdAt: new Date().toISOString()
     };
 
-    res.status(201).json({
+    res["status"](201)["json"]({
       success: true,
       data: comparison,
       message: 'Scenario comparison completed successfully'
@@ -558,7 +558,7 @@ router.post('/api/portfolio/scenarios/compare', idempotency, async (req: Authent
       error: 'Failed to compare scenarios',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -566,7 +566,7 @@ router.post('/api/portfolio/scenarios/compare', idempotency, async (req: Authent
  * Run Monte Carlo simulation on a scenario
  * POST /api/portfolio/scenarios/:id/simulate
  */
-router.post('/api/portfolio/scenarios/:id/simulate', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/scenarios/:id/simulate', idempotency, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const scenarioId = req.params['id'];
     if (!scenarioId) {
@@ -574,7 +574,7 @@ router.post('/api/portfolio/scenarios/:id/simulate', idempotency, async (req: Au
         error: 'Invalid scenario ID',
         message: 'Scenario ID is required'
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const validation = RunSimulationSchema.safeParse(req.body);
@@ -584,7 +584,7 @@ router.post('/api/portfolio/scenarios/:id/simulate', idempotency, async (req: Au
         message: 'Invalid simulation parameters',
         details: validation.error.flatten()
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const userId = parseInt(req.user?.id || '0');
@@ -593,7 +593,7 @@ router.post('/api/portfolio/scenarios/:id/simulate', idempotency, async (req: Au
         error: 'Authentication required',
         message: 'User must be authenticated to run simulations'
       };
-      return res.status(401).json(error);
+      return res["status"](401)["json"](error);
     }
 
     const data = validation.data;
@@ -630,7 +630,7 @@ router.post('/api/portfolio/scenarios/:id/simulate', idempotency, async (req: Au
       createdAt: new Date().toISOString()
     };
 
-    res.status(201).json({
+    res["status"](201)["json"]({
       success: true,
       data: simulation,
       message: 'Monte Carlo simulation completed successfully'
@@ -641,7 +641,7 @@ router.post('/api/portfolio/scenarios/:id/simulate', idempotency, async (req: Au
       error: 'Failed to run simulation',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -653,7 +653,7 @@ router.post('/api/portfolio/scenarios/:id/simulate', idempotency, async (req: Au
  * Optimize reserve allocation
  * POST /api/portfolio/reserves/optimize
  */
-router.post('/api/portfolio/reserves/optimize', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/reserves/optimize', idempotency, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const fundId = req.query['fundId'];
     if (!fundId) {
@@ -661,7 +661,7 @@ router.post('/api/portfolio/reserves/optimize', idempotency, async (req: Authent
         error: 'Missing fund ID',
         message: 'Fund ID is required in query parameters'
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     let parsedFundId: number;
@@ -673,7 +673,7 @@ router.post('/api/portfolio/reserves/optimize', idempotency, async (req: Authent
           error: 'Invalid fund ID',
           message: err.message
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       throw err;
     }
@@ -685,7 +685,7 @@ router.post('/api/portfolio/reserves/optimize', idempotency, async (req: Authent
         message: 'Invalid reserve optimization parameters',
         details: validation.error.flatten()
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const userId = parseInt(req.user?.id || '0');
@@ -694,7 +694,7 @@ router.post('/api/portfolio/reserves/optimize', idempotency, async (req: Authent
         error: 'Authentication required',
         message: 'User must be authenticated to optimize reserves'
       };
-      return res.status(401).json(error);
+      return res["status"](401)["json"](error);
     }
 
     const data = validation.data;
@@ -721,7 +721,7 @@ router.post('/api/portfolio/reserves/optimize', idempotency, async (req: Authent
       createdAt: new Date().toISOString()
     };
 
-    res.status(201).json({
+    res["status"](201)["json"]({
       success: true,
       data: optimization,
       message: 'Reserve optimization completed successfully'
@@ -732,7 +732,7 @@ router.post('/api/portfolio/reserves/optimize', idempotency, async (req: Authent
       error: 'Failed to optimize reserves',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -751,7 +751,7 @@ router['get']('/api/portfolio/reserves/strategies/:fundId', async (req: Request,
           error: 'Invalid fund ID',
           message: err.message
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       throw err;
     }
@@ -772,7 +772,7 @@ router['get']('/api/portfolio/reserves/strategies/:fundId', async (req: Request,
       }
     ];
 
-    res.json({
+    res["json"]({
       success: true,
       data: strategies,
       count: strategies.length
@@ -783,7 +783,7 @@ router['get']('/api/portfolio/reserves/strategies/:fundId', async (req: Request,
       error: 'Failed to fetch reserve strategies',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -791,7 +791,7 @@ router['get']('/api/portfolio/reserves/strategies/:fundId', async (req: Request,
  * Backtest reserve strategy
  * POST /api/portfolio/reserves/backtest
  */
-router.post('/api/portfolio/reserves/backtest', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/reserves/backtest', idempotency, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const validation = BacktestReserveSchema.safeParse(req.body);
     if (!validation.success) {
@@ -800,7 +800,7 @@ router.post('/api/portfolio/reserves/backtest', idempotency, async (req: Authent
         message: 'Invalid backtest parameters',
         details: validation.error.flatten()
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const userId = parseInt(req.user?.id || '0');
@@ -809,7 +809,7 @@ router.post('/api/portfolio/reserves/backtest', idempotency, async (req: Authent
         error: 'Authentication required',
         message: 'User must be authenticated to run backtests'
       };
-      return res.status(401).json(error);
+      return res["status"](401)["json"](error);
     }
 
     const data = validation.data;
@@ -840,7 +840,7 @@ router.post('/api/portfolio/reserves/backtest', idempotency, async (req: Authent
       createdAt: new Date().toISOString()
     };
 
-    res.status(201).json({
+    res["status"](201)["json"]({
       success: true,
       data: backtest,
       message: 'Reserve strategy backtest completed successfully'
@@ -851,7 +851,7 @@ router.post('/api/portfolio/reserves/backtest', idempotency, async (req: Authent
       error: 'Failed to run backtest',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -863,7 +863,7 @@ router.post('/api/portfolio/reserves/backtest', idempotency, async (req: Authent
  * Generate performance forecast
  * POST /api/portfolio/forecasts
  */
-router.post('/api/portfolio/forecasts', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/forecasts', idempotency, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const fundId = req.query['fundId'];
     if (!fundId) {
@@ -871,7 +871,7 @@ router.post('/api/portfolio/forecasts', idempotency, async (req: AuthenticatedRe
         error: 'Missing fund ID',
         message: 'Fund ID is required in query parameters'
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     let parsedFundId: number;
@@ -883,7 +883,7 @@ router.post('/api/portfolio/forecasts', idempotency, async (req: AuthenticatedRe
           error: 'Invalid fund ID',
           message: err.message
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       throw err;
     }
@@ -895,7 +895,7 @@ router.post('/api/portfolio/forecasts', idempotency, async (req: AuthenticatedRe
         message: 'Invalid forecast parameters',
         details: validation.error.flatten()
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const userId = parseInt(req.user?.id || '0');
@@ -904,7 +904,7 @@ router.post('/api/portfolio/forecasts', idempotency, async (req: AuthenticatedRe
         error: 'Authentication required',
         message: 'User must be authenticated to create forecasts'
       };
-      return res.status(401).json(error);
+      return res["status"](401)["json"](error);
     }
 
     const data = validation.data;
@@ -931,7 +931,7 @@ router.post('/api/portfolio/forecasts', idempotency, async (req: AuthenticatedRe
       updatedAt: new Date().toISOString()
     };
 
-    res.status(201).json({
+    res["status"](201)["json"]({
       success: true,
       data: forecast,
       message: 'Performance forecast generated successfully'
@@ -942,7 +942,7 @@ router.post('/api/portfolio/forecasts', idempotency, async (req: AuthenticatedRe
       error: 'Failed to generate forecast',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -958,7 +958,7 @@ router['get']('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: 
         error: 'Invalid scenario ID',
         message: 'Scenario ID is required'
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const forecastType = req.query['forecastType'] as string;
@@ -976,7 +976,7 @@ router['get']('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: 
       }
     ];
 
-    res.json({
+    res["json"]({
       success: true,
       data: forecasts,
       count: forecasts.length
@@ -987,7 +987,7 @@ router['get']('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: 
       error: 'Failed to fetch forecasts',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -995,7 +995,7 @@ router['get']('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: 
  * Validate forecast against actuals
  * POST /api/portfolio/forecasts/validate
  */
-router.post('/api/portfolio/forecasts/validate', async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/forecasts/validate', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const validation = ValidateForecastSchema.safeParse(req.body);
     if (!validation.success) {
@@ -1004,7 +1004,7 @@ router.post('/api/portfolio/forecasts/validate', async (req: AuthenticatedReques
         message: 'Invalid forecast validation data',
         details: validation.error.flatten()
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const userId = parseInt(req.user?.id || '0');
@@ -1013,7 +1013,7 @@ router.post('/api/portfolio/forecasts/validate', async (req: AuthenticatedReques
         error: 'Authentication required',
         message: 'User must be authenticated to validate forecasts'
       };
-      return res.status(401).json(error);
+      return res["status"](401)["json"](error);
     }
 
     const data = validation.data;
@@ -1044,7 +1044,7 @@ router.post('/api/portfolio/forecasts/validate', async (req: AuthenticatedReques
       createdAt: new Date().toISOString()
     };
 
-    res.json({
+    res["json"]({
       success: true,
       data: validationResult,
       message: 'Forecast validation completed successfully'
@@ -1055,7 +1055,7 @@ router.post('/api/portfolio/forecasts/validate', async (req: AuthenticatedReques
       error: 'Failed to validate forecast',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -1118,7 +1118,7 @@ router['get']('/api/portfolio/templates', async (req: Request, res: Response) =>
       return true;
     });
 
-    res.json({
+    res["json"]({
       success: true,
       data: filteredTemplates,
       count: filteredTemplates.length
@@ -1129,7 +1129,7 @@ router['get']('/api/portfolio/templates', async (req: Request, res: Response) =>
       error: 'Failed to fetch templates',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -1137,7 +1137,7 @@ router['get']('/api/portfolio/templates', async (req: Request, res: Response) =>
  * Generate quick scenario from parameters
  * POST /api/portfolio/quick-scenario
  */
-router.post('/api/portfolio/quick-scenario', async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/quick-scenario', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const validation = QuickScenarioSchema.safeParse(req.body);
     if (!validation.success) {
@@ -1146,7 +1146,7 @@ router.post('/api/portfolio/quick-scenario', async (req: AuthenticatedRequest, r
         message: 'Invalid quick scenario parameters',
         details: validation.error.flatten()
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const userId = parseInt(req.user?.id || '0');
@@ -1155,7 +1155,7 @@ router.post('/api/portfolio/quick-scenario', async (req: AuthenticatedRequest, r
         error: 'Authentication required',
         message: 'User must be authenticated to generate scenarios'
       };
-      return res.status(401).json(error);
+      return res["status"](401)["json"](error);
     }
 
     const data = validation.data;
@@ -1178,7 +1178,7 @@ router.post('/api/portfolio/quick-scenario', async (req: AuthenticatedRequest, r
       createdAt: new Date().toISOString()
     };
 
-    res.status(201).json({
+    res["status"](201)["json"]({
       success: true,
       data: quickScenario,
       message: 'Quick scenario generated successfully'
@@ -1189,7 +1189,7 @@ router.post('/api/portfolio/quick-scenario', async (req: AuthenticatedRequest, r
       error: 'Failed to generate quick scenario',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -1205,7 +1205,7 @@ router['get']('/api/portfolio/metrics/:scenarioId', async (req: Request, res: Re
         error: 'Invalid scenario ID',
         message: 'Scenario ID is required'
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const metricType = req.query['metricType'] as string;
@@ -1248,7 +1248,7 @@ router['get']('/api/portfolio/metrics/:scenarioId', async (req: Request, res: Re
       }
     };
 
-    res.json({
+    res["json"]({
       success: true,
       data: metrics,
       cacheInfo: {
@@ -1263,7 +1263,7 @@ router['get']('/api/portfolio/metrics/:scenarioId', async (req: Request, res: Re
       error: 'Failed to fetch metrics',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 

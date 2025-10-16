@@ -17,7 +17,7 @@ import { getConfig } from '../../config';
 const router = Router();
 
 // All routes require authentication
-router.use(requireAuth());
+router["use"](requireAuth());
 
 /**
  * Request schema for creating approval request
@@ -37,11 +37,11 @@ const createApprovalSchema = z.object({
 /**
  * POST /api/v1/reserve-approvals - Create new approval request
  */
-router.post('/', requireRole('reserve_admin'), async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/', requireRole('reserve_admin'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const validation = createApprovalSchema.safeParse(req.body);
     if (!validation.success) {
-      return res.status(400).json({ 
+      return res["status"](400)["json"]({ 
         error: 'validation_error', 
         issues: validation.error.issues 
       } as any);
@@ -88,7 +88,7 @@ router.post('/', requireRole('reserve_admin'), async (req: AuthenticatedRequest,
     // TODO: Send notifications to partners
     await notifyPartners(partners, approval);
     
-    res.status(201).json({
+    res["status"](201)["json"]({
       success: true,
       approvalId: approval.id,
       expiresAt,
@@ -99,7 +99,7 @@ router.post('/', requireRole('reserve_admin'), async (req: AuthenticatedRequest,
     
   } catch (error) {
     console.error('Error creating approval request:', error);
-    res.status(500).json({ error: 'Failed to create approval request' });
+    res["status"](500)["json"]({ error: 'Failed to create approval request' });
   }
 });
 
@@ -142,14 +142,14 @@ router['get']('/', async (req: AuthenticatedRequest, res: Response) => {
       })
     );
     
-    res.json({
+    res["json"]({
       approvals: approvalsWithSignatures,
       total: approvalsWithSignatures.length
     } as any);
     
   } catch (error) {
     console.error('Error fetching approvals:', error);
-    res.status(500).json({ error: 'Failed to fetch approvals' });
+    res["status"](500)["json"]({ error: 'Failed to fetch approvals' });
   }
 });
 
@@ -165,7 +165,7 @@ router['get']('/:id', async (req: AuthenticatedRequest, res: Response) => {
       .where(eq(reserveApprovals.id, id));
     
     if (!approval) {
-      return res.status(404).json({ error: 'Approval not found' });
+      return res["status"](404)["json"]({ error: 'Approval not found' });
     }
     
     // Get signatures
@@ -179,7 +179,7 @@ router['get']('/:id', async (req: AuthenticatedRequest, res: Response) => {
       .where(eq(approvalAuditLog.approvalId, id))
       .orderBy(approvalAuditLog.timestamp);
     
-    res.json({
+    res["json"]({
       approval,
       signatures,
       auditLog,
@@ -190,14 +190,14 @@ router['get']('/:id', async (req: AuthenticatedRequest, res: Response) => {
     
   } catch (error) {
     console.error('Error fetching approval:', error);
-    res.status(500).json({ error: 'Failed to fetch approval' });
+    res["status"](500)["json"]({ error: 'Failed to fetch approval' });
   }
 });
 
 /**
  * POST /api/v1/reserve-approvals/:id/sign - Sign an approval
  */
-router.post('/:id/sign', requireRole('partner'), async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/:id/sign', requireRole('partner'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { verificationCode } = req.body; // Optional 2FA code
@@ -208,7 +208,7 @@ router.post('/:id/sign', requireRole('partner'), async (req: AuthenticatedReques
       .where(eq(approvalPartners.email, req.user.email));
     
     if (!partner || partner.deactivated) {
-      return res.status(403).json({ error: 'Not authorized as partner' });
+      return res["status"](403)["json"]({ error: 'Not authorized as partner' });
     }
     
     // Check if approval exists and is valid
@@ -217,11 +217,11 @@ router.post('/:id/sign', requireRole('partner'), async (req: AuthenticatedReques
       .where(eq(reserveApprovals.id, id));
     
     if (!approval) {
-      return res.status(404).json({ error: 'Approval not found' });
+      return res["status"](404)["json"]({ error: 'Approval not found' });
     }
     
     if (approval.status !== 'pending') {
-      return res.status(400).json({ error: `Approval is ${approval.status}` });
+      return res["status"](400)["json"]({ error: `Approval is ${approval.status}` });
     }
     
     if (approval.expiresAt < new Date()) {
@@ -230,7 +230,7 @@ router.post('/:id/sign', requireRole('partner'), async (req: AuthenticatedReques
         ['set']({ status: 'expired', updatedAt: new Date() } as any)
         .where(eq(reserveApprovals.id, id));
       
-      return res.status(400).json({ error: 'Approval has expired' });
+      return res["status"](400)["json"]({ error: 'Approval has expired' });
     }
     
     // Check if already signed
@@ -244,7 +244,7 @@ router.post('/:id/sign', requireRole('partner'), async (req: AuthenticatedReques
       );
     
     if (existingSignature) {
-      return res.status(400).json({ error: 'Already signed this approval' });
+      return res["status"](400)["json"]({ error: 'Already signed this approval' });
     }
     
     // Generate signature
@@ -309,14 +309,14 @@ router.post('/:id/sign', requireRole('partner'), async (req: AuthenticatedReques
       // TODO: Execute the actual reserve strategy change
       await executeReserveStrategyChange(approval);
       
-      res.json({
+      res["json"]({
         success: true,
         message: 'Approval signed and executed',
         status: 'approved',
         executed: true
       } as any);
     } else {
-      res.json({
+      res["json"]({
         success: true,
         message: 'Approval signed successfully',
         remainingApprovals: 2 - signatureCount,
@@ -326,20 +326,20 @@ router.post('/:id/sign', requireRole('partner'), async (req: AuthenticatedReques
     
   } catch (error) {
     console.error('Error signing approval:', error);
-    res.status(500).json({ error: 'Failed to sign approval' });
+    res["status"](500)["json"]({ error: 'Failed to sign approval' });
   }
 });
 
 /**
  * POST /api/v1/reserve-approvals/:id/reject - Reject an approval
  */
-router.post('/:id/reject', requireRole('partner'), async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/:id/reject', requireRole('partner'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
     
     if (!reason || reason.length < 10) {
-      return res.status(400).json({ error: 'Rejection reason required (min 10 chars)' });
+      return res["status"](400)["json"]({ error: 'Rejection reason required (min 10 chars)' });
     }
     
     // Check authorization
@@ -348,7 +348,7 @@ router.post('/:id/reject', requireRole('partner'), async (req: AuthenticatedRequ
       .where(eq(approvalPartners.email, req.user.email));
     
     if (!partner || partner.deactivated) {
-      return res.status(403).json({ error: 'Not authorized as partner' });
+      return res["status"](403)["json"]({ error: 'Not authorized as partner' });
     }
     
     // Update approval status
@@ -366,7 +366,7 @@ router.post('/:id/reject', requireRole('partner'), async (req: AuthenticatedRequ
       userAgent: req.headers['user-agent']
     } as any);
     
-    res.json({
+    res["json"]({
       success: true,
       message: 'Approval rejected',
       rejectedBy: req.user.email
@@ -374,7 +374,7 @@ router.post('/:id/reject', requireRole('partner'), async (req: AuthenticatedRequ
     
   } catch (error) {
     console.error('Error rejecting approval:', error);
-    res.status(500).json({ error: 'Failed to reject approval' });
+    res["status"](500)["json"]({ error: 'Failed to reject approval' });
   }
 });
 

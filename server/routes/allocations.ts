@@ -332,14 +332,14 @@ async function logAllocationEvent(
  * @throws {400} Invalid parameters
  * @throws {404} Fund not found
  */
-router.get('/funds/:fundId/companies', asyncHandler(async (req: Request, res: Response) => {
+router["get"]('/funds/:fundId/companies', asyncHandler(async (req: Request, res: Response) => {
   const startTime = Date.now();
   const requestId = (req as any).rid || 'unknown';
 
   // Validate fundId parameter
   const paramValidation = FundIdParamSchema.safeParse(req.params);
   if (!paramValidation.success) {
-    return res.status(400).json({
+    return res["status"](400)["json"]({
       error: 'invalid_fund_id',
       message: 'Fund ID must be a positive integer',
       details: paramValidation.error.format()
@@ -351,7 +351,7 @@ router.get('/funds/:fundId/companies', asyncHandler(async (req: Request, res: Re
   // Validate query parameters
   const queryResult = CompanyListQuerySchema.safeParse(req.query);
   if (!queryResult.success) {
-    return res.status(400).json({
+    return res["status"](400)["json"]({
       error: 'invalid_query_parameters',
       message: 'Invalid query parameters',
       details: queryResult.error.format()
@@ -477,7 +477,7 @@ router.get('/funds/:fundId/companies', asyncHandler(async (req: Request, res: Re
     const totalCompanies = fundCheck[0]?.count || 0;
 
     if (totalCompanies === 0) {
-      return res.status(404).json({
+      return res["status"](404)["json"]({
         error: 'fund_not_found',
         message: `Fund with ID ${fundId} not found or has no companies`
       });
@@ -497,7 +497,7 @@ router.get('/funds/:fundId/companies', asyncHandler(async (req: Request, res: Re
   const duration = Date.now() - startTime;
   console.log(`[${requestId}] GET /api/funds/${fundId}/companies - ${companies.length} results in ${duration}ms`);
 
-  return res.status(200).json(response);
+  return res["status"](200)["json"](response);
 }));
 
 /**
@@ -509,13 +509,13 @@ router.get('/funds/:fundId/companies', asyncHandler(async (req: Request, res: Re
  * @throws {404} Fund not found
  * @throws {500} Database error
  */
-router.get(
+router["get"](
   '/funds/:fundId/allocations/latest',
   asyncHandler(async (req: Request, res: Response) => {
     // Validate path parameter
     const paramValidation = FundIdParamSchema.safeParse(req.params);
     if (!paramValidation.success) {
-      return res.status(400).json({
+      return res["status"](400)["json"]({
         error: 'Invalid fund ID',
         details: paramValidation.error.format(),
       });
@@ -584,7 +584,7 @@ router.get(
       };
     });
 
-    return res.status(200).json(result);
+    return res["status"](200)["json"](result);
   })
 );
 
@@ -600,13 +600,13 @@ router.get(
  * @throws {409} Version conflict (optimistic lock failure)
  * @throws {500} Database error
  */
-router.post(
+router["post"](
   '/funds/:fundId/allocations',
   asyncHandler(async (req: Request, res: Response) => {
     // Validate path parameter
     const paramValidation = FundIdParamSchema.safeParse(req.params);
     if (!paramValidation.success) {
-      return res.status(400).json({
+      return res["status"](400)["json"]({
         error: 'Invalid fund ID',
         details: paramValidation.error.format(),
       });
@@ -615,7 +615,7 @@ router.post(
     // Validate request body
     const bodyValidation = UpdateAllocationRequestSchema.safeParse(req.body);
     if (!bodyValidation.success) {
-      return res.status(400).json({
+      return res["status"](400)["json"]({
         error: 'Invalid request body',
         details: bodyValidation.error.format(),
       });
@@ -676,7 +676,7 @@ router.post(
       };
     });
 
-    return res.status(200).json(result);
+    return res["status"](200)["json"](result);
   })
 );
 
@@ -688,10 +688,10 @@ router.post(
  * Custom error handler for allocation routes
  * Handles optimistic locking conflicts (409) and other errors
  */
-router.use((err: any, req: Request, res: Response, next: NextFunction) => {
+router["use"]((err: any, req: Request, res: Response, next: NextFunction) => {
   // Handle optimistic locking conflicts
   if (err.statusCode === 409 && err.conflicts) {
-    return res.status(409).json({
+    return res["status"](409)["json"]({
       error: 'Version conflict',
       message: err.message,
       conflicts: err.conflicts,
@@ -700,7 +700,7 @@ router.use((err: any, req: Request, res: Response, next: NextFunction) => {
 
   // Handle other HTTP errors
   if (err.statusCode) {
-    return res.status(err.statusCode).json({
+    return res["status"](err.statusCode)["json"]({
       error: err.message,
     });
   }

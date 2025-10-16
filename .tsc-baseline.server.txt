@@ -1,0 +1,38 @@
+client/src/core/pacing/PacingEngine.ts(71,20): error TS18048: 'adjustment' is possibly 'undefined'.
+client/src/core/pacing/PacingEngine.ts(73,20): error TS18048: 'adjustment' is possibly 'undefined'.
+client/src/core/pacing/PacingEngine.ts(75,20): error TS18048: 'adjustment' is possibly 'undefined'.
+client/src/core/reserves/DeterministicReserveEngine.ts(260,58): error TS18048: 'calc' is possibly 'undefined'.
+client/src/core/reserves/DeterministicReserveEngine.ts(274,9): error TS2345: Argument of type 'MOICCalculation | undefined' is not assignable to parameter of type 'MOICCalculation'.
+  Type 'undefined' is not assignable to type 'MOICCalculation'.
+client/src/core/reserves/DeterministicReserveEngine.ts(283,11): error TS2345: Argument of type 'MOICCalculation | undefined' is not assignable to parameter of type 'MOICCalculation'.
+  Type 'undefined' is not assignable to type 'MOICCalculation'.
+client/src/lib/__tests__/type-guards.spec.ts(307,12): error TS2532: Object is possibly 'undefined'.
+client/src/lib/capital-calculations.ts(127,24): error TS2532: Object is possibly 'undefined'.
+client/src/lib/capital-calculations.ts(193,26): error TS2532: Object is possibly 'undefined'.
+client/src/lib/capital-first.ts(16,48): error TS2322: Type 'StageKey | undefined' is not assignable to type 'StageKey | null'.
+  Type 'undefined' is not assignable to type 'StageKey | null'.
+client/src/lib/demo-data.ts(468,3): error TS2322: Type 'DemoScenario | undefined' is not assignable to type 'DemoScenario'.
+  Type 'undefined' is not assignable to type 'DemoScenario'.
+client/src/lib/fund-calc.ts(273,9): error TS2322: Type '"failure" | "acquired" | "ipo" | "secondary" | undefined' is not assignable to type '"failure" | "acquired" | "ipo" | "secondary"'.
+  Type 'undefined' is not assignable to type '"failure" | "acquired" | "ipo" | "secondary"'.
+client/src/lib/fund-calc.ts(459,3): error TS2322: Type 'Decimal | undefined' is not assignable to type 'Decimal'.
+  Type 'undefined' is not assignable to type 'Decimal'.
+client/src/lib/inflight.ts(38,29): error TS2322: Type 'AbortSignal | undefined' is not assignable to type 'AbortSignal'.
+  Type 'undefined' is not assignable to type 'AbortSignal'.
+client/src/lib/nav.ts(172,23): error TS2532: Object is possibly 'undefined'.
+client/src/lib/path-utils.ts(84,35): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+client/src/lib/path-utils.ts(87,21): error TS2538: Type 'undefined' cannot be used as an index type.
+client/src/lib/path-utils.ts(87,47): error TS2538: Type 'undefined' cannot be used as an index type.
+client/src/lib/path-utils.ts(88,12): error TS2538: Type 'undefined' cannot be used as an index type.
+client/src/lib/path-utils.ts(89,53): error TS2538: Type 'undefined' cannot be used as an index type.
+client/src/lib/path-utils.ts(91,12): error TS2538: Type 'undefined' cannot be used as an index type.
+client/src/lib/path-utils.ts(92,53): error TS2538: Type 'undefined' cannot be used as an index type.
+client/src/lib/path-utils.ts(94,12): error TS2538: Type 'undefined' cannot be used as an index type.
+client/src/lib/path-utils.ts(97,17): error TS2538: Type 'undefined' cannot be used as an index type.
+client/src/lib/path-utils.ts(102,8): error TS2538: Type 'undefined' cannot be used as an index type.
+client/src/lib/path-utils.ts(181,17): error TS2538: Type 'undefined' cannot be used as an index type.
+client/src/lib/path-utils.ts(188,17): error TS2538: Type 'undefined' cannot be used as an index type.
+client/src/lib/rollout-orchestrator.ts(291,45): error TS2345: Argument of type 'RolloutMetrics | undefined' is not assignable to parameter of type 'RolloutMetrics'.
+  Type 'undefined' is not assignable to type 'RolloutMetrics'.
+client/src/lib/schema-adapter.ts(118,32): error TS2532: Object is possibly 'undefined'.

@@ -89,13 +89,13 @@ metricsRumRouter.use(rumPrivacyGuard);
 metricsRumRouter.use(rumV2Enhancement);
 
 // Accept RUM metrics from browser
-metricsRumRouter.post('/metrics/rum', express.json({ limit: '10kb' }), async (req: Request, res: Response) => {
+metricsRumRouter.post('/metrics/rum', express["json"]({ limit: '10kb' }), async (req: Request, res: Response) => {
   try {
     const { name, value, rating, navigationType, pathname, timestamp } = req.body || {};
     
     // Validate required fields
     if (!name || typeof value !== 'number') {
-      return res.status(400).json({ error: 'Invalid metric data' });
+      return res["status"](400)["json"]({ error: 'Invalid metric data' });
     }
     
     // If RUM v2 is enabled, use enhanced processing
@@ -112,7 +112,7 @@ metricsRumRouter.post('/metrics/rum', express.json({ limit: '10kb' }), async (re
         
         if (!processed) {
           // Metric was rejected by v2 validation
-          return res.status(204).end();
+          return res["status"](204)["end"]();
         }
       } catch (circuitError) {
         console.error('[RUM v2] Circuit breaker triggered:', circuitError);
@@ -142,11 +142,11 @@ metricsRumRouter.post('/metrics/rum', express.json({ limit: '10kb' }), async (re
     }
     
     // Always return 204 No Content for beacon requests
-    res.status(204).end();
+    res["status"](204)["end"]();
   } catch (error) {
     console.error('Error processing RUM metric:', error);
     // Still return 204 to prevent beacon retries
-    res.status(204).end();
+    res["status"](204)["end"]();
   }
 });
 
@@ -154,9 +154,9 @@ metricsRumRouter.post('/metrics/rum', express.json({ limit: '10kb' }), async (re
 metricsRumRouter['get']('/metrics/rum', (req: Request, res: Response) => {
   res['set']('Content-Type', rumRegistry.contentType);
   rumRegistry.metrics().then(metrics => {
-    res.send(metrics);
+    res["send"](metrics);
   }).catch(err => {
-    res.status(500).json({ error: 'Failed to generate metrics', message: err.message });
+    res["status"](500)["json"]({ error: 'Failed to generate metrics', message: err.message });
   });
 });
 
@@ -189,7 +189,7 @@ metricsRumRouter['get']('/metrics/rum/health', async (req: Request, res: Respons
   const syntheticCount = await syntheticBeaconCounter['get']();
   const syntheticTotal = syntheticCount.values.reduce((sum: any, v: any) => sum + (v.value || 0), 0);
   
-  res.json({
+  res["json"]({
     status: 'healthy',
     metrics_received: totalReceived,
     synthetic_beacons: syntheticTotal,

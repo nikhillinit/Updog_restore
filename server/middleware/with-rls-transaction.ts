@@ -22,7 +22,7 @@ export function withRLSTransaction() {
   return async (req: RLSRequest, res: Response, next: NextFunction) => {
     // Require authenticated context
     if (!req.context) {
-      return res.status(401).json({ 
+      return res["status"](401)["json"]({ 
         error: 'unauthorized',
         message: 'Authentication required'
       });
@@ -32,7 +32,7 @@ export function withRLSTransaction() {
 
     // Require org context for tenant isolation
     if (!orgId) {
-      return res.status(403).json({ 
+      return res["status"](403)["json"]({ 
         error: 'missing_org_context',
         message: 'Organization context is required'
       });

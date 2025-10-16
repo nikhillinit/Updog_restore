@@ -11,7 +11,7 @@ export function readinessHandler(critical?: CircuitBreaker<any>[]) {
     
     if (!isHealthy) {
       const degraded = breakerRegistry.getDegraded();
-      return res.status(503).json({
+      return res["status"](503)["json"]({
         ready: false,
         reason: 'critical dependency breaker OPEN',
         degraded,
@@ -19,7 +19,7 @@ export function readinessHandler(critical?: CircuitBreaker<any>[]) {
       });
     }
     
-    res.json({
+    res["json"]({
       ready: true,
       degraded: breakerRegistry.getDegraded(),
       timestamp: new Date().toISOString()

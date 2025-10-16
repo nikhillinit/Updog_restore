@@ -28,19 +28,19 @@ export async function stream(req: Request, res: Response) {
   const startTime = Date.now();
 
   // Set SSE headers
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache, no-transform');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+  res["setHeader"]('Content-Type', 'text/event-stream');
+  res["setHeader"]('Cache-Control', 'no-cache, no-transform');
+  res["setHeader"]('Connection', 'keep-alive');
+  res["setHeader"]('Access-Control-Allow-Origin', '*');
+  res["setHeader"]('X-Accel-Buffering', 'no'); // Disable nginx buffering
 
-  res.status(200);
+  res["status"](200);
   res.flushHeaders();
 
   logger.info('SSE stream started', { runId, maxBytes: MAX_BUFFER_BYTES });
 
   // Send retry hint
-  res.write(`retry: 3000\n\n`);
+  res["write"](`retry: 3000\n\n`);
 
   /**
    * Write SSE event with backpressure check
@@ -57,7 +57,7 @@ export async function stream(req: Request, res: Response) {
         limitBytes: MAX_BUFFER_BYTES,
         bytesSent
       })}\n\n`;
-      res.write(errorPayload);
+      res["write"](errorPayload);
 
       logger.warn('SSE stream limit exceeded', {
         runId,
@@ -66,11 +66,11 @@ export async function stream(req: Request, res: Response) {
       });
 
       cleanup();
-      res.end();
+      res["end"]();
       return false;
     }
 
-    res.write(payload);
+    res["write"](payload);
     bytesSent += eventSize;
     return true;
   };
@@ -80,7 +80,7 @@ export async function stream(req: Request, res: Response) {
 
   // Keepalive interval (every 25s)
   const keepalive = setInterval(() => {
-    res.write(`:keepalive ${Date.now()}\n\n`);
+    res["write"](`:keepalive ${Date.now()}\n\n`);
   }, KEEPALIVE_INTERVAL_MS);
 
   // TODO: Wire to your agent progress bus (Redis pubsub/BullMQ events)
@@ -119,7 +119,7 @@ export async function stream(req: Request, res: Response) {
     // prometheus.histogram('ai_stream_duration_seconds').observe(durationSeconds);
     // prometheus.counter('ai_stream_bytes_sent_total').inc(bytesSent);
 
-    res.end();
+    res["end"]();
   }
 }
 

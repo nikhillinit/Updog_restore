@@ -14,7 +14,7 @@ export function setupMetrics() {
       prefix: 'updog_',
       labels: {
         app: 'updog',
-        version: process.env.npm_package_version || '1.0.0'
+        version: process.env["npm_package_version"] || '1.0.0'
       }
     });
     defaultMetricsCollected = true;
@@ -98,10 +98,10 @@ metricsRouter['get']('/metrics', async (_req: Request, res: Response) => {
     }
     
     res['set']('Content-Type', client.register.contentType);
-    res.end(await client.register.metrics());
+    res["end"](await client.register.metrics());
   } catch (error) {
     console.error('Failed to generate metrics:', error);
-    res.status(500).send('Internal Server Error');
+    res["status"](500)["send"]('Internal Server Error');
   }
 });
 
@@ -110,13 +110,13 @@ metricsRouter['get']('/metrics/health', async (_req: Request, res: Response) => 
   try {
     const { breakerRegistry } = await import('../infra/circuit-breaker/breaker-registry');
     
-    res.json({
+    res["json"]({
       healthy: breakerRegistry.isHealthy(),
       degraded: breakerRegistry.getDegraded(),
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to get health metrics' });
+    res["status"](500)["json"]({ error: 'Failed to get health metrics' });
   }
 });
 
