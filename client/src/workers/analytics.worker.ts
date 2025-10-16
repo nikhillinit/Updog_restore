@@ -1,11 +1,15 @@
 import { xirrNewtonBisection } from '@/lib/finance/xirr';
 import { calculateAmericanWaterfallLedger } from '@/lib/waterfall/american-ledger';
+import { PRNG } from '@shared/utils/prng';
 
 type WorkerType = 'xirr' | 'monte-carlo' | 'waterfall';
 interface WorkerRequest { id: string; type: WorkerType | 'cancel'; payload?: any; }
 interface WorkerResponse { id: string; result?: any; error?: string; progress?: number; }
 
 const CANCELLED = new Set<string>();
+
+// Seeded PRNG instance for deterministic Monte Carlo simulations
+const prng = new PRNG(999);
 
 self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const { id, type, payload } = event.data;
@@ -80,10 +84,10 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   }
 };
 
-// Simple normal(μ,σ) via Box–Muller
+// Simple normal(μ,σ) via Box–Muller - using deterministic PRNG
 function randNorm(mu = 0, sigma = 1) {
   let u = 0, v = 0;
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
+  while (u === 0) u = prng.next();
+  while (v === 0) v = prng.next();
   return mu + sigma * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
