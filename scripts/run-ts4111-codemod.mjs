@@ -63,19 +63,28 @@ function main() {
     console.log('');
   }
 
-  // Step 1: Check git status (must be clean for safety)
+  // Step 1: Check git status (must have no modified files for safety)
   console.log('📋 Step 1: Checking git status...');
   const gitStatus = execCommand('git status --porcelain', { silent: true });
 
-  if (gitStatus.trim() !== '') {
+  // Only check for modified files (M), ignore untracked files (??)
+  const modifiedFiles = gitStatus
+    .split('\n')
+    .filter(line => line.trim() && !line.startsWith('??'))
+    .join('\n');
+
+  if (modifiedFiles.trim() !== '') {
     console.error('');
-    console.error('❌ Git working directory not clean.');
-    console.error('   Commit or stash changes before running codemod.');
+    console.error('❌ Git working directory has uncommitted changes.');
+    console.error('   Commit or stash modified files before running codemod.');
     console.error('');
     console.error('   Run: git status');
+    console.error('');
+    console.error('   Modified files:');
+    modifiedFiles.split('\n').forEach(line => console.error('   ' + line));
     process.exit(1);
   }
-  console.log('   ✅ Working directory clean');
+  console.log('   ✅ No uncommitted changes');
   console.log('');
 
   // Step 2: Create backup branch
