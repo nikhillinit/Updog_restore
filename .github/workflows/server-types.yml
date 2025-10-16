@@ -1,0 +1,53 @@
+name: Server Type Check (strict)
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ remediation/week2-server-strictness ]
+
+concurrency:
+  group: server-types-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server-types:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+      - name: Install deps
+        run: npm ci --prefer-offline --no-audit --fund=false
+      - name: Type check (server)
+        run: |
+          mkdir -p artifacts/week2
+          npm run check:server 2>&1 | tee artifacts/week2/tsc.out
+      - name: Error telemetry (inline)
+        if: always()
+        run: |
+          set -euo pipefail
+          TSOUT="artifacts/week2/tsc.out"
+          mkdir -p artifacts/week2
+          ERRORS=$(grep -c "error TS" "$TSOUT" || echo 0)
+          echo "errors=$ERRORS" >> $GITHUB_OUTPUT
+          # Top error codes
+          grep "error TS" "$TSOUT" | grep -oE "TS[0-9]+" \
+            | LC_ALL=C sort | uniq -c | LC_ALL=C sort -rn \
+            > artifacts/week2/error-codes.txt || true
+          # Top files
+          grep "error TS" "$TSOUT" | cut -d'(' -f1 \
+            | LC_ALL=C sort | uniq -c | LC_ALL=C sort -rn \
+            > artifacts/week2/top-files.txt || true
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-types-${{ github.sha }}
+          path: artifacts/week2/*
+          retention-days: 30

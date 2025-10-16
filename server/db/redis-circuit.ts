@@ -5,6 +5,7 @@
 import { CircuitBreaker } from '../infra/circuit-breaker/CircuitBreaker';
 import { breakerRegistry } from '../infra/circuit-breaker/breaker-registry';
 import { createCacheFromEnv } from './redis-factory';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 // Redis connection configuration
 const redisConfig = {
@@ -96,11 +97,13 @@ class MemoryCache {
     // Evict oldest entries if cache is full
     if (this.cache.size >= this.maxSize) {
       const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
     }
-    
+
     const expiry = ttl ? Date.now() + (ttl * 1000) : undefined;
-    this.cache['set'](key, { value, expiry });
+    this.cache['set'](key, { value, ...spreadIfDefined('expiry', expiry) });
   }
   
   get(key: string): any | null {
@@ -236,7 +239,7 @@ export async function get(key: string): Promise<string | null> {
       key,
       duration: Date.now() - start,
       hit,
-      error,
+      ...spreadIfDefined('error', error),
       fallback,
     });
   }
@@ -293,7 +296,7 @@ export async function set(
       key,
       duration: Date.now() - start,
       hit: true,
-      error,
+      ...spreadIfDefined('error', error),
       fallback,
     });
   }
@@ -332,7 +335,7 @@ export async function del(key: string): Promise<void> {
       key,
       duration: Date.now() - start,
       hit: false,
-      error,
+      ...spreadIfDefined('error', error),
     });
   }
 }

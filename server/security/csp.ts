@@ -12,7 +12,7 @@ declare global {
 }
 
 export function withNonce(_req: Request, res: Response, next: NextFunction) {
-  res.locals.cspNonce = crypto.randomBytes(16).toString("base64");
+  res.locals["cspNonce"] = crypto.randomBytes(16).toString("base64");
   next();
 }
 
@@ -26,13 +26,13 @@ export function csp() {
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: [
-          "'self'", 
-          (_req: any, res: any) => `'nonce-${res.locals.cspNonce}'`, 
+          "'self'",
+          (_req: any, res: any) => `'nonce-${res['locals'].cspNonce}'`,
           isDev ? "'unsafe-eval'" : null
         ].filter(Boolean) as string[],
         styleSrc:  [
-          "'self'", 
-          (_req: any, res: any) => `'nonce-${res.locals.cspNonce}'`, 
+          "'self'",
+          (_req: any, res: any) => `'nonce-${res['locals'].cspNonce}'`,
           isDev ? "'unsafe-inline'" : null
         ].filter(Boolean) as string[],
         imgSrc:    ["'self'", "data:", "blob:"],

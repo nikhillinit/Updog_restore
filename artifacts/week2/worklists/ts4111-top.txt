@@ -1,0 +1,16 @@
+      5 server/services/monte-carlo-simulation.ts
+      5 server/middleware/enhanced-audit.ts
+      4 server/server.ts
+      4 server/middleware/requestId.ts
+      3 server/routes/health.ts
+      3 server/middleware/auditLog.ts
+      2 server/services/streaming-monte-carlo-engine.ts
+      2 server/observability/metrics.ts
+      2 server/middleware/idempotency.ts
+      1 server/security/csp.ts
+      1 server/middleware/security.ts
+      1 server/middleware/performance-monitor.ts
+      1 server/middleware/engineGuardExpress.ts
+      1 server/lib/auth/jwt.ts
+      1 server/config.ts
+      1 server/app.ts

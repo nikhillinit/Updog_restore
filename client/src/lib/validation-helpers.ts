@@ -79,7 +79,7 @@ export function ensureDisplayString(value: unknown, fallback: string = ''): stri
  * @returns A valid ISO date string
  */
 export function ensureDateString(value: unknown, fallback?: string): string {
-  const defaultFallback = fallback ?? new Date().toISOString().split('T')[0];
+  const defaultFallback = fallback ?? new Date().toISOString().split('T')[0] ?? '';
 
   if (typeof value === 'string' && isNonEmptyString(value)) {
     const date = new Date(value);
@@ -89,7 +89,7 @@ export function ensureDateString(value: unknown, fallback?: string): string {
   }
 
   if (value instanceof Date && !isNaN(value.getTime())) {
-    return value.toISOString().split('T')[0];
+    return value.toISOString().split('T')[0] ?? '';
   }
 
   return defaultFallback;

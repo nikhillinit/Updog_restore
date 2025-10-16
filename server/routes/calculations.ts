@@ -1,11 +1,11 @@
 import type { Request, Response } from 'express';
-import express from 'express';
+import express, { Router } from 'express';
 import { FundModelInputsSchema } from '@shared/schemas/fund-model';
 import type { FundModelInputs } from '@shared/schemas/fund-model';
 import { runFundModel } from '../../client/src/lib/fund-calc.js';
 import { formatForCSV } from '../../client/src/lib/decimal-utils.js';
 
-const router = express.Router();
+const router = Router();
 
 /**
  * Convert period results to CSV format
@@ -55,8 +55,8 @@ router.post('/export-csv', async (req: Request, res: Response) => {
     const outputs = runFundModel(inputs);
     const csv = convertToCSV(outputs.periodResults);
 
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="fund-model-export.csv"');
+    res["setHeader"]('Content-Type', 'text/csv');
+    res["setHeader"]('Content-Disposition', 'attachment; filename="fund-model-export.csv"');
     res.status(200).send(csv);
   } catch (error: any) {
     if (error.name === 'ZodError') {

@@ -33,13 +33,15 @@ class MemoryDedupeStore {
   set(key: string, data: DedupedResponse, ttl: number): void {
     // Cleanup expired entries
     this.cleanup();
-    
+
     // Evict oldest if at capacity
     if (this.store.size >= this.maxSize) {
       const firstKey = this.store.keys().next().value;
-      this.store.delete(firstKey);
+      if (firstKey !== undefined) {
+        this.store.delete(firstKey);
+      }
     }
-    
+
     const expiry = Date.now() + (ttl * 1000);
     this.store['set'](key, { data, expiry });
   }
@@ -275,14 +277,14 @@ export function dedupe(options: DedupeOptions = {}) {
     
     // Override send method
     res.send = function(body?: any) {
-      if (!responseCaptured && [200, 201].includes(res.statusCode)) {
+      if (!responseCaptured && [200, 201].includes(res["statusCode"])) {
         responseBody = body;
         responseCaptured = true;
         
         // Store response asynchronously
         const response: DedupedResponse = {
-          statusCode: res.statusCode,
-          headers: res.getHeaders() as Record<string, string>,
+          statusCode: res["statusCode"],
+          headers: res["getHeaders"]() as Record<string, string>,
           body: typeof body === 'string' ? JSON.parse(body) : body,
           timestamp: Date.now(),
           requestCount: 1,
@@ -299,7 +301,7 @@ export function dedupe(options: DedupeOptions = {}) {
         }
       } else if (config.useSingleflight && !responseCaptured) {
         // Reject in-flight promise on error
-        rejectInflight!(new Error(`Request failed with status ${res.statusCode}`));
+        rejectInflight!(new Error(`Request failed with status ${res["statusCode"]}`));
         inflightRequests.delete(key);
       }
       
@@ -309,14 +311,14 @@ export function dedupe(options: DedupeOptions = {}) {
     
     // Override json method
     res.json = function(body?: any) {
-      if (!responseCaptured && [200, 201].includes(res.statusCode)) {
+      if (!responseCaptured && [200, 201].includes(res["statusCode"])) {
         responseBody = body;
         responseCaptured = true;
         
         // Store response asynchronously
         const response: DedupedResponse = {
-          statusCode: res.statusCode,
-          headers: res.getHeaders() as Record<string, string>,
+          statusCode: res["statusCode"],
+          headers: res["getHeaders"]() as Record<string, string>,
           body,
           timestamp: Date.now(),
           requestCount: 1,
@@ -333,7 +335,7 @@ export function dedupe(options: DedupeOptions = {}) {
         }
       } else if (config.useSingleflight && !responseCaptured) {
         // Reject in-flight promise on error
-        rejectInflight!(new Error(`Request failed with status ${res.statusCode}`));
+        rejectInflight!(new Error(`Request failed with status ${res["statusCode"]}`));
         inflightRequests.delete(key);
       }
       

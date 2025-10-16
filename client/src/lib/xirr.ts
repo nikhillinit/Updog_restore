@@ -144,6 +144,7 @@ function aggregateSameDayCashflows(cashflows: Cashflow[]): Cashflow[] {
 
   for (const cf of cashflows) {
     const key = cf.date.toISOString().split('T')[0]; // YYYY-MM-DD
+    if (!key) throw new Error('Invalid date key from toISOString');
     byDate.set(key, (byDate.get(key) ?? 0) + cf.amount);
   }
 
@@ -175,11 +176,13 @@ function tryNewtonThenBisection(cashflows: Cashflow[], opts: IRRConfig): number 
  */
 function newtonRaphson(cashflows: Cashflow[], guess: number): number {
   let rate = guess;
+  const firstCashflow = cashflows[0];
+  if (!firstCashflow) throw new Error('No cashflows provided');
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     const { npv, derivative } = cashflows.reduce(
       (acc, cf) => {
-        const days = differenceInDays(cf.date, cashflows[0].date);
+        const days = differenceInDays(cf.date, firstCashflow.date);
         const years = toDecimal(days).dividedBy(365);  // Actual/365
         const discount = toDecimal(1).plus(rate).pow(years.toNumber());
 
@@ -262,8 +265,11 @@ function bisection(cashflows: Cashflow[]): number {
  * Calculate Net Present Value for a given rate
  */
 function calculateNPV(cashflows: Cashflow[], rate: number): number {
+  const firstCashflow = cashflows[0];
+  if (!firstCashflow) throw new Error('No cashflows provided');
+
   return cashflows.reduce((npv, cf) => {
-    const days = differenceInDays(cf.date, cashflows[0].date);
+    const days = differenceInDays(cf.date, firstCashflow.date);
     const years = toDecimal(days).dividedBy(365);  // Actual/365
     const discount = toDecimal(1).plus(rate).pow(years.toNumber());
     const pv = toDecimal(cf.amount).dividedBy(discount);

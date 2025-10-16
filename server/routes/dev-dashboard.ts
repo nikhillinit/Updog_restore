@@ -73,10 +73,15 @@ async function getTypeScriptErrors(): Promise<DevHealthMetrics['typescript']> {
     let match;
 
     while ((match = errorRegex.exec(output)) !== null) {
+      const file = match[1];
+      const lineStr = match[2];
+      const message = match[3];
+      if (!file || !lineStr || !message) continue;
+
       errors.push({
-        file: match[1],
-        line: parseInt(match[2]),
-        message: match[3].trim()
+        file,
+        line: parseInt(lineStr),
+        message: message.trim()
       });
     }
 
@@ -240,7 +245,7 @@ async function getDevServerMetrics(): Promise<DevHealthMetrics['devServer']> {
 
   return {
     status: 'running',
-    port: parseInt(process.env.PORT || '5000'),
+    port: parseInt(process.env["PORT"] || '5000'),
     memory,
     uptime
   };

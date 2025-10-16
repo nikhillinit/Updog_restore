@@ -97,7 +97,7 @@ const validateRequest = (schema: z.ZodSchema) => {
 
 // Response guard middleware
 const guardResponse = (req: Request, res: Response, next: NextFunction) => {
-  const originalJson = res.json;
+  const originalJson = res.json.bind(res);
   (res as any).json = function(data: any) {
     const guard = assertFiniteDeep(data);
     if (!guard.ok) {
@@ -115,7 +115,7 @@ const guardResponse = (req: Request, res: Response, next: NextFunction) => {
         message: 'Simulation produced invalid numeric values'
       });
     }
-    return originalJson.call(this, data);
+    return originalJson(data);
   };
   next();
 };
@@ -126,7 +126,8 @@ const monitorPerformance = (req: Request, res: Response, next: Function) => {
 
   res['on']('finish', () => {
     const duration = (Date.now() - startTime) / 1000;
-    recordHttpMetrics(req.method, req.path, res.statusCode, duration);
+    // Type assertion: req.path is declared as string in custom Request type
+    recordHttpMetrics(req.method, req.path as string, res.statusCode, duration);
   });
 
   next();
@@ -331,10 +332,10 @@ router['get']('/performance', async (req: Request, res: Response) => {
  */
 router['get']('/funds/:fundId/simulate', async (req: Request, res: Response) => {
   try {
-    const fundId = toNumber(req.params.fundId, 'Fund ID');
-    const runs = parseInt(req.query.runs as string || '1000');
-    const timeHorizonYears = parseInt(req.query.timeHorizonYears as string || '8');
-    const engine = req.query.engine as 'streaming' | 'traditional' | 'auto' || 'auto';
+    const fundId = toNumber(req.params["fundId"], 'Fund ID');
+    const runs = parseInt(req.query["runs"] as string || '1000');
+    const timeHorizonYears = parseInt(req.query["timeHorizonYears"] as string || '8');
+    const engine = req.query["engine"] as 'streaming' | 'traditional' | 'auto' || 'auto';
 
     if (runs < 100 || runs > 10000) {
       return res.status(400).json({

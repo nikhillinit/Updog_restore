@@ -35,7 +35,8 @@ function waitForSlot(): Promise<void> {
 }
 
 function anySignal(signals: AbortSignal[]): AbortSignal {
-  if (signals.length === 1) return signals[0];
+  const firstSignal = signals[0];
+  if (signals.length === 1 && firstSignal) return firstSignal;
   const controller = new AbortController();
   const onAbort = () => controller.abort();
   signals.forEach((s: any) => s.addEventListener('abort', onAbort, { once: true }));

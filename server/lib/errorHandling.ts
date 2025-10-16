@@ -127,13 +127,13 @@ export class UnifiedErrorHandler {
       try {
         const result = await this.handleError(err, context);
         
-        if (!res.headersSent) {
+        if (!res["headersSent"]) {
           res.status(result.statusCode).json(result.response);
         }
       } catch (handlingError) {
         console.error('Error in error handler:', handlingError);
         
-        if (!res.headersSent) {
+        if (!res["headersSent"]) {
           res.status(500).json({
             error: 'Internal Server Error',
             code: 'INTERNAL_ERROR',

@@ -47,7 +47,7 @@ class DevDashboardWebSocket {
   constructor(server: HTTPServer) {
     this.io = new SocketIOServer(server, {
       cors: {
-        origin: process.env.NODE_ENV === 'development' ? '*' : false,
+        origin: process.env["NODE_ENV"] === 'development' ? '*' : false,
         methods: ['GET', 'POST']
       },
       path: '/socket.io/dev-dashboard'
@@ -216,6 +216,9 @@ class DevDashboardWebSocket {
       let match;
 
       while ((match = errorRegex.exec(output)) !== null) {
+        // Guard: ensure all match groups exist
+        if (!match[1] || !match[2] || !match[3]) continue;
+
         errors.push({
           file: match[1],
           line: parseInt(match[2]),
@@ -311,7 +314,8 @@ class DevDashboardWebSocket {
         }, 2000);
       });
     } catch (error) {
-      console.warn('File watcher setup failed (chokidar not installed):', error.message);
+      const err = error instanceof Error ? error : new Error(String(error));
+      console.warn('File watcher setup failed (chokidar not installed):', err.message);
     }
   }
 

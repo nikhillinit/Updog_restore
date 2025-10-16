@@ -11,6 +11,7 @@
 import type { Cache } from './cache/index.js';
 import { BoundedMemoryCache } from './cache/memory.js';
 import type { Store as RateLimitStore } from 'express-rate-limit';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 export type ProviderMode = 'memory' | 'redis';
 
@@ -85,7 +86,7 @@ export async function buildProviders(cfg: ReturnType<typeof import('./config/ind
   return {
     mode,
     cache,
-    rateLimitStore, // undefined => express-rate-limit uses memory store
+    ...spreadIfDefined('rateLimitStore', rateLimitStore), // undefined => express-rate-limit uses memory store
     queue,
     sessions,
     teardown: async () => {
@@ -161,7 +162,7 @@ async function buildCache(redisUrl: string): Promise<Cache> {
         await withCircuitBreaker(
           async () => {
             if (ttlSeconds) {
-              await redis.setex(key, ttlSeconds, value);
+              await redis["setex"](key, ttlSeconds, value);
             } else {
               await redis['set'](key, value);
             }

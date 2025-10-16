@@ -192,7 +192,7 @@ export function requireApproval(options?: Partial<ApprovalVerificationOptions>) 
   return async (req: any, res: any, next: any) => {
     try {
       // Extract strategy ID and compute inputs hash
-      const strategyId = req.body.strategyId || req.params.strategyId;
+      const strategyId = req.body.strategyId || req.params["strategyId"];
       const strategyData = req.body.strategyData || req.body;
       
       if (!strategyId) {

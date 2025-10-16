@@ -223,6 +223,7 @@ function getNextStep(currentStep: WizardStep, skipOptional: boolean): WizardStep
 
   for (let i = currentIndex + 1; i < STEP_ORDER.length; i++) {
     const nextStep = STEP_ORDER[i];
+    if (!nextStep) continue; // Array bounds safety
 
     // Skip optional steps if configured
     if (skipOptional && OPTIONAL_STEPS.has(nextStep)) {
@@ -243,6 +244,7 @@ function getPreviousStep(currentStep: WizardStep, skipOptional: boolean): Wizard
 
   for (let i = currentIndex - 1; i >= 0; i--) {
     const prevStep = STEP_ORDER[i];
+    if (!prevStep) continue; // Array bounds safety
 
     // Skip optional steps if configured
     if (skipOptional && OPTIONAL_STEPS.has(prevStep)) {

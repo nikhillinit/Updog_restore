@@ -5,6 +5,7 @@ const { Resource } = require('@opentelemetry/resources');
 import { SemanticResourceAttributes as S } from '@opentelemetry/semantic-conventions';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 export const sdk = new NodeSDK({
   resource: new Resource({
@@ -13,7 +14,7 @@ export const sdk = new NodeSDK({
   }),
   metricReader: new PeriodicExportingMetricReader({
     exporter: new OTLPMetricExporter({
-      url: process.env['OTEL_EXPORTER_OTLP_METRICS_ENDPOINT']
+      ...spreadIfDefined('url', process.env['OTEL_EXPORTER_OTLP_METRICS_ENDPOINT'])
     }),
     exportIntervalMillis: 10_000
   }),

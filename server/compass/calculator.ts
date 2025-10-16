@@ -10,6 +10,7 @@
  */
 
 import type { ValuationInputs, ValuationResult, ComparableCompany, PortfolioCompanyMetrics } from './types';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 /**
  * Validates valuation inputs are within logical ranges
@@ -137,7 +138,7 @@ export function calculateSandboxValuation(
       evWithControl: Math.round(evWithControl),
       finalValue: Math.round(finalValue),
       impliedMultiple: Math.round(impliedMultiple * 100) / 100, // Round to 2 decimals
-      vsLastRound,
+      ...spreadIfDefined('vsLastRound', vsLastRound),
     },
     calculatedAt: new Date(),
   };
@@ -176,7 +177,9 @@ export function calculateValuationRange(
 
   const getPercentile = (arr: number[], percentile: number): number => {
     const index = Math.ceil((percentile / 100) * arr.length) - 1;
-    return arr[Math.max(0, Math.min(index, arr.length - 1))];
+    const value = arr[Math.max(0, Math.min(index, arr.length - 1))];
+    if (value === undefined) return 0;
+    return value;
   };
 
   // Calculate valuations at different percentiles
@@ -189,12 +192,19 @@ export function calculateValuationRange(
     return result.sandboxValue;
   };
 
+  const lowMultiple = multiples[0];
+  const highMultiple = multiples[multiples.length - 1];
+
+  if (lowMultiple === undefined || highMultiple === undefined) {
+    return { low: 0, median: 0, high: 0, p25: 0, p75: 0 };
+  }
+
   return {
-    low: calculateAtMultiple(multiples[0]),
+    low: calculateAtMultiple(lowMultiple),
     p25: calculateAtMultiple(getPercentile(multiples, 25)),
     median: calculateAtMultiple(getPercentile(multiples, 50)),
     p75: calculateAtMultiple(getPercentile(multiples, 75)),
-    high: calculateAtMultiple(multiples[multiples.length - 1]),
+    high: calculateAtMultiple(highMultiple),
   };
 }
 
