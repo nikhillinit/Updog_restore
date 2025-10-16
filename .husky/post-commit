@@ -17,9 +17,9 @@ if git diff --name-only HEAD^ HEAD 2>/dev/null | grep -q "^${BASELINE_FILE}$"; t
     LAST_SESSION=$(tail -n 20 "$FEEDBACK_FILE" 2>/dev/null | grep -c "$(date +%Y-%m-%d)" || echo "0")
 
     if [ "$LAST_SESSION" -eq 0 ]; then
-      # Parse baseline changes from commit
-      BASELINE_BEFORE=$(git show HEAD^:"$BASELINE_FILE" 2>/dev/null | grep -oP '"totalErrors":\s*\K\d+' || echo "unknown")
-      BASELINE_AFTER=$(git show HEAD:"$BASELINE_FILE" 2>/dev/null | grep -oP '"totalErrors":\s*\K\d+' || echo "unknown")
+      # Parse baseline changes from commit (cross-platform compatible)
+      BASELINE_BEFORE=$(git show HEAD^:"$BASELINE_FILE" 2>/dev/null | grep '"totalErrors"' | sed 's/.*"totalErrors":\s*\([0-9]*\).*/\1/' || echo "unknown")
+      BASELINE_AFTER=$(git show HEAD:"$BASELINE_FILE" 2>/dev/null | grep '"totalErrors"' | sed 's/.*"totalErrors":\s*\([0-9]*\).*/\1/' || echo "unknown")
 
       # Calculate errors fixed
       if [ "$BASELINE_BEFORE" != "unknown" ] && [ "$BASELINE_AFTER" != "unknown" ]; then
