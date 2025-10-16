@@ -54,7 +54,7 @@ router.post('/funds', idempotency, async (req: Request, res: Response) => {
 router.post('/api/funds/calculate', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const dto = FundCalculationDTO.parse(req.body as FundCalculationDTO);
-    const idemHeader = String(req.header('Idempotency-Key') || '');
+    const idemHeader = String(req["header"]('Idempotency-Key') || '');
     const key = idemHeader || `calc:${hashPayload(dto)}`;
 
     const endTimer = calcDurationMs.startTimer();

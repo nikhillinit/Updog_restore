@@ -18,6 +18,7 @@ import Decimal from 'decimal.js';
 import { storage } from '../storage';
 import type { ActualMetrics } from '@shared/types/metrics';
 import type { PortfolioCompany } from '@shared/schema';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 // Configure Decimal.js for financial precision
 Decimal.set({ precision: 28, rounding: Decimal.ROUND_HALF_UP });
@@ -83,9 +84,9 @@ export class ActualMetricsCalculator {
       : new Decimal(0);
     const averageCheckSize = totalCompanies > 0 ? totalDeployed.div(totalCompanies) : new Decimal(0);
 
-    // Calculate fund age
-    const fundAgeMonths = fund.establishmentDate
-      ? this.calculateMonthsSince(new Date(fund.establishmentDate))
+    // Calculate fund age - use type assertion since storage implementations may not populate all fields
+    const fundAgeMonths = (fund as any).establishmentDate
+      ? this.calculateMonthsSince(new Date((fund as any).establishmentDate))
       : undefined;
 
     return {
@@ -107,14 +108,14 @@ export class ActualMetricsCalculator {
       totalCompanies,
       deploymentRate: deploymentRate.toNumber(),
       averageCheckSize: averageCheckSize.toNumber(),
-      fundAgeMonths,
+      ...spreadIfDefined('fundAgeMonths', fundAgeMonths),
     };
   }
 
   /**
    * Calculate current Net Asset Value from portfolio companies
    */
-  private calculateNAV(companies: PortfolioCompany[]): Decimal {
+  private calculateNAV(companies: any[]): Decimal {
     return companies
       .filter((c) => c.status === 'active')
       .reduce((sum, company) => {
@@ -256,11 +257,13 @@ export class ActualMetricsCalculator {
     // For now, derive from portfolio companies
     // In production, this would query an investments table
     const companies = await storage.getPortfolioCompanies(fundId);
+    // Use type assertion since storage implementations may not populate all PortfolioCompany fields
     return companies
-      .filter((c) => c.investmentDate)
+      .filter((c) => (c as any).investmentDate)
       .map((c) => ({
-        date: new Date(c.investmentDate!),
-        amount: c.initialInvestment ? parseFloat(c.initialInvestment.toString()) : 0,
+        date: new Date((c as any).investmentDate!),
+        // investmentAmount is the correct field name (not initialInvestment)
+        amount: parseFloat(c.investmentAmount.toString()),
       }));
   }
 

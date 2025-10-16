@@ -119,28 +119,24 @@ export class ProjectedMetricsCalculator {
     reserveByCompany: Array<{ companyId: number; reserveAmount: number }>;
   } | null> {
     try {
-      // Build input for reserve engine
-      const reserveInput: ReserveInput = {
-        fundSize: parseFloat(fund.size.toString()),
-        deployedCapital: parseFloat(fund.deployedCapital?.toString() || '0'),
-        companies: companies.map((c) => ({
-          id: c.id,
-          name: c.name,
-          currentStage: c.currentStage || 'seed',
-          initialInvestment: parseFloat(c.initialInvestment?.toString() || '0'),
-          currentValuation: parseFloat(c.currentValuation?.toString() || '0'),
-          ownershipPercent: parseFloat(c.ownershipPercent?.toString() || '0'),
-        })),
-        reserveRatio: config.reserveRatio || 0.5,
-        graduationMatrix: config.graduationMatrix,
-      };
+      // Build input for reserve engine (array of ReserveInput)
+      const reserveInputs: ReserveInput[] = companies.map((c) => ({
+        id: c.id,
+        stage: c.stage || 'Seed',
+        sector: c.sector || 'SaaS',
+        invested: parseFloat(c.investmentAmount?.toString() || '0'),
+        ownership: parseFloat(c.ownershipCurrentPct?.toString() || '0') / 100, // Convert percentage to decimal
+      }));
 
-      const summary = await generateReserveSummary(reserveInput);
+      const summary = generateReserveSummary(fund.id, reserveInputs);
 
       return {
-        totalReserves: summary.totalReserves,
-        allocatedReserves: summary.allocatedReserves,
-        reserveByCompany: summary.companyReserves || [],
+        totalReserves: summary.totalAllocation,
+        allocatedReserves: summary.totalAllocation, // All reserves are allocated by the engine
+        reserveByCompany: summary.allocations.map((alloc, idx) => ({
+          companyId: companies[idx]?.id || 0,
+          reserveAmount: alloc.allocation,
+        })),
       };
     } catch (error) {
       console.error('Reserve calculation failed:', error);
@@ -171,13 +167,11 @@ export class ProjectedMetricsCalculator {
 
       const pacingInput: PacingInput = {
         fundSize,
-        deployedCapital: deployed,
-        investmentPeriodYears,
-        currentFundAgeMonths: fundAgeMonths,
-        targetCompanyCount: config.investmentPeriodYears ? Math.round(fundSize / 2000000) : 20,
+        deploymentQuarter: Math.floor(fundAgeMonths / 3), // Current quarter
+        marketCondition: 'neutral' as const,
       };
 
-      const summary = await generatePacingSummary(pacingInput);
+      const summary = generatePacingSummary(pacingInput);
 
       // Determine pace status
       const expectedDeploymentRate = fundAgeMonths / (investmentPeriodYears * 12);
@@ -202,7 +196,7 @@ export class ProjectedMetricsCalculator {
         pace,
         quartersRemaining,
         recommendedQuarterlyDeployment,
-        projectedDeploymentSchedule: summary.deploymentSchedule || [],
+        projectedDeploymentSchedule: summary.deployments.map(d => d.deployment),
       };
     } catch (error) {
       console.error('Pacing calculation failed:', error);
@@ -225,26 +219,23 @@ export class ProjectedMetricsCalculator {
     navProgression: number[];
   } | null> {
     try {
+      // CohortInput expects: fundId, vintageYear, cohortSize (NOT fundSize/companies/fundTermYears)
       const cohortInput: CohortInput = {
-        fundSize: parseFloat(fund.size.toString()),
-        companies: companies.map((c) => ({
-          id: c.id,
-          name: c.name,
-          cohort: new Date(c.investmentDate || new Date()).getFullYear(),
-          currentStage: c.currentStage || 'seed',
-          currentValuation: parseFloat(c.currentValuation?.toString() || '0'),
-        })),
-        fundTermYears: config.fundTermYears || 10,
+        fundId: fund.id,
+        vintageYear: fund.vintageYear || new Date().getFullYear(),
+        cohortSize: companies.length,
       };
 
-      const summary = await generateCohortSummary(cohortInput);
+      const summary = generateCohortSummary(cohortInput);
 
+      // CohortSummary has performance.{irr, multiple, dpi}, NOT top-level expected* fields
       return {
-        expectedTVPI: summary.expectedTVPI || config.targetTVPI || 2.5,
-        expectedIRR: summary.expectedIRR || config.targetIRR || 0.25,
-        expectedDPI: summary.expectedDPI || 1.0,
-        distributionSchedule: summary.distributionSchedule || [],
-        navProgression: summary.navProgression || [],
+        expectedTVPI: summary.performance.multiple || config.targetTVPI || 2.5,
+        expectedIRR: summary.performance.irr || config.targetIRR || 0.25,
+        expectedDPI: summary.performance.dpi || 1.0,
+        // CohortSummary doesn't have distributionSchedule/navProgression - use fallback
+        distributionSchedule: [],
+        navProgression: [],
       };
     } catch (error) {
       console.error('Cohort calculation failed:', error);
@@ -344,9 +335,11 @@ export class ProjectedMetricsCalculator {
     const fundLifeYears = config.fundTermYears || 10;
 
     // Generate J-curve construction forecast
+    // establishmentDate expects Date | string, NOT null - provide fallback
+    const establishmentDate = fund.establishmentDate ?? fund.createdAt;
     const forecast = ConstructionForecastCalculator.generateForecast({
       fundSize,
-      establishmentDate: fund.establishmentDate || fund.createdAt,
+      establishmentDate: establishmentDate || new Date(), // Guard against null createdAt
       targetTVPI,
       investmentPeriodYears,
       fundLifeYears,
@@ -360,19 +353,21 @@ export class ProjectedMetricsCalculator {
     const projectedDistributions: number[] = [];
     const projectedNAV: number[] = [];
 
-    for (let i = 0; i < numQuarters; i++) {
-      const point = forecast.jCurvePath.mainPath[i];
-      if (point) {
-        // Deployment decreases over investment period
-        const inInvestmentPeriod = i < (investmentPeriodYears * 4);
-        const deploymentAmount = inInvestmentPeriod
-          ? fundSize.div(investmentPeriodYears * 4).toNumber()
-          : 0;
-        projectedDeployment.push(deploymentAmount);
+    // JCurvePath has direct array properties (tvpi, nav, dpi, etc) - NOT mainPath
+    for (let i = 0; i < numQuarters && i < forecast.jCurvePath.nav.length; i++) {
+      // Deployment decreases over investment period
+      const inInvestmentPeriod = i < (investmentPeriodYears * 4);
+      const deploymentAmount = inInvestmentPeriod
+        ? fundSize.div(investmentPeriodYears * 4).toNumber()
+        : 0;
+      projectedDeployment.push(deploymentAmount);
 
-        // Use J-curve projections
-        projectedDistributions.push(parseFloat(point.distributions.toString()));
-        projectedNAV.push(parseFloat(point.nav.toString()));
+      // Use J-curve projections (dpi represents distributions)
+      const navValue = forecast.jCurvePath.nav[i];
+      const dpiValue = forecast.jCurvePath.dpi[i];
+      if (navValue && dpiValue) {
+        projectedDistributions.push(parseFloat(dpiValue.toString()));
+        projectedNAV.push(parseFloat(navValue.toString()));
       }
     }
 

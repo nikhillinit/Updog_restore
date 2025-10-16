@@ -6,6 +6,7 @@
 import fetch, { AbortError } from 'node-fetch';
 import type { PortfolioCompany, MarketConditions, ReserveDecision, ReserveEngineOptions } from './ports.js';
 import { logger } from '../../lib/logger.js';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 export interface MLServiceConfig {
   baseUrl: string;
@@ -133,18 +134,20 @@ export class MlClient {
         latencyMs?: number;
       };
 
+      const explanation = body.explanation ? {
+        method: body.explanation.method as any,
+        details: body.explanation.details,
+        topFactors: this.extractTopFactors(body.explanation.details),
+      } : undefined;
+
       const decision: ReserveDecision = {
         prediction: {
           recommendedReserve: Math.max(0, body.prediction.recommendedReserve),
-          perRound: body.prediction.perRound,
-          confidence: body.prediction.confidence,
+          ...spreadIfDefined('perRound', body.prediction.perRound),
+          ...spreadIfDefined('confidence', body.prediction.confidence),
           notes: body.prediction.notes || [],
         },
-        explanation: body.explanation ? {
-          method: body.explanation.method as any,
-          details: body.explanation.details,
-          topFactors: this.extractTopFactors(body.explanation.details),
-        } : undefined,
+        ...spreadIfDefined('explanation', explanation),
         engineType: 'ml',
         engineVersion: body.modelVersion,
         latencyMs: body.latencyMs || (Date.now() - startTime),

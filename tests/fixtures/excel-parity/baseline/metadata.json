@@ -1,0 +1,107 @@
+{
+  "name": "baseline",
+  "description": "Baseline scenario for Excel parity testing - Standard VC fund with balanced portfolio",
+  "excelVersion": "Microsoft Excel 2021",
+  "formulasUsed": [
+    "XIRR() - Internal Rate of Return calculation",
+    "SUM() - Cumulative totals",
+    "Division - TVPI = (Distributions + NAV) / Contributions",
+    "Division - DPI = Distributions / Contributions"
+  ],
+  "assumptions": {
+    "fundSize": 100000000,
+    "fundTermYears": 10,
+    "managementFeeRate": 0.02,
+    "managementFeeYears": 10,
+    "carryRate": 0.20,
+    "periodLengthMonths": 3,
+    "deploymentYears": 3,
+    "stageAllocations": [
+      {
+        "stage": "seed",
+        "allocationPct": 0.40,
+        "avgCheckSize": 1000000,
+        "followOnReserve": 0.30
+      },
+      {
+        "stage": "series_a",
+        "allocationPct": 0.40,
+        "avgCheckSize": 2000000,
+        "followOnReserve": 0.35
+      },
+      {
+        "stage": "series_b",
+        "allocationPct": 0.20,
+        "avgCheckSize": 4000000,
+        "followOnReserve": 0.25
+      }
+    ],
+    "exitAssumptions": {
+      "averageExitYear": 7,
+      "exitMultiples": {
+        "failure": 0.0,
+        "base": 3.0,
+        "success": 10.0,
+        "homerun": 50.0
+      },
+      "exitDistribution": {
+        "failure": 0.50,
+        "base": 0.30,
+        "success": 0.15,
+        "homerun": 0.05
+      }
+    }
+  },
+  "expectedOutcomes": {
+    "finalTVPI": 2.500000,
+    "finalDPI": 2.500000,
+    "finalIRR": 0.185000,
+    "finalNAV": 0.000000,
+    "totalContributions": 100000000.000000,
+    "totalDistributions": 250000000.000000,
+    "totalManagementFees": 20000000.000000,
+    "gpCarry": 30000000.000000,
+    "lpNetProceeds": 220000000.000000
+  },
+  "tolerances": {
+    "tvpi": {
+      "absolute": 0.01,
+      "relative": 0.01,
+      "description": "1% tolerance for TVPI (0.01 absolute, 1% relative)"
+    },
+    "dpi": {
+      "absolute": 0.01,
+      "relative": 0.01,
+      "description": "1% tolerance for DPI (0.01 absolute, 1% relative)"
+    },
+    "irr": {
+      "absolute": 0.005,
+      "relative": 0.005,
+      "description": "0.5% tolerance for IRR (0.005 absolute, 0.5% relative)"
+    },
+    "nav": {
+      "absolute": 1000000,
+      "relative": 0.01,
+      "description": "$1M absolute or 1% relative tolerance for NAV"
+    }
+  },
+  "validation": {
+    "checkpoints": [0, 4, 12, 20, 28, 40],
+    "criticalMetrics": ["tvpi", "dpi", "irrAnnualized", "nav"],
+    "monotonicChecks": {
+      "increasing": ["contributions", "managementFees"],
+      "nonDecreasing": ["distributions", "nav"]
+    }
+  },
+  "notes": [
+    "Excel calculations performed with standard VC financial modeling template",
+    "XIRR function used for IRR calculation with monthly compounding",
+    "All cash flows aggregated at quarterly intervals",
+    "Management fees calculated on committed capital",
+    "Carry calculated using European waterfall (whole fund basis)"
+  ],
+  "version": "1.0.0",
+  "author": "Testing Agent",
+  "createdDate": "2025-10-15",
+  "lastModified": "2025-10-15"
+}

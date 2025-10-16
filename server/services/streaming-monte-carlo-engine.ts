@@ -395,7 +395,8 @@ export class StreamingMonteCarloEngine {
       return results;
 
     } catch (error) {
-      throw new Error(`Streaming Monte Carlo simulation failed: ${error.message}`);
+      const err = error instanceof Error ? error : new Error(String(error));
+      throw new Error(`Streaming Monte Carlo simulation failed: ${err.message}`);
     } finally {
       // Cleanup resources
       await this.cleanup();
@@ -546,8 +547,8 @@ export class StreamingMonteCarloEngine {
    * Calculate risk metrics from streaming data
    */
   private async calculateStreamingRiskMetrics(distributions: Record<string, MemoryEfficientDistribution>): Promise<RiskMetrics> {
-    const irrDist = distributions.irr;
-    const totalValueDist = distributions.totalValue;
+    const irrDist = distributions["irr"];
+    const totalValueDist = distributions["totalValue"];
 
     // Value at Risk from percentiles
     const var5 = irrDist.percentiles['get'](5) || irrDist.min;
@@ -603,8 +604,10 @@ export class StreamingMonteCarloEngine {
 
     for (const ratio of reserveRatios) {
       // Estimate performance for this reserve ratio
-      const expectedIRR = this.estimateReserveImpact(distributions.irr.mean, ratio, portfolioInputs);
-      const riskAdjustedReturn = expectedIRR / distributions.irr.standardDeviation;
+      const irrDist = distributions['irr'];
+      if (!irrDist) continue; // Guard: skip if irr distribution missing
+      const expectedIRR = this['estimateReserveImpact'](irrDist.mean, ratio, portfolioInputs);
+      const riskAdjustedReturn = expectedIRR / irrDist.standardDeviation;
       const followOnCoverage = this.estimateFollowOnCoverage(ratio);
 
       allocationAnalysis.push({
@@ -620,11 +623,14 @@ export class StreamingMonteCarloEngine {
       current.riskAdjustedReturn > best.riskAdjustedReturn ? current : best
     );
 
+    // Guard: find current allocation or use optimal as fallback
+    const currentAllocation = allocationAnalysis.find(a => Math.abs(a.reserveRatio - currentReserveRatio) < 0.01);
+    const currentExpectedIRR = currentAllocation?.expectedIRR ?? optimal.expectedIRR;
+
     return {
       currentReserveRatio,
       optimalReserveRatio: optimal.reserveRatio,
-      improvementPotential: optimal.expectedIRR -
-        allocationAnalysis.find(a => Math.abs(a.reserveRatio - currentReserveRatio) < 0.01)?.expectedIRR || 0,
+      improvementPotential: optimal.expectedIRR - currentExpectedIRR,
       coverageScenarios: {
         p25: 0.6,
         p50: 0.75,

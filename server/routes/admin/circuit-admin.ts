@@ -36,8 +36,8 @@ export function circuitAdmin(breakers?: Record<string, CircuitBreaker<any>>) {
   });
 
   r.post('/force/:name/:state', (req: any, res: any) => {
-    const breaker = breakerRegistry['get'](req.params.name) || 
-                   (breakers && breakers[req.params.name]);
+    const breaker = breakerRegistry['get'](req.params["name"]) || 
+                   (breakers && breakers[req.params["name"]]);
     
     if (!breaker) return res.status(404).json({ error: 'unknown breaker' });
     // Not exposing unsafe direct state changes in code; this endpoint can wrap debug helpers as needed.

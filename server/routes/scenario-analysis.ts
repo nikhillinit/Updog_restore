@@ -18,8 +18,10 @@ import {
   addMOICToCases
 } from '@shared/utils/scenario-math';
 import type {
-  ScenarioAnalysisResponse
+  ScenarioAnalysisResponse,
+  ScenarioCase
 } from '@shared/types/scenario';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 const router = Router();
 
@@ -113,10 +115,15 @@ router.get('/funds/:fundId/portfolio-analysis',
       // Cache for 5 minutes (sufficient for internal tool)
       res.set('Cache-Control', 'private, max-age=300');
 
+      // Guard fundId to ensure type safety
+      if (!fundId) {
+        return res.status(400).json({ error: 'fundId is required' });
+      }
+
       // TODO: Implement actual query logic based on your schema
       // This is a placeholder showing the pattern
       const results = await db.query.portfolioCompanies.findMany({
-        where: eq(portfolioCompanies.fundId, fundId),
+        where: eq(portfolioCompanies.fundId, parseInt(fundId, 10)),
         limit: query.limit,
         offset: (query.page - 1) * query.limit,
         with: {
@@ -132,7 +139,7 @@ router.get('/funds/:fundId/portfolio-analysis',
 
       const total = await db.select({ count: sql<number>`count(*)` })
         .from(portfolioCompanies)
-        .where(eq(portfolioCompanies.fundId, fundId));
+        .where(eq(portfolioCompanies.fundId, parseInt(fundId, 10)));
 
       // Transform to ComparisonRow format
       const rows = results.map((company: typeof results[number]) => ({
@@ -177,12 +184,16 @@ router.get('/companies/:companyId/scenarios/:scenarioId',
   async (req: Request, res: Response) => {
     try {
       const { companyId, scenarioId } = req.params;
-      const include = (req.query.include as string)?.split(',') || ['cases', 'weighted_summary'];
+      const include = (req.query["include"] as string)?.split(',') || ['cases', 'weighted_summary'];
+
+      if (!scenarioId || !companyId) {
+        return res.status(400).json({ error: 'scenarioId and companyId are required' });
+      }
 
       const scenario = await db.query.scenarios.findFirst({
         where: and(
           eq(scenarios.id, scenarioId),
-          eq(scenarios.companyId, companyId)
+          eq(scenarios.companyId, parseInt(companyId, 10))
         ),
         with: {
           cases: include.includes('cases')
@@ -202,24 +213,26 @@ router.get('/companies/:companyId/scenarios/:scenarioId',
         : null;
 
       // Get investment rounds if requested
-      let rounds = [];
+      // Note: investmentRounds table not defined in schema, using placeholder
+      let rounds: any[] = [];
       if (include.includes('rounds')) {
-        rounds = await db.query.investmentRounds.findMany({
-          where: eq(investmentRounds.companyId, companyId),
-          orderBy: (rounds: any, { asc }: any) => [asc(rounds.round_date)]
-        });
+        // TODO: Implement when investmentRounds table is added to schema
+        // rounds = await db.query.investmentRounds.findMany({
+        //   where: eq(investmentRounds.companyId, parseInt(companyId, 10)),
+        //   orderBy: (rounds: any, { asc }: any) => [asc(rounds.round_date)]
+        // });
       }
 
       const response: ScenarioAnalysisResponse = {
-        company_name: scenario.company?.name || '',
+        company_name: scenario.company?.name ?? '',
         company_id: companyId,
         scenario: {
           ...scenario,
           cases: casesWithMOIC
         },
         cases: casesWithMOIC,
-        weighted_summary,
-        rounds: include.includes('rounds') ? rounds : undefined,
+        ...(weighted_summary !== null ? { weighted_summary } : {}),
+        ...(include.includes('rounds') ? { rounds } : {}),
       };
 
       res.json(response);
@@ -246,18 +259,20 @@ router.post('/companies/:companyId/scenarios',
       const { companyId } = req.params;
       const { name, description } = req.body;
 
+      const userId = req["userId"] || 'system';
+
       const scenario = await db.insert(scenarios).values({
         company_id: companyId,
         name: name || 'New Scenario',
         description,
         version: 1,
         is_default: false,
-        created_by: req.userId,
+        created_by: userId,
       }).returning();
 
       // Audit log
       await auditLog({
-        userId: req.userId,
+        userId,
         entityType: 'scenario',
         entityId: scenario[0].id,
         action: 'CREATE',
@@ -287,11 +302,15 @@ router.patch('/companies/:companyId/scenarios/:scenarioId',
       const { companyId, scenarioId } = req.params;
       const body = UpdateScenarioRequestSchema.parse(req.body);
 
+      if (!scenarioId || !companyId) {
+        return res.status(400).json({ error: 'scenarioId and companyId are required' });
+      }
+
       // Fetch current scenario
       const current = await db.query.scenarios.findFirst({
         where: and(
           eq(scenarios.id, scenarioId),
-          eq(scenarios.companyId, companyId)
+          eq(scenarios.companyId, parseInt(companyId, 10))
         ),
         with: { cases: true }
       });
@@ -310,7 +329,7 @@ router.patch('/companies/:companyId/scenarios/:scenarioId',
       }
 
       // Validate probabilities
-      let cases = body.cases;
+      let cases = body.cases as ScenarioCase[];
       const validation = validateProbabilities(cases);
 
       if (!validation.is_valid && !body.normalize) {
@@ -332,6 +351,9 @@ router.patch('/companies/:companyId/scenarios/:scenarioId',
 
       // Delete existing cases and insert new ones (transaction)
       await db.transaction(async (tx: any) => {
+        if (!scenarioId) {
+          throw new Error('scenarioId is required');
+        }
         await tx.delete(scenarioCases)
           .where(eq(scenarioCases.scenarioId, scenarioId));
 
@@ -340,14 +362,14 @@ router.patch('/companies/:companyId/scenarios/:scenarioId',
             cases.map(c => ({
               scenario_id: scenarioId,
               case_name: c.case_name,
-              description: c.description,
+              ...spreadIfDefined('description', c.description),
               probability: c.probability,
               investment: c.investment,
               follow_ons: c.follow_ons,
               exit_proceeds: c.exit_proceeds,
               exit_valuation: c.exit_valuation,
-              months_to_exit: c.months_to_exit,
-              ownership_at_exit: c.ownership_at_exit,
+              ...spreadIfDefined('months_to_exit', c.months_to_exit),
+              ...spreadIfDefined('ownership_at_exit', c.ownership_at_exit),
             }))
           );
         }
@@ -362,8 +384,9 @@ router.patch('/companies/:companyId/scenarios/:scenarioId',
       });
 
       // BLOCKER #2 FIX: Audit logging
+      const userId = req["userId"] || 'system';
       await auditLog({
-        userId: req.userId,
+        userId: userId as string,
         entityType: 'scenario',
         entityId: scenarioId,
         action: 'UPDATE',
@@ -375,7 +398,7 @@ router.patch('/companies/:companyId/scenarios/:scenarioId',
       });
 
       // Return updated data
-      const casesWithMOIC = addMOICToCases(cases);
+      const casesWithMOIC = addMOICToCases(cases as ScenarioCase[]);
       const weighted_summary = calculateWeightedSummary(casesWithMOIC);
 
       res.json({
@@ -416,10 +439,14 @@ router.delete('/companies/:companyId/scenarios/:scenarioId',
     try {
       const { companyId, scenarioId } = req.params;
 
+      if (!scenarioId || !companyId) {
+        return res.status(400).json({ error: 'scenarioId and companyId are required' });
+      }
+
       const scenario = await db.query.scenarios.findFirst({
         where: and(
           eq(scenarios.id, scenarioId),
-          eq(scenarios.companyId, companyId)
+          eq(scenarios.companyId, parseInt(companyId, 10))
         )
       });
 
@@ -435,18 +462,22 @@ router.delete('/companies/:companyId/scenarios/:scenarioId',
       }
 
       // Delete (cascade will remove cases)
+      if (!scenarioId) {
+        return res.status(400).json({ error: 'scenarioId is required' });
+      }
       await db.delete(scenarios)
         .where(eq(scenarios.id, scenarioId));
 
       // Audit log
+      const userId = req["userId"] || 'system';
       await auditLog({
-        userId: req.userId,
+        userId: userId as string,
         entityType: 'scenario',
         entityId: scenarioId,
         action: 'DELETE',
       });
 
-      res.status(204).send();
+      res.status(204).end();
 
     } catch (error: any) {
       console.error('Delete scenario error:', error);

@@ -61,7 +61,7 @@ const productionFormat = winston.format.combine(
       ...meta,
       hostname: process.env['HOSTNAME'] || 'unknown',
       service: 'updog-vc-platform',
-      version: process.env.npm_package_version || '1.0.0'
+      version: process.env["npm_package_version"] || '1.0.0'
     });
   })
 );
@@ -207,7 +207,7 @@ export const logContext = {
   addRequestContext: (req: Request) => ({
     correlationId: (req as Request & { correlationId?: string }).correlationId,
     userId: (req as Request & { user?: { id?: string | number } }).user?.id,
-    userAgent: req.get('User-Agent'),
+    userAgent: req["get"]('User-Agent'),
     ip: req.ip,
     method: req.method,
     path: req.path
@@ -340,12 +340,12 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
   // Log response when finished
   res['on']('finish', () => {
     const duration = Date.now() - startTime;
-    const logLevel = res.statusCode >= 400 ? 'warn' : 'info';
+    const logLevel = res["statusCode"] >= 400 ? 'warn' : 'info';
 
     logger.log(logLevel, 'Request completed', {
       ...logContext.addRequestContext(req),
       correlationId,
-      statusCode: res.statusCode,
+      statusCode: res["statusCode"],
       duration
     });
 
@@ -355,7 +355,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
         ...logContext.addRequestContext(req),
         correlationId,
         duration,
-        statusCode: res.statusCode
+        statusCode: res["statusCode"]
       });
     }
   });

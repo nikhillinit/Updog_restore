@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": [
+    "shared/**/*"
+  ],
+  "exclude": [
+    "**/*.test.*",
+    "node_modules",
+    "dist"
+  ]
+}

@@ -10,7 +10,7 @@ import { idem } from '../shared/idempotency-instance';
 const router = Router();
 
 router['get']('/api/operations/:key', async (req: Request, res: Response) => {
-  const key = String(req.params.key);
+  const key = String(req.params["key"]);
   const rec = await idem['get'](key);
   if (!rec) return res.status(404).json({ code: 'NOT_FOUND', message: 'Unknown operation' });
 

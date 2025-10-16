@@ -40,7 +40,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
   // Option 2: API key auth (temporary for testing)
   const apiKey = req.headers['x-api-key'] as string;
-  if (apiKey && process.env.API_KEY && apiKey === process.env.API_KEY) {
+  if (apiKey && process.env["API_KEY"] && apiKey === process.env["API_KEY"]) {
     // Mock user for API key auth
     authReq.user = {
       id: 'api-key-user',
@@ -64,22 +64,24 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
  */
 export function requireFundAccess(req: Request, res: Response, next: NextFunction): void {
   const authReq = req as AuthenticatedRequest;
-  const fundIdParam = req.params.fundId;
+  const fundIdParam = req.params["fundId"];
 
   if (!fundIdParam) {
-    return res.status(400).json({
+    res.status(400).json({
       error: 'Bad Request',
       message: 'Fund ID is required',
     });
+    return;
   }
 
   const fundId = parseInt(fundIdParam, 10);
 
   if (isNaN(fundId)) {
-    return res.status(400).json({
+    res.status(400).json({
       error: 'Bad Request',
       message: 'Invalid fund ID',
     });
+    return;
   }
 
   // Check if user has access to this fund

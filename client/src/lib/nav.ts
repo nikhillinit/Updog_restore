@@ -168,8 +168,8 @@ export function generatePortfolioNAV(
           investment.exitQuarter
         );
         const navIndex = q - investment.startQuarter;
-        if (navIndex < investmentNAV.length) {
-          totalNAV += investmentNAV[navIndex];
+        if (navIndex >= 0 && navIndex < investmentNAV.length) {
+          totalNAV += investmentNAV[navIndex] ?? 0;
         }
       } else if (q > investment.exitQuarter) {
         // Investment has exited, add to distributions

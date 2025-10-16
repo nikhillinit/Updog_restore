@@ -97,8 +97,9 @@ export function requireFundLock() {
       
       if (!acquired) {
         // Increment contention metric
-        if (global.metrics?.fundLockConflicts) {
-          global.metrics.fundLockConflicts.inc();
+        const globalAny = global as any;
+        if (globalAny.metrics?.fundLockConflicts) {
+          globalAny.metrics.fundLockConflicts.inc();
         }
         
         // Wait for lock with timeout
@@ -289,7 +290,7 @@ export class DistributedLock {
   private stopLeaseRenewal(): void {
     if (this.leaseTimer) {
       clearInterval(this.leaseTimer);
-      this.leaseTimer = undefined;
+      delete (this as any).leaseTimer; // exactOptionalPropertyTypes requires delete, not undefined
     }
   }
 }

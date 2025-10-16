@@ -15,6 +15,7 @@ import { createHash } from 'crypto';
 import { promises as fs } from 'fs';
 import path from 'path';
 import pLimit from 'p-limit';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 // ============================================================================
 // Configuration
@@ -30,21 +31,21 @@ const CONFIG = {
 } as const;
 
 // Initialize AI clients (only if API keys present)
-const anthropic = process.env.ANTHROPIC_API_KEY
-  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const anthropic = process.env["ANTHROPIC_API_KEY"]
+  ? new Anthropic({ apiKey: process.env["ANTHROPIC_API_KEY"] })
   : null;
 
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+const openai = process.env["OPENAI_API_KEY"]
+  ? new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] })
   : null;
 
-const gemini = process.env.GOOGLE_API_KEY
-  ? new GoogleGenerativeAI(process.env.GOOGLE_API_KEY)
+const gemini = process.env["GOOGLE_API_KEY"]
+  ? new GoogleGenerativeAI(process.env["GOOGLE_API_KEY"])
   : null;
 
-const deepseek = process.env.DEEPSEEK_API_KEY
+const deepseek = process.env["DEEPSEEK_API_KEY"]
   ? new OpenAI({
-      apiKey: process.env.DEEPSEEK_API_KEY,
+      apiKey: process.env["DEEPSEEK_API_KEY"],
       baseURL: 'https://api.deepseek.com',
     })
   : null;
@@ -86,20 +87,20 @@ interface BudgetData {
 
 const PRICING = {
   claude: {
-    input: parseFloat(process.env.CLAUDE_INPUT_COST ?? '0.003'),
-    output: parseFloat(process.env.CLAUDE_OUTPUT_COST ?? '0.015'),
+    input: parseFloat(process.env["CLAUDE_INPUT_COST"] ?? '0.003'),
+    output: parseFloat(process.env["CLAUDE_OUTPUT_COST"] ?? '0.015'),
   },
   gpt: {
-    input: parseFloat(process.env.GPT_INPUT_COST ?? '0.00015'),
-    output: parseFloat(process.env.GPT_OUTPUT_COST ?? '0.0006'),
+    input: parseFloat(process.env["GPT_INPUT_COST"] ?? '0.00015'),
+    output: parseFloat(process.env["GPT_OUTPUT_COST"] ?? '0.0006'),
   },
   gemini: {
-    input: parseFloat(process.env.GEMINI_INPUT_COST ?? '0'),
-    output: parseFloat(process.env.GEMINI_OUTPUT_COST ?? '0'),
+    input: parseFloat(process.env["GEMINI_INPUT_COST"] ?? '0'),
+    output: parseFloat(process.env["GEMINI_OUTPUT_COST"] ?? '0'),
   },
   deepseek: {
-    input: parseFloat(process.env.DEEPSEEK_INPUT_COST ?? '0.00014'),
-    output: parseFloat(process.env.DEEPSEEK_OUTPUT_COST ?? '0.00028'),
+    input: parseFloat(process.env["DEEPSEEK_INPUT_COST"] ?? '0.00014'),
+    output: parseFloat(process.env["DEEPSEEK_OUTPUT_COST"] ?? '0.00028'),
   },
 } as const;
 
@@ -133,12 +134,14 @@ async function getBudgetData(): Promise<BudgetData> {
 async function getTodaysCalls(): Promise<number> {
   const budget = await getBudgetData();
   const today = new Date().toISOString().split('T')[0];
+  if (!today) return 0;
   return budget.date === today ? budget.count : 0;
 }
 
 async function incrementBudget(calls: number, cost: number): Promise<number> {
   await ensureLogDir();
   const today = new Date().toISOString().split('T')[0];
+  if (!today) throw new Error('Failed to get today\'s date');
   const current = await getBudgetData();
 
   const updated: BudgetData = {
@@ -222,7 +225,7 @@ async function askClaude(prompt: string): Promise<AIResponse> {
   try {
     const response = await withRetryAndTimeout(
       () => anthropic.messages.create({
-        model: process.env.CLAUDE_MODEL ?? 'claude-3-5-sonnet-latest',
+        model: process.env["CLAUDE_MODEL"] ?? 'claude-3-5-sonnet-latest',
         max_tokens: 8192,
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -266,7 +269,7 @@ async function askGPT(prompt: string): Promise<AIResponse> {
   try {
     const response = await withRetryAndTimeout(
       () => openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
+        model: process.env["OPENAI_MODEL"] ?? 'gpt-4o-mini',
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 16384,
       }),
@@ -285,7 +288,7 @@ async function askGPT(prompt: string): Promise<AIResponse> {
     return {
       model: 'gpt',
       text,
-      usage,
+      ...spreadIfDefined('usage', usage),
       cost_usd: estimateCost('gpt', usage),
       elapsed_ms: Date.now() - startTime,
     };
@@ -307,7 +310,7 @@ async function askGemini(prompt: string): Promise<AIResponse> {
 
   try {
     const model = gemini.getGenerativeModel({
-      model: process.env.GEMINI_MODEL ?? 'gemini-1.5-flash',
+      model: process.env["GEMINI_MODEL"] ?? 'gemini-1.5-flash',
     });
 
     const response = await withRetryAndTimeout(
@@ -328,7 +331,7 @@ async function askGemini(prompt: string): Promise<AIResponse> {
     return {
       model: 'gemini',
       text,
-      usage,
+      ...spreadIfDefined('usage', usage),
       cost_usd: estimateCost('gemini', usage),
       elapsed_ms: Date.now() - startTime,
     };
@@ -351,7 +354,7 @@ async function askDeepSeek(prompt: string): Promise<AIResponse> {
   try {
     const response = await withRetryAndTimeout(
       () => deepseek.chat.completions.create({
-        model: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
+        model: process.env["DEEPSEEK_MODEL"] ?? 'deepseek-chat',
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 8192,
       }),
@@ -370,7 +373,7 @@ async function askDeepSeek(prompt: string): Promise<AIResponse> {
     return {
       model: 'deepseek',
       text,
-      usage,
+      ...spreadIfDefined('usage', usage),
       cost_usd: estimateCost('deepseek', usage),
       elapsed_ms: Date.now() - startTime,
     };
@@ -528,14 +531,20 @@ export async function aiDebate({
     askAllAIs({ prompt: counterPrompt, models: [ai2], tags: [...tags, 'debate', 'counter'] }),
   ]);
 
-  const totalCost = (opening[0].cost_usd ?? 0) + (counter[0].cost_usd ?? 0);
+  const openingResponse = opening[0];
+  const counterResponse = counter[0];
+  if (!openingResponse || !counterResponse) {
+    throw new Error('Failed to get responses from AIs');
+  }
+
+  const totalCost = (openingResponse.cost_usd ?? 0) + (counterResponse.cost_usd ?? 0);
 
   return {
     topic,
     ai1,
     ai2,
-    opening: opening[0],
-    counter: counter[0],
+    opening: openingResponse,
+    counter: counterResponse,
     totalCost,
     elapsedMs: Date.now() - startTime,
   };
@@ -585,7 +594,7 @@ export async function aiConsensus({
 
   return {
     question,
-    options,
+    ...spreadIfDefined('options', options),
     responses,
     consensus,
     totalCost,
@@ -616,6 +625,7 @@ export async function collaborativeSolve({
 
     for (let i = 0; i < models.length; i++) {
       const model = models[i];
+      if (!model) continue;
       let prompt = `Step ${i + 1}: Analyze this problem: ${problem}.`;
 
       if (cumulativeInsights) {
@@ -631,11 +641,16 @@ export async function collaborativeSolve({
         tags: [...tags, 'collaborative', 'sequential', `step-${i + 1}`],
       });
 
-      steps.push(result[0]);
+      const stepResponse = result[0];
+      if (!stepResponse) {
+        throw new Error(`Failed to get response from ${model}`);
+      }
+
+      steps.push(stepResponse);
 
       // Accumulate insights for next AI
-      if (result[0].text) {
-        cumulativeInsights += `\n\n## ${model.toUpperCase()}:\n${result[0].text}`;
+      if (stepResponse.text) {
+        cumulativeInsights += `\n\n## ${model.toUpperCase()}:\n${stepResponse.text}`;
       }
     }
   } else {
@@ -670,7 +685,7 @@ let __ollama__: any = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const Ollama = require('ollama');
-  __ollama__ = new Ollama({ host: process.env.OLLAMA_HOST ?? 'http://localhost:11434' });
+  __ollama__ = new Ollama({ host: process.env["OLLAMA_HOST"] ?? 'http://localhost:11434' });
 } catch { /* not installed */ }
 
 async function askOllama(prompt: string, model: string) {
@@ -694,7 +709,7 @@ async function askHuggingFace(prompt: string, model: string) {
   const r = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.HF_TOKEN ?? ''}`,
+      'Authorization': `Bearer ${process.env["HF_TOKEN"] ?? ''}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({

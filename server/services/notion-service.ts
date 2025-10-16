@@ -20,6 +20,7 @@ import {
   parseNotionSelect,
   parseNotionMultiSelect
 } from '@shared/notion-schema';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 // =============================================================================
 // NOTION API SERVICE
@@ -86,7 +87,7 @@ export class NotionService {
   ): Promise<NotionWorkspaceConnection> {
     try {
       const auth = Buffer.from(
-        `${process.env.NOTION_CLIENT_ID}:${process.env.NOTION_CLIENT_SECRET}`
+        `${process.env["NOTION_CLIENT_ID"]}:${process.env["NOTION_CLIENT_SECRET"]}`
       ).toString('base64');
 
       const response = await fetch('https://api.notion.com/v1/oauth/token', {
@@ -99,7 +100,7 @@ export class NotionService {
         body: JSON.stringify({
           grant_type: 'authorization_code',
           code,
-          redirect_uri: process.env.NOTION_REDIRECT_URI
+          redirect_uri: process.env["NOTION_REDIRECT_URI"]
         })
       });
 
@@ -193,7 +194,7 @@ export class NotionService {
 
         const response = await client.search({
           filter: { property: 'object', value: 'database' },
-          start_cursor: nextCursor,
+          ...spreadIfDefined('start_cursor', nextCursor),
           page_size: 100
         });
 
@@ -374,7 +375,7 @@ export class NotionService {
 
       const response = await client.databases.query({
         database_id: databaseId,
-        start_cursor: nextCursor,
+        ...spreadIfDefined('start_cursor', nextCursor),
         page_size: 100
       });
 
@@ -569,7 +570,7 @@ export class NotionService {
 
   private encryptToken(token: string): string {
     const algorithm = 'aes-256-gcm';
-    const key = Buffer.from(process.env.NOTION_ENCRYPTION_KEY || '', 'hex');
+    const key = Buffer["from"](process.env["NOTION_ENCRYPTION_KEY"] || '', 'hex');
     const iv = crypto.randomBytes(16);
 
     const cipher = crypto.createCipher(algorithm, key);
@@ -581,11 +582,16 @@ export class NotionService {
 
   private decryptToken(encryptedToken: string): string {
     const algorithm = 'aes-256-gcm';
-    const key = Buffer.from(process.env.NOTION_ENCRYPTION_KEY || '', 'hex');
+    const key = Buffer["from"](process.env["NOTION_ENCRYPTION_KEY"] || '', 'hex');
     const parts = encryptedToken.split(':');
-    const iv = Buffer.from(parts[0], 'hex');
+    const ivHex = parts[0];
     const encrypted = parts[1];
 
+    if (!ivHex || !encrypted) {
+      throw new Error('Invalid encrypted token format');
+    }
+
+    const iv = Buffer.from(ivHex, 'hex');
     const decipher = crypto.createDecipher(algorithm, key);
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');

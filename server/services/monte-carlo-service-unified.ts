@@ -108,12 +108,13 @@ export class UnifiedMonteCarloService {
 
     } catch (error) {
       // Fallback logic
+      const err = error instanceof Error ? error : new Error(String(error));
       if (config.enableFallback !== false && selectedEngine === 'streaming') {
-        console.warn(`Streaming engine failed, falling back to traditional: ${error.message}`);
+        console.warn(`Streaming engine failed, falling back to traditional: ${err.message}`);
         fallbackTriggered = true;
         result = await this.executeTraditionalSimulation(config);
       } else if (config.enableFallback !== false && selectedEngine === 'traditional') {
-        console.warn(`Traditional engine failed, falling back to streaming: ${error.message}`);
+        console.warn(`Traditional engine failed, falling back to streaming: ${err.message}`);
         fallbackTriggered = true;
         result = await this.executeStreamingSimulation(config);
       } else {
@@ -282,7 +283,8 @@ export class UnifiedMonteCarloService {
       // This would need a test method in the original engine
       checks.traditional = true;
     } catch (error) {
-      console.warn('Traditional engine health check failed:', error.message);
+      const err = error instanceof Error ? error : new Error(String(error));
+      console.warn('Traditional engine health check failed:', err.message);
     }
 
     // Test streaming engine
@@ -291,7 +293,8 @@ export class UnifiedMonteCarloService {
       const connectionStats = this.streamingEngine.getConnectionStats();
       checks.streaming = streamingStats !== null;
     } catch (error) {
-      console.warn('Streaming engine health check failed:', error.message);
+      const err = error instanceof Error ? error : new Error(String(error));
+      console.warn('Streaming engine health check failed:', err.message);
     }
 
     // Check connection pools

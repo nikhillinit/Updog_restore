@@ -12,6 +12,7 @@ import {
 import { eq } from 'drizzle-orm';
 import { monteCarloSimulationService, type SimulationParameters, type MonteCarloForecast } from './monte-carlo-simulation';
 import { SafeArithmetic, toSafeNumber } from '@shared/type-safety-utils';
+import { spreadIfDefined } from '@shared/lib/ts/spreadIfDefined';
 
 /**
  * Company-level performance prediction
@@ -162,7 +163,7 @@ export class PortfolioPerformancePredictorService {
       scenarios: config.scenarioCount,
       timeHorizonYears: config.timeHorizonYears,
       confidenceIntervals: config.confidenceIntervals,
-      baselineId: config.baselineId
+      ...spreadIfDefined('baselineId', config.baselineId)
     };
 
     const monteCarloForecast = await monteCarloSimulationService.generateForecast(mcParams);

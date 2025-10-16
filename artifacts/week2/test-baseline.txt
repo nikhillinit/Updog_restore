@@ -1,0 +1,61 @@
+
+> rest-express@1.3.2 pretest
+> node scripts/ensure-sidecar.mjs
+
+[ensure-sidecar] Missing sidecar junctions, recreating...
+[link-sidecar] Loaded 28 packages from sidecar-packages.json
+[link-sidecar] Creating junctions for vite + plugins...
+Junction created for c:\dev\Updog_restore\node_modules\vite <<===>> c:\dev\Updog_restore\tools_local\node_modules\vite
+[link-sidecar] ✓ vite
+[link-sidecar] Skipping @vitejs/plugin-react — not present in sidecar
+[link-sidecar] Skipping @preact/preset-vite — not present in sidecar
+[link-sidecar] Skipping rollup-plugin-visualizer — not present in sidecar
+[link-sidecar] Skipping vite-plugin-virtual — not present in sidecar
+[link-sidecar] Skipping vite-tsconfig-paths — not present in sidecar
+[link-sidecar] Skipping autoprefixer — not present in sidecar
+Junction created for c:\dev\Updog_restore\node_modules\postcss <<===>> c:\dev\Updog_restore\tools_local\node_modules\postcss
+[link-sidecar] ✓ postcss
+Junction created for c:\dev\Updog_restore\node_modules\tailwindcss <<===>> c:\dev\Updog_restore\tools_local\node_modules\tailwindcss
+[link-sidecar] ✓ tailwindcss
+Junction created for c:\dev\Updog_restore\node_modules\@tailwindcss\typography <<===>> c:\dev\Updog_restore\tools_local\node_modules\@tailwindcss\typography
+[link-sidecar] ✓ @tailwindcss/typography
+Junction created for c:\dev\Updog_restore\node_modules\lightningcss <<===>> c:\dev\Updog_restore\tools_local\node_modules\lightningcss
+[link-sidecar] ✓ lightningcss
+Junction created for c:\dev\Updog_restore\node_modules\preact <<===>> c:\dev\Updog_restore\tools_local\node_modules\preact
+[link-sidecar] ✓ preact
+[link-sidecar] Skipping prettier — not present in sidecar
+[link-sidecar] Skipping vitest — not present in sidecar
+[link-sidecar] Skipping jsdom — not present in sidecar
+Junction created for c:\dev\Updog_restore\node_modules\@testing-library\jest-dom <<===>> c:\dev\Updog_restore\tools_local\node_modules\@testing-library\jest-dom
+[link-sidecar] ✓ @testing-library/jest-dom
+[link-sidecar] Skipping @testing-library/react — not present in sidecar
+[link-sidecar] Skipping @testing-library/user-event — not present in sidecar
+[link-sidecar] Skipping cross-env — not present in sidecar
+Junction created for c:\dev\Updog_restore\node_modules\eslint <<===>> c:\dev\Updog_restore\tools_local\node_modules\eslint
+[link-sidecar] ✓ eslint
+Junction created for c:\dev\Updog_restore\node_modules\@eslint\js <<===>> c:\dev\Updog_restore\tools_local\node_modules\@eslint\js
+[link-sidecar] ✓ @eslint/js
+[link-sidecar] Skipping @typescript-eslint/parser — not present in sidecar
+[link-sidecar] Skipping @typescript-eslint/eslint-plugin — not present in sidecar
+Junction created for c:\dev\Updog_restore\node_modules\eslint-plugin-react <<===>> c:\dev\Updog_restore\tools_local\node_modules\eslint-plugin-react
+[link-sidecar] ✓ eslint-plugin-react
+[link-sidecar] Skipping eslint-plugin-react-hooks — not present in sidecar
+[link-sidecar] Skipping eslint-plugin-unused-imports — not present in sidecar
+Junction created for c:\dev\Updog_restore\node_modules\ts-morph <<===>> c:\dev\Updog_restore\tools_local\node_modules\ts-morph
+[link-sidecar] ✓ ts-morph
+[link-sidecar] Skipping tsx — not present in sidecar
+[link-sidecar] ✅ Linked vite + plugins into root node_modules
+[link-sidecar] Creating .bin shims for junctioned packages...
+[link-sidecar] Rebuilding 3 packages with bin scripts...
+rebuilt dependencies successfully
+[link-sidecar] ✅ Created .bin shims for npm scripts
+
+> rest-express@1.3.2 test
+> npm run test:unit && npm run test:integration
+
+
+> rest-express@1.3.2 test:unit
+> cross-env TZ=UTC vitest run
+
+'cross-env' is not recognized as an internal or external command,
+operable program or batch file.

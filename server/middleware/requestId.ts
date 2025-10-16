@@ -19,18 +19,18 @@ export function requestId() {
 
     // Optionally preserve client-provided ID for debugging (separate header)
     const clientRid = req['get']('X-Request-ID');
-    if (clientRid && process.env.NODE_ENV !== 'production') {
+    if (clientRid && process.env["NODE_ENV"] !== 'production') {
       res['setHeader']('X-Client-Request-ID', clientRid);
     }
 
     // Use server ID as authoritative
-    req.requestId = serverRid;
+    req["requestId"] = serverRid;
     res['setHeader']('X-Request-ID', serverRid);
-    res.locals.requestId = serverRid;
+    res['locals']["requestId"] = serverRid;
 
     // If logger exists, create child logger with request context
     if ((global as any).logger) {
-      req.log = (global as any).logger.child({
+      req["log"] = (global as any).logger.child({
         requestId: serverRid,
         path: req.path,
         method: req.method
@@ -39,9 +39,9 @@ export function requestId() {
 
     // Log request completion
     res['on']('finish', () => {
-      const duration = Date.now() - (res.locals.startTime || Date.now());
-      if (req.log) {
-        req.log.info({
+      const duration = Date["now"]() - (res['locals'].startTime || Date.now());
+      if (req["log"]) {
+        req['log']["info"]({
           status: res.statusCode,
           duration,
           path: req.path,
@@ -52,7 +52,7 @@ export function requestId() {
     });
 
     // Track start time for duration calculation
-    res.locals.startTime = Date.now();
+    res['locals']["startTime"] = Date.now();
 
     next();
   };
