@@ -157,7 +157,7 @@ export const generalRateLimit = createRateLimiter({
       })
     });
 
-    res.status(429).json({
+    res["status"](429)["json"]({
       error: 'Too many requests',
       retryAfter: Math.ceil(SECURITY_CONFIG.rateLimiting.windowMs / 1000)
     });
@@ -180,7 +180,7 @@ export const strictRateLimit = createRateLimiter({
       })
     });
 
-    res.status(429).json({
+    res["status"](429)["json"]({
       error: 'Rate limit exceeded for sensitive operation',
       retryAfter: Math.ceil(SECURITY_CONFIG.strictRateLimiting.windowMs / 1000)
     });
@@ -201,7 +201,7 @@ export const monteCarloRateLimit = createRateLimiter({
       ...logContext.addSecurityContext('monte_carlo_rate_limit', 'high')
     });
 
-    res.status(429).json({
+    res["status"](429)["json"]({
       error: 'Monte Carlo simulation rate limit exceeded',
       message: 'Please wait before starting another simulation',
       retryAfter: 300 // 5 minutes
@@ -223,7 +223,7 @@ export const ipFilter = (req: Request, res: Response, next: NextFunction) => {
       ...logContext.addSecurityContext('blocked_ip_access', 'high', { blockedIP: clientIP })
     });
 
-    return res.status(403).json({
+    return res["status"](403)["json"]({
       error: 'Access denied',
       message: 'Your IP address has been blocked'
     });
@@ -236,7 +236,7 @@ export const ipFilter = (req: Request, res: Response, next: NextFunction) => {
       ...logContext.addSecurityContext('non_whitelisted_ip', 'medium', { clientIP })
     });
 
-    return res.status(403).json({
+    return res["status"](403)["json"]({
       error: 'Access denied',
       message: 'Your IP address is not authorized'
     });
@@ -304,7 +304,7 @@ export const inputSanitization = (req: Request, res: Response, next: NextFunctio
       error: error instanceof Error ? error.message : 'Unknown error'
     });
 
-    res.status(400).json({
+    res["status"](400)["json"]({
       error: 'Invalid input format',
       message: 'Request contains invalid or malicious content'
     });
@@ -363,7 +363,7 @@ export const suspiciousActivityDetection = (req: Request, res: Response, next: N
         })
       });
 
-      return res.status(400).json({
+      return res["status"](400)["json"]({
         error: 'Suspicious activity detected',
         message: 'Request contains potentially malicious content'
       });

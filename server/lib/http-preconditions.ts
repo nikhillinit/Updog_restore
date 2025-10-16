@@ -47,7 +47,7 @@ export function requireIfMatch() {
     const ifMatch = req.headers['if-match'] as string | undefined;
     
     if (!ifMatch) {
-      return res.status(428).json({
+      return res["status"](428)["json"]({
         error: 'precondition_required',
         message: 'If-Match header is required for this operation',
         code: 'PRECONDITION_REQUIRED'
@@ -79,7 +79,7 @@ export function checkIfNoneMatch(getCurrentETag: (_req: Request) => string | Pro
       // Content hasn't changed, return 304
       res['setHeader']('ETag', currentETag);
       res['setHeader']('Cache-Control', 'private, must-revalidate');
-      return res.status(304).end();
+      return res["status"](304)["end"]();
     }
     
     next();
@@ -164,7 +164,7 @@ export function conditionalRequest(options: {
     if (ifNoneMatch && req.method === 'GET') {
       if (parseETag(ifNoneMatch) === parseETag(currentETag)) {
         res['setHeader']('ETag', currentETag);
-        return res.status(304).end();
+        return res["status"](304)["end"]();
       }
     }
     
@@ -172,14 +172,14 @@ export function conditionalRequest(options: {
     const ifMatch = req.headers['if-match'] as string | undefined;
     if (ifMatch || options.requireMatch) {
       if (!ifMatch && options.requireMatch) {
-        return res.status(428).json({
+        return res["status"](428)["json"]({
           error: 'precondition_required',
           message: 'If-Match header is required'
         });
       }
       
       if (ifMatch && parseETag(ifMatch) !== parseETag(currentETag)) {
-        return res.status(412).json({
+        return res["status"](412)["json"]({
           error: 'precondition_failed',
           message: 'Resource has been modified',
           current: currentETag
@@ -205,13 +205,13 @@ export function handlePreconditionError(
   next: NextFunction
 ): void {
   if (err.status === 428) {
-    res.status(428).json({
+    res["status"](428)["json"]({
       error: 'precondition_required',
       message: err.message || 'Precondition required',
       code: err.code || 'PRECONDITION_REQUIRED'
     });
   } else if (err.status === 412) {
-    res.status(412).json({
+    res["status"](412)["json"]({
       error: 'precondition_failed',
       message: err.message || 'Precondition failed',
       code: err.code || 'PRECONDITION_FAILED',

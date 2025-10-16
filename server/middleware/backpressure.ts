@@ -151,7 +151,7 @@ export function createBackpressureMiddleware(options?: BackpressureOptions) {
       res['setHeader']('Retry-After', '10');
       
       // Return 503 Service Unavailable
-      return res.status(503).json({
+      return res["status"](503)["json"]({
         error: 'Service Temporarily Unavailable',
         message: 'Server is under heavy load. Please try again later.',
         reason: process.env['NODE_ENV'] === 'development' ? reason : undefined
@@ -178,7 +178,7 @@ export function getBackpressureMetrics() {
 export function backpressureMetricsHandler(req: Request, res: Response) {
   try {
     const metrics = getBackpressureMetrics();
-    res.json({
+    res["json"]({
       status: 'ok',
       metrics,
       thresholds: {
@@ -190,7 +190,7 @@ export function backpressureMetricsHandler(req: Request, res: Response) {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({
+    res["status"](500)["json"]({
       error: 'Metrics unavailable',
       message: errorMessage
     });

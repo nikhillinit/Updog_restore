@@ -28,7 +28,7 @@ registerInvalidator(() => {
 // Enhanced with build provenance for CI smoke gates
 router['get']('/healthz', (_req: Request, res: Response) => {
   const versionInfo = getVersionInfo();
-  res.status(200).json({
+  res["status"](200)["json"]({
     status: 'ok',
     timestamp: new Date().toISOString(),
     ...versionInfo
@@ -40,21 +40,21 @@ router['get']('/healthz', (_req: Request, res: Response) => {
 
 // Legacy health endpoints (for backward compatibility)
 router['get']('/health', (req: Request, res: Response) => {
-  const providers = req.app.locals.providers as any;
+  const providers = req['app'].locals.providers as any;
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
-  res.json({
+  res["json"]({
     status: 'ok',
-    version: process.env.npm_package_version || '1.3.2',
+    version: process.env['npm_package_version'] || '1.3.2',
     mode,
     ts: new Date().toISOString()
   });
 });
 router['get']('/api/health', (req: Request, res: Response) => {
-  const providers = req.app.locals.providers as any;
+  const providers = req['app'].locals.providers as any;
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
-  res.json({
+  res["json"]({
     status: 'ok',
-    version: process.env.npm_package_version || '1.3.2',
+    version: process.env['npm_package_version'] || '1.3.2',
     mode,
     ts: new Date().toISOString()
   });
@@ -74,7 +74,7 @@ router['get']('/health/detailed-json', async (req: Request, res: Response) => {
     res['set']('X-Health-From-Cache', '1');
     const ttlMs = await healthCache.ttlMs('healthz');
     res['set']('X-Health-TTL-Remaining', ttlMs.toString());
-    return res.json(cached);
+    return res["json"](cached);
   }
   
   try {
@@ -88,7 +88,7 @@ router['get']('/health/detailed-json', async (req: Request, res: Response) => {
       uptime_sec: process.uptime(),
       heap_mb: Math.round(process.memoryUsage().heapUsed / 1048576),
       timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version || 'unknown',
+      version: process.env["npm_package_version"] || 'unknown',
       last_deploy: fs.existsSync('.last-deploy')
         ? fs.readFileSync('.last-deploy', 'utf8').trim()
         : 'unknown',
@@ -100,9 +100,9 @@ router['get']('/health/detailed-json', async (req: Request, res: Response) => {
     const ttlMs = await healthCache.ttlMs('healthz');
     res['set']('X-Health-TTL-Set', ttlMs.toString());
     
-    res.json(healthData);
+    res["json"](healthData);
   } catch (error) {
-    res.status(500).json({
+    res["status"](500)["json"]({
       error: 'Health check failed',
       message: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
@@ -123,7 +123,7 @@ router['get']('/readyz', async (req: Request, res: Response) => {
     res['set']('X-Health-From-Cache', '1');
     const ttlMs = await healthCache.ttlMs('readyz');
     res['set']('X-Health-TTL-Remaining', ttlMs.toString());
-    return res.status(cached.ready ? 200 : 503).json(cached);
+    return res["status"](cached.ready ? 200 : 503)["json"](cached);
   }
   
   const checks = {
@@ -141,7 +141,7 @@ router['get']('/readyz', async (req: Request, res: Response) => {
   }
   
   // Redis is optional - check but don't fail on it
-  const redisHealthy = await storage.isRedisHealthy?.() ?? false;
+  const redisHealthy = (await storage.isRedisHealthy?.()) ?? false;
   checks.redis = redisHealthy ? "ok" : "degraded";
   
   // Service is ready if API and DB are OK (Redis is optional)
@@ -161,7 +161,7 @@ router['get']('/readyz', async (req: Request, res: Response) => {
   const ttlMs = await healthCache.ttlMs('readyz');
   res['set']('X-Health-TTL-Set', ttlMs.toString());
   
-  res.status(isReady ? 200 : 503).json(response);
+  res["status"](isReady ? 200 : 503)["json"](response);
 });
 
 // Detailed health endpoint for diagnostics (protected + rate limited)
@@ -178,7 +178,7 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
                       req.hostname === 'localhost';
     
     if (!isInternal) {
-      return res.status(403).json({ error: 'Forbidden' });
+      return res["status"](403)["json"]({ error: 'Forbidden' });
     }
   }
   
@@ -201,7 +201,7 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
   }
   
   // Redis check (optional dependency)
-  const redisHealthy = await storage.isRedisHealthy?.() ?? false;
+  const redisHealthy = (await storage.isRedisHealthy?.()) ?? false;
   detailed.redis = redisHealthy ? "ok" : "degraded";
   
   // Worker status (depends on Redis)
@@ -210,14 +210,14 @@ router['get']('/health/detailed', rateLimitDetailed(), async (req: Request, res:
   // Memory and uptime
   detailed.metrics.uptimeSeconds = Math.floor(process.uptime());
   detailed.metrics.memoryMB = Math.round(process.memoryUsage().heapUsed / 1048576);
-  detailed.metrics.version = process.env.npm_package_version || "1.3.2";
+  detailed.metrics.version = process.env["npm_package_version"] || "1.3.2";
   
-  res.json(detailed);
+  res["json"](detailed);
 });
 
 // Simple inflight/uptime snapshot; extend as needed.
 router['get']('/health/inflight', (_req: any, res: any) => {
-  res.json({
+  res["json"]({
     uptime: process.uptime(),
     memory: process.memoryUsage()
   });
@@ -232,20 +232,20 @@ router['get']('/api/health/db', async (req: Request, res: Response) => {
     const dbHealthy = await storage['ping']();
 
     if (dbHealthy) {
-      res.json({
+      res["json"]({
         database: 'connected',
         status: 'ok',
         timestamp: new Date().toISOString(),
       });
     } else {
-      res.status(503).json({
+      res["status"](503)["json"]({
         database: 'disconnected',
         status: 'error',
         timestamp: new Date().toISOString(),
       });
     }
   } catch (error) {
-    res.status(503).json({
+    res["status"](503)["json"]({
       database: 'error',
       status: 'error',
       error: (error as Error).message,
@@ -257,15 +257,15 @@ router['get']('/api/health/db', async (req: Request, res: Response) => {
 // Cache health endpoint
 router['get']('/api/health/cache', async (req: Request, res: Response) => {
   try {
-    const redisHealthy = await storage.isRedisHealthy?.() ?? false;
+    const redisHealthy = (await storage.isRedisHealthy?.()) ?? false;
 
-    res.json({
+    res["json"]({
       cache: redisHealthy ? 'connected' : 'degraded',
       status: redisHealthy ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    res.status(503).json({
+    res["status"](503)["json"]({
       cache: 'error',
       status: 'error',
       error: (error as Error).message,
@@ -277,10 +277,10 @@ router['get']('/api/health/cache', async (req: Request, res: Response) => {
 // Queue health endpoint
 router['get']('/api/health/queues', async (req: Request, res: Response) => {
   try {
-    const redisHealthy = await storage.isRedisHealthy?.() ?? false;
+    const redisHealthy = (await storage.isRedisHealthy?.()) ?? false;
 
     if (!redisHealthy) {
-      res.json({
+      res["json"]({
         queues: {
           'reserve-calc': 'idle',
           'pacing-calc': 'idle',
@@ -301,8 +301,8 @@ router['get']('/api/health/queues', async (req: Request, res: Response) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dynamic import type incompatibility
       const Redis: any = IORedis.default;
       const redis = new Redis({
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379'),
+        host: process.env["REDIS_HOST"] || 'localhost',
+        port: parseInt(process.env["REDIS_PORT"] || '6379'),
         maxRetriesPerRequest: 1,
         retryStrategy: () => null,
       });
@@ -335,13 +335,13 @@ router['get']('/api/health/queues', async (req: Request, res: Response) => {
       queueHealth['pacing-calc'] = { status: 'unknown' };
     }
 
-    res.json({
+    res["json"]({
       queues: queueHealth,
       status: 'ok',
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    res.status(503).json({
+    res["status"](503)["json"]({
       queues: {},
       status: 'error',
       error: (error as Error).message,
@@ -363,14 +363,14 @@ router['get']('/api/health/schema', async (req: Request, res: Response) => {
 
     const tables = result?.rows?.map((row: any) => row.table_name) || [];
 
-    res.json({
+    res["json"]({
       tables,
       count: tables.length,
       status: 'ok',
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    res.status(503).json({
+    res["status"](503)["json"]({
       tables: [],
       status: 'error',
       error: (error as Error).message,
@@ -392,14 +392,14 @@ router['get']('/api/health/migrations', async (req: Request, res: Response) => {
 
     const migrations = result?.rows || [];
 
-    res.json({
+    res["json"]({
       status: 'up-to-date',
       latestMigrations: migrations,
       count: migrations.length,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    res.status(503).json({
+    res["status"](503)["json"]({
       status: 'error',
       error: (error as Error).message,
       timestamp: new Date().toISOString(),
@@ -409,17 +409,17 @@ router['get']('/api/health/migrations', async (req: Request, res: Response) => {
 
 // Version endpoint
 router['get']('/api/version', (req: Request, res: Response) => {
-  const version = process.env.npm_package_version || '1.3.2';
+  const version = process.env["npm_package_version"] || '1.3.2';
   const nodeVersion = process.version;
   const platform = process.platform;
   const arch = process.arch;
 
-  res.json({
+  res["json"]({
     version,
     nodeVersion,
     platform,
     arch,
-    environment: process.env.NODE_ENV || 'development',
+    environment: process.env["NODE_ENV"] || 'development',
     timestamp: new Date().toISOString(),
   });
 });
@@ -434,7 +434,7 @@ router['get']('/api/health/alerts', async (req: Request, res: Response) => {
     };
 
     // Check database connectivity
-    const dbHealthy = await storage['ping']?.() ?? false;
+    const dbHealthy = (await storage['ping']?.()) ?? false;
     if (!dbHealthy) {
       alerts.critical.push({
         type: 'database',
@@ -444,7 +444,7 @@ router['get']('/api/health/alerts', async (req: Request, res: Response) => {
     }
 
     // Check Redis (optional)
-    const redisHealthy = await storage.isRedisHealthy?.() ?? false;
+    const redisHealthy = (await storage.isRedisHealthy?.()) ?? false;
     if (!redisHealthy) {
       alerts.warning.push({
         type: 'cache',
@@ -465,12 +465,12 @@ router['get']('/api/health/alerts', async (req: Request, res: Response) => {
       });
     }
 
-    res.json({
+    res["json"]({
       ...alerts,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    res.status(503).json({
+    res["status"](503)["json"]({
       critical: [{
         type: 'system',
         message: (error as Error).message,
@@ -488,10 +488,10 @@ router['get']('/api/health/workers/:workerType', async (req: Request, res: Respo
   const { workerType } = req.params;
 
   try {
-    const redisHealthy = await storage.isRedisHealthy?.() ?? false;
+    const redisHealthy = (await storage.isRedisHealthy?.()) ?? false;
 
     if (!redisHealthy) {
-      res.json({
+      res["json"]({
         status: 'idle',
         message: 'Workers disabled (Redis not available)',
         worker: workerType,
@@ -504,10 +504,10 @@ router['get']('/api/health/workers/:workerType', async (req: Request, res: Respo
     try {
       const http = await import('http');
 
-      const workerHealthPort = parseInt(process.env.WORKER_HEALTH_PORT || '9000');
+      const workerHealthPort = parseInt(process.env["WORKER_HEALTH_PORT"] || '9000');
 
       const options = {
-        hostname: process.env.WORKER_HEALTH_HOST || 'localhost',
+        hostname: process.env["WORKER_HEALTH_HOST"] || 'localhost',
         port: workerHealthPort,
         path: '/health',
         method: 'GET',
@@ -530,7 +530,7 @@ router['get']('/api/health/workers/:workerType', async (req: Request, res: Respo
               );
 
               if (worker) {
-                res.json({
+                res["json"]({
                   status: worker.status,
                   worker: workerType,
                   jobsProcessed: worker.jobsProcessed,
@@ -538,7 +538,7 @@ router['get']('/api/health/workers/:workerType', async (req: Request, res: Respo
                   timestamp: new Date().toISOString(),
                 });
               } else {
-                res.status(404).json({
+                res["status"](404)["json"]({
                   status: 'not_found',
                   worker: workerType,
                   message: 'Worker not registered',
@@ -555,11 +555,11 @@ router['get']('/api/health/workers/:workerType', async (req: Request, res: Respo
 
         req.on('error', reject);
         req.on('timeout', () => reject(new Error('Timeout')));
-        req.end();
+        req["end"]();
       });
     } catch (error) {
       // Worker health server not accessible
-      res.json({
+      res["json"]({
         status: 'unknown',
         worker: workerType,
         message: 'Worker health server not accessible',
@@ -568,7 +568,7 @@ router['get']('/api/health/workers/:workerType', async (req: Request, res: Respo
       });
     }
   } catch (error) {
-    res.status(503).json({
+    res["status"](503)["json"]({
       status: 'error',
       worker: workerType,
       error: (error as Error).message,

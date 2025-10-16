@@ -3,7 +3,7 @@ import { cspMetrics } from "../../telemetry";
 
 const router = Router();
 
-router.post("/csp-violations", (req: any, res: any) => {
+router["post"]("/csp-violations", (req: any, res: any) => {
   try {
     // Requests may be JSON with { "csp-report": { ... } } or Report-To batch
     const body = (req.body ?? {}) as any;

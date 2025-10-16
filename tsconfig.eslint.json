@@ -10,7 +10,8 @@
     "tests/**/*",
     "scripts/**/*.ts",
     "scripts/**/*.mjs",
-    "packages/**/*.ts"
+    "packages/**/*.ts",
+    "tailwind.config.ts"
   ],
   "exclude": [
     "dist", 

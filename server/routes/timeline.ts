@@ -108,7 +108,7 @@ router['get'](
 
     recordBusinessMetric('timeline_query', 'success', Date.now() - startTimer);
 
-    res.json({
+    res["json"]({
       fundId: fundIdNum,
       timeRange: {
         start: startTimeStr || events[events.length - 1]?.eventTime,
@@ -154,7 +154,7 @@ router['get'](
     const cached = await cache['get'](cacheKey);
     if (cached) {
       recordBusinessMetric('state_query', 'cache_hit', Date.now() - startTimer);
-      return res.json(JSON.parse(cached));
+      return res["json"](JSON.parse(cached));
     }
 
     // Find nearest snapshot before target time
@@ -207,7 +207,7 @@ router['get'](
     await cache['set'](cacheKey, JSON.stringify(response), 300);
 
     recordBusinessMetric('state_query', 'success', Date.now() - startTimer);
-    res.json(response);
+    res["json"](response);
   })
 );
 
@@ -215,7 +215,7 @@ router['get'](
  * POST /api/timeline/:fundId/snapshot
  * Create a new snapshot for a fund
  */
-router.post(
+router["post"](
   '/:fundId/snapshot',
   validateRequest({
     params: z.object({ fundId: z.coerce.number() }),
@@ -251,7 +251,7 @@ router.post(
 
     recordBusinessMetric('snapshot_creation', 'queued', Date.now() - startTimer);
 
-    res.status(202).json({
+    res["status"](202)["json"]({
       message: 'Snapshot creation requested (dev mode - no background processing)',
       fundId: fundIdNum,
       type,
@@ -308,7 +308,7 @@ router['get'](
 
     recordBusinessMetric('state_comparison', 'success', Date.now() - startTimer);
 
-    res.json({
+    res["json"]({
       fundId,
       comparison: {
         timestamp1: timestamp1,
@@ -368,7 +368,7 @@ router['get'](
       .orderBy(desc(fundEvents.eventTime))
       .limit(typeof limit === 'string' ? parseInt(limit, 10) : 20);
 
-    res.json({
+    res["json"]({
       events,
       timestamp: new Date().toISOString(),
     });

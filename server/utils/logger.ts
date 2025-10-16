@@ -52,7 +52,7 @@ const productionFormat = winston.format.combine(
     format: 'YYYY-MM-DD HH:mm:ss.SSS'
   }),
   winston.format.errors({ stack: true }),
-  winston.format.json(),
+  winston.format["json"](),
   winston.format.printf(({ timestamp, level, message, ...meta }) => {
     return JSON.stringify({
       timestamp,
@@ -61,7 +61,7 @@ const productionFormat = winston.format.combine(
       ...meta,
       hostname: process.env['HOSTNAME'] || 'unknown',
       service: 'updog-vc-platform',
-      version: process.env.npm_package_version || '1.0.0'
+      version: process.env["npm_package_version"] || '1.0.0'
     });
   })
 );

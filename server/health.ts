@@ -107,7 +107,7 @@ async function performHealthCheck(): Promise<HealthResponse> {
     status: isHealthy ? 'healthy' : 'unhealthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    version: process.env.npm_package_version || 'unknown',
+    version: process.env["npm_package_version"] || 'unknown',
     circuitBreaker: {
       trips: 0 // Circuit breaker disabled in dev mode
     },
@@ -121,13 +121,13 @@ export async function healthCheck(req: Request, res: Response) {
     const health = await performHealthCheck();
     const statusCode = health.status === 'healthy' ? 200 : 503;
     
-    res.status(statusCode).json(health);
+    res["status"](statusCode)["json"](health);
   } catch (error) {
-    res.status(503).json({
+    res["status"](503)["json"]({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      version: process.env.npm_package_version || 'unknown',
+      version: process.env["npm_package_version"] || 'unknown',
       circuitBreaker: {
         trips: 0
       },
@@ -148,19 +148,19 @@ export async function readinessCheck(req: Request, res: Response) {
     const isReady = databaseHealth.status === 'healthy';
     
     if (isReady) {
-      res.status(200).json({ 
+      res["status"](200)["json"]({ 
         status: 'ready',
         timestamp: new Date().toISOString(),
       });
     } else {
-      res.status(503).json({ 
+      res["status"](503)["json"]({ 
         status: 'not_ready',
         timestamp: new Date().toISOString(),
         reason: 'Database not ready',
       });
     }
   } catch (error) {
-    res.status(503).json({ 
+    res["status"](503)["json"]({ 
       status: 'not_ready',
       timestamp: new Date().toISOString(),
       reason: error instanceof Error ? error.message : 'Readiness check failed',
@@ -171,7 +171,7 @@ export async function readinessCheck(req: Request, res: Response) {
 // Liveness check (for Kubernetes)
 export async function livenessCheck(req: Request, res: Response) {
   // Simple liveness check - if the process is running, it's alive
-  res.status(200).json({ 
+  res["status"](200)["json"]({ 
     status: 'alive',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),

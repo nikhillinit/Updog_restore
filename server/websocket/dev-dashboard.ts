@@ -47,7 +47,7 @@ class DevDashboardWebSocket {
   constructor(server: HTTPServer) {
     this.io = new SocketIOServer(server, {
       cors: {
-        origin: process.env.NODE_ENV === 'development' ? '*' : false,
+        origin: process.env["NODE_ENV"] === 'development' ? '*' : false,
         methods: ['GET', 'POST']
       },
       path: '/socket.io/dev-dashboard'

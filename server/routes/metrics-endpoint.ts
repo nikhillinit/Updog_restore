@@ -23,10 +23,10 @@ metricsRouter['get']('/metrics', async (req: Request, res: Response) => {
       'Expires': '0'
     });
     
-    res.send(metrics);
+    res["send"](metrics);
   } catch (error) {
     console.error('Error generating metrics:', error);
-    res.status(500).send('Error generating metrics');
+    res["status"](500)["send"]('Error generating metrics');
   }
 });
 

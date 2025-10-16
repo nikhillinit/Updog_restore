@@ -9,7 +9,7 @@ import { withRequestMetrics, installMetricsRoute } from './metrics';
 const app = express();
 app.use(withRequestMetrics());
 
-app['get']('/ping', (_req: Request, res: Response) => res.json({ ok: true }));
+app['get']('/ping', (_req: Request, res: Response) => res["json"]({ ok: true }));
 installMetricsRoute(app);
 
 const port = Number(process.env['PORT'] ?? 7071);

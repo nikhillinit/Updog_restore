@@ -1,0 +1,46 @@
+#!/usr/bin/env sh
+
+# Auto-track TypeScript baseline updates
+# Detects if .tsc-baseline.json was in the commit and logs to feedback
+
+BASELINE_FILE=".tsc-baseline.json"
+FEEDBACK_FILE=".agents-feedback.md"
+
+# Check if baseline was modified in this commit
+if git diff --name-only HEAD^ HEAD 2>/dev/null | grep -q "^${BASELINE_FILE}$"; then
+  # Extract commit message
+  COMMIT_MSG=$(git log -1 --pretty=%B)
+
+  # Check if commit message indicates error fixing (not just baseline creation)
+  if echo "$COMMIT_MSG" | grep -qiE "fix|resolve|correct|update.*error"; then
+    # Auto-log the session (only if not already tracked manually)
+    LAST_SESSION=$(tail -n 20 "$FEEDBACK_FILE" 2>/dev/null | grep -c "$(date +%Y-%m-%d)" || echo "0")
+
+    if [ "$LAST_SESSION" -eq 0 ]; then
+      # Parse baseline changes from commit (cross-platform compatible)
+      BASELINE_BEFORE=$(git show HEAD^:"$BASELINE_FILE" 2>/dev/null | grep '"totalErrors"' | sed 's/.*"totalErrors":\s*\([0-9]*\).*/\1/' || echo "unknown")
+      BASELINE_AFTER=$(git show HEAD:"$BASELINE_FILE" 2>/dev/null | grep '"totalErrors"' | sed 's/.*"totalErrors":\s*\([0-9]*\).*/\1/' || echo "unknown")
+
+      # Calculate errors fixed
+      if [ "$BASELINE_BEFORE" != "unknown" ] && [ "$BASELINE_AFTER" != "unknown" ]; then
+        ERRORS_FIXED=$((BASELINE_BEFORE - BASELINE_AFTER))
+
+        if [ $ERRORS_FIXED -gt 0 ]; then
+          # Auto-log successful TypeScript error fixing session
+          cat >> "$FEEDBACK_FILE" <<EOF
+
+### $(date +%Y-%m-%d) - Auto-tracked
+**Task**: TypeScript error fixing (detected from commit)
+**Outcome**: success
+**Duration**: Auto-tracked
+**Notes**: Fixed $ERRORS_FIXED error(s). Baseline: $BASELINE_BEFORE → $BASELINE_AFTER
+**AGENTS.md Update**: Auto-tracked (review if needed)
+
+---
+EOF
+          echo "📝 Auto-tracked TypeScript baseline improvement ($ERRORS_FIXED errors fixed)"
+        fi
+      fi
+    fi
+  fi
+fi

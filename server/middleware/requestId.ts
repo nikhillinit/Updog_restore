@@ -19,7 +19,7 @@ export function requestId() {
 
     // Optionally preserve client-provided ID for debugging (separate header)
     const clientRid = req['get']('X-Request-ID');
-    if (clientRid && process.env.NODE_ENV !== 'production') {
+    if (clientRid && process.env["NODE_ENV"] !== 'production') {
       res['setHeader']('X-Client-Request-ID', clientRid);
     }
 

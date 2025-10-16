@@ -132,7 +132,7 @@ export async function createServer(
   
   // Body parsing with size limits and CSP report support
   const bodyLimit = config.BODY_LIMIT;
-  app.use(bodyParser.json({ 
+  app.use(bodyParser["json"]({ 
     limit: bodyLimit, 
     type: ["application/json","application/csp-report"] 
   }));

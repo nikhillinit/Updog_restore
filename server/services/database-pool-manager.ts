@@ -457,7 +457,7 @@ export class DatabasePoolManager extends EventEmitter {
     }
 
     if (pool) {
-      await pool.end();
+      await pool["end"]();
       this.pools.delete(poolId);
     }
 

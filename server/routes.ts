@@ -76,13 +76,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app['get']("/api/funds", async (req: Request, res: Response) => {
     try {
       const funds = await storage.getAllFunds();
-      res.json(funds);
+      res["json"](funds);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database query failed',
         message: error instanceof Error ? error.message : 'Failed to fetch funds'
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -96,7 +96,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: 'Invalid fund ID',
           message: `Fund ID must be a positive integer, received: ${idParam}`
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       
       const fund = await storage.getFund(id);
@@ -105,22 +105,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: 'Fund not found',
           message: `No fund exists with ID: ${id}`
         };
-        return res.status(404).json(error);
+        return res["status"](404)["json"](error);
       }
-      res.json(fund);
+      res["json"](fund);
     } catch (error) {
       if (error instanceof NumberParseError) {
         const apiError: ApiError = {
           error: 'Invalid fund ID',
           message: error.message
         };
-        return res.status(400).json(apiError);
+        return res["status"](400)["json"](apiError);
       }
       const apiError: ApiError = {
         error: 'Database query failed',
         message: error instanceof Error ? error.message : 'Failed to fetch fund'
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -144,7 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: 'Fund validation failed',
           details: { validationErrors: result.error.issues }
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       
       // Convert to format expected by storage layer
@@ -159,13 +159,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       const fund = await storage.createFund(basicFundData);
-      res.status(201).json(fund);
+      res["status"](201)["json"](fund);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database operation failed',
         message: error instanceof Error ? error.message : 'Failed to create fund'
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -182,26 +182,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
             error: 'Invalid fund ID query',
             message: `Fund ID must be a positive integer, received: ${fundIdQuery}`
           };
-          return res.status(400).json(error);
+          return res["status"](400)["json"](error);
         }
         fundId = parsedId;
       }
       
       const companies = await storage.getPortfolioCompanies(fundId);
-      res.json(companies);
+      res["json"](companies);
     } catch (error) {
       if (error instanceof NumberParseError) {
         const apiError: ApiError = {
           error: 'Invalid fund ID query',
           message: error.message
         };
-        return res.status(400).json(apiError);
+        return res["status"](400)["json"](apiError);
       }
       const apiError: ApiError = {
         error: 'Database query failed',
         message: error instanceof Error ? error.message : 'Failed to fetch portfolio companies'
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -215,7 +215,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: 'Invalid company ID',
           message: `Company ID must be a positive integer, received: ${idParam}`
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       
       const company = await storage.getPortfolioCompany(id);
@@ -224,15 +224,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: 'Company not found',
           message: `No portfolio company exists with ID: ${id}`
         };
-        return res.status(404).json(error);
+        return res["status"](404)["json"](error);
       }
-      res.json(company);
+      res["json"](company);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database query failed',
         message: error instanceof Error ? error.message : 'Failed to fetch portfolio company'
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -245,7 +245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: 'Portfolio company validation failed',
           details: { validationErrors: result.error.issues }
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       const companyData = {
         name: req.body.name,
@@ -254,13 +254,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         investmentAmount: req.body.investmentAmount
       };
       const company = await storage.createPortfolioCompany(companyData);
-      res.status(201).json(company);
+      res["status"](201)["json"](company);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database operation failed',
         message: error instanceof Error ? error.message : 'Failed to create portfolio company'
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -275,17 +275,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: 'Invalid fund ID',
           message: `Fund ID must be a positive integer, received: ${fundIdParam}`
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       
       const metrics = await storage.getFundMetrics(fundId);
-      res.json(metrics);
+      res["json"](metrics);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database query failed',
         message: error instanceof Error ? error.message : 'Failed to fetch fund metrics'
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -302,19 +302,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             error: 'Invalid fund ID query',
             message: `Fund ID must be a positive integer, received: ${fundIdQuery}`
           };
-          return res.status(400).json(error);
+          return res["status"](400)["json"](error);
         }
         fundId = parsedId;
       }
       
       const activities = await storage.getActivities(fundId);
-      res.json(activities.sort((a: any, b: any) => b.activityDate.getTime() - a.activityDate.getTime()));
+      res["json"](activities.sort((a: any, b: any) => b.activityDate.getTime() - a.activityDate.getTime()));
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database query failed',
         message: error instanceof Error ? error.message : 'Failed to fetch activities'
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -327,7 +327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: 'Activity validation failed',
           details: { validationErrors: result.error.issues }
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       const activityData = {
         type: req.body.type,
@@ -335,13 +335,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         activityDate: new Date(req.body.activityDate)
       };
       const activity = await storage.createActivity(activityData);
-      res.status(201).json(activity);
+      res["status"](201)["json"](activity);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database operation failed',
         message: error instanceof Error ? error.message : 'Failed to create activity'
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -356,7 +356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: 'Invalid fund ID',
           message: `Fund ID must be a positive integer, received: ${fundIdParam}`
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       
       const [fund, portfolioCompanies, activities, metrics] = await Promise.all([
@@ -371,7 +371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: 'Fund not found',
           message: `No fund exists with ID: ${fundId}`
         };
-        return res.status(404).json(error);
+        return res["status"](404)["json"](error);
       }
 
       const latestMetrics = metrics.length > 0 ? metrics[metrics.length - 1] : null;
@@ -394,7 +394,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       };
       
-      res.json(dashboardSummary);
+      res["json"](dashboardSummary);
     } catch (error) {
       console.error('Dashboard summary error:', error);
       const apiError: ApiError = {
@@ -402,7 +402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: error instanceof Error ? error.message : 'Failed to fetch dashboard summary',
         details: { fundId: req.params.fundId }
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -419,19 +419,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             error: 'Invalid fund ID query',
             message: `Fund ID must be a positive integer, received: ${fundIdQuery}`
           };
-          return res.status(400).json(error);
+          return res["status"](400)["json"](error);
         }
         fundId = parsedId;
       }
       
       const investments = await storage.getInvestments(fundId);
-      res.json(investments);
+      res["json"](investments);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database query failed',
         message: error instanceof Error ? error.message : 'Failed to fetch investments'
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -445,7 +445,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: 'Invalid investment ID',
           message: `Investment ID must be a positive integer, received: ${idParam}`
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       
       const investment = await storage.getInvestment(id);
@@ -454,15 +454,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: 'Investment not found',
           message: `No investment exists with ID: ${id}`
         };
-        return res.status(404).json(error);
+        return res["status"](404)["json"](error);
       }
-      res.json(investment);
+      res["json"](investment);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database query failed',
         message: error instanceof Error ? error.message : 'Failed to fetch investment'
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -475,17 +475,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: 'Invalid investment data',
           message: 'Request body cannot be empty'
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       
       const investment = await storage.createInvestment(req.body);
-      res.status(201).json(investment);
+      res["status"](201)["json"](investment);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database operation failed',
         message: error instanceof Error ? error.message : 'Failed to create investment'
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -500,7 +500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: 'Invalid investment ID',
           message: `Investment ID must be a positive integer, received: ${idParam}`
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       
       if (!req.body || Object.keys(req.body).length === 0) {
@@ -508,17 +508,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: 'Invalid round data',
           message: 'Request body cannot be empty'
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       
       const round = await storage.addInvestmentRound(investmentId, req.body);
-      res.status(201).json(round);
+      res["status"](201)["json"](round);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database operation failed',
         message: error instanceof Error ? error.message : 'Failed to add investment round'
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -533,7 +533,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: 'Invalid investment ID',
           message: `Investment ID must be a positive integer, received: ${idParam}`
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       
       if (!req.body || Object.keys(req.body).length === 0) {
@@ -541,17 +541,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: 'Invalid case data',
           message: 'Request body cannot be empty'
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       
       const performanceCase = await storage.addPerformanceCase(investmentId, req.body);
-      res.status(201).json(performanceCase);
+      res["status"](201)["json"](performanceCase);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database operation failed',
         message: error instanceof Error ? error.message : 'Failed to add performance case'
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -566,7 +566,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: 'Invalid fund ID',
           message: `Fund ID must be a positive integer, received: ${fundIdParam}`
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       
       // Load portfolio fixture data
@@ -580,7 +580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: 'Portfolio data unavailable',
           message: 'Could not load portfolio fixture data'
         };
-        return res.status(500).json(error);
+        return res["status"](500)["json"](error);
       }
       
       // Transform to ReserveInput format with validation
@@ -595,7 +595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate comprehensive reserve summary
       const summary: ReserveSummary = generateReserveSummary(fundId, portfolio);
       
-      res.json(summary);
+      res["json"](summary);
     } catch (error) {
       console.error('ReserveEngine error:', error);
       const apiError: ApiError = {
@@ -603,7 +603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: error instanceof Error ? error.message : 'Unknown error',
         details: { fundId: req.params.fundId }
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -627,13 +627,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: 'Invalid market condition',
           message: `Market condition must be 'bull', 'bear', or 'neutral', received: ${marketConditionParam}`
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       
       // Generate comprehensive pacing summary
       const summary: PacingSummary = generatePacingSummary(pacingInput);
       
-      res.json(summary);
+      res["json"](summary);
     } catch (error) {
       console.error('PacingEngine error:', error);
       const apiError: ApiError = {
@@ -641,7 +641,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: error instanceof Error ? error.message : 'Unknown error',
         details: { query: req.query }
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -664,7 +664,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             error: 'Invalid fund ID',
             message: `Fund ID must be a positive integer, received: ${fundIdQuery}`
           };
-          return res.status(400).json(error);
+          return res["status"](400)["json"](error);
         }
         fundId = parsedId;
       }
@@ -677,7 +677,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               error: 'Invalid vintage year',
               message: `Vintage year must be between 2000-2030, received: ${vintageYearQuery}`
             };
-            return res.status(400).json(error);
+            return res["status"](400)["json"](error);
           }
           vintageYear = parsedYear;
         } catch (e) {
@@ -685,7 +685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             error: 'Invalid vintage year',
             message: `Vintage year must be a valid number, received: ${vintageYearQuery}`
           };
-          return res.status(400).json(error);
+          return res["status"](400)["json"](error);
         }
       }
       
@@ -697,7 +697,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               error: 'Invalid cohort size',
               message: `Cohort size must be between 1-1000, received: ${cohortSizeQuery}`
             };
-            return res.status(400).json(error);
+            return res["status"](400)["json"](error);
           }
           cohortSize = parsedSize;
         } catch (e) {
@@ -705,7 +705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             error: 'Invalid cohort size',
             message: `Cohort size must be a valid number, received: ${cohortSizeQuery}`
           };
-          return res.status(400).json(error);
+          return res["status"](400)["json"](error);
         }
       }
       
@@ -718,7 +718,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate comprehensive cohort summary
       const summary: CohortSummary = generateCohortSummary(cohortInput);
       
-      res.json(summary);
+      res["json"](summary);
     } catch (error) {
       console.error('CohortEngine error:', error);
       const apiError: ApiError = {
@@ -729,7 +729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           note: 'This is a scaffolded endpoint for future cohort analysis features'
         }
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   });
 
@@ -749,7 +749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/admin/engine', engineAdminRoutes);
 
   // Development dashboard routes (development only)
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env["NODE_ENV"] === 'development') {
     const devDashboardRoutes = await import('./routes/dev-dashboard.js');
     app.use('/api/dev-dashboard', devDashboardRoutes.default);
   }

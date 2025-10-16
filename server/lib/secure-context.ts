@@ -76,7 +76,7 @@ export function requireSecureContext(
   const context = extractUserContext(req);
   
   if (!context) {
-    res.status(401).json({
+    res["status"](401)["json"]({
       error: 'unauthorized',
       message: 'Valid JWT token required'
     });

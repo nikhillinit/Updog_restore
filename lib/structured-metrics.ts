@@ -3,6 +3,6 @@ export function logMetrics(stage: string, metrics: Record<string, number>): void
     timestamp: new Date().toISOString(),
     stage,
     metrics,
-    commit: process.env.GITHUB_SHA ?? 'local'
+    commit: process.env["GITHUB_SHA"] ?? 'local'
   }));
 }

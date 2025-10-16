@@ -25,8 +25,8 @@ const router = Router();
 /**
  * Health check for Compass service
  */
-router.get('/health', (_req: Request, res: Response) => {
-  res.json({
+router["get"]('/health', (_req: Request, res: Response) => {
+  res["json"]({
     service: 'compass',
     status: 'healthy',
     message: 'Valuation sandbox is operational',
@@ -38,7 +38,7 @@ router.get('/health', (_req: Request, res: Response) => {
  * GET /api/compass/portfolio-companies/:id/valuation-context
  * Fetch all data needed to initialize the calculator UI
  */
-router.get('/portfolio-companies/:id/valuation-context', async (req: Request, res: Response) => {
+router["get"]('/portfolio-companies/:id/valuation-context', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -83,10 +83,10 @@ router.get('/portfolio-companies/:id/valuation-context', async (req: Request, re
       ],
     };
 
-    res.json(response);
+    res["json"](response);
   } catch (error) {
     console.error('[Compass] Error fetching valuation context:', error);
-    res.status(500).json({ error: 'Failed to fetch valuation context' });
+    res["status"](500)["json"]({ error: 'Failed to fetch valuation context' });
   }
 });
 
@@ -94,7 +94,7 @@ router.get('/portfolio-companies/:id/valuation-context', async (req: Request, re
  * GET /api/compass/comps/search
  * Search for comparable companies
  */
-router.get('/comps/search', async (req: Request, res: Response) => {
+router["get"]('/comps/search', async (req: Request, res: Response) => {
   try {
     const { query, sector, stage, isPublic, limit = 20 } = req.query as unknown as SearchCompsRequest;
 
@@ -122,10 +122,10 @@ router.get('/comps/search', async (req: Request, res: Response) => {
       totalCount: 1,
     };
 
-    res.json(response);
+    res["json"](response);
   } catch (error) {
     console.error('[Compass] Error searching comps:', error);
-    res.status(500).json({ error: 'Failed to search comparable companies' });
+    res["status"](500)["json"]({ error: 'Failed to search comparable companies' });
   }
 });
 
@@ -133,7 +133,7 @@ router.get('/comps/search', async (req: Request, res: Response) => {
  * GET /api/compass/comps/:id
  * Get full details for a specific comp
  */
-router.get('/comps/:id', async (req: Request, res: Response) => {
+router["get"]('/comps/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -152,10 +152,10 @@ router.get('/comps/:id', async (req: Request, res: Response) => {
       lastUpdated: new Date(),
     };
 
-    res.json(comp);
+    res["json"](comp);
   } catch (error) {
     console.error('[Compass] Error fetching comp details:', error);
-    res.status(500).json({ error: 'Failed to fetch comp details' });
+    res["status"](500)["json"]({ error: 'Failed to fetch comp details' });
   }
 });
 
@@ -163,13 +163,13 @@ router.get('/comps/:id', async (req: Request, res: Response) => {
  * POST /api/compass/calculate
  * Calculate sandbox valuation (client sends inputs, server returns result)
  */
-router.post('/calculate', async (req: Request, res: Response) => {
+router["post"]('/calculate', async (req: Request, res: Response) => {
   try {
     const { companyId, inputs, compIds } = req.body as CalculateValuationRequest;
 
     // Validate request
     if (!companyId || !inputs || !compIds) {
-      return res.status(400).json({ error: 'Missing required fields: companyId, inputs, compIds' });
+      return res["status"](400)["json"]({ error: 'Missing required fields: companyId, inputs, compIds' });
     }
 
     // TODO: Fetch company and comps from database
@@ -210,15 +210,15 @@ router.post('/calculate', async (req: Request, res: Response) => {
       result,
     };
 
-    res.json(response);
+    res["json"](response);
   } catch (error) {
     console.error('[Compass] Error calculating valuation:', error);
 
     if (error instanceof Error) {
-      return res.status(400).json({ error: error.message });
+      return res["status"](400)["json"]({ error: error.message });
     }
 
-    res.status(500).json({ error: 'Failed to calculate valuation' });
+    res["status"](500)["json"]({ error: 'Failed to calculate valuation' });
   }
 });
 
@@ -226,14 +226,14 @@ router.post('/calculate', async (req: Request, res: Response) => {
  * POST /api/compass/scenarios
  * Save a valuation scenario
  */
-router.post('/scenarios', async (req: Request, res: Response) => {
+router["post"]('/scenarios', async (req: Request, res: Response) => {
   try {
     const { portfolioCompanyId, scenarioName, result } = req.body as SaveScenarioRequest;
     const userId = (req as any).user?.id || 'system'; // TODO: Get from auth middleware
 
     // Validate request
     if (!portfolioCompanyId || !scenarioName || !result) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res["status"](400)["json"]({ error: 'Missing required fields' });
     }
 
     // TODO: Save to database
@@ -256,10 +256,10 @@ router.post('/scenarios', async (req: Request, res: Response) => {
       },
     };
 
-    res.status(201).json(response);
+    res["status"](201)["json"](response);
   } catch (error) {
     console.error('[Compass] Error saving scenario:', error);
-    res.status(500).json({ error: 'Failed to save scenario' });
+    res["status"](500)["json"]({ error: 'Failed to save scenario' });
   }
 });
 
@@ -267,7 +267,7 @@ router.post('/scenarios', async (req: Request, res: Response) => {
  * GET /api/compass/scenarios
  * List user's saved scenarios
  */
-router.get('/scenarios', async (req: Request, res: Response) => {
+router["get"]('/scenarios', async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id || 'system'; // TODO: Get from auth middleware
     const { companyId } = req.query;
@@ -281,13 +281,13 @@ router.get('/scenarios', async (req: Request, res: Response) => {
     // `, [userId, companyId]);
 
     // Mock response
-    res.json({
+    res["json"]({
       scenarios: [],
       totalCount: 0,
     });
   } catch (error) {
     console.error('[Compass] Error fetching scenarios:', error);
-    res.status(500).json({ error: 'Failed to fetch scenarios' });
+    res["status"](500)["json"]({ error: 'Failed to fetch scenarios' });
   }
 });
 
@@ -295,7 +295,7 @@ router.get('/scenarios', async (req: Request, res: Response) => {
  * DELETE /api/compass/scenarios/:id
  * Delete (soft delete) a scenario
  */
-router.delete('/scenarios/:id', async (req: Request, res: Response) => {
+router["delete"]('/scenarios/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = (req as any).user?.id || 'system';
@@ -307,10 +307,10 @@ router.delete('/scenarios/:id', async (req: Request, res: Response) => {
     //   WHERE id = $1 AND user_id = $2
     // `, [id, userId]);
 
-    res.status(204).end();
+    res["status"](204)["end"]();
   } catch (error) {
     console.error('[Compass] Error deleting scenario:', error);
-    res.status(500).json({ error: 'Failed to delete scenario' });
+    res["status"](500)["json"]({ error: 'Failed to delete scenario' });
   }
 });
 
@@ -318,7 +318,7 @@ router.delete('/scenarios/:id', async (req: Request, res: Response) => {
  * GET /api/compass/portfolio/heatmap
  * Get portfolio-wide heatmap view
  */
-router.get('/portfolio/heatmap', async (req: Request, res: Response) => {
+router["get"]('/portfolio/heatmap', async (req: Request, res: Response) => {
   try {
     const { fundId, stage, sector } = req.query as unknown as GetPortfolioHeatmapRequest;
 
@@ -351,10 +351,10 @@ router.get('/portfolio/heatmap', async (req: Request, res: Response) => {
       },
     };
 
-    res.json(response);
+    res["json"](response);
   } catch (error) {
     console.error('[Compass] Error fetching portfolio heatmap:', error);
-    res.status(500).json({ error: 'Failed to fetch portfolio heatmap' });
+    res["status"](500)["json"]({ error: 'Failed to fetch portfolio heatmap' });
   }
 });
 

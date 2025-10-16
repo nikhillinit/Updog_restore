@@ -23,10 +23,10 @@ export async function cancel(req: Request, res: Response) {
     // const redis = getRedisClient();
     // await redis.set(`ai:run:${runId}:cancel`, '1', { EX: 300 });
 
-    res.status(204).send();
+    res["status"](204)["send"]();
   } catch (error) {
     logger.error('Failed to cancel agent run', { runId, error });
-    res.status(500).json({
+    res["status"](500)["json"]({
       error: 'Failed to cancel run',
       message: error instanceof Error ? error.message : 'Unknown error',
     });

@@ -391,14 +391,6 @@ jobs:
           REDIS_URL: ${{ matrix.needs-redis && 'redis://localhost:6379' || '' }}
           TZ: UTC
 
-      - name: Upload coverage
-        if: matrix.group == 'unit'
-        uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673
-        with:
-          files: ./coverage/lcov.info
-          flags: unit
-          fail_ci_if_error: false
-
   # Phase 5: Build validation with dynamic bundle guard
   build:
     name: Build Production

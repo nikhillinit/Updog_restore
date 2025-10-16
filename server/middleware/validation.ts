@@ -20,7 +20,7 @@ export function validateRequest(schemas: ValidationSchemas) {
             message: 'Request body validation failed',
             details: { validationErrors: result.error.issues },
           };
-          return res.status(400).json(error);
+          return res["status"](400)["json"](error);
         }
         req.body = result.data;
       }
@@ -34,7 +34,7 @@ export function validateRequest(schemas: ValidationSchemas) {
             message: 'Query parameter validation failed',
             details: { validationErrors: result.error.issues },
           };
-          return res.status(400).json(error);
+          return res["status"](400)["json"](error);
         }
         req.query = result.data as Record<string, string | string[]>;
       }
@@ -48,7 +48,7 @@ export function validateRequest(schemas: ValidationSchemas) {
             message: 'Route parameter validation failed',
             details: { validationErrors: result.error.issues },
           };
-          return res.status(400).json(error);
+          return res["status"](400)["json"](error);
         }
         req.params = result.data as Record<string, string>;
       }
@@ -59,7 +59,7 @@ export function validateRequest(schemas: ValidationSchemas) {
         error: 'Validation error',
         message: error instanceof Error ? error.message : 'Unknown validation error',
       };
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     }
   };
 }

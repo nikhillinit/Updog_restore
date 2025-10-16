@@ -534,7 +534,7 @@ export function createSanitizationMiddleware(options: {
         { path: req.path, method: req.method }
       );
 
-      res.status(400).json({
+      res["status"](400)["json"]({
         error: 'Invalid input data',
         message: error instanceof Error ? error.message : 'Request contains invalid data',
         field: error instanceof SanitizationError ? error._field : undefined

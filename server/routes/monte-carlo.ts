@@ -78,7 +78,7 @@ const validateRequest = (schema: z.ZodSchema) => {
     try {
       const result = schema.safeParse(req.body);
       if (!result.success) {
-        return res.status(400).json({
+        return res["status"](400)["json"]({
           error: 'VALIDATION_ERROR',
           message: 'Request validation failed',
           details: result.error.issues
@@ -87,7 +87,7 @@ const validateRequest = (schema: z.ZodSchema) => {
       req.body = result.data;
       next();
     } catch (error) {
-      res.status(400).json({
+      res["status"](400)["json"]({
         error: 'VALIDATION_ERROR',
         message: 'Invalid request format'
       });
@@ -107,7 +107,7 @@ const guardResponse = (req: Request, res: Response, next: NextFunction) => {
 
       console.error(`[ENGINE_NONFINITE] Correlation: ${correlationId}, Path: ${failurePath}, Reason: ${failure.reason}`);
 
-      return res.status(422).json({
+      return res["status"](422)["json"]({
         error: 'ENGINE_NONFINITE',
         path: failurePath,
         reason: failure.reason,
@@ -133,8 +133,8 @@ const monitorPerformance = (req: Request, res: Response, next: Function) => {
 };
 
 // Apply middleware to all routes
-router.use(guardResponse);
-router.use(monitorPerformance);
+router["use"](guardResponse);
+router["use"](monitorPerformance);
 
 // ============================================================================
 // API ENDPOINTS
@@ -144,7 +144,7 @@ router.use(monitorPerformance);
  * POST /api/monte-carlo/simulate
  * Run a single Monte Carlo simulation
  */
-router.post('/simulate', validateRequest(simulationConfigSchema), async (req: Request, res: Response) => {
+router["post"]('/simulate', validateRequest(simulationConfigSchema), async (req: Request, res: Response) => {
   const correlationId = req.headers['x-correlation-id'] as string || `sim_${Date.now()}`;
 
   try {
@@ -154,7 +154,7 @@ router.post('/simulate', validateRequest(simulationConfigSchema), async (req: Re
 
     console.log(`[MONTE_CARLO] Completed simulation ${correlationId} in ${result.executionTimeMs}ms using ${result.performance.engineUsed} engine`);
 
-    res.json({
+    res["json"]({
       correlationId,
       ...result,
       metadata: {
@@ -168,7 +168,7 @@ router.post('/simulate', validateRequest(simulationConfigSchema), async (req: Re
   } catch (error) {
     console.error(`[MONTE_CARLO] Simulation ${correlationId} failed:`, error);
 
-    res.status(500).json({
+    res["status"](500)["json"]({
       error: 'SIMULATION_FAILED',
       correlationId,
       message: error instanceof Error ? sanitizeInput(error.message) : 'Simulation execution failed',
@@ -181,7 +181,7 @@ router.post('/simulate', validateRequest(simulationConfigSchema), async (req: Re
  * POST /api/monte-carlo/batch
  * Run multiple simulations in batch
  */
-router.post('/batch', validateRequest(batchSimulationSchema), async (req: Request, res: Response) => {
+router["post"]('/batch', validateRequest(batchSimulationSchema), async (req: Request, res: Response) => {
   const correlationId = req.headers['x-correlation-id'] as string || `batch_${Date.now()}`;
 
   try {
@@ -197,7 +197,7 @@ router.post('/batch', validateRequest(batchSimulationSchema), async (req: Reques
 
     console.log(`[MONTE_CARLO] Completed batch simulation ${correlationId} in ${totalExecutionTime}ms`);
 
-    res.json({
+    res["json"]({
       correlationId,
       results,
       summary: {
@@ -211,7 +211,7 @@ router.post('/batch', validateRequest(batchSimulationSchema), async (req: Reques
   } catch (error) {
     console.error(`[MONTE_CARLO] Batch simulation ${correlationId} failed:`, error);
 
-    res.status(500).json({
+    res["status"](500)["json"]({
       error: 'BATCH_SIMULATION_FAILED',
       correlationId,
       message: error instanceof Error ? sanitizeInput(error.message) : 'Batch simulation execution failed',
@@ -224,7 +224,7 @@ router.post('/batch', validateRequest(batchSimulationSchema), async (req: Reques
  * POST /api/monte-carlo/multi-environment
  * Run simulation across multiple market environments
  */
-router.post('/multi-environment', validateRequest(multiEnvironmentSchema), async (req: Request, res: Response) => {
+router["post"]('/multi-environment', validateRequest(multiEnvironmentSchema), async (req: Request, res: Response) => {
   const correlationId = req.headers['x-correlation-id'] as string || `multi_${Date.now()}`;
 
   try {
@@ -245,7 +245,7 @@ router.post('/multi-environment', validateRequest(multiEnvironmentSchema), async
 
     console.log(`[MONTE_CARLO] Completed multi-environment simulation ${correlationId}`);
 
-    res.json({
+    res["json"]({
       correlationId,
       results,
       summary: {
@@ -265,7 +265,7 @@ router.post('/multi-environment', validateRequest(multiEnvironmentSchema), async
   } catch (error) {
     console.error(`[MONTE_CARLO] Multi-environment simulation ${correlationId} failed:`, error);
 
-    res.status(500).json({
+    res["status"](500)["json"]({
       error: 'MULTI_ENVIRONMENT_FAILED',
       correlationId,
       message: error instanceof Error ? sanitizeInput(error.message) : 'Multi-environment simulation failed',
@@ -283,7 +283,7 @@ router['get']('/health', async (req: Request, res: Response) => {
     const health = await unifiedMonteCarloService.healthCheck();
     const status = health.status === 'healthy' ? 200 : health.status === 'degraded' ? 206 : 503;
 
-    res.status(status).json({
+    res["status"](status)["json"]({
       status: health.status,
       timestamp: new Date().toISOString(),
       engines: health.engines,
@@ -293,7 +293,7 @@ router['get']('/health', async (req: Request, res: Response) => {
     });
 
   } catch (error) {
-    res.status(503).json({
+    res["status"](503)["json"]({
       status: 'unhealthy',
       error: error instanceof Error ? error.message : 'Health check failed',
       timestamp: new Date().toISOString()
@@ -310,14 +310,14 @@ router['get']('/performance', async (req: Request, res: Response) => {
     const stats = unifiedMonteCarloService.getPerformanceStats();
     const recommendations = unifiedMonteCarloService.getOptimizationRecommendations();
 
-    res.json({
+    res["json"]({
       statistics: stats,
       recommendations,
       timestamp: new Date().toISOString()
     });
 
   } catch (error) {
-    res.status(500).json({
+    res["status"](500)["json"]({
       error: 'PERFORMANCE_STATS_FAILED',
       message: error instanceof Error ? error.message : 'Failed to retrieve performance statistics',
       timestamp: new Date().toISOString()
@@ -337,7 +337,7 @@ router['get']('/funds/:fundId/simulate', async (req: Request, res: Response) => 
     const engine = req.query.engine as 'streaming' | 'traditional' | 'auto' || 'auto';
 
     if (runs < 100 || runs > 10000) {
-      return res.status(400).json({
+      return res["status"](400)["json"]({
         error: 'INVALID_PARAMETERS',
         message: 'Runs must be between 100 and 10,000 for GET endpoint'
       });
@@ -353,7 +353,7 @@ router['get']('/funds/:fundId/simulate', async (req: Request, res: Response) => 
 
     const result = await unifiedMonteCarloService.runSimulation(config);
 
-    res.json({
+    res["json"]({
       fundId,
       ...result,
       metadata: {
@@ -363,7 +363,7 @@ router['get']('/funds/:fundId/simulate', async (req: Request, res: Response) => 
     });
 
   } catch (error) {
-    res.status(500).json({
+    res["status"](500)["json"]({
       error: 'QUICK_SIMULATION_FAILED',
       message: error instanceof Error ? error.message : 'Quick simulation failed'
     });
@@ -374,18 +374,18 @@ router['get']('/funds/:fundId/simulate', async (req: Request, res: Response) => 
  * DELETE /api/monte-carlo/cache
  * Clear performance history cache
  */
-router.delete('/cache', async (req: Request, res: Response) => {
+router["delete"]('/cache', async (req: Request, res: Response) => {
   try {
     // This would need to be implemented in the service
     // await unifiedMonteCarloService.clearCache();
 
-    res.json({
+    res["json"]({
       message: 'Performance cache cleared',
       timestamp: new Date().toISOString()
     });
 
   } catch (error) {
-    res.status(500).json({
+    res["status"](500)["json"]({
       error: 'CACHE_CLEAR_FAILED',
       message: error instanceof Error ? error.message : 'Failed to clear cache'
     });
@@ -397,10 +397,10 @@ router.delete('/cache', async (req: Request, res: Response) => {
 // ============================================================================
 
 // Route-specific error handler
-router.use((error: Error, req: Request, res: Response, _next: Function) => {
+router["use"]((error: Error, req: Request, res: Response, _next: Function) => {
   console.error('[MONTE_CARLO_ROUTES] Error:', error);
 
-  res.status(500).json({
+  res["status"](500)["json"]({
     error: 'MONTE_CARLO_ERROR',
     message: 'An unexpected error occurred in Monte Carlo simulation',
     timestamp: new Date().toISOString(),

@@ -25,7 +25,7 @@ export async function simulationHandler(req: Request, res: Response) {
       console.error(`[ENGINE_NONFINITE] Correlation: ${correlationId}, Path: ${failure.path}, Reason: ${failure.reason}`);
       
       // Return 422 with error details
-      return res.status(422).json({
+      return res["status"](422)["json"]({
         error: 'ENGINE_NONFINITE',
         path: failure.path,
         reason: failure.reason,
@@ -35,10 +35,10 @@ export async function simulationHandler(req: Request, res: Response) {
     }
     
     // Safe to return - no NaN/Infinity will leak
-    res.json(result);
+    res["json"](result);
   } catch (error) {
     console.error('Simulation error:', error);
-    res.status(500).json({ error: 'SIMULATION_FAILED' });
+    res["status"](500)["json"]({ error: 'SIMULATION_FAILED' });
   }
 }
 
@@ -82,7 +82,7 @@ export function registerGuardedRoutes(app: any) {
       if (!guard.ok) {
         const failure = guard as { ok: false; path: string; value: unknown; reason: string };
         console.error(`[ENGINE_NONFINITE] Response guard triggered at ${failure.path}`);
-        return res.status(422).json({
+        return res["status"](422)["json"]({
           error: 'ENGINE_NONFINITE',
           path: failure.path,
           reason: failure.reason

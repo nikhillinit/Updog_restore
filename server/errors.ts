@@ -61,7 +61,7 @@ export function errorHandler(vite?: ViteDevServerLike) {
         ? err.status
         : 500;
     const expose = status < 500;
-    res.status(status).json({
+    res["status"](status)["json"]({
       code: err?.code || (status >= 500 ? 'INTERNAL_ERROR' : 'BAD_REQUEST'),
       message: expose ? (err?.message || 'Error') : 'Internal Server Error',
       ...(err?.field ? { field: err.field } : {}),

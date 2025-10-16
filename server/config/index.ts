@@ -89,7 +89,7 @@ export function loadEnv() {
   const config = parsed.data;
 
   console.log(
-    `[config] NODE_ENV detected: ${config.NODE_ENV} (from process.env: ${process.env.NODE_ENV})`
+    `[config] NODE_ENV detected: ${config.NODE_ENV} (from process.env: ${process.env["NODE_ENV"]})`
   );
 
   // Additional validation for production

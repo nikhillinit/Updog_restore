@@ -141,7 +141,7 @@ export function createValidationMiddleware<T>(schema: any) {
           code: err.code
         }));
 
-        return res.status(400).json({
+        return res["status"](400)["json"]({
           error: 'Validation failed',
           details: errors
         });
@@ -152,7 +152,7 @@ export function createValidationMiddleware<T>(schema: any) {
       next();
 
     } catch (error) {
-      return res.status(500).json({
+      return res["status"](500)["json"]({
         error: 'Validation error',
         message: 'Internal validation error occurred'
       });
@@ -198,11 +198,11 @@ export function setupSecureRoutes(app: Application): void {
           scenarios: config.runs
         });
 
-        res.json(results);
+        res["json"](results);
 
       } catch (error) {
         console.error('Monte Carlo simulation failed:', error);
-        res.status(500).json({
+        res["status"](500)["json"]({
           error: 'Simulation failed',
           message: 'An error occurred during simulation'
         });
@@ -227,14 +227,14 @@ export function setupSecureRoutes(app: Application): void {
         // Implementation would create fund in database
         // const fund = await createFund(fundData);
 
-        res.status(201).json({
+        res["status"](201)["json"]({
           message: 'Fund created successfully',
           // fund
         });
 
       } catch (error) {
         console.error('Fund creation failed:', error);
-        res.status(500).json({
+        res["status"](500)["json"]({
           error: 'Fund creation failed',
           message: 'An error occurred during fund creation'
         });
@@ -259,14 +259,14 @@ export function setupSecureRoutes(app: Application): void {
         // Implementation would save investment
         // const investment = await saveInvestment(investmentData);
 
-        res.status(201).json({
+        res["status"](201)["json"]({
           message: 'Investment recorded successfully',
           // investment
         });
 
       } catch (error) {
         console.error('Investment entry failed:', error);
-        res.status(500).json({
+        res["status"](500)["json"]({
           error: 'Investment entry failed',
           message: 'An error occurred recording the investment'
         });
@@ -284,7 +284,7 @@ export function setupSecureRoutes(app: Application): void {
         // Implementation would perform search
         // const results = await searchDatabase(query, filters, { sortBy, sortOrder, page, limit });
 
-        res.json({
+        res["json"]({
           results: [],
           pagination: { page, limit },
           total: 0
@@ -292,7 +292,7 @@ export function setupSecureRoutes(app: Application): void {
 
       } catch (error) {
         console.error('Search failed:', error);
-        res.status(500).json({
+        res["status"](500)["json"]({
           error: 'Search failed',
           message: 'An error occurred during search'
         });
@@ -312,10 +312,10 @@ export function setupSecureRoutes(app: Application): void {
 export function setupSecurityMonitoring(app: Application): void {
   // Security health check endpoint
   app['get']('/api/security/health', (req: Request, res: Response) => {
-    res.json({
+    res["json"]({
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version || '1.0.0',
+      version: process.env["npm_package_version"] || '1.0.0',
       security: {
         headersEnabled: true,
         rateLimitingEnabled: true,
@@ -331,7 +331,7 @@ export function setupSecurityMonitoring(app: Application): void {
     strictRateLimit,
     (req: Request, res: Response) => {
       // This would return security metrics in production
-      res.json({
+      res["json"]({
         message: 'Security metrics endpoint',
         note: 'Implementation would return actual security metrics'
       });

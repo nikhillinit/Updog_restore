@@ -27,7 +27,7 @@ export function asyncHandler(
         message: error instanceof Error ? error.message : 'An unexpected error occurred',
       };
       
-      res.status(500).json(apiError);
+      res["status"](500)["json"](apiError);
     });
   };
 }

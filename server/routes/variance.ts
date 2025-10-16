@@ -70,7 +70,7 @@ const VarianceAnalysisSchema = z.object({
  * Create a new baseline for a fund
  * POST /api/funds/:id/baselines
  */
-router.post('/api/funds/:id/baselines', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/funds/:id/baselines', idempotency, async (req: AuthenticatedRequest, res: Response) => {
   try {
     // Parse and validate fund ID
     let fundId: number;
@@ -82,7 +82,7 @@ router.post('/api/funds/:id/baselines', idempotency, async (req: AuthenticatedRe
           error: 'Invalid fund ID',
           message: err.message
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       throw err;
     }
@@ -95,7 +95,7 @@ router.post('/api/funds/:id/baselines', idempotency, async (req: AuthenticatedRe
         message: 'Invalid baseline data',
         details: validation.error.flatten()
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const data = validation.data;
@@ -106,7 +106,7 @@ router.post('/api/funds/:id/baselines', idempotency, async (req: AuthenticatedRe
         error: 'Authentication required',
         message: 'User must be authenticated to create baselines'
       };
-      return res.status(401).json(error);
+      return res["status"](401)["json"](error);
     }
 
     // Create baseline
@@ -121,7 +121,7 @@ router.post('/api/funds/:id/baselines', idempotency, async (req: AuthenticatedRe
       tags: data.tags
     });
 
-    res.status(201).json({
+    res["status"](201)["json"]({
       success: true,
       data: baseline,
       message: 'Baseline created successfully'
@@ -132,7 +132,7 @@ router.post('/api/funds/:id/baselines', idempotency, async (req: AuthenticatedRe
       error: 'Failed to create baseline',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -151,7 +151,7 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
           error: 'Invalid fund ID',
           message: err.message
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       throw err;
     }
@@ -167,7 +167,7 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
       limit
     });
 
-    res.json({
+    res["json"]({
       success: true,
       data: baselines,
       count: baselines.length
@@ -178,7 +178,7 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
       error: 'Failed to fetch baselines',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -186,7 +186,7 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
  * Set default baseline for a fund
  * POST /api/funds/:id/baselines/:baselineId/set-default
  */
-router.post('/api/funds/:id/baselines/:baselineId/set-default', async (req: Request, res: Response) => {
+router["post"]('/api/funds/:id/baselines/:baselineId/set-default', async (req: Request, res: Response) => {
   try {
     let fundId: number;
     try {
@@ -197,7 +197,7 @@ router.post('/api/funds/:id/baselines/:baselineId/set-default', async (req: Requ
           error: 'Invalid fund ID',
           message: err.message
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       throw err;
     }
@@ -208,12 +208,12 @@ router.post('/api/funds/:id/baselines/:baselineId/set-default', async (req: Requ
         error: 'Invalid baseline ID',
         message: 'Baseline ID is required'
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     await varianceTrackingService.baselines.setDefaultBaseline(baselineId, fundId);
 
-    res.json({
+    res["json"]({
       success: true,
       message: 'Default baseline updated successfully'
     });
@@ -223,7 +223,7 @@ router.post('/api/funds/:id/baselines/:baselineId/set-default', async (req: Requ
       error: 'Failed to set default baseline',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -231,7 +231,7 @@ router.post('/api/funds/:id/baselines/:baselineId/set-default', async (req: Requ
  * Deactivate a baseline
  * DELETE /api/funds/:id/baselines/:baselineId
  */
-router.delete('/api/funds/:id/baselines/:baselineId', async (req: Request, res: Response) => {
+router["delete"]('/api/funds/:id/baselines/:baselineId', async (req: Request, res: Response) => {
   try {
     const baselineId = req.params['baselineId'];
     if (!baselineId) {
@@ -239,12 +239,12 @@ router.delete('/api/funds/:id/baselines/:baselineId', async (req: Request, res: 
         error: 'Invalid baseline ID',
         message: 'Baseline ID is required'
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     await varianceTrackingService.baselines.deactivateBaseline(baselineId);
 
-    res.json({
+    res["json"]({
       success: true,
       message: 'Baseline deactivated successfully'
     });
@@ -254,7 +254,7 @@ router.delete('/api/funds/:id/baselines/:baselineId', async (req: Request, res: 
       error: 'Failed to deactivate baseline',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -264,7 +264,7 @@ router.delete('/api/funds/:id/baselines/:baselineId', async (req: Request, res: 
  * Generate variance report
  * POST /api/funds/:id/variance-reports
  */
-router.post('/api/funds/:id/variance-reports', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/funds/:id/variance-reports', idempotency, async (req: AuthenticatedRequest, res: Response) => {
   try {
     let fundId: number;
     try {
@@ -275,7 +275,7 @@ router.post('/api/funds/:id/variance-reports', idempotency, async (req: Authenti
           error: 'Invalid fund ID',
           message: err.message
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       throw err;
     }
@@ -287,7 +287,7 @@ router.post('/api/funds/:id/variance-reports', idempotency, async (req: Authenti
         message: 'Invalid variance report data',
         details: validation.error.flatten()
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const data = validation.data;
@@ -303,7 +303,7 @@ router.post('/api/funds/:id/variance-reports', idempotency, async (req: Authenti
       generatedBy: userId || undefined
     });
 
-    res.status(201).json({
+    res["status"](201)["json"]({
       success: true,
       data: report,
       message: 'Variance report generated successfully'
@@ -314,7 +314,7 @@ router.post('/api/funds/:id/variance-reports', idempotency, async (req: Authenti
       error: 'Failed to generate variance report',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -333,14 +333,14 @@ router['get']('/api/funds/:id/variance-reports', async (req: Request, res: Respo
           error: 'Invalid fund ID',
           message: err.message
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       throw err;
     }
 
     // This would be implemented to fetch variance reports
     // For now, return placeholder response
-    res.json({
+    res["json"]({
       success: true,
       data: [],
       count: 0,
@@ -352,7 +352,7 @@ router['get']('/api/funds/:id/variance-reports', async (req: Request, res: Respo
       error: 'Failed to fetch variance reports',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -371,7 +371,7 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
           error: 'Invalid fund ID',
           message: err.message
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       throw err;
     }
@@ -382,11 +382,11 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
         error: 'Invalid report ID',
         message: 'Report ID is required'
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     // This would be implemented to fetch specific variance report
-    res.json({
+    res["json"]({
       success: true,
       data: null,
       message: 'Specific variance report endpoint implemented'
@@ -397,7 +397,7 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
       error: 'Failed to fetch variance report',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -407,7 +407,7 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
  * Create alert rule
  * POST /api/funds/:id/alert-rules
  */
-router.post('/api/funds/:id/alert-rules', async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/funds/:id/alert-rules', async (req: AuthenticatedRequest, res: Response) => {
   try {
     let fundId: number;
     try {
@@ -418,7 +418,7 @@ router.post('/api/funds/:id/alert-rules', async (req: AuthenticatedRequest, res:
           error: 'Invalid fund ID',
           message: err.message
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       throw err;
     }
@@ -430,7 +430,7 @@ router.post('/api/funds/:id/alert-rules', async (req: AuthenticatedRequest, res:
         message: 'Invalid alert rule data',
         details: validation.error.flatten()
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const data = validation.data;
@@ -441,7 +441,7 @@ router.post('/api/funds/:id/alert-rules', async (req: AuthenticatedRequest, res:
         error: 'Authentication required',
         message: 'User must be authenticated to create alert rules'
       };
-      return res.status(401).json(error);
+      return res["status"](401)["json"](error);
     }
 
     const rule = await varianceTrackingService.alerts.createAlertRule({
@@ -459,7 +459,7 @@ router.post('/api/funds/:id/alert-rules', async (req: AuthenticatedRequest, res:
       createdBy: userId
     });
 
-    res.status(201).json({
+    res["status"](201)["json"]({
       success: true,
       data: rule,
       message: 'Alert rule created successfully'
@@ -470,7 +470,7 @@ router.post('/api/funds/:id/alert-rules', async (req: AuthenticatedRequest, res:
       error: 'Failed to create alert rule',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -489,7 +489,7 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
           error: 'Invalid fund ID',
           message: err.message
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       throw err;
     }
@@ -505,7 +505,7 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
       limit
     });
 
-    res.json({
+    res["json"]({
       success: true,
       data: alerts,
       count: alerts.length
@@ -516,7 +516,7 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
       error: 'Failed to fetch alerts',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -524,7 +524,7 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
  * Acknowledge an alert
  * POST /api/alerts/:alertId/acknowledge
  */
-router.post('/api/alerts/:alertId/acknowledge', async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/alerts/:alertId/acknowledge', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const alertId = req.params['alertId'];
     if (!alertId) {
@@ -532,7 +532,7 @@ router.post('/api/alerts/:alertId/acknowledge', async (req: AuthenticatedRequest
         error: 'Invalid alert ID',
         message: 'Alert ID is required'
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const validation = AlertActionSchema.safeParse(req.body);
@@ -542,7 +542,7 @@ router.post('/api/alerts/:alertId/acknowledge', async (req: AuthenticatedRequest
         message: 'Invalid alert action data',
         details: validation.error.flatten()
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const userId = parseInt(req.user?.id || '0');
@@ -551,12 +551,12 @@ router.post('/api/alerts/:alertId/acknowledge', async (req: AuthenticatedRequest
         error: 'Authentication required',
         message: 'User must be authenticated to acknowledge alerts'
       };
-      return res.status(401).json(error);
+      return res["status"](401)["json"](error);
     }
 
     await varianceTrackingService.alerts.acknowledgeAlert(alertId, userId, validation.data.notes);
 
-    res.json({
+    res["json"]({
       success: true,
       message: 'Alert acknowledged successfully'
     });
@@ -566,7 +566,7 @@ router.post('/api/alerts/:alertId/acknowledge', async (req: AuthenticatedRequest
       error: 'Failed to acknowledge alert',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -574,7 +574,7 @@ router.post('/api/alerts/:alertId/acknowledge', async (req: AuthenticatedRequest
  * Resolve an alert
  * POST /api/alerts/:alertId/resolve
  */
-router.post('/api/alerts/:alertId/resolve', async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/alerts/:alertId/resolve', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const alertId = req.params['alertId'];
     if (!alertId) {
@@ -582,7 +582,7 @@ router.post('/api/alerts/:alertId/resolve', async (req: AuthenticatedRequest, re
         error: 'Invalid alert ID',
         message: 'Alert ID is required'
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const validation = AlertActionSchema.safeParse(req.body);
@@ -592,7 +592,7 @@ router.post('/api/alerts/:alertId/resolve', async (req: AuthenticatedRequest, re
         message: 'Invalid alert action data',
         details: validation.error.flatten()
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const userId = parseInt(req.user?.id || '0');
@@ -601,12 +601,12 @@ router.post('/api/alerts/:alertId/resolve', async (req: AuthenticatedRequest, re
         error: 'Authentication required',
         message: 'User must be authenticated to resolve alerts'
       };
-      return res.status(401).json(error);
+      return res["status"](401)["json"](error);
     }
 
     await varianceTrackingService.alerts.resolveAlert(alertId, userId, validation.data.notes);
 
-    res.json({
+    res["json"]({
       success: true,
       message: 'Alert resolved successfully'
     });
@@ -616,7 +616,7 @@ router.post('/api/alerts/:alertId/resolve', async (req: AuthenticatedRequest, re
       error: 'Failed to resolve alert',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -626,7 +626,7 @@ router.post('/api/alerts/:alertId/resolve', async (req: AuthenticatedRequest, re
  * Perform complete variance analysis
  * POST /api/funds/:id/variance-analysis
  */
-router.post('/api/funds/:id/variance-analysis', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/funds/:id/variance-analysis', idempotency, async (req: AuthenticatedRequest, res: Response) => {
   try {
     let fundId: number;
     try {
@@ -637,7 +637,7 @@ router.post('/api/funds/:id/variance-analysis', idempotency, async (req: Authent
           error: 'Invalid fund ID',
           message: err.message
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       throw err;
     }
@@ -649,7 +649,7 @@ router.post('/api/funds/:id/variance-analysis', idempotency, async (req: Authent
         message: 'Invalid variance analysis data',
         details: validation.error.flatten()
       };
-      return res.status(400).json(error);
+      return res["status"](400)["json"](error);
     }
 
     const data = validation.data;
@@ -660,7 +660,7 @@ router.post('/api/funds/:id/variance-analysis', idempotency, async (req: Authent
         error: 'Authentication required',
         message: 'User must be authenticated to perform variance analysis'
       };
-      return res.status(401).json(error);
+      return res["status"](401)["json"](error);
     }
 
     const result = await varianceTrackingService.performCompleteVarianceAnalysis({
@@ -670,7 +670,7 @@ router.post('/api/funds/:id/variance-analysis', idempotency, async (req: Authent
       userId
     });
 
-    res.status(201).json({
+    res["status"](201)["json"]({
       success: true,
       data: {
         report: result.report,
@@ -685,7 +685,7 @@ router.post('/api/funds/:id/variance-analysis', idempotency, async (req: Authent
       error: 'Failed to perform variance analysis',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 
@@ -704,7 +704,7 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
           error: 'Invalid fund ID',
           message: err.message
         };
-        return res.status(400).json(error);
+        return res["status"](400)["json"](error);
       }
       throw err;
     }
@@ -717,7 +717,7 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
 
     const defaultBaseline = baselines.find(b => b.isDefault);
 
-    res.json({
+    res["json"]({
       success: true,
       data: {
         defaultBaseline,
@@ -741,7 +741,7 @@ router['get']('/api/funds/:id/variance-dashboard', async (req: Request, res: Res
       error: 'Failed to fetch variance dashboard data',
       message: error instanceof Error ? error.message : 'Unknown error'
     };
-    res.status(500).json(apiError);
+    res["status"](500)["json"](apiError);
   }
 });
 

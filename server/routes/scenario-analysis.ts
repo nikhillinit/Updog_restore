@@ -103,7 +103,7 @@ async function auditLog(params: {
  *
  * Returns Construction vs Current comparison with pagination and caching
  */
-router.get('/funds/:fundId/portfolio-analysis',
+router["get"]('/funds/:fundId/portfolio-analysis',
   requireFundAccess('read'),
   async (req: Request, res: Response) => {
     try {
@@ -142,7 +142,7 @@ router.get('/funds/:fundId/portfolio-analysis',
         forecast_value: company.projected_value || 0,
       }));
 
-      res.json({
+      res["json"]({
         data: rows,
         pagination: {
           page: query.page,
@@ -155,7 +155,7 @@ router.get('/funds/:fundId/portfolio-analysis',
 
     } catch (error: any) {
       console.error('Portfolio analysis error:', error);
-      res.status(500).json({
+      res["status"](500)["json"]({
         error: 'Internal server error',
         message: error.message
       });
@@ -172,7 +172,7 @@ router.get('/funds/:fundId/portfolio-analysis',
  *
  * Get scenario with cases, rounds, and weighted summary
  */
-router.get('/companies/:companyId/scenarios/:scenarioId',
+router["get"]('/companies/:companyId/scenarios/:scenarioId',
   requireFundAccess('read'),
   async (req: Request, res: Response) => {
     try {
@@ -190,7 +190,7 @@ router.get('/companies/:companyId/scenarios/:scenarioId',
       });
 
       if (!scenario) {
-        return res.status(404).json({ error: 'Scenario not found' });
+        return res["status"](404)["json"]({ error: 'Scenario not found' });
       }
 
       // Add MOIC to each case
@@ -222,11 +222,11 @@ router.get('/companies/:companyId/scenarios/:scenarioId',
         rounds: include.includes('rounds') ? rounds : undefined,
       };
 
-      res.json(response);
+      res["json"](response);
 
     } catch (error: any) {
       console.error('Get scenario error:', error);
-      res.status(500).json({
+      res["status"](500)["json"]({
         error: 'Internal server error',
         message: error.message
       });
@@ -239,7 +239,7 @@ router.get('/companies/:companyId/scenarios/:scenarioId',
  *
  * Create new scenario
  */
-router.post('/companies/:companyId/scenarios',
+router["post"]('/companies/:companyId/scenarios',
   requireFundAccess('write'),
   async (req: Request, res: Response) => {
     try {
@@ -263,11 +263,11 @@ router.post('/companies/:companyId/scenarios',
         action: 'CREATE',
       });
 
-      res.status(201).json(scenario[0]);
+      res["status"](201)["json"](scenario[0]);
 
     } catch (error: any) {
       console.error('Create scenario error:', error);
-      res.status(500).json({
+      res["status"](500)["json"]({
         error: 'Internal server error',
         message: error.message
       });
@@ -280,7 +280,7 @@ router.post('/companies/:companyId/scenarios',
  *
  * Update scenario cases with optimistic locking
  */
-router.patch('/companies/:companyId/scenarios/:scenarioId',
+router["patch"]('/companies/:companyId/scenarios/:scenarioId',
   requireFundAccess('write'),
   async (req: Request, res: Response) => {
     try {
@@ -297,12 +297,12 @@ router.patch('/companies/:companyId/scenarios/:scenarioId',
       });
 
       if (!current) {
-        return res.status(404).json({ error: 'Scenario not found' });
+        return res["status"](404)["json"]({ error: 'Scenario not found' });
       }
 
       // BLOCKER #1 FIX: Optimistic locking
       if (body.version !== undefined && current.version !== body.version) {
-        return res.status(409).json({
+        return res["status"](409)["json"]({
           error: 'Conflict',
           message: 'Scenario was modified by another user. Please refresh.',
           current_version: current.version,
@@ -314,7 +314,7 @@ router.patch('/companies/:companyId/scenarios/:scenarioId',
       const validation = validateProbabilities(cases);
 
       if (!validation.is_valid && !body.normalize) {
-        return res.status(400).json({
+        return res["status"](400)["json"]({
           error: 'Invalid probabilities',
           message: validation.message,
           sum: validation.sum,
@@ -378,7 +378,7 @@ router.patch('/companies/:companyId/scenarios/:scenarioId',
       const casesWithMOIC = addMOICToCases(cases);
       const weighted_summary = calculateWeightedSummary(casesWithMOIC);
 
-      res.json({
+      res["json"]({
         scenario_id: scenarioId,
         cases: casesWithMOIC,
         weighted_summary,
@@ -391,13 +391,13 @@ router.patch('/companies/:companyId/scenarios/:scenarioId',
       console.error('Update scenario error:', error);
 
       if (error instanceof z.ZodError) {
-        return res.status(400).json({
+        return res["status"](400)["json"]({
           error: 'Validation error',
           details: error.errors,
         });
       }
 
-      res.status(500).json({
+      res["status"](500)["json"]({
         error: 'Internal server error',
         message: error.message
       });
@@ -410,7 +410,7 @@ router.patch('/companies/:companyId/scenarios/:scenarioId',
  *
  * Delete scenario and all its cases
  */
-router.delete('/companies/:companyId/scenarios/:scenarioId',
+router["delete"]('/companies/:companyId/scenarios/:scenarioId',
   requireFundAccess('write'),
   async (req: Request, res: Response) => {
     try {
@@ -424,12 +424,12 @@ router.delete('/companies/:companyId/scenarios/:scenarioId',
       });
 
       if (!scenario) {
-        return res.status(404).json({ error: 'Scenario not found' });
+        return res["status"](404)["json"]({ error: 'Scenario not found' });
       }
 
       // Prevent deleting default scenario
       if (scenario.isDefault) {
-        return res.status(400).json({
+        return res["status"](400)["json"]({
           error: 'Cannot delete default scenario'
         });
       }
@@ -446,11 +446,11 @@ router.delete('/companies/:companyId/scenarios/:scenarioId',
         action: 'DELETE',
       });
 
-      res.status(204).send();
+      res["status"](204)["send"]();
 
     } catch (error: any) {
       console.error('Delete scenario error:', error);
-      res.status(500).json({
+      res["status"](500)["json"]({
         error: 'Internal server error',
         message: error.message
       });
@@ -467,7 +467,7 @@ router.delete('/companies/:companyId/scenarios/:scenarioId',
  *
  * Call DeterministicReserveEngine to suggest optimal reserve allocation
  */
-router.post('/companies/:companyId/reserves/optimize',
+router["post"]('/companies/:companyId/reserves/optimize',
   requireFundAccess('write'),
   async (req: Request, res: Response) => {
     try {
@@ -484,7 +484,7 @@ router.post('/companies/:companyId/reserves/optimize',
       });
 
       if (!scenario) {
-        return res.status(404).json({ error: 'Scenario not found' });
+        return res["status"](404)["json"]({ error: 'Scenario not found' });
       }
 
       // 2. Call reserve engine (lift from your existing pattern)
@@ -506,7 +506,7 @@ router.post('/companies/:companyId/reserves/optimize',
         }
       ];
 
-      res.json({
+      res["json"]({
         scenario_id,
         suggestions,
         generated_at: new Date(),
@@ -514,7 +514,7 @@ router.post('/companies/:companyId/reserves/optimize',
 
     } catch (error: any) {
       console.error('Reserves optimization error:', error);
-      res.status(500).json({
+      res["status"](500)["json"]({
         error: 'Internal server error',
         message: error.message
       });

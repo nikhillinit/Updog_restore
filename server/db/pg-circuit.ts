@@ -256,7 +256,7 @@ export function getPoolStats() {
  * Gracefully close the pool
  */
 export async function closePool(): Promise<void> {
-  await pool.end();
+  await pool["end"]();
   console.log('[PG Pool] Connection pool closed');
 }
 

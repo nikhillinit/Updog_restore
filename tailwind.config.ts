@@ -4,11 +4,23 @@ export default {
   darkMode: ["class"],
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
   theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
     extend: {
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        '2xs': '0.125rem',
+        'xs': '0.25rem',
+        '2xl': '1rem',
+        '3xl': '1.5rem',
+        '4xl': '2rem',
       },
       colors: {
         // POV Brand Colors (Enhanced)
@@ -132,6 +144,15 @@ export default {
           900: "#5c4e44"
         },
         lightGray: "#F2F2F2",
+        // Financial Data Colors (from enhanced - for future use)
+        financial: {
+          profit: '#22c55e',
+          loss: '#ef4444',
+          neutral: '#6b7280',
+          growth: '#10b981',
+          decline: '#f59e0b',
+          stable: '#8b5cf6',
+        },
         // UI state colors
         success: {
           DEFAULT: "#10b981",
@@ -206,10 +227,12 @@ export default {
         },
       },
       fontFamily: {
-        inter: ["Inter", "sans-serif"],
-        poppins: ["Poppins", "sans-serif"],
-        mono: ["Roboto Mono", "monospace"],
-        sans: ["Inter", "sans-serif"],
+        inter: ["Inter", "system-ui", "sans-serif"],
+        poppins: ["Poppins", "system-ui", "sans-serif"],
+        mono: ["Fira Code", "Monaco", "Cascadia Code", "Roboto Mono", "monospace"],
+        sans: ["Inter", "system-ui", "sans-serif"],
+        heading: ["Inter", "system-ui", "sans-serif"],
+        body: ["Poppins", "system-ui", "sans-serif"],
       },
       boxShadow: {
         card: "0 2px 8px rgba(0, 0, 0, 0.05)",
@@ -322,6 +345,54 @@ export default {
       spacing: {
         '18': '4.5rem',   // 72px - optimal touch target
         '22': '5.5rem',   // 88px - comfortable touch target
+        '88': '22rem',    // 352px - large spacing
+        '120': '30rem',   // 480px - extra large spacing
+        '144': '36rem',   // 576px - maximum spacing
+      },
+      // Component-specific spacing
+      gap: {
+        'xs': '0.5rem',
+        'sm': '0.75rem',
+        'md': '1rem',
+        'lg': '1.5rem',
+        'xl': '2rem',
+        '2xl': '3rem',
+      },
+      // Responsive Breakpoints (enhanced)
+      screens: {
+        'xs': '475px',
+        'mobile': { 'max': '767px' },
+        'tablet': { 'min': '768px', 'max': '1023px' },
+        'desktop': { 'min': '1024px' },
+        'wide': { 'min': '1536px' },
+        '3xl': '1920px',
+      },
+      // Z-index scale for layering
+      zIndex: {
+        '1': '1',
+        '2': '2',
+        '3': '3',
+        '4': '4',
+        '5': '5',
+        'dropdown': '1000',
+        'sticky': '1020',
+        'fixed': '1030',
+        'modal-backdrop': '1040',
+        'modal': '1050',
+        'popover': '1060',
+        'tooltip': '1070',
+        'toast': '1080',
+      },
+      // Grid System for dashboard layouts
+      gridTemplateColumns: {
+        '13': 'repeat(13, minmax(0, 1fr))',
+        '14': 'repeat(14, minmax(0, 1fr))',
+        '15': 'repeat(15, minmax(0, 1fr))',
+        '16': 'repeat(16, minmax(0, 1fr))',
+        'dashboard': '240px 1fr',
+        'dashboard-wide': '280px 1fr',
+        'sidebar-content': 'minmax(200px, 300px) 1fr',
+        'card-grid': 'repeat(auto-fit, minmax(300px, 1fr))',
       },
     },
   },
@@ -411,6 +482,27 @@ export default {
             borderLeftWidth: '4px',
             borderLeftColor: theme('colors.confidence.high'),
             backgroundColor: theme('colors.semantic.success.50'),
+          },
+        },
+        // Text utilities from enhanced config
+        '.text-balance': {
+          'text-wrap': 'balance',
+        },
+        '.text-pretty': {
+          'text-wrap': 'pretty',
+        },
+        // Scrollbar utilities
+        '.scrollbar-none': {
+          'scrollbar-width': 'none',
+          '&::-webkit-scrollbar': {
+            display: 'none',
+          },
+        },
+        '.scrollbar-thin': {
+          'scrollbar-width': 'thin',
+          '&::-webkit-scrollbar': {
+            width: '8px',
+            height: '8px',
           },
         },
       });

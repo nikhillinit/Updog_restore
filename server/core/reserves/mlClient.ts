@@ -51,7 +51,7 @@ export class MlClient {
     try {
       const res = await this.fetchWithTimeout('/health', { method: 'GET' });
       if (!res.ok) throw new Error(`Health check failed: ${res.status}`);
-      return await res.json() as { status: string; modelLoaded: boolean };
+      return await res["json"]() as { status: string; modelLoaded: boolean };
     } catch (error) {
       logger.error({ error: error instanceof Error ? error.message : String(error) }, 'ML service health check failed');
       throw error;
@@ -72,7 +72,7 @@ export class MlClient {
         throw new Error(`Training failed: ${res.status} ${res.statusText}`);
       }
 
-      const result = await res.json() as { modelVersion: string; rows: number };
+      const result = await res["json"]() as { modelVersion: string; rows: number };
       
       logger.info({
         modelVersion: result.modelVersion,
@@ -118,7 +118,7 @@ export class MlClient {
         throw new Error(`ML prediction failed: ${res.status} ${res.statusText}`);
       }
 
-      const body = await res.json() as {
+      const body = await res["json"]() as {
         modelVersion: string;
         prediction: {
           recommendedReserve: number;

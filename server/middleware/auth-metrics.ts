@@ -31,7 +31,7 @@ export function authenticateMetrics(req: Request, res: Response, next: NextFunct
 
   // Deny by default in production
   if (process.env['NODE_ENV'] === 'production' || metricsKey || allowFrom.length) {
-    return res.status(403).json({ error: 'Forbidden' });
+    return res["status"](403)["json"]({ error: 'Forbidden' });
   }
   next(); // Allow in dev if no auth configured
 }

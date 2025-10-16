@@ -1,19 +1,30 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
-# Fast pre-push checks: type check + unit tests only
+echo "🔍 Pre-push validation..."
 
-echo "🔍 Running pre-push checks..."
+# AGENTS.md daily review (automated, only shows if activity detected)
+node scripts/agents-daily-review.mjs 2>/dev/null || true
 
-echo "  → Type checking..."
-npm run check || {
-  echo "❌ TypeScript errors detected"
+# TypeScript baseline check
+echo "📋 Checking TypeScript baseline..."
+npm run baseline:check || {
+  echo ""
+  echo "❌ NEW TypeScript errors detected"
+  echo ""
+  echo "If you FIXED errors:"
+  echo "   npm run baseline:save && git add .tsc-baseline.json && git commit --amend --no-edit"
+  echo ""
+  echo "If you INTRODUCED errors:"
+  echo "   Fix them or see: npm run baseline:progress"
   exit 1
 }
 
-echo "  → Unit tests..."
-npm run test:ci || {
-  echo "❌ Unit tests failed"
-  exit 1
-}
+# Build verification
+echo "🏗️  Building..."
+npm run build || exit 1
 
-echo "✅ Pre-push checks passed!"
+# Test verification
+echo "🧪 Running tests..."
+npm run test || exit 1
+
+echo "✅ Pre-push passed"

@@ -38,20 +38,20 @@ const FundCalculationDTO = z.object({
 });
 type FundCalculationDTO = z.infer<typeof FundCalculationDTO>;
 
-router.post('/funds', idempotency, async (req: Request, res: Response) => {
+router["post"]('/funds', idempotency, async (req: Request, res: Response) => {
   const parsed = CreateFundSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400);
-    return res.json({ error: parsed.error.format() });
+    res["status"](400);
+    return res["json"]({ error: parsed.error.format() });
   }
 
   // TODO: persist fund with Drizzle
   const fundId = `fund_${  Math.random().toString(36).slice(2)}`;
-  res.status(201);
-  return res.json({ id: fundId });
+  res["status"](201);
+  return res["json"]({ id: fundId });
 });
 
-router.post('/api/funds/calculate', async (req: Request, res: Response, next: NextFunction) => {
+router["post"]('/api/funds/calculate', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const dto = FundCalculationDTO.parse(req.body as FundCalculationDTO);
     const idemHeader = String(req.header('Idempotency-Key') || '');
@@ -68,7 +68,7 @@ router.post('/api/funds/calculate', async (req: Request, res: Response, next: Ne
       res['setHeader']('Idempotency-Status', 'created');
       const result = await promise;
       endTimer();
-      return res.status(201).json(result);
+      return res["status"](201)["json"](result);
     }
 
     // === joined path (memory store cannot share promise across processes) ===
@@ -78,7 +78,7 @@ router.post('/api/funds/calculate', async (req: Request, res: Response, next: Ne
     res['setHeader']('Retry-After', '2');
     res['setHeader']('Location', `/api/operations/${encodeURIComponent(key)}`);
     endTimer();
-    return res.status(202).json({ status: 'in-progress', key });
+    return res["status"](202)["json"]({ status: 'in-progress', key });
   } catch (err) {
     next(err);
   }

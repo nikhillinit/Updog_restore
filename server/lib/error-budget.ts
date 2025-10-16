@@ -206,7 +206,7 @@ export class ErrorBudgetManager {
         return 0.95; // Fallback to healthy state
       }
       
-      const data = await response.json();
+      const data = await response["json"]();
       if (data.status === 'success' && data.data.result.length > 0) {
         return parseFloat(data.data.result[0]!.value[1]!);
       }

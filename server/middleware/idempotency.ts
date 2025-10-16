@@ -236,7 +236,7 @@ export function idempotency(options: IdempotencyOptions = {}) {
         }
       });
       
-      return res.status(cached.statusCode).json(cached.body);
+      return res["status"](cached.statusCode)["json"](cached.body);
     }
     
     // Capture response for caching
@@ -319,7 +319,7 @@ export function getIdempotencyStats() {
  * Express route handler for idempotency status
  */
 export function idempotencyStatusHandler(req: Request, res: Response) {
-  res.json({
+  res["json"]({
     status: 'active',
     stats: getIdempotencyStats(),
     timestamp: new Date().toISOString(),
