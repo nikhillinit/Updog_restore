@@ -3,11 +3,11 @@ import preact from '@preact/preset-vite';
 import react from '@vitejs/plugin-react';
 import { execSync } from 'child_process';
 import fs from 'fs';
+import type http from 'http';
 import path from 'path';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath } from 'url';
 import { defineConfig, type Plugin } from 'vite';
-import type { ViteDevServer } from 'vite';
 import virtual from 'vite-plugin-virtual';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
@@ -203,9 +203,9 @@ const sentryNoop = path.resolve(import.meta.dirname, 'client/src/monitoring/noop
 
 export default defineConfig(({ mode }: { mode: string }) => {
   const usePreact =
-    process.env.BUILD_WITH_PREACT === '1' ||
-    process.env.BUILD_WITH_PREACT === 'true' ||
-    process.env.VITE_USE_PREACT === '1' ||
+    process.env['BUILD_WITH_PREACT'] === '1' ||
+    process.env['BUILD_WITH_PREACT'] === 'true' ||
+    process.env['VITE_USE_PREACT'] === '1' ||
     mode === 'preact';
 
   const parsePort = (value: string | undefined, fallback: number) => {
@@ -233,8 +233,8 @@ export default defineConfig(({ mode }: { mode: string }) => {
       // Dev telemetry stub - always returns 204 for telemetry endpoints
       {
         name: 'dev-telemetry-stub',
-        configureServer(server: ViteDevServer) {
-          server.middlewares.use('/api/telemetry/wizard', async (req, res) => {
+        configureServer(server) {
+          server.middlewares.use('/api/telemetry/wizard', async (req: http.IncomingMessage, res: http.ServerResponse) => {
             try {
               let body = '';
               for await (const chunk of req) body += chunk;
@@ -305,7 +305,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
     build: {
       outDir: path.resolve(import.meta.dirname, 'dist'),
       emptyOutDir: true,
-      sourcemap: process.env.VITE_SOURCEMAP === 'true' ? true : true, // Always enable source maps for profiling (keeping environment option)
+      sourcemap: process.env['VITE_SOURCEMAP'] === 'true' ? true : true, // Always enable source maps for profiling (keeping environment option)
       minify: 'esbuild',
       target: 'es2020', // More compatible target for production
       cssMinify: 'lightningcss',
@@ -317,7 +317,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
         resolveDependencies: (
           _filename: string,
           deps: string[],
-          { hostId: _hostId, hostType: _hostType }
+          { hostId: _hostId, hostType: _hostType }: { hostId: string; hostType: string }
         ) => {
           return deps.filter(
             (dep) => !dep.includes('vendor-charts') && !dep.includes('vendor-nivo')
