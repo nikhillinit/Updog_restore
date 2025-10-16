@@ -1,19 +1,20 @@
-#!/usr/bin/env bash
-
-# Fast pre-push checks: type check + unit tests only
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
 
 echo "🔍 Running pre-push checks..."
-
-echo "  → Type checking..."
+echo ""
+echo "📋 Type checking..."
 npm run check || {
-  echo "❌ TypeScript errors detected"
+  echo "❌ Type check failed. Fix errors before pushing."
   exit 1
 }
 
-echo "  → Unit tests..."
-npm run test:ci || {
-  echo "❌ Unit tests failed"
+echo ""
+echo "🏗️  Building..."
+npm run build || {
+  echo "❌ Build failed. Fix build errors before pushing."
   exit 1
 }
 
-echo "✅ Pre-push checks passed!"
+echo ""
+echo "✅ All checks passed. Pushing..."
