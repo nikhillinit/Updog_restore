@@ -1,0 +1,552 @@
+[
+  {
+    "workflow": "ai-foundation.yml",
+    "lines": 56,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 1,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "auto-label.yml",
+    "lines": 71,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 1,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "bmad-weekly.yml",
+    "lines": 119,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 7,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "bundle-size-check.yml",
+    "lines": 125,
+    "lastModified": "2025-10-07",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 1,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "ci-breaker.yml",
+    "lines": 20,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "ci-hygiene.yml",
+    "lines": 49,
+    "lastModified": "2025-10-07",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "ci-memory.yml",
+    "lines": 34,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "ci-optimized.yml",
+    "lines": 366,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 19,
+    "workflowCallConsumers": 0,
+    "status": "BROKEN"
+  },
+  {
+    "workflow": "ci-reserves-v11.yml",
+    "lines": 175,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "ci-unified.yml",
+    "lines": 676,
+    "lastModified": "2025-10-16",
+    "hasOnTrigger": true,
+    "secretsCount": 1,
+    "badgeConsumers": 7,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "code-quality.yml",
+    "lines": 209,
+    "lastModified": "2025-10-07",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "codeql.yml",
+    "lines": 18,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "contract-ci.yml",
+    "lines": 13,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "demo-ci.yml",
+    "lines": 22,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "dependency-validation.yml",
+    "lines": 44,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 1,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "deploy-ga.yml",
+    "lines": 270,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 13,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "deploy-production.yml",
+    "lines": 543,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 42,
+    "badgeConsumers": 1,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "deploy-staging.yml",
+    "lines": 73,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 10,
+    "badgeConsumers": 1,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "dockerfile-lint.yml",
+    "lines": 38,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "green-scoreboard-complete.yml",
+    "lines": 446,
+    "lastModified": "2025-10-07",
+    "hasOnTrigger": true,
+    "secretsCount": 1,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "green-scoreboard.yml",
+    "lines": 131,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "guardian-complete.yml",
+    "lines": 170,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 2,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "guardian-ttl-mute.yml",
+    "lines": 74,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 1,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "guardian.yml",
+    "lines": 133,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 1,
+    "badgeConsumers": 1,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "linux-build-validation.yml",
+    "lines": 101,
+    "lastModified": "2025-10-16",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 2,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "maintenance.yml",
+    "lines": 95,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 3,
+    "badgeConsumers": 1,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "memory-mode.yml",
+    "lines": 26,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "migration-orchestrator.yml",
+    "lines": 247,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 6,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "openapi-diff.yml",
+    "lines": 35,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "perf-baseline.yml",
+    "lines": 88,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 1,
+    "badgeConsumers": 1,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "perf-budget.yml",
+    "lines": 76,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "perf-smoke.yml",
+    "lines": 117,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "performance-gates.yml",
+    "lines": 253,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "post-deploy-attestation.yml",
+    "lines": 46,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "post-merge-validation.yml",
+    "lines": 73,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "pr-tests.yml",
+    "lines": 72,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "progressive-strictness.yml",
+    "lines": 76,
+    "lastModified": "2025-10-14",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "promote-eslint.yml",
+    "lines": 38,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 1,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "quarantine-check.yml",
+    "lines": 72,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "quarantine-nightly.yml",
+    "lines": 73,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "readiness-probe.yml",
+    "lines": 19,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 1,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "security-scan.yml",
+    "lines": 109,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 1,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "security-tests.yml",
+    "lines": 14,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "sidecar-windows.yml",
+    "lines": 67,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "slack-regression-guard.yml",
+    "lines": 63,
+    "lastModified": "2025-10-14",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "staging-monitor.yml",
+    "lines": 323,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 2,
+    "badgeConsumers": 3,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "stub-expiry.yml",
+    "lines": 14,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 1,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "synthetic.yml",
+    "lines": 139,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 7,
+    "badgeConsumers": 48,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "synthetics-5m.yml",
+    "lines": 19,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 1,
+    "badgeConsumers": 7,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "synthetics-e2e.yml",
+    "lines": 87,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 2,
+    "badgeConsumers": 6,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "synthetics-smart.yml",
+    "lines": 129,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 2,
+    "badgeConsumers": 4,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "test.yml",
+    "lines": 74,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 132,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "validate-runtime-config.yml",
+    "lines": 52,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "validate.yml",
+    "lines": 69,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 0,
+    "badgeConsumers": 1,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "workflow": "zap-baseline.yml",
+    "lines": 16,
+    "lastModified": "2025-10-06",
+    "hasOnTrigger": true,
+    "secretsCount": 1,
+    "badgeConsumers": 0,
+    "workflowCallConsumers": 0,
+    "status": "ACTIVE"
+  }
+]
