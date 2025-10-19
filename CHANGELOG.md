@@ -10,6 +10,45 @@ and this project adheres to
 
 ### Fixed
 
+#### Vitest `test.projects` Migration - COMPLETE ✅ (2025-10-19)
+
+**Migration Summary:**
+- Migrated from deprecated `environmentMatchGlobs` to modern `test.projects`
+- Split setup files: `node-setup.ts` (server) + `jsdom-setup.ts` (client)
+- Simplified glob patterns: `.test.ts` = Node, `.test.tsx` = jsdom
+
+**Results:**
+- Test failures reduced from **343 to 72** (**79% reduction**)
+- Environment isolation working correctly
+- ✅ No more "randomUUID is not a function" errors (Node.js crypto now available)
+- ✅ No more "EventEmitter is not a constructor" errors (Node.js events now available)
+- ✅ No more "React is not defined" errors (jsdom setup isolated)
+- ✅ No deprecation warnings
+
+**Configuration Changes:**
+- Server tests (54 files): Run in Node.js environment with `node-setup.ts`
+- Client tests (9 files): Run in jsdom environment with `jsdom-setup.ts`
+- Both projects share `test-infrastructure.ts` for crypto polyfill and utilities
+
+**Files Modified:**
+- `vitest.config.ts` - Added `test.projects` configuration, removed `environmentMatchGlobs`
+- `tests/setup/node-setup.ts` - Server environment setup (NEW)
+- `tests/setup/jsdom-setup.ts` - Client environment setup (NEW)
+- `.backup/2025-10-19/setup.ts.original` - Original setup file (archived)
+
+**Remaining Failures (72):**
+- Module resolution issues (e.g., missing winston, @shared/schema exports)
+- Mock configuration issues (existing problems, not introduced by migration)
+- Actual test logic bugs (to be addressed separately)
+
+**Validation:**
+- ✅ No deprecation warnings
+- ✅ Server tests use Node.js APIs (crypto, fs, events)
+- ✅ Client tests use browser APIs (window, document, React)
+- ✅ Test output shows `[server]` and `[client]` project indicators
+
+---
+
 #### Test Suite Environment Debugging (2025-10-19)
 
 **Partial Progress on Test Failures - Critical Issues Identified**

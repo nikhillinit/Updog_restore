@@ -1,6 +1,6 @@
 /**
- * Unit test setup - runs before each unit test file
- * Sets up test environment for isolated unit testing
+ * jsdom Test Environment Setup
+ * Runs ONLY for client-side tests (*.test.tsx files)
  */
 import { vi, beforeAll, afterAll } from 'vitest';
 import '@testing-library/jest-dom';
@@ -17,30 +17,12 @@ configure({
 process.env.TZ = 'UTC';
 
 // React 18 Concurrent Features Configuration
-// Ensure tests work properly with React 18's automatic batching and concurrent rendering
 if (typeof globalThis !== 'undefined') {
-  // Flag to help RTL work better with React 18
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 }
 
 // Set test environment
 process.env.NODE_ENV = 'test';
-
-// Mock external dependencies that shouldn't be called in unit tests
-vi.mock('fs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('fs')>();
-  return {
-    ...actual,
-    readFileSync: vi.fn(),
-    writeFileSync: vi.fn(),
-    existsSync: vi.fn().mockReturnValue(true), // Change to true to avoid creating directories
-    mkdirSync: vi.fn(),
-    createWriteStream: vi.fn().mockReturnValue({
-      write: vi.fn(),
-      end: vi.fn()
-    })
-  };
-});
 
 // Mock network calls
 global.fetch = vi.fn();
