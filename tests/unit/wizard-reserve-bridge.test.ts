@@ -11,7 +11,7 @@ import {
   buildGraduationMatrix,
   buildStageStrategies,
   transformWizardToReserveRequest
-} from '../wizard-reserve-bridge';
+} from '@/lib/wizard-reserve-bridge';
 import type { SectorProfile, StageAllocation, CapitalAllocationOutput } from '@/schemas/modeling-wizard.schemas';
 import type { ModelingWizardContext } from '@/machines/modeling-wizard.machine';
 

@@ -20,7 +20,7 @@
     "noPropertyAccessFromIndexSignature": true, // Re-enabled for base
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "preserve",
     "esModuleInterop": true,
     "allowImportingTsExtensions": true,

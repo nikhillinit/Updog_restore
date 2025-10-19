@@ -12,11 +12,23 @@
  * @module tests/unit/reallocation-api
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { query, transaction } from '../../server/db';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { dollarsToCents } from '../../client/src/lib/units';
 import request from 'supertest';
 import express from 'express';
+
+// Mock server/db module to avoid dynamic require issues
+vi.mock('../../server/db', async () => {
+  const { databaseMock } = await import('../helpers/database-mock');
+  return {
+    db: databaseMock,
+    query: databaseMock.query?.bind(databaseMock) ?? vi.fn(),
+    transaction: databaseMock.transaction?.bind(databaseMock) ?? vi.fn()
+  };
+});
+
+// Import after mocking
+import { query, transaction } from '../../server/db';
 import reallocationRouter from '../../server/routes/reallocation';
 
 // ============================================================================
