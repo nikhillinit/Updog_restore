@@ -11,10 +11,11 @@ import {
   type StrategyInputs
 } from '../../client/src/selectors/buildInvestmentStrategy';
 import {
+  PowerLawDistribution,
   createVCPowerLawDistribution
 } from '../../server/services/power-law-distribution';
 
-describe('Monte Carlo 2024-2025 Market Validation Core Logic', () => {
+describe('@flaky Monte Carlo 2024-2025 Market Validation Core Logic', () => {
   // 2024-2025 Market Constants
   const MARKET_2025_CONFIG = {
     SERIES_A_GRADUATION_RATE: 18, // Down from pre-2020 ~40%
@@ -152,7 +153,7 @@ describe('Monte Carlo 2024-2025 Market Validation Core Logic', () => {
 
   describe('Power Law Distribution for 2024-2025 Market', () => {
     it('should create power law distribution with realistic 2024-2025 parameters', () => {
-      const powerLaw = createVCPowerLawDistribution({
+      const powerLaw = new PowerLawDistribution({
         failureRate: MARKET_2025_CONFIG.FAILURE_RATE / 100,
         unicornRate: MARKET_2025_CONFIG.UNICORN_RATE / 100,
         homeRunRate: MARKET_2025_CONFIG.HOME_RUN_RATE / 100,
@@ -164,7 +165,7 @@ describe('Monte Carlo 2024-2025 Market Validation Core Logic', () => {
     });
 
     it('should generate returns that reflect 70% failure rate', () => {
-      const powerLaw = createVCPowerLawDistribution({
+      const powerLaw = new PowerLawDistribution({
         failureRate: 0.70,
         unicornRate: 0.01,
         homeRunRate: 0.04,
@@ -189,7 +190,7 @@ describe('Monte Carlo 2024-2025 Market Validation Core Logic', () => {
     });
 
     it('should generate approximately 1% unicorns (>50x returns)', () => {
-      const powerLaw = createVCPowerLawDistribution({
+      const powerLaw = new PowerLawDistribution({
         failureRate: 0.70,
         unicornRate: 0.01,
         homeRunRate: 0.04,
@@ -214,7 +215,7 @@ describe('Monte Carlo 2024-2025 Market Validation Core Logic', () => {
     });
 
     it('should show power law characteristics in return distribution', () => {
-      const powerLaw = createVCPowerLawDistribution({}, 42);
+      const powerLaw = createVCPowerLawDistribution(42);
 
       const portfolioReturns = powerLaw.generatePortfolioReturns({
         portfolioSize: 25,
@@ -239,7 +240,7 @@ describe('Monte Carlo 2024-2025 Market Validation Core Logic', () => {
     });
 
     it('should show Series A Chasm effect in stage-specific failure rates', () => {
-      const powerLaw = createVCPowerLawDistribution({}, 42);
+      const powerLaw = createVCPowerLawDistribution(42);
 
       // Test seed investments
       const seedReturns = Array.from({ length: 2000 }, () =>
@@ -261,7 +262,7 @@ describe('Monte Carlo 2024-2025 Market Validation Core Logic', () => {
     });
 
     it('should handle Series C+ stage properly', () => {
-      const powerLaw = createVCPowerLawDistribution({}, 42);
+      const powerLaw = createVCPowerLawDistribution(42);
 
       // Test series-c+ investments (should have best survival rates)
       const seriesCReturns = Array.from({ length: 1000 }, () =>
@@ -367,18 +368,17 @@ describe('Monte Carlo 2024-2025 Market Validation Core Logic', () => {
     });
 
     it('should handle invalid stage names in power law distribution', () => {
-      const powerLaw = createVCPowerLawDistribution({}, 42);
+      const powerLaw = createVCPowerLawDistribution(42);
 
-      // Should not throw on invalid stage, should default to seed
+      // Should throw on invalid stage (validates stage parameter)
       expect(() => {
-        const result = powerLaw.sampleReturn('invalid-stage' as any);
-        expect(result.multiple).toBeGreaterThan(0);
-      }).not.toThrow();
+        powerLaw.sampleReturn('invalid-stage' as any);
+      }).toThrow('Invalid investment stage: invalid-stage');
     });
 
     it('should maintain reproducibility with fixed seeds', () => {
-      const powerLaw1 = createVCPowerLawDistribution({}, 12345);
-      const powerLaw2 = createVCPowerLawDistribution({}, 12345);
+      const powerLaw1 = createVCPowerLawDistribution(12345);
+      const powerLaw2 = createVCPowerLawDistribution(12345);
 
       const sample1 = powerLaw1.sampleReturn('seed');
       const sample2 = powerLaw2.sampleReturn('seed');
