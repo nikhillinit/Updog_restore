@@ -6,6 +6,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] – 2025‑10‑18
+
+### Added
+
+#### Official Claude Code Plugins Adoption - IN PROGRESS (2025-10-18)
+
+**PR Review Toolkit Plugin**
+
+- Installed official PR Review Toolkit plugin from Anthropic
+- Provides 6 specialized review agents:
+  - `comment-analyzer` - Comment accuracy vs code verification
+  - `pr-test-analyzer` - Test coverage quality analysis (behavioral vs line)
+  - `silent-failure-hunter` - Error handling and silent failure detection
+  - `type-design-analyzer` - TypeScript type design quality (4 dimensions,
+    scored 1-10)
+  - `code-reviewer` - CLAUDE.md compliance and bug detection
+  - `code-simplifier` - Code clarity and refactoring suggestions
+- Created comprehensive workflow cheatsheet: `cheatsheets/pr-review-workflow.md`
+- Integration with existing custom commands (`/test-smart`, `/fix-auto`,
+  `/deploy-check`)
+- Domain-specific usage patterns for VC fund platform (ReserveEngine,
+  PacingEngine, Waterfall)
+
+**Rationale:**
+
+- Financial calculations require specialized review (error handling, test
+  coverage quality)
+- Type safety critical for fund modeling (Waterfall types, ReserveAllocation)
+- Comment accuracy essential for complex calculations
+- Official plugins maintained by Anthropic (no maintenance burden)
+
+**Related Changes:**
+
+- Archived BMad infrastructure (27 files) to
+  `archive/2025-10-18/bmad-infrastructure/`
+- Documented decision in `DECISIONS.md` (commit c4a2559)
+- Created archive manifest: `archive/2025-10-18/ARCHIVE_MANIFEST.md`
+
+**Next Steps:**
+
+- Install Commit Commands plugin (`/commit`, `/commit-push-pr`, `/clean_gone`)
+- Install Feature Development plugin (7-phase structured workflow)
+- Test PR Review agents on existing code (ReserveEngine, Waterfall, API routes)
+
+---
+
 ## [Unreleased] – 2025‑10‑16
 
 ### Enhanced
