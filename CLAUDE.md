@@ -51,6 +51,13 @@ This is a web-based venture-capital fund modeling and reporting platform built a
 - `/perf-guard` - Performance regression detection with bundle analysis
 - `/dev-start` - Optimized development environment setup
 
+### Prompt Improver Hook
+- **Status:** ✅ Active
+- **Location:** `~/.claude/hooks/improve-prompt.py`
+- **Feature:** Intercepts vague prompts and asks clarifying questions
+- **Bypass:** Prefix with `*` to skip evaluation (e.g., `* try this approach`)
+- **Docs:** See [cheatsheets/prompt-improver-hook.md](cheatsheets/prompt-improver-hook.md)
+
 ## Architecture
 - **Frontend (`/client`)**: React SPA with feature-based component organization, custom hooks, and analytical engines (ReserveEngine, PacingEngine, CohortEngine)
 - **Backend (`/server`)**: Express.js API with Zod validation, modular routes, and storage abstraction layer

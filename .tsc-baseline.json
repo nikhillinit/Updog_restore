@@ -4,6 +4,7 @@
     "client": {
       "errors": [
         "client/src/components/charts/LazyResponsiveContainer.tsx:TS2322:6ffbd1e2",
+        "client/src/components/portfolio-constructor/FundStrategyBuilder.tsx:TS2307:88267344",
         "client/src/core/pacing/PacingEngine.ts:TS18048:513a28ff",
         "client/src/core/pacing/PacingEngine.ts:TS18048:57ca9a0f",
         "client/src/core/pacing/PacingEngine.ts:TS18048:c318561d",
@@ -59,8 +60,17 @@
         "client/src/utils/async-iteration.ts:TS2345:7355dce4",
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
-      "total": 55,
-      "lastUpdated": "2025-10-19T05:41:07.450Z"
+      "total": 56,
+      "lastUpdated": "2025-10-19T05:48:11.267Z"
+    },
+    "unknown": {
+      "errors": [
+        "lib/logger.ts:TS2307:3cc38644",
+        "lib/logger.ts:TS7031:7057a800",
+        "vite.config.ts:TS7006:118fabe7"
+      ],
+      "total": 3,
+      "lastUpdated": "2025-10-19T05:48:11.267Z"
     },
     "server": {
       "errors": [
@@ -82,6 +92,9 @@
         "server/core/market/score.ts:TS2683:e60f3dfb",
         "server/core/reserves/adapter.ts:TS2375:b93a0c54",
         "server/core/reserves/mlClient.ts:TS2375:b93a0c54",
+        "server/core/reserves/mlClient.ts:TS7016:a9534486",
+        "server/db/logger.ts:TS2307:48767afd",
+        "server/db/logger.ts:TS7031:5c0d3790",
         "server/db/pg-circuit.ts:TS2344:134c0c17",
         "server/db/pg-circuit.ts:TS2379:3bf2a40c",
         "server/db/pg-circuit.ts:TS2538:89bbe004",
@@ -125,6 +138,7 @@
         "server/lib/secure-context.ts:TS4111:c5f766dc",
         "server/lib/tracing.ts:TS2375:57f6711f",
         "server/lib/tracing.ts:TS2379:ff0096e0",
+        "server/logger.ts:TS2307:3cc38644",
         "server/metrics/lpBusinessMetrics.ts:TS7053:09e75df2",
         "server/metrics/lpBusinessMetrics.ts:TS7053:a1bd1172",
         "server/middleware/async.ts:TS4111:0ebda3f7",
@@ -432,31 +446,31 @@
         "server/services/streaming-monte-carlo-engine.ts:TS4111:bcac481a",
         "server/services/streaming-monte-carlo-engine.ts:TS4111:f4a25efa",
         "server/services/variance-tracking.ts:TS2532:55dfcaaa",
+        "server/utils/logger.ts:TS2307:3cc38644",
         "server/utils/logger.ts:TS4111:09555b61",
         "server/utils/logger.ts:TS4111:3e16900d",
         "server/utils/logger.ts:TS4111:41a91dca",
         "server/utils/logger.ts:TS4111:5f9138bb",
+        "server/utils/logger.ts:TS7031:9084d9e3",
+        "server/utils/logger.ts:TS7031:c7f249c4",
         "server/vite.ts:TS4111:a02b1b2e",
         "server/websocket/dev-dashboard.ts:TS18046:f2f8a2a1",
         "server/websocket/dev-dashboard.ts:TS2345:ed62011f",
         "server/websocket/dev-dashboard.ts:TS2532:de791f79"
       ],
-      "total": 376,
-      "lastUpdated": "2025-10-19T05:41:07.450Z"
+      "total": 383,
+      "lastUpdated": "2025-10-19T05:48:11.267Z"
     },
     "shared": {
-      "errors": ["shared/variance-validation.ts:TS4111:236f2efb"],
+      "errors": [
+        "shared/variance-validation.ts:TS4111:236f2efb"
+      ],
       "total": 1,
-      "lastUpdated": "2025-10-19T05:41:07.450Z"
-    },
-    "unknown": {
-      "errors": ["vite.config.ts:TS7006:118fabe7"],
-      "total": 1,
-      "lastUpdated": "2025-10-19T05:41:07.450Z"
+      "lastUpdated": "2025-10-19T05:48:11.267Z"
     }
   },
-  "totalErrors": 433,
-  "timestamp": "2025-10-19T05:41:07.450Z",
+  "totalErrors": 443,
+  "timestamp": "2025-10-19T05:48:11.267Z",
   "buildMode": "per-project",
-  "elapsedMs": 24320
+  "elapsedMs": 99510
 }
