@@ -5,6 +5,183 @@ development of the Press On Ventures fund modeling platform.
 
 ---
 
+## Vitest `test.projects` Migration Required for Environment Isolation
+
+**Date:** 2025-10-19 **Status:** ⏳ Pending Implementation **Decision:** Migrate
+from deprecated `environmentMatchGlobs` to `test.projects` configuration
+
+### Context
+
+Unit test suite experiencing 343 failures (31% of 1109 tests) due to environment
+misconfiguration:
+
+**Current Configuration Issue:**
+
+- Using deprecated `environmentMatchGlobs` in
+  [vitest.config.ts](vitest.config.ts#L76-L88)
+- Vitest silently ignores this option (removed in recent versions)
+- **Result:** All tests run in `jsdom` environment (default), including
+  server-side tests
+
+**Test Environment Requirements:**
+
+1. **Server-side tests** (`tests/unit/api/`, `tests/unit/services/`) → Need
+   `node` environment
+   - Require Node.js built-ins: `crypto.randomUUID()`, `EventEmitter`, `fs`,
+     `path`
+   - Current errors: `default.randomUUID is not a function`,
+     `EventEmitter is not a constructor`
+
+2. **Client-side component tests** (`tests/unit/components/`) → Need `jsdom`
+   environment
+   - Require DOM APIs: `document`, `window`, React rendering
+   - Current errors: `React is not defined` when setup is misconfigured
+
+**Attempted Solutions (all failed):**
+
+- ❌ `environmentMatchGlobs` → Deprecated, silently ignored
+- ❌ Environment-agnostic `setup.ts` → Broke React component tests
+- ✅ Fixed mock hoisting and import paths (3 test files) → Partial progress only
+
+### Decision
+
+**Implement Vitest `test.projects` feature** to create isolated test
+environments:
+
+```typescript
+export default defineConfig({
+  test: {
+    projects: [
+      {
+        name: 'server',
+        environment: 'node',
+        include: [
+          'tests/unit/api/**/*.test.ts',
+          'tests/unit/services/**/*.test.ts',
+          'tests/unit/database/**/*.test.ts',
+          'tests/unit/engines/**/*.test.ts',
+          'tests/unit/circuit-breaker.test.ts',
+          'tests/unit/reallocation-api.test.ts',
+          'tests/unit/redis-factory.test.ts',
+        ],
+        setupFiles: ['./tests/setup/node-setup.ts'],
+      },
+      {
+        name: 'client',
+        environment: 'jsdom',
+        include: [
+          'tests/unit/components/**/*.test.tsx',
+          'tests/unit/**/*.test.tsx',
+        ],
+        setupFiles: ['./tests/setup/jsdom-setup.ts'],
+      },
+    ],
+  },
+});
+```
+
+**Rationale:**
+
+1. **Modern Vitest Standard:** `test.projects` is the official replacement for
+   `environmentMatchGlobs`
+2. **Explicit Environment Assignment:** No ambiguity about which tests run where
+3. **Separate Setup Files:** Tailored configuration for each environment (no
+   compromises)
+4. **Parallel Execution:** Projects run in parallel for faster CI builds
+5. **Better Error Messages:** Clear indication of which project failed
+
+### Implementation Plan
+
+**Phase 1: Configuration Setup**
+
+1. Split `tests/unit/setup.ts` into environment-specific files:
+   - `tests/setup/node-setup.ts` - Node.js environment (server tests)
+   - `tests/setup/jsdom-setup.ts` - Browser environment (React tests)
+2. Update `vitest.config.ts` with `test.projects` configuration
+3. Remove deprecated `environmentMatchGlobs` section
+
+**Phase 2: Setup File Specialization**
+
+- **node-setup.ts:**
+  - Mock `fs`, `crypto`, `EventEmitter` for server tests
+  - No DOM mocks (window, document, etc.)
+  - Server-specific globals only
+
+- **jsdom-setup.ts:**
+  - Import `@testing-library/jest-dom`
+  - Configure React Testing Library for React 18
+  - Mock browser APIs (localStorage, sessionStorage, window)
+  - Set `IS_REACT_ACT_ENVIRONMENT = true`
+
+**Phase 3: Validation**
+
+1. Run `npm test` and verify environment assignment in output
+2. Check that server tests can use `crypto.randomUUID()`, `EventEmitter`
+3. Check that React component tests render correctly
+4. Baseline: Reduce failures from 343 to <50 (targeting module resolution only)
+
+### Consequences
+
+**Positive:**
+
+- ✅ Proper environment isolation (node vs jsdom)
+- ✅ Future-proof configuration (official Vitest pattern)
+- ✅ Better test performance (parallel project execution)
+- ✅ Clearer test organization (explicit project boundaries)
+- ✅ Eliminates Node.js API errors in server tests
+- ✅ Prevents DOM API pollution in server tests
+
+**Negative:**
+
+- ❌ Requires test file reorganization (one-time effort)
+- ❌ Need to maintain two setup files instead of one
+- ❌ Breaking change if tests implicitly relied on wrong environment
+
+**Trade-offs Accepted:**
+
+- Single unified setup vs environment-specific setup → **Specialization wins**
+  (no compromises)
+- Implicit environment detection vs explicit projects → **Explicit wins**
+  (clearer intent)
+- Backwards compatibility vs modern standard → **Modern standard wins**
+  (deprecated option)
+
+### References
+
+- **Vitest Projects Documentation:** https://vitest.dev/guide/workspace.html
+- **Current Config:** [vitest.config.ts](vitest.config.ts#L76-L88) (deprecated
+  `environmentMatchGlobs`)
+- **Test Failures:** See CHANGELOG.md → Test Suite Environment Debugging
+  (2025-10-19)
+- **Related Files:**
+  - [tests/unit/api/time-travel-api.test.ts](tests/unit/api/time-travel-api.test.ts) -
+    Fixed mock hoisting
+  - [tests/unit/reallocation-api.test.ts](tests/unit/reallocation-api.test.ts) -
+    Fixed database mock
+  - [tests/unit/wizard-reserve-bridge.test.ts](tests/unit/wizard-reserve-bridge.test.ts) -
+    Fixed import path
+
+### Success Criteria
+
+**Definition of Done:**
+
+1. ✅ All server-side tests run in `node` environment (verified via
+   `console.log(typeof window)` → `undefined`)
+2. ✅ All client-side tests run in `jsdom` environment (verified via
+   `console.log(typeof window)` → `object`)
+3. ✅ No `randomUUID is not a function` or `EventEmitter is not a constructor`
+   errors
+4. ✅ No `React is not defined` errors
+5. ✅ Test failure rate reduced from 343 to target <50 (environment-specific
+   failures only)
+6. ✅ `npm test` completes without configuration warnings
+
+**Rollback Plan:** If `test.projects` causes unforeseen issues, revert to single
+environment with conditional mocking in setup files. However, this is not
+recommended as it perpetuates the root cause.
+
+---
+
 ## Official Claude Code Plugins Over Custom BMad Infrastructure
 
 **Date:** 2025-10-18 **Status:** ✅ Implemented **Decision:** Archive BMad

@@ -10,6 +10,67 @@ and this project adheres to
 
 ### Fixed
 
+#### Test Suite Environment Debugging (2025-10-19)
+
+**Partial Progress on Test Failures - Critical Issues Identified**
+
+- **Initial Problem:** 343 failed tests out of 1109 total (31% failure rate)
+- **Root Causes Identified:**
+  1. Server-side tests running in `jsdom` instead of `node` environment
+  2. Module resolution and mock hoisting issues
+  3. React component setup configuration problems
+
+**Changes Made:**
+
+1. **Mock Hoisting Fix**
+   ([tests/unit/api/time-travel-api.test.ts](tests/unit/api/time-travel-api.test.ts)):
+   - Corrected mock implementation using factory pattern
+   - Moved mock definition inside `vi.mock()` factory to ensure proper hoisting
+   - Fixed database mock chain for proper query builder simulation
+
+2. **Database Mock Addition**
+   ([tests/unit/reallocation-api.test.ts](tests/unit/reallocation-api.test.ts)):
+   - Added missing mock for `../../server/db` module
+   - Implemented proper `query()` and `transaction()` function mocks
+   - Fixed dynamic require issues with async factory pattern
+
+3. **Import Path Correction**
+   ([tests/unit/wizard-reserve-bridge.test.ts](tests/unit/wizard-reserve-bridge.test.ts)):
+   - Fixed incorrect import path from `../wizard-reserve-bridge` to
+     `@/lib/wizard-reserve-bridge`
+   - Aligned with project path alias conventions (`@/` → `client/src/`)
+
+**Remaining Critical Issue:**
+
+- ❌ **`environmentMatchGlobs` Deprecated:** Vitest configuration uses
+  deprecated `environmentMatchGlobs` option (lines 76-88 in
+  [vitest.config.ts](vitest.config.ts#L76-L88))
+- **Impact:** Server-side tests continue running in `jsdom` environment instead
+  of `node`
+- **Errors:** `default.randomUUID is not a function`,
+  `EventEmitter is not a constructor`
+- **Next Step:** Migrate to `test.projects` feature for proper environment
+  isolation
+
+**Status:**
+
+- ✅ Module resolution issues fixed (3 test files)
+- ✅ Mock hoisting errors resolved
+- ❌ Environment separation not working (deprecated config option)
+- ⏳ **Next Session:** Implement `test.projects` migration
+
+**Related Files Modified:**
+
+- [tests/unit/api/time-travel-api.test.ts](tests/unit/api/time-travel-api.test.ts)
+- [tests/unit/reallocation-api.test.ts](tests/unit/reallocation-api.test.ts)
+- [tests/unit/wizard-reserve-bridge.test.ts](tests/unit/wizard-reserve-bridge.test.ts)
+- [tests/unit/setup.ts](tests/unit/setup.ts) (attempted environment-agnostic
+  changes, reverted)
+- [vitest.config.ts](vitest.config.ts) (deprecated `environmentMatchGlobs`
+  configuration)
+
+---
+
 #### Phase 3 - ESLint 9.x Migration & Cleanup (2025-10-19)
 
 **ESLint Configuration Modernization:**
