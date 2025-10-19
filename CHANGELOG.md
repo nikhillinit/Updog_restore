@@ -6,6 +6,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] – 2025‑10‑19
+
+### Fixed
+
+#### Phase 3 - ESLint 9.x Migration & Cleanup (2025-10-19)
+
+**ESLint Configuration Modernization:**
+
+- Migrated ignore patterns from deprecated `.eslintignore` to `eslint.config.js`
+- Added 4 missing ignore patterns: `drizzle.config.ts`, `*.config.ts`,
+  `*.config.js`, `tools/eslint-plugin-rls/dist/**`
+- Updated `lint-staged` configuration to support ESLint 9.x with
+  `--no-warn-ignored` flag
+- Removed deprecated `.eslintignore` file
+- **Result:** Pre-commit hooks now work without `--no-verify` workaround
+
+**Husky Hook Fixes:**
+
+- Fixed `.husky/post-commit` integer comparison error at line 19
+- Changed `LAST_SESSION` calculation from `|| echo "0"` to `${LAST_SESSION:-0}`
+  pattern
+- **Result:** No more "integer expression expected" errors on commits
+
+**Repository Cleanup:**
+
+- Removed temporary test file: `vscode-test.md`
+- Removed malformed temp file: `C\357\200\272Tempanalyze_project.ps1`
+
+**Related to Phase 1 & 2:**
+
+- Phase 1 (commit d945d62): Stabilized dependencies, fixed VS Code crashes
+- Phase 2 (commit d945d62): Pruned 296 unused packages, reduced extraneous
+  packages 332 → 5
+
+**Validation:**
+
+- ESLint 9.x configuration validated
+- Pre-commit hooks tested and working
+- Sidecar junctions remain intact (26 packages)
+
 ## [Unreleased] – 2025‑10‑18
 
 ### Added
