@@ -169,3 +169,6 @@ reports/
 
 # lockfile backups
 .package-lock.json.backup.*
+
+# Badge audit reports (generated)
+badge-audit-report.json

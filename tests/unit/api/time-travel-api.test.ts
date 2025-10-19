@@ -10,36 +10,33 @@ import express from 'express';
 import { timeTravelFixtures } from '../../fixtures/time-travel-fixtures';
 import { createSandbox } from '../../setup/test-infrastructure';
 
-// Mock database queries
-const mockDb = {
-  select: vi.fn(() => ({
-    from: vi.fn(() => ({
-      where: vi.fn(() => ({
-        orderBy: vi.fn(() => ({
-          limit: vi.fn(() => ({
-            offset: vi.fn(() => Promise.resolve([]))
-          }))
-        }))
-      })),
-      leftJoin: vi.fn(() => ({
+// Mock the database module (must be defined inside factory due to hoisting)
+vi.mock('../../../server/db', () => ({
+  db: {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
         where: vi.fn(() => ({
           orderBy: vi.fn(() => ({
-            limit: vi.fn(() => Promise.resolve([]))
+            limit: vi.fn(() => ({
+              offset: vi.fn(() => Promise.resolve([]))
+            }))
+          }))
+        })),
+        leftJoin: vi.fn(() => ({
+          where: vi.fn(() => ({
+            orderBy: vi.fn(() => ({
+              limit: vi.fn(() => Promise.resolve([]))
+            }))
           }))
         }))
       }))
-    }))
-  })),
-  query: {
-    funds: {
-      findFirst: vi.fn()
+    })),
+    query: {
+      funds: {
+        findFirst: vi.fn()
+      }
     }
   }
-};
-
-// Mock the database module
-vi.mock('../../../server/db', () => ({
-  db: mockDb
 }));
 
 // Mock validation middleware

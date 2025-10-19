@@ -17,8 +17,10 @@ This is a web-based venture-capital fund modeling and reporting platform built a
 - `npm run doctor:quick` - Fast sidecar health check
 
 ### Testing & Quality
-- `npm test` - Run test suite with Vitest
-- `npm run test:ui` - Tests with interactive dashboard  
+- `npm test` - Run full test suite (both server + client projects)
+- `npm test -- --project=server` - Run server tests only (Node.js environment)
+- `npm test -- --project=client` - Run client tests only (jsdom environment)
+- `npm run test:ui` - Tests with interactive dashboard
 - `npm run test:run` - Single test run (CI mode)
 - `npm run test:quick` - Skip API tests for faster feedback
 - `npm run lint` - ESLint code quality check
@@ -51,6 +53,13 @@ This is a web-based venture-capital fund modeling and reporting platform built a
 - `/perf-guard` - Performance regression detection with bundle analysis
 - `/dev-start` - Optimized development environment setup
 
+### Prompt Improver Hook
+- **Status:** ✅ Active
+- **Location:** `~/.claude/hooks/improve-prompt.py`
+- **Feature:** Intercepts vague prompts and asks clarifying questions
+- **Bypass:** Prefix with `*` to skip evaluation (e.g., `* try this approach`)
+- **Docs:** See [cheatsheets/prompt-improver-hook.md](cheatsheets/prompt-improver-hook.md)
+
 ## Architecture
 - **Frontend (`/client`)**: React SPA with feature-based component organization, custom hooks, and analytical engines (ReserveEngine, PacingEngine, CohortEngine)
 - **Backend (`/server`)**: Express.js API with Zod validation, modular routes, and storage abstraction layer
@@ -69,7 +78,7 @@ This is a web-based venture-capital fund modeling and reporting platform built a
 ## Tech Stack
 - **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Shadcn/ui, TanStack Query, Recharts/Nivo, React Hook Form
 - **Backend**: Node.js, Express.js, TypeScript, PostgreSQL, Drizzle ORM, BullMQ + Redis, Zod validation
-- **Testing**: Vitest, React Testing Library
+- **Testing**: Vitest (test.projects: server/Node.js + client/jsdom), React Testing Library
 - **Infrastructure**: Docker Compose, Prometheus monitoring, Winston logging
 - **Dev Tools**: ESLint, TypeScript strict mode, concurrent dev servers
 

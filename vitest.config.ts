@@ -64,6 +64,7 @@ export default defineConfig({
       ],
     },
     // Unit tests configuration (default)
+    // Keep jsdom as default for React component tests
     environment: 'jsdom',
     environmentOptions: {
       jsdom: {
@@ -71,7 +72,34 @@ export default defineConfig({
         resources: 'usable',     // be lenient loading resources
       },
     },
-    setupFiles: ['./tests/setup/test-infrastructure.ts', './tests/unit/setup.ts'],
+    // Modern test.projects configuration (replaces deprecated environmentMatchGlobs)
+    projects: [
+      {
+        test: {
+          name: 'server',
+          environment: 'node',
+          // Simplified: All .test.ts files run in Node environment
+          include: ['tests/unit/**/*.test.ts'],
+          setupFiles: ['./tests/setup/test-infrastructure.ts', './tests/setup/node-setup.ts']
+        }
+      },
+      {
+        test: {
+          name: 'client',
+          environment: 'jsdom',
+          // Simplified: All .test.tsx files run in jsdom environment
+          include: ['tests/unit/**/*.test.tsx'],
+          setupFiles: ['./tests/setup/test-infrastructure.ts', './tests/setup/jsdom-setup.ts'],
+          environmentOptions: {
+            jsdom: {
+              pretendToBeVisual: true, // enable rAF/timers like a visible tab
+              resources: 'usable',     // be lenient loading resources
+            }
+          }
+        }
+      }
+    ],
+    setupFiles: ['./tests/setup/test-infrastructure.ts'],
     include: ['tests/unit/**/*.{test,spec}.ts?(x)'],
     exclude: [
       'tests/integration/**/*',

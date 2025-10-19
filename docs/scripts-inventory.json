@@ -1,0 +1,2528 @@
+{
+  "totalScripts": 257,
+  "deadScriptCount": 2,
+  "duplicateScriptCount": 14,
+  "duplicateGroupCount": 6,
+  "categories": {
+    "preinstall": 1,
+    "postinstall": 1,
+    "doctor": 6,
+    "reset": 2,
+    "ai": 19,
+    "dev": 22,
+    "test": 60,
+    "build": 14,
+    "fix": 4,
+    "codemod": 2,
+    "analyze": 1,
+    "verify": 2,
+    "preview": 2,
+    "lhci": 1,
+    "vercel-build": 1,
+    "start": 1,
+    "baseline": 3,
+    "check": 7,
+    "agents": 3,
+    "bundle": 2,
+    "size-limit": 3,
+    "ci": 6,
+    "lint": 5,
+    "secret": 1,
+    "security": 10,
+    "flags": 6,
+    "measure": 1,
+    "preflight": 1,
+    "perf": 1,
+    "db": 4,
+    "schema": 3,
+    "orchestrator": 1,
+    "workers": 1,
+    "bench": 3,
+    "smart-fix": 1,
+    "debug": 1,
+    "deploy": 5,
+    "metrics": 2,
+    "backtest": 1,
+    "triage": 4,
+    "diagnose": 1,
+    "chaos": 5,
+    "playwright": 1,
+    "review": 2,
+    "generate": 1,
+    "api": 3,
+    "prepare": 1,
+    "pre-push": 1,
+    "pretest": 2,
+    "qa": 1,
+    "ga": 4,
+    "bmad": 3,
+    "circuit-breaker": 1,
+    "pgcron": 3,
+    "audit": 3,
+    "validate": 5,
+    "predev": 1,
+    "prebuild": 1,
+    "prepreview": 1,
+    "phase0": 1,
+    "validate-cluster": 1,
+    "gen-rollback": 1
+  },
+  "scripts": [
+    {
+      "name": "agents:review",
+      "command": "node scripts/agents-daily-review.mjs",
+      "category": "agents",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "agents:review:week",
+      "command": "node scripts/agents-daily-review.mjs --week",
+      "category": "agents",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "agents:track",
+      "command": "node scripts/track-agent-session.mjs",
+      "category": "agents",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai",
+      "command": "node scripts/ai-tools/index.js",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:dlq:list",
+      "command": "tsx scripts/ai-dlq-replay.ts --list",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:dlq:replay",
+      "command": "tsx scripts/ai-dlq-replay.ts",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:dlq:stats",
+      "command": "tsx scripts/ai-dlq-replay.ts --stats",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:full",
+      "command": "npm run ai:validate && npm run ai:orchestrate:financial",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["ai:validate", "ai:orchestrate:financial"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:metrics",
+      "command": "node scripts/ai-tools/metrics-server.js",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:orchestrate",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/ai-orchestration-patterns.ts",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:orchestrate:financial",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/ai-orchestration-patterns.ts execute financial_modeling",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:orchestrate:list",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/ai-orchestration-patterns.ts list",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:orchestrate:performance",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/ai-orchestration-patterns.ts execute performance_optimization",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:orchestrate:security",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/ai-orchestration-patterns.ts execute security_hardening",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:review",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs tools/ai-review/execute-multi-ai-review.ts",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:review:full",
+      "command": "npm run ai:review -- --tier=all",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["ai:review"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:review:health",
+      "command": "npm run ai:review -- --tier=health",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["ai:review"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:review:hf",
+      "command": "npm run ai:review -- --tier=hf",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["ai:review"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:review:local",
+      "command": "npm run ai:review -- --tier=local",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["ai:review"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:type-safety",
+      "command": "node scripts/ai-tools/type-safety-agent.js",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:type-safety:dry",
+      "command": "node scripts/ai-tools/type-safety-agent.js --dry-run",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ai:validate",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/ai-validation-system.ts",
+      "category": "ai",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "analyze",
+      "command": "npm run build:stats",
+      "category": "analyze",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["build:stats"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "api:build",
+      "command": "npm run api:lint && npm run api:types",
+      "category": "api",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["api:lint", "api:types"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "api:lint",
+      "command": "redocly lint server/openapi/api-spec.yaml",
+      "category": "api",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "api:types",
+      "command": "openapi-typescript server/openapi/api-spec.yaml -o shared/api-types.gen.ts",
+      "category": "api",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "audit:cleanup",
+      "command": "psql \"$DATABASE_URL\" -c \"CALL maintenance.cleanup_audit(NOW(), 1000, '10 milliseconds');\"",
+      "category": "audit",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "audit:strictness",
+      "command": "node scripts/audit-tsconfig.mjs",
+      "category": "audit",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "audit:strictness:full",
+      "command": "node scripts/audit-tsconfig.mjs --scope=full",
+      "category": "audit",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "backtest",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/backtest.ts",
+      "category": "backtest",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "baseline:check",
+      "command": "node scripts/typescript-baseline.cjs check",
+      "category": "baseline",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "baseline:progress",
+      "command": "node scripts/typescript-baseline.cjs progress",
+      "category": "baseline",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "baseline:save",
+      "command": "node scripts/typescript-baseline.cjs save",
+      "category": "baseline",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "bench",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/bench-engine.ts",
+      "category": "bench",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "bench:async",
+      "command": "node --experimental-json-modules ./scripts/bench-async.js",
+      "category": "bench",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "bench:load",
+      "command": "vitest bench tests/load --reporter=verbose",
+      "category": "bench",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "bmad:metrics",
+      "command": "curl http://localhost:9091/metrics",
+      "category": "bmad",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "bmad:report",
+      "command": "node scripts/ai-tools/bmad-metrics.js --weekly",
+      "category": "bmad",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "bmad:status",
+      "command": "curl http://localhost:9091/stats",
+      "category": "bmad",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "build",
+      "command": "npm run build:prod",
+      "category": "build",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["build:prod"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "build:affected",
+      "command": "node scripts/build-smart.mjs",
+      "category": "build",
+      "isDead": false,
+      "isDuplicate": true,
+      "dependencies": [],
+      "consolidationOpportunity": "Duplicate command with: build:smart"
+    },
+    {
+      "name": "build:fast",
+      "command": "cross-env NODE_ENV=development vite build --mode development",
+      "category": "build",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "build:parallel",
+      "command": "node tools_local/node_modules/concurrently/dist/bin/concurrently.js -n \"CLIENT,TYPES\" -c \"cyan,yellow\" \"npm run build:web\" \"npm run build:types\"",
+      "category": "build",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["build:web", "build:types"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "build:prod",
+      "command": "npm run build:web && npm run build:server",
+      "category": "build",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["build:web", "build:server"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "build:prod:with-verify",
+      "command": "npm run build:web && npm run build:server && node scripts/verify-api-url.mjs",
+      "category": "build",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["build:web", "build:server"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "build:server",
+      "command": "echo 'Skipping server build for Vercel deployment'",
+      "category": "build",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "build:smart",
+      "command": "node scripts/build-smart.mjs",
+      "category": "build",
+      "isDead": false,
+      "isDuplicate": true,
+      "dependencies": [],
+      "consolidationOpportunity": "Duplicate command with: build:affected"
+    },
+    {
+      "name": "build:stats",
+      "command": "vite build",
+      "category": "build",
+      "isDead": false,
+      "isDuplicate": true,
+      "dependencies": [],
+      "consolidationOpportunity": "Duplicate command with: vercel-build"
+    },
+    {
+      "name": "build:types",
+      "command": "tsc -b tsconfig.shared.json",
+      "category": "build",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "build:web",
+      "command": "vite build --mode preact",
+      "category": "build",
+      "isDead": false,
+      "isDuplicate": true,
+      "dependencies": [],
+      "consolidationOpportunity": "Duplicate command with: build:web:preact"
+    },
+    {
+      "name": "build:web:preact",
+      "command": "vite build --mode preact",
+      "category": "build",
+      "isDead": false,
+      "isDuplicate": true,
+      "dependencies": [],
+      "consolidationOpportunity": "Duplicate command with: build:web"
+    },
+    {
+      "name": "build:web:preact:clean",
+      "command": "rimraf node_modules/.vite dist && cross-env BUILD_WITH_PREACT=1 vite build",
+      "category": "build",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "build:web:react",
+      "command": "vite build --mode react",
+      "category": "build",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "bundle:check",
+      "command": "node scripts/check-budgets.cjs",
+      "category": "bundle",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "bundle:report",
+      "command": "node scripts/size-report.mjs",
+      "category": "bundle",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "chaos:break",
+      "command": "./tests/chaos/chaos.sh break",
+      "category": "chaos",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "chaos:heal",
+      "command": "./tests/chaos/chaos.sh heal",
+      "category": "chaos",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "chaos:reset",
+      "command": "curl -X POST http://localhost:8474/reset",
+      "category": "chaos",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "chaos:start",
+      "command": "docker-compose -f docker-compose.chaos.yml up -d",
+      "category": "chaos",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "chaos:stop",
+      "command": "docker-compose -f docker-compose.chaos.yml down",
+      "category": "chaos",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "check",
+      "command": "npm run baseline:check",
+      "category": "check",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["baseline:check"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "check:client",
+      "command": "tsc -p tsconfig.client.json --noEmit",
+      "category": "check",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "check:fast",
+      "command": "tsc --project tsconfig.fast.json",
+      "category": "check",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "check:incremental",
+      "command": "tsc --project tsconfig.fast.json --incremental --tsBuildInfoFile .tsbuildinfo",
+      "category": "check",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "check:server",
+      "command": "tsc -p tsconfig.server.json --noEmit",
+      "category": "check",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "check:shared",
+      "command": "tsc -p tsconfig.shared.json --noEmit",
+      "category": "check",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "check:watch",
+      "command": "tsc --project tsconfig.fast.json --watch --preserveWatchOutput",
+      "category": "check",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ci:build",
+      "command": "cross-env CI=true npm run build && npm run bundle:check",
+      "category": "ci",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["build", "bundle:check"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ci:demo",
+      "command": "npm run test:demo",
+      "category": "ci",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["test:demo"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ci:e2e",
+      "command": "playwright test --project=core tests/e2e/fund-setup.spec.ts",
+      "category": "ci",
+      "isDead": false,
+      "isDuplicate": true,
+      "dependencies": [],
+      "consolidationOpportunity": "Duplicate command with: test:e2e"
+    },
+    {
+      "name": "ci:ship-gate",
+      "command": "bash scripts/verify-docs-and-env.sh",
+      "category": "ci",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ci:smart",
+      "command": "npm run test:affected && npm run lint:affected",
+      "category": "ci",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["test:affected", "lint:affected"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ci:triage",
+      "command": "node scripts/ci-triage.mjs",
+      "category": "ci",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "circuit-breaker",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/circuit-breaker-cli.ts",
+      "category": "circuit-breaker",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "codemod:logger",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/codemods/fix-logger-order.ts",
+      "category": "codemod",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "codemod:logger:write",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/codemods/fix-logger-order.ts --write",
+      "category": "codemod",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "db:migrate",
+      "command": "drizzle-kit migrate",
+      "category": "db",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "db:push",
+      "command": "drizzle-kit push",
+      "category": "db",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "db:studio",
+      "command": "drizzle-kit studio",
+      "category": "db",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "db:verify",
+      "command": "drizzle-kit check && drizzle-kit push --dry-run",
+      "category": "db",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "debug:redis",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/redis/health.ts",
+      "category": "debug",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "deploy:gate",
+      "command": "node scripts/deploy-gate.mjs",
+      "category": "deploy",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "deploy:monitor",
+      "command": "node scripts/monitor-health.mjs",
+      "category": "deploy",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "deploy:prod",
+      "command": "npm run deploy:gate && npm run deploy:rollout && npm run deploy:monitor 30 0.5",
+      "category": "deploy",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["deploy:gate", "deploy:rollout", "deploy:monitor"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "deploy:rollout",
+      "command": "node scripts/smart-rollout.mjs",
+      "category": "deploy",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "deploy:staging",
+      "command": "echo \"Triggering staging deploy via GitHub Actions (see .github/workflows/deploy-staging.yml)\"",
+      "category": "deploy",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev",
+      "command": "node tools_local/node_modules/concurrently/dist/bin/concurrently.js -k \"npm run dev:client\" \"npm run dev:api\"",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["dev:client", "dev:api"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:api",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs server/bootstrap.ts",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:clean",
+      "command": "docker-compose down -v",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:client",
+      "command": "vite",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:dashboard",
+      "command": "node scripts/dev-dashboard.js start",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:debug",
+      "command": "cross-env VITE_WIZARD_DEBUG=1 npm run dev",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["dev"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:docker",
+      "command": "docker-compose up -d && npm run dev",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["dev"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:env",
+      "command": "node scripts/dev-env.mjs",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:fast",
+      "command": "node tools_local/node_modules/concurrently/dist/bin/concurrently.js -k -n \"TYPE,LINT,TEST\" -c \"cyan,yellow,green\" \"npm run check:fast\" \"npm run lint:affected\" \"npm run test:quick\"",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["check:fast", "lint:affected", "test:quick"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:fix",
+      "command": "node scripts/dev-dashboard.js fix",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:full",
+      "command": "npm run dev:infra && npm run dev",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["dev:infra", "dev"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:health",
+      "command": "node scripts/dev-dashboard.js health",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:infra",
+      "command": "docker compose -f docker-compose.dev.yml up -d --wait",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:memory",
+      "command": "cross-env REDIS_URL=memory:// ENABLE_QUEUES=0 npm run dev:api",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["dev:api"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:parallel",
+      "command": "node tools_local/node_modules/concurrently/dist/bin/concurrently.js -k -n \"CLIENT,API,WORKER-R,WORKER-P,METRICS\" -c \"cyan,green,yellow,magenta,blue\" \"npm run dev:client\" \"npm run dev:api\" \"npm run dev:worker:reserve\" \"npm run dev:worker:pacing\" \"npm run metrics:local\"",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [
+        "dev:client",
+        "dev:api",
+        "dev:worker:reserve",
+        "dev:worker:pacing",
+        "metrics:local"
+      ],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:qa",
+      "command": "node tools_local/node_modules/concurrently/dist/bin/concurrently.js -k \"npm:dev\" \"sleep 3 && cross-env QA_BASE=http://localhost:5173 npm run qa:checklist\"",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["qa:checklist"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:quick",
+      "command": "cross-env NODE_ENV=development REDIS_URL=memory:// ENABLE_QUEUES=0 node tools_local/node_modules/tsx/dist/cli.mjs server/bootstrap.ts",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:turbo",
+      "command": "node tools_local/node_modules/concurrently/dist/bin/concurrently.js -k -n \"CLIENT,API,TYPE,LINT\" -c \"cyan,green,yellow,blue\" \"npm run dev:client\" \"npm run dev:api\" \"npm run check:watch\" \"npm run lint:watch\"",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["dev:client", "dev:api", "check:watch", "lint:watch"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:web:preact",
+      "command": "vite --mode preact",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:web:react",
+      "command": "vite --mode react",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:worker:pacing",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs workers/pacing-worker.ts",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "dev:worker:reserve",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs workers/reserve-worker.ts",
+      "category": "dev",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "diagnose",
+      "command": "node scripts/diagnose-wizard.mjs",
+      "category": "diagnose",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "doctor",
+      "command": "npm-run-all --sequential doctor:sidecar doctor:shell doctor:links doctor:quick",
+      "category": "doctor",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "doctor:links",
+      "command": "node scripts/doctor-links.mjs",
+      "category": "doctor",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "doctor:parallel",
+      "command": "npm-run-all --parallel doctor:links doctor:quick",
+      "category": "doctor",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "doctor:quick",
+      "command": "node -e \"try{require.resolve('vite');require.resolve('@vitejs/plugin-react');require.resolve('autoprefixer');console.log('doctor:quick ✅ sidecar modules OK')}catch(e){console.error('doctor:quick ❌',e.message);process.exit(1)}\"",
+      "category": "doctor",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "doctor:shell",
+      "command": "node scripts/doctor-shell.mjs",
+      "category": "doctor",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "doctor:sidecar",
+      "command": "node scripts/doctor-sidecar.js",
+      "category": "doctor",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "fix:all",
+      "command": "npm run fix:types && npm run test:quick",
+      "category": "fix",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["fix:types", "test:quick"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "fix:types",
+      "command": "npm run check && npm run lint:fix",
+      "category": "fix",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["check", "lint:fix"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "fix:typescript",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/automated-error-fixes.ts fix",
+      "category": "fix",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "fix:typescript:help",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/automated-error-fixes.ts help",
+      "category": "fix",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "flags:demo",
+      "command": "node scripts/demo-flag-ui.mjs",
+      "category": "flags",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "flags:demo:auto",
+      "command": "node scripts/demo-flag-ui.mjs --auto",
+      "category": "flags",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "flags:lint",
+      "command": "node scripts/lint-flags.mjs",
+      "category": "flags",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "flags:test-propagation",
+      "command": "node scripts/test-flag-propagation.mjs",
+      "category": "flags",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "flags:test:hardening",
+      "command": "node scripts/test-hardened-flags.mjs",
+      "category": "flags",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "flags:validate",
+      "command": "node scripts/validate-hardening.mjs",
+      "category": "flags",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ga:canary",
+      "command": "node scripts/canary-deploy.mjs",
+      "category": "ga",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ga:checklist",
+      "command": "node scripts/ga-checklist.mjs",
+      "category": "ga",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ga:full",
+      "command": "npm run ga:checklist && npm run ga:canary",
+      "category": "ga",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["ga:checklist", "ga:canary"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "ga:rollback",
+      "command": "node scripts/rollback.mjs",
+      "category": "ga",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "gen-rollback",
+      "command": "bash scripts/gen-rollback-plans.sh",
+      "category": "gen-rollback",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "generate:golden",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/generate-golden-fixture.ts",
+      "category": "generate",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "lhci:run",
+      "command": "start-server-and-test preview http://localhost:4173 'lhci autorun'",
+      "category": "lhci",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "lint",
+      "command": "eslint . --max-warnings 0 --cache --cache-location node_modules/.cache/eslint",
+      "category": "lint",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "lint:affected",
+      "command": "eslint $(node scripts/test-smart.mjs --files-only) --max-warnings 0",
+      "category": "lint",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "lint:disable-warnings",
+      "command": "eslint . --ext .ts,.tsx,.js,.jsx --rule '@typescript-eslint/no-explicit-any: off' --rule '@typescript-eslint/no-unused-vars: off' --rule 'no-console: off' --rule 'react/no-unescaped-entities: off' --rule 'react-hooks/exhaustive-deps: off' --no-error-on-unmatched-pattern",
+      "category": "lint",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "lint:fix",
+      "command": "eslint . --fix --cache --cache-location node_modules/.cache/eslint",
+      "category": "lint",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "lint:watch",
+      "command": "eslint . --max-warnings 0 --cache --cache-location node_modules/.cache/eslint --watch",
+      "category": "lint",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "measure:errors",
+      "command": "node scripts/measure-errors.mjs",
+      "category": "measure",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "metrics:local",
+      "command": "cross-env ENABLE_METRICS=1 node tools_local/node_modules/tsx/dist/cli.mjs server/observability/metrics-demo.ts",
+      "category": "metrics",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "metrics:type-safety",
+      "command": "node scripts/type-safety-metrics.js",
+      "category": "metrics",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "orchestrator",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/orchestrate.ts",
+      "category": "orchestrator",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "perf:guard",
+      "command": "node scripts/performance-guard.mjs",
+      "category": "perf",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "pgcron:schedule",
+      "command": "psql \"$DATABASE_URL\" -f scripts/sql/schedule_pg_cron_cleanup.sql",
+      "category": "pgcron",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "pgcron:status",
+      "command": "psql \"$DATABASE_URL\" -c \"SELECT * FROM maintenance.audit_cleanup_status();\"",
+      "category": "pgcron",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "pgcron:unschedule",
+      "command": "psql \"$DATABASE_URL\" -f scripts/sql/unschedule_pg_cron_cleanup.sql",
+      "category": "pgcron",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "phase0",
+      "command": "bash scripts/phase0.sh",
+      "category": "phase0",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "playwright:install",
+      "command": "playwright install",
+      "category": "playwright",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "postinstall",
+      "command": "node scripts/link-sidecar-packages.mjs || true",
+      "category": "postinstall",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "pre-push",
+      "command": "./scripts/validate-pr.sh",
+      "category": "pre-push",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "prebuild",
+      "command": "node scripts/ensure-sidecar.mjs",
+      "category": "prebuild",
+      "isDead": false,
+      "isDuplicate": true,
+      "dependencies": [],
+      "consolidationOpportunity": "Duplicate command with: predev, pretest, prepreview"
+    },
+    {
+      "name": "predev",
+      "command": "node scripts/ensure-sidecar.mjs",
+      "category": "predev",
+      "isDead": false,
+      "isDuplicate": true,
+      "dependencies": [],
+      "consolidationOpportunity": "Duplicate command with: prebuild, pretest, prepreview"
+    },
+    {
+      "name": "preflight:phase0",
+      "command": "npm run check && npm run lint && npm test",
+      "category": "preflight",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["check", "lint"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "preinstall",
+      "command": "npx only-allow npm",
+      "category": "preinstall",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "prepare",
+      "command": "husky install",
+      "category": "prepare",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "prepreview",
+      "command": "node scripts/ensure-sidecar.mjs",
+      "category": "prepreview",
+      "isDead": false,
+      "isDuplicate": true,
+      "dependencies": [],
+      "consolidationOpportunity": "Duplicate command with: predev, prebuild, pretest"
+    },
+    {
+      "name": "pretest",
+      "command": "node scripts/ensure-sidecar.mjs",
+      "category": "pretest",
+      "isDead": false,
+      "isDuplicate": true,
+      "dependencies": [],
+      "consolidationOpportunity": "Duplicate command with: predev, prebuild, prepreview"
+    },
+    {
+      "name": "pretest:smoke",
+      "command": "playwright install --with-deps",
+      "category": "pretest",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "preview",
+      "command": "npx vite@5.4.11 preview --port 4173 --strictPort",
+      "category": "preview",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "preview:web",
+      "command": "npx vite@5.4.11 preview",
+      "category": "preview",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "qa:checklist",
+      "command": "node scripts/qa-open.js",
+      "category": "qa",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "reset:deps",
+      "command": "rimraf node_modules package-lock.json && npm cache clean --force && npm install",
+      "category": "reset",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "reset:local-tools",
+      "command": "rimraf node_modules && npm cache clean --force && node scripts/ensure-complete-local.mjs",
+      "category": "reset",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "review:help",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/codex-review-watch.ts --help",
+      "category": "review",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "review:watch",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/codex-review-watch.ts",
+      "category": "review",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "schema:check",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/schema-validation.ts check",
+      "category": "schema",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "schema:generate",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/schema-validation.ts generate",
+      "category": "schema",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "schema:test",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/schema-validation.ts test-rollback",
+      "category": "schema",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "secret:gen",
+      "command": "node -e \"console.log(require('crypto').randomBytes(32).toString('base64url'))\"",
+      "category": "secret",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "security:audit",
+      "command": "npm audit --audit-level=high",
+      "category": "security",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "security:check",
+      "command": "node lib/security-utils.js --check",
+      "category": "security",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "security:console-logs",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/security/find-console-logs.ts",
+      "category": "security",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "security:fix-logs",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/security/replace-console-logs.ts",
+      "category": "security",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "security:full",
+      "command": "npm run security:console-logs && npm run security:validate && npm run security:monte-carlo",
+      "category": "security",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [
+        "security:console-logs",
+        "security:validate",
+        "security:monte-carlo"
+      ],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "security:headers",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/security/validate-headers.ts",
+      "category": "security",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "security:inputs",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/security/validate-inputs.ts",
+      "category": "security",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "security:monte-carlo",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/security/validate-monte-carlo.ts",
+      "category": "security",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "security:scan",
+      "command": "npm run security:audit && npm run security:check",
+      "category": "security",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["security:audit", "security:check"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "security:validate",
+      "command": "npm run security:headers && npm run security:inputs && npm run security:audit",
+      "category": "security",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["security:headers", "security:inputs", "security:audit"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "size-limit",
+      "command": "size-limit",
+      "category": "size-limit",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "size-limit:check",
+      "command": "size-limit --json > size-limit-current.json",
+      "category": "size-limit",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "size-limit:json",
+      "command": "size-limit --json",
+      "category": "size-limit",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "smart-fix",
+      "command": "node scripts/smart-fix.js",
+      "category": "smart-fix",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "start",
+      "command": "cross-env NODE_ENV=production node dist/server/server/index.js",
+      "category": "start",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test",
+      "command": "npm run test:unit && npm run test:integration",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["test:unit", "test:integration"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:affected",
+      "command": "node scripts/test-smart.mjs --only-affected",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:affected:fast",
+      "command": "npm run test:affected -- --bail --reporter=dot",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["test:affected"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:affected:verbose",
+      "command": "npm run test:affected -- --reporter=verbose",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["test:affected"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:all",
+      "command": "npm-run-all --parallel test:unit test:types test:lint && npm run test:smoke",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["test:smoke"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:baseline",
+      "command": "k6 run -e BASE_URL=http://localhost:5000 -e RATE=5 -e DURATION=2m -e VUS=20 tests/k6/k6-baseline.js",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:build-affected",
+      "command": "npm run test:smart && npm run build:affected",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["test:smart", "build:affected"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:chaos",
+      "command": "vitest run tests/chaos",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:chaos:pg",
+      "command": "vitest run tests/chaos/postgres-latency.test.ts",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:chaos:wasm",
+      "command": "vitest run tests/chaos/wasm-fault.integration.test.ts",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:ci",
+      "command": "vitest run",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": true,
+      "dependencies": [],
+      "consolidationOpportunity": "Duplicate command with: test:main"
+    },
+    {
+      "name": "test:coverage",
+      "command": "npm run test:coverage:upload",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["test:coverage:upload"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:coverage:upload",
+      "command": "vitest run --coverage",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:demo",
+      "command": "cross-env DEMO_CI=1 vitest run --exclude='**/redis/**' --exclude='**/integration/**' --exclude='**/api/**'",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:e2e",
+      "command": "playwright test --project=core tests/e2e/fund-setup.spec.ts",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": true,
+      "dependencies": [],
+      "consolidationOpportunity": "Duplicate command with: ci:e2e"
+    },
+    {
+      "name": "test:e2e:accessibility",
+      "command": "playwright test --project=accessibility",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:e2e:all",
+      "command": "playwright test",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:e2e:core",
+      "command": "playwright test --project=core",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:e2e:cross-browser",
+      "command": "playwright test --project=firefox --project=webkit",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:e2e:debug",
+      "command": "playwright test --debug",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:e2e:extended",
+      "command": "playwright test --project=extended",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:e2e:headed",
+      "command": "playwright test --headed",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:e2e:mobile",
+      "command": "playwright test --project=mobile",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:e2e:performance",
+      "command": "playwright test --project=performance",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:e2e:production",
+      "command": "playwright test --project=production",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:e2e:report",
+      "command": "playwright show-report",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:e2e:smoke",
+      "command": "playwright test --project=smoke",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:e2e:wizard",
+      "command": "playwright test --project=core tests/e2e/fund-setup-workflow.spec.ts",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:emergency",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/emergency-test-fixes.ts",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:integration",
+      "command": "cross-env TZ=UTC vitest -c vitest.config.int.ts run",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:integration:old",
+      "command": "cross-env DATABASE_URL=postgresql://postgres:postgres@localhost:5432/povc_test vitest run --config vitest.integration.config.ts",
+      "category": "test",
+      "isDead": true,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": "Dead script - should be removed"
+    },
+    {
+      "name": "test:integration:watch",
+      "command": "cross-env TZ=UTC vitest -c vitest.config.int.ts",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:intelligent",
+      "command": "node scripts/smart-test-runner.mjs",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:intelligent:changed",
+      "command": "node scripts/smart-test-runner.mjs --only-changed",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:intelligent:failed",
+      "command": "node scripts/smart-test-runner.mjs --only-failed",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:intelligent:fast",
+      "command": "node scripts/smart-test-runner.mjs --fail-fast",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:lint",
+      "command": "eslint . --max-warnings 0",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:main",
+      "command": "vitest run",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": true,
+      "dependencies": [],
+      "consolidationOpportunity": "Duplicate command with: test:ci"
+    },
+    {
+      "name": "test:memory",
+      "command": "cross-env REDIS_URL=memory:// npm run test:unit",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["test:unit"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:optimize",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/super-smart-runner.ts",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:parallel",
+      "command": "node tools_local/node_modules/concurrently/dist/bin/concurrently.js -k -n \"UNIT,LINT,TYPE\" \"npm run test:unit\" \"npm run lint\" \"npm run check:fast\"",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["test:unit", "lint", "check:fast"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:plan",
+      "command": "bash scripts/test-plan.sh",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:priority",
+      "command": "node scripts/__tests__/calculate-priority.test.cjs",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:quarantine",
+      "command": "vitest -c vitest.config.quarantine.ts run",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:quick",
+      "command": "vitest run --exclude='**/api/**'",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:repair",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/automated-test-repair.ts --run-tests",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:security",
+      "command": "vitest run tests/security",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:smart",
+      "command": "node scripts/test-smart.mjs",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:smoke",
+      "command": "playwright test tests/smoke/wizard.spec.ts",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:smoke:e2e",
+      "command": "playwright test tests/e2e/basic-smoke.spec.ts",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:smoke:old",
+      "command": "vitest run client/src/core/reserves/adapter/__tests__/finalizePayload.spec.ts --reporter=dot",
+      "category": "test",
+      "isDead": true,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": "Dead script - should be removed"
+    },
+    {
+      "name": "test:staging",
+      "command": "./scripts/smoke.sh",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:super",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/super-smart-runner.ts",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:super:emergency",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/super-smart-runner.ts --emergency",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:super:performance",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/super-smart-runner.ts --performance",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:types",
+      "command": "tsc --noEmit",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:ui",
+      "command": "vitest --ui",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:unit",
+      "command": "cross-env TZ=UTC vitest run",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:unit:watch",
+      "command": "cross-env TZ=UTC vitest",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "test:watch",
+      "command": "vitest watch",
+      "category": "test",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "triage",
+      "command": "node scripts/collect-triage.mjs",
+      "category": "triage",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "triage:analyze",
+      "command": "node scripts/triage-analyze.mjs",
+      "category": "triage",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "triage:auto",
+      "command": "playwright test tests/triage.spec.ts --project=chromium",
+      "category": "triage",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "triage:clean",
+      "command": "node -e \"require('fs').rmSync('triage-output', { recursive: true, force: true })\"",
+      "category": "triage",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "validate-cluster",
+      "command": "bash scripts/validate-cluster.sh",
+      "category": "validate-cluster",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "validate:architecture",
+      "command": "depcruise --include-only \"^(client|shared|server)\" --config .dependency-cruiser.cjs .",
+      "category": "validate",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "validate:fast",
+      "command": "npm run validate:architecture && npm run lint && npm run check:fast",
+      "category": "validate",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["validate:architecture", "lint", "check:fast"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "validate:full",
+      "command": "npm run validate:architecture && npm run build && npm run test:unit && npm run check",
+      "category": "validate",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": ["validate:architecture", "build", "test:unit", "check"],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "validate:phase1",
+      "command": "node scripts/validate-phase1.js",
+      "category": "validate",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "validate:phase1:ps",
+      "command": "powershell -ExecutionPolicy Bypass -File scripts/validate-phase1.ps1",
+      "category": "validate",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "vercel-build",
+      "command": "vite build",
+      "category": "vercel-build",
+      "isDead": false,
+      "isDuplicate": true,
+      "dependencies": [],
+      "consolidationOpportunity": "Duplicate command with: build:stats"
+    },
+    {
+      "name": "verify:no-redis",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/verify-no-redis.ts",
+      "category": "verify",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "verify:opt",
+      "command": "node scripts/verify-optimizations.mjs",
+      "category": "verify",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    },
+    {
+      "name": "workers:dev",
+      "command": "node tools_local/node_modules/tsx/dist/cli.mjs --watch scripts/orchestrate.ts",
+      "category": "workers",
+      "isDead": false,
+      "isDuplicate": false,
+      "dependencies": [],
+      "consolidationOpportunity": null
+    }
+  ],
+  "consolidationRecommendations": [
+    {
+      "type": "remove-dead",
+      "scripts": ["test:smoke:old", "test:integration:old"],
+      "savingsCount": 2,
+      "recommendation": "Remove scripts with :old suffix - these are legacy variants"
+    },
+    {
+      "type": "consolidate-duplicates",
+      "groups": [
+        {
+          "command": "node scripts/build-smart.mjs",
+          "scripts": ["build:smart", "build:affected"],
+          "count": 2
+        },
+        {
+          "command": "vite build --mode preact",
+          "scripts": ["build:web", "build:web:preact"],
+          "count": 2
+        },
+        {
+          "command": "vite build",
+          "scripts": ["build:stats", "vercel-build"],
+          "count": 2
+        },
+        {
+          "command": "playwright test --project=core tests/e2e/fund-setup.spec.ts",
+          "scripts": ["test:e2e", "ci:e2e"],
+          "count": 2
+        },
+        {
+          "command": "vitest run",
+          "scripts": ["test:main", "test:ci"],
+          "count": 2
+        },
+        {
+          "command": "node scripts/ensure-sidecar.mjs",
+          "scripts": ["predev", "prebuild", "pretest", "prepreview"],
+          "count": 4
+        }
+      ],
+      "savingsCount": 14,
+      "recommendation": "These scripts have identical commands. Keep primary, remove alternates"
+    },
+    {
+      "type": "consolidate-smart-tests",
+      "scripts": [
+        "test:smart",
+        "test:intelligent",
+        "test:intelligent:fast",
+        "test:intelligent:changed",
+        "test:intelligent:failed",
+        "test:super",
+        "test:super:emergency",
+        "test:super:performance"
+      ],
+      "savingsCount": 7,
+      "recommendation": "Multiple smart test runners exist. Consolidate to single unified runner with --mode flag"
+    },
+    {
+      "type": "review-consolidation",
+      "scripts": [
+        "ai:review",
+        "ai:review:local",
+        "ai:review:hf",
+        "ai:review:full",
+        "ai:review:health",
+        "preview",
+        "preview:web",
+        "agents:review",
+        "agents:review:week",
+        "review:watch",
+        "review:help",
+        "prepreview"
+      ],
+      "savingsCount": 10,
+      "recommendation": "Multiple review scripts exist. Consider consolidating"
+    },
+    {
+      "type": "consolidate-e2e-tests",
+      "scripts": [
+        "test:e2e",
+        "test:e2e:wizard",
+        "test:e2e:all",
+        "test:e2e:smoke",
+        "test:e2e:core",
+        "test:e2e:extended",
+        "test:e2e:performance",
+        "test:e2e:accessibility",
+        "test:e2e:mobile",
+        "test:e2e:cross-browser",
+        "test:e2e:production",
+        "test:e2e:headed",
+        "test:e2e:debug",
+        "test:e2e:report"
+      ],
+      "savingsCount": 11,
+      "recommendation": "Multiple E2E test variants exist. Consider using parameterization"
+    },
+    {
+      "type": "consolidate-verify",
+      "scripts": [
+        "verify:opt",
+        "build:prod:with-verify",
+        "db:verify",
+        "verify:no-redis"
+      ],
+      "savingsCount": 2,
+      "recommendation": "Multiple verify scripts exist. Consider consolidating"
+    },
+    {
+      "type": "consolidate-deploy",
+      "scripts": [
+        "deploy:staging",
+        "deploy:gate",
+        "deploy:rollout",
+        "deploy:monitor",
+        "deploy:prod"
+      ],
+      "savingsCount": 3,
+      "recommendation": "Multiple deployment variants. Consider environment-based parameterization"
+    }
+  ],
+  "estimatedSavings": {
+    "deadScripts": 2,
+    "duplicateScripts": 14,
+    "smartTestConsolidation": 7,
+    "e2eConsolidation": 11,
+    "reviewConsolidation": 10,
+    "verifyConsolidation": 2,
+    "deployConsolidation": 3,
+    "totalEstimate": 49
+  }
+}

@@ -1,0 +1,164 @@
+================================================================================
+WINDOWS SIDECAR ARCHITECTURE INVESTIGATION - EXECUTIVE SUMMARY
+================================================================================
+Date: 2025-10-18
+Report: C:\dev\Updog_restore\SIDECAR_INVESTIGATION_REPORT.md
+
+================================================================================
+KEY FINDINGS
+================================================================================
+
+1. ORIGINAL PROBLEM (Commit 6200227 - Oct 5, 2025):
+   - Git Bash users created POSIX symlinks instead of Windows junctions
+   - Node ESM resolver failed with: "Cannot find package 'vite'"
+   - Root cause: Windows Defender + wrong symlink paths
+
+2. SIDECAR SOLVES THIS BY:
+   - Isolating build tools in tools_local/node_modules
+   - Creating Windows junctions (not symlinks) with absolute paths
+   - Self-healing via postinstall hook
+
+3. MODERN NPM/NODE DO NOT SOLVE THIS:
+   - npm 10.9.2: Has workspaces but still creates POSIX symlinks on WSL
+   - Node 20.19.0: No native Windows junction support in ESM resolver
+   - Verdict: Problem STILL EXISTS with modern versions
+
+================================================================================
+CURRENT STATE (October 18, 2025)
+================================================================================
+
+Active for: 2 weeks (since Oct 5)
+Storage overhead: 203 MB (15% of dev environment)
+Code complexity: 23 KB across 6 files
+Junctions linked: 17 packages (vite, tsx, concurrently, eslint, etc.)
+
+On Windows:
+  npm run dev        -> WORKS (via junctions)
+  npm run build      -> WORKS (via junctions)
+  npm run test       -> WORKS (via junctions)
+
+On CI/Linux:
+  Sidecar disabled   -> Uses root node_modules normally
+  Everything works   -> No impact
+
+================================================================================
+CRITICAL QUESTIONS ANSWERED
+================================================================================
+
+Q: Can we eliminate tools_local and use root node_modules only?
+A: NO. Git Bash users would immediately get "Cannot find vite" errors
+   because npm creates POSIX symlinks, not Windows junctions.
+
+Q: Are the junctions contributing to corruption risk?
+A: NO. The junctions PREVENT corruption. Removing them ENABLES it.
+   They require management but are stable once in place.
+
+Q: Is there a simpler Windows-compatible solution?
+A: YES - npm workspaces. BUT it requires:
+   - Monorepo restructuring (1-2 weeks)
+   - Enforcing PowerShell-only (no Git Bash)
+   - Developer documentation updates
+   Still more complex than sidecar, just cleaner long-term.
+
+Q: What breaks if we remove the sidecar?
+A: On Windows:
+   - npm run dev       -> FAIL: "Cannot find package 'vite'"
+   - npm run build     -> FAIL
+   - npm run test      -> FAIL
+   - npm run check     -> WORKS (TypeScript, no vite needed)
+   
+   On CI/Linux:
+   - Nothing breaks (sidecar already disabled)
+
+================================================================================
+RISK ASSESSMENT
+================================================================================
+
+RISKS OF KEEPING SIDECAR:
+  - Complexity overhead (MEDIUM)
+  - 203MB storage (LOW - dev machines only)
+  - Platform-specific code (MEDIUM)
+  - Onboarding friction (HIGH)
+
+RISKS OF REMOVING SIDECAR:
+  - Windows dev completely broken (HIGH)
+  - Symlink corruption on Git Bash (HIGH)
+  - CI might need updates (MEDIUM)
+  - Backward compatibility issues (MEDIUM)
+
+VERDICT: Removal creates immediate broken state on Windows.
+
+================================================================================
+RECOMMENDED ACTION
+================================================================================
+
+RECOMMENDATION: DO NOT REMOVE SIDECAR
+
+Better path forward:
+  Phase 1 (Now): Keep sidecar as-is, document it
+  Phase 2 (4-6 weeks): Add npm workspaces support in parallel
+  Phase 3 (Q1 2026): Evaluate pnpm migration
+  Phase 4 (Q2 2026): Full migration if team agrees
+
+This approach:
+  - Keeps Windows devs productive NOW
+  - Builds better architecture LATER
+  - No breaking changes
+  - Clear migration path
+
+================================================================================
+SIDECAR MANAGEMENT
+================================================================================
+
+If keeping sidecar, maintain:
+  - SIDECAR_GUIDE.md (10 KB) - User docs
+  - scripts/link-sidecar-packages.mjs (4 KB) - Junction creator
+  - scripts/sidecar-packages.json (1 KB) - Config
+  - scripts/doctor-sidecar.js (3 KB) - Validator
+  - scripts/doctor-links.mjs (1 KB) - Link checker
+  - scripts/ensure-sidecar.mjs (1 KB) - Pre-hook
+  - tools_local/package.json (1 KB) - Tool deps
+
+Health checks:
+  npm run doctor              # Full validation
+  npm run doctor:links        # Junction verification
+  npm run doctor:sidecar      # Workspace validation
+  npm run doctor:quick        # Fast module check
+
+================================================================================
+TIMELINE
+================================================================================
+
+Oct 3: First Windows workaround (NODE_ENV)
+Oct 5: Core sidecar implementation
+Oct 5: Merged to main
+Oct 14: ESLint added to sidecar
+Oct 18: Investigation complete
+
+2 weeks of active use with ~zero issues reported.
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+1. Review this report
+2. Share with team for alignment
+3. If agreed: Create hybrid approach with npm workspaces
+4. Document transition strategy in CLAUDE.md
+5. Plan Q1 2026 pnpm evaluation
+
+================================================================================
+DETAILED REPORT
+================================================================================
+
+Full analysis: C:\dev\Updog_restore\SIDECAR_INVESTIGATION_REPORT.md
+
+Key sections:
+  - Original Problem: Lines 15-27
+  - Current Solution: Lines 28-54
+  - Modern npm Assessment: Lines 56-69
+  - Risk Analysis: Lines 127-147
+  - Recommended Solutions: Lines 148-177
+  - Critical Questions: Lines 178-209
+
+================================================================================

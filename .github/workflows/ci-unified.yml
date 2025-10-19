@@ -578,6 +578,67 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Validate Badge URLs
+        run: |
+          echo "🔍 Validating badge references..."
+
+          # Use same filtering as badge-audit script
+          node <<'EOF'
+          const fs = require('fs');
+          const path = require('path');
+
+          const IGNORE_PATTERNS = [
+            /```[\s\S]*?```/g,
+            /~~~[\s\S]*?~~~/g,
+            /<!--[\s\S]*?-->/g,
+            /`[^`]*workflows[^`]*`/g,
+            /workflows\/\*[^\/\)]*\.yml/g
+          ];
+
+          function cleanContent(content) {
+            let cleaned = content;
+            IGNORE_PATTERNS.forEach(pattern => {
+              cleaned = cleaned.replace(pattern, '');
+            });
+            return cleaned;
+          }
+
+          const BADGE_PATTERN = /workflows\/([^\/\)]+\.yml)/g;
+
+          let broken = [];
+
+          function scanDir(dir) {
+            fs.readdirSync(dir, {withFileTypes: true}).forEach(entry => {
+              const fullPath = path.join(dir, entry.name);
+
+              if (entry.isDirectory() && !entry.name.includes('node_modules')) {
+                scanDir(fullPath);
+              } else if (entry.isFile() && entry.name.endsWith('.md')) {
+                const content = fs.readFileSync(fullPath, 'utf8');
+                const cleaned = cleanContent(content);
+
+                const matches = [...cleaned.matchAll(BADGE_PATTERN)];
+                matches.forEach(match => {
+                  const workflow = match[1];
+                  if (!fs.existsSync(`.github/workflows/${workflow}`)) {
+                    broken.push({file: fullPath, workflow});
+                  }
+                });
+              }
+            });
+          }
+
+          scanDir('.');
+
+          if (broken.length > 0) {
+            console.log('❌ Found broken badge references:');
+            broken.forEach(b => console.log(`  ${b.file}: workflows/${b.workflow}`));
+            process.exit(1);
+          }
+
+          console.log('✅ All badge references valid');
+          EOF
+
       - name: Feature flags guard
         id: flags-guard
         run: |

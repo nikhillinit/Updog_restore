@@ -71,6 +71,11 @@ export default [
       'client/rum/**',
       'vitest.config.*.ts',
       'vitest.config.ts',
+      // Migrated from .eslintignore (ESLint 9.x compatibility)
+      'drizzle.config.ts',
+      '*.config.ts',
+      '*.config.js',
+      'tools/eslint-plugin-rls/dist/**',
     ],
   },
   js.configs.recommended,
