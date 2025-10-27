@@ -12,14 +12,14 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
-          node-version: '22.16.0'
+          node-version: '20.19.0'
           cache: 'npm'
 
       - name: Install dependencies
@@ -27,7 +27,7 @@ jobs:
 
       - name: Type check
         run: npm run check || npm run typecheck || true
-        
+
       - name: Lint
         run: npm run lint || true
 

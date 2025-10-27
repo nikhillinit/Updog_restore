@@ -2,7 +2,7 @@ name: Synthetics Smart
 
 on:
   schedule:
-    - cron: '0 */2 * * *'  # Every 2 hours
+    - cron: '0 */2 * * *' # Every 2 hours
   push:
     branches: [main]
     paths-ignore:
@@ -51,10 +51,10 @@ jobs:
           EVENT='${{ github.event_name }}'
           LABELS='${{ toJson(github.event.pull_request.labels) }}'
           CF='${{ steps.paths.outputs.customer_facing }}'
-          
+
           should="false"
           reason="none"
-          
+
           if [ "$EVENT" = "workflow_dispatch" ]; then
             should="true"; reason="manual";
           elif [ "$EVENT" = "push" ]; then
@@ -67,7 +67,7 @@ jobs:
           elif [ "$EVENT" = "schedule" ]; then
             should="true"; reason="scheduled";
           fi
-          
+
           echo "should_run=$should" >> $GITHUB_OUTPUT
           echo "reason=$reason" >> $GITHUB_OUTPUT
 
@@ -82,7 +82,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
-          node-version: '22.16.0'
+          node-version: '20.19.0'
           cache: 'npm'
 
       - name: Install dependencies
@@ -109,12 +109,12 @@ jobs:
       - name: Run smoke tests
         run: |
           BASE_URL="${{ steps.base.outputs.base }}"
-          
+
           # Quick health check
           code=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/")
           echo "GET / -> $code"
           test $code -ge 200 -a $code -lt 400
-          
+
           # API health
           code=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/api/health")
           echo "GET /api/health -> $code"
