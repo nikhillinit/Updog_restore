@@ -316,21 +316,10 @@ const CarryVestingSchema = z.object({
   vestingYears: z.number().int().min(1).max(10).default(4),
 });
 
-export const WaterfallSchema = z.discriminatedUnion('type', [
-  // AMERICAN: Fund-level distribution (no hurdle/catch-up)
-  z.object({
-    type: z.literal('AMERICAN'),
-    carryVesting: CarryVestingSchema,
-  }).strict(),
-
-  // EUROPEAN: Deal-by-deal distribution (requires hurdle/catch-up)
-  z.object({
-    type: z.literal('EUROPEAN'),
-    carryVesting: CarryVestingSchema,
-    hurdle: z.number().min(0).max(1).default(0.08),
-    catchUp: z.number().min(0).max(1).default(0.08),
-  }).strict(),
-]);
+export const WaterfallSchema = z.object({
+  type: z.literal('AMERICAN'),
+  carryVesting: CarryVestingSchema,
+}).strict();
 
 // Complete Fund Setup Types (extending existing)
 export const CompleteFundSetupSchema = z.object({

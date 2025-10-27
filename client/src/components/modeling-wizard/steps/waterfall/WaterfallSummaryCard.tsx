@@ -5,19 +5,16 @@
 
 import React from 'react';
 import { type Waterfall } from '@shared/types';
-import { isEuropean } from '@/lib/waterfall';
 import { useWaterfallCalculations } from '@/hooks/useWaterfallCalculations';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Users, DollarSign, Percent } from 'lucide-react';
+import { TrendingUp, Users, DollarSign } from 'lucide-react';
 
 interface WaterfallSummaryCardProps {
   waterfall: Waterfall;
 }
 
 export function WaterfallSummaryCard({ waterfall }: WaterfallSummaryCardProps) {
-  const isEuropeanWaterfall = isEuropean(waterfall);
-
   // Calculate example distribution with 2.5x MOIC
   const exampleDistribution = useWaterfallCalculations(waterfall, 2.5);
 
@@ -31,7 +28,7 @@ export function WaterfallSummaryCard({ waterfall }: WaterfallSummaryCardProps) {
               Preview of waterfall structure and example distribution
             </CardDescription>
           </div>
-          <Badge variant={isEuropeanWaterfall ? 'default' : 'secondary'} className="font-poppins">
+          <Badge variant="secondary" className="font-poppins">
             {waterfall.type}
           </Badge>
         </div>
@@ -46,42 +43,12 @@ export function WaterfallSummaryCard({ waterfall }: WaterfallSummaryCardProps) {
               <span className="text-xs font-poppins">Distribution Model</span>
             </div>
             <p className="text-lg font-inter font-semibold text-pov-charcoal">
-              {isEuropeanWaterfall ? 'European' : 'American'}
+              American
             </p>
             <p className="text-xs text-charcoal-500">
-              {isEuropeanWaterfall ? 'Whole fund basis' : 'Deal-by-deal'}
+              Deal-by-deal
             </p>
           </div>
-
-          {isEuropeanWaterfall && (
-            <>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-charcoal-500">
-                  <Percent className="h-4 w-4" />
-                  <span className="text-xs font-poppins">Hurdle Rate</span>
-                </div>
-                <p className="text-lg font-inter font-semibold text-pov-charcoal">
-                  {(waterfall.hurdle * 100).toFixed(1)}%
-                </p>
-                <p className="text-xs text-charcoal-500">
-                  Preferred return
-                </p>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-charcoal-500">
-                  <DollarSign className="h-4 w-4" />
-                  <span className="text-xs font-poppins">Catch-Up</span>
-                </div>
-                <p className="text-lg font-inter font-semibold text-pov-charcoal">
-                  {(waterfall.catchUp * 100).toFixed(0)}%
-                </p>
-                <p className="text-xs text-charcoal-500">
-                  GP catch-up rate
-                </p>
-              </div>
-            </>
-          )}
 
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-charcoal-500">
@@ -152,7 +119,6 @@ export function WaterfallSummaryCard({ waterfall }: WaterfallSummaryCardProps) {
           <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
             <p className="text-sm text-blue-800">
               <strong>Note:</strong> This example assumes $100M fund size and $250M total value (2.5x MOIC).
-              {isEuropeanWaterfall && ' European waterfall includes hurdle rate calculations.'}
             </p>
           </div>
         </div>
