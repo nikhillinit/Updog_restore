@@ -1,291 +1,262 @@
 /**
- * Simple Time-Travel Schema Test without complex imports
- * Just tests the basics to see current state of database mock
+ * Time-Travel Analytics Migration Test (Real Database)
+ * Uses Testcontainers for actual PostgreSQL validation
+ * Replaces mock-based test with real SQL execution
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
+import { describe, test, expect, beforeAll, afterAll } from 'vitest';
+import { startTestDb, stopTestDb, seedTestData } from '../../helpers/testcontainers-db';
+import { Client } from 'pg';
 
-// Simple mock database
-const mockDb = {
-  data: {} as Record<string, any[]>,
+let db: Client;
+let testData: { userId: number; fundId: number };
 
-  execute(query: string) {
-    // Simple query parser for test purposes
-    if (query.includes('CREATE TABLE')) return [];
-    if (query.includes('CREATE INDEX')) return [];
-    if (query.includes('DROP TABLE')) return [];
-    if (query.includes('DELETE FROM')) return [];
-    if (query.includes('INSERT INTO')) {
-      const match = query.match(/INSERT INTO (\w+)/);
-      const table = match?.[1] || 'unknown';
-      if (!this.data[table]) this.data[table] = [];
-      const record = { id: Math.random().toString(), created_at: new Date() };
-      this.data[table].push(record);
-      return [record];
-    }
-    if (query.includes('SELECT')) {
-      const match = query.match(/FROM (\w+)/);
-      const table = match?.[1] || 'unknown';
-      return this.data[table] || [];
-    }
-    return [];
-  },
+beforeAll(async () => {
+  db = await startTestDb();
+  testData = await seedTestData(db);
+}, 60000); // 60s timeout for container startup
 
-  select(table: string) {
-    return this.data[table] || [];
-  },
+afterAll(async () => {
+  await stopTestDb();
+});
 
-  insert(table: string, data: any) {
-    if (!this.data[table]) this.data[table] = [];
-    const record = { ...data, id: data.id || Math.random().toString() };
-    this.data[table].push(record);
-    return [record];
-  },
+describe('Time-Travel Analytics Migration (Real DB)', () => {
+  describe('Table Creation', () => {
+    test('fund_state_snapshots table exists with correct structure', async () => {
+      const result = await db.query(`
+        SELECT
+          column_name,
+          data_type,
+          is_nullable
+        FROM information_schema.columns
+        WHERE table_name = 'fund_state_snapshots'
+        ORDER BY ordinal_position
+      `);
 
-  reset() {
-    this.data = {};
-  }
-};
+      expect(result.rows.length).toBeGreaterThan(0);
 
-describe('Time-Travel Analytics Database Schema (Simplified)', () => {
-  let db = mockDb;
-
-  beforeAll(async () => {
-    db.reset();
-  });
-
-  afterAll(async () => {
-    db.reset();
-  });
-
-  beforeEach(async () => {
-    // Clean all time-travel analytics tables
-    db.data = {};
-  });
-
-  describe('fund_state_snapshots table', () => {
-    it('should create snapshot with all required fields', async () => {
-      const snapshotData = {
-        id: 'snapshot-1',
-        fund_id: 'fund-1',
-        snapshot_date: new Date('2025-01-01'),
-        state_type: 'ACTUAL',
-        metrics: {
-          deployed_capital: 5000000,
-          remaining_capital: 45000000,
-          realized_value: 2000000,
-          unrealized_value: 8000000,
-          total_value: 10000000,
-          tvpi: 2.0,
-          dpi: 0.4,
-          rvpi: 1.6,
-          irr: 0.25
-        },
-        waterfall_state: {
-          carry_earned: 1000000,
-          carry_paid: 500000,
-          lp_distributions: 2000000,
-          gp_distributions: 500000
-        },
-        portfolio_composition: {
-          active_investments: 12,
-          exited_investments: 3,
-          written_off: 2,
-          by_stage: {
-            seed: 5,
-            series_a: 4,
-            series_b: 3
-          }
-        },
-        created_by: 'user-1',
-        created_at: new Date()
-      };
-
-      const result = db.insert('fund_state_snapshots', snapshotData);
-
-      expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({
-        id: 'snapshot-1',
-        fund_id: 'fund-1'
-      });
+      // Verify key columns
+      const columns = result.rows.map((r) => r.column_name);
+      expect(columns).toContain('id');
+      expect(columns).toContain('fund_id');
+      expect(columns).toContain('snapshot_type');
+      expect(columns).toContain('portfolio_state');
     });
 
-    it('should handle projected state type', async () => {
-      const projectedSnapshot = {
-        id: 'snapshot-2',
-        fund_id: 'fund-1',
-        snapshot_date: new Date('2026-01-01'),
-        state_type: 'PROJECTED',
-        metrics: {
-          deployed_capital: 45000000,
-          remaining_capital: 5000000,
-          realized_value: 25000000,
-          unrealized_value: 50000000,
-          total_value: 75000000,
-          tvpi: 1.5,
-          dpi: 0.5,
-          rvpi: 1.0,
-          irr: 0.18
-        }
-      };
+    test('snapshot_comparisons table exists with constraint', async () => {
+      const result = await db.query(`
+        SELECT conname
+        FROM pg_constraint
+        WHERE conrelid = 'snapshot_comparisons'::regclass
+          AND conname = 'snapshot_comparisons_different_snapshots'
+      `);
 
-      const result = db.insert('fund_state_snapshots', projectedSnapshot);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].state_type).toBe('PROJECTED');
+      expect(result.rows).toHaveLength(1);
     });
 
-    it('should query snapshots by fund and date range', async () => {
-      // Insert test data
-      db.insert('fund_state_snapshots', {
-        id: 'snap-1',
-        fund_id: 'fund-1',
-        snapshot_date: new Date('2025-01-01'),
-        state_type: 'ACTUAL'
-      });
+    test('timeline_events table exists', async () => {
+      const result = await db.query(`
+        SELECT to_regclass('public.timeline_events') AS table_name
+      `);
 
-      db.insert('fund_state_snapshots', {
-        id: 'snap-2',
-        fund_id: 'fund-1',
-        snapshot_date: new Date('2025-02-01'),
-        state_type: 'ACTUAL'
-      });
+      expect(result.rows[0].table_name).toBe('timeline_events');
+    });
 
-      db.insert('fund_state_snapshots', {
-        id: 'snap-3',
-        fund_id: 'fund-2',
-        snapshot_date: new Date('2025-01-01'),
-        state_type: 'ACTUAL'
-      });
+    test('state_restoration_logs table exists', async () => {
+      const result = await db.query(`
+        SELECT to_regclass('public.state_restoration_logs') AS table_name
+      `);
 
-      const allSnapshots = db.select('fund_state_snapshots');
-      expect(allSnapshots).toHaveLength(3);
-
-      // Simulate filtering
-      const fund1Snapshots = allSnapshots.filter((s: any) => s.fund_id === 'fund-1');
-      expect(fund1Snapshots).toHaveLength(2);
+      expect(result.rows[0].table_name).toBe('state_restoration_logs');
     });
   });
 
-  describe('snapshot_comparisons table', () => {
-    it('should create comparison between two snapshots', async () => {
-      const comparison = {
-        id: 'comp-1',
-        base_snapshot_id: 'snapshot-1',
-        compare_snapshot_id: 'snapshot-2',
-        comparison_type: 'PERIOD_OVER_PERIOD',
-        period_label: 'Q1 2025 vs Q4 2024',
-        metrics_delta: {
-          deployed_capital_change: 5000000,
-          tvpi_change: 0.2,
-          irr_change: 0.03
-        },
-        variance_analysis: {
-          total_variance: 10000000,
-          explained_variance: 8000000,
-          unexplained_variance: 2000000
-        },
-        created_at: new Date()
-      };
+  describe('Index Creation', () => {
+    test('fund_state_snapshots has required indexes', async () => {
+      const result = await db.query(`
+        SELECT indexname
+        FROM pg_indexes
+        WHERE tablename = 'fund_state_snapshots'
+      `);
 
-      const result = db.insert('snapshot_comparisons', comparison);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].comparison_type).toBe('PERIOD_OVER_PERIOD');
+      const indexes = result.rows.map((r) => r.indexname);
+      expect(indexes).toContain('fund_state_snapshots_fund_idx');
+      expect(indexes).toContain('fund_state_snapshots_captured_idx');
+      expect(indexes).toContain('fund_state_snapshots_portfolio_state_gin');
     });
   });
 
-  describe('timeline_events table', () => {
-    it('should create timeline event with proper structure', async () => {
-      const event = {
-        id: 'event-1',
-        fund_id: 'fund-1',
-        event_date: new Date('2025-03-15'),
-        event_type: 'CAPITAL_CALL',
-        event_category: 'FUNDING',
-        event_data: {
-          amount: 5000000,
-          target_close_date: '2025-04-15',
-          purpose: 'New investments in Q2 pipeline'
-        },
-        impact_metrics: {
-          deployed_capital_impact: 5000000,
-          remaining_capital_impact: -5000000
-        },
-        created_at: new Date()
-      };
+  describe('View Creation', () => {
+    test('active_snapshots view exists', async () => {
+      const result = await db.query(`
+        SELECT to_regclass('public.active_snapshots') AS view_name
+      `);
 
-      const result = db.insert('timeline_events', event);
-
-      expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({
-        event_type: 'CAPITAL_CALL',
-        event_category: 'FUNDING'
-      });
+      expect(result.rows[0].view_name).toBe('active_snapshots');
     });
 
-    it('should query events within date range', async () => {
-      // Insert multiple events
-      db.insert('timeline_events', {
-        id: 'evt-1',
-        fund_id: 'fund-1',
-        event_date: new Date('2025-01-15'),
-        event_type: 'INVESTMENT'
-      });
+    test('recent_timeline_events view exists', async () => {
+      const result = await db.query(`
+        SELECT to_regclass('public.recent_timeline_events') AS view_name
+      `);
 
-      db.insert('timeline_events', {
-        id: 'evt-2',
-        fund_id: 'fund-1',
-        event_date: new Date('2025-02-15'),
-        event_type: 'EXIT'
-      });
+      expect(result.rows[0].view_name).toBe('recent_timeline_events');
+    });
 
-      db.insert('timeline_events', {
-        id: 'evt-3',
-        fund_id: 'fund-1',
-        event_date: new Date('2025-03-15'),
-        event_type: 'DISTRIBUTION'
-      });
+    test('restoration_history view exists', async () => {
+      const result = await db.query(`
+        SELECT to_regclass('public.restoration_history') AS view_name
+      `);
 
-      const allEvents = db.select('timeline_events');
-      expect(allEvents).toHaveLength(3);
+      expect(result.rows[0].view_name).toBe('restoration_history');
     });
   });
 
-  describe('Database indexes', () => {
-    it('should have proper indexes for performance (mock validation)', () => {
-      // Mock validation - in real test would check actual indexes
-      const expectedIndexes = [
-        'fund_state_snapshots_fund_idx',
-        'fund_state_snapshots_date_idx',
-        'timeline_events_fund_date_idx',
-        'comparisons_base_idx',
-        'comparisons_compare_idx'
-      ];
-
-      // Mock index check - would query information_schema in real test
-      const mockIndexes = expectedIndexes; // Simulating all indexes exist
-
-      expectedIndexes.forEach(indexName => {
-        expect(mockIndexes).toContain(indexName);
-      });
-    });
-  });
-
-  describe('Database views', () => {
-    it('should query latest_snapshots view', () => {
-      // Mock view behavior
-      const snapshots = db.select('fund_state_snapshots');
-      const latestByFund = Object.values(
-        snapshots.reduce((acc: any, snap: any) => {
-          if (!acc[snap.fund_id] || snap.snapshot_date > acc[snap.fund_id].snapshot_date) {
-            acc[snap.fund_id] = snap;
-          }
-          return acc;
-        }, {})
+  describe('Functional Tests', () => {
+    test('can insert snapshot with valid data', async () => {
+      const result = await db.query(
+        `
+        INSERT INTO fund_state_snapshots (
+          fund_id,
+          snapshot_name,
+          snapshot_type,
+          trigger_event,
+          portfolio_state,
+          fund_metrics,
+          created_by
+        ) VALUES (
+          $1,
+          'Q4 2024 Snapshot',
+          'quarterly',
+          'scheduled',
+          '{"investments": []}',
+          '{"tvpi": 1.25}',
+          $2
+        )
+        RETURNING id
+      `,
+        [testData.fundId, testData.userId]
       );
 
-      expect(latestByFund).toBeDefined();
+      expect(result.rows[0].id).toBeDefined();
+    });
+
+    test('snapshot_comparisons constraint prevents same snapshot comparison', async () => {
+      // Create snapshot
+      const snap1 = await db.query(
+        `
+        INSERT INTO fund_state_snapshots (
+          fund_id, snapshot_name, snapshot_type, trigger_event,
+          portfolio_state, fund_metrics, created_by
+        ) VALUES ($1, 'Snap 1', 'adhoc', 'manual', '{}', '{}', $2)
+        RETURNING id
+      `,
+        [testData.fundId, testData.userId]
+      );
+
+      const snapId = snap1.rows[0].id;
+
+      // Attempt to compare snapshot to itself (should fail)
+      await expect(
+        db.query(
+          `
+          INSERT INTO snapshot_comparisons (
+            base_snapshot_id,
+            compare_snapshot_id,
+            comparison_name,
+            comparison_type,
+            value_changes,
+            created_by
+          ) VALUES ($1, $1, 'Invalid', 'baseline_comparison', '{}', $2)
+        `,
+          [snapId, testData.userId]
+        )
+      ).rejects.toThrow();
+    });
+
+    test('timeline_events references snapshot with ON DELETE SET NULL', async () => {
+      // Create snapshot
+      const snap = await db.query(
+        `
+        INSERT INTO fund_state_snapshots (
+          fund_id, snapshot_name, snapshot_type, trigger_event,
+          portfolio_state, fund_metrics, created_by
+        ) VALUES ($1, 'Snap', 'milestone', 'milestone', '{}', '{}', $2)
+        RETURNING id
+      `,
+        [testData.fundId, testData.userId]
+      );
+
+      const snapId = snap.rows[0].id;
+
+      // Create timeline event referencing snapshot
+      await db.query(
+        `
+        INSERT INTO timeline_events (
+          fund_id, snapshot_id, event_type, event_title,
+          event_date, event_data, created_by
+        ) VALUES ($1, $2, 'investment', 'Test Investment', NOW(), '{}', $3)
+      `,
+        [testData.fundId, snapId, testData.userId]
+      );
+
+      // Delete snapshot
+      await db.query('DELETE FROM fund_state_snapshots WHERE id = $1', [snapId]);
+
+      // Verify timeline event still exists with NULL snapshot_id
+      const result = await db.query(`
+        SELECT snapshot_id
+        FROM timeline_events
+        WHERE event_title = 'Test Investment'
+      `);
+
+      expect(result.rows[0].snapshot_id).toBeNull();
+    });
+  });
+
+  describe('Trigger Tests', () => {
+    test('updated_at timestamp updates automatically', async () => {
+      // Insert snapshot
+      const insert = await db.query(
+        `
+        INSERT INTO fund_state_snapshots (
+          fund_id, snapshot_name, snapshot_type, trigger_event,
+          portfolio_state, fund_metrics, created_by
+        ) VALUES ($1, 'Trigger Test', 'adhoc', 'manual', '{}', '{}', $2)
+        RETURNING id, updated_at
+      `,
+        [testData.fundId, testData.userId]
+      );
+
+      const snapId = insert.rows[0].id;
+      const originalUpdatedAt = insert.rows[0].updated_at;
+
+      // Wait 1 second
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Update snapshot
+      await db.query(
+        `
+        UPDATE fund_state_snapshots
+        SET snapshot_name = 'Trigger Test Updated'
+        WHERE id = $1
+      `,
+        [snapId]
+      );
+
+      // Verify updated_at changed
+      const result = await db.query(
+        `
+        SELECT updated_at
+        FROM fund_state_snapshots
+        WHERE id = $1
+      `,
+        [snapId]
+      );
+
+      expect(new Date(result.rows[0].updated_at).getTime()).toBeGreaterThan(
+        new Date(originalUpdatedAt).getTime()
+      );
     });
   });
 });
