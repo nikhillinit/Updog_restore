@@ -20,7 +20,7 @@ import { Decimal } from 'decimal.js';
 import type { ExtendedFundModelInputs, SimulationResult } from '@shared/schemas/extended-fund-model';
 import { calculateManagementFees, type FeeCalculationContext } from '@shared/schemas/fee-profile';
 import { calculateCapitalCall } from '@shared/schemas/capital-call-policy';
-import { calculateEuropeanWaterfall } from '@shared/schemas/waterfall-policy';
+import { calculateAmericanWaterfall } from '@shared/schemas/waterfall-policy';
 import { calculateRecyclingAvailability, shouldRecycleNow, type RecyclingContext } from '@shared/schemas/recycling-policy';
 
 /**
@@ -272,21 +272,9 @@ function simulatePeriodV2(
   let gpDistribution = new Decimal(0);
 
   if (periodExitProceeds.gt(0)) {
-    if (inputs.waterfallPolicy.type === 'european') {
-      const waterfall = calculateEuropeanWaterfall(
-        inputs.waterfallPolicy,
-        periodExitProceeds,
-        state.calledCapital,
-        state.distributionsToLPs,
-        state.distributionsToGP
-      );
-      lpDistribution = waterfall.lpDistribution;
-      gpDistribution = waterfall.gpDistribution;
-    } else {
-      // American waterfall (deal-by-deal)
-      // TODO: Implement per-deal waterfall
-      lpDistribution = periodExitProceeds; // Simplified
-    }
+    // American waterfall (deal-by-deal)
+    // TODO: Implement full American waterfall calculation
+    lpDistribution = periodExitProceeds; // Simplified distribution
 
     state.distributionsToLPs = state.distributionsToLPs.plus(lpDistribution);
     state.distributionsToGP = state.distributionsToGP.plus(gpDistribution);
