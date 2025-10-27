@@ -5,7 +5,9 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TimeTravelAnalyticsService } from '../../../server/services/time-travel-analytics';
+import type * as schema from '@shared/schema';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { TimeTravelAnalyticsService, type Cache } from '../../../server/services/time-travel-analytics';
 import { createSandbox } from '../../setup/test-infrastructure';
 
 // Mock database structure with chained query builder
@@ -54,13 +56,13 @@ vi.mock('../../../server/logger', () => ({
 
 describe('Time-Travel Analytics Service', () => {
   let service: TimeTravelAnalyticsService;
-  let sandbox: any;
+  let sandbox: Awaited<ReturnType<typeof createSandbox>>;
 
   beforeEach(() => {
     sandbox = createSandbox();
     // Reset the mock select implementation completely
     mockDb.select = vi.fn(() => createMockQueryChain([]));
-    service = new TimeTravelAnalyticsService(mockDb as any);
+    service = new TimeTravelAnalyticsService(mockDb as unknown as NodePgDatabase<typeof schema>);
   });
 
   afterEach(async () => {
@@ -159,7 +161,10 @@ describe('Time-Travel Analytics Service', () => {
         set: vi.fn()
       };
 
-      const serviceWithCache = new TimeTravelAnalyticsService(mockDb as any, mockCache as any);
+      const serviceWithCache = new TimeTravelAnalyticsService(
+        mockDb as unknown as NodePgDatabase<typeof schema>,
+        mockCache as unknown as Cache
+      );
 
       const result = await serviceWithCache.getStateAtTime(1, targetTime);
 
@@ -264,7 +269,14 @@ describe('Time-Travel Analytics Service', () => {
         snapshotTime: new Date('2024-10-31T00:00:00Z'),
         eventCount: 5,
         stateHash: 'hash1',
-        state: { portfolioValue: 1000000 },
+        state: {
+          totalValue: 1000000,
+          deployedCapital: 800000,
+          portfolioCount: 10,
+          companies: [],
+          sectorBreakdown: {},
+          stageBreakdown: {}
+        },
         metadata: {}
       };
 
@@ -274,25 +286,25 @@ describe('Time-Travel Analytics Service', () => {
         snapshotTime: new Date('2024-11-30T00:00:00Z'),
         eventCount: 8,
         stateHash: 'hash2',
-        state: { portfolioValue: 1200000 },
+        state: {
+          totalValue: 1200000,
+          deployedCapital: 950000,
+          portfolioCount: 12,
+          companies: [],
+          sectorBreakdown: {},
+          stageBreakdown: {}
+        },
         metadata: {}
       };
 
       // compareStates calls fetchStateAtTime twice IN PARALLEL via Promise.all
       // Each fetchStateAtTime makes 2 db calls: snapshot + event count
-      // Since they run in parallel, we need to handle the race
-      // Use a call counter to track which mock to return
-      let callCount = 0;
-      mockDb.select = vi.fn(() => {
-        const call = callCount++;
-        if (call === 0 || call === 2) {
-          // First and third calls are for snapshots
-          return createMockQueryChain(call === 0 ? [mockSnapshot1] : [mockSnapshot2]);
-        } else {
-          // Second and fourth calls are for event counts
-          return createMockQueryChain([{ count: call === 1 ? 2 : 3 }]);
-        }
-      });
+      // Mock all 4 database calls (2 snapshots + 2 counts)
+      mockDb.select
+        .mockReturnValueOnce(createMockQueryChain([mockSnapshot1]))  // First snapshot lookup
+        .mockReturnValueOnce(createMockQueryChain([{ count: 2 }]))   // First event count
+        .mockReturnValueOnce(createMockQueryChain([mockSnapshot2]))  // Second snapshot lookup
+        .mockReturnValueOnce(createMockQueryChain([{ count: 3 }]));  // Second event count
 
       const result = await service.compareStates(1, timestamp1, timestamp2, true);
 
@@ -471,7 +483,10 @@ describe('Time-Travel Analytics Service', () => {
         set: vi.fn()
       };
 
-      const serviceWithCache = new TimeTravelAnalyticsService(mockDb as any, mockCache as any);
+      const serviceWithCache = new TimeTravelAnalyticsService(
+        mockDb as unknown as NodePgDatabase<typeof schema>,
+        mockCache as unknown as Cache
+      );
 
       // First call - should query database
       const mockSnapshot = {

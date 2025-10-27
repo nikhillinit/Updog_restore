@@ -318,7 +318,7 @@ export class TimeTravelAnalyticsService {
 
     // Calculate differences if requested
     let differences = null;
-    if (includeDiff) {
+    if (includeDiff && state1.state && state2.state) {
       // Use basic comparison for state differences
       differences = compare(state1.state as object, state2.state as object);
     }
