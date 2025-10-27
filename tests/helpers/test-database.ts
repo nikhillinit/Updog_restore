@@ -4,7 +4,7 @@
  * Provides isolated database connections and cleanup utilities for tests
  */
 
-import { databaseMock, setupDatabaseMock } from './database-mock';
+import { databaseMock, setupDatabaseMock } from './database-mock.ts';
 
 export interface TestDatabase {
   getConnection(): Promise<any>;

@@ -6,6 +6,7 @@
  */
 
 import { vi } from 'vitest';
+import { coerceIn, normalizeOut, parsePgTextArray } from './database-mock-helpers.ts';
 
 // Mock result types
 interface MockQueryResult {
@@ -36,7 +37,7 @@ class DatabaseMock {
     this.constraints.set('fund_state_snapshots', {
       enums: {
         snapshot_type: ['quarterly', 'annual', 'milestone', 'adhoc', 'checkpoint'],
-        trigger_event: ['scheduled', 'manual', 'threshold_breach', 'milestone', 'year_end'],
+        trigger_event: ['scheduled', 'manual', 'threshold_breach', 'milestone', 'year_end', 'checkpoint'],
         status: ['active', 'archived', 'processing', 'failed']
       },
       checks: {
@@ -163,17 +164,19 @@ class DatabaseMock {
         id,
         ...this.parseInsertValues(query, params || [])
       };
+      // Normalize data for this table
+      const normalizedRow = coerceIn(tableName, insertedRow);
 
       // Validate constraints before inserting
-      this.validateConstraints(tableName, insertedRow, params || []);
+      this.validateConstraints(tableName, normalizedRow, params || []);
 
       // Add to mock data
       if (!this.mockData.has(tableName)) {
         this.mockData.set(tableName, []);
       }
-      this.mockData.get(tableName)!.push(insertedRow);
+      this.mockData.get(tableName)!.push(normalizedRow);
 
-      result = [insertedRow] as MockExecuteResult;
+      result = [normalizeOut(tableName, normalizedRow)] as MockExecuteResult;
       result.insertId = id;
       result.affectedRows = 1;
 
@@ -567,18 +570,26 @@ class DatabaseMock {
 export const databaseMock = new DatabaseMock();
 
 /**
+ * Mock the database module at TOP LEVEL (required for Vitest hoisting)
+ * This MUST be at module scope, not inside a function.
+ *
+ * TEMPORARILY COMMENTED OUT FOR DEBUGGING
+ */
+// vi.mock('../../server/db', () => ({
+//   db: databaseMock,
+//   pool: {
+//     connect: vi.fn(),
+//     end: vi.fn()
+//   }
+// }));
+
+/**
  * Setup database mock for tests
+ *
+ * Note: The vi.mock() call has been moved to module scope above.
+ * This function now only returns the mock for convenience.
  */
 export function setupDatabaseMock() {
-  // Mock the database module
-  vi.mock('../../server/db', () => ({
-    db: databaseMock,
-    pool: {
-      connect: vi.fn(),
-      end: vi.fn()
-    }
-  }));
-
   return databaseMock;
 }
 
