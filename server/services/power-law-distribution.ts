@@ -69,6 +69,7 @@ export interface PortfolioReturnDistribution {
     p25: number;
     p50: number;
     p75: number;
+    p90: number;
     p95: number;
     p99: number;
   };
@@ -179,6 +180,17 @@ export class PowerLawDistribution {
     stageDistribution: Partial<Record<InvestmentStage, number>> = { 'seed': 1.0 },
     scenarios: number = 10000
   ): PortfolioReturnDistribution {
+    // Input validation
+    if (typeof portfolioSize !== 'number' || portfolioSize <= 0 || !Number.isFinite(portfolioSize)) {
+      throw new RangeError(`portfolioSize must be a positive finite number, got: ${portfolioSize}`);
+    }
+    if (typeof scenarios !== 'number' || scenarios <= 0 || !Number.isFinite(scenarios)) {
+      throw new RangeError(`scenarios must be a positive finite number, got: ${scenarios}`);
+    }
+    if (!stageDistribution || typeof stageDistribution !== 'object') {
+      throw new TypeError(`stageDistribution must be an object, got: ${typeof stageDistribution}`);
+    }
+
     const samples: ReturnSample[] = [];
 
     // Normalize stage distribution
@@ -512,6 +524,7 @@ export class PowerLawDistribution {
     p25: number;
     p50: number;
     p75: number;
+    p90: number;
     p95: number;
     p99: number;
   } {
@@ -528,6 +541,7 @@ export class PowerLawDistribution {
       p25: getPercentile(25),
       p50: getPercentile(50),
       p75: getPercentile(75),
+      p90: getPercentile(90),
       p95: getPercentile(95),
       p99: getPercentile(99)
     };

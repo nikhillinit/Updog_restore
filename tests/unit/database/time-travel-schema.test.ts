@@ -8,9 +8,9 @@
  * - state_restoration_logs
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { testDb } from '../../helpers/test-database';
-import { createSandbox } from '../../setup/test-infrastructure';
+// Note: globals: true is enabled, so describe/it/expect/beforeAll/afterAll/beforeEach are global
+import { testDb } from '../../helpers/test-database.ts';
+import { createSandbox } from '../../setup/test-infrastructure.ts';
 
 describe('Time-Travel Analytics Database Schema', () => {
   let db: any;
@@ -205,8 +205,9 @@ describe('Time-Travel Analytics Database Schema', () => {
         JSON.stringify(portfolioState), JSON.stringify(fundMetrics), 1
       ]);
 
-      expect(JSON.parse(result.portfolio_state)).toEqual(portfolioState);
-      expect(JSON.parse(result.fund_metrics)).toEqual(fundMetrics);
+      // JSONB columns returned as objects (matches node-postgres behavior)
+      expect(result.portfolio_state).toEqual(portfolioState);
+      expect(result.fund_metrics).toEqual(fundMetrics);
     });
 
     it('should support metadata and tags', async () => {
@@ -234,7 +235,7 @@ describe('Time-Travel Analytics Database Schema', () => {
         '{}', '{}', 1, JSON.stringify(metadata), `{${tags.map(t => `"${t}"`).join(',')}}`
       ]);
 
-      expect(JSON.parse(result.metadata)).toEqual(metadata);
+      expect(result.metadata).toEqual(metadata);
       expect(result.tags).toEqual(tags);
     });
   });
@@ -500,8 +501,8 @@ describe('Time-Travel Analytics Database Schema', () => {
         JSON.stringify(complexEventData), JSON.stringify(impactMetrics), 1, 'high'
       ]);
 
-      expect(JSON.parse(result.event_data)).toEqual(complexEventData);
-      expect(JSON.parse(result.impact_metrics)).toEqual(impactMetrics);
+      expect(result.event_data).toEqual(complexEventData);
+      expect(result.impact_metrics).toEqual(impactMetrics);
     });
   });
 
@@ -669,11 +670,11 @@ describe('Time-Travel Analytics Database Schema', () => {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id, portfolio_state
       `, [
-        1, 'JSON Test Snapshot', 'manual', 'manual', '2024-12-31T23:59:59Z',
+        1, 'JSON Test Snapshot', 'adhoc', 'scheduled', '2024-12-31T23:59:59Z',
         JSON.stringify(validJson), '{}', 1
       ]);
 
-      expect(JSON.parse(result.portfolio_state)).toEqual(validJson);
+      expect(result.portfolio_state).toEqual(validJson);
     });
 
     it('should handle deeply nested JSON structures', async () => {
@@ -699,11 +700,12 @@ describe('Time-Travel Analytics Database Schema', () => {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id, portfolio_state
       `, [
-        1, 'Deep JSON Snapshot', 'manual', 'manual', '2024-12-31T23:59:59Z',
+        1, 'Deep JSON Snapshot', 'adhoc', 'scheduled', '2024-12-31T23:59:59Z',
         JSON.stringify(deeplyNested), '{}', 1
       ]);
 
-      expect(JSON.parse(result.portfolio_state)).toEqual(deeplyNested);
+      // JSONB columns returned as objects
+      expect(result.portfolio_state).toEqual(deeplyNested);
     });
   });
 });

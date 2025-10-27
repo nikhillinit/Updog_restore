@@ -1,31 +1,23 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
 
-// Shared alias constant (single source of truth)
-// Vitest test.projects don't inherit root-level resolve.alias (Vitest ≥1.0 behavior)
-// so we extract this constant and explicitly add to each project that needs it
+// Shared alias constant
 const alias = {
-  // Primary path aliases (mirrors vite.config.ts)
-  // Note: '@/' must come before '@' to match more specific paths first
   '@/core': path.resolve(__dirname, './client/src/core'),
   '@/lib': path.resolve(__dirname, './client/src/lib'),
   '@/server': path.resolve(__dirname, './server'),
   '@/metrics/reserves-metrics': path.resolve(__dirname, './tests/mocks/metrics-mock.ts'),
   '@/': path.resolve(__dirname, './client/src/'),
   '@': path.resolve(__dirname, './client/src'),
-
-  // Shared and assets
   '@shared/': path.resolve(__dirname, './shared/'),
   '@shared': path.resolve(__dirname, './shared'),
   '@assets': path.resolve(__dirname, './assets'),
-
-  // Test mocks
   '@upstash/redis': path.resolve(__dirname, './tests/mocks/upstash-redis.ts'),
 };
 
 export default defineConfig({
   resolve: {
-    alias, // Use shared constant
+    alias,
   },
   test: {
     reporters: process.env.CI ? ['default', 'github-actions'] : 'default',
@@ -37,7 +29,7 @@ export default defineConfig({
     hookTimeout: 20000,
     teardownTimeout: 5000,
     retry: process.env.CI ? 2 : 0,
-    pool: 'threads', // Try threads instead of forks for React 18
+    pool: 'threads',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
@@ -48,53 +40,45 @@ export default defineConfig({
         'coverage/**',
         '**/*.config.{js,ts}',
         '**/*.d.ts',
-        'migrations/**',
-        'scripts/**',
-        '.github/**',
-        'repo/**',
-        'ai-logs/**',
-        'observability/**',
-        'workers/**',
-        // Test files
-        'tests/**',
+        '**/tests/**',
+        '**/__tests__/**',
         '**/*.test.{js,ts,tsx}',
         '**/*.spec.{js,ts,tsx}',
       ],
       include: ['client/src/**/*.{js,ts,tsx}', 'server/**/*.{js,ts}', 'shared/**/*.{js,ts}'],
     },
-    // Unit tests configuration (default)
-    // Keep jsdom as default for React component tests
     environment: 'jsdom',
     environmentOptions: {
       jsdom: {
-        pretendToBeVisual: true, // enable rAF/timers like a visible tab
-        resources: 'usable', // be lenient loading resources
+        pretendToBeVisual: true,
+        resources: 'usable',
       },
     },
-    // Modern test.projects configuration (replaces deprecated environmentMatchGlobs)
+    // Modern test.projects configuration
     projects: [
       {
-        resolve: { alias }, // Explicit alias for server project (projects don't inherit root resolve)
+        resolve: { alias },
         test: {
           name: 'server',
           environment: 'node',
-          // Simplified: All .test.ts files run in Node environment
+          globals: true,  // ADD GLOBALS HERE
           include: ['tests/unit/**/*.test.ts'],
-          setupFiles: ['./tests/setup/test-infrastructure.ts', './tests/setup/node-setup.ts'],
+          // USE THE FIXED SETUP FILE
+          setupFiles: ['./tests/setup/test-infrastructure.ts', './tests/setup/node-setup-fixed.ts'],
         },
       },
       {
-        resolve: { alias }, // Explicit alias for client project (for consistency)
+        resolve: { alias },
         test: {
           name: 'client',
           environment: 'jsdom',
-          // Simplified: All .test.tsx files run in jsdom environment
+          globals: true,  // ADD GLOBALS HERE TOO
           include: ['tests/unit/**/*.test.tsx'],
           setupFiles: ['./tests/setup/test-infrastructure.ts', './tests/setup/jsdom-setup.ts'],
           environmentOptions: {
             jsdom: {
-              pretendToBeVisual: true, // enable rAF/timers like a visible tab
-              resources: 'usable', // be lenient loading resources
+              pretendToBeVisual: true,
+              resources: 'usable',
             },
           },
         },
@@ -107,7 +91,7 @@ export default defineConfig({
       'tests/synthetics/**/*',
       'tests/quarantine/**/*',
       '**/*.quarantine.{test,spec}.ts?(x)',
-      'tests/unit/fund-setup.smoke.test.tsx', // explicitly excluded - requires real browser
+      'tests/unit/fund-setup.smoke.test.tsx',
       'tests/e2e/**/*',
     ],
     env: {
