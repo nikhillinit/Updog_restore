@@ -9,7 +9,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { WaterfallSchema, type Waterfall } from '@shared/types';
-import { changeWaterfallType, applyWaterfallChange } from '@/lib/waterfall';
+import { applyWaterfallChange } from '@/lib/waterfall';
 import { WaterfallConfig } from './waterfall/WaterfallConfig';
 import { WaterfallSummaryCard } from './waterfall/WaterfallSummaryCard';
 
@@ -41,23 +41,6 @@ export function WaterfallStep({ initialData, onSave }: WaterfallStepProps) {
   });
 
   const waterfall = watch();
-
-  /**
-   * Handle waterfall type change (AMERICAN ↔ EUROPEAN)
-   * Uses schema-backed helper to ensure correct defaults
-   */
-  const handleTypeChange = React.useCallback((newType: Waterfall['type']) => {
-    const updated = changeWaterfallType(waterfall, newType);
-
-    // Update all fields to match new type structure
-    setValue('type', updated.type, { shouldValidate: true });
-    setValue('carryVesting', updated.carryVesting, { shouldValidate: true });
-
-    if (updated.type === 'EUROPEAN') {
-      setValue('hurdle', updated.hurdle, { shouldValidate: true });
-      setValue('catchUp', updated.catchUp, { shouldValidate: true });
-    }
-  }, [waterfall, setValue]);
 
   /**
    * Handle field updates with validation and clamping
@@ -93,7 +76,6 @@ export function WaterfallStep({ initialData, onSave }: WaterfallStepProps) {
       <WaterfallConfig
         waterfall={waterfall}
         errors={errors}
-        onTypeChange={handleTypeChange}
         onFieldChange={handleFieldChange}
       />
 

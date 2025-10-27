@@ -112,20 +112,6 @@ const validateTierPriorities = (data: { tiers: Array<{ priority: number }> }) =>
   return priorities.length === uniquePriorities.size;
 };
 
-/**
- * European waterfall (fund-level)
- * All capital returned and preferred return met before any carry
- */
-const EuropeanWaterfallSchemaCore = BaseWaterfallPolicySchemaCore.extend({
-  type: z.literal('european')
-});
-
-export const EuropeanWaterfallSchema = EuropeanWaterfallSchemaCore.refine(validateTierPriorities, {
-  message: 'Waterfall tier priorities must be unique',
-  path: ['tiers']
-});
-
-export type EuropeanWaterfall = z.infer<typeof EuropeanWaterfallSchemaCore>;
 
 /**
  * American waterfall (deal-by-deal)
@@ -143,12 +129,9 @@ export const AmericanWaterfallSchema = AmericanWaterfallSchemaCore.refine(valida
 export type AmericanWaterfall = z.infer<typeof AmericanWaterfallSchemaCore>;
 
 /**
- * Discriminated union of waterfall policies
+ * Waterfall policy (American only)
  */
-export const WaterfallPolicySchema = z.discriminatedUnion('type', [
-  EuropeanWaterfallSchemaCore,
-  AmericanWaterfallSchemaCore
-]);
+export const WaterfallPolicySchema = AmericanWaterfallSchemaCore;
 
 export type WaterfallPolicy = z.infer<typeof WaterfallPolicySchema>;
 
@@ -165,113 +148,6 @@ export interface DistributionAllocation {
     lpAmount: Decimal;
     gpAmount: Decimal;
   }>;
-}
-
-/**
- * Calculate European waterfall distribution
- */
-export function calculateEuropeanWaterfall(
-  policy: EuropeanWaterfall,
-  totalDistributions: Decimal,
-  contributedCapital: Decimal,
-  cumulativeLPDistributions: Decimal,
-  cumulativeGPDistributions: Decimal
-): DistributionAllocation {
-  const breakdown: DistributionAllocation['breakdown'] = [];
-  let remaining = totalDistributions;
-  let lpTotal = new Decimal(0);
-  let gpTotal = new Decimal(0);
-
-  // Sort tiers by priority
-  const sortedTiers = [...policy.tiers].sort((a, b) => a.priority - b.priority);
-
-  for (const tier of sortedTiers) {
-    if (remaining.lte(0)) break;
-
-    switch (tier.tierType) {
-      case 'return_of_capital': {
-        // Return contributed capital to LPs
-        const unreturned = contributedCapital.minus(cumulativeLPDistributions);
-        const allocation = Decimal.min(remaining, unreturned);
-
-        lpTotal = lpTotal.plus(allocation);
-        remaining = remaining.minus(allocation);
-
-        breakdown.push({
-          tier: tier.tierType,
-          amount: allocation,
-          lpAmount: allocation,
-          gpAmount: new Decimal(0)
-        });
-        break;
-      }
-
-      case 'preferred_return': {
-        // Calculate preferred return on contributed capital
-        const targetPreferred = contributedCapital.times(policy.preferredReturnRate);
-        const preferredPaid = cumulativeLPDistributions.minus(contributedCapital);
-        const preferredDue = Decimal.max(
-          new Decimal(0),
-          targetPreferred.minus(preferredPaid)
-        );
-        const allocation = Decimal.min(remaining, preferredDue);
-
-        lpTotal = lpTotal.plus(allocation);
-        remaining = remaining.minus(allocation);
-
-        breakdown.push({
-          tier: tier.tierType,
-          amount: allocation,
-          lpAmount: allocation,
-          gpAmount: new Decimal(0)
-        });
-        break;
-      }
-
-      case 'gp_catch_up': {
-        // GP catches up to target carry percentage
-        const catchUpRate = tier.catchUpRate || new Decimal(1);
-        const allocation = Decimal.min(remaining, remaining.times(catchUpRate));
-
-        gpTotal = gpTotal.plus(allocation);
-        remaining = remaining.minus(allocation);
-
-        breakdown.push({
-          tier: tier.tierType,
-          amount: allocation,
-          lpAmount: new Decimal(0),
-          gpAmount: allocation
-        });
-        break;
-      }
-
-      case 'carry': {
-        // Split remaining between LP and GP based on carry rate
-        const carryRate = tier.rate || new Decimal(0.2); // Default 20%
-        const gpCarry = remaining.times(carryRate);
-        const lpCarry = remaining.minus(gpCarry);
-
-        lpTotal = lpTotal.plus(lpCarry);
-        gpTotal = gpTotal.plus(gpCarry);
-        remaining = new Decimal(0);
-
-        breakdown.push({
-          tier: tier.tierType,
-          amount: remaining,
-          lpAmount: lpCarry,
-          gpAmount: gpCarry
-        });
-        break;
-      }
-    }
-  }
-
-  return {
-    lpDistribution: lpTotal,
-    gpDistribution: gpTotal,
-    totalDistributed: lpTotal.plus(gpTotal),
-    breakdown
-  };
 }
 
 /**

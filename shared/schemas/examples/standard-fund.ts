@@ -121,9 +121,9 @@ export const standardFund: ExtendedFundModelInputs = {
 
   // ===== WATERFALL POLICY =====
   waterfallPolicy: {
-    id: 'european-8pct',
-    name: 'European Waterfall with 8% Hurdle',
-    type: 'european',
+    id: 'american-waterfall',
+    name: 'American Waterfall',
+    type: 'american',
 
     preferredReturnRate: new Decimal('0.08'), // 8% hurdle
 

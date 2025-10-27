@@ -10,17 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Waterfall } from "@shared/types";
-import { applyWaterfallChange, changeWaterfallType } from "@/lib/waterfall";
+import { applyWaterfallChange } from "@/lib/waterfall";
 
 interface WaterfallStepProps {
   data: Waterfall;
   onChange: (_data: Waterfall) => void;
 }
 
-// Exhaustiveness check helper
-function assertNever(x: never): never {
-  throw new Error(`Unhandled waterfall type: ${String(x)}`);
-}
 
 export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
   // Type-safe field updates using waterfall helper
@@ -29,11 +25,6 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
     onChange(updated);
   };
 
-  // Schema-validated type switching
-  const handleTypeChange = (type: 'EUROPEAN' | 'AMERICAN') => {
-    const updated = changeWaterfallType(data, type);
-    onChange(updated);
-  };
 
   const handleCarryVestingChange = (field: 'cliffYears' | 'vestingYears', value: number) => {
     const updated = applyWaterfallChange(data, 'carryVesting', {
@@ -64,111 +55,24 @@ export default function WaterfallStep({ data, onChange }: WaterfallStepProps) {
           <CardHeader>
             <CardTitle>Waterfall Type</CardTitle>
             <CardDescription>
-              Choose between European (deal-by-deal) or American (fund-level) waterfall
+              American (deal-by-deal) waterfall structure
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <RadioGroup
-              value={data.type}
-              onValueChange={handleTypeChange}
-            >
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3 p-4 border rounded-lg">
-                  <RadioGroupItem value="EUROPEAN" id="european" className="mt-1" />
-                  <div className="space-y-2">
-                    <Label htmlFor="european" className="text-base font-medium cursor-pointer">
-                      European Waterfall
-                    </Label>
-                    <p className="text-sm text-gray-600">
-                      Deal-by-deal carry distribution. GPs receive carry on each individual exit
-                      after returning invested capital plus hurdle for that specific investment.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-3 p-4 border rounded-lg">
-                  <RadioGroupItem value="AMERICAN" id="american" className="mt-1" />
-                  <div className="space-y-2">
-                    <Label htmlFor="american" className="text-base font-medium cursor-pointer">
-                      American Waterfall
-                    </Label>
-                    <p className="text-sm text-gray-600">
-                      Fund-level carry distribution. GPs receive carry only after the entire fund
-                      has returned capital plus hurdle to LPs.
-                    </p>
-                  </div>
-                </div>
+            <div className="p-4 border rounded-lg bg-gray-50">
+              <div className="space-y-2">
+                <p className="text-base font-medium">
+                  American Waterfall
+                </p>
+                <p className="text-sm text-gray-600">
+                  Deal-by-deal carry distribution. GPs receive carry on each individual exit
+                  after returning invested capital for that specific investment.
+                </p>
               </div>
-            </RadioGroup>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Financial Terms - Type-narrowed for EUROPEAN waterfall */}
-        {(() => {
-          switch (data.type) {
-            case 'EUROPEAN':
-              return (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Financial Terms</CardTitle>
-                    <CardDescription>
-                      Set the hurdle rate and catch-up provisions for European waterfall
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-2">
-                      <Label className="text-base font-medium">Hurdle Rate (%)</Label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.1"
-                          value={formatPercentage(data.hurdle)}
-                          onChange={(e: any) => handleChange('hurdle', parsePercentage(e.target.value))}
-                          className="pr-8"
-                          placeholder="8.0"
-                        />
-                        <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        Minimum annual return LPs must receive before GPs earn carry
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-base font-medium">Catch-Up Rate (%)</Label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.1"
-                          value={formatPercentage(data.catchUp)}
-                          onChange={(e: any) => handleChange('catchUp', parsePercentage(e.target.value))}
-                          className="pr-8"
-                          placeholder="8.0"
-                        />
-                        <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        Rate at which GPs catch up to their full carry percentage after hurdle is met
-                      </p>
-                      {data.catchUp < data.hurdle && (
-                        <p className="text-sm text-red-500">
-                          Catch-up rate should be greater than or equal to hurdle rate
-                        </p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            case 'AMERICAN':
-              return null; // No financial terms for AMERICAN
-            default:
-              return assertNever(data); // Exhaustiveness check
-          }
-        })()}
       </div>
 
       {/* Carry Vesting */}

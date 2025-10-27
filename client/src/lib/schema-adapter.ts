@@ -238,11 +238,11 @@ export function adaptFromLegacySchema(legacy: FundModelInputs): ExtendedFundMode
       fundingPeriodDays: 0
     },
 
-    // Waterfall policy (simple European for Policy A)
+    // Waterfall policy (American for Policy A)
     waterfallPolicy: {
       id: 'legacy-waterfall',
-      name: 'Simple European (Policy A)',
-      type: 'european',
+      name: 'Simple American (Policy A)',
+      type: 'american',
       preferredReturnRate: new Decimal(0), // No hurdle in legacy
       tiers: [
         { tierType: 'return_of_capital', priority: 1 },
