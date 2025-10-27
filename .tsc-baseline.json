@@ -61,7 +61,7 @@
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
       "total": 56,
-      "lastUpdated": "2025-10-27T08:04:21.663Z"
+      "lastUpdated": "2025-10-27T21:15:34.505Z"
     },
     "server": {
       "errors": [
@@ -265,6 +265,7 @@
         "server/routes/scenario-analysis.ts:TS4111:27ef6eea",
         "server/routes/scenario-analysis.ts:TS4111:4a89493f",
         "server/routes/scenario-analysis.ts:TS4111:ac907ec2",
+        "server/routes/timeline.ts:TS2379:f7c6386d",
         "server/routes/v1/reserve-approvals.ts:TS2345:df54a057",
         "server/routes/v1/reserve-approvals.ts:TS2769:58853e98",
         "server/routes/v1/reserve-approvals.ts:TS2769:58b8e0e9",
@@ -433,6 +434,13 @@
         "server/services/streaming-monte-carlo-engine.ts:TS4111:a8a437eb",
         "server/services/streaming-monte-carlo-engine.ts:TS4111:bcac481a",
         "server/services/streaming-monte-carlo-engine.ts:TS4111:f4a25efa",
+        "server/services/time-travel-analytics.ts:TS2322:07bc5d2b",
+        "server/services/time-travel-analytics.ts:TS2322:6358e943",
+        "server/services/time-travel-analytics.ts:TS2322:72588fa7",
+        "server/services/time-travel-analytics.ts:TS2322:deeb02fb",
+        "server/services/time-travel-analytics.ts:TS2339:f2ff1f03",
+        "server/services/time-travel-analytics.ts:TS2375:8b4e946d",
+        "server/services/time-travel-analytics.ts:TS2532:991b8832",
         "server/services/variance-tracking.ts:TS2532:55dfcaaa",
         "server/utils/logger.ts:TS4111:09555b61",
         "server/utils/logger.ts:TS4111:3e16900d",
@@ -443,26 +451,26 @@
         "server/websocket/dev-dashboard.ts:TS2345:ed62011f",
         "server/websocket/dev-dashboard.ts:TS2532:de791f79"
       ],
-      "total": 377,
-      "lastUpdated": "2025-10-27T08:04:21.663Z"
+      "total": 385,
+      "lastUpdated": "2025-10-27T21:15:34.505Z"
     },
     "shared": {
       "errors": [
         "shared/variance-validation.ts:TS4111:236f2efb"
       ],
       "total": 1,
-      "lastUpdated": "2025-10-27T08:04:21.663Z"
+      "lastUpdated": "2025-10-27T21:15:34.505Z"
     },
     "unknown": {
       "errors": [
         "vite.config.ts:TS7006:118fabe7"
       ],
       "total": 1,
-      "lastUpdated": "2025-10-27T08:04:21.663Z"
+      "lastUpdated": "2025-10-27T21:15:34.505Z"
     }
   },
-  "totalErrors": 435,
-  "timestamp": "2025-10-27T08:04:21.663Z",
+  "totalErrors": 443,
+  "timestamp": "2025-10-27T21:15:34.505Z",
   "buildMode": "per-project",
-  "elapsedMs": 21017
+  "elapsedMs": 26046
 }
