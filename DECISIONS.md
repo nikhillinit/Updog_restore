@@ -1125,3 +1125,52 @@ node scripts/analyze-prompt-patterns.js --json
 
 _For more architectural decisions, see individual decision records in
 `docs/decisions/`_
+
+---
+
+## Service Layer Extraction for Time-Travel Analytics
+
+**Date:** 2025-10-27  
+**Status:** Implemented  
+**Decision:** Extract `TimeTravelAnalyticsService` class to separate business logic from HTTP handling.
+
+**Context:**  
+Time-travel analytics had business logic embedded in route handlers. Service tests were testing a mock class defined in the test file itself (lines 111-233), providing zero actual test coverage of implementation.
+
+**Rationale:**
+- **Test Isolation**: Enable testing business logic independently of HTTP layer
+- **Separation of Concerns**: Routes handle HTTP, service handles domain logic
+- **Maintainability**: Service logic can evolve without affecting HTTP contracts
+- **Reusability**: Service methods callable from workers, CLI tools, other routes
+
+**Implementation:**
+- Created `server/services/time-travel-analytics.ts` (483 lines, 5 public methods)
+- Refactored `server/routes/timeline.ts` to thin HTTP wrappers (239 lines)
+- Service tests mock database, test real implementation (18 tests passing)
+- API tests mock service, test HTTP handling (18 tests passing, 13 skipped)
+
+**Trade-offs:**
+- **Pro**: Proper test coverage of business logic, better architecture
+- **Pro**: Service can be reused beyond HTTP context
+- **Con**: Additional abstraction layer (acceptable for testability gains)
+- **Con**: Two test files instead of one (but proper test boundaries)
+
+**Alternatives Considered:**
+- **Repository pattern**: Deferred until query complexity warrants additional layer
+- **Keep logic in routes**: Rejected - impossible to test properly
+- **Test mock service**: Original anti-pattern we're fixing
+
+**Impact:**
+- Pattern established for future service extractions (variance tracking, etc.)
+- Clear test boundaries: service tests mock DB, API tests mock service
+- Improved code organization and maintainability
+
+**Related Files:**
+- Implementation: `server/services/time-travel-analytics.ts`
+- Routes: `server/routes/timeline.ts`
+- Service Tests: `tests/unit/services/time-travel-analytics.test.ts`
+- API Tests: `tests/unit/api/time-travel-api.test.ts`
+- Testing Guide: `cheatsheets/service-testing-patterns.md`
+
+_For more architectural decisions, see individual decision records in
+`docs/decisions/`_

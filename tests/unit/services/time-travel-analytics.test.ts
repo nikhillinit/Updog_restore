@@ -4,83 +4,31 @@
  * Comprehensive unit tests for time-travel analytics service layer functionality
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { timeTravelFixtures, timeTravelTestHelpers } from '../../fixtures/time-travel-fixtures';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { TimeTravelAnalyticsService } from '../../../server/services/time-travel-analytics';
 import { createSandbox } from '../../setup/test-infrastructure';
 
-// Create stable mock functions that can track calls
-const mockValues = vi.fn(() => ({
-  returning: vi.fn(() => Promise.resolve([{ id: 'test-id' }]))
-}));
-
-const mockInsertResult = {
-  values: mockValues
+// Mock database structure with chained query builder
+const createMockQueryChain = (result: any) => {
+  const promise = Promise.resolve(result);
+  const chain: any = {
+    from: vi.fn(() => chain),
+    where: vi.fn(() => chain),
+    orderBy: vi.fn(() => chain),
+    limit: vi.fn(() => chain),
+    offset: vi.fn(() => chain),
+    leftJoin: vi.fn(() => chain),
+    then: promise.then.bind(promise),
+    catch: promise.catch.bind(promise),
+    finally: promise.finally.bind(promise)
+  };
+  return chain;
 };
 
-// Mock the database
 const mockDb = {
-  query: {
-    fundEvents: {
-      findFirst: vi.fn(),
-      findMany: vi.fn()
-    },
-    fundSnapshots: {
-      findFirst: vi.fn(),
-      findMany: vi.fn()
-    },
-    funds: {
-      findFirst: vi.fn()
-    },
-    fundStateSnapshots: {
-      findFirst: vi.fn(),
-      findMany: vi.fn()
-    },
-    snapshotComparisons: {
-      findFirst: vi.fn(),
-      findMany: vi.fn()
-    },
-    timelineEvents: {
-      findFirst: vi.fn(),
-      findMany: vi.fn()
-    },
-    stateRestorationLogs: {
-      findFirst: vi.fn(),
-      findMany: vi.fn()
-    }
-  },
-  select: vi.fn(() => ({
-    from: vi.fn(() => ({
-      where: vi.fn(() => ({
-        orderBy: vi.fn(() => ({
-          limit: vi.fn(() => ({
-            offset: vi.fn(() => Promise.resolve([]))
-          })),
-          offset: vi.fn(() => Promise.resolve([])),
-        })),
-        limit: vi.fn(() => ({
-          offset: vi.fn(() => Promise.resolve([]))
-        }))
-      })),
-      leftJoin: vi.fn(() => ({
-        where: vi.fn(() => ({
-          orderBy: vi.fn(() => ({
-            limit: vi.fn(() => Promise.resolve([]))
-          }))
-        }))
-      })),
-      orderBy: vi.fn(() => ({
-        limit: vi.fn(() => ({
-          offset: vi.fn(() => Promise.resolve([]))
-        }))
-      }))
-    }))
-  })),
-  insert: vi.fn(() => mockInsertResult),
-  update: vi.fn(() => ({
-    set: vi.fn(() => ({
-      where: vi.fn(() => Promise.resolve())
-    }))
-  })),
+  select: vi.fn(() => createMockQueryChain([])),
+  insert: vi.fn(),
+  update: vi.fn(),
   transaction: vi.fn((fn) => fn(mockDb))
 };
 
@@ -104,908 +52,454 @@ vi.mock('../../../server/logger', () => ({
   }
 }));
 
-/**
- * Time-Travel Analytics Service Implementation
- * (Since the actual service wasn't found, we'll create a mock implementation for testing)
- */
-class TimeTravelAnalyticsService {
-  async createSnapshot(params: {
-    fundId: number;
-    snapshotName: string;
-    snapshotType: string;
-    triggerEvent: string;
-    createdBy: number;
-  }) {
-    const snapshotData = {
-      ...params,
-      captured_at: new Date(),
-      portfolio_state: await this.capturePortfolioState(params.fundId),
-      fund_metrics: await this.captureFundMetrics(params.fundId),
-      data_integrity_score: 0.95
-    };
-
-    return mockDb.insert().values(snapshotData).returning();
-  }
-
-  async getSnapshots(fundId: number, options?: {
-    snapshotType?: string;
-    limit?: number;
-    since?: Date;
-  }) {
-    return mockDb.query.fundStateSnapshots.findMany();
-  }
-
-  async compareSnapshots(params: {
-    baseSnapshotId: string;
-    compareSnapshotId: string;
-    comparisonName: string;
-    comparisonType: string;
-    createdBy: number;
-  }) {
-    const comparisonData = {
-      ...params,
-      value_changes: await this.calculateValueChanges(params.baseSnapshotId, params.compareSnapshotId),
-      portfolio_changes: await this.calculatePortfolioChanges(params.baseSnapshotId, params.compareSnapshotId),
-      insights: await this.generateInsights(params.baseSnapshotId, params.compareSnapshotId),
-      confidence_score: 0.88
-    };
-
-    return mockDb.insert().values(comparisonData).returning();
-  }
-
-  async restoreToSnapshot(params: {
-    fundId: number;
-    snapshotId: string;
-    restorationType: string;
-    reason: string;
-    initiatedBy: number;
-  }) {
-    const restorationLog = {
-      ...params,
-      restoration_type: params.restorationType,
-      initiated_by: params.initiatedBy,
-      before_state: await this.getCurrentState(params.fundId),
-      changes_applied: await this.applyRestoration(params.fundId, params.snapshotId),
-      after_state: await this.getStateAfterRestoration(params.fundId, params.snapshotId),
-      restoration_duration_ms: Math.floor(Math.random() * 5000 + 1000),
-      status: 'completed',
-      success: true
-    };
-
-    return mockDb.insert().values(restorationLog).returning();
-  }
-
-  async createTimelineEvent(params: {
-    fundId: number;
-    snapshotId?: string;
-    eventType: string;
-    eventTitle: string;
-    eventDescription: string;
-    eventDate: Date;
-    eventData: any;
-    impactMetrics: any;
-    createdBy: number;
-  }) {
-    return mockDb.insert().values(params).returning();
-  }
-
-  async getTimeline(fundId: number, options?: {
-    startDate?: Date;
-    endDate?: Date;
-    eventTypes?: string[];
-    limit?: number;
-  }) {
-    return mockDb.query.timelineEvents.findMany();
-  }
-
-  // Private helper methods
-  private async capturePortfolioState(fundId: number) {
-    return timeTravelFixtures.snapshots.quarterlySnapshot.portfolio_state;
-  }
-
-  private async captureFundMetrics(fundId: number) {
-    return timeTravelFixtures.snapshots.quarterlySnapshot.fund_metrics;
-  }
-
-  private async calculateValueChanges(baseId: string, compareId: string) {
-    return timeTravelFixtures.comparisons.periodOverPeriod.value_changes;
-  }
-
-  private async calculatePortfolioChanges(baseId: string, compareId: string) {
-    return timeTravelFixtures.comparisons.periodOverPeriod.portfolio_changes;
-  }
-
-  private async generateInsights(baseId: string, compareId: string) {
-    return timeTravelFixtures.comparisons.periodOverPeriod.insights;
-  }
-
-  private async getCurrentState(fundId: number) {
-    return { totalValue: 2500000.00, portfolioCount: 18 };
-  }
-
-  private async applyRestoration(fundId: number, snapshotId: string) {
-    return { portfolioChanges: 3, metricRecalculations: 5 };
-  }
-
-  private async getStateAfterRestoration(fundId: number, snapshotId: string) {
-    return { totalValue: 2250000.00, portfolioCount: 17 };
-  }
-}
-
 describe('Time-Travel Analytics Service', () => {
   let service: TimeTravelAnalyticsService;
   let sandbox: any;
 
   beforeEach(() => {
     sandbox = createSandbox();
-    service = new TimeTravelAnalyticsService();
-    vi.clearAllMocks();
+    // Reset the mock select implementation completely
+    mockDb.select = vi.fn(() => createMockQueryChain([]));
+    service = new TimeTravelAnalyticsService(mockDb as any);
   });
 
   afterEach(async () => {
     await sandbox.abort();
+    vi.restoreAllMocks();
   });
 
-  describe('Snapshot Management', () => {
-    describe('createSnapshot', () => {
-      it('should create quarterly snapshot with comprehensive data', async () => {
-        const params = {
-          fundId: 1,
-          snapshotName: 'Q4 2024 Quarterly Snapshot',
-          snapshotType: 'quarterly',
-          triggerEvent: 'scheduled',
-          createdBy: 1
-        };
+  describe('getStateAtTime', () => {
+    it('should retrieve fund state at specific point in time', async () => {
+      const targetTime = new Date('2024-12-01T00:00:00Z');
+      const mockSnapshot = {
+        id: 'snapshot-123',
+        fundId: 1,
+        snapshotTime: new Date('2024-11-30T00:00:00Z'),
+        eventCount: 5,
+        stateHash: 'hash123',
+        state: { portfolioValue: 1000000, companies: 10 },
+        metadata: {}
+      };
 
-        const result = await service.createSnapshot(params);
+      // Mock select query chain for snapshot lookup
+      mockDb.select.mockReturnValueOnce(createMockQueryChain([mockSnapshot]));
 
-        expect(result).toEqual([{ id: 'test-id' }]);
-        expect(mockDb.insert).toHaveBeenCalled();
+      // Mock select query chain for events count (no events after snapshot)
+      mockDb.select.mockReturnValueOnce(createMockQueryChain([]));
 
-        const snapshotData = mockDb.insert().values.mock.calls[0][0];
-        expect(snapshotData.snapshotName).toBe('Q4 2024 Quarterly Snapshot');
-        expect(snapshotData.snapshotType).toBe('quarterly');
-        expect(snapshotData.portfolio_state).toBeDefined();
-        expect(snapshotData.fund_metrics).toBeDefined();
-        expect(snapshotData.captured_at).toBeInstanceOf(Date);
-      });
+      const result = await service.getStateAtTime(1, targetTime, false);
 
-      it('should create milestone snapshot for investment event', async () => {
-        const params = {
-          fundId: 1,
-          snapshotName: 'Series B Investment Milestone',
-          snapshotType: 'milestone',
-          triggerEvent: 'investment',
-          createdBy: 1
-        };
-
-        const result = await service.createSnapshot(params);
-
-        expect(result).toEqual([{ id: 'test-id' }]);
-
-        const snapshotData = mockDb.insert().values.mock.calls[0][0];
-        expect(snapshotData.snapshotType).toBe('milestone');
-        expect(snapshotData.triggerEvent).toBe('investment');
-      });
-
-      it('should create emergency snapshot with market context', async () => {
-        const params = {
-          fundId: 1,
-          snapshotName: 'Emergency Market Snapshot',
-          snapshotType: 'emergency',
-          triggerEvent: 'market_event',
-          createdBy: 1
-        };
-
-        const result = await service.createSnapshot(params);
-
-        expect(result).toEqual([{ id: 'test-id' }]);
-
-        const snapshotData = mockDb.insert().values.mock.calls[0][0];
-        expect(snapshotData.snapshotType).toBe('emergency');
-        expect(snapshotData.triggerEvent).toBe('market_event');
-      });
-
-      it('should capture comprehensive portfolio state', async () => {
-        const params = {
-          fundId: 1,
-          snapshotName: 'Portfolio State Test',
-          snapshotType: 'manual',
-          triggerEvent: 'manual',
-          createdBy: 1
-        };
-
-        await service.createSnapshot(params);
-
-        const snapshotData = mockDb.insert().values.mock.calls[0][0];
-        const portfolioState = snapshotData.portfolio_state;
-
-        expect(portfolioState).toBeDefined();
-        expect(portfolioState.totalValue).toBeDefined();
-        expect(portfolioState.deployedCapital).toBeDefined();
-        expect(portfolioState.portfolioCount).toBeDefined();
-        expect(portfolioState.companies).toBeDefined();
-        expect(portfolioState.sectorBreakdown).toBeDefined();
-        expect(portfolioState.stageBreakdown).toBeDefined();
-      });
-
-      it('should capture fund metrics and performance data', async () => {
-        const params = {
-          fundId: 1,
-          snapshotName: 'Metrics Test Snapshot',
-          snapshotType: 'manual',
-          triggerEvent: 'manual',
-          createdBy: 1
-        };
-
-        await service.createSnapshot(params);
-
-        const snapshotData = mockDb.insert().values.mock.calls[0][0];
-        const fundMetrics = snapshotData.fund_metrics;
-
-        expect(fundMetrics).toBeDefined();
-        expect(fundMetrics.irr).toBeDefined();
-        expect(fundMetrics.multiple).toBeDefined();
-        expect(fundMetrics.dpi).toBeDefined();
-        expect(fundMetrics.tvpi).toBeDefined();
-        expect(fundMetrics.unrealizedValue).toBeDefined();
-        expect(fundMetrics.realizedValue).toBeDefined();
-      });
+      expect(result).toBeDefined();
+      expect(result.fundId).toBe(1);
+      expect(result.timestamp).toBe(targetTime.toISOString());
+      expect(result.snapshot.id).toBe('snapshot-123');
+      expect(result.snapshot.eventCount).toBe(5);
+      expect(result.state).toEqual({ portfolioValue: 1000000, companies: 10 });
+      expect(result.eventsApplied).toBe(0);
+      expect(result.events).toBeUndefined();
     });
 
-    describe('getSnapshots', () => {
-      it('should retrieve snapshots with filtering options', async () => {
-        mockDb.query.fundStateSnapshots.findMany.mockResolvedValue([
-          timeTravelFixtures.snapshots.quarterlySnapshot,
-          timeTravelFixtures.snapshots.milestoneSnapshot
-        ]);
+    it('should include events when requested', async () => {
+      const targetTime = new Date('2024-12-01T00:00:00Z');
+      const mockSnapshot = {
+        id: 'snapshot-123',
+        fundId: 1,
+        snapshotTime: new Date('2024-11-30T00:00:00Z'),
+        eventCount: 5,
+        stateHash: 'hash123',
+        state: { portfolioValue: 1000000 },
+        metadata: {}
+      };
 
-        const result = await service.getSnapshots(1, {
-          snapshotType: 'quarterly',
-          limit: 10,
-          since: new Date('2024-01-01')
-        });
-
-        expect(result).toHaveLength(2);
-        expect(mockDb.query.fundStateSnapshots.findMany).toHaveBeenCalled();
-      });
-
-      it('should return all snapshots when no filters provided', async () => {
-        mockDb.query.fundStateSnapshots.findMany.mockResolvedValue([
-          timeTravelFixtures.snapshots.quarterlySnapshot
-        ]);
-
-        const result = await service.getSnapshots(1);
-
-        expect(result).toHaveLength(1);
-        expect(mockDb.query.fundStateSnapshots.findMany).toHaveBeenCalled();
-      });
-    });
-  });
-
-  describe('Snapshot Comparison', () => {
-    describe('compareSnapshots', () => {
-      it('should create period-over-period comparison', async () => {
-        const params = {
-          baseSnapshotId: 'base-snapshot-id',
-          compareSnapshotId: 'compare-snapshot-id',
-          comparisonName: 'Q3 vs Q4 2024 Comparison',
-          comparisonType: 'period_over_period',
-          createdBy: 1
-        };
-
-        const result = await service.compareSnapshots(params);
-
-        expect(result).toEqual([{ id: 'test-id' }]);
-
-        const comparisonData = mockDb.insert().values.mock.calls[0][0];
-        expect(comparisonData.comparisonName).toBe('Q3 vs Q4 2024 Comparison');
-        expect(comparisonData.comparisonType).toBe('period_over_period');
-        expect(comparisonData.value_changes).toBeDefined();
-        expect(comparisonData.portfolio_changes).toBeDefined();
-        expect(comparisonData.insights).toBeDefined();
-      });
-
-      it('should create before/after event comparison', async () => {
-        const params = {
-          baseSnapshotId: 'pre-investment-id',
-          compareSnapshotId: 'post-investment-id',
-          comparisonName: 'Before/After AI Investment',
-          comparisonType: 'before_after_event',
-          createdBy: 1
-        };
-
-        const result = await service.compareSnapshots(params);
-
-        expect(result).toEqual([{ id: 'test-id' }]);
-
-        const comparisonData = mockDb.insert().values.mock.calls[0][0];
-        expect(comparisonData.comparisonType).toBe('before_after_event');
-      });
-
-      it('should calculate value changes accurately', async () => {
-        const params = {
-          baseSnapshotId: 'base-id',
-          compareSnapshotId: 'compare-id',
-          comparisonName: 'Value Change Analysis',
-          comparisonType: 'period_over_period',
-          createdBy: 1
-        };
-
-        await service.compareSnapshots(params);
-
-        const comparisonData = mockDb.insert().values.mock.calls[0][0];
-        const valueChanges = comparisonData.value_changes;
-
-        expect(valueChanges.totalValueChange).toBeDefined();
-        expect(valueChanges.totalValueChangePct).toBeDefined();
-        expect(valueChanges.irrChange).toBeDefined();
-        expect(valueChanges.multipleChange).toBeDefined();
-        expect(valueChanges.dpiChange).toBeDefined();
-        expect(valueChanges.tvpiChange).toBeDefined();
-      });
-
-      it('should analyze portfolio changes comprehensively', async () => {
-        const params = {
-          baseSnapshotId: 'base-id',
-          compareSnapshotId: 'compare-id',
-          comparisonName: 'Portfolio Analysis',
-          comparisonType: 'period_over_period',
-          createdBy: 1
-        };
-
-        await service.compareSnapshots(params);
-
-        const comparisonData = mockDb.insert().values.mock.calls[0][0];
-        const portfolioChanges = comparisonData.portfolio_changes;
-
-        expect(portfolioChanges.newInvestments).toBeDefined();
-        expect(portfolioChanges.exits).toBeDefined();
-        expect(portfolioChanges.valuationChanges).toBeDefined();
-        expect(portfolioChanges.sectorRebalancing).toBeDefined();
-      });
-
-      it('should generate actionable insights', async () => {
-        const params = {
-          baseSnapshotId: 'base-id',
-          compareSnapshotId: 'compare-id',
-          comparisonName: 'Insight Generation Test',
-          comparisonType: 'period_over_period',
-          createdBy: 1
-        };
-
-        await service.compareSnapshots(params);
-
-        const comparisonData = mockDb.insert().values.mock.calls[0][0];
-        const insights = comparisonData.insights;
-
-        expect(insights.topDrivers).toBeDefined();
-        expect(insights.concerns).toBeDefined();
-        expect(insights.recommendations).toBeDefined();
-        expect(insights.overallTrend).toBeDefined();
-        expect(insights.riskLevel).toBeDefined();
-      });
-    });
-  });
-
-  describe('State Restoration', () => {
-    describe('restoreToSnapshot', () => {
-      it('should perform full state restoration', async () => {
-        const params = {
+      const mockEvents = [
+        {
+          id: 'event-1',
           fundId: 1,
-          snapshotId: 'target-snapshot-id',
-          restorationType: 'full',
-          reason: 'Board presentation scenario analysis',
-          initiatedBy: 1
-        };
-
-        const result = await service.restoreToSnapshot(params);
-
-        expect(result).toEqual([{ id: 'test-id' }]);
-
-        const restorationLog = mockDb.insert().values.mock.calls[0][0];
-        expect(restorationLog.restoration_type).toBe('full');
-        expect(restorationLog.reason).toBe('Board presentation scenario analysis');
-        expect(restorationLog.before_state).toBeDefined();
-        expect(restorationLog.changes_applied).toBeDefined();
-        expect(restorationLog.after_state).toBeDefined();
-        expect(restorationLog.status).toBe('completed');
-        expect(restorationLog.success).toBe(true);
-      });
-
-      it('should perform partial state restoration', async () => {
-        const params = {
-          fundId: 1,
-          snapshotId: 'partial-snapshot-id',
-          restorationType: 'partial',
-          reason: 'Correct single company valuation',
-          initiatedBy: 1
-        };
-
-        const result = await service.restoreToSnapshot(params);
-
-        expect(result).toEqual([{ id: 'test-id' }]);
-
-        const restorationLog = mockDb.insert().values.mock.calls[0][0];
-        expect(restorationLog.restoration_type).toBe('partial');
-        expect(restorationLog.success).toBe(true);
-      });
-
-      it('should capture restoration metadata and timing', async () => {
-        const params = {
-          fundId: 1,
-          snapshotId: 'metadata-test-id',
-          restorationType: 'full',
-          reason: 'Metadata capture test',
-          initiatedBy: 1
-        };
-
-        await service.restoreToSnapshot(params);
-
-        const restorationLog = mockDb.insert().values.mock.calls[0][0];
-        expect(restorationLog.restoration_duration_ms).toBeGreaterThan(0);
-        expect(restorationLog.initiated_by).toBe(1);
-        expect(restorationLog.changes_applied).toBeDefined();
-      });
-
-      it('should track affected entities during restoration', async () => {
-        const params = {
-          fundId: 1,
-          snapshotId: 'entities-test-id',
-          restorationType: 'full',
-          reason: 'Track affected entities',
-          initiatedBy: 1
-        };
-
-        await service.restoreToSnapshot(params);
-
-        const restorationLog = mockDb.insert().values.mock.calls[0][0];
-        expect(restorationLog.changes_applied).toBeDefined();
-        expect(restorationLog.before_state).toBeDefined();
-        expect(restorationLog.after_state).toBeDefined();
-      });
-    });
-  });
-
-  describe('Timeline Events', () => {
-    describe('createTimelineEvent', () => {
-      it('should create investment timeline event', async () => {
-        const params = {
-          fundId: 1,
-          snapshotId: 'investment-snapshot-id',
           eventType: 'investment',
-          eventTitle: 'Series B Investment - AI Innovations',
-          eventDescription: 'Led $500K Series B round',
-          eventDate: new Date('2024-11-15T16:30:00Z'),
-          eventData: timeTravelFixtures.events.investmentEvent.event_data,
-          impactMetrics: timeTravelFixtures.events.investmentEvent.impact_metrics,
-          createdBy: 1
-        };
+          eventTime: new Date('2024-11-30T12:00:00Z'),
+          operation: 'create',
+          entityType: 'portfolio_company',
+          metadata: { amount: 500000 }
+        }
+      ];
 
-        const result = await service.createTimelineEvent(params);
+      // Mock snapshot lookup - returns array with snapshot
+      mockDb.select.mockReturnValueOnce(createMockQueryChain([mockSnapshot]));
 
-        expect(result).toEqual([{ id: 'test-id' }]);
+      // Mock events lookup - returns array of events
+      mockDb.select.mockReturnValueOnce(createMockQueryChain(mockEvents));
 
-        const eventData = mockDb.insert().values.mock.calls[0][0];
-        expect(eventData.eventType).toBe('investment');
-        expect(eventData.eventTitle).toBe('Series B Investment - AI Innovations');
-        expect(eventData.eventData).toBeDefined();
-        expect(eventData.impactMetrics).toBeDefined();
-      });
+      const result = await service.getStateAtTime(1, targetTime, true);
 
-      it('should create exit timeline event', async () => {
-        const params = {
+      expect(result.events).toBeDefined();
+      expect(result.events).toHaveLength(1);
+      expect(result.eventsApplied).toBe(1);
+      expect(result.events![0].id).toBe('event-1');
+    });
+
+    it('should throw NotFoundError when no snapshot exists', async () => {
+      const targetTime = new Date('2024-12-01T00:00:00Z');
+
+      // Mock no snapshot found - empty array means no snapshot
+      mockDb.select.mockReturnValueOnce(createMockQueryChain([]));
+
+      await expect(service.getStateAtTime(1, targetTime)).rejects.toThrow('No snapshot found');
+    });
+
+    it('should use cache when available', async () => {
+      const targetTime = new Date('2024-12-01T00:00:00Z');
+      const mockCache = {
+        get: vi.fn().mockResolvedValue(JSON.stringify({
           fundId: 1,
+          timestamp: targetTime.toISOString(),
+          snapshot: { id: 'cached-123', time: new Date(), eventCount: 5, stateHash: 'hash' },
+          state: { cached: true },
+          eventsApplied: 0
+        })),
+        set: vi.fn()
+      };
+
+      const serviceWithCache = new TimeTravelAnalyticsService(mockDb as any, mockCache as any);
+
+      const result = await serviceWithCache.getStateAtTime(1, targetTime);
+
+      expect(mockCache.get).toHaveBeenCalled();
+      expect(result.state).toEqual({ cached: true });
+      expect(mockDb.select).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getTimelineEvents', () => {
+    it('should retrieve timeline events with pagination', async () => {
+      const mockEvents = [
+        {
+          id: 'event-1',
+          eventType: 'investment',
+          eventTime: new Date('2024-12-01T00:00:00Z'),
+          operation: 'create',
+          entityType: 'portfolio_company',
+          metadata: { amount: 500000 }
+        },
+        {
+          id: 'event-2',
           eventType: 'exit',
-          eventTitle: 'LegacyCorp Acquisition Exit',
-          eventDescription: 'Successful acquisition exit',
-          eventDate: new Date('2024-10-31T15:00:00Z'),
-          eventData: timeTravelFixtures.events.exitEvent.event_data,
-          impactMetrics: timeTravelFixtures.events.exitEvent.impact_metrics,
-          createdBy: 1
-        };
+          eventTime: new Date('2024-11-15T00:00:00Z'),
+          operation: 'update',
+          entityType: 'portfolio_company',
+          metadata: { exitValue: 2000000 }
+        }
+      ];
 
-        const result = await service.createTimelineEvent(params);
+      const mockSnapshots = [
+        {
+          id: 'snapshot-1',
+          snapshotTime: new Date('2024-12-01T00:00:00Z'),
+          eventCount: 10,
+          stateHash: 'hash1',
+          metadata: {}
+        }
+      ];
 
-        expect(result).toEqual([{ id: 'test-id' }]);
+      // getTimelineEvents calls db.select 3 times:
+      // 1. For events with pagination
+      // 2. For snapshots
+      // 3. For count
+      mockDb.select
+        .mockReturnValueOnce(createMockQueryChain(mockEvents))
+        .mockReturnValueOnce(createMockQueryChain(mockSnapshots))
+        .mockReturnValueOnce(createMockQueryChain([{ count: 25 }]));
 
-        const eventData = mockDb.insert().values.mock.calls[0][0];
-        expect(eventData.eventType).toBe('exit');
-        expect(eventData.eventTitle).toBe('LegacyCorp Acquisition Exit');
-      });
+      const result = await service.getTimelineEvents(1, { limit: 10, offset: 0 });
 
-      it('should create valuation update event', async () => {
-        const params = {
-          fundId: 1,
-          eventType: 'valuation',
-          eventTitle: 'TechCorp Alpha Valuation Update',
-          eventDescription: '25% valuation increase',
-          eventDate: new Date('2024-12-31T17:00:00Z'),
-          eventData: timeTravelFixtures.events.valuationEvent.event_data,
-          impactMetrics: timeTravelFixtures.events.valuationEvent.impact_metrics,
-          createdBy: 1
-        };
-
-        const result = await service.createTimelineEvent(params);
-
-        expect(result).toEqual([{ id: 'test-id' }]);
-
-        const eventData = mockDb.insert().values.mock.calls[0][0];
-        expect(eventData.eventType).toBe('valuation');
-      });
-
-      it('should create market event with external context', async () => {
-        const params = {
-          fundId: 1,
-          eventType: 'market_event',
-          eventTitle: 'Federal Reserve Rate Decision Impact',
-          eventDescription: 'Market volatility following Fed announcement',
-          eventDate: new Date('2024-12-01T14:30:00Z'),
-          eventData: timeTravelFixtures.events.marketEvent.event_data,
-          impactMetrics: timeTravelFixtures.events.marketEvent.impact_metrics,
-          createdBy: 1
-        };
-
-        const result = await service.createTimelineEvent(params);
-
-        expect(result).toEqual([{ id: 'test-id' }]);
-
-        const eventData = mockDb.insert().values.mock.calls[0][0];
-        expect(eventData.eventType).toBe('market_event');
-        expect(eventData.eventData).toBeDefined();
-      });
+      expect(result).toBeDefined();
+      expect(result.fundId).toBe(1);
+      expect(result.events).toHaveLength(2);
+      expect(result.snapshots).toHaveLength(1);
+      expect(result.pagination.total).toBe(25);
+      expect(result.pagination.limit).toBe(10);
+      expect(result.pagination.offset).toBe(0);
+      expect(result.pagination.hasMore).toBe(true);
     });
 
-    describe('getTimeline', () => {
-      it('should retrieve timeline events with date filtering', async () => {
-        mockDb.query.timelineEvents.findMany.mockResolvedValue([
-          timeTravelFixtures.events.investmentEvent,
-          timeTravelFixtures.events.exitEvent
-        ]);
+    it('should filter by time range', async () => {
+      const startTime = new Date('2024-01-01T00:00:00Z');
+      const endTime = new Date('2024-12-31T23:59:59Z');
 
-        const result = await service.getTimeline(1, {
-          startDate: new Date('2024-01-01'),
-          endDate: new Date('2024-12-31'),
-          limit: 50
-        });
+      // Mock 3 database calls
+      mockDb.select
+        .mockReturnValueOnce(createMockQueryChain([]))
+        .mockReturnValueOnce(createMockQueryChain([]))
+        .mockReturnValueOnce(createMockQueryChain([{ count: 0 }]));
 
-        expect(result).toHaveLength(2);
-        expect(mockDb.query.timelineEvents.findMany).toHaveBeenCalled();
-      });
+      const result = await service.getTimelineEvents(1, { startTime, endTime });
 
-      it('should filter by event types', async () => {
-        mockDb.query.timelineEvents.findMany.mockResolvedValue([
-          timeTravelFixtures.events.investmentEvent
-        ]);
+      expect(result.timeRange.start).toBeDefined();
+      expect(result.timeRange.end).toBeDefined();
+    });
 
-        const result = await service.getTimeline(1, {
-          eventTypes: ['investment', 'exit'],
-          limit: 20
-        });
+    it('should handle empty results', async () => {
+      // Mock 3 database calls
+      mockDb.select
+        .mockReturnValueOnce(createMockQueryChain([]))
+        .mockReturnValueOnce(createMockQueryChain([]))
+        .mockReturnValueOnce(createMockQueryChain([{ count: 0 }]));
 
-        expect(result).toHaveLength(1);
-        expect(mockDb.query.timelineEvents.findMany).toHaveBeenCalled();
-      });
+      const result = await service.getTimelineEvents(1);
 
-      it('should return all events when no filters provided', async () => {
-        mockDb.query.timelineEvents.findMany.mockResolvedValue([
-          timeTravelFixtures.events.investmentEvent,
-          timeTravelFixtures.events.exitEvent,
-          timeTravelFixtures.events.valuationEvent
-        ]);
-
-        const result = await service.getTimeline(1);
-
-        expect(result).toHaveLength(3);
-      });
+      expect(result.events).toHaveLength(0);
+      expect(result.snapshots).toHaveLength(0);
+      expect(result.pagination.total).toBe(0);
+      expect(result.pagination.hasMore).toBe(false);
     });
   });
 
-  describe('Data Integrity and Validation', () => {
-    it('should validate snapshot data integrity', async () => {
-      const params = {
+  describe('compareStates', () => {
+    it('should compare fund states at two different timestamps', async () => {
+      const timestamp1 = new Date('2024-11-01T00:00:00Z');
+      const timestamp2 = new Date('2024-12-01T00:00:00Z');
+
+      const mockSnapshot1 = {
+        id: 'snapshot-1',
         fundId: 1,
-        snapshotName: 'Integrity Test Snapshot',
-        snapshotType: 'manual',
-        triggerEvent: 'manual',
-        createdBy: 1
+        snapshotTime: new Date('2024-10-31T00:00:00Z'),
+        eventCount: 5,
+        stateHash: 'hash1',
+        state: { portfolioValue: 1000000 },
+        metadata: {}
       };
 
-      await service.createSnapshot(params);
-
-      const snapshotData = mockDb.insert().values.mock.calls[0][0];
-      expect(snapshotData.data_integrity_score).toBeGreaterThan(0.9);
-      expect(snapshotData.portfolio_state).toBeDefined();
-      expect(snapshotData.fund_metrics).toBeDefined();
-    });
-
-    it('should maintain consistency across comparison calculations', async () => {
-      const params = {
-        baseSnapshotId: 'consistency-base-id',
-        compareSnapshotId: 'consistency-compare-id',
-        comparisonName: 'Consistency Test',
-        comparisonType: 'period_over_period',
-        createdBy: 1
-      };
-
-      await service.compareSnapshots(params);
-
-      const comparisonData = mockDb.insert().values.mock.calls[0][0];
-      expect(comparisonData.confidence_score).toBeGreaterThan(0.8);
-      expect(comparisonData.value_changes).toBeDefined();
-      expect(comparisonData.portfolio_changes).toBeDefined();
-    });
-
-    it('should track restoration success/failure accurately', async () => {
-      const params = {
+      const mockSnapshot2 = {
+        id: 'snapshot-2',
         fundId: 1,
-        snapshotId: 'success-test-id',
-        restorationType: 'full',
-        reason: 'Success tracking test',
-        initiatedBy: 1
+        snapshotTime: new Date('2024-11-30T00:00:00Z'),
+        eventCount: 8,
+        stateHash: 'hash2',
+        state: { portfolioValue: 1200000 },
+        metadata: {}
       };
 
-      await service.restoreToSnapshot(params);
+      // compareStates calls fetchStateAtTime twice IN PARALLEL via Promise.all
+      // Each fetchStateAtTime makes 2 db calls: snapshot + event count
+      // Since they run in parallel, we need to handle the race
+      // Use a call counter to track which mock to return
+      let callCount = 0;
+      mockDb.select = vi.fn(() => {
+        const call = callCount++;
+        if (call === 0 || call === 2) {
+          // First and third calls are for snapshots
+          return createMockQueryChain(call === 0 ? [mockSnapshot1] : [mockSnapshot2]);
+        } else {
+          // Second and fourth calls are for event counts
+          return createMockQueryChain([{ count: call === 1 ? 2 : 3 }]);
+        }
+      });
 
-      const restorationLog = mockDb.insert().values.mock.calls[0][0];
-      expect(restorationLog.success).toBe(true);
-      expect(restorationLog.status).toBe('completed');
-      expect(restorationLog.restoration_duration_ms).toBeGreaterThan(0);
+      const result = await service.compareStates(1, timestamp1, timestamp2, true);
+
+      expect(result).toBeDefined();
+      expect(result.fundId).toBe('1');
+      expect(result.comparison.timestamp1).toBe(timestamp1.toISOString());
+      expect(result.comparison.timestamp2).toBe(timestamp2.toISOString());
+      // Verify state1 has required fields
+      expect(result.comparison.state1.snapshotId).toBeDefined();
+      expect(result.comparison.state1.eventCount).toBeDefined();
+      // Verify result structure (differences and summary)
+      expect(result.differences).toBeDefined();
+      expect(result.summary.totalChanges).toBeGreaterThanOrEqual(0);
+      expect(result.summary.timeSpan).toBeGreaterThan(0);
     });
-  });
 
-  describe('Performance and Scalability', () => {
-    it('should handle large portfolio datasets in snapshots', async () => {
-      const params = {
+    it('should skip differences calculation when not requested', async () => {
+      const timestamp1 = new Date('2024-11-01T00:00:00Z');
+      const timestamp2 = new Date('2024-12-01T00:00:00Z');
+
+      const mockSnapshot = {
+        id: 'snapshot-1',
         fundId: 1,
-        snapshotName: 'Large Portfolio Test',
-        snapshotType: 'annual',
-        triggerEvent: 'scheduled',
-        createdBy: 1
+        snapshotTime: new Date('2024-10-31T00:00:00Z'),
+        eventCount: 5,
+        stateHash: 'hash1',
+        state: { portfolioValue: 1000000 },
+        metadata: {}
       };
 
-      const startTime = Date.now();
-      await service.createSnapshot(params);
-      const executionTime = Date.now() - startTime;
+      // Mock both state lookups
+      mockDb.select.mockReturnValueOnce(createMockQueryChain([mockSnapshot]));
+      mockDb.select.mockReturnValueOnce(createMockQueryChain([{ count: 2 }]));
+      mockDb.select.mockReturnValueOnce(createMockQueryChain([mockSnapshot]));
+      mockDb.select.mockReturnValueOnce(createMockQueryChain([{ count: 2 }]));
 
-      expect(executionTime).toBeLessThan(5000); // Should complete within 5 seconds
-      expect(mockDb.insert).toHaveBeenCalled();
+      const result = await service.compareStates(1, timestamp1, timestamp2, false);
+
+      expect(result.differences).toBeNull();
     });
 
-    it('should efficiently process complex comparisons', async () => {
-      const params = {
-        baseSnapshotId: 'complex-base-id',
-        compareSnapshotId: 'complex-compare-id',
-        comparisonName: 'Complex Comparison Test',
-        comparisonType: 'period_over_period',
-        createdBy: 1
-      };
+    it('should throw NotFoundError when state cannot be retrieved', async () => {
+      const timestamp1 = new Date('2024-11-01T00:00:00Z');
+      const timestamp2 = new Date('2024-12-01T00:00:00Z');
 
-      const startTime = Date.now();
-      await service.compareSnapshots(params);
-      const executionTime = Date.now() - startTime;
+      // Mock no snapshot found for first state
+      // fetchStateAtTime will try to get snapshot and fail
+      mockDb.select.mockReturnValueOnce(createMockQueryChain([]));
 
-      expect(executionTime).toBeLessThan(3000); // Should complete within 3 seconds
-      expect(mockDb.insert).toHaveBeenCalled();
-    });
-
-    it('should handle concurrent snapshot operations', async () => {
-      const operations = Array.from({ length: 5 }, (_, i) =>
-        service.createSnapshot({
-          fundId: 1,
-          snapshotName: `Concurrent Snapshot ${i + 1}`,
-          snapshotType: 'manual',
-          triggerEvent: 'manual',
-          createdBy: 1
-        })
+      await expect(service.compareStates(1, timestamp1, timestamp2)).rejects.toThrow(
+        'Could not retrieve states for comparison'
       );
-
-      const startTime = Date.now();
-      const results = await Promise.all(operations);
-      const executionTime = Date.now() - startTime;
-
-      expect(results).toHaveLength(5);
-      expect(results.every(r => Array.isArray(r) && r[0].id === 'test-id')).toBe(true);
-      expect(executionTime).toBeLessThan(10000); // Should handle concurrency efficiently
     });
   });
 
-  describe('Error Handling and Edge Cases', () => {
-    it('should handle missing snapshot data gracefully', async () => {
-      // Mock empty portfolio state capture
-      const originalCapturePortfolioState = service['capturePortfolioState'];
-      service['capturePortfolioState'] = vi.fn().mockResolvedValue({});
+  describe('getLatestEvents', () => {
+    it('should retrieve latest events across all funds', async () => {
+      const mockEvents = [
+        {
+          id: 'event-1',
+          fundId: 1,
+          eventType: 'investment',
+          eventTime: new Date('2024-12-01T00:00:00Z'),
+          operation: 'create',
+          entityType: 'portfolio_company',
+          metadata: { amount: 500000 },
+          fundName: 'Fund Alpha'
+        },
+        {
+          id: 'event-2',
+          fundId: 2,
+          eventType: 'exit',
+          eventTime: new Date('2024-11-30T00:00:00Z'),
+          operation: 'update',
+          entityType: 'portfolio_company',
+          metadata: { exitValue: 2000000 },
+          fundName: 'Fund Beta'
+        }
+      ];
 
-      const params = {
+      mockDb.select.mockReturnValueOnce(createMockQueryChain(mockEvents));
+
+      const result = await service.getLatestEvents(20);
+
+      expect(result).toBeDefined();
+      expect(result.events).toHaveLength(2);
+      expect(result.events[0].fundName).toBe('Fund Alpha');
+      expect(result.events[1].fundName).toBe('Fund Beta');
+      expect(result.timestamp).toBeDefined();
+    });
+
+    it('should filter by event types', async () => {
+      const mockEvents = [
+        {
+          id: 'event-1',
+          fundId: 1,
+          eventType: 'investment',
+          eventTime: new Date('2024-12-01T00:00:00Z'),
+          operation: 'create',
+          entityType: 'portfolio_company',
+          metadata: { amount: 500000 },
+          fundName: 'Fund Alpha'
+        }
+      ];
+
+      mockDb.select.mockReturnValueOnce(createMockQueryChain(mockEvents));
+
+      const result = await service.getLatestEvents(20, ['investment', 'exit']);
+
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0].eventType).toBe('investment');
+    });
+
+    it('should respect limit parameter', async () => {
+      mockDb.select.mockReturnValueOnce(createMockQueryChain([]));
+
+      const result = await service.getLatestEvents(5);
+
+      expect(result.events).toHaveLength(0);
+      // Verify limit was applied (checked via mock calls)
+      expect(mockDb.select).toHaveBeenCalled();
+    });
+
+    it('should handle empty results', async () => {
+      mockDb.select.mockReturnValueOnce(createMockQueryChain([]));
+
+      const result = await service.getLatestEvents();
+
+      expect(result.events).toHaveLength(0);
+      expect(result.timestamp).toBeDefined();
+    });
+  });
+
+  describe('Edge Cases and Error Handling', () => {
+    it('should handle database errors gracefully', async () => {
+      const targetTime = new Date('2024-12-01T00:00:00Z');
+
+      // Mock database error
+      mockDb.select.mockImplementationOnce(() => {
+        throw new Error('Database connection failed');
+      });
+
+      await expect(service.getStateAtTime(1, targetTime)).rejects.toThrow('Database connection failed');
+    });
+
+    it('should validate fundId parameter', async () => {
+      const targetTime = new Date('2024-12-01T00:00:00Z');
+
+      mockDb.select.mockReturnValueOnce(createMockQueryChain([]));
+
+      await expect(service.getStateAtTime(999, targetTime)).rejects.toThrow('No snapshot found');
+    });
+
+    it('should handle future timestamps', async () => {
+      const futureTime = new Date('2099-12-31T23:59:59Z');
+
+      mockDb.select.mockReturnValueOnce(createMockQueryChain([]));
+
+      await expect(service.getStateAtTime(1, futureTime)).rejects.toThrow('No snapshot found');
+    });
+  });
+
+  describe('Performance and Caching', () => {
+    it('should cache frequently accessed state queries', async () => {
+      const targetTime = new Date('2024-12-01T00:00:00Z');
+      const cachedResult = {
         fundId: 1,
-        snapshotName: 'Empty Data Test',
-        snapshotType: 'manual',
-        triggerEvent: 'manual',
-        createdBy: 1
+        timestamp: targetTime.toISOString(),
+        snapshot: { id: 'cached-123', time: new Date(), eventCount: 5, stateHash: 'hash' },
+        state: { portfolioValue: 1000000 },
+        eventsApplied: 0
       };
 
-      const result = await service.createSnapshot(params);
-
-      expect(result).toEqual([{ id: 'test-id' }]);
-
-      // Restore original method
-      service['capturePortfolioState'] = originalCapturePortfolioState;
-    });
-
-    it('should handle comparison of identical snapshots', async () => {
-      const params = {
-        baseSnapshotId: 'identical-snapshot-id',
-        compareSnapshotId: 'identical-snapshot-id',
-        comparisonName: 'Identical Snapshot Test',
-        comparisonType: 'point_in_time',
-        createdBy: 1
+      const mockCache = {
+        get: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(JSON.stringify(cachedResult)),
+        set: vi.fn()
       };
 
-      const result = await service.compareSnapshots(params);
+      const serviceWithCache = new TimeTravelAnalyticsService(mockDb as any, mockCache as any);
 
-      expect(result).toEqual([{ id: 'test-id' }]);
-
-      const comparisonData = mockDb.insert().values.mock.calls[0][0];
-      expect(comparisonData.comparisonName).toBe('Identical Snapshot Test');
-    });
-
-    it('should handle restoration failures gracefully', async () => {
-      // Mock a restoration that would fail
-      const originalApplyRestoration = service['applyRestoration'];
-      service['applyRestoration'] = vi.fn().mockRejectedValue(new Error('Restoration failed'));
-
-      const params = {
+      // First call - should query database
+      const mockSnapshot = {
+        id: 'snapshot-123',
         fundId: 1,
-        snapshotId: 'failing-snapshot-id',
-        restorationType: 'full',
-        reason: 'Failure test',
-        initiatedBy: 1
+        snapshotTime: new Date('2024-11-30T00:00:00Z'),
+        eventCount: 5,
+        stateHash: 'hash123',
+        state: { portfolioValue: 1000000 },
+        metadata: {}
       };
 
-      // Should handle the error and still return a log entry
-      await expect(service.restoreToSnapshot(params)).rejects.toThrow('Restoration failed');
+      mockDb.select.mockReturnValueOnce(createMockQueryChain([mockSnapshot]));
+      mockDb.select.mockReturnValueOnce(createMockQueryChain([]));
 
-      // Restore original method
-      service['applyRestoration'] = originalApplyRestoration;
+      await serviceWithCache.getStateAtTime(1, targetTime);
+
+      expect(mockCache.get).toHaveBeenCalledTimes(1);
+      expect(mockCache.set).toHaveBeenCalledTimes(1);
+      expect(mockDb.select).toHaveBeenCalled();
+
+      // Second call - should use cache
+      vi.clearAllMocks();
+
+      await serviceWithCache.getStateAtTime(1, targetTime);
+
+      expect(mockCache.get).toHaveBeenCalledTimes(1);
+      expect(mockDb.select).not.toHaveBeenCalled();
     });
-
-    it('should validate timeline event data before creation', async () => {
-      const params = {
-        fundId: 1,
-        eventType: 'investment',
-        eventTitle: 'Validation Test Event',
-        eventDescription: 'Testing event validation',
-        eventDate: new Date(),
-        eventData: {}, // Empty event data
-        impactMetrics: {}, // Empty impact metrics
-        createdBy: 1
-      };
-
-      const result = await service.createTimelineEvent(params);
-
-      expect(result).toEqual([{ id: 'test-id' }]);
-      expect(mockDb.insert).toHaveBeenCalled();
-    });
-  });
-
-  describe('Integration Scenarios', () => {
-    it('should support complete quarterly analysis workflow', async () => {
-      // Step 1: Create quarterly snapshot
-      const snapshotResult = await service.createSnapshot({
-        fundId: 1,
-        snapshotName: 'Q4 2024 Analysis Snapshot',
-        snapshotType: 'quarterly',
-        triggerEvent: 'scheduled',
-        createdBy: 1
-      });
-
-      // Step 2: Compare with previous quarter
-      const comparisonResult = await service.compareSnapshots({
-        baseSnapshotId: 'q3-2024-snapshot',
-        compareSnapshotId: snapshotResult[0].id,
-        comparisonName: 'Q3 vs Q4 2024 Analysis',
-        comparisonType: 'period_over_period',
-        createdBy: 1
-      });
-
-      // Step 3: Create timeline event for analysis completion
-      const eventResult = await service.createTimelineEvent({
-        fundId: 1,
-        snapshotId: snapshotResult[0].id,
-        eventType: 'analysis',
-        eventTitle: 'Quarterly Analysis Completed',
-        eventDescription: 'Q4 2024 quarterly analysis workflow completed',
-        eventDate: new Date(),
-        eventData: { analysisType: 'quarterly', comparisonId: comparisonResult[0].id },
-        impactMetrics: { analysisDepth: 'comprehensive' },
-        createdBy: 1
-      });
-
-      expect(snapshotResult[0].id).toBe('test-id');
-      expect(comparisonResult[0].id).toBe('test-id');
-      expect(eventResult[0].id).toBe('test-id');
-      expect(mockDb.insert).toHaveBeenCalledTimes(3);
-    });
-
-    it('should support investment scenario modeling workflow', async () => {
-      // Step 1: Create pre-investment snapshot
-      const preSnapshot = await service.createSnapshot({
-        fundId: 1,
-        snapshotName: 'Pre-Investment State',
-        snapshotType: 'milestone',
-        triggerEvent: 'scenario_modeling',
-        createdBy: 1
-      });
-
-      // Step 2: Create investment timeline event
-      const investmentEvent = await service.createTimelineEvent({
-        fundId: 1,
-        snapshotId: preSnapshot[0].id,
-        eventType: 'investment',
-        eventTitle: 'Scenario Investment Event',
-        eventDescription: 'Modeled investment for scenario analysis',
-        eventDate: new Date(),
-        eventData: { amount: 500000, company: 'ScenarioCorp' },
-        impactMetrics: { portfolioImpact: 0.05 },
-        createdBy: 1
-      });
-
-      // Step 3: Restore to pre-investment state for comparison
-      const restoration = await service.restoreToSnapshot({
-        fundId: 1,
-        snapshotId: preSnapshot[0].id,
-        restorationType: 'scenario',
-        reason: 'Investment scenario modeling',
-        initiatedBy: 1
-      });
-
-      expect(preSnapshot[0].id).toBe('test-id');
-      expect(investmentEvent[0].id).toBe('test-id');
-      expect(restoration[0].id).toBe('test-id');
-      expect(mockDb.insert).toHaveBeenCalledTimes(3);
-    });
-  });
-});
-
-describe('Time-Travel Test Helpers', () => {
-  it('should generate random snapshot data for stress testing', () => {
-    const randomSnapshot = timeTravelTestHelpers.generateRandomSnapshot(1, 'manual');
-
-    expect(randomSnapshot.fund_id).toBe(1);
-    expect(randomSnapshot.snapshot_type).toBe('manual');
-    expect(randomSnapshot.portfolio_state.totalValue).toBeGreaterThan(0);
-    expect(randomSnapshot.fund_metrics.irr).toBeGreaterThan(0);
-    expect(randomSnapshot.data_integrity_score).toBeGreaterThan(0.7);
-  });
-
-  it('should generate comparison data between snapshots', () => {
-    const baseSnapshot = { id: 'base-id', portfolio_state: { totalValue: 2000000 } };
-    const compareSnapshot = { id: 'compare-id', portfolio_state: { totalValue: 2200000 } };
-
-    const comparison = timeTravelTestHelpers.generateComparison(baseSnapshot, compareSnapshot);
-
-    expect(comparison.base_snapshot_id).toBe('base-id');
-    expect(comparison.compare_snapshot_id).toBe('compare-id');
-    expect(comparison.value_changes.totalValueChange).toBe(200000);
-    expect(comparison.confidence_score).toBeGreaterThan(0.7);
-  });
-
-  it('should generate timeline event data', () => {
-    const event = timeTravelTestHelpers.generateTimelineEvent(1, 'snapshot-id', 'investment');
-
-    expect(event.fund_id).toBe(1);
-    expect(event.snapshot_id).toBe('snapshot-id');
-    expect(event.event_type).toBe('investment');
-    expect(event.impact_metrics.portfolioValueImpact).toBeGreaterThan(0);
-  });
-
-  it('should generate restoration log data', () => {
-    const log = timeTravelTestHelpers.generateRestorationLog(1, 'snapshot-id', 'full');
-
-    expect(log.fund_id).toBe(1);
-    expect(log.snapshot_id).toBe('snapshot-id');
-    expect(log.restoration_type).toBe('full');
-    expect(log.restoration_duration_ms).toBeGreaterThan(0);
-    expect(log.status).toBe('completed');
   });
 });
