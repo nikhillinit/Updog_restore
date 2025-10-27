@@ -13,7 +13,7 @@ on:
       - 'tests/perf/reserves-budget.mjs'
       - '.github/workflows/ci-reserves-v11.yml'
   push:
-    branches: [ main, feat/reserves-v11 ]
+    branches: [main, feat/reserves-v11]
   workflow_dispatch:
 
 concurrency:
@@ -25,26 +25,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
-          node-version: '22.16.0'
+          node-version: '20.19.0'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
-      
+
       - name: Type check
         run: npx tsc --noEmit --project tsconfig.json
-      
+
       - name: Unit tests
         run: npx vitest run tests/unit/reserves-v11.test.ts --reporter=verbose
-      
+
       - name: Performance budget test
         run: node tests/perf/reserves-budget.mjs
         env:
           PERF_BUDGET_MS: 100
-      
+
       - name: Bundle size check
         run: |
           npm run build
@@ -54,15 +54,15 @@ jobs:
             exit 1
           fi
           echo "✅ Export libraries successfully code-split"
-      
+
       - name: Audit dependencies
         run: npm audit --audit-level=high
         continue-on-error: true
-      
+
       - name: Coverage report
         if: always()
         run: npx vitest run tests/unit/reserves-v11.test.ts --coverage
-      
+
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
@@ -75,26 +75,26 @@ jobs:
     needs: test-reserves
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
-          node-version: '22.16.0'
+          node-version: '20.19.0'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
-      
+
       - name: Start test server
         run: |
           npm run dev:api &
           npx wait-on http://localhost:5000/api/health --timeout 30000
-      
+
       - name: Integration tests
         run: |
           # Create integration test for reserves endpoint
           cat > tests/integration/reserves-v11.test.ts << 'EOF'
           import { describe, it, expect } from 'vitest';
-          
+
           describe('Reserves v1.1 API Integration', () => {
             it('should calculate reserves via API', async () => {
               const response = await fetch('http://localhost:5000/api/reserves/calculate', {
@@ -114,7 +114,7 @@ jobs:
             });
           });
           EOF
-          
+
           npx vitest run tests/integration/reserves-v11.test.ts
 
   visual-regression:
@@ -122,23 +122,23 @@ jobs:
     if: contains(github.event.pull_request.labels.*.name, 'visual-test')
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
-          node-version: '22.16.0'
+          node-version: '20.19.0'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: |
           npm ci --prefer-offline --no-audit
           npx playwright install --with-deps chromium
-      
+
       - name: Visual regression tests
         run: |
           npm run dev &
           npx wait-on http://localhost:5173 --timeout 30000
           npx playwright test tests/visual/reserves-ui.spec.ts
-      
+
       - name: Upload visual diff
         if: failure()
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
@@ -156,10 +156,10 @@ jobs:
           script: |
             const testStatus = "${{ needs.test-reserves.result }}";
             const integrationStatus = "${{ needs.integration-test.result }}";
-            
+
             const emoji = (testStatus === "success" && integrationStatus === "success") ? "✅" : "❌";
             const status = (testStatus === "success" && integrationStatus === "success") ? "PASSED" : "FAILED";
-            
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,

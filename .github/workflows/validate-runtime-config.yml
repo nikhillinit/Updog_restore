@@ -2,50 +2,50 @@ name: Validate runtime-config
 on:
   pull_request:
     paths:
-      - "public/runtime-config.json"
-      - "schema/runtime-config.schema.json"
+      - 'public/runtime-config.json'
+      - 'schema/runtime-config.schema.json'
   push:
     branches: [main]
     paths:
-      - "public/runtime-config.json"
-      - "schema/runtime-config.schema.json"
+      - 'public/runtime-config.json'
+      - 'schema/runtime-config.schema.json'
 
 jobs:
   json-schema:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
-          node-version: '22.16.0'
-          
+          node-version: '20.19.0'
+
       - name: Install AJV CLI
         run: npm ci -g ajv-cli
-        
+
       - name: Validate runtime config schema
         run: |
           echo "🔍 Validating runtime-config.json against schema..."
           ajv validate -s schema/runtime-config.schema.json -d public/runtime-config.json
           echo "✅ Runtime config validation passed!"
-          
+
       - name: Validate rollout percentage bounds
         run: |
           echo "📊 Checking rollout percentage bounds..."
           ROLLOUT=$(cat public/runtime-config.json | jq -r '.flags.useFundStore.rollout')
           ERROR_THRESHOLD=$(cat public/runtime-config.json | jq -r '.thresholds.errorScore')
-          
+
           if (( $(echo "$ROLLOUT < 0 || $ROLLOUT > 100" | bc -l) )); then
             echo "❌ Invalid rollout percentage: $ROLLOUT (must be 0-100)"
             exit 1
           fi
-          
+
           if (( $(echo "$ERROR_THRESHOLD < 1 || $ERROR_THRESHOLD > 100" | bc -l) )); then
             echo "❌ Invalid error threshold: $ERROR_THRESHOLD (must be 1-100)"
             exit 1
           fi
-          
+
           echo "✅ Rollout bounds validation passed!"
           echo "   - Rollout: ${ROLLOUT}%"
           echo "   - Error threshold: ${ERROR_THRESHOLD}"

@@ -20,23 +20,23 @@ jobs:
   smoke-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
-          node-version: '22.16.0'
+          node-version: '20.19.0'
           cache: 'npm'
-          
+
       - name: Install dependencies
         run: npm ci
-        
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
-        
+
       - name: Run smoke tests
         id: smoke
         continue-on-error: true
@@ -45,7 +45,7 @@ jobs:
           BASE_URL: ${{ secrets.PROD_BASE_URL }}
           SMOKE_USER: ${{ secrets.SMOKE_USER }}
           SMOKE_PASS: ${{ secrets.SMOKE_PASS }}
-        
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
@@ -55,7 +55,7 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
-          
+
       - name: Parse test results
         if: always()
         id: parse
@@ -66,21 +66,21 @@ jobs:
             echo "passed=$PASSED" >> $GITHUB_OUTPUT
             echo "failed=$FAILED" >> $GITHUB_OUTPUT
           fi
-          
+
       - name: Send alert on failure
         if: steps.smoke.outcome == 'failure'
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
         with:
           script: |
             const message = `🚨 **Production Smoke Tests Failed**
-            
+
             Failed tests: ${{ steps.parse.outputs.failed || 'Unknown' }}
             Passed tests: ${{ steps.parse.outputs.passed || 'Unknown' }}
-            
+
             [View Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            
+
             **Action Required**: Check production health immediately!`;
-            
+
             // Create issue for tracking
             await github.rest.issues.create({
               owner: context.repo.owner,
@@ -89,7 +89,7 @@ jobs:
               body: message,
               labels: ['incident', 'production', 'urgent']
             });
-            
+
       - name: Slack notification on failure
         if: steps.smoke.outcome == 'failure' && secrets.SLACK_WEBHOOK_URL != ''
         run: |
@@ -106,7 +106,7 @@ jobs:
                 ]
               }]
             }'
-            
+
       - name: PagerDuty alert on failure
         if: steps.smoke.outcome == 'failure' && secrets.PAGERDUTY_INTEGRATION_KEY != ''
         run: |
@@ -126,13 +126,13 @@ jobs:
                 }
               }
             }'
-            
+
       - name: Create metrics
         if: always()
         run: |
           echo "smoke_test_passed{environment=\"production\"} ${{ steps.smoke.outcome == 'success' && '1' || '0' }}" >> metrics.txt
           echo "smoke_test_duration_seconds{environment=\"production\"} ${{ steps.smoke.outputs.duration || '0' }}" >> metrics.txt
-          
+
       - name: Success notification
         if: steps.smoke.outcome == 'success'
         run: echo "✅ All smoke tests passed successfully!"
