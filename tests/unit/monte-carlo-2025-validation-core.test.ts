@@ -173,12 +173,11 @@ describe('@flaky Monte Carlo 2024-2025 Market Validation Core Logic', () => {
         modestReturnRate: 0.15
       }, 42); // Fixed seed for reproducibility
 
-      const portfolioReturns = powerLaw.generatePortfolioReturns({
-        portfolioSize: 20,
-        stageDistribution: { seed: 1.0 }, // All seed investments
-        scenarios: 5000,
-        timeHorizonYears: 5
-      });
+      const portfolioReturns = powerLaw.generatePortfolioReturns(
+        20,              // portfolioSize
+        { seed: 1.0 },  // stageDistribution
+        5000            // scenarios
+      );
 
       // Count failures (returns ≤ 1x)
       const failures = portfolioReturns.samples.filter(sample => sample.multiple <= 1.0);
@@ -198,12 +197,11 @@ describe('@flaky Monte Carlo 2024-2025 Market Validation Core Logic', () => {
         modestReturnRate: 0.15
       }, 42); // Fixed seed for reproducibility
 
-      const portfolioReturns = powerLaw.generatePortfolioReturns({
-        portfolioSize: 15,
-        stageDistribution: { seed: 1.0 },
-        scenarios: 10000, // Large sample for outlier detection
-        timeHorizonYears: 5
-      });
+      const portfolioReturns = powerLaw.generatePortfolioReturns(
+        15,              // portfolioSize
+        { seed: 1.0 },  // stageDistribution
+        10000           // scenarios - Large sample for outlier detection
+      );
 
       // Count extreme outliers (>50x returns)
       const unicorns = portfolioReturns.samples.filter(sample => sample.multiple > 50);
@@ -217,12 +215,11 @@ describe('@flaky Monte Carlo 2024-2025 Market Validation Core Logic', () => {
     it('should show power law characteristics in return distribution', () => {
       const powerLaw = createVCPowerLawDistribution(42);
 
-      const portfolioReturns = powerLaw.generatePortfolioReturns({
-        portfolioSize: 25,
-        stageDistribution: { seed: 0.6, 'series-a': 0.3, 'series-b': 0.1 },
-        scenarios: 3000,
-        timeHorizonYears: 6
-      });
+      const portfolioReturns = powerLaw.generatePortfolioReturns(
+        25,                                                       // portfolioSize
+        { seed: 0.6, 'series-a': 0.3, 'series-b': 0.1 },       // stageDistribution
+        3000                                                     // scenarios
+      );
 
       // Power law should show dramatic increases in higher percentiles
       const p50 = portfolioReturns.percentiles.p50;
@@ -354,6 +351,7 @@ describe('@flaky Monte Carlo 2024-2025 Market Validation Core Logic', () => {
 
   describe('Error Handling and Edge Cases', () => {
     it('should handle malformed inputs gracefully', () => {
+      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument */
       const malformedInputs = {
         stages: null,
         sectorProfiles: [],
@@ -361,6 +359,7 @@ describe('@flaky Monte Carlo 2024-2025 Market Validation Core Logic', () => {
       } as any;
 
       const strategy = buildInvestmentStrategy(malformedInputs);
+      /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument */
 
       // Should return safe defaults
       expect(strategy.stages).toEqual([]);
@@ -372,6 +371,7 @@ describe('@flaky Monte Carlo 2024-2025 Market Validation Core Logic', () => {
 
       // Should throw on invalid stage (validates stage parameter)
       expect(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
         powerLaw.sampleReturn('invalid-stage' as any);
       }).toThrow('Invalid investment stage: invalid-stage');
     });

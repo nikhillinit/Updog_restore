@@ -587,6 +587,71 @@ describe('Utility Functions', () => {
   });
 });
 
+describe('Input Validation', () => {
+  it('should throw error for invalid portfolioSize (negative)', () => {
+    const distribution = createVCPowerLawDistribution(12345);
+
+    expect(() => distribution.generatePortfolioReturns(-10, { seed: 1.0 }, 1000))
+      .toThrow(RangeError);
+  });
+
+  it('should throw error for invalid portfolioSize (zero)', () => {
+    const distribution = createVCPowerLawDistribution(12345);
+
+    expect(() => distribution.generatePortfolioReturns(0, { seed: 1.0 }, 1000))
+      .toThrow(RangeError);
+  });
+
+  it('should throw error for invalid portfolioSize (NaN)', () => {
+    const distribution = createVCPowerLawDistribution(12345);
+
+    expect(() => distribution.generatePortfolioReturns(NaN, { seed: 1.0 }, 1000))
+      .toThrow(RangeError);
+  });
+
+  it('should throw error for invalid portfolioSize (Infinity)', () => {
+    const distribution = createVCPowerLawDistribution(12345);
+
+    expect(() => distribution.generatePortfolioReturns(Infinity, { seed: 1.0 }, 1000))
+      .toThrow(RangeError);
+  });
+
+  it('should throw error for invalid scenarios (negative)', () => {
+    const distribution = createVCPowerLawDistribution(12345);
+
+    expect(() => distribution.generatePortfolioReturns(20, { seed: 1.0 }, -100))
+      .toThrow(RangeError);
+  });
+
+  it('should throw error for invalid scenarios (zero)', () => {
+    const distribution = createVCPowerLawDistribution(12345);
+
+    expect(() => distribution.generatePortfolioReturns(20, { seed: 1.0 }, 0))
+      .toThrow(RangeError);
+  });
+
+  it('should throw error for invalid stageDistribution (null)', () => {
+    const distribution = createVCPowerLawDistribution(12345);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+    expect(() => distribution.generatePortfolioReturns(20, null as any, 1000))
+      .toThrow(TypeError);
+  });
+
+  it('should throw error for object parameter misuse (catches API signature bug)', () => {
+    const distribution = createVCPowerLawDistribution(12345);
+
+    // This test catches the exact bug that caused NaN calculations
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
+    expect(() => distribution.generatePortfolioReturns(
+      { portfolioSize: 20, stageDistribution: { seed: 1.0 }, scenarios: 1000 } as any,
+      { seed: 1.0 },
+      1000
+    )).toThrow(RangeError);
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
+  });
+});
+
 describe('Integration with Monte Carlo Engine', () => {
   it('should produce realistic VC portfolio distributions', () => {
     const distribution = createVCPowerLawDistribution(12345);
@@ -683,7 +748,7 @@ describe('Performance and Memory Tests', () => {
   it('should handle concurrent generation', async () => {
     const distribution = createVCPowerLawDistribution();
 
-    const promises = Array.from({ length: 5 }, (_, i) =>
+    const promises = Array.from({ length: 5 }, () =>
       Promise.resolve(distribution.generateBatchScenarios(
         1000,
         { 'seed': 1.0 },
