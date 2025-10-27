@@ -172,3 +172,19 @@ reports/
 
 # Badge audit reports (generated)
 badge-audit-report.json
+
+# Claude Code chat history exports
+claude_chat_history_*.json
+claude_chat_history_*.md
+claude_chat_history_*_index.json
+extract_chat_history.py
+split_chat_history.py
+
+# Temporary test experiments
+tests/unit/database/minimal.test.ts
+tests/unit/database/simple-test.test.ts
+tests/unit/database/super-simple.test.ts
+tests/unit/database/test-*.test.ts
+vitest.minimal.config.ts
+vitest.time-travel.config.ts
+vitest-fix-changelog.txt
