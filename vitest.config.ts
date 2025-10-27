@@ -38,11 +38,16 @@ export default defineConfig({
     clearMocks: true,
     restoreMocks: true,
     isolate: true,
-    testTimeout: 20000,
+    testTimeout: 30000, // Increased for Testcontainers startup
     hookTimeout: 20000,
     teardownTimeout: 5000,
     retry: process.env['CI'] ? 2 : 0,
     pool: 'threads', // Try threads instead of forks for React 18
+    // CI optimization: Reduce thread count to fix memory mode failures
+    maxThreads: process.env['CI'] ? 4 : undefined,
+    minThreads: 1,
+    // Setup file for global mocks (Sentry, etc.)
+    setupFiles: ['./tests/setup/vitest.setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
@@ -105,7 +110,6 @@ export default defineConfig({
         },
       },
     ],
-    setupFiles: ['./tests/setup/test-infrastructure.ts'],
     include: ['tests/unit/**/*.{test,spec}.ts?(x)', ...configDefaults.include], // Include default Vitest patterns
     exclude: [
       'tests/integration/**/*',
