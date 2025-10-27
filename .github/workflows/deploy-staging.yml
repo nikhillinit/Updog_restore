@@ -17,7 +17,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
-          node-version: '22.16.0'
+          node-version: '20.19.0'
           cache: 'npm'
       - name: Install
         run: npm ci --legacy-peer-deps

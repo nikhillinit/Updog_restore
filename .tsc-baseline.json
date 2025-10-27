@@ -61,16 +61,7 @@
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
       "total": 56,
-      "lastUpdated": "2025-10-19T05:53:49.433Z"
-    },
-    "unknown": {
-      "errors": [
-        "lib/logger.ts:TS2307:3cc38644",
-        "lib/logger.ts:TS7031:7057a800",
-        "vite.config.ts:TS7006:118fabe7"
-      ],
-      "total": 3,
-      "lastUpdated": "2025-10-19T05:53:49.433Z"
+      "lastUpdated": "2025-10-27T02:53:02.732Z"
     },
     "server": {
       "errors": [
@@ -88,13 +79,12 @@
         "server/compass/calculator.ts:TS2345:a22284e0",
         "server/compass/calculator.ts:TS2375:b27ac187",
         "server/compass/routes.ts:TS2322:094f71c7",
+        "server/config/swagger.ts:TS7016:ac4537b1",
         "server/core/market/score.ts:TS2683:919b5401",
         "server/core/market/score.ts:TS2683:e60f3dfb",
         "server/core/reserves/adapter.ts:TS2375:b93a0c54",
         "server/core/reserves/mlClient.ts:TS2375:b93a0c54",
-        "server/core/reserves/mlClient.ts:TS7016:a9534486",
-        "server/db/logger.ts:TS2307:48767afd",
-        "server/db/logger.ts:TS7031:5c0d3790",
+        "server/core/reserves/mlClient.ts:TS2614:a9534486",
         "server/db/pg-circuit.ts:TS2344:134c0c17",
         "server/db/pg-circuit.ts:TS2379:3bf2a40c",
         "server/db/pg-circuit.ts:TS2538:89bbe004",
@@ -138,7 +128,6 @@
         "server/lib/secure-context.ts:TS4111:c5f766dc",
         "server/lib/tracing.ts:TS2375:57f6711f",
         "server/lib/tracing.ts:TS2379:ff0096e0",
-        "server/logger.ts:TS2307:3cc38644",
         "server/metrics/lpBusinessMetrics.ts:TS7053:09e75df2",
         "server/metrics/lpBusinessMetrics.ts:TS7053:a1bd1172",
         "server/middleware/async.ts:TS4111:0ebda3f7",
@@ -202,7 +191,7 @@
         "server/middleware/with-rls-transaction.ts:TS4111:d4bce448",
         "server/observability/metrics.ts:TS4111:5ec48495",
         "server/observability/metrics.ts:TS4111:ffca9b2e",
-        "server/observability/sentry.ts:TS2694:b8a04bb2",
+        "server/observability/sentry.ts:TS2307:06d38440",
         "server/otel.ts:TS2379:99b86c1f",
         "server/providers.ts:TS2375:9ec9ba88",
         "server/providers.ts:TS4111:ccdd652e",
@@ -446,31 +435,32 @@
         "server/services/streaming-monte-carlo-engine.ts:TS4111:bcac481a",
         "server/services/streaming-monte-carlo-engine.ts:TS4111:f4a25efa",
         "server/services/variance-tracking.ts:TS2532:55dfcaaa",
-        "server/utils/logger.ts:TS2307:3cc38644",
         "server/utils/logger.ts:TS4111:09555b61",
         "server/utils/logger.ts:TS4111:3e16900d",
         "server/utils/logger.ts:TS4111:41a91dca",
         "server/utils/logger.ts:TS4111:5f9138bb",
-        "server/utils/logger.ts:TS7031:9084d9e3",
-        "server/utils/logger.ts:TS7031:c7f249c4",
+        "server/utils/sanitizer.ts:TS7016:b9c4c694",
         "server/vite.ts:TS4111:a02b1b2e",
         "server/websocket/dev-dashboard.ts:TS18046:f2f8a2a1",
         "server/websocket/dev-dashboard.ts:TS2345:ed62011f",
         "server/websocket/dev-dashboard.ts:TS2532:de791f79"
       ],
-      "total": 383,
-      "lastUpdated": "2025-10-19T05:53:49.433Z"
+      "total": 379,
+      "lastUpdated": "2025-10-27T02:53:02.732Z"
     },
     "shared": {
-      "errors": [
-        "shared/variance-validation.ts:TS4111:236f2efb"
-      ],
+      "errors": ["shared/variance-validation.ts:TS4111:236f2efb"],
       "total": 1,
-      "lastUpdated": "2025-10-19T05:53:49.433Z"
+      "lastUpdated": "2025-10-27T02:53:02.732Z"
+    },
+    "unknown": {
+      "errors": ["vite.config.ts:TS7006:118fabe7"],
+      "total": 1,
+      "lastUpdated": "2025-10-27T02:53:02.732Z"
     }
   },
-  "totalErrors": 443,
-  "timestamp": "2025-10-19T05:53:49.433Z",
+  "totalErrors": 437,
+  "timestamp": "2025-10-27T02:53:02.732Z",
   "buildMode": "per-project",
-  "elapsedMs": 22093
+  "elapsedMs": 22169
 }

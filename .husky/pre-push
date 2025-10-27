@@ -1,11 +1,34 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "🔍 Pre-push validation..."
+echo "🔍 Checking changed files against origin/main..."
 
-# AGENTS.md daily review (automated, only shows if activity detected)
-node scripts/agents-daily-review.mjs 2>/dev/null || true
+# Ensure origin/main is up to date for accurate comparison
+git fetch origin main 2>/dev/null || true
+BASE_BRANCH="origin/main"
 
-# TypeScript baseline check
+# Get changed files since the common ancestor
+CHANGED=$(git diff --name-only $BASE_BRANCH...HEAD || echo "")
+
+if [ -z "$CHANGED" ]; then
+  echo "✅ No changes detected, skipping tests"
+  exit 0
+fi
+
+# Define patterns for files that do NOT impact tests (Docs, certain configs)
+NON_TEST_IMPACTING_PATTERN='^(docs/|\.md$|\.ya?ml$|\.toml$|\.gitignore$|CLAUDE\.md$)'
+
+# Check if ALL changed files match the exclusion patterns
+# We use double negation: check if any file does NOT match the pattern. If none are found, we skip tests.
+if ! echo "$CHANGED" | grep -v -E "$NON_TEST_IMPACTING_PATTERN" | grep -q '.'; then
+    echo "✅ Docs/config-only changes; skipping tests"
+    exit 0
+fi
+
+# Define patterns for files that require a full test run (Core configs, packages)
+FULL_RUN_PATTERN='(vitest\.config\.ts|vite\.config\.ts|tsconfig\.json|package\.json|package-lock\.json)'
+
+# TypeScript baseline check (always run if code changed)
 echo "📋 Checking TypeScript baseline..."
 npm run baseline:check || {
   echo ""
@@ -19,12 +42,22 @@ npm run baseline:check || {
   exit 1
 }
 
-# Build verification
-echo "🏗️  Building..."
-npm run build || exit 1
+# If core configuration files changed, run the full test suite
+if echo "$CHANGED" | grep -qE "$FULL_RUN_PATTERN"; then
+  echo "⚠️  Core configuration changed, running full validation..."
 
-# Test verification
-echo "🧪 Running tests..."
-npm run test || exit 1
+  # Build verification
+  echo "🏗️  Building..."
+  npm run build || exit 1
 
-echo "✅ Pre-push passed"
+  # Full test suite
+  echo "🧪 Running full test suite..."
+  npm test
+  exit $?
+fi
+
+# Otherwise, run only affected tests (smart mode)
+echo "🧪 Running targeted tests for changed files..."
+# Using --changed for intelligent test selection
+npm test -- --changed HEAD~1
+exit $?

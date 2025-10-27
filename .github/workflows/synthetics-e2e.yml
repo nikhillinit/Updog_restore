@@ -6,9 +6,9 @@ on:
       - main
   pull_request:
     branches:
-      - "**"
-  schedule: 
-    - cron: '0 */2 * * *'  # Every 2 hours instead of 10 minutes
+      - '**'
+  schedule:
+    - cron: '0 */2 * * *' # Every 2 hours instead of 10 minutes
 
 concurrency:
   group: synthetics-e2e-${{ github.ref }}
@@ -20,15 +20,15 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
-        with: 
-          node-version: '22.16.0'
+        with:
+          node-version: '20.19.0'
           cache: 'npm'
-      
+
       - run: npm ci
       - run: npx playwright install --with-deps
-      
+
       - name: Resolve BASE_URL
         id: base
         shell: bash
@@ -47,7 +47,7 @@ jobs:
           fi
           # No URL available -> skip to avoid red CI on forks
           echo "skip=true" >> "$GITHUB_OUTPUT"
-      
+
       - name: Run E2E Wizard Flow
         if: steps.base.outputs.skip != 'true'
         env:
@@ -62,7 +62,7 @@ jobs:
             --video=retain-on-failure \
             --screenshot=only-on-failure \
             || echo "Tests failed - artifacts will be uploaded"
-      
+
       - name: Upload Playwright Report
         if: always() && steps.base.outputs.skip != 'true'
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
@@ -71,7 +71,7 @@ jobs:
           path: playwright-report/
           retention-days: 7
           if-no-files-found: ignore
-      
+
       - name: Upload Test Results (Traces, Videos, Screenshots)
         if: failure() && steps.base.outputs.skip != 'true'
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
