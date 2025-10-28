@@ -9,6 +9,21 @@ export { Orchestrator } from './Orchestrator';
 export { BacktestReporter } from './BacktestReporter';
 export { BacktestRunner } from './Backtest';
 
+// Multi-Model Prompt Caching exports
+export {
+  MultiModelPromptCache,
+  getGlobalMultiModelCache,
+  resetGlobalMultiModelCache,
+} from './MultiModelPromptCache';
+
+// Multi-Model Cache Adapters
+export {
+  AnthropicAdapter,
+  OpenAIAdapter,
+  GeminiAdapter,
+  GenericAdapter,
+} from './cache-adapters';
+
 // Performance Optimization exports
 export { serializeAsync, serializeSafely, serializeBatch } from './SerializationHelper';
 export { ConversationCache, getGlobalConversationCache, resetGlobalConversationCache } from './ConversationCache';
@@ -48,6 +63,13 @@ export type {
   PromptCacheConfig,
   CachedPrompt,
 } from './PromptCache';
+
+export type {
+  AIProvider,
+  CachedPromptResult,
+  MultiModelCacheConfig,
+  PromptCacheAdapter,
+} from './cache-adapters';
 
 export type {
   AIModel,
