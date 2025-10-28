@@ -145,6 +145,11 @@ modules:
       recycling_tests: 10 # Fee recycling schedules
       impact_analysis_tests: 10 # Net MOIC, fee drag
 
+    validation:
+      domain_score: 'TBD' # Will be calculated
+      validated_at: null
+      validation_config: 'scripts/validation/fee-validation.yaml'
+
     cross_references:
       # Dependencies
       - shared/schemas/waterfall-policy.ts # Carried interest integration
@@ -250,6 +255,77 @@ modules:
       # Integration points
       - shared/types.ts # Shared type definitions
       - client/src/lib/schema-adapter.ts # Schema adapters
+
+validation:
+  framework: 'Promptfoo + LLM-as-Judge (Anthropic Cookbook pattern)'
+  location: 'scripts/validation/'
+
+  rubric:
+    dimensions:
+      entity_truthfulness:
+        weight: 0.30
+        description: 'AST-verified function signatures & types'
+      mathematical_accuracy:
+        weight: 0.25
+        description: 'Formula correctness vs Excel standards'
+      schema_compliance:
+        weight: 0.25
+        description: 'Truth cases validate against JSON Schema'
+      integration_clarity:
+        weight: 0.20
+        description: 'Cross-references and module integration'
+
+    thresholds:
+      minimum: 92 # Phase 1 requirement
+      gold_standard: 96 # Phase 1A baseline
+      target: 96 # Aim for gold standard
+
+  procedures:
+    phase1_module_completion:
+      - 'Generate all deliverables (primary doc, ADR, truth cases, schema)'
+      - 'Create module-specific Promptfoo config (copy fee-validation.yaml)'
+      - 'Run validation: npx promptfoo eval -c <module>-validation.yaml'
+      - 'Calculate domain score using custom evaluator'
+      - 'If score < 92%, iterate and regenerate weak sections'
+      - 'Document final score in completion report'
+      - 'Commit only after passing validation'
+
+    truth_case_validation:
+      - 'Ensure all cases have unique IDs with module prefix'
+      - 'Validate JSON syntax: jq empty <file>.json'
+      - 'Validate against schema: ajv validate -s schema.json -d cases.json'
+      - 'Verify calculations manually for 3-5 sample cases'
+      - 'Check tolerance values (typically 0.01 for floating-point)'
+
+    cross_module_validation:
+      - 'Verify integration references are accurate (file paths, function names)'
+      - 'Check waterfall module references (applyWaterfallChange, changeWaterfallType)'
+      - 'Validate ADR cross-references (ADR-003, ADR-004, etc.)'
+      - 'Ensure consistent terminology across modules'
+
+  automation:
+    cli_commands:
+      validate_docs: 'npm run validate:docs'
+      validate_module: 'npm run validate:module -- <module_name>'
+
+    pre_commit_hook:
+      trigger: 'Changes to docs/ directory'
+      action: 'Run domain scorer on modified docs'
+      threshold: 'Block commit if score < 92%'
+
+    ci_cd:
+      workflow: '.github/workflows/doc-quality.yml'
+      trigger: 'PR to main with docs/ changes'
+      gates:
+        - 'Domain score >= 92%'
+        - 'All truth cases validate against schema'
+        - 'No broken cross-references'
+
+  files:
+    evaluator: 'scripts/validation/custom_evals/fee_doc_domain_scorer.py'
+    prompts: 'scripts/validation/prompts/'
+    configs: 'scripts/validation/*-validation.yaml'
+    results: 'scripts/validation/results/'
 
 metadata:
   generated_by: 'NotebookLM Documentation Pipeline'

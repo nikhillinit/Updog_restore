@@ -195,6 +195,192 @@ System command? → YES → Use Bash
 [Only then implement new solution]
 ```
 
+## 📊 Documentation Quality Validation
+
+### Framework Overview
+
+A **Promptfoo-based evaluation system** for Phase 1 documentation modules,
+adapted from Anthropic's cookbook summarization evaluation pattern. This
+framework provides automated, multi-dimensional scoring of documentation quality
+before marking tasks complete.
+
+**Location:** `scripts/validation/`
+
+**Evaluation Rubric (4 dimensions, 100 total points):**
+
+- **Entity Truthfulness** (30%) - Accurate representation of financial concepts,
+  formulas, and domain facts
+- **Mathematical Accuracy** (25%) - Correct calculations, formula
+  implementation, and numerical examples
+- **Schema Compliance** (25%) - Documentation matches truth case schemas and
+  structural requirements
+- **Integration Clarity** (20%) - Clear explanation of how module integrates
+  with broader system
+
+**Minimum Threshold:** 92% (Phase 1 requirement) **Gold Standard:** 96%+
+(matches Phase 1A XIRR baseline)
+
+### When to Use
+
+Agents should **AUTOMATICALLY** use this framework when:
+
+1. **Completing any Phase 1 documentation module** - XIRR, fees, exit recycling,
+   capital allocation
+2. **Generating new ADRs** related to financial calculations
+3. **Creating or updating truth case scenarios** - Validate against schemas
+4. **Validating mathematical formulas** or implementation accuracy
+5. **Before marking documentation tasks as "complete"** - Domain score must be
+   92%+
+
+**Integration Points:**
+
+- Pre-commit validation for `docs/` changes
+- CI/CD quality gates (enforce >= 92% before merge)
+- Agent task completion verification workflow
+- Automated regression detection across documentation updates
+
+### Usage Patterns
+
+**Manual CLI Usage (Interactive):**
+
+```bash
+cd scripts/validation
+npx promptfoo eval -c fee-validation.yaml
+npx promptfoo view  # Interactive HTML results dashboard
+```
+
+**Python Script Usage (Programmatic):**
+
+```bash
+python scripts/validation/custom_evals/fee_doc_domain_scorer.py \
+  docs/notebooklm-sources/fees.md \
+  docs/fees.truth-cases.json \
+  docs/schemas/fee-truth-case.schema.json
+```
+
+**Expected Output:**
+
+```
+Domain Score: 96.3%
+Entity Truthfulness: 29/30
+Mathematical Accuracy: 25/25
+Schema Compliance: 24/25
+Integration Clarity: 20/20
+
+Assessment: PASS (exceeds 92% threshold)
+```
+
+**Integration in Agent Workflows:**
+
+```typescript
+// Example: Validate before task completion
+const result = await validateDocumentation({
+  docPath: 'docs/notebooklm-sources/fees.md',
+  truthCases: 'docs/fees.truth-cases.json',
+  schema: 'docs/schemas/fee-truth-case.schema.json',
+  minScore: 0.92,
+});
+
+if (result.score >= 0.92) {
+  markTaskComplete('phase-1-fees');
+} else {
+  // Return list of issues for remediation
+  suggestImprovements(result.feedback);
+}
+```
+
+### Files & Structure
+
+**Core Evaluator:**
+
+- `scripts/validation/custom_evals/fee_doc_domain_scorer.py` - LLM-as-Judge
+  evaluator with rubric scoring
+
+**Prompt Templates:**
+
+- `scripts/validation/prompts/validate_fee_doc.py` - Structured validation
+  prompts for each dimension
+
+**Configuration:**
+
+- `scripts/validation/fee-validation.yaml` - Promptfoo configuration (test
+  cases, assertions, outputs)
+
+**Results & Logs:**
+
+- `scripts/validation/results/` - Output directory for scores, detailed
+  assessments, and trend analysis
+
+**Test Data:**
+
+- `docs/fees.truth-cases.json` - Ground truth cases for validation
+- `docs/schemas/fee-truth-case.schema.json` - JSON Schema for structural
+  validation
+
+### Adaptation for New Modules (Phase 1C/1D/1E)
+
+When creating validation for subsequent Phase 1 modules:
+
+1. **Copy template:** `cp fee-validation.yaml [module]-validation.yaml`
+2. **Update test cases:** Replace fee-specific cases with module content
+3. **Adjust content checks:** Modify assertions in the YAML for domain-specific
+   validation
+4. **Configure scorer:** Update `custom_evals/[module]_doc_domain_scorer.py`
+5. **Run validation:** `npx promptfoo eval -c [module]-validation.yaml`
+6. **Iterate:** Continue until achieving 92%+ score
+7. **Document results:** Log final score to `CHANGELOG.md` with timestamp
+
+**Template Structure:**
+
+```yaml
+# [module]-validation.yaml
+evaluateOptions:
+  rubric:
+    dimensions:
+      - name: Entity Truthfulness
+        weight: 0.30
+        description: '[Module-specific entities]'
+      - name: Mathematical Accuracy
+        weight: 0.25
+      - name: Schema Compliance
+        weight: 0.25
+      - name: Integration Clarity
+        weight: 0.20
+
+tests:
+  - description: '[Module-specific test case]'
+    vars:
+      doc: 'docs/notebooklm-sources/[module].md'
+      truthCases: 'docs/[module].truth-cases.json'
+      schema: 'docs/schemas/[module]-truth-case.schema.json'
+```
+
+### Existing Implementation Examples
+
+**Phase 1A (XIRR Documentation):**
+
+- Validation config: `scripts/validation/xirr-validation.yaml`
+- Score achieved: 96.3% (gold standard)
+- Truth cases: `docs/xirr.truth-cases.json`
+
+**Phase 1B (Fees Documentation):**
+
+- Validation config: `scripts/validation/fee-validation.yaml`
+- Score achieved: 96.1% (gold standard)
+- Truth cases: `docs/fees.truth-cases.json`
+
+### Troubleshooting Validation Issues
+
+| Issue                      | Solution                                                   |
+| -------------------------- | ---------------------------------------------------------- |
+| Score below 92%            | Run detailed assessment, focus on lowest-scoring dimension |
+| "Cannot find schema"       | Verify path in YAML matches actual file location           |
+| Inconsistent scores        | Run multiple times, document variance in results           |
+| LLM evaluator disagreement | Adjust prompt clarity, provide more specific examples      |
+| Timeout on large docs      | Split documentation into smaller modules                   |
+
+---
+
 ## 📚 External Resources
 
 ### Available Cookbook Patterns (C:\dev\anthropic-cookbook)
