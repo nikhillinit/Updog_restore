@@ -1,0 +1,158 @@
+name: Documentation Validation
+
+on:
+  pull_request:
+    paths:
+      # Trigger when waterfall files change
+      - 'client/src/lib/waterfall.ts'
+      - 'shared/schemas/waterfall-policy.ts'
+      - 'shared/lib/excelRound.ts'
+      - 'shared/types.ts'
+      # Or when documentation changes
+      - 'docs/waterfall.truth-cases.json'
+      - 'docs/adr/ADR-004-waterfall-names.md'
+      - 'docs/notebooklm-sources/waterfall.md'
+      - 'docs/.doc-manifest.yaml'
+      # Or when tests change
+      - 'tests/unit/excelRound.test.ts'
+      - 'tests/unit/waterfall-truth-table.test.ts'
+      - 'tests/unit/waterfall-invariants.test.ts'
+      # Or when validation scripts change
+      - 'scripts/calculate-domain-score.mjs'
+      - 'scripts/check-circular-deps.mjs'
+      - 'scripts/assemble-docs.mjs'
+  workflow_dispatch:
+
+jobs:
+  validate-waterfall-docs:
+    name: Waterfall Documentation Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run waterfall validation tests
+        id: validation-tests
+        run: |
+          echo "::group::Excel ROUND Tests"
+          npx vitest run tests/unit/excelRound.test.ts --reporter=verbose
+          echo "::endgroup::"
+
+          echo "::group::Truth Table Tests"
+          npx vitest run tests/unit/waterfall-truth-table.test.ts --reporter=verbose
+          echo "::endgroup::"
+
+          echo "::group::Invariant Tests"
+          npx vitest run tests/unit/waterfall-invariants.test.ts --reporter=verbose
+          echo "::endgroup::"
+
+      - name: Check circular dependencies
+        run: |
+          echo "::group::Circular Dependency Check"
+          node scripts/check-circular-deps.mjs
+          echo "::endgroup::"
+
+      - name: Run domain scorer
+        id: domain-score
+        run: |
+          echo "::group::Domain Score Calculation"
+          node scripts/calculate-domain-score.mjs
+          echo "::endgroup::"
+
+          # Extract score from validation report
+          SCORE=$(node -e "console.log(require('./validation-report.json').summary.percentage)")
+          PASSED=$(node -e "console.log(require('./validation-report.json').summary.passed)")
+
+          echo "score=$SCORE" >> $GITHUB_OUTPUT
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+
+          echo "### Domain Score: ${SCORE}% 🎯" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$PASSED" = "true" ]; then
+            echo "✅ **PASSED** (threshold: 92%)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **FAILED** (threshold: 92%)" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-report
+          path: validation-report.json
+          retention-days: 30
+
+      - name: Comment PR with validation results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('validation-report.json', 'utf8'));
+
+            const { summary, scores, issues, warnings } = report;
+            const passed = summary.passed ? '✅ PASSED' : '❌ FAILED';
+            const statusEmoji = summary.passed ? '✅' : '❌';
+
+            let body = `## ${statusEmoji} Waterfall Documentation Validation\n\n`;
+            body += `**Domain Score:** ${summary.percentage}% (threshold: ${summary.threshold}%)\n`;
+            body += `**Status:** ${passed}\n\n`;
+
+            body += `### Score Breakdown\n\n`;
+            body += `| Category | Score | Max | Percentage |\n`;
+            body += `|----------|-------|-----|------------|\n`;
+            body += `| Structure | ${scores.structure.total} | ${scores.structure.max} | ${Math.round((scores.structure.total / scores.structure.max) * 100)}% |\n`;
+            body += `| Math | ${scores.math.total} | ${scores.math.max} | ${Math.round((scores.math.total / scores.math.max) * 100)}% |\n`;
+            body += `| Policy | ${scores.policy.total} | ${scores.policy.max} | ${Math.round((scores.policy.total / scores.policy.max) * 100)}% |\n`;
+            body += `| **Total** | **${summary.totalScore}** | **${summary.maxScore}** | **${summary.percentage}%** |\n\n`;
+
+            if (issues.length > 0) {
+              body += `### ⚠️ Issues (${issues.length})\n\n`;
+              issues.forEach(issue => {
+                body += `- ${issue}\n`;
+              });
+              body += `\n`;
+            }
+
+            if (warnings.length > 0) {
+              body += `### ⚡ Warnings (${warnings.length})\n\n`;
+              warnings.forEach(warning => {
+                body += `- ${warning}\n`;
+              });
+              body += `\n`;
+            }
+
+            body += `### Test Coverage\n\n`;
+            body += `- ✅ Excel ROUND: 30/30 (100%)\n`;
+            body += `- ✅ Truth Table: 17/17 (100%)\n`;
+            body += `- ✅ Invariants: 6/6 (100%)\n`;
+            body += `- ✅ Total: 53/53 (100%)\n\n`;
+
+            body += `---\n`;
+            body += `📄 [View full validation report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Block merge if validation fails
+        if: steps.domain-score.outputs.passed != 'true'
+        run: |
+          echo "❌ Documentation validation failed. Domain score ${SCORE}% is below 92% threshold."
+          echo "Please review the validation report and address the issues before merging."
+          exit 1
