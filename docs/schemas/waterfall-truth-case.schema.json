@@ -1,0 +1,172 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://updog.pressontvc.com/schemas/waterfall-truth-case.schema.json",
+  "title": "Waterfall Truth Case",
+  "description": "Schema for canonical waterfall calculation test scenarios with tier-based policy API",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "required": ["scenario", "input", "expected"],
+    "properties": {
+      "scenario": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Human-readable description of this test scenario"
+      },
+      "input": {
+        "type": "object",
+        "required": ["policy", "exitProceeds", "dealCost"],
+        "properties": {
+          "policy": {
+            "type": "object",
+            "required": ["id", "name", "type", "tiers", "preferredReturnRate"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Policy identifier"
+              },
+              "name": {
+                "type": "string",
+                "description": "Human-readable policy name"
+              },
+              "type": {
+                "enum": ["american"],
+                "description": "Waterfall type (only AMERICAN implemented)"
+              },
+              "tiers": {
+                "type": "array",
+                "minItems": 1,
+                "description": "Ordered waterfall tiers (by priority)",
+                "items": {
+                  "type": "object",
+                  "required": ["tierType", "priority"],
+                  "properties": {
+                    "tierType": {
+                      "enum": [
+                        "return_of_capital",
+                        "preferred_return",
+                        "gp_catch_up",
+                        "carry"
+                      ],
+                      "description": "Type of waterfall tier"
+                    },
+                    "priority": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Priority (1 = highest, lower numbers execute first)"
+                    },
+                    "rate": {
+                      "type": "string",
+                      "pattern": "^0\\.[0-9]+$|^1\\.0+$|^0$",
+                      "description": "Rate as decimal string (e.g., '0.20' for 20%)"
+                    },
+                    "basis": {
+                      "enum": ["committed", "contributed", "preferred_basis"],
+                      "description": "Basis for rate calculation"
+                    },
+                    "catchUpRate": {
+                      "type": "string",
+                      "pattern": "^0\\.[0-9]+$|^1\\.0+$|^0$",
+                      "description": "GP catch-up rate as decimal string (typically '1.0' for 100%)"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "preferredReturnRate": {
+                "type": "string",
+                "pattern": "^0\\.[0-9]+$|^1\\.0+$|^0$",
+                "description": "Preferred return rate (hurdle) as decimal string"
+              },
+              "hurdleRateBasis": {
+                "enum": ["committed", "contributed"],
+                "description": "Basis for hurdle rate calculation"
+              },
+              "cumulativeCalculations": {
+                "type": "boolean",
+                "description": "Use cumulative calculations across periods"
+              }
+            },
+            "additionalProperties": false
+          },
+          "exitProceeds": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d{1,3})?$",
+            "description": "Exit proceeds as decimal string with up to 3 decimal places (for rounding tests)"
+          },
+          "dealCost": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d{1,2})?$",
+            "description": "Deal cost (contributed capital) as decimal string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "expected": {
+        "type": "object",
+        "required": ["lpDistribution", "gpDistribution", "totalDistributed"],
+        "properties": {
+          "lpDistribution": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d{1,2})?$",
+            "description": "Expected LP distribution (rounded to 2dp)"
+          },
+          "gpDistribution": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d{1,2})?$",
+            "description": "Expected GP distribution (rounded to 2dp)"
+          },
+          "totalDistributed": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d{1,2})?$",
+            "description": "Expected total distributed (should equal exitProceeds)"
+          },
+          "breakdown": {
+            "type": "array",
+            "description": "Optional tier-by-tier breakdown for detailed validation",
+            "items": {
+              "type": "object",
+              "required": ["tier", "lpAmount", "gpAmount"],
+              "properties": {
+                "tier": {
+                  "enum": [
+                    "return_of_capital",
+                    "preferred_return",
+                    "gp_catch_up",
+                    "carry"
+                  ],
+                  "description": "Tier type"
+                },
+                "lpAmount": {
+                  "type": "string",
+                  "pattern": "^-?\\d+(\\.\\d{1,2})?$",
+                  "description": "LP allocation for this tier"
+                },
+                "gpAmount": {
+                  "type": "string",
+                  "pattern": "^-?\\d+(\\.\\d{1,2})?$",
+                  "description": "GP allocation for this tier"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "notes": {
+        "type": "string",
+        "description": "Optional notes about edge cases, rounding behavior, etc."
+      },
+      "tags": {
+        "type": "array",
+        "description": "Tags for categorization (e.g., 'rounding', 'catch-up', 'edge-case')",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": false
+  }
+}

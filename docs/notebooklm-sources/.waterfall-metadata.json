@@ -1,0 +1,66 @@
+{
+  "module": "waterfall",
+  "generated": "2025-10-28T04:18:34.565Z",
+  "git": {
+    "commitSha": "7b356558dc4fdd92b6d5da34e8492e7069781ff1",
+    "commitShort": "7b35655",
+    "remoteUrl": "https://github.com/nikhillinit/Updog_restore.git",
+    "timestamp": "2025-10-28T04:18:22.794Z",
+    "permalinks": {
+      "client/src/lib/waterfall.ts": "https://github.com/nikhillinit/Updog_restore.git/blob/7b356558dc4fdd92b6d5da34e8492e7069781ff1/client/src/lib/waterfall.ts",
+      "shared/schemas/waterfall-policy.ts": "https://github.com/nikhillinit/Updog_restore.git/blob/7b356558dc4fdd92b6d5da34e8492e7069781ff1/shared/schemas/waterfall-policy.ts",
+      "shared/types.ts": "https://github.com/nikhillinit/Updog_restore.git/blob/7b356558dc4fdd92b6d5da34e8492e7069781ff1/shared/types.ts",
+      "shared/lib/excelRound.ts": "https://github.com/nikhillinit/Updog_restore.git/blob/7b356558dc4fdd92b6d5da34e8492e7069781ff1/shared/lib/excelRound.ts",
+      "client/src/components/modeling-wizard/steps/waterfall/WaterfallConfig.tsx": "https://github.com/nikhillinit/Updog_restore.git/blob/7b356558dc4fdd92b6d5da34e8492e7069781ff1/client/src/components/modeling-wizard/steps/waterfall/WaterfallConfig.tsx",
+      "client/src/components/modeling-wizard/steps/WaterfallStep.tsx": "https://github.com/nikhillinit/Updog_restore.git/blob/7b356558dc4fdd92b6d5da34e8492e7069781ff1/client/src/components/modeling-wizard/steps/WaterfallStep.tsx",
+      "tests/unit/excelRound.test.ts": "https://github.com/nikhillinit/Updog_restore.git/blob/7b356558dc4fdd92b6d5da34e8492e7069781ff1/tests/unit/excelRound.test.ts",
+      "tests/unit/waterfall-truth-table.test.ts": "https://github.com/nikhillinit/Updog_restore.git/blob/7b356558dc4fdd92b6d5da34e8492e7069781ff1/tests/unit/waterfall-truth-table.test.ts",
+      "tests/unit/waterfall-invariants.test.ts": "https://github.com/nikhillinit/Updog_restore.git/blob/7b356558dc4fdd92b6d5da34e8492e7069781ff1/tests/unit/waterfall-invariants.test.ts",
+      "tests/utils/validate-truth-cases.ts": "https://github.com/nikhillinit/Updog_restore.git/blob/7b356558dc4fdd92b6d5da34e8492e7069781ff1/tests/utils/validate-truth-cases.ts"
+    }
+  },
+  "validation": {
+    "score": 94.3,
+    "passed": true,
+    "timestamp": "2025-10-28T04:18:34.531Z"
+  },
+  "manifest": {
+    "description": "Waterfall (carry distribution) calculation engine with Excel parity",
+    "source_files": [
+      "client/src/lib/waterfall.ts",
+      "shared/schemas/waterfall-policy.ts",
+      "shared/types.ts",
+      "shared/lib/excelRound.ts",
+      "client/src/components/modeling-wizard/steps/waterfall/WaterfallConfig.tsx",
+      "client/src/components/modeling-wizard/steps/WaterfallStep.tsx"
+    ],
+    "test_specs": [
+      "tests/unit/excelRound.test.ts",
+      "tests/unit/waterfall-truth-table.test.ts",
+      "tests/unit/waterfall-invariants.test.ts",
+      "tests/utils/validate-truth-cases.ts"
+    ],
+    "truth_data": [
+      "docs/waterfall.truth-cases.json",
+      "docs/schemas/waterfall-truth-case.schema.json"
+    ],
+    "documentation": {
+      "adr_files": ["docs/adr/ADR-004-waterfall-names.md"],
+      "output": "docs/notebooklm-sources/waterfall.md"
+    },
+    "accuracy_targets": {
+      "entity_truthfulness": 99,
+      "domain_score": 92
+    },
+    "validation_gates": {
+      "excel_round_tests": 30,
+      "truth_table_tests": 17,
+      "invariant_tests": 6
+    },
+    "cross_references": [
+      "client/src/core/ReserveEngine.ts",
+      "client/src/core/PacingEngine.ts",
+      "client/src/lib/schema-adapter.ts"
+    ]
+  }
+}

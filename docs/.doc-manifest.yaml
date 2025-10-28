@@ -1,0 +1,78 @@
+# Documentation Manifest
+# Defines source files, test specs, and validation targets for NotebookLM documentation generation
+
+version: '1.0'
+
+modules:
+  waterfall:
+    description: 'Waterfall (carry distribution) calculation engine with Excel parity'
+
+    source_files:
+      # Core implementation
+      - client/src/lib/waterfall.ts
+      - shared/schemas/waterfall-policy.ts
+      - shared/types.ts
+      - shared/lib/excelRound.ts
+
+      # Supporting files
+      - client/src/components/modeling-wizard/steps/waterfall/WaterfallConfig.tsx
+      - client/src/components/modeling-wizard/steps/WaterfallStep.tsx
+
+    test_specs:
+      # Validation tests (53 total)
+      - tests/unit/excelRound.test.ts # 30 tests - Excel ROUND parity
+      - tests/unit/waterfall-truth-table.test.ts # 17 tests - Truth table scenarios
+      - tests/unit/waterfall-invariants.test.ts # 6 tests - Property-based validation
+
+      # Test utilities
+      - tests/utils/validate-truth-cases.ts # AJV schema validation wrapper
+
+    truth_data:
+      # Canonical test scenarios
+      - docs/waterfall.truth-cases.json # 15 scenarios (tier-based API format)
+      - docs/schemas/waterfall-truth-case.schema.json # JSON Schema (draft-07)
+
+    documentation:
+      adr_files:
+        # Architecture Decision Records
+        - docs/adr/ADR-004-waterfall-names.md # Canonical naming & rounding contract
+
+      # Generated documentation output
+      output: docs/notebooklm-sources/waterfall.md
+
+    accuracy_targets:
+      entity_truthfulness: 99 # AST-verified function signatures & types
+      domain_score: 92 # Rubric-based validation (378/400 points minimum)
+
+    validation_gates:
+      excel_round_tests: 30 # 30/30 required
+      truth_table_tests: 17 # 17/17 required (15 scenarios + 2 meta)
+      invariant_tests: 6 # 6/6 required (5 properties + 1 coverage)
+
+    cross_references:
+      # Related engines
+      - client/src/core/ReserveEngine.ts
+      - client/src/core/PacingEngine.ts
+
+      # Schema adapters
+      - client/src/lib/schema-adapter.ts
+
+metadata:
+  generated_by: 'Phase 3 NotebookLM Documentation Pipeline'
+  created: '2025-10-27'
+  validation_approach: 'Test-linked ADR pattern'
+
+  key_decisions:
+    - 'Tier-based API validation (not simplified wrapper)'
+    - 'Excel ROUND at reporting boundary only'
+    - 'Breakdown includes non-zero tiers only'
+    - 'Rounding tolerance: 0.02 for conservation checks'
+    - 'European waterfall removed (commit ebd963a)'
+
+  dependencies:
+    runtime:
+      - decimal.js # High-precision arithmetic
+
+    dev:
+      - ajv # JSON schema validation
+      - madge # Circular dependency detection

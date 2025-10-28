@@ -1,0 +1,790 @@
+[
+  {
+    "scenario": "01-roc-only-no-profits",
+    "tags": ["baseline", "roc"],
+    "notes": "Exit proceeds exactly equal deal cost - only ROC tier allocates, LP gets 100%",
+    "input": {
+      "policy": {
+        "id": "truth-001",
+        "name": "Standard American Waterfall",
+        "type": "american",
+        "preferredReturnRate": "0.08",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "preferred_return",
+            "priority": 2,
+            "rate": "0.08"
+          },
+          {
+            "tierType": "gp_catch_up",
+            "priority": 3,
+            "catchUpRate": "1.0"
+          },
+          {
+            "tierType": "carry",
+            "priority": 4,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "1000000.00",
+      "dealCost": "1000000.00"
+    },
+    "expected": {
+      "lpDistribution": "1000000.00",
+      "gpDistribution": "0.00",
+      "totalDistributed": "1000000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "1000000.00",
+          "gpAmount": "0.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "02-small-profits-below-hurdle",
+    "tags": ["baseline", "partial-hurdle"],
+    "notes": "Profits exist but don't fully satisfy 8% preferred return - LP gets all",
+    "input": {
+      "policy": {
+        "id": "truth-002",
+        "name": "Standard American Waterfall",
+        "type": "american",
+        "preferredReturnRate": "0.08",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "preferred_return",
+            "priority": 2,
+            "rate": "0.08"
+          },
+          {
+            "tierType": "gp_catch_up",
+            "priority": 3,
+            "catchUpRate": "1.0"
+          },
+          {
+            "tierType": "carry",
+            "priority": 4,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "1030000.00",
+      "dealCost": "1000000.00"
+    },
+    "expected": {
+      "lpDistribution": "1030000.00",
+      "gpDistribution": "0.00",
+      "totalDistributed": "1030000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "1000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "preferred_return",
+          "lpAmount": "30000.00",
+          "gpAmount": "0.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "03-profits-meet-hurdle-exactly",
+    "tags": ["baseline", "hurdle-exact", "rounding"],
+    "notes": "Profits exactly satisfy 8% preferred return - boundary case, no catch-up",
+    "input": {
+      "policy": {
+        "id": "truth-003",
+        "name": "Standard American Waterfall",
+        "type": "american",
+        "preferredReturnRate": "0.08",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "preferred_return",
+            "priority": 2,
+            "rate": "0.08"
+          },
+          {
+            "tierType": "gp_catch_up",
+            "priority": 3,
+            "catchUpRate": "1.0"
+          },
+          {
+            "tierType": "carry",
+            "priority": 4,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "1080000.00",
+      "dealCost": "1000000.00"
+    },
+    "expected": {
+      "lpDistribution": "1080000.00",
+      "gpDistribution": "0.00",
+      "totalDistributed": "1080000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "1000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "preferred_return",
+          "lpAmount": "80000.00",
+          "gpAmount": "0.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "04-profits-exceed-hurdle-with-catchup",
+    "tags": ["baseline", "catch-up", "full-waterfall"],
+    "notes": "Profits exceed hurdle, GP catch-up activates to reach 20% carry target",
+    "input": {
+      "policy": {
+        "id": "truth-004",
+        "name": "Standard American Waterfall",
+        "type": "american",
+        "preferredReturnRate": "0.08",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "preferred_return",
+            "priority": 2,
+            "rate": "0.08"
+          },
+          {
+            "tierType": "gp_catch_up",
+            "priority": 3,
+            "catchUpRate": "1.0"
+          },
+          {
+            "tierType": "carry",
+            "priority": 4,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "1500000.00",
+      "dealCost": "1000000.00"
+    },
+    "expected": {
+      "lpDistribution": "1080000.00",
+      "gpDistribution": "420000.00",
+      "totalDistributed": "1500000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "1000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "preferred_return",
+          "lpAmount": "80000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "gp_catch_up",
+          "lpAmount": "0.00",
+          "gpAmount": "420000.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "05-no-hurdle-classic-carry-split",
+    "tags": ["baseline", "no-hurdle", "simple-carry"],
+    "notes": "Zero preferred return - simple 80/20 split after ROC",
+    "input": {
+      "policy": {
+        "id": "truth-005",
+        "name": "No Hurdle Waterfall",
+        "type": "american",
+        "preferredReturnRate": "0",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "carry",
+            "priority": 2,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "1500000.00",
+      "dealCost": "1000000.00"
+    },
+    "expected": {
+      "lpDistribution": "1400000.00",
+      "gpDistribution": "100000.00",
+      "totalDistributed": "1500000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "1000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "400000.00",
+          "gpAmount": "100000.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "06-rounding-tie-positive-0.005",
+    "tags": ["rounding", "excel-parity", "edge-case"],
+    "notes": "Exit proceeds with 0.005 tie - tests Excel ROUND away from zero (positive)",
+    "input": {
+      "policy": {
+        "id": "truth-006",
+        "name": "Rounding Test Waterfall",
+        "type": "american",
+        "preferredReturnRate": "0",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "carry",
+            "priority": 2,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "100.005",
+      "dealCost": "0"
+    },
+    "expected": {
+      "lpDistribution": "80.00",
+      "gpDistribution": "20.00",
+      "totalDistributed": "100.01",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "0.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "80.00",
+          "gpAmount": "20.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "07-rounding-tie-negative-0.005",
+    "tags": ["rounding", "excel-parity", "edge-case", "loss"],
+    "notes": "Negative exit with -0.005 tie - tests Excel ROUND away from zero (negative)",
+    "input": {
+      "policy": {
+        "id": "truth-007",
+        "name": "Rounding Test Waterfall",
+        "type": "american",
+        "preferredReturnRate": "0",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "carry",
+            "priority": 2,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "-100.005",
+      "dealCost": "0"
+    },
+    "expected": {
+      "lpDistribution": "0.00",
+      "gpDistribution": "0.00",
+      "totalDistributed": "0.00",
+      "breakdown": []
+    }
+  },
+  {
+    "scenario": "08-full-catchup-100-percent",
+    "tags": ["catch-up", "full-catchup"],
+    "notes": "100% catch-up rate - GP gets all residual until target carry achieved",
+    "input": {
+      "policy": {
+        "id": "truth-008",
+        "name": "Full Catch-Up Waterfall",
+        "type": "american",
+        "preferredReturnRate": "0.08",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "preferred_return",
+            "priority": 2,
+            "rate": "0.08"
+          },
+          {
+            "tierType": "gp_catch_up",
+            "priority": 3,
+            "catchUpRate": "1.0"
+          },
+          {
+            "tierType": "carry",
+            "priority": 4,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "1200000.00",
+      "dealCost": "1000000.00"
+    },
+    "expected": {
+      "lpDistribution": "1080000.00",
+      "gpDistribution": "120000.00",
+      "totalDistributed": "1200000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "1000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "preferred_return",
+          "lpAmount": "80000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "gp_catch_up",
+          "lpAmount": "0.00",
+          "gpAmount": "120000.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "09-partial-catchup-50-percent",
+    "tags": ["catch-up", "partial-catchup"],
+    "notes": "50% catch-up rate - GP and LP split residual 50/50 during catch-up phase",
+    "input": {
+      "policy": {
+        "id": "truth-009",
+        "name": "Partial Catch-Up Waterfall",
+        "type": "american",
+        "preferredReturnRate": "0.08",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "preferred_return",
+            "priority": 2,
+            "rate": "0.08"
+          },
+          {
+            "tierType": "gp_catch_up",
+            "priority": 3,
+            "catchUpRate": "0.50"
+          },
+          {
+            "tierType": "carry",
+            "priority": 4,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "1200000.00",
+      "dealCost": "1000000.00"
+    },
+    "expected": {
+      "lpDistribution": "1128000.00",
+      "gpDistribution": "72000.00",
+      "totalDistributed": "1200000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "1000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "preferred_return",
+          "lpAmount": "80000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "gp_catch_up",
+          "lpAmount": "0.00",
+          "gpAmount": "60000.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "48000.00",
+          "gpAmount": "12000.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "10-zero-hurdle-with-catchup",
+    "tags": ["catch-up", "no-hurdle", "degenerate"],
+    "notes": "Zero hurdle + catch-up - degenerate case, effectively bypasses catch-up logic",
+    "input": {
+      "policy": {
+        "id": "truth-010",
+        "name": "Zero Hurdle with Catch-Up",
+        "type": "american",
+        "preferredReturnRate": "0",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "preferred_return",
+            "priority": 2,
+            "rate": "0"
+          },
+          {
+            "tierType": "gp_catch_up",
+            "priority": 3,
+            "catchUpRate": "1.0"
+          },
+          {
+            "tierType": "carry",
+            "priority": 4,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "1500000.00",
+      "dealCost": "1000000.00"
+    },
+    "expected": {
+      "lpDistribution": "1000000.00",
+      "gpDistribution": "500000.00",
+      "totalDistributed": "1500000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "1000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "preferred_return",
+          "lpAmount": "0.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "gp_catch_up",
+          "lpAmount": "0.00",
+          "gpAmount": "500000.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "11-gp-commit-as-lp",
+    "tags": ["gp-commitment", "policy-toggle"],
+    "notes": "GP commitment included in LP capital - ROC tier includes GP's contributed portion",
+    "input": {
+      "policy": {
+        "id": "truth-011",
+        "name": "GP Commit Waterfall",
+        "type": "american",
+        "preferredReturnRate": "0.08",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "preferred_return",
+            "priority": 2,
+            "rate": "0.08"
+          },
+          {
+            "tierType": "gp_catch_up",
+            "priority": 3,
+            "catchUpRate": "1.0"
+          },
+          {
+            "tierType": "carry",
+            "priority": 4,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "1500000.00",
+      "dealCost": "1020000.00"
+    },
+    "expected": {
+      "lpDistribution": "1101600.00",
+      "gpDistribution": "398400.00",
+      "totalDistributed": "1500000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "1020000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "preferred_return",
+          "lpAmount": "81600.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "gp_catch_up",
+          "lpAmount": "0.00",
+          "gpAmount": "398400.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "12-no-preferred-tier-simple-waterfall",
+    "tags": ["policy-toggle", "simplified"],
+    "notes": "Only ROC + carry tiers - no preferred return or catch-up complexity",
+    "input": {
+      "policy": {
+        "id": "truth-012",
+        "name": "Two-Tier Waterfall",
+        "type": "american",
+        "preferredReturnRate": "0",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "carry",
+            "priority": 2,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "2000000.00",
+      "dealCost": "1000000.00"
+    },
+    "expected": {
+      "lpDistribution": "1800000.00",
+      "gpDistribution": "200000.00",
+      "totalDistributed": "2000000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "1000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "800000.00",
+          "gpAmount": "200000.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "13-zero-proceeds-all-tiers-zero",
+    "tags": ["stress", "edge-case", "zero"],
+    "notes": "Zero exit proceeds - all tiers allocate zero, no negative values",
+    "input": {
+      "policy": {
+        "id": "truth-013",
+        "name": "Standard American Waterfall",
+        "type": "american",
+        "preferredReturnRate": "0.08",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "preferred_return",
+            "priority": 2,
+            "rate": "0.08"
+          },
+          {
+            "tierType": "gp_catch_up",
+            "priority": 3,
+            "catchUpRate": "1.0"
+          },
+          {
+            "tierType": "carry",
+            "priority": 4,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "0",
+      "dealCost": "1000000.00"
+    },
+    "expected": {
+      "lpDistribution": "0.00",
+      "gpDistribution": "0.00",
+      "totalDistributed": "0.00",
+      "breakdown": []
+    }
+  },
+  {
+    "scenario": "14-loss-scenario-partial-roc",
+    "tags": ["stress", "loss", "edge-case"],
+    "notes": "Exit proceeds < deal cost - LP gets partial ROC, no other tiers allocate",
+    "input": {
+      "policy": {
+        "id": "truth-014",
+        "name": "Standard American Waterfall",
+        "type": "american",
+        "preferredReturnRate": "0.08",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "preferred_return",
+            "priority": 2,
+            "rate": "0.08"
+          },
+          {
+            "tierType": "gp_catch_up",
+            "priority": 3,
+            "catchUpRate": "1.0"
+          },
+          {
+            "tierType": "carry",
+            "priority": 4,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "600000.00",
+      "dealCost": "1000000.00"
+    },
+    "expected": {
+      "lpDistribution": "600000.00",
+      "gpDistribution": "0.00",
+      "totalDistributed": "600000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "600000.00",
+          "gpAmount": "0.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "15-very-large-proceeds-precision",
+    "tags": ["stress", "precision", "scale"],
+    "notes": "Large exit ($100M) - tests precision and performance at scale",
+    "input": {
+      "policy": {
+        "id": "truth-015",
+        "name": "Standard American Waterfall",
+        "type": "american",
+        "preferredReturnRate": "0.08",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "preferred_return",
+            "priority": 2,
+            "rate": "0.08"
+          },
+          {
+            "tierType": "gp_catch_up",
+            "priority": 3,
+            "catchUpRate": "1.0"
+          },
+          {
+            "tierType": "carry",
+            "priority": 4,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "100000000.00",
+      "dealCost": "10000000.00"
+    },
+    "expected": {
+      "lpDistribution": "10800000.00",
+      "gpDistribution": "89200000.00",
+      "totalDistributed": "100000000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "10000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "preferred_return",
+          "lpAmount": "800000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "gp_catch_up",
+          "lpAmount": "0.00",
+          "gpAmount": "89200000.00"
+        }
+      ]
+    }
+  }
+]
