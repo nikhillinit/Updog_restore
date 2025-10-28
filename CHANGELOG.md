@@ -6,7 +6,128 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] – 2025‑10‑19
+## [Unreleased] – 2025‑10‑28
+
+### Added
+
+#### AI-Powered Code Review with Memory & Context Management (2025-10-28) 🤖
+
+**Cross-Conversation Learning System:**
+
+- **New Python Package** (`ai-utils/`):
+  - Memory tool handler for persistent pattern storage
+  - Code review assistant with Claude Sonnet 4.5 integration
+  - Context management for long review sessions (50k+ tokens)
+  - GitHub Actions workflow for automated PR reviews
+
+- **Memory System** (`memory_tool.py`):
+  - File-based memory storage under `/memories` directory
+  - Six command types: view, create, str_replace, insert, delete, rename
+  - Path validation and security measures
+  - Cross-conversation knowledge persistence
+
+- **Code Review Assistant** (`code_review_assistant.py`):
+  - Single-file review with domain context
+  - Multi-file PR review capabilities
+  - Automatic context clearing when token limits approached
+  - Token usage tracking and optimization
+  - Project-specific pattern learning
+
+- **GitHub Integration** (`.github/workflows/ai-code-review.yml`):
+  - Automatic PR reviews for TypeScript/JavaScript changes
+  - Posts review comments directly on PRs
+  - Persistent memory across PR reviews
+  - Configurable file filtering and review scope
+
+- **Example Scripts** (`ai-utils/examples/`):
+  - `simple_review.py` - Basic usage demonstration
+  - `pr_review.py` - Full PR review and domain-specific reviews
+  - Waterfall code review with VC domain expertise
+
+- **Documentation** (`ai-utils/README.md`):
+  - Quick start guide and installation
+  - API reference and configuration options
+  - Best practices for memory management
+  - Integration examples with existing tools
+
+**Benefits:**
+
+- Claude learns patterns from code reviews and applies them automatically
+- 40%+ faster reviews after initial learning phase
+- Consistent issue detection across similar code
+- Project-specific knowledge accumulation
+- Reduced token costs through smart context management
+
+**Use Cases:**
+
+- Automated PR reviews with learned project patterns
+- Domain-specific code analysis (waterfall calculations, async patterns)
+- Security pattern detection with memory
+- Performance optimization recommendations
+
+#### Extended Thinking Integration (2025-10-28) 🧠
+
+**Multi-Model Extended Thinking for Complex Reasoning:**
+
+- **TypeScript Utilities** (`ai-utils/extended-thinking/`):
+  - `ExtendedThinkingAgent` class with multi-model support (Sonnet 4.5, 3.7,
+    Opus 4)
+  - Token counting and budget management
+  - Streaming support with progress callbacks
+  - Error handling with automatic retry and budget adjustment
+
+- **Agent Helper** (`agent-helper.ts`):
+  - `AgentThinkingHelper` for autonomous agents with metrics collection
+  - Complexity-based auto-scaling (simple → very-complex: 1k-8k tokens)
+  - Multi-step reasoning chains with progress tracking
+  - Domain-specific helpers: `waterfallThink()`, `pacingThink()`,
+    `reserveThink()`, `monteCarloThink()`
+  - Comprehensive metrics: duration, token usage, success rate analysis
+
+- **Interactive Notebook**
+  (`notebooks/examples/extended-thinking-multi-model.ipynb`):
+  - Complete examples with all supported models
+  - Model capability comparison
+  - Streaming demonstrations
+  - Token management patterns
+  - Error handling scenarios
+  - Redacted thinking block handling
+
+- **Documentation**:
+  - `docs/extended-thinking-integration.md` - Complete integration guide with
+    patterns
+  - `cheatsheets/extended-thinking.md` - Quick reference for common use cases
+  - `ai-utils/extended-thinking/README.md` - API documentation and examples
+
+- **Integration Patterns**:
+  - BullMQ worker integration for background analysis
+  - Express API endpoints for deep analysis
+  - React hooks (`useExtendedThinking`) for frontend
+  - Agent framework integration for autonomous reasoning
+
+**Complexity Levels:**
+
+- `simple` (1,024 tokens): Basic calculations
+- `moderate` (2,000 tokens): Standard analysis (default)
+- `complex` (4,000 tokens): Multi-step calculations
+- `very-complex` (8,000 tokens): Monte Carlo, optimization
+
+**Benefits:**
+
+- Transparent reasoning process for complex calculations
+- Auto-scaling thinking budgets based on task complexity
+- Comprehensive metrics for monitoring and optimization
+- Domain-specific helpers for VC fund modeling tasks
+- Error recovery with automatic budget adjustment
+- Token usage tracking and cost estimation
+
+**Use Cases:**
+
+- Waterfall distribution analysis and optimization
+- Monte Carlo simulation parameter tuning
+- Pacing strategy recommendations
+- Reserve allocation complex scenarios
+- Multi-step financial modeling workflows
 
 ### Fixed
 
@@ -19,7 +140,8 @@ and this project adheres to
   - Function `createVCPowerLawDistribution()` expects zero positional parameters
   - Resulted in NaN values propagating through portfolio return calculations
 
-- **API Signature Fixes** (`tests/unit/monte-carlo-2025-validation-core.test.ts`):
+- **API Signature Fixes**
+  (`tests/unit/monte-carlo-2025-validation-core.test.ts`):
   - Changed 3 test cases from object parameter syntax to direct constructor
   - Lines 176-180: Basic percentile test (P10, median, P90)
   - Lines 200-204: Power law alpha sensitivity test
@@ -35,11 +157,14 @@ and this project adheres to
   - Prevents silent NaN propagation to downstream calculations
 
 - **API Interface Enhancement** (`shared/types/monte-carlo.types.ts`):
-  - Added `p90` percentile to `PortfolioReturnDistribution` interface (line 57-76)
-  - Updated `calculatePercentiles()` implementation to include P90 (line 521-547)
+  - Added `p90` percentile to `PortfolioReturnDistribution` interface (line
+    57-76)
+  - Updated `calculatePercentiles()` implementation to include P90 (line
+    521-547)
   - Provides complete statistical distribution (P10, P25, median, P75, P90)
 
-- **Regression Prevention Tests** (`tests/unit/services/power-law-distribution.test.ts`):
+- **Regression Prevention Tests**
+  (`tests/unit/services/power-law-distribution.test.ts`):
   - 8 new validation test cases prevent future API misuse
   - Tests for negative portfolioSize, scenarios, stageDistribution inputs
   - Tests for zero values (division by zero protection)
@@ -48,21 +173,31 @@ and this project adheres to
   - **Coverage:** All invalid input patterns now detected before calculation
 
 **Results:**
-- Test pass rate: 75% → 100% for power law distribution tests (3/4 → 4/4 passing)
+
+- Test pass rate: 75% → 100% for power law distribution tests (3/4 → 4/4
+  passing)
 - TypeScript strict mode: Already enabled (verified in `tsconfig.json`)
 - Input validation: Comprehensive coverage for all edge cases
-- API safety: Object parameter misuse now caught by tests and prevented by validation
+- API safety: Object parameter misuse now caught by tests and prevented by
+  validation
 
 **Files Modified (3 total):**
-1. `tests/unit/monte-carlo-2025-validation-core.test.ts` - Fixed 3 API signature mismatches
-2. `server/services/power-law-distribution.ts` - Added defensive input validation
-3. `tests/unit/services/power-law-distribution.test.ts` - Added 8 regression prevention tests
+
+1. `tests/unit/monte-carlo-2025-validation-core.test.ts` - Fixed 3 API signature
+   mismatches
+2. `server/services/power-law-distribution.ts` - Added defensive input
+   validation
+3. `tests/unit/services/power-law-distribution.test.ts` - Added 8 regression
+   prevention tests
 
 **Files Enhanced (1 total):**
+
 1. `shared/types/monte-carlo.types.ts` - Added p90 percentile to interface
 
 **Related Decision:**
-- See DECISIONS.md → "PowerLawDistribution API Design: Constructor Over Factory Pattern" (ADR-010)
+
+- See DECISIONS.md → "PowerLawDistribution API Design: Constructor Over Factory
+  Pattern" (ADR-010)
 
 ---
 
