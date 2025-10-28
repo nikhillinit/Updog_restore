@@ -57,10 +57,213 @@ modules:
       # Schema adapters
       - client/src/lib/schema-adapter.ts
 
+  xirr:
+    description: 'XIRR (Extended Internal Rate of Return) calculator with Excel parity'
+
+    source_files:
+      # Core implementation
+      - client/src/lib/xirr.ts
+      - client/src/core/selectors/xirr.ts
+      - client/src/lib/decimal-utils.ts
+
+      # Supporting files
+      - client/src/lib/finance/xirr.ts
+
+    test_specs:
+      # Validation tests (55 total planned)
+      - tests/unit/analytics-xirr.test.ts # Core XIRR tests
+      - tests/unit/xirr-golden-set.test.ts # Excel golden set (30 tests)
+      - server/services/__tests__/xirr-golden-set.test.ts # Server-side golden set
+
+    truth_data:
+      # Canonical test scenarios
+      - docs/xirr.truth-cases.json # 20-25 scenarios (Newton-Raphson, Bisection, edge cases)
+      - docs/schemas/xirr-truth-case.schema.json # JSON Schema (draft-07)
+
+    documentation:
+      adr_files:
+        # Architecture Decision Records
+        - docs/adr/ADR-005-xirr-excel-parity.md # Algorithm selection & Excel compatibility
+
+      # Generated documentation output
+      output: docs/notebooklm-sources/xirr.md
+
+    accuracy_targets:
+      entity_truthfulness: 99 # AST-verified function signatures & types
+      domain_score: 92 # Rubric-based validation
+
+    validation_gates:
+      golden_set_tests: 30 # 30/30 required - Excel XIRR parity
+      edge_case_tests: 15 # Convergence failures, sign changes, out-of-bounds
+      algorithm_tests: 10 # Newton-Raphson vs Bisection
+
+    cross_references:
+      # Dependent modules
+      - client/src/lib/fee-calculations.ts # Fee impact IRR calculations
+      - shared/schemas/fund-model.ts # Period results for IRR
+
+  fees:
+    description: 'Fund fee calculations (management fees, carried interest, fee recycling, admin expenses)'
+
+    source_files:
+      # Core implementation
+      - client/src/lib/fee-calculations.ts
+      - shared/schemas/fee-profile.ts
+      - client/src/lib/fees-wizard.ts
+      - client/src/lib/fees.ts
+
+      # Supporting files
+      - client/src/components/modeling-wizard/steps/FeesExpensesStep.tsx
+
+    test_specs:
+      # Validation tests (55 total planned)
+      - tests/unit/fee-calculations.test.ts # Core fee calculations
+      - tests/unit/fees.test.ts # Fee logic tests
+      - tests/unit/fund-calc-fee-horizon.test.ts # Fee horizon calculations
+      - tests/shared/fund-math-fees.spec.ts # Shared fee math
+
+    truth_data:
+      # Canonical test scenarios
+      - docs/fees.truth-cases.json # 25-30 scenarios (management, carry, recycling, admin)
+      - docs/schemas/fee-truth-case.schema.json # JSON Schema (draft-07)
+
+    documentation:
+      adr_files:
+        # Architecture Decision Records
+        - docs/adr/ADR-006-fee-calculation-standards.md # Fee basis, step-downs, carry integration
+
+      # Generated documentation output
+      output: docs/notebooklm-sources/fees.md
+
+    accuracy_targets:
+      entity_truthfulness: 99 # AST-verified function signatures & types
+      domain_score: 92 # Rubric-based validation
+
+    validation_gates:
+      management_fee_tests: 20 # Step-downs, basis types, horizon
+      carry_tests: 15 # Integration with waterfall module
+      recycling_tests: 10 # Fee recycling schedules
+      impact_analysis_tests: 10 # Net MOIC, fee drag
+
+    cross_references:
+      # Dependencies
+      - shared/schemas/waterfall-policy.ts # Carried interest integration
+      - client/src/lib/waterfall.ts # Waterfall helpers
+
+  exit_recycling:
+    description: 'Exit proceeds recycling calculations (capacity, schedules, cap enforcement)'
+
+    source_files:
+      # Core implementation
+      - client/src/lib/exit-recycling-calculations.ts
+      - shared/schemas/recycling-policy.ts
+      - client/src/hooks/useExitRecyclingCalculations.ts
+
+      # Supporting files
+      - client/src/components/modeling-wizard/steps/ExitRecyclingStep.tsx
+      - client/src/components/modeling-wizard/steps/exit-recycling/RecyclingSummaryCard.tsx
+      - client/src/pages/ExitRecyclingStep.tsx
+
+    test_specs:
+      # Validation tests (40 total planned)
+      - client/src/lib/__tests__/exit-recycling-calculations.test.ts # Core recycling tests
+
+    truth_data:
+      # Canonical test scenarios
+      - docs/exit-recycling.truth-cases.json # 15-20 scenarios (capacity, schedules, validation)
+      - docs/schemas/exit-recycling-truth-case.schema.json # JSON Schema (draft-07)
+
+    documentation:
+      adr_files:
+        # Architecture Decision Records
+        - docs/adr/ADR-007-exit-recycling-policy.md # Cap rationale, period conventions, eligibility
+
+      # Generated documentation output
+      output: docs/notebooklm-sources/exit-recycling.md
+
+    accuracy_targets:
+      entity_truthfulness: 99 # AST-verified function signatures & types
+      domain_score: 92 # Rubric-based validation
+
+    validation_gates:
+      capacity_tests: 15 # Cap calculations, annual capacity
+      schedule_tests: 15 # Exit events, cumulative tracking
+      validation_tests: 10 # Range checks, warnings
+
+    cross_references:
+      # Related modules
+      - client/src/lib/fee-calculations.ts # Management fee recycling
+
+  capital_allocation:
+    description: 'Capital allocation engines (ReserveEngine, PacingEngine, CohortEngine)'
+
+    source_files:
+      # Reserve Engine
+      - client/src/core/reserves/ReserveEngine.ts
+      - client/src/core/reserves/adapter/ReserveAdapter.ts
+
+      # Pacing Engine
+      - client/src/core/pacing/PacingEngine.ts
+
+      # Cohort Engine
+      - client/src/core/cohorts/CohortEngine.ts
+
+      # Supporting utilities
+      - client/src/utils/array-safety.ts
+      - shared/utils/prng.ts
+
+    test_specs:
+      # Validation tests (70 total planned)
+      - tests/unit/engines/reserve-engine.test.ts # Reserve allocation tests
+      - tests/unit/engines/pacing-engine.test.ts # Pacing deployment tests
+      - tests/unit/engines/cohort-engine.test.ts # Cohort analytics tests
+      - tests/unit/engines/deterministic-reserve-engine.test.ts # Determinism validation
+
+    truth_data:
+      # Canonical test scenarios (per engine)
+      - docs/reserve-engine.truth-cases.json # 25 scenarios (stage, sector, ownership)
+      - docs/pacing-engine.truth-cases.json # 20 scenarios (market conditions, phases)
+      - docs/cohort-engine.truth-cases.json # 15 scenarios (vintage grouping, metrics)
+      - docs/schemas/engine-truth-case.schema.json # JSON Schema (draft-07)
+
+    documentation:
+      adr_files:
+        # Architecture Decision Records
+        - docs/adr/ADR-008-reserve-allocation-strategy.md # Stage/sector multipliers, confidence scoring
+        - docs/adr/ADR-009-pacing-engine-design.md # Market condition handling, deterministic PRNG
+        - docs/adr/ADR-010-cohort-analytics.md # Vintage conventions, performance metrics
+
+      # Generated documentation output
+      output: docs/notebooklm-sources/capital-allocation.md
+
+    accuracy_targets:
+      entity_truthfulness: 99 # AST-verified function signatures & types
+      domain_score: 92 # Rubric-based validation
+
+    validation_gates:
+      reserve_tests: 25 # Stage/sector/ownership scenarios
+      pacing_tests: 20 # Market condition phases
+      cohort_tests: 15 # Vintage grouping
+      integration_tests: 10 # Cross-engine contracts
+
+    cross_references:
+      # Integration points
+      - shared/types.ts # Shared type definitions
+      - client/src/lib/schema-adapter.ts # Schema adapters
+
 metadata:
-  generated_by: 'Phase 3 NotebookLM Documentation Pipeline'
+  generated_by: 'NotebookLM Documentation Pipeline'
+  phase: 'Phase 1 - Core Financial Calculations'
   created: '2025-10-27'
+  updated: '2025-10-28'
   validation_approach: 'Test-linked ADR pattern'
+
+  modules_status:
+    waterfall: 'Phase 3 Complete (94.3% domain score)'
+    xirr: 'Phase 1A - Planning'
+    fees: 'Phase 1B - Planning'
+    exit_recycling: 'Phase 1C - Planning'
+    capital_allocation: 'Phase 1D - Planning'
 
   key_decisions:
     - 'Tier-based API validation (not simplified wrapper)'
