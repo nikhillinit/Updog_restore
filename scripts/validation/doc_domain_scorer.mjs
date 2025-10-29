@@ -12,6 +12,65 @@ function readMaybeFile(value) {
   return value;
 }
 
+
+/**
+ * Extract domain-specific keywords with case-insensitive matching
+ * @param {string} documentContent - Document text to analyze
+ * @returns {string[]} - Weighted keywords for the detected domain
+ */
+function extractDomainKeywords(documentContent) {
+  if (!documentContent) return [];
+
+  const content = documentContent.toLowerCase();
+
+  // Capital Allocation domain detection
+  if (content.includes('capital allocation') ||
+      content.includes('reserve engine') ||
+      content.includes('pacing engine')) {
+    return [
+      'reserve engine', 'pacing engine', 'cohort engine',
+      'reserve policy', 'pacing window', 'cohort weight',
+      'rebalancing', 'capital allocation', 'cash buffer',
+      'reserve target', 'carryover', 'spill reallocation'
+    ];
+  }
+
+  // Fees domain (existing patterns)
+  if (content.includes('management fee') || content.includes('performance fee')) {
+    return [
+      'management fee', 'performance fee', 'carried interest',
+      'hurdle rate', 'catch-up', 'fee calculation'
+    ];
+  }
+
+  // Exit Recycling domain (existing patterns)
+  if (content.includes('exit recycling') || content.includes('recycling cap')) {
+    return [
+      'exit recycling', 'eligibility', 'recycling cap',
+      'distribution waterfall', 'exit proceeds'
+    ];
+  }
+
+  // Fallback for generic documentation
+  return ['calculation', 'formula', 'implementation', 'validation'];
+}
+
+/**
+ * Detect negative/contradictory statements that invalidate documentation
+ * @param {string} output - Model output (lowercase)
+ * @returns {number} - Penalty score (0.0-0.10)
+ */
+function detectContradictions(output) {
+  const contradictions = [
+    /reserve\s+(?:does\s+not|doesn't)\s+override\s+pacing/i,
+    /pacing\s+(?:takes\s+)?precedence\s+over\s+reserve/i,
+    /cohort\s+(?:does\s+not|doesn't)\s+use\s+weights/i,
+    /carryover\s+(?:is\s+)?(?:not\s+)?ignored/i
+  ];
+
+  return contradictions.some(rx => rx.test(output)) ? 0.10 : 0;
+}
+
 export default async function scorer({ output, vars }) {
   // Expect vars: { doc_content, truth_cases, schema, doc_type }
   const docType = vars?.doc_type || 'primary_documentation';

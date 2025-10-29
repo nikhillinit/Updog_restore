@@ -158,3 +158,32 @@ Keep response concise and structured. No commentary.
 """
 
     return prompt
+
+
+def capital_allocation_prompt(doc_content: str) -> str:
+    """
+    Capital Allocation validation prompt (single-var pattern).
+    Multi-var context (truth_cases, schema, doc_type) handled by custom scorer.
+    """
+    return f"""
+You are a meticulous documentation validator for the **Capital Allocation** module.
+
+Goals:
+1) Summarize three engines: Reserve, Pacing, Cohort
+2) Explain key formulas (reserve target/floor, pacing with carryover, cohort caps/rounding)
+3) State precedence rules (Reserve > Pacing > Cohort) and recycling interaction
+4) Reference code/docs with ≥3 trace anchors (file:line style)
+5) Demonstrate understanding via ≥1 boundary behavior (cap binds, reserve precedence, carryover)
+
+Output structure:
+- **Domain Summary** (6-10 bullets covering engines, precedence, edge cases)
+- **Key Formulas** (≥5 formulas with variable definitions)
+- **Rules & Precedence** (clear, testable statements)
+- **Traceability** (≥3 file:line anchors to code/schema/docs)
+
+Only use information from the document below. Do not invent APIs not present in it.
+
+<document>
+{doc_content}
+</document>
+"""
