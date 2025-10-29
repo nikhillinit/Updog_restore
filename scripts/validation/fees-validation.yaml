@@ -36,36 +36,6 @@ tests:
       truth_cases: file://../../docs/fees.truth-cases.json
       schema: file://../../docs/schemas/fee-truth-case.schema.json
       doc_type: 'primary_documentation'
-    assert:
-      # LLM-as-Judge evaluator (Anthropic Cookbook pattern)
-      - type: python
-        value: file://custom_evals/doc_llm_eval.py
-        threshold: 0.75
-
-      # Content coverage checks (optional - LLM evaluator already covers these)
-      - type: icontains-all
-        value:
-          - 'management fee'
-          - 'performance fee'
-          - 'fee basis'
-          - 'fee timing'
-          - 'hurdle'
-
-      # Mathematical content checks
-      - type: icontains-any
-        value:
-          - 'formula'
-          - 'calculation'
-          - 'computeManagementFee'
-          - 'computePerformanceFee'
-
-      # Integration checks
-      - type: icontains-all
-        value:
-          - 'client/src/lib/fee-calculations.ts'
-          - 'shared/schemas/fee-policy.ts'
-          - 'ManagementFee'
-          - 'PerformanceFee'
 
   # Test 2: ADR-006 validation
   - description: 'Validate ADR-006 architectural decisions'
@@ -74,42 +44,10 @@ tests:
       truth_cases: file://../../docs/fees.truth-cases.json
       schema: file://../../docs/schemas/fee-truth-case.schema.json
       doc_type: 'architecture_decision_record'
-    assert:
-      # LLM-as-Judge evaluator (Anthropic Cookbook pattern)
-      - type: python
-        value: file://custom_evals/doc_llm_eval.py
-        threshold: 0.75
 
-      # ADR structure checks
-      - type: icontains-all
-        value:
-          - 'Status'
-          - 'Accepted'
-          - 'Context'
-          - 'Decision'
-          - 'Consequences'
-
-      # Decision content checks
-      - type: icontains-all
-        value:
-          - 'Management Fee Structure'
-          - 'Performance Fee Models'
-          - 'Fee Timing'
-          - 'Hurdle Implementation'
-
-      # Integration validation for ADRs
-      - type: javascript
-        value: |
-          const matches = output.match(/\w+\.(ts|tsx|js|mjs):\d+/g) || [];
-          return {
-            pass: matches.length >= 5,
-            score: Math.min(1, matches.length / 10),
-            reason: matches.length >= 5
-              ? `Found ${matches.length} file:line references`
-              : `Expected at least 5 file:line references, found ${matches.length}`
-          };
-
-# Note: Custom Python LLM evaluator is now in the defaultTest assert section above
+# Custom scorer for domain scoring (replaces redundant keyword assertions)
+scorers:
+  - path: doc_domain_scorer.mjs
 
 # Output configuration
 outputPath: ./results/fees-validation-results.json

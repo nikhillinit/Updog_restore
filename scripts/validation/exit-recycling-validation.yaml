@@ -39,40 +39,6 @@ tests:
       truth_cases: file://../../docs/exit-recycling.truth-cases.json
       schema: file://../../docs/schemas/exit-recycling-truth-case.schema.json
       doc_type: 'primary_documentation'
-    assert:
-      # LLM-as-Judge evaluator (Anthropic Cookbook pattern)
-      - type: python
-        value: file://custom_evals/doc_llm_eval.py
-        threshold: 0.75
-
-      # Content coverage checks
-      - type: icontains-all
-        value:
-          - 'recycling capacity'
-          - 'recycling cap'
-          - 'recycling period'
-          - 'exit eligibility'
-          - 'recycling rate'
-          - 'cap enforcement'
-          - 'term validation'
-          - 'chronological'
-
-      # Mathematical content checks
-      - type: icontains-any
-        value:
-          - 'formula'
-          - 'calculation'
-          - 'maxRecyclableCapital'
-          - 'annualRecyclingCapacity'
-          - 'recycledAmount'
-
-      # Integration checks
-      - type: icontains-all
-        value:
-          - 'client/src/lib/exit-recycling-calculations.ts'
-          - 'shared/schemas/recycling-policy.ts'
-          - 'ExitEvent'
-          - 'RecyclingCapacity'
 
   # Test 2: ADR-007 validation
   - description: 'Validate ADR-007 architectural decisions'
@@ -81,52 +47,10 @@ tests:
       truth_cases: file://../../docs/exit-recycling.truth-cases.json
       schema: file://../../docs/schemas/exit-recycling-truth-case.schema.json
       doc_type: 'architecture_decision_record'
-    assert:
-      # LLM-as-Judge evaluator (Anthropic Cookbook pattern)
-      - type: python
-        value: file://custom_evals/doc_llm_eval.py
-        threshold: 0.75
 
-      # ADR structure checks
-      - type: icontains-all
-        value:
-          - 'Status'
-          - 'Accepted'
-          - 'Context'
-          - 'Decision'
-          - 'Consequences'
-
-      # Decision content checks
-      - type: icontains-all
-        value:
-          - 'Recycling Cap Structure'
-          - 'Recycling Period Conventions'
-          - 'Exit Eligibility Criteria'
-          - 'Recycling Rate'
-          - 'Cap Enforcement Strategy'
-          - 'Management Fee Recycling'
-          - 'Validation and Warnings'
-
-      # Code reference checks
-      - type: javascript
-        value: |
-          // Verify ADR contains file:line references
-          const fileLinePattern = /\w+\.ts:\d+/g;
-          const matches = output.match(fileLinePattern);
-          if (!matches || matches.length < 5) {
-            return {
-              pass: false,
-              score: 0,
-              reason: `Expected at least 5 file:line references, found ${matches ? matches.length : 0}`
-            };
-          }
-          return {
-            pass: true,
-            score: 1,
-            reason: `Found ${matches.length} file:line references`
-          };
-
-# Note: Custom Python LLM evaluator is now in the defaultTest assert section above
+# Custom scorer for domain scoring (replaces redundant keyword assertions)
+scorers:
+  - path: doc_domain_scorer.mjs
 
 # Output configuration
 outputPath: ./results/exit-recycling-validation-results.json
