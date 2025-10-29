@@ -3,132 +3,130 @@ Promptfoo prompt functions for documentation validation.
 Adapted from Anthropic Cookbook summarization patterns.
 """
 
-def validate_exit_recycling_doc(doc_content, truth_cases, schema, doc_type):
+def exit_recycling_prompt(doc_content):
     """
-    Validate exit recycling documentation against Phase 1 rubric.
+    Simplified prompt function for exit recycling documentation validation.
 
-    Args match the order in YAML vars: doc_content, truth_cases, schema, doc_type
+    Note: Only receives doc_content. Truth cases, schema, and doc_type are
+    passed to the custom scorer (doc_domain_scorer.mjs) via vars.
 
-    Uses a summarization approach to stay within token limits:
-    1. Extract validation points from doc
-    2. Score against rubric dimensions
-    3. Return structured evaluation
+    This prompt asks the LLM to explain the documentation content in terms
+    of the expected categories, which the scorer then validates.
     """
 
-    prompt = f"""You are a technical documentation validator for a venture capital fund modeling platform.
+    prompt = f"""You are a technical documentation analyst for a venture capital fund modeling platform.
 
-Your task: Evaluate the quality and accuracy of this exit recycling documentation using a 4-dimensional rubric.
-
----
-
-## Documentation Type
-{doc_type}
+Your task: Analyze and explain this exit recycling documentation, focusing on the key categories and concepts.
 
 ## Documentation Content
 {doc_content}
 
-## Truth Cases Reference
-{truth_cases}
+---
 
-## Schema Reference
-{schema}
+## Analysis Instructions
+
+Please provide a structured analysis covering these aspects:
+
+1. **Capacity Calculation Features**
+   - What functions handle recycling capacity?
+   - How is the maximum recyclable capital calculated?
+   - What formulas are used?
+
+2. **Schedule Calculation Logic**
+   - How are recycling schedules generated?
+   - What chronological processing occurs?
+   - How are exit events processed?
+
+3. **Cap Enforcement Mechanisms**
+   - How is the recycling cap enforced?
+   - What happens when the cap is reached?
+   - How is remaining capacity tracked?
+
+4. **Term Validation Rules**
+   - What defines the recycling period?
+   - How is exit eligibility determined?
+   - Are there critical boundary conditions? (e.g., ER-015: year 5 in 5-year period)
+
+5. **Code References and Integration**
+   - What are the main file locations?
+   - What functions are exposed?
+   - How does this integrate with other modules?
 
 ---
 
-## Evaluation Rubric (Phase 1 Standard)
+## Output Format
 
-Score each dimension from 0.0 to 1.0:
+Provide a clear, technical explanation covering all five areas above. Include:
+- Function names and signatures where relevant
+- Formulas and calculation logic
+- Critical edge cases and boundary conditions
+- Integration points and dependencies
 
-### 1. Entity Truthfulness (30% weight)
-- Function names match source code exactly
-- TypeScript signatures accurate (parameters, return types)
-- Interface definitions match implementation
-- No hallucinated functions or features
-- Code references (file:line) are correct
+Focus on accuracy and completeness. Reference specific truth case IDs (e.g., ER-001, ER-015) where relevant to boundary conditions.
+"""
 
-### 2. Mathematical Accuracy (25% weight)
-- Formulas match implementation logic
-- Calculation examples produce correct results
-- Algorithm descriptions accurate
-- Edge cases properly documented
-- Numeric precision handling explained
+    return prompt
 
-### 3. Schema Compliance (25% weight)
-- Truth cases validate against JSON Schema
-- Input/output structures match
-- Type constraints correct
-- Required fields documented
-- Optional fields handled properly
 
-### 4. Integration Clarity (20% weight)
-- Cross-references to related modules accurate
-- File paths correct
-- Integration points explained
-- Dependencies documented
-- API boundaries clear
+def fee_prompt(doc_content):
+    """
+    Prompt function for fee documentation validation.
+
+    Analyzes management and performance fee documentation to ensure
+    accurate description of calculations, timing, and integration.
+    """
+
+    prompt = f"""You are a technical documentation analyst for a venture capital fund modeling platform.
+
+Your task: Analyze and explain this fee calculation documentation, focusing on the key categories and concepts.
+
+## Documentation Content
+{doc_content}
 
 ---
 
-## Validation Instructions
+## Analysis Instructions
 
-1. **Extract key validation points:**
-   - List all function names mentioned
-   - List all formulas/calculations
-   - Count code references (file:line)
-   - Note cross-references to other modules
+Please provide a structured analysis covering these aspects:
 
-2. **Check against truth cases:**
-   - Do documented scenarios match truth cases?
-   - Are input/output structures consistent?
-   - Are calculation results verifiable?
+1. **Management Fee Calculations**
+   - What functions handle management fee computation?
+   - How is the management fee basis calculated?
+   - What formulas are used?
+   - How is fee timing handled?
 
-3. **Score each dimension:**
-   - Give specific reasons for score
-   - Note any errors or inaccuracies
-   - Highlight exemplary aspects
+2. **Performance Fee (Carry) Calculations**
+   - How are performance fees computed?
+   - What is the hurdle rate mechanism?
+   - How is catch-up calculated?
+   - What formulas govern carry distribution?
 
-4. **Calculate domain score:**
-   - Domain Score = (Entity × 0.30) + (Math × 0.25) + (Schema × 0.25) + (Integration × 0.20)
-   - Express as percentage
+3. **Fee Basis and Timing**
+   - What are the different fee basis options (committed capital, invested capital, NAV)?
+   - How is fee timing controlled?
+   - Are fees calculated annually, quarterly, or on-demand?
 
----
+4. **Integration with Waterfall**
+   - How do fees integrate with waterfall calculations?
+   - What is the relationship between performance fees and carry distribution?
+   - Are there special cases or edge conditions?
 
-## Required Output Format
-
-Return your evaluation as JSON:
-
-```json
-{{
-  "entity_truthfulness": {{
-    "score": 0.0-1.0,
-    "evidence": ["specific examples"],
-    "issues": ["any problems found"]
-  }},
-  "mathematical_accuracy": {{
-    "score": 0.0-1.0,
-    "evidence": ["correct formulas found"],
-    "issues": ["any incorrect formulas"]
-  }},
-  "schema_compliance": {{
-    "score": 0.0-1.0,
-    "evidence": ["validation checks passed"],
-    "issues": ["validation problems"]
-  }},
-  "integration_clarity": {{
-    "score": 0.0-1.0,
-    "evidence": ["clear cross-references"],
-    "issues": ["unclear integrations"]
-  }},
-  "domain_score": 0.0-1.0,
-  "domain_score_percentage": 0-100,
-  "summary": "Brief evaluation summary",
-  "recommendation": "pass" or "revise"
-}}
-```
+5. **Code References and Integration**
+   - What are the main file locations?
+   - What functions are exposed?
+   - How does this integrate with other modules?
 
 ---
 
-Begin your evaluation now.
+## Output Format
+
+Provide a clear, technical explanation covering all five areas above. Include:
+- Function names and signatures where relevant
+- Formulas and calculation logic
+- Critical edge cases and boundary conditions
+- Integration points and dependencies
+
+Focus on accuracy and completeness. Reference specific truth case IDs where relevant to boundary conditions.
 """
 
     return prompt

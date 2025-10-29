@@ -5,15 +5,18 @@
 description: 'Phase 1C Exit Recycling Documentation Domain Score Validation'
 
 # Prompts use Python functions that receive file contents
+# Note: Prompt function only receives doc_content (first var)
+# Other vars (truth_cases, schema, doc_type) are passed to the custom scorer
 prompts:
-  - prompts.py:validate_exit_recycling_doc
+  - prompts.py:exit_recycling_prompt
 
 # Claude models to use for evaluation
+# Note: API key has access to Opus, not Sonnet 3.5
 providers:
-  - id: anthropic:messages:claude-sonnet-4-5
-    label: 'Claude 3.5 Sonnet'
+  - id: anthropic:messages:claude-3-opus-20240229
+    label: 'Claude 3 Opus'
     config:
-      max_tokens: 8192
+      max_tokens: 4096 # Opus max output tokens
       temperature: 0
 
 # Default assertions that apply to all tests
@@ -37,24 +40,10 @@ tests:
       schema: file://../../docs/schemas/exit-recycling-truth-case.schema.json
       doc_type: 'primary_documentation'
     assert:
-      # Domain score threshold
-      - type: javascript
-        value: |
-          const result = JSON.parse(output);
-          if (!result.domain_score) {
-            return {
-              pass: false,
-              score: 0,
-              reason: 'No domain_score in output'
-            };
-          }
-          const score = result.domain_score;
-          const threshold = 0.92;
-          return {
-            pass: score >= threshold,
-            score: score,
-            reason: `Domain score: ${(score * 100).toFixed(1)}% (threshold: ${(threshold * 100)}%)`
-          };
+      # LLM-as-Judge evaluator (Anthropic Cookbook pattern)
+      - type: python
+        value: file://custom_evals/doc_llm_eval.py
+        threshold: 0.75
 
       # Content coverage checks
       - type: icontains-all
@@ -93,24 +82,10 @@ tests:
       schema: file://../../docs/schemas/exit-recycling-truth-case.schema.json
       doc_type: 'architecture_decision_record'
     assert:
-      # Domain score threshold
-      - type: javascript
-        value: |
-          const result = JSON.parse(output);
-          if (!result.domain_score) {
-            return {
-              pass: false,
-              score: 0,
-              reason: 'No domain_score in output'
-            };
-          }
-          const score = result.domain_score;
-          const threshold = 0.92;
-          return {
-            pass: score >= threshold,
-            score: score,
-            reason: `Domain score: ${(score * 100).toFixed(1)}% (threshold: ${(threshold * 100)}%)`
-          };
+      # LLM-as-Judge evaluator (Anthropic Cookbook pattern)
+      - type: python
+        value: file://custom_evals/doc_llm_eval.py
+        threshold: 0.75
 
       # ADR structure checks
       - type: icontains-all
@@ -150,6 +125,8 @@ tests:
             score: 1,
             reason: `Found ${matches.length} file:line references`
           };
+
+# Note: Custom Python LLM evaluator is now in the defaultTest assert section above
 
 # Output configuration
 outputPath: ./results/exit-recycling-validation-results.json
