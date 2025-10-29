@@ -1,0 +1,211 @@
+[
+  {
+    "id": "CA-001",
+    "module": "CapitalAllocation",
+    "category": "reserve_engine",
+    "description": "Static % reserve at target with smooth quarterly inflows",
+    "inputs": {
+      "fund": {
+        "commitment": 100,
+        "target_reserve_pct": 0.2,
+        "reserve_policy": "static_pct",
+        "pacing_window_months": 24,
+        "vintage_year": 2024
+      },
+      "timeline": {
+        "start_date": "2024-01-01",
+        "end_date": "2024-12-31"
+      },
+      "flows": {
+        "contributions": [
+          { "date": "2024-03-31", "amount": 5.0 },
+          { "date": "2024-06-30", "amount": 5.0 },
+          { "date": "2024-09-30", "amount": 5.0 },
+          { "date": "2024-12-31", "amount": 5.0 }
+        ],
+        "distributions": []
+      },
+      "constraints": {
+        "min_cash_buffer": 1.0,
+        "rebalance_frequency": "quarterly"
+      }
+    },
+    "expected": {
+      "reserve_balance": 20.0,
+      "allocations_by_cohort": [{ "cohort": "2024", "amount": 80.0 }],
+      "violations": []
+    },
+    "notes": "Baseline case: reserve reaches 20% target with no violations"
+  },
+  {
+    "id": "CA-002",
+    "module": "CapitalAllocation",
+    "category": "reserve_engine",
+    "description": "Underfunded reserve triggers buffer top-up from next contribution",
+    "inputs": {
+      "fund": {
+        "commitment": 100,
+        "target_reserve_pct": 0.2,
+        "reserve_policy": "static_pct",
+        "pacing_window_months": 24,
+        "vintage_year": 2024
+      },
+      "timeline": {
+        "start_date": "2024-01-01",
+        "end_date": "2024-06-30"
+      },
+      "flows": {
+        "contributions": [{ "date": "2024-03-31", "amount": 10.0 }],
+        "distributions": [
+          { "date": "2024-05-15", "amount": 8.0, "recycle_eligible": false }
+        ]
+      },
+      "constraints": {
+        "min_cash_buffer": 2.0,
+        "rebalance_frequency": "quarterly"
+      }
+    },
+    "expected": {
+      "reserve_balance": 2.0,
+      "allocations_by_cohort": [{ "cohort": "2024", "amount": 0.0 }],
+      "violations": []
+    },
+    "notes": "Distribution depletes reserve below target; min_cash_buffer is preserved"
+  },
+  {
+    "id": "CA-003",
+    "module": "CapitalAllocation",
+    "category": "reserve_engine",
+    "description": "Overfunded reserve redeploys excess in next rebalancing period",
+    "inputs": {
+      "fund": {
+        "commitment": 100,
+        "target_reserve_pct": 0.15,
+        "reserve_policy": "static_pct",
+        "pacing_window_months": 24,
+        "vintage_year": 2024
+      },
+      "timeline": {
+        "start_date": "2024-01-01",
+        "end_date": "2024-12-31"
+      },
+      "flows": {
+        "contributions": [{ "date": "2024-03-31", "amount": 25.0 }],
+        "distributions": []
+      },
+      "constraints": {
+        "min_cash_buffer": 1.0,
+        "rebalance_frequency": "quarterly"
+      }
+    },
+    "expected": {
+      "reserve_balance": 15.0,
+      "allocations_by_cohort": [{ "cohort": "2024", "amount": 10.0 }],
+      "violations": []
+    },
+    "notes": "Reserve capped at 15% (15M); excess 10M allocated to cohort"
+  },
+  {
+    "id": "CA-004",
+    "module": "CapitalAllocation",
+    "category": "reserve_engine",
+    "description": "Reserve floor binding with zero contributions quarter (adversarial)",
+    "inputs": {
+      "fund": {
+        "commitment": 100,
+        "target_reserve_pct": 0.2,
+        "reserve_policy": "static_pct",
+        "pacing_window_months": 24,
+        "vintage_year": 2024
+      },
+      "timeline": {
+        "start_date": "2024-01-01",
+        "end_date": "2024-03-31"
+      },
+      "flows": {
+        "contributions": [],
+        "distributions": []
+      },
+      "constraints": {
+        "min_cash_buffer": 5.0,
+        "rebalance_frequency": "quarterly"
+      }
+    },
+    "expected": {
+      "reserve_balance": 0.0,
+      "allocations_by_cohort": [{ "cohort": "2024", "amount": 0.0 }],
+      "violations": ["reserve_below_minimum"]
+    },
+    "notes": "Adversarial: zero inflows cannot satisfy min_cash_buffer constraint"
+  },
+  {
+    "id": "CA-005",
+    "module": "CapitalAllocation",
+    "category": "reserve_engine",
+    "description": "Dynamic ratio tracking with NAV-dependent reserve target",
+    "inputs": {
+      "fund": {
+        "commitment": 100,
+        "target_reserve_pct": 0.25,
+        "reserve_policy": "dynamic_ratio",
+        "pacing_window_months": 24,
+        "vintage_year": 2024
+      },
+      "timeline": {
+        "start_date": "2024-01-01",
+        "end_date": "2024-12-31"
+      },
+      "flows": {
+        "contributions": [{ "date": "2024-06-30", "amount": 30.0 }],
+        "distributions": [
+          { "date": "2024-09-30", "amount": 10.0, "recycle_eligible": true }
+        ]
+      },
+      "constraints": {
+        "min_cash_buffer": 2.0,
+        "rebalance_frequency": "quarterly"
+      }
+    },
+    "expected": {
+      "reserve_balance": 5.0,
+      "allocations_by_cohort": [{ "cohort": "2024", "amount": 15.0 }],
+      "violations": []
+    },
+    "notes": "Dynamic policy adjusts reserve based on NAV changes; distribution reduces NAV, lowering reserve target"
+  },
+  {
+    "id": "CA-006",
+    "module": "CapitalAllocation",
+    "category": "reserve_engine",
+    "description": "Large mid-year distribution triggers reserve rebalancing",
+    "inputs": {
+      "fund": {
+        "commitment": 100,
+        "target_reserve_pct": 0.2,
+        "reserve_policy": "static_pct",
+        "pacing_window_months": 24,
+        "vintage_year": 2024
+      },
+      "timeline": {
+        "start_date": "2024-01-01",
+        "end_date": "2024-12-31"
+      },
+      "flows": {
+        "contributions": [{ "date": "2024-03-31", "amount": 25.0 }],
+        "distributions": [
+          { "date": "2024-07-15", "amount": 15.0, "recycle_eligible": false }
+        ]
+      },
+      "constraints": {
+        "min_cash_buffer": 2.0,
+        "rebalance_frequency": "quarterly"
+      }
+    },
+    "expected": {
+      "reserve_balance": 10.0,
+      "allocations_by_cohort": [{ "cohort": "2024", "amount": 0.0 }],
+      "violations": []
+    },
+    "notes": "Large distribution depletes reserve; Q3 rebalancing restores to target (50% of remaining 20M)"
+  }
+]

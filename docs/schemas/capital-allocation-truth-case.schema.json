@@ -1,0 +1,237 @@
+{
+  "$id": "https://updog.press-on.ventures/schemas/capital-allocation-truth-case.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Capital Allocation Truth Case",
+  "description": "Canonical test scenario for capital allocation validation (ReserveEngine, PacingEngine, CohortEngine)",
+  "type": "object",
+  "required": ["id", "module", "category", "description", "inputs", "expected"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^CA-[0-9]{3}$",
+      "description": "Unique identifier (e.g., CA-001)"
+    },
+    "module": {
+      "const": "CapitalAllocation",
+      "description": "Module name"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "reserve_engine",
+        "pacing_engine",
+        "cohort_engine",
+        "integration"
+      ],
+      "description": "Test category"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable test scenario description"
+    },
+    "inputs": {
+      "type": "object",
+      "required": ["fund", "timeline"],
+      "properties": {
+        "fund": {
+          "type": "object",
+          "required": [
+            "commitment",
+            "target_reserve_pct",
+            "reserve_policy",
+            "pacing_window_months",
+            "vintage_year"
+          ],
+          "properties": {
+            "commitment": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Total fund commitment in millions"
+            },
+            "target_reserve_pct": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Target reserve as percentage of commitment"
+            },
+            "reserve_policy": {
+              "type": "string",
+              "enum": ["static_pct", "dynamic_ratio", "waterfall_dependent"],
+              "description": "Reserve allocation policy"
+            },
+            "pacing_window_months": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60,
+              "description": "Rolling window for pacing calculations (months)"
+            },
+            "vintage_year": {
+              "type": "integer",
+              "minimum": 1980,
+              "description": "Fund vintage year"
+            }
+          }
+        },
+        "timeline": {
+          "type": "object",
+          "required": ["start_date"],
+          "properties": {
+            "start_date": {
+              "type": "string",
+              "format": "date",
+              "description": "Allocation period start date"
+            },
+            "end_date": {
+              "type": "string",
+              "format": "date",
+              "description": "Allocation period end date"
+            }
+          }
+        },
+        "flows": {
+          "type": "object",
+          "properties": {
+            "contributions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["date", "amount"],
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                }
+              }
+            },
+            "distributions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["date", "amount"],
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "recycle_eligible": {
+                    "type": "boolean",
+                    "description": "Whether distribution can be recycled"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "constraints": {
+          "type": "object",
+          "properties": {
+            "min_cash_buffer": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Minimum cash buffer in millions"
+            },
+            "max_allocation_per_cohort": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Maximum allocation percentage per cohort"
+            },
+            "rebalance_frequency": {
+              "type": "string",
+              "enum": ["monthly", "quarterly", "annual"],
+              "description": "Rebalancing frequency"
+            }
+          }
+        },
+        "cohorts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "start_date", "end_date", "weight"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Cohort identifier"
+              },
+              "start_date": {
+                "type": "string",
+                "format": "date"
+              },
+              "end_date": {
+                "type": "string",
+                "format": "date"
+              },
+              "weight": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Cohort weight for allocation"
+              }
+            }
+          }
+        }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "required": ["reserve_balance", "allocations_by_cohort"],
+      "properties": {
+        "reserve_balance": {
+          "type": "number",
+          "description": "Expected reserve balance at end of period"
+        },
+        "allocations_by_cohort": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["cohort", "amount"],
+            "properties": {
+              "cohort": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "pacing_targets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["period", "target"],
+            "properties": {
+              "period": {
+                "type": "string",
+                "description": "Period identifier (e.g., 2024-Q1)"
+              },
+              "target": {
+                "type": "number",
+                "description": "Target allocation for period"
+              }
+            }
+          }
+        },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Expected constraint violations (for adversarial tests)"
+        }
+      }
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional context or boundary conditions"
+    }
+  }
+}
