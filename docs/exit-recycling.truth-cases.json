@@ -1,0 +1,1013 @@
+[
+  {
+    "id": "ER-001",
+    "category": "capacity_calculation",
+    "description": "Basic capacity calculation with $100M fund, 15% cap, 5-year period",
+    "input": {
+      "fundSize": 100,
+      "recyclingCapPercent": 15,
+      "recyclingPeriod": 5
+    },
+    "expectedOutput": {
+      "maxRecyclableCapital": 15,
+      "recyclingCapPercentage": 15,
+      "recyclingPeriodYears": 5,
+      "annualRecyclingCapacity": 3
+    },
+    "tolerance": 0.01,
+    "notes": "Baseline scenario with industry standard parameters. Tests fundamental capacity calculation: maxRecyclableCapital = fundSize * (recyclingCapPercent / 100), annualCapacity = maxRecyclableCapital / recyclingPeriod",
+    "tags": ["baseline", "industry-standard", "capacity"]
+  },
+  {
+    "id": "ER-002",
+    "category": "capacity_calculation",
+    "description": "High capacity calculation with $250M fund, 20% cap, 7-year period",
+    "input": {
+      "fundSize": 250,
+      "recyclingCapPercent": 20,
+      "recyclingPeriod": 7
+    },
+    "expectedOutput": {
+      "maxRecyclableCapital": 50,
+      "recyclingCapPercentage": 20,
+      "recyclingPeriodYears": 7,
+      "annualRecyclingCapacity": 7.142857
+    },
+    "tolerance": 0.01,
+    "notes": "Larger fund with upper-range recycling cap (20% is at the high end of typical). Tests that calculations scale correctly for large fund sizes and longer recycling periods.",
+    "tags": ["upper-bound", "large-fund", "capacity"]
+  },
+  {
+    "id": "ER-003",
+    "category": "capacity_calculation",
+    "description": "Low capacity calculation with $50M fund, 10% cap, 3-year period",
+    "input": {
+      "fundSize": 50,
+      "recyclingCapPercent": 10,
+      "recyclingPeriod": 3
+    },
+    "expectedOutput": {
+      "maxRecyclableCapital": 5,
+      "recyclingCapPercentage": 10,
+      "recyclingPeriodYears": 3,
+      "annualRecyclingCapacity": 1.666667
+    },
+    "tolerance": 0.01,
+    "notes": "Smaller fund with conservative recycling cap and shorter period. Tests lower bounds of typical recycling parameters and validates calculations for smaller fund sizes.",
+    "tags": ["lower-bound", "small-fund", "conservative", "capacity"]
+  },
+  {
+    "id": "ER-004",
+    "category": "schedule_calculation",
+    "description": "Single exit within period with partial recycling (75% rate)",
+    "input": {
+      "fundSize": 100,
+      "recyclingCapPercent": 15,
+      "recyclingPeriod": 5,
+      "exitRecyclingRate": 75,
+      "exits": [
+        {
+          "id": "exit-1",
+          "year": 3,
+          "grossProceeds": 50,
+          "ownershipPercent": 20
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 7.5,
+      "totalReturnedToLPs": 2.5,
+      "remainingCapacity": 7.5,
+      "capReached": false,
+      "recyclingByExit": [
+        {
+          "exitId": "exit-1",
+          "exitYear": 3,
+          "fundProceeds": 10,
+          "recycledAmount": 7.5,
+          "returnedToLPs": 2.5,
+          "withinPeriod": true,
+          "appliedRate": 75
+        }
+      ],
+      "cumulativeByYear": [
+        {
+          "year": 3,
+          "cumulativeRecycled": 7.5,
+          "annualRecycled": 7.5
+        }
+      ]
+    },
+    "tolerance": 0.01,
+    "notes": "Single exit scenario demonstrating partial recycling. Fund receives $10M (20% of $50M gross), recycles $7.5M (75% rate), returns $2.5M to LPs. Tests basic recycling rate application and LP distribution calculation.",
+    "tags": ["single-exit", "partial-recycling", "within-period", "schedule"]
+  },
+  {
+    "id": "ER-005",
+    "category": "schedule_calculation",
+    "description": "Multiple exits below cap with cumulative tracking",
+    "input": {
+      "fundSize": 100,
+      "recyclingCapPercent": 15,
+      "recyclingPeriod": 5,
+      "exitRecyclingRate": 75,
+      "exits": [
+        {
+          "id": "exit-a",
+          "year": 2,
+          "grossProceeds": 30,
+          "ownershipPercent": 25
+        },
+        {
+          "id": "exit-b",
+          "year": 3,
+          "grossProceeds": 40,
+          "ownershipPercent": 20
+        },
+        {
+          "id": "exit-c",
+          "year": 4,
+          "grossProceeds": 20,
+          "ownershipPercent": 15
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 13.875,
+      "totalReturnedToLPs": 4.625,
+      "remainingCapacity": 1.125,
+      "capReached": false,
+      "recyclingByExit": [
+        {
+          "exitId": "exit-a",
+          "exitYear": 2,
+          "fundProceeds": 7.5,
+          "recycledAmount": 5.625,
+          "returnedToLPs": 1.875,
+          "withinPeriod": true,
+          "appliedRate": 75
+        },
+        {
+          "exitId": "exit-b",
+          "exitYear": 3,
+          "fundProceeds": 8,
+          "recycledAmount": 6,
+          "returnedToLPs": 2,
+          "withinPeriod": true,
+          "appliedRate": 75
+        },
+        {
+          "exitId": "exit-c",
+          "exitYear": 4,
+          "fundProceeds": 3,
+          "recycledAmount": 2.25,
+          "returnedToLPs": 0.75,
+          "withinPeriod": true,
+          "appliedRate": 75
+        }
+      ],
+      "cumulativeByYear": [
+        {
+          "year": 2,
+          "cumulativeRecycled": 5.625,
+          "annualRecycled": 5.625
+        },
+        {
+          "year": 3,
+          "cumulativeRecycled": 11.625,
+          "annualRecycled": 6
+        },
+        {
+          "year": 4,
+          "cumulativeRecycled": 13.875,
+          "annualRecycled": 2.25
+        }
+      ]
+    },
+    "tolerance": 0.01,
+    "notes": "Multiple exits scenario with all exits within recycling period. Total proceeds: $18.5M, total recycled: $13.875M (75% of proceeds), total returned: $4.625M. Cap not reached ($13.875M < $15M cap). Tests chronological processing, cumulative tracking, and multi-exit coordination.",
+    "tags": [
+      "multi-exit",
+      "within-period",
+      "below-cap",
+      "cumulative",
+      "schedule"
+    ]
+  },
+  {
+    "id": "ER-006",
+    "category": "cap_enforcement",
+    "description": "Exits reaching cap exactly with 100% recycling rate",
+    "input": {
+      "fundSize": 100,
+      "recyclingCapPercent": 15,
+      "recyclingPeriod": 5,
+      "exitRecyclingRate": 100,
+      "exits": [
+        {
+          "id": "exit-a",
+          "year": 2,
+          "grossProceeds": 50,
+          "ownershipPercent": 20
+        },
+        {
+          "id": "exit-b",
+          "year": 3,
+          "grossProceeds": 25,
+          "ownershipPercent": 20
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 15,
+      "capReached": true,
+      "excessProceeds": 0,
+      "returnedToLPs": 0,
+      "remainingCapacity": 0
+    },
+    "tolerance": 0.01,
+    "notes": "Cap enforcement scenario where exits sum exactly to recycling cap with 100% recycling rate. Exit A: $10M proceeds, Exit B: $5M proceeds, total $15M matches cap exactly. All proceeds recycled, nothing returned to LPs. Tests exact cap boundary condition and full recycling rate application.",
+    "tags": [
+      "cap-enforcement",
+      "exact-cap",
+      "full-recycling",
+      "boundary-condition"
+    ]
+  },
+  {
+    "id": "ER-007",
+    "category": "cap_enforcement",
+    "description": "Exits exceeding cap - 3 exits totaling $25M fund proceeds with $15M cap (15% of $100M fund)",
+    "input": {
+      "fundSize": 100,
+      "recyclingCapPercent": 15,
+      "recyclingPeriod": 5,
+      "exitRecyclingRate": 100,
+      "exits": [
+        {
+          "id": "Exit-A",
+          "year": 2,
+          "grossProceeds": 50,
+          "ownershipPercent": 20
+        },
+        {
+          "id": "Exit-B",
+          "year": 3,
+          "grossProceeds": 50,
+          "ownershipPercent": 20
+        },
+        {
+          "id": "Exit-C",
+          "year": 4,
+          "grossProceeds": 25,
+          "ownershipPercent": 20
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 15,
+      "capReached": true,
+      "excessProceeds": 10,
+      "returnedToLPs": 10,
+      "remainingCapacity": 0
+    },
+    "tolerance": 0.01,
+    "notes": "Cap enforcement scenario: Exit A proceeds = $10M (100% recycled), Exit B proceeds = $10M (only $5M recycled, cap reached), Exit C proceeds = $5M (100% returned to LPs). Total fund proceeds = $25M, cap = $15M, excess = $10M. Tests proper handling when cumulative exits exceed recycling cap.",
+    "tags": [
+      "cap-enforcement",
+      "multiple-exits",
+      "overflow-to-lps",
+      "100-percent-rate"
+    ]
+  },
+  {
+    "id": "ER-008",
+    "category": "schedule_calculation",
+    "description": "Partial recycling rate (50%) applied to 2 exits totaling $20M fund proceeds",
+    "input": {
+      "fundSize": 100,
+      "recyclingCapPercent": 15,
+      "recyclingPeriod": 5,
+      "exitRecyclingRate": 50,
+      "exits": [
+        {
+          "id": "Exit-A",
+          "year": 2,
+          "grossProceeds": 40,
+          "ownershipPercent": 25
+        },
+        {
+          "id": "Exit-B",
+          "year": 3,
+          "grossProceeds": 40,
+          "ownershipPercent": 25
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 10,
+      "totalReturnedToLPs": 10,
+      "remainingCapacity": 5,
+      "capReached": false,
+      "recyclingByExit": [
+        {
+          "exitId": "Exit-A",
+          "exitYear": 2,
+          "fundProceeds": 10,
+          "recycledAmount": 5,
+          "returnedToLPs": 5,
+          "withinPeriod": true,
+          "appliedRate": 50
+        },
+        {
+          "exitId": "Exit-B",
+          "exitYear": 3,
+          "fundProceeds": 10,
+          "recycledAmount": 5,
+          "returnedToLPs": 5,
+          "withinPeriod": true,
+          "appliedRate": 50
+        }
+      ]
+    },
+    "tolerance": 0.01,
+    "notes": "Partial recycling rate scenario: Exit A fund proceeds = $10M → 50% = $5M recycled, $5M returned. Exit B fund proceeds = $10M → 50% = $5M recycled, $5M returned. Total recycled = $10M (50% of $20M total proceeds), remaining cap = $5M. Tests that recycling rate correctly reduces recycled amounts while staying under cap.",
+    "tags": [
+      "partial-rate",
+      "schedule-calculation",
+      "50-percent-rate",
+      "under-cap"
+    ]
+  },
+  {
+    "id": "ER-009",
+    "category": "schedule_calculation",
+    "description": "Low recycling rate (25%) applied to single large exit ($30M fund proceeds)",
+    "input": {
+      "fundSize": 100,
+      "recyclingCapPercent": 15,
+      "recyclingPeriod": 5,
+      "exitRecyclingRate": 25,
+      "exits": [
+        {
+          "id": "Exit-A",
+          "year": 2,
+          "grossProceeds": 100,
+          "ownershipPercent": 30
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 7.5,
+      "totalReturnedToLPs": 22.5,
+      "remainingCapacity": 7.5,
+      "capReached": false,
+      "recyclingByExit": [
+        {
+          "exitId": "Exit-A",
+          "exitYear": 2,
+          "fundProceeds": 30,
+          "recycledAmount": 7.5,
+          "returnedToLPs": 22.5,
+          "withinPeriod": true,
+          "appliedRate": 25
+        }
+      ]
+    },
+    "tolerance": 0.01,
+    "notes": "Low rate scenario: Exit A grossProceeds = $100M * 30% ownership = $30M fund proceeds. At 25% recycling rate: $30M * 0.25 = $7.5M recycled, $22.5M returned to LPs. Despite large exit, low rate significantly reduces recycled capital. Remaining capacity = $15M - $7.5M = $7.5M.",
+    "tags": [
+      "low-rate",
+      "schedule-calculation",
+      "25-percent-rate",
+      "large-exit",
+      "under-cap"
+    ]
+  },
+  {
+    "id": "ER-010",
+    "category": "schedule_calculation",
+    "description": "Zero recycling rate edge case - all proceeds returned to LPs",
+    "input": {
+      "fundSize": 100,
+      "recyclingCapPercent": 15,
+      "recyclingPeriod": 5,
+      "exitRecyclingRate": 0,
+      "exits": [
+        {
+          "id": "Exit-A",
+          "year": 3,
+          "grossProceeds": 50,
+          "ownershipPercent": 20
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 0,
+      "totalReturnedToLPs": 10,
+      "remainingCapacity": 15,
+      "capReached": false,
+      "recyclingByExit": [
+        {
+          "exitId": "Exit-A",
+          "exitYear": 3,
+          "fundProceeds": 10,
+          "recycledAmount": 0,
+          "returnedToLPs": 10,
+          "withinPeriod": true,
+          "appliedRate": 0
+        }
+      ]
+    },
+    "tolerance": 0.01,
+    "notes": "Zero rate edge case: Exit A fund proceeds = $10M. With 0% recycling rate, all proceeds returned to LPs despite being within recycling period and under cap. Tests edge case where recycling is technically enabled (cap exists) but rate is 0. Remaining capacity unchanged at $15M.",
+    "tags": [
+      "zero-rate",
+      "edge-case",
+      "schedule-calculation",
+      "no-recycling",
+      "boundary"
+    ]
+  },
+  {
+    "id": "ER-011",
+    "category": "cap_enforcement",
+    "description": "Cap reached mid-exit - second exit partially recycled due to remaining cap limit",
+    "input": {
+      "fundSize": 100,
+      "recyclingCapPercent": 10,
+      "recyclingPeriod": 5,
+      "exitRecyclingRate": 100,
+      "exits": [
+        {
+          "id": "Exit-A",
+          "year": 2,
+          "grossProceeds": 40,
+          "ownershipPercent": 20
+        },
+        {
+          "id": "Exit-B",
+          "year": 3,
+          "grossProceeds": 30,
+          "ownershipPercent": 20
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 10,
+      "capReached": true,
+      "excessProceeds": 4,
+      "returnedToLPs": 4,
+      "remainingCapacity": 0
+    },
+    "tolerance": 0.01,
+    "notes": "Mid-exit cap enforcement: Exit A fund proceeds = $8M → fully recycled ($8M recycled, $0 returned, remaining cap = $2M). Exit B fund proceeds = $6M → only $2M can be recycled (cap limit), $4M returned to LPs. Total recycled = $10M (cap reached), excess proceeds = $4M. Tests sequential exit processing with cap enforcement.",
+    "tags": [
+      "cap-enforcement",
+      "mid-exit-cap",
+      "partial-recycling",
+      "100-percent-rate",
+      "sequential-processing"
+    ]
+  },
+  {
+    "id": "ER-012",
+    "category": "cap_enforcement",
+    "description": "Multiple exits with varying rates (75%) across larger fund ($150M) staying below cap",
+    "input": {
+      "fundSize": 150,
+      "recyclingCapPercent": 20,
+      "recyclingPeriod": 6,
+      "exitRecyclingRate": 75,
+      "exits": [
+        {
+          "id": "Exit-A",
+          "year": 2,
+          "grossProceeds": 50,
+          "ownershipPercent": 20
+        },
+        {
+          "id": "Exit-B",
+          "year": 3,
+          "grossProceeds": 60,
+          "ownershipPercent": 20
+        },
+        {
+          "id": "Exit-C",
+          "year": 4,
+          "grossProceeds": 40,
+          "ownershipPercent": 25
+        },
+        {
+          "id": "Exit-D",
+          "year": 5,
+          "grossProceeds": 30,
+          "ownershipPercent": 20
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 28.5,
+      "capReached": false,
+      "excessProceeds": 0,
+      "returnedToLPs": 9.5,
+      "remainingCapacity": 1.5
+    },
+    "tolerance": 0.01,
+    "notes": "Large fund multi-exit scenario: Cap = $150M * 20% = $30M. Exit A proceeds = $10M * 75% = $7.5M recycled. Exit B proceeds = $12M * 75% = $9M recycled. Exit C proceeds = $10M * 75% = $7.5M recycled. Exit D proceeds = $6M * 75% = $4.5M recycled. Total fund proceeds = $38M, total recycled = $28.5M (75% of $38M), total returned = $9.5M. Remaining capacity = $30M - $28.5M = $1.5M. Tests complex scenario with multiple exits, high rate, large cap, staying just under cap limit.",
+    "tags": [
+      "cap-enforcement",
+      "multiple-exits",
+      "large-fund",
+      "75-percent-rate",
+      "under-cap",
+      "complex"
+    ]
+  },
+  {
+    "id": "ER-013",
+    "category": "term_validation",
+    "description": "Exit within period - single exit in year 3 of 5-year recycling period",
+    "input": {
+      "fundSize": 100,
+      "recyclingCapPercent": 15,
+      "recyclingPeriod": 5,
+      "exitRecyclingRate": 75,
+      "exits": [
+        {
+          "id": "Exit-A",
+          "year": 3,
+          "grossProceeds": 40,
+          "ownershipPercent": 20
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 6,
+      "exitsWithinPeriod": 1,
+      "exitsAfterPeriod": 0,
+      "recycledFromEligibleExits": 6,
+      "returnedFromIneligibleExits": 0,
+      "recyclingByExit": [
+        {
+          "exitId": "Exit-A",
+          "exitYear": 3,
+          "fundProceeds": 8,
+          "recycledAmount": 6,
+          "returnedToLPs": 2,
+          "withinPeriod": true,
+          "appliedRate": 75
+        }
+      ]
+    },
+    "tolerance": 0.01,
+    "notes": "Standard exit within period. Exit in year 3 is within 5-year period (year <= 5). Fund proceeds = $40M * 20% = $8M. Recycled = $8M * 75% = $6M. Returned to LPs = $8M - $6M = $2M.",
+    "tags": ["within-period", "single-exit", "eligible"]
+  },
+  {
+    "id": "ER-014",
+    "category": "term_validation",
+    "description": "Exit after period - single exit in year 7 after 5-year recycling period",
+    "input": {
+      "fundSize": 100,
+      "recyclingCapPercent": 15,
+      "recyclingPeriod": 5,
+      "exitRecyclingRate": 75,
+      "exits": [
+        {
+          "id": "Exit-A",
+          "year": 7,
+          "grossProceeds": 40,
+          "ownershipPercent": 20
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 0,
+      "exitsWithinPeriod": 0,
+      "exitsAfterPeriod": 1,
+      "recycledFromEligibleExits": 0,
+      "returnedFromIneligibleExits": 8,
+      "recyclingByExit": [
+        {
+          "exitId": "Exit-A",
+          "exitYear": 7,
+          "fundProceeds": 8,
+          "recycledAmount": 0,
+          "returnedToLPs": 8,
+          "withinPeriod": false,
+          "appliedRate": 0
+        }
+      ]
+    },
+    "tolerance": 0.01,
+    "notes": "Exit after period - all proceeds to LPs. Exit in year 7 exceeds 5-year period (year > 5). Fund proceeds = $40M * 20% = $8M. Recycled = $0 (ineligible). All $8M returned to LPs.",
+    "tags": ["after-period", "single-exit", "ineligible"]
+  },
+  {
+    "id": "ER-015",
+    "category": "term_validation",
+    "description": "Exit on period boundary - exit in year 5 of 5-year recycling period (inclusive boundary test)",
+    "input": {
+      "fundSize": 100,
+      "recyclingCapPercent": 15,
+      "recyclingPeriod": 5,
+      "exitRecyclingRate": 75,
+      "exits": [
+        {
+          "id": "Exit-A",
+          "year": 5,
+          "grossProceeds": 40,
+          "ownershipPercent": 25
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 7.5,
+      "exitsWithinPeriod": 1,
+      "exitsAfterPeriod": 0,
+      "recycledFromEligibleExits": 7.5,
+      "returnedFromIneligibleExits": 0,
+      "recyclingByExit": [
+        {
+          "exitId": "Exit-A",
+          "exitYear": 5,
+          "fundProceeds": 10,
+          "recycledAmount": 7.5,
+          "returnedToLPs": 2.5,
+          "withinPeriod": true,
+          "appliedRate": 75
+        }
+      ]
+    },
+    "tolerance": 0.01,
+    "notes": "Boundary condition test: year 5 is within 5-year period (inclusive, year <= 5). Fund proceeds = $40M * 25% = $10M. Recycled = $10M * 75% = $7.5M. Returned to LPs = $2.5M. Critical test for inclusive boundary logic.",
+    "tags": ["boundary", "inclusive", "single-exit", "eligible"]
+  },
+  {
+    "id": "ER-016",
+    "category": "term_validation",
+    "description": "Mixed timing exits - 2 eligible exits within period (years 2, 5) and 1 ineligible exit after period (year 7)",
+    "input": {
+      "fundSize": 100,
+      "recyclingCapPercent": 15,
+      "recyclingPeriod": 5,
+      "exitRecyclingRate": 100,
+      "exits": [
+        {
+          "id": "Exit-A",
+          "year": 2,
+          "grossProceeds": 30,
+          "ownershipPercent": 20
+        },
+        {
+          "id": "Exit-B",
+          "year": 5,
+          "grossProceeds": 40,
+          "ownershipPercent": 20
+        },
+        {
+          "id": "Exit-C",
+          "year": 7,
+          "grossProceeds": 50,
+          "ownershipPercent": 20
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 14,
+      "exitsWithinPeriod": 2,
+      "exitsAfterPeriod": 1,
+      "recycledFromEligibleExits": 14,
+      "returnedFromIneligibleExits": 10,
+      "recyclingByExit": [
+        {
+          "exitId": "Exit-A",
+          "exitYear": 2,
+          "fundProceeds": 6,
+          "recycledAmount": 6,
+          "returnedToLPs": 0,
+          "withinPeriod": true,
+          "appliedRate": 100
+        },
+        {
+          "exitId": "Exit-B",
+          "exitYear": 5,
+          "fundProceeds": 8,
+          "recycledAmount": 8,
+          "returnedToLPs": 0,
+          "withinPeriod": true,
+          "appliedRate": 100
+        },
+        {
+          "exitId": "Exit-C",
+          "exitYear": 7,
+          "fundProceeds": 10,
+          "recycledAmount": 0,
+          "returnedToLPs": 10,
+          "withinPeriod": false,
+          "appliedRate": 0
+        }
+      ]
+    },
+    "tolerance": 0.01,
+    "notes": "Mix of eligible and ineligible exits. Exit A (year 2, eligible): $6M proceeds, $6M recycled (100%). Exit B (year 5, eligible, boundary): $8M proceeds, $8M recycled (100%). Exit C (year 7, ineligible): $10M proceeds, $0 recycled, $10M to LPs. Total recycled = $14M from eligible exits.",
+    "tags": [
+      "mixed-timing",
+      "multiple-exits",
+      "eligible-ineligible",
+      "boundary"
+    ]
+  },
+  {
+    "id": "ER-017",
+    "category": "term_validation",
+    "description": "Short period (2 years) - 2 eligible exits within 2-year period, 1 ineligible exit after",
+    "input": {
+      "fundSize": 100,
+      "recyclingCapPercent": 15,
+      "recyclingPeriod": 2,
+      "exitRecyclingRate": 75,
+      "exits": [
+        {
+          "id": "Exit-A",
+          "year": 1,
+          "grossProceeds": 30,
+          "ownershipPercent": 25
+        },
+        {
+          "id": "Exit-B",
+          "year": 2,
+          "grossProceeds": 40,
+          "ownershipPercent": 20
+        },
+        {
+          "id": "Exit-C",
+          "year": 3,
+          "grossProceeds": 50,
+          "ownershipPercent": 20
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 11.625,
+      "exitsWithinPeriod": 2,
+      "exitsAfterPeriod": 1,
+      "recycledFromEligibleExits": 11.625,
+      "returnedFromIneligibleExits": 10,
+      "recyclingByExit": [
+        {
+          "exitId": "Exit-A",
+          "exitYear": 1,
+          "fundProceeds": 7.5,
+          "recycledAmount": 5.625,
+          "returnedToLPs": 1.875,
+          "withinPeriod": true,
+          "appliedRate": 75
+        },
+        {
+          "exitId": "Exit-B",
+          "exitYear": 2,
+          "fundProceeds": 8,
+          "recycledAmount": 6,
+          "returnedToLPs": 2,
+          "withinPeriod": true,
+          "appliedRate": 75
+        },
+        {
+          "exitId": "Exit-C",
+          "exitYear": 3,
+          "fundProceeds": 10,
+          "recycledAmount": 0,
+          "returnedToLPs": 10,
+          "withinPeriod": false,
+          "appliedRate": 0
+        }
+      ]
+    },
+    "tolerance": 0.01,
+    "notes": "Short 2-year period limits eligibility. Exit A (year 1, eligible): $7.5M proceeds, $5.625M recycled (75%). Exit B (year 2, eligible, boundary): $8M proceeds, $6M recycled (75%). Exit C (year 3, ineligible): $10M proceeds, $0 recycled, $10M to LPs. Total recycled = $11.625M.",
+    "tags": ["short-period", "multiple-exits", "early-exits", "tight-window"]
+  },
+  {
+    "id": "ER-018",
+    "category": "term_validation",
+    "description": "Long period (8 years) - 2 eligible exits within 8-year period, 1 ineligible exit after",
+    "input": {
+      "fundSize": 100,
+      "recyclingCapPercent": 15,
+      "recyclingPeriod": 8,
+      "exitRecyclingRate": 75,
+      "exits": [
+        {
+          "id": "Exit-A",
+          "year": 3,
+          "grossProceeds": 40,
+          "ownershipPercent": 20
+        },
+        {
+          "id": "Exit-B",
+          "year": 6,
+          "grossProceeds": 50,
+          "ownershipPercent": 20
+        },
+        {
+          "id": "Exit-C",
+          "year": 9,
+          "grossProceeds": 60,
+          "ownershipPercent": 20
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 13.5,
+      "exitsWithinPeriod": 2,
+      "exitsAfterPeriod": 1,
+      "recycledFromEligibleExits": 13.5,
+      "returnedFromIneligibleExits": 12,
+      "recyclingByExit": [
+        {
+          "exitId": "Exit-A",
+          "exitYear": 3,
+          "fundProceeds": 8,
+          "recycledAmount": 6,
+          "returnedToLPs": 2,
+          "withinPeriod": true,
+          "appliedRate": 75
+        },
+        {
+          "exitId": "Exit-B",
+          "exitYear": 6,
+          "fundProceeds": 10,
+          "recycledAmount": 7.5,
+          "returnedToLPs": 2.5,
+          "withinPeriod": true,
+          "appliedRate": 75
+        },
+        {
+          "exitId": "Exit-C",
+          "exitYear": 9,
+          "fundProceeds": 12,
+          "recycledAmount": 0,
+          "returnedToLPs": 12,
+          "withinPeriod": false,
+          "appliedRate": 0
+        }
+      ]
+    },
+    "tolerance": 0.01,
+    "notes": "Long period captures more exits. Exit A (year 3, eligible): $8M proceeds, $6M recycled (75%). Exit B (year 6, eligible): $10M proceeds, $7.5M recycled (75%). Exit C (year 9, ineligible): $12M proceeds, $0 recycled, $12M to LPs. Total recycled = $13.5M from eligible exits.",
+    "tags": ["long-period", "multiple-exits", "extended-window", "late-harvest"]
+  },
+  {
+    "id": "ER-019",
+    "category": "capacity_calculation",
+    "description": "Maximum cap edge case testing upper bounds of cap (25%) and period (10 years) validation",
+    "input": {
+      "fundSize": 500,
+      "recyclingCapPercent": 25,
+      "recyclingPeriod": 10
+    },
+    "expectedOutput": {
+      "maxRecyclableCapital": 125,
+      "recyclingCapPercentage": 25,
+      "recyclingPeriodYears": 10,
+      "annualRecyclingCapacity": 12.5
+    },
+    "tolerance": 0.01,
+    "notes": "Tests upper bounds of cap and period validation. Maximum allowed recycling cap of 25% on a $500M fund yields $125M maximum recyclable capital, distributed at $12.5M per year over 10 years. This validates boundary conditions for the largest permitted recycling configurations.",
+    "tags": ["edge-case", "capacity", "maximum-bounds", "validation"]
+  },
+  {
+    "id": "ER-020",
+    "category": "schedule_calculation",
+    "description": "Complex multi-exit scenario testing multiple constraints: cap limit, period boundary, multiple exits, and high recycling rate",
+    "input": {
+      "fundSize": 200,
+      "recyclingCapPercent": 18,
+      "recyclingPeriod": 6,
+      "exitRecyclingRate": 80,
+      "exits": [
+        {
+          "id": "Exit-A",
+          "year": 2,
+          "grossProceeds": 60,
+          "ownershipPercent": 15
+        },
+        {
+          "id": "Exit-B",
+          "year": 3,
+          "grossProceeds": 80,
+          "ownershipPercent": 20
+        },
+        {
+          "id": "Exit-C",
+          "year": 4,
+          "grossProceeds": 50,
+          "ownershipPercent": 25
+        },
+        {
+          "id": "Exit-D",
+          "year": 5,
+          "grossProceeds": 40,
+          "ownershipPercent": 20
+        },
+        {
+          "id": "Exit-E",
+          "year": 7,
+          "grossProceeds": 100,
+          "ownershipPercent": 30
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 36,
+      "totalReturnedToLPs": 39.5,
+      "remainingCapacity": 0,
+      "capReached": true,
+      "recyclingByExit": [
+        {
+          "exitId": "Exit-A",
+          "exitYear": 2,
+          "fundProceeds": 9,
+          "recycledAmount": 7.2,
+          "returnedToLPs": 1.8,
+          "withinPeriod": true,
+          "appliedRate": 80
+        },
+        {
+          "exitId": "Exit-B",
+          "exitYear": 3,
+          "fundProceeds": 16,
+          "recycledAmount": 12.8,
+          "returnedToLPs": 3.2,
+          "withinPeriod": true,
+          "appliedRate": 80
+        },
+        {
+          "exitId": "Exit-C",
+          "exitYear": 4,
+          "fundProceeds": 12.5,
+          "recycledAmount": 10,
+          "returnedToLPs": 2.5,
+          "withinPeriod": true,
+          "appliedRate": 80
+        },
+        {
+          "exitId": "Exit-D",
+          "exitYear": 5,
+          "fundProceeds": 8,
+          "recycledAmount": 6,
+          "returnedToLPs": 2,
+          "withinPeriod": true,
+          "appliedRate": 80
+        },
+        {
+          "exitId": "Exit-E",
+          "exitYear": 7,
+          "fundProceeds": 30,
+          "recycledAmount": 0,
+          "returnedToLPs": 30,
+          "withinPeriod": false,
+          "appliedRate": 0
+        }
+      ],
+      "cumulativeByYear": [
+        {
+          "year": 2,
+          "cumulativeRecycled": 7.2,
+          "annualRecycled": 7.2
+        },
+        {
+          "year": 3,
+          "cumulativeRecycled": 20,
+          "annualRecycled": 12.8
+        },
+        {
+          "year": 4,
+          "cumulativeRecycled": 30,
+          "annualRecycled": 10
+        },
+        {
+          "year": 5,
+          "cumulativeRecycled": 36,
+          "annualRecycled": 6
+        },
+        {
+          "year": 7,
+          "cumulativeRecycled": 36,
+          "annualRecycled": 0
+        }
+      ]
+    },
+    "tolerance": 0.01,
+    "notes": "Complex scenario with 5 exits testing multiple constraint interactions. Fund: $200M with 18% cap ($36M) over 6 years at 80% recycling rate. Exits A-D (years 2-5) are within period: Exit A yields $9M fund proceeds ($60M × 15%) → recycle $7.2M; Exit B yields $16M ($80M × 20%) → recycle $12.8M; Exit C yields $12.5M ($50M × 25%) → recycle $10M; Exit D yields $8M ($40M × 20%) → attempt $6.4M but cap limits to $6M (total reaches $36M cap). Exit E (year 7) is after period: $30M proceeds ($100M × 30%) all returned to LPs. Total eligible proceeds: $45.5M, potential recycling at 80%: $36.4M, actual recycled: $36M (capped), returned to LPs: $9.5M from eligible + $30M from ineligible = $39.5M total. Tests cap enforcement, period boundary, high recycling rate, and cumulative tracking across multiple exits.",
+    "tags": [
+      "edge-case",
+      "multi-exit",
+      "cap-enforcement",
+      "period-boundary",
+      "complex"
+    ]
+  }
+]

@@ -1,0 +1,133 @@
+# Exit Recycling Documentation Validation Configuration
+# Adapted from Anthropic Cookbook summarization evaluation framework
+# Purpose: Calculate Phase 1C domain score and validate documentation quality
+
+description: 'Phase 1C Exit Recycling Documentation Domain Score Validation'
+
+# Prompts define how to evaluate the documentation
+prompts:
+  # Primary evaluation using custom domain scorer
+  - |
+    file://../../docs/notebooklm-sources/exit-recycling.md
+
+# Claude models to use for evaluation
+providers:
+  - id: anthropic:messages:claude-sonnet-4-5
+    label: 'Claude 3.5 Sonnet'
+    config:
+      max_tokens: 8192
+      temperature: 0
+
+# Default assertions that apply to all tests
+defaultTest:
+  assert:
+    # Ensure no AI self-reference
+    - type: not-contains-any
+      value:
+        - 'I am an AI'
+        - 'As an AI language model'
+        - "I'm an AI assistant"
+        - 'I am a chatbot'
+
+# Test cases for exit recycling documentation validation
+tests:
+  # Test 1: exit-recycling.md validation
+  - description: 'Validate exit-recycling.md against Phase 1 rubric'
+    vars:
+      truth_cases: file://../../docs/exit-recycling.truth-cases.json
+      schema: file://../../docs/schemas/exit-recycling-truth-case.schema.json
+      doc_type: 'primary_documentation'
+    assert:
+      # Custom domain scorer (4-dimensional rubric)
+      - type: python
+        value: file://custom_evals/fee_doc_domain_scorer.py
+        threshold: 0.92 # 92% minimum Phase 1 threshold
+
+      # Content coverage checks
+      - type: icontains-all
+        value:
+          - 'recycling capacity'
+          - 'recycling cap'
+          - 'recycling period'
+          - 'exit eligibility'
+          - 'recycling rate'
+          - 'cap enforcement'
+          - 'term validation'
+          - 'chronological'
+
+      # Mathematical content checks
+      - type: icontains-any
+        value:
+          - 'formula'
+          - 'calculation'
+          - 'maxRecyclableCapital'
+          - 'annualRecyclingCapacity'
+          - 'recycledAmount'
+
+      # Integration checks
+      - type: icontains-all
+        value:
+          - 'client/src/lib/exit-recycling-calculations.ts'
+          - 'shared/schemas/recycling-policy.ts'
+          - 'ExitEvent'
+          - 'RecyclingCapacity'
+
+  # Test 2: ADR-007 validation
+  - description: 'Validate ADR-007 architectural decisions'
+    vars:
+      doc_path: file://../../docs/adr/ADR-007-exit-recycling-policy.md
+      truth_cases: file://../../docs/exit-recycling.truth-cases.json
+      schema: file://../../docs/schemas/exit-recycling-truth-case.schema.json
+      doc_type: 'architecture_decision_record'
+    assert:
+      # Custom domain scorer
+      - type: python
+        value: file://custom_evals/fee_doc_domain_scorer.py
+        threshold: 0.92
+
+      # ADR structure checks
+      - type: icontains-all
+        value:
+          - 'Status'
+          - 'Accepted'
+          - 'Context'
+          - 'Decision'
+          - 'Consequences'
+
+      # Decision content checks
+      - type: icontains-all
+        value:
+          - 'Recycling Cap Structure'
+          - 'Recycling Period Conventions'
+          - 'Exit Eligibility Criteria'
+          - 'Recycling Rate'
+          - 'Cap Enforcement Strategy'
+          - 'Management Fee Recycling'
+          - 'Validation and Warnings'
+
+      # Code reference checks
+      - type: javascript
+        value: |
+          // Verify ADR contains file:line references
+          const fileLinePattern = /\w+\.ts:\d+/g;
+          const matches = output.match(fileLinePattern);
+          if (!matches || matches.length < 5) {
+            return {
+              pass: false,
+              score: 0,
+              reason: `Expected at least 5 file:line references, found ${matches ? matches.length : 0}`
+            };
+          }
+          return {
+            pass: true,
+            score: 1,
+            reason: `Found ${matches.length} file:line references`
+          };
+
+# Output configuration
+outputPath: ./results/exit-recycling-validation-results.json
+
+# Enable progress bar during evaluation
+evaluateOptions:
+  showProgressBar: true
+  maxConcurrency: 1 # Sequential execution to avoid rate limits

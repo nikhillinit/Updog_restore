@@ -1,0 +1,580 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://updog.press-on.vc/schemas/exit-recycling-truth-case.json",
+  "title": "Exit Recycling Truth Case",
+  "description": "Canonical test scenario for exit recycling validation (capacity calculations, schedule calculations, cap enforcement, term validation)",
+  "type": "object",
+  "required": [
+    "id",
+    "category",
+    "description",
+    "input",
+    "expectedOutput",
+    "tolerance"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for this truth case",
+      "pattern": "^ER-\\d{3}$"
+    },
+    "category": {
+      "type": "string",
+      "description": "Exit recycling category this test case validates",
+      "enum": [
+        "capacity_calculation",
+        "schedule_calculation",
+        "cap_enforcement",
+        "term_validation"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of this test scenario",
+      "minLength": 10
+    },
+    "input": {
+      "type": "object",
+      "description": "Input parameters for exit recycling calculation, structure varies by category"
+    },
+    "expectedOutput": {
+      "type": "object",
+      "description": "Expected calculation results with numeric properties",
+      "additionalProperties": {
+        "anyOf": [
+          { "type": "number" },
+          { "type": "boolean" },
+          { "type": "array" }
+        ]
+      }
+    },
+    "tolerance": {
+      "type": "number",
+      "description": "Acceptable absolute difference for floating-point comparison",
+      "minimum": 0,
+      "default": 0.01
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional notes about edge cases, assumptions, or calculation nuances"
+    },
+    "excelReference": {
+      "type": "string",
+      "description": "Optional reference to Excel workbook/sheet for cross-validation"
+    },
+    "tags": {
+      "type": "array",
+      "description": "Tags for categorizing and filtering test cases",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "category": {
+            "const": "capacity_calculation"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "input": {
+            "type": "object",
+            "required": ["fundSize", "recyclingCapPercent", "recyclingPeriod"],
+            "properties": {
+              "fundSize": {
+                "type": "number",
+                "description": "Total fund commitment size ($M)",
+                "minimum": 0
+              },
+              "recyclingCapPercent": {
+                "type": "number",
+                "description": "Recycling cap as percentage of fund size (e.g., 15 for 15%)",
+                "minimum": 0,
+                "maximum": 25
+              },
+              "recyclingPeriod": {
+                "type": "integer",
+                "description": "Recycling period in years",
+                "minimum": 1,
+                "maximum": 10
+              }
+            }
+          },
+          "expectedOutput": {
+            "type": "object",
+            "required": [
+              "maxRecyclableCapital",
+              "recyclingCapPercentage",
+              "recyclingPeriodYears",
+              "annualRecyclingCapacity"
+            ],
+            "properties": {
+              "maxRecyclableCapital": {
+                "type": "number",
+                "description": "Maximum recyclable capital ($M)",
+                "minimum": 0
+              },
+              "recyclingCapPercentage": {
+                "type": "number",
+                "description": "Recycling cap as percentage (%)",
+                "minimum": 0,
+                "maximum": 25
+              },
+              "recyclingPeriodYears": {
+                "type": "integer",
+                "description": "Recycling period (years)",
+                "minimum": 1,
+                "maximum": 10
+              },
+              "annualRecyclingCapacity": {
+                "type": "number",
+                "description": "Annual recycling capacity ($M/year)",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "category": {
+            "const": "schedule_calculation"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "input": {
+            "type": "object",
+            "required": [
+              "fundSize",
+              "recyclingCapPercent",
+              "recyclingPeriod",
+              "exitRecyclingRate",
+              "exits"
+            ],
+            "properties": {
+              "fundSize": {
+                "type": "number",
+                "description": "Total fund commitment size ($M)",
+                "minimum": 0
+              },
+              "recyclingCapPercent": {
+                "type": "number",
+                "description": "Recycling cap as percentage of fund size (%)",
+                "minimum": 0,
+                "maximum": 25
+              },
+              "recyclingPeriod": {
+                "type": "integer",
+                "description": "Recycling period in years",
+                "minimum": 1,
+                "maximum": 10
+              },
+              "exitRecyclingRate": {
+                "type": "number",
+                "description": "Percentage of exit proceeds to recycle (e.g., 75 for 75%)",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "exits": {
+                "type": "array",
+                "description": "Array of exit events",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "year",
+                    "grossProceeds",
+                    "ownershipPercent"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "Exit identifier"
+                    },
+                    "year": {
+                      "type": "integer",
+                      "description": "Year of exit (relative to vintage)",
+                      "minimum": 0
+                    },
+                    "grossProceeds": {
+                      "type": "number",
+                      "description": "Gross exit proceeds ($M)",
+                      "minimum": 0
+                    },
+                    "ownershipPercent": {
+                      "type": "number",
+                      "description": "Fund's ownership stake (%)",
+                      "minimum": 0,
+                      "maximum": 100
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "expectedOutput": {
+            "type": "object",
+            "required": [
+              "totalRecycled",
+              "totalReturnedToLPs",
+              "remainingCapacity",
+              "capReached"
+            ],
+            "properties": {
+              "totalRecycled": {
+                "type": "number",
+                "description": "Total capital recycled across all exits ($M)",
+                "minimum": 0
+              },
+              "totalReturnedToLPs": {
+                "type": "number",
+                "description": "Total returned to LPs ($M)",
+                "minimum": 0
+              },
+              "remainingCapacity": {
+                "type": "number",
+                "description": "Remaining recycling capacity ($M)",
+                "minimum": 0
+              },
+              "capReached": {
+                "type": "boolean",
+                "description": "Has recycling cap been reached?"
+              },
+              "recyclingByExit": {
+                "type": "array",
+                "description": "Optional: recycling details for each exit",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "exitId",
+                    "exitYear",
+                    "fundProceeds",
+                    "recycledAmount",
+                    "returnedToLPs"
+                  ],
+                  "properties": {
+                    "exitId": {
+                      "type": "string"
+                    },
+                    "exitYear": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "fundProceeds": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "recycledAmount": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "returnedToLPs": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "withinPeriod": {
+                      "type": "boolean"
+                    },
+                    "appliedRate": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    }
+                  }
+                }
+              },
+              "cumulativeByYear": {
+                "type": "array",
+                "description": "Optional: cumulative recycling by year",
+                "items": {
+                  "type": "object",
+                  "required": ["year", "cumulativeRecycled", "annualRecycled"],
+                  "properties": {
+                    "year": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "cumulativeRecycled": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "annualRecycled": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "category": {
+            "const": "cap_enforcement"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "input": {
+            "type": "object",
+            "required": [
+              "fundSize",
+              "recyclingCapPercent",
+              "recyclingPeriod",
+              "exitRecyclingRate",
+              "exits"
+            ],
+            "properties": {
+              "fundSize": {
+                "type": "number",
+                "description": "Total fund commitment size ($M)",
+                "minimum": 0
+              },
+              "recyclingCapPercent": {
+                "type": "number",
+                "description": "Recycling cap as percentage of fund size (%)",
+                "minimum": 0,
+                "maximum": 25
+              },
+              "recyclingPeriod": {
+                "type": "integer",
+                "description": "Recycling period in years",
+                "minimum": 1,
+                "maximum": 10
+              },
+              "exitRecyclingRate": {
+                "type": "number",
+                "description": "Percentage of exit proceeds to recycle (%)",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "exits": {
+                "type": "array",
+                "description": "Array of exit events (designed to exceed cap)",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "year",
+                    "grossProceeds",
+                    "ownershipPercent"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "year": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "grossProceeds": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "ownershipPercent": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "expectedOutput": {
+            "type": "object",
+            "required": [
+              "totalRecycled",
+              "capReached",
+              "excessProceeds",
+              "returnedToLPs"
+            ],
+            "properties": {
+              "totalRecycled": {
+                "type": "number",
+                "description": "Total recycled (should equal cap) ($M)",
+                "minimum": 0
+              },
+              "capReached": {
+                "type": "boolean",
+                "description": "Should be true"
+              },
+              "excessProceeds": {
+                "type": "number",
+                "description": "Exit proceeds that exceeded cap ($M)",
+                "minimum": 0
+              },
+              "returnedToLPs": {
+                "type": "number",
+                "description": "Total returned to LPs (including excess) ($M)",
+                "minimum": 0
+              },
+              "remainingCapacity": {
+                "type": "number",
+                "description": "Should be approximately 0",
+                "minimum": 0,
+                "maximum": 0.1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "category": {
+            "const": "term_validation"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "input": {
+            "type": "object",
+            "required": [
+              "fundSize",
+              "recyclingCapPercent",
+              "recyclingPeriod",
+              "exitRecyclingRate",
+              "exits"
+            ],
+            "properties": {
+              "fundSize": {
+                "type": "number",
+                "description": "Total fund commitment size ($M)",
+                "minimum": 0
+              },
+              "recyclingCapPercent": {
+                "type": "number",
+                "description": "Recycling cap as percentage of fund size (%)",
+                "minimum": 0,
+                "maximum": 25
+              },
+              "recyclingPeriod": {
+                "type": "integer",
+                "description": "Recycling period in years",
+                "minimum": 1,
+                "maximum": 10
+              },
+              "exitRecyclingRate": {
+                "type": "number",
+                "description": "Percentage of exit proceeds to recycle (%)",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "exits": {
+                "type": "array",
+                "description": "Array of exit events (some within period, some after)",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "year",
+                    "grossProceeds",
+                    "ownershipPercent"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "year": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "grossProceeds": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "ownershipPercent": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "expectedOutput": {
+            "type": "object",
+            "required": [
+              "totalRecycled",
+              "exitsWithinPeriod",
+              "exitsAfterPeriod",
+              "recycledFromEligibleExits",
+              "returnedFromIneligibleExits"
+            ],
+            "properties": {
+              "totalRecycled": {
+                "type": "number",
+                "description": "Total recycled from eligible exits only ($M)",
+                "minimum": 0
+              },
+              "exitsWithinPeriod": {
+                "type": "integer",
+                "description": "Count of exits within recycling period",
+                "minimum": 0
+              },
+              "exitsAfterPeriod": {
+                "type": "integer",
+                "description": "Count of exits after recycling period",
+                "minimum": 0
+              },
+              "recycledFromEligibleExits": {
+                "type": "number",
+                "description": "Recycled from exits within period ($M)",
+                "minimum": 0
+              },
+              "returnedFromIneligibleExits": {
+                "type": "number",
+                "description": "Returned to LPs from exits after period ($M)",
+                "minimum": 0
+              },
+              "recyclingByExit": {
+                "type": "array",
+                "description": "Optional: detailed breakdown by exit",
+                "items": {
+                  "type": "object",
+                  "required": ["exitId", "withinPeriod", "recycledAmount"],
+                  "properties": {
+                    "exitId": {
+                      "type": "string"
+                    },
+                    "withinPeriod": {
+                      "type": "boolean"
+                    },
+                    "recycledAmount": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "returnedToLPs": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
