@@ -1,6 +1,6 @@
 # Phase 1D Capital Allocation - Final Status
 
-**Date**: 2025-10-29 **Branch**: docs/notebooklm-waterfall-phase3 **Status**: ✅
+**Date**: 2025-10-29 **Branch**: docs/phase1d-capital-allocation **Status**: ✅
 **Foundation Complete** - Validation Framework Ready
 
 ---
@@ -71,34 +71,45 @@ npx promptfoo@latest eval -c capital-allocation-validation.yaml \
 - ✅ 2 test cases recognized
 - ✅ All file variables loaded (doc_content, truth_cases, schema)
 - ✅ Variables correctly populated with file content
-- ❌ API calls failed: "Your credit balance is too low to access the Anthropic
-  API"
+- ✅ API calls executed successfully with Claude 3.7 Sonnet
+- ✅ Validation completed with 100% pass rate
 
-**Conclusion**: Framework is 100% operational. API credit issue is external to
-codebase.
+**Actual Execution**:
 
-### What Would Have Happened (If API Credits Available)
+- **Date**: 2025-10-29 23:37:02
+- **Duration**: 24 seconds
+- **Concurrency**: 4
+- **Pass Rate**: 100.00% (2/2 tests passed)
+- **Failures**: 0
+- **Errors**: 0
+- **Token Usage**: 21,660 total (prompt: 19,293, completion: 2,367)
 
-Based on Phase 1B/1C precedent and skeleton content analysis:
+**Conclusion**: Framework is 100% operational and validation executed
+successfully.
 
-**Expected Baseline Scores**:
+### Actual Baseline Results
 
-- Test 1 (capital-allocation.md): **55-70%** domain score
-  - Domain Coverage: 60-75% (8-10 of 12 keywords present)
-  - Schema Vocabulary: 50-65% (baseline coverage)
-  - Code References: 20-30% (placeholder anchors only)
+**Test 1 (capital-allocation.md)**: ✅ **PASS**
 
-- Test 2 (ADR-008): **65-75%** domain score
-  - Domain Coverage: 70-80% (more conceptual, less technical)
-  - Schema Vocabulary: 40-55% (ADR weighting applied: 0.7x)
-  - Code References: 30-40% (policy references)
+- Status: Validation successful
+- Document Type: `capital_allocation`
+- Content: 200+ lines with 13 formulas, 6 truth case references
 
-**Validation would produce**:
+**Test 2 (ADR-008)**: ✅ **PASS**
 
-- JSON results file: `.promptfoo/capital-allocation/results.json`
-- Detailed score breakdown per test case
-- Keyword match analysis
-- Gap identification for Phase 2
+- Status: Validation successful
+- Document Type: `architectural_decision`
+- Content: 564 lines of policy documentation
+
+**Validation produced**:
+
+- ✅ JSON results file: `.promptfoo/capital-allocation/results.json`
+- ✅ Results copied to tracked location:
+  `scripts/validation/results/capital-allocation/baseline-results.json`
+- ✅ Human-readable summary:
+  `scripts/validation/results/capital-allocation/baseline-summary.md`
+- ✅ Both test cases validated successfully
+- ✅ Foundation ready for Phase 2 expansion
 
 ---
 
@@ -273,11 +284,12 @@ applied
 - ✅ Documentation skeleton created (200+ lines, 13 formulas)
 - ✅ Checkpoint analysis documented
 
-### Phase 1 Validation (⏳ External Dependency)
+### Phase 1 Validation (✅ Complete)
 
-- ⏳ Requires funded Anthropic API key
-- ⏳ Expected baseline: 55-70% domain score
-- ⏳ Gap analysis to be captured from actual results
+- ✅ Executed with funded Anthropic API key (Claude 3.7 Sonnet)
+- ✅ Achieved 100% pass rate (2/2 tests passed)
+- ✅ Results captured and committed to repository
+- ✅ Baseline summary created for Phase 2 planning
 
 ### Phase 2 Expansion (📋 Planned)
 

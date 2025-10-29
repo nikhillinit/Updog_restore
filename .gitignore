@@ -162,6 +162,7 @@ anthropic-cookbook/
 # Validation framework artifacts
 scripts/validation/custom_evals/__pycache__/
 scripts/validation/results/
+.promptfoo/
 
 
 #Ignore vscode AI rules
