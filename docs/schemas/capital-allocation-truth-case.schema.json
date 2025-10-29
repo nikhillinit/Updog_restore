@@ -6,6 +6,11 @@
   "type": "object",
   "required": ["id", "module", "category", "description", "inputs", "expected"],
   "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of truth case schema (e.g., 1.0.0)"
+    },
     "id": {
       "type": "string",
       "pattern": "^CA-[0-9]{3}$",
@@ -120,7 +125,7 @@
                   },
                   "amount": {
                     "type": "number",
-                    "minimum": 0
+                    "description": "Distribution amount. Negative values represent capital recalls/clawbacks. See ADR-008 for rationale and downstream implications. Note: recycle_eligible should be false for recalls."
                   },
                   "recycle_eligible": {
                     "type": "boolean",
