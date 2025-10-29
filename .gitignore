@@ -156,6 +156,13 @@ coverage/
 Updog_restore-main/
 .specstory/
 
+# Reference materials (external repos)
+anthropic-cookbook/
+
+# Validation framework artifacts
+scripts/validation/custom_evals/__pycache__/
+scripts/validation/results/
+
 
 #Ignore vscode AI rules
 .github\instructions\codacy.instructions.md

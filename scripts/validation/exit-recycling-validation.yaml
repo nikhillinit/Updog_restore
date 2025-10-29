@@ -4,11 +4,9 @@
 
 description: 'Phase 1C Exit Recycling Documentation Domain Score Validation'
 
-# Prompts define how to evaluate the documentation
+# Prompts use Python functions that receive file contents
 prompts:
-  # Primary evaluation using custom domain scorer
-  - |
-    file://../../docs/notebooklm-sources/exit-recycling.md
+  - prompts.py:validate_exit_recycling_doc
 
 # Claude models to use for evaluation
 providers:
@@ -34,14 +32,29 @@ tests:
   # Test 1: exit-recycling.md validation
   - description: 'Validate exit-recycling.md against Phase 1 rubric'
     vars:
+      doc_content: file://../../docs/notebooklm-sources/exit-recycling.md
       truth_cases: file://../../docs/exit-recycling.truth-cases.json
       schema: file://../../docs/schemas/exit-recycling-truth-case.schema.json
       doc_type: 'primary_documentation'
     assert:
-      # Custom domain scorer (4-dimensional rubric)
-      - type: python
-        value: file://custom_evals/fee_doc_domain_scorer.py
-        threshold: 0.92 # 92% minimum Phase 1 threshold
+      # Domain score threshold
+      - type: javascript
+        value: |
+          const result = JSON.parse(output);
+          if (!result.domain_score) {
+            return {
+              pass: false,
+              score: 0,
+              reason: 'No domain_score in output'
+            };
+          }
+          const score = result.domain_score;
+          const threshold = 0.92;
+          return {
+            pass: score >= threshold,
+            score: score,
+            reason: `Domain score: ${(score * 100).toFixed(1)}% (threshold: ${(threshold * 100)}%)`
+          };
 
       # Content coverage checks
       - type: icontains-all
@@ -75,15 +88,29 @@ tests:
   # Test 2: ADR-007 validation
   - description: 'Validate ADR-007 architectural decisions'
     vars:
-      doc_path: file://../../docs/adr/ADR-007-exit-recycling-policy.md
+      doc_content: file://../../docs/adr/ADR-007-exit-recycling-policy.md
       truth_cases: file://../../docs/exit-recycling.truth-cases.json
       schema: file://../../docs/schemas/exit-recycling-truth-case.schema.json
       doc_type: 'architecture_decision_record'
     assert:
-      # Custom domain scorer
-      - type: python
-        value: file://custom_evals/fee_doc_domain_scorer.py
-        threshold: 0.92
+      # Domain score threshold
+      - type: javascript
+        value: |
+          const result = JSON.parse(output);
+          if (!result.domain_score) {
+            return {
+              pass: false,
+              score: 0,
+              reason: 'No domain_score in output'
+            };
+          }
+          const score = result.domain_score;
+          const threshold = 0.92;
+          return {
+            pass: score >= threshold,
+            score: score,
+            reason: `Domain score: ${(score * 100).toFixed(1)}% (threshold: ${(threshold * 100)}%)`
+          };
 
       # ADR structure checks
       - type: icontains-all
