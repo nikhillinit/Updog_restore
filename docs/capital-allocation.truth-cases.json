@@ -18,24 +18,42 @@
       },
       "flows": {
         "contributions": [
-          { "date": "2024-03-31", "amount": 5.0 },
-          { "date": "2024-06-30", "amount": 5.0 },
-          { "date": "2024-09-30", "amount": 5.0 },
-          { "date": "2024-12-31", "amount": 5.0 }
+          {
+            "date": "2024-03-31",
+            "amount": 5
+          },
+          {
+            "date": "2024-06-30",
+            "amount": 5
+          },
+          {
+            "date": "2024-09-30",
+            "amount": 5
+          },
+          {
+            "date": "2024-12-31",
+            "amount": 5
+          }
         ],
         "distributions": []
       },
       "constraints": {
-        "min_cash_buffer": 1.0,
+        "min_cash_buffer": 1,
         "rebalance_frequency": "quarterly"
       }
     },
     "expected": {
-      "reserve_balance": 20.0,
-      "allocations_by_cohort": [{ "cohort": "2024", "amount": 80.0 }],
+      "reserve_balance": 20,
+      "allocations_by_cohort": [
+        {
+          "cohort": "2024",
+          "amount": 80
+        }
+      ],
       "violations": []
     },
-    "notes": "Baseline case: reserve reaches 20% target with no violations"
+    "notes": "Baseline case: reserve reaches 20% target with no violations",
+    "schemaVersion": "1.0.0"
   },
   {
     "id": "CA-002",
@@ -55,22 +73,37 @@
         "end_date": "2024-06-30"
       },
       "flows": {
-        "contributions": [{ "date": "2024-03-31", "amount": 10.0 }],
+        "contributions": [
+          {
+            "date": "2024-03-31",
+            "amount": 10
+          }
+        ],
         "distributions": [
-          { "date": "2024-05-15", "amount": 8.0, "recycle_eligible": false }
+          {
+            "date": "2024-05-15",
+            "amount": 8,
+            "recycle_eligible": false
+          }
         ]
       },
       "constraints": {
-        "min_cash_buffer": 2.0,
+        "min_cash_buffer": 2,
         "rebalance_frequency": "quarterly"
       }
     },
     "expected": {
-      "reserve_balance": 2.0,
-      "allocations_by_cohort": [{ "cohort": "2024", "amount": 0.0 }],
+      "reserve_balance": 2,
+      "allocations_by_cohort": [
+        {
+          "cohort": "2024",
+          "amount": 0
+        }
+      ],
       "violations": []
     },
-    "notes": "Distribution depletes reserve below target; min_cash_buffer is preserved"
+    "notes": "Distribution depletes reserve below target; min_cash_buffer is preserved",
+    "schemaVersion": "1.0.0"
   },
   {
     "id": "CA-003",
@@ -90,20 +123,31 @@
         "end_date": "2024-12-31"
       },
       "flows": {
-        "contributions": [{ "date": "2024-03-31", "amount": 25.0 }],
+        "contributions": [
+          {
+            "date": "2024-03-31",
+            "amount": 25
+          }
+        ],
         "distributions": []
       },
       "constraints": {
-        "min_cash_buffer": 1.0,
+        "min_cash_buffer": 1,
         "rebalance_frequency": "quarterly"
       }
     },
     "expected": {
-      "reserve_balance": 15.0,
-      "allocations_by_cohort": [{ "cohort": "2024", "amount": 10.0 }],
+      "reserve_balance": 15,
+      "allocations_by_cohort": [
+        {
+          "cohort": "2024",
+          "amount": 10
+        }
+      ],
       "violations": []
     },
-    "notes": "Reserve capped at 15% (15M); excess 10M allocated to cohort"
+    "notes": "Reserve capped at 15% (15M); excess 10M allocated to cohort",
+    "schemaVersion": "1.0.0"
   },
   {
     "id": "CA-004",
@@ -127,16 +171,22 @@
         "distributions": []
       },
       "constraints": {
-        "min_cash_buffer": 5.0,
+        "min_cash_buffer": 5,
         "rebalance_frequency": "quarterly"
       }
     },
     "expected": {
-      "reserve_balance": 0.0,
-      "allocations_by_cohort": [{ "cohort": "2024", "amount": 0.0 }],
+      "reserve_balance": 0,
+      "allocations_by_cohort": [
+        {
+          "cohort": "2024",
+          "amount": 0
+        }
+      ],
       "violations": ["reserve_below_minimum"]
     },
-    "notes": "Adversarial: zero inflows cannot satisfy min_cash_buffer constraint"
+    "notes": "Adversarial: zero inflows cannot satisfy min_cash_buffer constraint",
+    "schemaVersion": "1.0.0"
   },
   {
     "id": "CA-005",
@@ -156,22 +206,37 @@
         "end_date": "2024-12-31"
       },
       "flows": {
-        "contributions": [{ "date": "2024-06-30", "amount": 30.0 }],
+        "contributions": [
+          {
+            "date": "2024-06-30",
+            "amount": 30
+          }
+        ],
         "distributions": [
-          { "date": "2024-09-30", "amount": 10.0, "recycle_eligible": true }
+          {
+            "date": "2024-09-30",
+            "amount": 10,
+            "recycle_eligible": true
+          }
         ]
       },
       "constraints": {
-        "min_cash_buffer": 2.0,
+        "min_cash_buffer": 2,
         "rebalance_frequency": "quarterly"
       }
     },
     "expected": {
-      "reserve_balance": 5.0,
-      "allocations_by_cohort": [{ "cohort": "2024", "amount": 15.0 }],
+      "reserve_balance": 5,
+      "allocations_by_cohort": [
+        {
+          "cohort": "2024",
+          "amount": 15
+        }
+      ],
       "violations": []
     },
-    "notes": "Dynamic policy adjusts reserve based on NAV changes; distribution reduces NAV, lowering reserve target"
+    "notes": "Dynamic policy adjusts reserve based on NAV changes; distribution reduces NAV, lowering reserve target",
+    "schemaVersion": "1.0.0"
   },
   {
     "id": "CA-006",
@@ -191,21 +256,36 @@
         "end_date": "2024-12-31"
       },
       "flows": {
-        "contributions": [{ "date": "2024-03-31", "amount": 25.0 }],
+        "contributions": [
+          {
+            "date": "2024-03-31",
+            "amount": 25
+          }
+        ],
         "distributions": [
-          { "date": "2024-07-15", "amount": 15.0, "recycle_eligible": false }
+          {
+            "date": "2024-07-15",
+            "amount": 15,
+            "recycle_eligible": false
+          }
         ]
       },
       "constraints": {
-        "min_cash_buffer": 2.0,
+        "min_cash_buffer": 2,
         "rebalance_frequency": "quarterly"
       }
     },
     "expected": {
-      "reserve_balance": 10.0,
-      "allocations_by_cohort": [{ "cohort": "2024", "amount": 0.0 }],
+      "reserve_balance": 10,
+      "allocations_by_cohort": [
+        {
+          "cohort": "2024",
+          "amount": 0
+        }
+      ],
       "violations": []
     },
-    "notes": "Large distribution depletes reserve; Q3 rebalancing restores to target (50% of remaining 20M)"
+    "notes": "Large distribution depletes reserve; Q3 rebalancing restores to target (50% of remaining 20M)",
+    "schemaVersion": "1.0.0"
   }
 ]

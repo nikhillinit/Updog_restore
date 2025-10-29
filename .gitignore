@@ -195,3 +195,10 @@ tests/unit/database/test-*.test.ts
 vitest.minimal.config.ts
 vitest.time-travel.config.ts
 vitest-fix-changelog.txt
+
+# Allow summaries in validation results
+\!scripts/validation/results/**
+scripts/validation/results/**
+\!scripts/validation/results/**/*.json
+\!scripts/validation/results/**/*.md
+\!scripts/validation/results/.gitkeep
