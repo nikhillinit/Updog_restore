@@ -8,6 +8,12 @@ export { AIRouter, createTask } from './Router';
 export { Orchestrator } from './Orchestrator';
 export { BacktestReporter } from './BacktestReporter';
 export { BacktestRunner } from './Backtest';
+export {
+  EvaluatorOptimizer,
+  extractXml,
+  createGenerator,
+  createEvaluator
+} from './EvaluatorOptimizer';
 
 // Performance Optimization exports
 export { serializeAsync, serializeSafely, serializeBatch } from './SerializationHelper';
@@ -102,3 +108,13 @@ export type {
   CacheStats,
   CachedConversation,
 } from './ConversationCache';
+
+export type {
+  EvaluationResult,
+  GenerationResult,
+  LoopStep,
+  LoopResult,
+  EvaluatorOptimizerConfig,
+  GeneratorFunction,
+  EvaluatorFunction,
+} from './EvaluatorOptimizer';
