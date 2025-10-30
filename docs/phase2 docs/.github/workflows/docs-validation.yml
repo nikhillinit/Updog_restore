@@ -1,0 +1,67 @@
+name: docs-validation
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: ['docs/**', 'feature/**']
+
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.filter.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: step-security/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            docs_only:
+              - 'docs/**'
+              - 'scripts/validation/**'
+              - 'scripts/wip-cases/**'
+              - 'scripts/merge-wip-cases.cjs'
+              - 'scripts/inject-case-snippets.cjs'
+              - '.github/workflows/docs-validation.yml'
+
+  validate_docs:
+    needs: classify
+    if: needs.classify.outputs.docs_only == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Ajv deps
+        run: npm i ajv ajv-formats --no-save
+      - name: Merge & inject
+        run: |
+          node scripts/merge-wip-cases.cjs
+          node scripts/inject-case-snippets.cjs
+      - name: Install promptfoo
+        run: npm i -g promptfoo@latest
+      - name: Run Promptfoo (final)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          mkdir -p .promptfoo/capital-allocation
+          cd scripts/validation
+          CONFIG="capital-allocation-final.yaml"
+          [ -f "$CONFIG" ] || CONFIG="capital-allocation-validation.yaml"
+          promptfoo eval -c "$CONFIG" -o ../../.promptfoo/capital-allocation
+      - name: Upload results (v4)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: promptfoo-results-capital-allocation
+          path: .promptfoo/capital-allocation
+          retention-days: 14
+
+  heavy_tests:
+    needs: classify
+    if: needs.classify.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Run full test matrix here"

@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "1.0.0",
+  "module": "capital_allocation",
+  "id": "CA-020",
+  "category": "integration",
+  "description": "Reserve, pacing (cash constrained), cohort caps/spill, recycling.",
+  "inputs": {
+    "timeline": {
+      "start_date": "2026-04-01",
+      "end_date": "2026-04-30",
+      "cadence": "monthly"
+    },
+    "policies": {
+      "reserve": {
+        "min_cash_buffer": 50000
+      },
+      "pacing": {
+        "window_months": 12,
+        "total_commitment": 1200000
+      },
+      "recycling": {
+        "enabled": true
+      }
+    },
+    "flows": {
+      "contributions": [
+        {
+          "date": "2026-04-01",
+          "amount": 100000
+        }
+      ],
+      "distributions": [
+        {
+          "date": "2026-04-15",
+          "amount": 30000,
+          "recycle_eligible": true
+        }
+      ]
+    },
+    "cohorts": [
+      {
+        "id": "Alpha",
+        "weight": 0.7,
+        "cap_pct": 0.5
+      },
+      {
+        "id": "Beta",
+        "weight": 0.3
+      }
+    ]
+  },
+  "expected": {
+    "reserve_met": true,
+    "allocated_amount": 80000,
+    "pacing_carryover_next": 20000,
+    "recycling_pool_delta": 30000,
+    "allocations_by_cohort": [
+      {
+        "cohort": "Alpha",
+        "amount": 40000
+      },
+      {
+        "cohort": "Beta",
+        "amount": 40000
+      }
+    ]
+  },
+  "notes": "Inflow 130k; reserve 50k \u2192 allocatable 80k (< pacing 100k \u2192 carryover 20k). Split 80k by weights, cap Alpha at 40k, spill to Beta. Recycling pool +30k."
+}

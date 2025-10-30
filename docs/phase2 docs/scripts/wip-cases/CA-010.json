@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0.0",
+  "module": "capital_allocation",
+  "id": "CA-010",
+  "category": "pacing_engine",
+  "description": "Pacing with prior carryover.",
+  "inputs": {
+    "timeline": {
+      "cadence": "monthly"
+    },
+    "policies": {
+      "pacing": {
+        "window_months": 12,
+        "total_commitment": 1200000
+      }
+    },
+    "state": {
+      "prior_carryover": 50000
+    }
+  },
+  "expected": {
+    "pacing_target": 150000
+  },
+  "notes": "100k base + 50k carryover."
+}

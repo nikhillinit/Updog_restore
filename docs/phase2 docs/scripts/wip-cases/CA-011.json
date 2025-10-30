@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0.0",
+  "module": "capital_allocation",
+  "id": "CA-011",
+  "category": "pacing_engine",
+  "description": "Window assumption Scenario 1: prorate remaining commitment over remaining months.",
+  "inputs": {
+    "timeline": {
+      "start_date": "2026-07-01",
+      "cadence": "monthly"
+    },
+    "policies": {
+      "pacing": {
+        "window_months_remaining": 6,
+        "total_commitment": 1200000
+      }
+    },
+    "state": {
+      "allocated_to_date": 500000
+    }
+  },
+  "expected": {
+    "pacing_target": 116666.67
+  },
+  "notes": "(1.2M - 0.5M) / 6 = 700k / 6."
+}

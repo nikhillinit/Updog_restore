@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "CA-010",
+  "module": "CapitalAllocation",
+  "category": "pacing_engine",
+  "description": "Front-loaded pipeline constrained by monthly pacing cap; defers excess.",
+  "inputs": {
+    "fund": {
+      "commitment": 30000000,
+      "target_reserve_pct": 0.2,
+      "reserve_policy": "static_pct",
+      "pacing_window_months": 24,
+      "vintage_year": 2024
+    },
+    "timeline": {
+      "start_date": "2025-01-01",
+      "end_date": "2026-12-31"
+    },
+    "flows": {
+      "contributions": [
+        {
+          "date": "2025-01-10",
+          "amount": 5000000
+        },
+        {
+          "date": "2025-02-15",
+          "amount": 5000000
+        }
+      ],
+      "distributions": []
+    },
+    "constraints": {
+      "min_cash_buffer": 1000000,
+      "max_allocation_per_cohort": 0.7,
+      "rebalance_frequency": "monthly"
+    },
+    "cohorts": [
+      {
+        "name": "Core",
+        "start_date": "2025-01-01",
+        "end_date": "2026-12-31",
+        "weight": 0.7
+      },
+      {
+        "name": "Growth",
+        "start_date": "2025-01-01",
+        "end_date": "2026-12-31",
+        "weight": 0.3
+      }
+    ]
+  },
+  "expected": {
+    "allocations_by_cohort": [
+      {
+        "cohort": "Core",
+        "amount": 2100000
+      },
+      {
+        "cohort": "Growth",
+        "amount": 900000
+      }
+    ],
+    "reserve_balance_over_time": [
+      {
+        "date": "2025-02-28",
+        "balance": 6000000
+      }
+    ],
+    "pacing_targets_by_period": [
+      {
+        "period": "2025-01",
+        "target": 1250000
+      },
+      {
+        "period": "2025-02",
+        "target": 1250000
+      }
+    ],
+    "violations": ["front_loaded_pipeline_capped"]
+  },
+  "notes": "Excess demand deferred to later periods."
+}

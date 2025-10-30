@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "CA-012",
+  "module": "CapitalAllocation",
+  "category": "pacing_engine",
+  "description": "Scenario for comparing 24‑month vs 18‑month pacing assumptions (run separately).",
+  "inputs": {
+    "fund": {
+      "commitment": 24000000,
+      "target_reserve_pct": 0.1,
+      "reserve_policy": "static_pct",
+      "pacing_window_months": 18,
+      "vintage_year": 2024
+    },
+    "timeline": {
+      "start_date": "2024-07-01",
+      "end_date": "2026-06-30"
+    },
+    "flows": {
+      "contributions": [
+        {
+          "date": "2024-07-15",
+          "amount": 2000000
+        },
+        {
+          "date": "2025-07-15",
+          "amount": 2000000
+        }
+      ],
+      "distributions": []
+    },
+    "constraints": {
+      "min_cash_buffer": 300000,
+      "max_allocation_per_cohort": 0.8,
+      "rebalance_frequency": "monthly"
+    },
+    "cohorts": [
+      {
+        "name": "Main-24",
+        "start_date": "2024-07-01",
+        "end_date": "2026-06-30",
+        "weight": 1
+      }
+    ]
+  },
+  "expected": {
+    "allocations_by_cohort": [
+      {
+        "cohort": "Main-24",
+        "amount": 1200000
+      }
+    ],
+    "reserve_balance_over_time": [
+      {
+        "date": "2025-06-30",
+        "balance": 2400000
+      },
+      {
+        "date": "2025-07-31",
+        "balance": 2400000
+      }
+    ],
+    "pacing_targets_by_period": [
+      {
+        "period": "2025-06",
+        "target": 1000000
+      },
+      {
+        "period": "2025-07",
+        "target": 1333333
+      }
+    ],
+    "violations": []
+  },
+  "notes": "This file captures the 18‑month case; compare against a separate 24‑month run."
+}

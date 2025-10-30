@@ -53,7 +53,97 @@ time and cohorts through three coordinated engines:
 11. **Cap enforcement**: `alloc_i_capped = min(alloc_i, max_per_cohort × A_t)`
 12. **Spill calculation**: `spill = Σ(alloc_i - alloc_i_capped)`
 13. **Bankers' rounding**: Round to nearest even; tie-break to highest remainder
-    → lexicographic name
+    → lexicographic name (see CA-018 for worked example)
+
+<!-- BEGIN:CASE:CA-018:inputs -->
+
+```json
+{
+  "fund": {
+    "commitment": 10000000,
+    "target_reserve_pct": 0.1,
+    "reserve_policy": "static_pct",
+    "pacing_window_months": 10,
+    "vintage_year": 2025
+  },
+  "timeline": {
+    "start_date": "2025-01-01",
+    "end_date": "2025-10-31"
+  },
+  "flows": {
+    "contributions": [
+      {
+        "date": "2025-01-15",
+        "amount": 1000000
+      }
+    ],
+    "distributions": []
+  },
+  "constraints": {
+    "min_cash_buffer": 100000,
+    "max_allocation_per_cohort": 1,
+    "rebalance_frequency": "monthly"
+  },
+  "cohorts": [
+    {
+      "name": "A",
+      "start_date": "2025-01-01",
+      "end_date": "2025-10-31",
+      "weight": 0.3333333
+    },
+    {
+      "name": "B",
+      "start_date": "2025-01-01",
+      "end_date": "2025-10-31",
+      "weight": 0.3333333
+    },
+    {
+      "name": "C",
+      "start_date": "2025-01-01",
+      "end_date": "2025-10-31",
+      "weight": 0.3333334
+    }
+  ]
+}
+```
+
+<!-- END:CASE:CA-018:inputs -->
+
+<!-- BEGIN:CASE:CA-018:expected -->
+
+```json
+{
+  "allocations_by_cohort": [
+    {
+      "cohort": "A",
+      "amount": 333333
+    },
+    {
+      "cohort": "B",
+      "amount": 333333
+    },
+    {
+      "cohort": "C",
+      "amount": 333334
+    }
+  ],
+  "reserve_balance_over_time": [
+    {
+      "date": "2025-01-31",
+      "balance": 1000000
+    }
+  ],
+  "pacing_targets_by_period": [
+    {
+      "period": "2025-01",
+      "target": 1000000
+    }
+  ],
+  "violations": []
+}
+```
+
+<!-- END:CASE:CA-018:expected -->
 
 ---
 
@@ -75,6 +165,76 @@ time and cohorts through three coordinated engines:
 - CA-001: Baseline scenario with reserve at target
 - CA-002: Underfunded reserve triggers buffer top-up
 - CA-013: Reserve floor precedence over monthly pacing (conflict resolution)
+
+<!-- BEGIN:CASE:CA-013:inputs -->
+
+```json
+{
+  "fund": {
+    "commitment": 50000000,
+    "target_reserve_pct": 0.25,
+    "reserve_policy": "static_pct",
+    "pacing_window_months": 24,
+    "vintage_year": 2024
+  },
+  "timeline": {
+    "start_date": "2025-01-01",
+    "end_date": "2026-12-31"
+  },
+  "flows": {
+    "contributions": [
+      {
+        "date": "2025-03-01",
+        "amount": 8000000
+      }
+    ],
+    "distributions": []
+  },
+  "constraints": {
+    "min_cash_buffer": 5000000,
+    "max_allocation_per_cohort": 0.6,
+    "rebalance_frequency": "monthly"
+  },
+  "cohorts": [
+    {
+      "name": "General",
+      "start_date": "2025-01-01",
+      "end_date": "2026-12-31",
+      "weight": 1
+    }
+  ]
+}
+```
+
+<!-- END:CASE:CA-013:inputs -->
+
+<!-- BEGIN:CASE:CA-013:expected -->
+
+```json
+{
+  "allocations_by_cohort": [
+    {
+      "cohort": "General",
+      "amount": 3000000
+    }
+  ],
+  "reserve_balance_over_time": [
+    {
+      "date": "2025-03-31",
+      "balance": 12500000
+    }
+  ],
+  "pacing_targets_by_period": [
+    {
+      "period": "2025-03",
+      "target": 2083333
+    }
+  ],
+  "violations": ["reserve_floor_override_pacing"]
+}
+```
+
+<!-- END:CASE:CA-013:expected -->
 
 **Schema References**:
 
@@ -111,6 +271,90 @@ time and cohorts through three coordinated engines:
 
 **Formulas in Action** (CA-009 example):
 
+<!-- BEGIN:CASE:CA-009:inputs -->
+
+```json
+{
+  "fund": {
+    "commitment": 36000000,
+    "target_reserve_pct": 0.1,
+    "reserve_policy": "static_pct",
+    "pacing_window_months": 18,
+    "vintage_year": 2024
+  },
+  "timeline": {
+    "start_date": "2025-01-01",
+    "end_date": "2026-06-30"
+  },
+  "flows": {
+    "contributions": [
+      {
+        "date": "2025-02-10",
+        "amount": 3000000
+      }
+    ],
+    "distributions": []
+  },
+  "constraints": {
+    "min_cash_buffer": 500000,
+    "max_allocation_per_cohort": 0.65,
+    "rebalance_frequency": "quarterly"
+  },
+  "cohorts": [
+    {
+      "name": "Core-25",
+      "start_date": "2025-01-01",
+      "end_date": "2026-06-30",
+      "weight": 0.6
+    },
+    {
+      "name": "Growth-25",
+      "start_date": "2025-01-01",
+      "end_date": "2026-06-30",
+      "weight": 0.4
+    }
+  ]
+}
+```
+
+<!-- END:CASE:CA-009:inputs -->
+
+<!-- BEGIN:CASE:CA-009:expected -->
+
+```json
+{
+  "allocations_by_cohort": [
+    {
+      "cohort": "Core-25",
+      "amount": 1200000
+    },
+    {
+      "cohort": "Growth-25",
+      "amount": 800000
+    }
+  ],
+  "reserve_balance_over_time": [
+    {
+      "date": "2025-03-31",
+      "balance": 3600000
+    }
+  ],
+  "pacing_targets_by_period": [
+    {
+      "period": "2025-Q1",
+      "target": 6000000
+    },
+    {
+      "period": "2025-Q2",
+      "target": 6000000
+    }
+  ],
+  "violations": ["carryover_applied_q2"]
+}
+```
+
+<!-- END:CASE:CA-009:expected -->
+
 - Q1 target: 6M, deployed: 4M → carryover = 2M
 - Q2 target: 6M + 2M carryover = 8M adjusted target
 
@@ -145,6 +389,86 @@ deterministic spill.
 
 **Example** (CA-015 with cap binding):
 
+<!-- BEGIN:CASE:CA-015:inputs -->
+
+```json
+{
+  "fund": {
+    "commitment": 25000000,
+    "target_reserve_pct": 0.12,
+    "reserve_policy": "static_pct",
+    "pacing_window_months": 18,
+    "vintage_year": 2025
+  },
+  "timeline": {
+    "start_date": "2025-01-01",
+    "end_date": "2026-06-30"
+  },
+  "flows": {
+    "contributions": [
+      {
+        "date": "2025-02-01",
+        "amount": 5000000
+      }
+    ],
+    "distributions": []
+  },
+  "constraints": {
+    "min_cash_buffer": 300000,
+    "max_allocation_per_cohort": 0.55,
+    "rebalance_frequency": "monthly"
+  },
+  "cohorts": [
+    {
+      "name": "Large-Cohort",
+      "start_date": "2025-01-01",
+      "end_date": "2026-06-30",
+      "weight": 0.8
+    },
+    {
+      "name": "Small-Cohort",
+      "start_date": "2025-01-01",
+      "end_date": "2026-06-30",
+      "weight": 0.2
+    }
+  ]
+}
+```
+
+<!-- END:CASE:CA-015:inputs -->
+
+<!-- BEGIN:CASE:CA-015:expected -->
+
+```json
+{
+  "allocations_by_cohort": [
+    {
+      "cohort": "Large-Cohort",
+      "amount": 2750000
+    },
+    {
+      "cohort": "Small-Cohort",
+      "amount": 2250000
+    }
+  ],
+  "reserve_balance_over_time": [
+    {
+      "date": "2025-02-28",
+      "balance": 3000000
+    }
+  ],
+  "pacing_targets_by_period": [
+    {
+      "period": "2025-02",
+      "target": 1388889
+    }
+  ],
+  "violations": ["max_per_cohort_cap_bound"]
+}
+```
+
+<!-- END:CASE:CA-015:expected -->
+
 - Pre-cap: Large cohort = 80%, Small cohort = 20%
 - Cap: 55% max per cohort
 - Post-cap: Large capped at 55%, spill (25%) reallocated to Small → Small = 45%
@@ -173,6 +497,100 @@ deterministic spill.
 - Eligible distributions (`recycle_eligible: true`) increase allocable capacity
 - Applied **after** reserve floor satisfied
 - Example: CA-020 (integration case with recycling + reserve + pacing + caps)
+
+<!-- BEGIN:CASE:CA-020:inputs -->
+
+```json
+{
+  "fund": {
+    "commitment": 40000000,
+    "target_reserve_pct": 0.2,
+    "reserve_policy": "static_pct",
+    "pacing_window_months": 24,
+    "vintage_year": 2024
+  },
+  "timeline": {
+    "start_date": "2025-01-01",
+    "end_date": "2026-12-31"
+  },
+  "flows": {
+    "contributions": [
+      {
+        "date": "2025-04-01",
+        "amount": 5000000
+      }
+    ],
+    "distributions": [
+      {
+        "date": "2025-05-01",
+        "amount": 2000000,
+        "recycle_eligible": true
+      }
+    ]
+  },
+  "constraints": {
+    "min_cash_buffer": 4000000,
+    "max_allocation_per_cohort": 0.5,
+    "rebalance_frequency": "monthly"
+  },
+  "cohorts": [
+    {
+      "name": "A",
+      "start_date": "2025-01-01",
+      "end_date": "2026-12-31",
+      "weight": 0.6
+    },
+    {
+      "name": "B",
+      "start_date": "2025-01-01",
+      "end_date": "2026-12-31",
+      "weight": 0.4
+    }
+  ]
+}
+```
+
+<!-- END:CASE:CA-020:inputs -->
+
+<!-- BEGIN:CASE:CA-020:expected -->
+
+```json
+{
+  "allocations_by_cohort": [
+    {
+      "cohort": "A",
+      "amount": 2500000
+    },
+    {
+      "cohort": "B",
+      "amount": 2500000
+    }
+  ],
+  "reserve_balance_over_time": [
+    {
+      "date": "2025-04-30",
+      "balance": 8000000
+    },
+    {
+      "date": "2025-05-31",
+      "balance": 10000000
+    }
+  ],
+  "pacing_targets_by_period": [
+    {
+      "period": "2025-04",
+      "target": 1666667
+    },
+    {
+      "period": "2025-05",
+      "target": 1666667
+    }
+  ],
+  "violations": ["reserve_floor_precedence_over_pacing", "recycling_applied"]
+}
+```
+
+<!-- END:CASE:CA-020:expected -->
 
 **Precedence Rationale** (from ADR-008):
 
@@ -207,6 +625,95 @@ deterministic spill.
 - `timeline`: start_date, end_date
 - `flows`: contributions[] (non-negative), distributions[] (allows negative for
   recalls per ADR-008)
+
+**Capital Recalls Example** (CA-019):
+
+<!-- BEGIN:CASE:CA-019:inputs -->
+
+```json
+{
+  "fund": {
+    "commitment": 12000000,
+    "target_reserve_pct": 0.1,
+    "reserve_policy": "static_pct",
+    "pacing_window_months": 12,
+    "vintage_year": 2024
+  },
+  "timeline": {
+    "start_date": "2025-02-01",
+    "end_date": "2025-12-31"
+  },
+  "flows": {
+    "contributions": [
+      {
+        "date": "2025-02-15",
+        "amount": 1200000
+      }
+    ],
+    "distributions": [
+      {
+        "date": "2025-03-10",
+        "amount": -200000,
+        "recycle_eligible": false
+      }
+    ]
+  },
+  "constraints": {
+    "min_cash_buffer": 200000,
+    "max_allocation_per_cohort": 0.75,
+    "rebalance_frequency": "monthly"
+  },
+  "cohorts": [
+    {
+      "name": "North",
+      "start_date": "2025-02-01",
+      "end_date": "2025-12-31",
+      "weight": 0.5
+    },
+    {
+      "name": "South",
+      "start_date": "2025-02-01",
+      "end_date": "2025-12-31",
+      "weight": 0.5
+    }
+  ]
+}
+```
+
+<!-- END:CASE:CA-019:inputs -->
+
+<!-- BEGIN:CASE:CA-019:expected -->
+
+```json
+{
+  "allocations_by_cohort": [
+    {
+      "cohort": "North",
+      "amount": 500000
+    },
+    {
+      "cohort": "South",
+      "amount": 500000
+    }
+  ],
+  "reserve_balance_over_time": [
+    {
+      "date": "2025-03-31",
+      "balance": 1000000
+    }
+  ],
+  "pacing_targets_by_period": [
+    {
+      "period": "2025-02",
+      "target": 1000000
+    }
+  ],
+  "violations": ["capital_recall_processed"]
+}
+```
+
+<!-- END:CASE:CA-019:expected -->
+
 - `constraints`: min_cash_buffer, max_allocation_per_cohort, rebalance_frequency
 - `cohorts`: [{name, start_date, end_date, weight}]
 
@@ -227,23 +734,17 @@ deterministic spill.
 
 ## Truth Cases Coverage
 
-**Location**: `docs/capital-allocation.truth-cases.json` **Count**: 6 cases
-(CA-001 through CA-006) **Schema Version**: 1.0.0
+**Location**: `docs/capital-allocation.truth-cases.json` **Count**: 20 cases
+(CA-001 through CA-020) **Schema Version**: 1.0.0
 
 ### Current Coverage
 
-| Category       | Case IDs                       | Focus                                                 |
-| -------------- | ------------------------------ | ----------------------------------------------------- |
-| Reserve Engine | CA-001, CA-002, CA-003, CA-004 | Baseline, underfunded, overfunded, zero contributions |
-| Pacing Engine  | CA-005                         | Dynamic ratio tracking                                |
-| Cohort Engine  | CA-006                         | Large distribution rebalancing                        |
-
-**Note**: CA-007 through CA-020 to be added in Phase 2 expansion (14 additional
-cases covering:
-
-- Pacing: monthly/quarterly cadence, carryover, window changes
-- Cohort: cap binding, lifecycle transitions, rounding tie-breaks
-- Integration: multi-engine coordination with recycling)
+| Category       | Case IDs                                       | Focus                                                                                                 |
+| -------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Reserve Engine | CA-001, CA-002, CA-003, CA-004, CA-007, CA-013 | Baseline, underfunded, overfunded, zero contributions, year-end cutoff, reserve precedence            |
+| Pacing Engine  | CA-005, CA-008, CA-009, CA-010, CA-011, CA-012 | Dynamic ratio, monthly pacing, quarterly carryover, front-loaded pipeline, drought, window comparison |
+| Cohort Engine  | CA-006, CA-014, CA-015, CA-016, CA-017, CA-018 | Large distribution, pro-rata split, cap binding, lifecycle, rebalance frequency, rounding tie-breaks  |
+| Integration    | CA-019, CA-020                                 | Capital recalls, multi-engine coordination with recycling                                             |
 
 ---
 

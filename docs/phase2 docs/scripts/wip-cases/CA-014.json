@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "module": "capital_allocation",
+  "id": "CA-014",
+  "category": "cohort_engine",
+  "description": "Basic cohort split by weights.",
+  "inputs": {
+    "cohorts": [
+      {
+        "id": "Alpha",
+        "weight": 0.7
+      },
+      {
+        "id": "Beta",
+        "weight": 0.3
+      }
+    ],
+    "allocation_amount": 100000
+  },
+  "expected": {
+    "allocations_by_cohort": [
+      {
+        "cohort": "Alpha",
+        "amount": 70000
+      },
+      {
+        "cohort": "Beta",
+        "amount": 30000
+      }
+    ]
+  }
+}

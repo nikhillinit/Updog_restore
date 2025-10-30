@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1.0.0",
+  "module": "capital_allocation",
+  "id": "CA-013",
+  "category": "reserve_engine",
+  "description": "Reserve precedence over pacing targets when cash is constrained.",
+  "inputs": {
+    "timeline": {
+      "start_date": "2026-01-01",
+      "end_date": "2026-01-31",
+      "cadence": "monthly"
+    },
+    "policies": {
+      "reserve": {
+        "min_cash_buffer": 50000
+      },
+      "pacing": {
+        "window_months": 12,
+        "total_commitment": 1200000
+      }
+    },
+    "flows": {
+      "contributions": [
+        {
+          "date": "2026-01-15",
+          "amount": 120000
+        }
+      ]
+    }
+  },
+  "expected": {
+    "reserve_met": true,
+    "allocated_amount": 70000,
+    "violations": ["pacing_target_missed_due_to_reserve"]
+  },
+  "notes": "Cash 120k < reserve 50k + pacing 100k. Reserve met first; remainder 70k allocated."
+}

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0.0",
+  "module": "capital_allocation",
+  "id": "CA-015",
+  "category": "cohort_engine",
+  "description": "Cohort caps and LRM spill reallocation.",
+  "inputs": {
+    "cohorts": [
+      {
+        "id": "Alpha",
+        "weight": 0.5,
+        "cap_pct": 0.4
+      },
+      {
+        "id": "Beta",
+        "weight": 0.3
+      },
+      {
+        "id": "Gamma",
+        "weight": 0.2
+      }
+    ],
+    "allocation_amount": 100000
+  },
+  "expected": {
+    "spill_amount": 10000,
+    "allocations_by_cohort": [
+      {
+        "cohort": "Alpha",
+        "amount": 40000
+      },
+      {
+        "cohort": "Beta",
+        "amount": 36000
+      },
+      {
+        "cohort": "Gamma",
+        "amount": 24000
+      }
+    ]
+  },
+  "notes": "Initial 50k/30k/20k; Alpha capped at 40k; spill 10k \u2192 B/G by weights (3:2)."
+}

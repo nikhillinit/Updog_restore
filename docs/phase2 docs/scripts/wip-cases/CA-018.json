@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0.0",
+  "module": "capital_allocation",
+  "id": "CA-018",
+  "category": "cohort_engine",
+  "description": "Banker's rounding (half to even) applied before LRM spill.",
+  "inputs": {
+    "cohorts": [
+      {
+        "id": "A",
+        "weight": 0.5
+      },
+      {
+        "id": "B",
+        "weight": 0.5
+      }
+    ],
+    "allocation_amount": 5.01
+  },
+  "expected": {
+    "allocations_by_cohort": [
+      {
+        "cohort": "A",
+        "amount": 2.5
+      },
+      {
+        "cohort": "B",
+        "amount": 2.51
+      }
+    ]
+  },
+  "notes": "Round to cents using half\u2011even. Monetary rounding is applied prior to discrete spill."
+}
