@@ -3,6 +3,10 @@ name: PR Tests (Main Workspace)
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    paths-ignore:
+      - 'docs/**'
+      - 'scripts/validation/**'
+      - '**.md'
   workflow_dispatch:
 
 permissions:

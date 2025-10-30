@@ -156,6 +156,14 @@ coverage/
 Updog_restore-main/
 .specstory/
 
+# Reference materials (external repos)
+anthropic-cookbook/
+
+# Validation framework artifacts
+scripts/validation/custom_evals/__pycache__/
+scripts/validation/results/
+.promptfoo/
+
 
 #Ignore vscode AI rules
 .github\instructions\codacy.instructions.md
@@ -188,3 +196,10 @@ tests/unit/database/test-*.test.ts
 vitest.minimal.config.ts
 vitest.time-travel.config.ts
 vitest-fix-changelog.txt
+
+# Allow summaries in validation results
+\!scripts/validation/results/**
+scripts/validation/results/**
+\!scripts/validation/results/**/*.json
+\!scripts/validation/results/**/*.md
+\!scripts/validation/results/.gitkeep

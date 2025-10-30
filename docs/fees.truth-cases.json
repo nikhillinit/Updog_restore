@@ -1,0 +1,206 @@
+[
+  {
+    "id": "FEE-001",
+    "category": "management_fee",
+    "description": "Basic 2% management fee on committed capital over 10 years without step-down",
+    "input": {
+      "fundSize": 100,
+      "feeRate": 2.0,
+      "basis": "committed",
+      "fundTerm": 10
+    },
+    "expectedOutput": {
+      "totalFees": 20.0,
+      "yearlyFees": [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0],
+      "averageAnnualFee": 2.0
+    },
+    "tolerance": 0.01,
+    "notes": "Standard 2/10 structure - most common VC fund fee arrangement. Flat rate on committed capital.",
+    "tags": ["baseline", "committed-basis", "no-stepdown"]
+  },
+  {
+    "id": "FEE-002",
+    "category": "management_fee",
+    "description": "2.5% management fee with step-down to 1% after year 5",
+    "input": {
+      "fundSize": 100,
+      "feeRate": 2.5,
+      "basis": "committed",
+      "fundTerm": 10,
+      "stepDown": {
+        "afterYear": 5,
+        "newRate": 1.0
+      }
+    },
+    "expectedOutput": {
+      "totalFees": 17.5,
+      "yearlyFees": [2.5, 2.5, 2.5, 2.5, 2.5, 1.0, 1.0, 1.0, 1.0, 1.0],
+      "averageAnnualFee": 1.75
+    },
+    "tolerance": 0.01,
+    "notes": "Single step-down typical for transition from investment period to harvest period. Years 1-5 at 2.5%, years 6-10 at 1%.",
+    "tags": ["stepdown", "committed-basis", "single-stepdown"]
+  },
+  {
+    "id": "FEE-003",
+    "category": "management_fee",
+    "description": "Multiple step-downs: 2% → 1.5% at year 5 → 1% at year 8",
+    "input": {
+      "fundSize": 100,
+      "feeRate": 2.0,
+      "basis": "committed",
+      "fundTerm": 10,
+      "stepDown": {
+        "afterYear": 5,
+        "newRate": 1.5
+      }
+    },
+    "expectedOutput": {
+      "totalFees": 18.0,
+      "yearlyFees": [2.0, 2.0, 2.0, 2.0, 2.0, 1.5, 1.5, 1.5, 1.5, 1.5],
+      "averageAnnualFee": 1.8
+    },
+    "tolerance": 0.01,
+    "notes": "Gradual step-down structure. Years 1-5: 2%, years 6-10: 1.5%. Tests intermediate fee reduction.",
+    "tags": ["stepdown", "committed-basis", "gradual-reduction"]
+  },
+  {
+    "id": "FEE-004",
+    "category": "management_fee",
+    "description": "Step-down at year 7 marking end of typical investment period",
+    "input": {
+      "fundSize": 100,
+      "feeRate": 2.0,
+      "basis": "committed",
+      "fundTerm": 10,
+      "stepDown": {
+        "afterYear": 7,
+        "newRate": 1.0
+      }
+    },
+    "expectedOutput": {
+      "totalFees": 17.0,
+      "yearlyFees": [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0],
+      "averageAnnualFee": 1.7
+    },
+    "tolerance": 0.01,
+    "notes": "Late step-down at year 7 represents extended investment period. Common for larger funds with longer deployment schedules.",
+    "tags": ["stepdown", "committed-basis", "late-stepdown"]
+  },
+  {
+    "id": "FEE-005",
+    "category": "management_fee",
+    "description": "Called capital basis with capital call schedule",
+    "input": {
+      "fundSize": 100,
+      "feeRate": 2.0,
+      "basis": "called",
+      "fundTerm": 10,
+      "calledCapitalSchedule": [20, 40, 70, 90, 100, 100, 100, 100, 100, 100]
+    },
+    "expectedOutput": {
+      "totalFees": 16.4,
+      "yearlyFees": [0.4, 0.8, 1.4, 1.8, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0],
+      "averageAnnualFee": 1.64
+    },
+    "tolerance": 0.01,
+    "notes": "Fees based on called capital reduce early-year costs. Cumulative calls: 20%, 40%, 70%, 90%, then 100%. Year 1 fee = 20 * 2% = 0.4.",
+    "tags": ["called-basis", "capital-calls", "progressive-deployment"]
+  },
+  {
+    "id": "FEE-006",
+    "category": "management_fee",
+    "description": "FMV basis with portfolio growth (1.2x year 1, 1.5x year 3, 2.0x year 6, plateau)",
+    "input": {
+      "fundSize": 100,
+      "feeRate": 2.0,
+      "basis": "fmv",
+      "fundTerm": 10,
+      "portfolioFmvSchedule": [120, 135, 150, 165, 180, 200, 200, 195, 190, 185]
+    },
+    "expectedOutput": {
+      "totalFees": 34.2,
+      "yearlyFees": [2.4, 2.7, 3.0, 3.3, 3.6, 4.0, 4.0, 3.9, 3.8, 3.7],
+      "averageAnnualFee": 3.42
+    },
+    "tolerance": 0.01,
+    "notes": "FMV basis results in higher fees as portfolio appreciates. Growth phase (years 1-6), then modest decline. Year 1: 120 * 2% = 2.4.",
+    "tags": ["fmv-basis", "portfolio-growth", "variable-fees"]
+  },
+  {
+    "id": "FEE-007",
+    "category": "management_fee",
+    "description": "Zero fund size edge case (should return 0 fees)",
+    "input": {
+      "fundSize": 0,
+      "feeRate": 2.0,
+      "basis": "committed",
+      "fundTerm": 10
+    },
+    "expectedOutput": {
+      "totalFees": 0.0,
+      "yearlyFees": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "averageAnnualFee": 0.0
+    },
+    "tolerance": 0.01,
+    "notes": "Edge case: zero fund size should produce zero fees regardless of fee rate. Tests division by zero protection and boundary handling.",
+    "tags": ["edge-case", "zero-value", "boundary"]
+  },
+  {
+    "id": "FEE-008",
+    "category": "management_fee",
+    "description": "Single-year fund edge case",
+    "input": {
+      "fundSize": 100,
+      "feeRate": 2.0,
+      "basis": "committed",
+      "fundTerm": 1
+    },
+    "expectedOutput": {
+      "totalFees": 2.0,
+      "yearlyFees": [2.0],
+      "averageAnnualFee": 2.0
+    },
+    "tolerance": 0.01,
+    "notes": "Edge case: single-year fund (rare but valid). Tests minimum fund term boundary. Typical for special purpose vehicles.",
+    "tags": ["edge-case", "minimum-term", "spv"]
+  },
+  {
+    "id": "FEE-009",
+    "category": "management_fee",
+    "description": "High fee rate (3%) testing upper bounds",
+    "input": {
+      "fundSize": 100,
+      "feeRate": 3.0,
+      "basis": "committed",
+      "fundTerm": 10
+    },
+    "expectedOutput": {
+      "totalFees": 30.0,
+      "yearlyFees": [3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0],
+      "averageAnnualFee": 3.0
+    },
+    "tolerance": 0.01,
+    "notes": "High-end fee rate (3%) seen in smaller funds or emerging managers. Tests upper boundary of typical fee range (2-3%).",
+    "tags": ["high-fee", "boundary", "emerging-manager"]
+  },
+  {
+    "id": "FEE-010",
+    "category": "management_fee",
+    "description": "Low fee rate (1%) testing lower bounds",
+    "input": {
+      "fundSize": 100,
+      "feeRate": 1.0,
+      "basis": "committed",
+      "fundTerm": 10
+    },
+    "expectedOutput": {
+      "totalFees": 10.0,
+      "yearlyFees": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+      "averageAnnualFee": 1.0
+    },
+    "tolerance": 0.01,
+    "notes": "Low-end fee rate (1%) seen in mega-funds or LP-friendly structures. Tests lower boundary and institutional fund economics.",
+    "tags": ["low-fee", "boundary", "mega-fund", "lp-friendly"]
+  }
+]

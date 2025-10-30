@@ -1,0 +1,61 @@
+# Exit Recycling Documentation Validation Configuration
+# Adapted from Anthropic Cookbook summarization evaluation framework
+# Purpose: Calculate Phase 1C domain score and validate documentation quality
+
+description: 'Phase 1C Exit Recycling Documentation Domain Score Validation'
+
+# Prompts use Python functions that receive file contents
+# Note: Prompt function only receives doc_content (first var)
+# Other vars (truth_cases, schema, doc_type) are passed to the custom scorer
+prompts:
+  - prompts.py:exit_recycling_prompt
+
+# Claude models to use for evaluation
+# Note: API key has access to Opus, not Sonnet 3.5
+providers:
+  - id: anthropic:messages:claude-3-opus-20240229
+    label: 'Claude 3 Opus'
+    config:
+      max_tokens: 4096 # Opus max output tokens
+      temperature: 0
+
+# Default assertions that apply to all tests
+defaultTest:
+  assert:
+    # Ensure no AI self-reference
+    - type: not-contains-any
+      value:
+        - 'I am an AI'
+        - 'As an AI language model'
+        - "I'm an AI assistant"
+        - 'I am a chatbot'
+
+# Test cases for exit recycling documentation validation
+tests:
+  # Test 1: exit-recycling.md validation
+  - description: 'Validate exit-recycling.md against Phase 1 rubric'
+    vars:
+      doc_content: file://../../docs/notebooklm-sources/exit-recycling.md
+      truth_cases: file://../../docs/exit-recycling.truth-cases.json
+      schema: file://../../docs/schemas/exit-recycling-truth-case.schema.json
+      doc_type: 'primary_documentation'
+
+  # Test 2: ADR-007 validation
+  - description: 'Validate ADR-007 architectural decisions'
+    vars:
+      doc_content: file://../../docs/adr/ADR-007-exit-recycling-policy.md
+      truth_cases: file://../../docs/exit-recycling.truth-cases.json
+      schema: file://../../docs/schemas/exit-recycling-truth-case.schema.json
+      doc_type: 'architecture_decision_record'
+
+# Custom scorer for domain scoring (replaces redundant keyword assertions)
+scorers:
+  - path: doc_domain_scorer.mjs
+
+# Output configuration
+outputPath: ./results/exit-recycling-validation-results.json
+
+# Enable progress bar during evaluation
+evaluateOptions:
+  showProgressBar: true
+  maxConcurrency: 1 # Sequential execution to avoid rate limits

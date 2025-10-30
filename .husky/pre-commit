@@ -2,4 +2,11 @@
 
 echo "🔍 Pre-commit checks..."
 npx lint-staged
+
+# Optional: AI code review (set AI_REVIEW_ENABLED=1 to enable)
+if [ "$AI_REVIEW_ENABLED" = "1" ]; then
+  echo "🤖 Running AI code review..."
+  python ai-utils/scripts/review_staged.py --quick || echo "⚠️  AI review found issues (not blocking)"
+fi
+
 echo "✅ Pre-commit passed"

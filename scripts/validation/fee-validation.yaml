@@ -1,0 +1,130 @@
+# Fee Documentation Validation Configuration
+# Adapted from Anthropic Cookbook summarization evaluation framework
+# Purpose: Calculate Phase 1B domain score and validate documentation quality
+
+description: 'Phase 1B Fee Documentation Domain Score Validation'
+
+# Prompts define how to evaluate the documentation
+prompts:
+  # Primary evaluation using custom domain scorer
+  - |
+    file://docs/notebooklm-sources/fees.md
+
+# Claude models to use for evaluation
+providers:
+  - id: anthropic:messages:claude-sonnet-4-5
+    label: 'Claude 3.5 Sonnet'
+    config:
+      max_tokens: 8192
+      temperature: 0
+
+# Default assertions that apply to all tests
+defaultTest:
+  assert:
+    # Ensure no AI self-reference
+    - type: not-contains-any
+      value:
+        - 'I am an AI'
+        - 'As an AI language model'
+        - "I'm an AI assistant"
+        - 'I am a chatbot'
+
+# Test cases for fee documentation validation
+tests:
+  # Test 1: fees.md validation
+  - description: 'Validate fees.md against Phase 1 rubric'
+    vars:
+      truth_cases: file://docs/fees.truth-cases.json
+      schema: file://docs/schemas/fee-truth-case.schema.json
+      doc_type: 'primary_documentation'
+    assert:
+      # Custom domain scorer (4-dimensional rubric)
+      - type: python
+        value: file://custom_evals/fee_doc_domain_scorer.py
+        threshold: 0.92 # 92% minimum Phase 1 threshold
+
+      # Content coverage checks
+      - type: icontains-all
+        value:
+          - 'fee basis'
+          - 'step-down'
+          - 'catch-up'
+          - 'carried interest'
+          - 'waterfall'
+          - 'management fee'
+          - 'fee recycling'
+
+      # Mathematical content checks
+      - type: icontains-any
+        value:
+          - 'formula'
+          - 'calculation'
+          - 'Decimal.js'
+          - 'precision'
+
+      # Integration checks
+      - type: icontains-all
+        value:
+          - 'client/src/lib/fee-calculations.ts'
+          - 'client/src/lib/waterfall.ts'
+          - 'shared/schemas/fee-profile.ts'
+
+  # Test 2: ADR-006 validation
+  - description: 'Validate ADR-006 architectural decisions'
+    vars:
+      doc_path: file://docs/adr/ADR-006-fee-calculation-standards.md
+      truth_cases: file://docs/fees.truth-cases.json
+      schema: file://docs/schemas/fee-truth-case.schema.json
+      doc_type: 'architecture_decision_record'
+    assert:
+      # Custom domain scorer
+      - type: python
+        value: file://custom_evals/fee_doc_domain_scorer.py
+        threshold: 0.92
+
+      # ADR structure checks
+      - type: icontains-all
+        value:
+          - 'Status: Accepted'
+          - 'Context'
+          - 'Decision'
+          - 'Consequences'
+          - 'Date: 2025'
+
+      # Decision content checks
+      - type: icontains-all
+        value:
+          - 'Fee Basis Type System'
+          - 'Step-Down Implementation'
+          - 'Fee Recycling Model'
+          - 'Carried Interest Integration'
+          - 'Precision'
+          - 'Fee Impact Metrics'
+          - 'Validation Strategy'
+
+      # Code reference checks
+      - type: javascript
+        value: |
+          // Verify ADR contains file:line references
+          const fileLinePattern = /\w+\.ts:\d+/g;
+          const matches = output.match(fileLinePattern);
+          if (!matches || matches.length < 5) {
+            return {
+              pass: false,
+              score: 0,
+              reason: `Expected at least 5 file:line references, found ${matches ? matches.length : 0}`
+            };
+          }
+          return {
+            pass: true,
+            score: 1,
+            reason: `Found ${matches.length} file:line references`
+          };
+
+# Output configuration
+outputPath: ./results/fee-validation-results.json
+
+# Enable progress bar during evaluation
+evaluateOptions:
+  showProgressBar: true
+  maxConcurrency: 1 # Sequential execution to avoid rate limits

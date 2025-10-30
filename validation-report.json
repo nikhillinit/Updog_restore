@@ -1,0 +1,45 @@
+{
+  "timestamp": "2025-10-28T16:39:50.743Z",
+  "summary": {
+    "totalScore": 385,
+    "maxScore": 400,
+    "percentage": 96.3,
+    "threshold": 92,
+    "passed": true
+  },
+  "scores": {
+    "structure": {
+      "total": 135,
+      "max": 150,
+      "breakdown": {
+        "fileCompleteness": 40,
+        "schemaValidation": 15,
+        "crossReferences": 30,
+        "organization": 25,
+        "integrity": 25
+      }
+    },
+    "math": {
+      "total": 150,
+      "max": 150,
+      "breakdown": {
+        "excelRoundTests": 50,
+        "truthTableTests": 50,
+        "invariantTests": 30,
+        "precision": 20
+      }
+    },
+    "policy": {
+      "total": 100,
+      "max": 100,
+      "breakdown": {
+        "adrCompleteness": 35,
+        "terminologyConsistency": 25,
+        "roundingContract": 25,
+        "implementationDocs": 15
+      }
+    }
+  },
+  "issues": ["Schema file missing required properties"],
+  "warnings": []
+}
