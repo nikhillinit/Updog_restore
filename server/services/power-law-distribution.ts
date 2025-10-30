@@ -16,23 +16,86 @@
  */
 
 // ============================================================================
+// IMPORTS
+// ============================================================================
+
+import { normalizeInvestmentStage, type InvestmentStage } from '../utils/stage-utils';
+
+// ============================================================================
+// TELEMETRY & OBSERVABILITY
+// ============================================================================
+
+/**
+ * Telemetry counters for Monte Carlo operations
+ *
+ * In production, these should be connected to Prometheus/CloudWatch
+ * For now, we track them in-memory and log to structured logs
+ */
+const telemetry = {
+  mcTrialsTotal: 0,
+  mcTrialsFailed: 0,
+  stageNormalizationUnknown: 0,
+  unknownStages: new Map<string, number>(), // Track frequency of unknown stages
+};
+
+/**
+ * Emit telemetry event (would connect to Prometheus in production)
+ */
+function emitMetric(name: string, value: number, labels?: Record<string, string>) {
+  // Log to structured logs (would be ingested by observability stack)
+  console.log(
+    JSON.stringify({
+      type: 'metric',
+      name,
+      value,
+      timestamp: new Date().toISOString(),
+      labels: labels || {},
+    })
+  );
+}
+
+/**
+ * Record unknown stage for observability
+ */
+function recordUnknownStage(original: string, caller?: string) {
+  telemetry.stageNormalizationUnknown++;
+  const existing = telemetry.unknownStages.get(original) || 0;
+  telemetry.unknownStages.set(original, existing + 1);
+
+  emitMetric('stage_normalization_unknown_total', 1, {
+    original_stage: original,
+    caller: caller || 'unknown',
+  });
+
+  // Log structured error for debugging
+  console.error(
+    JSON.stringify({
+      type: 'stage_normalization_failure',
+      original_stage: original,
+      timestamp: new Date().toISOString(),
+      caller,
+    })
+  );
+}
+
+// ============================================================================
 // TYPES & INTERFACES
 // ============================================================================
 
-export type InvestmentStage = 'pre-seed' | 'seed' | 'series-a' | 'series-b' | 'series-c+';
+export type { InvestmentStage } from '../utils/stage-utils';
 
 export interface PowerLawConfig {
   // Overall distribution based on 2024-2025 VC data
-  failureRate: number;        // 70% of investments return 0-1x
-  modestReturnRate: number;   // 15% return 1-3x
-  goodOutcomeRate: number;    // 10% return 3-10x
-  homeRunRate: number;        // 4% return 10-50x
-  unicornRate: number;        // 1% return 50x+ (capped at 200x)
+  failureRate: number; // 70% of investments return 0-1x
+  modestReturnRate: number; // 15% return 1-3x
+  goodOutcomeRate: number; // 10% return 3-10x
+  homeRunRate: number; // 4% return 10-50x
+  unicornRate: number; // 1% return 50x+ (capped at 200x)
 
   // Power law parameters
-  alpha: number;              // Shape parameter for power law tail
-  xMin: number;               // Minimum value for power law
-  maxReturn: number;          // Maximum return multiple (cap for unicorns)
+  alpha: number; // Shape parameter for power law tail
+  xMin: number; // Minimum value for power law
+  maxReturn: number; // Maximum return multiple (cap for unicorns)
 }
 
 export interface StageReturnProfile {
@@ -80,7 +143,6 @@ export interface PortfolioReturnDistribution {
 // ============================================================================
 
 export class PowerLawDistribution {
-
   private config: PowerLawConfig;
   private stageProfiles: Map<InvestmentStage, StageReturnProfile>;
   private randomSeed?: number;
@@ -88,15 +150,15 @@ export class PowerLawDistribution {
 
   constructor(config?: Partial<PowerLawConfig>, randomSeed?: number) {
     this.config = {
-      failureRate: 0.70,
+      failureRate: 0.7,
       modestReturnRate: 0.15,
-      goodOutcomeRate: 0.10,
+      goodOutcomeRate: 0.1,
       homeRunRate: 0.04,
       unicornRate: 0.01,
-      alpha: 1.16,           // Zipf's law parameter for VC returns
-      xMin: 3.0,             // Power law starts at 3x returns
-      maxReturn: 200.0,      // Cap unicorns at 200x
-      ...config
+      alpha: 1.16, // Zipf's law parameter for VC returns
+      xMin: 3.0, // Power law starts at 3x returns
+      maxReturn: 200.0, // Cap unicorns at 200x
+      ...config,
     };
 
     this.randomSeed = randomSeed;
@@ -126,7 +188,7 @@ export class PowerLawDistribution {
         multiple: this.sampleUniform(returnBands.failure.min, returnBands.failure.max),
         category: 'failure',
         stage,
-        probability: returnBands.failure.probability
+        probability: returnBands.failure.probability,
       };
     }
 
@@ -137,7 +199,7 @@ export class PowerLawDistribution {
         multiple: this.sampleUniform(returnBands.modest.min, returnBands.modest.max),
         category: 'modest',
         stage,
-        probability: returnBands.modest.probability
+        probability: returnBands.modest.probability,
       };
     }
 
@@ -148,7 +210,7 @@ export class PowerLawDistribution {
         multiple: this.sampleUniform(returnBands.good.min, returnBands.good.max),
         category: 'good',
         stage,
-        probability: returnBands.good.probability
+        probability: returnBands.good.probability,
       };
     }
 
@@ -159,7 +221,7 @@ export class PowerLawDistribution {
         multiple: this.samplePowerLaw(returnBands.homeRun.min, returnBands.homeRun.max),
         category: 'homeRun',
         stage,
-        probability: returnBands.homeRun.probability
+        probability: returnBands.homeRun.probability,
       };
     }
 
@@ -168,7 +230,7 @@ export class PowerLawDistribution {
       multiple: this.samplePowerLaw(returnBands.unicorn.min, returnBands.unicorn.max),
       category: 'unicorn',
       stage,
-      probability: returnBands.unicorn.probability
+      probability: returnBands.unicorn.probability,
     };
   }
 
@@ -177,11 +239,15 @@ export class PowerLawDistribution {
    */
   generatePortfolioReturns(
     portfolioSize: number,
-    stageDistribution: Partial<Record<InvestmentStage, number>> = { 'seed': 1.0 },
+    stageDistribution: Partial<Record<InvestmentStage, number>> = { seed: 1.0 },
     scenarios: number = 10000
   ): PortfolioReturnDistribution {
     // Input validation
-    if (typeof portfolioSize !== 'number' || portfolioSize <= 0 || !Number.isFinite(portfolioSize)) {
+    if (
+      typeof portfolioSize !== 'number' ||
+      portfolioSize <= 0 ||
+      !Number.isFinite(portfolioSize)
+    ) {
       throw new RangeError(`portfolioSize must be a positive finite number, got: ${portfolioSize}`);
     }
     if (typeof scenarios !== 'number' || scenarios <= 0 || !Number.isFinite(scenarios)) {
@@ -194,7 +260,10 @@ export class PowerLawDistribution {
     const samples: ReturnSample[] = [];
 
     // Normalize stage distribution
-    const totalWeight = Object.values(stageDistribution).reduce((sum, weight) => sum + (weight || 0), 0);
+    const totalWeight = Object.values(stageDistribution).reduce(
+      (sum, weight) => sum + (weight || 0),
+      0
+    );
     const normalizedDistribution: Partial<Record<InvestmentStage, number>> = {};
     for (const [stage, weight] of Object.entries(stageDistribution)) {
       if (weight !== undefined) {
@@ -213,14 +282,14 @@ export class PowerLawDistribution {
     }
 
     // Calculate statistics
-    const multiples = samples.map(s => s.multiple);
+    const multiples = samples.map((s) => s.multiple);
     const statistics = this.calculateStatistics(multiples);
     const percentiles = this.calculatePercentiles(multiples);
 
     return {
       samples,
       statistics,
-      percentiles
+      percentiles,
     };
   }
 
@@ -255,7 +324,7 @@ export class PowerLawDistribution {
       multiple: returnSample.multiple,
       irr,
       category: returnSample.category,
-      exitTiming
+      exitTiming,
     };
   }
 
@@ -264,7 +333,7 @@ export class PowerLawDistribution {
    */
   generateBatchScenarios(
     count: number,
-    stageDistribution: Partial<Record<InvestmentStage, number>> = { 'seed': 1.0 },
+    stageDistribution: Partial<Record<InvestmentStage, number>> = { seed: 1.0 },
     timeHorizonYears: number = 5
   ): Array<{
     multiple: number;
@@ -276,7 +345,10 @@ export class PowerLawDistribution {
     const scenarios = [];
 
     // Normalize stage distribution
-    const totalWeight = Object.values(stageDistribution).reduce((sum, weight) => sum + (weight || 0), 0);
+    const totalWeight = Object.values(stageDistribution).reduce(
+      (sum, weight) => sum + (weight || 0),
+      0
+    );
     const normalizedDistribution: Partial<Record<InvestmentStage, number>> = {};
     for (const [stage, weight] of Object.entries(stageDistribution)) {
       if (weight !== undefined) {
@@ -289,7 +361,7 @@ export class PowerLawDistribution {
       const scenario = this.generateInvestmentScenario(stage, timeHorizonYears);
       scenarios.push({
         ...scenario,
-        stage
+        stage,
       });
     }
 
@@ -315,34 +387,34 @@ export class PowerLawDistribution {
         modest: { min: 1, max: 3, probability: 0.15 },
         good: { min: 3, max: 10, probability: 0.07 },
         homeRun: { min: 10, max: 50, probability: 0.025 },
-        unicorn: { min: 50, max: 200, probability: 0.005 }
-      }
+        unicorn: { min: 50, max: 200, probability: 0.005 },
+      },
     });
 
     // Seed: Kauffman Foundation 68% updated to 70% failure rate
     profiles.set('seed', {
       stage: 'seed',
-      failureRate: 0.70,
+      failureRate: 0.7,
       returnBands: {
-        failure: { min: 0, max: 1, probability: 0.70 },
+        failure: { min: 0, max: 1, probability: 0.7 },
         modest: { min: 1, max: 3, probability: 0.15 },
-        good: { min: 3, max: 10, probability: 0.10 },
+        good: { min: 3, max: 10, probability: 0.1 },
         homeRun: { min: 10, max: 50, probability: 0.04 },
-        unicorn: { min: 50, max: 200, probability: 0.01 }
-      }
+        unicorn: { min: 50, max: 200, probability: 0.01 },
+      },
     });
 
     // Series A: The "chasm" - lower failure rate but still significant
     profiles.set('series-a', {
       stage: 'series-a',
-      failureRate: 0.50,
+      failureRate: 0.5,
       returnBands: {
-        failure: { min: 0, max: 1, probability: 0.50 },
+        failure: { min: 0, max: 1, probability: 0.5 },
         modest: { min: 1, max: 3, probability: 0.25 },
         good: { min: 3, max: 10, probability: 0.15 },
         homeRun: { min: 10, max: 50, probability: 0.08 },
-        unicorn: { min: 50, max: 200, probability: 0.02 }
-      }
+        unicorn: { min: 50, max: 200, probability: 0.02 },
+      },
     });
 
     // Series B: Improved outcomes for companies that made it this far
@@ -351,24 +423,24 @@ export class PowerLawDistribution {
       failureRate: 0.35,
       returnBands: {
         failure: { min: 0, max: 1, probability: 0.35 },
-        modest: { min: 1, max: 3, probability: 0.30 },
-        good: { min: 3, max: 10, probability: 0.20 },
+        modest: { min: 1, max: 3, probability: 0.3 },
+        good: { min: 3, max: 10, probability: 0.2 },
         homeRun: { min: 10, max: 50, probability: 0.12 },
-        unicorn: { min: 50, max: 200, probability: 0.03 }
-      }
+        unicorn: { min: 50, max: 200, probability: 0.03 },
+      },
     });
 
     // Series C+: Lower failure rate, higher multiples
     profiles.set('series-c+', {
       stage: 'series-c+',
-      failureRate: 0.20,
+      failureRate: 0.2,
       returnBands: {
-        failure: { min: 0, max: 1, probability: 0.20 },
+        failure: { min: 0, max: 1, probability: 0.2 },
         modest: { min: 1, max: 3, probability: 0.35 },
         good: { min: 3, max: 10, probability: 0.25 },
         homeRun: { min: 10, max: 50, probability: 0.15 },
-        unicorn: { min: 50, max: 200, probability: 0.05 }
-      }
+        unicorn: { min: 50, max: 200, probability: 0.05 },
+      },
     });
 
     return profiles;
@@ -424,18 +496,19 @@ export class PowerLawDistribution {
     // Different exit timings by stage and outcome
     const baseTimings: Record<InvestmentStage, number> = {
       'pre-seed': 6.5,
-      'seed': 5.5,
+      seed: 5.5,
       'series-a': 4.5,
       'series-b': 3.5,
-      'series-c+': 2.5
+      'series-c': 2.7,
+      'series-c+': 2.5,
     };
 
     const categoryMultipliers: Record<string, number> = {
-      'failure': 0.6,  // Failures happen faster
-      'modest': 0.9,   // Modest returns slightly faster
-      'good': 1.0,     // Base timing
-      'homeRun': 1.2,  // Home runs take longer
-      'unicorn': 1.4   // Unicorns take longest
+      failure: 0.6, // Failures happen faster
+      modest: 0.9, // Modest returns slightly faster
+      good: 1.0, // Base timing
+      homeRun: 1.2, // Home runs take longer
+      unicorn: 1.4, // Unicorns take longest
     };
 
     const baseTiming = baseTimings[stage] || 5.0;
@@ -450,7 +523,9 @@ export class PowerLawDistribution {
   /**
    * Select investment stage randomly based on distribution weights
    */
-  private selectStageRandomly(distribution: Partial<Record<InvestmentStage, number>>): InvestmentStage {
+  private selectStageRandomly(
+    distribution: Partial<Record<InvestmentStage, number>>
+  ): InvestmentStage {
     const rand = this.rng();
     let cumulativeProb = 0;
 
@@ -479,26 +554,32 @@ export class PowerLawDistribution {
     powerLawAlpha: number;
   } {
     const n = values.length;
+    if (n === 0) {
+      throw new Error('Cannot calculate statistics on empty array');
+    }
     const sortedValues = [...values].sort((a, b) => a - b);
 
     // Basic statistics
     const mean = values.reduce((sum, val) => sum + val, 0) / n;
-    const median = n % 2 === 0
-      ? (sortedValues[n/2 - 1] + sortedValues[n/2]) / 2
-      : sortedValues[Math.floor(n/2)];
+    const median =
+      n % 2 === 0
+        ? (sortedValues[n / 2 - 1]! + sortedValues[n / 2]!) / 2
+        : sortedValues[Math.floor(n / 2)]!;
 
     // Variance and standard deviation
     const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / (n - 1);
     const standardDeviation = Math.sqrt(variance);
 
     // Skewness (third moment)
-    const skewness = values.reduce((sum, val) => sum + Math.pow((val - mean) / standardDeviation, 3), 0) / n;
+    const skewness =
+      values.reduce((sum, val) => sum + Math.pow((val - mean) / standardDeviation, 3), 0) / n;
 
     // Kurtosis (fourth moment)
-    const kurtosis = values.reduce((sum, val) => sum + Math.pow((val - mean) / standardDeviation, 4), 0) / n - 3;
+    const kurtosis =
+      values.reduce((sum, val) => sum + Math.pow((val - mean) / standardDeviation, 4), 0) / n - 3;
 
     // Estimate power law alpha from tail data (values > 3x)
-    const tailValues = values.filter(v => v >= 3);
+    const tailValues = values.filter((v) => v >= 3);
     let powerLawAlpha = 1.16; // Default
     if (tailValues.length > 10) {
       // Maximum likelihood estimator for power law
@@ -512,7 +593,7 @@ export class PowerLawDistribution {
       standardDeviation,
       skewness,
       kurtosis,
-      powerLawAlpha
+      powerLawAlpha,
     };
   }
 
@@ -543,7 +624,7 @@ export class PowerLawDistribution {
       p75: getPercentile(75),
       p90: getPercentile(90),
       p95: getPercentile(95),
-      p99: getPercentile(99)
+      p99: getPercentile(99),
     };
   }
 }
@@ -556,16 +637,19 @@ export class PowerLawDistribution {
  * Create power law distribution instance with default VC parameters
  */
 export function createVCPowerLawDistribution(randomSeed?: number): PowerLawDistribution {
-  return new PowerLawDistribution({
-    failureRate: 0.70,        // 70% of investments return 0-1x
-    modestReturnRate: 0.15,   // 15% return 1-3x
-    goodOutcomeRate: 0.10,    // 10% return 3-10x
-    homeRunRate: 0.04,        // 4% return 10-50x
-    unicornRate: 0.01,        // 1% return 50x+ (capped at 200x)
-    alpha: 1.16,              // Realistic power law exponent for VC
-    xMin: 3.0,                // Power law starts at 3x
-    maxReturn: 200.0          // Cap unicorns at 200x
-  }, randomSeed);
+  return new PowerLawDistribution(
+    {
+      failureRate: 0.7, // 70% of investments return 0-1x
+      modestReturnRate: 0.15, // 15% return 1-3x
+      goodOutcomeRate: 0.1, // 10% return 3-10x
+      homeRunRate: 0.04, // 4% return 10-50x
+      unicornRate: 0.01, // 1% return 50x+ (capped at 200x)
+      alpha: 1.16, // Realistic power law exponent for VC
+      xMin: 3.0, // Power law starts at 3x
+      maxReturn: 200.0, // Cap unicorns at 200x
+    },
+    randomSeed
+  );
 }
 
 /**
@@ -587,25 +671,45 @@ export function generatePowerLawReturns(
 }> {
   const powerLaw = createVCPowerLawDistribution(randomSeed);
 
-  // Convert string keys to InvestmentStage type
+  // Convert string keys to InvestmentStage type using typed normalizer (fail-closed)
   const stageMap: Partial<Record<InvestmentStage, number>> = {};
+  const failedNormalizations: Array<{ original: string; weight: number }> = [];
+
   for (const [stage, weight] of Object.entries(stageDistribution)) {
-    const normalizedStage = stage.toLowerCase().replace(/[^a-z]/g, '-') as InvestmentStage;
-    if (['pre-seed', 'seed', 'series-a', 'series-b', 'series-c+'].includes(normalizedStage)) {
-      stageMap[normalizedStage] = weight;
+    const result = normalizeInvestmentStage(stage);
+
+    if (result.ok) {
+      stageMap[result.value] = weight;
+    } else {
+      // Track unknown stages for observability
+      failedNormalizations.push({ original: stage, weight });
+      recordUnknownStage(stage, 'generatePowerLawReturns');
     }
   }
 
-  // Default to seed stage if no valid stages provided
+  // Fail-closed: error if all stages are unknown (no silent defaults)
   if (Object.keys(stageMap).length === 0) {
-    stageMap.seed = 1.0;
+    const failedStages = failedNormalizations.map((f) => f.original).join(', ');
+
+    // Emit failure metric
+    emitMetric('mc_trials_failed_total', failedNormalizations.length, {
+      reason: 'all_stages_unknown',
+    });
+
+    throw new Error(
+      `No valid investment stages found in distribution. Invalid stages: ${failedStages}. ` +
+        `Valid stages: pre-seed, seed, series-a, series-b, series-c, series-c+`
+    );
   }
 
-  return powerLaw.generateBatchScenarios(
-    portfolioSize * scenarios,
-    stageMap,
-    timeHorizonYears
-  );
+  // Emit success metric
+  telemetry.mcTrialsTotal++;
+  emitMetric('mc_trials_total', portfolioSize * scenarios, {
+    stage_count: Object.keys(stageMap).length.toString(),
+    unknown_count: failedNormalizations.length.toString(),
+  });
+
+  return powerLaw.generateBatchScenarios(portfolioSize * scenarios, stageMap, timeHorizonYears);
 }
 
 /**
