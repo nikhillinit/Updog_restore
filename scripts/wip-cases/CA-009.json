@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "CA-009",
+  "module": "CapitalAllocation",
+  "category": "pacing_engine",
+  "description": "Quarterly pacing with carryover of Q1 shortfall into Q2.",
+  "inputs": {
+    "fund": {
+      "commitment": 36000000,
+      "target_reserve_pct": 0.1,
+      "reserve_policy": "static_pct",
+      "pacing_window_months": 18,
+      "vintage_year": 2024
+    },
+    "timeline": {
+      "start_date": "2025-01-01",
+      "end_date": "2026-06-30"
+    },
+    "flows": {
+      "contributions": [
+        {
+          "date": "2025-02-10",
+          "amount": 3000000
+        }
+      ],
+      "distributions": []
+    },
+    "constraints": {
+      "min_cash_buffer": 500000,
+      "max_allocation_per_cohort": 0.65,
+      "rebalance_frequency": "quarterly"
+    },
+    "cohorts": [
+      {
+        "name": "Core-25",
+        "start_date": "2025-01-01",
+        "end_date": "2026-06-30",
+        "weight": 0.6
+      },
+      {
+        "name": "Growth-25",
+        "start_date": "2025-01-01",
+        "end_date": "2026-06-30",
+        "weight": 0.4
+      }
+    ]
+  },
+  "expected": {
+    "allocations_by_cohort": [
+      {
+        "cohort": "Core-25",
+        "amount": 1200000
+      },
+      {
+        "cohort": "Growth-25",
+        "amount": 800000
+      }
+    ],
+    "reserve_balance_over_time": [
+      {
+        "date": "2025-03-31",
+        "balance": 3600000
+      }
+    ],
+    "pacing_targets_by_period": [
+      {
+        "period": "2025-Q1",
+        "target": 6000000
+      },
+      {
+        "period": "2025-Q2",
+        "target": 6000000
+      }
+    ],
+    "violations": ["carryover_applied_q2"]
+  },
+  "notes": "Shortfall in Q1 rolls into Q2 target."
+}

@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "CA-011",
+  "module": "CapitalAllocation",
+  "category": "pacing_engine",
+  "description": "Pipeline drought: pacing floor rule triggers but no deals available.",
+  "inputs": {
+    "fund": {
+      "commitment": 18000000,
+      "target_reserve_pct": 0.15,
+      "reserve_policy": "static_pct",
+      "pacing_window_months": 12,
+      "vintage_year": 2025
+    },
+    "timeline": {
+      "start_date": "2025-01-01",
+      "end_date": "2025-12-31"
+    },
+    "flows": {
+      "contributions": [],
+      "distributions": []
+    },
+    "constraints": {
+      "min_cash_buffer": 200000,
+      "max_allocation_per_cohort": 1,
+      "rebalance_frequency": "monthly"
+    },
+    "cohorts": [
+      {
+        "name": "Base-2025",
+        "start_date": "2025-01-01",
+        "end_date": "2025-12-31",
+        "weight": 1
+      }
+    ]
+  },
+  "expected": {
+    "allocations_by_cohort": [
+      {
+        "cohort": "Base-2025",
+        "amount": 0
+      }
+    ],
+    "reserve_balance_over_time": [
+      {
+        "date": "2025-06-30",
+        "balance": 2700000
+      }
+    ],
+    "pacing_targets_by_period": [
+      {
+        "period": "2025-01",
+        "target": 1500000
+      }
+    ],
+    "violations": ["pacing_floor_triggered_no_pipeline"]
+  },
+  "notes": "Document expected behavior when floor triggers without pipeline."
+}

@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "CA-019",
+  "module": "CapitalAllocation",
+  "category": "cohort_engine",
+  "description": "Capital recall (negative distribution) and recomputation on net basis.",
+  "inputs": {
+    "fund": {
+      "commitment": 12000000,
+      "target_reserve_pct": 0.1,
+      "reserve_policy": "static_pct",
+      "pacing_window_months": 12,
+      "vintage_year": 2024
+    },
+    "timeline": {
+      "start_date": "2025-02-01",
+      "end_date": "2025-12-31"
+    },
+    "flows": {
+      "contributions": [
+        {
+          "date": "2025-02-15",
+          "amount": 1200000
+        }
+      ],
+      "distributions": [
+        {
+          "date": "2025-03-10",
+          "amount": -200000,
+          "recycle_eligible": false
+        }
+      ]
+    },
+    "constraints": {
+      "min_cash_buffer": 200000,
+      "max_allocation_per_cohort": 0.75,
+      "rebalance_frequency": "monthly"
+    },
+    "cohorts": [
+      {
+        "name": "North",
+        "start_date": "2025-02-01",
+        "end_date": "2025-12-31",
+        "weight": 0.5
+      },
+      {
+        "name": "South",
+        "start_date": "2025-02-01",
+        "end_date": "2025-12-31",
+        "weight": 0.5
+      }
+    ]
+  },
+  "expected": {
+    "allocations_by_cohort": [
+      {
+        "cohort": "North",
+        "amount": 500000
+      },
+      {
+        "cohort": "South",
+        "amount": 500000
+      }
+    ],
+    "reserve_balance_over_time": [
+      {
+        "date": "2025-03-31",
+        "balance": 1000000
+      }
+    ],
+    "pacing_targets_by_period": [
+      {
+        "period": "2025-02",
+        "target": 1000000
+      }
+    ],
+    "violations": ["capital_recall_processed"]
+  },
+  "notes": "Negative distributions model recalls/clawbacks; not eligible for recycling (documented in ADR‑008)."
+}
