@@ -458,6 +458,7 @@
     "@vitejs/plugin-react": "^5.0.4",
     "@vitest/ui": "^3.2.4",
     "ajv": "8.17.1",
+    "ajv-formats": "^3.0.1",
     "autoprefixer": "10.4.21",
     "axe-playwright": "^2.1.0",
     "concurrently": "9.2.1",

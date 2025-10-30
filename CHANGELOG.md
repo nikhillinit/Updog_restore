@@ -6,7 +6,121 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] – 2025‑10‑28
+## [Unreleased] – 2025‑10‑30
+
+### Fixed
+
+#### Monte Carlo: Critical Stage Normalization Bug (2025-10-30) 🔴
+
+**Series-C+ Allocation Loss - FIXED:**
+
+- **Bug**: Stage normalization regex converted `'series-c+'` → `'series-c-'`,
+  silently dropping 5% of portfolio allocations
+- **Impact**: Test 3 showed 0% series-c+ allocation (expected 5%)
+- **Root Cause**: Regex `/[^a-z]/g` treats `+` as invalid character
+- **Solution**: Replaced brittle regex with typed, fail-closed normalizer
+  - New module: `server/utils/stage-utils.ts`
+  - Explicit alias mapping (documented, curated)
+  - Discriminated union result type forces error handling
+  - Never silent defaults
+- **Tests**: 50+ unit tests for normalizer (positive + negative cases)
+- **Telemetry**: Emits `stage_normalization_unknown_total` metric
+
+**Files Changed**:
+
+- `server/services/power-law-distribution.ts`: Integrates new normalizer
+- `server/utils/stage-utils.ts` (NEW): Typed stage normalizer
+- `tests/unit/utils/stage-utils.test.ts` (NEW): Comprehensive normalizer tests
+
+---
+
+#### Monte Carlo: Statistically Rigorous Tests (2025-10-30) 📊
+
+**Replaced Magic Numbers with N-Aware Assertions:**
+
+- **Test 1 (100x threshold)**: Hard-coded 0.5% → Exact binomial test (scales
+  with N)
+- **Test 2 (J-curve variance)**: Wrong expectation (early > late) → Correct math
+  (late > early) with bootstrap CI
+- **Test 3 (series-c+ distribution)**: Broken by normalizer bug → Fixed and
+  validated
+- **Test 4 (portfolio failure)**: 20-60% expectation → Realistic 0.1-5% with
+  Clopper-Pearson CI
+
+**Statistical Methods**:
+
+- Binomial test for proportion assertions
+- Clopper-Pearson confidence intervals (conservative, fail-safe)
+- Bootstrap confidence intervals for variance comparisons
+- Property-based tests for power law monotonicity
+
+**New Files**:
+
+- `tests/utils/statistical-assertions.ts`: Binomial, Clopper-Pearson, bootstrap
+  helpers
+- `tests/unit/services/monte-carlo-statistical-assertions.test.ts`: Rewritten
+  tests with statistical rigor
+
+**Benefits**:
+
+- Tests don't produce false failures from statistical noise
+- Assertions scale automatically with sample size
+- Aligns with project's validation culture (deterministic, explicit)
+
+---
+
+### Fixed (Previous)
+
+#### Security: Server-Generated Request IDs (2025-10-30) ✅
+
+**Request ID Middleware Security Enhancement:**
+
+- **Security Fix**:
+  - Updated error-handler tests to expect server-generated request IDs
+  - Middleware intentionally generates `req_<uuid>` IDs to prevent log injection
+    attacks
+  - Client-provided IDs now preserved in separate `X-Client-Request-ID` header
+    (non-prod only)
+  - Fixed 2 test failures that incorrectly expected client ID preservation
+
+- **Implementation**:
+  - Modified `tests/unit/error-handler.test.ts` to validate security model
+  - Added eslint-disable comments for Express `any` types in test file
+  - Tests now verify server ID generation and optional client ID preservation
+
+**Rationale**: Client-controlled request IDs enable log injection and
+correlation attacks. Server-generated IDs maintain security while preserving
+client IDs separately for debugging.
+
+### Added
+
+#### Monte Carlo Validation Strategy Documentation (2025-10-30) ✅
+
+**ADR-010: Comprehensive Validation Strategy:**
+
+- **Created**: `docs/adr/ADR-010-monte-carlo-validation-strategy.md`
+  - Fail-fast validation approach for Monte Carlo simulations
+  - Three-tier validation: type, mathematical validity, domain constraints
+  - Documents existing NaN guards in `power-law-distribution.ts` (lines 184-192)
+  - Testing strategy and alternatives analysis (defensive clamping, try-catch
+    wrapping)
+
+- **Validation Patterns**:
+  - `Number.isFinite()` checks reject both NaN and Infinity
+  - Positive-only constraints prevent division by zero
+  - Descriptive `RangeError` messages with actual values
+  - Sentinel values for valid edge cases (e.g., -1.0 for total loss)
+
+- **Dependencies**:
+  - Added `ajv-formats@3.0.1` for parity validation schema support (JSON Schema
+    format validation)
+
+**Context**: Power law distributions in VC return modeling require robust
+validation to prevent NaN propagation through 10,000+ scenario simulations.
+
+---
+
+## [Previous] – 2025‑10‑28
 
 ### Added
 
