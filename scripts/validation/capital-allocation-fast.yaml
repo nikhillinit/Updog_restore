@@ -1,0 +1,26 @@
+prompts:
+  - file://prompts.py:capital_allocation_prompt
+
+providers:
+  - id: anthropic:messages:claude-3-5-haiku-20241022
+    label: haiku-fast
+    config:
+      temperature: 0.0
+      max_tokens: 1200
+
+tests:
+  - description: 'Capital Allocation (docs)'
+    vars:
+      doc_type: capital_allocation
+      doc_content: file://../../docs/notebooklm-sources/capital-allocation.md
+      truth_cases: file://../../docs/capital-allocation.truth-cases.json
+      schema: file://../../docs/schemas/capital-allocation-truth-case.schema.json
+  - description: 'ADR-008'
+    vars:
+      doc_type: architectural_decision
+      doc_content: file://../../docs/adr/ADR-008-capital-allocation-policy.md
+      truth_cases: file://../../docs/capital-allocation.truth-cases.json
+      schema: file://../../docs/schemas/capital-allocation-truth-case.schema.json
+
+scorers:
+  - path: doc_domain_scorer.mjs

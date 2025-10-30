@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "CA-020",
+  "module": "CapitalAllocation",
+  "category": "integration",
+  "description": "Integration: reserve precedence + pacing + cohort caps + recycling.",
+  "inputs": {
+    "fund": {
+      "commitment": 40000000,
+      "target_reserve_pct": 0.2,
+      "reserve_policy": "static_pct",
+      "pacing_window_months": 24,
+      "vintage_year": 2024
+    },
+    "timeline": {
+      "start_date": "2025-01-01",
+      "end_date": "2026-12-31"
+    },
+    "flows": {
+      "contributions": [
+        {
+          "date": "2025-04-01",
+          "amount": 5000000
+        }
+      ],
+      "distributions": [
+        {
+          "date": "2025-05-01",
+          "amount": 2000000,
+          "recycle_eligible": true
+        }
+      ]
+    },
+    "constraints": {
+      "min_cash_buffer": 4000000,
+      "max_allocation_per_cohort": 0.5,
+      "rebalance_frequency": "monthly"
+    },
+    "cohorts": [
+      {
+        "name": "A",
+        "start_date": "2025-01-01",
+        "end_date": "2026-12-31",
+        "weight": 0.6
+      },
+      {
+        "name": "B",
+        "start_date": "2025-01-01",
+        "end_date": "2026-12-31",
+        "weight": 0.4
+      }
+    ]
+  },
+  "expected": {
+    "allocations_by_cohort": [
+      {
+        "cohort": "A",
+        "amount": 2500000
+      },
+      {
+        "cohort": "B",
+        "amount": 2500000
+      }
+    ],
+    "reserve_balance_over_time": [
+      {
+        "date": "2025-04-30",
+        "balance": 8000000
+      },
+      {
+        "date": "2025-05-31",
+        "balance": 10000000
+      }
+    ],
+    "pacing_targets_by_period": [
+      {
+        "period": "2025-04",
+        "target": 1666667
+      },
+      {
+        "period": "2025-05",
+        "target": 1666667
+      }
+    ],
+    "violations": ["reserve_floor_precedence_over_pacing", "recycling_applied"]
+  },
+  "notes": "Cohort cap forces split; recycling increases allocable capacity after reserve checks."
+}

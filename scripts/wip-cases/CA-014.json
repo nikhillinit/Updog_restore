@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "CA-014",
+  "module": "CapitalAllocation",
+  "category": "cohort_engine",
+  "description": "Two cohorts with fixed weights; simple pro‑rata split.",
+  "inputs": {
+    "fund": {
+      "commitment": 20000000,
+      "target_reserve_pct": 0.1,
+      "reserve_policy": "static_pct",
+      "pacing_window_months": 12,
+      "vintage_year": 2025
+    },
+    "timeline": {
+      "start_date": "2025-01-01",
+      "end_date": "2025-12-31"
+    },
+    "flows": {
+      "contributions": [
+        {
+          "date": "2025-01-31",
+          "amount": 4000000
+        }
+      ],
+      "distributions": []
+    },
+    "constraints": {
+      "min_cash_buffer": 100000,
+      "max_allocation_per_cohort": 1,
+      "rebalance_frequency": "monthly"
+    },
+    "cohorts": [
+      {
+        "name": "Core",
+        "start_date": "2025-01-01",
+        "end_date": "2025-12-31",
+        "weight": 0.6
+      },
+      {
+        "name": "Growth",
+        "start_date": "2025-01-01",
+        "end_date": "2025-12-31",
+        "weight": 0.4
+      }
+    ]
+  },
+  "expected": {
+    "allocations_by_cohort": [
+      {
+        "cohort": "Core",
+        "amount": 2400000
+      },
+      {
+        "cohort": "Growth",
+        "amount": 1600000
+      }
+    ],
+    "reserve_balance_over_time": [
+      {
+        "date": "2025-01-31",
+        "balance": 2000000
+      }
+    ],
+    "pacing_targets_by_period": [
+      {
+        "period": "2025-01",
+        "target": 1666667
+      }
+    ],
+    "violations": []
+  },
+  "notes": "Deterministic pro‑rata with no caps binding."
+}

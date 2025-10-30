@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0.0",
+  "module": "capital_allocation",
+  "id": "CA-007",
+  "category": "reserve_engine",
+  "description": "Year-end cutoff; reserve floor binding on 12/31 vs 01/01.",
+  "inputs": {
+    "timeline": {
+      "start_date": "2025-12-01",
+      "end_date": "2026-01-31",
+      "cadence": "monthly"
+    },
+    "policies": {
+      "reserve": {
+        "min_cash_buffer": 200000
+      }
+    },
+    "flows": {
+      "contributions": [
+        {
+          "date": "2025-12-31",
+          "amount": 1000000
+        }
+      ]
+    }
+  },
+  "expected": {
+    "reserve_met": true,
+    "allocated_amount": 800000,
+    "violations": []
+  },
+  "notes": "12/31 cash 1,000,000; reserve buffer 200,000; allocatable 800,000."
+}

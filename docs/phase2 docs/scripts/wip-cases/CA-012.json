@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0.0",
+  "module": "capital_allocation",
+  "id": "CA-012",
+  "category": "pacing_engine",
+  "description": "Window assumption Scenario 2: reset to a fresh 12-month window starting now.",
+  "inputs": {
+    "timeline": {
+      "start_date": "2026-07-01",
+      "cadence": "monthly"
+    },
+    "policies": {
+      "pacing": {
+        "window_months": 12,
+        "total_commitment": 1200000
+      }
+    }
+  },
+  "expected": {
+    "pacing_target": 100000
+  },
+  "notes": "Reset window; ignore prior history."
+}

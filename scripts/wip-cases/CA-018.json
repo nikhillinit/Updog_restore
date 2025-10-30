@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "CA-018",
+  "module": "CapitalAllocation",
+  "category": "cohort_engine",
+  "description": "Rounding & tie‑breaks: largest remainder goes to C; deterministic.",
+  "inputs": {
+    "fund": {
+      "commitment": 10000000,
+      "target_reserve_pct": 0.1,
+      "reserve_policy": "static_pct",
+      "pacing_window_months": 10,
+      "vintage_year": 2025
+    },
+    "timeline": {
+      "start_date": "2025-01-01",
+      "end_date": "2025-10-31"
+    },
+    "flows": {
+      "contributions": [
+        {
+          "date": "2025-01-15",
+          "amount": 1000000
+        }
+      ],
+      "distributions": []
+    },
+    "constraints": {
+      "min_cash_buffer": 100000,
+      "max_allocation_per_cohort": 1,
+      "rebalance_frequency": "monthly"
+    },
+    "cohorts": [
+      {
+        "name": "A",
+        "start_date": "2025-01-01",
+        "end_date": "2025-10-31",
+        "weight": 0.3333333
+      },
+      {
+        "name": "B",
+        "start_date": "2025-01-01",
+        "end_date": "2025-10-31",
+        "weight": 0.3333333
+      },
+      {
+        "name": "C",
+        "start_date": "2025-01-01",
+        "end_date": "2025-10-31",
+        "weight": 0.3333334
+      }
+    ]
+  },
+  "expected": {
+    "allocations_by_cohort": [
+      {
+        "cohort": "A",
+        "amount": 333333
+      },
+      {
+        "cohort": "B",
+        "amount": 333333
+      },
+      {
+        "cohort": "C",
+        "amount": 333334
+      }
+    ],
+    "reserve_balance_over_time": [
+      {
+        "date": "2025-01-31",
+        "balance": 1000000
+      }
+    ],
+    "pacing_targets_by_period": [
+      {
+        "period": "2025-01",
+        "target": 1000000
+      }
+    ],
+    "violations": []
+  },
+  "notes": "Bankers’ rounding with stable tie‑break."
+}

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1.0.0",
+  "module": "capital_allocation",
+  "id": "CA-016",
+  "category": "cohort_engine",
+  "description": "Cohort lifecycle: staggered entry/exit dates.",
+  "inputs": {
+    "timeline": {
+      "current_date": "2026-06-15"
+    },
+    "cohorts": [
+      {
+        "id": "Alpha",
+        "weight": 0.5,
+        "start_date": "2026-01-01",
+        "end_date": "2026-06-30"
+      },
+      {
+        "id": "Beta",
+        "weight": 0.5,
+        "start_date": "2026-07-01"
+      }
+    ],
+    "allocation_amount": 100000
+  },
+  "expected": {
+    "allocations_by_cohort": [
+      {
+        "cohort": "Alpha",
+        "amount": 100000
+      },
+      {
+        "cohort": "Beta",
+        "amount": 0
+      }
+    ]
+  },
+  "notes": "Only active cohorts participate; weights renormalized over active set."
+}

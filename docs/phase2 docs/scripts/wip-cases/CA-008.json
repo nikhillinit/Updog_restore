@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0.0",
+  "module": "capital_allocation",
+  "id": "CA-008",
+  "category": "pacing_engine",
+  "description": "Basic monthly pacing, no carryover.",
+  "inputs": {
+    "timeline": {
+      "cadence": "monthly"
+    },
+    "policies": {
+      "pacing": {
+        "window_months": 12,
+        "total_commitment": 1200000
+      }
+    }
+  },
+  "expected": {
+    "pacing_target": 100000,
+    "pacing_carryover": 0
+  },
+  "notes": "1.2M / 12 = 100k per month."
+}

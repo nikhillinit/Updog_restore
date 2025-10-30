@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.0.0",
+  "module": "capital_allocation",
+  "id": "CA-017",
+  "category": "cohort_engine",
+  "description": "Deterministic tie-break (lexicographic) for Largest Remainder.",
+  "inputs": {
+    "cohorts": [
+      {
+        "id": "C",
+        "weight": 1
+      },
+      {
+        "id": "B",
+        "weight": 1
+      },
+      {
+        "id": "A",
+        "weight": 1
+      }
+    ],
+    "allocation_amount": 100
+  },
+  "expected": {
+    "allocations_by_cohort": [
+      {
+        "cohort": "A",
+        "amount": 34
+      },
+      {
+        "cohort": "B",
+        "amount": 33
+      },
+      {
+        "cohort": "C",
+        "amount": 33
+      }
+    ]
+  },
+  "notes": "All fractions tie (33.33\u2026); floor 33 then assign remaining seat by lexicographic key."
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0.0",
+  "module": "capital_allocation",
+  "id": "CA-019",
+  "category": "integration",
+  "description": "Negative distribution treated as capital recall, non-recyclable (ADR-008).",
+  "inputs": {
+    "policies": {
+      "recycling": {
+        "enabled": true
+      }
+    },
+    "flows": {
+      "distributions": [
+        {
+          "date": "2026-03-10",
+          "amount": -50000,
+          "recycle_eligible": false
+        }
+      ]
+    }
+  },
+  "expected": {
+    "recycling_pool_delta": 0,
+    "cash_impact": 50000
+  },
+  "notes": "Recalls increase cash but not recycling capacity; semantics documented in ADR\u2011008."
+}

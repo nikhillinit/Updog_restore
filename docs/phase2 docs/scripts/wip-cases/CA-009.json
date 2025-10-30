@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0.0",
+  "module": "capital_allocation",
+  "id": "CA-009",
+  "category": "pacing_engine",
+  "description": "Basic quarterly pacing.",
+  "inputs": {
+    "timeline": {
+      "cadence": "quarterly"
+    },
+    "policies": {
+      "pacing": {
+        "window_months": 12,
+        "total_commitment": 1200000
+      }
+    }
+  },
+  "expected": {
+    "pacing_target": 300000
+  },
+  "notes": "1.2M / (12/3) = 300k per quarter."
+}

@@ -187,11 +187,30 @@
     },
     "expected": {
       "type": "object",
-      "required": ["reserve_balance", "allocations_by_cohort"],
+      "required": ["allocations_by_cohort"],
       "properties": {
         "reserve_balance": {
           "type": "number",
-          "description": "Expected reserve balance at end of period"
+          "description": "Expected reserve balance at end of period (simple format)"
+        },
+        "reserve_balance_over_time": {
+          "type": "array",
+          "description": "Time-series reserve balance snapshots (detailed format)",
+          "items": {
+            "type": "object",
+            "required": ["date", "balance"],
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date",
+                "description": "Snapshot date"
+              },
+              "balance": {
+                "type": "number",
+                "description": "Reserve balance at this date"
+              }
+            }
+          }
         },
         "allocations_by_cohort": {
           "type": "array",
@@ -225,6 +244,24 @@
             }
           }
         },
+        "pacing_targets_by_period": {
+          "type": "array",
+          "description": "Alias for pacing_targets (detailed format)",
+          "items": {
+            "type": "object",
+            "required": ["period", "target"],
+            "properties": {
+              "period": {
+                "type": "string",
+                "description": "Period identifier (e.g., 2024-Q1, 2025-01)"
+              },
+              "target": {
+                "type": "number",
+                "description": "Target allocation for period"
+              }
+            }
+          }
+        },
         "violations": {
           "type": "array",
           "items": {
@@ -232,7 +269,15 @@
           },
           "description": "Expected constraint violations (for adversarial tests)"
         }
-      }
+      },
+      "anyOf": [
+        {
+          "required": ["reserve_balance"]
+        },
+        {
+          "required": ["reserve_balance_over_time"]
+        }
+      ]
     },
     "notes": {
       "type": "string",
