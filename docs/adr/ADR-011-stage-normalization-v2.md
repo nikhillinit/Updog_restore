@@ -77,16 +77,23 @@ export type NormalizeResult =
 
 export function normalizeInvestmentStage(input: string): NormalizeResult {
   // Unicode normalization (NFKD) + explicit alias mapping
+  // Canonical key: keep [a–z0–9+], collapse multiple spaces to single space
   // Returns error for unknowns (never silent defaults)
 }
 ```
 
 **Features**:
 
+- **Canonicalization**: Input → NFKD normalization → lowercase → collapse
+  whitespace → trim → alias lookup. Canonical key: `[a-z0-9+]*` (e.g.,
+  `series-c+` survives unchanged).
 - **Unicode normalization**: Handles smart quotes, em-dashes, Cyrillic
-  lookalikes
+  lookalikes (ѕ→s, ь→b, с→c)
 - **Explicit alias mapping**: Only known variants (seriesa → series-a, seriesc+
-  → series-c+)
+  → series-c+), curated in `STAGE_ALIASES` dict
+- **Alias policy**: Aliases must be semantically identical; no up-mapping (e.g.,
+  series-c → series-c+) without explicit Product sign-off. Treats ambiguous
+  cases (e.g., `seriesc` without plus) as unknown, forcing clarification.
 - **No regex edge cases**: Replaces brittle `/[^a-z]/g` with curated alias map
 - **Telemetry-ready**: Tracks unknown stages for observability
 
@@ -118,12 +125,33 @@ export function normalizeInvestmentStage(input: string): NormalizeResult {
 **Metrics Emitted**:
 
 - `stage_normalization_unknown_total`: Count of unknown stages by label
-- `mc_trials_total`: Count of successful MC operations
-- `mc_trials_failed_total`: Count of failed MC operations
+  (includes caller, original_stage)
+- `mc_trials_total`: Count of successful MC operations (includes engine_version,
+  seed_hash, scenario_count)
+- `mc_trials_failed_total`: Count of failed MC operations (reason label:
+  all_stages_unknown, etc.)
+
+**Engine/Version Breadcrumbs** (for bisect safety):
+
+- All logs include: `seed` (PRNG seed for reproducibility), `param_hash` (SHA of
+  input parameters), `engine_version` (semantic version tag)
+- Example:
+  `{"type":"metric","name":"mc_trials_total","engine_version":"2.1.0","seed":"0x12ab34cd","param_hash":"sha256:abc123..."}`
+- Enables rapid bisect when regressions detected:
+  `git log --grep="param_hash:abc123" --all`
 
 **Logs**: Structured JSON logs for all stage normalization failures
 
 **Production Integration**: Hooks to Prometheus/CloudWatch (template provided)
+
+**Rollout/Rollback Policy**:
+
+- Emergency fallback (`unknown_stage → 'seed'`) is feature-flagged:
+  `FF_STAGE_NORMALIZATION_FALLBACK` (default: false / fail-closed)
+- If needed in production: set flag to true → logs "fallback_used" metric with
+  reason
+- Rollback: disable flag → system returns explicit errors, monitoring alerts on
+  `stage_normalization_unknown_total` spike
 
 ---
 
@@ -208,6 +236,19 @@ regex.
 
 ## Migration Path
 
+### ⚠️ Backward Compatibility Notice (BREAKING CHANGE — Fail-Closed Behavior)
+
+> **Public APIs unchanged; only callers passing non-canonical stages will now
+> receive typed errors instead of silent defaults.**
+>
+> **Impact**: Code that relied on unknown stages silently falling back to `seed`
+> stage will now throw an error. This is **intentional**—the silent fallback
+> caused the Series-C+ bug.
+>
+> **Action**: Audit all stage inputs; add aliases to `STAGE_ALIASES` dict for
+> any legitimate variants, or update callers to pass canonical names. Test
+> thoroughly before production.
+
 ### For Existing Code
 
 **APIs Updated**:
@@ -215,25 +256,44 @@ regex.
 - `generatePowerLawReturns()` now throws on all-unknown stages (was: silent
   default)
 - Return type unchanged (Stage normalization internal)
+- `normalizeInvestmentStage()` returns `{ ok, error }` discriminated union
+  (forces explicit error handling)
 
 **For Callers**:
 
 - If passing stages: Ensure they match canonical names or known aliases
 - If building stage distributions dynamically: Test before production
+- Check code for silent error handling (try/catch without re-throw) — these may
+  mask unknown stages
 
-### Data Impact
+### Data Impact & Historical Scope
 
-**Historical Portfolios**:
+**Historical Portfolios Affected**:
 
-- Series-C+ allocations that were dropped (0% → now 5%): Will re-appear if
-  re-run
-- Simulation timestamps captured; can identify affected ranges
-- Recompute strategy: Flag affected portfolios for review
+- **Series-C+ allocations**: Were dropped during MC simulations (0% → now 5%) if
+  series-c+ stage present
+- **Date range**: All simulations since stage normalizer was added; review git
+  log for introduction date
+- **Detection method**: Query portfolios where
+  `stageDistribution['series-c+'] > 0` and `actual_allocation['series-c+'] == 0`
+  in older runs
+- **Impact assessment**: Check if re-running with fixed normalizer changes key
+  metrics (MOIC, IRR, tail performance)
+
+**Simulation Timestamps & Re-run Strategy**:
+
+- Capture `created_at`, `seed`, `parameter_hash` for each simulation → enables
+  reproducible re-run
+- Business decision: Cost of re-compute vs accuracy gain
+- Optional Phase 2: Batch re-run affected cohorts (flag:
+  `needs_recompute_adr011`)
 
 **Observability**:
 
 - `stage_normalization_unknown_total` counter starts at 0
 - Monitor for unknown stages; if counter stays at 0, migration is clean
+- If counter > 0: audit unknown stage origin (API input, data import, user
+  typo?)
 
 ### Timeline
 
@@ -266,6 +326,29 @@ regex.
 - **Power law monotonicity**: Tail weight decreases with threshold
 - **Stage ordering**: Failure rates decrease progression (pre-seed → series-c+)
 - **Series-c+ vs series-c**: Validates they're distinct stages
+
+### Performance Guardrails
+
+**Baseline (N=10,000 scenarios, seeded)**:
+
+- Stage normalization: < 50ms (lookup in `STAGE_ALIASES` dict)
+- Monte Carlo trial: < 2s (10k samples, 4-stage distribution)
+- Acceptance band: ±5% of baseline (warn if slower)
+
+**CI Integration**:
+
+- Unit tests: Include N=10k shard with timing assertions
+- Nightly job: Run N=50k statistical suite → capture execution time → alert if
+  trend exceeds ±5%
+- Regression detection: If new commit slows by >5%, fail CI and require perf
+  justification
+
+**Seed Discipline** (reproducibility):
+
+- All unit tests fix seed (e.g., `seed = 0x12345678`)
+- E2E tests run 3–5 diverse seeds, log all: `seed`, `param_hash`, execution time
+- On failure: Log includes seed + hash → reproducible re-run:
+  `npm test -- --seed=0x12345678 --params=<hash>`
 
 ---
 
