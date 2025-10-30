@@ -1,0 +1,58 @@
+# Promptfoo Configuration for Fee Documentation Validation
+# Phase 1B: Management & Performance Fees Documentation
+# Anthropic Cookbook LLM-as-Judge Pattern
+
+description: 'Phase 1B Fee Documentation Validation - Management & Performance Fees'
+
+prompts:
+  - file://prompts.py:fee_prompt
+
+# Claude models to use for evaluation
+# Note: API key has access to Opus, not Sonnet 3.5
+providers:
+  - id: anthropic:messages:claude-3-opus-20240229
+    label: 'Claude 3 Opus'
+    config:
+      max_tokens: 4096 # Opus max output tokens
+      temperature: 0
+
+# Default assertions that apply to all tests
+defaultTest:
+  assert:
+    # Ensure no AI self-reference
+    - type: not-contains-any
+      value:
+        - 'I am an AI'
+        - 'As an AI language model'
+        - "I'm an AI assistant"
+        - 'I am a chatbot'
+
+# Test cases for fee documentation validation
+tests:
+  # Test 1: fees.md validation
+  - description: 'Validate fees.md against Phase 1 rubric'
+    vars:
+      doc_content: file://../../docs/notebooklm-sources/fees.md
+      truth_cases: file://../../docs/fees.truth-cases.json
+      schema: file://../../docs/schemas/fee-truth-case.schema.json
+      doc_type: 'primary_documentation'
+
+  # Test 2: ADR-006 validation
+  - description: 'Validate ADR-006 architectural decisions'
+    vars:
+      doc_content: file://../../docs/adr/ADR-006-fee-calculation-standards.md
+      truth_cases: file://../../docs/fees.truth-cases.json
+      schema: file://../../docs/schemas/fee-truth-case.schema.json
+      doc_type: 'architecture_decision_record'
+
+# Custom scorer for domain scoring (replaces redundant keyword assertions)
+scorers:
+  - path: doc_domain_scorer.mjs
+
+# Output configuration
+outputPath: ./results/fees-validation-results.json
+
+# Enable progress bar during evaluation
+evaluateOptions:
+  showProgressBar: true
+  maxConcurrency: 1 # Sequential execution to avoid rate limits

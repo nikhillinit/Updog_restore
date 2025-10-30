@@ -1,0 +1,618 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://updog.press-on.vc/schemas/fee-truth-case.json",
+  "title": "Fee Calculation Truth Case",
+  "description": "Canonical test scenario for fee calculation validation (management fees, carried interest, recycling, admin expenses, fee impact)",
+  "type": "object",
+  "required": [
+    "id",
+    "category",
+    "description",
+    "input",
+    "expectedOutput",
+    "tolerance"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for this truth case",
+      "pattern": "^FEE-\\d{3}$"
+    },
+    "category": {
+      "type": "string",
+      "description": "Fee calculation category this test case validates",
+      "enum": [
+        "management_fee",
+        "carried_interest",
+        "fee_recycling",
+        "admin_expenses",
+        "fee_impact"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of this test scenario",
+      "minLength": 10
+    },
+    "input": {
+      "type": "object",
+      "description": "Input parameters for fee calculation, structure varies by category"
+    },
+    "expectedOutput": {
+      "type": "object",
+      "description": "Expected calculation results with numeric properties",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "tolerance": {
+      "type": "number",
+      "description": "Acceptable absolute difference for floating-point comparison",
+      "minimum": 0,
+      "default": 0.01
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional notes about edge cases, assumptions, or calculation nuances"
+    },
+    "excelReference": {
+      "type": "string",
+      "description": "Optional reference to Excel workbook/sheet for cross-validation"
+    },
+    "tags": {
+      "type": "array",
+      "description": "Tags for categorizing and filtering test cases",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "category": {
+            "const": "management_fee"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "input": {
+            "type": "object",
+            "required": ["fundSize", "feeRate", "basis", "fundTerm"],
+            "properties": {
+              "fundSize": {
+                "type": "number",
+                "description": "Total fund commitment size",
+                "minimum": 0
+              },
+              "feeRate": {
+                "type": "number",
+                "description": "Annual management fee rate as percentage (e.g., 2.0 for 2%)",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "basis": {
+                "type": "string",
+                "description": "Calculation basis for management fees",
+                "enum": ["committed", "called", "invested", "fmv"]
+              },
+              "fundTerm": {
+                "type": "integer",
+                "description": "Fund term in years",
+                "minimum": 1,
+                "maximum": 20
+              },
+              "stepDown": {
+                "type": "object",
+                "description": "Optional fee step-down configuration",
+                "required": ["afterYear", "newRate"],
+                "properties": {
+                  "afterYear": {
+                    "type": "integer",
+                    "description": "Year after which fee rate steps down",
+                    "minimum": 1
+                  },
+                  "newRate": {
+                    "type": "number",
+                    "description": "New fee rate after step-down as percentage",
+                    "minimum": 0,
+                    "maximum": 100
+                  }
+                }
+              },
+              "calledCapitalSchedule": {
+                "type": "array",
+                "description": "Yearly called capital amounts (required if basis is 'called' or 'invested')",
+                "items": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "portfolioFmvSchedule": {
+                "type": "array",
+                "description": "Yearly portfolio FMV values (required if basis is 'fmv')",
+                "items": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "expectedOutput": {
+            "type": "object",
+            "required": ["totalFees"],
+            "properties": {
+              "totalFees": {
+                "type": "number",
+                "description": "Total management fees over fund life",
+                "minimum": 0
+              },
+              "yearlyFees": {
+                "type": "array",
+                "description": "Optional array of yearly fee amounts",
+                "items": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "averageAnnualFee": {
+                "type": "number",
+                "description": "Optional average annual fee",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "category": {
+            "const": "carried_interest"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "input": {
+            "type": "object",
+            "required": [
+              "grossReturns",
+              "investedCapital",
+              "hurdleRate",
+              "carryRate",
+              "catchUpPercentage",
+              "waterfallType"
+            ],
+            "properties": {
+              "grossReturns": {
+                "type": "number",
+                "description": "Total gross returns from fund",
+                "minimum": 0
+              },
+              "investedCapital": {
+                "type": "number",
+                "description": "Total capital invested by LPs",
+                "minimum": 0
+              },
+              "hurdleRate": {
+                "type": "number",
+                "description": "Hurdle rate as percentage (e.g., 8.0 for 8%)",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "carryRate": {
+                "type": "number",
+                "description": "Carried interest rate as percentage (e.g., 20.0 for 20%)",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "catchUpPercentage": {
+                "type": "number",
+                "description": "Catch-up percentage as percentage (e.g., 80.0 for 80%)",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "waterfallType": {
+                "type": "string",
+                "description": "Waterfall calculation type",
+                "enum": ["AMERICAN", "EUROPEAN"]
+              },
+              "managementFeesAlreadyPaid": {
+                "type": "number",
+                "description": "Optional: management fees already deducted from returns",
+                "minimum": 0
+              }
+            }
+          },
+          "expectedOutput": {
+            "type": "object",
+            "required": ["carriedInterest", "lpNetReturns", "gpShare"],
+            "properties": {
+              "carriedInterest": {
+                "type": "number",
+                "description": "Total carried interest earned by GP",
+                "minimum": 0
+              },
+              "lpNetReturns": {
+                "type": "number",
+                "description": "Net returns to LPs after carry",
+                "minimum": 0
+              },
+              "gpShare": {
+                "type": "number",
+                "description": "GP percentage of total profit",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "hurdleAmount": {
+                "type": "number",
+                "description": "Optional: dollar amount of hurdle preference",
+                "minimum": 0
+              },
+              "catchUpAmount": {
+                "type": "number",
+                "description": "Optional: dollar amount allocated during catch-up",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "category": {
+            "const": "fee_recycling"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "input": {
+            "type": "object",
+            "required": [
+              "managementFees",
+              "recyclingCapPercent",
+              "recyclingTermMonths",
+              "fundSize"
+            ],
+            "properties": {
+              "managementFees": {
+                "type": "array",
+                "description": "Yearly management fees available for recycling",
+                "minItems": 1,
+                "items": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "recyclingCapPercent": {
+                "type": "number",
+                "description": "Maximum percentage of fees that can be recycled (e.g., 100.0 for 100%)",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "recyclingTermMonths": {
+                "type": "integer",
+                "description": "Number of months during which fees can be recycled",
+                "minimum": 1,
+                "maximum": 240
+              },
+              "fundSize": {
+                "type": "number",
+                "description": "Total fund commitment size",
+                "minimum": 0
+              },
+              "earlyExits": {
+                "type": "array",
+                "description": "Optional: early exit proceeds that generate recycling capacity",
+                "items": {
+                  "type": "object",
+                  "required": ["year", "amount"],
+                  "properties": {
+                    "year": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "amount": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "expectedOutput": {
+            "type": "object",
+            "required": ["totalRecycledFees", "totalInvestableCapital"],
+            "properties": {
+              "totalRecycledFees": {
+                "type": "number",
+                "description": "Total management fees recycled into new investments",
+                "minimum": 0
+              },
+              "totalInvestableCapital": {
+                "type": "number",
+                "description": "Total capital available for investment (including recycled fees)",
+                "minimum": 0
+              },
+              "recycledPercentage": {
+                "type": "number",
+                "description": "Optional: percentage of total fees that were recycled",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "yearlyRecycling": {
+                "type": "array",
+                "description": "Optional: yearly recycling amounts",
+                "items": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "category": {
+            "const": "admin_expenses"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "input": {
+            "type": "object",
+            "required": ["annualAmount", "growthRate", "fundTerm"],
+            "properties": {
+              "annualAmount": {
+                "type": "number",
+                "description": "Initial annual administrative expense amount",
+                "minimum": 0
+              },
+              "growthRate": {
+                "type": "number",
+                "description": "Annual growth rate as percentage (e.g., 3.0 for 3%)",
+                "minimum": -100,
+                "maximum": 100
+              },
+              "fundTerm": {
+                "type": "integer",
+                "description": "Fund term in years",
+                "minimum": 1,
+                "maximum": 20
+              },
+              "expenseCapPercent": {
+                "type": "number",
+                "description": "Optional: maximum admin expenses as % of fund size",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "fundSize": {
+                "type": "number",
+                "description": "Optional: fund size (required if expenseCapPercent specified)",
+                "minimum": 0
+              }
+            }
+          },
+          "expectedOutput": {
+            "type": "object",
+            "required": ["totalExpenses"],
+            "properties": {
+              "totalExpenses": {
+                "type": "number",
+                "description": "Total administrative expenses over fund life",
+                "minimum": 0
+              },
+              "yearlyExpenses": {
+                "type": "array",
+                "description": "Optional: yearly expense amounts",
+                "items": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "averageAnnualExpense": {
+                "type": "number",
+                "description": "Optional: average annual expense",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "category": {
+            "const": "fee_impact"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "input": {
+            "type": "object",
+            "required": ["fundSize", "feeStructure", "fundTerm"],
+            "properties": {
+              "fundSize": {
+                "type": "number",
+                "description": "Total fund commitment size",
+                "minimum": 0
+              },
+              "feeStructure": {
+                "type": "object",
+                "description": "Complete fee structure including all components",
+                "required": ["managementFee", "carriedInterest"],
+                "properties": {
+                  "managementFee": {
+                    "type": "object",
+                    "required": ["rate", "basis"],
+                    "properties": {
+                      "rate": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "basis": {
+                        "type": "string",
+                        "enum": ["committed", "called", "invested", "fmv"]
+                      },
+                      "stepDown": {
+                        "type": "object",
+                        "properties": {
+                          "afterYear": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "newRate": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 100
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "carriedInterest": {
+                    "type": "object",
+                    "required": ["rate", "hurdleRate", "catchUpPercentage"],
+                    "properties": {
+                      "rate": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "hurdleRate": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "catchUpPercentage": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "waterfallType": {
+                        "type": "string",
+                        "enum": ["AMERICAN", "EUROPEAN"]
+                      }
+                    }
+                  },
+                  "adminExpenses": {
+                    "type": "object",
+                    "properties": {
+                      "annualAmount": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "growthRate": {
+                        "type": "number",
+                        "minimum": -100,
+                        "maximum": 100
+                      }
+                    }
+                  },
+                  "feeRecycling": {
+                    "type": "object",
+                    "properties": {
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "capPercent": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "termMonths": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 240
+                      }
+                    }
+                  }
+                }
+              },
+              "fundTerm": {
+                "type": "integer",
+                "description": "Fund term in years",
+                "minimum": 1,
+                "maximum": 20
+              },
+              "grossReturns": {
+                "type": "number",
+                "description": "Optional: total gross returns for carry calculation",
+                "minimum": 0
+              },
+              "investedCapital": {
+                "type": "number",
+                "description": "Optional: total invested capital",
+                "minimum": 0
+              },
+              "calledCapitalSchedule": {
+                "type": "array",
+                "description": "Optional: yearly called capital schedule",
+                "items": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "expectedOutput": {
+            "type": "object",
+            "required": ["totalFeeDrag", "netIRR"],
+            "properties": {
+              "totalFeeDrag": {
+                "type": "number",
+                "description": "Total fee drag as percentage impact on IRR",
+                "minimum": -100,
+                "maximum": 100
+              },
+              "netIRR": {
+                "type": "number",
+                "description": "Net IRR after all fees",
+                "minimum": -100
+              },
+              "grossIRR": {
+                "type": "number",
+                "description": "Optional: gross IRR before fees",
+                "minimum": -100
+              },
+              "totalManagementFees": {
+                "type": "number",
+                "description": "Optional: total management fees paid",
+                "minimum": 0
+              },
+              "totalCarriedInterest": {
+                "type": "number",
+                "description": "Optional: total carried interest paid",
+                "minimum": 0
+              },
+              "totalAdminExpenses": {
+                "type": "number",
+                "description": "Optional: total admin expenses",
+                "minimum": 0
+              },
+              "lpNetReturns": {
+                "type": "number",
+                "description": "Optional: LP net returns after all fees"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+# Capital Allocation Documentation Validation
+# Phase 1D: Reserve, Pacing, Cohort engines
+
+description: 'Phase 1D Capital Allocation Documentation Validation'
+
+prompts:
+  - file://prompts.py:capital_allocation_prompt
+
+# Claude model for evaluation (updated to latest non-deprecated model)
+providers:
+  - id: anthropic:messages:claude-3-7-sonnet-20250219
+    label: 'Claude 3.7 Sonnet'
+    config:
+      max_tokens: 8192 # Sonnet 3.7 supports up to 8192 output tokens
+      temperature: 0
+
+tests:
+  - description: 'Validate capital-allocation.md (primary documentation)'
+    vars:
+      doc_type: capital_allocation
+      doc_content: file://../../docs/notebooklm-sources/capital-allocation.md
+      truth_cases: file://../../docs/capital-allocation.truth-cases.json
+      schema: file://../../docs/schemas/capital-allocation-truth-case.schema.json
+
+  - description: 'Validate ADR-008 (architectural decision record)'
+    vars:
+      doc_type: architectural_decision
+      doc_content: file://../../docs/adr/ADR-008-capital-allocation-policy.md
+      truth_cases: file://../../docs/capital-allocation.truth-cases.json
+      schema: file://../../docs/schemas/capital-allocation-truth-case.schema.json
+
+scorers:
+  - path: scripts/validation/doc_domain_scorer.mjs

@@ -1,0 +1,602 @@
+[
+  {
+    "scenario": "01-simple-positive-return",
+    "tags": ["baseline", "basic"],
+    "notes": "Canonical 2-cashflow case: 2.5x return over 5 years yields ~20.10% IRR. Excel validated.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -10000000 },
+        { "date": "2025-01-01", "amount": 25000000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": 0.2010340779,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "basic",
+    "excelFormula": "=XIRR({-10000000, 25000000}, {DATE(2020,1,1), DATE(2025,1,1)})"
+  },
+  {
+    "scenario": "02-negative-return-loss",
+    "tags": ["baseline", "basic", "negative"],
+    "notes": "90% loss over 5 years yields -36.89% annualized IRR. Tests negative rate handling.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -10000000 },
+        { "date": "2025-01-01", "amount": 1000000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": -0.368923364,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "basic",
+    "excelFormula": "=XIRR({-10000000, 1000000}, {DATE(2020,1,1), DATE(2025,1,1)})"
+  },
+  {
+    "scenario": "03-multi-round-partial-distributions",
+    "tags": ["basic", "multi-cashflow"],
+    "notes": "Seed + Series A + partial exit + final NAV. Tests multi-round VC fund pattern.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -5000000 },
+        { "date": "2021-01-01", "amount": -10000000 },
+        { "date": "2023-01-01", "amount": 5000000 },
+        { "date": "2025-01-01", "amount": 40000000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": 0.3088902613,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "basic",
+    "excelFormula": "=XIRR({-5000000, -10000000, 5000000, 40000000}, {DATE(2020,1,1), DATE(2021,1,1), DATE(2023,1,1), DATE(2025,1,1)})"
+  },
+  {
+    "scenario": "04-quarterly-flows",
+    "tags": ["basic", "multi-cashflow", "quarterly"],
+    "notes": "Quarterly follow-on rounds + large exit spike. Tests frequent cashflow spacing.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -20000000 },
+        { "date": "2020-04-01", "amount": -2000000 },
+        { "date": "2020-07-01", "amount": -2000000 },
+        { "date": "2020-10-01", "amount": -2000000 },
+        { "date": "2022-01-01", "amount": 80000000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": 0.8063164822,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "basic",
+    "excelFormula": "=XIRR({-20000000, -2000000, -2000000, -2000000, 80000000}, {DATE(2020,1,1), DATE(2020,4,1), DATE(2020,7,1), DATE(2020,10,1), DATE(2022,1,1)})"
+  },
+  {
+    "scenario": "05-zero-return-breakeven",
+    "tags": ["basic", "edge", "zero"],
+    "notes": "Exact 1x return (breakeven) yields 0% IRR. Tests numerical stability near zero.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -10000000 },
+        { "date": "2021-01-01", "amount": 10000000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": 0.0,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "basic",
+    "excelFormula": "=XIRR({-10000000, 10000000}, {DATE(2020,1,1), DATE(2021,1,1)})"
+  },
+  {
+    "scenario": "06-newton-success-smooth",
+    "tags": ["convergence", "algorithm"],
+    "notes": "Standard case with smooth Newton-Raphson convergence (<10 iterations).",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -10000000 },
+        { "date": "2025-01-01", "amount": 25000000 }
+      ],
+      "config": {
+        "tolerance": 1e-6,
+        "strategy": "Newton",
+        "maxIterations": 100
+      }
+    },
+    "expected": {
+      "irr": 0.2010340779,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "convergence",
+    "notes": "Verify Newton converges in <10 iterations for typical case."
+  },
+  {
+    "scenario": "07-newton-failure-bisection-fallback",
+    "tags": ["convergence", "algorithm", "fallback"],
+    "notes": "Pathological case: early huge spike causes Newton divergence, Brent method succeeds.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -100000 },
+        { "date": "2020-01-15", "amount": 250000 },
+        { "date": "2020-02-01", "amount": -180000 },
+        { "date": "2020-03-01", "amount": 100000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": null,
+      "converged": true,
+      "algorithm": "Brent",
+      "excelParity": false
+    },
+    "category": "convergence",
+    "notes": "Multiple sign changes within 3 months stress Newton-Raphson. Brent or bisection should succeed."
+  },
+  {
+    "scenario": "08-bisection-only-mode",
+    "tags": ["convergence", "algorithm"],
+    "notes": "Force bisection-only strategy. Slower but guaranteed convergence.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -10000000 },
+        { "date": "2025-01-01", "amount": 25000000 }
+      ],
+      "config": {
+        "tolerance": 1e-6,
+        "strategy": "Bisection"
+      }
+    },
+    "expected": {
+      "irr": 0.2010340779,
+      "converged": true,
+      "algorithm": "Bisection",
+      "excelParity": true
+    },
+    "category": "convergence",
+    "notes": "Verify bisection produces correct result (slower convergence expected)."
+  },
+  {
+    "scenario": "09-convergence-tolerance-boundary",
+    "tags": ["convergence", "precision"],
+    "notes": "Tight tolerance (1e-10) forces more iterations but achieves higher precision.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -10000000 },
+        { "date": "2025-01-01", "amount": 25000000 }
+      ],
+      "config": {
+        "tolerance": 1e-10,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": 0.2010340779,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "convergence",
+    "notes": "Higher precision should yield same result but with more iterations."
+  },
+  {
+    "scenario": "10-maximum-iterations-reached",
+    "tags": ["convergence", "edge"],
+    "notes": "Artificially low max iterations (5) prevents convergence. Should return null.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -10000000 },
+        { "date": "2025-01-01", "amount": 25000000 }
+      ],
+      "config": {
+        "tolerance": 1e-10,
+        "maxIterations": 5,
+        "strategy": "Newton"
+      }
+    },
+    "expected": {
+      "irr": null,
+      "converged": false,
+      "algorithm": "Newton",
+      "excelParity": false
+    },
+    "category": "convergence",
+    "notes": "Insufficient iterations should fail gracefully with null (not throw)."
+  },
+  {
+    "scenario": "11-excel-actual365-date-convention",
+    "tags": ["excel", "date-convention"],
+    "notes": "Verify Actual/365 day count convention matches Excel XIRR exactly.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -10000000 },
+        { "date": "2025-01-01", "amount": 25000000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": 0.2010340779,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "excel",
+    "excelFormula": "=XIRR({-10000000, 25000000}, {DATE(2020,1,1), DATE(2025,1,1)})",
+    "notes": "Golden set test: Excel XIRR = 0.201034... (8 decimal precision)."
+  },
+  {
+    "scenario": "12-same-day-cashflow-aggregation",
+    "tags": ["excel", "aggregation"],
+    "notes": "Multiple cashflows on same day should be aggregated before calculation.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01T08:00:00Z", "amount": -5000000 },
+        { "date": "2020-01-01T16:00:00Z", "amount": -5000000 },
+        { "date": "2025-01-01T12:00:00Z", "amount": 25000000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid",
+        "sortAndAggregateSameDay": true
+      }
+    },
+    "expected": {
+      "irr": 0.2010340779,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "excel",
+    "notes": "Same-day flows aggregate to single -$10M on 2020-01-01. Result matches scenario 01."
+  },
+  {
+    "scenario": "13-leap-year-handling",
+    "tags": ["excel", "date-convention", "leap-year"],
+    "notes": "Leap year (2020) handling with Actual/365 convention. No adjustment needed.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-02-28", "amount": -10000000 },
+        { "date": "2020-03-01", "amount": 10100000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": null,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "excel",
+    "notes": "2-day period in leap year. Actual/365 uses 365 denominator always (not 366)."
+  },
+  {
+    "scenario": "14-date-ordering-unsorted",
+    "tags": ["excel", "sorting"],
+    "notes": "Unsorted input dates should be sorted internally before calculation.",
+    "input": {
+      "cashflows": [
+        { "date": "2025-01-01", "amount": 25000000 },
+        { "date": "2020-01-01", "amount": -10000000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": 0.2010340779,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "excel",
+    "notes": "Reverse-sorted input should yield same result as scenario 01 (order-invariant)."
+  },
+  {
+    "scenario": "15-timezone-independent",
+    "tags": ["excel", "timezone"],
+    "notes": "Different timezones should normalize to UTC midnight, yielding consistent results.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01T12:00:00-08:00", "amount": -10000000 },
+        { "date": "2025-01-01T18:00:00+05:30", "amount": 25000000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": 0.2010340779,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "excel",
+    "notes": "PST and IST timestamps normalize to UTC midnight. Should match scenario 01."
+  },
+  {
+    "scenario": "16-no-sign-change-all-positive",
+    "tags": ["edge", "invalid"],
+    "notes": "All-positive cashflows violate IRR definition. Should return null.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": 10000000 },
+        { "date": "2021-01-01", "amount": 5000000 },
+        { "date": "2022-01-01", "amount": 15000000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": null,
+      "converged": false,
+      "algorithm": null,
+      "excelParity": true
+    },
+    "category": "edge",
+    "notes": "Excel returns #NUM! error. Implementation should return null (UI displays 'N/A')."
+  },
+  {
+    "scenario": "17-no-sign-change-all-negative",
+    "tags": ["edge", "invalid"],
+    "notes": "All-negative cashflows violate IRR definition. Should return null.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -10000000 },
+        { "date": "2021-01-01", "amount": -5000000 },
+        { "date": "2022-01-01", "amount": -15000000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": null,
+      "converged": false,
+      "algorithm": null,
+      "excelParity": true
+    },
+    "category": "edge",
+    "notes": "Excel returns #NUM! error. Implementation should return null."
+  },
+  {
+    "scenario": "18-insufficient-cashflows-single",
+    "tags": ["edge", "invalid"],
+    "notes": "Single cashflow insufficient for IRR calculation. Should return null.",
+    "input": {
+      "cashflows": [{ "date": "2020-01-01", "amount": -10000000 }],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": null,
+      "converged": false,
+      "algorithm": null,
+      "excelParity": true
+    },
+    "category": "edge",
+    "notes": "IRR requires at least 2 cashflows. Excel would return #NUM! error."
+  },
+  {
+    "scenario": "19-out-of-bounds-extreme-rate",
+    "tags": ["edge", "bounds"],
+    "notes": "10x return in 1 month yields extreme annualized IRR (>1000%). Should be clamped or return null.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -10000000 },
+        { "date": "2020-02-01", "amount": 100000000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": null,
+      "converged": false,
+      "algorithm": null,
+      "excelParity": false
+    },
+    "category": "edge",
+    "notes": "Extreme short-term returns yield rates >1000%. Upper bound check should prevent."
+  },
+  {
+    "scenario": "20-floating-point-precision-tiny-amounts",
+    "tags": ["edge", "precision"],
+    "notes": "Very small amounts (sub-dollar) test floating-point precision handling.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -0.01 },
+        { "date": "2025-01-01", "amount": 0.025 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": 0.2010340779,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "edge",
+    "notes": "Tiny amounts (cents) should yield same IRR as scenario 01 (scale-invariant)."
+  },
+  {
+    "scenario": "21-typical-vc-fund-10year",
+    "tags": ["business", "vc-fund"],
+    "notes": "Realistic VC fund: 4 years of calls, 3 exits, final NAV. 10-year lifecycle.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -5000000 },
+        { "date": "2021-01-01", "amount": -3000000 },
+        { "date": "2022-01-01", "amount": -2000000 },
+        { "date": "2023-01-01", "amount": -1000000 },
+        { "date": "2024-06-01", "amount": 4000000 },
+        { "date": "2026-01-01", "amount": 8000000 },
+        { "date": "2028-06-01", "amount": 12000000 },
+        { "date": "2030-01-01", "amount": 5000000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": null,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "business",
+    "notes": "Typical VC pattern: early calls, mid-life exits, terminal NAV. IRR ~18-22% expected."
+  },
+  {
+    "scenario": "22-early-exit-high-irr",
+    "tags": ["business", "early-exit"],
+    "notes": "Early unicorn exit (18 months): 10x return yields very high IRR.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -10000000 },
+        { "date": "2021-07-01", "amount": 100000000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": 1.1540575356,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "business",
+    "excelFormula": "=XIRR({-10000000, 100000000}, {DATE(2020,1,1), DATE(2023,1,1)})",
+    "notes": "10x in 3 years → 115.4% IRR. Excel validated."
+  },
+  {
+    "scenario": "23-late-exit-lower-irr",
+    "tags": ["business", "late-exit"],
+    "notes": "Late exit (10 years): 5x return yields moderate IRR due to time decay.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -10000000 },
+        { "date": "2030-01-01", "amount": 50000000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": null,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "business",
+    "notes": "5x over 10 years → ~17.5% IRR. Time value of money effect."
+  },
+  {
+    "scenario": "24-quarterly-recycling",
+    "tags": ["business", "recycling"],
+    "notes": "Quarterly distributions with capital recycling (early exits reinvested).",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -20000000 },
+        { "date": "2020-04-01", "amount": 5000000 },
+        { "date": "2020-07-01", "amount": -3000000 },
+        { "date": "2020-10-01", "amount": 4000000 },
+        { "date": "2021-01-01", "amount": 6000000 },
+        { "date": "2021-04-01", "amount": -2000000 },
+        { "date": "2022-01-01", "amount": 30000000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": null,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "business",
+    "notes": "Recycling scenario: early exits fund follow-on investments. Tests sign-change robustness."
+  },
+  {
+    "scenario": "25-nav-heavy-terminal-value",
+    "tags": ["business", "nav-heavy"],
+    "notes": "Large terminal NAV (90% of value) with small interim distributions.",
+    "input": {
+      "cashflows": [
+        { "date": "2020-01-01", "amount": -10000000 },
+        { "date": "2022-06-01", "amount": 1000000 },
+        { "date": "2023-06-01", "amount": 1000000 },
+        { "date": "2025-01-01", "amount": 28000000 }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "Hybrid"
+      }
+    },
+    "expected": {
+      "irr": null,
+      "converged": true,
+      "algorithm": "Newton",
+      "excelParity": true
+    },
+    "category": "business",
+    "notes": "Terminal-value-heavy scenario. IRR driven primarily by final NAV, not distributions."
+  }
+]

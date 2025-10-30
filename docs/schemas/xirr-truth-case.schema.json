@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://updog.press-on.vc/schemas/xirr-truth-case.json",
+  "title": "XIRR Truth Case",
+  "description": "Canonical test scenario for XIRR (Extended Internal Rate of Return) calculator validation",
+  "type": "object",
+  "required": ["id", "scenario", "cashflows", "expectedIRR", "category"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for this truth case",
+      "pattern": "^xirr-[a-z0-9-]+$"
+    },
+    "scenario": {
+      "type": "string",
+      "description": "Human-readable description of this test scenario",
+      "minLength": 10
+    },
+    "cashflows": {
+      "type": "array",
+      "description": "Array of dated cashflows for IRR calculation",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["date", "amount"],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "ISO 8601 date (YYYY-MM-DD)"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Cashflow amount (negative = outflow, positive = inflow)"
+          }
+        }
+      }
+    },
+    "expectedIRR": {
+      "oneOf": [{ "type": "number" }, { "type": "null" }]
+    },
+    "tolerance": {
+      "type": "number",
+      "default": 0.000001
+    },
+    "algorithm": {
+      "type": "string",
+      "enum": ["Newton", "Bisection", "Hybrid"],
+      "default": "Hybrid"
+    },
+    "excelParity": {
+      "type": "boolean",
+      "default": false
+    },
+    "category": {
+      "type": "string",
+      "enum": ["basic", "convergence", "excel", "edge", "business"]
+    }
+  }
+}

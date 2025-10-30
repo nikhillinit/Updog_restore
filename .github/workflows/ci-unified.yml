@@ -65,11 +65,13 @@ jobs:
               - 'client/**'
               - 'shared/**'
               - 'scripts/**'
+              - '!scripts/validation/**'
               - 'tests/**'
             docs:
               - '**/*.md'
               - 'docs/**'
               - '.github/*.md'
+              - 'scripts/validation/**'
               - '!CHANGELOG.md'
 
       - name: Detect affected tests

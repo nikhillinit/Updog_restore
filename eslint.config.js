@@ -55,6 +55,8 @@ export default [
       'workers/**',
       'types/**',
       'tools/**',
+      'ai-utils/**', // Experimental AI development tools
+      'notebooks/**', // Jupyter notebooks and examples
       '**/*.gen.ts',
       '**/*.d.ts',
       '.next/**',

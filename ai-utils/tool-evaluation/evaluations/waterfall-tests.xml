@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<evaluations>
+  <!-- Waterfall Calculation Tests -->
+  <task id="waterfall-1">
+    <description>Calculate carry for $100M fund with 20% carry and 8% hurdle (AMERICAN)</description>
+    <category>waterfall</category>
+    <prompt>Calculate the carry distribution for a $100 million fund with 20% carry, 8% hurdle, AMERICAN waterfall</prompt>
+    <response>{"carried":20000000,"hurdleAmount":8000000}</response>
+  </task>
+
+  <task id="waterfall-2">
+    <description>Calculate carry for $250M fund with 25% carry and 10% hurdle</description>
+    <category>waterfall</category>
+    <prompt>Calculate the carry distribution for a $250 million fund with 25% carry, 10% hurdle, AMERICAN waterfall</prompt>
+    <response>{"carried":62500000,"hurdleAmount":25000000}</response>
+  </task>
+
+  <task id="waterfall-3">
+    <description>Calculate carry for $75M fund with 15% carry and 6% hurdle (AMERICAN)</description>
+    <category>waterfall</category>
+    <prompt>Calculate the carry distribution for a $75 million fund with 15% carry, 6% hurdle, AMERICAN waterfall</prompt>
+    <response>{"carried":11250000,"hurdleAmount":4500000}</response>
+  </task>
+
+  <task id="waterfall-4">
+    <description>Calculate carry for $500M fund with 20% carry and 8% hurdle with catch-up</description>
+    <category>waterfall</category>
+    <prompt>Calculate the carry distribution for a $500 million fund with 20% carry, 8% hurdle, AMERICAN waterfall with full catch-up</prompt>
+    <response>{"carried":100000000,"hurdleAmount":40000000}</response>
+  </task>
+
+  <task id="waterfall-5">
+    <description>Calculate carry for small $30M fund with 20% carry and 7% hurdle</description>
+    <category>waterfall</category>
+    <prompt>Calculate the carry distribution for a $30 million fund with 20% carry, 7% hurdle, AMERICAN waterfall</prompt>
+    <response>{"carried":6000000,"hurdleAmount":2100000}</response>
+  </task>
+
+  <!-- Reserve Calculation Tests -->
+  <task id="reserves-1">
+    <description>Calculate reserves for 60% deployed capital</description>
+    <category>reserves</category>
+    <prompt>Calculate reserve allocations for a $100M fund with $60M deployed capital, targeting 1:1 reserve ratio across 25 portfolio companies</prompt>
+    <response>{"availableReserves":40000000,"reservePerCompany":1600000,"actualRatio":0.6667,"meetsTarget":false}</response>
+  </task>
+
+  <task id="reserves-2">
+    <description>Calculate reserves for 40% deployed capital</description>
+    <category>reserves</category>
+    <prompt>Calculate reserve allocations for a $150M fund with $45M deployed capital, targeting 1.5:1 reserve ratio across 20 portfolio companies</prompt>
+    <response>{"availableReserves":105000000,"reservePerCompany":5250000,"actualRatio":2.3333,"meetsTarget":true}</response>
+  </task>
+
+  <task id="reserves-3">
+    <description>Calculate reserves for aggressive deployment</description>
+    <category>reserves</category>
+    <prompt>Calculate reserve allocations for a $200M fund with $160M deployed capital, targeting 0.5:1 reserve ratio across 40 portfolio companies</prompt>
+    <response>{"availableReserves":40000000,"reservePerCompany":1000000,"actualRatio":0.25,"meetsTarget":false}</response>
+  </task>
+
+  <!-- Pacing Calculation Tests -->
+  <task id="pacing-1">
+    <description>Calculate pacing for on-track fund</description>
+    <category>pacing</category>
+    <prompt>Calculate investment pacing for a $100M fund with 10-year life, 4-year deployment period, $30M deployed after 1.5 years</prompt>
+    <response>{"targetAnnualPace":25000000,"actualAnnualPace":20000000,"paceRatio":0.8,"onTrack":true,"remainingDeployment":70000000}</response>
+  </task>
+
+  <task id="pacing-2">
+    <description>Calculate pacing for slow deployment</description>
+    <category>pacing</category>
+    <prompt>Calculate investment pacing for a $200M fund with 10-year life, 3-year deployment period, $40M deployed after 2 years</prompt>
+    <response>{"targetAnnualPace":66666667,"actualAnnualPace":20000000,"paceRatio":0.3,"onTrack":false,"remainingDeployment":160000000}</response>
+  </task>
+
+  <task id="pacing-3">
+    <description>Calculate pacing for fast deployment</description>
+    <category>pacing</category>
+    <prompt>Calculate investment pacing for a $75M fund with 10-year life, 5-year deployment period, $35M deployed after 1 year</prompt>
+    <response>{"targetAnnualPace":15000000,"actualAnnualPace":35000000,"paceRatio":2.3333,"onTrack":false,"remainingDeployment":40000000}</response>
+  </task>
+
+  <!-- Complex Scenarios -->
+  <task id="complex-1">
+    <description>Multi-hurdle waterfall calculation</description>
+    <category>waterfall</category>
+    <prompt>Calculate carry for a $150M fund with 20% carry after 8% hurdle, 25% carry after 12% hurdle, AMERICAN waterfall</prompt>
+    <response>{"carried":30000000,"hurdleAmount":12000000,"tiered":true}</response>
+    <tolerance>1000000</tolerance>
+  </task>
+
+  <task id="complex-2">
+    <description>Vested carry calculation</description>
+    <category>waterfall</category>
+    <prompt>Calculate vested carry for a $100M fund with 20% carry, 5-year vesting schedule, 3 years elapsed</prompt>
+    <response>{"totalCarry":20000000,"vestedCarry":12000000,"unvestedCarry":8000000,"vestingPercent":0.6}</response>
+  </task>
+
+  <!-- Monte Carlo Scenarios -->
+  <task id="monte-carlo-1">
+    <description>Expected returns simulation</description>
+    <category>monte-carlo</category>
+    <prompt>Run Monte Carlo simulation for $100M fund expecting 2.5x gross multiple with 20% standard deviation, 1000 iterations</prompt>
+    <response>{"expectedReturn":250000000,"p10":180000000,"p50":245000000,"p90":320000000,"iterations":1000}</response>
+    <tolerance>10000000</tolerance>
+  </task>
+
+  <task id="monte-carlo-2">
+    <description>Portfolio outcome distribution</description>
+    <category>monte-carlo</category>
+    <prompt>Simulate portfolio outcomes for 25 companies with 10% home runs, 20% base hits, 30% returns of capital, 40% losses</prompt>
+    <response>{"homeRuns":2.5,"baseHits":5,"returnsOfCapital":7.5,"losses":10,"expectedMultiple":1.85}</response>
+    <tolerance>0.5</tolerance>
+  </task>
+
+  <!-- Cohort Analysis Tests -->
+  <task id="cohort-1">
+    <description>Vintage year performance</description>
+    <category>cohort</category>
+    <prompt>Calculate performance metrics for 2020 vintage cohort with 15 investments totaling $45M, current value $67.5M</prompt>
+    <response>{"tvpi":1.5,"dpi":0.3,"rvpi":1.2,"irr":0.18}</response>
+    <tolerance>0.05</tolerance>
+  </task>
+
+  <task id="cohort-2">
+    <description>Sector cohort analysis</description>
+    <category>cohort</category>
+    <prompt>Analyze SaaS sector cohort: 8 companies, $32M invested, $12M realized, $35M unrealized</prompt>
+    <response>{"tvpi":1.47,"dpi":0.375,"rvpi":1.094,"totalValue":47000000}</response>
+    <tolerance>0.02</tolerance>
+  </task>
+
+  <!-- Edge Cases and Validation -->
+  <task id="edge-1">
+    <description>Zero hurdle waterfall</description>
+    <category>waterfall</category>
+    <prompt>Calculate carry for $100M fund with 20% carry and 0% hurdle, AMERICAN waterfall</prompt>
+    <response>{"carried":20000000,"hurdleAmount":0}</response>
+  </task>
+
+  <task id="edge-2">
+    <description>Maximum carry scenario</description>
+    <category>waterfall</category>
+    <prompt>Calculate carry for $50M fund with 30% carry (maximum allowed) and 8% hurdle</prompt>
+    <response>{"carried":15000000,"hurdleAmount":4000000}</response>
+  </task>
+
+  <task id="validation-1">
+    <description>Invalid waterfall parameters</description>
+    <category>waterfall</category>
+    <prompt>Calculate carry for fund with negative carry percentage of -10%</prompt>
+    <response>{"error":"Invalid carry percentage","success":false}</response>
+  </task>
+
+  <task id="validation-2">
+    <description>Invalid fund size</description>
+    <category>waterfall</category>
+    <prompt>Calculate reserves for fund with $0 total capital</prompt>
+    <response>{"error":"Invalid fund size","success":false}</response>
+  </task>
+</evaluations>
