@@ -1,0 +1,204 @@
+1) Communication & Deprecation (internal-only → no email)
+
+Why email is irrelevant here
+
+There are no external consumers and no third-party client libraries; one developer controls server, workers, and UI in the same repo.
+
+Discovery is guaranteed at dev time via CI guards and compile-time types, not at runtime via inboxes.
+
+An email cadence and “industry norms” (Stripe/AWS/GitHub) apply to public multi-tenant APIs. They don’t map to a single-dev, single-tenant internal service.
+
+What we’ll do instead (cheap, reliable, self-serve):
+
+CI grep guard (already proposed): fail builds on any new hard-coded stage strings outside the schema. This prevents regressions before deploy.
+
+OpenAPI + generated types: changing inputs forces a re-gen and compile errors in all call sites—far stronger than a warning email.
+
+In-band signals (already implemented):
+
+GET /api/deprecations machine-readable JSON.
+
+Link header on every response to /api/deprecations (we’ll add this universally).
+
+Feature flag (off|warn|enforce) visible via /api/deprecations and startup logs.
+
+Optional: UI banner when a pasted value is normalized (no inbox, immediate feedback).
+
+Internal workers: they import the same normalize function from shared/—no “discovery” needed; the PR updates both sides together.
+
+Accepting useful fixes from Claude (no email required):
+
+RFC 7231 date format for Sunset.
+
+Replace X-Stage-Warnings with parseable simple headers:
+
+X-Stage-Deprecated-Variants: pre_seed,presead
+
+X-Stage-Sunset: Fri, 07 Feb 2026 00:00:00 GMT
+
+X-Stage-Docs: https://api.your.app/docs/stage-normalization
+
+Add Link: </api/deprecations>; rel="deprecations" to all responses (trivial and harmless).
+
+Patch (Express snippet)
+
+// On all responses (app-level middleware)
+app.use((req, res, next) => {
+  res.setHeader('Link', '</api/deprecations>; rel="deprecations"');
+  next();
+});
+
+// In warn/enforce paths where deprecated variants occur
+res.setHeader('Deprecation', 'true'); // boolean-as-string is fine
+res.setHeader('Sunset', 'Fri, 07 Feb 2026 00:00:00 GMT'); // RFC 7231
+res.setHeader('X-Stage-Deprecated-Variants', invalidInputs.join(','));
+res.setHeader('X-Stage-Sunset', 'Fri, 07 Feb 2026 00:00:00 GMT');
+res.setHeader('X-Stage-Docs', 'https://api.your.app/docs/stage-normalization');
+
+2) Database Safety (we’ll take these—good catches)
+
+All accepted; these strengthen the one-shot in-place UPDATE approach:
+
+Wrap in one transaction
+
+Table locks during the UPDATE window (short maintenance)
+
+Backups + restore commands provided and tested
+
+Validation gate: block if any unknowns remain (unless --force-unknown)
+
+Post-UPDATE verification queries
+
+Persist a durable audit log (table insert) for changes
+
+Idempotency: doc + a no-op re-run proves safety
+
+Row counts + timing: log before/after
+
+Backup + restore (scriptable)
+
+# Backup (tables only)
+pg_dump "$DATABASE_URL" -t portfolio_companies -t portfolio_intelligence \
+  > backups/stages_$(date +%Y%m%d_%H%M%S).sql
+
+# Restore (if needed)
+psql "$DATABASE_URL" < backups/stages_YYYYMMDD_HHMMSS.sql
+
+
+Transactional UPDATE with locks & audit (TypeScript, pg)
+
+import { Client } from 'pg';
+import { normalizeStage } from '../shared/schemas/investment-stages';
+
+async function normalizeStages(apply = false, forceUnknown = false) {
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  await client.connect();
+
+  // Estimate size
+  const { rows: [r1] } = await client.query('SELECT COUNT(*)::int AS n FROM portfolio_companies');
+  const { rows: [r2] } = await client.query('SELECT COUNT(*)::int AS n FROM portfolio_intelligence');
+  console.log(`Row counts: companies=${r1.n}, intelligence=${r2.n}`);
+
+  await client.query('BEGIN');
+  try {
+    await client.query('LOCK TABLE portfolio_companies IN SHARE ROW EXCLUSIVE MODE');
+    await client.query('LOCK TABLE portfolio_intelligence IN SHARE ROW EXCLUSIVE MODE');
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS stage_normalization_log (
+        id bigserial primary key,
+        table_name text not null,
+        old_value text,
+        new_value text,
+        changed_at timestamptz default now()
+      )
+    `);
+
+    const targets = [
+      { table: 'portfolio_companies', col: 'stage' },
+      { table: 'portfolio_intelligence', col: 'stage' }
+    ];
+
+    let unknown = 0, changed = 0;
+
+    for (const t of targets) {
+      const { rows } = await client.query(`SELECT DISTINCT ${t.col} AS v FROM ${t.table}`);
+      for (const row of rows) {
+        const raw = String(row.v ?? '');
+        const key = normalizeStage(raw);
+        if (!key) { unknown++; continue; }
+        if (key !== raw && apply) {
+          await client.query(`UPDATE ${t.table} SET ${t.col} = $1 WHERE ${t.col} = $2`, [key, raw]);
+          await client.query(
+            `INSERT INTO stage_normalization_log (table_name, old_value, new_value) VALUES ($1,$2,$3)`,
+            [t.table, raw, key]
+          );
+          changed++;
+        }
+      }
+    }
+
+    if (unknown > 0 && !forceUnknown) {
+      console.error(`❌ MIGRATION BLOCKED: ${unknown} unknown stage values. Re-run with --force-unknown to proceed.`);
+      await client.query('ROLLBACK');
+      await client.end();
+      process.exit(1);
+    }
+
+    await client.query(apply ? 'COMMIT' : 'ROLLBACK');
+    console.log(`${apply ? 'APPLIED' : 'DRY-RUN'}: changed=${changed}, unknown=${unknown}`);
+    await client.end();
+  } catch (e) {
+    await client.query('ROLLBACK');
+    await client.end();
+    throw e;
+  }
+}
+
+
+Post-verification SQL
+
+-- No NULLs
+SELECT COUNT(*) FROM portfolio_companies WHERE stage IS NULL;
+SELECT COUNT(*) FROM portfolio_intelligence WHERE stage IS NULL;
+
+-- Canonical-only values
+SELECT stage, COUNT(*) FROM portfolio_companies GROUP BY stage;
+SELECT stage, COUNT(*) FROM portfolio_intelligence GROUP BY stage;
+
+3) Timeline realism (internal-only → shorter is fine)
+
+Claude’s 90-day guidance fits external APIs. Here:
+
+Single developer, monorepo, shared shared/ normalizer used by API and workers.
+
+No external integrators or SLAs.
+
+We can safely compress while retaining safety.
+
+Pragmatic plan
+
+Dev & tests: 4–6 working days
+(route integration + headers + DB audit/backup/transactional UPDATE + unit/integration/perf tests + OpenAPI)
+
+Rollout observation: 48–96 hours (feature-flagged: off → warn → enforce)
+
+If scope needs to be even tighter: Phase 1 = normalizer + 1 route + audit; Phase 2 = other routes.
+
+This still includes the DB safety steps and RFC header fixes; it just drops the email track that adds overhead without value for this environment.
+
+4) Small deltas we’ll make now (agree)
+
+Fix header formats (RFC 7231 date).
+
+Rename headers for simple parsing (X-Stage-Deprecated-Variants, X-Stage-Sunset, X-Stage-Docs).
+
+Add Link header to every response (cheap, universal discovery).
+
+Add response-header logging at the edge (optional; helps in local dev tools).
+
+Keep Prometheus alerts (unknown rate, validation latency).
+
+5) Final stance
+
+Email program: Not applicable and not valuable for a one-developer, internal tool with no external consumers. We’re using CI/typegen/in-band runtime signals that are stronger and faster than email.

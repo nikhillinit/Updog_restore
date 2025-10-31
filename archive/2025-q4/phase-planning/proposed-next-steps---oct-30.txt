@@ -1,0 +1,970 @@
+Below is a **single, self-contained proposal** that consolidates the entire 10-day stabilization plan **and** all referenced artifacts—**complete, refined, and ready to paste into your repo**. It includes every file from prior messages, plus the requested additions (failures-by-file triage script, both parity vector schemas, etc.). Where two options exist for the same path, I’ve provided **Option A / Option B** with guidance to avoid collisions.
+
+---
+
+# End-to-End 10-Day Stabilization Strategy (Solo-Dev Optimized)
+
+## Goals (in priority order)
+
+1. **Stabilize platform signal**
+
+   * Green local test run (quarantines allowed).
+   * **No increase** in TypeScript baseline.
+   * Remove NaN hotspots (PRNG guardrails).
+
+2. **Close high-leverage feature gaps**
+
+   * Ship **Excel Parity CLI** end-to-end + **parity CI lane** (≤ 1% threshold).
+   * Ship **/api/proposals** MVP with idempotency + rate limits (non-prod JSON store).
+
+3. **Governance & hygiene**
+
+   * Docs-validation fast lane required for `docs/**`.
+   * Quarantine debt **visible via Issues/Project** + **weekly review** automation.
+   * Dependabot (weekly, grouped), **secrets audit** artifact.
+
+---
+
+## PR Sequence (small, mergeable)
+
+* **PR-A:** Parity CLI + vectors schema + parity CI lane
+* **PR-B:** Tests/TS triage batch-1 + PRNG NaN guards + pinned toolchain
+* **PR-C:** Docs-validation tuning (JS scorer micro-boost + required check)
+* **PR-D:** `/api/proposals` MVP (idempotent, limited, non-prod JSON store)
+* **PR-E:** CI hygiene (disable broken job; badge-rot; secrets audit artifact)
+* **PR-F:** Fees doc uplift (one Evaluator-Optimizer pass to ≥ 92%)
+* **PR-G:** Governance automation (weekly quarantine review, ADRs, Dependabot, parity fixture update flow)
+
+> You can batch some of these if desired, but the above order minimizes risk and review load.
+
+---
+
+# Files to Add (Full Content)
+
+> Paths below are relative to the repo root.
+> After adding, commit via the branch associated with the PR (A–G).
+
+---
+
+## A) Parity Lane (PR-A)
+
+### 1) Parity workflow (fast, deterministic)
+
+**File:** `.github/workflows/parity.yml`
+
+```yaml
+name: parity
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'scripts/parity-*.mjs'
+      - 'scripts/generate-actual-from-vectors.cjs'
+      - 'client/src/lib/excel-parity-validator.ts'
+      - 'tests/parity/**'
+      - 'engines/**'
+      - 'server/**'
+  workflow_dispatch:
+
+concurrency:
+  group: parity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    name: Parity check (≤1% delta)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Prepare temp dir
+        run: mkdir -p .tmp/parity
+
+      # Option A: Excel source fixture exists (preferred)
+      - name: Generate vectors from Excel (if present)
+        run: |
+          if [ -f tests/parity/test.xlsx ]; then
+            node scripts/parity-generate.mjs tests/parity/test.xlsx .tmp/parity
+          else
+            echo "No tests/parity/test.xlsx found; will use committed vectors.json"
+          fi
+
+      # Option B: Use committed vectors.json if Excel absent
+      - name: Use committed vectors.json as fallback
+        if: always()
+        run: |
+          if [ ! -f .tmp/parity/vectors.json ] && [ -f tests/parity/vectors.json ]; then
+            cp tests/parity/vectors.json .tmp/parity/vectors.json
+          fi
+          test -f .tmp/parity/vectors.json || (echo "Missing vectors.json" && exit 1)
+
+      - name: Derive actual outputs
+        run: |
+          node scripts/generate-actual-from-vectors.cjs \
+            .tmp/parity/vectors.json \
+            .tmp/parity/actual.json
+
+      - name: Compare vs baseline (≤1% threshold)
+        run: |
+          test -f tests/parity/expected.json || (echo "Missing tests/parity/expected.json" && exit 1)
+          node scripts/parity-compare.mjs \
+            tests/parity/expected.json \
+            .tmp/parity/actual.json \
+            0.01
+
+      - name: Upload parity artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: parity-artifacts
+          path: .tmp/parity
+          retention-days: 14
+```
+
+---
+
+### 2) Parity CLIs + actuals generator
+
+**File:** `scripts/parity-generate.mjs`
+
+```javascript
+#!/usr/bin/env node
+/**
+ * Generate parity vectors from Excel into .tmp/parity/vectors.json
+ * Usage:
+ *   node scripts/parity-generate.mjs <excel-file> <out-dir>
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import xlsx from 'xlsx';
+
+const [,, excelPath, outDir] = process.argv;
+if (!excelPath || !outDir) {
+  console.error('Usage: parity-generate.mjs <excel-file> <out-dir>');
+  process.exit(1);
+}
+if (!fs.existsSync(excelPath)) {
+  console.error(`Excel file not found: ${excelPath}`);
+  process.exit(1);
+}
+fs.mkdirSync(outDir, { recursive: true });
+
+const wb = xlsx.readFile(excelPath);
+const sheet = wb.Sheets[wb.SheetNames[0]];
+const rows = xlsx.utils.sheet_to_json(sheet, { defval: null });
+
+// TODO: Map Excel rows to your canonical vector fields.
+// For now, simply echo the rows; wire to your domain-specific mapper later.
+const vectors = rows;
+
+const outVectors = path.join(outDir, 'vectors.json');
+fs.writeFileSync(outVectors, JSON.stringify(vectors, null, 2));
+console.log(`✅ Wrote vectors to ${outVectors}`);
+```
+
+**File:** `scripts/generate-actual-from-vectors.cjs`
+
+```javascript
+#!/usr/bin/env node
+/**
+ * Compute actual outputs for parity from canonical vectors using your engines.
+ * Validates input against tests/parity/vectors.schema.json to keep runs deterministic.
+ *
+ * Usage:
+ *   node scripts/generate-actual-from-vectors.cjs <vectors.json> <out.json>
+ */
+const fs = require('fs');
+const path = require('path');
+const Ajv = require('ajv');
+const addFormats = require('ajv-formats');
+
+const [,, inPath, outPath] = process.argv;
+if (!inPath || !outPath) {
+  console.error('Usage: generate-actual-from-vectors.cjs <vectors.json> <out.json>');
+  process.exit(1);
+}
+
+// 1) Validate
+const schema = JSON.parse(fs.readFileSync(path.resolve('tests/parity/vectors.schema.json'),'utf8'));
+const vectors = JSON.parse(fs.readFileSync(path.resolve(inPath),'utf8'));
+const ajv = new Ajv({ allErrors: true, strict: false }); addFormats(ajv);
+const validate = ajv.compile(schema);
+if (!validate(vectors)) {
+  console.error('❌ vectors.json is invalid:', validate.errors);
+  process.exit(1);
+}
+
+// 2) Wire to your domain engines (TODO: use real imports)
+function allocatePeriod(v) {
+  // TODO: call your reserve/pacing/cohort orchestration here.
+  // Stub: predictable numeric shape for parity comparison:
+  const allocable = Number(((v.commitment || 0) * (v.target_reserve_pct || 0)).toFixed(2));
+  const allocations = {};
+  if (Array.isArray(v.cohorts) && v.cohorts.length) {
+    const sumW = v.cohorts.reduce((s,c)=>s+(c.weight||0),0) || 1;
+    for (const c of v.cohorts) {
+      const base = allocable * ((c.weight || 0)/sumW);
+      const capAmt = typeof c.cap_pct === 'number' ? allocable * c.cap_pct : base;
+      allocations[c.id] = Math.min(base, capAmt);
+    }
+  }
+  return { allocable, allocations };
+}
+
+// 3) Build actual JSON
+const actual = {};
+vectors.forEach((v, i) => {
+  actual[`row_${i+1}`] = allocatePeriod(v);
+});
+
+// 4) Save
+fs.writeFileSync(path.resolve(outPath), JSON.stringify(actual, null, 2));
+console.log(`✅ Wrote actuals to ${outPath}`);
+```
+
+**File:** `scripts/parity-compare.mjs`
+
+```javascript
+#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+
+const [,, expectedPath, actualPath, threshold='0.01'] = process.argv;
+if (!expectedPath || !actualPath) {
+  console.error('Usage: parity-compare.mjs <expected.json> <actual.json> [fractional-threshold]');
+  process.exit(1);
+}
+
+const expected = JSON.parse(fs.readFileSync(path.resolve(expectedPath),'utf8'));
+const actual   = JSON.parse(fs.readFileSync(path.resolve(actualPath),'utf8'));
+
+let failures = [];
+function flat(obj, prefix='') {
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    const key = prefix ? `${prefix}.${k}` : k;
+    if (v && typeof v === 'object' && !Array.isArray(v)) Object.assign(out, flat(v, key));
+    else out[key] = v;
+  }
+  return out;
+}
+const E = flat(expected), A = flat(actual);
+
+for (const k of Object.keys(E)) {
+  if (typeof E[k] === 'number' && typeof A[k] === 'number') {
+    const denom = Math.max(1e-9, Math.abs(E[k]));
+    const frac = Math.abs(E[k] - A[k]) / denom;
+    if (frac > parseFloat(threshold)) failures.push({ key: k, expected: E[k], actual: A[k], frac });
+  }
+}
+
+if (failures.length) {
+  console.error(`❌ Parity failures (${failures.length}) over threshold ${threshold}`);
+  console.error(JSON.stringify(failures.slice(0, 20), null, 2));
+  process.exit(1);
+}
+console.log('✅ Parity OK');
+```
+
+---
+
+### 3) Parity fixture regeneration (keeps CI deterministic)
+
+**File:** `scripts/parity-update-fixture.cjs`
+
+```javascript
+#!/usr/bin/env node
+/**
+ * Regenerates parity fixture (vectors + expected) from the source Excel file.
+ * Sources:
+ *   - tests/parity/test.xlsx  (canonical Excel)
+ * Outputs:
+ *   - tests/parity/vectors.json
+ *   - tests/parity/expected.json
+ *
+ * Usage:
+ *   npm run parity:update-fixture
+ */
+const fs = require('fs');
+const path = require('path');
+const xlsx = require('xlsx');
+// If you have a domain-specific Excel parity helper, import and use it here.
+// const { ExcelParityValidator } = require('../client/src/lib/excel-parity-validator');
+
+const excelPath = path.resolve('tests/parity/test.xlsx');
+const outVectors = path.resolve('tests/parity/vectors.json');
+const outExpected = path.resolve('tests/parity/expected.json');
+
+if (!fs.existsSync(excelPath)) {
+  console.error('Missing tests/parity/test.xlsx');
+  process.exit(1);
+}
+
+// 1) Derive vectors from Excel (deterministic fields only)
+const wb = xlsx.readFile(excelPath);
+const sheet = wb.Sheets[wb.SheetNames[0]];
+const rows = xlsx.utils.sheet_to_json(sheet, { defval: null });
+
+// TODO: Map Excel rows to canonical vectors — keep stable keys used by engines.
+const vectors = rows.map((r) => {
+  // Example mapping; replace with your actual domain fields:
+  return {
+    // e.g., commitment: Number(r.Commitment), target_reserve_pct: Number(r.TargetReservePct)
+    ...r
+  };
+});
+fs.writeFileSync(outVectors, JSON.stringify(vectors, null, 2));
+
+// 2) Build expected baselines from Excel or a reference implementation
+// For a first pass, mirror vectors as expected structure; replace with your validator's Excel-derived results.
+const expected = {};
+for (let i = 0; i < vectors.length; i++) {
+  expected[`row_${i+1}`] = {}; // Fill with expected numbers once you wire ExcelParityValidator
+}
+
+fs.writeFileSync(outExpected, JSON.stringify(expected, null, 2));
+console.log(`✅ Updated ${path.relative(process.cwd(), outVectors)} and ${path.relative(process.cwd(), outExpected)}`);
+```
+
+---
+
+### 4) Parity vectors schema (choose one)
+
+> You have two choices; **do not commit both at the same path**.
+> If your parity lane focuses on Capital Allocation style inputs, use **Option A**.
+> If you want a generic starter (e.g., Fees parity), use **Option B** at a **different filename** to avoid collisions.
+
+**Option A (Capital-Allocation oriented)**
+**File:** `tests/parity/vectors.schema.json`
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Parity Vectors",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": true,
+    "properties": {
+      "commitment": { "type": "number" },
+      "target_reserve_pct": { "type": "number", "minimum": 0, "maximum": 1 },
+      "min_cash_buffer": { "type": "number", "minimum": 0 },
+      "pacing_window_months": { "type": "integer", "minimum": 1 },
+      "cadence": { "type": "string", "enum": ["monthly", "quarterly", "annual"] },
+      "carryover_prev": { "type": "number", "minimum": 0 },
+      "cohorts": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["id","weight"],
+          "properties": {
+            "id": { "type": "string" },
+            "weight": { "type": "number", "minimum": 0 },
+            "cap_pct": { "type": "number", "minimum": 0, "maximum": 1 }
+          },
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}
+```
+
+**Option B (Generic/Fees oriented)**
+**File:** `tests/parity/vectors.schema.generic.json`  ← *(use this filename to avoid clashing with Option A)*
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Parity Vectors Schema",
+  "description": "Defines the structure for input vectors used in parity testing.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Unique identifier for the vector (e.g., Excel row ID or hash)."
+      },
+      "scenario": {
+        "type": "string",
+        "description": "Description of the test case."
+      },
+      "commitment_amount": {
+        "type": "number",
+        "minimum": 0,
+        "description": "The principal amount committed."
+      },
+      "fee_rate_bps": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 10000,
+        "description": "Fee rate in basis points (0-10000)."
+      },
+      "start_date": {
+        "type": "string",
+        "format": "date",
+        "description": "Start date of the calculation period (YYYY-MM-DD)."
+      }
+    },
+    "required": ["id", "commitment_amount", "fee_rate_bps", "start_date"]
+  },
+  "minItems": 1
+}
+```
+
+> If you choose Option B, update `generate-actual-from-vectors.cjs` to validate against `vectors.schema.generic.json`.
+
+---
+
+### 5) package.json additions
+
+**Snippet:**
+
+```json
+{
+  "scripts": {
+    "parity:generate": "node scripts/parity-generate.mjs tests/parity/test.xlsx .tmp/parity",
+    "parity:actuals": "node scripts/generate-actual-from-vectors.cjs .tmp/parity/vectors.json .tmp/parity/actual.json",
+    "parity:compare": "node scripts/parity-compare.mjs tests/parity/expected.json .tmp/parity/actual.json 0.01",
+    "parity:update-fixture": "node scripts/parity-update-fixture.cjs"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "xlsx": "^0.18.5"
+  }
+}
+```
+
+---
+
+## B) Tests/TS Triage (PR-B)
+
+### Failures-by-file triage helper
+
+**File:** `scripts/tools/failures-by-file.cjs`
+
+```javascript
+#!/usr/bin/env node
+/**
+ * Ranks test failures by file from a JSON report (stdin).
+ * Assumes a Vitest/Jest-like structure.
+ *
+ * Usage:
+ *  npx vitest run --reporter=json --coverage=false 2>/dev/null | node scripts/tools/failures-by-file.cjs
+ *  cat .tmp/test-report.json | node scripts/tools/failures-by-file.cjs
+ */
+const readline = require('readline');
+const path = require('path');
+
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: false });
+let rawData = '';
+rl.on('line', (line) => { rawData += line; });
+rl.on('close', () => {
+  if (!rawData) { console.error("No data on stdin."); process.exit(1); }
+  try { processReport(JSON.parse(rawData)); }
+  catch (e) { console.error("Failed to parse JSON report:", e.message); process.exit(1); }
+});
+
+function processReport(report) {
+  const failuresByFile = {};
+  let totalFailures = 0;
+  const testResults = report.testResults || [];
+
+  for (const result of testResults) {
+    const filePath = path.relative(process.cwd(), result.name || '');
+    let fileFailures = 0;
+    for (const assertion of result.assertionResults || []) {
+      if (assertion.status === 'failed') { fileFailures++; totalFailures++; }
+    }
+    if (fileFailures > 0 && filePath) {
+      failuresByFile[filePath] = (failuresByFile[filePath] || 0) + fileFailures;
+    }
+  }
+
+  if (totalFailures === 0) { console.log("✅ No failures found."); return; }
+
+  const sorted = Object.entries(failuresByFile).sort((a,b)=>b[1]-a[1]);
+  console.log(`\n🚨 Failure Triage Report (Total: ${totalFailures})\n`);
+  console.log("Count | File");
+  console.log("------|------");
+  for (const [file, count] of sorted) console.log(`${String(count).padStart(5)} | ${file}`);
+}
+```
+
+> **Triage Command:**
+> `npx vitest run --reporter=json --coverage=false | node scripts/tools/failures-by-file.cjs`
+
+> Also: Apply PRNG/NaN guards in `power-law` service as previously planned:
+
+```ts
+// server/services/power-law-distribution.ts (inside samplePowerLaw)
+if (!isFinite(exponent) || exponent <= 1) {
+  throw new Error(`Invalid exponent: ${exponent}`);
+}
+const u = Math.max(1e-12, rand()); // avoid u === 0 edge case
+```
+
+---
+
+## C) Docs-Validation (PR-C)
+
+> No file required here beyond your existing configs; just ensure:
+>
+> * **Fast lane (JS scorer)** is used locally,
+> * **Final lane (LLM-as-Judge)** runs on milestone PRs,
+> * Mark **docs-validation** as a **required** check for `docs/**`.
+
+(If you want, I can supply a “fees-fast.yaml” again; see Section **H**.)
+
+---
+
+## D) Proposals MVP (PR-D)
+
+> You already have AI routes; this MVP adds `POST /api/proposals` with idempotency + limiter and uses a non-prod JSON store under `data/proposals/`. (Omitted here to avoid duplicating runtime code you’ll tailor to your server stack.)
+
+**Include ADR-002** (see Section **G**) to document the “why.”
+
+---
+
+## E) CI Hygiene & Secrets Audit (PR-E)
+
+### Secrets audit script (non-blocking artifact)
+
+**File:** `scripts/tools/audit-workflow-secrets.cjs`
+
+```javascript
+#!/usr/bin/env node
+/**
+ * Scans .github/workflows for ${{ secrets.* }} references and prints a markdown report.
+ * Usage:
+ *   node scripts/tools/audit-workflow-secrets.cjs > .tmp/workflow-secrets.md
+ */
+const fs = require('fs');
+const path = require('path');
+
+const workflowsDir = path.join(process.cwd(), '.github', 'workflows');
+const re = /\${{\s*secrets\.([A-Z0-9_]+)\s*}}/g;
+
+if (!fs.existsSync(workflowsDir)) {
+  console.error('No .github/workflows directory found.');
+  process.exit(1);
+}
+
+const usage = {};
+for (const file of fs.readdirSync(workflowsDir)) {
+  if (!file.endsWith('.yml') && !file.endsWith('.yaml')) continue;
+  const full = path.join(workflowsDir, file);
+  const text = fs.readFileSync(full, 'utf8');
+  let match;
+  while ((match = re.exec(text)) !== null) {
+    const key = match[1];
+    usage[key] ||= [];
+    usage[key].push(file);
+  }
+}
+
+const entries = Object.entries(usage).sort((a, b) => a[0].localeCompare(b[0]));
+console.log('# Workflow Secrets Audit');
+console.log();
+console.log('| Secret | Workflows |');
+console.log('|-------|-----------|');
+for (const [secret, files] of entries) {
+  const list = [...new Set(files)].sort().join('<br/>');
+  console.log(`| ${secret} | ${list} |`);
+}
+if (!entries.length) {
+  console.log('\n_No workflow secrets referenced._');
+}
+```
+
+### (Optional) Secrets audit workflow
+
+**File:** `.github/workflows/workflow-secrets-audit.yml`
+
+```yaml
+name: workflow-secrets-audit
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 7 * * 1' # Mondays 07:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Run audit
+        run: |
+          mkdir -p .tmp
+          node scripts/tools/audit-workflow-secrets.cjs > .tmp/workflow-secrets.md
+      - name: Upload secrets audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workflow-secrets-report
+          path: .tmp/workflow-secrets.md
+          retention-days: 14
+```
+
+---
+
+## F) Fees Doc Uplift (PR-F)
+
+> No file required here; run one **Evaluator-Optimizer** pass on Fees doc to raise ~79.5% → ≥ 92% (align formulas, rounding, boundaries; add 1 worked example and schema vocab hits).
+
+---
+
+## G) Governance & Debt Automation (PR-G)
+
+### 1) List quarantines (script)
+
+**File:** `scripts/tools/list-quarantine-tests.cjs`
+
+```javascript
+#!/usr/bin/env node
+/**
+ * Finds quarantined tests and prints a JSON + markdown summary.
+ * Quarantine criteria:
+ *  - filename ends with .quarantine.test.ts/tsx/js/mjs
+ *  - or contains 'it.fixme(' / 'test.fixme(' / '@@QUARANTINE'
+ *
+ * Usage:
+ *   node scripts/tools/list-quarantine-tests.cjs > .tmp/quarantine.json
+ *   node scripts/tools/list-quarantine-tests.cjs --md > .tmp/quarantine.md
+ */
+const fs = require('fs');
+const path = require('path');
+
+const exts = ['.test.ts', '.test.tsx', '.test.js', '.test.mjs'];
+const root = process.cwd();
+const results = [];
+
+function walk(dir) {
+  for (const name of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, name.name);
+    if (name.isDirectory()) {
+      if (name.name === 'node_modules' || name.name.startsWith('.git')) continue;
+      walk(p);
+    } else {
+      if (!exts.some(e => name.name.endsWith(e))) continue;
+      const text = fs.readFileSync(p, 'utf8');
+      const quarantined =
+        name.name.includes('.quarantine.') ||
+        /(?:it|test)\.fixme\s*\(/.test(text) ||
+        /@@QUARANTINE/.test(text);
+      if (quarantined) {
+        const exp = (text.match(/@@EXPIRES:(\d{4}-\d{2}-\d{2})/) || [])[1];
+        results.push({ file: path.relative(root, p), expires: exp || null });
+      }
+    }
+  }
+}
+walk(root);
+
+const argMd = process.argv.includes('--md');
+if (!argMd) {
+  console.log(JSON.stringify({ count: results.length, items: results }, null, 2));
+} else {
+  console.log(`# Quarantined tests\n\nTotal: ${results.length}\n`);
+  console.log('| File | Expires |');
+  console.log('|------|---------|');
+  for (const r of results) console.log(`| ${r.file} | ${r.expires ?? ''} |`);
+}
+```
+
+### 2) Weekly review workflow (tracking issue)
+
+**File:** `.github/workflows/quarantine-review.yml`
+
+```yaml
+name: quarantine-review
+on:
+  schedule:
+    - cron: '0 15 * * 5'   # Fridays @ 15:00 UTC; adjust as desired
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: List quarantined tests
+        run: |
+          mkdir -p .tmp
+          node scripts/tools/list-quarantine-tests.cjs > .tmp/quarantine.json
+          node scripts/tools/list-quarantine-tests.cjs --md > .tmp/quarantine.md
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quarantine-report
+          path: .tmp/quarantine.md
+          retention-days: 21
+      - name: Open/update tracking issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const md = fs.readFileSync('.tmp/quarantine.md','utf8');
+            const title = 'Weekly Quarantine Review';
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: 'quarantine'
+            });
+            let issue = issues.find(i => i.title === title);
+            if (!issue) {
+              const created = await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body: md, labels: ['quarantine','tech-debt']
+              });
+              core.info(`Created issue #${created.data.number}`);
+            } else {
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issue.number, body: md
+              });
+              core.info(`Updated issue #${issue.number}`);
+            }
+```
+
+### 3) Issue template (new quarantines)
+
+**File:** `.github/ISSUE_TEMPLATE/quarantine.yml`
+
+```yaml
+name: "Quarantined test"
+description: "Track a quarantined test for scheduled review"
+labels: ["quarantine","tech-debt"]
+body:
+  - type: input
+    id: file
+    attributes:
+      label: Test file
+      description: e.g., path/to/foo.quarantine.test.ts
+      placeholder: path/to/test
+    validations: { required: true }
+  - type: input
+    id: reason
+    attributes:
+      label: Reason for quarantine
+      placeholder: flake / env dependency / intermittent NaN / etc.
+    validations: { required: true }
+  - type: input
+    id: expires
+    attributes:
+      label: Target unquarantine date (YYYY-MM-DD)
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      placeholder: Links to CI runs, PRs, etc.
+```
+
+### 4) ADRs: “Why” by default
+
+**File:** `docs/adr/001-quarantine-policy.md`
+
+```markdown
+# ADR-001: Test Quarantine Policy
+
+**Status:** Proposed  
+**Date:** 2025-10-30
+
+## Context
+We stabilized the testbed and need a pragmatic way to keep local runs green while fixing failures. Some tests are flaky or rely on unstable environments.
+
+## Decision
+- Allow quarantining via filename suffix `.quarantine.test.ts` or `it.fixme`.
+- Load quarantined tests only in a nightly/weekly job.
+- Track quarantines in GitHub (Issues/Project) and run a weekly review workflow.
+
+## Consequences
+- Faster local feedback; no hidden failures.
+- Risk of debt accumulation mitigated by scheduled review + tracking.
+
+## Alternatives Considered
+- Blocking merges until all flakies fixed (slows progress).
+- Per-suite retry plugins (hides real issues).
+
+## Follow-ups
+- Add expiry hints (`@@EXPIRES:YYYY-MM-DD`) in quarantined files.
+- Enforce limit of new quarantines per PR (future CI gate).
+```
+
+**File:** `docs/adr/002-proposals-nonprod-store.md`
+
+```markdown
+# ADR-002: Non-Production JSON Store for Proposals
+
+**Status:** Proposed  
+**Date:** 2025-10-30
+
+## Context
+We need `/api/proposals` for demos/tests, but a DB migration would slow near-term progress.
+
+## Decision
+- Implement a non-prod JSON store (`data/proposals/`) with atomic writes.
+- Gate by `NODE_ENV !== 'production'`.
+- Enforce SHA-256 idempotency on `{prompt, params}`, 8–16 KB body cap, and per-IP rate limit.
+
+## Consequences
+- Fast demo path; no schema migration required.
+- Clear path to DB later with minimal surface changes.
+
+## Alternatives
+- Full DB migration now (longer lead time).
+- In-memory only (no durability).
+
+## Migration Plan
+- Add a `ProposalWorkflow` table later; swap the store behind the same interface.
+- Add DB feature flags; keep the JSON store for dev E2E tests.
+```
+
+### 5) Dependabot (weekly, grouped)
+
+**File:** `.github/dependabot.yml`
+
+```yaml
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+    commit-message:
+      prefix: "deps"
+    groups:
+      minor-and-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+```
+
+---
+
+## H) (Optional) Fees fast validation config (local)
+
+**File:** `scripts/validation/fees-fast.yaml`
+
+```yaml
+# Fast, local-only config for Fees docs validation (JS scorer).
+prompts:
+  - file: scripts/validation/prompts.py
+    function: fee_prompt
+
+providers:
+  - id: anthropic:messages:claude-3-haiku-20240307
+
+tests:
+  - description: "Validate fees.md (primary docs)"
+    vars:
+      doc_type: fees
+      doc_content: file://docs/notebooklm-sources/fees.md
+      truth_cases: file://docs/fees.truth-cases.json
+      schema: file://docs/schemas/fee-truth-case.schema.json
+
+  - description: "Validate ADR-006 (fees policy)"
+    vars:
+      doc_type: architectural_decision
+      doc_content: file://docs/adr/ADR-006-fee-calculation-standards.md
+      truth_cases: file://docs/fees.truth-cases.json
+      schema: file://docs/schemas/fee-truth-case.schema.json
+
+scorers:
+  - path: scripts/validation/doc_domain_scorer.mjs
+    label: "Quick signal (JS)"
+
+outputPath: ./results/fees-fast.json
+```
+
+---
+
+# Process & Policy Notes (bake into PR bodies)
+
+* **TS baseline drift**
+
+  * Enforce `baseline:check` in pre-push.
+  * Run `baseline:save` only in a dedicated “baseline maintenance” PR with a one-liner rationale. Baseline may **only move down** otherwise.
+
+* **Quarantine**
+
+  * Create an Issue (template provided) for any new quarantine.
+  * Weekly workflow updates a single tracking issue; add to a GitHub Project for prioritization.
+  * Add `@@EXPIRES:YYYY-MM-DD` to quarantined files.
+
+* **Parity**
+
+  * CI uses **fixtures** (vectors + expected) for determinism.
+  * When Excel changes, run `npm run parity:update-fixture`, review diffs, and commit.
+
+* **Docs validation**
+
+  * Fast lane (JS scorer) required for `docs/**`.
+  * Final (LLM-as-Judge) runs on milestone PRs to control cost.
+
+---
+
+# “Done” Signals (refined)
+
+* ✅ Green local test run (quarantines allowed) + **no increase** in TS baseline.
+* ✅ Quarantined tests tracked via **Issues/Project** + **weekly review** workflow artifact.
+* ✅ Parity CLI runs locally & via **parity.yml** (≤ 1% threshold).
+* ✅ **Parity fixture update** process documented; `npm run parity:update-fixture` regenerates deterministically.
+* ✅ `/api/proposals` MVP live in dev/staging with idempotency, size cap, per-IP limiter, non-prod JSON store.
+* ✅ Docs-validation (fast) required for `docs/**`; final used for checkpoints.
+* ✅ Fees doc score ≥ 92%.
+* ✅ Broken CI job disabled; **secrets audit** artifact uploaded.
+* ✅ **ADRs** for quarantine policy & proposals store committed.
+* ✅ **Dependabot** configured (weekly digests, grouped updates).
+
+---
+
+## Quick Start Commands (once files are added)
+
+```bash
+# Parity (local)
+npm run parity:generate         # Excel -> .tmp/parity/vectors.json
+npm run parity:actuals          # vectors -> .tmp/parity/actual.json (via engines)
+npm run parity:compare          # expected vs actual (≤ 1%)
+
+# Fees validation (fast local)
+cd scripts/validation
+npx promptfoo eval -c fees-fast.yaml -o ../../.promptfoo/fees-fast
+
+# Test triage
+npx vitest run --reporter=json --coverage=false | node scripts/tools/failures-by-file.cjs
+
+# Quarantine weekly workflow (manual)
+gh workflow run quarantine-review
+```

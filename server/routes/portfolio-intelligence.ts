@@ -13,6 +13,14 @@ import { idempotency } from '../middleware/idempotency';
 import { positiveInt, bounded01, nonNegative } from '@shared/schema-helpers';
 import { toNumber, NumberParseError } from '@shared/number';
 import type { ApiError } from '@shared/types';
+import { parseStageDistribution } from '@shared/schemas/parse-stage-distribution';
+import { getStageValidationMode } from '../lib/stage-validation-mode';
+import {
+  recordValidationDuration,
+  recordValidationSuccess,
+  recordUnknownStage,
+} from '../observability/stage-metrics';
+import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 
 const router = Router();
 
@@ -173,6 +181,52 @@ router["post"]('/api/portfolio/strategies', idempotency, async (req: Authenticat
     }
 
     const data = validation.data;
+
+    // Validate stage allocation using stage normalization
+    const startTime = performance.now();
+    const stageAllocationArray = Object.entries(data.stageAllocation || {}).map(([stage, weight]) => ({
+      stage,
+      weight,
+    }));
+    const { normalized, invalidInputs, suggestions, sum } = parseStageDistribution(
+      stageAllocationArray
+    );
+    const duration = (performance.now() - startTime) / 1000;
+    recordValidationDuration('POST /api/portfolio/strategies', duration);
+
+    if (invalidInputs.length > 0) {
+      const mode = getStageValidationMode();
+      recordUnknownStage('POST /api/portfolio/strategies', mode);
+      setStageWarningHeaders(res, invalidInputs);
+
+      if (mode === 'enforce') {
+        const error: ApiError = {
+          error: 'Invalid stage allocation',
+          message: 'Unknown investment stage(s) in stageAllocation.',
+          details: {
+            code: 'INVALID_STAGE',
+            invalid: invalidInputs,
+            suggestions,
+            validStages: [
+              'pre-seed',
+              'seed',
+              'series-a',
+              'series-b',
+              'series-c',
+              'series-c+',
+            ],
+          },
+        };
+        return res["status"](400)["json"](error);
+      }
+    }
+
+    // Use normalized stage allocation if validation passed
+    if (Object.keys(normalized).length > 0) {
+      data.stageAllocation = normalized;
+    }
+
+    recordValidationSuccess('POST /api/portfolio/strategies');
     const userId = parseInt(req.user?.id || '0');
 
     if (!userId) {

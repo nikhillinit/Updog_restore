@@ -1,0 +1,146 @@
+* **Agree (adopt):** DB migration pre‑enforce (done), write‑time validation during migration, a “shadow/DRY‑RUN” signal, per‑endpoint flags (lightweight), baseline‑aware alerting, and a minimal migration‑integrity verifier.
+* **Adapt (lighter variants):** Baseline metrics (hours–days from existing logs/metrics, not a fixed “7‑day” hold), percentage rollout (config‑driven but simple), multi‑tenant batching (only if you actually have per‑fund boundaries).
+* **Pushback:** Long timelines and client comms aren’t aligned with an internal, solo project; enforcing both POST endpoints on day one (instead of the runbook’s “portfolio‑first”) isn’t necessary—**protecting persisted writes first** is safer and consistent with your phasing.
+
+---
+
+## Decision matrix (Claude’s points → decision, rationale, action)
+
+| #  | Claude’s point                        | Decision                     | Rationale                                                                     | Actionable tweak                                                                                                                                |
+| -- | ------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1  | **Schema validation in migration**    | **Adopt**                    | Migration must guarantee canonical stages.                                    | Add canonical allow‑list + mapping check inside `normalize-stages.ts`; hard‑fail any out‑of‑set values with a remediation log.                  |
+| 2  | **Perf impact analysis**              | **Adopt (lean)**             | Batching + index hygiene matter at scale.                                     | Use PK‑range batches; `CREATE INDEX CONCURRENTLY` on stage column if scans show > few seconds; sleep between batches only if replica lag grows. |
+| 3  | **Multi‑tenant rollout**              | **Adopt if multi‑tenant**    | Useful only if you truly have per‑fund isolation.                             | If applicable: batch by `fund_id`; otherwise skip.                                                                                              |
+| 4  | **Rollback for Phase 2.5**            | **Adopt (improve)**          | Snapshot is necessary but not sufficient.                                     | Add `migration_progress` table (batch id, range, status); reads can flip back to legacy view; snapshot remains last resort.                     |
+| 5  | **Timing gap (new invalid writes)**   | **Adopt**                    | Prevents back‑sliding between migration and enforce.                          | **During Phase 2.5, enforce on writes only**, reads stay in `warn`. See config snippet below.                                                   |
+| 6  | **Client comms**                      | **Decline (internal tool)**  | Out of scope for solo/internal; headers + metrics are enough.                 | Keep headers; note change in CHANGELOG.                                                                                                         |
+| 7  | **Single‑endpoint enforcement risky** | **Push back / keep runbook** | Portfolio writes are the persistence choke‑point; Monte Carlo is exploratory. | Phase A = `/api/portfolio/strategies` enforce; Phase B adds `/api/monte-carlo/simulate`. GET stays non‑blocking.                                |
+| 8  | **Baseline metrics**                  | **Adopt (lean)**             | Yes, but not a fixed 7‑day hold.                                              | Compute baseline from last 24–72h of prod traffic; store as recording rule; gate alerts against it.                                             |
+| 9  | **Aggressive thresholds**             | **Adopt (adaptive)**         | Use baseline to avoid false pages.                                            | Alert when `current > max(1%, baseline*X)`; choose X (e.g., 2–3).                                                                               |
+| 10 | **Shadow (dry‑run) mode**             | **Adopt**                    | Great for blast‑radius measurement.                                           | Add `DRY_RUN` flag that emits “would reject” signal while still 2xx.                                                                            |
+| 11 | **Perf/load tests**                   | **Adopt (targeted)**         | Cover migration perf + large array inputs.                                    | Add one migration E2E and one Monte Carlo big‑array test; keep it fast.                                                                         |
+| 12 | **Feature flags**                     | **Adopt (minimal)**          | Per‑endpoint + percentage is handy, small code.                               | JSON config + consistent hashing → endpoint‑level modes + `%` gates.                                                                            |
+| 13 | **Client‑side impact**                | **Decline (internal)**       | Overkill for solo/internal; server metrics suffice.                           | Keep server‑side breakdown by `endpoint`, `fund_id` (if any).                                                                                   |
+| 14 | **Recovery procedures**               | **Adopt (tighten)**          | Make rollback fast & deterministic.                                           | Pre‑wire: flip to `warn` per‑endpoint; maintain snapshot + `migration_progress`; add a one‑command “read switchback”.                           |
+| 15 | **Integration tests for migration**   | **Adopt (lean)**             | Critical correctness check.                                                   | Add a focused test covering: canonicalization, nulls, distributions sum, partial failure.                                                       |
+
+---
+
+## Concrete, lean additions I recommend making now
+
+### 1) Minimal **feature‑flag config** (per‑endpoint + % + write/read split)
+
+```ts
+// server/lib/stage-validation-config.ts
+export type Mode = 'off' | 'warn' | 'enforce';
+export interface StageValidationConfig {
+  defaultMode: Mode;                          // e.g., 'warn'
+  endpointMode: Record<string, Mode>;         // per-endpoint override
+  enforceWriteOnly: boolean;                   // true during Phase 2.5
+  enforcementPercent: number;                  // 0..100, for gradual rollout
+}
+
+// Example (Phase A: enforce writes only on portfolio strategies)
+export const cfg: StageValidationConfig = {
+  defaultMode: 'warn',
+  endpointMode: {
+    '/api/portfolio/strategies': 'enforce',
+    '/api/monte-carlo/simulate': 'warn',
+    '/api/funds/:fundId/companies': 'warn'
+  },
+  enforceWriteOnly: true,
+  enforcementPercent: 10
+};
+```
+
+**Routing decision (consistent hashing for % gate):**
+
+```ts
+function shouldEnforce(reqId: string, cfg: StageValidationConfig): boolean {
+  const h = Math.abs(hashCode(reqId)) % 100;
+  return h < Math.max(0, Math.min(100, cfg.enforcementPercent));
+}
+```
+
+### 2) **DRY‑RUN (shadow) enforcement** without new metric explosion
+
+Reuse the existing `stage_validation_validations_total{result=...}` by adding a bounded value:
+
+* `result = "pass" | "warn" | "reject" | "would_reject"`
+
+And optionally add a header for debugging:
+
+* `X-Stage-Would-Reject: true` (only when dry‑run says “reject” while mode is `warn`)
+
+This avoids creating yet another counter and keeps cardinality bounded.
+
+### 3) **Migration hard requirements** (normalize‑stages.ts)
+
+* **Idempotent**: no‑op on already‑normalized rows.
+* **Canonical check**: normalized value ∈ `{pre-seed, seed, series-a, series-b, series-c+}` (example; use your real set).
+* **Batching**: primary‑key ranges (5–10k) or `fund_id` + PK if multi‑tenant; **bounded** runtime per batch.
+* **Logging** (structured): `{fundId?, startPk, endPk, updated, skipped_invalid, duration_ms}`.
+* **Invariants**: per‑row `abs(1 - sum(weights)) ≤ 1e-6` (after), no new NULLs introduced, foreign keys intact.
+* **Indexing**: If updates scan by `WHERE stage NOT IN (canonical-set)`, create a partial or regular index (concurrently) to keep batch latency stable.
+* **Progress table**: `stage_migration_batches(batch_id, range_start, range_end, status, updated_at)`.
+
+### 4) **Adaptive alerting** (baseline‑aware)
+
+Recording rules:
+
+```promql
+# Current invalid rate (5m)
+stage_validation_invalid_rate:ratio =
+  sum(rate(stage_validation_errors_total[5m]))
+  / clamp_min(sum(rate(stage_validation_validations_total[5m])), 1)
+
+# Baseline (rolling window; choose 24h or 72h)
+stage_validation_invalid_rate:baseline =
+  avg_over_time(stage_validation_invalid_rate:ratio[24h])
+```
+
+Alert when:
+
+```promql
+stage_validation_invalid_rate:ratio
+  > max(0.01, stage_validation_invalid_rate:baseline * 2)
+```
+
+Same pattern for p99 latency.
+
+### 5) **Lean migration integrity verifier** (script outline)
+
+* Compare `COUNT(*)` pre/post (logged).
+* Per‑fund (if applicable): count by canonical stage after migration; flag residuals.
+* Random sample (e.g., 100 rows): verify weight sums and stage canonicality; echo diffs.
+* Exit non‑zero on any violation; produce a JSON report for the CHANGELOG.
+
+### 6) **Targeted tests** to close gaps
+
+* **Integration**: `stage-migration-e2e.test.ts` (seed denormalized rows → run migration → assert invariants + canonicality).
+* **Perf**: a single Monte Carlo case with a **large array** (e.g., 1k–5k entries) to verify p99 budget under `warn` and `enforce`.
+* **Dry‑run**: when `DRY_RUN=true`, assert `result="would_reject"` increments and header is set; response remains 2xx.
+
+---
+
+## Where I’m deliberately pushing back
+
+1. **Enforce both POST endpoints at once.**
+   I’d keep the runbook’s “portfolio strategies first” phasing. That endpoint persists user state and is the highest leverage for data hygiene; Monte Carlo is exploratory and array‑shaped (different risk profile). Using DRY‑RUN on Monte Carlo during Phase A gives you real production stats without making it a hard gate yet.
+
+2. **Fixed timeline holds (7 days, 48 hours, etc.).**
+   For a solo/internal rollout, use **data‑gated** decisions, not wall‑clock time. The baseline and DRY‑RUN rates will tell you when you’re ready.
+
+3. **External client comms.**
+   Not applicable here. Keep headers + CHANGELOG note; that’s sufficient for an internal tool.
+
+---
+
+## Minimal doc deltas I’d add to your v2 plan
+
+* **Phase 2.5 (enhanced):** “`enforceWriteOnly=true` (writes are enforced; reads remain `warn`) until migration completes and integrity checks pass.”
+* **New: DRY‑RUN flag:** “When `DRY_RUN=true` and mode=`warn`, emit `result="would_reject"` (and optional `X-Stage-Would-Reject:true`) without rejecting.”
+* **Feature‑flag section:** Document JSON config with `endpointMode` + `enforcementPercent`.
+* **Adaptive alerts:** Reference the baseline recording rules above and use `max(1%, baseline*2)`‑style thresholds.
+
+If you want, I can produce **v3** of the rollout doc and a **v3 patch** to the runbook with these exact deltas (enhanced Phase 2.5, DRY‑RUN, adaptive alerts, and the minimal feature‑flag section).

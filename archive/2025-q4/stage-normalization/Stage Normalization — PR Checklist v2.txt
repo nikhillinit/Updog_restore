@@ -1,0 +1,534 @@
+---
+
+# Phase 2 — Stage Normalization (Hybrid B-Lite, No-Email)
+
+## What’s different (delta summary)
+
+* **Keep current naming** as canonical: `['pre-seed','seed','series-a','series-b','series-c','series-c+']`
+  (No 66-file refactor. Underscored variants stay as aliases.)
+* **No email to consumers.** Replace with:
+
+  * **HTTP headers** in warn/enforce modes:
+
+    * `Deprecation: true` + `Sunset: <HTTP-date>`
+    * `Link: <https://api.your.app/docs/stage-normalization>; rel="deprecation"`
+    * `X-Stage-Warnings: deprecated-variants=<list>; sunset=<iso>`
+  * **Self-serve API**: `GET /api/deprecations` returns JSON with upcoming changes.
+  * **OpenAPI**: mark deprecations + examples; link to docs page.
+  * **In-app** (optional): UI banner when invalid alias is pasted.
+* **Database**: simple **in-place UPDATE** (2 tables, TEXT columns) after dry-run audit + backups.
+* **Feature flag**: `off | warn | enforce` (existing system acceptable; env fallback included).
+* **Observability**: low-cardinality counters + duration histograms + basic Prom alerts.
+
+---
+
+## 7-Day Rollout (no email)
+
+**Day 1–2 (mode=off):** Deploy validation (logs/metrics only). Observe unknown variants.
+**Day 3–4 (mode=warn):** Add deprecation headers + warnings. Add aliases for top variants.
+**Day 5:** Audit DB, run **in-place UPDATE**, verify; test enforce in staging.
+**Day 6–7 (mode=enforce):** Canary then full. Roll back to `warn` if invalid rate >0.5% for 10m.
+
+---
+
+## PR Checklist (create/modify)
+
+### Create
+
+* `shared/schemas/investment-stages.ts` ✅ canonical (hyphenated), aliases, Levenshtein
+* `shared/schemas/parse-stage-distribution.ts` ✅ normalize, fold, precise sum
+* `server/lib/stage-validation-mode.ts` ✅ flag helper (`off|warn|enforce`)
+* `server/observability/stage-metrics.ts` ✅ counters + histogram
+* `server/routes/deprecations.ts` ✅ returns JSON about upcoming sunset
+* `scripts/audit-stages.ts` ✅ DB dry-run/apply + CSV
+* `tests/unit/stage-validation-modes.test.ts` ✅ flag transitions + headers
+* `tests/integration/stage-api-validation.e2e.test.ts` ✅ end-to-end
+* `tests/perf/stage-normalization-perf.test.ts` ✅ p95/p99 budget
+
+### Modify
+
+* `server/routes/monte-carlo.ts` ✅ boundary validation + headers + metrics
+* `server/routes/portfolio-intelligence.ts` ✅ same
+* `server/routes/allocations.ts` ✅ same
+* `docs/api/openapi.yaml` ✅ add headers + examples + `/api/deprecations`
+* `docs/adr/ADR-011-stage-normalization-v2.md` ✅ one-week, no-email variant
+* `CHANGELOG.md` ✅
+
+> **Intentionally skipped**: new migrations, new feature-flag infra, Grafana JSON. Use existing infra + Prom alerts.
+
+---
+
+## Code
+
+### Canonicals, Aliases, Suggestions (hyphenated canon)
+
+**`shared/schemas/investment-stages.ts`**
+
+```ts
+export const STAGE_KEYS = [
+  'pre-seed','seed','series-a','series-b','series-c','series-c+'
+] as const;
+export type StageKey = typeof STAGE_KEYS[number];
+
+export const DISPLAY_LABEL: Record<StageKey,string> = {
+  'pre-seed':'Pre-Seed','seed':'Seed','series-a':'Series A',
+  'series-b':'Series B','series-c':'Series C','series-c+':'Series C+'
+};
+
+const HYPHENS = /[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D-]+/g;
+const NON_ALNUM = /[^a-z0-9+]+/g;
+
+const ALIASES: Record<string, StageKey> = {
+  // hyphenated canon (identity)
+  'pre-seed':'pre-seed','seed':'seed','series-a':'series-a',
+  'series-b':'series-b','series-c':'series-c','series-c+':'series-c+',
+  // underscore & spacing variants
+  'pre_seed':'pre-seed','pre seed':'pre-seed','pre–seed':'pre-seed','pre-seed':'pre-seed','preseed':'pre-seed',
+  'series_a':'series-a','series a':'series-a',
+  'series_b':'series-b','series b':'series-b',
+  'series_c':'series-c','series c':'series-c',
+  'series_d+':'series-c+','series d+':'series-c+','series_d_plus':'series-c+','series d plus':'series-c+','d+':'series-c+'
+};
+
+export function normalizeStage(input: string): StageKey | null {
+  if (typeof input !== 'string') return null;
+  const s = input
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(HYPHENS, '-')
+    .replace(NON_ALNUM, ' ')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/ /g, '-');
+  return ALIASES[s] ?? null;
+}
+
+// tiny levenshtein for suggestions
+export function levenshtein(a: string, b: string): number {
+  const m=a.length,n=b.length; if(!m) return n; if(!n) return m;
+  const dp = Array.from({length:n+1},(_,j)=>j);
+  for(let i=1;i<=m;i++){
+    let prev=dp[0], cur=i; dp[0]=i;
+    for(let j=1;j<=n;j++){
+      const tmp=dp[j];
+      dp[j]=a[i-1]===b[j-1]?prev:1+Math.min(prev,dp[j-1],dp[j]);
+      prev=tmp;
+    }
+  }
+  return dp[n];
+}
+
+export function nearestStage(input: string): StageKey | null {
+  const probe = input?.toLowerCase?.() ?? '';
+  let best: {k:StageKey;d:number}|null=null;
+  for (const k of STAGE_KEYS) {
+    const d = levenshtein(probe, k);
+    if (!best || d<best.d) best = {k,d};
+  }
+  return (best && best.d<=3) ? best.k : null;
+}
+
+export const STAGE_LABELS = STAGE_KEYS.map(k => ({ key:k, label: DISPLAY_LABEL[k] }));
+```
+
+### Boundary Parser (normalize, fold, precise sum)
+
+**`shared/schemas/parse-stage-distribution.ts`**
+
+```ts
+import { z } from 'zod';
+import { normalizeStage, STAGE_KEYS, type StageKey, nearestStage } from './investment-stages';
+
+export type StageDistribution = Array<{ stage: string; weight: number }>;
+const BaseSchema = z.array(z.object({ stage: z.string(), weight: z.number().min(0).max(1) }));
+
+export type NormalizedDistribution = Record<StageKey, number>;
+export type ParseResult = {
+  normalized: NormalizedDistribution;
+  invalidInputs: string[];
+  suggestions: Array<{ input: string; didYouMean: StageKey | null }>;
+  sum: number;
+};
+
+function fold(arr: StageDistribution): ParseResult {
+  const map = new Map<StageKey, number>();
+  const invalid: string[] = [];
+  const suggestions: Array<{ input: string; didYouMean: StageKey | null }> = [];
+
+  for (const { stage, weight } of arr) {
+    const key = normalizeStage(stage);
+    if (!key) { invalid.push(stage); suggestions.push({ input: stage, didYouMean: nearestStage(stage) }); continue; }
+    map.set(key, (map.get(key) ?? 0) + weight);
+  }
+
+  const normalized = Object.fromEntries(STAGE_KEYS.map(k => [k, 0])) as NormalizedDistribution;
+  for (const [k, v] of map) normalized[k] = v;
+
+  const sum = Object.values(normalized).reduce((a,b)=>a+b,0);
+  return { normalized, invalidInputs: invalid, suggestions, sum };
+}
+
+export function parseStageDistribution(input: unknown, eps = 1e-4): ParseResult {
+  const base = BaseSchema.parse(input); // throws on structural/type issues
+  const res = fold(base);
+  // Callers decide enforcing eps or proceeding in warn mode
+  return res;
+}
+```
+
+### Feature Flag Helper (use existing infra or env fallback)
+
+**`server/lib/stage-validation-mode.ts`**
+
+```ts
+export type StageValidationMode = 'off'|'warn'|'enforce';
+
+// Replace this shim with your prod feature flag getter if you have one.
+export function getStageValidationMode(): StageValidationMode {
+  const v = (process.env.STAGE_VALIDATION_MODE || 'warn').toLowerCase();
+  return (['off','warn','enforce'] as StageValidationMode[]).includes(v as any) ? (v as StageValidationMode) : 'warn';
+}
+```
+
+### Low-Cardinality Metrics
+
+**`server/observability/stage-metrics.ts`**
+
+```ts
+import client from 'prom-client';
+const stageNormalizationUnknownTotal = new client.Counter({
+  name: 'stage_normalization_unknown_total',
+  help: 'Count of unknown/invalid stage variants observed',
+  labelNames: ['endpoint','mode'] as const
+});
+const stageValidationDuration = new client.Histogram({
+  name: 'stage_validation_duration_seconds',
+  help: 'Time spent validating stage payloads at the boundary',
+  labelNames: ['endpoint'] as const,
+  buckets: [0.0001,0.0005,0.001,0.005,0.01] // 0.1ms → 10ms
+});
+export const stageMetrics = { stageNormalizationUnknownTotal, stageValidationDuration };
+```
+
+### Deprecations Endpoint (machine-readable notice)
+
+**`server/routes/deprecations.ts`**
+
+```ts
+import { Router } from 'express';
+const router = Router();
+
+// Static example; you can source from config or flags.
+router.get('/api/deprecations', (_req, res) => {
+  res.json({
+    items: [{
+      id: 'stage-normalization-2025Q4',
+      category: 'validation',
+      title: 'Stage input normalization and enforcement',
+      docs_url: 'https://api.your.app/docs/stage-normalization',
+      sunset_at: '2025-11-07T00:00:00Z',
+      modes: ['off','warn','enforce'],
+      current_mode: process.env.STAGE_VALIDATION_MODE || 'warn'
+    }]
+  });
+});
+
+export default router;
+```
+
+### Boundary Validation + Headers (pattern applied to all 3 routes)
+
+**`server/routes/monte-carlo.ts` (excerpt)**
+
+```ts
+import { Router } from 'express';
+import { parseStageDistribution } from '../../shared/schemas/parse-stage-distribution';
+import { getStageValidationMode } from '../lib/stage-validation-mode';
+import { stageMetrics } from '../observability/stage-metrics';
+
+const router = Router();
+const SUNSET_HTTP_DATE = new Date('2025-11-07T00:00:00Z').toUTCString();
+const DOCS_URL = 'https://api.your.app/docs/stage-normalization';
+
+router.post('/api/monte-carlo', (req, res, next) => {
+  const endpoint = '/api/monte-carlo';
+  const mode = getStageValidationMode();
+  const timer = stageMetrics.stageValidationDuration.startTimer({ endpoint });
+
+  try {
+    const { normalized, invalidInputs, suggestions, sum } = parseStageDistribution(req.body?.stageDistribution);
+    const eps = 1e-4;
+
+    if (mode !== 'off') {
+      // Machine-readable deprecation signals (no email)
+      res.setHeader('Deprecation', 'true');
+      res.setHeader('Sunset', SUNSET_HTTP_DATE);
+      res.setHeader('Link', `<${DOCS_URL}>; rel="deprecation"`);
+    }
+
+    if (invalidInputs.length) {
+      stageMetrics.stageNormalizationUnknownTotal.inc({ endpoint, mode });
+      // Human-friendly hint for dashboards/devtools
+      res.setHeader('X-Stage-Warnings',
+        `deprecated-variants=${invalidInputs.join('|')}; sunset=2025-11-07T00:00:00Z; docs=${DOCS_URL}`);
+
+      if (mode === 'enforce') {
+        timer();
+        return res.status(400).json({
+          code: 'INVALID_STAGE',
+          message: 'Unknown investment stage(s).',
+          invalid: invalidInputs,
+          suggestions,
+          validStages: ['pre-seed','seed','series-a','series-b','series-c','series-c+']
+        });
+      }
+    }
+
+    if (Math.abs(sum - 1) > eps && mode === 'enforce') {
+      timer();
+      return res.status(400).json({
+        code: 'INVALID_STAGE_WEIGHTS',
+        message: 'Weights must sum to 1.0 (±0.0001).',
+        correlationId: (req as any).correlationId
+      });
+    }
+
+    timer();
+    // Pass normalized weights to business logic here
+    return res.json({ ok: true /*, result */ });
+  } catch (err) {
+    timer();
+    next(err);
+  }
+});
+
+export default router;
+```
+
+> Apply the same boundary/headers pattern to `server/routes/portfolio-intelligence.ts` and `server/routes/allocations.ts`.
+
+### OpenAPI (headers + deprecations endpoint)
+
+**`docs/api/openapi.yaml`** *(excerpt)*
+
+```yaml
+paths:
+  /api/monte-carlo:
+    post:
+      responses:
+        '200':
+          description: OK
+          headers:
+            Deprecation:
+              schema: { type: string, example: "true" }
+              description: "Indicates a deprecated behavior is present"
+            Sunset:
+              schema: { type: string, example: "Fri, 07 Nov 2025 00:00:00 GMT" }
+              description: "Date after which deprecated behavior may be removed"
+            Link:
+              schema: { type: string, example: "<https://api.your.app/docs/stage-normalization>; rel=\"deprecation\"" }
+            X-Stage-Warnings:
+              schema: { type: string, example: "deprecated-variants=presead|pre_seed; sunset=2025-11-07T00:00:00Z; docs=https://api.your.app/docs/stage-normalization" }
+        '400':
+          description: Invalid stage
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, message, invalid, validStages]
+                properties:
+                  code: { type: string, example: INVALID_STAGE }
+                  message: { type: string }
+                  invalid: { type: array, items: { type: string } }
+                  suggestions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        input: { type: string }
+                        didYouMean: { type: string, nullable: true, example: "series-a" }
+                  validStages:
+                    type: array
+                    items:
+                      type: string
+                      enum: ['pre-seed','seed','series-a','series-b','series-c','series-c+']
+
+  /api/deprecations:
+    get:
+      responses:
+        '200':
+          description: Deprecation notices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, category, title, docs_url, sunset_at, modes, current_mode]
+                      properties:
+                        id: { type: string }
+                        category: { type: string, example: validation }
+                        title: { type: string }
+                        docs_url: { type: string, format: uri }
+                        sunset_at: { type: string, format: date-time }
+                        modes:
+                          type: array
+                          items: { type: string, enum: [off, warn, enforce] }
+                        current_mode: { type: string, enum: [off, warn, enforce] }
+```
+
+### DB Audit + In-Place UPDATE
+
+**`scripts/audit-stages.ts`**
+
+```ts
+#!/usr/bin/env ts-node
+import { Client } from 'pg';
+import fs from 'fs';
+import { normalizeStage } from '../shared/schemas/investment-stages';
+
+const APPLY = process.argv.includes('--apply');
+const OUT = 'stage_audit.csv';
+
+const TABLES = [
+  { table: 'portfolio_companies', col: 'stage' },
+  { table: 'portfolio_intelligence', col: 'stage' }
+];
+
+(async () => {
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  await client.connect();
+  const out: string[] = ['table,stage_raw,normalized,action'];
+
+  for (const t of TABLES) {
+    const { rows } = await client.query(`SELECT DISTINCT ${t.col} AS stage FROM ${t.table}`);
+    for (const r of rows) {
+      const raw = (r.stage ?? '').toString();
+      const key = normalizeStage(raw);
+      const action = key ? (raw === key ? 'identity' : 'normalize') : 'unknown';
+      out.push(`${t.table},"${raw.replaceAll('"','""')}",${key ?? ''},${action}`);
+      if (APPLY && key && raw !== key) {
+        await client.query(`UPDATE ${t.table} SET ${t.col} = $1 WHERE ${t.col} = $2`, [key, raw]);
+      }
+    }
+  }
+
+  fs.writeFileSync(OUT, out.join('\n'), 'utf8');
+  console.log(`Wrote ${OUT}`);
+  await client.end();
+})().catch(e => { console.error(e); process.exit(1); });
+```
+
+> Run dry-run: `ts-node scripts/audit-stages.ts`
+> Apply: `ts-node scripts/audit-stages.ts --apply`
+
+### Tests (mode transitions + headers)
+
+**`tests/unit/stage-validation-modes.test.ts`** *(sketch)*
+
+```ts
+import request from 'supertest';
+import app from '../../server/app';
+import { describe, it, expect } from 'vitest';
+
+describe('Stage validation modes', () => {
+  it('mode=off returns 200 and no deprecation headers', async () => {
+    process.env.STAGE_VALIDATION_MODE = 'off';
+    const res = await request(app).post('/api/monte-carlo').send([{ stage: 'presead', weight: 1 }]);
+    expect(res.status).toBe(200);
+    expect(res.headers['deprecation']).toBeUndefined();
+  });
+
+  it('mode=warn returns 200 with headers', async () => {
+    process.env.STAGE_VALIDATION_MODE = 'warn';
+    const res = await request(app).post('/api/monte-carlo').send([{ stage: 'presead', weight: 1 }]);
+    expect(res.status).toBe(200);
+    expect(res.headers['deprecation']).toBeDefined();
+    expect(res.headers['x-stage-warnings']).toMatch(/deprecated-variants=/);
+  });
+
+  it('mode=enforce returns 400', async () => {
+    process.env.STAGE_VALIDATION_MODE = 'enforce';
+    const res = await request(app).post('/api/monte-carlo').send([{ stage: 'presead', weight: 1 }]);
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('INVALID_STAGE');
+  });
+});
+```
+
+### Prometheus Alerts (no Grafana JSON required)
+
+**Prometheus rule example (add to your rules):**
+
+```yaml
+groups:
+- name: stage-normalization
+  rules:
+  - alert: StageValidationWarn
+    expr: sum(rate(stage_normalization_unknown_total[5m])) > 5
+    for: 2m
+    labels: { severity: warning }
+    annotations: { summary: "Unknown stages >5/5m" }
+
+  - alert: StageValidationCritical
+    expr: sum(rate(stage_normalization_unknown_total[5m])) > 15
+    for: 1m
+    labels: { severity: critical }
+    annotations: { summary: "Unknown stages >15/5m" }
+
+  - alert: StageValidationLatency
+    expr: histogram_quantile(0.99, sum(rate(stage_validation_duration_seconds_bucket[5m])) by (le)) > 0.001
+    for: 5m
+    labels: { severity: warning }
+    annotations: { summary: "Validation p99 > 1ms" }
+```
+
+---
+
+## Runbook (No-Email)
+
+**Before Day 1**
+
+* Record baseline p50/p95 for `/api/monte-carlo`, `/api/allocations`, `/api/portfolio-intelligence`.
+
+**Day 1–2 (mode=off)**
+
+* Deploy.
+* Watch `stage_normalization_unknown_total` to discover top variants.
+* Update `ALIASES` if obvious frequent typos occur.
+
+**Day 3–4 (mode=warn)**
+
+* Flip flag to `warn`.
+* Verify the presence of `Deprecation`, `Sunset`, `Link`, and `X-Stage-Warnings` on requests with unknown variants.
+* Confirm OpenAPI and `/api/deprecations` are published.
+
+**Day 5**
+
+* Backup affected tables; run audit **dry-run**, then `--apply`.
+* Verify counts & distinct values ∈ canonical set.
+
+**Day 6–7 (mode=enforce)**
+
+* Canary, then full.
+* Rollback trigger: invalid rate >0.5% for 10m **or** p99 validation >1ms for 10m → switch back to `warn`.
+
+**Rollback**
+
+* Flip `STAGE_VALIDATION_MODE=warn` (instant).
+* If DB UPDATE had errors, restore table backups and re-apply with corrected alias map.
+
+---
+
+## Success Criteria
+
+* **DX & Safety:** No breaking code refactor; flag-controlled rollout; <30s rollback.
+* **Correctness:** Canonical hyphenated keys everywhere; unknowns surfaced; sum precision `±1e-4`.
+* **Perf:** p95/p99 unchanged; validation p99 ≤ 1ms.
+* **Data:** 100% stages normalized post-UPDATE; no ENUMs/constraints needed.
+* **Comms (no email):** Headers + `/api/deprecations` + OpenAPI doc guide consumers automatically.
+
+---

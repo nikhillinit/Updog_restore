@@ -18,4 +18,4 @@ drizzle.config.ts
 *.config.ts
 *.config.js
 scripts/**
-workers/**
+workers/**archive/

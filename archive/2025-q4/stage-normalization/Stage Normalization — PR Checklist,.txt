@@ -1,0 +1,869 @@
+Stage Normalization — PR Checklist, Code, and Runbook (Warn → Enforce)
+
+## Scope & Goals
+
+* Unify canonical investment stages across API, DB, and UI.
+* Normalize at **every boundary**, fold duplicates, and precisely validate weights.
+* Ship safely via a **three-mode feature flag**: `off | warn | enforce`.
+* Keep Prometheus **low-cardinality** and add proactive alerts.
+* Migrate data with **dual write**, **backfill**, and **post-verify** constraints.
+* Provide **backups** + a clear **rollback** plan.
+
+---
+
+## PR Checklist (create/modify these paths)
+
+### Create
+
+* `shared/schemas/investment-stages.ts` ✅ **(canonical keys, labels, normalization, suggestions)**
+* `shared/schemas/parse-stage-distribution.ts` ✅ **(boundary parser + fold + precise sum check)**
+* `server/config/feature-flags.ts` ✅ **(off|warn|enforce)**
+* `server/middleware/correlation-id.ts` ✅ **(X-Request-ID attach)**
+* `server/middleware/error-handler.ts` ✅ **(Zod + InvalidStageError → standard 400)**
+* `server/observability/metrics.ts` ✅ **(low-cardinality counters + histogram)**
+* `server/utils/stage-errors.ts` ✅ **(InvalidStageError factory)**
+* `server/utils/logger.ts` (extend) ✅ **(audit logger for validation)**
+* `scripts/audit-invalid-stages.ts` ✅ **(dry-run/apply; CSV)**
+* `migrations/20251030_add_stage_key.sql` ✅ **(Phase A)**
+* `migrations/20251030_add_stage_check.sql` ✅ **(Phase C)** *(run only after verify)*
+* `grafana/dashboards/stage-normalization.json` ✅ **(panels)**
+* `grafana/alerts/stage-validation-alerts.yml` ✅ **(Alertmanager rules)**
+* `client/src/lib/stage-validation.ts` ✅ **(UI helpers, labels, error formatting)**
+* `tests/unit/normalize-stage.spec.ts` ✅
+* `tests/unit/parse-stage-distribution.spec.ts` ✅
+* `tests/integration/stage-api.spec.ts` ✅
+* `tests/perf/validate-benchmark.ts` ✅
+* `scripts/ci/forbid-freeform-stages.sh` ✅ **(grep guard)**
+
+### Modify
+
+* `server/routes/monte-carlo.ts` ✅ **(boundary parse + flag logic + metrics timing)**
+* `server/routes/portfolio-intelligence.ts` ✅ **(same as above)**
+* `server/routes/allocations.ts` ✅ **(same as above)**
+* `shared/schemas/index.ts` ✅ **(export new modules)**
+* `docs/api/openapi.yaml` ✅ **(standard error, examples, normalized shape)**
+* `docs/adr/ADR-011-stage-normalization-v2.md` ✅ **(shadow→enforce playbook)**
+* `CHANGELOG.md` ✅
+
+---
+
+## Feature Flags
+
+**`server/config/feature-flags.ts`**
+
+```ts
+export type ValidationMode = 'off' | 'warn' | 'enforce';
+
+export const STAGE_VALIDATION_MODE: ValidationMode =
+  (process.env.STAGE_VALIDATION_MODE as ValidationMode) || 'warn';
+```
+
+---
+
+## Canonicals, Normalization, Suggestions
+
+**`shared/schemas/investment-stages.ts`**
+
+```ts
+// Canonical stage keys (machine-stable); display labels can change without breaking DB/API.
+export const STAGE_KEYS = [
+  'pre_seed', 'seed', 'series_a', 'series_b', 'series_c', 'series_d_plus'
+] as const;
+
+export type StageKey = typeof STAGE_KEYS[number];
+
+export const DISPLAY_LABEL: Record<StageKey, string> = {
+  pre_seed: 'Pre-Seed',
+  seed: 'Seed',
+  series_a: 'Series A',
+  series_b: 'Series B',
+  series_c: 'Series C',
+  series_d_plus: 'Series D+',
+};
+
+// Unicode hyphen variants & cleanup
+const HYPHENS = /[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D-]+/g;
+const NON_ALNUM = /[^a-z0-9]+/g;
+
+// Observed aliases → canonical keys (expand as audit discovers more)
+const ALIASES: Record<string, StageKey> = {
+  'pre-seed': 'pre_seed', 'pre seed': 'pre_seed', 'pre_seed': 'pre_seed',
+  'pre–seed': 'pre_seed', 'pre-seed': 'pre_seed', 'preseed': 'pre_seed',
+  'seed': 'seed',
+  'series-a': 'series_a', 'series a': 'series_a', 'series_a': 'series_a',
+  'series-b': 'series_b', 'series b': 'series_b', 'series_b': 'series_b',
+  'series-c': 'series_c', 'series c': 'series_c', 'series_c': 'series_c',
+  'series-d+': 'series_d_plus', 'series d+': 'series_d_plus', 'series_d+': 'series_d_plus',
+  'd+': 'series_d_plus'
+};
+
+export function normalizeStage(input: string): StageKey | null {
+  if (typeof input !== 'string') return null;
+  const s = input
+    .normalize('NFKD')           // strip diacritics
+    .toLowerCase()
+    .replace(HYPHENS, '-')       // unify hyphens
+    .replace(NON_ALNUM, ' ')     // non-alnum → space
+    .replace(/\s+/g, ' ')        // collapse spaces
+    .trim()
+    .replace(/ /g, '-');         // spaces → hyphen
+
+  return ALIASES[s] ?? null;
+}
+
+// Simple Levenshtein for "did you mean" (short strings; fast enough)
+export function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  if (!m) return n; if (!n) return m;
+  const dp = new Array(n + 1);
+  for (let j = 0; j <= n; j++) dp[j] = j;
+  for (let i = 1; i <= m; i++) {
+    let prev = i - 1, cur = i;
+    for (let j = 1; j <= n; j++) {
+      const tmp = dp[j];
+      dp[j] = a[i - 1] === b[j - 1]
+        ? prev
+        : 1 + Math.min(prev, dp[j - 1], dp[j]);
+      prev = tmp;
+    }
+  }
+  return dp[n];
+}
+
+// Try to suggest nearest canonical key (distance threshold)
+export function nearestStage(input: string): StageKey | null {
+  const probe = input?.toLowerCase?.() ?? '';
+  let best: { key: StageKey; d: number } | null = null;
+  for (const key of STAGE_KEYS) {
+    const d = levenshtein(probe, key);
+    if (!best || d < best.d) best = { key, d };
+  }
+  return (best && best.d <= 3) ? best.key : null;
+}
+
+export const STAGE_LABELS: Array<{ key: StageKey; label: string }> =
+  STAGE_KEYS.map(key => ({ key, label: DISPLAY_LABEL[key] }));
+```
+
+---
+
+## Boundary Parser (normalize, fold, precise sum)
+
+**`shared/schemas/parse-stage-distribution.ts`**
+
+```ts
+import { z } from 'zod';
+import { normalizeStage, STAGE_KEYS, type StageKey, nearestStage } from './investment-stages';
+
+export type StageDistribution = Array<{ stage: string; weight: number }>;
+
+const BaseSchema = z.array(z.object({
+  stage: z.string(),
+  weight: z.number().min(0).max(1)
+}));
+
+export type NormalizedDistribution = Record<StageKey, number>;
+
+export type ParseResult = {
+  normalized: NormalizedDistribution;
+  invalidInputs: string[];
+  suggestions: Array<{ input: string; didYouMean: StageKey | null }>;
+  sum: number;
+};
+
+function foldAndValidate(arr: StageDistribution): ParseResult {
+  const map = new Map<StageKey, number>();
+  const invalid: string[] = [];
+  const suggestions: Array<{ input: string; didYouMean: StageKey | null }> = [];
+
+  for (const { stage, weight } of arr) {
+    const key = normalizeStage(stage);
+    if (!key) {
+      invalid.push(stage);
+      suggestions.push({ input: stage, didYouMean: nearestStage(stage) });
+      continue;
+    }
+    map.set(key, (map.get(key) ?? 0) + weight);
+  }
+  const normalized = Object.fromEntries(STAGE_KEYS.map(k => [k, 0])) as NormalizedDistribution;
+  for (const [k, v] of map.entries()) normalized[k] = v;
+
+  const sum = Object.values(normalized).reduce((a, b) => a + b, 0);
+  return { normalized, invalidInputs: invalid, suggestions, sum };
+}
+
+export function parseStageDistribution(input: unknown, eps = 1e-4): ParseResult {
+  const base = BaseSchema.parse(input); // throws ZodError if types out of bounds
+  const res = foldAndValidate(base);
+
+  // If unknown stages present, we allow WARN-mode flows to handle it; the caller may throw.
+  // Sum precision check: allow a tiny epsilon; callers decide whether to enforce.
+  if (Math.abs(res.sum - 1) > eps) {
+    // Callers can choose to reject or auto-scale (we recommend reject).
+  }
+  return res;
+}
+```
+
+---
+
+## Standard Error (factory) & Central Error Handling
+
+**`server/utils/stage-errors.ts`**
+
+```ts
+import type { StageKey } from '../../shared/schemas/investment-stages';
+
+export class InvalidStageError extends Error {
+  name = 'InvalidStageError';
+  status = 400;
+  payload: any;
+  constructor(invalid: string[], suggestions: Array<{input: string; didYouMean: StageKey | null}>, correlationId?: string) {
+    super('Unknown investment stage(s).');
+    this.payload = {
+      code: 'INVALID_STAGE',
+      message: 'Unknown investment stage(s).',
+      invalid,
+      suggestions,
+      validStages: ['pre_seed','seed','series_a','series_b','series_c','series_d_plus'],
+      correlationId
+    };
+  }
+}
+```
+
+**`server/middleware/error-handler.ts`**
+
+```ts
+import { ZodError } from 'zod';
+import { InvalidStageError } from '../utils/stage-errors';
+import { metrics } from '../observability/metrics';
+import type { Request, Response, NextFunction } from 'express';
+
+export function errorHandler(err: any, req: Request, res: Response, _next: NextFunction) {
+  const endpoint = req.route?.path || req.path;
+
+  if (err instanceof InvalidStageError) {
+    metrics.stageValidationTotal.inc({ endpoint, outcome: 'invalid' });
+    return res.status(err.status).json(err.payload);
+  }
+
+  if (err instanceof ZodError) {
+    metrics.stageValidationTotal.inc({ endpoint, outcome: 'invalid' });
+    return res.status(400).json({
+      code: 'INVALID_REQUEST',
+      message: 'Request failed validation.',
+      issues: err.issues,
+      correlationId: (req as any).correlationId
+    });
+  }
+
+  // fallthrough
+  return res.status(500).json({
+    code: 'INTERNAL',
+    message: 'Something went wrong.',
+    correlationId: (req as any).correlationId
+  });
+}
+```
+
+---
+
+## Correlation ID
+
+**`server/middleware/correlation-id.ts`**
+
+```ts
+import type { Request, Response, NextFunction } from 'express';
+import { randomUUID } from 'crypto';
+
+export function correlationId(req: Request, _res: Response, next: NextFunction) {
+  const incoming = req.header('x-request-id');
+  (req as any).correlationId = incoming || randomUUID();
+  next();
+}
+```
+
+---
+
+## Low-Cardinality Metrics
+
+**`server/observability/metrics.ts`**
+
+```ts
+import client from 'prom-client';
+
+const register = client.register;
+
+const stageValidationTotal = new client.Counter({
+  name: 'stage_validation_total',
+  help: 'Stage validation events',
+  labelNames: ['endpoint', 'outcome'] as const // ok | invalid
+});
+
+const stageInvalidTotal = new client.Counter({
+  name: 'stage_invalid_total',
+  help: 'Invalid stage bucket',
+  labelNames: ['endpoint', 'bucket'] as const // known_alias | unknown
+});
+
+const stageValidationDuration = new client.Histogram({
+  name: 'stage_validation_duration_seconds',
+  help: 'Validation duration',
+  labelNames: ['endpoint'] as const,
+  buckets: [0.0001, 0.0005, 0.001, 0.005, 0.01] // 0.1ms → 10ms
+});
+
+export const metrics = {
+  stageValidationTotal,
+  stageInvalidTotal,
+  stageValidationDuration,
+  register
+};
+```
+
+> Expose `/metrics` elsewhere in your app (already present per your plan).
+
+---
+
+## API Routes (boundary parse + feature flag + metrics)
+
+**Pattern**
+
+* Parse incoming distribution with `parseStageDistribution` (fast).
+* Measure `stageValidationDuration`.
+* If invalid inputs and mode=`warn`: log & pass; if mode=`enforce`: throw `InvalidStageError`.
+* Business logic receives **normalized** record only.
+
+**`server/routes/monte-carlo.ts` (excerpt)**
+
+```ts
+import { Router } from 'express';
+import { STAGE_VALIDATION_MODE } from '../config/feature-flags';
+import { parseStageDistribution } from '../../shared/schemas/parse-stage-distribution';
+import { InvalidStageError } from '../utils/stage-errors';
+import { metrics } from '../observability/metrics';
+import { stageValidationAudit } from '../utils/logger';
+
+const router = Router();
+
+router.post('/api/monte-carlo', (req, res, next) => {
+  const endpoint = '/api/monte-carlo';
+  const timer = metrics.stageValidationDuration.startTimer({ endpoint });
+
+  try {
+    const { normalized, invalidInputs, suggestions, sum } =
+      parseStageDistribution(req.body?.stageDistribution);
+
+    if (invalidInputs.length) {
+      metrics.stageInvalidTotal.inc({ endpoint, bucket: 'unknown' });
+      stageValidationAudit.warn('Invalid stage(s) detected', {
+        invalidInputs, suggestions, correlationId: (req as any).correlationId
+      });
+
+      if (STAGE_VALIDATION_MODE === 'enforce') {
+        throw new InvalidStageError(invalidInputs, suggestions, (req as any).correlationId);
+      }
+      // warn/off → proceed; business logic still uses normalized keys for known entries
+    }
+
+    // Enforce precise sum in enforce mode; warn otherwise
+    const eps = 1e-4;
+    if (Math.abs(sum - 1) > eps) {
+      if (STAGE_VALIDATION_MODE === 'enforce') {
+        throw new InvalidStageError(['weights_sum'], [{ input: 'sum!=1', didYouMean: null }], (req as any).correlationId);
+      }
+    }
+
+    metrics.stageValidationTotal.inc({ endpoint, outcome: 'ok' });
+    timer();
+
+    // --- Business logic below consumes `normalized` only ---
+    // const result = runSimulation({ stageWeights: normalized, ... });
+    return res.json({ ok: true /*, result*/ });
+  } catch (err) {
+    timer();
+    return next(err);
+  }
+});
+
+export default router;
+```
+
+**Apply the same boundary pattern to:**
+
+* `server/routes/portfolio-intelligence.ts`
+* `server/routes/allocations.ts`
+
+(Import the same helpers; always return normalized keys downstream.)
+
+---
+
+## Audit Logger (Winston)
+
+**`server/utils/logger.ts` (extend)**
+
+```ts
+import { createLogger, transports, format } from 'winston';
+
+export const stageValidationAudit = createLogger({
+  level: 'warn',
+  transports: [
+    new transports.File({ filename: 'logs/audit.log' })
+  ],
+  format: format.combine(
+    format.timestamp(),
+    format.json()
+  )
+});
+
+// Example usage:
+// stageValidationAudit.warn('Invalid stage(s) detected', { invalidInputs, suggestions, correlationId });
+```
+
+---
+
+## Database Migrations
+
+**Phase A — add canonical column (dual write)**
+**`migrations/20251030_add_stage_key.sql`**
+
+```sql
+-- Add new canonical column (TEXT), keep legacy raw column
+ALTER TABLE portfolio_companies ADD COLUMN IF NOT EXISTS stage_key TEXT;
+ALTER TABLE portfolio_intelligence ADD COLUMN IF NOT EXISTS stage_key TEXT;
+
+-- Optional: add raw column if missing for audit trail
+ALTER TABLE portfolio_companies ADD COLUMN IF NOT EXISTS stage_raw TEXT;
+ALTER TABLE portfolio_intelligence ADD COLUMN IF NOT EXISTS stage_raw TEXT;
+
+-- No CHECK constraints yet. App will start dual-writing in Week 2.
+```
+
+**Phase C — constraints (only after 100% backfill verified)**
+**`migrations/20251030_add_stage_check.sql`**
+
+```sql
+ALTER TABLE portfolio_companies
+  ADD CONSTRAINT portfolio_companies_stage_key_chk
+  CHECK (stage_key IN ('pre_seed','seed','series_a','series_b','series_c','series_d_plus'));
+
+ALTER TABLE portfolio_intelligence
+  ADD CONSTRAINT portfolio_intelligence_stage_key_chk
+  CHECK (stage_key IN ('pre_seed','seed','series_a','series_b','series_c','series_d_plus'));
+```
+
+> Prefer `CHECK` or a small ref table over ENUMs for evolvability.
+
+---
+
+## Database Audit Script (dry-run / apply)
+
+**`scripts/audit-invalid-stages.ts`**
+
+```ts
+#!/usr/bin/env ts-node
+
+import fs from 'fs';
+import path from 'path';
+import { Client } from 'pg';
+import { normalizeStage, STAGE_KEYS, type StageKey } from '../shared/schemas/investment-stages';
+
+type Target = { table: string; idCol: string; rawCol: string; keyCol: string };
+
+const TARGETS: Target[] = [
+  { table: 'portfolio_companies', idCol: 'id', rawCol: 'stage_raw', keyCol: 'stage_key' },
+  { table: 'portfolio_intelligence', idCol: 'id', rawCol: 'stage_raw', keyCol: 'stage_key' }
+];
+
+const APPLY = process.argv.includes('--apply');
+const CSV = process.argv.includes('--csv') ? process.argv[process.argv.indexOf('--csv') + 1] : `audit_stages_${Date.now()}.csv`;
+
+async function main() {
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  await client.connect();
+
+  const rowsOut: string[] = ['table,id,stage_raw,stage_key,decision'];
+  let total = 0, unknown = 0, updated = 0;
+
+  for (const t of TARGETS) {
+    const { rows } = await client.query(`SELECT ${t.idCol} AS id, ${t.rawCol} AS stage_raw, ${t.keyCol} AS stage_key FROM ${t.table}`);
+    for (const r of rows) {
+      total++;
+      const raw = (r.stage_raw ?? r.stage_key ?? '').toString();
+      const key = normalizeStage(raw);
+      if (!key) {
+        unknown++;
+        rowsOut.push(`${t.table},${r.id},"${raw.replaceAll('"','""')}",,unknown`);
+      } else {
+        rowsOut.push(`${t.table},${r.id},"${raw.replaceAll('"','""')}",${key},normalize`);
+        if (APPLY) {
+          await client.query(`UPDATE ${t.table} SET ${t.keyCol} = $1 WHERE ${t.idCol} = $2`, [key, r.id]);
+          updated++;
+        }
+      }
+    }
+  }
+
+  fs.writeFileSync(path.resolve(CSV), rowsOut.join('\n'), 'utf8');
+  console.log(`Scanned: ${total}, Unknown: ${unknown}, Updated: ${updated}, Output: ${CSV}`);
+
+  await client.end();
+}
+
+main().catch(err => { console.error(err); process.exit(1); });
+```
+
+* **Dry-run**: `ts-node scripts/audit-invalid-stages.ts`
+* **Apply**: `ts-node scripts/audit-invalid-stages.ts --apply --csv audit.csv`
+
+---
+
+## Grafana Dashboard & Alerts
+
+**`grafana/dashboards/stage-normalization.json`** (minimal stub)
+
+```json
+{
+  "title": "Stage Normalization",
+  "panels": [
+    { "type": "timeseries", "title": "Validation Duration (p95)",
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(stage_validation_duration_seconds_bucket[5m])) by (le))" }] },
+    { "type": "timeseries", "title": "Stage Validation Outcome",
+      "targets": [{ "expr": "sum(rate(stage_validation_total[5m])) by (outcome)" }] },
+    { "type": "barchart", "title": "Invalid Bucket by Endpoint",
+      "targets": [{ "expr": "sum(rate(stage_invalid_total[5m])) by (endpoint,bucket)" }] }
+  ]
+}
+```
+
+**`grafana/alerts/stage-validation-alerts.yml`**
+
+```yaml
+alerts:
+  - name: High Stage Validation Error Rate
+    condition: sum(rate(stage_validation_total{outcome="invalid"}[5m])) > 10
+    severity: warning
+    message: "Stage validation errors >10/5m."
+    notify: "#engineering-alerts"
+
+  - name: Critical Stage Validation Error Rate
+    condition: sum(rate(stage_validation_total{outcome="invalid"}[5m])) > 50
+    severity: critical
+    message: "Stage validation errors >50/5m. Possible breaking change."
+    notify: "#engineering-oncall"
+
+  - name: Validation Overhead Exceeds Threshold
+    condition: histogram_quantile(0.99, sum(rate(stage_validation_duration_seconds_bucket[5m])) by (le)) > 0.001
+    severity: warning
+    message: "Validation overhead >1ms p99."
+    notify: "#engineering-performance"
+```
+
+---
+
+## Client Utilities
+
+**`client/src/lib/stage-validation.ts`**
+
+```ts
+import type { StageKey } from '../../shared/schemas/investment-stages';
+import { STAGE_LABELS } from '../../shared/schemas/investment-stages';
+
+export const VALID_STAGE_LABELS = STAGE_LABELS;
+
+export function formatStageError(err: any): string {
+  if (err?.code === 'INVALID_STAGE') {
+    const list = (err.invalid || []).map((s: string) => `"${s}"`).join(', ');
+    return `Unknown stage(s): ${list}. Valid: ${VALID_STAGE_LABELS.map(x => x.label).join(', ')}.`;
+  }
+  return 'Stage validation failed.';
+}
+
+// optional convenience for UI inputs
+export function validateStageInput(stage: string): { ok: boolean; key?: StageKey; msg?: string } {
+  // In UI we may call to a lightweight normalize mirror (or ask the server)
+  // For simplicity, rely on server for source-of-truth. Here return ok=true and let server validate.
+  return { ok: true };
+}
+```
+
+---
+
+## OpenAPI (error + example excerpt)
+
+**`docs/api/openapi.yaml`** *(excerpt)*
+
+```yaml
+components:
+  schemas:
+    StageItem:
+      type: object
+      required: [stage, weight]
+      properties:
+        stage: { type: string, example: "Pre-Seed" }
+        weight: { type: number, minimum: 0, maximum: 1, example: 0.35 }
+
+    StageDistributionRequest:
+      type: array
+      items: { $ref: '#/components/schemas/StageItem' }
+
+    InvalidStageError:
+      type: object
+      required: [code, message, invalid, validStages, correlationId]
+      properties:
+        code: { type: string, example: INVALID_STAGE }
+        message: { type: string }
+        invalid:
+          type: array
+          items: { type: string }
+        suggestions:
+          type: array
+          items:
+            type: object
+            properties:
+              input: { type: string }
+              didYouMean: { type: string, nullable: true, example: series_a }
+        validStages:
+          type: array
+          items: { type: string, enum: [pre_seed, seed, series_a, series_b, series_c, series_d_plus] }
+        correlationId: { type: string }
+
+paths:
+  /api/monte-carlo:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StageDistributionRequest' }
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid Stage
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InvalidStageError' }
+```
+
+---
+
+## CI Guard (forbid new hard-coded stages outside schema)
+
+**`scripts/ci/forbid-freeform-stages.sh`**
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Allowlist: only in shared/schemas/investment-stages.ts (source of truth)
+FORBIDDEN_REGEX='pre-?seed|series[[:space:]]*[a-d]\+?'
+
+violations=$(git grep -nE "$FORBIDDEN_REGEX" -- \
+  ':!shared/schemas/investment-stages.ts' \
+  ':!docs' \
+  ':!CHANGELOG.md' || true)
+
+if [[ -n "$violations" ]]; then
+  echo "❌ Found hard-coded stage strings outside schema:"
+  echo "$violations"
+  exit 1
+fi
+
+echo "✅ No forbidden stage strings found."
+```
+
+---
+
+## Tests
+
+**`tests/unit/normalize-stage.spec.ts`**
+
+```ts
+import { describe, it, expect } from 'vitest';
+import { normalizeStage } from '../../shared/schemas/investment-stages';
+
+describe('normalizeStage', () => {
+  it('handles hyphen variants and whitespace', () => {
+    expect(normalizeStage('Pre–Seed')).toBe('pre_seed');
+    expect(normalizeStage(' pre  seed ')).toBe('pre_seed');
+  });
+
+  it('handles case and punctuation', () => {
+    expect(normalizeStage('SERIES A')).toBe('series_a');
+    expect(normalizeStage('Series-A')).toBe('series_a');
+  });
+
+  it('returns null for unknown', () => {
+    expect(normalizeStage('pre-growth')).toBeNull();
+  });
+});
+```
+
+**`tests/unit/parse-stage-distribution.spec.ts`**
+
+```ts
+import { describe, it, expect } from 'vitest';
+import { parseStageDistribution } from '../../shared/schemas/parse-stage-distribution';
+
+describe('parseStageDistribution', () => {
+  it('folds duplicates and validates sum', () => {
+    const { normalized, sum } = parseStageDistribution([
+      { stage: 'Pre-Seed', weight: 0.2 },
+      { stage: 'pre seed', weight: 0.3 },
+      { stage: 'Series A', weight: 0.5 }
+    ]);
+    expect(normalized.pre_seed).toBeCloseTo(0.5, 6);
+    expect(normalized.series_a).toBeCloseTo(0.5, 6);
+    expect(sum).toBeCloseTo(1.0, 6);
+  });
+
+  it('collects invalid inputs and suggestions', () => {
+    const res = parseStageDistribution([{ stage: 'presead', weight: 1 }]);
+    expect(res.invalidInputs).toContain('presead');
+    expect(res.suggestions[0].didYouMean).toBeTruthy();
+  });
+});
+```
+
+**`tests/integration/stage-api.spec.ts`** *(sketch)*
+
+```ts
+import request from 'supertest';
+import { describe, it, expect } from 'vitest';
+import app from '../../server/app';
+
+describe('Stage boundary parsing', () => {
+  it('returns 400 in ENFORCE mode for invalid stage', async () => {
+    process.env.STAGE_VALIDATION_MODE = 'enforce';
+    const res = await request(app).post('/api/monte-carlo').send([
+      { stage: 'presead', weight: 1 }
+    ]);
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('INVALID_STAGE');
+  });
+
+  it('returns 200 in WARN mode for invalid stage', async () => {
+    process.env.STAGE_VALIDATION_MODE = 'warn';
+    const res = await request(app).post('/api/monte-carlo').send([
+      { stage: 'presead', weight: 1 }
+    ]);
+    expect(res.status).toBe(200);
+  });
+});
+```
+
+**`tests/perf/validate-benchmark.ts`** *(micro-bench harness)*
+
+```ts
+import autocannon from 'autocannon';
+
+(async () => {
+  const result = await autocannon({
+    url: 'http://localhost:3000/api/monte-carlo',
+    method: 'POST',
+    connections: 20,
+    duration: 20,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify([
+      { stage: 'Pre-Seed', weight: 0.5 },
+      { stage: 'Series A', weight: 0.5 }
+    ])
+  });
+  console.log(result.latency);
+})();
+```
+
+---
+
+## Runbook — Shadow → Enforce
+
+### Week 0 — Baseline (½ day)
+
+```bash
+# Baseline perf (before code changes)
+npm run bench:api -- --endpoint=/api/monte-carlo --iterations=10000
+# Record p50/p95
+```
+
+* Add histogram `stage_validation_duration_seconds`.
+* Import dashboard JSON and alert rules.
+
+### Week 1 — Audit first, then WARN mode
+
+1. **DB audit (dry-run):**
+
+   ```bash
+   ts-node scripts/audit-invalid-stages.ts --csv audit_prelim.csv
+   ```
+
+   * Review top unknowns. Expand `ALIASES` accordingly.
+2. Ship code with `STAGE_VALIDATION_MODE=warn` (prod).
+3. Monitor dashboard + alerts; iterate aliases for top offenders.
+
+### Week 2 — Data backfill & clients
+
+1. **Backups (required):**
+
+   ```bash
+   pg_dump updog_db > backups/updog_db_$(date +%Y%m%d_%H%M%S).sql
+   pg_dump -t portfolio_companies updog_db > backups/portfolio_companies_$(date +%Y%m%d).sql
+   pg_dump -t portfolio_intelligence updog_db > backups/portfolio_intelligence_$(date +%Y%m%d).sql
+   ```
+2. **Backfill apply (dual write active):**
+
+   ```bash
+   ts-node scripts/audit-invalid-stages.ts --apply --csv audit_apply.csv
+   ```
+3. UI: switch to controlled select; show suggestions on paste.
+4. Regenerate clients from OpenAPI; run CDC tests.
+
+### Week 3 — Enforce & lock
+
+1. **Canary** `STAGE_VALIDATION_MODE=enforce` in staging → small prod slice.
+
+   * Rollback condition: invalid rate > 5% in 10 minutes **or** p99 validation > 1ms for 10 minutes.
+2. **Constraints** only after 100% `stage_key` verified:
+
+   ```bash
+   psql updog_db -f migrations/20251030_add_stage_check.sql
+   ```
+3. Cleanup: keep `stage_raw` for audit period; then archive/drop.
+
+### Rollback
+
+* High invalid rate or perf regression → flip to `warn`.
+* Data issues → restore table backup(s), fix alias, re-run backfill.
+
+---
+
+## Backup & Post-Migration Validation
+
+**Validation queries**
+
+```sql
+-- Row counts stable
+SELECT COUNT(*) FROM portfolio_intelligence;
+
+-- No NULL canonical keys after backfill
+SELECT COUNT(*) FROM portfolio_intelligence WHERE stage_key IS NULL;
+
+-- All keys in canonical list (pre-constraint)
+SELECT stage_key, COUNT(*) FROM portfolio_intelligence GROUP BY stage_key;
+```
+
+**Full restore (if needed)**
+
+```bash
+psql updog_db < backups/updog_db_YYYYMMDD_HHMMSS.sql
+```
+
+---
+
+## Notes on Performance & Cardinality
+
+* Validation path is pure string ops; histogram buckets prove **p99 ≤ 1 ms** target.
+* Prom labels are limited to `{endpoint,outcome}` and `{endpoint,bucket}` to avoid cardinality blowups.
+* Raw user strings live **only in logs** (truncate/harden if volume spikes).
+
+---

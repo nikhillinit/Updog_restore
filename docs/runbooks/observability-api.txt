@@ -1,0 +1,353 @@
+Observability & API Runbook
+## 0) Scope & ownership
+
+This runbook covers stage‐validation observability (Prometheus metrics, alerts, dashboards) and API contract (OpenAPI headers + error schema) for the three endpoints that accept stage inputs and must behave consistently across modes `off|warn|enforce` (verified by your cross-endpoint tests) :
+
+* `GET /api/funds/:fundId/companies` (query param)
+* `POST /api/monte-carlo/simulate` (array input)
+* `POST /api/portfolio/strategies` (object input)
+
+It assumes the integration test harness that boots the API on port **3333** and probes `GET /healthz` (see test setup) .
+
+---
+
+## 1) Prereqs & config flags
+
+* **Mode flag:** `STAGE_VALIDATION_MODE=off|warn|enforce` (tests flip this env var per suite)  .
+* **Canonical header names in tests:** `x-stage-deprecated-variants`, `x-stage-sunset`, and `x-stage-docs` must be set in **warn** mode and absent in **off**, with **400**s in **enforce** for invalid stages (see endpoint tests)  .
+* **Known stages list:** includes `"series-c+"` and must be returned in `details.validStages` on errors (array inputs) .
+
+---
+
+## 2) Metrics & instrumentation
+
+### 2.1 Metrics to expose (Prometheus)
+
+Expose a **/metrics** endpoint and publish these series (keep label sets **bounded**):
+
+* `stage_normalization_duration_seconds` (Histogram)
+  **labels:**
+  `endpoint` (templated route, e.g. `/api/portfolio/strategies`),
+  `mode` (`off|warn|enforce`),
+  `input_type` (`query|array|object`),
+  `cardinality` (bucketed `'1'|'2-5'|'6-10'|'11+'|'unknown'`)
+
+  > Note: **Bucket** the `cardinality` label to avoid TSDB blow-ups. Do **not** emit raw stage counts (7, 9, 11, …).
+
+* `stage_validation_validations_total` (Counter)
+  **labels:** `endpoint`, `mode`, `input_type`, `result` (**`ok|warn|reject`**)
+  Set `result='warn'` **only** when you actually emit the deprecation header (see §4.2).
+
+* `stage_validation_errors_total` (Counter)
+  **labels:** `endpoint`, `mode`, `error_code` (e.g., `INVALID_STAGE_DISTRIBUTION`, `INVALID_STAGE`)
+
+* `stage_deprecation_header_emitted_total` (Counter)
+  **labels:** `endpoint`, `mode`, `input_type`
+
+**Keep existing wrapper hooks** that your tests already spy on:
+
+* `recordValidationDuration`, `recordValidationSuccess`, `recordUnknownStage` (imported from `server/observability/stage-metrics`) so tests remain green while you migrate under the hood to Prometheus  .
+
+### 2.2 Implementation notes
+
+* Start a timer around the normalization call; stop in a `finally` block and increment the appropriate counters (`result='warn'` only when headers are emitted in warn mode).
+* Template `endpoint` labels (no IDs) to avoid high cardinality.
+* Consider adding a static `version` label via a registry wrapper for release correlation.
+
+---
+
+## 3) Prometheus alerting (final rules)
+
+> Save as `prometheus/alerts/stage-normalization.yml`.
+
+```yaml
+groups:
+- name: stage-normalization
+  rules:
+  # 3.1 Error ratio (>1% for 15m)
+  - record: job:stage_validation_error_ratio:rate5m
+    expr: |
+      sum(rate(stage_validation_errors_total[5m]))
+      /
+      clamp_min(sum(rate(stage_validation_validations_total[5m])), 1)
+
+  - alert: StageValidationHighErrorRate
+    expr: job:stage_validation_error_ratio:rate5m > 0.01
+    for: 15m
+    labels: { severity: page, team: platform, feature: stage-validation }
+    annotations:
+      summary: "Stage validation error ratio >1% (15m)"
+      description: "Check error_code mix and latest deploys. See runbook."
+
+  # 3.2 p99 function latency (>5ms for 10m)
+  - record: job:stage_normalization_p99_seconds:rate5m
+    expr: |
+      histogram_quantile(
+        0.99,
+        sum by (le) (rate(stage_normalization_duration_seconds_bucket[5m]))
+      )
+
+  - alert: StageNormalizationLatencyRegressed
+    expr: job:stage_normalization_p99_seconds:rate5m > 0.005
+    for: 10m
+    labels: { severity: page, team: platform, feature: stage-validation }
+    annotations:
+      summary: "Stage normalization p99 > 5ms (10m)"
+      description: "Perf regression vs baseline thresholds."
+
+  # 3.3 Deprecation header emission ratio in WARN mode
+  #    (headers) / (validations that SHOULD emit) < 99% for 15m
+  - alert: DeprecationHeaderMissingInWarnMode
+    expr: |
+      (
+        sum by (endpoint, mode) (rate(stage_deprecation_header_emitted_total[10m]))
+        /
+        clamp_min(
+          sum by (endpoint, mode) (rate(stage_validation_validations_total{mode="warn", result="warn"}[10m])),
+          1
+        )
+      ) < 0.99
+      and
+      sum by (endpoint, mode) (rate(stage_validation_validations_total{mode="warn", result="warn"}[10m])) > 0
+    for: 15m
+    labels: { severity: warn, team: platform }
+    annotations:
+      summary: "Deprecation headers missing in WARN mode (<99%)"
+      description: "Investigate header middleware and mode/config."
+```
+
+> **Why the denominator is `result="warn"`**: only requests that actually had deprecations should have emitted headers. Using `result="ok"` would create false positives when requests are clean (no deprecated variants).
+
+---
+
+## 4) Dashboards (Grafana quick spec)
+
+* **Overview (single-stat + sparkline):** error ratio = `sum(rate(stage_validation_errors_total[5m])) / clamp_min(sum(rate(stage_validation_validations_total[5m])),1)`
+* **Latency graph:** p50/p95/p99 from `stage_normalization_duration_seconds_bucket` (break down by `endpoint` and `cardinality`)
+* **Header integrity:** `(rate(stage_deprecation_header_emitted_total[10m])) / clamp_min(rate(stage_validation_validations_total{mode="warn",result="warn"}[10m]),1)`
+* **Error taxonomy (table):** `sum(rate(stage_validation_errors_total[5m])) by (error_code)`
+
+---
+
+## 5) OpenAPI additions (current contract)
+
+Your tests expect custom **`x-`** headers in **warn** mode and structured errors in **enforce**. Align OpenAPI with what’s tested today; you can document a future migration to RFC `Deprecation`/`Sunset` headers later.
+
+### 5.1 Headers (present in **warn** mode)
+
+Define these reusable headers and apply to **200/201** responses:
+
+```yaml
+components:
+  headers:
+    X-Stage-Deprecated-Variants:
+      description: Comma-separated list of deprecated or unknown stage variants observed in the request.
+      schema: { type: string }
+    X-Stage-Sunset:
+      description: ISO 8601 datetime when deprecated variants will be rejected.
+      schema: { type: string, format: date-time }
+    X-Stage-Docs:
+      description: Documentation URL for stage normalization policy.
+      schema: { type: string, format: uri }
+```
+
+Tests assert these headers exist in **warn** for both array and object inputs (simulate & strategies) and **not** in **off**; **enforce** fails with 400 (see suite expectations)  .
+
+### 5.2 Error schemas (present in **enforce**)
+
+**Array input (`POST /api/monte-carlo/simulate`)** must 400 with:
+
+```yaml
+components:
+  schemas:
+    StageDistributionError:
+      type: object
+      required: [error, message, details, correlationId]
+      properties:
+        error:
+          type: string
+          enum: [INVALID_STAGE_DISTRIBUTION]
+        message: { type: string }
+        details:
+          type: object
+          properties:
+            invalid:
+              type: array
+              items: { type: string }
+            suggestions:
+              type: object
+              additionalProperties:
+                type: array
+                items: { type: string }
+            validStages:
+              type: array
+              items:
+                type: string
+                enum: [pre-seed, seed, series-a, series-b, series-c, series-c+]
+        correlationId: { type: string }
+```
+
+(Your test asserts `error: "INVALID_STAGE_DISTRIBUTION"`, `details.invalid[...]`, and `validStages` including `"series-c+"`, plus a `correlationId`) .
+
+**Object input (`POST /api/portfolio/strategies`)** must 400 with:
+
+```yaml
+components:
+  schemas:
+    StageAllocationError:
+      type: object
+      required: [error, message, details]
+      properties:
+        error:
+          type: string
+          enum: [Invalid stage allocation]
+        message: { type: string }
+        details:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [INVALID_STAGE]
+            invalid:
+              type: array
+              items: { type: string }
+            suggestions:
+              type: object
+              additionalProperties:
+                type: array
+                items: { type: string }
+            validStages:
+              type: array
+              items:
+                type: string
+                enum: [pre-seed, seed, series-a, series-b, series-c, series-c+]
+```
+
+(Your test expects `error: "Invalid stage allocation"`, `details.code: "INVALID_STAGE"`, with `invalid`, `suggestions`, and `validStages`) .
+
+> Apply these schemas to the 400 responses of both endpoints; in **warn** they return success + `x-` headers (confirmed in tests for both object and array inputs)  . Cross-endpoint parity is also validated for suggestions and consistent 400s in enforce mode .
+
+---
+
+## 6) Verification plan (CI + smoke)
+
+1. **Server health & port:** test harness starts app on **3333** and waits for `GET /healthz` to be **200 OK** before running suites (no coupling to DB writes) .
+2. **Cross-endpoint parity:** invalid typo and canonical stage cases produce identical outcomes across all 3 endpoints per mode (tests already cover) .
+3. **Warn headers:** assert `x-stage-deprecated-variants` (+ `x-stage-sunset`, `x-stage-docs`) present in warn mode for both object and array inputs; absent in off (tests present)  .
+4. **Enforce errors:** assert 400 body schemas as above (tests present)  .
+5. **Metrics smoke:** add a light test that hits `/metrics` and checks presence of the four series; your suite already spies wrappers (`recordValidationDuration`, etc.) on both endpoints  .
+
+---
+
+## 7) Rollout & rollback
+
+**Phases**
+
+1. **Staging – WARN**: set `STAGE_VALIDATION_MODE=warn`. Confirm:
+
+   * Error ratio < 1%
+   * Header emission ratio ≥ 99% (see §3.3)
+   * p99 ≤ 5ms @ 10-stage cardinality
+2. **Prod canary – WARN**: deploy to a small slice; watch alerts 24–48h.
+3. **Prod – ENFORCE (one endpoint)**: flip only `POST /api/portfolio/strategies`. Confirm 400 schema & error code mix.
+4. **Prod – ENFORCE (all endpoints)**: flip the remaining two in a single release window.
+
+**Rollback**
+Set `STAGE_VALIDATION_MODE=warn` and redeploy; verify warn headers present again (tests demonstrate mode switching changes behavior globally) .
+
+---
+
+## 8) On-call triage playbook
+
+* **Alert: High error rate**
+
+  1. Check `error_code` breakdown from `stage_validation_errors_total`.
+  2. Sample requests via logs/correlationId when available (array endpoint includes `correlationId` in 400s) .
+  3. If surge is from bad inputs, post guidance URL from `X-Stage-Docs`.
+
+* **Alert: Latency regressed**
+
+  1. Slice `stage_normalization_duration_seconds` by `endpoint` and `cardinality`.
+  2. Confirm recent deploys; roll back if needed; consider widening histo buckets only if genuine baseline shifted.
+
+* **Alert: Missing headers in WARN**
+
+  1. Confirm `result='warn'` is set when emitting headers (denominator logic).
+  2. Check mode flag and header middleware order.
+  3. Inspect any conditional shortcuts (early 200s) that bypass middleware.
+
+---
+
+## 9) Change management notes
+
+* **Label cardinality:** strictly use `cardinality` buckets: `'1'|'2-5'|'6-10'|'11+'|'unknown'`. Never emit raw numbers.
+* **Endpoint labels:** always use **templated** routes (no IDs) to avoid high‐cardinality series.
+* **Headers migration (future):** you may later add standard `Deprecation`/`Sunset` alongside `x-stage-*` for a deprecation window; tests currently assert `x-` headers in warn mode  .
+
+---
+
+## 10) Quick reference (per endpoint)
+
+* **GET /api/funds/:fundId/companies**
+
+  * Enforce invalid → 400 with consistent structure; Warn → success + headers; Off → passthrough (parity test) .
+
+* **POST /api/monte-carlo/simulate**
+
+  * `stageDistribution` is optional; Enforce invalid → `INVALID_STAGE_DISTRIBUTION`; Warn → success + headers; Off → success (tests) .
+
+* **POST /api/portfolio/strategies**
+
+  * Enforce invalid → `error: "Invalid stage allocation"`, `details.code: "INVALID_STAGE"`; Warn → success + headers; Off → success (tests) .
+
+---
+
+## 11) Operational checklists
+
+**Pre-deploy**
+
+* [ ] Mode set to `warn` in staging
+* [ ] `/metrics` reachable; four series present
+* [ ] Dashboards imported; alerts loaded
+* [ ] Cross-endpoint smoke (typo + canonical) pass in staging 
+
+**Post-deploy**
+
+* [ ] Header emission ≥ 99% in WARN (10–30 min)
+* [ ] Error ratio < 1%; latency p99 within guardrails
+* [ ] No unexpected 400s in access logs
+
+---
+
+## 12) Appendix
+
+**Curl sanity (WARN)**
+
+```bash
+# Object input
+curl -i -X POST "$BASE/api/portfolio/strategies?fundId=1" \
+  -H "Authorization: Bearer test-token" \
+  -d '{"strategyName":"Warn","modelType":"conservative","stageAllocation":{"early":30,"late":70}}'
+# Expect: 201 + x-stage-deprecated-variants / x-stage-sunset / x-stage-docs (tests assert these)  :contentReference[oaicite:32]{index=32}
+```
+
+**Curl sanity (ENFORCE)**
+
+```bash
+# Array input
+curl -i -X POST "$BASE/api/monte-carlo/simulate" \
+  -d '{"fundId":1,"runs":1000,"stageDistribution":[{"stage":"unknown-stage","weight":1.0}]}'
+# Expect: 400 with error=INVALID_STAGE_DISTRIBUTION + details.invalid + validStages incl. "series-c+"  :contentReference[oaicite:33]{index=33}
+```
+
+**Test harness facts**
+
+* Server port **3333**, `GET /healthz` readiness probed before tests run .
+
+---
+
+### One-liners you can paste into the repo
+
+* **Alerts:** drop the YAML from §3 into `prometheus/alerts/stage-normalization.yml`.
+* **OpenAPI:** add headers and error schemas from §5 to your spec; apply to the three endpoints with per-mode behavior documented.
+* **Metrics:** instrument as in §2 and keep wrapper functions (`recordValidation*`) so the existing suites continue to pass (they spy these symbols today)  .

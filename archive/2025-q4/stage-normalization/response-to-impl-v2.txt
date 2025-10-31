@@ -1,0 +1,381 @@
+
+
+**A. “Internal‑only API” assumption is unvalidated.**
+*Push‑back:* The “internal‑only” scope is **explicitly documented** as a key decision in your Phase 2 Stage Normalization handoff (no external consumers; rely on CI guards, in‑band headers, `/api/deprecations`, and shared module import paths). That’s not a silent assumption; it’s an approved constraint for v3 to keep rollout surface area small. That said, we should **verify** there are truly no external consumers before enforcement (see Plan §Pre‑flight Consumer Audit), but the v3 design is not “naive”—it matches the declared scope. 
+
+**B. Test/perf duplication concerns.**
+*Push‑back:* Agreed in spirit, but you already designed the Stage Normalization perf spec as a **small micro‑benchmark** focused on boundary validation latency, which is distinct from the existing large‑array Monte Carlo perf test. We **won’t duplicate**; we’ll implement a tiny, focused micro‑benchmark so we can hold a p99 budget for the **validator path only**, not for the Monte Carlo kernels. (See Plan §Testing.)
+
+**C. Phase naming “adds confusion.”**
+*Push‑back:* Your handoff already used **Phases 1–6** and calls out what’s done vs. what remains (1–3 done; 4–6 remaining). We’ll keep that scheme and update the day numbering to reflect “Day 3+” reality; no renaming is needed. 
+
+**D. NotebookLM “over‑engineering.”**
+*Push‑back:* We’re not proposing heavy calibration sets right now. The plan keeps a **simple gate**—≥92% LLM‑as‑Judge score **plus** a brief human checklist—precisely to avoid overhead while still preventing drift. That’s the “smallest useful thing” to ensure your NotebookLM sources remain trustworthy and don’t get deprioritized.
+
+---
+
+## 2) Where the feedback is right—and what we’ll change
+
+The review surfaced several **real risks**. I’m integrating the following improvements immediately:
+
+### 2.1 Multi‑instance state (mode sync) — **fix**
+
+Your current in‑memory override would diverge across pods. We’ll add a Redis‑backed mode store (with pub/sub) and keep env‑var default for dev.
+
+```ts
+// server/lib/stage-validation-mode.ts
+import { createClient } from 'redis';
+
+type Mode = 'off' | 'warn' | 'enforce';
+const DEFAULT_MODE: Mode = (process.env.STAGE_VALIDATION_MODE as Mode) || 'warn';
+
+const redis = createClient({ url: process.env.REDIS_URL });
+await redis.connect();
+
+const KEY = 'stage:validation:mode';
+
+export async function getStageValidationMode(): Promise<Mode> {
+  const v = (await redis.get(KEY)) as Mode | null;
+  return v ?? DEFAULT_MODE;
+}
+export async function setStageValidationMode(next: Mode) {
+  if (!['off', 'warn', 'enforce'].includes(next)) {
+    throw new Error(`Invalid mode: ${next}`);
+  }
+  await redis.set(KEY, next);
+  await redis.publish(`${KEY}:changed`, next);
+}
+```
+
+**Cluster safety:** All instances call `getStageValidationMode()` per request (cheap Redis GET), and subscribe to `${KEY}:changed` to prime a short‑lived in‑process cache if needed.
+
+### 2.2 Webhook auth (Alertmanager) — **fix**
+
+Harden the auto‑downgrade endpoint with HMAC verification.
+
+```ts
+// server/routes/_ops-stage-validation.ts
+import crypto from 'node:crypto';
+import express from 'express';
+import { setStageValidationMode } from '../lib/stage-validation-mode';
+
+const router = express.Router();
+const SECRET = process.env.ALERTMANAGER_WEBHOOK_SECRET!;
+
+router.post('/_ops/stage-validation/auto-downgrade', express.json(), async (req, res) => {
+  const sig = req.header('x-alertmanager-signature') || '';
+  const body = JSON.stringify(req.body ?? {});
+  const expected = crypto.createHmac('sha256', SECRET).update(body).digest('hex');
+  if (sig !== expected) return res.status(401).json({ error: 'invalid-signature' });
+
+  // decide mode based on alert labels/severity
+  await setStageValidationMode('warn');
+  return res.json({ ok: true, mode: 'warn' });
+});
+
+export default router;
+```
+
+Also add **Alertmanager webhook** (sub‑minute reaction) instead of a 5‑min polling job.
+
+### 2.3 Backup integrity & restore rehearsal — **fix**
+
+Freshness is not enough; add a checksum + restore test to staging.
+
+```ts
+// scripts/lib/assert-fresh-backup.ts
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+
+export async function assertFreshBackup(maxAgeHrs: number, dir = 'backups') {
+  const files = (await fs.readdir(dir)).filter(f => f.endsWith('.sql'));
+  if (!files.length) throw new Error('No backup found');
+  const latest = files
+    .map(f => ({ f, mtime: f.match(/(\d{4}-\d{2}-\d{2}[_-]\d{2}-\d{2}-\d{2})/)?.[1] ?? f }))
+    .sort((a, b) => a.mtime.localeCompare(b.mtime))
+    .pop()!.f;
+
+  const stat = await fs.stat(path.join(dir, latest));
+  const ageHrs = (Date.now() - stat.mtimeMs) / 36e5;
+  if (ageHrs > maxAgeHrs) throw new Error(`Backup too old: ${ageHrs.toFixed(1)}h`);
+
+  const sql = await fs.readFile(path.join(dir, latest));
+  const actual = crypto.createHash('sha256').update(sql).digest('hex');
+  const expected = (await fs.readFile(path.join(dir, `${latest}.sha256`), 'utf8')).trim();
+  if (actual !== expected) throw new Error('Backup checksum mismatch');
+}
+```
+
+Add a **staging restore job** in CI that loads the backup into a disposable DB and runs a smoke query (verifies restorability).
+
+### 2.4 Migration batching with checkpoint/resume — **fix**
+
+A single multi‑hour transaction risks blocking. We’ll add batched, resumable updates with audit checkpoints.
+
+```ts
+// scripts/normalize-stages-batched.ts (sketch)
+import { sql, pool } from './lib/db';
+
+const BATCH = 5_000;
+
+async function* idBatches() {
+  // stream ids needing normalization
+  // SELECT id FROM portfolio_companies WHERE stage NOT IN (canonical...) ORDER BY id;
+}
+
+async function run() {
+  let processed = 0;
+  for await (const batchIds of idBatches()) {
+    await sql.begin(async trx => {
+      await trx`UPDATE portfolio_companies
+                SET stage = normalize_stage(stage)
+                WHERE id = ANY(${batchIds})`;
+      await trx`INSERT INTO stage_normalization_log (action, count) VALUES ('batch_update', ${batchIds.length})`;
+    });
+    processed += batchIds.length;
+    // persist checkpoint (e.g., last id) to a control table
+    await sql`UPDATE stage_normalization_control SET last_id = ${batchIds.at(-1)};`;
+    await new Promise(r => setTimeout(r, 100)); // backoff to reduce lock pressure
+  }
+  console.log(`Normalized ${processed} rows`);
+}
+
+run().catch(e => { console.error(e); process.exit(1); });
+```
+
+We still keep your **fully transactional script** for small datasets, and use **batched** for larger tables.
+
+### 2.5 Log cardinality & sampling — **fix**
+
+Keep Prometheus metrics low‑cardinality (endpoint, mode, outcome only) and move UA hashes to **structured logs** with sampling to control cost.
+
+```ts
+// server/observability/stage-logging.ts
+import pino from 'pino';
+const logger = pino();
+const SAMPLE_RATE = Number(process.env.STAGE_LOG_SAMPLE_RATE ?? '0.1'); // 10%
+
+export function logUnknownStage(ctx: {
+  endpoint: string; mode: 'off'|'warn'|'enforce'; unknownStage: string;
+  uaHash: string; requestId: string;
+}) {
+  if (Math.random() < SAMPLE_RATE) {
+    logger.warn({ event: 'stage_validation_unknown', ...ctx, ts: new Date().toISOString() });
+  }
+}
+```
+
+### 2.6 Clear SLO/SLI and warn‑phase exit criteria — **add**
+
+* **SLI:** p99 validator latency (histogram), enforce‑mode error rate, % requests with unknown stages (warn).
+* **SLO:** p99 validator < **1 ms**, enforce error rate < **0.1%**, unknown variants < **0.5%**.
+* **Exit criteria (warn):** 7 consecutive days with unknown < 0.5% **and** no spikes > 1% for 1 hour. Max warn duration **30 days**; if exceeded, abort and re‑assess.
+
+### 2.7 Realistic timeline — **extend**
+
+Original dev estimates were optimistic. Below I present a 3.5‑week track that aligns with the reviewer’s time model while reusing your completed Phases 1–3 and the patterns captured in the handoff. 
+
+---
+
+## 3) Reconciled, end‑to‑end plan (Phases 1–6; 3.5‑week cadence)
+
+> **What’s already done (keep):** Phases **1–3** (core infra + DB artifacts + scripts), documented patterns and headers, `/api/deprecations`, Prom metrics design. 
+
+### Week 1 — Phase 4 (route integration) + shift‑left perf + state sync
+
+**Goals:**
+
+* Wire 3 endpoints using the exact pattern from the memo (no duplication). 
+* Add Redis‑backed mode store + webhook auth.
+* Add **micro‑benchmark** for validator path; don’t touch Monte Carlo perf test.
+
+**Actions:**
+
+* Integrate validator snippet in:
+
+  * `server/routes/monte-carlo.ts`
+  * `server/routes/portfolio-intelligence.ts`
+  * `server/routes/allocations.ts`  (use `parseStageDistribution`, set warning headers, record metrics)
+* Add **Redis** mode module + Alertmanager webhook route (code above).
+* Write perf test (validator only):
+
+```ts
+// tests/perf/stage-validator-perf.test.ts
+import { parseStageDistribution } from '@shared/schemas/parse-stage-distribution';
+
+it('p99 < 1ms for small inputs', () => {
+  const samples = 2_000;
+  const durations: number[] = [];
+  for (let i = 0; i < samples; i++) {
+    const t0 = performance.now();
+    parseStageDistribution({ 'pre_seed': 0.5, 'series-a ': 0.5 }); // mildly messy
+    durations.push(performance.now() - t0);
+  }
+  durations.sort((a,b)=>a-b);
+  const p99 = durations[Math.floor(samples*0.99)];
+  expect(p99).toBeLessThan(1.0);
+});
+```
+
+**Deliverables:**
+
+* PR: “feat(stage‑validation): route integration + redis mode + webhook auth + micro‑benchmarks”
+
+### Week 2 — Phase 5 (testing) + migration strategy hardening
+
+**Goals:**
+
+* Unit tests (modes/headers/metrics), **9 integration scenarios** across the 3 routes, and a **batched** migration variant with checkpoint/resume.
+* Backup **integrity** check + **staging restore** job.
+
+**Actions & Snippets:**
+
+* Unit test: `tests/unit/stage-validation-modes.test.ts`
+* Integration test: `tests/integration/stage-api-validation.e2e.test.ts` (3 routes × 3 modes)
+* Add `assertFreshBackup()` and a CI job to restore backup into a temporary staging DB and run a smoke query.
+* Introduce `normalize-stages-batched.ts` with checkpointing (sketch above).
+
+**Deliverables:**
+
+* PR: “test(stage‑validation): unit+integration+perf; chore(backup): checksum+staging‑restore; feat(migration): batched+checkpoint”
+
+### Week 3 — Phase 6 (observability & docs) + pre‑flight checks
+
+**Goals:**
+
+* Low‑card Prometheus alerts, structured‑log sampling, updated OpenAPI, ADR‑011 addendum, runbook, and comms plan.
+* Pre‑flight consumer audit to re‑validate “internal‑only” scope.
+
+**Actions:**
+
+* **Prometheus alerts** (as drafted in your memo; keep latency quantile alert): 
+* Set `STAGE_LOG_SAMPLE_RATE` default 0.1.
+* Update `docs/api/openapi.yaml` with response headers and `/api/deprecations`.
+* Update `docs/adr/ADR‑011‑stage‑normalization‑v2.md` with Phase‑2 details; add warn‑phase exit criteria.
+* **Runbook**: `docs/runbooks/stage-normalization-rollout.md` (pre‑flight checklist, rollback script, RTO/RPO targets).
+* **Consumer audit** (scripted grep + data probe on access logs). If any “external” is found, we reclassify scope and add a narrow comms track.
+
+**Deliverables:**
+
+* PR: “obs+docs(stage‑validation): alerts, sampling, OpenAPI, ADR, runbook, consumer‑audit”
+
+### Week 4 — Controlled rollout (off → warn → migrate → enforce)
+
+**Mode plan (adjusted with exit criteria):**
+
+* **Day 1–2:** `off` → observe unknown stage rate, adjust alias map if needed.
+* **Day 3–5:** `warn` → headers + metrics; maintain unknown < 0.5% for 3 consecutive days.
+* **Day 5 evening:** Migration:
+
+  * Pause workers
+  * `backup` (checksum) → `staging restore test` → `normalize-stages` (transactional if small / batched if large) → verify distinct stages; resume workers
+* **Day 6:** Canary `enforce` 10% traffic; auto‑downgrade webhook if error rate >5% for 5 min (Alertmanager).
+* **Day 7:** Full `enforce` if canary stable; else auto‑rollback to `warn` and investigate.
+
+**RTO/RPO (explicit):**
+
+* **RTO < 30 min** (auto‑downgrade <30s + mode sync)
+* **RPO < 1 hour** (hourly backups + integrity‑checked restore rehearsal)
+
+---
+
+## 4) Communication & change management (lightweight but real)
+
+Even “internal‑only” deserves a minimal, **documented** comms track.
+
+**Stakeholder matrix (trimmed):**
+
+| Audience          | Channel            | When             | What                                                              |
+| ----------------- | ------------------ | ---------------- | ----------------------------------------------------------------- |
+| App/Services devs | Slack #api-changes | T‑7, T‑3, T‑0    | Modes, headers, `/api/deprecations`, examples, expected timelines |
+| Data/Analytics    | Slack #analytics   | T‑7, T‑0         | Warn headers, migration day, fallback story                       |
+| On‑call (you)     | Pager/SMS          | Real‑time alerts | Auto‑downgrade events, high unknown‑rate spikes                   |
+| Project log       | `CHANGELOG.md`     | Each phase PR    | Release notes, links to ADR & runbook                             |
+
+**CODEOWNERS for sensitive paths (two‑person rule via PR reviews):**
+
+```
+# .github/CODEOWNERS
+server/routes/_ops-stage-validation.ts  @your-handle
+server/lib/stage-validation-mode.ts     @your-handle
+scripts/normalize-stages*.ts            @your-handle
+docs/runbooks/stage-normalization-rollout.md @your-handle
+```
+
+**NotebookLM doesn’t get lost:**
+Each Phase‑6 PR must include:
+
+* `promptfoo` run result (≥92% score) for the touched docs and
+* a 10‑item human checklist outcome (yes/no) before merge.
+  That keeps the documentation channel alive without heavy process.
+
+---
+
+## 5) Clean‑up & scope control right now
+
+* **150+ modified client files:** create a separate branch and park them (or stash). Keep Stage Normalization PRs surgical.
+* **Reuse assets—don’t duplicate:**
+
+  * Keep your Monte Carlo perf tests as‑is; add only a tiny validator micro‑bench.
+  * Keep Phases 1–3 files as the source of truth; implement exactly the three route shims documented (no new routes). 
+
+---
+
+## 6) Updated success criteria (technical + operational)
+
+**Technical gates**
+
+* All unit/integration/perf tests **green**
+* Redis mode sync verified in multi‑pod (smoke test flips observed by all pods)
+* Webhook HMAC auth test passes; Alertmanager → webhook path tested
+* Backup integrity verified; **staging restore** job green
+* p99 validator latency < **1 ms** (micro‑benchmark)
+
+**Operational gates**
+
+* Stakeholder pings sent at T‑7/T‑3/T‑0; `/api/deprecations` reflects current mode
+* Warn‑phase exit criteria satisfied (unknown < 0.5% for 7 days; no >1% spikes)
+* Runbook tried end‑to‑end in staging; **measured** RTO < 30 min
+* On‑call plan documented (you), with alert → auto‑downgrade in <30s
+
+**Documentation gates**
+
+* OpenAPI updated; ADR‑011 addendum merged; runbook merged
+* NotebookLM gate: ≥92% Promptfoo + human checklist OK
+
+---
+
+## 7) What to do next (ordered)
+
+1. **Pre‑flight:**
+
+   * Run consumer audit (grep internal code + check logs) to confirm “internal‑only” remains true.
+   * Wire Redis and webhook secret in `.env`.
+
+2. **Week 1 PR:**
+
+   * Route integrations (3), Redis mode, webhook auth, validator micro‑bench.
+
+3. **Week 2 PR:**
+
+   * Unit/integration/perf tests, checksum + staging restore CI, batched migration variant.
+
+4. **Week 3 PR:**
+
+   * Prom alerts, sampling, OpenAPI/ADR/runbook, warn‑phase exit criteria, comms plan.
+
+5. **Week 4 rollout:**
+
+   * off → warn → migrate → enforce with canary + auto‑downgrade.
+
+---
+
+## 8) Why this meets you where you are
+
+* It **keeps** what’s shipped and approved in the v3 handoff (modes, headers, `/api/deprecations`, metrics shape, rollout outline) and avoids duplicating tests or adding exotic machinery. 
+* It **fixes** the real production risks: multi‑pod state sync, webhook security, backup validity, long‑running migration hazards, and realistic scheduling.
+* It **protects NotebookLM** via a simple, repeatable gate so documentation doesn’t fall through the cracks.
+* It **tightens operations** (RTO/RPO, exit criteria, comms) without turning this into a heavy process.
+
+If you’d like, I can turn the snippets above into ready‑to‑commit files (routes, mode store, webhook, backup lib, perf test, alert rules, runbook skeleton), but the plan above is already fully actionable.

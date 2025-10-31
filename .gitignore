@@ -203,3 +203,8 @@ scripts/validation/results/**
 \!scripts/validation/results/**/*.json
 \!scripts/validation/results/**/*.md
 \!scripts/validation/results/.gitkeep
+
+# Migration logs
+migration-*.txt
+migration-*.log
+dry-run-*.txt
