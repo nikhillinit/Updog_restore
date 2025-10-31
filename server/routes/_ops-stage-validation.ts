@@ -14,26 +14,34 @@ router.post('/_ops/stage-validation/auto-downgrade', express.json(), async (req,
   const sigHex = String(req.headers['x-alertmanager-signature'] || '');
   const expectedHex = crypto.createHmac('sha256', SECRET).update(raw).digest('hex');
 
-  const ok = sigHex.length === expectedHex.length &&
-             crypto.timingSafeEqual(Buffer.from(sigHex, 'hex'), Buffer.from(expectedHex, 'hex'));
+  const ok =
+    sigHex.length === expectedHex.length &&
+    crypto.timingSafeEqual(Buffer.from(sigHex, 'hex'), Buffer.from(expectedHex, 'hex'));
   if (!ok) return res.status(401).json({ error: 'invalid-signature' });
 
-  const ts = new Date((req.body?.groupLabels?.timestamp as string) || 0).getTime();
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+  const timestamp = (req.body?.groupLabels as Record<string, unknown>)?.timestamp as
+    | string
+    | undefined;
+  const ts = new Date(timestamp || 0).getTime();
   if (!ts || Date.now() - ts > 300_000) return res.status(401).json({ error: 'expired' });
 
-  const alertName = req.body?.groupLabels?.alertname || 'unknown';
+  // Auto-downgrade to warn with structured audit logging
   await setStageValidationMode('warn', {
     actor: 'alertmanager',
-    reason: `auto-downgrade triggered by alert: ${alertName}`,
+    reason: 'auto_downgrade_on_high_error_rate',
   });
 
-  console.warn(JSON.stringify({
-    event: 'stage_validation_auto_downgrade',
-    trigger: 'alertmanager_webhook',
-    alert: alertName,
-    at: new Date().toISOString(),
-    labels: req.body?.groupLabels ?? null
-  }));
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+  const groupLabels = (req.body?.groupLabels as Record<string, unknown>) ?? null;
+  console.warn(
+    JSON.stringify({
+      event: 'stage_validation_auto_downgrade',
+      trigger: 'alertmanager_webhook',
+      at: new Date().toISOString(),
+      labels: groupLabels,
+    })
+  );
 
   res.json({ ok: true });
 });

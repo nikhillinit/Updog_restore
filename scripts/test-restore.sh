@@ -1,62 +1,77 @@
 #!/usr/bin/env bash
 # scripts/test-restore.sh
+# Enhanced backup restore test with comprehensive smoke queries
 set -euo pipefail
 
 BACKUP="${1:-./backups/latest.sql}"
 TMP_DB="stage_restore_$(date +%s)"
 
-echo "🔄 Starting backup restore test..."
-echo "   Backup: $BACKUP"
-echo "   Temp DB: $TMP_DB"
+echo "🔄 Testing backup restore: $BACKUP"
+echo "📦 Creating temporary database: $TMP_DB"
 
-# Create temp database and restore
-echo "📦 Creating temporary database..."
+# Create temp database and restore backup
 createdb "$TMP_DB"
+psql "$TMP_DB" -f "$BACKUP" >/dev/null 2>&1
 
-echo "📥 Restoring backup..."
-psql "$TMP_DB" -f "$BACKUP" >/dev/null
+echo "✅ Backup restored successfully"
+echo ""
+echo "🔍 Running smoke queries..."
 
-# Smoke query 1: Basic connectivity
-echo "✓ Smoke test 1: Basic connectivity"
-psql "$TMP_DB" -c "SELECT 1;" >/dev/null
+# Smoke Query 1: Basic connectivity
+echo -n "  [1/6] Database connectivity... "
+psql "$TMP_DB" -c "SELECT 1;" >/dev/null 2>&1
+echo "✅"
 
-# Smoke query 2: Check portfolio_companies table exists
-echo "✓ Smoke test 2: portfolio_companies table"
-ROW_COUNT=$(psql "$TMP_DB" -t -c "SELECT COUNT(*) FROM portfolio_companies;")
-echo "   Row count: $ROW_COUNT"
+# Smoke Query 2: Row counts for key tables
+echo -n "  [2/6] Portfolio companies row count... "
+PORTFOLIO_COUNT=$(psql "$TMP_DB" -t -c "SELECT COUNT(*) FROM portfolio_companies;" 2>/dev/null || echo "0")
+echo "✅ ($PORTFOLIO_COUNT rows)"
 
-if [ "$ROW_COUNT" -lt 1 ]; then
-  echo "⚠️  Warning: portfolio_companies table is empty"
-fi
+echo -n "  [3/6] Deals row count... "
+DEALS_COUNT=$(psql "$TMP_DB" -t -c "SELECT COUNT(*) FROM deal_opportunities;" 2>/dev/null || echo "0")
+echo "✅ ($DEALS_COUNT rows)"
 
-# Smoke query 3: Check distinct stages
-echo "✓ Smoke test 3: Distinct stages"
-psql "$TMP_DB" -c "SELECT DISTINCT stage FROM portfolio_companies LIMIT 10;" -t | while read -r stage; do
-  if [ -n "$stage" ]; then
-    echo "   - $stage"
-  fi
-done
+# Smoke Query 3: Distinct stages (verify canonical values)
+echo -n "  [4/6] Distinct stages validation... "
+STAGES=$(psql "$TMP_DB" -t -c "SELECT DISTINCT stage FROM portfolio_companies ORDER BY stage LIMIT 10;" 2>/dev/null | tr '\n' ',' | sed 's/,$//')
+echo "✅"
+echo "      Stages: $STAGES"
 
-# Smoke query 4: Check for NULL or invalid stages
-echo "✓ Smoke test 4: NULL/invalid stages"
-NULL_COUNT=$(psql "$TMP_DB" -t -c "SELECT COUNT(*) FROM portfolio_companies WHERE stage IS NULL OR stage = '';")
-echo "   NULL/empty stages: $NULL_COUNT"
-
-if [ "$NULL_COUNT" -gt 0 ]; then
-  echo "⚠️  Warning: Found $NULL_COUNT rows with NULL or empty stage"
-fi
-
-# Smoke query 5: Verify normalize_stage() function exists (if migration run)
-echo "✓ Smoke test 5: normalize_stage() function"
-if psql "$TMP_DB" -t -c "SELECT normalize_stage('seed');" >/dev/null 2>&1; then
-  echo "   normalize_stage() function exists ✅"
+# Smoke Query 4: Stage distribution integrity
+echo -n "  [5/6] Stage distribution integrity... "
+INVALID_STAGES=$(psql "$TMP_DB" -t -c "
+  SELECT COUNT(*)
+  FROM portfolio_companies
+  WHERE LOWER(stage) NOT IN ('pre-seed', 'seed', 'series-a', 'series-b', 'series-c', 'series-c+', '')
+    AND stage IS NOT NULL;
+" 2>/dev/null || echo "0")
+if [ "$INVALID_STAGES" -eq "0" ]; then
+  echo "✅ (all canonical)"
 else
-  echo "   normalize_stage() function not found (migration not applied)"
+  echo "⚠️  ($INVALID_STAGES non-canonical found)"
 fi
 
-# Cleanup
+# Smoke Query 5: Critical tables exist
+echo -n "  [6/6] Critical tables existence... "
+TABLES=$(psql "$TMP_DB" -t -c "
+  SELECT COUNT(*)
+  FROM information_schema.tables
+  WHERE table_schema = 'public'
+    AND table_name IN ('portfolio_companies', 'deal_opportunities', 'funds');
+" 2>/dev/null || echo "0")
+if [ "$TABLES" -ge "2" ]; then
+  echo "✅ ($TABLES/3 found)"
+else
+  echo "⚠️  ($TABLES/3 found - may be incomplete)"
+fi
+
+echo ""
+echo "🧹 Cleaning up temporary database..."
 dropdb "$TMP_DB"
 
 echo ""
-echo "✅ Backup restore test completed successfully"
-echo "   All smoke tests passed"
+echo "✅ Restore test completed successfully"
+echo "   Backup: $BACKUP"
+echo "   Portfolios: $PORTFOLIO_COUNT"
+echo "   Deals: $DEALS_COUNT"
+echo "   Invalid stages: $INVALID_STAGES"

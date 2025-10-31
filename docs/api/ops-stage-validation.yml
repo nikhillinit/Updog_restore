@@ -2,18 +2,23 @@ openapi: 3.0.3
 info:
   title: Stage Validation Operations API
   description: |
-    Internal operations API for Stage Normalization v3.4.
+    Operations endpoints for Stage Normalization v3.4.
 
-    This API provides endpoints for:
-    - Runtime mode control (off/warn/enforce)
-    - Automated downgrade via Alertmanager webhooks
-    - Mode inspection for monitoring/debugging
+    **INTERNAL USE ONLY** - These endpoints are for operational control and monitoring.
+    Not intended for regular API consumers.
 
-    **Security:** All endpoints require HMAC-SHA256 authentication via X-Alertmanager-Signature header.
+    ## Security
+
+    All endpoints require HMAC-SHA256 signature verification to prevent unauthorized access.
+
+    ## Related Documentation
+
+    - Runbook: `/docs/runbooks/stage-validation-v3-enhancements.md`
+    - Architecture: `/docs/adr/ADR-011-stage-normalization-v2.md`
   version: 3.4.0
   contact:
-    name: Press On Ventures Engineering
-    email: engineering@pressonvc.com
+    name: Platform Team
+    email: platform@pressonvc.com
 
 servers:
   - url: https://api.pressonvc.com
@@ -23,278 +28,244 @@ servers:
 
 tags:
   - name: operations
-    description: Stage validation mode operations
+    description: Internal operations endpoints
+  - name: webhooks
+    description: Webhook receivers
 
 paths:
   /_ops/stage-validation/auto-downgrade:
     post:
-      tags:
-        - operations
-      summary: Auto-downgrade to WARN mode
+      summary: Alertmanager webhook for auto-downgrade
       description: |
-        Webhook endpoint called by Alertmanager when enforce mode error rate exceeds threshold.
-        Automatically downgrades validation mode to WARN and emits structured audit log.
+        Receives Alertmanager webhook notifications and automatically downgrades
+        stage validation mode from `enforce` to `warn` when high error rates are detected.
 
-        **Replay Protection:** Requests older than 5 minutes are rejected.
-        **Authentication:** HMAC-SHA256 signature required in header.
+        **Trigger Condition**: `StageValidationHighErrorRate` alert fires
+
+        **Action**: Sets validation mode to `warn` to prevent cascading failures
+
+        ## Security
+
+        - HMAC-SHA256 signature verification (timing-safe comparison)
+        - 5-minute replay protection window
+        - Secret must be ≥32 characters
+
+        ## Audit Trail
+
+        Emits structured JSON audit log with:
+        - Event type
+        - Trigger source (alertmanager)
+        - Timestamp
+        - Alert labels
       operationId: autoDowngradeStageValidation
+      tags:
+        - webhooks
+        - operations
       security:
-        - AlertmanagerHMAC: []
-      parameters:
-        - name: X-Alertmanager-Signature
-          in: header
-          required: true
-          description: HMAC-SHA256 hex signature of request body
-          schema:
-            type: string
-            pattern: '^[a-f0-9]{64}$'
-            example: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+        - HmacSignature: []
       requestBody:
         required: true
-        description: Alertmanager webhook payload
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/AlertmanagerWebhook'
-            example:
-              groupLabels:
-                alertname: StageValidationHighRejectRate
-                severity: page
-                timestamp: '2025-10-31T12:00:00Z'
-              commonAnnotations:
-                description: 'Enforce rejects >1% over 5m'
-                runbook: '/docs/runbooks/stage-normalization-rollout.md'
+            examples:
+              high_error_rate:
+                summary: High error rate alert
+                value:
+                  version: '4'
+                  groupKey: '{}:{alertname="StageValidationHighErrorRate"}'
+                  status: 'firing'
+                  receiver: 'stage-validation-ops'
+                  groupLabels:
+                    alertname: 'StageValidationHighErrorRate'
+                    severity: 'page'
+                    timestamp: '2025-10-31T12:00:00Z'
+                  commonLabels:
+                    team: 'platform'
+                    feature: 'stage-validation'
+                  alerts:
+                    - status: 'firing'
+                      labels:
+                        alertname: 'StageValidationHighErrorRate'
+                        severity: 'page'
+                      annotations:
+                        summary: 'Stage validation error ratio >1% for 15 minutes'
+                        description: 'Current error ratio: 1.5%'
       responses:
         '200':
           description: Auto-downgrade successful
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponse'
-              example:
-                ok: true
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
         '401':
-          description: Authentication failed (invalid signature or expired timestamp)
+          description: Authentication failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/Error'
               examples:
-                invalid-signature:
+                invalid_signature:
+                  summary: Invalid HMAC signature
                   value:
                     error: 'invalid-signature'
                 expired:
+                  summary: Timestamp expired
                   value:
                     error: 'expired'
 
-  /_ops/stage-validation/mode:
-    get:
-      tags:
-        - operations
-      summary: Get current validation mode
-      description: |
-        Returns the current stage validation mode from Redis cache.
-        Falls back to environment default if Redis is unavailable.
-      operationId: getStageValidationMode
-      responses:
-        '200':
-          description: Current mode retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ModeResponse'
-              example:
-                mode: 'warn'
-                cached_until: '2025-10-31T12:05:00Z'
-                source: 'redis'
-
-    put:
-      tags:
-        - operations
-      summary: Set validation mode
-      description: |
-        Manually set the stage validation mode.
-        Emits structured audit log with actor and reason.
-
-        **Modes:**
-        - `off`: No validation, accept all inputs
-        - `warn`: Validate and log warnings, accept all inputs
-        - `enforce`: Validate and reject invalid inputs with 400 error
-      operationId: setStageValidationMode
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        description: New validation mode
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SetModeRequest'
-            example:
-              mode: 'enforce'
-              actor: 'admin@pressonvc.com'
-              reason: 'Canary rollout stage 3 (100% traffic)'
-      responses:
-        '200':
-          description: Mode updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SetModeResponse'
-              example:
-                ok: true
-                previous: 'warn'
-                current: 'enforce'
-                timestamp: '2025-10-31T12:00:00Z'
-        '400':
-          description: Invalid mode value
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                error: 'invalid mode: must be one of [off, warn, enforce]'
-
 components:
+  securitySchemes:
+    HmacSignature:
+      type: apiKey
+      in: header
+      name: X-Alertmanager-Signature
+      description: |
+        HMAC-SHA256 signature of request body
+
+        **Calculation**:
+        ```javascript
+        const signature = crypto
+          .createHmac('sha256', process.env.ALERTMANAGER_WEBHOOK_SECRET)
+          .update(JSON.stringify(requestBody))
+          .digest('hex');
+        ```
+
+        **Example**:
+        ```bash
+        SECRET="your-secret-at-least-32-chars"
+        PAYLOAD='{"groupLabels":{"timestamp":"2025-10-31T12:00:00Z"}}'
+        SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$SECRET" -hex | awk '{print $2}')
+
+        curl -X POST https://api.pressonvc.com/_ops/stage-validation/auto-downgrade \
+          -H "X-Alertmanager-Signature: $SIGNATURE" \
+          -H "Content-Type: application/json" \
+          -d "$PAYLOAD"
+        ```
+
   schemas:
     AlertmanagerWebhook:
       type: object
-      description: Alertmanager webhook payload
+      description: Alertmanager webhook payload format (v4)
       required:
+        - version
+        - groupKey
+        - status
+        - receiver
         - groupLabels
+        - alerts
       properties:
+        version:
+          type: string
+          example: '4'
+          description: Alertmanager webhook version
+        groupKey:
+          type: string
+          example: '{}:{alertname="StageValidationHighErrorRate"}'
+          description: Alert group identifier
+        status:
+          type: string
+          enum: [firing, resolved]
+          description: Overall status of alert group
+        receiver:
+          type: string
+          example: 'stage-validation-ops'
+          description: Alertmanager receiver name
         groupLabels:
           type: object
-          description: Alert group labels
           required:
             - timestamp
           properties:
             alertname:
               type: string
-              example: 'StageValidationHighRejectRate'
+              example: 'StageValidationHighErrorRate'
             severity:
               type: string
-              enum: [page, ticket, warn]
               example: 'page'
             timestamp:
               type: string
               format: date-time
-              description: Alert firing timestamp (ISO 8601)
-              example: '2025-10-31T12:00:00Z'
-        commonAnnotations:
+              description: Alert firing timestamp (ISO 8601) - used for replay protection
+          additionalProperties: true
+        commonLabels:
           type: object
-          properties:
-            description:
-              type: string
-              example: 'Enforce rejects >1% over 5m'
-            runbook:
-              type: string
-              example: '/docs/runbooks/stage-normalization-rollout.md'
+          additionalProperties: true
+          description: Labels common to all alerts in group
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alert'
+          description: Individual alerts in group
 
-    SetModeRequest:
+    Alert:
       type: object
       required:
-        - mode
+        - status
+        - labels
+        - annotations
       properties:
-        mode:
+        status:
           type: string
-          enum: [off, warn, enforce]
-          description: Target validation mode
-          example: 'enforce'
-        actor:
-          type: string
-          description: User or system initiating the mode change
-          example: 'admin@pressonvc.com'
-        reason:
-          type: string
-          description: Reason for mode change
-          example: 'Canary rollout stage 3'
-
-    ModeResponse:
-      type: object
-      required:
-        - mode
-      properties:
-        mode:
-          type: string
-          enum: [off, warn, enforce]
-          description: Current validation mode
-          example: 'warn'
-        cached_until:
+          enum: [firing, resolved]
+        labels:
+          type: object
+          additionalProperties: true
+          description: Alert labels
+        annotations:
+          type: object
+          additionalProperties: true
+          description: Alert annotations (summary, description, runbook)
+        startsAt:
           type: string
           format: date-time
-          description: Cache expiration timestamp
-          example: '2025-10-31T12:05:00Z'
-        source:
-          type: string
-          enum: [redis, cache, default]
-          description: Where the mode value came from
-          example: 'redis'
-
-    SetModeResponse:
-      type: object
-      required:
-        - ok
-        - previous
-        - current
-        - timestamp
-      properties:
-        ok:
-          type: boolean
-          example: true
-        previous:
-          type: string
-          enum: [off, warn, enforce]
-          description: Previous mode before change
-          example: 'warn'
-        current:
-          type: string
-          enum: [off, warn, enforce]
-          description: New mode after change
-          example: 'enforce'
-        timestamp:
+          description: When alert first fired
+        endsAt:
           type: string
           format: date-time
-          description: When the mode change occurred
-          example: '2025-10-31T12:00:00Z'
+          description: When alert resolved (if resolved)
 
-    SuccessResponse:
-      type: object
-      required:
-        - ok
-      properties:
-        ok:
-          type: boolean
-          example: true
-
-    ErrorResponse:
+    Error:
       type: object
       required:
         - error
       properties:
         error:
           type: string
-          description: Error message
-          example: 'invalid-signature'
+          enum:
+            - invalid-signature
+            - expired
+            - bad-request
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
 
-  securitySchemes:
-    AlertmanagerHMAC:
-      type: apiKey
-      in: header
-      name: X-Alertmanager-Signature
-      description: |
-        HMAC-SHA256 signature of request body.
-
-        Calculation:
-        ```
-        signature = HMAC-SHA256(secret, JSON.stringify(body))
-        header = hex(signature)
-        ```
-
-        **Replay Protection:** Timestamp must be within 5 minutes of current time.
-
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: JWT token for manual mode changes
+  examples:
+    HighErrorRateAlert:
+      value:
+        version: '4'
+        groupKey: '{}:{alertname="StageValidationHighErrorRate"}'
+        status: 'firing'
+        receiver: 'stage-validation-ops'
+        groupLabels:
+          alertname: 'StageValidationHighErrorRate'
+          severity: 'page'
+          team: 'platform'
+          timestamp: '2025-10-31T12:00:00Z'
+        commonLabels:
+          feature: 'stage-validation'
+        alerts:
+          - status: 'firing'
+            labels:
+              alertname: 'StageValidationHighErrorRate'
+              severity: 'page'
+            annotations:
+              summary: 'Stage validation error ratio >1% for 15 minutes'
+              description: 'Current error ratio: 1.5%'
+              runbook: 'https://docs.pressonvc.com/runbooks/stage-validation'
+            startsAt: '2025-10-31T11:45:00Z'

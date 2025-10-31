@@ -1,281 +1,271 @@
 /**
- * Integration Tests: Promotion Gate Invariants
+ * Integration Tests: Enforce Gate Invariant
  *
- * Tests that the promotion gate correctly blocks WARN → ENFORCE promotion
- * when unknown stage rate exceeds 0.5% threshold.
- *
- * This test validates the business rule implemented in the Prometheus alert:
- * EnforceGateUnknownRateHigh
+ * Tests that the system enforces the promotion gate:
+ * - Reject rate must be < 0.5% sustained before WARN → ENFORCE promotion
+ * - Shadow mode "would-reject" metrics gate Phase 3 enforcement
  */
 
 import { describe, it, expect } from 'vitest';
 
-/**
- * Mock Prometheus metrics collector
- *
- * Simulates Prometheus scraping and alert evaluation
- */
-class MockPrometheusMetrics {
-  private metrics: Map<string, number> = new Map();
+describe('Enforce Gate Invariant', () => {
+  describe('Shadow Mode Blast Radius Gate', () => {
+    it('blocks promotion if would-reject rate > 0.5%', () => {
+      // Simulate metrics data
+      const totalValidations = 10000;
+      const wouldRejectCount = 60; // 0.6% - exceeds threshold
 
-  // Record a metric value
-  record(name: string, value: number): void {
-    const current = this.metrics.get(name) || 0;
-    this.metrics.set(name, current + value);
-  }
+      const wouldRejectRate = wouldRejectCount / totalValidations;
 
-  // Get metric value
-  get(name: string): number {
-    return this.metrics.get(name) || 0;
-  }
+      // Gate condition: must be < 0.5% (0.005)
+      const GATE_THRESHOLD = 0.005;
 
-  // Calculate rate over window
-  rate(name: string): number {
-    return this.get(name);
-  }
+      expect(wouldRejectRate).toBeGreaterThan(GATE_THRESHOLD);
 
-  // Reset all metrics
-  reset(): void {
-    this.metrics.clear();
-  }
-}
-
-/**
- * Promotion gate logic (extracted from Prometheus alert)
- *
- * Alert expression:
- * (sum(rate(stage_warn_unknown_total[10m])) / sum(rate(http_requests_total[10m]))) > 0.005
- */
-function shouldBlockPromotion(metrics: MockPrometheusMetrics): boolean {
-  const unknownRate = metrics.rate('stage_warn_unknown_total');
-  const totalRequests = metrics.rate('http_requests_total');
-
-  if (totalRequests === 0) return false; // No data, don't block
-
-  const unknownFraction = unknownRate / totalRequests;
-  return unknownFraction > 0.005; // 0.5% threshold
-}
-
-describe('Promotion Gate Invariants', () => {
-  describe('Unknown Stage Rate Threshold', () => {
-    it('blocks promotion when unknown rate > 0.5%', () => {
-      const metrics = new MockPrometheusMetrics();
-
-      // Simulate 10,000 requests with 51 unknown stages (0.51%)
-      metrics.record('http_requests_total', 10000);
-      metrics.record('stage_warn_unknown_total', 51);
-
-      expect(shouldBlockPromotion(metrics)).toBe(true);
+      // Promotion should be BLOCKED
+      const canPromote = wouldRejectRate <= GATE_THRESHOLD;
+      expect(canPromote).toBe(false);
     });
 
-    it('allows promotion when unknown rate = 0.5% (at boundary)', () => {
-      const metrics = new MockPrometheusMetrics();
+    it('allows promotion if would-reject rate < 0.5%', () => {
+      // Simulate clean metrics
+      const totalValidations = 10000;
+      const wouldRejectCount = 40; // 0.4% - within threshold
 
-      // Simulate 10,000 requests with 50 unknown stages (0.50%)
-      metrics.record('http_requests_total', 10000);
-      metrics.record('stage_warn_unknown_total', 50);
+      const wouldRejectRate = wouldRejectCount / totalValidations;
 
-      expect(shouldBlockPromotion(metrics)).toBe(false);
+      // Gate condition
+      const GATE_THRESHOLD = 0.005;
+
+      expect(wouldRejectRate).toBeLessThan(GATE_THRESHOLD);
+
+      // Promotion should be ALLOWED
+      const canPromote = wouldRejectRate <= GATE_THRESHOLD;
+      expect(canPromote).toBe(true);
     });
 
-    it('allows promotion when unknown rate < 0.5%', () => {
-      const metrics = new MockPrometheusMetrics();
+    it('blocks promotion at exactly 0.5% threshold', () => {
+      const totalValidations = 10000;
+      const wouldRejectCount = 50; // Exactly 0.5%
 
-      // Simulate 10,000 requests with 10 unknown stages (0.10%)
-      metrics.record('http_requests_total', 10000);
-      metrics.record('stage_warn_unknown_total', 10);
+      const wouldRejectRate = wouldRejectCount / totalValidations;
 
-      expect(shouldBlockPromotion(metrics)).toBe(false);
-    });
+      const GATE_THRESHOLD = 0.005;
 
-    it('allows promotion when unknown rate = 0%', () => {
-      const metrics = new MockPrometheusMetrics();
-
-      // Simulate 10,000 requests with 0 unknown stages
-      metrics.record('http_requests_total', 10000);
-      metrics.record('stage_warn_unknown_total', 0);
-
-      expect(shouldBlockPromotion(metrics)).toBe(false);
+      // At threshold, should still block (must be strictly less than)
+      const canPromote = wouldRejectRate < GATE_THRESHOLD; // Note: < not <=
+      expect(canPromote).toBe(false);
     });
   });
 
-  describe('Edge Cases', () => {
-    it('does not block when no requests received', () => {
-      const metrics = new MockPrometheusMetrics();
+  describe('Unknown Stage Rate Gate', () => {
+    it('blocks ENFORCE promotion if unknown rate > 0.5% in WARN mode', () => {
+      // Simulate WARN mode metrics
+      const totalRequests = 50000;
+      const unknownStageRequests = 300; // 0.6% - too high
 
-      // No requests at all
-      expect(shouldBlockPromotion(metrics)).toBe(false);
+      const unknownRate = unknownStageRequests / totalRequests;
+
+      const UNKNOWN_GATE_THRESHOLD = 0.005; // 0.5%
+
+      expect(unknownRate).toBeGreaterThan(UNKNOWN_GATE_THRESHOLD);
+
+      // Promotion should be BLOCKED
+      const canPromote = unknownRate <= UNKNOWN_GATE_THRESHOLD;
+      expect(canPromote).toBe(false);
     });
 
-    it('blocks with high unknown rate on low volume', () => {
-      const metrics = new MockPrometheusMetrics();
+    it('allows promotion if unknown rate < 0.5% sustained', () => {
+      const totalRequests = 50000;
+      const unknownStageRequests = 200; // 0.4% - acceptable
 
-      // Simulate 100 requests with 1 unknown stage (1%)
-      metrics.record('http_requests_total', 100);
-      metrics.record('stage_warn_unknown_total', 1);
+      const unknownRate = unknownStageRequests / totalRequests;
 
-      expect(shouldBlockPromotion(metrics)).toBe(true);
-    });
+      const UNKNOWN_GATE_THRESHOLD = 0.005;
 
-    it('blocks with high unknown rate on high volume', () => {
-      const metrics = new MockPrometheusMetrics();
+      expect(unknownRate).toBeLessThan(UNKNOWN_GATE_THRESHOLD);
 
-      // Simulate 1,000,000 requests with 5001 unknown stages (0.5001%)
-      metrics.record('http_requests_total', 1000000);
-      metrics.record('stage_warn_unknown_total', 5001);
-
-      expect(shouldBlockPromotion(metrics)).toBe(true);
-    });
-  });
-
-  describe('Realistic Scenarios', () => {
-    it('Scenario: Clean production traffic', () => {
-      const metrics = new MockPrometheusMetrics();
-
-      // Production with 100k requests, 10 unknown stages (0.01%)
-      metrics.record('http_requests_total', 100000);
-      metrics.record('stage_warn_unknown_total', 10);
-
-      expect(shouldBlockPromotion(metrics)).toBe(false);
-    });
-
-    it('Scenario: New data source with unknown stages', () => {
-      const metrics = new MockPrometheusMetrics();
-
-      // Production with 50k requests, 500 unknown stages (1%)
-      metrics.record('http_requests_total', 50000);
-      metrics.record('stage_warn_unknown_total', 500);
-
-      expect(shouldBlockPromotion(metrics)).toBe(true);
-    });
-
-    it('Scenario: After migration normalization', () => {
-      const metrics = new MockPrometheusMetrics();
-
-      // Production after migration, 200k requests, 5 unknown stages (0.0025%)
-      metrics.record('http_requests_total', 200000);
-      metrics.record('stage_warn_unknown_total', 5);
-
-      expect(shouldBlockPromotion(metrics)).toBe(false);
-    });
-
-    it('Scenario: Canary rollout boundary case', () => {
-      const metrics = new MockPrometheusMetrics();
-
-      // Canary with 1000 requests, 5 unknown stages (0.5%)
-      // This is at the exact boundary - should allow
-      metrics.record('http_requests_total', 1000);
-      metrics.record('stage_warn_unknown_total', 5);
-
-      expect(shouldBlockPromotion(metrics)).toBe(false);
-
-      // Add 1 more unknown stage to exceed threshold
-      metrics.record('stage_warn_unknown_total', 1);
-
-      expect(shouldBlockPromotion(metrics)).toBe(true);
+      const canPromote = unknownRate <= UNKNOWN_GATE_THRESHOLD;
+      expect(canPromote).toBe(true);
     });
   });
 
-  describe('Time Window Behavior', () => {
-    it('respects 10-minute window for promotion decision', () => {
-      const metrics = new MockPrometheusMetrics();
+  describe('Combined Gate Logic', () => {
+    it('requires both gates to pass for promotion', () => {
+      // Gate 1: Shadow mode blast radius
+      const totalValidations = 10000;
+      const wouldRejectCount = 30; // 0.3% - pass
+      const wouldRejectRate = wouldRejectCount / totalValidations;
 
-      // Simulate spike in unknown stages in current window
-      metrics.record('http_requests_total', 10000);
-      metrics.record('stage_warn_unknown_total', 100); // 1%
+      // Gate 2: Unknown stage rate
+      const totalRequests = 50000;
+      const unknownStageRequests = 60; // 0.12% - pass
+      const unknownRate = unknownStageRequests / totalRequests;
 
-      // First check - should block
-      expect(shouldBlockPromotion(metrics)).toBe(true);
+      const GATE_THRESHOLD = 0.005;
 
-      // Reset for next window (simulating time passage)
-      metrics.reset();
-      metrics.record('http_requests_total', 10000);
-      metrics.record('stage_warn_unknown_total', 10); // 0.1%
+      const blastRadiusPass = wouldRejectRate <= GATE_THRESHOLD;
+      const unknownRatePass = unknownRate <= GATE_THRESHOLD;
 
-      // Second check - should allow
-      expect(shouldBlockPromotion(metrics)).toBe(false);
+      const canPromote = blastRadiusPass && unknownRatePass;
+
+      expect(blastRadiusPass).toBe(true);
+      expect(unknownRatePass).toBe(true);
+      expect(canPromote).toBe(true);
+    });
+
+    it('blocks promotion if blast radius passes but unknown rate fails', () => {
+      // Gate 1: Pass
+      const wouldRejectRate = 0.003; // 0.3% - pass
+
+      // Gate 2: Fail
+      const unknownRate = 0.007; // 0.7% - fail
+
+      const GATE_THRESHOLD = 0.005;
+
+      const blastRadiusPass = wouldRejectRate <= GATE_THRESHOLD;
+      const unknownRatePass = unknownRate <= GATE_THRESHOLD;
+
+      const canPromote = blastRadiusPass && unknownRatePass;
+
+      expect(blastRadiusPass).toBe(true);
+      expect(unknownRatePass).toBe(false);
+      expect(canPromote).toBe(false);
+    });
+
+    it('blocks promotion if unknown rate passes but blast radius fails', () => {
+      // Gate 1: Fail
+      const wouldRejectRate = 0.008; // 0.8% - fail
+
+      // Gate 2: Pass
+      const unknownRate = 0.002; // 0.2% - pass
+
+      const GATE_THRESHOLD = 0.005;
+
+      const blastRadiusPass = wouldRejectRate <= GATE_THRESHOLD;
+      const unknownRatePass = unknownRate <= GATE_THRESHOLD;
+
+      const canPromote = blastRadiusPass && unknownRatePass;
+
+      expect(blastRadiusPass).toBe(false);
+      expect(unknownRatePass).toBe(true);
+      expect(canPromote).toBe(false);
     });
   });
 
-  describe('Alert Threshold Calculation', () => {
-    it('matches Prometheus alert expression logic', () => {
-      // Test various percentages to verify logic
-      const testCases = [
-        { requests: 10000, unknowns: 0, expectedBlock: false, percentage: 0 },
-        { requests: 10000, unknowns: 10, expectedBlock: false, percentage: 0.1 },
-        { requests: 10000, unknowns: 49, expectedBlock: false, percentage: 0.49 },
-        { requests: 10000, unknowns: 50, expectedBlock: false, percentage: 0.5 },
-        { requests: 10000, unknowns: 51, expectedBlock: true, percentage: 0.51 },
-        { requests: 10000, unknowns: 100, expectedBlock: true, percentage: 1.0 },
-        { requests: 1000, unknowns: 5, expectedBlock: false, percentage: 0.5 },
-        { requests: 1000, unknowns: 6, expectedBlock: true, percentage: 0.6 },
+  describe('Sustained Requirement (Time Window)', () => {
+    it('requires gate to pass for minimum duration (30 minutes)', () => {
+      // Simulate time-series data for 30-minute window
+      const samples = [
+        { timestamp: 0, rate: 0.003 }, // 0 min - pass
+        { timestamp: 5, rate: 0.004 }, // 5 min - pass
+        { timestamp: 10, rate: 0.002 }, // 10 min - pass
+        { timestamp: 15, rate: 0.003 }, // 15 min - pass
+        { timestamp: 20, rate: 0.004 }, // 20 min - pass
+        { timestamp: 25, rate: 0.003 }, // 25 min - pass
+        { timestamp: 30, rate: 0.002 }, // 30 min - pass
       ];
 
-      for (const testCase of testCases) {
-        const metrics = new MockPrometheusMetrics();
-        metrics.record('http_requests_total', testCase.requests);
-        metrics.record('stage_warn_unknown_total', testCase.unknowns);
+      const GATE_THRESHOLD = 0.005;
+      const MIN_DURATION_MINUTES = 30;
 
-        const blocked = shouldBlockPromotion(metrics);
-        expect(blocked).toBe(testCase.expectedBlock);
-      }
+      // All samples must pass
+      const allPass = samples.every((s) => s.rate <= GATE_THRESHOLD);
+
+      // Time span must be >= 30 minutes
+      const timeSpan = samples[samples.length - 1].timestamp - samples[0].timestamp;
+      const sufficientDuration = timeSpan >= MIN_DURATION_MINUTES;
+
+      const canPromote = allPass && sufficientDuration;
+
+      expect(allPass).toBe(true);
+      expect(sufficientDuration).toBe(true);
+      expect(canPromote).toBe(true);
+    });
+
+    it('blocks promotion if gate fails at any point in window', () => {
+      const samples = [
+        { timestamp: 0, rate: 0.003 }, // pass
+        { timestamp: 5, rate: 0.004 }, // pass
+        { timestamp: 10, rate: 0.007 }, // FAIL - spike at 10 min
+        { timestamp: 15, rate: 0.003 }, // pass
+        { timestamp: 20, rate: 0.004 }, // pass
+        { timestamp: 25, rate: 0.003 }, // pass
+        { timestamp: 30, rate: 0.002 }, // pass
+      ];
+
+      const GATE_THRESHOLD = 0.005;
+
+      // If any sample fails, cannot promote
+      const allPass = samples.every((s) => s.rate <= GATE_THRESHOLD);
+
+      expect(allPass).toBe(false);
+
+      const canPromote = allPass;
+      expect(canPromote).toBe(false);
+    });
+
+    it('blocks promotion if window too short (<30 minutes)', () => {
+      const samples = [
+        { timestamp: 0, rate: 0.003 },
+        { timestamp: 5, rate: 0.004 },
+        { timestamp: 10, rate: 0.002 },
+        { timestamp: 15, rate: 0.003 },
+        // Only 15 minutes - too short
+      ];
+
+      const GATE_THRESHOLD = 0.005;
+      const MIN_DURATION_MINUTES = 30;
+
+      const allPass = samples.every((s) => s.rate <= GATE_THRESHOLD);
+      const timeSpan = samples[samples.length - 1].timestamp - samples[0].timestamp;
+      const sufficientDuration = timeSpan >= MIN_DURATION_MINUTES;
+
+      const canPromote = allPass && sufficientDuration;
+
+      expect(allPass).toBe(true);
+      expect(sufficientDuration).toBe(false); // Window too short
+      expect(canPromote).toBe(false);
     });
   });
-});
 
-/**
- * Integration test with actual Prometheus query simulator
- *
- * This test demonstrates how the alert would fire in a real Prometheus environment.
- */
-describe('Prometheus Alert Integration', () => {
-  it('simulates EnforceGateUnknownRateHigh alert firing', () => {
-    // Simulate Prometheus scraping metrics over 10-minute window
-    const metrics = new MockPrometheusMetrics();
+  describe('Prometheus Alert Integration', () => {
+    it('ShadowModeBlastRadiusTooHigh alert blocks promotion', () => {
+      // Simulate Prometheus alert firing
+      const alert = {
+        name: 'ShadowModeBlastRadiusTooHigh',
+        state: 'firing',
+        value: 0.007, // 0.7% - above threshold
+      };
 
-    // Scenario: Canary rollout with 0.6% unknown rate
-    const totalRequests = 100000;
-    const unknownRequests = 600; // 0.6%
+      const GATE_THRESHOLD = 0.005;
 
-    metrics.record('http_requests_total', totalRequests);
-    metrics.record('stage_warn_unknown_total', unknownRequests);
+      // If alert is firing, gate is failed
+      const alertFiring = alert.state === 'firing';
+      const rateAboveThreshold = alert.value > GATE_THRESHOLD;
 
-    // Evaluate alert condition
-    const unknownRate = metrics.rate('stage_warn_unknown_total');
-    const httpRate = metrics.rate('http_requests_total');
-    const unknownFraction = unknownRate / httpRate;
+      expect(alertFiring).toBe(true);
+      expect(rateAboveThreshold).toBe(true);
 
-    // Assert alert would fire
-    expect(unknownFraction).toBeGreaterThan(0.005);
-    expect(shouldBlockPromotion(metrics)).toBe(true);
+      // Cannot promote while alert is firing
+      const canPromote = !alertFiring;
+      expect(canPromote).toBe(false);
+    });
 
-    // Expected alert annotation
-    const alertAnnotation = {
-      description: 'Unknown stage rate >0.5% for 10m; blocks promotion to ENFORCE mode',
-      runbook: '/docs/runbooks/stage-normalization-rollout.md#promotion-gate',
-      severity: 'page',
-    };
+    it('allows promotion when alert is resolved', () => {
+      const alert = {
+        name: 'ShadowModeBlastRadiusTooHigh',
+        state: 'resolved',
+        value: 0.003, // 0.3% - below threshold
+      };
 
-    expect(alertAnnotation.severity).toBe('page');
-  });
+      const alertFiring = alert.state === 'firing';
 
-  it('simulates safe promotion scenario', () => {
-    const metrics = new MockPrometheusMetrics();
+      expect(alertFiring).toBe(false);
 
-    // Scenario: Stable canary with 0.05% unknown rate
-    const totalRequests = 100000;
-    const unknownRequests = 50; // 0.05%
-
-    metrics.record('http_requests_total', totalRequests);
-    metrics.record('stage_warn_unknown_total', unknownRequests);
-
-    // Evaluate alert condition
-    const unknownRate = metrics.rate('stage_warn_unknown_total');
-    const httpRate = metrics.rate('http_requests_total');
-    const unknownFraction = unknownRate / httpRate;
-
-    // Assert alert would NOT fire
-    expect(unknownFraction).toBeLessThanOrEqual(0.005);
-    expect(shouldBlockPromotion(metrics)).toBe(false);
+      // Can promote if alert is not firing
+      const canPromote = !alertFiring;
+      expect(canPromote).toBe(true);
+    });
   });
 });

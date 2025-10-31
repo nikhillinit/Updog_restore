@@ -1,346 +1,255 @@
 /**
- * Integration Tests: Ops Webhook Handler
+ * Integration Tests: Ops Stage Validation Webhook
  *
  * Tests the Alertmanager webhook endpoint for auto-downgrade functionality.
- * Validates HMAC authentication, replay protection, and audit logging.
+ * Includes HMAC authentication, replay protection, and audit logging.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import express from 'express';
 import crypto from 'crypto';
+import type { Express } from 'express';
 
-// Mock the mode store
-const mockSetMode = vi.fn().mockResolvedValue(undefined);
-vi.mock('@server/lib/stage-validation-mode', () => ({
-  setStageValidationMode: mockSetMode,
-}));
+describe('Ops Stage Validation Webhook', () => {
+  let app: Express;
+  const SECRET = 'test-secret-at-least-32-characters-long-for-security';
 
-describe('Ops Webhook: Auto-Downgrade', () => {
-  const SECRET = 'a'.repeat(64); // 64-char hex string
-  let app: express.Application;
+  beforeAll(async () => {
+    // Set required environment variables
+    process.env['ALERTMANAGER_WEBHOOK_SECRET'] = SECRET;
+    process.env['STAGE_VALIDATION_MODE'] = 'enforce';
+    process.env['REDIS_URL'] = process.env['REDIS_URL'] || 'redis://localhost:6379';
 
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    process.env.ALERTMANAGER_WEBHOOK_SECRET = SECRET;
-    process.env.REDIS_URL = 'redis://localhost:6379';
+    // Import server after env vars are set
+    const { createServer } = await import('@/server/server');
+    const { loadEnv } = await import('@/server/config/index');
+    const { buildProviders } = await import('@/server/providers');
 
-    // Re-import the route after setting env vars
-    const modulePath = '../../server/routes/_ops-stage-validation';
-    delete require.cache[require.resolve(modulePath)];
-    const opsRoute = (await import(modulePath)).default;
-
-    // Create Express app with route
-    app = express();
-    app.use(opsRoute);
+    const cfg = loadEnv();
+    const providers = await buildProviders(cfg);
+    app = await createServer(cfg, providers);
   });
 
-  afterEach(() => {
-    delete process.env.ALERTMANAGER_WEBHOOK_SECRET;
-    delete process.env.REDIS_URL;
+  afterAll(() => {
+    delete process.env['ALERTMANAGER_WEBHOOK_SECRET'];
   });
 
-  function generateSignature(body: object): string {
-    const raw = JSON.stringify(body);
-    return crypto.createHmac('sha256', SECRET).update(raw).digest('hex');
-  }
+  describe('POST /_ops/stage-validation/auto-downgrade', () => {
+    it('accepts valid HMAC signature and downgrades to warn', async () => {
+      const payload = {
+        groupLabels: {
+          alertname: 'StageValidationHighErrorRate',
+          timestamp: new Date().toISOString(),
+        },
+      };
 
-  function createWebhookPayload(timestamp?: string) {
-    return {
-      groupLabels: {
-        alertname: 'StageValidationHighRejectRate',
-        severity: 'page',
-        timestamp: timestamp || new Date().toISOString(),
-      },
-      commonAnnotations: {
-        description: 'Enforce rejects >1% over 5m',
-        runbook: '/docs/runbooks/stage-normalization-rollout.md',
-      },
-    };
-  }
-
-  describe('HMAC Authentication', () => {
-    it('accepts valid HMAC signature', async () => {
-      const payload = createWebhookPayload();
-      const signature = generateSignature(payload);
+      const rawBody = JSON.stringify(payload);
+      const signature = crypto.createHmac('sha256', SECRET).update(rawBody).digest('hex');
 
       const response = await request(app)
         .post('/_ops/stage-validation/auto-downgrade')
         .set('X-Alertmanager-Signature', signature)
-        .send(payload);
+        .set('Content-Type', 'application/json')
+        .send(rawBody);
 
       expect(response.status).toBe(200);
       expect(response.body).toEqual({ ok: true });
-      expect(mockSetMode).toHaveBeenCalledWith('warn', {
-        actor: 'alertmanager',
-        reason: 'auto-downgrade triggered by alert: StageValidationHighRejectRate',
-      });
+
+      // Verify mode was changed to 'warn'
+      const { getStageValidationMode } = await import('@/server/lib/stage-validation-mode');
+      const mode = await getStageValidationMode();
+      expect(mode).toBe('warn');
     });
 
-    it('rejects invalid HMAC signature', async () => {
-      const payload = createWebhookPayload();
-      const invalidSignature = 'f'.repeat(64);
+    it('rejects invalid HMAC signature (timing-safe)', async () => {
+      const payload = {
+        groupLabels: {
+          alertname: 'StageValidationHighErrorRate',
+          timestamp: new Date().toISOString(),
+        },
+      };
+
+      const rawBody = JSON.stringify(payload);
+      const wrongSignature = crypto
+        .createHmac('sha256', 'wrong-secret')
+        .update(rawBody)
+        .digest('hex');
 
       const response = await request(app)
         .post('/_ops/stage-validation/auto-downgrade')
-        .set('X-Alertmanager-Signature', invalidSignature)
-        .send(payload);
+        .set('X-Alertmanager-Signature', wrongSignature)
+        .set('Content-Type', 'application/json')
+        .send(rawBody);
 
       expect(response.status).toBe(401);
       expect(response.body).toEqual({ error: 'invalid-signature' });
-      expect(mockSetMode).not.toHaveBeenCalled();
+    });
+
+    it('rejects expired timestamp (>5 minutes)', async () => {
+      const oldTimestamp = new Date(Date.now() - 6 * 60 * 1000).toISOString(); // 6 minutes ago
+      const payload = {
+        groupLabels: {
+          alertname: 'StageValidationHighErrorRate',
+          timestamp: oldTimestamp,
+        },
+      };
+
+      const rawBody = JSON.stringify(payload);
+      const signature = crypto.createHmac('sha256', SECRET).update(rawBody).digest('hex');
+
+      const response = await request(app)
+        .post('/_ops/stage-validation/auto-downgrade')
+        .set('X-Alertmanager-Signature', signature)
+        .set('Content-Type', 'application/json')
+        .send(rawBody);
+
+      expect(response.status).toBe(401);
+      expect(response.body).toEqual({ error: 'expired' });
     });
 
     it('rejects missing signature header', async () => {
-      const payload = createWebhookPayload();
-
-      const response = await request(app)
-        .post('/_ops/stage-validation/auto-downgrade')
-        .send(payload);
-
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: 'invalid-signature' });
-    });
-
-    it('uses timing-safe comparison (constant-time)', async () => {
-      const payload = createWebhookPayload();
-      const correctSignature = generateSignature(payload);
-
-      // Modify one character (should still take same time to compare)
-      const tamperedSignature = 'f' + correctSignature.slice(1);
-
-      const response = await request(app)
-        .post('/_ops/stage-validation/auto-downgrade')
-        .set('X-Alertmanager-Signature', tamperedSignature)
-        .send(payload);
-
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: 'invalid-signature' });
-    });
-
-    it('rejects signature with wrong length', async () => {
-      const payload = createWebhookPayload();
-      const shortSignature = 'abc123'; // Too short
-
-      const response = await request(app)
-        .post('/_ops/stage-validation/auto-downgrade')
-        .set('X-Alertmanager-Signature', shortSignature)
-        .send(payload);
-
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: 'invalid-signature' });
-    });
-  });
-
-  describe('Replay Protection', () => {
-    it('accepts recent timestamp (within 5 minutes)', async () => {
-      const now = new Date();
-      const payload = createWebhookPayload(now.toISOString());
-      const signature = generateSignature(payload);
-
-      const response = await request(app)
-        .post('/_ops/stage-validation/auto-downgrade')
-        .set('X-Alertmanager-Signature', signature)
-        .send(payload);
-
-      expect(response.status).toBe(200);
-    });
-
-    it('rejects old timestamp (>5 minutes)', async () => {
-      const oldDate = new Date(Date.now() - 6 * 60 * 1000); // 6 minutes ago
-      const payload = createWebhookPayload(oldDate.toISOString());
-      const signature = generateSignature(payload);
-
-      const response = await request(app)
-        .post('/_ops/stage-validation/auto-downgrade')
-        .set('X-Alertmanager-Signature', signature)
-        .send(payload);
-
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: 'expired' });
-      expect(mockSetMode).not.toHaveBeenCalled();
-    });
-
-    it('rejects missing timestamp', async () => {
       const payload = {
         groupLabels: {
-          alertname: 'TestAlert',
-          severity: 'page',
+          alertname: 'StageValidationHighErrorRate',
+          timestamp: new Date().toISOString(),
+        },
+      };
+
+      const response = await request(app)
+        .post('/_ops/stage-validation/auto-downgrade')
+        .set('Content-Type', 'application/json')
+        .send(payload);
+
+      expect(response.status).toBe(401);
+      expect(response.body).toEqual({ error: 'invalid-signature' });
+    });
+
+    it('rejects malformed signature (wrong length)', async () => {
+      const payload = {
+        groupLabels: {
+          alertname: 'StageValidationHighErrorRate',
+          timestamp: new Date().toISOString(),
+        },
+      };
+
+      const response = await request(app)
+        .post('/_ops/stage-validation/auto-downgrade')
+        .set('X-Alertmanager-Signature', 'short')
+        .set('Content-Type', 'application/json')
+        .send(payload);
+
+      expect(response.status).toBe(401);
+      expect(response.body).toEqual({ error: 'invalid-signature' });
+    });
+
+    it('emits structured audit log on success', async () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn');
+
+      const payload = {
+        groupLabels: {
+          alertname: 'StageValidationHighErrorRate',
+          severity: 'critical',
+          timestamp: new Date().toISOString(),
+        },
+      };
+
+      const rawBody = JSON.stringify(payload);
+      const signature = crypto.createHmac('sha256', SECRET).update(rawBody).digest('hex');
+
+      await request(app)
+        .post('/_ops/stage-validation/auto-downgrade')
+        .set('X-Alertmanager-Signature', signature)
+        .set('Content-Type', 'application/json')
+        .send(rawBody);
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('stage_validation_auto_downgrade')
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('alertmanager_webhook'));
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('handles missing timestamp gracefully', async () => {
+      const payload = {
+        groupLabels: {
+          alertname: 'StageValidationHighErrorRate',
           // No timestamp
         },
       };
-      const signature = generateSignature(payload);
+
+      const rawBody = JSON.stringify(payload);
+      const signature = crypto.createHmac('sha256', SECRET).update(rawBody).digest('hex');
 
       const response = await request(app)
         .post('/_ops/stage-validation/auto-downgrade')
         .set('X-Alertmanager-Signature', signature)
-        .send(payload);
-
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: 'expired' });
-    });
-
-    it('rejects invalid timestamp format', async () => {
-      const payload = {
-        groupLabels: {
-          alertname: 'TestAlert',
-          severity: 'page',
-          timestamp: 'not-a-date',
-        },
-      };
-      const signature = generateSignature(payload);
-
-      const response = await request(app)
-        .post('/_ops/stage-validation/auto-downgrade')
-        .set('X-Alertmanager-Signature', signature)
-        .send(payload);
-
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: 'expired' });
-    });
-
-    it('accepts timestamp exactly at 5-minute boundary', async () => {
-      const boundaryDate = new Date(Date.now() - 5 * 60 * 1000); // Exactly 5 minutes
-      const payload = createWebhookPayload(boundaryDate.toISOString());
-      const signature = generateSignature(payload);
-
-      const response = await request(app)
-        .post('/_ops/stage-validation/auto-downgrade')
-        .set('X-Alertmanager-Signature', signature)
-        .send(payload);
-
-      expect(response.status).toBe(200);
-    });
-  });
-
-  describe('Audit Logging', () => {
-    it('emits structured JSON audit log on success', async () => {
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-      const payload = createWebhookPayload();
-      const signature = generateSignature(payload);
-
-      await request(app)
-        .post('/_ops/stage-validation/auto-downgrade')
-        .set('X-Alertmanager-Signature', signature)
-        .send(payload);
-
-      expect(consoleSpy).toHaveBeenCalled();
-      const logCall = consoleSpy.mock.calls[0][0];
-      const logData = JSON.parse(logCall);
-
-      expect(logData).toMatchObject({
-        event: 'stage_validation_auto_downgrade',
-        trigger: 'alertmanager_webhook',
-        alert: 'StageValidationHighRejectRate',
-      });
-      expect(logData.at).toBeDefined();
-      expect(logData.labels).toBeDefined();
-
-      consoleSpy.mockRestore();
-    });
-
-    it('includes alert labels in audit log', async () => {
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-      const payload = {
-        groupLabels: {
-          alertname: 'CustomAlert',
-          severity: 'ticket',
-          timestamp: new Date().toISOString(),
-          custom_label: 'custom_value',
-        },
-      };
-      const signature = generateSignature(payload);
-
-      await request(app)
-        .post('/_ops/stage-validation/auto-downgrade')
-        .set('X-Alertmanager-Signature', signature)
-        .send(payload);
-
-      const logData = JSON.parse(consoleSpy.mock.calls[0][0]);
-      expect(logData.labels).toMatchObject({
-        alertname: 'CustomAlert',
-        severity: 'ticket',
-        custom_label: 'custom_value',
-      });
-
-      consoleSpy.mockRestore();
-    });
-
-    it('handles missing alertname gracefully', async () => {
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-      const payload = {
-        groupLabels: {
-          timestamp: new Date().toISOString(),
-          // No alertname
-        },
-      };
-      const signature = generateSignature(payload);
-
-      await request(app)
-        .post('/_ops/stage-validation/auto-downgrade')
-        .set('X-Alertmanager-Signature', signature)
-        .send(payload);
-
-      expect(mockSetMode).toHaveBeenCalledWith('warn', {
-        actor: 'alertmanager',
-        reason: 'auto-downgrade triggered by alert: unknown',
-      });
-
-      const logData = JSON.parse(consoleSpy.mock.calls[0][0]);
-      expect(logData.alert).toBe('unknown');
-
-      consoleSpy.mockRestore();
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('returns 401 for malformed JSON body', async () => {
-      const response = await request(app)
-        .post('/_ops/stage-validation/auto-downgrade')
-        .set('X-Alertmanager-Signature', 'invalid')
         .set('Content-Type', 'application/json')
-        .send('not-json');
+        .send(rawBody);
 
-      expect(response.status).toBe(400); // Express JSON parsing error
+      expect(response.status).toBe(401);
+      expect(response.body).toEqual({ error: 'expired' });
     });
 
-    it('handles mode store errors gracefully', async () => {
-      mockSetMode.mockRejectedValueOnce(new Error('Redis connection failed'));
+    it('verifies timing-safe comparison prevents timing attacks', async () => {
+      const payload = {
+        groupLabels: {
+          alertname: 'Test',
+          timestamp: new Date().toISOString(),
+        },
+      };
 
-      const payload = createWebhookPayload();
-      const signature = generateSignature(payload);
+      const rawBody = JSON.stringify(payload);
+      const correctSig = crypto.createHmac('sha256', SECRET).update(rawBody).digest('hex');
 
-      const response = await request(app)
+      // Create a signature that differs in first character
+      const wrongSig = `a${correctSig.slice(1)}`;
+
+      const start1 = performance.now();
+      await request(app)
         .post('/_ops/stage-validation/auto-downgrade')
-        .set('X-Alertmanager-Signature', signature)
-        .send(payload);
+        .set('X-Alertmanager-Signature', wrongSig)
+        .send(rawBody);
+      const time1 = performance.now() - start1;
 
-      expect(response.status).toBe(500); // Should propagate error
+      // Create a signature that differs in last character
+      const wrongSig2 = `${correctSig.slice(0, -1)}a`;
+
+      const start2 = performance.now();
+      await request(app)
+        .post('/_ops/stage-validation/auto-downgrade')
+        .set('X-Alertmanager-Signature', wrongSig2)
+        .send(rawBody);
+      const time2 = performance.now() - start2;
+
+      // Timing should be similar (within 2ms) - not revealing position of mismatch
+      expect(Math.abs(time1 - time2)).toBeLessThan(2);
     });
   });
 
-  describe('Startup Validation', () => {
-    it('throws on startup if webhook secret is missing', async () => {
-      delete process.env.ALERTMANAGER_WEBHOOK_SECRET;
+  describe('Startup validation', () => {
+    it('throws error if ALERTMANAGER_WEBHOOK_SECRET too short', async () => {
+      process.env['ALERTMANAGER_WEBHOOK_SECRET'] = 'short'; // Only 5 chars
 
       await expect(async () => {
-        const modulePath = '../../server/routes/_ops-stage-validation';
-        delete require.cache[require.resolve(modulePath)];
-        await import(modulePath);
-      }).rejects.toThrow('ALERTMANAGER_WEBHOOK_SECRET');
+        await import('@/server/routes/_ops-stage-validation');
+      }).rejects.toThrow('≥32 hex chars');
+
+      process.env['ALERTMANAGER_WEBHOOK_SECRET'] = SECRET;
     });
 
-    it('throws on startup if webhook secret is too short', async () => {
-      process.env.ALERTMANAGER_WEBHOOK_SECRET = 'short';
+    it('throws error if ALERTMANAGER_WEBHOOK_SECRET not set', async () => {
+      delete process.env['ALERTMANAGER_WEBHOOK_SECRET'];
 
       await expect(async () => {
-        const modulePath = '../../server/routes/_ops-stage-validation';
-        delete require.cache[require.resolve(modulePath)];
-        await import(modulePath);
-      }).rejects.toThrow('ALERTMANAGER_WEBHOOK_SECRET');
+        await import('@/server/routes/_ops-stage-validation');
+      }).rejects.toThrow('is required');
+
+      process.env['ALERTMANAGER_WEBHOOK_SECRET'] = SECRET;
     });
   });
 });

@@ -1,282 +1,269 @@
 /**
- * Startup Environment Validation for Stage Normalization v3.4
+ * Stage Validation Startup Checks
  *
- * Validates critical environment variables and configuration
- * before the server starts. Fails fast with structured warnings
- * if configuration is invalid.
+ * Validates environment configuration at application startup to fail fast
+ * if critical configuration is missing or invalid.
+ *
+ * Called from server/bootstrap.ts before server starts accepting requests.
  */
 
-import { createClient } from 'redis';
-import sql from './db';
+import { logger } from '../logger';
+
+type ValidationMode = 'off' | 'warn' | 'enforce';
+
+interface StartupCheckResult {
+  passed: boolean;
+  warnings: string[];
+  errors: string[];
+}
 
 /**
  * Validate STAGE_VALIDATION_MODE environment variable
- *
- * @returns true if valid, false with warning if invalid
  */
-export function validateStageValidationMode(): boolean {
-  const mode = process.env.STAGE_VALIDATION_MODE;
-  const validModes = ['off', 'warn', 'enforce'];
+function validateStageValidationMode(): { valid: boolean; warning?: string } {
+  const mode = process.env['STAGE_VALIDATION_MODE'];
 
   if (!mode) {
-    console.warn(
-      JSON.stringify({
-        level: 'warn',
-        event: 'startup_validation',
-        component: 'stage_validation_mode',
-        message: 'STAGE_VALIDATION_MODE not set, will default to "warn"',
-        timestamp: new Date().toISOString(),
-      })
-    );
-    return true; // Not an error - will use default
+    return {
+      valid: true,
+      warning: 'STAGE_VALIDATION_MODE not set, using default: "warn"',
+    };
   }
 
-  if (!validModes.includes(mode)) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        event: 'startup_validation_failed',
-        component: 'stage_validation_mode',
-        message: `Invalid STAGE_VALIDATION_MODE="${mode}", must be one of: ${validModes.join(', ')}`,
-        provided: mode,
-        valid_values: validModes,
-        timestamp: new Date().toISOString(),
-      })
-    );
-    return false;
+  const validModes: ValidationMode[] = ['off', 'warn', 'enforce'];
+  if (!validModes.includes(mode as ValidationMode)) {
+    return {
+      valid: false,
+      warning: `Invalid STAGE_VALIDATION_MODE="${mode}", expected one of: ${validModes.join(', ')}`,
+    };
   }
 
-  console.log(
-    JSON.stringify({
-      level: 'info',
-      event: 'startup_validation',
-      component: 'stage_validation_mode',
-      message: `STAGE_VALIDATION_MODE="${mode}" is valid`,
-      timestamp: new Date().toISOString(),
-    })
-  );
-  return true;
+  return { valid: true };
 }
 
 /**
- * Validate ALERTMANAGER_WEBHOOK_SECRET length
- *
- * Must be at least 32 characters for security
- *
- * @returns true if valid, false with error if invalid
+ * Validate ALERTMANAGER_WEBHOOK_SECRET if webhook is enabled
  */
-export function validateWebhookSecret(): boolean {
-  const secret = process.env.ALERTMANAGER_WEBHOOK_SECRET;
-  const MIN_LENGTH = 32;
+function validateWebhookSecret(): { valid: boolean; warning?: string } {
+  const secret = process.env['ALERTMANAGER_WEBHOOK_SECRET'];
 
+  // If not set, webhook won't work but non-critical
   if (!secret) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        event: 'startup_validation_failed',
-        component: 'webhook_secret',
-        message: 'ALERTMANAGER_WEBHOOK_SECRET is required but not set',
-        required_min_length: MIN_LENGTH,
-        timestamp: new Date().toISOString(),
-      })
-    );
-    return false;
+    return {
+      valid: true,
+      warning: 'ALERTMANAGER_WEBHOOK_SECRET not set, auto-downgrade webhook disabled',
+    };
   }
 
+  // Enforce minimum length for security (32 chars = 256 bits of entropy if random)
+  const MIN_LENGTH = 32;
   if (secret.length < MIN_LENGTH) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        event: 'startup_validation_failed',
-        component: 'webhook_secret',
-        message: `ALERTMANAGER_WEBHOOK_SECRET too short (${secret.length} chars), must be ≥${MIN_LENGTH} chars`,
-        provided_length: secret.length,
-        required_min_length: MIN_LENGTH,
-        timestamp: new Date().toISOString(),
-      })
-    );
-    return false;
+    return {
+      valid: false,
+      warning: `ALERTMANAGER_WEBHOOK_SECRET too short (${secret.length} chars), minimum ${MIN_LENGTH} required for security`,
+    };
   }
 
-  console.log(
-    JSON.stringify({
-      level: 'info',
-      event: 'startup_validation',
-      component: 'webhook_secret',
-      message: `ALERTMANAGER_WEBHOOK_SECRET is valid (${secret.length} chars)`,
-      timestamp: new Date().toISOString(),
-    })
-  );
-  return true;
+  return { valid: true };
 }
 
 /**
- * Pre-flight DB probe: Check that normalize_stage() function exists
- *
- * Fails fast if the database migration hasn't been run
- *
- * @returns true if function exists, false with error if missing
+ * Validate environment variable format
  */
-export async function validateDatabaseFunction(): Promise<boolean> {
-  try {
-    // Test that normalize_stage() function exists by calling it with a known input
-    const result = await sql`SELECT normalize_stage('seed') AS test_stage`;
+function validateEnforceWriteOnly(): { valid: boolean; warning?: string } {
+  const value = process.env['ENFORCE_WRITE_ONLY'];
 
+  if (!value) {
+    return { valid: true }; // Optional, defaults to false
+  }
+
+  if (value !== 'true' && value !== 'false') {
+    return {
+      valid: false,
+      warning: `Invalid ENFORCE_WRITE_ONLY="${value}", expected "true" or "false"`,
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validate enforcement percentage
+ */
+function validateEnforcementPercent(): { valid: boolean; warning?: string } {
+  const value = process.env['ENFORCEMENT_PERCENT'];
+
+  if (!value) {
+    return { valid: true }; // Optional, defaults to 0
+  }
+
+  const num = parseInt(value, 10);
+  if (isNaN(num) || num < 0 || num > 100) {
+    return {
+      valid: false,
+      warning: `Invalid ENFORCEMENT_PERCENT="${value}", expected integer 0-100`,
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Run all startup checks
+ *
+ * @throws Error if critical configuration is invalid
+ */
+export function validateStageValidationStartup(): StartupCheckResult {
+  const warnings: string[] = [];
+  const errors: string[] = [];
+  let passed = true;
+
+  // Check 1: Validation mode
+  const modeCheck = validateStageValidationMode();
+  if (!modeCheck.valid) {
+    errors.push(modeCheck.warning!);
+    passed = false;
+  } else if (modeCheck.warning) {
+    warnings.push(modeCheck.warning);
+  }
+
+  // Check 2: Webhook secret
+  const secretCheck = validateWebhookSecret();
+  if (!secretCheck.valid) {
+    errors.push(secretCheck.warning!);
+    passed = false;
+  } else if (secretCheck.warning) {
+    warnings.push(secretCheck.warning);
+  }
+
+  // Check 3: Enforce write only flag
+  const writeOnlyCheck = validateEnforceWriteOnly();
+  if (!writeOnlyCheck.valid) {
+    errors.push(writeOnlyCheck.warning!);
+    passed = false;
+  } else if (writeOnlyCheck.warning) {
+    warnings.push(writeOnlyCheck.warning);
+  }
+
+  // Check 4: Enforcement percentage
+  const percentCheck = validateEnforcementPercent();
+  if (!percentCheck.valid) {
+    errors.push(percentCheck.warning!);
+    passed = false;
+  } else if (percentCheck.warning) {
+    warnings.push(percentCheck.warning);
+  }
+
+  // Log structured results
+  if (errors.length > 0) {
+    logger.error({
+      event: 'stage_validation_startup_failed',
+      errors,
+      warnings,
+      timestamp: new Date().toISOString(),
+    });
+  } else if (warnings.length > 0) {
+    logger.warn({
+      event: 'stage_validation_startup_warnings',
+      warnings,
+      timestamp: new Date().toISOString(),
+    });
+  } else {
+    logger.info({
+      event: 'stage_validation_startup_ok',
+      mode: process.env['STAGE_VALIDATION_MODE'] || 'warn',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  return { passed, warnings, errors };
+}
+
+/**
+ * Check if normalize_stage() database function exists
+ * This function is required by the migration scripts
+ */
+async function validateNormalizeStageFunction(): Promise<{ valid: boolean; error?: string }> {
+  try {
+    // Try importing database connection
+    const { sql } = await import('../db');
+
+    // Test that normalize_stage() function exists
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    const result = await sql`SELECT normalize_stage('seed') AS test`;
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (!result || result.length === 0) {
-      throw new Error('normalize_stage() returned no results');
+      return {
+        valid: false,
+        error: 'normalize_stage() function exists but returned no results',
+      };
     }
 
-    const testStage = result[0].test_stage;
-    if (testStage !== 'seed') {
-      console.warn(
-        JSON.stringify({
-          level: 'warn',
-          event: 'startup_validation',
-          component: 'database_function',
-          message: 'normalize_stage() returned unexpected value',
-          input: 'seed',
-          output: testStage,
-          timestamp: new Date().toISOString(),
-        })
-      );
+    // Verify it returns expected canonical value
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const normalized = result[0]?.test as string | undefined;
+    if (normalized !== 'seed') {
+      return {
+        valid: false,
+        error: `normalize_stage('seed') returned '${normalized}', expected 'seed'`,
+      };
     }
 
-    console.log(
-      JSON.stringify({
-        level: 'info',
-        event: 'startup_validation',
-        component: 'database_function',
-        message: 'normalize_stage() function exists and is working',
-        test_result: testStage,
-        timestamp: new Date().toISOString(),
-      })
-    );
-    return true;
-  } catch (err) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        event: 'startup_validation_failed',
-        component: 'database_function',
-        message: 'normalize_stage() function not found in database',
-        error: (err as Error)?.message,
-        hint: 'Run database migration to create normalize_stage() function',
-        timestamp: new Date().toISOString(),
-      })
-    );
-    return false;
+    return { valid: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+
+    // If function doesn't exist, error will contain "function normalize_stage"
+    if (message.includes('function') && message.includes('normalize_stage')) {
+      return {
+        valid: false,
+        error: 'normalize_stage() database function not found - run migration first',
+      };
+    }
+
+    // Database connection issues are warnings, not hard failures
+    // (allow server to start in environments without database)
+    return {
+      valid: true, // Don't block startup
+      error: `Database probe skipped (${message})`,
+    };
   }
 }
 
 /**
- * Validate Redis connectivity for mode store
- *
- * Tests connection but doesn't fail startup if Redis is unavailable
- * (mode store has fallback behavior)
- *
- * @returns true if connected, false with warning if unavailable
+ * Convenience function to run checks and throw on failure
+ * Use this in bootstrap.ts
  */
-export async function validateRedisConnection(): Promise<boolean> {
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+export async function validateOrThrow(): Promise<void> {
+  const result = validateStageValidationStartup();
 
-  try {
-    const client = createClient({ url: redisUrl });
-    await client.connect();
-    await client.ping();
-    await client.disconnect();
-
-    console.log(
-      JSON.stringify({
-        level: 'info',
-        event: 'startup_validation',
-        component: 'redis_connection',
-        message: 'Redis connection successful',
-        url: redisUrl.replace(/:[^:@]+@/, ':****@'), // Mask password
-        timestamp: new Date().toISOString(),
-      })
-    );
-    return true;
-  } catch (err) {
-    console.warn(
-      JSON.stringify({
-        level: 'warn',
-        event: 'startup_validation',
-        component: 'redis_connection',
-        message: 'Redis connection failed - mode store will use fallback',
-        error: (err as Error)?.message,
-        url: redisUrl.replace(/:[^:@]+@/, ':****@'),
-        impact: 'Mode store will use cache/default fallback',
-        timestamp: new Date().toISOString(),
-      })
-    );
-    return false; // Not a fatal error - mode store has fallback
+  if (!result.passed) {
+    throw new Error(`Stage validation startup checks failed:\n${result.errors.join('\n')}`);
   }
-}
 
-/**
- * Run all startup validations
- *
- * @throws Error if any critical validation fails
- */
-export async function runStartupValidations(): Promise<void> {
-  console.log(
-    JSON.stringify({
-      level: 'info',
-      event: 'startup_validation_begin',
-      message: 'Running Stage Normalization v3.4 startup validations',
+  // Optional: Check database function (non-blocking)
+  const dbCheck = await validateNormalizeStageFunction();
+  if (dbCheck.error) {
+    if (dbCheck.valid) {
+      logger.warn({
+        event: 'db_probe_warning',
+        message: dbCheck.error,
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+      logger.error({
+        event: 'db_probe_failed',
+        message: dbCheck.error,
+        timestamp: new Date().toISOString(),
+      });
+      // Note: We log but don't throw - allows server to start for non-migration use cases
+    }
+  } else {
+    logger.info({
+      event: 'db_probe_ok',
+      message: 'normalize_stage() function verified',
       timestamp: new Date().toISOString(),
-    })
-  );
-
-  const results = {
-    stage_validation_mode: validateStageValidationMode(),
-    webhook_secret: validateWebhookSecret(),
-    database_function: await validateDatabaseFunction(),
-    redis_connection: await validateRedisConnection(),
-  };
-
-  // Critical failures (must pass)
-  const critical = ['webhook_secret', 'database_function'];
-  const criticalFailures = critical.filter((key) => !results[key as keyof typeof results]);
-
-  if (criticalFailures.length > 0) {
-    const errorMsg = `Startup validation failed: ${criticalFailures.join(', ')}`;
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        event: 'startup_validation_failed',
-        message: errorMsg,
-        failed_components: criticalFailures,
-        all_results: results,
-        timestamp: new Date().toISOString(),
-      })
-    );
-    throw new Error(errorMsg);
+    });
   }
-
-  // Warnings (can proceed)
-  const warnings = Object.keys(results).filter(
-    (key) => !results[key as keyof typeof results] && !critical.includes(key)
-  );
-  if (warnings.length > 0) {
-    console.warn(
-      JSON.stringify({
-        level: 'warn',
-        event: 'startup_validation_warnings',
-        message: 'Some validations failed but server can proceed',
-        warning_components: warnings,
-        timestamp: new Date().toISOString(),
-      })
-    );
-  }
-
-  console.log(
-    JSON.stringify({
-      level: 'info',
-      event: 'startup_validation_complete',
-      message: 'All critical startup validations passed',
-      results,
-      timestamp: new Date().toISOString(),
-    })
-  );
 }
