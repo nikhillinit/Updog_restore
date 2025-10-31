@@ -35,6 +35,7 @@ import {
   Save,
   X
 } from 'lucide-react';
+import { exportCsv } from '@/utils/exporters';
 
 interface TearSheet {
   id: string;
@@ -222,6 +223,43 @@ const MOCK_AUDIT_LOG: AuditLogEntry[] = [
   }
 ];
 
+/**
+ * Transform tear sheet data into CSV-friendly format
+ */
+function transformTearSheetToRow(tearSheet: TearSheet) {
+  return {
+    'Company Name': tearSheet.companyName,
+    'Sector': tearSheet.sector,
+    'Stage': tearSheet.stage,
+    'Status': tearSheet.status,
+    'Version': tearSheet.version,
+    'Website': tearSheet.data.website,
+    'Fiscal Year': tearSheet.data.fiscalYear,
+    'Location': tearSheet.data.location,
+    'Investment Lead': tearSheet.data.investmentLead,
+    '% of Fund': tearSheet.data.percentOfFund,
+    'Classification': tearSheet.data.classification,
+    'Collection': tearSheet.data.collection,
+    'Expected Exit Value': tearSheet.data.expectedExitValue,
+    'Founder Maturity': tearSheet.data.founderMaturity,
+    'Board Composition': tearSheet.data.boardComposition.join('; '),
+    'Co-Investors': tearSheet.data.coInvestors.join('; '),
+    'Deal Team Notes': tearSheet.data.dealTeamNotes,
+    'Factor Rating': tearSheet.data.factorRating,
+    'Health': tearSheet.data.health,
+    'Like Company': tearSheet.data.likeCompany,
+    'Parent Entity': tearSheet.data.parentEntity,
+    'Pro Rata': tearSheet.data.proRata,
+    'Revenue Notes': tearSheet.data.revenueNotes,
+    'Company Sentiment': tearSheet.commentary.content,
+    'Commentary Author': tearSheet.commentary.author,
+    'Commentary Version': tearSheet.commentary.version,
+    'Contacts': tearSheet.contacts.map(c => `${c.name} (${c.role})`).join('; '),
+    'Last Modified': new Date(tearSheet.lastModified).toLocaleString(),
+    'Modified By': tearSheet.modifiedBy
+  };
+}
+
 export default function TearSheetDashboard() {
   const [tearSheets, setTearSheets] = useState<TearSheet[]>(MOCK_TEAR_SHEETS);
   const [searchTerm, setSearchTerm] = useState('');
@@ -294,6 +332,18 @@ export default function TearSheetDashboard() {
   const exportToPDF = (tearSheet: TearSheet) => {
     // In real app, this would generate and download PDF
     console.log('Exporting to PDF:', tearSheet.companyName);
+  };
+
+  const handleExportAll = async () => {
+    const rows = filteredTearSheets.map(transformTearSheetToRow);
+    const timestamp = new Date().toISOString().split('T')[0];
+    await exportCsv(rows, `tear-sheets-${timestamp}.csv`);
+  };
+
+  const handleExportSingle = async (tearSheet: TearSheet) => {
+    const rows = [transformTearSheetToRow(tearSheet)];
+    const timestamp = new Date().toISOString().split('T')[0];
+    await exportCsv(rows, `tear-sheet-${tearSheet.companyName.toLowerCase().replace(/\s+/g, '-')}-${timestamp}.csv`);
   };
 
   const renderTearSheetCard = (tearSheet: TearSheet) => (
@@ -437,6 +487,10 @@ export default function TearSheetDashboard() {
               <History className="h-4 w-4 mr-1" />
               History
             </Button>
+            <Button variant="outline" size="sm" onClick={() => handleExportSingle(tearSheet)}>
+              <Download className="h-4 w-4 mr-1" />
+              CSV
+            </Button>
             <Button variant="outline" size="sm" onClick={() => exportToPDF(tearSheet)}>
               <Download className="h-4 w-4 mr-1" />
               PDF
@@ -460,7 +514,7 @@ export default function TearSheetDashboard() {
             <FileText className="h-4 w-4 mr-2" />
             Create Tear Sheet
           </Button>
-          <Button>
+          <Button onClick={handleExportAll}>
             <Download className="h-4 w-4 mr-2" />
             Export All
           </Button>
