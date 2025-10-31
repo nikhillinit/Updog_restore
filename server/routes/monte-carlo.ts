@@ -19,6 +19,14 @@ import { assertFiniteDeep } from '../middleware/engine-guards';
 import { recordHttpMetrics } from '../metrics';
 import { toNumber } from '@shared/number';
 import { sanitizeInput } from '../utils/sanitizer.js';
+import { parseStageDistribution } from '@shared/schemas/parse-stage-distribution';
+import { getStageValidationMode } from '../lib/stage-validation-mode';
+import {
+  recordValidationDuration,
+  recordValidationSuccess,
+  recordUnknownStage,
+} from '../observability/stage-metrics';
+import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 
 const router = Router();
 
@@ -45,7 +53,15 @@ const simulationConfigSchema = z.object({
   // Engine selection
   forceEngine: z.enum(['streaming', 'traditional', 'auto']).default('auto'),
   performanceMode: z.enum(['speed', 'memory', 'balanced']).default('balanced'),
-  enableFallback: z.boolean().default(true)
+  enableFallback: z.boolean().default(true),
+
+  // Stage distribution (optional, for portfolio composition)
+  stageDistribution: z.array(
+    z.object({
+      stage: z.string(),
+      weight: z.number().min(0).max(1),
+    })
+  ).optional(),
 });
 
 const batchSimulationSchema = z.object({
@@ -148,9 +164,55 @@ router["post"]('/simulate', validateRequest(simulationConfigSchema), async (req:
   const correlationId = req.headers['x-correlation-id'] as string || `sim_${Date.now()}`;
 
   try {
-    console.log(`[MONTE_CARLO] Starting simulation ${correlationId} with ${req.body.runs} scenarios`);
+    // Validate stage distribution if provided in simulation config
+    let normalizedStages: any = null;
+    if (req.body.stageDistribution) {
+      const startTime = performance.now();
+      const { normalized, invalidInputs, suggestions } = parseStageDistribution(
+        req.body.stageDistribution
+      );
+      const duration = (performance.now() - startTime) / 1000;
+      recordValidationDuration('POST /api/monte-carlo/simulate', duration);
 
-    const result = await unifiedMonteCarloService.runSimulation(req.body);
+      if (invalidInputs.length > 0) {
+        const mode = getStageValidationMode();
+        recordUnknownStage('POST /api/monte-carlo/simulate', mode);
+        setStageWarningHeaders(res, invalidInputs);
+
+        if (mode === 'enforce') {
+          return res["status"](400)["json"]({
+            error: 'INVALID_STAGE_DISTRIBUTION',
+            message: 'Unknown investment stage(s) in stageDistribution.',
+            details: {
+              invalid: invalidInputs,
+              suggestions,
+              validStages: [
+                'pre-seed',
+                'seed',
+                'series-a',
+                'series-b',
+                'series-c',
+                'series-c+',
+              ],
+            },
+            correlationId,
+          });
+        }
+      }
+
+      normalizedStages = normalized;
+      recordValidationSuccess('POST /api/monte-carlo/simulate');
+    }
+
+    // Create simulation config with normalized stages if validation passed
+    const simulationConfig = req.body;
+    if (normalizedStages && Object.keys(normalizedStages).length > 0) {
+      (simulationConfig as any).stageDistribution = normalizedStages;
+    }
+
+    console.log(`[MONTE_CARLO] Starting simulation ${correlationId} with ${simulationConfig.runs} scenarios`);
+
+    const result = await unifiedMonteCarloService.runSimulation(simulationConfig);
 
     console.log(`[MONTE_CARLO] Completed simulation ${correlationId} in ${result.executionTimeMs}ms using ${result.performance.engineUsed} engine`);
 

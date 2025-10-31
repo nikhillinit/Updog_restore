@@ -1,0 +1,25 @@
+{
+  "name": "@updog/memory-manager",
+  "version": "0.1.0",
+  "description": "mem0-inspired memory management for AI agents",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "vitest"
+  },
+  "keywords": [
+    "memory",
+    "ai",
+    "agents",
+    "context"
+  ],
+  "author": "Press On Ventures",
+  "license": "MIT",
+  "dependencies": {
+    "openai": "^6.7.0",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  }
+}

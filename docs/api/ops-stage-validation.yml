@@ -1,0 +1,271 @@
+openapi: 3.0.3
+info:
+  title: Stage Validation Operations API
+  description: |
+    Operations endpoints for Stage Normalization v3.4.
+
+    **INTERNAL USE ONLY** - These endpoints are for operational control and monitoring.
+    Not intended for regular API consumers.
+
+    ## Security
+
+    All endpoints require HMAC-SHA256 signature verification to prevent unauthorized access.
+
+    ## Related Documentation
+
+    - Runbook: `/docs/runbooks/stage-validation-v3-enhancements.md`
+    - Architecture: `/docs/adr/ADR-011-stage-normalization-v2.md`
+  version: 3.4.0
+  contact:
+    name: Platform Team
+    email: platform@pressonvc.com
+
+servers:
+  - url: https://api.pressonvc.com
+    description: Production
+  - url: https://staging-api.pressonvc.com
+    description: Staging
+
+tags:
+  - name: operations
+    description: Internal operations endpoints
+  - name: webhooks
+    description: Webhook receivers
+
+paths:
+  /_ops/stage-validation/auto-downgrade:
+    post:
+      summary: Alertmanager webhook for auto-downgrade
+      description: |
+        Receives Alertmanager webhook notifications and automatically downgrades
+        stage validation mode from `enforce` to `warn` when high error rates are detected.
+
+        **Trigger Condition**: `StageValidationHighErrorRate` alert fires
+
+        **Action**: Sets validation mode to `warn` to prevent cascading failures
+
+        ## Security
+
+        - HMAC-SHA256 signature verification (timing-safe comparison)
+        - 5-minute replay protection window
+        - Secret must be ≥32 characters
+
+        ## Audit Trail
+
+        Emits structured JSON audit log with:
+        - Event type
+        - Trigger source (alertmanager)
+        - Timestamp
+        - Alert labels
+      operationId: autoDowngradeStageValidation
+      tags:
+        - webhooks
+        - operations
+      security:
+        - HmacSignature: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertmanagerWebhook'
+            examples:
+              high_error_rate:
+                summary: High error rate alert
+                value:
+                  version: '4'
+                  groupKey: '{}:{alertname="StageValidationHighErrorRate"}'
+                  status: 'firing'
+                  receiver: 'stage-validation-ops'
+                  groupLabels:
+                    alertname: 'StageValidationHighErrorRate'
+                    severity: 'page'
+                    timestamp: '2025-10-31T12:00:00Z'
+                  commonLabels:
+                    team: 'platform'
+                    feature: 'stage-validation'
+                  alerts:
+                    - status: 'firing'
+                      labels:
+                        alertname: 'StageValidationHighErrorRate'
+                        severity: 'page'
+                      annotations:
+                        summary: 'Stage validation error ratio >1% for 15 minutes'
+                        description: 'Current error ratio: 1.5%'
+      responses:
+        '200':
+          description: Auto-downgrade successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid_signature:
+                  summary: Invalid HMAC signature
+                  value:
+                    error: 'invalid-signature'
+                expired:
+                  summary: Timestamp expired
+                  value:
+                    error: 'expired'
+
+components:
+  securitySchemes:
+    HmacSignature:
+      type: apiKey
+      in: header
+      name: X-Alertmanager-Signature
+      description: |
+        HMAC-SHA256 signature of request body
+
+        **Calculation**:
+        ```javascript
+        const signature = crypto
+          .createHmac('sha256', process.env.ALERTMANAGER_WEBHOOK_SECRET)
+          .update(JSON.stringify(requestBody))
+          .digest('hex');
+        ```
+
+        **Example**:
+        ```bash
+        SECRET="your-secret-at-least-32-chars"
+        PAYLOAD='{"groupLabels":{"timestamp":"2025-10-31T12:00:00Z"}}'
+        SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$SECRET" -hex | awk '{print $2}')
+
+        curl -X POST https://api.pressonvc.com/_ops/stage-validation/auto-downgrade \
+          -H "X-Alertmanager-Signature: $SIGNATURE" \
+          -H "Content-Type: application/json" \
+          -d "$PAYLOAD"
+        ```
+
+  schemas:
+    AlertmanagerWebhook:
+      type: object
+      description: Alertmanager webhook payload format (v4)
+      required:
+        - version
+        - groupKey
+        - status
+        - receiver
+        - groupLabels
+        - alerts
+      properties:
+        version:
+          type: string
+          example: '4'
+          description: Alertmanager webhook version
+        groupKey:
+          type: string
+          example: '{}:{alertname="StageValidationHighErrorRate"}'
+          description: Alert group identifier
+        status:
+          type: string
+          enum: [firing, resolved]
+          description: Overall status of alert group
+        receiver:
+          type: string
+          example: 'stage-validation-ops'
+          description: Alertmanager receiver name
+        groupLabels:
+          type: object
+          required:
+            - timestamp
+          properties:
+            alertname:
+              type: string
+              example: 'StageValidationHighErrorRate'
+            severity:
+              type: string
+              example: 'page'
+            timestamp:
+              type: string
+              format: date-time
+              description: Alert firing timestamp (ISO 8601) - used for replay protection
+          additionalProperties: true
+        commonLabels:
+          type: object
+          additionalProperties: true
+          description: Labels common to all alerts in group
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alert'
+          description: Individual alerts in group
+
+    Alert:
+      type: object
+      required:
+        - status
+        - labels
+        - annotations
+      properties:
+        status:
+          type: string
+          enum: [firing, resolved]
+        labels:
+          type: object
+          additionalProperties: true
+          description: Alert labels
+        annotations:
+          type: object
+          additionalProperties: true
+          description: Alert annotations (summary, description, runbook)
+        startsAt:
+          type: string
+          format: date-time
+          description: When alert first fired
+        endsAt:
+          type: string
+          format: date-time
+          description: When alert resolved (if resolved)
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          enum:
+            - invalid-signature
+            - expired
+            - bad-request
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+
+  examples:
+    HighErrorRateAlert:
+      value:
+        version: '4'
+        groupKey: '{}:{alertname="StageValidationHighErrorRate"}'
+        status: 'firing'
+        receiver: 'stage-validation-ops'
+        groupLabels:
+          alertname: 'StageValidationHighErrorRate'
+          severity: 'page'
+          team: 'platform'
+          timestamp: '2025-10-31T12:00:00Z'
+        commonLabels:
+          feature: 'stage-validation'
+        alerts:
+          - status: 'firing'
+            labels:
+              alertname: 'StageValidationHighErrorRate'
+              severity: 'page'
+            annotations:
+              summary: 'Stage validation error ratio >1% for 15 minutes'
+              description: 'Current error ratio: 1.5%'
+              runbook: 'https://docs.pressonvc.com/runbooks/stage-validation'
+            startsAt: '2025-10-31T11:45:00Z'

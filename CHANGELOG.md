@@ -8,6 +8,44 @@ and this project adheres to
 
 ## [Unreleased] – 2025‑10‑30
 
+### Added
+
+#### Stage Normalization: Phase 3 Database Infrastructure (2025-10-30) 🗄️
+
+**Completed transactional database migration and backup utilities:**
+
+- `migrations/20251030_stage_normalization_log.sql` (79 lines)
+  - Audit table with ENUM action type and CHECK constraints
+  - Comprehensive indexes for efficient querying and duplicate prevention
+  - Full documentation and post-migration verification examples
+
+- `scripts/backup-stages.sh` (110 lines)
+  - pg_dump backup with comprehensive error handling
+  - Validates backup headers, tables, and closing markers
+  - Syslog audit logging for compliance and debugging
+  - Silent-failure-hunter approved: zero silent failures
+
+- `scripts/normalize-stages.ts` (431 lines)
+  - **Production-ready** with all P0/P1/P2 agent feedback applied
+  - Transaction safety: single BEGIN...COMMIT across both tables
+  - Audit logging: WITHIN transaction for atomic consistency
+  - SQL injection prevention: fully parameterized queries
+  - Robust error handling with clear rollback diagnostics
+  - Mandatory pre-flight validation + post-migration verification
+  - Modes: dry-run (default), --apply, --force-unknown
+
+**Quality Assurance:**
+
+- ✅ code-reviewer: Production-ready, all conventions met
+- ✅ silent-failure-hunter: Zero error handling issues
+- ✅ db-migration: Schema safety validated, no injection vectors
+- ✅ All fixes for critical issues (P0), high issues (P1), and medium issues
+  (P2)
+
+**Related ADR**: ADR-011 - Monte Carlo hardening & stage normalization v2
+
+---
+
 ### Fixed
 
 #### Monte Carlo: Critical Stage Normalization Bug (2025-10-30) 🔴
