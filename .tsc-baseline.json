@@ -61,7 +61,7 @@
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
       "total": 56,
-      "lastUpdated": "2025-10-31T08:13:30.848Z"
+      "lastUpdated": "2025-10-31T08:27:56.269Z"
     },
     "server": {
       "errors": [
@@ -127,8 +127,6 @@
         "server/lib/secure-context.ts:TS4111:c5f766dc",
         "server/lib/stage-logging.ts:TS4111:1317d742",
         "server/lib/stage-validation-config.ts:TS2678:0b52166b",
-        "server/lib/stage-validation-mode.ts:TS2379:06fd32c2",
-        "server/lib/stage-validation-mode.ts:TS4111:2351b573",
         "server/lib/stage-validation-startup.ts:TS2339:e46af0e5",
         "server/lib/tracing.ts:TS2375:57f6711f",
         "server/lib/tracing.ts:TS2379:ff0096e0",
@@ -210,9 +208,6 @@
         "server/routes.ts:TS4111:f8f409fe",
         "server/routes/__tests__/funds.idempotency.spec.ts:TS4111:bccac4ee",
         "server/routes/_ops-stage-validation.ts:TS2339:dd546d77",
-        "server/routes/_ops-stage-validation.ts:TS4111:a90f40ea",
-        "server/routes/_ops-stage-validation.ts:TS4111:dec69125",
-        "server/routes/_ops-stage-validation.ts:TS7006:3e3cf7aa",
         "server/routes/ai.ts:TS2379:482e584e",
         "server/routes/ai.ts:TS2379:4e5009fb",
         "server/routes/ai.ts:TS2379:81f5a379",
@@ -465,22 +460,22 @@
         "server/websocket/dev-dashboard.ts:TS2345:ed62011f",
         "server/websocket/dev-dashboard.ts:TS2532:de791f79"
       ],
-      "total": 399,
-      "lastUpdated": "2025-10-31T08:13:30.848Z"
+      "total": 394,
+      "lastUpdated": "2025-10-31T08:27:56.269Z"
     },
     "shared": {
       "errors": ["shared/variance-validation.ts:TS4111:236f2efb"],
       "total": 1,
-      "lastUpdated": "2025-10-31T08:13:30.848Z"
+      "lastUpdated": "2025-10-31T08:27:56.269Z"
     },
     "unknown": {
       "errors": ["vite.config.ts:TS7006:118fabe7"],
       "total": 1,
-      "lastUpdated": "2025-10-31T08:13:30.848Z"
+      "lastUpdated": "2025-10-31T08:27:56.269Z"
     }
   },
-  "totalErrors": 457,
-  "timestamp": "2025-10-31T08:13:30.848Z",
+  "totalErrors": 452,
+  "timestamp": "2025-10-31T08:27:56.269Z",
   "buildMode": "per-project",
-  "elapsedMs": 21426
+  "elapsedMs": 25704
 }
