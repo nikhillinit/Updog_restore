@@ -88,8 +88,8 @@ export default defineConfig({
         test: {
           name: 'server',
           environment: 'node',
-          // Simplified: All .test.ts files run in Node environment
-          include: ['tests/unit/**/*.test.ts'],
+          // Simplified: All .test.ts files run in Node environment (including perf tests)
+          include: ['tests/unit/**/*.test.ts', 'tests/perf/**/*.test.ts', 'tests/integration/**/*.test.ts'],
           setupFiles: ['./tests/setup/test-infrastructure.ts', './tests/setup/node-setup.ts'],
         },
       },
