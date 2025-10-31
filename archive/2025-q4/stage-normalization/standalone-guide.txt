@@ -1,0 +1,505 @@
+Below is a **stand‑alone, end‑to‑end proposal** that (1) incorporates the risk analysis you shared, (2) zooms out to place today’s work in the broader rebuild, and (3) upgrades the Stage Normalization plan with concrete safeguards, earlier performance testing, governance hooks, and NotebookLM checkpoints. I’ve grounded this in today’s artifacts and handoffs so nothing falls through the cracks. Citations inline point to the exact progress docs and change log you produced today.
+
+---
+
+## A. Where today’s work fits (zoom‑out)
+
+**What today delivered (net new)**
+
+* **Transactional DB + scripts** for stage normalization (audit log migration, backup script, parameterized normalization with preflight/post‑verify) and rigorous error handling—all production‑grade.  
+* **Phase 2 program framing** with validation modes (`off | warn | enforce`), RFC‑compliant headers, Prometheus metrics, and the rollout playbook; Phase 4‑6 tasks enumerated and ready. 
+
+**Why this matters in the grand rebuild**
+
+* It closes a real correctness gap (e.g., `series-c+` silently dropped by brittle regex—now replaced by typed, fail‑closed normalization and tests), and it institutionalizes **defense‑in‑depth**: typed normalizers → API gates → database migration with auditability → metrics & runbook. 
+* It also elevates **operational hygiene** (preflight checks, rollback scripts, parameterized SQL, within‑transaction audit logging). 
+
+**Sequence checkpoint (ordered)**
+
+1. **Phase 1 (foundation docs & validation)** – already mature across engines; CA Phase 2 completed earlier this week.
+2. **Stage Normalization Phase 1–3** – **done today** (infra + DB + scripts). 
+3. **Stage Normalization Phase 4–6** – **next** (route integration, tests, perf, alerts, docs). 
+4. **NotebookLM pipeline** – remains a **first‑class gate** for documentation quality: we’ll add human review + scorer calibration below to avoid brittleness.
+5. **Broader IA consolidation & production hardening** – proceeds safely because upstream data is now normalized and observable.
+
+---
+
+## B. Response to your critique → targeted upgrades (adopted)
+
+Your analysis is on point. Below are the **concrete changes** I’m making to the plan, mapped to risks/opportunities you called out.
+
+### B1) “Warn” phase effectiveness & consumer impact → **Active feedback + longer window**
+
+**What changes**
+
+* Extend **warn window** from 7 days → **14 days** (minimum), with a canary “enforce” for 24h on **one** endpoint only.
+* Add **top offenders table** (variant, count, user‑agent hash, route) and **daily Slack/GitHub digest** to force visibility (avoids “header blindness”).
+
+**How (code & ops)**
+
+*Metric enrichment (server/observability/stage-metrics.ts)*
+*Add minimal labels to preserve low cardinality while tracking offenders:*
+
+```ts
+// Add a very limited UA-hash label; keep label set tiny to avoid cardinality blowups
+stage_normalization_unknown_total = new Counter({
+  name: 'stage_normalization_unknown_total',
+  help: 'Unknown stage variants seen',
+  labelNames: ['endpoint', 'mode', 'ua_hash'], // keep short
+});
+```
+
+*Compute a stable, privacy‑safe UA hash inside the middleware*
+
+```ts
+import crypto from 'crypto';
+
+function uaHash(req: Request) {
+  const ua = (req.headers['user-agent'] || 'unknown').slice(0, 128);
+  return crypto.createHash('sha256').update(ua).digest('hex').slice(0, 8);
+}
+```
+
+*Warn‑phase extension in roll‑out plan*
+
+* Days 1–3: `mode=off` observe
+* **Days 4–14:** `mode=warn` + daily digest + top‑offenders triage
+* Day 15: canary `mode=enforce` for **one** endpoint (2–4h), auto‑rollback trigger (below), then full enforce
+
+> These adjustments slot cleanly into the existing rollout memo and infra. 
+
+---
+
+### B2) Shift‑left performance testing → **bench before Phase 4**
+
+**What changes**
+
+* Add a **micro‑bench** for `parseStageDistribution()` and headers/metrics overhead **before** touching API routes.
+* Budgets: **p99 < 1 ms** for normalization, **p99 < 0.2 ms** overhead for header/metrics work on commodity dev laptop. If unmet, optimize before integration.
+
+**How (tests/perf/stage-normalization-perf.test.ts)**
+
+```ts
+import { performance } from 'node:perf_hooks';
+import { parseStageDistribution } from '@shared/schemas/parse-stage-distribution';
+
+const N = 50_000;
+const SAMPLE = { 'Pre_Seed': 0.1, 'series-c+': 0.2, 'Series A': 0.7 };
+
+function bench(fn: () => void) {
+  const t0 = performance.now();
+  for (let i = 0; i < N; i++) fn();
+  const t1 = performance.now();
+  return (t1 - t0) / N; // ms/op
+}
+
+test('parseStageDistribution p99 budget', () => {
+  const samples: number[] = [];
+  for (let r = 0; r < 10; r++) {
+    samples.push(bench(() => parseStageDistribution(SAMPLE)).valueOf());
+  }
+  samples.sort((a, b) => a - b);
+  const p99 = samples[Math.floor(samples.length * 0.99) - 1] ?? samples.at(-1)!;
+  expect(p99).toBeLessThan(1.0); // ms
+});
+```
+
+> Adding this **before** Phase 4 ensures we won’t discover an overhead problem late. It complements your existing perf budget docs and planned histogram metrics. 
+
+---
+
+### B3) Operational guardrails & rollback → **safer “force flags,” dry‑run confirmations, rehearsal**
+
+**What changes**
+
+* Make `--apply` and `--force-unknown` require **typed confirmations** (or an env var gate) and a **fresh backup (<24h)** check.
+* Add a **staging rehearsal** runbook: full migration + mode flips + rollback timing to measure RTO.
+
+**How (scripts/normalize-stages.ts)**
+
+```ts
+if (argv.apply) {
+  if (!process.env.CI && !argv.yes) {
+    const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });
+    const ans = await new Promise(r => rl.question(
+      'Type "APPLY" to proceed with production migration: ', x => (rl.close(), r(x))
+    ));
+    if (ans.trim() !== 'APPLY') throw new Error('Aborted: confirmation mismatch');
+  }
+  const backupAgeHrs = await assertFreshBackup('<24h'); // fail if too old
+}
+
+if (argv['force-unknown']) {
+  if (!process.env.ALLOW_FORCE_UNKNOWN) {
+    throw new Error('Set ALLOW_FORCE_UNKNOWN=1 explicitly to use --force-unknown');
+  }
+}
+```
+
+**Runbook rehearsal** (docs/runbooks/stage-normalization-rollout.md):
+
+* Time each step (backup, dry‑run, apply, verify, flip modes, rollback) to derive RTO/RPO bounds.
+* Require **two‑person** (or past‑self + checklist signature) sign‑off for force flags.
+
+> This builds directly on your within‑transaction audit, parameterization, and rollback diagnostics. 
+
+---
+
+### B4) NotebookLM validation brittleness → **hybrid gate (LLM + human), scorer calibration set**
+
+**What changes**
+
+* Keep Promptfoo + LLM‑as‑Judge gate ≥92%, but make it the **entry** to a **human checklist review** (clarity, examples, contradictions).
+* Add a **calibration set**: 6–10 manually scored doc excerpts (good, borderline, bad). Track scorer‑to‑human correlation over time.
+
+**How (repo layout)**
+
+```
+scripts/validation/
+  ground-truth/
+    capital-allocation.md.slice-CA-009.txt
+    fees.md.slice-mgmt-fee-edge.txt
+    ...
+  calibration/
+    rubric-explanations.md
+    correlation-tracking.csv
+```
+
+**Promptfoo extension**: Add a “comparison” evaluator that emits dimension scores + textual rationales; store side‑by‑side with human labels, compute Pearson/Spearman in a tiny Python helper.
+
+> This keeps the **NotebookLM strategy** a first‑class citizen and reduces the risk of over‑indexing on the automated score. Your current framework already supports this with minimal wiring. 
+
+---
+
+### B5) Automated rollback triggers → **auto‑downgrade to warn on error spike**
+
+**What changes**
+
+* If `4xx{INVALID_STAGE}` or `stage_validation_outcome_total{outcome="reject"}` exceeds a threshold over a rolling window, **auto‑flip** `mode=enforce → warn`, emit alert, open a ticket.
+
+**How (ops shim + protected admin route)**
+
+*Lightweight admin endpoint (auth‑protected):*
+
+```ts
+// server/routes/admin-stage-mode.ts
+app.post('/api/admin/stage-mode', requireAdmin, (req, res) => {
+  const mode = req.body?.mode;
+  if (!['off','warn','enforce'].includes(mode)) return res.status(400).end();
+  setDynamicStageMode(mode); // e.g., in-memory or config provider
+  res.json({ ok: true, mode });
+});
+```
+
+*Auto‑downgrade action (GitHub Action or cron worker):*
+
+```yaml
+# .github/workflows/auto-downgrade-stage-mode.yml
+on:
+  schedule: [{ cron: "*/5 * * * *" }]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          # Pseudocode: query Prometheus or logs for 5m rate
+          RATE=$(curl -s $PROM_QUERY | jq '.data.result[0].value[1]')
+          if (( $(echo "$RATE > 15" | bc -l) )); then
+            curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"mode":"warn"}' https://your-api/api/admin/stage-mode
+          fi
+```
+
+> This pairs tightly with the alerts and metrics structure already outlined in your Phase 2 memo. 
+
+---
+
+### B6) Statistical test stability & data drift → **drift checks + CI timing watch**
+
+**What changes**
+
+* Persist **stage‑variant histograms** weekly; flag big shifts.
+* Track **test execution time** for Monte Carlo statistical suites; alert if regressions exceed 2× baseline.
+
+**How**
+
+* Nightly job writes a compact JSON of variant frequencies; compare to last 4 weeks.
+* Add a `timing` reporter around Monte Carlo suites and push a simple time series (S3/GitHub artifact).
+* Prometheus alert if CI duration for the test job degrades significantly.
+
+> Complements your Clopper‑Pearson/bootstrap changes and keeps the assertions calibrated as inputs drift. 
+
+---
+
+### B7) Clarify “Phase 2” naming → **rename for continuity**
+
+To avoid confusion:
+
+* Rename current sequence to **Phase 1 (core libs) → Phase 3 (DB+scripts) → Phase 4–6 (API/tests/obs/docs)**, and add a one‑liner in ADR‑011 explaining that “Phase 2” was merged into Phase 1 during implementation (alias curation + schema lift). 
+
+---
+
+## C. Updated, repo‑optimized plan (5–7 days of focused work)
+
+This folds in the optimizations above and aligns with the real repo state.
+
+### Day 0 (today): Lock in what’s done & set guardrails
+
+* Land **perf micro‑bench** and budgets (p99 targets) **before** route integration.
+* Add **typed confirmations** + **fresh backup check** to normalization flags.
+* Document **two‑person** (or “past‑self + checklist”) sign‑off in runbook. 
+
+### Day 1: Route integration (Phase 4)
+
+* Integrate **three endpoints** with `parseStageDistribution`, header setting, and metrics; keep feature flag at `off`.
+* Add **top‑offenders daily digest** workflow. 
+
+### Day 2: Test harness (Phase 5)
+
+* Unit tests: mode gates, headers, suggestions.
+* Integration tests: 3 endpoints × 3 modes.
+* Perf test: confirm budgets on CI runner.
+
+### Day 3: Observability & alerts (Phase 6)
+
+* Prometheus alerts (warn/critical/latency).
+* Admin endpoint + **auto‑downgrade** action.
+* Update OpenAPI + runbook + ADR‑011 “Phase 2 merge” note. 
+
+### Days 4–5: Rollout (off → warn), migration rehearsal, NotebookLM gate
+
+* **Staging full rehearsal** (backup→dry‑run→apply→verify→rollback) measure RTO.
+* **Switch to warn** in prod (14 days planned), run daily digests; tune aliases based on offenders.
+* **NotebookLM gate**: run Promptfoo fast config → if ≥92%, do human checklist review → publish. 
+
+### Day 6+: Canary enforce, auto‑rollback hooks
+
+* Flip **one endpoint** to enforce for 2–4h.
+* If error/reject rate threshold is crossed, **auto‑downgrade** to warn and open ticket.
+* If clean, proceed to full enforce.
+
+---
+
+## D. Concrete files & snippets to add now
+
+> Paths assume your current structure; these extend what you already committed today. Where you already have equivalent files, treat these as patches.
+
+### D1) Perf micro‑bench (new)
+
+**`tests/perf/stage-normalization-perf.test.ts`**
+(see snippet in §B2)
+
+### D2) Guarded flags & fresh backup check (patch)
+
+**`scripts/normalize-stages.ts`**
+(see snippet in §B3; add `assertFreshBackup()` helper that checks the timestamp/signature of the last backup produced by `backup-stages.sh`)
+
+### D3) Top‑offenders daily digest (new)
+
+**`.github/workflows/stage-unknowns-digest.yml`**
+
+```yaml
+name: stage-unknowns-daily-digest
+on:
+  schedule: [{ cron: "0 13 * * *" }] # daily 13:00 UTC
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query Prometheus for last 24h unknown variants
+        run: |
+          # pseudo: replace with your prom query; emit markdown table to $GITHUB_STEP_SUMMARY
+          echo "### Top Unknown Stage Variants (24h)" >> $GITHUB_STEP_SUMMARY
+          echo "| variant | count | example UA hash |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---:|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| pre_seed | 124 | a1b2c3d4 |" >> $GITHUB_STEP_SUMMARY
+```
+
+### D4) Auto‑downgrade workflow (new)
+
+**`.github/workflows/auto-downgrade-stage-mode.yml`**
+(see §B5; wire to your admin route)
+
+### D5) NotebookLM calibration set scaffolding (new)
+
+```
+scripts/validation/ground-truth/README.md        # how-to label & compare
+scripts/validation/ground-truth/*.txt            # curated slices
+scripts/validation/calibration/correlation.py    # tiny script to compute r
+```
+
+---
+
+## E. “Nothing falls through the cracks” checklist
+
+* **Stage Normalization**
+  ☐ Perf budgets codified/green before integration
+  ☐ Phase 4–6 done (routes, tests, perf, alerts, docs)
+  ☐ Warn window = 14 days + daily digest + top offenders
+  ☐ Canary enforce with auto‑downgrade safety net
+
+* **NotebookLM**
+  ☐ Promptfoo fast pass ≥92% **then** human checklist review
+  ☐ Calibration set added; scorer correlation tracked
+
+* **Runbook & ADRs**
+  ☐ Rollout rehearsal (timed) documented with RTO/RPO
+  ☐ ADR‑011 updated (“Phase 2” naming clarify)
+  ☐ Normalize flags guarded + backup freshness gate
+
+* **Governance**
+  ☐ Auto‑open issue on excessive rejects or drift
+  ☐ Daily digest keeps unknowns visible
+
+---
+
+Below is a zoomed‑out, single‑page perspective of what you shipped **today**, where this initiative fits in the broader rebuild, and how to ensure the **NotebookLM** track stays on the rails.
+
+---
+
+## 1) Today at a glance — what you actually shipped
+
+**Stage Normalization v2 — Core infra + DB & scripts (done)**
+
+* **Production‑ready database layer**: a transactional migration with audit logging (`migrations/20251030_stage_normalization_log.sql`) and two hardened utilities: `backup-stages.sh` and `normalize-stages.ts`. The normalizer runs **in one atomic transaction**, logs inside the same transaction (no orphan records), and uses **fully‑parameterized SQL**. Modes: *dry‑run (default)*, `--apply`, `--force-unknown`. 
+* **Changelog alignment**: The release notes capture the **typed, fail‑closed normalizer** (fixing the prior `series-c+ → series-c-` bug), **statistically rigorous tests** (binomial/Clopper‑Pearson/bootstrap), and the security model for server‑generated request IDs. These provide the “why” behind the new infra and the quantitative bar you’re holding. 
+* **Phase handoff clarity**: A Phase‑2 memo enumerates what’s done (Phase 1 infra files; Phase 3 DB & scripts) and what’s left (Phase 4 route integration, Phase 5 tests, Phase 6 observability/docs, then a 7‑day rollout). It also codifies headers, modes (`off | warn | enforce`), and Prometheus metrics/alerts to watch during rollout. 
+
+> **Bottom line:** You converted stage normalization from a regex‑based, silent‑failure risk into a **typed, auditable, and observable** system with explicit rollout controls and recovery paths. 
+
+---
+
+## 2) Where this initiative sits in the grand rebuild (ordered sequence)
+
+1. **Test & toolchain stabilization (foundation) — complete earlier**
+
+   * Vitest `test.projects` migration, alias fixes, mock consolidation; unlocked 586 tests and raised pass rate; ADRs and guards for Monte Carlo NaNs. This is why today’s work could land cleanly. 
+
+2. **Documentation Quality Framework (Phase‑1 baseline) — already in place**
+
+   * Promptfoo + LLM‑as‑Judge with a 4‑dim rubric; CI hooks and cost‑controlled workflows. This becomes the gate for the docs you’ll add for stage normalization. 
+
+3. **Stage Normalization v2 (the initiative you progressed today)**
+
+   * **Status now:**
+     **Phase 1** core shared libraries and validation helpers ✅; **Phase 3** DB & scripts ✅; **Phase 4–6** (API integration, tests, observability/docs) next; then a **7‑day** off→warn→enforce rollout. 
+   * **Why it matters:** It removes silent class‑of‑error risks (e.g., `series-c+` mis‑bucket) and gives you typed boundaries, RFC‑compliant deprecation signals, and roll‑backable data changes. 
+
+4. **IA consolidation, modeling wizard, and production hardening (later phases)**
+
+   * They will benefit from the correctness guarantees you just added (normalized inputs, guardrails, metrics). Keep them unblocked by finishing the remaining Phase‑2 items below. 
+
+---
+
+## 3) What remains for Stage Normalization v2 (crisp checklist)
+
+**Phase 4 — API route integration (3 small patches)**
+
+* Add boundary validation to:
+
+  * `server/routes/monte-carlo.ts`
+  * `server/routes/portfolio-intelligence.ts`
+  * `server/routes/allocations.ts`
+    Pattern: parse & normalize, set deprecation headers, respect mode (`off|warn|enforce`), record metrics; then continue business logic using **normalized** values only. (The memo includes the exact snippet.) 
+
+**Phase 5 — Tests (unit + integration + perf)**
+
+* Unit: modes/headers/metrics behavior; suggestions for unknown stages.
+* Integration: each endpoint × 3 modes; enforce returns `400` with canonical suggestions; warn mode sets headers.
+* Perf: baseline the validator; target **p99 < 1ms** for the normalization step itself. 
+
+**Phase 6 — Observability & docs**
+
+* Prometheus alert rules (warn rate, critical rate, latency).
+* OpenAPI updates: response headers schema, `/api/deprecations` contract.
+* ADR update (Phase‑2/v3 refinements), CHANGELOG entries, and a runbook for the 7‑day rollout. 
+
+**7‑day rollout**
+
+* Day 1–2 `mode=off` (observe + update aliases) → Day 3–6 `mode=warn` (headers + metrics) → Day 7+ `mode=enforce` (canary then full). Rollback = flip back to `warn`. 
+
+---
+
+## 4) Make sure **NotebookLM** doesn’t fall through the cracks
+
+You already have a validated docs pipeline (Promptfoo + LLM‑as‑Judge). To keep NotebookLM aligned with this initiative:
+
+**A. Add a new NotebookLM source now (skeleton is enough)**
+
+* `docs/notebooklm-sources/stage-normalization.md` — include:
+
+  * Canonical stage set, alias table, normalization algorithm (high level)
+  * API boundary contract (headers, modes, error shape)
+  * DB audit & migration guarantees (transaction, rollback)
+  * Observability (metrics, alerts) and the 7‑day rollout plan
+    (This mirrors what the Phase‑2 memo spells out.) 
+
+**B. Wire it into your existing validation**
+
+* Add a Promptfoo config: `scripts/validation/stage-normalization-validation.yaml`
+
+  * `doc_content: file://docs/notebooklm-sources/stage-normalization.md`
+  * Use the current scorer; extend the domain keywords with: *canonical stage set, alias mapping, RFC 7231 Sunset, RFC 8288 Link, deprecation headers, enforce/warn/off, p99 latency target, audit log guarantees*. (Your quality framework and scoring approach are already documented in CHANGELOG and validation artifacts.) 
+
+**C. Capture the “truth”**
+
+* Add 8–10 tiny “truth cases” (JSON) showing **input variants → normalized output** and **mode behavior** (e.g., `pre_seed → pre-seed`, `series c+ → series-c+`, unknown → suggestions + 400 in enforce). Validate them with a minimal schema (shape: `{inputVariant, normalized, mode, expectedStatus}`) and reference them in the Promptfoo run. (Same pattern you used in prior modules.) 
+
+**D. Publish & link**
+
+* Update `.doc-manifest.yaml` and the docs index to include Stage Normalization sources and runbook, keeping NotebookLM in the “single‑source‑of‑truth” loop. 
+
+> **Why this matters:** Your docs pipeline is already treated as a **product** with automated scoring. Adding Stage Normalization to NotebookLM now ensures future agents (and “future‑you”) consume the **canon**—the same one your code enforces at runtime. 
+
+---
+
+## 5) Risks & guardrails (with concrete tweaks)
+
+* **Warn‑phase effectiveness:** Extend `warn` beyond 7 days if needed and act on data: track `stage_normalization_unknown_total` by endpoint; if top variants persist, update aliases or proactively remediate the few producers (since this is internal). Consider “auto‑revert to `warn`” if enforced rejections > 0.5% for 10 minutes. 
+* **Shift‑left performance:** Before Phase‑4 merges, benchmark the normalization function in isolation to validate the **p99 < 1ms** target; if close, pre‑opt with a precompiled lookup and avoid per‑request allocations. 
+* **Operational safety:** Keep `--force-unknown` behind an environment guard (require `NODE_ENV!=='production'`) and document a two‑step DB rehearsal (backup → dry‑run → apply → verify) in the runbook you’re already planning. 
+
+---
+
+## 6) Next 48 hours — do this in order
+
+1. **Integrate the 3 routes** using the memo’s pattern; land small, focused PRs. 
+2. **Add tests** (unit + integration + perf) exactly as outlined; keep perf fixture small and deterministic. 
+3. **Observability + docs**: alert rules, OpenAPI headers, ADR update, rollout runbook; add CHANGELOG entry. 
+4. **NotebookLM skeleton & Promptfoo config**: add `stage-normalization.md`, small truth cases, and run a baseline (fast model locally, final model in CI). 
+5. **Start the rollout**: `off → warn`, observe metrics; schedule the DB migration window using your new scripts; then canary **enforce** with rollback trigger defined. 
+
+---
+
+## 7) Quick commands (for muscle memory)
+
+```bash
+# 1) Dry-run normalization (verification only)
+ts-node scripts/normalize-stages.ts
+
+# 2) Apply normalization (single transaction + audit)
+ts-node scripts/normalize-stages.ts --apply
+
+# 3) Force-unknown (guard this in prod)
+ts-node scripts/normalize-stages.ts --apply --force-unknown
+```
+
+
+
+```bash
+# Toggle rollout modes (start at off → then warn → then enforce)
+export STAGE_VALIDATION_MODE=off   # observe only
+export STAGE_VALIDATION_MODE=warn  # headers + allow
+export STAGE_VALIDATION_MODE=enforce  # 400 on unknown
+```
+
+
+
+---
+
+### The meta‑takeaway
+
+* **Today’s work** eliminated an entire class of silent data quality bugs and set up reversible, measurable enforcement. 
+* **Where it fits**: It’s the keystone of your “data correctness → modeling fidelity → UI/IA consolidation” sequence; finish Phase‑4/5/6 and start the 7‑day rollout. 
+* **NotebookLM won’t slip** if you add the doc skeleton, truth cases, and a Promptfoo config **now**, then wire them into your existing validation gates. 

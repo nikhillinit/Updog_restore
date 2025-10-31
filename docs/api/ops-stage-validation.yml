@@ -1,0 +1,300 @@
+openapi: 3.0.3
+info:
+  title: Stage Validation Operations API
+  description: |
+    Internal operations API for Stage Normalization v3.4.
+
+    This API provides endpoints for:
+    - Runtime mode control (off/warn/enforce)
+    - Automated downgrade via Alertmanager webhooks
+    - Mode inspection for monitoring/debugging
+
+    **Security:** All endpoints require HMAC-SHA256 authentication via X-Alertmanager-Signature header.
+  version: 3.4.0
+  contact:
+    name: Press On Ventures Engineering
+    email: engineering@pressonvc.com
+
+servers:
+  - url: https://api.pressonvc.com
+    description: Production
+  - url: https://staging-api.pressonvc.com
+    description: Staging
+
+tags:
+  - name: operations
+    description: Stage validation mode operations
+
+paths:
+  /_ops/stage-validation/auto-downgrade:
+    post:
+      tags:
+        - operations
+      summary: Auto-downgrade to WARN mode
+      description: |
+        Webhook endpoint called by Alertmanager when enforce mode error rate exceeds threshold.
+        Automatically downgrades validation mode to WARN and emits structured audit log.
+
+        **Replay Protection:** Requests older than 5 minutes are rejected.
+        **Authentication:** HMAC-SHA256 signature required in header.
+      operationId: autoDowngradeStageValidation
+      security:
+        - AlertmanagerHMAC: []
+      parameters:
+        - name: X-Alertmanager-Signature
+          in: header
+          required: true
+          description: HMAC-SHA256 hex signature of request body
+          schema:
+            type: string
+            pattern: '^[a-f0-9]{64}$'
+            example: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+      requestBody:
+        required: true
+        description: Alertmanager webhook payload
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertmanagerWebhook'
+            example:
+              groupLabels:
+                alertname: StageValidationHighRejectRate
+                severity: page
+                timestamp: '2025-10-31T12:00:00Z'
+              commonAnnotations:
+                description: 'Enforce rejects >1% over 5m'
+                runbook: '/docs/runbooks/stage-normalization-rollout.md'
+      responses:
+        '200':
+          description: Auto-downgrade successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                ok: true
+        '401':
+          description: Authentication failed (invalid signature or expired timestamp)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid-signature:
+                  value:
+                    error: 'invalid-signature'
+                expired:
+                  value:
+                    error: 'expired'
+
+  /_ops/stage-validation/mode:
+    get:
+      tags:
+        - operations
+      summary: Get current validation mode
+      description: |
+        Returns the current stage validation mode from Redis cache.
+        Falls back to environment default if Redis is unavailable.
+      operationId: getStageValidationMode
+      responses:
+        '200':
+          description: Current mode retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeResponse'
+              example:
+                mode: 'warn'
+                cached_until: '2025-10-31T12:05:00Z'
+                source: 'redis'
+
+    put:
+      tags:
+        - operations
+      summary: Set validation mode
+      description: |
+        Manually set the stage validation mode.
+        Emits structured audit log with actor and reason.
+
+        **Modes:**
+        - `off`: No validation, accept all inputs
+        - `warn`: Validate and log warnings, accept all inputs
+        - `enforce`: Validate and reject invalid inputs with 400 error
+      operationId: setStageValidationMode
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        description: New validation mode
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetModeRequest'
+            example:
+              mode: 'enforce'
+              actor: 'admin@pressonvc.com'
+              reason: 'Canary rollout stage 3 (100% traffic)'
+      responses:
+        '200':
+          description: Mode updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetModeResponse'
+              example:
+                ok: true
+                previous: 'warn'
+                current: 'enforce'
+                timestamp: '2025-10-31T12:00:00Z'
+        '400':
+          description: Invalid mode value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: 'invalid mode: must be one of [off, warn, enforce]'
+
+components:
+  schemas:
+    AlertmanagerWebhook:
+      type: object
+      description: Alertmanager webhook payload
+      required:
+        - groupLabels
+      properties:
+        groupLabels:
+          type: object
+          description: Alert group labels
+          required:
+            - timestamp
+          properties:
+            alertname:
+              type: string
+              example: 'StageValidationHighRejectRate'
+            severity:
+              type: string
+              enum: [page, ticket, warn]
+              example: 'page'
+            timestamp:
+              type: string
+              format: date-time
+              description: Alert firing timestamp (ISO 8601)
+              example: '2025-10-31T12:00:00Z'
+        commonAnnotations:
+          type: object
+          properties:
+            description:
+              type: string
+              example: 'Enforce rejects >1% over 5m'
+            runbook:
+              type: string
+              example: '/docs/runbooks/stage-normalization-rollout.md'
+
+    SetModeRequest:
+      type: object
+      required:
+        - mode
+      properties:
+        mode:
+          type: string
+          enum: [off, warn, enforce]
+          description: Target validation mode
+          example: 'enforce'
+        actor:
+          type: string
+          description: User or system initiating the mode change
+          example: 'admin@pressonvc.com'
+        reason:
+          type: string
+          description: Reason for mode change
+          example: 'Canary rollout stage 3'
+
+    ModeResponse:
+      type: object
+      required:
+        - mode
+      properties:
+        mode:
+          type: string
+          enum: [off, warn, enforce]
+          description: Current validation mode
+          example: 'warn'
+        cached_until:
+          type: string
+          format: date-time
+          description: Cache expiration timestamp
+          example: '2025-10-31T12:05:00Z'
+        source:
+          type: string
+          enum: [redis, cache, default]
+          description: Where the mode value came from
+          example: 'redis'
+
+    SetModeResponse:
+      type: object
+      required:
+        - ok
+        - previous
+        - current
+        - timestamp
+      properties:
+        ok:
+          type: boolean
+          example: true
+        previous:
+          type: string
+          enum: [off, warn, enforce]
+          description: Previous mode before change
+          example: 'warn'
+        current:
+          type: string
+          enum: [off, warn, enforce]
+          description: New mode after change
+          example: 'enforce'
+        timestamp:
+          type: string
+          format: date-time
+          description: When the mode change occurred
+          example: '2025-10-31T12:00:00Z'
+
+    SuccessResponse:
+      type: object
+      required:
+        - ok
+      properties:
+        ok:
+          type: boolean
+          example: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: 'invalid-signature'
+
+  securitySchemes:
+    AlertmanagerHMAC:
+      type: apiKey
+      in: header
+      name: X-Alertmanager-Signature
+      description: |
+        HMAC-SHA256 signature of request body.
+
+        Calculation:
+        ```
+        signature = HMAC-SHA256(secret, JSON.stringify(body))
+        header = hex(signature)
+        ```
+
+        **Replay Protection:** Timestamp must be within 5 minutes of current time.
+
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for manual mode changes

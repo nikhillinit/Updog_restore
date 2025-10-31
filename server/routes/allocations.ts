@@ -15,7 +15,16 @@ import { transaction } from '../db/pg-circuit';
 import type { PoolClient } from 'pg';
 import { db } from '../db';
 import { portfolioCompanies } from '@shared/schema';
-import { eq, and, lt, sql, desc, asc, SQL } from 'drizzle-orm';
+import { eq, and, lt, sql, desc, asc } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
+import { normalizeInvestmentStage } from '@shared/schemas/investment-stages';
+import { getStageValidationMode } from '../lib/stage-validation-mode';
+import {
+  recordValidationDuration,
+  recordValidationSuccess,
+  recordUnknownStage,
+} from '../observability/stage-metrics';
+import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 
 const router = Router();
 
@@ -77,6 +86,7 @@ const CompanyListQuerySchema = z.object({
   q: z.string().max(255).optional(), // Search query
   status: z.enum(['active', 'exited', 'written-off']).optional(),
   sector: z.string().max(100).optional(),
+  stage: z.string().max(50).optional(), // Investment stage (will be normalized)
   sortBy: z.enum(['exit_moic_desc', 'planned_reserves_desc', 'name_asc']).default('exit_moic_desc'),
 });
 
@@ -360,6 +370,43 @@ router["get"]('/funds/:fundId/companies', asyncHandler(async (req: Request, res:
 
   const query = queryResult.data;
 
+  // Validate and normalize stage filter if provided
+  let normalizedStage: string | undefined;
+  if (query.stage) {
+    const startTime = performance.now();
+    const result = normalizeInvestmentStage(query.stage);
+    const duration = (performance.now() - startTime) / 1000;
+    recordValidationDuration('GET /api/funds/:fundId/companies', duration);
+
+    if (!result.ok) {
+      const mode = getStageValidationMode();
+      recordUnknownStage('GET /api/funds/:fundId/companies', mode);
+      setStageWarningHeaders(res, [query.stage]);
+
+      if (mode === 'enforce') {
+        return res["status"](400)["json"]({
+          error: 'invalid_query_parameters',
+          message: 'Invalid investment stage in query parameters',
+          details: {
+            code: 'INVALID_STAGE',
+            invalid: [query.stage],
+            validStages: [
+              'pre-seed',
+              'seed',
+              'series-a',
+              'series-b',
+              'series-c',
+              'series-c+',
+            ],
+          }
+        });
+      }
+    } else {
+      normalizedStage = result.value;
+      recordValidationSuccess('GET /api/funds/:fundId/companies');
+    }
+  }
+
   // Build WHERE conditions
   const conditions: SQL[] = [eq(portfolioCompanies.fundId, fundId)];
 
@@ -376,6 +423,11 @@ router["get"]('/funds/:fundId/companies', asyncHandler(async (req: Request, res:
   // Sector filter
   if (query.sector) {
     conditions.push(eq(portfolioCompanies.sector, query.sector));
+  }
+
+  // Stage filter (using normalized stage)
+  if (normalizedStage) {
+    conditions.push(eq(portfolioCompanies.stage, normalizedStage));
   }
 
   // Search filter (case-insensitive LIKE)
