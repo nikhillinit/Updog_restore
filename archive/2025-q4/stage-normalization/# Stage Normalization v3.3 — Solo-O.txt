@@ -1,0 +1,303 @@
+# Stage Normalization v3.3 — Solo-Operator Plan (Clean Review Draft)
+
+**Purpose**
+Finalize and safely roll out Stage Normalization v3 across three API endpoints with strong operational guardrails, minimal ceremony, and no multi-reviewer or broadcast comms requirements.
+
+
+---
+
+## 1) Scope & Assumptions
+
+* **Internal-only API** for this version (v3). No external consumers are expected.
+* Validation is enforced at API boundaries; normalization is typed and fail-closed.
+* Observability favors **low-cardinality metrics** + **structured logs** (sampled) for high-cardinality details.
+
+> Note: We will **validate** the internal-only assumption before enforcement (Section 3.1).
+
+---
+
+## 2) Current Status (what’s already committed)
+
+* **Core infrastructure**: mode resolver (`off|warn|enforce`), deprecation headers, `/api/deprecations`, shared schema/normalizer, low-cardinality metrics.
+* **Database & scripts**: transactional audit migration; `backup-stages.sh`; `normalize-stages.ts` (parameterized, audit-logged); handoff memo covers rollout shape.
+* **Bug fix**: brittle regex removed; now typed normalization + extensive tests; Monte-Carlo tests use sound statistical assertions.
+
+---
+
+## 3) Pre-Flight (Week 0, Solo)
+
+### 3.1 Consumer Audit (confirm internal-only scope)
+
+* **Code grep** for calls to:
+
+  * `/api/monte-carlo/simulate`, `/api/portfolio/strategies`, `/api/funds/:fundId/companies`, `/api/deprecations`
+* **Access log probe** (last 7 days): IP frequency table + UA fragments for those paths.
+* **Decision**:
+
+  * If **any external** consumer appears: keep WARN longer and add narrow comms to those owners; otherwise proceed.
+
+### 3.2 Dependencies
+
+* **Redis** reachable in staging/prod (`REDIS_URL`), or fall back to env default with logging.
+* **Backup** restore succeeds on staging (not just checksum).
+* Test database and CI pipeline are operational.
+
+---
+
+## 4) What Remains (Phases 4–6)
+
+1. **Phase 4 — Route Integration**
+   Add boundary validation to:
+
+   * `POST /api/monte-carlo/simulate`
+   * `POST /api/portfolio/strategies`
+   * `GET /api/funds/:fundId/companies`
+     Pattern: normalize → set deprecation headers → record metrics → continue with normalized payloads.
+
+2. **Phase 5 — Tests**
+
+   * **Unit**: modes/headers/metrics behaviors.
+   * **Integration**: 3 endpoints × 3 modes (off/warn/enforce) = 9 scenarios.
+   * **Perf**: micro-bench on **validator path** (not MC kernels).
+
+3. **Phase 6 — Observability & Docs**
+
+   * Prometheus alert rules (low-cardinality).
+   * Alertmanager → **webhook** to auto-downgrade to WARN.
+   * OpenAPI add: response headers + `/api/deprecations`.
+   * ADR addendum: brief note that v3 refinements landed; rollout uses off→warn→enforce with an auto-downgrade path.
+
+---
+
+## 5) Implementation Plan (Realistic 3.5 Weeks)
+
+### Week 1 — Routes + Shared Mode + Webhook + Micro-Bench
+
+* Implement three endpoint shims (Phase 4) following the existing pattern.
+* **Mode synchronization**: Redis-backed `get/setStageValidationMode()` with a **5s TTL cache** and graceful degradation to last-known/DEFAULT.
+* **Auto-downgrade** webhook: HMAC with **constant-time compare** + **replay guard** (timestamp tolerance).
+* Micro-bench for the **validator** path only; keep existing MC perf tests intact.
+
+### Week 2 — Tests + Migration Hardening + Backup Validity
+
+* Unit + 9 integration scenarios + perf baseline recorded in CI.
+* **Batched migration** script with checkpoint/resume and back-off; supports dry-run and progress logging.
+* **Backup**: streaming checksum + **staging restore** job (smoke queries) before calling the backup “fresh.”
+
+### Week 3 — Observability & Docs
+
+* **Prometheus alerts**:
+
+  * High reject rate (auto-downgrade),
+  * High warn-mode “unknown” fraction (blocks enforce),
+  * Validator latency regression.
+* OpenAPI headers and `/api/deprecations` schema up to date.
+* ADR addendum (v3 refinements & rollout).
+
+### Week 4 — Controlled Rollout
+
+* **Day 1–2**: `mode=off` (observe unknowns, update alias map if needed).
+* **Day 3–5**: `mode=warn` (headers + metrics, establish steady state).
+* **Day 5**: backup (checksum) → **staging restore test** → normalize (transactional or batched) → verify distinct stages.
+* **Day 6**: canary **enforce** on partial traffic; **Alertmanager → webhook** auto-downgrade on breach; expand if stable.
+
+---
+
+## 6) Operational Safeguards (concise)
+
+### 6.1 Mode Sync (multi-instance)
+
+* Redis GET with 100ms timeout, **5s TTL cache** in process; fall back to last-known/DEFAULT if Redis fails.
+* Pub/sub optional for faster cache invalidation.
+* Monitor Redis GET p99, connection failures; alert on prolonged outage.
+
+### 6.2 Webhook Security
+
+* HMAC with **timing-safe comparison**; **timestamp** tolerance to prevent replay.
+* Secret length ≥ 32 hex chars; explicit error if missing in non-test environments.
+
+### 6.3 Migration Safety
+
+* Two options:
+
+  * **Transactional** script for small datasets.
+  * **Batched** script (5k rows, back-off 100ms) with checkpoint/resume, dry-run mode, per-batch audit logging.
+* Failure on batch N: stop, log, restart from checkpoint; review DB log before resuming.
+
+### 6.4 Backups
+
+* Streaming checksum validation; refuse to proceed if mismatch.
+* **Restore test** to staging; only then consider the backup valid for RPO (< 1h).
+
+### 6.5 Alerts → Auto-Downgrade
+
+* Alertmanager webhook flips `enforce → warn` within ~30s on threshold breach; logs an event; I’m paged.
+* Fallback in non-prod: manual toggle route (disabled in prod).
+
+---
+
+## 7) Minimal Tech Artifacts (ready-to-apply)
+
+> **All code below is trimmed to what Claude needs to review; already aligned to the solo-operator context.**
+
+### 7.1 Mode store (Redis + TTL cache)
+
+```ts
+// server/lib/stage-validation-mode.ts
+import { createClient } from 'redis';
+type Mode = 'off'|'warn'|'enforce';
+const KEY = 'stage:validation:mode';
+const DEFAULT: Mode = (process.env.STAGE_VALIDATION_MODE as Mode) || 'warn';
+const TTL = 5000; // 5s
+
+const redis = createClient({ url: process.env.REDIS_URL });
+await redis.connect().catch(() => { /* log + degrade */ });
+
+let cache: { mode: Mode; expiresAt: number } | null = null;
+
+export async function getStageValidationMode(): Promise<Mode> {
+  const now = Date.now();
+  if (cache && now < cache.expiresAt) return cache.mode;
+
+  try {
+    const controller = new AbortController();
+    const to = setTimeout(() => controller.abort(), 100);
+    const v = (await redis.get(KEY)) as Mode | null;
+    clearTimeout(to);
+    const mode = v ?? DEFAULT;
+    cache = { mode, expiresAt: now + TTL };
+    return mode;
+  } catch {
+    return cache?.mode ?? DEFAULT;
+  }
+}
+
+export async function setStageValidationMode(next: Mode) {
+  if (!['off','warn','enforce'].includes(next)) throw new Error('invalid mode');
+  await redis.set(KEY, next);
+  cache = { mode: next, expiresAt: Date.now() + TTL };
+}
+```
+
+### 7.2 Auto-downgrade webhook (HMAC + replay)
+
+```ts
+// server/routes/_ops-stage-validation.ts
+import crypto from 'crypto';
+import express from 'express';
+import { setStageValidationMode } from '../lib/stage-validation-mode';
+
+const router = express.Router();
+const SECRET = process.env.ALERTMANAGER_WEBHOOK_SECRET;
+if (!SECRET || SECRET.length < 32) throw new Error('ALERTMANAGER_WEBHOOK_SECRET (>=32 chars) missing');
+
+router.post('/_ops/stage-validation/auto-downgrade', express.json(), async (req, res) => {
+  const body = JSON.stringify(req.body ?? {});
+  const sig = String(req.headers['x-alertmanager-signature'] || '');
+  const expected = crypto.createHmac('sha256', SECRET).update(body).digest('hex');
+
+  const ok = sig.length === expected.length &&
+             crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expected, 'hex'));
+  if (!ok) return res.status(401).json({ error: 'invalid-signature' });
+
+  const ts = new Date((req.body?.groupLabels?.timestamp as string) || 0).getTime();
+  if (!ts || Date.now() - ts > 300_000) return res.status(401).json({ error: 'expired' });
+
+  await setStageValidationMode('warn');
+  res.json({ ok: true });
+});
+
+export default router;
+```
+
+### 7.3 Batched normalization (checkpoint/resume + dry-run)
+
+```ts
+// scripts/normalize-stages-batched.ts
+#!/usr/bin/env ts-node
+import postgres from 'postgres'; import { setTimeout as sleep } from 'timers/promises';
+const sql = postgres(process.env.DATABASE_URL!, { max: 8 });
+const BATCH = Number(process.env.BATCH_SIZE || 5000), BACKOFF = Number(process.env.BACKOFF_MS || 100);
+
+async function* idBatches(startId = 0) {
+  let last = startId;
+  for (;;) {
+    const rows = await sql`SELECT id FROM portfolio_companies WHERE id > ${last} ORDER BY id ASC LIMIT ${BATCH}`;
+    if (rows.length === 0) return; yield rows.map(r => r.id as number);
+    last = rows.at(-1)!.id as number;
+  }
+}
+
+async function processBatch(ids: number[], apply: boolean) {
+  if (!apply) { console.log(`[DRY] ${ids.length}`); return; }
+  await sql.begin(async trx => {
+    await trx`UPDATE portfolio_companies pc
+              SET stage = ns.canonical
+              FROM LATERAL (SELECT normalize_stage(pc.stage) AS canonical) ns
+              WHERE pc.id = ANY(${ids})`;
+    await trx`INSERT INTO stage_normalization_log(table_name, action, row_count, notes)
+              VALUES ('portfolio_companies','update', ${ids.length}, 'batched')`;
+  });
+}
+
+async function saveCheckpoint(lastId: number, status: 'ok'|'failed', note='') {
+  await sql`INSERT INTO stage_migration_control(singleton, last_id, status, notes)
+            VALUES (1, ${lastId}, ${status}, ${note})
+            ON CONFLICT (singleton) DO UPDATE SET last_id=EXCLUDED.last_id, status=EXCLUDED.status, notes=EXCLUDED.notes`;
+}
+
+async function run(apply = false) {
+  let processed = 0, batches = 0;
+  for await (const ids of idBatches(0)) {
+    try {
+      await processBatch(ids, apply); processed += ids.length; batches++;
+      if (batches % 10 === 0) console.log(`progress: ${processed} (${batches} batches)`);
+      await saveCheckpoint(ids.at(-1)!, 'ok'); await sleep(BACKOFF);
+    } catch (err: any) {
+      await saveCheckpoint(ids[0], 'failed', String(err?.message||err)); throw err;
+    }
+  }
+  console.log(`DONE: ${processed} rows; apply=${apply}`);
+}
+
+run(process.argv.includes('--apply')).catch(e => { console.error(e); process.exit(1); });
+```
+
+### 7.4 Backup integrity (stream) + restore test
+
+```js
+// scripts/verify-backup-integrity.cjs
+#!/usr/bin/env node
+const fs = require('fs'), path = require('path'), crypto = require('crypto');
+const dir = process.argv[2] || './backups';
+const files = fs.readdirSync(dir).filter(f => f.endsWith('.sql')); if (!files.length) throw new Error('no backups');
+const latest = files.sort().pop(); const sqlPath = path.join(dir, latest), shaPath = sqlPath + '.sha256';
+const exp = fs.readFileSync(shaPath, 'utf8').trim();
+const hash = crypto.createHash('sha256'); const s = fs.createReadStream(sqlPath);
+s.on('data', c => hash.update(c)); s.on('end', () => {
+  const act = hash.digest('hex'); if (act !== exp) { console.error('❌ checksum mismatch'); process.exit(1); }
+  console.log('✅ checksum OK:', latest);
+});
+```
+
+```bash
+# scripts/test-restore.sh
+#!/usr/bin/env bash
+set -euo pipefail
+BACKUP="${1:-./backups/latest.sql}"
+TMP_DB="stage_restore_$(date +%s)"
+createdb "$TMP_DB"
+psql "$TMP_DB" -f "$BACKUP"
+psql "$TMP_DB" -c "SELECT 1;"
+dropdb "$TMP_DB"
+echo "✅ restore OK"
+```
+
+---
+
+## 8) Review Focus for Claude
+
+* **Safety**: Redis mode sync (TTL cache + fallback), webhook security (timing-safe HMAC + replay window), batched normalization (checkpoint/resume), streaming checksum + restore test.
+* **Simplicity**: No multi-reviewer workflows, no broadcast comms; alerts carry the instructions.
+* **Non-duplication**: Tiny validator micro-bench in addition to existing perf tests; reuse everything else.
+* **Rollout control**: Alertmanager → webhook auto-downgrade within ~30s; off→warn→migrate→enforce with canary.

@@ -1,0 +1,18 @@
+groups:
+  - name: stage-validation
+    rules:
+      - alert: StageValidationHighRejectRate
+        expr: sum(rate(stage_enforce_rejects_total[5m])) / sum(rate(http_requests_total[5m])) > 0.01
+        for: 2m
+        labels: { severity: page }
+        annotations:
+          description: 'Enforce rejects >1% over 5m'
+          runbook: '/docs/runbooks/stage-normalization-rollout.md#rollback-procedures'
+
+      - alert: StageUnknownHighInWarn
+        expr: (sum(rate(stage_warn_unknown_total[10m])) / sum(rate(http_requests_total[10m]))) > 0.01
+        for: 10m
+        labels: { severity: ticket }
+        annotations:
+          description: 'Unknown fraction high in WARN; block ENFORCE'
+          runbook: '/docs/runbooks/stage-normalization-rollout.md#week-4-rollout'

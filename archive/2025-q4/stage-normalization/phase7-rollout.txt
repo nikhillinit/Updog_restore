@@ -1,0 +1,253 @@
+# Phase 7: Production Rollout Strategy 
+
+## Overview targets (what “good” looks like)
+
+* **Functional:** All 3 endpoints (Monte Carlo, Portfolio Strategies, Allocations) behave identically across `off` / `warn` / `enforce`, as validated by tests.
+* **Reliability:**
+
+  * Error rate under **1%** (alert threshold) and stable.
+  * p99 validator latency ≤ **5ms** and within +10% of your baseline.
+  * Deprecation header coverage in `warn` ≥ **99%**.
+* **Observability:** All 4 metrics are live with bounded labels; recording/alert rules function as expected.
+* **Data:** Migration is idempotent with verified counts and invariants (e.g., distributions sum to 1, stage enums normalized).
+
+---
+
+## Staging: `warn` activation & shadow validation
+
+**Objectives**
+
+* Validate instrumentation and alerts with real traffic patterns.
+* Prove mode toggling and header semantics end-to-end.
+* Rehearse migration and rollback.
+
+**Steps**
+
+1. **Preflight**
+
+   * Tag the release (e.g., `stage-normalization-v1.0`).
+   * Set `STAGE_VALIDATION_MODE=warn` in staging.
+   * Confirm OpenAPI `X-Stage-*` headers and error schemas are visible; rebuild docs bundle.
+
+2. **Deploy to staging**
+
+   * Run the full integration suite (61 new + existing 58) and the perf regression suite (≤10% deviation vs baseline).
+
+3. **Manual spot checks (curl/Postman)**
+
+   * Send valid and invalid payloads to all 3 endpoints; in `warn`, requests succeed, headers are emitted, and counters increment as expected.
+   * Confirm cross-endpoint consistency.
+
+4. **Observability gates (Prometheus)**
+
+   * Watch:
+
+     * `rate(stage_validation_errors_total[5m]) / rate(stage_validation_validations_total[5m])`
+     * `histogram_quantile(0.99, sum by (le) (rate(stage_validation_duration_seconds_bucket[5m])))`
+     * `sum(increase(stage_deprecation_header_emitted_total[15m])) / sum(increase(stage_validation_validations_total{mode="warn"}[15m]))`
+   * Do a temporary **alert dry run** by lowering thresholds to verify routing, then restore.
+
+5. **Migration rehearsal (staging DB)**
+
+   * Dry-run `normalize-stages.ts` (e.g., `--plan`) and capture would-change counts.
+   * Snapshot → run migration → verify:
+
+     * Row counts equal; **no loss**.
+     * Mapping is exhaustive.
+     * Invariants: distribution buckets sum to 1 within ε (e.g., `|1 − sum| ≤ 1e-6`).
+   * **Rollback rehearsal:** restore snapshot and confirm normal behavior.
+
+**Exit criteria (go/no-go)**
+
+* Alerts/dashboards green; p99 within target.
+* Deprecation header coverage in `warn` ≥ 99%.
+* Migration rehearsal passes with clean invariants and a proven rollback.
+
+---
+
+## Production canary in `warn` (optional but recommended)
+
+**Objectives**
+
+* Validate behavior at a small slice of prod traffic.
+* Confirm real-world data cleanliness before migration.
+
+**Steps**
+
+1. **Enable canary**
+
+   * Scope `mode=warn` to a header-based or route-based subset (≈10% equivalent), ensuring logs/metrics isolate the canary slice.
+
+2. **Live checks**
+
+   * Monitor error rate, p95/p99, and header emission for the canary slice.
+   * Execute golden payloads and a small set of contrived invalids.
+
+3. **Data scan (read-only)**
+
+   * Sample rows by stage; estimate normalization impact.
+   * Verify label bucketing (`'1'|'2-5'|'6-10'|'11+'`) appears as expected.
+
+**Exit criteria to expand in `warn`**
+
+* Error rate stays below threshold; p99 within guardrail.
+* Header emission ≥ 99%.
+* No unexpected label cardinality or validator latency shifts.
+
+> Tip: Expanding to full `warn` before migration reduces ambiguity—proves the validator is safe at scale.
+
+---
+
+## Database migration (`normalize-stages.ts`)
+
+**Objectives**
+
+* Normalize historical data safely with an idempotent, auditable process.
+* Preserve the option to read pre-migration data.
+
+**Pre-migration checklist**
+
+* Snapshot/backup created and documented.
+* Dry-run report saved (counts per stage, mapping table).
+* Runbook open locally (steps + commands).
+* Keep `warn` throughout migration.
+
+**Execution**
+
+1. **Dual-write/read (if convenient)**
+
+   * Consider a `stage_normalized` column or a view for cutover; read legacy until ready.
+
+2. **Idempotent batches**
+
+   * Run in batches (5–10k rows); log start/end PKs, rows updated, mismatches, runtime.
+
+3. **Verification**
+
+   * Compare counts pre/post; per-stage counts; sample before/after rows.
+   * Invariants: stage ∈ allowed set; downstream sums/constraints hold.
+   * Run consistency tests against all 3 endpoints on migrated data.
+
+4. **Cutover**
+
+   * Switch reads to normalized field (or finalize in place); retain snapshot for a quiet period.
+
+5. **If needed**
+
+   * Flip reads back or restore snapshot; keep `warn`.
+
+---
+
+## Enable `enforce` (all endpoints)
+
+**Objectives**
+
+* Move from advisory to enforcing without availability regressions.
+
+**Steps**
+
+1. **Final checks**
+
+   * No active alerts; p99 within target; error budget intact (per your alert rules).
+
+2. **Flip to `enforce`**
+
+   * Roll out the flag gradually (e.g., partial instance rollout) to reduce blast radius.
+   * Watch for 4xx shifts attributable to validation (per error schemas).
+
+3. **Observation**
+
+   * Track validation error taxonomy and top failing payload shapes; confirm SLOs hold.
+
+4. **Afterwards**
+
+   * Tag release, annotate dashboards, and update the runbook “current mode” to `enforce`.
+
+**Success**
+
+* Error rate stable and attributable to expected validation rejects.
+* No sustained perf regression; no active alerts.
+
+---
+
+## Rollback playbook
+
+**Triggers**
+
+* Breach of alert thresholds (error rate, latency, header coverage) sustained per your alert rules.
+
+**Actions (in order)**
+
+1. Flip global **mode → `warn`**.
+2. If needed, disable the feature flag (mode=`off`) on specific endpoints.
+3. If needed, roll back to the previous tag.
+4. If migration implicated, switch reads to pre-migration column/view or restore snapshot.
+5. Log a brief post-incident note (symptoms, metric deltas, offending payload shapes, next steps).
+
+---
+
+## Gating checks & Prometheus queries (copy-ready)
+
+* **Error rate (warn/enforce)**
+
+  ```
+  sum(rate(stage_validation_errors_total[5m]))
+  /
+  sum(rate(stage_validation_validations_total[5m]))
+  ```
+* **p99 validator latency**
+
+  ```
+  histogram_quantile(
+    0.99,
+    sum by (le) (rate(stage_validation_duration_seconds_bucket[5m]))
+  )
+  ```
+* **Warn-mode header coverage**
+
+  ```
+  sum(increase(stage_deprecation_header_emitted_total[15m]))
+  /
+  sum(increase(stage_validation_validations_total{mode="warn"}[15m]))
+  ```
+* **Cardinality sanity (labels)**
+  Confirm helper buckets limited to `'1','2-5','6-10','11+'`.
+
+---
+
+## API surface considerations (solo dev)
+
+* OpenAPI already includes X-Stage headers and the two error schemas—keep representative examples of common failure cases and remediation in the docs.
+* Keep a temporary override (env/flag) to stay in `warn` per endpoint while iterating.
+
+---
+
+## Optional pre-rollout additions
+
+* **Go/No-Go one-pager:** your gates + rollback steps summarized.
+* **Golden payloads:** 5–10 JSONs per endpoint (valid + invalid archetypes).
+* **Pinned dashboards:** one view per metric + alert status for quick checks.
+
+---
+
+## Risk register & mitigations (solo dev)
+
+| Risk                            | Mitigation                                                          | Signal                       |
+| ------------------------------- | ------------------------------------------------------------------- | ---------------------------- |
+| Unexpected rejects in `enforce` | Ramp gradually; keep per-endpoint override; document error taxonomy | Sudden 4xx spike by route    |
+| Latency regression              | Canary + p99 guard via histogram telemetry                          | p99 > target                 |
+| Migration semantics drift       | Dual-read cutover; snapshot restore; invariants checks              | Per-stage count drift        |
+| Alert noise                     | Use precise labels + tuned thresholds; verify recording rules       | Flapping without user impact |
+
+---
+
+## Release artifacts
+
+* Runbook reference (triage queries + recovery).
+* Dashboards: “Stage Validation – Live / Latency / Warn Coverage.”
+* Golden payload corpus (JSON).
+* Migration report (before/after counts, invariants, samples).
+* CHANGELOG with the tag and mode change notes.
+
+---
+
