@@ -2,7 +2,7 @@
 let recentCount = 0;
 let windowStart = Date.now();
 const WINDOW_MS = 60_000;
-const SAMPLE_RATE = Number(process.env.STAGE_LOG_SAMPLE_RATE ?? '0.1');
+const SAMPLE_RATE = Number(process.env['STAGE_LOG_SAMPLE_RATE'] ?? '0.1');
 
 export function shouldSample(): boolean {
   const now = Date.now();

@@ -15,7 +15,7 @@ import sql from './db';
  * @returns true if valid, false with warning if invalid
  */
 export function validateStageValidationMode(): boolean {
-  const mode = process.env.STAGE_VALIDATION_MODE;
+  const mode = process.env['STAGE_VALIDATION_MODE'];
   const validModes = ['off', 'warn', 'enforce'];
 
   if (!mode) {
@@ -66,7 +66,7 @@ export function validateStageValidationMode(): boolean {
  * @returns true if valid, false with error if invalid
  */
 export function validateWebhookSecret(): boolean {
-  const secret = process.env.ALERTMANAGER_WEBHOOK_SECRET;
+  const secret = process.env['ALERTMANAGER_WEBHOOK_SECRET'];
   const MIN_LENGTH = 32;
 
   if (!secret) {
@@ -120,13 +120,16 @@ export function validateWebhookSecret(): boolean {
 export async function validateDatabaseFunction(): Promise<boolean> {
   try {
     // Test that normalize_stage() function exists by calling it with a known input
-    const result = await sql`SELECT normalize_stage('seed') AS test_stage`;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    const result = (await sql`SELECT normalize_stage('seed') AS test_stage`) as Array<{
+      test_stage: string;
+    }>;
 
     if (!result || result.length === 0) {
       throw new Error('normalize_stage() returned no results');
     }
 
-    const testStage = result[0].test_stage;
+    const testStage = result[0].test_stage as string;
     if (testStage !== 'seed') {
       console.warn(
         JSON.stringify({
@@ -177,7 +180,7 @@ export async function validateDatabaseFunction(): Promise<boolean> {
  * @returns true if connected, false with warning if unavailable
  */
 export async function validateRedisConnection(): Promise<boolean> {
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  const redisUrl = process.env['REDIS_URL'] || 'redis://localhost:6379';
 
   try {
     const client = createClient({ url: redisUrl });
