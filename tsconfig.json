@@ -6,7 +6,7 @@
     "server/**/*",
     "schema/src/**/*"
   ],
-  "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
+  "exclude": ["node_modules", "build", "dist", "**/*.test.ts", "archive"],
   "compilerOptions": {
     "incremental": true,
     "tsBuildInfoFile": ".tscache",

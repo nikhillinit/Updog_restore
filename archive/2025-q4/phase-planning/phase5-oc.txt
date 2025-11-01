@@ -1,0 +1,81 @@
+# Holistic Verdict
+
+**Proceed with Phase 5, but tighten scope and align to the *current* code shape.**
+The separate review is right that you **must not duplicate already-written normalizer unit tests** and should anchor on the *canonical* normalizer + the three route integrations now in place. However, it’s **not** accurate to call Phase-5 “obsolete”: Phase-4 already wired validation across the three endpoints, complete with modes, headers, and metrics—those behaviors still need **integration and perf verification** (not re-implementation). 
+
+## What’s true in each document (and how to reconcile)
+
+* **ADR-011 / Final handoff** shipped a typed, fail-closed normalizer (`stage-utils.ts`), fixed the `series-c+` bug, and added **55 passing tests** (48 normalizer tests + 7 statistical MC tests). That work is committed (3224380). This means **you do not need more unit tests of the normalizer internals.** 
+* **CHANGELOG** confirms the bug fix and the new normalizer module with extensive tests; again, **no value in re-testing the same logic in Phase-5**. Focus elsewhere. 
+* **Phase-4 handoff** shows the **three API endpoints are already integrated** with stage validation, modes (`off | warn | enforce`), RFC-compliant headers, and metrics—**exactly the surfaces Phase-5 integration/perf tests should cover**:
+
+  * `POST /api/monte-carlo/simulate`
+  * `POST /api/portfolio/strategies`
+  * `GET /api/funds/:fundId/companies` (single-stage filter)
+    Pattern includes `parseStageDistribution()`, deprecation headers in `warn`, and 400s in `enforce`. 
+* **Phase-2 handoff** also captures that the **canonical stage helpers live in `shared/schemas`** (`investment-stages.ts`, `parse-stage-distribution.ts`), plus the middleware and metrics modules you’ll observe in tests. Treat *that* shared surface as your test seam for routing behavior, not the old regex. 
+* The **Validation Report** (“Accept with minor corrections”) already flagged small textual drifts and confirmed pre-reqs; it supports pressing ahead once test scope is corrected. 
+
+## Net change to my earlier review
+
+Keep all the API-level corrections I suggested (endpoints, headers, metrics registry, perf method), **but**:
+
+1. **Drop normalizer-algorithm unit cases** from Phase-5. Those already exist (55 tests). Only unit-test **mode resolution, header synthesis, and metrics emission** around the API seam. 
+2. **Anchor paths, headers, and shapes to Phase-4 reality** (not an older plan):
+
+   * Allocations filter lives at `GET /api/funds/:fundId/companies?stage=…` (not `/api/allocations`).
+   * In `warn` mode, assert `Deprecation`, `Sunset`, `Link`, plus `X-Stage-Deprecated-Variants` (and *not* an `X-Stage-Suggestions` header). Suggestions belong in the **400 body** for `enforce`.
+   * Error payload keys should match the parser contract (e.g., `invalidInputs`, `suggestions`). 
+3. **Use the app’s Prometheus registry** (or injected test `Registry`) for metric assertions; **don’t** scrape `:9090`. 
+4. **Perf tests = regression-style, not microsecond absolutes**. Use histogram/percentile comparisons and a baseline file; keep perf serial to avoid CI flake. 
+
+## Updated Phase-5 test scope (concise and conflict-free)
+
+**Unit (lightweight, ~10–12 tests):**
+
+* Mode resolution behavior (`off | warn | enforce`)
+* Header setting in `warn` (RFC7231/8288 + `X-Stage-Deprecated-Variants`)
+* Metrics emission counters/histograms with **test `Registry`**
+  *(No normalizer algorithm cases — already covered by the 48 tests in ADR-011 work.)* 
+
+**Integration (~12–18 tests):**
+
+* 3 endpoints × 3 modes basic matrix (success vs reject + suggestions in 400)
+* Allocations filter: query normalization on `GET /api/funds/:fundId/companies`
+* Cross-mode consistency (normalized body used downstream)
+* HTTP semantics (status, headers, structured error body) 
+
+**Performance (few, but reliable):**
+
+* Validation overhead <10% of endpoint p95 using request batches
+* Regression guard vs a committed baseline (histogram quantiles), not absolute microseconds 
+
+**Observability checks:**
+
+* Presence/labels of `stage_validation_duration_seconds`, `stage_normalization_unknown_total`, and `stage_validation_outcome_total` post-call. 
+
+## Short rationale on the “critical conflict”
+
+The separate review asserts Phase-5 is obsolete because a new normalizer supersedes Phase-4 plans. That’s **too binary**. What actually happened:
+
+* **ADR-011 hardened the normalizer** and plugged it into Monte Carlo (with tests). 
+* **Phase-4 integrated route-level validation** (modes, headers, metrics) using the shared helpers—these are live and need e2e verification. 
+* **Phase-2 documents** the shared schema location of canonical helpers the routes use. 
+  So, Phase-5 should **not** be canceled; it should be **refocused** on **route behavior + observability + perf**, not re-unit-testing the normalizer internals.
+
+## Tight “Do-Next” list (actionable)
+
+1. **Prune Phase-5 unit tests** to *only* cover mode/header/metrics seams; delete any normalizer-algorithm duplicates (covered by the 48 existing cases). 
+2. **Lock endpoint paths & header names** to the Phase-4 memo (esp. `GET /api/funds/:fundId/companies`). 
+3. **Adopt the test `Registry` pattern** to assert metrics; stop scraping a Prometheus port. 
+4. **Switch perf to regression mode** (quantiles vs baseline), run serial, and drop any cache hit-rate SLA (caching is future work). 
+5. **Keep API error shapes aligned** to the parser contract from `shared/schemas` (`invalidInputs`, `suggestions`). 
+6. **Carry forward minor corrections** already validated (“Accept with minor corrections”). 
+
+## One governance note (communication)
+
+You do **not** need an email-based deprecation program; this is an **internal-only tool**. Rely on the in-band headers, `/api/deprecations`, CI guards, and shared-module imports as already specified. 
+
+---
+
+**Bottom line:** keep the skeletal structure of your Phase-5 plan (unit + integration + perf), but **aim it at the live API surfaces and observability**, and **avoid retesting the normalizer internals** already delivered in ADR-011. This path reconciles both reviews and cleanly de-risks rollout.     
