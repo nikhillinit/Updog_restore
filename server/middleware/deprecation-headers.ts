@@ -246,7 +246,7 @@ export function stageValidationMiddleware(
       const resolvedMode = typeof mode === 'function' ? await mode() : mode;
       setValidationModeHeader(res, resolvedMode);
       next();
-    } catch (error) {
+    } catch {
       // If mode resolution fails, default to 'off' and continue
       setValidationModeHeader(res, 'off');
       next();

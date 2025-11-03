@@ -414,10 +414,13 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { query, options } = QueryRequestSchema.parse(req.body);
 
-    const result = await handleThinkingQuery(
-      query,
-      options ?? {}
-    );
+    const queryOpts: {
+      maxTokens?: number;
+      temperature?: number;
+      thinkingBudget?: number;
+    } = options || {};
+
+    const result = await handleThinkingQuery(query, queryOpts);
 
     res['json'](result);
   })
