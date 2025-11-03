@@ -61,15 +61,15 @@
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
       "total": 56,
-      "lastUpdated": "2025-11-03T16:04:41.150Z"
+      "lastUpdated": "2025-11-03T16:07:54.763Z"
     },
     "shared": {
       "errors": [
-        "shared/schemas/parse-stage-distribution.ts(238,3):TS2322",
+        "shared/schemas/parse-stage-distribution.ts:TS2322:9ec9ba88",
         "shared/variance-validation.ts:TS4111:236f2efb"
       ],
       "total": 2,
-      "lastUpdated": "2025-11-03T16:04:41.150Z"
+      "lastUpdated": "2025-11-03T16:07:54.763Z"
     },
     "server": {
       "errors": [
@@ -80,8 +80,8 @@
         "server/agents/stream.ts:TS2353:4ca05e08",
         "server/agents/stream.ts:TS4111:1f322c93",
         "server/agents/stream.ts:TS4111:58bd13f9",
+        "server/app.ts:TS4111:0064001e",
         "server/app.ts:TS4111:14a5358d",
-        "server/app.ts:TS4111:2ca5d870",
         "server/compass/calculator.ts:TS2322:bcc9a325",
         "server/compass/calculator.ts:TS2345:1f722a1e",
         "server/compass/calculator.ts:TS2345:a22284e0",
@@ -249,7 +249,6 @@
         "server/routes/health.ts:TS4111:73ec7992",
         "server/routes/health.ts:TS4111:96cca5f1",
         "server/routes/health.ts:TS7053:6dff0ecb",
-        "server/routes/interleaved-thinking.ts(417,11):TS2375",
         "server/routes/metrics-rum-v2.ts:TS4111:eefae09d",
         "server/routes/metrics.ts:TS2554:563e5e4f",
         "server/routes/monte-carlo.ts:TS2339:c644b7e3",
@@ -483,19 +482,17 @@
         "server/websocket/dev-dashboard.ts:TS2345:ed62011f",
         "server/websocket/dev-dashboard.ts:TS2532:de791f79"
       ],
-      "total": 409,
-      "lastUpdated": "2025-11-03T16:04:41.150Z"
+      "total": 408,
+      "lastUpdated": "2025-11-03T16:07:54.763Z"
     },
     "unknown": {
-      "errors": [
-        "vite.config.ts:TS7006:118fabe7"
-      ],
+      "errors": ["vite.config.ts:TS7006:118fabe7"],
       "total": 1,
-      "lastUpdated": "2025-11-03T16:04:41.150Z"
+      "lastUpdated": "2025-11-03T16:07:54.763Z"
     }
   },
-  "totalErrors": 468,
-  "timestamp": "2025-11-03T16:04:41.150Z",
+  "totalErrors": 467,
+  "timestamp": "2025-11-03T16:07:54.763Z",
   "buildMode": "per-project",
-  "elapsedMs": 25331
+  "elapsedMs": 22239
 }
