@@ -10,6 +10,7 @@ import cashflowRouter from './routes/cashflow.js';
 import healthRouter from './routes/health.js';
 import calculationsRouter from './routes/calculations.js';
 import aiRouter from './routes/ai.js';
+import interleavedThinkingRouter from './routes/interleaved-thinking.js';
 import scenarioAnalysisRouter from './routes/scenario-analysis.js';
 import allocationsRouter from './routes/allocations.js';
 import { swaggerSpec } from './config/swagger.js';
@@ -124,6 +125,9 @@ export function makeApp() {
 
   // AI orchestrator API (multi-model queries)
   app.use('/api/ai', aiRouter);
+
+  // Interleaved Thinking API (Claude with thinking, calculator, database tools)
+  app.use('/api/interleaved-thinking', interleavedThinkingRouter);
 
   // Scenario Analysis API (Construction vs Current, deal modeling)
   app.use('/api', scenarioAnalysisRouter);
