@@ -1,0 +1,90 @@
+description: 'PacingEngine calculation validation'
+
+providers:
+  - id: file://client/src/core/PacingEngine.ts
+
+prompts:
+  - file://scripts/validation/prompts/pacing-prompt.md
+
+tests:
+  - description: 'Standard linear pacing calculation'
+    vars:
+      scenario: 'Linear pacing over 3 years'
+      fund:
+        totalCapital: 100000000
+        investmentPeriod: 3
+      pacingStrategy: 'LINEAR'
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Validate even distribution
+          result.pacingCurve.length === 3 &&
+          result.pacingCurve.every(p => Math.abs(p.amount - 33333333) < 1000) &&
+          result.totalDeployed === 100000000
+      - type: is-valid-openai-function-call
+
+  - description: 'Frontloaded deployment pattern (60% in year 1)'
+    vars:
+      scenario: 'Aggressive early deployment'
+      fund:
+        totalCapital: 100000000
+        investmentPeriod: 3
+      pacingStrategy: 'FRONTLOADED'
+      frontloadRatio: 0.6
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Validate frontloading
+          result.pacingCurve[0].amount >= 60000000 &&
+          result.pacingCurve[0].amount / result.totalDeployed >= 0.6
+
+  - description: 'Backend-loaded deployment pattern (delayed deployment)'
+    vars:
+      scenario: 'Conservative early deployment'
+      fund:
+        totalCapital: 100000000
+        investmentPeriod: 4
+      pacingStrategy: 'BACKLOADED'
+      backloadRatio: 0.5
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Validate backloading
+          const lastYear = result.pacingCurve[result.pacingCurve.length - 1];
+          lastYear.amount >= 50000000
+
+  - description: 'Irregular pacing with mid-period acceleration'
+    vars:
+      scenario: 'Custom pacing curve'
+      fund:
+        totalCapital: 100000000
+        investmentPeriod: 5
+      pacingStrategy: 'CUSTOM'
+      customWeights: [0.1, 0.2, 0.4, 0.2, 0.1]
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Validate custom distribution
+          result.pacingCurve.length === 5 &&
+          Math.abs(result.pacingCurve[2].amount - 40000000) < 1000 && // Peak in year 3
+          result.totalDeployed === 100000000
+
+  - description: 'Edge case: Single-year full deployment'
+    vars:
+      scenario: 'Opportunistic fund (1-year deployment)'
+      fund:
+        totalCapital: 50000000
+        investmentPeriod: 1
+      pacingStrategy: 'LINEAR'
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Single year deployment
+          result.pacingCurve.length === 1 &&
+          result.pacingCurve[0].amount === 50000000 &&
+          result.totalDeployed === 50000000

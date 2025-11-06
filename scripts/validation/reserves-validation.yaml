@@ -1,0 +1,112 @@
+description: 'ReserveEngine calculation validation'
+
+providers:
+  - id: file://client/src/core/ReserveEngine.ts
+
+prompts:
+  - file://scripts/validation/prompts/reserves-prompt.md
+
+tests:
+  - description: 'Basic reserve calculation with standard inputs'
+    vars:
+      scenario: 'Standard follow-on reserve calculation'
+      fund:
+        totalCapital: 100000000
+        deployedCapital: 60000000
+        committedReserves: 25000000
+      companies:
+        - id: 'co-1'
+          vintage: 2023
+          initialInvestment: 5000000
+          reserveMultiple: 2.0
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Validate reserve calculation
+          result.allocations.length > 0 &&
+          result.totalReserved === 10000000 && // 2x of 5M
+          result.availableCapital === 15000000 // 100M - 60M - 25M
+      - type: is-valid-openai-function-call
+
+  - description: 'Edge case: Zero reserves scenario'
+    vars:
+      scenario: 'Fund with no available capital for reserves'
+      fund:
+        totalCapital: 100000000
+        deployedCapital: 75000000
+        committedReserves: 25000000
+      companies:
+        - id: 'co-1'
+          initialInvestment: 5000000
+          reserveMultiple: 2.0
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Should return empty or minimal allocations
+          result.availableCapital === 0 &&
+          result.allocations.every(a => a.reserveAmount === 0)
+
+  - description: 'Edge case: 100% reserve ratio (fully reserved fund)'
+    vars:
+      scenario: 'Maximum reserve utilization'
+      fund:
+        totalCapital: 100000000
+        deployedCapital: 50000000
+        committedReserves: 0
+      companies:
+        - id: 'co-1'
+          initialInvestment: 10000000
+          reserveMultiple: 5.0
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Should allocate all available capital to reserves
+          result.totalReserved === 50000000 &&
+          result.utilizationRate === 1.0
+
+  - description: 'Edge case: Maximum deployment (all capital deployed)'
+    vars:
+      scenario: 'Fully deployed fund'
+      fund:
+        totalCapital: 100000000
+        deployedCapital: 100000000
+        committedReserves: 0
+      companies: []
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // No reserves possible
+          result.availableCapital === 0 &&
+          result.allocations.length === 0
+
+  - description: 'Multi-vintage portfolio with different deployment stages'
+    vars:
+      scenario: 'Complex multi-vintage calculation'
+      fund:
+        totalCapital: 100000000
+        deployedCapital: 60000000
+        committedReserves: 10000000
+      companies:
+        - id: 'co-1'
+          vintage: 2023
+          initialInvestment: 5000000
+          stage: 'Series A'
+          reserveMultiple: 2.0
+        - id: 'co-2'
+          vintage: 2024
+          initialInvestment: 3000000
+          stage: 'Seed'
+          reserveMultiple: 3.0
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Validate multi-vintage calculation
+          result.allocations.length === 2 &&
+          result.totalReserved === 19000000 && // 10M + 9M
+          result.allocations.some(a => a.vintage === 2023) &&
+          result.allocations.some(a => a.vintage === 2024)
