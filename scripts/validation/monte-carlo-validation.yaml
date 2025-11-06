@@ -1,0 +1,111 @@
+description: 'Monte Carlo simulation validation'
+
+providers:
+  - id: file://client/src/core/MonteCarloEngine.ts
+
+prompts:
+  - file://scripts/validation/prompts/monte-carlo-prompt.md
+
+tests:
+  - description: 'Basic simulation with 1000 iterations'
+    vars:
+      scenario: 'Standard Monte Carlo with default parameters'
+      simulation:
+        iterations: 1000
+        fundSize: 100000000
+        companies: 20
+        meanReturn: 0.15
+        stdDeviation: 0.30
+      seed: 42
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Validate simulation structure
+          result.iterations === 1000 &&
+          result.outcomes.length === 1000 &&
+          Math.abs(result.mean - 1.15) < 0.10 && // ~15% return
+          result.p50 > 1.0 && // Median > 1x
+          result.p90 > result.p50
+      - type: is-valid-openai-function-call
+
+  - description: 'High-variance scenario testing distribution spread'
+    vars:
+      scenario: 'High-risk portfolio simulation'
+      simulation:
+        iterations: 1000
+        fundSize: 100000000
+        companies: 15
+        meanReturn: 0.25
+        stdDeviation: 0.60
+      seed: 123
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Validate high variance characteristics
+          result.stdDev > 0.50 &&
+          result.p90 / result.p10 > 3.0 && // Wide distribution
+          result.outcomes.some(o => o.multiple > 3.0) &&
+          result.outcomes.some(o => o.multiple < 0.5)
+
+  - description: 'Conservative portfolio with low volatility'
+    vars:
+      scenario: 'Low-risk, steady returns'
+      simulation:
+        iterations: 1000
+        fundSize: 50000000
+        companies: 30
+        meanReturn: 0.08
+        stdDeviation: 0.15
+      seed: 456
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Validate low volatility
+          result.stdDev < 0.20 &&
+          result.p90 / result.p10 < 2.0 && // Narrow distribution
+          result.mean > 1.05 && result.mean < 1.15
+
+  - description: 'Aggressive portfolio with high expected returns'
+    vars:
+      scenario: 'High-growth venture portfolio'
+      simulation:
+        iterations: 1000
+        fundSize: 150000000
+        companies: 25
+        meanReturn: 0.35
+        stdDeviation: 0.50
+      seed: 789
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Validate high return expectations
+          result.mean > 1.30 &&
+          result.p75 > 1.50 &&
+          result.outcomes.some(o => o.multiple > 5.0) // Outliers possible
+
+  - description: 'Statistical validation (mean, median, percentiles)'
+    vars:
+      scenario: 'Verify statistical properties'
+      simulation:
+        iterations: 10000
+        fundSize: 100000000
+        companies: 20
+        meanReturn: 0.12
+        stdDeviation: 0.25
+      seed: 999
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Validate statistical consistency
+          result.iterations === 10000 &&
+          Math.abs(result.mean - 1.12) < 0.05 && // Close to expected
+          result.p50 < result.mean && // Median < mean (right-skewed)
+          result.p25 < result.p50 && result.p50 < result.p75 &&
+          result.p10 < result.p90 &&
+          // Check percentile ordering
+          result.outcomes.filter(o => o.multiple >= result.p90).length <= 1000
