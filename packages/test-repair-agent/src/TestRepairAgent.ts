@@ -1,4 +1,5 @@
 import { BaseAgent, AgentConfig, AgentExecutionContext } from '@povc/agent-core';
+import { withThinking } from '@povc/agent-core/ThinkingMixin';
 import { spawn } from 'child_process';
 import { writeFileSync, readFileSync } from 'fs';
 import { join } from 'path';
@@ -42,7 +43,7 @@ export interface EvaluationResult {
   };
 }
 
-export class TestRepairAgent extends BaseAgent<RepairInput, RepairResult> {
+export class TestRepairAgent extends withThinking(BaseAgent)<RepairInput, RepairResult> {
   private readonly MAX_OPTIMIZATION_ITERATIONS = 3;
 
   constructor(config?: Partial<AgentConfig>) {
@@ -50,6 +51,13 @@ export class TestRepairAgent extends BaseAgent<RepairInput, RepairResult> {
       name: 'test-repair-agent',
       maxRetries: 1, // Test repairs should be careful, minimal retries
       timeout: 180000, // 3 minutes for test analysis and repair
+
+      // Enable native memory integration
+      enableNativeMemory: true,
+      enablePatternLearning: true,
+      tenantId: config?.tenantId || 'agent:test-repair',
+      memoryScope: 'project', // Cross-session learnings from test repairs
+
       ...config,
     });
   }
@@ -191,6 +199,32 @@ export class TestRepairAgent extends BaseAgent<RepairInput, RepairResult> {
   }
 
   private async generateSingleRepair(failure: TestFailure): Promise<string> {
+    try {
+      // Use extended thinking for complex test failures
+      const analysis = await this.think(
+        `Analyze this test failure and suggest a precise repair:
+
+Test: ${failure.testName}
+File: ${failure.file}
+Error: ${failure.error}
+Type: ${failure.type}
+
+Provide a specific, actionable fix that addresses the root cause.`,
+        {
+          depth: 'quick',
+          context: 'Vitest test framework, React Testing Library, TypeScript strict mode'
+        }
+      );
+
+      return analysis.response;
+    } catch (error) {
+      // Fallback to simple pattern matching if thinking fails
+      this.logger.warn('Extended thinking failed, using pattern matching', { error });
+      return this.fallbackToPatternMatching(failure);
+    }
+  }
+
+  private fallbackToPatternMatching(failure: TestFailure): string {
     // Simple repair strategies based on failure type
     switch (failure.type) {
       case 'syntax':

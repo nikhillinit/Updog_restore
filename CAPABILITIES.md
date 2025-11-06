@@ -38,6 +38,8 @@ ensure optimal tool selection and prevent redundant implementations.
 - **knowledge-synthesizer** - Extract patterns from interactions
 - **legacy-modernizer** - Refactor and modernize code
 - **dx-optimizer** - Developer experience improvements
+- **Extended Thinking (ThinkingMixin)** ⭐ - Add deep reasoning to ANY agent via
+  mixin pattern (see `packages/agent-core/THINKING_QUICK_START.md`)
 
 ### Database & Infrastructure
 
@@ -158,10 +160,47 @@ await engine.recordPattern(result, context);
 const patterns = await engine.getRelevantPatterns({ operation, fileTypes });
 ```
 
+**Memory-Enabled TypeScript Agents (packages/):**
+- ✅ **TestRepairAgent** (`agent:test-repair`) - Learns test failure patterns and successful repairs
+- ✅ **BundleOptimizationAgent** (`agent:bundle-optimization`) - Learns optimization patterns across builds
+- ✅ **CodexReviewAgent** (`agent:codex-review`) - Remembers code review patterns and common issues
+- ✅ **DependencyAnalysisAgent** (`agent:dependency-analysis`) - Tracks dependency patterns and successful optimizations
+- ✅ **RouteOptimizationAgent** (`agent:route-optimization`) - Learns route optimization patterns and lazy loading effectiveness
+- ✅ **ZencoderAgent** (`agent:zencoder`) - Remembers fix patterns and successful code transformations
+
+**Memory-Enabled Project-Level Agents (.claude/agents/):**
+- ✅ **code-reviewer** (`agent:code-reviewer`) - Learns CLAUDE.md violations and project conventions
+- ✅ **waterfall-specialist** (`agent:waterfall-specialist`) - Remembers waterfall validation patterns and edge cases
+- ✅ **test-repair** (`agent:test-repair`) - Learns test failure patterns and repair strategies
+- ✅ **perf-guard** (`agent:perf-guard`) - Tracks bundle size baselines and optimization strategies
+- ✅ **db-migration** (`agent:db-migration`) - Remembers schema migration patterns and rollback strategies
+- ✅ **code-simplifier** (`agent:code-simplifier`) - Learns project-specific simplification patterns
+- ✅ **comment-analyzer** (`agent:comment-analyzer`) - Tracks comment rot patterns and documentation standards
+- ✅ **pr-test-analyzer** (`agent:pr-test-analyzer`) - Remembers test coverage gaps and edge case patterns
+- ✅ **silent-failure-hunter** (`agent:silent-failure-hunter`) - Learns silent failure patterns and error handling standards
+- ✅ **type-design-analyzer** (`agent:type-design-analyzer`) - Remembers strong type designs and invariant patterns
+
+**Memory-Enabled Global Agents (Project Overrides in .claude/agents/):**
+- ✅ **general-purpose** (`agent:general-purpose:updog`) - Learns research patterns and codebase structure
+- ✅ **test-automator** (`agent:test-automator:updog`) - Remembers TDD patterns and coverage gaps
+- ✅ **legacy-modernizer** (`agent:legacy-modernizer:updog`) - Tracks migration patterns and refactoring strategies
+- ✅ **incident-responder** (`agent:incident-responder:updog`) - Learns incident patterns and mitigation strategies
+- ✅ **dx-optimizer** (`agent:dx-optimizer:updog`) - Remembers workflow friction points and automation solutions
+- ✅ **docs-architect** (`agent:docs-architect:updog`) - Learns documentation patterns and explanation strategies
+- ✅ **devops-troubleshooter** (`agent:devops-troubleshooter:updog`) - Tracks infrastructure failure patterns
+- ✅ **debug-expert** (`agent:debug-expert:updog`) - Remembers bug patterns and debugging strategies
+- ✅ **database-expert** (`agent:database-expert:updog`) - Learns schema patterns and optimization strategies
+- ✅ **context-orchestrator** (`agent:context-orchestrator:updog`) - Tracks context management and orchestration patterns
+- ✅ **code-explorer** (`agent:code-explorer:updog`) - Remembers codebase structure and feature implementations
+- ✅ **chaos-engineer** (`agent:chaos-engineer:updog`) - Learns system weak points and resilience strategies
+
+**Total**: 28 memory-enabled agents (6 TypeScript + 10 Project-Level + 12 Global Overrides)
+
 **Documentation:**
 - `NATIVE-MEMORY-INTEGRATION.md` - Complete integration guide
 - `MIGRATION-NATIVE-MEMORY.md` - Migration from Redis-only
 - `packages/agent-core/demo-native-memory.ts` - Working examples
+- `cheatsheets/agent-memory-integration.md` - Step-by-step enablement guide
 
 ### Project Memory
 
@@ -450,11 +489,55 @@ Before any task, ask yourself:
 
 These are the capabilities most often overlooked:
 
-1. **context-orchestrator** - Handles multi-agent coordination automatically
-2. **/log-change** and **/log-decision** - Built-in memory system
-3. **test-automator** - Generates comprehensive tests with TDD
-4. **MCP tools** - Get second opinions from Gemini/OpenAI
-5. **code-explorer** - Understand existing code before modifying
+1. **Extended Thinking (ThinkingMixin)** - Add deep reasoning to any agent with
+   zero breaking changes
+2. **context-orchestrator** - Handles multi-agent coordination automatically
+3. **/log-change** and **/log-decision** - Built-in memory system
+4. **test-automator** - Generates comprehensive tests with TDD
+5. **MCP tools** - Get second opinions from Gemini/OpenAI
+6. **code-explorer** - Understand existing code before modifying
+
+## 🧠 Extended Thinking Integration
+
+**Location**: `packages/agent-core/ThinkingMixin.ts`
+
+Add deep reasoning capabilities to ANY agent via mixin pattern:
+
+```typescript
+import { withThinking } from '@agent-core';
+
+// Before
+class MyAgent extends BaseAgent { }
+
+// After - that's it!
+class MyAgent extends withThinking(BaseAgent) {
+  async run(input) {
+    const analysis = await this.think('Analyze this...', { depth: 'deep' });
+    return this.processThinking(analysis);
+  }
+}
+```
+
+**Features**:
+
+- Zero breaking changes - works with all existing agents
+- Automatic budget management ($1 default, configurable)
+- Smart depth selection (quick ~$0.03, deep ~$0.10)
+- Cost tracking and health monitoring
+- Works alongside native memory (complementary capabilities)
+
+**Migrated Agents**: ✅ **ALL 6 TypeScript agents MIGRATED** (100% complete):
+- TestRepairAgent, BundleOptimizationAgent, CodexReviewAgent
+- DependencyAnalysisAgent, RouteOptimizationAgent, ZencoderAgent
+
+**Docs**:
+
+- Quick Start: `packages/agent-core/THINKING_QUICK_START.md`
+- Migration Guide: `packages/agent-core/THINKING_MIGRATION_GUIDE.md`
+- Examples: `packages/agent-core/examples/thinking-integration-example.ts`
+- Tests: `packages/agent-core/src/__tests__/ThinkingMixin.test.ts`
+
+**Check Readiness**: `node scripts/check-thinking-migration-readiness.mjs`
 
 ---
 

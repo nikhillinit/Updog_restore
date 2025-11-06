@@ -59,6 +59,9 @@ export { HybridMemoryManager, createHybridMemoryManager } from './HybridMemoryMa
 // Pattern Learning exports
 export { PatternLearningEngine } from './PatternLearning';
 
+// Extended Thinking Integration exports
+export { applyThinkingMixin, withThinking } from './ThinkingMixin';
+
 export type {
   AgentConfig,
   AgentExecutionContext,
@@ -194,3 +197,11 @@ export type {
   ConversationPattern,
   PatternContext,
 } from './PatternLearning';
+
+// Extended Thinking types
+export type {
+  ThinkingOptions,
+  ThinkingResult,
+  CostBudget,
+  ThinkingCapabilities,
+} from './ThinkingMixin';
