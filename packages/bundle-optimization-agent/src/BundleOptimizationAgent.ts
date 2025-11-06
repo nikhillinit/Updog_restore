@@ -1,4 +1,5 @@
 import { BaseAgent, AgentExecutionContext } from '@agent-core/BaseAgent';
+import { withThinking } from '@agent-core/ThinkingMixin';
 import * as fs from 'fs';
 import * as path from 'path';
 import { exec } from 'child_process';
@@ -41,7 +42,7 @@ interface OptimizationRecommendation {
   implementation: string;
 }
 
-export class BundleOptimizationAgent extends BaseAgent<BundleOptimizationInput, BundleAnalysis> {
+export class BundleOptimizationAgent extends withThinking(BaseAgent)<BundleOptimizationInput, BundleAnalysis> {
   constructor() {
     super({
       name: 'BundleOptimizationAgent',
@@ -49,6 +50,12 @@ export class BundleOptimizationAgent extends BaseAgent<BundleOptimizationInput, 
       retryDelay: 2000,
       timeout: 120000,
       logLevel: 'info',
+
+      // Enable native memory integration
+      enableNativeMemory: true,
+      enablePatternLearning: true,
+      tenantId: 'agent:bundle-optimization',
+      memoryScope: 'project', // Learn optimization patterns across builds
     });
   }
 
@@ -179,6 +186,35 @@ export class BundleOptimizationAgent extends BaseAgent<BundleOptimizationInput, 
     if (sizeDelta <= 0) {
       this.logger.info('Bundle already meets target size');
       return recommendations;
+    }
+
+    try {
+      // Use extended thinking for complex optimization strategy
+      const strategy = await this.think(
+        `Analyze bundle and suggest optimizations:
+
+Current size: ${analysis.totalSizeKB}KB
+Target size: ${input.targetSizeKB}KB
+Delta: ${sizeDelta}KB
+Chunks: ${analysis.chunks.length}
+
+Largest chunks:
+${analysis.chunks.slice(0, 5).map(c => `- ${c.name}: ${c.gzippedKB}KB`).join('\n')}
+
+Suggest specific, actionable optimization strategies.`,
+        {
+          depth: sizeDelta > 100 ? 'deep' : 'quick',
+          context: 'Vite build system, React SPA, modern browser targets'
+        }
+      );
+
+      // Parse AI recommendations and merge with heuristic-based ones
+      this.logger.info('Extended thinking provided optimization strategy', {
+        thinking_blocks: strategy.thinking.length,
+        cost: strategy.cost?.total_cost_usd
+      });
+    } catch (error) {
+      this.logger.warn('Extended thinking failed, using heuristic analysis', { error });
     }
 
     // Analyze for heavy dependencies

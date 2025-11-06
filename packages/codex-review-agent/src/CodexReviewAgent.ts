@@ -1,4 +1,5 @@
 import { BaseAgent, AgentConfig, AgentExecutionContext } from '@povc/agent-core';
+import { withThinking } from '@povc/agent-core/ThinkingMixin';
 import { watch } from 'fs';
 import { readFile } from 'fs/promises';
 import path from 'path';
@@ -44,14 +45,21 @@ export interface ReviewIssue {
  * - Smart filtering (excludes node_modules, dist, etc.)
  * - Debounced reviews to prevent spam
  */
-export class CodexReviewAgent extends BaseAgent<FileChangeEvent, ReviewResult> {
+export class CodexReviewAgent extends withThinking(BaseAgent)<FileChangeEvent, ReviewResult> {
   protected readonly reviewConfig: CodexReviewConfig;
   private watchers: Map<string, ReturnType<typeof watch>> = new Map();
   private debounceTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private lastReviewTimes: Map<string, number> = new Map();
 
   constructor(config: CodexReviewConfig) {
-    super(config);
+    super({
+      ...config,
+      // Enable native memory integration
+      enableNativeMemory: true,
+      enablePatternLearning: true,
+      tenantId: config.tenantId || 'agent:codex-review',
+      memoryScope: 'project', // Remember code review patterns and common issues
+    });
     this.reviewConfig = {
       watchPaths: ['client/src', 'server', 'shared'],
       excludePatterns: [

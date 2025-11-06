@@ -1,4 +1,5 @@
 import { BaseAgent, AgentExecutionContext } from '@povc/agent-core';
+import { withThinking } from '@povc/agent-core/ThinkingMixin';
 import * as fs from 'fs';
 import * as path from 'path';
 import { exec } from 'child_process';
@@ -45,7 +46,7 @@ interface AlternativeSuggestion {
   command: string;
 }
 
-export class DependencyAnalysisAgent extends BaseAgent<DependencyAnalysisInput, DependencyAnalysis> {
+export class DependencyAnalysisAgent extends withThinking(BaseAgent)<DependencyAnalysisInput, DependencyAnalysis> {
   private knownAlternatives = new Map<string, AlternativeSuggestion>([
     ['moment', {
       current: 'moment',
@@ -84,6 +85,12 @@ export class DependencyAnalysisAgent extends BaseAgent<DependencyAnalysisInput, 
       retryDelay: 1000,
       timeout: 60000,
       logLevel: 'info',
+
+      // Enable native memory integration
+      enableNativeMemory: true,
+      enablePatternLearning: true,
+      tenantId: 'agent:dependency-analysis',
+      memoryScope: 'project', // Track dependency patterns and successful optimizations
     });
   }
 
