@@ -593,7 +593,7 @@ export async function buildConversationHistory(
       // Parallel file reads for 80% faster loading (300ms → 60ms for 10 files)
       const formattedFiles = await pMap(
         plan.include,
-        async (file) => await formatFileContent(file),
+        async (file: string) => await formatFileContent(file),
         { concurrency: 5 }  // Read 5 files simultaneously
       );
       parts.push(...formattedFiles);
