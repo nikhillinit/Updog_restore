@@ -1,0 +1,121 @@
+description: 'CohortEngine calculation validation'
+
+providers:
+  - id: file://client/src/core/CohortEngine.ts
+
+prompts:
+  - file://scripts/validation/prompts/cohorts-prompt.md
+
+tests:
+  - description: 'Single cohort with standard returns'
+    vars:
+      scenario: '2023 vintage cohort analysis'
+      cohorts:
+        - vintage: 2023
+          companies: 5
+          totalInvested: 25000000
+          totalValue: 40000000
+          realized: 15000000
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Validate cohort metrics
+          result.cohorts[0].tvpi === 1.6 && // 40M / 25M
+          result.cohorts[0].dpi === 0.6 && // 15M / 25M
+          result.cohorts[0].rvpi === 1.0 && // (40M - 15M) / 25M
+          Math.abs(result.cohorts[0].irr - 0.12) < 0.01 // ~12% IRR
+      - type: is-valid-openai-function-call
+
+  - description: 'Multi-cohort analysis with different vintages'
+    vars:
+      scenario: 'Cross-vintage portfolio analysis'
+      cohorts:
+        - vintage: 2022
+          companies: 8
+          totalInvested: 40000000
+          totalValue: 80000000
+          realized: 30000000
+        - vintage: 2023
+          companies: 6
+          totalInvested: 30000000
+          totalValue: 45000000
+          realized: 10000000
+        - vintage: 2024
+          companies: 4
+          totalInvested: 20000000
+          totalValue: 22000000
+          realized: 0
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Validate multi-cohort aggregation
+          result.cohorts.length === 3 &&
+          result.portfolioTVPI === 1.63 && // (80M + 45M + 22M) / 90M
+          result.portfolioDPI === 0.44 && // (30M + 10M) / 90M
+          result.cohorts[0].maturity > result.cohorts[2].maturity
+
+  - description: 'Edge case: Total loss scenario (0% returns)'
+    vars:
+      scenario: 'Failed cohort (complete write-off)'
+      cohorts:
+        - vintage: 2020
+          companies: 3
+          totalInvested: 15000000
+          totalValue: 0
+          realized: 0
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Validate total loss handling
+          result.cohorts[0].tvpi === 0 &&
+          result.cohorts[0].dpi === 0 &&
+          result.cohorts[0].irr < -0.95 // Near -100% IRR
+
+  - description: 'Edge case: 10x return outlier performance'
+    vars:
+      scenario: 'Exceptional cohort (unicorn exits)'
+      cohorts:
+        - vintage: 2019
+          companies: 10
+          totalInvested: 50000000
+          totalValue: 500000000
+          realized: 450000000
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Validate outlier performance
+          result.cohorts[0].tvpi === 10.0 &&
+          result.cohorts[0].dpi === 9.0 &&
+          result.cohorts[0].irr > 0.50 // >50% IRR
+
+  - description: 'Mixed performance portfolio (winners and losers)'
+    vars:
+      scenario: 'Realistic mixed portfolio'
+      cohorts:
+        - vintage: 2021
+          companies: 5
+          totalInvested: 25000000
+          totalValue: 60000000
+          realized: 30000000
+        - vintage: 2022
+          companies: 5
+          totalInvested: 25000000
+          totalValue: 15000000
+          realized: 5000000
+        - vintage: 2023
+          companies: 5
+          totalInvested: 25000000
+          totalValue: 25000000
+          realized: 0
+    assert:
+      - type: javascript
+        value: |
+          const result = output;
+          // Validate mixed performance aggregation
+          result.portfolioTVPI === 1.33 && // (60M + 15M + 25M) / 75M
+          result.cohorts.some(c => c.tvpi > 2.0) && // Winner
+          result.cohorts.some(c => c.tvpi < 1.0)  // Loser
