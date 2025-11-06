@@ -190,4 +190,90 @@ export class CacheKeySchema {
     const jitter = (Math.random() - 0.5) * 2 * jitterRange;
     return Math.floor(ttlSec + jitter);
   }
+
+  /**
+   * Build memory storage key with tenant isolation
+   *
+   * @param memoryId - Memory identifier
+   * @param tenantId - Tenant ID
+   * @param visibility - Visibility level ('user' | 'project' | 'global')
+   * @returns Fully-qualified key with tags
+   *
+   * @example
+   * ```typescript
+   * const { key, tags } = CacheKeySchema.memory('pattern-123', 'user:project', 'project');
+   * // key: "app:prod:mem:project:user:project:pattern-123:v1"
+   * // tags: ["tag:mem:user:project:project", "tag:memory:pattern-123"]
+   * ```
+   */
+  static memory(
+    memoryId: string,
+    tenantId: string = 'default',
+    visibility: 'user' | 'project' | 'global' = 'user'
+  ): CacheKey {
+    const env = this.getEnv();
+
+    const key = `${this.APP_PREFIX}:${env}:mem:${visibility}:${tenantId}:${memoryId}:v${this.VERSION}`;
+
+    const tags = [
+      `tag:mem:${tenantId}:${visibility}`,  // All memories for tenant+visibility
+      `tag:memory:${memoryId}`,              // Specific memory
+    ];
+
+    return { key, tags };
+  }
+
+  /**
+   * Build pattern storage key
+   *
+   * @param patternId - Pattern identifier
+   * @param tenantId - Tenant ID
+   * @param operation - Operation type (e.g., 'test-repair', 'code-review')
+   * @returns Fully-qualified key with tags
+   *
+   * @example
+   * ```typescript
+   * const { key, tags } = CacheKeySchema.pattern('pat-456', 'user:project', 'test-repair');
+   * // key: "app:prod:pattern:test-repair:user:project:pat-456:v1"
+   * // tags: ["tag:pattern:user:project:test-repair", "tag:pattern:pat-456"]
+   * ```
+   */
+  static pattern(
+    patternId: string,
+    tenantId: string,
+    operation: string
+  ): CacheKey {
+    const env = this.getEnv();
+
+    const key = `${this.APP_PREFIX}:${env}:pattern:${operation}:${tenantId}:${patternId}:v${this.VERSION}`;
+
+    const tags = [
+      `tag:pattern:${tenantId}:${operation}`,  // All patterns for tenant+operation
+      `tag:pattern:${patternId}`,               // Specific pattern
+    ];
+
+    return { key, tags };
+  }
+
+  /**
+   * Build tag key for memory visibility level
+   *
+   * @param tenantId - Tenant ID
+   * @param visibility - Visibility level
+   * @returns Tag key
+   */
+  static memoryTag(tenantId: string, visibility: 'user' | 'project' | 'global'): string {
+    return `tag:mem:${tenantId}:${visibility}`;
+  }
+
+  /**
+   * Build tag key for pattern operation
+   *
+   * @param tenantId - Tenant ID
+   * @param operation - Operation type
+   * @returns Tag key
+   */
+  static patternTag(tenantId: string, operation: string): string {
+    return `tag:pattern:${tenantId}:${operation}`;
+  }
 }

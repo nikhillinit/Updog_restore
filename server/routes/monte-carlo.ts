@@ -19,14 +19,15 @@ import { assertFiniteDeep } from '../middleware/engine-guards';
 import { recordHttpMetrics } from '../metrics';
 import { toNumber } from '@shared/number';
 import { sanitizeInput } from '../utils/sanitizer.js';
-import { parseStageDistribution } from '@shared/schemas/parse-stage-distribution';
-import { getStageValidationMode } from '../lib/stage-validation-mode';
-import {
-  recordValidationDuration,
-  recordValidationSuccess,
-  recordUnknownStage,
-} from '../observability/stage-metrics';
-import { setStageWarningHeaders } from '../middleware/deprecation-headers';
+// TODO: Re-enable when stage-normalization PR is merged
+// import { parseStageDistribution } from '@shared/schemas/parse-stage-distribution';
+// import { getStageValidationMode } from '../lib/stage-validation-mode';
+// import {
+//   recordValidationDuration,
+//   recordValidationSuccess,
+//   recordUnknownStage,
+// } from '../observability/stage-metrics';
+// import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 
 const router = Router();
 
@@ -164,9 +165,13 @@ router["post"]('/simulate', validateRequest(simulationConfigSchema), async (req:
   const correlationId = req.headers['x-correlation-id'] as string || `sim_${Date.now()}`;
 
   try {
+    // TODO: Re-enable when stage-normalization PR is merged
     // Validate stage distribution if provided in simulation config
     let normalizedStages: any = null;
     if (req.body.stageDistribution) {
+      // Temporarily disabled - requires stage-normalization dependencies
+      normalizedStages = req.body.stageDistribution; // Pass-through without validation
+      /*
       const startTime = performance.now();
       const { normalized, invalidInputs, suggestions } = parseStageDistribution(
         req.body.stageDistribution
@@ -180,7 +185,7 @@ router["post"]('/simulate', validateRequest(simulationConfigSchema), async (req:
         setStageWarningHeaders(res, invalidInputs);
 
         if (mode === 'enforce') {
-          return res["status"](400)["json"]({
+          return res.status(400).json({
             error: 'INVALID_STAGE_DISTRIBUTION',
             message: 'Unknown investment stage(s) in stageDistribution.',
             details: {
@@ -202,6 +207,7 @@ router["post"]('/simulate', validateRequest(simulationConfigSchema), async (req:
 
       normalizedStages = normalized;
       recordValidationSuccess('POST /api/monte-carlo/simulate');
+      */
     }
 
     // Create simulation config with normalized stages if validation passed
