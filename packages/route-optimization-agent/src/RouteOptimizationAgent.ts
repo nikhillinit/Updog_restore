@@ -1,4 +1,5 @@
 import { BaseAgent, AgentExecutionContext } from '@agent-core/BaseAgent';
+import { withThinking } from '@agent-core/ThinkingMixin';
 import * as fs from 'fs';
 import * as path from 'path';
 import { exec } from 'child_process';
@@ -54,7 +55,7 @@ interface RiskAssessment {
   mitigations: string[];
 }
 
-export class RouteOptimizationAgent extends BaseAgent<RouteOptimizationInput, RouteAnalysis> {
+export class RouteOptimizationAgent extends withThinking(BaseAgent)<RouteOptimizationInput, RouteAnalysis> {
   constructor() {
     super({
       name: 'RouteOptimizationAgent',
@@ -62,6 +63,12 @@ export class RouteOptimizationAgent extends BaseAgent<RouteOptimizationInput, Ro
       retryDelay: 2000,
       timeout: 90000,
       logLevel: 'info',
+
+      // Enable native memory integration
+      enableNativeMemory: true,
+      enablePatternLearning: true,
+      tenantId: 'agent:route-optimization',
+      memoryScope: 'project', // Learn route optimization patterns and lazy loading effectiveness
     });
   }
 

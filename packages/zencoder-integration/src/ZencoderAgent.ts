@@ -1,4 +1,5 @@
 import { BaseAgent, AgentConfig, AgentExecutionContext } from '@povc/agent-core';
+import { withThinking } from '@povc/agent-core/ThinkingMixin';
 import { spawn } from 'child_process';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
@@ -27,7 +28,7 @@ export interface ZencoderResult {
   timeMs: number;
 }
 
-export class ZencoderAgent extends BaseAgent<ZencoderInput, ZencoderResult> {
+export class ZencoderAgent extends withThinking(BaseAgent)<ZencoderInput, ZencoderResult> {
   private apiKey: string;
   private apiEndpoint: string;
 
@@ -36,6 +37,13 @@ export class ZencoderAgent extends BaseAgent<ZencoderInput, ZencoderResult> {
       name: 'zencoder-agent',
       maxRetries: 2,
       timeout: 300000, // 5 minutes
+
+      // Enable native memory integration
+      enableNativeMemory: true,
+      enablePatternLearning: true,
+      tenantId: config?.tenantId || 'agent:zencoder',
+      memoryScope: 'project', // Remember fix patterns and successful code transformations
+
       ...config,
     });
 
