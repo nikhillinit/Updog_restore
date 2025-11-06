@@ -153,8 +153,8 @@ export function parseStageDistribution(entries: StageDistributionEntry[]): Parse
 
   // Validate each entry
   for (const entry of entries) {
-    // Validate weight
-    if (typeof entry.weight !== 'number' || entry.weight < 0 || entry.weight > 1) {
+    // Validate weight (includes NaN check via Number.isFinite)
+    if (typeof entry.weight !== 'number' || !Number.isFinite(entry.weight) || entry.weight < 0 || entry.weight > 1) {
       errors.push({
         kind: 'InvalidWeight',
         message: `Weight must be in [0, 1], got ${entry.weight}`,
