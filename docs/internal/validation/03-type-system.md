@@ -1120,7 +1120,7 @@ inference guarantees compile-time safety; no timeout/retry for type operations
 metric: `type_guard.success_rate`; span: `validate.type_guard` **Performance:**
 Target p95 < 1ms per type guard check; type inference has zero runtime cost
 **Example:** `isUser(data)` → narrows `unknown` to `User` type if valid
-**Ownership:** DRI=type system maintainer; next review: 2025-05-06
+**Ownership:** DRI=type system maintainer; next review: 2026-05-06
 
 ---
 

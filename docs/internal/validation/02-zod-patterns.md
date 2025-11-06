@@ -1253,7 +1253,7 @@ fail-fast (no timeout); no retry logic (validation is deterministic)
 metric: `validation.parse_duration_ms`; span: `validate.{schema}`
 **Performance:** Target p95 < 5ms per schema parse; cache: N/A (Zod is fast
 enough) **Example:** `FundSchema.parse(data)` → returns typed data or throws
-ZodError **Ownership:** DRI=validation layer maintainer; next review: 2025-05-06
+ZodError **Ownership:** DRI=validation layer maintainer; next review: 2026-05-06
 
 ---
 

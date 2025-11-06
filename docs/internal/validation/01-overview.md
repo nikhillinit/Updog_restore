@@ -827,7 +827,7 @@ timeout N/A; validation retries N/A (fail-fast) **Observability:** Log
 5ms per schema validation; cache: N/A (schemas are cheap to validate)
 **Example:** `CreateFundSchema.parse(data)` → throws ZodError on invalid input,
 returns typed data on success **Ownership:** DRI=validation layer maintainer;
-next review: 2025-05-06
+next review: 2026-05-06
 
 ---
 

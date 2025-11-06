@@ -1248,7 +1248,7 @@ metric: `validation.boundary_failures`; span: `validate.{boundary}`
 **Performance:** Target p95 < 10ms for full validation chain (form → API → DB);
 cache: validated responses for 5m (staleTime) **Example:** `POST /api/funds` →
 validates request body, inserts to DB, validates response, returns typed JSON
-**Ownership:** DRI=full-stack validation; next review: 2025-05-06
+**Ownership:** DRI=full-stack validation; next review: 2026-05-06
 
 ---
 

@@ -559,7 +559,7 @@ correctly; sequence diagrams show timing; state machines show error paths
 **Performance:** Diagrams load in < 2s; no excessive nesting (max 3 levels);
 clear visual hierarchy **Example:** All file references validated with
 `node scripts/extract-code-references.mjs` **Ownership:** DRI=architecture team;
-next review: 2025-05-06 (after Phase 3 Week 47 completion)
+next review: 2026-05-06 (after Phase 3 Week 47 completion)
 
 ---
 
