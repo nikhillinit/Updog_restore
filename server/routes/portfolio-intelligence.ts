@@ -13,14 +13,15 @@ import { idempotency } from '../middleware/idempotency';
 import { positiveInt, bounded01, nonNegative } from '@shared/schema-helpers';
 import { toNumber, NumberParseError } from '@shared/number';
 import type { ApiError } from '@shared/types';
-import { parseStageDistribution } from '@shared/schemas/parse-stage-distribution';
-import { getStageValidationMode } from '../lib/stage-validation-mode';
-import {
-  recordValidationDuration,
-  recordValidationSuccess,
-  recordUnknownStage,
-} from '../observability/stage-metrics';
-import { setStageWarningHeaders } from '../middleware/deprecation-headers';
+// TODO: Re-enable when stage-normalization PR is merged
+// import { parseStageDistribution } from '@shared/schemas/parse-stage-distribution';
+// import { getStageValidationMode } from '../lib/stage-validation-mode';
+// import {
+//   recordValidationDuration,
+//   recordValidationSuccess,
+//   recordUnknownStage,
+// } from '../observability/stage-metrics';
+// import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 
 const router = Router();
 
@@ -182,6 +183,9 @@ router["post"]('/api/portfolio/strategies', idempotency, async (req: Authenticat
 
     const data = validation.data;
 
+    // TODO: Re-enable when stage-normalization PR is merged
+    // Temporarily disabled - stage allocation validation requires stage-normalization dependencies
+    /*
     // Validate stage allocation using stage normalization
     const startTime = performance.now();
     const stageAllocationArray = Object.entries(data.stageAllocation || {}).map(([stage, weight]) => ({
@@ -217,7 +221,7 @@ router["post"]('/api/portfolio/strategies', idempotency, async (req: Authenticat
             ],
           },
         };
-        return res["status"](400)["json"](error);
+        return res.status(400).json(error);
       }
     }
 
@@ -227,6 +231,7 @@ router["post"]('/api/portfolio/strategies', idempotency, async (req: Authenticat
     }
 
     recordValidationSuccess('POST /api/portfolio/strategies');
+    */
     const userId = parseInt(req.user?.id || '0');
 
     if (!userId) {

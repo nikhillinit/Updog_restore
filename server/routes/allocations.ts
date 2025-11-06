@@ -17,14 +17,15 @@ import { db } from '../db';
 import { portfolioCompanies } from '@shared/schema';
 import { eq, and, lt, sql, desc, asc } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
-import { normalizeInvestmentStage } from '@shared/schemas/investment-stages';
-import { getStageValidationMode } from '../lib/stage-validation-mode';
-import {
-  recordValidationDuration,
-  recordValidationSuccess,
-  recordUnknownStage,
-} from '../observability/stage-metrics';
-import { setStageWarningHeaders } from '../middleware/deprecation-headers';
+// TODO: Re-enable when stage-normalization PR is merged
+// import { normalizeInvestmentStage } from '@shared/schemas/investment-stages';
+// import { getStageValidationMode } from '../lib/stage-validation-mode';
+// import {
+//   recordValidationDuration,
+//   recordValidationSuccess,
+//   recordUnknownStage,
+// } from '../observability/stage-metrics';
+// import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 
 const router = Router();
 
@@ -370,9 +371,13 @@ router["get"]('/funds/:fundId/companies', asyncHandler(async (req: Request, res:
 
   const query = queryResult.data;
 
+  // TODO: Re-enable when stage-normalization PR is merged
   // Validate and normalize stage filter if provided
   let normalizedStage: string | undefined;
   if (query.stage) {
+    // Temporarily disabled - requires stage-normalization dependencies
+    normalizedStage = query.stage; // Pass-through without validation
+    /*
     const startTime = performance.now();
     const result = normalizeInvestmentStage(query.stage);
     const duration = (performance.now() - startTime) / 1000;
@@ -384,7 +389,7 @@ router["get"]('/funds/:fundId/companies', asyncHandler(async (req: Request, res:
       setStageWarningHeaders(res, [query.stage]);
 
       if (mode === 'enforce') {
-        return res["status"](400)["json"]({
+        return res.status(400).json({
           error: 'invalid_query_parameters',
           message: 'Invalid investment stage in query parameters',
           details: {
@@ -405,6 +410,7 @@ router["get"]('/funds/:fundId/companies', asyncHandler(async (req: Request, res:
       normalizedStage = result.value;
       recordValidationSuccess('GET /api/funds/:fundId/companies');
     }
+    */
   }
 
   // Build WHERE conditions

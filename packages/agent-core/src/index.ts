@@ -32,6 +32,33 @@ export {
   clearAllThreads,
 } from './ConversationMemory';
 
+// Tool Handler exports
+export { ToolHandler, hasToolUses, extractTextContent } from './ToolHandler';
+
+// Tenant Context exports
+export {
+  TenantContextProvider,
+  requirePermission,
+  hasPermission,
+  getTenantKeyPrefix,
+} from './TenantContext';
+
+// Token Budget Manager exports
+export {
+  TokenBudgetManager,
+  estimateTokens,
+  truncateToTokens,
+} from './TokenBudgetManager';
+
+// Memory Event Bus exports
+export { MemoryEventBus, getEventBus } from './MemoryEventBus';
+
+// Hybrid Memory Manager exports
+export { HybridMemoryManager, createHybridMemoryManager } from './HybridMemoryManager';
+
+// Pattern Learning exports
+export { PatternLearningEngine } from './PatternLearning';
+
 export type {
   AgentConfig,
   AgentExecutionContext,
@@ -118,3 +145,52 @@ export type {
   GeneratorFunction,
   EvaluatorFunction,
 } from './EvaluatorOptimizer';
+
+// Tool Handler types
+export type {
+  ToolUseBlock,
+  ToolResultBlock,
+  ToolExecutionContext,
+  ToolExecutionMetrics,
+} from './ToolHandler';
+
+// Tenant Context types
+export type {
+  TenantContext,
+  TenantPermissions,
+} from './TenantContext';
+
+// Token Budget Manager types
+export type {
+  TokenBudget,
+  TokenUsage,
+  AllocationStrategy,
+} from './TokenBudgetManager';
+
+// Memory Event Bus types
+export type {
+  MemoryEventType,
+  MemoryEvent,
+  MemoryCreatedEvent,
+  MemoryUpdatedEvent,
+  MemoryDeletedEvent,
+  PatternLearnedEvent,
+  PatternAppliedEvent,
+  ContextClearedEvent,
+  MemoryEventListener,
+} from './MemoryEventBus';
+
+// Hybrid Memory Manager types
+export type {
+  MemoryScope,
+  MemoryMetadata,
+  MemoryEntry,
+  HybridMemoryConfig,
+} from './HybridMemoryManager';
+
+// Pattern Learning types
+export type {
+  PatternType,
+  ConversationPattern,
+  PatternContext,
+} from './PatternLearning';
