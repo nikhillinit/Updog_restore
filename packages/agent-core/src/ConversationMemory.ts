@@ -91,6 +91,22 @@ export interface ConversationStorage {
   get(key: string): Promise<string | null>;
   set(key: string, value: string, expiryMs?: number): Promise<void>;
   delete(key: string): Promise<void>;
+
+  // NEW: Memory-specific methods (optional - for future hybrid memory implementation)
+  setMemory?(key: string, value: string, metadata: MemoryMetadata): Promise<void>;
+  getMemoriesByTenant?(tenantId: string, tags?: string[]): Promise<Array<{key: string, value: string}>>;
+  searchMemories?(query: string, tenantId: string): Promise<Array<{key: string, value: string, score: number}>>;
+}
+
+/**
+ * Memory metadata for hybrid storage
+ */
+export interface MemoryMetadata {
+  tenantId: string;
+  userId?: string;
+  projectId?: string;
+  tags?: string[];
+  visibility: 'user' | 'project' | 'global';
 }
 
 /**
@@ -577,7 +593,7 @@ export async function buildConversationHistory(
       // Parallel file reads for 80% faster loading (300ms → 60ms for 10 files)
       const formattedFiles = await pMap(
         plan.include,
-        async (file) => await formatFileContent(file),
+        async (file: string) => await formatFileContent(file),
         { concurrency: 5 }  // Read 5 files simultaneously
       );
       parts.push(...formattedFiles);

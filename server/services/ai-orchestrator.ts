@@ -212,7 +212,14 @@ async function withRetryAndTimeout<T>(
   throw lastError || new Error('Unknown error');
 }
 
-async function askClaude(prompt: string): Promise<AIResponse> {
+export interface ClaudeOptions {
+  enableMemory?: boolean;
+  enableContextClearing?: boolean;
+  tenantId?: string;
+  threadId?: string;
+}
+
+async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIResponse> {
   if (!anthropic) {
     return { model: 'claude', error: 'ANTHROPIC_API_KEY not configured' };
   }
@@ -220,12 +227,45 @@ async function askClaude(prompt: string): Promise<AIResponse> {
   const startTime = Date.now();
 
   try {
+    // Configure tools (native memory tool)
+    const tools: Anthropic.Tool[] = [];
+    if (options?.enableMemory) {
+      tools.push({
+        type: 'memory_20250818' as any, // Native memory tool
+        name: 'memory',
+      } as any);
+    }
+
+    // Configure context management (context clearing)
+    const contextManagement = options?.enableContextClearing ? {
+      edits: [
+        {
+          type: 'clear_tool_uses_20250919' as any,
+          trigger: {
+            type: 'input_tokens' as any,
+            value: 5000,
+          },
+          keep: {
+            type: 'tool_uses' as any,
+            value: 3,
+          },
+          clear_at_least: {
+            type: 'input_tokens' as any,
+            value: 3000,
+          },
+        },
+      ],
+    } : undefined;
+
     const response = await withRetryAndTimeout(
       () => anthropic.messages.create({
         model: process.env["CLAUDE_MODEL"] ?? 'claude-3-5-sonnet-latest',
         max_tokens: 8192,
         messages: [{ role: 'user', content: prompt }],
-      }),
+        tools: tools.length > 0 ? tools : undefined,
+        betas: options?.enableContextClearing ? ['context-management-2025-06-27' as any] : undefined,
+        ...(contextManagement ? { context_management: contextManagement as any } : {}),
+      } as any),
       'claude'
     );
 
