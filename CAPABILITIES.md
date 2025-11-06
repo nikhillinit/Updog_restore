@@ -1,6 +1,6 @@
 # Claude Code Capability Inventory
 
-_Last Updated: 2025-10-28_
+_Last Updated: 2025-11-05_
 
 This document provides a persistent reference of ALL available capabilities to
 ensure optimal tool selection and prevent redundant implementations.
@@ -130,6 +130,39 @@ ensure optimal tool selection and prevent redundant implementations.
 
 ## 💾 Memory Systems
 
+### Native Memory Tool Integration ⭐ NEW (2025-11-05)
+
+**Claude's Native Memory Tool** (`memory_20250818`) with cross-conversation pattern learning:
+
+- **ToolHandler** - Process tool_use blocks from Claude API
+- **HybridMemoryManager** - Redis (fast) + Native memory (persistent)
+- **PatternLearningEngine** - Learn from past executions, apply to future tasks
+- **TenantContext** - Multi-user/multi-project isolation
+- **TokenBudgetManager** - Intelligent token allocation (30% history, 15% memory, 10% patterns)
+- **MemoryEventBus** - Event-driven cache invalidation
+
+**Memory Scopes:**
+- `session` - Redis only (1-hour TTL, fast access)
+- `project` - Redis + Native (team-shared knowledge)
+- `longterm` - Native only (persistent cross-session learning)
+
+**Usage:**
+```typescript
+import { PatternLearningEngine, getStorage } from '@agent-core';
+
+// Learn from execution
+const engine = new PatternLearningEngine(storage, 'user:project');
+await engine.recordPattern(result, context);
+
+// Apply to future tasks
+const patterns = await engine.getRelevantPatterns({ operation, fileTypes });
+```
+
+**Documentation:**
+- `NATIVE-MEMORY-INTEGRATION.md` - Complete integration guide
+- `MIGRATION-NATIVE-MEMORY.md` - Migration from Redis-only
+- `packages/agent-core/demo-native-memory.ts` - Working examples
+
 ### Project Memory
 
 - **CLAUDE.md** - Core architecture (THIS FILE'S NEIGHBOR!)
@@ -139,6 +172,8 @@ ensure optimal tool selection and prevent redundant implementations.
 
 ### Persistent Storage
 
+- **Redis** - Fast session memory (ConversationMemory)
+- **Native Memory** - Persistent cross-session learning (NEW)
 - **Todo lists** - Task tracking across sessions
 - **File system** - Any file can be persistent storage
 - **Git history** - Version control as memory
@@ -148,6 +183,7 @@ ensure optimal tool selection and prevent redundant implementations.
 - **git status/diff** - Current work context
 - **Recent test failures** - Pattern recognition
 - **Package.json scripts** - Available commands
+- **Learned patterns** - Success/failure patterns from past executions (NEW)
 
 ## 🔄 Workflow Patterns
 
