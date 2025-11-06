@@ -226,4 +226,20 @@ Options:
   await updateCapabilities(dryRun && !apply);
 }
 
-main().catch(console.error);
+main().catch(error => {
+  console.error('\n❌ CAPABILITIES.md sync failed\n');
+  console.error('Error:', error.message);
+
+  if (error.code === 'ENOENT') {
+    console.error('\nFile not found. Please check:');
+    console.error('  - .claude/agents/ directory exists');
+    console.error('  - CAPABILITIES.md exists in project root');
+  } else if (error instanceof SyntaxError) {
+    console.error('\nJSON parsing error. Check:');
+    console.error('  - package.json syntax');
+    console.error('  - Agent frontmatter format');
+  }
+
+  console.error('\nRun with --dry-run to see what would be changed.');
+  process.exit(1);
+});
