@@ -1,6 +1,6 @@
 # Claude Code Capability Inventory
 
-_Last Updated: 2025-11-05_
+_Last Updated: 2025-11-06_
 
 This document provides a persistent reference of ALL available capabilities to
 ensure optimal tool selection and prevent redundant implementations.
@@ -87,13 +87,107 @@ ensure optimal tool selection and prevent redundant implementations.
 - **Task** - Launch specialized agents ⭐
 - **TodoWrite** - Task management
 - **SlashCommand** - Execute custom commands
-- **Skill** - Launch skills
+- **Skill** - Launch skills ⭐ (see Skills Library below)
 
 ### External
 
 - **WebFetch** - Fetch and analyze web content
 - **WebSearch** - Search the web
 - **AskUserQuestion** - Get user clarification
+
+## 🧠 Skills Library (13 Thinking Frameworks)
+
+**Location**: `.claude/skills/`
+
+Structured thinking frameworks and workflow patterns to enhance problem-solving.
+All skills persist across sessions and are project-local.
+
+**Usage**: `Skill("skill-name")` - The skill's prompt expands with detailed
+guidance
+
+### 🔍 Thinking Frameworks (4)
+
+- **inversion-thinking** - Identify pitfalls by inverting questions ("What would
+  make this terrible?")
+- **analogical-thinking** - Bridge concepts with structured analogies ("X is
+  like Y because..., but differs in...")
+- **pattern-recognition** - Detect patterns, contradictions, and causal
+  relationships across code/docs
+- **extended-thinking-framework** - Reusable XML scaffold for complex tasks
+  (analysis → strategy → execution → synthesis → quality check)
+
+### 🐛 Debugging & Problem Solving (3)
+
+- **systematic-debugging** ⭐ - Four-phase framework (root cause → pattern
+  analysis → hypothesis → implementation). **Iron Law: NO FIXES WITHOUT ROOT
+  CAUSE FIRST**
+- **root-cause-tracing** - Trace bugs backward through call stack to find
+  original trigger (not just symptom)
+- **dispatching-parallel-agents** - Launch multiple agents for independent
+  problem domains (3+ failures → concurrent investigation)
+
+### 📝 Planning & Design (2)
+
+- **brainstorming** ⭐ - Transform rough ideas into designs (6 phases:
+  understanding → exploration → presentation → documentation → worktree →
+  planning)
+- **writing-plans** - Create implementation plans with complete code examples
+  (bite-sized 2-5 min tasks, TDD cycle, frequent commits)
+
+### 💾 Memory & Knowledge (2)
+
+- **memory-management** - Structured notes with confidence levels (context
+  maintenance, information organization, cross-referencing)
+- **continuous-improvement** - Self-review process (5 reflection prompts: what
+  worked, what was inefficient, surprises, clarity improvements, next time)
+
+### 🔗 Integration & Tools (2)
+
+- **integration-with-other-skills** - Coordinate multiple skills/tools (MCP
+  servers, project tools, memory systems, thinking frameworks)
+- **notebooklm** - Query Google NotebookLM notebooks for source-grounded answers
+  (browser automation, follow-up mechanism)
+
+**Quick Reference**: See [.claude/skills/README.md](.claude/skills/README.md)
+for:
+
+- Complete skill catalog with usage examples
+- Skill combination workflows (debugging, feature dev, research)
+- Integration with project tools (/test-smart, /fix-auto, /log-change)
+- VC fund modeling context examples
+
+### Common Skill Workflows
+
+**Debugging Workflow**:
+
+```
+systematic-debugging (Phase 1) → root-cause-tracing (if deep) →
+pattern-recognition (compare) → systematic-debugging (Phase 3-4) →
+continuous-improvement (reflect)
+```
+
+**Feature Development**:
+
+```
+brainstorming (design) → inversion-thinking (failure modes) →
+writing-plans (tasks) → Execute with /test-smart →
+memory-management (track) → continuous-improvement (reflect)
+```
+
+**Research & Analysis**:
+
+```
+extended-thinking-framework (structure) → pattern-recognition (analyze) →
+analogical-thinking (explain) → memory-management (document) →
+notebooklm (validate with sources)
+```
+
+**Multi-Problem Investigation**:
+
+````
+Identify independent failures → dispatching-parallel-agents →
+Each agent uses systematic-debugging → pattern-recognition (synthesize) →
+continuous-improvement (refine)
 
 ## 🤖 MCP Tools (Multi-AI Collaboration)
 
@@ -162,7 +256,7 @@ await engine.recordPattern(result, context);
 
 // Apply to future tasks
 const patterns = await engine.getRelevantPatterns({ operation, fileTypes });
-```
+````
 
 **Memory-Enabled TypeScript Agents (packages/):**
 
@@ -516,23 +610,27 @@ tests:
 Before any task, ask yourself:
 
 1. **Do I have an agent for this?** → Check agent list above
-2. **Have I done this before?** → Check CHANGELOG.md
-3. **Is there a decision about this?** → Check DECISIONS.md
-4. **Can another AI help?** → Check MCP tools
-5. **Is there a slash command?** → Check command list
-6. **Is there an npm script?** → Check package.json
+2. **Do I have a skill for this?** → Check Skills Library (`.claude/skills/`)
+3. **Have I done this before?** → Check CHANGELOG.md
+4. **Is there a decision about this?** → Check DECISIONS.md
+5. **Can another AI help?** → Check MCP tools
+6. **Is there a slash command?** → Check command list
+7. **Is there an npm script?** → Check package.json
 
 ## 📌 Most Commonly Forgotten
 
 These are the capabilities most often overlooked:
 
-1. **Extended Thinking (ThinkingMixin)** - Add deep reasoning to any agent with
+1. **Skills Library** ⭐ - 13 thinking frameworks (systematic-debugging,
+   brainstorming, pattern-recognition, etc.)
+2. **Extended Thinking (ThinkingMixin)** - Add deep reasoning to any agent with
    zero breaking changes
-2. **context-orchestrator** - Handles multi-agent coordination automatically
-3. **/log-change** and **/log-decision** - Built-in memory system
-4. **test-automator** - Generates comprehensive tests with TDD
-5. **MCP tools** - Get second opinions from Gemini/OpenAI
-6. **code-explorer** - Understand existing code before modifying
+3. **context-orchestrator** - Handles multi-agent coordination automatically
+4. **/log-change** and **/log-decision** - Built-in memory system
+5. **test-automator** - Generates comprehensive tests with TDD
+6. **MCP tools** - Get second opinions from Gemini/OpenAI
+7. **code-explorer** - Understand existing code before modifying
+8. **systematic-debugging skill** - Four-phase framework prevents random fixes
 
 ## 🧠 Extended Thinking Integration
 
