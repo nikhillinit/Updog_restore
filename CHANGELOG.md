@@ -6,7 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] – 2025‑11‑06
+## [Unreleased] – 2025‑11‑07
+
+### Added
+
+#### NotebookLM MCP Integration (2025-11-07)
+
+**Added NotebookLM MCP Server** to Claude Code configuration for direct API access
+to Google NotebookLM notebooks.
+
+- **Package**: `notebooklm-mcp@1.1.2`
+- **Configuration**: Added to `.mcp.json` with npx command
+- **Features**: Session support and human-like behavior for querying NotebookLM
+- **Integration**: Complements existing `.claude/skills/notebooklm` skill
+- **Repository**: https://github.com/PleasePrompto/notebooklm-mcp
+
+**Previous Updates** – 2025‑11‑06
 
 ### Added
 

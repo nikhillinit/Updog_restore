@@ -5,6 +5,12 @@
       "args": [
         "C:\\Users\\nikhi\\AppData\\Roaming\\Claude\\Claude Extensions\\multi-ai-collab\\server.py"
       ]
+    },
+    "notebooklm": {
+      "command": "npx",
+      "args": [
+        "notebooklm-mcp@latest"
+      ]
     }
   }
 }
