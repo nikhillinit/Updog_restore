@@ -1,6 +1,6 @@
 # Claude Code Capability Inventory
 
-_Last Updated: 2025-11-06_
+_Last Updated: 2025-11-07_
 
 This document provides a persistent reference of ALL available capabilities to
 ensure optimal tool selection and prevent redundant implementations.
@@ -284,14 +284,44 @@ continuous-improvement (refine)
 
 ## 🤖 MCP Tools (Multi-AI Collaboration)
 
-- **mcp**multi-ai-collab**ask_gemini** - Ask Gemini
-- **mcp**multi-ai-collab**ask_openai** - Ask OpenAI
-- **mcp**multi-ai-collab**gemini_code_review** - Gemini code review
-- **mcp**multi-ai-collab**gemini_think_deep** - Deep analysis
-- **mcp**multi-ai-collab**gemini_brainstorm** - Creative solutions
-- **mcp**multi-ai-collab**gemini_debug** - Debug assistance
-- **mcp**multi-ai-collab**ai_debate** - AI debate
-- **mcp**multi-ai-collab**collaborative_solve** - Multi-AI problem solving
+### Multi-AI Collaboration
+- **mcp__multi-ai-collab__ask_gemini** - Ask Gemini
+- **mcp__multi-ai-collab__ask_openai** - Ask OpenAI
+- **mcp__multi-ai-collab__gemini_code_review** - Gemini code review
+- **mcp__multi-ai-collab__gemini_think_deep** - Deep analysis
+- **mcp__multi-ai-collab__gemini_brainstorm** - Creative solutions
+- **mcp__multi-ai-collab__gemini_debug** - Debug assistance
+- **mcp__multi-ai-collab__ai_debate** - AI debate
+- **mcp__multi-ai-collab__collaborative_solve** - Multi-AI problem solving
+
+### NotebookLM Integration ⭐ NEW (2025-11-07)
+**Source-grounded research with Gemini 2.5 + your documentation**
+
+**Core Tools** (16 total):
+- **mcp__notebooklm-mcp__ask_question** - Query notebooks with citations
+- **mcp__notebooklm-mcp__setup_auth** - Google authentication
+- **mcp__notebooklm-mcp__re_auth** - Switch accounts (rate limit workaround)
+- **mcp__notebooklm-mcp__get_health** - Server status
+
+**Session Management**:
+- **list_sessions**, **close_session**, **reset_session** - Session lifecycle
+
+**Notebook Library**:
+- **add_notebook**, **list_notebooks**, **get_notebook**, **select_notebook**
+- **update_notebook**, **remove_notebook**, **search_notebooks**
+- **get_library_stats** - Library analytics
+
+**Key Features**:
+- ✅ Zero hallucinations (refuses if info not in docs)
+- ✅ Multi-document synthesis across 50+ files
+- ✅ Persistent sessions with context
+- ✅ Rate limit management (50 queries/day, multi-account support)
+- ✅ 9 active notebooks documented in [NOTEBOOKLM-LINKS.md](NOTEBOOKLM-LINKS.md)
+
+**Documentation**:
+- [cheatsheets/notebooklm-mcp-tools.md](cheatsheets/notebooklm-mcp-tools.md) - Complete tool reference
+- [cheatsheets/notebooklm-agent-integration.md](cheatsheets/notebooklm-agent-integration.md) - Integration patterns
+- [NOTEBOOKLM-LINKS.md](NOTEBOOKLM-LINKS.md) - Notebook registry (9 notebooks, 70+ files)
 
 ## 📝 Slash Commands
 
