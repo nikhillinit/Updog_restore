@@ -1,6 +1,6 @@
 # Claude Code Capability Inventory
 
-_Last Updated: 2025-11-06_
+_Last Updated: 2025-11-07_
 
 This document provides a persistent reference of ALL available capabilities to
 ensure optimal tool selection and prevent redundant implementations.
@@ -95,17 +95,66 @@ ensure optimal tool selection and prevent redundant implementations.
 - **WebSearch** - Search the web
 - **AskUserQuestion** - Get user clarification
 
-## 🧠 Skills Library (13 Thinking Frameworks)
+## 🧠 Skills Library (Superpowers Framework)
 
-**Location**: `.claude/skills/`
+**Location**: `.claude/skills/` **Source**:
+[obra/superpowers](https://github.com/obra/superpowers)
 
 Structured thinking frameworks and workflow patterns to enhance problem-solving.
-All skills persist across sessions and are project-local.
+All skills persist across sessions and are project-local. **Skills activate
+automatically when relevant to the task**, making their workflows mandatory.
 
 **Usage**: `Skill("skill-name")` - The skill's prompt expands with detailed
 guidance
 
-### 🔍 Thinking Frameworks (4)
+### 🧪 Testing Skills (3)
+
+- **test-driven-development** ⭐ - RED-GREEN-REFACTOR cycle (write failing test
+  → implement → refactor). Activates when implementing features.
+- **condition-based-waiting** - Replace arbitrary timeouts with condition
+  polling for async tests. Eliminates flaky tests from timing issues.
+- **testing-anti-patterns** - Prevent testing mock behavior, production
+  pollution with test-only methods, and mocking without understanding
+  dependencies.
+
+### 🐛 Debugging & Problem Solving (4)
+
+- **systematic-debugging** ⭐ - Four-phase framework (root cause → pattern
+  analysis → hypothesis → implementation). **Iron Law: NO FIXES WITHOUT ROOT
+  CAUSE FIRST**. Activates automatically when debugging.
+- **root-cause-tracing** - Trace bugs backward through call stack to find
+  original trigger (not just symptom)
+- **verification-before-completion** ⭐ - Requires running verification commands
+  and confirming output before making success claims. Activates before claiming
+  work complete. Evidence before assertions always.
+- **defense-in-depth** - Validates at every layer data passes through to make
+  bugs structurally impossible. Use when invalid data causes failures deep in
+  execution.
+
+### 🤝 Collaboration Skills (9)
+
+- **brainstorming** ⭐ - Transform rough ideas into designs through Socratic
+  questioning (6 phases: understanding → exploration → presentation →
+  documentation → worktree → planning)
+- **writing-plans** ⭐ - Create implementation plans with complete code examples
+  (bite-sized 2-5 min tasks, TDD cycle, frequent commits)
+- **executing-plans** - Execute plans in controlled batches with review
+  checkpoints. Load plan, review critically, execute tasks in batches, report
+  for review between batches.
+- **dispatching-parallel-agents** - Launch multiple agents for independent
+  problem domains (3+ failures → concurrent investigation)
+- **requesting-code-review** - Pre-review checklist and quality gates before
+  marking work ready for review
+- **receiving-code-review** - Requires technical rigor and verification when
+  receiving feedback, not performative agreement or blind implementation
+- **using-git-worktrees** - Create isolated git worktrees with smart directory
+  selection and safety verification for parallel development
+- **finishing-a-development-branch** - Guides completion of development work by
+  presenting structured options for merge, PR, or cleanup
+- **subagent-driven-development** - Dispatches fresh subagent for each task with
+  code review between tasks, enabling fast iteration with quality gates
+
+### 🧠 Thinking Frameworks (4)
 
 - **inversion-thinking** - Identify pitfalls by inverting questions ("What would
   make this terrible?")
@@ -115,24 +164,6 @@ guidance
   relationships across code/docs
 - **extended-thinking-framework** - Reusable XML scaffold for complex tasks
   (analysis → strategy → execution → synthesis → quality check)
-
-### 🐛 Debugging & Problem Solving (3)
-
-- **systematic-debugging** ⭐ - Four-phase framework (root cause → pattern
-  analysis → hypothesis → implementation). **Iron Law: NO FIXES WITHOUT ROOT
-  CAUSE FIRST**
-- **root-cause-tracing** - Trace bugs backward through call stack to find
-  original trigger (not just symptom)
-- **dispatching-parallel-agents** - Launch multiple agents for independent
-  problem domains (3+ failures → concurrent investigation)
-
-### 📝 Planning & Design (2)
-
-- **brainstorming** ⭐ - Transform rough ideas into designs (6 phases:
-  understanding → exploration → presentation → documentation → worktree →
-  planning)
-- **writing-plans** - Create implementation plans with complete code examples
-  (bite-sized 2-5 min tasks, TDD cycle, frequent commits)
 
 ### 💾 Memory & Knowledge (2)
 
@@ -148,6 +179,29 @@ guidance
 - **notebooklm** - Query Google NotebookLM notebooks for source-grounded answers
   (browser automation, follow-up mechanism)
 
+### 📖 Meta Skills (4)
+
+- **writing-skills** - Apply TDD to process documentation by testing with
+  subagents before writing, iterating until bulletproof against rationalization
+- **sharing-skills** - Guides process of branching, committing, pushing, and
+  creating PR to contribute skills back to upstream repository
+- **testing-skills-with-subagents** - Applies RED-GREEN-REFACTOR cycle to
+  process documentation by running baseline without skill, writing to address
+  failures, iterating to close loopholes
+- **using-superpowers** ⭐ - Establishes mandatory workflows for finding and
+  using skills, including using Skill tool before announcing usage, following
+  brainstorming before coding, and creating TodoWrite todos for checklists
+
+### 📋 Superpowers Slash Commands
+
+**Location**: `.claude/commands/superpowers/` (if installed)
+
+These commands are thin wrappers that activate the corresponding skill:
+
+- **/superpowers:brainstorm** - Activates brainstorming skill
+- **/superpowers:write-plan** - Activates writing-plans skill
+- **/superpowers:execute-plan** - Activates executing-plans skill
+
 **Quick Reference**: See [.claude/skills/README.md](.claude/skills/README.md)
 for:
 
@@ -158,20 +212,59 @@ for:
 
 ### Common Skill Workflows
 
-**Debugging Workflow**:
+**TDD Feature Development** (Superpowers-recommended):
 
 ```
-systematic-debugging (Phase 1) → root-cause-tracing (if deep) →
-pattern-recognition (compare) → systematic-debugging (Phase 3-4) →
+test-driven-development (auto-activates) →
+  RED: Write failing test
+  GREEN: Minimal implementation
+  REFACTOR: Improve design
+→ verification-before-completion (before claiming done) →
 continuous-improvement (reflect)
 ```
 
-**Feature Development**:
+**Debugging Workflow** (Superpowers-enforced):
 
 ```
-brainstorming (design) → inversion-thinking (failure modes) →
-writing-plans (tasks) → Execute with /test-smart →
-memory-management (track) → continuous-improvement (reflect)
+systematic-debugging (auto-activates when debugging) →
+  Phase 1: Root Cause Investigation (NO FIXES YET)
+  Phase 2: Pattern Analysis
+  Phase 3: Hypothesis Testing
+  Phase 4: Implementation
+→ verification-before-completion (run tests, confirm output) →
+defense-in-depth (add validation layers) →
+continuous-improvement (reflect)
+```
+
+**Feature Planning Workflow**:
+
+```
+brainstorming (Socratic design refinement) →
+inversion-thinking (identify failure modes) →
+writing-plans (detailed implementation tasks) →
+subagent-driven-development (execute with code review gates) →
+verification-before-completion (confirm success) →
+finishing-a-development-branch (merge/PR decision)
+```
+
+**Plan Execution Workflow**:
+
+```
+executing-plans (load plan, batch execution) →
+  Batch 1 → Review checkpoint
+  Batch 2 → Review checkpoint
+  ...
+→ verification-before-completion (confirm all done) →
+memory-management (document learnings)
+```
+
+**Code Review Workflow**:
+
+```
+requesting-code-review (pre-review checklist) →
+  Submit for review
+→ receiving-code-review (technical rigor, not blind agreement) →
+verification-before-completion (run tests after changes)
 ```
 
 **Research & Analysis**:
@@ -191,14 +284,44 @@ continuous-improvement (refine)
 
 ## 🤖 MCP Tools (Multi-AI Collaboration)
 
-- **mcp**multi-ai-collab**ask_gemini** - Ask Gemini
-- **mcp**multi-ai-collab**ask_openai** - Ask OpenAI
-- **mcp**multi-ai-collab**gemini_code_review** - Gemini code review
-- **mcp**multi-ai-collab**gemini_think_deep** - Deep analysis
-- **mcp**multi-ai-collab**gemini_brainstorm** - Creative solutions
-- **mcp**multi-ai-collab**gemini_debug** - Debug assistance
-- **mcp**multi-ai-collab**ai_debate** - AI debate
-- **mcp**multi-ai-collab**collaborative_solve** - Multi-AI problem solving
+### Multi-AI Collaboration
+- **mcp__multi-ai-collab__ask_gemini** - Ask Gemini
+- **mcp__multi-ai-collab__ask_openai** - Ask OpenAI
+- **mcp__multi-ai-collab__gemini_code_review** - Gemini code review
+- **mcp__multi-ai-collab__gemini_think_deep** - Deep analysis
+- **mcp__multi-ai-collab__gemini_brainstorm** - Creative solutions
+- **mcp__multi-ai-collab__gemini_debug** - Debug assistance
+- **mcp__multi-ai-collab__ai_debate** - AI debate
+- **mcp__multi-ai-collab__collaborative_solve** - Multi-AI problem solving
+
+### NotebookLM Integration ⭐ NEW (2025-11-07)
+**Source-grounded research with Gemini 2.5 + your documentation**
+
+**Core Tools** (16 total):
+- **mcp__notebooklm-mcp__ask_question** - Query notebooks with citations
+- **mcp__notebooklm-mcp__setup_auth** - Google authentication
+- **mcp__notebooklm-mcp__re_auth** - Switch accounts (rate limit workaround)
+- **mcp__notebooklm-mcp__get_health** - Server status
+
+**Session Management**:
+- **list_sessions**, **close_session**, **reset_session** - Session lifecycle
+
+**Notebook Library**:
+- **add_notebook**, **list_notebooks**, **get_notebook**, **select_notebook**
+- **update_notebook**, **remove_notebook**, **search_notebooks**
+- **get_library_stats** - Library analytics
+
+**Key Features**:
+- ✅ Zero hallucinations (refuses if info not in docs)
+- ✅ Multi-document synthesis across 50+ files
+- ✅ Persistent sessions with context
+- ✅ Rate limit management (50 queries/day, multi-account support)
+- ✅ 9 active notebooks documented in [NOTEBOOKLM-LINKS.md](NOTEBOOKLM-LINKS.md)
+
+**Documentation**:
+- [cheatsheets/notebooklm-mcp-tools.md](cheatsheets/notebooklm-mcp-tools.md) - Complete tool reference
+- [cheatsheets/notebooklm-agent-integration.md](cheatsheets/notebooklm-agent-integration.md) - Integration patterns
+- [NOTEBOOKLM-LINKS.md](NOTEBOOKLM-LINKS.md) - Notebook registry (9 notebooks, 70+ files)
 
 ## 📝 Slash Commands
 
@@ -621,16 +744,24 @@ Before any task, ask yourself:
 
 These are the capabilities most often overlooked:
 
-1. **Skills Library** ⭐ - 13 thinking frameworks (systematic-debugging,
-   brainstorming, pattern-recognition, etc.)
-2. **Extended Thinking (ThinkingMixin)** - Add deep reasoning to any agent with
+1. **Superpowers Skills Library** ⭐ - 28 skills across 6 categories that
+   **auto-activate when relevant**:
+   - **test-driven-development** - Activates during feature implementation
+   - **systematic-debugging** - Activates when debugging (NO FIXES WITHOUT ROOT
+     CAUSE)
+   - **verification-before-completion** - Activates before claiming work done
+   - **brainstorming** - Socratic design refinement before coding
+   - **executing-plans** - Batch execution with review checkpoints
+   - **subagent-driven-development** - Fast iteration with code review gates
+2. **using-superpowers skill** - Establishes mandatory workflows for skill usage
+   (check FIRST before announcing skill usage)
+3. **Extended Thinking (ThinkingMixin)** - Add deep reasoning to any agent with
    zero breaking changes
-3. **context-orchestrator** - Handles multi-agent coordination automatically
-4. **/log-change** and **/log-decision** - Built-in memory system
-5. **test-automator** - Generates comprehensive tests with TDD
-6. **MCP tools** - Get second opinions from Gemini/OpenAI
-7. **code-explorer** - Understand existing code before modifying
-8. **systematic-debugging skill** - Four-phase framework prevents random fixes
+4. **context-orchestrator** - Handles multi-agent coordination automatically
+5. **/log-change** and **/log-decision** - Built-in memory system
+6. **test-automator** - Generates comprehensive tests with TDD
+7. **MCP tools** - Get second opinions from Gemini/OpenAI
+8. **code-explorer** - Understand existing code before modifying
 
 ## 🧠 Extended Thinking Integration
 

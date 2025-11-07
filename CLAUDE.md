@@ -89,6 +89,24 @@ STOP! Have you checked CAPABILITIES.md for existing solutions?
 - `/perf-guard` - Performance regression detection with bundle analysis
 - `/dev-start` - Optimized development environment setup
 
+### Superpowers Slash Commands (if installed)
+
+**Source**: [obra/superpowers](https://github.com/obra/superpowers)
+
+These commands activate structured thinking frameworks from the Skills Library:
+
+- `/superpowers:brainstorm` - Socratic design refinement (activates
+  brainstorming skill)
+- `/superpowers:write-plan` - Create detailed implementation plans (activates
+  writing-plans skill)
+- `/superpowers:execute-plan` - Execute plans in batches with review checkpoints
+  (activates executing-plans skill)
+
+**Note**: Skills also auto-activate when relevant (e.g., test-driven-development
+activates during feature implementation, systematic-debugging activates when
+debugging). See [CAPABILITIES.md](CAPABILITIES.md) for the complete 28-skill
+library.
+
 ### Prompt Improver Hook
 
 - **Status:** ✅ Active
