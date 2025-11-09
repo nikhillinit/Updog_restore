@@ -3,18 +3,18 @@ name: Guardian (Scheduled Canary)
 on:
   # Every 2 hours; adjust as needed
   schedule:
-    - cron: "0 */2 * * *"
+    - cron: '0 */2 * * *'
   # Manual run with optional overrides
   workflow_dispatch:
     inputs:
       base_url:
-        description: "Override BASE_URL for canary (else uses secret GUARDIAN_BASE_URL)"
+        description: 'Override BASE_URL for canary (else uses secret GUARDIAN_BASE_URL)'
         required: false
-        default: ""
+        default: ''
       skip_history_check:
-        description: "Skip the window check (useful for testing)"
+        description: 'Skip the window check (useful for testing)'
         required: false
-        default: "false"
+        default: 'false'
 
 # Prevent overlapping runs
 concurrency:
@@ -37,7 +37,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
-          node-version: "20"
+          node-version: '20'
 
       - name: Resolve BASE_URL
         id: resolve
@@ -81,7 +81,7 @@ jobs:
         shell: bash
         run: |
           chmod +x scripts/canary-check-fixed.sh
-          
+
           # Run the canary check
           if ./scripts/canary-check-fixed.sh; then
             echo "✅ Canary check passed"
@@ -120,7 +120,7 @@ jobs:
         run: |
           # Check if muted via repository variable
           MUTE_UNTIL="${{ vars.GUARDIAN_MUTE_UNTIL }}"
-          
+
           if [ -n "$MUTE_UNTIL" ]; then
             NOW=$(date +%s)
             MUTE_TIMESTAMP=$(date -d "$MUTE_UNTIL" +%s 2>/dev/null || echo "0")
@@ -133,14 +133,14 @@ jobs:
               echo "⏰ Guardian mute expired"
             fi
           fi
-          
+
           echo "muted=false" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node
         if: steps.mute_check.outputs.muted != 'true'
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
-          node-version: "20"
+          node-version: '20'
 
       - name: Check Window (3 of last 5)
         if: steps.mute_check.outputs.muted != 'true'
@@ -159,7 +159,7 @@ jobs:
           script: |
             const status = '${{ needs.canary.result }}';
             const muted = '${{ steps.mute_check.outputs.muted }}' === 'true';
-            
+
             if (muted) {
               console.log('🔇 Guardian check skipped (muted)');
             } else if (status === 'success') {

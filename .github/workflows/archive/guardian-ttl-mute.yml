@@ -13,18 +13,18 @@ jobs:
   handle-mute:
     if: github.event.label.name == 'guardian-mute'
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Set TTL Mute (4 hours from now)
         if: github.event.action == 'labeled'
         run: |
           TTL_DATE=$(date -u -d '+4 hours' +%Y-%m-%dT%H:%M:%SZ)
           echo "Setting Guardian mute until $TTL_DATE"
-          
+
           # Store as repository variable (requires appropriate permissions)
           # Note: This requires the workflow to have write access to variables
           # Alternative: Store in a file in the repo or use GitHub API
-          
+
           cat > mute-request.json <<EOF
           {
             "mute_until": "$TTL_DATE",
@@ -33,18 +33,18 @@ jobs:
             "reason": "PR #${{ github.event.pull_request.number }} labeled with guardian-mute"
           }
           EOF
-          
+
           echo "✅ Guardian mute requested until $TTL_DATE"
           echo "Note: Repository admin must set GUARDIAN_MUTE_UNTIL variable to: $TTL_DATE"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Clear TTL Mute
         if: github.event.action == 'unlabeled'
         run: |
           echo "Clearing Guardian mute for PR #${{ github.event.pull_request.number }}"
           echo "Note: Repository admin must clear GUARDIAN_MUTE_UNTIL variable"
-          
+
       - name: Comment on PR
         if: always()
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
@@ -52,7 +52,7 @@ jobs:
           script: |
             const action = context.payload.action;
             const ttlHours = 4;
-            
+
             let comment;
             if (action === 'labeled') {
               const ttlDate = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
@@ -65,7 +65,7 @@ jobs:
                 `Guardian canary checks have been re-enabled.\n\n` +
                 `⚠️ **Note**: Repository admin must clear the \`GUARDIAN_MUTE_UNTIL\` variable.`;
             }
-            
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,

@@ -2,9 +2,9 @@ name: CI (Memory Mode)
 
 on:
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   push:
-    branches: [ feat/*, fix/*, chore/* ]
+    branches: [feat/*, fix/*, chore/*]
 
 jobs:
   memory-mode:

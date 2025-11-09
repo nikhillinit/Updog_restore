@@ -1,6 +1,6 @@
 name: readiness-probe
 on:
-  pull_request: { branches: [ main ] }
+  pull_request: { branches: [main] }
   workflow_dispatch: {}
 env:
   READINESS_URL: ${{ secrets.READINESS_URL }}

@@ -1,7 +1,7 @@
 name: openapi-diff
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
 permissions:
   contents: read
 jobs:

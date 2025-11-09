@@ -30,7 +30,7 @@ jobs:
 
       - name: Sign SBOM
         env:
-          COSIGN_EXPERIMENTAL: "1"
+          COSIGN_EXPERIMENTAL: '1'
         run: |
           echo "$COSIGN_KEY" > cosign.key
           cosign sign-blob sbom.json --key cosign.key \

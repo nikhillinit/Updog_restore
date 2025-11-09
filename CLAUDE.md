@@ -368,12 +368,12 @@ existing codebase. Quality is **mandatory**, not optional.
 
 ### 4-Layer Quality Gates
 
-| Layer | Tool         | Speed   | Coverage      |
-| ----- | ------------ | ------- | ------------- |
-| 1     | ESLint       | < 5s    | 16+ rules     |
-| 2     | Pre-commit   | < 30s   | 8+ checks     |
-| 3     | IDE snippets | Instant | 5 patterns    |
-| 4     | CI/CD        | < 5min  | 18+ workflows |
+| Layer | Tool         | Speed   | Coverage     |
+| ----- | ------------ | ------- | ------------ |
+| 1     | ESLint       | < 5s    | 16+ rules    |
+| 2     | Pre-commit   | < 30s   | 8+ checks    |
+| 3     | IDE snippets | Instant | 5 patterns   |
+| 4     | CI/CD        | < 5min  | 15 workflows |
 
 ### Cross-References
 

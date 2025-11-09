@@ -30,26 +30,26 @@ jobs:
       contents: read
       pull-requests: write
       checks: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: Install dependencies
         run: npm ci --ignore-scripts
-        
+
       - name: Run Green Scoreboard
         id: scoreboard
         uses: ./.github/actions/green-scoreboard
         with:
           guardian-check: ${{ !inputs.skip-guardian }}
-          
+
       - name: Update PR Status
         if: github.event_name == 'pull_request'
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
@@ -57,11 +57,11 @@ jobs:
           script: |
             const status = '${{ steps.scoreboard.outputs.scoreboard-status }}';
             const isGreen = status === 'green';
-            
+
             const comment = `## 📊 Green Scoreboard Status
-            
+
             ${isGreen ? '### 🟢 ALL GREEN - Ready for merge' : '### 🔴 RED - Blocking merge'}
-            
+
             | Gate | Status |
             |------|--------|
             | TypeScript | ${{ steps.scoreboard.outputs.typescript-status == 'green' && '✅' || '❌' }} |
@@ -69,22 +69,22 @@ jobs:
             | CI Checks | ${{ steps.scoreboard.outputs.ci-status == 'green' && '✅' || '❌' }} |
             | Guardian | ${{ steps.scoreboard.outputs.guardian-status == 'green' && '✅' || '❌' }} |
             | Bundle Size | ${{ steps.scoreboard.outputs.bundle-status == 'green' && '✅' || '❌' }} |
-            
+
             ${!isGreen ? '**Action Required:** Fix all red gates before merging.' : '**Ready:** All gates passed, safe to merge.'}
             `;
-            
+
             // Find and update or create comment
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
             });
-            
+
             const botComment = comments.find(comment => 
               comment.user.type === 'Bot' && 
               comment.body.includes('Green Scoreboard Status')
             );
-            
+
             if (botComment) {
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
@@ -100,7 +100,7 @@ jobs:
                 body: comment
               });
             }
-            
+
       - name: Set Check Status
         if: always()
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
@@ -108,7 +108,7 @@ jobs:
           script: |
             const status = '${{ steps.scoreboard.outputs.scoreboard-status }}';
             const conclusion = status === 'green' ? 'success' : 'failure';
-            
+
             await github.rest.checks.create({
               owner: context.repo.owner,
               repo: context.repo.repo,

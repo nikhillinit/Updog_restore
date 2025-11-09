@@ -244,7 +244,15 @@ jobs:
   # Final: Summary
   ci-summary:
     name: CI Summary
-    needs: [perf-baseline, promtool-validate, unit-tests, integration-tests, openapi-validate, startup-validation]
+    needs:
+      [
+        perf-baseline,
+        promtool-validate,
+        unit-tests,
+        integration-tests,
+        openapi-validate,
+        startup-validation,
+      ]
     runs-on: ubuntu-latest
     if: always()
     steps:

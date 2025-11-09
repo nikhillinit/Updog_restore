@@ -65,8 +65,8 @@ jobs:
         env:
           PERF_SUMMARY_PATH: perf/summary.json
           PERF_BUDGET_PATH: perf/budget.json
-          PERF_WARN_MULTIPLIER: "1.20"
-          PERF_FAIL_MULTIPLIER: "1.35"
+          PERF_WARN_MULTIPLIER: '1.20'
+          PERF_FAIL_MULTIPLIER: '1.35'
 
       - name: Upload perf summary
         if: always()

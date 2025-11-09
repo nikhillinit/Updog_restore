@@ -2,7 +2,7 @@ name: Quarantine Tests (Nightly)
 
 on:
   schedule:
-    - cron: "23 3 * * *" # 03:23 UTC nightly
+    - cron: '23 3 * * *' # 03:23 UTC nightly
   workflow_dispatch:
 
 permissions:
@@ -49,21 +49,21 @@ jobs:
             const date = new Date().toISOString().split('T')[0];
             const body = `
             ## Quarantine Tests Failed - ${date}
-            
+
             The nightly quarantine test run has failed.
-            
+
             - **Exit code:** ${{ steps.run_quarantine.outputs.exit_code }}
             - **Workflow run:** [View run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             - **Artifacts:** vitest-quarantine-reports
-            
+
             ### Next Steps
             1. Download the test artifacts to see detailed failure information
             2. Fix the failing tests or adjust timeouts if needed
             3. When tests pass 10/10 times, graduate them back to the main suite
-            
+
             _This issue was automatically created by the nightly quarantine runner._
             `;
-            
+
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,

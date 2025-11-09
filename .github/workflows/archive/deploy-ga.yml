@@ -39,21 +39,21 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      
+
       - run: npm ci
-      
+
       - name: Get version
         id: version
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "Deploying version: ${VERSION}"
-      
+
       - name: Run GA checklist
         id: checklist
         run: |
@@ -63,22 +63,22 @@ jobs:
           PROMETHEUS_URL: ${{ secrets.PROMETHEUS_URL }}
           ALERTMANAGER_URL: ${{ secrets.ALERTMANAGER_URL }}
           GRAFANA_URL: ${{ secrets.GRAFANA_URL }}
-      
+
       - name: Upload checklist results
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         with:
           name: ga-checklist-results
           path: ga-checklist-results.json
-      
+
       - name: Comment checklist status
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
         with:
           script: |
             const fs = require('fs');
             const results = JSON.parse(fs.readFileSync('ga-checklist-results.json'));
-            
+
             let comment = '## 📋 GA Deployment Checklist\n\n';
-            
+
             for (const [key, category] of Object.entries(results.categories)) {
               const icon = category.passed ? '✅' : '❌';
               comment += `### ${icon} ${category.name}\n`;
@@ -89,7 +89,7 @@ jobs:
               }
               comment += '\n';
             }
-            
+
             if (!results.passed) {
               comment += '### ❌ Deployment blocked\n';
               comment += 'Critical checks failed:\n';
@@ -97,7 +97,7 @@ jobs:
                 comment += `- ${f}\n`;
               });
             }
-            
+
             // Post to deployment issue or PR
             if (context.payload.pull_request) {
               await github.rest.issues.createComment({
@@ -118,21 +118,21 @@ jobs:
     environment: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      
+
       - run: npm ci
-      
+
       - name: Build production bundle
         run: npm run build
         env:
           NODE_ENV: production
           VITE_ENABLE_RUM_V2: '1'
           VITE_ENABLE_SENTRY: '1'
-      
+
       - name: Run canary deployment
         run: |
           if [[ "${{ inputs.dry_run }}" == "true" ]]; then
@@ -145,7 +145,7 @@ jobs:
           ALERTMANAGER_URL: ${{ secrets.ALERTMANAGER_URL }}
           FLAGS_API_URL: ${{ secrets.FLAGS_API_URL }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      
+
       - name: Upload deployment report
         if: always()
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
@@ -159,17 +159,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: ${{ env.NODE_VERSION }}
-      
+
       - name: Monitor deployment for 48 hours
         run: |
           echo "Starting 48-hour stability watch"
           echo "Version: ${{ needs.pre-deployment.outputs.version }}"
           echo "Environment: ${{ inputs.environment }}"
-          
+
           # Create stability watch issue
           gh issue create \
             --title "Stability Watch: v${{ needs.pre-deployment.outputs.version }}" \
@@ -177,7 +177,7 @@ jobs:
             --body "Monitoring deployment of v${{ needs.pre-deployment.outputs.version }} to ${{ inputs.environment }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Setup monitoring dashboard
         run: |
           # Would create/update Grafana dashboard
@@ -191,14 +191,14 @@ jobs:
     environment: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      
+
       - run: npm ci
-      
+
       - name: Execute rollback
         run: |
           npm run ga:rollback -- --force --reason="Automated rollback due to deployment failure"
@@ -207,7 +207,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           REDIS_URL: ${{ secrets.REDIS_URL }}
-      
+
       - name: Create incident report
         if: always()
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
@@ -240,18 +240,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+
       - name: Tag release
         run: |
           git tag -a "v${{ needs.pre-deployment.outputs.version }}-${{ inputs.environment }}" \
             -m "Deployed to ${{ inputs.environment }} on $(date)"
           git push --tags
-      
+
       - name: Update deployment tracking
         run: |
           echo "${{ needs.pre-deployment.outputs.version }}" > .last-deployed-version
           echo "$(date -Iseconds)" > .last-deployed-time
-      
+
       - name: Send success notification
         run: |
           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
