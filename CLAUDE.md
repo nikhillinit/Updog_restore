@@ -107,14 +107,17 @@ activates during feature implementation, systematic-debugging activates when
 debugging). See [CAPABILITIES.md](CAPABILITIES.md) for the complete 28-skill
 library.
 
-### Prompt Improver Hook
+### Prompt Templates
 
-- **Status:** ✅ Active
-- **Location:** `~/.claude/hooks/improve-prompt.py`
-- **Feature:** Intercepts vague prompts and asks clarifying questions
-- **Bypass:** Prefix with `*` to skip evaluation (e.g., `* try this approach`)
-- **Docs:** See
-  [cheatsheets/prompt-improver-hook.md](cheatsheets/prompt-improver-hook.md)
+High-quality, version-controlled prompt templates are available in the
+`/prompts` directory:
+
+- `feature-implementation.md` - Structured feature request template
+- `bug-investigation.md` - Debugging workflow template
+- `code-review-request.md` - PR review checklist
+- `refactoring-plan.md` - Safe refactoring steps
+
+Copy and customize templates as needed for consistent, well-structured requests.
 
 ## Architecture
 

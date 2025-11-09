@@ -138,11 +138,12 @@ implementation
 
 **Tasks:**
 
-1. Implement ESLint custom rules (6h)
-   - `povc/require-cursor-validation`
-   - `povc/require-idempotency-key`
-   - `povc/require-optimistic-locking`
-   - `povc/require-queue-timeout`
+1. Configure ESLint with off-the-shelf plugins + domain rules (2h)
+   - Install: `eslint-plugin-security`, `eslint-plugin-unicorn`,
+     `eslint-plugin-promise`, `eslint-plugin-sonarjs`
+   - Configure security rules for SQL injection, cursor validation
+   - Add 3-5 custom domain rules for fund-specific patterns
+   - Enable security plugin (fix flat config compatibility)
 
 2. Update pre-commit hooks (2h)
    - Add anti-pattern checks to `.husky/pre-commit`
@@ -175,8 +176,13 @@ implementation
 /log-change             # Document in CHANGELOG.md
 ```
 
-**Estimated Time:** 12 hours execution | 3-4 hours wall time (with parallel
+**Estimated Time:** 8 hours execution | 2-3 hours wall time (with parallel
 agents)
+
+- ESLint configuration: 2h (down from 6h with off-the-shelf plugins)
+- Pre-commit hooks: 2h
+- IDE snippets: 1h
+- CI/CD workflow: 3h
 
 ---
 
