@@ -136,6 +136,7 @@
     "test:ci": "vitest run",
     "test:unit": "cross-env TZ=UTC vitest run",
     "test:integration": "cross-env TZ=UTC vitest -c vitest.config.int.ts run",
+    "test:schema": "cross-env TZ=UTC vitest run tests/integration/portfolio-schema.spec.ts -c vitest.config.int.ts",
     "test:unit:watch": "cross-env TZ=UTC vitest",
     "test:integration:watch": "cross-env TZ=UTC vitest -c vitest.config.int.ts",
     "test:e2e": "playwright test --project=core tests/e2e/fund-setup.spec.ts",

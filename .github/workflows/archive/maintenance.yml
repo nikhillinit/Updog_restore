@@ -1,0 +1,94 @@
+name: Maintenance
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Weekly on Sunday
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+
+      - name: Delete old migration branches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Find old migration branches (>30 days)
+          cutoff_date=$(date -d "30 days ago" +%s)
+
+          for branch in $(gh api repos/${{ github.repository }}/branches --jq '.[].name' | grep "async-migration-batch-" || true); do
+            # Get last commit date for the branch
+            last_commit_date=$(gh api repos/${{ github.repository }}/branches/$branch --jq '.commit.commit.author.date')
+            last_commit_epoch=$(date -d "$last_commit_date" +%s)
+            
+            if [[ $last_commit_epoch -lt $cutoff_date ]]; then
+              echo "Deleting old branch: $branch (last commit: $last_commit_date)"
+              gh api -X DELETE repos/${{ github.repository }}/git/refs/heads/$branch || echo "Failed to delete $branch"
+            else
+              echo "Keeping recent branch: $branch"
+            fi
+          done
+
+      - name: Check for obsolete shim
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git grep -q "slack-etag-cache.ts"; then
+            # Check if issue already exists
+            existing=$(gh issue list --search "Remove slack-etag-cache.ts shim" --json number --jq length)
+            
+            if [[ $existing -eq 0 ]]; then
+              gh issue create \
+                --title "Remove slack-etag-cache.ts shim" \
+                --body "The slack-etag-cache.ts shim is still present after migration completion. Consider removing in next minor version." \
+                --label "tech-debt,enhancement"
+            else
+              echo "Shim removal issue already exists"
+            fi
+          else
+            echo "✅ No slack-etag-cache.ts shim found"
+          fi
+
+      - name: Performance trend analysis
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get last 5 performance baseline runs
+          recent_runs=$(gh api repos/${{ github.repository }}/actions/workflows/perf-baseline.yml/runs \
+            --jq '.workflow_runs[:5] | map(select(.conclusion == "success")) | .[0:3]')
+
+          if [[ $(echo "$recent_runs" | jq length) -ge 3 ]]; then
+            echo "📊 Performance trend stable over last 3 successful runs"
+            echo "Consider tightening regression threshold from 20% → 10%" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏳ Need more baseline runs for trend analysis"
+          fi
+
+      - name: Migration progress summary
+        run: |
+          if [[ -f .migration/total.txt ]]; then
+            total=$(cat .migration/total.txt | tr -d '[:space:]')
+            
+            # Count migrated files (basic heuristic)
+            migrated=$(git grep -l "forEachAsync\|mapAsync\|filterAsync" -- "*.ts" "*.tsx" | wc -l || echo "0")
+            percent=$((migrated * 100 / total))
+            
+            echo "## 📈 Migration Status" >> $GITHUB_STEP_SUMMARY
+            echo "- **Progress**: ${percent}% (${migrated}/${total} files)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Total files**: ${total}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Remaining**: $((total - migrated))" >> $GITHUB_STEP_SUMMARY
+            
+            if [[ $percent -eq 100 ]]; then
+              echo "- **Status**: 🎉 Migration Complete!" >> $GITHUB_STEP_SUMMARY
+            elif [[ $percent -gt 75 ]]; then
+              echo "- **Status**: 🔥 Nearly there!" >> $GITHUB_STEP_SUMMARY  
+            elif [[ $percent -gt 25 ]]; then
+              echo "- **Status**: 📈 Good progress" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- **Status**: 🚀 Getting started" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi

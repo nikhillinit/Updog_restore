@@ -1,0 +1,18 @@
+name: readiness-probe
+on:
+  pull_request: { branches: [main] }
+  workflow_dispatch: {}
+env:
+  READINESS_URL: ${{ secrets.READINESS_URL }}
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe /readinessz
+        run: |
+          if [ -z "${READINESS_URL}" ]; then
+            echo "::error ::READINESS_URL is not set"; exit 1
+          fi
+          code=$(curl -s -o /dev/null -w "%{http_code}" "${READINESS_URL}/readinessz")
+          echo "Status: $code"
+          test "$code" -eq 200

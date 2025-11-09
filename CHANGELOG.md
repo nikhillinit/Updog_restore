@@ -6,7 +6,59 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] – 2025‑11‑06
+## [Unreleased] – 2025‑11‑09
+
+### Changed
+
+#### Phase 3 Documentation Compaction Complete 📚 (2025-11-09)
+
+**Achievement**: Streamlined project documentation and CI/CD workflows for
+improved maintainability
+
+**Branch**: `feat/portfolio-lot-moic-schema` (3 commits)
+
+**Session 1 & 3: Documentation Cleanup + Infrastructure** (2 hours)
+
+- **DECISIONS.md**: Removed 310-line duplicate ADR-011, added Table of Contents
+- **CLAUDE.md**: Updated references (removed Prompt Improver Hook, added Prompt
+  Templates)
+- **Prompt Templates**: Created `/prompts` directory with 5 structured templates
+  (44KB)
+  - feature-implementation.md, bug-investigation.md, code-review-request.md,
+    refactoring-plan.md, README.md
+- **Validation Workflow**: Documented paired-agent validation pattern
+  (`docs/workflows/PAIRED-AGENT-VALIDATION.md`)
+
+**Session 4: Testing Documentation** (15 minutes)
+
+- **CAPABILITIES.md**: Added comprehensive XIRR testing infrastructure section
+  - Documented 50 test cases across 3 files (Excel parity ±1e-7)
+  - Performance benchmarks (<10ms, deterministic 100-run validation)
+  - Deferred work tracking (property-based testing, bundle analysis)
+  - Dependencies status (lodash removed, xlsx eager loading)
+
+**Session 2: CI/CD Rationalization** (1.5 hours)
+
+- **Workflows**: Reduced 57 → 15 essential workflows (73.7% reduction)
+  - Kept: 9 quality gates + 6 security gates
+  - Archived: 42 experimental/duplicate workflows
+- **ARCHIVED.md**: Comprehensive documentation of archived workflows
+- **CLAUDE.md**: Updated workflow count (18+ → 15 workflows)
+- **CI Improvement**: Expected 40-50% faster feedback, reduced maintenance
+  burden
+
+**Metrics**:
+
+- Documentation: -310 lines duplicate content, +5 prompt templates, +1
+  validation workflow
+- CI/CD: -42 workflows (73.7% reduction), -159 lines in active workflows
+- Testing: +50 documented test cases, +3 deferred work items tracked
+
+**Files Changed**: 47 files (3 commits)
+
+- eb84a6f3: Documentation cleanup + infrastructure setup
+- e5fc829b: Testing documentation (CAPABILITIES.md)
+- d068439a: CI/CD rationalization (57 → 15 workflows)
 
 ### Added
 

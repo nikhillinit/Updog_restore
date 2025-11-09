@@ -1,0 +1,76 @@
+name: perf-budget
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
+
+# Only run when the PR is explicitly labeled needs:perf
+jobs:
+  budget:
+    if: contains(toJson(github.event.pull_request.labels), 'needs:perf')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    concurrency:
+      group: perf-budget-${{ github.ref }}
+      cancel-in-progress: true
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Start preview server
+        run: |
+          npm run preview &
+
+          # Wait for server to become healthy (default vite preview on :4173)
+          ATTEMPTS=60
+          until curl -sSf http://127.0.0.1:4173 >/dev/null; do
+            ATTEMPTS=$((ATTEMPTS-1))
+            if [ $ATTEMPTS -le 0 ]; then
+              echo "Server failed to start on :4173"
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+        with:
+          version: v0.49.0
+
+      - name: Run k6 smoke and export summary
+        run: |
+          mkdir -p perf
+          # If your k6 script expects BASE_URL, pass it through -e
+          k6 run -e BASE_URL="http://127.0.0.1:4173" k6/scenarios/smoke.js --summary-export perf/summary.json
+
+      - name: Compare against budget
+        run: node scripts/compare-perf.mjs
+        env:
+          PERF_SUMMARY_PATH: perf/summary.json
+          PERF_BUDGET_PATH: perf/budget.json
+          PERF_WARN_MULTIPLIER: '1.20'
+          PERF_FAIL_MULTIPLIER: '1.35'
+
+      - name: Upload perf summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-summary
+          path: perf/summary.json

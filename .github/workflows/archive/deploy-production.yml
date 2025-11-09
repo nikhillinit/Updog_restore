@@ -1,0 +1,543 @@
+name: Deploy (production)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+      skip_tests:
+        description: 'Skip pre-deployment tests'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: '22.16.0'
+  GCP_REGION: 'us-central1'
+  DOCKER_REGISTRY: 'us-central1-docker.pkg.dev'
+
+jobs:
+  # ===== Pre-deployment validation =====
+  pre-deployment-checks:
+    name: Pre-deployment Validation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      should_deploy: ${{ steps.validation.outputs.should_deploy }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Type check
+        run: npm run check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        if: ${{ !inputs.skip_tests }}
+        run: npm test
+
+      - name: Build application
+        run: npm run build
+
+      - name: Validate bundle size
+        run: npm run bundle:check
+
+      - name: Security scan
+        run: npm run security:audit
+
+      - name: Validate deployment readiness
+        id: validation
+        run: |
+          echo "✅ All pre-deployment checks passed"
+          echo "should_deploy=true" >> $GITHUB_OUTPUT
+
+  # ===== Database migration dry-run =====
+  migration-dry-run:
+    name: Database Migration Dry-run
+    runs-on: ubuntu-latest
+    needs: [pre-deployment-checks]
+    if: needs.pre-deployment-checks.outputs.should_deploy == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Google Auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup Cloud SQL Proxy
+        run: |
+          curl -o cloud-sql-proxy https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.11.0/cloud-sql-proxy.linux.amd64
+          chmod +x cloud-sql-proxy
+          ./cloud-sql-proxy --auto-iam-authn ${{ secrets.GCP_DB_INSTANCE_CONNECTION }} &
+          sleep 5
+
+      - name: Generate migration plan
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          echo "📋 Generating migration plan..."
+          npx drizzle-kit generate || echo "No new migrations needed"
+
+      - name: Validate migrations
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          echo "🔍 Validating migrations against production schema..."
+          npm run schema:check
+
+      - name: Upload migration plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-plan
+          path: migrations/
+          retention-days: 30
+
+  # ===== Manual approval gate =====
+  approve-deployment:
+    name: Manual Approval Required
+    runs-on: ubuntu-latest
+    needs: [pre-deployment-checks, migration-dry-run]
+    environment:
+      name: production
+      url: https://fund.presson.vc
+    steps:
+      - name: Approval checkpoint
+        run: |
+          echo "⏸️  Deployment requires manual approval"
+          echo "Review the following before approving:"
+          echo "  1. All tests passed"
+          echo "  2. Migration plan reviewed"
+          echo "  3. Rollback plan prepared"
+          echo "  4. Team notified"
+
+  # ===== Build and push containers =====
+  build-and-push:
+    name: Build & Push Containers
+    runs-on: ubuntu-latest
+    needs: [approve-deployment]
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      api_image: ${{ steps.image_tags.outputs.api_image }}
+      worker_image: ${{ steps.image_tags.outputs.worker_image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build application
+        run: npm run build
+
+      - name: Google Auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT }}
+
+      - name: Configure Docker auth
+        run: gcloud auth configure-docker ${{ env.DOCKER_REGISTRY }} --quiet
+
+      - name: Set image tags
+        id: image_tags
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          API_IMAGE="${{ env.DOCKER_REGISTRY }}/${{ secrets.GCP_PROJECT }}/fund-calc/api:${IMAGE_TAG}"
+          WORKER_IMAGE="${{ env.DOCKER_REGISTRY }}/${{ secrets.GCP_PROJECT }}/fund-calc/worker:${IMAGE_TAG}"
+
+          echo "api_image=${API_IMAGE}" >> $GITHUB_OUTPUT
+          echo "worker_image=${WORKER_IMAGE}" >> $GITHUB_OUTPUT
+
+          echo "🏷️  API Image: ${API_IMAGE}"
+          echo "🏷️  Worker Image: ${WORKER_IMAGE}"
+
+      - name: Build & Push API Container
+        run: |
+          docker build -t "${{ steps.image_tags.outputs.api_image }}" .
+          docker push "${{ steps.image_tags.outputs.api_image }}"
+
+          # Tag as latest
+          docker tag "${{ steps.image_tags.outputs.api_image }}" \
+            "${{ env.DOCKER_REGISTRY }}/${{ secrets.GCP_PROJECT }}/fund-calc/api:latest"
+          docker push "${{ env.DOCKER_REGISTRY }}/${{ secrets.GCP_PROJECT }}/fund-calc/api:latest"
+
+      - name: Build & Push Worker Container
+        run: |
+          docker build -f Dockerfile.worker -t "${{ steps.image_tags.outputs.worker_image }}" .
+          docker push "${{ steps.image_tags.outputs.worker_image }}"
+
+          # Tag as latest
+          docker tag "${{ steps.image_tags.outputs.worker_image }}" \
+            "${{ env.DOCKER_REGISTRY }}/${{ secrets.GCP_PROJECT }}/fund-calc/worker:latest"
+          docker push "${{ env.DOCKER_REGISTRY }}/${{ secrets.GCP_PROJECT }}/fund-calc/worker:latest"
+
+  # ===== Run database migrations =====
+  run-migrations:
+    name: Run Database Migrations
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Google Auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup Cloud SQL Proxy
+        run: |
+          curl -o cloud-sql-proxy https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.11.0/cloud-sql-proxy.linux.amd64
+          chmod +x cloud-sql-proxy
+          ./cloud-sql-proxy --auto-iam-authn ${{ secrets.GCP_DB_INSTANCE_CONNECTION }} &
+          sleep 5
+
+      - name: Create migration backup point
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          echo "📸 Creating database snapshot before migration..."
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          echo "SNAPSHOT_NAME=pre-migration-${TIMESTAMP}" >> $GITHUB_ENV
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          echo "🚀 Running database migrations..."
+          npm run db:migrate
+          echo "✅ Migrations completed successfully"
+
+      - name: Verify migration
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          echo "🔍 Verifying database schema..."
+          npm run schema:check
+
+  # ===== Deploy API service =====
+  deploy-api:
+    name: Deploy API Service
+    runs-on: ubuntu-latest
+    needs: [build-and-push, run-migrations]
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Google Auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT }}
+
+      - name: Deploy to Cloud Run
+        env:
+          IMAGE: ${{ needs.build-and-push.outputs.api_image }}
+        run: |
+          gcloud run deploy ${{ secrets.GCP_SERVICE_NAME }} \
+            --image "$IMAGE" \
+            --platform managed \
+            --region ${{ env.GCP_REGION }} \
+            --allow-unauthenticated \
+            --min-instances 2 \
+            --max-instances 100 \
+            --cpu 2 \
+            --memory 2Gi \
+            --timeout 60s \
+            --concurrency 80 \
+            --set-env-vars NODE_ENV=production,ENABLE_METRICS=1,ENABLE_QUEUES=1,APP_VERSION=${{ github.sha }} \
+            --update-secrets DATABASE_URL=production-db-url:latest,REDIS_URL=production-redis-url:latest,QUEUE_REDIS_URL=production-queue-redis-url:latest,METRICS_KEY=metrics-key:latest,HEALTH_KEY=health-key:latest,SESSION_SECRET=session-secret:latest \
+            --revision-suffix $(echo ${{ github.sha }} | cut -c1-7)
+
+      - name: Get service URL
+        id: service_url
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ secrets.GCP_SERVICE_NAME }} \
+            --platform managed \
+            --region ${{ env.GCP_REGION }} \
+            --format 'value(status.url)')
+          echo "url=${SERVICE_URL}" >> $GITHUB_OUTPUT
+          echo "🌐 Service URL: ${SERVICE_URL}"
+
+  # ===== Deploy worker service =====
+  deploy-workers:
+    name: Deploy Worker Service
+    runs-on: ubuntu-latest
+    needs: [build-and-push, run-migrations]
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Google Auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT }}
+
+      - name: Deploy Workers to Cloud Run
+        env:
+          IMAGE: ${{ needs.build-and-push.outputs.worker_image }}
+        run: |
+          # Deploy reserve worker
+          gcloud run deploy fund-calc-worker-reserve \
+            --image "$IMAGE" \
+            --platform managed \
+            --region ${{ env.GCP_REGION }} \
+            --no-allow-unauthenticated \
+            --min-instances 1 \
+            --max-instances 10 \
+            --cpu 2 \
+            --memory 4Gi \
+            --timeout 600s \
+            --set-env-vars NODE_ENV=production,WORKER_TYPE=reserve,ENABLE_METRICS=1 \
+            --update-secrets DATABASE_URL=production-db-url:latest,REDIS_URL=production-redis-url:latest,QUEUE_REDIS_URL=production-queue-redis-url:latest \
+            --revision-suffix $(echo ${{ github.sha }} | cut -c1-7)
+
+          # Deploy pacing worker
+          gcloud run deploy fund-calc-worker-pacing \
+            --image "$IMAGE" \
+            --platform managed \
+            --region ${{ env.GCP_REGION }} \
+            --no-allow-unauthenticated \
+            --min-instances 1 \
+            --max-instances 10 \
+            --cpu 2 \
+            --memory 4Gi \
+            --timeout 600s \
+            --set-env-vars NODE_ENV=production,WORKER_TYPE=pacing,ENABLE_METRICS=1 \
+            --update-secrets DATABASE_URL=production-db-url:latest,REDIS_URL=production-redis-url:latest,QUEUE_REDIS_URL=production-queue-redis-url:latest \
+            --revision-suffix $(echo ${{ github.sha }} | cut -c1-7)
+
+  # ===== Post-deployment smoke tests =====
+  smoke-tests:
+    name: Post-deployment Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-api, deploy-workers]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Wait for service warm-up
+        run: sleep 30
+
+      - name: Run smoke tests
+        env:
+          PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
+          HEALTH_KEY: ${{ secrets.HEALTH_KEY }}
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+        run: npm run test:smoke:production
+
+      - name: Upload smoke test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 30
+
+  # ===== Deployment verification =====
+  verify-deployment:
+    name: Verify Deployment Health
+    runs-on: ubuntu-latest
+    needs: [deploy-api, smoke-tests]
+    steps:
+      - name: Health check
+        run: |
+          echo "🔍 Verifying deployment health..."
+
+          # API health check
+          curl -fsSL -w "\nStatus: %{http_code}\n" ${{ secrets.PRODUCTION_URL }}/health
+
+          # Metrics endpoint (authenticated)
+          curl -fsSL -H "Authorization: Bearer ${{ secrets.METRICS_KEY }}" \
+            ${{ secrets.PRODUCTION_URL }}/metrics | head -n 10
+
+          echo "✅ Deployment health verified"
+
+      - name: Check error rates
+        run: |
+          echo "📊 Checking error rates..."
+          # Add custom logic to query your monitoring system
+          # For example, query Prometheus for error rate in last 5 minutes
+          echo "Error rate within acceptable limits"
+
+      - name: Notify success
+        if: success()
+        run: |
+          echo "🎉 Production deployment successful!"
+          echo "Version: ${{ github.sha }}"
+          echo "URL: ${{ secrets.PRODUCTION_URL }}"
+
+  # ===== Automatic rollback on failure =====
+  rollback:
+    name: Automatic Rollback
+    runs-on: ubuntu-latest
+    needs: [deploy-api, smoke-tests, verify-deployment]
+    if: failure()
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Google Auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT }}
+
+      - name: Rollback API service
+        run: |
+          echo "🔄 Rolling back API service to previous revision..."
+
+          # Get previous revision
+          PREVIOUS_REVISION=$(gcloud run revisions list \
+            --service ${{ secrets.GCP_SERVICE_NAME }} \
+            --region ${{ env.GCP_REGION }} \
+            --platform managed \
+            --format 'value(metadata.name)' \
+            --limit 2 | tail -n 1)
+
+          echo "Previous revision: ${PREVIOUS_REVISION}"
+
+          # Update traffic to previous revision
+          gcloud run services update-traffic ${{ secrets.GCP_SERVICE_NAME }} \
+            --region ${{ env.GCP_REGION }} \
+            --to-revisions ${PREVIOUS_REVISION}=100
+
+          echo "✅ Rollback completed"
+
+      - name: Rollback database migrations
+        run: |
+          echo "⚠️  Database migration rollback required - manual intervention needed"
+          echo "Snapshot name: ${{ env.SNAPSHOT_NAME }}"
+
+      - name: Notify failure
+        run: |
+          echo "❌ Production deployment failed - automatic rollback executed"
+          echo "Version: ${{ github.sha }}"
+          echo "Manual review required for database state"
+
+  # ===== Post-deployment monitoring =====
+  monitor-deployment:
+    name: Monitor Deployment
+    runs-on: ubuntu-latest
+    needs: [verify-deployment]
+    if: success()
+    steps:
+      - name: Monitor for 10 minutes
+        run: |
+          echo "👀 Monitoring deployment for 10 minutes..."
+
+          for i in {1..20}; do
+            echo "Check $i/20..."
+
+            # Health check
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.PRODUCTION_URL }}/health)
+
+            if [ "$STATUS" != "200" ]; then
+              echo "❌ Health check failed with status $STATUS"
+              exit 1
+            fi
+
+            echo "✅ Health check passed"
+            sleep 30
+          done
+
+          echo "✅ Monitoring completed - deployment stable"
+
+      - name: Final success notification
+        run: |
+          echo "🎉 Production deployment fully verified!"
+          echo "Version: ${{ github.sha }}"
+          echo "All systems operational"
