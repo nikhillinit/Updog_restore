@@ -7,6 +7,7 @@ development of the Press On Ventures fund modeling platform.
 
 - [ADR-010: PowerLawDistribution API Design - Constructor Over Factory Pattern](#adr-010-powerlawdistribution-api-design---constructor-over-factory-pattern)
 - [ADR-011: Anti-Pattern Prevention Strategy for Portfolio Route API](#adr-011-anti-pattern-prevention-strategy-for-portfolio-route-api)
+- [ADR-012: Mandatory Evidence-Based Document Reviews](#adr-012-mandatory-evidence-based-document-reviews)
 
 ---
 
@@ -3227,3 +3228,237 @@ If applying to existing routes:
 **Document Status:** ✅ Approved for Implementation **Last Updated:** 2025-11-08
 **Next Steps:** Create `cheatsheets/anti-pattern-prevention.md` with detailed
 examples
+
+---
+
+## ADR-012: Mandatory Evidence-Based Document Reviews
+
+**Date:** 2025-11-09 **Status:** ✅ Accepted **Decision:** All document reviews
+must include codebase verification before claiming gaps or missing features
+
+---
+
+### Context
+
+**Incident that revealed the problem:**
+
+On 2025-11-09, a strategy plan review incorrectly reported two critical features
+as "missing":
+
+1. "No schema-first TDD workflow (retrofit pain inevitable)"
+2. "Under-estimated testing time (Testcontainers setup not accounted for)"
+
+**Reality:**
+
+Both features were **already implemented** as of 2025-11-08:
+
+- Schema-first TDD: `tests/integration/portfolio-schema.spec.ts` (431 lines),
+  migrations complete
+- Testcontainers: `testcontainers@11.7.2` in `package.json`,
+  `tests/helpers/testcontainers-db.ts` exists
+
+**Root cause:**
+
+The planning document being reviewed (created Nov 8, 05:33 AM) was a
+**forward-looking plan**, but the review occurred 36 hours later (Nov 9) without
+verifying whether the plan had been executed. Between document creation and
+review, all planned items were implemented (commits: `1064dff0`, `ec021b7f`,
+`a0605ee9`).
+
+**Process failure:**
+
+1. ❌ Did not check document timestamp (>24h old)
+2. ❌ Did not search git log for execution evidence
+3. ❌ Did not verify claims against actual code
+4. ❌ Prioritized documentation over code inspection
+5. ❌ Did not classify document type (PLAN vs STATUS vs REFERENCE)
+
+**Impact:**
+
+- Incorrect technical advice provided
+- Time wasted analyzing obsolete concerns
+- Loss of credibility through inaccurate assessments
+- Risk of implementing already-complete features
+
+---
+
+### Decision
+
+**Implement mandatory evidence-based verification for all document reviews:**
+
+#### 1. Document Classification (Required First Step)
+
+**Before reviewing, classify document type:**
+
+| Type                     | Indicators                          | Review Approach                          |
+| ------------------------ | ----------------------------------- | ---------------------------------------- |
+| **PLAN** (future)        | PHASE*, STRATEGY*, \*-PLAN.md, TODO | **Verify execution before gap analysis** |
+| **STATUS** (present)     | COMPLETE, HANDOFF, \*-STATUS.md     | Check for staleness                      |
+| **REFERENCE** (timeless) | CLAUDE.md, CAPABILITIES.md, ADR-\*  | Review for accuracy vs code              |
+
+#### 2. Timestamp-Aware Review (For Plans >24h Old)
+
+**If document is a PLAN and >24 hours old:**
+
+```bash
+# MANDATORY: Search git log for execution evidence
+git log --since="<doc-creation-date>" --grep="<plan-keywords>"
+
+# Example:
+git log --since="2025-11-08 05:33" --grep="schema\|testcontainers"
+```
+
+#### 3. Code-Level Verification (For All Claims)
+
+**NEVER report "missing" without code proof:**
+
+```typescript
+// ❌ BAD: Documentation-only check
+const exists = await readFile('docs/testing/strategy.md');
+return exists ? 'Documented' : 'Missing';
+
+// ✅ GOOD: Code-level verification
+const code = await glob('tests/**/*testcontainers*.ts');
+const dep = await grep('testcontainers', 'package.json');
+return code && dep ? 'COMPLETE' : 'MISSING (verified via code search)';
+```
+
+#### 4. Clarification for Ambiguous Requests
+
+**When user says "review this plan," ask:**
+
+1. Is this plan still current, or has it been executed?
+2. Do you want me to:
+   - (A) Review the plan's theoretical soundness? OR
+   - (B) Verify implementation matches the plan?
+
+---
+
+### Implementation
+
+#### Created Artifacts
+
+1. **Workflow Documentation:**
+   - File: `cheatsheets/document-review-workflow.md`
+   - Contents: Pre-review checklist, classification rules, verification
+     patterns, template responses
+
+2. **CLAUDE.md Integration:**
+   - Section: "Document Review Protocol"
+   - Quick reference with link to comprehensive workflow
+
+3. **This ADR:**
+   - Architectural decision requiring evidence-based reviews
+   - Root cause analysis for future reference
+
+#### Pre-Review Checklist (Mandatory)
+
+```markdown
+Before reviewing ANY document:
+
+- [ ] Check document timestamp (creation date)
+- [ ] Classify: PLAN | STATUS | REFERENCE
+- [ ] If PLAN >24h: Search git log since creation
+- [ ] Identify key claims in document
+- [ ] Verify each claim against codebase (not just docs)
+- [ ] If implementation found: Report "Plan executed" not "Missing"
+```
+
+---
+
+### Rationale
+
+#### Why This Decision Matters
+
+1. **Code is truth:** Documentation lags reality; always verify against actual
+   implementation
+2. **Timestamps matter:** Old plans may be executed plans
+3. **Evidence prevents errors:** No negative claims without code-level proof
+4. **Trust requires accuracy:** Incorrect assessments damage credibility
+
+#### Why Previous Approach Failed
+
+1. **Documentation-first bias:** Prioritized doc reviews over code inspection
+2. **No temporal awareness:** Ignored document age and execution timeline
+3. **Assumption of currency:** Treated all documents as current state
+4. **Lack of classification:** Didn't distinguish plans from status reports
+
+#### Rejected Alternatives
+
+- ❌ **Trust documentation:** Documentation can be stale or incomplete
+- ❌ **Trust timestamps alone:** Need both timestamp AND code verification
+- ❌ **Manual reminders only:** Requires systematic process enforcement
+
+---
+
+### Consequences
+
+#### Positive
+
+- ✅ **Prevents false gap reports:** Code verification eliminates incorrect
+  claims
+- ✅ **Saves time:** Avoids analyzing obsolete plans or reimplementing existing
+  features
+- ✅ **Maintains credibility:** Accurate assessments build trust
+- ✅ **Improves advice quality:** Recommendations based on actual state, not
+  assumptions
+
+#### Negative
+
+- ⚠️ **Review time increases:** +5-10 minutes for git log search + code
+  verification
+- ⚠️ **Process overhead:** Requires discipline to follow checklist consistently
+
+#### Neutral
+
+- 📊 **Review workflow standardized:** Consistent approach for all document
+  types
+- 🔄 **Continuous improvement:** Workflow can be refined based on experience
+
+---
+
+### Success Metrics
+
+**Definition of Done:**
+
+1. ✅ Document review workflow created
+   (`cheatsheets/document-review-workflow.md`)
+2. ✅ CLAUDE.md updated with review protocol
+3. ✅ This ADR recorded in DECISIONS.md
+4. ✅ CHANGELOG.md updated with process improvement
+5. ✅ Future reviews follow evidence-based approach
+
+**Validation Evidence:**
+
+- **Workflow adoption:** 100% of future plan reviews include git log search
+- **False gap rate:** 0 incorrect "missing" reports in next 30 days
+- **Review quality:** All claims backed by code-level evidence
+
+**Review Date:** 2025-12-09 (30 days post-implementation)
+
+**Review Criteria:**
+
+- Have there been any false gap reports?
+- Are all reviews following the checklist?
+- Is the workflow effective or too burdensome?
+
+---
+
+### Related Documentation
+
+- **Workflow Guide:**
+  [cheatsheets/document-review-workflow.md](cheatsheets/document-review-workflow.md)
+- **CLAUDE.md Section:** "Document Review Protocol"
+- **Root Cause Analysis:** Conversation 2025-11-09 (strategy plan oversight)
+
+---
+
+### One-Sentence Summary
+
+Before claiming anything is "missing," search the codebase for
+evidence—documentation describes intent, but code is reality.
+
+---
+
+**Document Status:** ✅ Accepted **Last Updated:** 2025-11-09 **Next Steps:**
+Apply workflow to all future document reviews

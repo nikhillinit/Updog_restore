@@ -8,6 +8,52 @@ and this project adheres to
 
 ## [Unreleased] – 2025‑11‑09
 
+### Added
+
+#### Process: Document Review Safeguards 🔍 (2025-11-09 Late Evening)
+
+**Achievement**: Implemented mandatory evidence-based verification for document
+reviews to prevent false gap reports
+
+**Context**: Root cause analysis revealed oversight when reviewing 36-hour-old
+planning document without verifying implementation status. Incorrectly reported
+schema-first TDD and Testcontainers as "missing" when both were already
+complete.
+
+**Files Created**:
+
+- **cheatsheets/document-review-workflow.md** (620 lines): Comprehensive review
+  protocol
+  - Pre-review checklist (timestamp, classification, git log search)
+  - Document type classification (PLAN | STATUS | REFERENCE)
+  - Evidence-based claims framework (code > documentation)
+  - Two-phase review pattern (reality check → comparison)
+  - Template responses for common scenarios
+  - Real-world example with corrected approach
+- **CLAUDE.md**: Added "Document Review Protocol" section
+  - 5-step quick reference for planning document reviews
+  - Core principle: "Code is truth. Documentation describes intent."
+  - Link to comprehensive workflow cheatsheet
+- **DECISIONS.md**: Added ADR-012 "Mandatory Evidence-Based Document Reviews"
+  - Incident analysis (false gap reports for completed features)
+  - Root cause (temporal mismatch, documentation-first bias)
+  - Decision (mandatory code verification before claims)
+  - Success metrics (zero false gaps in 30 days)
+
+**Prevention Strategy**:
+
+1. **Document Classification**: Identify PLAN vs STATUS vs REFERENCE
+2. **Timestamp Awareness**: Plans >24h old require execution verification
+3. **Code-Level Verification**: Never report "missing" without proof
+4. **Git Log Search**: `git log --since=<doc-date>` for evidence
+5. **Clarification**: Ask theoretical review OR reality check?
+
+**Impact**: Prevents time waste analyzing obsolete plans, maintains credibility
+through accurate assessments, avoids reimplementing existing features
+
+**Related**: Conversation 2025-11-09 (strategy plan oversight root cause
+analysis)
+
 ### Changed
 
 #### Documentation Clarity: Multi-Level Agent Architecture 📋 (2025-11-09 Evening)
