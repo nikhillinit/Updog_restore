@@ -10,6 +10,55 @@ and this project adheres to
 
 ### Changed
 
+#### Documentation Clarity: Multi-Level Agent Architecture 📋 (2025-11-09 Evening)
+
+**Achievement**: Clarified agent and skill organization across user, project,
+and marketplace levels
+
+**Session: Agent Inventory Investigation** (1 hour)
+
+- **CAPABILITIES.md**: Updated agent inventory to reflect multi-level
+  architecture
+  - **User-Level (15 agents)**: Global agents in `~/.claude/agents/`
+    (architect-review, database-admin, knowledge-synthesizer, etc.)
+  - **Project-Level (22 agents)**: Updog-specific agents in `.claude/agents/`
+    (waterfall-specialist, test-repair, perf-guard, etc.)
+  - **Marketplace (200+ agents)**: Plugin collections in
+    `~/.claude/plugins/marketplaces/claude-code-workflows/`
+  - **Archived (27 files)**: BMad methodology safely preserved in
+    `archive/2025-10-07/`
+- **Skills Library**: Documented user-level (20 skills) vs project-level (13
+  skills) Superpowers installation
+  - User skills available across ALL projects via
+    `~/.claude/plugins/cache/superpowers/skills/`
+  - Includes all missing skills from earlier inventory (test-driven-development,
+    verification-before-completion, using-git-worktrees, etc.)
+
+**Investigation Results**:
+
+- ✅ All agents marked in original checklist exist (user + project + marketplace
+  levels)
+- ✅ No assets were lost during October 2025 cleanup
+- ✅ BMad agents archived intentionally with full git history preservation
+- ✅ Total: 250+ agents available across all levels
+
+**Documentation Created**:
+
+- **cheatsheets/agent-architecture.md**: Comprehensive guide (480 lines)
+  - Multi-level architecture explanation (user/project/marketplace)
+  - Decision tree for where to create agents
+  - BMad restoration instructions
+  - Best practices and troubleshooting
+  - **Anthropic Cookbook workflows integration** (6 workflow patterns)
+    - Basic: Prompt chaining, routing, multi-LLM parallelization
+    - Advanced: Orchestrator-workers, evaluator-optimizer
+    - SDK examples: Research, chief-of-staff, observability agents
+    - Updog integrations mapped to cookbook patterns
+- **CAPABILITIES.md**: Added cookbook workflows section
+  - Cross-reference to Updog implementations
+  - Usage guidelines (when to use vs avoid)
+  - 10+ cookbook patterns documented
+
 #### Phase 3 Documentation Compaction Complete 📚 (2025-11-09)
 
 **Achievement**: Streamlined project documentation and CI/CD workflows for
