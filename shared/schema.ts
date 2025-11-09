@@ -1,4 +1,5 @@
-import { bigint, boolean, date, decimal, index, integer, jsonb, pgEnum, pgTable, serial, text, timestamp, unique, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { bigint, boolean, check, date, decimal, index, integer, jsonb, pgEnum, pgTable, serial, text, timestamp, unique, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
 export const funds = pgTable("funds", {
@@ -103,8 +104,107 @@ export const investments = pgTable("investments", {
   ownershipPercentage: decimal("ownership_percentage", { precision: 5, scale: 4 }),
   valuationAtInvestment: decimal("valuation_at_investment", { precision: 15, scale: 2 }),
   dealTags: text("deal_tags").array(),
+
+  // LOT TRACKING EXTENSIONS (Phase 1 - Portfolio Route)
+  // All nullable for backward compatibility with legacy data
+  // NOTE: Using mode "bigint" for true precision (no Number.MAX_SAFE_INTEGER limit)
+  sharePriceCents: bigint("share_price_cents", { mode: "bigint" }),
+  sharesAcquired: decimal("shares_acquired", { precision: 18, scale: 8 }),
+  costBasisCents: bigint("cost_basis_cents", { mode: "bigint" }),
+  pricingConfidence: text("pricing_confidence").default("calculated"),
+  version: integer("version").notNull().default(1),
+
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  pricingConfidenceCheck: check("investments_pricing_confidence_check", sql`${table.pricingConfidence} IN ('calculated', 'verified')`),
+}));
+
+// ============================================================================
+// INVESTMENT LOTS - Lot-level tracking for granular MOIC calculations
+// ============================================================================
+export const investmentLots = pgTable("investment_lots", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  investmentId: integer("investment_id").notNull().references(() => investments.id, { onDelete: "cascade" }),
+
+  lotType: text("lot_type").notNull(),
+  sharePriceCents: bigint("share_price_cents", { mode: "bigint" }).notNull(),
+  sharesAcquired: decimal("shares_acquired", { precision: 18, scale: 8 }).notNull(),
+  costBasisCents: bigint("cost_basis_cents", { mode: "bigint" }).notNull(),
+
+  version: integer("version").notNull().default(1),
+  idempotencyKey: text("idempotency_key"),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  investmentLotTypeIdx: index("investment_lots_investment_lot_type_idx").on(table.investmentId, table.lotType),
+  idempotencyUniqueIdx: uniqueIndex("investment_lots_idempotency_unique_idx").on(table.idempotencyKey).where(sql`${table.idempotencyKey} IS NOT NULL`),
+  lotTypeCheck: check("investment_lots_lot_type_check", sql`${table.lotType} IN ('initial', 'follow_on', 'secondary')`),
+}));
+
+export type InvestmentLot = typeof investmentLots.$inferSelect;
+export type InsertInvestmentLot = typeof investmentLots.$inferInsert;
+
+// ============================================================================
+// FORECAST SNAPSHOTS - Point-in-time snapshots with async calculation
+// ============================================================================
+export const forecastSnapshots = pgTable("forecast_snapshots", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  fundId: integer("fund_id").notNull().references(() => funds.id, { onDelete: "cascade" }),
+
+  name: text("name").notNull(),
+  status: text("status").notNull().default("pending"),
+  sourceHash: text("source_hash"),
+  calculatedMetrics: jsonb("calculated_metrics"),
+
+  fundState: jsonb("fund_state"),
+  portfolioState: jsonb("portfolio_state"),
+  metricsState: jsonb("metrics_state"),
+
+  snapshotTime: timestamp("snapshot_time", { withTimezone: true }).notNull(),
+  version: integer("version").notNull().default(1),
+  idempotencyKey: text("idempotency_key"),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  fundTimeIdx: index("forecast_snapshots_fund_time_idx").on(table.fundId, table.snapshotTime.desc()),
+  sourceHashIdx: index("forecast_snapshots_source_hash_idx").on(table.sourceHash),
+  idempotencyUniqueIdx: uniqueIndex("forecast_snapshots_idempotency_unique_idx").on(table.idempotencyKey).where(sql`${table.idempotencyKey} IS NOT NULL`),
+  sourceHashUniqueIdx: uniqueIndex("forecast_snapshots_source_hash_unique_idx").on(table.sourceHash, table.fundId).where(sql`${table.sourceHash} IS NOT NULL`),
+  statusCheck: check("forecast_snapshots_status_check", sql`${table.status} IN ('pending', 'calculating', 'complete', 'error')`),
+}));
+
+export type ForecastSnapshot = typeof forecastSnapshots.$inferSelect;
+export type InsertForecastSnapshot = typeof forecastSnapshots.$inferInsert;
+
+// ============================================================================
+// RESERVE ALLOCATIONS - Links reserve decisions to snapshots
+// ============================================================================
+export const reserveAllocations = pgTable("reserve_allocations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  snapshotId: uuid("snapshot_id").notNull().references(() => forecastSnapshots.id, { onDelete: "cascade" }),
+  companyId: integer("company_id").notNull().references(() => portfolioCompanies.id, { onDelete: "cascade" }),
+
+  plannedReserveCents: bigint("planned_reserve_cents", { mode: "bigint" }).notNull(),
+  allocationScore: decimal("allocation_score", { precision: 10, scale: 6 }),
+  priority: integer("priority"),
+  rationale: text("rationale"),
+
+  version: integer("version").notNull().default(1),
+  idempotencyKey: text("idempotency_key"),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  snapshotCompanyIdx: index("reserve_allocations_snapshot_company_idx").on(table.snapshotId, table.companyId),
+  companyIdx: index("reserve_allocations_company_idx").on(table.companyId),
+  priorityIdx: index("reserve_allocations_priority_idx").on(table.snapshotId, table.priority),
+  idempotencyUniqueIdx: uniqueIndex("reserve_allocations_idempotency_unique_idx").on(table.idempotencyKey).where(sql`${table.idempotencyKey} IS NOT NULL`),
+}));
+
+export type ReserveAllocation = typeof reserveAllocations.$inferSelect;
+export type InsertReserveAllocation = typeof reserveAllocations.$inferInsert;
 
 // Scenario Analysis Tables
 export const scenarios = pgTable("scenarios", {
@@ -560,8 +660,8 @@ export const reserveEngineType = pgEnum('reserve_engine_type', ['rules', 'ml', '
 
 export const reserveDecisions = pgTable('reserve_decisions', {
   id: uuid('id').defaultRandom().primaryKey(),
-  fundId: uuid('fund_id').notNull(),
-  companyId: uuid('company_id').notNull(),
+  fundId: integer('fund_id').notNull().references(() => funds.id),
+  companyId: integer('company_id').notNull().references(() => portfolioCompanies.id),
   decisionTs: timestamp('decision_ts', { withTimezone: true }).notNull(),
   periodStart: date('period_start').notNull(),
   periodEnd: date('period_end').notNull(),

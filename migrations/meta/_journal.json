@@ -8,6 +8,13 @@
       "when": 1758929201069,
       "tag": "0000_quick_vivisector",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1762642134870,
+      "tag": "0001_certain_miracleman",
+      "breakpoints": true
     }
   ]
 }

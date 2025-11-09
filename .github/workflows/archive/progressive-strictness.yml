@@ -1,0 +1,75 @@
+name: Progressive Strictness Guard
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - '**/*.ts'
+      - '**/*.tsx'
+      - 'tsconfig*.json'
+      - 'vite.config.ts'
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure base branch available
+        run: |
+          set -e
+          BASE_BRANCH="${{ github.base_ref }}"
+          echo "Base branch: $BASE_BRANCH"
+
+          # Fetch base branch
+          git fetch origin "$BASE_BRANCH" --depth=50 || true
+
+          # Verify merge-base exists, force fetch if not
+          if ! git merge-base --is-ancestor "origin/$BASE_BRANCH" HEAD 2>/dev/null; then
+            echo "Base not ancestor, fetching all refs…"
+            git fetch --prune --tags --force --all || true
+          fi
+
+      - name: Detect scope and run audit
+        run: |
+          set -e
+          BASE_BRANCH="${{ github.base_ref }}"
+
+          # Get changed files
+          CHANGED=$(git diff --name-only "origin/$BASE_BRANCH"...HEAD || true)
+          echo "$CHANGED" > .changed.txt
+
+          echo "Changed files:"
+          cat .changed.txt
+
+          # Determine scope
+          SCOPE_CLIENT=$(grep -qE '^(client/|shared/).*\.(ts|tsx)$' .changed.txt && echo "yes" || echo "no")
+          SCOPE_FULL=$(grep -qE '^(server/|vite\.config\.ts|tsconfig\.server\.json)' .changed.txt && echo "yes" || echo "no")
+
+          echo "Scope detection: client=$SCOPE_CLIENT, full=$SCOPE_FULL"
+
+          if [ "$SCOPE_FULL" = "yes" ]; then
+            echo "🔍 Running FULL scope audit (server/vite changes detected)"
+            node scripts/audit-tsconfig.mjs --scope=full
+          elif [ "$SCOPE_CLIENT" = "yes" ]; then
+            echo "🔍 Running CLIENT scope audit (client/shared changes)"
+            node scripts/audit-tsconfig.mjs --scope=client
+          else
+            echo "🔍 No TypeScript scope changes detected, defaulting to CLIENT audit"
+            node scripts/audit-tsconfig.mjs --scope=client
+          fi
+
+          echo "✅ Progressive strictness guard passed"

@@ -14,5 +14,8 @@ export * from './waterfall-policy';
 export * from './recycling-policy';
 export * from './extended-fund-model';
 
+// Portfolio API schemas
+export * from './portfolio-route';
+
 // Re-export Decimal for convenience
 export { Decimal } from 'decimal.js';
