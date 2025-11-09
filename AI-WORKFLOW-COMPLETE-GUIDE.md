@@ -30,20 +30,20 @@ Modeling Platform
 
 ### Domain Specialists (2)
 
-8. **waterfall-specialist** ⭐ - ALL VC carry calculations (MANDATORY for
+8. **waterfall-specialist** (CRITICAL) - ALL VC carry calculations (MANDATORY for
    waterfall)
 9. **cohort-specialist** - Cohort analytics (future)
 
 ### Architecture & Planning (4)
 
-10. **architect-review** ⭐ - Design decisions, system review
+10. **architect-review** (CRITICAL) - Design decisions, system review
 11. **code-explorer** - Understand existing code
 12. **dx-optimizer** - Developer experience
 13. **legacy-modernizer** - Refactoring, tech debt
 
 ### Database (3)
 
-14. **db-migration** ⭐ - Risk assessment (Safe/Risky/Dangerous)
+14. **db-migration** (CRITICAL) - Risk assessment (Safe/Risky/Dangerous)
 15. **database-expert** - Schema design, optimization
 16. **database-admin** - Operations, HA, DR
 
@@ -55,13 +55,13 @@ Modeling Platform
 
 ### Documentation (2)
 
-20. **docs-architect** ⭐ - Technical docs (8 agents → 2,400 lines in 45 min)
+20. **docs-architect** (CRITICAL) - Technical docs (8 agents -> 2,400 lines in 45 min)
 21. **debug-expert** - Root cause analysis
 
 ### General Purpose (4)
 
 22. **general-purpose** - Complex research, multi-step
-23. **context-orchestrator** ⭐ - Multi-agent coordinator (META)
+23. **context-orchestrator** (CRITICAL) - Multi-agent coordinator (META)
 24. **knowledge-synthesizer** - Pattern extraction
 25. **code-simplifier** - Simplify complex code
 
@@ -97,9 +97,9 @@ checkpoint every phase (2-5 min)
 
 ```typescript
 const arch = await Task({ agent: 'architect-review', ... });
-// 🛑 GATE: Human reviews
+// GATE: GATE: Human reviews
 const impl = await Task({ agent: 'general-purpose', ... });
-// 🛑 GATE: Code review
+// GATE: GATE: Code review
 await bash('/test-smart');
 ```
 
@@ -112,7 +112,7 @@ parallel, review sequential
 ```typescript
 // Parallel
 const [code, comments, types] = await Promise.all([...]);
-// 🛑 GATE
+// GATE: GATE
 // Sequential fixes
 await Task({ agent: 'general-purpose', fixes });
 // Parallel cleanup
@@ -123,7 +123,7 @@ await Promise.all([simplify, fix, test]);
 
 ## Superpowers Skills (Complete List)
 
-### 🧪 Testing Skills (3)
+### Testing Skills (3)
 
 1. **test-driven-development** - RED-GREEN-REFACTOR cycle
    - Auto-activates: Feature implementation
@@ -137,9 +137,9 @@ await Promise.all([simplify, fix, test]);
    - Auto-activates: Writing/changing tests
    - Gates: Testing mock behavior, test-only methods
 
-### 🐛 Debugging Skills (4)
+### Debugging Skills (4)
 
-4. **systematic-debugging** ⭐ - Four-phase framework
+4. **systematic-debugging** (CRITICAL) - Four-phase framework
    - Auto-activates: ANY debugging
    - **Iron Law:** NO FIXES WITHOUT ROOT CAUSE FIRST
    - Phases: Root Cause → Pattern → Hypothesis → Fix
@@ -148,7 +148,7 @@ await Promise.all([simplify, fix, test]);
    - Use when: Error deep in execution
    - Method: Add instrumentation, find origin
 
-6. **verification-before-completion** ⭐ - Verify before claiming success
+6. **verification-before-completion** (CRITICAL) - Verify before claiming success
    - Auto-activates: Before "work complete"
    - **Mandatory:** Run verification, confirm output
 
@@ -156,14 +156,14 @@ await Promise.all([simplify, fix, test]);
    - Use when: Invalid data causes deep failures
    - Method: Layer validation, structural impossibility
 
-### 🤝 Collaboration Skills (9)
+### Collaboration Skills (9)
 
-8. **brainstorming** ⭐ - Socratic design refinement
+8. **brainstorming** (CRITICAL) - Socratic design refinement
    - Use when: Before coding/planning
    - Phases: Understanding → Exploration → Presentation → Documentation →
      Worktree → Planning
 
-9. **writing-plans** ⭐ - Detailed implementation tasks
+9. **writing-plans** (CRITICAL) - Detailed implementation tasks
    - Use when: Design complete, need execution plan
    - Output: 2-5 min tasks, TDD cycles, verification steps
 
@@ -195,9 +195,9 @@ await Promise.all([simplify, fix, test]);
     - Use when: Executing multi-task plan
     - Method: Agent per task, code review between
 
-### 🧠 Thinking Frameworks (4)
+### Thinking Frameworks (4)
 
-17. **inversion-thinking** ⭐ - "What would make this terrible?"
+17. **inversion-thinking** (CRITICAL) - "What would make this terrible?"
     - Use when: Design validation
     - Method: Identify failure modes, avoid pitfalls
 
@@ -213,7 +213,7 @@ await Promise.all([simplify, fix, test]);
     - Use when: After task completion
     - Method: What worked? What didn't? What learned?
 
-### 💾 Memory & Knowledge (2)
+### Memory & Knowledge (2)
 
 21. **memory-management** - Structured notes with confidence
     - Use when: Capturing knowledge
@@ -223,9 +223,9 @@ await Promise.all([simplify, fix, test]);
     - Use when: Complex tasks
     - Method: Orchestrate skill activation
 
-### 🔧 Advanced Frameworks (2)
+### Advanced Frameworks (2)
 
-23. **extended-thinking-framework** ⭐ - XML scaffold for complexity
+23. **extended-thinking-framework** (CRITICAL) - XML scaffold for complexity
     - Use when: Complex financial calculations
     - Method: Deep reasoning, structured thinking
 
@@ -234,9 +234,9 @@ await Promise.all([simplify, fix, test]);
     - Method: Browser automation, citation-backed responses
     - Benefit: Drastically reduced hallucinations
 
-### 💰 Domain Specialists (2)
+### Domain Specialists (2)
 
-25. **venture-finance-suite** ⭐ - Scenario/DCF/ratios
+25. **venture-finance-suite** (CRITICAL) - Scenario/DCF/ratios
     - Modes: `scenario | dcf | statements`
     - Use when: Financial modeling for VC funds
 
@@ -244,7 +244,7 @@ await Promise.all([simplify, fix, test]);
     - Use when: Building MCP integrations
     - Languages: Python (FastMCP), Node (MCP SDK)
 
-### 📖 Meta Skills (2)
+### Meta Skills (2)
 
 27. **writing-skills** - TDD for process documentation
     - Use when: Creating new skills
@@ -431,15 +431,15 @@ Mixed? → HYBRID PIPELINE (50-75% savings)
 
 ```
 Before commit:
-☐ /test-smart passes
-☐ /fix-auto cleanup
-☐ Spot-check code (2 min)
-☐ /log-change documented
+ /test-smart passes
+ /fix-auto cleanup
+ Spot-check code (2 min)
+ /log-change documented
 
 Before deploy:
-☐ /deploy-check passes
-☐ Staging smoke test
-☐ Ship it!
+ /deploy-check passes
+ Staging smoke test
+ Ship it!
 ```
 
 ### Time Savings by Task
@@ -565,41 +565,41 @@ Stuck after 15 min?
 ### Should I Automate This Task?
 
 ```
-┌─ Is the task repetitive?
-│
-├─ YES → Is it well-defined?
-│  │
-│  ├─ YES → Is it low-risk?
-│  │  │
-│  │  ├─ YES → AUTOMATE (parallel if possible)
-│  │  └─ NO → AUTOMATE WITH GATES (human checkpoints)
-│  │
-│  └─ NO → Is it exploratory?
-│     │
-│     ├─ YES → Use agent for research, human decides
-│     └─ NO → MANUAL (too vague for automation)
-│
-└─ NO → Is it high-value one-time task?
-   │
-   ├─ YES → Consider agent assistance
-   └─ NO → MANUAL (not worth setup cost)
+ Is the task repetitive?
+
+ YES → Is it well-defined?
+  
+   YES → Is it low-risk?
+    
+     YES → AUTOMATE (parallel if possible)
+     NO → AUTOMATE WITH GATES (human checkpoints)
+  
+   NO → Is it exploratory?
+     
+      YES → Use agent for research, human decides
+      NO → MANUAL (too vague for automation)
+
+ NO → Is it high-value one-time task?
+   
+    YES → Consider agent assistance
+    NO → MANUAL (not worth setup cost)
 ```
 
 ### Which Agent to Use?
 
 ```
-┌─ What's the task type?
-│
-├─ Waterfall/Carry calculation → waterfall-specialist (MANDATORY)
-├─ Schema change → db-migration (risk check first)
-├─ Test failures → /fix-auto → test-repair
-├─ Bug investigation → systematic-debugging skill
-├─ Documentation → 8× docs-architect (parallel)
-├─ PR review → 6 agents (hybrid)
-├─ Performance issue → perf-guard
-├─ Architecture decision → architect-review
-├─ Understand code → code-explorer
-└─ Complex research → general-purpose
+ What's the task type?
+
+ Waterfall/Carry calculation → waterfall-specialist (MANDATORY)
+ Schema change → db-migration (risk check first)
+ Test failures → /fix-auto → test-repair
+ Bug investigation → systematic-debugging skill
+ Documentation → 8× docs-architect (parallel)
+ PR review → 6 agents (hybrid)
+ Performance issue → perf-guard
+ Architecture decision → architect-review
+ Understand code → code-explorer
+ Complex research → general-purpose
 ```
 
 ---
@@ -638,28 +638,28 @@ Stuck after 15 min?
 ### Week 1: Basics
 
 ```
-☐ Learn 5 core commands (/test-smart, /fix-auto, etc.)
-☐ Make first automated commit
-☐ Understand orchestration modes
-☐ Try 1 specialist agent (waterfall-specialist recommended)
+ Learn 5 core commands (/test-smart, /fix-auto, etc.)
+ Make first automated commit
+ Understand orchestration modes
+ Try 1 specialist agent (waterfall-specialist recommended)
 ```
 
 ### Week 2-4: Intermediate
 
 ```
-☐ Use 3+ specialized agents
-☐ First parallel orchestration
-☐ Complete hybrid pipeline (PR review)
-☐ Document patterns in CHANGELOG
+ Use 3+ specialized agents
+ First parallel orchestration
+ Complete hybrid pipeline (PR review)
+ Document patterns in CHANGELOG
 ```
 
 ### Month 1 Goal
 
 ```
-☐ Comfortable with daily workflow
-☐ 2-3x faster on suitable tasks
-☐ Understand when NOT to automate
-☐ Can teach others the basics
+ Comfortable with daily workflow
+ 2-3x faster on suitable tasks
+ Understand when NOT to automate
+ Can teach others the basics
 ```
 
 ---

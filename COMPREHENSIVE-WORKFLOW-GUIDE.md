@@ -45,6 +45,28 @@ This is an **AI-augmented development platform** combining:
 - **Real example:** Generated 2,400+ lines of documentation in 45 minutes using
   8 agents in parallel (vs 5.5 hours sequential)
 
+### Understanding "28 Specialized Agents"
+
+The "28 specialized agents" referenced throughout this guide are the **Core Production Set**:
+
+- **6 TypeScript Agents**: Programmatic agents with ThinkingMixin + native memory (TestRepairAgent, BundleOptimizationAgent, CodexReviewAgent, etc.)
+- **10 Domain-Specific Agents**: Project-specific for VC fund modeling (waterfall-specialist, test-repair, perf-guard, db-migration, etc.)
+- **12 Global Override Agents**: Updog-customized versions of user-level agents (general-purpose, code-reviewer, incident-responder, etc.)
+
+**Why these 28?**
+- **Memory-enabled**: Cross-session learning and context retention
+- **Production-ready**: Battle-tested, stable, comprehensive documentation
+- **Updog-optimized**: Tuned for VC fund modeling domain and project conventions
+- **Frequently used**: Core workflows in daily development
+
+**Extended Ecosystem (300+ total)**:
+- 23 Superpowers Skills (thinking frameworks, not agents)
+- 15 User-Level Global Agents (cross-project base versions)
+- 66 Marketplace Collections (~200 domain-specific agents for blockchain, games, ARM dev, etc.)
+- 27 Archived BMad Agents (deprecated methodology, restorable from git history)
+
+**Quick Reference**: Use Core 28 for 95% of tasks. Extended ecosystem for specialized domains outside VC fund modeling.
+
 ### The 5 Commands You Need
 
 ```bash
@@ -73,7 +95,7 @@ This is an **AI-augmented development platform** combining:
 
 ### 1. Testing & Quality Agents (7 agents)
 
-#### 🧪 **test-automator**
+#### Testing: **test-automator**
 
 **Purpose:** Comprehensive test generation, TDD workflows, coverage analysis
 **When to use:** Feature implementation, missing test coverage, TDD cycles
@@ -90,7 +112,7 @@ Auto-activates `test-driven-development` skill **Example:**
 
 ---
 
-#### 🔧 **test-repair**
+####  **test-repair**
 
 **Purpose:** Autonomous test failure detection and repair **When to use:** Tests
 failing after changes, flaky tests, timeout issues **Orchestration:** Called by
@@ -109,7 +131,7 @@ Tests failing: 47/520
 
 ---
 
-#### 👁️ **code-reviewer**
+####  **code-reviewer**
 
 **Purpose:** Code quality, style checking, anti-pattern detection **When to
 use:** Before every commit, PR reviews, architecture changes **Orchestration:**
@@ -127,7 +149,7 @@ Review changes in server/routes/portfolio/
 
 ---
 
-#### 💬 **comment-analyzer**
+####  **comment-analyzer**
 
 **Purpose:** Comment accuracy verification, documentation quality analysis
 **When to use:** After documentation changes, large docstrings, API docs
@@ -144,7 +166,7 @@ Analyze JSDoc in client/src/lib/waterfall.ts
 
 ---
 
-#### 🎯 **type-design-analyzer**
+#### KEY POINT: **type-design-analyzer**
 
 **Purpose:** Type design quality assessment, encapsulation ratings **When to
 use:** Introducing new types, refactoring type system **Orchestration:** Runs in
@@ -162,7 +184,7 @@ Analyze new PortfolioSnapshot type
 
 ---
 
-#### 🔇 **silent-failure-hunter**
+####  **silent-failure-hunter**
 
 **Purpose:** Find suppressed errors, inadequate error handling, silent catch
 blocks **When to use:** PR review, after adding try-catch blocks, error handling
@@ -180,7 +202,7 @@ Scan server/services/snapshot-service.ts
 
 ---
 
-#### 📊 **pr-test-analyzer**
+####  **pr-test-analyzer**
 
 **Purpose:** PR test coverage quality and completeness review **When to use:**
 PR creation/update, before merge **Orchestration:** Runs after test-automator in
@@ -201,7 +223,7 @@ Analyze PR #145 test coverage
 
 ### 2. Domain Specialist Agents (2 agents)
 
-#### 💰 **waterfall-specialist** ⭐ **CRITICAL FOR VC CALCULATIONS**
+####  **waterfall-specialist** (CRITICAL) **CRITICAL FOR VC CALCULATIONS**
 
 **Purpose:** ALL waterfall/carry calculations, hurdle rates, catch-up
 provisions, LP distributions **When to use:** Any American/European waterfall
@@ -225,7 +247,7 @@ against Excel model
 
 ---
 
-#### 📈 **cohort-specialist** (future)
+####  **cohort-specialist** (future)
 
 **Purpose:** Cohort-based analytics, vintage year analysis, portfolio
 segmentation **When to use:** Portfolio cohort comparisons, vintage performance
@@ -243,7 +265,7 @@ Compare 2019 vs 2020 vintage performance
 
 ### 3. Architecture & Planning Agents (4 agents)
 
-#### 🏗️ **architect-review** ⭐
+####  **architect-review** (CRITICAL)
 
 **Purpose:** Architectural decisions, system design review, pattern validation
 **When to use:** Major features, design decisions, architecture changes
@@ -262,7 +284,7 @@ Review portfolio API architecture for snapshots + lots
 
 ---
 
-#### 🔍 **code-explorer**
+#### Checking: **code-explorer**
 
 **Purpose:** Understand existing implementations, trace execution paths **When
 to use:** Before modifying unfamiliar code, investigating features
@@ -281,7 +303,7 @@ to use:** Before modifying unfamiliar code, investigating features
 
 ---
 
-#### 📐 **dx-optimizer**
+####  **dx-optimizer**
 
 **Purpose:** Developer experience improvements, workflow optimization **When to
 use:** Project setup, workflow friction, onboarding pain points
@@ -299,7 +321,7 @@ Optimizes tooling, reduces cognitive load **Example:**
 
 ---
 
-#### 🔄 **legacy-modernizer**
+####  **legacy-modernizer**
 
 **Purpose:** Refactor legacy code, update dependencies, reduce technical debt
 **When to use:** Technical debt cleanup, migration projects **Orchestration:**
@@ -320,7 +342,7 @@ Migrate jQuery components to React
 
 ### 4. Database Agents (3 agents)
 
-#### 🗄️ **db-migration** ⭐
+####  **db-migration** (CRITICAL)
 
 **Purpose:** Schema migrations with risk assessment (Safe/Risky/Dangerous
 categorization) **When to use:** BEFORE every schema change (mandatory gate)
@@ -348,7 +370,7 @@ file
 
 ---
 
-#### 🎯 **database-expert**
+#### KEY POINT: **database-expert**
 
 **Purpose:** Schema design, query optimization, index strategy **When to use:**
 Performance issues, new table design, query slow (>100ms) **Orchestration:**
@@ -367,7 +389,7 @@ Design indexes for cursor pagination on snapshots table
 
 ---
 
-#### 👨‍💼 **database-admin**
+#### ‍ **database-admin**
 
 **Purpose:** Operations, high availability, disaster recovery, infrastructure
 **When to use:** Infrastructure setup, backup strategies, replication
@@ -386,7 +408,7 @@ Design PostgreSQL replication for production
 
 ### 5. Infrastructure & Incident Agents (3 agents)
 
-#### 🚨 **incident-responder**
+####  **incident-responder**
 
 **Purpose:** P0 incident management, SRE practices, post-mortem generation
 **When to use:** Production outages, service degradation, alert storms
@@ -407,7 +429,7 @@ API gateway returning 504 errors, 30% of users affected
 
 ---
 
-#### 🔥 **devops-troubleshooter**
+####  **devops-troubleshooter**
 
 **Purpose:** Production issues, deployment problems, infrastructure debugging
 **When to use:** Build failures, deployment errors, container issues
@@ -426,7 +448,7 @@ Kubernetes pod OOMKilled, investigate memory usage
 
 ---
 
-#### 💣 **chaos-engineer**
+####  **chaos-engineer**
 
 **Purpose:** Resilience testing, failure injection, game day planning **When to
 use:** Pre-production validation, quarterly game days **Orchestration:**
@@ -448,7 +470,7 @@ documented
 
 ### 6. Documentation Agents (2 agents)
 
-#### 📚 **docs-architect** ⭐
+####  **docs-architect** (CRITICAL)
 
 **Purpose:** Comprehensive technical documentation, API docs, architecture
 guides **When to use:** Major features complete, API documentation needed
@@ -470,7 +492,7 @@ Generate 5 NotebookLM modules (reserves, pacing, cohorts, waterfall, XIRR)
 
 ---
 
-#### 🐛 **debug-expert**
+####  **debug-expert**
 
 **Purpose:** Error analysis, root cause investigation, complex debugging **When
 to use:** Complex production bugs, mysterious failures **Orchestration:**
@@ -491,7 +513,7 @@ XIRR calculation returning NaN for certain portfolios
 
 ### 7. General Purpose Agents (4 agents)
 
-#### 🎯 **general-purpose**
+#### KEY POINT: **general-purpose**
 
 **Purpose:** Complex research, multi-step tasks, open-ended investigation **When
 to use:** Exploratory work, understanding codebase structure **Orchestration:**
@@ -509,7 +531,7 @@ available (Read, Edit, Bash, etc.) **Example:**
 
 ---
 
-#### 🧠 **context-orchestrator** ⭐
+####  **context-orchestrator** (CRITICAL)
 
 **Purpose:** Multi-agent workflow coordination, 8-10x speedup orchestrator
 **When to use:** Complex tasks requiring multiple specialized agents
@@ -530,7 +552,7 @@ Coordinate PR review across 6 agents:
 
 ---
 
-#### 📖 **knowledge-synthesizer**
+####  **knowledge-synthesizer**
 
 **Purpose:** Extract patterns from agent interactions, build collective
 intelligence **When to use:** Daily/weekly (background), after major sprints
@@ -549,7 +571,7 @@ Synthesize patterns from 50+ agent runs this week
 
 ---
 
-#### 🔧 **code-simplifier**
+####  **code-simplifier**
 
 **Purpose:** Simplify complex code while preserving functionality **When to
 use:** After implementing features, before PR, code review **Orchestration:**
@@ -570,7 +592,7 @@ Simplify nested conditionals in waterfall calculation
 
 ### 8. Performance & Security Agents (3 agents)
 
-#### ⚡ **perf-guard**
+####  **perf-guard**
 
 **Purpose:** Performance regression detection, bundle analysis, baseline
 comparison **When to use:** Dependency changes, before production deploy, weekly
@@ -581,7 +603,7 @@ health check **Orchestration:** Runs in CI/CD pipeline (automated)
 ```
 Detect bundle size regression after dependency update
 → Baseline: 245 KB (gzip)
-→ Current: 318 KB (gzip) → 30% increase ⚠️
+→ Current: 318 KB (gzip) → 30% increase WARNING:
 → Culprit: New chart library (75 KB)
 → Recommendation: Use lightweight alternative or lazy load
 ```
@@ -590,7 +612,7 @@ Detect bundle size regression after dependency update
 
 ---
 
-#### 🔐 **security-comprehensive** (marketplace agent)
+####  **security-comprehensive** (marketplace agent)
 
 **Purpose:** Security scanning, vulnerability detection, OWASP top 10 **When to
 use:** Weekly security scans, before production deploy **Orchestration:**
@@ -607,7 +629,7 @@ Scan for SQL injection vulnerabilities
 
 ---
 
-#### 🎨 **accessibility-compliance** (marketplace agent)
+####  **accessibility-compliance** (marketplace agent)
 
 **Purpose:** WCAG compliance testing, a11y validation **When to use:** UI
 component changes, before launch **Orchestration:** Parallel with UI tests
@@ -691,7 +713,7 @@ const architecture = await Task({
   task: 'Review portfolio snapshot API design',
 });
 
-// 🛑 GATE 1: Human reviews architecture (5 min)
+// GATE: GATE 1: Human reviews architecture (5 min)
 console.log('CHECKPOINT: Review architecture plan');
 if (!humanApproves(architecture)) {
   throw new Error('Design needs revision');
@@ -703,7 +725,7 @@ const implementation = await Task({
   task: `Implement based on: ${architecture.plan}`,
 });
 
-// 🛑 GATE 2: Code review (2 min)
+// GATE: GATE 2: Code review (2 min)
 await Task({
   agent: 'code-reviewer',
   files: implementation.files,
@@ -715,7 +737,7 @@ const tests = await Task({
   files: implementation.files,
 });
 
-// 🛑 GATE 3: Run tests and verify (2 min)
+// GATE: GATE 3: Run tests and verify (2 min)
 await bash('/test-smart');
 console.log('All tests passing? Proceed to commit');
 
@@ -771,7 +793,7 @@ const [codeIssues, commentIssues, typeIssues, testIssues, silentErrors] =
     Task({ agent: 'silent-failure-hunter', pr: 123 }),
   ]);
 
-// 🛑 GATE: Human reviews critical issues (5 min)
+// GATE: GATE: Human reviews critical issues (5 min)
 const criticalIssues = [...codeIssues, ...typeIssues, ...silentErrors].filter(
   (i) => i.severity === 'CRITICAL'
 );
@@ -785,7 +807,7 @@ if (criticalIssues.length > 0) {
     task: `Fix critical issues: ${JSON.stringify(criticalIssues)}`,
   });
 
-  // 🛑 GATE: Re-run affected reviews (blocking on fixes)
+  // GATE: GATE: Re-run affected reviews (blocking on fixes)
   await Task({
     agent: 'code-reviewer',
     files: criticalIssues.map((i) => i.file),
@@ -799,7 +821,7 @@ await Promise.all([
   bash('/test-smart'),
 ]);
 
-// 🛑 GATE: Final smoke test (2 min)
+// GATE: GATE: Final smoke test (2 min)
 console.log('Manual smoke test: Does it work?');
 
 // Ship it!
@@ -829,27 +851,27 @@ Savings: 75%
 ### Orchestration Decision Tree
 
 ```
-┌─ Is the task brand new or high risk?
-│
-├─ YES → Use SEQUENTIAL WITH GATES
-│  │     (waterfall calculations, schema changes, novel features)
-│  │     Human checkpoints every 2-3 steps
-│  │     Time savings: 30-50%
-│  │
-│  └─ Example: New waterfall type implementation
-│        → db-migration (risk check) → (gate) → implement → (gate) → test
-│
-└─ NO → Are sub-tasks independent?
-   │
-   ├─ YES → Use PARALLEL INDEPENDENT
-   │  │     (documentation, batch operations, independent modules)
-   │  │     Maximum speed, spot-check validation
-   │  │     Time savings: 87-91%
-   │  │
-   │  └─ Example: Generate 8 documentation modules
-   │        → 8 docs-architect agents in parallel → spot-check 2-3
-   │
-   └─ NO → Use HYBRID PIPELINE
+ Is the task brand new or high risk?
+
+ YES → Use SEQUENTIAL WITH GATES
+       (waterfall calculations, schema changes, novel features)
+       Human checkpoints every 2-3 steps
+       Time savings: 30-50%
+  
+   Example: New waterfall type implementation
+        → db-migration (risk check) → (gate) → implement → (gate) → test
+
+ NO → Are sub-tasks independent?
+   
+    YES → Use PARALLEL INDEPENDENT
+          (documentation, batch operations, independent modules)
+          Maximum speed, spot-check validation
+          Time savings: 87-91%
+     
+      Example: Generate 8 documentation modules
+           → 8 docs-architect agents in parallel → spot-check 2-3
+   
+    NO → Use HYBRID PIPELINE
           (PR reviews, deployment prep, refactoring)
           Parallel research → Sequential fixes → Parallel cleanup
           Time savings: 50-75%
@@ -936,8 +958,8 @@ Human (Navigator): "Add snapshot creation endpoint to portfolio API"
 
 AI (Driver): "I'll implement in 10-20 line chunks with checkpoints:
 
-📝 Chunk 1: Define Zod schema for CreateSnapshotRequest
-────────────────────────────────────────────────────
+ Chunk 1: Define Zod schema for CreateSnapshotRequest
+
 import { z } from 'zod';
 
 export const CreateSnapshotRequestSchema = z.object({
@@ -946,7 +968,7 @@ export const CreateSnapshotRequestSchema = z.object({
   idempotencyKey: z.string().uuid(),
 });
 
-✓ Code review with code-reviewer agent
-✓ /test-smart (if applicable)
-🛑 CHECKPOINT: Does this schema look correct?"
+ Code review with code-reviewer agent
+ /test-smart (if applicable)
+GATE: CHECKPOINT: Does this schema look correct?"
 ```

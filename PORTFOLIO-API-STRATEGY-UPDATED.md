@@ -12,7 +12,7 @@ with cheatsheets/anti-pattern-prevention.md patterns **Cross-References:**
 
 ---
 
-## Phase 0: Pre-Flight Verification (15 min) ⚡ NEW
+## Phase 0: Pre-Flight Verification (15 min)  NEW
 
 **Why This Exists:** Prevents reinventing existing solutions and ensures
 awareness of all 24 anti-patterns.
@@ -151,38 +151,38 @@ module.exports = {
 . "$(dirname "$0")/_/husky.sh"
 
 # 1. TypeScript strict mode check
-echo "🔍 Checking TypeScript..."
+echo "Checking: Checking TypeScript..."
 npm run check || exit 1
 
 # 2. ESLint with anti-pattern rules
-echo "🔍 Running ESLint..."
+echo "Checking: Running ESLint..."
 npm run lint || exit 1
 
 # 3. Run affected tests only
-echo "🧪 Running affected tests..."
+echo "Testing: Running affected tests..."
 /test-smart || exit 1
 
 # 4. Check for hardcoded limits
-echo "🔍 Checking for hardcoded limits..."
+echo "Checking: Checking for hardcoded limits..."
 git diff --cached | grep -E "(limit.*=.*[0-9]+|take\([0-9]+\))" && {
-  echo "❌ Found hardcoded limits. Use validated schema defaults."
+  echo "[ ] Found hardcoded limits. Use validated schema defaults."
   exit 1
 }
 
 # 5. Check for manual cursor construction
-echo "🔍 Checking for manual cursors..."
+echo "Checking: Checking for manual cursors..."
 git diff --cached | grep -E "(cursor.*=.*\`|cursor.*\+)" && {
-  echo "❌ Found manual cursor construction. Use cursor helper."
+  echo "[ ] Found manual cursor construction. Use cursor helper."
   exit 1
 }
 
 # 6. Check for missing version in updates
-echo "🔍 Checking optimistic locking..."
+echo "Checking: Checking optimistic locking..."
 git diff --cached server/ | grep -A5 "\.update(" | grep -q "version" || {
-  echo "⚠️  Warning: UPDATE without version check detected"
+  echo "WARNING:  Warning: UPDATE without version check detected"
 }
 
-echo "✅ Pre-commit checks passed!"
+echo "[x] Pre-commit checks passed!"
 ```
 
 ### Step 1.4: VS Code Snippets (30 min)
@@ -501,7 +501,7 @@ export const snapshotQueue = new Queue('snapshot-calculation', {
 
 ---
 
-## Phase 2.5: Service Layer (1 hour) ⚡ NEW
+## Phase 2.5: Service Layer (1 hour)  NEW
 
 **Why This Exists:** Separates business logic from HTTP handling, enables proper
 test isolation.
@@ -734,11 +734,11 @@ describe('SnapshotService', () => {
 
 **Key Testing Principles:**
 
-- ✅ Import REAL service class (not mocked)
-- ✅ Mock database module only
-- ✅ Test business logic correctness
-- ✅ Verify service called with correct arguments
-- ✅ Add `vi.restoreAllMocks()` in afterEach
+- [x] Import REAL service class (not mocked)
+- [x] Mock database module only
+- [x] Test business logic correctness
+- [x] Verify service called with correct arguments
+- [x] Add `vi.restoreAllMocks()` in afterEach
 
 ---
 
@@ -844,7 +844,7 @@ feat(api): Portfolio route scaffolding with quality gates
 - Add optimistic locking helper
 - All patterns prevent anti-patterns AP-CURSOR-*, AP-IDEM-*, AP-LOCK-*
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+[AI] Generated with [Claude Code](https://claude.com/claude-code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>
 EOF
@@ -984,7 +984,7 @@ router.post(
 );
 ```
 
-**✅ Code Review Checkpoint:**
+**[x] Code Review Checkpoint:**
 
 ```bash
 /test-smart  # Run affected tests
@@ -1011,7 +1011,7 @@ if (!bodyResult.success) {
 const { name } = bodyResult.data;
 ```
 
-**✅ Code Review Checkpoint:**
+**[x] Code Review Checkpoint:**
 
 ```bash
 /test-smart
@@ -1049,7 +1049,7 @@ try {
 }
 ```
 
-**✅ Code Review Checkpoint:**
+**[x] Code Review Checkpoint:**
 
 ```bash
 /test-smart
@@ -1077,7 +1077,7 @@ try {
 }
 ```
 
-**✅ Code Review Checkpoint:**
+**[x] Code Review Checkpoint:**
 
 ```bash
 /test-smart
@@ -1098,7 +1098,7 @@ return res.status(202).json({
 });
 ```
 
-**✅ Code Review Checkpoint:**
+**[x] Code Review Checkpoint:**
 
 ```bash
 /test-smart
@@ -1113,7 +1113,7 @@ return res.status(202).json({
 # Run full test suite for this endpoint
 npm test -- server/routes/portfolio/__tests__/snapshots.test.ts
 
-# Expected: All tests pass ✅
+# Expected: All tests pass [x]
 ```
 
 ### Step 4.4: Run Quality Gates (10 min)
@@ -1129,7 +1129,7 @@ npm run lint -- --rule 'anti-patterns/*:error'
 # 3. Type check
 npm run check
 
-# Expected: All pass ✅
+# Expected: All pass [x]
 ```
 
 ### Step 4.5: Commit (10 min)
@@ -1154,7 +1154,7 @@ Prevents anti-patterns:
 Tests: 4 scenarios (happy path, validation, missing fund, idempotency)
 Coverage: 100% of route handler
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+[AI] Generated with [Claude Code](https://claude.com/claude-code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>
 EOF
@@ -1575,18 +1575,18 @@ describe('Chaos Testing', () => {
 
 ## Success Criteria
 
-- ✅ All 6 endpoints implemented and tested
-- ✅ **Zero of 24 anti-patterns** present in code
-- ✅ All quality gates passing (ESLint, pre-commit, CI/CD)
-- ✅ Test coverage ≥ 90%
-- ✅ All 35+ test scenarios passing
-- ✅ Idempotency verified (duplicate requests work)
-- ✅ Cursor pagination working (10k+ records)
-- ✅ Optimistic locking working (409 on conflicts)
-- ✅ Background jobs processing snapshots
-- ✅ Status transitions validated (monotonic: pending → calculating →
+- [x] All 6 endpoints implemented and tested
+- [x] **Zero of 24 anti-patterns** present in code
+- [x] All quality gates passing (ESLint, pre-commit, CI/CD)
+- [x] Test coverage ≥ 90%
+- [x] All 35+ test scenarios passing
+- [x] Idempotency verified (duplicate requests work)
+- [x] Cursor pagination working (10k+ records)
+- [x] Optimistic locking working (409 on conflicts)
+- [x] Background jobs processing snapshots
+- [x] Status transitions validated (monotonic: pending → calculating →
   complete/error)
-- ✅ Performance targets met (p95 < 200ms)
+- [x] Performance targets met (p95 < 200ms)
 
 ---
 
