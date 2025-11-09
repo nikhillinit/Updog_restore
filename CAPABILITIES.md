@@ -12,25 +12,18 @@ ensure optimal tool selection and prevent redundant implementations.
 3. Look for similar patterns that can be adapted
 4. Only build new if nothing exists
 
-## 📋 Available Agents (30+)
+## 📋 Available Agents (250+ across all levels)
 
-### Financial & Domain Experts
+### Agent Architecture (Multi-Level)
 
-- **waterfall-specialist** - Waterfall/carry calculations (ALREADY HANDLES ALL
-  WATERFALL LOGIC)
-- **kellogg-bidding-advisor** - MBA course bidding strategies
+Agents are organized across three levels for optimal reusability and
+maintenance:
 
-### Testing & Quality
+#### **User-Level Agents (15)** - Global, available across ALL projects
 
-- **test-automator** ⭐ - Comprehensive test generation, TDD, coverage
-- **pr-test-analyzer** - PR test coverage review
-- **code-reviewer** - Code quality and style checking
-- **code-simplifier** - Simplify complex code
-- **comment-analyzer** - Comment accuracy verification
-- **type-design-analyzer** - Type design quality assessment
-- **silent-failure-hunter** - Find suppressed errors
+**Location:** `C:\Users\nikhi\.claude\agents\`
 
-### Architecture & Development
+**Architecture & Planning:**
 
 - **architect-review** ⭐ - Architectural decisions and review
 - **code-explorer** - Understand existing implementations
@@ -38,38 +31,109 @@ ensure optimal tool selection and prevent redundant implementations.
 - **knowledge-synthesizer** - Extract patterns from interactions
 - **legacy-modernizer** - Refactor and modernize code
 - **dx-optimizer** - Developer experience improvements
-- **Extended Thinking (ThinkingMixin)** ⭐ - Add deep reasoning to ANY agent via
-  mixin pattern (see `packages/agent-core/THINKING_QUICK_START.md`)
 
-### Database & Infrastructure
+**Database & Infrastructure:**
 
 - **database-expert** - Schema design, optimization
 - **database-admin** - Operations, HA, DR
 - **devops-troubleshooter** - Production issues
 - **incident-responder** - P0 incident management
 - **chaos-engineer** - Resilience testing
-- **db-migration** - Schema migrations
-- **perf-guard** - Performance regression detection
 
-### API & Backend
-
-- **api-scaffolding:backend-architect** - Scalable API design
-- **api-scaffolding:django-pro** - Django development
-- **api-scaffolding:fastapi-pro** - FastAPI async patterns
-- **api-scaffolding:graphql-architect** - GraphQL systems
-- **api-scaffolding:fastapi-templates** - FastAPI project templates
-
-### Documentation & Analysis
+**Documentation & Analysis:**
 
 - **docs-architect** ⭐ - Comprehensive documentation
-- **tutorial-engineer** - Educational content
 - **debug-expert** - Error analysis
+
+**Testing:**
+
+- **test-automator** ⭐ - Comprehensive test generation, TDD, coverage
+
+#### **Project-Level Agents (22)** - Updog_restore specific
+
+**Location:** `.claude\agents\`
+
+**Domain-Specific (Venture Capital Fund Modeling):**
+
+- **waterfall-specialist** ⭐ - Waterfall/carry calculations (HANDLES ALL
+  WATERFALL LOGIC)
+
+**Testing & Quality:**
+
 - **test-repair** - Fix failing tests
+- **pr-test-analyzer** - PR test coverage review
+- **code-reviewer** - Code quality and style checking
+- **code-simplifier** - Simplify complex code
+- **comment-analyzer** - Comment accuracy verification
+- **type-design-analyzer** - Type design quality assessment
+- **silent-failure-hunter** - Find suppressed errors
 
-### Security
+**Infrastructure:**
 
-- **security-scanning:security-auditor** - DevSecOps and compliance
-- **security-scanning:sast-configuration** - Static analysis setup
+- **db-migration** - Schema migrations
+- **perf-guard** - Performance regression detection
+- **general-purpose** - Research and exploration
+
+**Shared with User-Level (Project overrides):**
+
+- chaos-engineer, code-explorer, context-orchestrator, database-expert,
+  debug-expert, devops-troubleshooter, docs-architect, dx-optimizer,
+  incident-responder, legacy-modernizer
+
+#### **Marketplace Agents (200+)** - Via Plugins
+
+**Location:**
+`C:\Users\nikhi\.claude\plugins\marketplaces\claude-code-workflows\`
+
+**40+ plugin collections including:**
+
+- **api-scaffolding** - backend-architect, django-pro, fastapi-pro,
+  graphql-architect
+- **security-comprehensive** - security-auditor, sast-configuration
+- **kubernetes-operations** - K8s specialist agents
+- **blockchain-web3** - Smart contract development
+- **cloud-infrastructure** - AWS/Azure/GCP specialists
+- **database-design** - Schema and optimization experts
+- **accessibility-compliance** - WCAG validation
+- **code-documentation** - Doc generation and maintenance
+- **cicd-automation** - Pipeline specialists
+- ...and 30+ more specialized domains
+
+**Access:** Available via Claude Code plugin system
+
+#### **Archived Agents (27)** - BMad Methodology
+
+**Location:** `archive/2025-10-07/directories-backup/repo/`
+
+**BMad Project Management Agents (10):**
+
+- analyst (Mary 📊), architect, pm, po, qa, sm, ux-expert
+- bmad-master, bmad-orchestrator, dev
+
+**BMad Tasks (17):** Brownfield story creation, brainstorming facilitation,
+research prompts
+
+**Status:** Safely archived Oct 7, 2025. Restorable from git history if needed.
+
+**Restoration:**
+
+```bash
+# Restore specific agent
+git mv archive/.../BMad/agents/analyst.md .claude/agents/
+
+# Restore all BMad
+cp -r archive/.../BMAD-METHOD/ ./BMAD-METHOD/
+```
+
+### Extended Thinking (ThinkingMixin) ⭐
+
+**Add deep reasoning to ANY agent via mixin pattern**
+
+**Location:** `packages/agent-core/ThinkingMixin.ts` **Docs:**
+`packages/agent-core/THINKING_QUICK_START.md`
+
+**Migrated:** ✅ ALL 6 TypeScript agents (TestRepair, BundleOptimization,
+CodexReview, DependencyAnalysis, RouteOptimization, Zencoder)
 
 ## 🛠 Built-in Tools
 
@@ -97,12 +161,15 @@ ensure optimal tool selection and prevent redundant implementations.
 
 ## 🧠 Skills Library (Superpowers Framework)
 
-**Location**: `.claude/skills/` **Source**:
+**User-Level Location**:
+`C:\Users\nikhi\.claude\plugins\cache\superpowers\skills\` (20 skills)
+**Project-Level Location**: `.claude/skills/` (13 skills) **Source**:
 [obra/superpowers](https://github.com/obra/superpowers)
 
 Structured thinking frameworks and workflow patterns to enhance problem-solving.
-All skills persist across sessions and are project-local. **Skills activate
-automatically when relevant to the task**, making their workflows mandatory.
+All skills persist across sessions. **User-level skills are available across ALL
+projects.** **Skills activate automatically when relevant to the task**, making
+their workflows mandatory.
 
 **Usage**: `Skill("skill-name")` - The skill's prompt expands with detailed
 guidance
@@ -712,21 +779,70 @@ tests:
 
 ## 📚 External Resources
 
-### Available Cookbook Patterns (C:\dev\anthropic-cookbook)
+### Available Cookbook Patterns (C:\dev\Updog_restore\anthropic-cookbook)
 
-- Tool evaluation framework
-- Memory system implementation
-- Extended thinking patterns
-- Evaluator-optimizer loops
-- Agent routing patterns
-- Financial modeling examples (DCF, sensitivity)
+**Location:** `anthropic-cookbook/` in project root
 
-### When to Reference Cookbook:
+#### Basic Agent Workflows (`patterns/agents/`)
 
-- For implementation patterns (not domain knowledge)
-- For architectural inspiration
-- For production-ready code examples
-- NOT for basic financial calculations (we have agents)
+- **Prompt Chaining** - Sequential multi-step tasks
+- **Routing** - Dynamic tool selection based on query classification
+- **Multi-LLM Parallelization** - Concurrent LLM calls with aggregation
+
+#### Advanced Workflows
+
+- **Orchestrator-Workers** (`orchestrator_workers.ipynb`) - Central coordinator
+  with specialized subagents
+- **Evaluator-Optimizer** (`evaluator_optimizer.ipynb`) - Generate → Evaluate →
+  Iterate closed-loop
+- **Using Sub-Agents** (`multimodal/using_sub_agents.ipynb`) - Multi-agent task
+  decomposition
+
+#### Claude Agent SDK Examples (`claude_agent_sdk/`)
+
+- **Research Agent** - Autonomous web research with citations
+- **Chief of Staff Agent** - Executive assistant workflows (calendar, email,
+  tasks)
+- **Observability Agent** - System monitoring, anomaly detection, root cause
+  analysis
+
+#### Specialized Capabilities
+
+- **Extended Thinking** (`extended_thinking/`) - Deep reasoning with
+  step-by-step analysis
+- **Tool Evaluation** (`tool_evaluation/`) - Automated agent benchmarking
+  framework
+- **Building Evals** (`misc/building_evals.ipynb`) - Quality metric design
+  patterns
+- **Using Citations** (`misc/using_citations.ipynb`) - Source-grounded responses
+- **Prompt Caching** (`misc/prompt_caching.ipynb`) - Performance optimization
+
+#### Updog Integrations
+
+| Cookbook Pattern     | Updog Implementation       | Location               |
+| -------------------- | -------------------------- | ---------------------- |
+| Orchestrator-Workers | context-orchestrator agent | `~/.claude/agents/`    |
+| Evaluator-Optimizer  | Documentation validation   | `scripts/validation/`  |
+| Extended Thinking    | ThinkingMixin              | `packages/agent-core/` |
+| Tool Evaluation      | Agent metrics framework    | `packages/agent-core/` |
+
+### When to Reference Cookbook
+
+✅ **Use for:**
+
+- Implementation patterns and architecture
+- Multi-agent coordination strategies
+- Production-ready code examples
+- Evaluation framework design
+
+❌ **Don't use for:**
+
+- Domain-specific business logic (use waterfall-specialist, etc.)
+- Project-specific calculations
+- Updog conventions (use CLAUDE.md, cheatsheets/)
+
+**See:** [cheatsheets/agent-architecture.md](cheatsheets/agent-architecture.md)
+for detailed cookbook workflow documentation
 
 ## 🔍 Quick Reference Questions
 

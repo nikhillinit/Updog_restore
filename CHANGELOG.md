@@ -8,7 +8,102 @@ and this project adheres to
 
 ## [Unreleased] – 2025‑11‑09
 
+### Added
+
+#### Process: Document Review Safeguards 🔍 (2025-11-09 Late Evening)
+
+**Achievement**: Implemented mandatory evidence-based verification for document
+reviews to prevent false gap reports
+
+**Context**: Root cause analysis revealed oversight when reviewing 36-hour-old
+planning document without verifying implementation status. Incorrectly reported
+schema-first TDD and Testcontainers as "missing" when both were already
+complete.
+
+**Files Created**:
+
+- **cheatsheets/document-review-workflow.md** (620 lines): Comprehensive review
+  protocol
+  - Pre-review checklist (timestamp, classification, git log search)
+  - Document type classification (PLAN | STATUS | REFERENCE)
+  - Evidence-based claims framework (code > documentation)
+  - Two-phase review pattern (reality check → comparison)
+  - Template responses for common scenarios
+  - Real-world example with corrected approach
+- **CLAUDE.md**: Added "Document Review Protocol" section
+  - 5-step quick reference for planning document reviews
+  - Core principle: "Code is truth. Documentation describes intent."
+  - Link to comprehensive workflow cheatsheet
+- **DECISIONS.md**: Added ADR-012 "Mandatory Evidence-Based Document Reviews"
+  - Incident analysis (false gap reports for completed features)
+  - Root cause (temporal mismatch, documentation-first bias)
+  - Decision (mandatory code verification before claims)
+  - Success metrics (zero false gaps in 30 days)
+
+**Prevention Strategy**:
+
+1. **Document Classification**: Identify PLAN vs STATUS vs REFERENCE
+2. **Timestamp Awareness**: Plans >24h old require execution verification
+3. **Code-Level Verification**: Never report "missing" without proof
+4. **Git Log Search**: `git log --since=<doc-date>` for evidence
+5. **Clarification**: Ask theoretical review OR reality check?
+
+**Impact**: Prevents time waste analyzing obsolete plans, maintains credibility
+through accurate assessments, avoids reimplementing existing features
+
+**Related**: Conversation 2025-11-09 (strategy plan oversight root cause
+analysis)
+
 ### Changed
+
+#### Documentation Clarity: Multi-Level Agent Architecture 📋 (2025-11-09 Evening)
+
+**Achievement**: Clarified agent and skill organization across user, project,
+and marketplace levels
+
+**Session: Agent Inventory Investigation** (1 hour)
+
+- **CAPABILITIES.md**: Updated agent inventory to reflect multi-level
+  architecture
+  - **User-Level (15 agents)**: Global agents in `~/.claude/agents/`
+    (architect-review, database-admin, knowledge-synthesizer, etc.)
+  - **Project-Level (22 agents)**: Updog-specific agents in `.claude/agents/`
+    (waterfall-specialist, test-repair, perf-guard, etc.)
+  - **Marketplace (200+ agents)**: Plugin collections in
+    `~/.claude/plugins/marketplaces/claude-code-workflows/`
+  - **Archived (27 files)**: BMad methodology safely preserved in
+    `archive/2025-10-07/`
+- **Skills Library**: Documented user-level (20 skills) vs project-level (13
+  skills) Superpowers installation
+  - User skills available across ALL projects via
+    `~/.claude/plugins/cache/superpowers/skills/`
+  - Includes all missing skills from earlier inventory (test-driven-development,
+    verification-before-completion, using-git-worktrees, etc.)
+
+**Investigation Results**:
+
+- ✅ All agents marked in original checklist exist (user + project + marketplace
+  levels)
+- ✅ No assets were lost during October 2025 cleanup
+- ✅ BMad agents archived intentionally with full git history preservation
+- ✅ Total: 250+ agents available across all levels
+
+**Documentation Created**:
+
+- **cheatsheets/agent-architecture.md**: Comprehensive guide (480 lines)
+  - Multi-level architecture explanation (user/project/marketplace)
+  - Decision tree for where to create agents
+  - BMad restoration instructions
+  - Best practices and troubleshooting
+  - **Anthropic Cookbook workflows integration** (6 workflow patterns)
+    - Basic: Prompt chaining, routing, multi-LLM parallelization
+    - Advanced: Orchestrator-workers, evaluator-optimizer
+    - SDK examples: Research, chief-of-staff, observability agents
+    - Updog integrations mapped to cookbook patterns
+- **CAPABILITIES.md**: Added cookbook workflows section
+  - Cross-reference to Updog implementations
+  - Usage guidelines (when to use vs avoid)
+  - 10+ cookbook patterns documented
 
 #### Phase 3 Documentation Compaction Complete 📚 (2025-11-09)
 
