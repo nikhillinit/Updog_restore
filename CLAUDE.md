@@ -119,6 +119,24 @@ High-quality, version-controlled prompt templates are available in the
 
 Copy and customize templates as needed for consistent, well-structured requests.
 
+## Document Review Protocol
+
+When reviewing planning documents (PHASE*, STRATEGY*, \*-PLAN.md):
+
+1. **Classify document type** - PLAN (future) vs STATUS (present) vs REFERENCE
+   (timeless)
+2. **Check timestamp** - If >24h old, search for execution evidence
+3. **Verify claims** - Never report "missing" without code-level proof
+4. **Git log search** - `git log --since=<doc-date>` for related commits
+5. **Clarify ambiguity** - Ask if theoretical review or reality check
+
+**Core Principle:** Code is truth. Documentation describes intent. Always verify
+claims against actual implementation.
+
+**See:**
+[cheatsheets/document-review-workflow.md](cheatsheets/document-review-workflow.md)
+for comprehensive workflow
+
 ## Architecture
 
 - **Frontend (`/client`)**: React SPA with feature-based component organization,
