@@ -8,7 +8,137 @@ and this project adheres to
 
 ## [Unreleased] – 2025‑11‑09
 
+### Fixed
+
+#### CI/Documentation: Emoji Removal & Enforcement (2025-01-09 Night)
+
+**Critical Fix**: Resolved CI failure caused by emoji in GitHub Actions output
+
+**Context**: GitHub Actions `$GITHUB_OUTPUT` format doesn't support UTF-8 emoji encoding, causing "Detect Changes" workflow to fail. Implemented comprehensive emoji removal across documentation and scripts, plus enforcement mechanisms to prevent future violations.
+
+**Changes**:
+
+- **Fixed CI Blocker**: Removed emoji from `scripts/test-smart.mjs` (lines 18, 24, 40, 76, 82, 86, 89)
+  - Replaced emoji with text tags: `[INFO]`, `[WARN]`, `[SMART]`, `[DOCS]`, `[PASS]`, `[FAIL]`, `[FALLBACK]`
+  - Resolves "Detect Changes" and cascading "CI Gate Status" failures
+
+- **Documentation Cleanup**: Removed all emoji from 4 documentation files
+  - AI-WORKFLOW-COMPLETE-GUIDE.md (10 emoji → text)
+  - COMPREHENSIVE-WORKFLOW-GUIDE.md (38 emoji → text)
+  - COMPREHENSIVE-WORKFLOW-GUIDE-PART2.md (removed entirely - broken 46-line fragment)
+  - PORTFOLIO-API-STRATEGY-UPDATED.md (10 emoji → text)
+  - Replacements: ⭐ → (CRITICAL), 🛑 → GATE:, ✅ → [x], ❌ → [ ], etc.
+
+- **Enforcement Mechanisms**:
+  - Added pre-commit hook (`.husky/pre-commit`) to block emoji in staged files
+  - Updated CLAUDE.md with comprehensive no-emoji policy
+  - Created [cheatsheets/emoji-free-documentation.md](cheatsheets/emoji-free-documentation.md) with migration guide
+
+**Rationale**: Emojis cause technical issues (GitHub Actions encoding, CI/CD parsing), accessibility problems (screen readers), and maintainability challenges (grep/search, git diffs, i18n)
+
+**Impact**:
+- CI checks now pass (emoji encoding issue resolved)
+- Future emoji violations blocked by pre-commit hook
+- Improved accessibility and searchability
+- Professional, parseable documentation
+
 ### Added
+
+#### Documentation: Agent Taxonomy Clarification (2025-01-09 Night)
+
+**Enhancement**: Added comprehensive explanation of "28 specialized agents" terminology
+
+**Context**: The "28 specialized agents" refers to the Core Production Set (memory-enabled, battle-tested, Updog-optimized), not the full 300+ agent ecosystem.
+
+**Changes**:
+
+- Added "Understanding '28 Specialized Agents'" section to COMPREHENSIVE-WORKFLOW-GUIDE.md
+- Breakdown: 6 TypeScript Agents + 10 Domain-Specific + 12 Global Overrides = 28 Core Production
+- Documented extended ecosystem: 23 Superpowers Skills, 15 User-Level, 66 Marketplace (~200), 27 Archived BMad
+- Quick reference: Use Core 28 for 95% of tasks, extended for specialized domains
+
+**Value**: Eliminates confusion about agent counts, clarifies when to use Core vs Extended agents
+
+#### Documentation: Comprehensive AI-Augmented Workflow Guides (2025-01-09 Evening)
+
+**Achievement**: Created complete workflow documentation covering 28 specialized
+agents, multi-agent orchestration patterns, Superpowers skills integration, and
+logic/thinking frameworks
+
+**Context**: After analyzing cheatsheets and incorporating multi-AI feedback
+(Gemini, OpenAI, Gemini Deep Think), created pragmatic MVP-focused workflow
+guides with real examples from this project (Week 46 docs sprint, test repair
+automation, PR review pipelines)
+
+**Files Created**:
+
+- **COMPREHENSIVE-WORKFLOW-GUIDE.md** (862 lines): Detailed agent profiles and
+  orchestration patterns
+  - 28 specialized agents with real examples and validation patterns
+  - 3 orchestration modes: Parallel (87-91% savings), Sequential (30-50%),
+    Hybrid (50-75%)
+  - Real performance data: 8 docs-architect agents → 2,400 lines in 45 min
+  - Agent categories: Testing, Domain, Architecture, Database, Infrastructure,
+    Documentation, General, Performance
+
+- **COMPREHENSIVE-WORKFLOW-GUIDE-PART2.md**: Continuation with coding pairs and
+  advanced patterns
+  - Driver-Navigator, Mob Programming, TDD Pairs patterns
+  - Human-in-the-loop checkpoints and validation procedures
+
+- **AI-WORKFLOW-COMPLETE-GUIDE.md** (500+ lines): Quick reference and complete
+  summary
+  - 28 Superpowers skills with auto-activation triggers
+  - Logic & thinking frameworks (Extended Thinking, Systematic Debugging)
+  - Coding pairs patterns with real examples
+  - 24 anti-patterns quick reference (condensed)
+  - Decision trees for orchestration mode selection
+  - Quick reference card with daily commands
+  - Success metrics from this project (Week 46: 7.3x speedup, Test repair:
+    10-15x speedup)
+
+**Superpowers Skills Documented** (28 total):
+
+- Testing: test-driven-development, condition-based-waiting,
+  testing-anti-patterns
+- Debugging: systematic-debugging, root-cause-tracing,
+  verification-before-completion, defense-in-depth
+- Collaboration: brainstorming, writing-plans, executing-plans,
+  dispatching-parallel-agents, requesting-code-review, receiving-code-review,
+  using-git-worktrees, finishing-a-development-branch,
+  subagent-driven-development
+- Thinking: inversion-thinking, analogical-thinking, pattern-recognition,
+  continuous-improvement
+- Memory: memory-management, integration-with-other-skills
+- Advanced: extended-thinking-framework, notebooklm
+- Domain: venture-finance-suite, mcp-builder
+- Meta: writing-skills, skill-creator
+
+**Key Insights from Multi-AI Review**:
+
+- Gemini: "Formula 1 car" - powerful but complex, needs elite operators
+- Gemini Deep Think: "Brittle Utopia" - strong on happy path, plan for failure
+  modes
+- OpenAI: Focus on progressive disclosure (5 commands → 28 agents gradually)
+- All AIs: Human-in-the-loop is augmentation not replacement
+
+**Orchestration Patterns**:
+
+- Parallel Independent: 87-91% time savings (documentation, batch operations)
+- Sequential with Gates: 30-50% savings (high-risk features, dependencies)
+- Hybrid Pipeline: 50-75% savings (PR reviews, deployment prep)
+
+**Real Project Examples**:
+
+- Week 46 Documentation: 8 agents → 45 min → 2,400 lines (vs 5.5 hours)
+- Test Repair: 47 tests fixed in 12 min (vs 2-3 hours)
+- PR Review Pipeline: 6 agents → 15 min (vs 1 hour)
+
+**Next Steps**:
+
+- Use AI-WORKFLOW-COMPLETE-GUIDE.md as primary reference
+- Integrate decision trees into /workflows command
+- Track time savings metrics for continuous improvement
 
 #### Process: Document Review Safeguards 🔍 (2025-11-09 Late Evening)
 
