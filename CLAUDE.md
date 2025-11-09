@@ -311,3 +311,75 @@ See [SIDECAR_GUIDE.md](SIDECAR_GUIDE.md) for complete troubleshooting guide.
 - memory
 - memory
 - memory
+
+## Quality-First Development
+
+⚠️ **CRITICAL**: This rebuild exists to AVOID 24 anti-patterns identified in the
+existing codebase. Quality is **mandatory**, not optional.
+
+### Foundation Principle
+
+**Why This Rebuild Exists:**
+
+- 24 anti-patterns cataloged (race conditions, missing idempotency, unsafe
+  mutations, unvalidated cursors)
+- Technical debt preventing feature velocity
+- Prevention is 10x cheaper than remediation
+
+**Zero Tolerance Policy:**
+
+- ❌ No anti-pattern violations accepted in code review
+- ✅ All mutations MUST have idempotency
+- ✅ All updates MUST use optimistic locking (version field)
+- ✅ All cursors MUST be validated
+- ✅ All queue jobs MUST have timeouts
+
+### Workflow: Before → During → After
+
+**Before Coding:**
+
+```
+1. Check CAPABILITIES.md for existing solutions
+2. Read cheatsheets/anti-pattern-prevention.md
+3. Use /superpowers:brainstorm for design
+4. Ask: "How could this introduce a race condition?"
+```
+
+**During Coding:**
+
+```
+1. TDD (test-driven-development skill auto-activates)
+2. Code in 10-20 line cycles
+3. Run /test-smart after each change
+4. Review against anti-pattern checklist
+```
+
+**After Coding:**
+
+```
+1. verification-before-completion (MANDATORY)
+2. /deploy-check (build + bundle + smoke)
+3. /log-change (CHANGELOG.md)
+4. /log-decision (if architectural)
+```
+
+### 4-Layer Quality Gates
+
+| Layer | Tool         | Speed   | Coverage      |
+| ----- | ------------ | ------- | ------------- |
+| 1     | ESLint       | < 5s    | 16+ rules     |
+| 2     | Pre-commit   | < 30s   | 8+ checks     |
+| 3     | IDE snippets | Instant | 5 patterns    |
+| 4     | CI/CD        | < 5min  | 18+ workflows |
+
+### Cross-References
+
+- 📋 [Anti-Pattern Cheatsheet](cheatsheets/anti-pattern-prevention.md) - 24
+  patterns with code examples
+- 🎯
+  [ADR-011: Quality Gates](DECISIONS.md#adr-011-anti-pattern-prevention-strategy) -
+  Why this system exists
+- ✅ [Kickoff Checklist](PHASE3-KICKOFF-CHECKLIST.md) - Pre-flight verification
+
+**Remember:** Every shortcut today is tomorrow's P1 incident. Quality is the
+foundation, not a checkbox.
