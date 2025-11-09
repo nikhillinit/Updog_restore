@@ -9,18 +9,27 @@ import { existsSync } from 'node:fs';
 
 const base = process.env.BASE_REF || 'origin/main';
 const maxFiles = 200; // Skip heavy checks if too many changes
+const listOnly = process.argv.includes('--list-only');
 
 try {
   const changed = execSync(`git diff --name-only ${base}`)
     .toString().trim().split('\n').filter(Boolean);
 
   if (changed.length === 0) {
+    if (listOnly) {
+      console.log('smoke');
+      process.exit(0);
+    }
     console.log('[INFO] No changes detected, running smoke tests only');
     execSync('npm run test:smoke', { stdio: 'inherit' });
     process.exit(0);
   }
 
   if (changed.length > maxFiles) {
+    if (listOnly) {
+      console.log('all');
+      process.exit(0);
+    }
     console.log(`[WARN] Large changeset (${changed.length} files), running full test suite`);
     execSync('npm run test', { stdio: 'inherit' });
     process.exit(0);
@@ -37,8 +46,19 @@ try {
     docs: changed.filter(f => f.match(/\.(md|txt)$/))
   };
 
+  // In list-only mode, output affected test categories
+  if (listOnly) {
+    const affected = [];
+    if (categories.server.length > 0) affected.push('server');
+    if (categories.client.length > 0) affected.push('client');
+    if (categories.shared.length > 0) affected.push('all');
+    if (categories.config.length > 0) affected.push('config');
+    console.log(affected.length > 0 ? affected.join(',') : 'smoke');
+    process.exit(0);
+  }
+
   console.log(`[SMART] Test selection for ${changed.length} changed files:`);
-  
+
   const commands = [];
 
   // Always run smoke tests
@@ -73,6 +93,10 @@ try {
 
   // Docs only -> skip tests
   if (categories.docs.length === changed.length) {
+    if (listOnly) {
+      console.log('docs');
+      process.exit(0);
+    }
     console.log(`  [DOCS] Documentation only -> Skipping tests`);
     process.exit(0);
   }
