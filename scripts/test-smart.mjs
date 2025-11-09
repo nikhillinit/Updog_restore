@@ -9,19 +9,28 @@ import { existsSync } from 'node:fs';
 
 const base = process.env.BASE_REF || 'origin/main';
 const maxFiles = 200; // Skip heavy checks if too many changes
+const listOnly = process.argv.includes('--list-only');
 
 try {
   const changed = execSync(`git diff --name-only ${base}`)
     .toString().trim().split('\n').filter(Boolean);
 
   if (changed.length === 0) {
-    console.log('🔍 No changes detected, running smoke tests only');
+    if (listOnly) {
+      console.log('smoke');
+      process.exit(0);
+    }
+    console.log('[INFO] No changes detected, running smoke tests only');
     execSync('npm run test:smoke', { stdio: 'inherit' });
     process.exit(0);
   }
 
   if (changed.length > maxFiles) {
-    console.log(`🚨 Large changeset (${changed.length} files), running full test suite`);
+    if (listOnly) {
+      console.log('all');
+      process.exit(0);
+    }
+    console.log(`[WARN] Large changeset (${changed.length} files), running full test suite`);
     execSync('npm run test', { stdio: 'inherit' });
     process.exit(0);
   }
@@ -37,8 +46,19 @@ try {
     docs: changed.filter(f => f.match(/\.(md|txt)$/))
   };
 
-  console.log(`🧠 Smart test selection for ${changed.length} changed files:`);
-  
+  // In list-only mode, output affected test categories
+  if (listOnly) {
+    const affected = [];
+    if (categories.server.length > 0) affected.push('server');
+    if (categories.client.length > 0) affected.push('client');
+    if (categories.shared.length > 0) affected.push('all');
+    if (categories.config.length > 0) affected.push('config');
+    console.log(affected.length > 0 ? affected.join(',') : 'smoke');
+    process.exit(0);
+  }
+
+  console.log(`[SMART] Test selection for ${changed.length} changed files:`);
+
   const commands = [];
 
   // Always run smoke tests
@@ -46,19 +66,19 @@ try {
 
   // Server changes -> API tests
   if (categories.server.length > 0) {
-    console.log(`  📡 Server changes (${categories.server.length}) → API tests`);
+    console.log(`  [SERVER] ${categories.server.length} changes -> API tests`);
     commands.push('npm run test -- server/ --run');
   }
 
   // Client changes -> relevant client tests
   if (categories.client.length > 0) {
-    console.log(`  🎨 Client changes (${categories.client.length}) → Client tests`);
+    console.log(`  [CLIENT] ${categories.client.length} changes -> Client tests`);
     commands.push('npm run test -- client/ --run');
   }
 
   // Shared changes -> everything (since shared affects both)
   if (categories.shared.length > 0) {
-    console.log(`  🔗 Shared changes (${categories.shared.length}) → Full test suite`);
+    console.log(`  [SHARED] ${categories.shared.length} changes -> Full test suite`);
     commands.push('npm run test');
     execSync('npm run test', { stdio: 'inherit' });
     process.exit(0);
@@ -66,28 +86,32 @@ try {
 
   // Config changes -> type check + build
   if (categories.config.length > 0) {
-    console.log(`  ⚙️ Config changes (${categories.config.length}) → Build validation`);
+    console.log(`  [CONFIG] ${categories.config.length} changes -> Build validation`);
     commands.push('npm run check');
     commands.push('npm run build');
   }
 
   // Docs only -> skip tests
   if (categories.docs.length === changed.length) {
-    console.log(`  📚 Documentation only → Skipping tests`);
+    if (listOnly) {
+      console.log('docs');
+      process.exit(0);
+    }
+    console.log(`  [DOCS] Documentation only -> Skipping tests`);
     process.exit(0);
   }
 
   // Execute selected commands
   for (const cmd of [...new Set(commands)]) {
-    console.log(`\n▶️ Running: ${cmd}`);
+    console.log(`\n-> Running: ${cmd}`);
     execSync(cmd, { stdio: 'inherit' });
   }
 
-  console.log('\n✅ Smart tests completed');
+  console.log('\n[PASS] Smart tests completed');
 
 } catch (error) {
-  console.error('❌ Smart test runner failed:', error.message);
-  console.log('🔄 Falling back to smoke tests');
+  console.error('[FAIL] Smart test runner failed:', error.message);
+  console.log('[FALLBACK] Falling back to smoke tests');
   execSync('npm run test:smoke', { stdio: 'inherit' });
   process.exit(1);
 }

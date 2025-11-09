@@ -395,12 +395,57 @@ existing codebase. Quality is **mandatory**, not optional.
 
 ### Cross-References
 
-- 📋 [Anti-Pattern Cheatsheet](cheatsheets/anti-pattern-prevention.md) - 24
+- [Anti-Pattern Cheatsheet](cheatsheets/anti-pattern-prevention.md) - 24
   patterns with code examples
-- 🎯
-  [ADR-011: Quality Gates](DECISIONS.md#adr-011-anti-pattern-prevention-strategy) -
+- [ADR-011: Quality Gates](DECISIONS.md#adr-011-anti-pattern-prevention-strategy) -
   Why this system exists
-- ✅ [Kickoff Checklist](PHASE3-KICKOFF-CHECKLIST.md) - Pre-flight verification
+- [Kickoff Checklist](PHASE3-KICKOFF-CHECKLIST.md) - Pre-flight verification
 
 **Remember:** Every shortcut today is tomorrow's P1 incident. Quality is the
 foundation, not a checkbox.
+
+## No Emoji Policy
+
+**Rationale**: Emojis cause encoding issues in GitHub Actions, break CI/CD pipelines, reduce accessibility, and impair searchability.
+
+### Prohibited Usage
+- **Documentation**: All *.md files
+- **Scripts**: Any code that outputs to GitHub Actions (`$GITHUB_OUTPUT`, `$GITHUB_STEP_SUMMARY`)
+- **Commit messages**: Keep professional and parseable
+- **Code comments**: Use text for clarity
+
+### Approved Replacements
+
+| Instead of | Use |
+|------------|-----|
+| ✅ | `[x]` or `PASS:` or `SUCCESS:` |
+| ❌ | `[ ]` or `FAIL:` or `ERROR:` |
+| ⚠️ | `**WARNING:**` or `**NOTE:**` |
+| 🛑 | `**GATE:**` or `**CHECKPOINT:**` |
+| 🎯 | `**KEY POINT:**` or `**FOCUS:**` |
+| 📋 | `-` (bullet point) or `**CHECKLIST:**` |
+| 🔍 | `Checking:` or `Searching:` |
+| 🧪 | `**TESTING:**` or `[TEST]` |
+| 🤖 | `[AI-GENERATED]` or `(automated)` |
+
+### Why This Matters
+
+**Technical Issues:**
+- GitHub Actions `$GITHUB_OUTPUT` format doesn't support UTF-8 emoji encoding
+- CI/CD log parsing (grep/awk/sed) breaks on multi-byte characters
+- Windows terminal emoji rendering varies by environment
+
+**Accessibility:**
+- Screen readers announce emojis verbosely ("white heavy check mark")
+- Cognitive load: Text is more scannable than symbols
+
+**Maintainability:**
+- `grep "GATE"` works; `grep "🛑"` requires Unicode regex
+- Git diffs show emoji as `\u{1F6D1}` in some tools
+- Text translates across locales; emojis don't
+
+### Enforcement
+
+- **Pre-commit hook**: Automatically blocks emoji in staged files
+- **CI validation**: Pull requests fail if emojis detected
+- **See**: [cheatsheets/emoji-free-documentation.md](cheatsheets/emoji-free-documentation.md) for complete guide
