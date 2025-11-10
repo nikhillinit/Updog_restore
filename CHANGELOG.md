@@ -6,7 +6,134 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] – 2025‑11‑10
+
+### Added
+
+#### Documentation: Anti-Drift Infrastructure & Permanent References (2025-11-10)
+
+**Major Initiative**: Created comprehensive infrastructure to prevent AI context
+drift and ensure complete project understanding across sessions
+
+**Context**: After parallel agent review identified gaps in infrastructure
+documentation (NotebookLM strategy not initially recognized), established
+permanent reference system to prevent future drift and incomplete understanding.
+
+**New Files Created**:
+
+- **.claude/PROJECT-UNDERSTANDING.md** (14,676 lines) - Complete infrastructure
+  reference
+  - Four source files for complete understanding
+  - Three major quality initiatives documented
+  - Complete infrastructure inventory (packages, scripts, cheatsheets, archive)
+  - Quality systems (4-layer gates, multi-AI validation, Promptfoo, truth-case
+    methodology)
+  - Hard constraints (archive barrier, source of truth hierarchy, document
+    dating)
+  - Discovery protocol for new sessions
+
+- **.claude/ANTI-DRIFT-CHECKLIST.md** (4,442 lines) - Mandatory session protocol
+  - Pre-session complete discovery checklist
+  - Strategic sampling guidelines
+  - Archive barrier enforcement
+  - Quality gate compliance checks
+  - Verification requirements before completion
+
+- **HANDOFF-PORTFOLIO-PHASE0-COMPLETE.md** (committed) - Phase 0 implementation
+  plan
+- **PORTFOLIO-SCHEMA-MIGRATION-ANALYSIS.md** (committed) - Technical
+  specification
+- **MIGRATION-QUICK-START.md** (committed) - Operational runbook
+
+**Updated Files**:
+
+- **CAPABILITIES.md** - Added references to 4 source files for complete
+  understanding
+  - Clarified this document is 85% complete as capability inventory
+  - Directs readers to PROJECT-UNDERSTANDING for full context
+
+- **archive/2025-q4/session-records/SESSION-HANDOFF-2025-11-09.md** - Archived
+  previous session handoff
+
+**Key Learnings**:
+
+1. **NotebookLM Strategy is Major Initiative**:
+   - Phase 1: 5 modules (5,848 lines, 96-97% quality)
+   - Phase 2: 4 engines (238 pages, 95-99% quality, 3.5 hours via parallel
+     agents)
+   - Truth-case-first methodology with multi-AI validation
+
+2. **Gap Analysis Failure Pattern**:
+   - Never explored /docs subdirectories systematically
+   - Saw quality metrics but didn't investigate source files
+   - Focused only on root-level documentation
+   - Jumped to analysis before completing discovery
+
+3. **Complete Infrastructure Record Split Across 4 Files**:
+   - CAPABILITIES.md (85% complete, check-first discovery)
+   - PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md (21-week roadmap)
+   - AI-WORKFLOW-COMPLETE-GUIDE.md (28 agents, orchestration)
+   - COMPREHENSIVE-WORKFLOW-GUIDE.md (extended practical guide)
+
+**Prevention Strategy**:
+
+- Mandatory discovery protocol before any session work
+- Strategic sampling (first 50 + last 20 lines, not full reads)
+- Archive barrier (662 files off-limits unless explicitly requested)
+- Source of truth hierarchy (CHANGELOG 100%, code 100%, docs 70%, archives 0%)
+- Evidence-based verification (ADR-012 compliance)
+
+**Impact**:
+
+- Permanent reference system prevents future context drift
+- Complete infrastructure understanding documented
+- Discovery protocol prevents gap analysis failures
+- Strategic sampling prevents token limit issues
+- Archive barrier prevents stale context usage
+
+---
+
 ## [Unreleased] – 2025‑11‑09
+
+### Changed
+
+#### Documentation: Archive Session Records (2025-11-09)
+
+**Maintenance**: Archived stale handoff memos to reduce root directory clutter
+
+**Context**: Previous session created 8 untracked documentation files (3,595
+total lines) with significant redundancy. Archived session snapshot documents
+while retaining active working documents.
+
+**Changes**:
+
+- **Created**: `archive/2025-q4/session-records/` directory for session
+  artifacts
+- **Archived 4 files** (1,337 lines):
+  - SESSION-HANDOFF-2025-11-09.md → archive (session summary)
+  - PHASE0-GREEN-PHASE-COMPLETE.md → archive (progress snapshot)
+  - PHASE0-STATUS-CHECKPOINT.md → archive (status snapshot)
+  - PORTFOLIO-SCHEMA-MIGRATION-SUMMARY.md → archive (executive summary)
+
+- **Deleted 1 duplicate**:
+  - HANDOFF-PHASE3-COMPACTION.md (duplicate of committed
+    PHASE3-KICKOFF-CHECKLIST.md)
+
+- **Retained in root** (active working documents):
+  - HANDOFF-PORTFOLIO-PHASE0-COMPLETE.md (comprehensive Phase 0 plan)
+  - PORTFOLIO-SCHEMA-MIGRATION-ANALYSIS.md (technical specification)
+  - MIGRATION-QUICK-START.md (operational guide)
+
+**Rationale**: Session snapshots document past events and should be archived.
+Working documents represent active plans and technical specifications that need
+to remain accessible.
+
+**Impact**:
+
+- Root directory decluttered (5 files removed)
+- Session records organized by quarter
+- Active documentation remains discoverable
+- 38% reduction in documentation volume (3,595 → 2,258 lines in root)
 
 ### Fixed
 
@@ -14,29 +141,40 @@ and this project adheres to
 
 **Critical Fix**: Resolved CI failure caused by emoji in GitHub Actions output
 
-**Context**: GitHub Actions `$GITHUB_OUTPUT` format doesn't support UTF-8 emoji encoding, causing "Detect Changes" workflow to fail. Implemented comprehensive emoji removal across documentation and scripts, plus enforcement mechanisms to prevent future violations.
+**Context**: GitHub Actions `$GITHUB_OUTPUT` format doesn't support UTF-8 emoji
+encoding, causing "Detect Changes" workflow to fail. Implemented comprehensive
+emoji removal across documentation and scripts, plus enforcement mechanisms to
+prevent future violations.
 
 **Changes**:
 
-- **Fixed CI Blocker**: Removed emoji from `scripts/test-smart.mjs` (lines 18, 24, 40, 76, 82, 86, 89)
-  - Replaced emoji with text tags: `[INFO]`, `[WARN]`, `[SMART]`, `[DOCS]`, `[PASS]`, `[FAIL]`, `[FALLBACK]`
+- **Fixed CI Blocker**: Removed emoji from `scripts/test-smart.mjs` (lines 18,
+  24, 40, 76, 82, 86, 89)
+  - Replaced emoji with text tags: `[INFO]`, `[WARN]`, `[SMART]`, `[DOCS]`,
+    `[PASS]`, `[FAIL]`, `[FALLBACK]`
   - Resolves "Detect Changes" and cascading "CI Gate Status" failures
 
 - **Documentation Cleanup**: Removed all emoji from 4 documentation files
   - AI-WORKFLOW-COMPLETE-GUIDE.md (10 emoji → text)
   - COMPREHENSIVE-WORKFLOW-GUIDE.md (38 emoji → text)
-  - COMPREHENSIVE-WORKFLOW-GUIDE-PART2.md (removed entirely - broken 46-line fragment)
+  - COMPREHENSIVE-WORKFLOW-GUIDE-PART2.md (removed entirely - broken 46-line
+    fragment)
   - PORTFOLIO-API-STRATEGY-UPDATED.md (10 emoji → text)
   - Replacements: ⭐ → (CRITICAL), 🛑 → GATE:, ✅ → [x], ❌ → [ ], etc.
 
 - **Enforcement Mechanisms**:
   - Added pre-commit hook (`.husky/pre-commit`) to block emoji in staged files
   - Updated CLAUDE.md with comprehensive no-emoji policy
-  - Created [cheatsheets/emoji-free-documentation.md](cheatsheets/emoji-free-documentation.md) with migration guide
+  - Created
+    [cheatsheets/emoji-free-documentation.md](cheatsheets/emoji-free-documentation.md)
+    with migration guide
 
-**Rationale**: Emojis cause technical issues (GitHub Actions encoding, CI/CD parsing), accessibility problems (screen readers), and maintainability challenges (grep/search, git diffs, i18n)
+**Rationale**: Emojis cause technical issues (GitHub Actions encoding, CI/CD
+parsing), accessibility problems (screen readers), and maintainability
+challenges (grep/search, git diffs, i18n)
 
 **Impact**:
+
 - CI checks now pass (emoji encoding issue resolved)
 - Future emoji violations blocked by pre-commit hook
 - Improved accessibility and searchability
@@ -46,18 +184,26 @@ and this project adheres to
 
 #### Documentation: Agent Taxonomy Clarification (2025-01-09 Night)
 
-**Enhancement**: Added comprehensive explanation of "28 specialized agents" terminology
+**Enhancement**: Added comprehensive explanation of "28 specialized agents"
+terminology
 
-**Context**: The "28 specialized agents" refers to the Core Production Set (memory-enabled, battle-tested, Updog-optimized), not the full 300+ agent ecosystem.
+**Context**: The "28 specialized agents" refers to the Core Production Set
+(memory-enabled, battle-tested, Updog-optimized), not the full 300+ agent
+ecosystem.
 
 **Changes**:
 
-- Added "Understanding '28 Specialized Agents'" section to COMPREHENSIVE-WORKFLOW-GUIDE.md
-- Breakdown: 6 TypeScript Agents + 10 Domain-Specific + 12 Global Overrides = 28 Core Production
-- Documented extended ecosystem: 23 Superpowers Skills, 15 User-Level, 66 Marketplace (~200), 27 Archived BMad
-- Quick reference: Use Core 28 for 95% of tasks, extended for specialized domains
+- Added "Understanding '28 Specialized Agents'" section to
+  COMPREHENSIVE-WORKFLOW-GUIDE.md
+- Breakdown: 6 TypeScript Agents + 10 Domain-Specific + 12 Global Overrides = 28
+  Core Production
+- Documented extended ecosystem: 23 Superpowers Skills, 15 User-Level, 66
+  Marketplace (~200), 27 Archived BMad
+- Quick reference: Use Core 28 for 95% of tasks, extended for specialized
+  domains
 
-**Value**: Eliminates confusion about agent counts, clarifies when to use Core vs Extended agents
+**Value**: Eliminates confusion about agent counts, clarifies when to use Core
+vs Extended agents
 
 #### Documentation: Comprehensive AI-Augmented Workflow Guides (2025-01-09 Evening)
 
