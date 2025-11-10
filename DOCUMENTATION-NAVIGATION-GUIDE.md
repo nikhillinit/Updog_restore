@@ -85,9 +85,9 @@ Updog_restore codebase
 
 ## Core Documentation Overview
 
-### 1. CAPABILITIES.md (⭐ START HERE)
+### 1. CAPABILITIES.md ( START HERE)
 
-**Status**: ✅ Comprehensive (30+ agents, full tool inventory) **Last Updated**:
+**Status**: Comprehensive (30+ agents, full tool inventory) **Last Updated**:
 2025-10-28 **Lines**: ~200
 
 **What's Covered**:
@@ -101,13 +101,13 @@ Updog_restore codebase
 **When to Use**: ALWAYS check first before implementing anything. If an agent
 exists, use it instead of building from scratch.
 
-**Quality**: 🟢 Excellent - Well-organized, categorized by function
+**Quality**: Excellent - Well-organized, categorized by function
 
 ---
 
-### 2. CLAUDE.md (⭐ PRIMARY REFERENCE)
+### 2. CLAUDE.md ( PRIMARY REFERENCE)
 
-**Status**: ✅ Comprehensive, signal-rich **Last Updated**: Actively maintained
+**Status**: Comprehensive, signal-rich **Last Updated**: Actively maintained
 **Lines**: ~300
 
 **What's Covered**:
@@ -124,7 +124,7 @@ exists, use it instead of building from scratch.
 **When to Use**: Primary orientation document. Read sections 1-3 for new
 developers, reference specific sections as needed.
 
-**Quality**: 🟢 Excellent - Follows own guidelines
+**Quality**: Excellent - Follows own guidelines
 (cheatsheets/claude-md-guidelines.md), high signal-to-noise ratio
 
 **Key Strength**: Points to detailed docs instead of cluttering with
@@ -134,7 +134,7 @@ implementation details
 
 ### 3. CHANGELOG.md
 
-**Status**: ✅ Comprehensive, actively maintained **Last Updated**: 2025-11-04
+**Status**: Comprehensive, actively maintained **Last Updated**: 2025-11-04
 **Lines**: ~1000+ **Format**: [Keep a Changelog](https://keepachangelog.com/)
 
 **What's Covered**:
@@ -159,27 +159,32 @@ implementation details
 - Reference validation patterns
 - Understand module maturity
 
-**Quality**: 🟢 Excellent - Detailed, metric-driven, well-structured
+**Quality**: Excellent - Detailed, metric-driven, well-structured
 
 ---
 
 ### 4. DECISIONS.md
 
-**Status**: ✅ Comprehensive (10 major ADRs) **Last Updated**: 2025-10-26
-**Lines**: ~2000+
+**Status**: Comprehensive (4 major ADRs + 6 unnumbered decisions) **Last
+Updated**: 2025-11-10 **Lines**: ~3000+
 
 **What's Covered**:
 
+**Numbered ADRs:**
+
+- **ADR-012**: Mandatory Evidence-Based Document Reviews
+- **ADR-011**: Anti-Pattern Prevention Strategy for Portfolio Route API
 - **ADR-010**: PowerLawDistribution API design (constructor over factory)
-- **ADR-009**: Async/await patterns vs forEach
-- **ADR-008**: Capital allocation precedence hierarchy
-- **ADR-007**: Exit recycling policy
-- **ADR-006**: Fee calculation standards (comprehensive, 36KB)
-- **ADR-005**: XIRR Excel parity requirements
-- **ADR-004**: Waterfall naming conventions
-- **ADR-003**: Streaming architecture
-- **ADR-002**: Token budgeting
-- **ADR-001**: Evaluator metrics
+- **ADR-009**: Vitest Path Alias Configuration and test.projects Migration
+
+**Unnumbered Decisions:**
+
+- Foundation-First Test Remediation Strategy
+- Vitest test.projects Migration Required for Environment Isolation
+- Official Claude Code Plugins Over Custom BMad Infrastructure
+- AI Orchestrator for Multi-Model Code Review
+- Prompt Improver Hook Internalization
+- Service Layer Extraction for Time-Travel Analytics
 
 **Format**: Context → Decision → Rationale → Consequences → Alternatives
 
@@ -189,8 +194,7 @@ implementation details
 - Understanding "why" behind current implementations
 - Evaluating alternatives (rejected options documented)
 
-**Quality**: 🟢 Excellent - Thorough rationale, clear consequences,
-comprehensive
+**Quality**: Excellent - Thorough rationale, clear consequences, comprehensive
 
 **Navigation**: All ADRs also exist as standalone files in `docs/adr/ADR-*.md`
 
@@ -198,12 +202,12 @@ comprehensive
 
 ### 5. README.md
 
-**Status**: ✅ User-facing, concise **Lines**: ~250
+**Status**: User-facing, concise **Lines**: ~250
 
 **What's Covered**:
 
 - High-level overview
-- 7-step wizard feature status (✅ / 🚧)
+- 7-step wizard feature status ( / )
 - Performance SLOs and badges
 - Quick start commands
 - Tech stack
@@ -211,7 +215,7 @@ comprehensive
 
 **When to Use**: External onboarding, GitHub visitors, executive overview
 
-**Quality**: 🟢 Good - Well-formatted, clear status indicators
+**Quality**: Good - Well-formatted, clear status indicators
 
 **Key Difference from CLAUDE.md**: README is external-facing (GitHub), CLAUDE.md
 is AI-facing (development)
@@ -243,7 +247,7 @@ All NotebookLM sources follow this structure:
 
 ### 1. fees.md
 
-**Status**: ✅ Publication-ready **Quality**: 96.0% (Gemini validation: 96/100)
+**Status**: Publication-ready **Quality**: 96.0% (Gemini validation: 96/100)
 **Lines**: 1,237 (+73% growth from 714) **Last Updated**: 2025-11-04
 
 **Coverage**:
@@ -261,12 +265,11 @@ All NotebookLM sources follow this structure:
 
 **Key Strengths** (per Gemini validation):
 
-- ✅ Navigability: 20/20 (perfect - 50+ link TOC)
-- ✅ Visual Clarity: 20/20 (perfect - 3 diagrams, 2 tables)
-- ✅ Technical Accuracy: 20/20 (perfect - Decimal.js formulas, ADR-006
-  alignment)
-- ✅ Accessibility: 20/20 (perfect - multi-level clarity)
-- ⚠️ Completeness: 16/20 (10 truth cases; expansion to 20+ recommended)
+- Navigability: 20/20 (perfect - 50+ link TOC)
+- Visual Clarity: 20/20 (perfect - 3 diagrams, 2 tables)
+- Technical Accuracy: 20/20 (perfect - Decimal.js formulas, ADR-006 alignment)
+- Accessibility: 20/20 (perfect - multi-level clarity)
+- ️ Completeness: 16/20 (10 truth cases; expansion to 20+ recommended)
 
 **Supporting Docs**:
 
@@ -288,7 +291,7 @@ All NotebookLM sources follow this structure:
 
 ### 2. capital-allocation.md
 
-**Status**: ✅ Publication-ready **Quality**: 97.2% (exceeds NotebookLM gold
+**Status**: Publication-ready **Quality**: 97.2% (exceeds NotebookLM gold
 standard) **Lines**: 2,410 (largest domain doc) **Last Updated**: 2025-11-04
 
 **Coverage**:
@@ -333,7 +336,7 @@ standard) **Lines**: 2,410 (largest domain doc) **Last Updated**: 2025-11-04
 
 ### 3. waterfall.md
 
-**Status**: ✅ Complete **Quality**: ~90-92% (estimated) **Lines**: 688 **Last
+**Status**: Complete **Quality**: ~90-92% (estimated) **Lines**: 688 **Last
 Updated**: 2025-10-29
 
 **Coverage**:
@@ -368,7 +371,7 @@ Updated**: 2025-10-29
 
 ### 4. xirr.md
 
-**Status**: ✅ Complete **Quality**: ~88-90% (estimated) **Lines**: 865 **Last
+**Status**: Complete **Quality**: ~88-90% (estimated) **Lines**: 865 **Last
 Updated**: 2025-10-29
 
 **Coverage**:
@@ -395,7 +398,7 @@ Updated**: 2025-10-29
 
 ### 5. exit-recycling.md
 
-**Status**: ✅ Complete **Quality**: ~85-88% (estimated) **Lines**: 648 **Last
+**Status**: Complete **Quality**: ~85-88% (estimated) **Lines**: 648 **Last
 Updated**: 2025-10-29
 
 **Coverage**:
@@ -421,13 +424,13 @@ Updated**: 2025-10-29
 
 ### NotebookLM Quality Summary
 
-| Module                 | Lines | Quality | Truth Cases | Diagrams | Glossary | Code Refs | Status      |
-| ---------------------- | ----- | ------- | ----------- | -------- | -------- | --------- | ----------- |
-| **capital-allocation** | 2,410 | 97.2%   | 20/20       | 2        | 11       | 35+       | ✅ Gold     |
-| **fees**               | 1,237 | 96.0%   | 10/10       | 3        | 18       | 35+       | ✅ Gold     |
-| **waterfall**          | 688   | ~92%    | 15+         | 2        | 8        | 25+       | ✅ Complete |
-| **xirr**               | 865   | ~90%    | 10+         | 1        | 6        | 20+       | ✅ Complete |
-| **exit-recycling**     | 648   | ~88%    | 8+          | 1        | 5        | 15+       | ✅ Complete |
+| Module                 | Lines | Quality | Truth Cases | Diagrams | Glossary | Code Refs | Status   |
+| ---------------------- | ----- | ------- | ----------- | -------- | -------- | --------- | -------- |
+| **capital-allocation** | 2,410 | 97.2%   | 20/20       | 2        | 11       | 35+       | Gold     |
+| **fees**               | 1,237 | 96.0%   | 10/10       | 3        | 18       | 35+       | Gold     |
+| **waterfall**          | 688   | ~92%    | 15+         | 2        | 8        | 25+       | Complete |
+| **xirr**               | 865   | ~90%    | 10+         | 1        | 6        | 20+       | Complete |
+| **exit-recycling**     | 648   | ~88%    | 8+          | 1        | 5        | 15+       | Complete |
 
 **Total**: 5,848 lines of publication-quality domain documentation
 
@@ -441,19 +444,19 @@ early ADRs)
 
 ### ADR Index
 
-| ADR         | Title                           | Status         | Date       | Size  | Quality          |
-| ----------- | ------------------------------- | -------------- | ---------- | ----- | ---------------- |
-| **ADR-012** | Mem0 Integration                | ✅ Implemented | 2025-11-01 | 15KB  | 🟢 Complete      |
-| **ADR-011** | Stage Normalization v2          | ✅ Implemented | 2025-10-30 | 16KB  | 🟢 Complete      |
-| **ADR-010** | Monte Carlo Validation Strategy | ✅ Implemented | 2025-10-30 | 12KB  | 🟢 Complete      |
-| **ADR-008** | Capital Allocation Policy       | ✅ Accepted    | 2025-01-28 | 19KB  | 🟢 Comprehensive |
-| **ADR-007** | Exit Recycling Policy           | ✅ Accepted    | 2025-01-28 | 9KB   | 🟢 Complete      |
-| **ADR-006** | Fee Calculation Standards       | ✅ Accepted    | 2025-01-28 | 37KB  | 🟢 Exceptional   |
-| **ADR-005** | XIRR Excel Parity               | ✅ Accepted    | 2025-01-28 | 23KB  | 🟢 Complete      |
-| **ADR-004** | Waterfall Names                 | ✅ Accepted    | 2025-01-28 | 14KB  | 🟢 Complete      |
-| **ADR-003** | Streaming Architecture          | ✅ Accepted    | -          | 1.3KB | 🟡 Basic         |
-| **ADR-002** | Token Budgeting                 | ✅ Accepted    | -          | 1.5KB | 🟡 Basic         |
-| **ADR-001** | Evaluator Metrics               | ✅ Accepted    | -          | 4.5KB | 🟢 Good          |
+| ADR         | Title                           | Status      | Date       | Size  | Quality       |
+| ----------- | ------------------------------- | ----------- | ---------- | ----- | ------------- |
+| **ADR-012** | Mem0 Integration                | Implemented | 2025-11-01 | 15KB  | Complete      |
+| **ADR-011** | Stage Normalization v2          | Implemented | 2025-10-30 | 16KB  | Complete      |
+| **ADR-010** | Monte Carlo Validation Strategy | Implemented | 2025-10-30 | 12KB  | Complete      |
+| **ADR-008** | Capital Allocation Policy       | Accepted    | 2025-01-28 | 19KB  | Comprehensive |
+| **ADR-007** | Exit Recycling Policy           | Accepted    | 2025-01-28 | 9KB   | Complete      |
+| **ADR-006** | Fee Calculation Standards       | Accepted    | 2025-01-28 | 37KB  | Exceptional   |
+| **ADR-005** | XIRR Excel Parity               | Accepted    | 2025-01-28 | 23KB  | Complete      |
+| **ADR-004** | Waterfall Names                 | Accepted    | 2025-01-28 | 14KB  | Complete      |
+| **ADR-003** | Streaming Architecture          | Accepted    | -          | 1.3KB | Basic         |
+| **ADR-002** | Token Budgeting                 | Accepted    | -          | 1.5KB | Basic         |
+| **ADR-001** | Evaluator Metrics               | Accepted    | -          | 4.5KB | Good          |
 
 **Also see**: `docs/ADR-00X-resilience-circuit-breaker.md` (draft)
 
@@ -468,17 +471,17 @@ Per `docs/adr/README.md`:
 
 ### ADR Quality Tiers
 
-**🟢 Exceptional (ADR-006)**:
+** Exceptional (ADR-006)**:
 
 - 37KB, comprehensive problem statement, 10+ alternatives, validation strategy,
   migration path, test cases, schema integration
 
-**🟢 Complete (ADR-004, 005, 007, 008)**:
+** Complete (ADR-004, 005, 007, 008)**:
 
 - Clear context, thorough decision rationale, consequences documented,
   alternatives evaluated
 
-**🟡 Basic (ADR-001, 002, 003)**:
+** Basic (ADR-001, 002, 003)**:
 
 - Lightweight format, essential information, minimal alternatives
 
@@ -491,28 +494,28 @@ specific workflows **Total**: 21 cheatsheets
 
 ### Cheatsheet Inventory
 
-| Cheatsheet                          | Lines | Quality      | Purpose                                 |
-| ----------------------------------- | ----- | ------------ | --------------------------------------- |
-| **claude-code-best-practices.md**   | 16KB  | 🟢 Excellent | Workflow best practices, tool selection |
-| **daily-workflow.md**               | 11KB  | 🟢 Excellent | Day-to-day development patterns         |
-| **pr-review-workflow.md**           | 13KB  | 🟢 Excellent | Pull request review process             |
-| **service-testing-patterns.md**     | 8KB   | 🟢 Good      | Service layer testing strategies        |
-| **documentation-validation.md**     | 17KB  | 🟢 Excellent | Doc quality validation (Promptfoo)      |
-| **evaluator-optimizer-workflow.md** | 12KB  | 🟢 Good      | AI evaluator/optimizer patterns         |
-| **extended-thinking.md**            | 9KB   | 🟢 Good      | Extended thinking integration           |
-| **prompt-improver-hook.md**         | 9KB   | 🟢 Good      | Prompt improvement hook usage           |
-| **ai-code-review.md**               | 9KB   | 🟢 Good      | AI-assisted code review                 |
-| **capability-checklist.md**         | 3KB   | 🟢 Good      | Capability verification                 |
-| **correct-workflow-example.md**     | 2KB   | 🟢 Good      | Example workflows                       |
-| **claude-md-guidelines.md**         | 2KB   | 🟢 Excellent | CLAUDE.md maintenance rules             |
-| **memory-commit-strategy.md**       | 3KB   | 🟢 Good      | Changelog/decision logging              |
-| **memory-patterns.md**              | 2KB   | 🟢 Good      | Memory management patterns              |
-| **memory-commands.md**              | 3KB   | 🟢 Good      | `/log-change`, `/log-decision`          |
-| **claude-commands.md**              | 1KB   | 🟢 Good      | Slash command reference                 |
-| **command-summary.md**              | 1KB   | 🟢 Good      | Quick command lookup                    |
-| **init-vs-update.md**               | 2KB   | 🟢 Good      | Initialization vs update patterns       |
-| **testing.md**                      | 57B   | 🔴 Stub      | Placeholder only                        |
-| **api.md**                          | 49B   | 🔴 Stub      | Placeholder only                        |
+| Cheatsheet                          | Lines | Quality   | Purpose                                 |
+| ----------------------------------- | ----- | --------- | --------------------------------------- |
+| **claude-code-best-practices.md**   | 16KB  | Excellent | Workflow best practices, tool selection |
+| **daily-workflow.md**               | 11KB  | Excellent | Day-to-day development patterns         |
+| **pr-review-workflow.md**           | 13KB  | Excellent | Pull request review process             |
+| **service-testing-patterns.md**     | 8KB   | Good      | Service layer testing strategies        |
+| **documentation-validation.md**     | 17KB  | Excellent | Doc quality validation (Promptfoo)      |
+| **evaluator-optimizer-workflow.md** | 12KB  | Good      | AI evaluator/optimizer patterns         |
+| **extended-thinking.md**            | 9KB   | Good      | Extended thinking integration           |
+| **prompt-improver-hook.md**         | 9KB   | Good      | Prompt improvement hook usage           |
+| **ai-code-review.md**               | 9KB   | Good      | AI-assisted code review                 |
+| **capability-checklist.md**         | 3KB   | Good      | Capability verification                 |
+| **correct-workflow-example.md**     | 2KB   | Good      | Example workflows                       |
+| **claude-md-guidelines.md**         | 2KB   | Excellent | CLAUDE.md maintenance rules             |
+| **memory-commit-strategy.md**       | 3KB   | Good      | Changelog/decision logging              |
+| **memory-patterns.md**              | 2KB   | Good      | Memory management patterns              |
+| **memory-commands.md**              | 3KB   | Good      | `/log-change`, `/log-decision`          |
+| **claude-commands.md**              | 1KB   | Good      | Slash command reference                 |
+| **command-summary.md**              | 1KB   | Good      | Quick command lookup                    |
+| **init-vs-update.md**               | 2KB   | Good      | Initialization vs update patterns       |
+| **testing.md**                      | 57B   | Stub      | Placeholder only                        |
+| **api.md**                          | 49B   | Stub      | Placeholder only                        |
 
 **Total**: ~100KB of focused workflow documentation
 
@@ -534,22 +537,22 @@ automation guides
 
 ### Process Docs Inventory
 
-| Document                              | Purpose                           | Quality      |
-| ------------------------------------- | --------------------------------- | ------------ |
-| **code-review-checklist.md** (16KB)   | Comprehensive PR review checklist | 🟢 Excellent |
-| **CONTRIBUTING.md** (8KB)             | Contribution guidelines           | 🟢 Good      |
-| **AUTOMATION_GUIDE.md** (4KB)         | Automation setup and usage        | 🟢 Good      |
-| **PRE_PUSH_CHECKLIST.md** (6KB)       | Pre-push validation steps         | 🟢 Good      |
-| **GITHUB_SETUP.md** (6KB)             | GitHub repository setup           | 🟢 Good      |
-| **GITHUB_COMMIT_GUIDE.md** (3KB)      | Commit message conventions        | 🟢 Good      |
-| **TEAM_SETUP.md** (8KB)               | Team onboarding                   | 🟢 Good      |
-| **PEER_REVIEW.md** (1.3KB)            | Peer review process               | 🟡 Basic     |
-| **COMMIT_LOG.md** (1KB)               | Commit logging guidelines         | 🟡 Basic     |
-| **DEPLOYMENT_COMPLETE.md** (1.4KB)    | Deployment completion checklist   | 🟡 Basic     |
-| **DEPLOYMENT_TODO.md** (0.8KB)        | Deployment TODO template          | 🟡 Basic     |
-| **FINAL_VALIDATION.md** (1.4KB)       | Final validation checklist        | 🟡 Basic     |
-| **PIPELINE_SCHEMA_COMPLETE.md** (2KB) | Pipeline schema validation        | 🟡 Basic     |
-| **PIPELINE_TODO.md** (1KB)            | Pipeline TODO template            | 🟡 Basic     |
+| Document                              | Purpose                           | Quality   |
+| ------------------------------------- | --------------------------------- | --------- |
+| **code-review-checklist.md** (16KB)   | Comprehensive PR review checklist | Excellent |
+| **CONTRIBUTING.md** (8KB)             | Contribution guidelines           | Good      |
+| **AUTOMATION_GUIDE.md** (4KB)         | Automation setup and usage        | Good      |
+| **PRE_PUSH_CHECKLIST.md** (6KB)       | Pre-push validation steps         | Good      |
+| **GITHUB_SETUP.md** (6KB)             | GitHub repository setup           | Good      |
+| **GITHUB_COMMIT_GUIDE.md** (3KB)      | Commit message conventions        | Good      |
+| **TEAM_SETUP.md** (8KB)               | Team onboarding                   | Good      |
+| **PEER_REVIEW.md** (1.3KB)            | Peer review process               | Basic     |
+| **COMMIT_LOG.md** (1KB)               | Commit logging guidelines         | Basic     |
+| **DEPLOYMENT_COMPLETE.md** (1.4KB)    | Deployment completion checklist   | Basic     |
+| **DEPLOYMENT_TODO.md** (0.8KB)        | Deployment TODO template          | Basic     |
+| **FINAL_VALIDATION.md** (1.4KB)       | Final validation checklist        | Basic     |
+| **PIPELINE_SCHEMA_COMPLETE.md** (2KB) | Pipeline schema validation        | Basic     |
+| **PIPELINE_TODO.md** (1KB)            | Pipeline TODO template            | Basic     |
 
 ---
 
@@ -557,7 +560,7 @@ automation guides
 
 ### Tier 1: Publication-Ready (≥96% Quality)
 
-**✅ Gold Standard**:
+** Gold Standard**:
 
 - `docs/notebooklm-sources/capital-allocation.md` - 97.2% (2,410 lines)
 - `docs/notebooklm-sources/fees.md` - 96.0% (1,237 lines)
@@ -578,7 +581,7 @@ automation guides
 
 ### Tier 2: Complete & Comprehensive (85-95% Quality)
 
-**✅ Excellent**:
+** Excellent**:
 
 - `CLAUDE.md` - Primary development reference
 - `CAPABILITIES.md` - Agent and tool inventory
@@ -600,7 +603,7 @@ automation guides
 
 ### Tier 3: Functional & Useful (70-85% Quality)
 
-**🟢 Good**:
+** Good**:
 
 - `README.md` - User-facing overview
 - `docs/prd.md` - Product requirements
@@ -620,7 +623,7 @@ automation guides
 
 ### Tier 4: Basic/Placeholder (<70% Quality)
 
-**🟡 Basic**:
+** Basic**:
 
 - `cheatsheets/testing.md` - 57 bytes (placeholder)
 - `cheatsheets/api.md` - 49 bytes (placeholder)
@@ -639,7 +642,7 @@ automation guides
 
 ### Critical Gaps (High Priority)
 
-1. **Testing Patterns** ⚠️
+1. **Testing Patterns** ️
    - `cheatsheets/testing.md` is a 57-byte stub
    - Should document: Vitest patterns, test.projects (server/client), React
      Testing Library conventions
@@ -647,7 +650,7 @@ automation guides
      service layer
    - **Action**: Expand `testing.md` to 5-10KB comprehensive guide
 
-2. **API Conventions** ⚠️
+2. **API Conventions** ️
    - `cheatsheets/api.md` is a 49-byte stub
    - Should document: RESTful patterns, Zod validation, error handling, route
      structure
@@ -655,7 +658,7 @@ automation guides
      examples
    - **Action**: Expand `api.md` to 5-10KB with examples
 
-3. **Fee Module Truth Cases** 📊
+3. **Fee Module Truth Cases**
    - Current: 10/10 management fee cases
    - Missing: 12 additional cases (Carried Interest, Fee Recycling, Admin
      Expenses, Fee Impact)

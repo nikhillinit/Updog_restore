@@ -10,6 +10,42 @@ and this project adheres to
 
 ### Added
 
+#### Documentation: ADR-009 Created for Vitest Path Alias Migration (2025-11-10)
+
+**Context**: Properly documented the October 2025 Vitest test.projects migration
+that was mislabeled in commit f094af1a as "Add ADR-009" but never actually
+created an ADR-009 section.
+
+**Changes**:
+
+- **DECISIONS.md**: Created comprehensive ADR-009 documenting:
+  - Module resolution crisis (343 test failures)
+  - Shared alias constant pattern with explicit project declarations
+  - Implementation phases (test.projects migration + path alias fixes)
+  - Results: 87% failure reduction (343 → 45 failures)
+  - Setup file architecture and mock utilities
+  - Triple-AI validation consensus
+  - 7 key lessons learned
+
+- **DOCUMENTATION-NAVIGATION-GUIDE.md**: Fixed ADR listing
+  - Corrected ADR-009 reference (was "Async/await patterns vs forEach")
+  - Updated to reflect current DECISIONS.md structure
+  - Listed 4 numbered ADRs + 6 unnumbered decisions
+  - Updated last modified date and line count
+
+**Technical Details**:
+
+- Documents vitest.config.ts shared alias constant (lines 8-29)
+- Explains why test.projects don't inherit root resolve.alias
+- Details setup files: node-setup.ts (44 lines), jsdom-setup.ts (127 lines),
+  test-infrastructure.ts (386 lines)
+- References commits: 1288f9a5, d2b7dc89, f094af1a, c518c07d, b1c30f80
+
+**Impact**: Formalizes significant test infrastructure work and fixes
+documentation drift in navigation guide.
+
+---
+
 #### Documentation: Anti-Drift Infrastructure & Permanent References (2025-11-10)
 
 **Major Initiative**: Created comprehensive infrastructure to prevent AI context
