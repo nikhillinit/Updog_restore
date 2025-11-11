@@ -15,7 +15,7 @@ and this project adheres to
 **Added NotebookLM MCP Server** to Claude Code configuration for direct API access
 to Google NotebookLM notebooks.
 
-- **Package**: `notebooklm-mcp@1.1.2`
+- **Package**: `notebooklm-mcp@latest`
 - **Configuration**: Added to `.mcp.json` with npx command
 - **Features**: Session support and human-like behavior for querying NotebookLM
 - **Integration**: Complements existing `.claude/skills/notebooklm` skill
