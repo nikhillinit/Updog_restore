@@ -9,7 +9,7 @@
     "notebooklm": {
       "command": "npx",
       "args": [
-        "notebooklm-mcp@latest"
+        "notebooklm-mcp@1.1.2"
       ]
     }
   }
