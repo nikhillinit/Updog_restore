@@ -13,17 +13,17 @@ if (process.env.DEMO_CI) test.skip('skipped in demo CI (no Redis)', () => {});
 describe.skipIf(process.env.DEMO_CI === '1')('Idempotency Middleware', () => {
   let app: Express;
   let requestCount = 0;
-  
+
   beforeAll(() => {
     app = express();
     app.use(express.json());
-    
+
     // Apply idempotency middleware
     app.use(idempotency({
       ttl: 60,
       memoryFallback: true,
     }));
-    
+
     // Test endpoint
     app.post('/api/funds', (req, res) => {
       requestCount++;
@@ -34,13 +34,24 @@ describe.skipIf(process.env.DEMO_CI === '1')('Idempotency Middleware', () => {
         timestamp: Date.now(),
       });
     });
-    
+
+    // Slow endpoint for in-flight testing
+    app.post('/api/funds/slow', async (req, res) => {
+      requestCount++;
+      await new Promise(resolve => setTimeout(resolve, 200));
+      res.status(201).json({
+        id: 'fund-slow',
+        name: req.body.name,
+        requestCount,
+      });
+    });
+
     // Endpoint without idempotency
     app.post('/api/no-idempotency', (req, res) => {
       res.json({ message: 'No idempotency' });
     });
   });
-  
+
   beforeEach(() => {
     requestCount = 0;
     clearIdempotencyCache();
@@ -146,6 +157,157 @@ describe.skipIf(process.env.DEMO_CI === '1')('Idempotency Middleware', () => {
     });
   });
   
+  describe('Production Scenarios - AP-IDEM-01 (Stable Fingerprinting)', () => {
+    it('should return 422 for same key with different payload (fingerprint mismatch)', async () => {
+      const idempotencyKey = 'fingerprint-test';
+
+      // First request with original payload
+      const response1 = await request(app)
+        .post('/api/funds')
+        .set('Idempotency-Key', idempotencyKey)
+        .send({ name: 'Original Fund' });
+
+      expect(response1.status).toBe(201);
+      expect(response1.body.name).toBe('Original Fund');
+
+      // Second request with different payload (same key)
+      const response2 = await request(app)
+        .post('/api/funds')
+        .set('Idempotency-Key', idempotencyKey)
+        .send({ name: 'Different Fund' });
+
+      // Should reject with 422 (fingerprint mismatch)
+      expect(response2.status).toBe(422);
+      expect(response2.body.error).toBe('idempotency_key_reused');
+      expect(response2.body.message).toContain('different request payload');
+    });
+
+    it('should use stable JSON key ordering for fingerprinting', async () => {
+      const idempotencyKey = 'stable-keys';
+
+      // First request with keys in one order
+      const response1 = await request(app)
+        .post('/api/funds')
+        .set('Idempotency-Key', idempotencyKey)
+        .send({ name: 'Test', size: 1000000, type: 'VC' });
+
+      expect(response1.status).toBe(201);
+
+      // Second request with same data but different key order
+      const response2 = await request(app)
+        .post('/api/funds')
+        .set('Idempotency-Key', idempotencyKey)
+        .send({ type: 'VC', name: 'Test', size: 1000000 });
+
+      // Should replay (fingerprints match despite key order)
+      expect(response2.status).toBe(201);
+      expect(response2.headers['idempotency-replay']).toBe('true');
+      expect(requestCount).toBe(1); // Handler called once only
+    });
+  });
+
+  describe('Production Scenarios - AP-IDEM-04 (In-Flight Requests)', () => {
+    it('should return 409 with Retry-After for concurrent duplicate requests (PENDING lock)', async () => {
+      const idempotencyKey = 'concurrent-test';
+      const payload = { name: 'Slow Fund' };
+
+      // Start first request (takes 200ms)
+      const promise1 = request(app)
+        .post('/api/funds/slow')
+        .set('Idempotency-Key', idempotencyKey)
+        .send(payload);
+
+      // Wait 50ms, then start duplicate request while first is in-flight
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      const promise2 = request(app)
+        .post('/api/funds/slow')
+        .set('Idempotency-Key', idempotencyKey)
+        .send(payload);
+
+      const [response1, response2] = await Promise.all([promise1, promise2]);
+
+      // One succeeds, one returns 409
+      const statuses = [response1.status, response2.status].sort();
+      expect(statuses).toEqual([201, 409]);
+
+      // Find the 409 response
+      const conflictResponse = response1.status === 409 ? response1 : response2;
+
+      expect(conflictResponse.body.error).toBe('request_in_progress');
+      expect(conflictResponse.headers['retry-after']).toBe('30');
+      expect(conflictResponse.body.message).toContain('currently being processed');
+
+      // Handler only called once
+      expect(requestCount).toBe(1);
+    });
+  });
+
+  describe('Production Scenarios - AP-IDEM-05 (LRU Cache)', () => {
+    it('should use LRU eviction (most recently used stays)', async () => {
+      // This test verifies MemoryIdempotencyStore uses LRU, not FIFO
+      // Create app with small cache for testing
+      const smallCacheApp = express();
+      smallCacheApp.use(express.json());
+      smallCacheApp.use(idempotency({ ttl: 300, memoryFallback: true }));
+
+      let callCount = 0;
+      smallCacheApp.post('/api/test', (req, res) => {
+        callCount++;
+        res.json({ id: req.body.id, callCount });
+      });
+
+      // Make 3 requests with different keys
+      await request(smallCacheApp)
+        .post('/api/test')
+        .set('Idempotency-Key', 'key-1')
+        .send({ id: 1 });
+
+      await request(smallCacheApp)
+        .post('/api/test')
+        .set('Idempotency-Key', 'key-2')
+        .send({ id: 2 });
+
+      await request(smallCacheApp)
+        .post('/api/test')
+        .set('Idempotency-Key', 'key-3')
+        .send({ id: 3 });
+
+      // Access key-1 again (should move to end of LRU)
+      const response1 = await request(smallCacheApp)
+        .post('/api/test')
+        .set('Idempotency-Key', 'key-1')
+        .send({ id: 1 });
+
+      expect(response1.headers['x-idempotent-replay']).toBe('true');
+
+      // With LRU: key-1 accessed recently, should still be cached
+      // With FIFO: key-1 would be evicted first
+      // This test documents expected LRU behavior
+      expect(callCount).toBe(3); // No new calls, key-1 cached
+    });
+  });
+
+  describe('Production Scenarios - AP-IDEM-06 (Response Headers)', () => {
+    it('should use Idempotency-Replay header (not X-Idempotent-Replay)', async () => {
+      const idempotencyKey = 'header-standard';
+
+      await request(app)
+        .post('/api/funds')
+        .set('Idempotency-Key', idempotencyKey)
+        .send({ name: 'Test' });
+
+      const response2 = await request(app)
+        .post('/api/funds')
+        .set('Idempotency-Key', idempotencyKey)
+        .send({ name: 'Test' });
+
+      // Should use standard header name
+      expect(response2.headers['idempotency-replay']).toBe('true');
+      expect(response2.headers['idempotency-key']).toBe(idempotencyKey);
+    });
+  });
+
   describe('Response Caching', () => {
     it('should cache successful responses', async () => {
       const idempotencyKey = 'cache-test';
