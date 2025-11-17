@@ -2,6 +2,48 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2025-11-14
+
+### Added
+
+- **Type Safety Infrastructure**: Created `shared/schemas/common.ts` with
+  reusable helper schemas for consistent type validation
+  - `DbVersionBigIntSchema` - Native bigint schema for optimistic locking
+    version fields
+  - `DbVersionSchema` - String-transport bigint schema for JSON safety
+  - `DbIdentifierSchema` - UUID validation for primary/foreign keys
+  - `DbIntegerIdSchema` - Integer IDs for auto-increment columns (fundId,
+    companyId, etc.)
+  - `BigIntCentsSchema` - Defensive financial value schema preventing precision
+    loss
+  - `DbTimestampMillisSchema` - Unix millisecond timestamp validation
+
+- **Pre-commit Hook Enhancement**: Added bigint type safety validation to
+  `.husky/pre-commit`
+  - Blocks commits with `version.*z.number()` patterns in schema files
+  - Warns about potential bigint fields using incorrect types
+  - Provides actionable error messages with helper schema references
+
+### Verified
+
+- **Phase 0-PRE Bigint Fix Validation** (commit `eafacb46` from 2025-11-10):
+  - Confirmed all version fields correctly use `z.bigint().min(1n)` in
+    `shared/schemas/portfolio-route.ts`
+  - Verified ID fields (fundId, companyId, investmentId) correctly use
+    `z.number().int()` matching database INTEGER columns
+  - Cross-referenced database schema: version columns are BIGINT, ID columns are
+    INTEGER
+  - No remaining number/bigint type mismatches found
+
+### Notes
+
+- Multi-AI consensus (Gemini + OpenAI) validated hybrid approach: audit +
+  automation
+- Evidence-based verification against PROJECT-UNDERSTANDING.md discovery
+  protocol
+- Helper schemas enable future consistency and prevent recurrence of type
+  mismatches
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
