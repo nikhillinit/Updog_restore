@@ -224,16 +224,45 @@ export class LotService {
   /**
    * Calculate cost basis from share price and shares acquired
    *
+   * Uses BigInt arithmetic to avoid precision loss with decimal numbers.
+   * The sharesAcquired string has up to 8 decimal places (precision 18, scale 8).
+   *
+   * Algorithm:
+   * 1. Split sharesAcquired into integer and fractional parts
+   * 2. Multiply integer part by sharePriceCents (exact BigInt math)
+   * 3. Multiply fractional part by sharePriceCents (scaled by 10^8)
+   * 4. Combine and round to nearest cent
+   *
    * @param sharePriceCents - Share price in cents
-   * @param sharesAcquired - Shares acquired (decimal string)
-   * @returns Cost basis in cents (rounded)
+   * @param sharesAcquired - Shares acquired (decimal string, max 8 decimals)
+   * @returns Cost basis in cents (rounded to nearest cent)
    */
   private calculateCostBasis(sharePriceCents: bigint, sharesAcquired: string): bigint {
-    // TODO: Implement calculation
-    // Formula: (sharePriceCents * parseFloat(sharesAcquired)) rounded to nearest cent
-    throw new Error(
-      `Not implemented: calculateCostBasis(${sharePriceCents}, ${sharesAcquired})`
-    );
+    // Split into integer and fractional parts
+    const [integerPart = '0', fractionalPart = '0'] = sharesAcquired.split('.');
+
+    // Convert integer part to BigInt and multiply
+    const integerShares = BigInt(integerPart);
+    const integerCostCents = sharePriceCents * integerShares;
+
+    // Handle fractional part (up to 8 decimal places)
+    // Pad fractional part to exactly 8 digits (e.g., "12345678" or "1" -> "10000000")
+    const paddedFractional = fractionalPart.padEnd(8, '0').slice(0, 8);
+    const fractionalShares = BigInt(paddedFractional);
+
+    // Calculate fractional cost: (sharePriceCents * fractionalShares) / 10^8
+    // This gives us the fractional cents, which we'll need to round
+    const fractionalCostScaled = sharePriceCents * fractionalShares;
+
+    // Divide by 10^8 to get fractional cents, rounding to nearest cent
+    // We add 5*10^7 before dividing to round to nearest (banker's rounding)
+    const SCALE = BigInt(100_000_000); // 10^8
+    const ROUNDING_FACTOR = SCALE / BigInt(2); // 5*10^7 for rounding
+
+    const fractionalCostCents = (fractionalCostScaled + ROUNDING_FACTOR) / SCALE;
+
+    // Combine integer and fractional costs
+    return integerCostCents + fractionalCostCents;
   }
 
   /**

@@ -23,7 +23,30 @@ interface IdempotentResponse {
   fingerprint?: string;
 }
 
-// In-memory fallback for when Redis is unavailable
+/**
+ * In-memory LRU cache for idempotent responses (fallback when Redis unavailable)
+ *
+ * Implementation Strategy:
+ * - Uses JavaScript Map's insertion-order guarantee (ES6+) for LRU tracking
+ * - get() moves accessed entries to end via delete + reinsert (most recently used position)
+ * - set() evicts from beginning when at capacity (least recently used position)
+ *
+ * LRU Mechanics:
+ * 1. Map maintains insertion order: first key = oldest, last key = newest
+ * 2. On cache hit (get): Delete entry and reinsert → moves to end (most recently used)
+ * 3. On eviction (set): Remove first key → evicts least recently used
+ *
+ * This is a manual LRU implementation without external dependencies.
+ * Performance: O(1) get/set operations, O(n) cleanup scan for TTL expiration.
+ *
+ * @example
+ * // Cache with maxSize=3
+ * store.set('A', data1, 300);  // Cache: [A]
+ * store.set('B', data2, 300);  // Cache: [A, B]
+ * store.set('C', data3, 300);  // Cache: [A, B, C] (at capacity)
+ * store.get('A');              // Cache: [B, C, A] (A moved to end)
+ * store.set('D', data4, 300);  // Cache: [C, A, D] (B evicted - least recently used)
+ */
 class MemoryIdempotencyStore {
   private store = new Map<string, { data: IdempotentResponse; expiry: number }>();
   private readonly maxSize = 1000;

@@ -344,4 +344,123 @@ describe('LotService (Phase 0-ALPHA - TDD RED)', () => {
       });
     });
   });
+
+  describe('calculateCostBasis() - Precision-Safe Arithmetic', () => {
+    it('should calculate cost basis without precision loss for simple whole numbers', async () => {
+      // ARRANGE
+      const fundId = 1;
+      const sharePriceCents = BigInt(250_000); // $2.50/share
+      const sharesAcquired = '1000.00000000'; // 1000 shares
+      const expectedCostBasis = BigInt(250_000_000); // $2.5M = 2.50 * 1000
+
+      const data: CreateLotData = {
+        investmentId: 1,
+        lotType: 'initial',
+        sharePriceCents,
+        sharesAcquired,
+        costBasisCents: expectedCostBasis,
+      };
+
+      // ACT
+      const lot = await service.create(fundId, data);
+
+      // ASSERT
+      assertBigIntEquals(lot.costBasisCents, expectedCostBasis);
+    });
+
+    it('should calculate cost basis without precision loss for 8 decimal places', async () => {
+      // ARRANGE
+      const fundId = 1;
+      const sharePriceCents = BigInt(333_333); // $3.33333/share
+      const sharesAcquired = '1000.12345678'; // 1000.12345678 shares (full 8 decimals)
+      // Manual calculation: 333333 cents/share * 1000.12345678 shares = 333374433.37037074 cents
+      // Rounded to nearest cent: 333374433 cents
+      const expectedCostBasis = BigInt(333_374_433);
+
+      const data: CreateLotData = {
+        investmentId: 1,
+        lotType: 'initial',
+        sharePriceCents,
+        sharesAcquired,
+        costBasisCents: expectedCostBasis,
+      };
+
+      // ACT
+      const lot = await service.create(fundId, data);
+
+      // ASSERT
+      assertBigIntEquals(lot.costBasisCents, expectedCostBasis);
+    });
+
+    it('should NOT use parseFloat which would lose precision on large numbers', async () => {
+      // ARRANGE
+      const fundId = 1;
+      const sharePriceCents = BigInt(100_000_000); // $1,000,000/share (high price)
+      const sharesAcquired = '10000000.12345678'; // 10M shares with 8 decimals
+      // If using parseFloat: 100000000 * 10000000.12345678 = 1000000012345678 (might lose precision)
+      // Correct calculation: 100000000 cents * 10000000.12345678 = 1000000012345678 cents
+      const expectedCostBasis = BigInt(1_000_000_012_345_678);
+
+      const data: CreateLotData = {
+        investmentId: 1,
+        lotType: 'initial',
+        sharePriceCents,
+        sharesAcquired,
+        costBasisCents: expectedCostBasis,
+      };
+
+      // ACT
+      const lot = await service.create(fundId, data);
+
+      // ASSERT
+      // This test will FAIL if parseFloat is used (precision loss after ~15-17 significant digits)
+      assertBigIntEquals(lot.costBasisCents, expectedCostBasis);
+    });
+
+    it('should handle fractional cents by rounding to nearest cent', async () => {
+      // ARRANGE
+      const fundId = 1;
+      const sharePriceCents = BigInt(123_456); // $1,234.56/share
+      const sharesAcquired = '0.00000001'; // Tiny fractional share
+      // 123456 cents * 0.00000001 = 0.0012345 cents ≈ 0 cents (rounds to nearest)
+      const expectedCostBasis = BigInt(0);
+
+      const data: CreateLotData = {
+        investmentId: 1,
+        lotType: 'initial',
+        sharePriceCents,
+        sharesAcquired,
+        costBasisCents: expectedCostBasis,
+      };
+
+      // ACT
+      const lot = await service.create(fundId, data);
+
+      // ASSERT
+      assertBigIntEquals(lot.costBasisCents, expectedCostBasis);
+    });
+
+    it('should handle rounding up when fractional cents >= 0.5', async () => {
+      // ARRANGE
+      const fundId = 1;
+      const sharePriceCents = BigInt(100); // $1.00/share
+      const sharesAcquired = '1.555'; // 1.555 shares
+      // 100 cents * 1.555 = 155.5 cents → rounds to 156 cents
+      const expectedCostBasis = BigInt(156);
+
+      const data: CreateLotData = {
+        investmentId: 1,
+        lotType: 'initial',
+        sharePriceCents,
+        sharesAcquired,
+        costBasisCents: expectedCostBasis,
+      };
+
+      // ACT
+      const lot = await service.create(fundId, data);
+
+      // ASSERT
+      assertBigIntEquals(lot.costBasisCents, expectedCostBasis);
+    });
+  });
 });

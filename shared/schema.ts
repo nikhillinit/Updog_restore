@@ -139,7 +139,7 @@ export const investmentLots = pgTable("investment_lots", {
 }, (table) => ({
   investmentLotTypeIdx: index("investment_lots_investment_lot_type_idx").on(table.investmentId, table.lotType),
   idempotencyUniqueIdx: uniqueIndex("investment_lots_investment_idem_key_idx").on(table.investmentId, table.idempotencyKey).where(sql`${table.idempotencyKey} IS NOT NULL`),
-  cursorIdx: index("investment_lots_cursor_idx").on(table.createdAt.desc(), table.id.desc()),
+  cursorIdx: index("investment_lots_investment_cursor_idx").on(table.investmentId, table.createdAt.desc(), table.id.desc()),
   lotTypeCheck: check("investment_lots_lot_type_check", sql`${table.lotType} IN ('initial', 'follow_on', 'secondary')`),
   idempotencyKeyLenCheck: check("investment_lots_idem_key_len_check", sql`${table.idempotencyKey} IS NULL OR (length(${table.idempotencyKey}) >= 1 AND length(${table.idempotencyKey}) <= 128)`),
 }));
@@ -173,7 +173,7 @@ export const forecastSnapshots = pgTable("forecast_snapshots", {
   fundTimeIdx: index("forecast_snapshots_fund_time_idx").on(table.fundId, table.snapshotTime.desc()),
   sourceHashIdx: index("forecast_snapshots_source_hash_idx").on(table.sourceHash),
   idempotencyUniqueIdx: uniqueIndex("forecast_snapshots_fund_idem_key_idx").on(table.fundId, table.idempotencyKey).where(sql`${table.idempotencyKey} IS NOT NULL`),
-  cursorIdx: index("forecast_snapshots_cursor_idx").on(table.snapshotTime.desc(), table.id.desc()),
+  cursorIdx: index("forecast_snapshots_fund_cursor_idx").on(table.fundId, table.snapshotTime.desc(), table.id.desc()),
   sourceHashUniqueIdx: uniqueIndex("forecast_snapshots_source_hash_unique_idx").on(table.sourceHash, table.fundId).where(sql`${table.sourceHash} IS NOT NULL`),
   statusCheck: check("forecast_snapshots_status_check", sql`${table.status} IN ('pending', 'calculating', 'complete', 'error')`),
   idempotencyKeyLenCheck: check("forecast_snapshots_idem_key_len_check", sql`${table.idempotencyKey} IS NULL OR (length(${table.idempotencyKey}) >= 1 AND length(${table.idempotencyKey}) <= 128)`),
@@ -205,7 +205,7 @@ export const reserveAllocations = pgTable("reserve_allocations", {
   companyIdx: index("reserve_allocations_company_idx").on(table.companyId),
   priorityIdx: index("reserve_allocations_priority_idx").on(table.snapshotId, table.priority),
   idempotencyUniqueIdx: uniqueIndex("reserve_allocations_snapshot_idem_key_idx").on(table.snapshotId, table.idempotencyKey).where(sql`${table.idempotencyKey} IS NOT NULL`),
-  cursorIdx: index("reserve_allocations_cursor_idx").on(table.createdAt.desc(), table.id.desc()),
+  cursorIdx: index("reserve_allocations_snapshot_cursor_idx").on(table.snapshotId, table.createdAt.desc(), table.id.desc()),
   idempotencyKeyLenCheck: check("reserve_allocations_idem_key_len_check", sql`${table.idempotencyKey} IS NULL OR (length(${table.idempotencyKey}) >= 1 AND length(${table.idempotencyKey}) <= 128)`),
 }));
 

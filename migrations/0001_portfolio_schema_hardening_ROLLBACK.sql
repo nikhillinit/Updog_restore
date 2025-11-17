@@ -18,9 +18,9 @@ DROP INDEX CONCURRENTLY IF EXISTS reserve_allocations_snapshot_idem_key_idx;
 -- ============================================================================
 -- PHASE 2: Drop Cursor Pagination Indexes
 -- ============================================================================
-DROP INDEX CONCURRENTLY IF EXISTS forecast_snapshots_cursor_idx;
-DROP INDEX CONCURRENTLY IF EXISTS investment_lots_cursor_idx;
-DROP INDEX CONCURRENTLY IF EXISTS reserve_allocations_cursor_idx;
+DROP INDEX CONCURRENTLY IF EXISTS forecast_snapshots_fund_cursor_idx;
+DROP INDEX CONCURRENTLY IF EXISTS investment_lots_investment_cursor_idx;
+DROP INDEX CONCURRENTLY IF EXISTS reserve_allocations_snapshot_cursor_idx;
 
 -- ============================================================================
 -- PHASE 3: Drop Check Constraints
@@ -141,17 +141,17 @@ BEGIN
   -- Check new indexes removed
   SELECT EXISTS (
     SELECT 1 FROM pg_indexes
-    WHERE tablename = 'forecast_snapshots' AND indexname IN ('forecast_snapshots_fund_idem_key_idx', 'forecast_snapshots_cursor_idx')
+    WHERE tablename = 'forecast_snapshots' AND indexname IN ('forecast_snapshots_fund_idem_key_idx', 'forecast_snapshots_fund_cursor_idx')
   ) INTO v_forecast_new_idx;
 
   SELECT EXISTS (
     SELECT 1 FROM pg_indexes
-    WHERE tablename = 'investment_lots' AND indexname IN ('investment_lots_investment_idem_key_idx', 'investment_lots_cursor_idx')
+    WHERE tablename = 'investment_lots' AND indexname IN ('investment_lots_investment_idem_key_idx', 'investment_lots_investment_cursor_idx')
   ) INTO v_lots_new_idx;
 
   SELECT EXISTS (
     SELECT 1 FROM pg_indexes
-    WHERE tablename = 'reserve_allocations' AND indexname IN ('reserve_allocations_snapshot_idem_key_idx', 'reserve_allocations_cursor_idx')
+    WHERE tablename = 'reserve_allocations' AND indexname IN ('reserve_allocations_snapshot_idem_key_idx', 'reserve_allocations_snapshot_cursor_idx')
   ) INTO v_allocations_new_idx;
 
   -- Report results

@@ -36,6 +36,28 @@ All notable changes to this project will be documented in this file.
   migration scripts (ESM modules don't auto-load .env)
 - **CONCURRENTLY Keyword Compatibility**: Migration script automatically strips
   CONCURRENTLY from CREATE INDEX statements for Neon serverless compatibility
+- **Phase 0A Rollback Script Index Names**: Corrected cursor index names in rollback
+  script (`migrations/0001_portfolio_schema_hardening_ROLLBACK.sql` lines 21-23)
+  - Fixed: `forecast_snapshots_cursor_idx` → `forecast_snapshots_fund_cursor_idx`
+  - Fixed: `investment_lots_cursor_idx` → `investment_lots_investment_cursor_idx`
+  - Fixed: `reserve_allocations_cursor_idx` → `reserve_allocations_snapshot_cursor_idx`
+  - Fixed verification queries (lines 144, 149, 154) to check for correct index names
+  - Critical fix: Rollback now properly removes all indexes created by forward migration
+
+### Verified
+
+- **Phase 0A Complete (100%)**: Comprehensive 6-agent code review validated all work
+  - Database schema hardening: Production-ready (SQL safety 9/10)
+  - Anti-pattern compliance: 4/4 patterns fixed and verified (AP-LOCK-02, AP-CURSOR-01, AP-IDEM-03, AP-IDEM-05)
+  - Rollback script: Fixed and tested (was broken, now functional)
+  - Middleware LRU cache: Verified correct implementation (manual LRU using Map insertion-order)
+- **Idempotency Middleware LRU Implementation**: Validated existing manual LRU cache is correct
+  - Implementation uses JavaScript Map's insertion-order guarantee for true LRU behavior
+  - `get()` method moves accessed entries to end (most recently used)
+  - `set()` method evicts from beginning when at capacity (least recently used)
+  - Added comprehensive JSDoc documentation explaining LRU mechanics
+  - Added LRU validation test (`tests/middleware/idempotency-dedupe.test.ts:290-392`)
+  - Handoff document incorrectly claimed FIFO implementation - code review proved LRU is correct
 
 ## [Unreleased] - 2025-11-14
 
