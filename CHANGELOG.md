@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2025-11-17
+
+### Added
+
+- **Phase 0A Database Schema Hardening**: Applied portfolio schema hardening
+  migration
+  - Version columns migrated from `integer` to `bigint` (overflow protection for
+    optimistic locking)
+  - Scoped idempotency indexes created (fund_id, investment_id, snapshot_id
+    scoping prevents cross-entity conflicts)
+  - Cursor pagination indexes added with compound
+    `(parent_id, timestamp DESC, id DESC)` pattern
+  - Idempotency key length constraints enforced (1-128 characters)
+  - All changes verified via automated PL/pgSQL validation block
+  - Migration scripts: `migrations/0001_create_portfolio_tables.sql` and
+    `migrations/0001_portfolio_schema_hardening.sql`
+  - Migration runner: `scripts/apply-migration.mjs` with Neon serverless support
+    and dotenv loading
+
+- **Migration Tooling**: Created production-ready database migration
+  infrastructure
+  - `scripts/apply-migration.mjs` - Programmatic migration runner with smart SQL
+    parsing
+  - `scripts/check-migration-status.mjs` - Post-migration validation script
+  - Neon serverless WebSocket support with automatic CONCURRENTLY keyword
+    handling
+  - Dotenv integration for seamless environment variable loading
+
+### Fixed
+
+- **Migration Script Environment Loading**: Added explicit `dotenv` import to
+  migration scripts (ESM modules don't auto-load .env)
+- **CONCURRENTLY Keyword Compatibility**: Migration script automatically strips
+  CONCURRENTLY from CREATE INDEX statements for Neon serverless compatibility
+
 ## [Unreleased] - 2025-11-14
 
 ### Added
