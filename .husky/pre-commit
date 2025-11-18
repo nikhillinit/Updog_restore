@@ -38,6 +38,7 @@ if [ -n "$SCHEMA_FILES" ]; then
   fi
 fi
 
+
 npx lint-staged
 
 # Optional: AI code review (set AI_REVIEW_ENABLED=1 to enable)

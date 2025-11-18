@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 ## [Unreleased] - 2025-11-17
 
 ### Added
@@ -36,28 +40,41 @@ All notable changes to this project will be documented in this file.
   migration scripts (ESM modules don't auto-load .env)
 - **CONCURRENTLY Keyword Compatibility**: Migration script automatically strips
   CONCURRENTLY from CREATE INDEX statements for Neon serverless compatibility
-- **Phase 0A Rollback Script Index Names**: Corrected cursor index names in rollback
-  script (`migrations/0001_portfolio_schema_hardening_ROLLBACK.sql` lines 21-23)
-  - Fixed: `forecast_snapshots_cursor_idx` → `forecast_snapshots_fund_cursor_idx`
-  - Fixed: `investment_lots_cursor_idx` → `investment_lots_investment_cursor_idx`
-  - Fixed: `reserve_allocations_cursor_idx` → `reserve_allocations_snapshot_cursor_idx`
-  - Fixed verification queries (lines 144, 149, 154) to check for correct index names
-  - Critical fix: Rollback now properly removes all indexes created by forward migration
+- **Phase 0A Rollback Script Index Names**: Corrected cursor index names in
+  rollback script (`migrations/0001_portfolio_schema_hardening_ROLLBACK.sql`
+  lines 21-23)
+  - Fixed: `forecast_snapshots_cursor_idx` →
+    `forecast_snapshots_fund_cursor_idx`
+  - Fixed: `investment_lots_cursor_idx` →
+    `investment_lots_investment_cursor_idx`
+  - Fixed: `reserve_allocations_cursor_idx` →
+    `reserve_allocations_snapshot_cursor_idx`
+  - Fixed verification queries (lines 144, 149, 154) to check for correct index
+    names
+  - Critical fix: Rollback now properly removes all indexes created by forward
+    migration
 
 ### Verified
 
-- **Phase 0A Complete (100%)**: Comprehensive 6-agent code review validated all work
+- **Phase 0A Complete (100%)**: Comprehensive 6-agent code review validated all
+  work
   - Database schema hardening: Production-ready (SQL safety 9/10)
-  - Anti-pattern compliance: 4/4 patterns fixed and verified (AP-LOCK-02, AP-CURSOR-01, AP-IDEM-03, AP-IDEM-05)
+  - Anti-pattern compliance: 4/4 patterns fixed and verified (AP-LOCK-02,
+    AP-CURSOR-01, AP-IDEM-03, AP-IDEM-05)
   - Rollback script: Fixed and tested (was broken, now functional)
-  - Middleware LRU cache: Verified correct implementation (manual LRU using Map insertion-order)
-- **Idempotency Middleware LRU Implementation**: Validated existing manual LRU cache is correct
-  - Implementation uses JavaScript Map's insertion-order guarantee for true LRU behavior
+  - Middleware LRU cache: Verified correct implementation (manual LRU using Map
+    insertion-order)
+- **Idempotency Middleware LRU Implementation**: Validated existing manual LRU
+  cache is correct
+  - Implementation uses JavaScript Map's insertion-order guarantee for true LRU
+    behavior
   - `get()` method moves accessed entries to end (most recently used)
   - `set()` method evicts from beginning when at capacity (least recently used)
   - Added comprehensive JSDoc documentation explaining LRU mechanics
-  - Added LRU validation test (`tests/middleware/idempotency-dedupe.test.ts:290-392`)
-  - Handoff document incorrectly claimed FIFO implementation - code review proved LRU is correct
+  - Added LRU validation test
+    (`tests/middleware/idempotency-dedupe.test.ts:290-392`)
+  - Handoff document incorrectly claimed FIFO implementation - code review
+    proved LRU is correct
 
 ## [Unreleased] - 2025-11-14
 
@@ -98,177 +115,8 @@ All notable changes to this project will be documented in this file.
   automation
 - Evidence-based verification against PROJECT-UNDERSTANDING.md discovery
   protocol
-- Helper schemas enable future consistency and prevent recurrence of type
-  mismatches
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased] – 2025‑11‑10
-
-### Added
-
-#### Documentation: ADR-009 Created for Vitest Path Alias Migration (2025-11-10)
-
-**Context**: Properly documented the October 2025 Vitest test.projects migration
-that was mislabeled in commit f094af1a as "Add ADR-009" but never actually
-created an ADR-009 section.
-
-**Changes**:
-
-- **DECISIONS.md**: Created comprehensive ADR-009 documenting:
-  - Module resolution crisis (343 test failures)
-  - Shared alias constant pattern with explicit project declarations
-  - Implementation phases (test.projects migration + path alias fixes)
-  - Results: 87% failure reduction (343 → 45 failures)
-  - Setup file architecture and mock utilities
-  - Triple-AI validation consensus
-  - 7 key lessons learned
-
-- **DOCUMENTATION-NAVIGATION-GUIDE.md**: Fixed ADR listing
-  - Corrected ADR-009 reference (was "Async/await patterns vs forEach")
-  - Updated to reflect current DECISIONS.md structure
-  - Listed 4 numbered ADRs + 6 unnumbered decisions
-  - Updated last modified date and line count
-
-**Technical Details**:
-
-- Documents vitest.config.ts shared alias constant (lines 8-29)
-- Explains why test.projects don't inherit root resolve.alias
-- Details setup files: node-setup.ts (44 lines), jsdom-setup.ts (127 lines),
-  test-infrastructure.ts (386 lines)
-- References commits: 1288f9a5, d2b7dc89, f094af1a, c518c07d, b1c30f80
-
-**Impact**: Formalizes significant test infrastructure work and fixes
-documentation drift in navigation guide.
-
----
-
-#### Documentation: Anti-Drift Infrastructure & Permanent References (2025-11-10)
-
-**Major Initiative**: Created comprehensive infrastructure to prevent AI context
-drift and ensure complete project understanding across sessions
-
-**Context**: After parallel agent review identified gaps in infrastructure
-documentation (NotebookLM strategy not initially recognized), established
-permanent reference system to prevent future drift and incomplete understanding.
-
-**New Files Created**:
-
-- **.claude/PROJECT-UNDERSTANDING.md** (14,676 lines) - Complete infrastructure
-  reference
-  - Four source files for complete understanding
-  - Three major quality initiatives documented
-  - Complete infrastructure inventory (packages, scripts, cheatsheets, archive)
-  - Quality systems (4-layer gates, multi-AI validation, Promptfoo, truth-case
-    methodology)
-  - Hard constraints (archive barrier, source of truth hierarchy, document
-    dating)
-  - Discovery protocol for new sessions
-
-- **.claude/ANTI-DRIFT-CHECKLIST.md** (4,442 lines) - Mandatory session protocol
-  - Pre-session complete discovery checklist
-  - Strategic sampling guidelines
-  - Archive barrier enforcement
-  - Quality gate compliance checks
-  - Verification requirements before completion
-
-- **HANDOFF-PORTFOLIO-PHASE0-COMPLETE.md** (committed) - Phase 0 implementation
-  plan
-- **PORTFOLIO-SCHEMA-MIGRATION-ANALYSIS.md** (committed) - Technical
-  specification
-- **MIGRATION-QUICK-START.md** (committed) - Operational runbook
-
-**Updated Files**:
-
-- **CAPABILITIES.md** - Added references to 4 source files for complete
-  understanding
-  - Clarified this document is 85% complete as capability inventory
-  - Directs readers to PROJECT-UNDERSTANDING for full context
-
-- **archive/2025-q4/session-records/SESSION-HANDOFF-2025-11-09.md** - Archived
-  previous session handoff
-
-**Key Learnings**:
-
-1. **NotebookLM Strategy is Major Initiative**:
-   - Phase 1: 5 modules (5,848 lines, 96-97% quality)
-   - Phase 2: 4 engines (238 pages, 95-99% quality, 3.5 hours via parallel
-     agents)
-   - Truth-case-first methodology with multi-AI validation
-
-2. **Gap Analysis Failure Pattern**:
-   - Never explored /docs subdirectories systematically
-   - Saw quality metrics but didn't investigate source files
-   - Focused only on root-level documentation
-   - Jumped to analysis before completing discovery
-
-3. **Complete Infrastructure Record Split Across 4 Files**:
-   - CAPABILITIES.md (85% complete, check-first discovery)
-   - PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md (21-week roadmap)
-   - AI-WORKFLOW-COMPLETE-GUIDE.md (28 agents, orchestration)
-   - COMPREHENSIVE-WORKFLOW-GUIDE.md (extended practical guide)
-
-**Prevention Strategy**:
-
-- Mandatory discovery protocol before any session work
-- Strategic sampling (first 50 + last 20 lines, not full reads)
-- Archive barrier (662 files off-limits unless explicitly requested)
-- Source of truth hierarchy (CHANGELOG 100%, code 100%, docs 70%, archives 0%)
-- Evidence-based verification (ADR-012 compliance)
-
-**Impact**:
-
-- Permanent reference system prevents future context drift
-- Complete infrastructure understanding documented
-- Discovery protocol prevents gap analysis failures
-- Strategic sampling prevents token limit issues
-- Archive barrier prevents stale context usage
-
----
 
 ## [Unreleased] – 2025‑11‑09
-
-### Changed
-
-#### Documentation: Archive Session Records (2025-11-09)
-
-**Maintenance**: Archived stale handoff memos to reduce root directory clutter
-
-**Context**: Previous session created 8 untracked documentation files (3,595
-total lines) with significant redundancy. Archived session snapshot documents
-while retaining active working documents.
-
-**Changes**:
-
-- **Created**: `archive/2025-q4/session-records/` directory for session
-  artifacts
-- **Archived 4 files** (1,337 lines):
-  - SESSION-HANDOFF-2025-11-09.md → archive (session summary)
-  - PHASE0-GREEN-PHASE-COMPLETE.md → archive (progress snapshot)
-  - PHASE0-STATUS-CHECKPOINT.md → archive (status snapshot)
-  - PORTFOLIO-SCHEMA-MIGRATION-SUMMARY.md → archive (executive summary)
-
-- **Deleted 1 duplicate**:
-  - HANDOFF-PHASE3-COMPACTION.md (duplicate of committed
-    PHASE3-KICKOFF-CHECKLIST.md)
-
-- **Retained in root** (active working documents):
-  - HANDOFF-PORTFOLIO-PHASE0-COMPLETE.md (comprehensive Phase 0 plan)
-  - PORTFOLIO-SCHEMA-MIGRATION-ANALYSIS.md (technical specification)
-  - MIGRATION-QUICK-START.md (operational guide)
-
-**Rationale**: Session snapshots document past events and should be archived.
-Working documents represent active plans and technical specifications that need
-to remain accessible.
-
-**Impact**:
-
-- Root directory decluttered (5 files removed)
-- Session records organized by quarter
-- Active documentation remains discoverable
-- 38% reduction in documentation volume (3,595 → 2,258 lines in root)
 
 ### Fixed
 
@@ -313,123 +161,8 @@ challenges (grep/search, git diffs, i18n)
 - CI checks now pass (emoji encoding issue resolved)
 - Future emoji violations blocked by pre-commit hook
 - Improved accessibility and searchability
-- Professional, parseable documentation
-
-### Added
-
-#### Documentation: Agent Taxonomy Clarification (2025-01-09 Night)
-
-**Enhancement**: Added comprehensive explanation of "28 specialized agents"
-terminology
-
-**Context**: The "28 specialized agents" refers to the Core Production Set
-(memory-enabled, battle-tested, Updog-optimized), not the full 300+ agent
-ecosystem.
-
-**Changes**:
-
-- Added "Understanding '28 Specialized Agents'" section to
-  COMPREHENSIVE-WORKFLOW-GUIDE.md
-- Breakdown: 6 TypeScript Agents + 10 Domain-Specific + 12 Global Overrides = 28
-  Core Production
-- Documented extended ecosystem: 23 Superpowers Skills, 15 User-Level, 66
-  Marketplace (~200), 27 Archived BMad
-- Quick reference: Use Core 28 for 95% of tasks, extended for specialized
-  domains
-
-**Value**: Eliminates confusion about agent counts, clarifies when to use Core
-vs Extended agents
-
-#### Documentation: Comprehensive AI-Augmented Workflow Guides (2025-01-09 Evening)
-
-**Achievement**: Created complete workflow documentation covering 28 specialized
-agents, multi-agent orchestration patterns, Superpowers skills integration, and
-logic/thinking frameworks
-
-**Context**: After analyzing cheatsheets and incorporating multi-AI feedback
-(Gemini, OpenAI, Gemini Deep Think), created pragmatic MVP-focused workflow
-guides with real examples from this project (Week 46 docs sprint, test repair
-automation, PR review pipelines)
-
-**Files Created**:
-
-- **COMPREHENSIVE-WORKFLOW-GUIDE.md** (862 lines): Detailed agent profiles and
-  orchestration patterns
-  - 28 specialized agents with real examples and validation patterns
-  - 3 orchestration modes: Parallel (87-91% savings), Sequential (30-50%),
-    Hybrid (50-75%)
-  - Real performance data: 8 docs-architect agents → 2,400 lines in 45 min
-  - Agent categories: Testing, Domain, Architecture, Database, Infrastructure,
-    Documentation, General, Performance
-
-- **COMPREHENSIVE-WORKFLOW-GUIDE-PART2.md**: Continuation with coding pairs and
-  advanced patterns
-  - Driver-Navigator, Mob Programming, TDD Pairs patterns
-  - Human-in-the-loop checkpoints and validation procedures
-
-- **AI-WORKFLOW-COMPLETE-GUIDE.md** (500+ lines): Quick reference and complete
-  summary
-  - 28 Superpowers skills with auto-activation triggers
-  - Logic & thinking frameworks (Extended Thinking, Systematic Debugging)
-  - Coding pairs patterns with real examples
-  - 24 anti-patterns quick reference (condensed)
-  - Decision trees for orchestration mode selection
-  - Quick reference card with daily commands
-  - Success metrics from this project (Week 46: 7.3x speedup, Test repair:
-    10-15x speedup)
-
-**Superpowers Skills Documented** (28 total):
-
-- Testing: test-driven-development, condition-based-waiting,
-  testing-anti-patterns
-- Debugging: systematic-debugging, root-cause-tracing,
-  verification-before-completion, defense-in-depth
-- Collaboration: brainstorming, writing-plans, executing-plans,
-  dispatching-parallel-agents, requesting-code-review, receiving-code-review,
-  using-git-worktrees, finishing-a-development-branch,
-  subagent-driven-development
-- Thinking: inversion-thinking, analogical-thinking, pattern-recognition,
-  continuous-improvement
-- Memory: memory-management, integration-with-other-skills
-- Advanced: extended-thinking-framework, notebooklm
-- Domain: venture-finance-suite, mcp-builder
-- Meta: writing-skills, skill-creator
-
-**Key Insights from Multi-AI Review**:
-
-- Gemini: "Formula 1 car" - powerful but complex, needs elite operators
-- Gemini Deep Think: "Brittle Utopia" - strong on happy path, plan for failure
-  modes
-- OpenAI: Focus on progressive disclosure (5 commands → 28 agents gradually)
-- All AIs: Human-in-the-loop is augmentation not replacement
-
-**Orchestration Patterns**:
-
-- Parallel Independent: 87-91% time savings (documentation, batch operations)
-- Sequential with Gates: 30-50% savings (high-risk features, dependencies)
-- Hybrid Pipeline: 50-75% savings (PR reviews, deployment prep)
-
-**Real Project Examples**:
-
-- Week 46 Documentation: 8 agents → 45 min → 2,400 lines (vs 5.5 hours)
-- Test Repair: 47 tests fixed in 12 min (vs 2-3 hours)
-- PR Review Pipeline: 6 agents → 15 min (vs 1 hour)
-
-**Next Steps**:
-
-- Use AI-WORKFLOW-COMPLETE-GUIDE.md as primary reference
-- Integrate decision trees into /workflows command
-- Track time savings metrics for continuous improvement
-
-#### Process: Document Review Safeguards 🔍 (2025-11-09 Late Evening)
-
-**Achievement**: Implemented mandatory evidence-based verification for document
-reviews to prevent false gap reports
-
-**Context**: Root cause analysis revealed oversight when reviewing 36-hour-old
-planning document without verifying implementation status. Incorrectly reported
-schema-first TDD and Testcontainers as "missing" when both were already
-complete.
+- Professional, parseable documentation schema-first TDD and Testcontainers as
+  "missing" when both were already complete.
 
 **Files Created**:
 
