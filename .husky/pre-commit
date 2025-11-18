@@ -20,6 +20,25 @@ if [ -n "$EMOJI_FILES" ]; then
   fi
 fi
 
+# Check for bigint type safety in Zod schemas
+echo "[CHECK] Validating bigint type safety..."
+SCHEMA_FILES=$(git diff --cached --name-only | grep -E 'shared/schemas/.*\.ts$' || true)
+if [ -n "$SCHEMA_FILES" ]; then
+  if echo "$SCHEMA_FILES" | xargs grep -n 'version.*z\.number()' 2>/dev/null; then
+    echo "[FAIL] Version fields must use z.bigint() or z.string(), not z.number()"
+    echo "Database uses BIGINT for version columns to prevent precision loss."
+    echo "Use helper schemas from shared/schemas/common.ts:"
+    echo "  - DbVersionBigIntSchema (for native bigint)"
+    echo "  - DbVersionSchema (for string transport)"
+    exit 1
+  fi
+  # Check for common bigint field patterns
+  if echo "$SCHEMA_FILES" | xargs grep -n -E '(.*_id|.*Id).*z\.number\(\)\.int\(\).*positive\(\)' 2>/dev/null | grep -v -E '(fundId|companyId|investmentId|userId)'; then
+    echo "[WARN] Potential bigint field using z.number() - verify database column type is INTEGER, not BIGINT"
+  fi
+fi
+
+
 npx lint-staged
 
 # Optional: AI code review (set AI_REVIEW_ENABLED=1 to enable)

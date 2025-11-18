@@ -330,6 +330,6 @@ But still prefer ASCII: `->`, `[x]`, `[ ]` for maximum compatibility.
 
 ---
 
-**Last Updated:** 2025-01-09
+**Last Updated:** 2025-11-09
 **Policy Status:** Enforced via pre-commit hook
 **Questions?** See CLAUDE.md or ask in team chat

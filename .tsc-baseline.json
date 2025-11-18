@@ -61,7 +61,7 @@
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
       "total": 56,
-      "lastUpdated": "2025-11-06T19:50:41.308Z"
+      "lastUpdated": "2025-11-17T21:53:28.004Z"
     },
     "server": {
       "errors": [
@@ -168,7 +168,6 @@
         "server/middleware/idempotency.ts:TS2345:912b4dd3",
         "server/middleware/idempotency.ts:TS2379:9b893c2d",
         "server/middleware/idempotency.ts:TS2379:af77466b",
-        "server/middleware/idempotency.ts:TS2379:c2efd379",
         "server/middleware/idempotency.ts:TS4111:09555b61",
         "server/middleware/idempotency.ts:TS4111:46746513",
         "server/middleware/idempotency.ts:TS4111:da223a2b",
@@ -459,22 +458,26 @@
         "server/websocket/dev-dashboard.ts:TS2345:ed62011f",
         "server/websocket/dev-dashboard.ts:TS2532:de791f79"
       ],
-      "total": 393,
-      "lastUpdated": "2025-11-06T19:50:41.308Z"
+      "total": 392,
+      "lastUpdated": "2025-11-17T21:53:28.004Z"
     },
     "shared": {
-      "errors": ["shared/variance-validation.ts:TS4111:236f2efb"],
+      "errors": [
+        "shared/variance-validation.ts:TS4111:236f2efb"
+      ],
       "total": 1,
-      "lastUpdated": "2025-11-06T19:50:41.308Z"
+      "lastUpdated": "2025-11-17T21:53:28.004Z"
     },
     "unknown": {
-      "errors": ["vite.config.ts:TS7006:118fabe7"],
+      "errors": [
+        "vite.config.ts:TS7006:118fabe7"
+      ],
       "total": 1,
-      "lastUpdated": "2025-11-06T19:50:41.308Z"
+      "lastUpdated": "2025-11-17T21:53:28.004Z"
     }
   },
-  "totalErrors": 451,
-  "timestamp": "2025-11-06T19:50:41.308Z",
+  "totalErrors": 450,
+  "timestamp": "2025-11-17T21:53:28.004Z",
   "buildMode": "per-project",
-  "elapsedMs": 37573
+  "elapsedMs": 35640
 }

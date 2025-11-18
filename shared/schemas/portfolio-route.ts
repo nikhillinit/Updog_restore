@@ -73,7 +73,7 @@ export const InvestmentLotV1Schema = z.object({
     .describe('Shares acquired (decimal as string, precision 18, scale 8)'),
   costBasisCents: BigIntCentsSchema.describe('Total cost basis in cents (BigInt)'),
 
-  version: z.number().int().min(1).describe('Optimistic locking version'),
+  version: z.bigint().min(1n).describe('Optimistic locking version'),
   idempotencyKey: z
     .string()
     .uuid()
@@ -105,7 +105,7 @@ export const ForecastSnapshotV1Schema = z.object({
   metricsState: z.record(z.unknown()).nullable().describe('Performance metrics state (JSONB)'),
 
   snapshotTime: z.coerce.date().describe('When snapshot was captured'),
-  version: z.number().int().min(1).describe('Optimistic locking version'),
+  version: z.bigint().min(1n).describe('Optimistic locking version'),
   idempotencyKey: z
     .string()
     .uuid()
@@ -137,7 +137,7 @@ export const ReserveAllocationV1Schema = z.object({
   priority: z.number().int().nullable().describe('Allocation priority rank'),
   rationale: z.string().nullable().describe('Explanation for allocation decision'),
 
-  version: z.number().int().min(1).describe('Optimistic locking version'),
+  version: z.bigint().min(1n).describe('Optimistic locking version'),
   idempotencyKey: z
     .string()
     .uuid()
@@ -348,7 +348,7 @@ export const UpdateSnapshotRequestSchema = z
       .record(z.unknown())
       .optional()
       .describe('Updated calculated metrics (JSONB)'),
-    version: z.number().int().min(1).describe('Expected version for optimistic locking (required)'),
+    version: z.bigint().min(1n).describe('Expected version for optimistic locking (required)'),
   })
   .strict();
 export type UpdateSnapshotRequest = z.infer<typeof UpdateSnapshotRequestSchema>;

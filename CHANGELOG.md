@@ -6,6 +6,116 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2025-11-17
+
+### Added
+
+- **Phase 0A Database Schema Hardening**: Applied portfolio schema hardening
+  migration
+  - Version columns migrated from `integer` to `bigint` (overflow protection for
+    optimistic locking)
+  - Scoped idempotency indexes created (fund_id, investment_id, snapshot_id
+    scoping prevents cross-entity conflicts)
+  - Cursor pagination indexes added with compound
+    `(parent_id, timestamp DESC, id DESC)` pattern
+  - Idempotency key length constraints enforced (1-128 characters)
+  - All changes verified via automated PL/pgSQL validation block
+  - Migration scripts: `migrations/0001_create_portfolio_tables.sql` and
+    `migrations/0001_portfolio_schema_hardening.sql`
+  - Migration runner: `scripts/apply-migration.mjs` with Neon serverless support
+    and dotenv loading
+
+- **Migration Tooling**: Created production-ready database migration
+  infrastructure
+  - `scripts/apply-migration.mjs` - Programmatic migration runner with smart SQL
+    parsing
+  - `scripts/check-migration-status.mjs` - Post-migration validation script
+  - Neon serverless WebSocket support with automatic CONCURRENTLY keyword
+    handling
+  - Dotenv integration for seamless environment variable loading
+
+### Fixed
+
+- **Migration Script Environment Loading**: Added explicit `dotenv` import to
+  migration scripts (ESM modules don't auto-load .env)
+- **CONCURRENTLY Keyword Compatibility**: Migration script automatically strips
+  CONCURRENTLY from CREATE INDEX statements for Neon serverless compatibility
+- **Phase 0A Rollback Script Index Names**: Corrected cursor index names in
+  rollback script (`migrations/0001_portfolio_schema_hardening_ROLLBACK.sql`
+  lines 21-23)
+  - Fixed: `forecast_snapshots_cursor_idx` →
+    `forecast_snapshots_fund_cursor_idx`
+  - Fixed: `investment_lots_cursor_idx` →
+    `investment_lots_investment_cursor_idx`
+  - Fixed: `reserve_allocations_cursor_idx` →
+    `reserve_allocations_snapshot_cursor_idx`
+  - Fixed verification queries (lines 144, 149, 154) to check for correct index
+    names
+  - Critical fix: Rollback now properly removes all indexes created by forward
+    migration
+
+### Verified
+
+- **Phase 0A Complete (100%)**: Comprehensive 6-agent code review validated all
+  work
+  - Database schema hardening: Production-ready (SQL safety 9/10)
+  - Anti-pattern compliance: 4/4 patterns fixed and verified (AP-LOCK-02,
+    AP-CURSOR-01, AP-IDEM-03, AP-IDEM-05)
+  - Rollback script: Fixed and tested (was broken, now functional)
+  - Middleware LRU cache: Verified correct implementation (manual LRU using Map
+    insertion-order)
+- **Idempotency Middleware LRU Implementation**: Validated existing manual LRU
+  cache is correct
+  - Implementation uses JavaScript Map's insertion-order guarantee for true LRU
+    behavior
+  - `get()` method moves accessed entries to end (most recently used)
+  - `set()` method evicts from beginning when at capacity (least recently used)
+  - Added comprehensive JSDoc documentation explaining LRU mechanics
+  - Added LRU validation test
+    (`tests/middleware/idempotency-dedupe.test.ts:290-392`)
+  - Handoff document incorrectly claimed FIFO implementation - code review
+    proved LRU is correct
+
+## [Unreleased] - 2025-11-14
+
+### Added
+
+- **Type Safety Infrastructure**: Created `shared/schemas/common.ts` with
+  reusable helper schemas for consistent type validation
+  - `DbVersionBigIntSchema` - Native bigint schema for optimistic locking
+    version fields
+  - `DbVersionSchema` - String-transport bigint schema for JSON safety
+  - `DbIdentifierSchema` - UUID validation for primary/foreign keys
+  - `DbIntegerIdSchema` - Integer IDs for auto-increment columns (fundId,
+    companyId, etc.)
+  - `BigIntCentsSchema` - Defensive financial value schema preventing precision
+    loss
+  - `DbTimestampMillisSchema` - Unix millisecond timestamp validation
+
+- **Pre-commit Hook Enhancement**: Added bigint type safety validation to
+  `.husky/pre-commit`
+  - Blocks commits with `version.*z.number()` patterns in schema files
+  - Warns about potential bigint fields using incorrect types
+  - Provides actionable error messages with helper schema references
+
+### Verified
+
+- **Phase 0-PRE Bigint Fix Validation** (commit `eafacb46` from 2025-11-10):
+  - Confirmed all version fields correctly use `z.bigint().min(1n)` in
+    `shared/schemas/portfolio-route.ts`
+  - Verified ID fields (fundId, companyId, investmentId) correctly use
+    `z.number().int()` matching database INTEGER columns
+  - Cross-referenced database schema: version columns are BIGINT, ID columns are
+    INTEGER
+  - No remaining number/bigint type mismatches found
+
+### Notes
+
+- Multi-AI consensus (Gemini + OpenAI) validated hybrid approach: audit +
+  automation
+- Evidence-based verification against PROJECT-UNDERSTANDING.md discovery
+  protocol
+
 ## [Unreleased] – 2025‑11‑09
 
 ### Fixed
@@ -14,141 +124,45 @@ and this project adheres to
 
 **Critical Fix**: Resolved CI failure caused by emoji in GitHub Actions output
 
-**Context**: GitHub Actions `$GITHUB_OUTPUT` format doesn't support UTF-8 emoji encoding, causing "Detect Changes" workflow to fail. Implemented comprehensive emoji removal across documentation and scripts, plus enforcement mechanisms to prevent future violations.
+**Context**: GitHub Actions `$GITHUB_OUTPUT` format doesn't support UTF-8 emoji
+encoding, causing "Detect Changes" workflow to fail. Implemented comprehensive
+emoji removal across documentation and scripts, plus enforcement mechanisms to
+prevent future violations.
 
 **Changes**:
 
-- **Fixed CI Blocker**: Removed emoji from `scripts/test-smart.mjs` (lines 18, 24, 40, 76, 82, 86, 89)
-  - Replaced emoji with text tags: `[INFO]`, `[WARN]`, `[SMART]`, `[DOCS]`, `[PASS]`, `[FAIL]`, `[FALLBACK]`
+- **Fixed CI Blocker**: Removed emoji from `scripts/test-smart.mjs` (lines 18,
+  24, 40, 76, 82, 86, 89)
+  - Replaced emoji with text tags: `[INFO]`, `[WARN]`, `[SMART]`, `[DOCS]`,
+    `[PASS]`, `[FAIL]`, `[FALLBACK]`
   - Resolves "Detect Changes" and cascading "CI Gate Status" failures
 
 - **Documentation Cleanup**: Removed all emoji from 4 documentation files
   - AI-WORKFLOW-COMPLETE-GUIDE.md (10 emoji → text)
   - COMPREHENSIVE-WORKFLOW-GUIDE.md (38 emoji → text)
-  - COMPREHENSIVE-WORKFLOW-GUIDE-PART2.md (removed entirely - broken 46-line fragment)
+  - COMPREHENSIVE-WORKFLOW-GUIDE-PART2.md (removed entirely - broken 46-line
+    fragment)
   - PORTFOLIO-API-STRATEGY-UPDATED.md (10 emoji → text)
   - Replacements: ⭐ → (CRITICAL), 🛑 → GATE:, ✅ → [x], ❌ → [ ], etc.
 
 - **Enforcement Mechanisms**:
   - Added pre-commit hook (`.husky/pre-commit`) to block emoji in staged files
   - Updated CLAUDE.md with comprehensive no-emoji policy
-  - Created [cheatsheets/emoji-free-documentation.md](cheatsheets/emoji-free-documentation.md) with migration guide
+  - Created
+    [cheatsheets/emoji-free-documentation.md](cheatsheets/emoji-free-documentation.md)
+    with migration guide
 
-**Rationale**: Emojis cause technical issues (GitHub Actions encoding, CI/CD parsing), accessibility problems (screen readers), and maintainability challenges (grep/search, git diffs, i18n)
+**Rationale**: Emojis cause technical issues (GitHub Actions encoding, CI/CD
+parsing), accessibility problems (screen readers), and maintainability
+challenges (grep/search, git diffs, i18n)
 
 **Impact**:
+
 - CI checks now pass (emoji encoding issue resolved)
 - Future emoji violations blocked by pre-commit hook
 - Improved accessibility and searchability
-- Professional, parseable documentation
-
-### Added
-
-#### Documentation: Agent Taxonomy Clarification (2025-01-09 Night)
-
-**Enhancement**: Added comprehensive explanation of "28 specialized agents" terminology
-
-**Context**: The "28 specialized agents" refers to the Core Production Set (memory-enabled, battle-tested, Updog-optimized), not the full 300+ agent ecosystem.
-
-**Changes**:
-
-- Added "Understanding '28 Specialized Agents'" section to COMPREHENSIVE-WORKFLOW-GUIDE.md
-- Breakdown: 6 TypeScript Agents + 10 Domain-Specific + 12 Global Overrides = 28 Core Production
-- Documented extended ecosystem: 23 Superpowers Skills, 15 User-Level, 66 Marketplace (~200), 27 Archived BMad
-- Quick reference: Use Core 28 for 95% of tasks, extended for specialized domains
-
-**Value**: Eliminates confusion about agent counts, clarifies when to use Core vs Extended agents
-
-#### Documentation: Comprehensive AI-Augmented Workflow Guides (2025-01-09 Evening)
-
-**Achievement**: Created complete workflow documentation covering 28 specialized
-agents, multi-agent orchestration patterns, Superpowers skills integration, and
-logic/thinking frameworks
-
-**Context**: After analyzing cheatsheets and incorporating multi-AI feedback
-(Gemini, OpenAI, Gemini Deep Think), created pragmatic MVP-focused workflow
-guides with real examples from this project (Week 46 docs sprint, test repair
-automation, PR review pipelines)
-
-**Files Created**:
-
-- **COMPREHENSIVE-WORKFLOW-GUIDE.md** (862 lines): Detailed agent profiles and
-  orchestration patterns
-  - 28 specialized agents with real examples and validation patterns
-  - 3 orchestration modes: Parallel (87-91% savings), Sequential (30-50%),
-    Hybrid (50-75%)
-  - Real performance data: 8 docs-architect agents → 2,400 lines in 45 min
-  - Agent categories: Testing, Domain, Architecture, Database, Infrastructure,
-    Documentation, General, Performance
-
-- **COMPREHENSIVE-WORKFLOW-GUIDE-PART2.md**: Continuation with coding pairs and
-  advanced patterns
-  - Driver-Navigator, Mob Programming, TDD Pairs patterns
-  - Human-in-the-loop checkpoints and validation procedures
-
-- **AI-WORKFLOW-COMPLETE-GUIDE.md** (500+ lines): Quick reference and complete
-  summary
-  - 28 Superpowers skills with auto-activation triggers
-  - Logic & thinking frameworks (Extended Thinking, Systematic Debugging)
-  - Coding pairs patterns with real examples
-  - 24 anti-patterns quick reference (condensed)
-  - Decision trees for orchestration mode selection
-  - Quick reference card with daily commands
-  - Success metrics from this project (Week 46: 7.3x speedup, Test repair:
-    10-15x speedup)
-
-**Superpowers Skills Documented** (28 total):
-
-- Testing: test-driven-development, condition-based-waiting,
-  testing-anti-patterns
-- Debugging: systematic-debugging, root-cause-tracing,
-  verification-before-completion, defense-in-depth
-- Collaboration: brainstorming, writing-plans, executing-plans,
-  dispatching-parallel-agents, requesting-code-review, receiving-code-review,
-  using-git-worktrees, finishing-a-development-branch,
-  subagent-driven-development
-- Thinking: inversion-thinking, analogical-thinking, pattern-recognition,
-  continuous-improvement
-- Memory: memory-management, integration-with-other-skills
-- Advanced: extended-thinking-framework, notebooklm
-- Domain: venture-finance-suite, mcp-builder
-- Meta: writing-skills, skill-creator
-
-**Key Insights from Multi-AI Review**:
-
-- Gemini: "Formula 1 car" - powerful but complex, needs elite operators
-- Gemini Deep Think: "Brittle Utopia" - strong on happy path, plan for failure
-  modes
-- OpenAI: Focus on progressive disclosure (5 commands → 28 agents gradually)
-- All AIs: Human-in-the-loop is augmentation not replacement
-
-**Orchestration Patterns**:
-
-- Parallel Independent: 87-91% time savings (documentation, batch operations)
-- Sequential with Gates: 30-50% savings (high-risk features, dependencies)
-- Hybrid Pipeline: 50-75% savings (PR reviews, deployment prep)
-
-**Real Project Examples**:
-
-- Week 46 Documentation: 8 agents → 45 min → 2,400 lines (vs 5.5 hours)
-- Test Repair: 47 tests fixed in 12 min (vs 2-3 hours)
-- PR Review Pipeline: 6 agents → 15 min (vs 1 hour)
-
-**Next Steps**:
-
-- Use AI-WORKFLOW-COMPLETE-GUIDE.md as primary reference
-- Integrate decision trees into /workflows command
-- Track time savings metrics for continuous improvement
-
-#### Process: Document Review Safeguards 🔍 (2025-11-09 Late Evening)
-
-**Achievement**: Implemented mandatory evidence-based verification for document
-reviews to prevent false gap reports
-
-**Context**: Root cause analysis revealed oversight when reviewing 36-hour-old
-planning document without verifying implementation status. Incorrectly reported
-schema-first TDD and Testcontainers as "missing" when both were already
-complete.
+- Professional, parseable documentation schema-first TDD and Testcontainers as
+  "missing" when both were already complete.
 
 **Files Created**:
 

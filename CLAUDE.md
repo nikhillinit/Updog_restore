@@ -50,6 +50,32 @@ cheatsheets for testing, APIs, and UI conventions.
 - `npm run db:push` - Push schema changes to database
 - `npm run db:studio` - Open Drizzle Studio for database management
 
+### PR Verification & Merge
+
+**CRITICAL: Compare to Baseline, Not Perfection**
+
+Before assessing PR readiness:
+1. Check `cheatsheets/pr-merge-verification.md` for baseline
+2. Run tests on BOTH main and feature branches
+3. Compare pass rates (not absolute counts)
+4. See ADR-014 in DECISIONS.md for merge criteria
+
+**Quick Baseline Check:**
+```bash
+# Main baseline (as of 2025-11-17)
+# Pass rate: 74.7% (998/1,337 tests)
+# Failing: 300 tests (variance schema, integration infra, client globals)
+
+# Acceptable PR: feature_pass_rate >= 73.7% (baseline - 1%)
+# Zero new regressions > absolute pass rate
+```
+
+**Known preexisting failures to BYPASS:**
+- Variance tracking schema tests (27 tests)
+- Integration test infrastructure (31 tests)
+- Client test globals (9+ files)
+- Lint baseline (22,390 violations)
+
 ### AI Tools
 
 - `npm run ai` - Gateway to AI agent operations
