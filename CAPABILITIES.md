@@ -1,16 +1,24 @@
 # Claude Code Capability Inventory
 
-_Last Updated: 2025-11-07_
+_Last Updated: 2025-11-10_
 
 This document provides a persistent reference of ALL available capabilities to
 ensure optimal tool selection and prevent redundant implementations.
 
+**IMPORTANT:** This document is 85% complete as a capability inventory. For complete infrastructure understanding, also read:
+
+1. **[.claude/PROJECT-UNDERSTANDING.md](.claude/PROJECT-UNDERSTANDING.md)** - Complete infrastructure reference (permanent guide)
+2. **[PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md](PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md)** - 21-week transformation roadmap
+3. **[AI-WORKFLOW-COMPLETE-GUIDE.md](AI-WORKFLOW-COMPLETE-GUIDE.md)** - 28 agents, orchestration patterns
+4. **[COMPREHENSIVE-WORKFLOW-GUIDE.md](COMPREHENSIVE-WORKFLOW-GUIDE.md)** - Extended practical guide
+
 ## 🎯 BEFORE STARTING ANY TASK
 
-1. Check this inventory for existing solutions
-2. Verify if an agent/tool already handles the requirement
-3. Look for similar patterns that can be adapted
-4. Only build new if nothing exists
+1. **Read [.claude/PROJECT-UNDERSTANDING.md](.claude/PROJECT-UNDERSTANDING.md)** for complete infrastructure context
+2. Check this inventory for existing solutions
+3. Verify if an agent/tool already handles the requirement
+4. Look for similar patterns that can be adapted
+5. Only build new if nothing exists
 
 ## 📋 Available Agents (250+ across all levels)
 
@@ -132,7 +140,7 @@ cp -r archive/.../BMAD-METHOD/ ./BMAD-METHOD/
 **Location:** `packages/agent-core/ThinkingMixin.ts` **Docs:**
 `packages/agent-core/THINKING_QUICK_START.md`
 
-**Migrated:** ✅ ALL 6 TypeScript agents (TestRepair, BundleOptimization,
+**Migrated:** [COMPLETE] ALL 6 TypeScript agents (TestRepair, BundleOptimization,
 CodexReview, DependencyAnalysis, RouteOptimization, Zencoder)
 
 ## 🛠 Built-in Tools
@@ -379,11 +387,11 @@ continuous-improvement (refine)
 - **get_library_stats** - Library analytics
 
 **Key Features**:
-- ✅ Zero hallucinations (refuses if info not in docs)
-- ✅ Multi-document synthesis across 50+ files
-- ✅ Persistent sessions with context
-- ✅ Rate limit management (50 queries/day, multi-account support)
-- ✅ 9 active notebooks documented in [NOTEBOOKLM-LINKS.md](NOTEBOOKLM-LINKS.md)
+- [x] Zero hallucinations (refuses if info not in docs)
+- [x] Multi-document synthesis across 50+ files
+- [x] Persistent sessions with context
+- [x] Rate limit management (50 queries/day, multi-account support)
+- [x] 9 active notebooks documented in [NOTEBOOKLM-LINKS.md](NOTEBOOKLM-LINKS.md)
 
 **Documentation**:
 - [cheatsheets/notebooklm-mcp-tools.md](cheatsheets/notebooklm-mcp-tools.md) - Complete tool reference
@@ -450,67 +458,67 @@ const patterns = await engine.getRelevantPatterns({ operation, fileTypes });
 
 **Memory-Enabled TypeScript Agents (packages/):**
 
-- ✅ **TestRepairAgent** (`agent:test-repair`) - Learns test failure patterns
+- [x] **TestRepairAgent** (`agent:test-repair`) - Learns test failure patterns
   and successful repairs
-- ✅ **BundleOptimizationAgent** (`agent:bundle-optimization`) - Learns
+- [x] **BundleOptimizationAgent** (`agent:bundle-optimization`) - Learns
   optimization patterns across builds
-- ✅ **CodexReviewAgent** (`agent:codex-review`) - Remembers code review
+- [x] **CodexReviewAgent** (`agent:codex-review`) - Remembers code review
   patterns and common issues
-- ✅ **DependencyAnalysisAgent** (`agent:dependency-analysis`) - Tracks
+- [x] **DependencyAnalysisAgent** (`agent:dependency-analysis`) - Tracks
   dependency patterns and successful optimizations
-- ✅ **RouteOptimizationAgent** (`agent:route-optimization`) - Learns route
+- [x] **RouteOptimizationAgent** (`agent:route-optimization`) - Learns route
   optimization patterns and lazy loading effectiveness
-- ✅ **ZencoderAgent** (`agent:zencoder`) - Remembers fix patterns and
+- [x] **ZencoderAgent** (`agent:zencoder`) - Remembers fix patterns and
   successful code transformations
 
 **Memory-Enabled Project-Level Agents (.claude/agents/):**
 
-- ✅ **code-reviewer** (`agent:code-reviewer`) - Learns CLAUDE.md violations and
+- [x] **code-reviewer** (`agent:code-reviewer`) - Learns CLAUDE.md violations and
   project conventions
-- ✅ **waterfall-specialist** (`agent:waterfall-specialist`) - Remembers
+- [x] **waterfall-specialist** (`agent:waterfall-specialist`) - Remembers
   waterfall validation patterns and edge cases
-- ✅ **test-repair** (`agent:test-repair`) - Learns test failure patterns and
+- [x] **test-repair** (`agent:test-repair`) - Learns test failure patterns and
   repair strategies
-- ✅ **perf-guard** (`agent:perf-guard`) - Tracks bundle size baselines and
+- [x] **perf-guard** (`agent:perf-guard`) - Tracks bundle size baselines and
   optimization strategies
-- ✅ **db-migration** (`agent:db-migration`) - Remembers schema migration
+- [x] **db-migration** (`agent:db-migration`) - Remembers schema migration
   patterns and rollback strategies
-- ✅ **code-simplifier** (`agent:code-simplifier`) - Learns project-specific
+- [x] **code-simplifier** (`agent:code-simplifier`) - Learns project-specific
   simplification patterns
-- ✅ **comment-analyzer** (`agent:comment-analyzer`) - Tracks comment rot
+- [x] **comment-analyzer** (`agent:comment-analyzer`) - Tracks comment rot
   patterns and documentation standards
-- ✅ **pr-test-analyzer** (`agent:pr-test-analyzer`) - Remembers test coverage
+- [x] **pr-test-analyzer** (`agent:pr-test-analyzer`) - Remembers test coverage
   gaps and edge case patterns
-- ✅ **silent-failure-hunter** (`agent:silent-failure-hunter`) - Learns silent
+- [x] **silent-failure-hunter** (`agent:silent-failure-hunter`) - Learns silent
   failure patterns and error handling standards
-- ✅ **type-design-analyzer** (`agent:type-design-analyzer`) - Remembers strong
+- [x] **type-design-analyzer** (`agent:type-design-analyzer`) - Remembers strong
   type designs and invariant patterns
 
 **Memory-Enabled Global Agents (Project Overrides in .claude/agents/):**
 
-- ✅ **general-purpose** (`agent:general-purpose:updog`) - Learns research
+- [x] **general-purpose** (`agent:general-purpose:updog`) - Learns research
   patterns and codebase structure
-- ✅ **test-automator** (`agent:test-automator:updog`) - Remembers TDD patterns
+- [x] **test-automator** (`agent:test-automator:updog`) - Remembers TDD patterns
   and coverage gaps
-- ✅ **legacy-modernizer** (`agent:legacy-modernizer:updog`) - Tracks migration
+- [x] **legacy-modernizer** (`agent:legacy-modernizer:updog`) - Tracks migration
   patterns and refactoring strategies
-- ✅ **incident-responder** (`agent:incident-responder:updog`) - Learns incident
+- [x] **incident-responder** (`agent:incident-responder:updog`) - Learns incident
   patterns and mitigation strategies
-- ✅ **dx-optimizer** (`agent:dx-optimizer:updog`) - Remembers workflow friction
+- [x] **dx-optimizer** (`agent:dx-optimizer:updog`) - Remembers workflow friction
   points and automation solutions
-- ✅ **docs-architect** (`agent:docs-architect:updog`) - Learns documentation
+- [x] **docs-architect** (`agent:docs-architect:updog`) - Learns documentation
   patterns and explanation strategies
-- ✅ **devops-troubleshooter** (`agent:devops-troubleshooter:updog`) - Tracks
+- [x] **devops-troubleshooter** (`agent:devops-troubleshooter:updog`) - Tracks
   infrastructure failure patterns
-- ✅ **debug-expert** (`agent:debug-expert:updog`) - Remembers bug patterns and
+- [x] **debug-expert** (`agent:debug-expert:updog`) - Remembers bug patterns and
   debugging strategies
-- ✅ **database-expert** (`agent:database-expert:updog`) - Learns schema
+- [x] **database-expert** (`agent:database-expert:updog`) - Learns schema
   patterns and optimization strategies
-- ✅ **context-orchestrator** (`agent:context-orchestrator:updog`) - Tracks
+- [x] **context-orchestrator** (`agent:context-orchestrator:updog`) - Tracks
   context management and orchestration patterns
-- ✅ **code-explorer** (`agent:code-explorer:updog`) - Remembers codebase
+- [x] **code-explorer** (`agent:code-explorer:updog`) - Remembers codebase
   structure and feature implementations
-- ✅ **chaos-engineer** (`agent:chaos-engineer:updog`) - Learns system weak
+- [x] **chaos-engineer** (`agent:chaos-engineer:updog`) - Learns system weak
   points and resilience strategies
 
 **Total**: 28 memory-enabled agents (6 TypeScript + 10 Project-Level + 12 Global
@@ -565,11 +573,11 @@ Overrides)
 
 ### Optimal Patterns:
 
-- ✅ Use Task tool to launch specialized agents
-- ✅ Run agents in parallel when independent
-- ✅ Use MCP tools for second opinions
-- ✅ Update CHANGELOG/DECISIONS for persistence
-- ✅ Check this file FIRST before any task
+- [x] Use Task tool to launch specialized agents
+- [x] Run agents in parallel when independent
+- [x] Use MCP tools for second opinions
+- [x] Update CHANGELOG/DECISIONS for persistence
+- [x] Check this file FIRST before any task
 
 ## 🎯 Decision Tree
 
@@ -828,7 +836,7 @@ tests:
 
 ### When to Reference Cookbook
 
-✅ **Use for:**
+**SUCCESS:** **Use for:**
 
 - Implementation patterns and architecture
 - Multi-agent coordination strategies
@@ -908,7 +916,7 @@ class MyAgent extends withThinking(BaseAgent) {
 - Cost tracking and health monitoring
 - Works alongside native memory (complementary capabilities)
 
-**Migrated Agents**: ✅ **ALL 6 TypeScript agents MIGRATED** (100% complete):
+**Migrated Agents**: **SUCCESS:** **ALL 6 TypeScript agents MIGRATED** (100% complete):
 
 - TestRepairAgent, BundleOptimizationAgent, CodexReviewAgent
 - DependencyAnalysisAgent, RouteOptimizationAgent, ZencoderAgent
@@ -981,7 +989,7 @@ const result = xirrNewtonBisection(flows);
 // result.method: 'newton'
 ```
 
-**Status:** ✅ COMPLETE (50 test cases passing, Excel-validated)
+**Status:** **SUCCESS:** COMPLETE (50 test cases passing, Excel-validated)
 
 ---
 
@@ -1005,7 +1013,7 @@ bundle analysis to justify optimization cost **Action:** Run
 
 #### Runtime Zod Validations (Covered - Phase 3)
 
-**Scope:** Schema validation at API boundaries **Status:** ✅ COVERED by Phase 3
+**Scope:** Schema validation at API boundaries **Status:** **SUCCESS:** COVERED by Phase 3
 Portfolio Route API work **Reference:** `shared/schemas/` for Zod validation
 schemas **ADR:** ADR-011 Anti-Pattern Prevention Strategy
 
@@ -1015,7 +1023,7 @@ schemas **ADR:** ADR-011 Anti-Pattern Prevention Strategy
 
 #### lodash (Removed)
 
-**Status:** ✅ REMOVED (not found in package.json) **Date:** Prior to Nov 2025
+**Status:** **SUCCESS:** REMOVED (not found in package.json) **Date:** Prior to Nov 2025
 **Replaced With:** Native ES2023+ methods (Array.prototype.at, Object.groupBy,
 etc.)
 

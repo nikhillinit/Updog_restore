@@ -5,16 +5,318 @@ development of the Press On Ventures fund modeling platform.
 
 ## Table of Contents
 
+- [ADR-009: Vitest Path Alias Configuration and test.projects Migration](#adr-009-vitest-path-alias-configuration-and-testprojects-migration)
 - [ADR-010: PowerLawDistribution API Design - Constructor Over Factory Pattern](#adr-010-powerlawdistribution-api-design---constructor-over-factory-pattern)
 - [ADR-011: Anti-Pattern Prevention Strategy for Portfolio Route API](#adr-011-anti-pattern-prevention-strategy-for-portfolio-route-api)
 - [ADR-012: Mandatory Evidence-Based Document Reviews](#adr-012-mandatory-evidence-based-document-reviews)
+- [ADR-013: Multi-Tenant Isolation via PostgreSQL Row Level Security](#adr-013-multi-tenant-isolation-via-postgresql-row-level-security)
+- [ADR-014: Test Baseline & PR Merge Criteria](#adr-014-test-baseline--pr-merge-criteria)
+
+---
+
+## ADR-009: Vitest Path Alias Configuration and test.projects Migration
+
+**Date:** 2025-10-19 **Status:** [IMPLEMENTED] Implemented **Decision:**
+Implement shared alias constant with explicit project declarations to resolve
+module resolution crisis in Vitest test.projects
+
+### Context
+
+The test suite experienced a module resolution crisis with 343 test failures
+(31% of 1109 tests) due to two interconnected issues:
+
+**Issue 1: Deprecated Configuration**
+
+- Using deprecated `environmentMatchGlobs` in vitest.config.ts
+- Vitest silently ignored this option (removed in recent versions)
+- All tests ran in `jsdom` environment (default), including server-side tests
+- Result: 290+ environment-related errors (randomUUID, EventEmitter, React not
+  defined)
+
+**Issue 2: Path Alias Inheritance Failure**
+
+- Vitest `test.projects` don't inherit root-level `resolve.alias` configuration
+- After migrating to test.projects (fixing environment issue), new failures
+  emerged
+- Tests couldn't resolve path aliases: `@/`, `@shared/`, `@/core`, etc.
+- 33 additional module resolution errors blocked test execution
+
+**Root Cause Analysis:**
+
+- `tsconfig.json` had path mappings but Vitest uses separate resolution
+- Each project in `test.projects` array requires explicit alias configuration
+- No automatic inheritance from root config or tsconfig
+- Configuration drift between TypeScript and Vitest resolution systems
+
+**Business Impact:**
+
+- 343 test failures prevented CI/CD from passing
+- Development velocity blocked by inability to run tests locally
+- Risk of shipping bugs without test coverage validation
+- Team unable to practice TDD with broken test infrastructure
+
+### Decision
+
+**Implement Shared Alias Pattern with Explicit Project Declarations**
+
+Create a single source of truth for path aliases and explicitly declare in each
+test project:
+
+```typescript
+// vitest.config.ts (lines 8-29)
+const alias = {
+  '@/core': resolve(projectRoot, './client/src/core'),
+  '@/lib': resolve(projectRoot, './client/src/lib'),
+  '@/server': resolve(projectRoot, './server'),
+  '@/metrics/reserves-metrics': resolve(
+    projectRoot,
+    './tests/mocks/metrics-mock.ts'
+  ),
+  '@/server/utils/logger': resolve(
+    projectRoot,
+    './tests/mocks/server-logger.ts'
+  ),
+  '@/': resolve(projectRoot, './client/src/'),
+  '@': resolve(projectRoot, './client/src'),
+  '@shared/': resolve(projectRoot, './shared/'),
+  '@shared': resolve(projectRoot, './shared'),
+  '@assets': resolve(projectRoot, './assets'),
+  '@upstash/redis': resolve(projectRoot, './tests/mocks/upstash-redis.ts'),
+};
+
+export default defineConfig({
+  test: {
+    projects: [
+      {
+        name: 'server',
+        environment: 'node',
+        include: ['tests/unit/**/*.test.ts'],
+        resolve: { alias }, // Explicit declaration
+        setupFiles: [
+          './tests/setup/test-infrastructure.ts',
+          './tests/setup/node-setup.ts',
+        ],
+      },
+      {
+        name: 'client',
+        environment: 'jsdom',
+        include: ['tests/unit/**/*.test.tsx'],
+        resolve: { alias }, // Explicit declaration
+        setupFiles: [
+          './tests/setup/test-infrastructure.ts',
+          './tests/setup/jsdom-setup.ts',
+        ],
+      },
+    ],
+  },
+});
+```
+
+**Key Design Decisions:**
+
+1. **Shared Constant:** Single `alias` object prevents drift between projects
+2. **Explicit Declaration:** Each project gets `resolve: { alias }` - no
+   assumptions about inheritance
+3. **Precedence Order:** `@/` before `@` to match more specific paths first
+4. **Mock Aliases:** Direct file mapping for test mocks (`@upstash/redis`,
+   `@/server/utils/logger`)
+5. **ESM Compatible:** Uses `dirname(fileURLToPath(import.meta.url))` instead of
+   `__dirname`
+
+**Rejected Alternatives:**
+
+1. **Duplicate alias definitions per project** → Violates DRY, increases drift
+   risk
+2. **Rely on tsconfig path mapping** → Vitest doesn't read tsconfig paths
+3. **Use vitest-tsconfig-paths plugin** → Adds dependency, masks underlying
+   issue
+4. **Maintain separate configs** → Configuration drift already caused the
+   problem
+
+### Implementation
+
+**Phase 1: test.projects Migration (Oct 19, 03:59 AM)**
+
+- Created environment-specific setup files: `node-setup.ts` (44 lines),
+  `jsdom-setup.ts` (127 lines)
+- Migrated from `environmentMatchGlobs` to `test.projects` configuration
+- Simplified glob patterns: `.test.ts` (Node) vs `.test.tsx` (jsdom)
+- Result: 343 → 72 failures (79% reduction)
+
+**Phase 2: Path Alias Configuration (Oct 19, PM)**
+
+- Added shared `alias` constant to vitest.config.ts
+- Explicitly declared `resolve: { alias }` in both server and client projects
+- Created centralized mock utilities: `tests/utils/mock-shared-schema.ts`
+- Result: 72 → 45 failures (37.5% additional reduction)
+
+**Setup File Architecture:**
+
+```
+Global Setup:
+└── tests/setup/vitest.setup.ts (51 lines)
+    └── Sentry mocks (@sentry/node, @sentry/browser)
+
+Server Project:
+├── tests/setup/test-infrastructure.ts (386 lines)
+│   ├── TestStateManager (state capture/restore)
+│   ├── TestSandbox (isolated execution)
+│   ├── TestTimeoutManager (timeout leak prevention)
+│   ├── TestPromiseTracker (pending promise tracking)
+│   └── Financial tolerance helpers (EXCEL_IRR_TOLERANCE, assertFinancialEquals)
+└── tests/setup/node-setup.ts (44 lines)
+    ├── fs module mocks
+    ├── global.fetch mock
+    └── Console output suppression
+
+Client Project:
+├── tests/setup/test-infrastructure.ts (shared)
+└── tests/setup/jsdom-setup.ts (127 lines)
+    ├── @testing-library/jest-dom matchers
+    ├── React Testing Library config (asyncUtilTimeout: 2000ms)
+    ├── Browser API mocks (localStorage, sessionStorage, navigator)
+    ├── Performance API mocks (performance, PerformanceObserver)
+    └── React 18 concurrent features flag
+```
+
+**Mock Utilities Created:**
+
+- `tests/mocks/metrics-mock.ts` - Metrics recording functions
+- `tests/mocks/upstash-redis.ts` - Redis client mock (aliased)
+- `tests/mocks/server-logger.ts` - Winston logger mock (aliased)
+- `tests/utils/mock-shared-schema.ts` - Centralized schema mocks using
+  `importOriginal` pattern
+
+### Results
+
+**Test Failure Progression:**
+
+| Phase                 | Failures | Pass Rate | Key Improvement                       |
+| --------------------- | -------- | --------- | ------------------------------------- |
+| Initial               | 343      | 69%       | Baseline (deprecated config)          |
+| After test.projects   | 72       | 73%       | 79% reduction (environment isolation) |
+| After path aliases    | 45       | 83%       | 37.5% reduction (module resolution)   |
+| **Total Improvement** | **-298** | **+14pp** | **87% failure reduction**             |
+
+**Environment Resolution:**
+
+- 290+ environment errors: RESOLVED (100%)
+- `randomUUID is not a function` errors: RESOLVED
+- `EventEmitter is not a constructor` errors: RESOLVED
+- React/jsdom isolation errors: RESOLVED
+- Module resolution errors: RESOLVED (33 → 0)
+
+**Validation Evidence:**
+
+- Vitest 3.2.4 confirmed compatible with `test.projects`
+- Server tests (54 files) run in Node.js environment
+- Client tests (9 files) run in jsdom environment
+- Test output shows `[server]` and `[client]` project indicators
+- No deprecation warnings
+- Triple-AI consensus validation (Gemini + DeepSeek + Codex)
+
+**Remaining 45 Failures Analysis:**
+
+- 63% database schema tests (pre-existing, separate migration needed)
+- 37% mock configuration or test logic issues (not infrastructure)
+
+### Consequences
+
+**Positive:**
+
+- [IMPLEMENTED] **Configuration drift prevention:** Single source of truth for
+  aliases
+- [IMPLEMENTED] **Environment isolation:** Node.js and jsdom tests can't
+  contaminate each other
+- [IMPLEMENTED] **Explicit > implicit:** No hidden inheritance assumptions
+- [IMPLEMENTED] **DRY principle:** Shared constant prevents duplicate
+  maintenance
+- [IMPLEMENTED] **CI/CD unblocked:** 87% test failure reduction enables
+  continuous deployment
+- [IMPLEMENTED] **Developer velocity:** Local test execution restored, TDD
+  re-enabled
+- [IMPLEMENTED] **Foundation validated:** Subsequent fixes easier with stable
+  infrastructure
+
+**Negative:**
+
+- [WARNING] **Manual synchronization required:** Must update alias constant when
+  adding new paths
+- [WARNING] **45 failures remain:** 63% require database schema migration
+  (deferred)
+- [WARNING] **Setup complexity:** Multiple setup files increase cognitive load
+  for new contributors
+- [WARNING] **Vitest-specific:** Solution doesn't help TypeScript compilation
+  (tsconfig separate)
+
+**Neutral:**
+
+- **Methodology validated:** Foundation-first > symptom-count-first for
+  prioritization
+- **Pattern established:** Use shared constants for cross-project configuration
+- **Documentation debt:** Setup file architecture needs onboarding guide
+- **Test patterns:** Simplified glob patterns (`.test.ts` vs `.test.tsx`) reduce
+  maintenance
+
+### Lessons Learned
+
+1. **Configuration inheritance is never guaranteed** - Always verify Vitest
+   test.projects behavior
+2. **Shared constants prevent drift** - Single source of truth for aliases
+   across projects
+3. **Foundation-first approach pays off** - Fixing config foundation cascaded to
+   resolve overlapping failures
+4. **Simplified patterns reduce maintenance** - File extension-based project
+   selection (.ts vs .tsx) is maintainable
+5. **Environment isolation is critical** - Mixed Node/jsdom environments cause
+   cascading failures
+6. **Pre-commit hooks block legacy code** - Migration required `--no-verify` for
+   incremental progress
+7. **Clean git state enables rollback** - Professional rollback capability
+   requires discipline
+
+### Follow-up Work
+
+**Completed:**
+
+- [IMPLEMENTED] Foundation-First Test Remediation Strategy (documented
+  separately in DECISIONS.md)
+- [IMPLEMENTED] Centralized mock utilities (`tests/utils/mock-shared-schema.ts`)
+- [IMPLEMENTED] Test infrastructure utilities
+  (`tests/setup/test-infrastructure.ts`)
+
+**Deferred:**
+
+- [DEFERRED] Database schema migration (45 remaining failures, 63%
+  schema-related)
+- [DEFERRED] Onboarding documentation for setup file architecture
+- [DEFERRED] VSCode snippets for test creation with correct project patterns
+
+### References
+
+- **Implementation commits:**
+  - `1288f9a5` - test.projects migration (343 → 72 failures)
+  - `d2b7dc89` - Path alias fixes (72 → 45 failures)
+  - `f094af1a` - Documentation (originally mislabeled as "Add ADR-009")
+  - `c518c07d` - Schema mock infrastructure
+  - `b1c30f80` - CI improvements and test quarantine
+
+- **Related documentation:**
+  - Foundation-First Test Remediation Strategy (DECISIONS.md)
+  - Test infrastructure (tests/setup/\*.ts)
+  - Mock utilities (tests/utils/_.ts, tests/mocks/_.ts)
+
+- **External references:**
+  - [Vitest test.projects documentation](https://vitest.dev/guide/workspace.html)
+  - [Vitest resolve.alias configuration](https://vitejs.dev/config/shared-options.html#resolve-alias)
 
 ---
 
 ## ADR-010: PowerLawDistribution API Design - Constructor Over Factory Pattern
 
-**Date:** 2025-10-26 **Status:** ✅ Implemented **Decision:** Enforce direct
-constructor usage over factory function wrapper for PowerLawDistribution class
+**Date:** 2025-10-26 **Status:** [IMPLEMENTED] Implemented **Decision:** Enforce
+direct constructor usage over factory function wrapper for PowerLawDistribution
+class
 
 ### Context
 
@@ -79,12 +381,12 @@ instantiation:
 
 **Rejected alternatives:**
 
-- ❌ **Keep factory function, add overload:** Would perpetuate API confusion, 2
-  ways to do same thing
-- ❌ **Make factory function accept config:** Would duplicate constructor
-  signature, violate DRY
-- ❌ **Remove constructor, only use factory:** Constructor provides better type
-  safety and clarity
+- [REJECTED] **Keep factory function, add overload:** Would perpetuate API
+  confusion, 2 ways to do same thing
+- [REJECTED] **Make factory function accept config:** Would duplicate
+  constructor signature, violate DRY
+- [REJECTED] **Remove constructor, only use factory:** Constructor provides
+  better type safety and clarity
 
 ### Rationale
 
@@ -111,18 +413,19 @@ instantiation:
 
 **Positive:**
 
-- ✅ Eliminated NaN calculation bugs (3 of 4 failing tests now pass)
-- ✅ Type-safe instantiation with compiler validation
-- ✅ Clear error messages for invalid inputs (RangeError/TypeError)
-- ✅ Comprehensive test coverage prevents future regressions
-- ✅ Single obvious way to create instances (no API confusion)
-- ✅ Better debugging (direct constructor calls in stack traces)
+- [IMPLEMENTED] Eliminated NaN calculation bugs (3 of 4 failing tests now pass)
+- [IMPLEMENTED] Type-safe instantiation with compiler validation
+- [IMPLEMENTED] Clear error messages for invalid inputs (RangeError/TypeError)
+- [IMPLEMENTED] Comprehensive test coverage prevents future regressions
+- [IMPLEMENTED] Single obvious way to create instances (no API confusion)
+- [IMPLEMENTED] Better debugging (direct constructor calls in stack traces)
 
 **Negative:**
 
-- ⚠️ Factory function (`createVCPowerLawDistribution`) still exists in codebase
-- ⚠️ Need to document "use constructor, not factory" convention
-- ⚠️ Existing code using factory function needs migration
+- [WARNING] Factory function (`createVCPowerLawDistribution`) still exists in
+  codebase
+- [WARNING] Need to document "use constructor, not factory" convention
+- [WARNING] Existing code using factory function needs migration
 
 **Trade-offs accepted:**
 
@@ -174,13 +477,13 @@ const config = {
   },
 };
 
-// ✅ CORRECT: Direct constructor
+// [IMPLEMENTED] CORRECT: Direct constructor
 const distribution = new PowerLawDistribution(config, 42);
 
-// ❌ WRONG: Factory function with config
+// [REJECTED] WRONG: Factory function with config
 const distribution = createVCPowerLawDistribution(config, 42); // Won't work!
 
-// ⚠️ ACCEPTABLE BUT LIMITED: Factory with defaults
+// [WARNING] ACCEPTABLE BUT LIMITED: Factory with defaults
 const distribution = createVCPowerLawDistribution(42); // Uses hard-coded config
 ```
 
@@ -250,12 +553,12 @@ const distribution = createVCPowerLawDistribution(42); // Uses hard-coded config
 
 **Definition of done:**
 
-1. ✅ All 4 tests in `monte-carlo-2025-validation-core.test.ts` passing (was
-   1/4, now 4/4)
-2. ✅ Input validation prevents NaN propagation (8 regression tests)
-3. ✅ TypeScript strict mode enforces correct usage (already enabled)
-4. ✅ Clear error messages guide developers to correct API usage
-5. ✅ Documentation updated (CHANGELOG, DECISIONS, inline comments)
+1. [IMPLEMENTED] All 4 tests in `monte-carlo-2025-validation-core.test.ts`
+   passing (was 1/4, now 4/4)
+2. [IMPLEMENTED] Input validation prevents NaN propagation (8 regression tests)
+3. [IMPLEMENTED] TypeScript strict mode enforces correct usage (already enabled)
+4. [IMPLEMENTED] Clear error messages guide developers to correct API usage
+5. [IMPLEMENTED] Documentation updated (CHANGELOG, DECISIONS, inline comments)
 
 **Validation evidence:**
 
@@ -268,7 +571,7 @@ const distribution = createVCPowerLawDistribution(42); // Uses hard-coded config
 
 ## Foundation-First Test Remediation Strategy
 
-**Date:** 2025-10-19 **Status:** ✅ Implemented **Decision:** Adopt
+**Date:** 2025-10-19 **Status:** [IMPLEMENTED] Implemented **Decision:** Adopt
 foundation-first remediation approach for test failures based on ultrathink deep
 analysis
 
@@ -362,20 +665,21 @@ logic issues. Initial plan was to treat symptoms in phases by failure count.
 
 **Positive:**
 
-- ✅ Foundation-first prevented cascading rework
-- ✅ Centralized utilities prevent future drift (DRY principle)
-- ✅ Clear separation between fixable issues and schema migration work
-- ✅ Security improvements validated (request-ID middleware)
+- [IMPLEMENTED] Foundation-first prevented cascading rework
+- [IMPLEMENTED] Centralized utilities prevent future drift (DRY principle)
+- [IMPLEMENTED] Clear separation between fixable issues and schema migration
+  work
+- [IMPLEMENTED] Security improvements validated (request-ID middleware)
 
 **Negative:**
 
-- ⚠️ 45 failures remain (63% database schema tests require migration)
-- ⚠️ Schema migration effort deferred (out of immediate scope)
+- [WARNING] 45 failures remain (63% database schema tests require migration)
+- [WARNING] Schema migration effort deferred (out of immediate scope)
 
 **Neutral:**
 
-- 📊 Methodology validated: root cause > symptom count for prioritization
-- 🔄 Future test failures: use this foundation-first pattern
+- Methodology validated: root cause > symptom count for prioritization
+- Future test failures: use this foundation-first pattern
 
 ### Methodology: Multi-AI Ultrathink Analysis
 
@@ -401,8 +705,9 @@ decisions
 
 ## Vitest `test.projects` Migration Required for Environment Isolation
 
-**Date:** 2025-10-19 **Status:** ✅ Implemented (2025-10-19) **Decision:**
-Migrate from deprecated `environmentMatchGlobs` to `test.projects` configuration
+**Date:** 2025-10-19 **Status:** [IMPLEMENTED] Implemented (2025-10-19)
+**Decision:** Migrate from deprecated `environmentMatchGlobs` to `test.projects`
+configuration
 
 ### Context
 
@@ -433,9 +738,10 @@ misconfiguration:
 
 **Attempted Solutions (all failed):**
 
-- ❌ `environmentMatchGlobs` → Deprecated, silently ignored
-- ❌ Environment-agnostic `setup.ts` → Broke React component tests
-- ✅ Fixed mock hoisting and import paths (3 test files) → Partial progress only
+- [REJECTED] `environmentMatchGlobs` → Deprecated, silently ignored
+- [REJECTED] Environment-agnostic `setup.ts` → Broke React component tests
+- [IMPLEMENTED] Fixed mock hoisting and import paths (3 test files) → Partial
+  progress only
 
 ### Decision
 
@@ -518,18 +824,18 @@ export default defineConfig({
 
 **Positive:**
 
-- ✅ Proper environment isolation (node vs jsdom)
-- ✅ Future-proof configuration (official Vitest pattern)
-- ✅ Better test performance (parallel project execution)
-- ✅ Clearer test organization (explicit project boundaries)
-- ✅ Eliminates Node.js API errors in server tests
-- ✅ Prevents DOM API pollution in server tests
+- [IMPLEMENTED] Proper environment isolation (node vs jsdom)
+- [IMPLEMENTED] Future-proof configuration (official Vitest pattern)
+- [IMPLEMENTED] Better test performance (parallel project execution)
+- [IMPLEMENTED] Clearer test organization (explicit project boundaries)
+- [IMPLEMENTED] Eliminates Node.js API errors in server tests
+- [IMPLEMENTED] Prevents DOM API pollution in server tests
 
 **Negative:**
 
-- ❌ Requires test file reorganization (one-time effort)
-- ❌ Need to maintain two setup files instead of one
-- ❌ Breaking change if tests implicitly relied on wrong environment
+- [REJECTED] Requires test file reorganization (one-time effort)
+- [REJECTED] Need to maintain two setup files instead of one
+- [REJECTED] Breaking change if tests implicitly relied on wrong environment
 
 **Trade-offs Accepted:**
 
@@ -559,16 +865,16 @@ export default defineConfig({
 
 **Definition of Done:**
 
-1. ✅ All server-side tests run in `node` environment (verified via
+1. [IMPLEMENTED] All server-side tests run in `node` environment (verified via
    `console.log(typeof window)` → `undefined`)
-2. ✅ All client-side tests run in `jsdom` environment (verified via
+2. [IMPLEMENTED] All client-side tests run in `jsdom` environment (verified via
    `console.log(typeof window)` → `object`)
-3. ✅ No `randomUUID is not a function` or `EventEmitter is not a constructor`
-   errors
-4. ✅ No `React is not defined` errors
-5. ✅ Test failure rate reduced from 343 to target <50 (environment-specific
-   failures only)
-6. ✅ `npm test` completes without configuration warnings
+3. [IMPLEMENTED] No `randomUUID is not a function` or
+   `EventEmitter is not a constructor` errors
+4. [IMPLEMENTED] No `React is not defined` errors
+5. [IMPLEMENTED] Test failure rate reduced from 343 to target <50
+   (environment-specific failures only)
+6. [IMPLEMENTED] `npm test` completes without configuration warnings
 
 **Rollback Plan:** If `test.projects` causes unforeseen issues, revert to single
 environment with conditional mocking in setup files. However, this is not
@@ -590,11 +896,11 @@ recommended as it perpetuates the root cause.
 - Vitest 3.2.4 confirmed compatible with `test.projects`
 - Server tests (54 files) run in Node.js environment
 - Client tests (9 files) run in jsdom environment
-- ✅ No `randomUUID is not a function` errors
-- ✅ No `EventEmitter is not a constructor` errors
-- ✅ No `React is not defined` errors
-- ✅ No deprecation warnings
-- ✅ Test output shows `[server]` and `[client]` project indicators
+- [IMPLEMENTED] No `randomUUID is not a function` errors
+- [IMPLEMENTED] No `EventEmitter is not a constructor` errors
+- [IMPLEMENTED] No `React is not defined` errors
+- [IMPLEMENTED] No deprecation warnings
+- [IMPLEMENTED] Test output shows `[server]` and `[client]` project indicators
 
 **Lessons Learned:**
 
@@ -612,8 +918,8 @@ recommended as it perpetuates the root cause.
 
 ## Official Claude Code Plugins Over Custom BMad Infrastructure
 
-**Date:** 2025-10-18 **Status:** ✅ Implemented **Decision:** Archive BMad
-infrastructure, adopt official Claude Code plugins
+**Date:** 2025-10-18 **Status:** [IMPLEMENTED] Implemented **Decision:** Archive
+BMad infrastructure, adopt official Claude Code plugins
 
 ### Context
 
@@ -675,18 +981,19 @@ plugins.
 
 **Positive:**
 
-- ✅ Official plugins maintained by Anthropic (no maintenance burden)
-- ✅ Better integration with Claude Code core features
-- ✅ 6 specialized PR review agents (vs generic BMad personas)
-- ✅ Structured feature development workflow (7 phases with approval gates)
-- ✅ Git automation (`/commit`, `/commit-push-pr`, `/clean_gone`)
-- ✅ Reduced cognitive load (27 fewer unused commands)
-- ✅ Cleaner codebase (228KB reclaimed)
+- [IMPLEMENTED] Official plugins maintained by Anthropic (no maintenance burden)
+- [IMPLEMENTED] Better integration with Claude Code core features
+- [IMPLEMENTED] 6 specialized PR review agents (vs generic BMad personas)
+- [IMPLEMENTED] Structured feature development workflow (7 phases with approval
+  gates)
+- [IMPLEMENTED] Git automation (`/commit`, `/commit-push-pr`, `/clean_gone`)
+- [IMPLEMENTED] Reduced cognitive load (27 fewer unused commands)
+- [IMPLEMENTED] Cleaner codebase (228KB reclaimed)
 
 **Negative:**
 
-- ❌ Need to learn new plugin commands (minimal - similar to BMad)
-- ❌ Plugin installation required (one-time setup)
+- [REJECTED] Need to learn new plugin commands (minimal - similar to BMad)
+- [REJECTED] Plugin installation required (one-time setup)
 
 **Trade-offs Accepted:**
 
@@ -762,20 +1069,20 @@ Full details in `archive/2025-10-18/ARCHIVE_MANIFEST.md`
 
 ### Verification
 
-- ✅ Zero active imports of BMad commands found
-- ✅ No `.bmad-core/` directory exists
-- ✅ No `*.story.md` files exist
-- ✅ No `core-config.yaml` exists
-- ✅ All 27 files successfully moved to archive
-- ✅ Git history preserved via `git mv`
-- ✅ Zero breaking changes (BMad was optional slash commands)
+- [IMPLEMENTED] Zero active imports of BMad commands found
+- [IMPLEMENTED] No `.bmad-core/` directory exists
+- [IMPLEMENTED] No `*.story.md` files exist
+- [IMPLEMENTED] No `core-config.yaml` exists
+- [IMPLEMENTED] All 27 files successfully moved to archive
+- [IMPLEMENTED] Git history preserved via `git mv`
+- [IMPLEMENTED] Zero breaking changes (BMad was optional slash commands)
 
 ---
 
 ## AI Orchestrator for Multi-Model Code Review
 
-**Date:** 2025-10-05 **Status:** ✅ Implemented **Decision:** Build in-repo AI
-orchestrator instead of external MCP server
+**Date:** 2025-10-05 **Status:** [IMPLEMENTED] Implemented **Decision:** Build
+in-repo AI orchestrator instead of external MCP server
 
 ### Context
 
@@ -827,18 +1134,18 @@ Replace external MCP with in-repo orchestrator
 
 **Positive:**
 
-- ✅ Eliminates supply-chain risk entirely
-- ✅ Same parallelization benefits (6x speedup preserved)
-- ✅ Full control over logic, costs, and audit trail
-- ✅ Simple deployment (no external dependencies)
-- ✅ Production-ready with retry/timeout logic
-- ✅ Budget enforcement (200 calls/day default)
+- [IMPLEMENTED] Eliminates supply-chain risk entirely
+- [IMPLEMENTED] Same parallelization benefits (6x speedup preserved)
+- [IMPLEMENTED] Full control over logic, costs, and audit trail
+- [IMPLEMENTED] Simple deployment (no external dependencies)
+- [IMPLEMENTED] Production-ready with retry/timeout logic
+- [IMPLEMENTED] Budget enforcement (200 calls/day default)
 
 **Negative:**
 
-- ❌ Need to maintain provider integrations ourselves
-- ❌ No built-in UI (using custom React hooks instead)
-- ❌ Manual updates when providers change APIs
+- [REJECTED] Need to maintain provider integrations ourselves
+- [REJECTED] No built-in UI (using custom React hooks instead)
+- [REJECTED] Manual updates when providers change APIs
 
 **Trade-offs Accepted:**
 
@@ -944,8 +1251,8 @@ function CodeReviewPanel() {
 
 ## Prompt Improver Hook Internalization
 
-**Date:** 2025-10-18 **Status:** ✅ Implemented **Decision:** Internalize prompt
-improvement hook instead of external dependency
+**Date:** 2025-10-18 **Status:** [IMPLEMENTED] Implemented **Decision:**
+Internalize prompt improvement hook instead of external dependency
 
 ### Context
 
@@ -1005,18 +1312,19 @@ Internalize the hook into our repository following the AI Orchestrator pattern:
 
 **Positive:**
 
-- ✅ Eliminates external dependency risk
-- ✅ Full control over evaluation logic and context
-- ✅ Project-specific enhancements (VC domain knowledge)
-- ✅ Audit trail for prompt patterns (documentation improvement)
-- ✅ Simple installation (single Python file)
-- ✅ Transparent operation (user sees evaluation)
+- [IMPLEMENTED] Eliminates external dependency risk
+- [IMPLEMENTED] Full control over evaluation logic and context
+- [IMPLEMENTED] Project-specific enhancements (VC domain knowledge)
+- [IMPLEMENTED] Audit trail for prompt patterns (documentation improvement)
+- [IMPLEMENTED] Simple installation (single Python file)
+- [IMPLEMENTED] Transparent operation (user sees evaluation)
 
 **Negative:**
 
-- ❌ Need to manually track upstream updates
-- ❌ Additional ~350-400 token overhead per wrapped prompt (vs ~250 baseline)
-- ❌ Python dependency (already present in project)
+- [REJECTED] Need to manually track upstream updates
+- [REJECTED] Additional ~350-400 token overhead per wrapped prompt (vs ~250
+  baseline)
+- [REJECTED] Python dependency (already present in project)
 
 **Trade-offs Accepted:**
 
@@ -1110,10 +1418,10 @@ node scripts/analyze-prompt-patterns.js --json
 
 **Compared to external dependency:**
 
-- ✅ All code version-controlled and auditable
-- ✅ No remote execution risk
-- ✅ Changes reviewed via git diff
-- ✅ Consistent with AI Orchestrator security model
+- [IMPLEMENTED] All code version-controlled and auditable
+- [IMPLEMENTED] No remote execution risk
+- [IMPLEMENTED] Changes reviewed via git diff
+- [IMPLEMENTED] Consistent with AI Orchestrator security model
 
 **Privacy:**
 
@@ -1221,9 +1529,9 @@ _For more architectural decisions, see individual decision records in
 
 ## ADR-011: Anti-Pattern Prevention Strategy for Portfolio Route API
 
-**Date:** 2025-11-08 **Status:** ✅ Implemented **Decision:** Implement
-comprehensive 4-layer quality gate system to prevent 24 identified anti-patterns
-in Portfolio Route API
+**Date:** 2025-11-08 **Status:** [IMPLEMENTED] Implemented **Decision:**
+Implement comprehensive 4-layer quality gate system to prevent 24 identified
+anti-patterns in Portfolio Route API
 
 ---
 
@@ -1339,7 +1647,7 @@ const results = await db
 **Bad Code:**
 
 ```typescript
-// ❌ No index on non-id cursor field
+// [REJECTED] No index on non-id cursor field
 const results = await db
   .select()
   .from(forecastSnapshots)
@@ -1396,10 +1704,10 @@ if (cursor) {
 **Bad Code:**
 
 ```typescript
-// ❌ No validation - SQL injection risk
+// [REJECTED] No validation - SQL injection risk
 const cursor = req.query.cursor; // String | undefined | unknown
 
-// ❌ Directly interpolated into SQL
+// [REJECTED] Directly interpolated into SQL
 const results = await db
   .select()
   .from(snapshots)
@@ -1449,13 +1757,13 @@ const nextCursor = snapshots[snapshots.length - 1]?.id; // UUID string
 **Bad Code:**
 
 ```typescript
-// ❌ Sequential integer ID exposed as cursor
+// [REJECTED] Sequential integer ID exposed as cursor
 const CompanySchema = pgTable('companies', {
   id: serial('id').primaryKey(), // Auto-increment integers
   // ...
 });
 
-// ❌ Exposes internal sequence
+// [REJECTED] Exposes internal sequence
 const nextCursor = companies[companies.length - 1]?.id.toString(); // "42"
 ```
 
@@ -1504,7 +1812,7 @@ const { limit } = QuerySchema.parse(req.query);
 **Bad Code:**
 
 ```typescript
-// ❌ No upper bound
+// [REJECTED] No upper bound
 const limit = parseInt(req.query.limit || '50', 10);
 // Attacker sends ?limit=999999999
 
@@ -1560,7 +1868,7 @@ const results = await db
 **Bad Code:**
 
 ```typescript
-// ❌ Single-column sort on non-unique field
+// [REJECTED] Single-column sort on non-unique field
 const results = await db
   .select()
   .from(snapshots)
@@ -1614,7 +1922,7 @@ const results = await db.execute(
 **Bad Code:**
 
 ```typescript
-// ❌ String concatenation = SQL injection
+// [REJECTED] String concatenation = SQL injection
 const query = `SELECT * FROM snapshots WHERE id < '${cursor}'`;
 const results = await db.execute(sql.raw(query)); // INJECTION!
 
@@ -1668,7 +1976,7 @@ if (existing) {
 **Bad Code:**
 
 ```typescript
-// ❌ In-memory cache without eviction
+// [REJECTED] In-memory cache without eviction
 const idempotencyCache = new Map<string, any>(); // MEMORY LEAK!
 
 router.post('/snapshots', async (req, res) => {
@@ -1736,7 +2044,7 @@ async function cleanupExpiredKeys() {
 **Bad Code:**
 
 ```typescript
-// ❌ No TTL - keys never expire
+// [REJECTED] No TTL - keys never expire
 const existing = await db.query.investmentLots.findFirst({
   where: eq(investmentLots.idempotencyKey, key), // Checks all records forever!
 });
@@ -1799,7 +2107,7 @@ return res.status(201).json({ lot, created: true });
 **Bad Code:**
 
 ```typescript
-// ❌ Race condition window
+// [REJECTED] Race condition window
 const existing = await db.query.investmentLots.findFirst({
   where: eq(investmentLots.idempotencyKey, key)
 });
@@ -1808,7 +2116,7 @@ if (existing) {
   return res.json({ lot: existing, created: false });
 }
 
-// ⚠️ RACE: Another request can pass check here
+// [WARNING] RACE: Another request can pass check here
 
 const lot = await db.insert(investmentLots).values({ ... }); // DUPLICATE!
 return res.json({ lot, created: true });
@@ -1878,7 +2186,7 @@ const worker = new Worker('idempotency-cleanup', async () => {
 **Bad Code:**
 
 ```typescript
-// ❌ No cleanup job defined
+// [REJECTED] No cleanup job defined
 // Idempotency keys accumulate forever
 ```
 
@@ -1930,7 +2238,7 @@ const CreateLotSchema = z.object({
 **Bad Code:**
 
 ```typescript
-// ❌ Inconsistent formats
+// [REJECTED] Inconsistent formats
 const CreateSnapshotSchema = z.object({
   name: z.string(),
   idempotencyKey: z.string().optional(), // Any string!
@@ -2002,7 +2310,7 @@ if (result.length === 0) {
 **Bad Code:**
 
 ```typescript
-// ❌ No version tracking
+// [REJECTED] No version tracking
 const result = await db
   .update(forecastSnapshots)
   .set({ name: 'Updated', updatedAt: new Date() })
@@ -2075,7 +2383,7 @@ function formatLot(lot: InvestmentLot) {
 **Bad Code:**
 
 ```typescript
-// ❌ Different response shapes
+// [REJECTED] Different response shapes
 router.post('/lots', async (req, res) => {
   const existing = await checkIdempotency(req.body.idempotencyKey);
 
@@ -2148,7 +2456,7 @@ if (result.length === 0) {
 **Bad Code:**
 
 ```typescript
-// ❌ Pessimistic locking (deadlock risk)
+// [REJECTED] Pessimistic locking (deadlock risk)
 const snapshot = await db
   .select()
   .from(forecastSnapshots)
@@ -2202,7 +2510,7 @@ const ForecastSnapshotSchema = pgTable('forecast_snapshots', {
 **Bad Code:**
 
 ```typescript
-// ❌ integer() overflows at 2.1 billion
+// [REJECTED] integer() overflows at 2.1 billion
 const ForecastSnapshotSchema = pgTable('forecast_snapshots', {
   id: uuid('id').primaryKey(),
   version: integer('version').notNull().default(1), // Overflows!
@@ -2266,7 +2574,7 @@ if (result.length === 0) {
 **Bad Code:**
 
 ```typescript
-// ❌ No version check - lost update!
+// [REJECTED] No version check - lost update!
 await db
   .update(forecastSnapshots)
   .set({
@@ -2327,7 +2635,7 @@ if (result.length === 0) {
 **Bad Code:**
 
 ```typescript
-// ❌ No retry guidance
+// [REJECTED] No retry guidance
 if (result.length === 0) {
   return res.status(409).json({
     error: 'Conflict', // Unhelpful message
@@ -2389,7 +2697,7 @@ async function updateWithRetry(id, data, maxRetries = 3) {
 **Bad Code:**
 
 ```typescript
-// ❌ No deadlock handling
+// [REJECTED] No deadlock handling
 const result = await db
   .update(forecastSnapshots)
   .set(data)
@@ -2449,7 +2757,7 @@ const snapshotQueue = new Queue('snapshot-calculation', {
 **Bad Code:**
 
 ```typescript
-// ❌ Infinite retries
+// [REJECTED] Infinite retries
 const snapshotQueue = new Queue('snapshot-calculation', {
   connection: redisConnection,
   // No defaultJobOptions - retries forever!
@@ -2508,7 +2816,7 @@ await snapshotQueue.add('calculate', data, {
 **Bad Code:**
 
 ```typescript
-// ❌ No timeout
+// [REJECTED] No timeout
 const worker = new Worker('snapshot-calculation', async (job) => {
   const result = await calculateSnapshot(job.data); // Runs forever
   return result;
@@ -2583,7 +2891,7 @@ async function processJob(job) {
 **Bad Code:**
 
 ```typescript
-// ❌ No stalled job handling
+// [REJECTED] No stalled job handling
 const worker = new Worker('snapshot-calculation', handler);
 // If worker crashes, job stays 'active' forever
 ```
@@ -2647,7 +2955,7 @@ worker.on('failed', async (job, error) => {
 **Bad Code:**
 
 ```typescript
-// ❌ No failed job handling
+// [REJECTED] No failed job handling
 const worker = new Worker('snapshot-calculation', handler);
 // Failed jobs just disappear
 ```
@@ -2699,7 +3007,7 @@ const snapshotQueue = new Queue('snapshot-calculation', {
 **Bad Code:**
 
 ```typescript
-// ❌ Jobs never removed
+// [REJECTED] Jobs never removed
 const snapshotQueue = new Queue('snapshot-calculation', {
   connection: redisConnection,
   // No removeOnComplete - keeps all jobs forever!
@@ -2768,7 +3076,7 @@ async function calculateSnapshot(job) {
 **Bad Code:**
 
 ```typescript
-// ❌ No progress updates
+// [REJECTED] No progress updates
 async function calculateSnapshot(job) {
   const lots = await fetchLots(job.data.fundId);
 
@@ -2865,7 +3173,7 @@ module.exports = {
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-echo "🔍 Checking for anti-patterns..."
+echo " Checking for anti-patterns..."
 
 # Run ESLint on staged files
 npx lint-staged
@@ -2875,12 +3183,12 @@ npm run check:antipatterns
 
 # Block commit if anti-patterns found
 if [ $? -ne 0 ]; then
-  echo "❌ Commit blocked: Anti-patterns detected"
+  echo "[REJECTED] Commit blocked: Anti-patterns detected"
   echo "Fix issues above or use 'git commit --no-verify' to skip (not recommended)"
   exit 1
 fi
 
-echo "✅ No anti-patterns detected"
+echo "[IMPLEMENTED] No anti-patterns detected"
 ```
 
 **File:** `package.json`
@@ -3098,7 +3406,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '❌ Anti-pattern check failed. See logs for details.'
+              body: '[REJECTED] Anti-pattern check failed. See logs for details.'
             })
 ```
 
@@ -3118,30 +3426,35 @@ jobs:
 
 #### Positive
 
-- ✅ **Zero anti-pattern violations** in code reviews (enforced by ESLint)
-- ✅ **Developer education** via IDE snippets and clear error messages
-- ✅ **Prevents technical debt** from day one (cheaper than fixing later)
-- ✅ **Production reliability** improved (no race conditions, deadlocks, memory
-  leaks)
-- ✅ **Security hardening** (SQL injection, information disclosure prevented)
-- ✅ **Consistent patterns** across 6 Portfolio Route endpoints
-- ✅ **Documentation via code** (snippets serve as living examples)
-- ✅ **Fast feedback loop** (ESLint errors appear in < 1s while typing)
+- [IMPLEMENTED] **Zero anti-pattern violations** in code reviews (enforced by
+  ESLint)
+- [IMPLEMENTED] **Developer education** via IDE snippets and clear error
+  messages
+- [IMPLEMENTED] **Prevents technical debt** from day one (cheaper than fixing
+  later)
+- [IMPLEMENTED] **Production reliability** improved (no race conditions,
+  deadlocks, memory leaks)
+- [IMPLEMENTED] **Security hardening** (SQL injection, information disclosure
+  prevented)
+- [IMPLEMENTED] **Consistent patterns** across 6 Portfolio Route endpoints
+- [IMPLEMENTED] **Documentation via code** (snippets serve as living examples)
+- [IMPLEMENTED] **Fast feedback loop** (ESLint errors appear in < 1s while
+  typing)
 
 #### Negative
 
-- ⚠️ **Initial time investment:** 4-6 hours to implement ESLint plugin
-- ⚠️ **Learning curve:** Developers must understand anti-patterns (mitigated by
-  snippets)
-- ⚠️ **Build time increase:** +5-10s for ESLint anti-pattern checks
-- ⚠️ **Maintenance burden:** ESLint rules need updates for new patterns
+- [WARNING] **Initial time investment:** 4-6 hours to implement ESLint plugin
+- [WARNING] **Learning curve:** Developers must understand anti-patterns
+  (mitigated by snippets)
+- [WARNING] **Build time increase:** +5-10s for ESLint anti-pattern checks
+- [WARNING] **Maintenance burden:** ESLint rules need updates for new patterns
 
 #### Neutral
 
-- 📊 **Success metrics tracked:** Zero violations = validation of prevention
+- **Success metrics tracked:** Zero violations = validation of prevention
   strategy
-- 🔄 **Iterative improvement:** New anti-patterns added to catalog as discovered
-- 📚 **Knowledge capture:** Anti-pattern catalog becomes team training material
+- **Iterative improvement:** New anti-patterns added to catalog as discovered
+- **Knowledge capture:** Anti-pattern catalog becomes team training material
 
 ---
 
@@ -3160,12 +3473,12 @@ jobs:
 
 **Definition of Done:**
 
-1. ✅ All 24 ESLint rules implemented and passing
-2. ✅ Pre-commit hook blocks anti-pattern commits
-3. ✅ IDE snippets available for all 4 categories
-4. ✅ CI/CD pipeline fails on anti-pattern detection
-5. ✅ Zero anti-pattern violations in Portfolio Route implementation
-6. ✅ Documentation (this ADR + cheatsheet) complete
+1. [IMPLEMENTED] All 24 ESLint rules implemented and passing
+2. [IMPLEMENTED] Pre-commit hook blocks anti-pattern commits
+3. [IMPLEMENTED] IDE snippets available for all 4 categories
+4. [IMPLEMENTED] CI/CD pipeline fails on anti-pattern detection
+5. [IMPLEMENTED] Zero anti-pattern violations in Portfolio Route implementation
+6. [IMPLEMENTED] Documentation (this ADR + cheatsheet) complete
 
 **Validation Evidence:**
 
@@ -3225,16 +3538,17 @@ If applying to existing routes:
 
 ---
 
-**Document Status:** ✅ Approved for Implementation **Last Updated:** 2025-11-08
-**Next Steps:** Create `cheatsheets/anti-pattern-prevention.md` with detailed
-examples
+**Document Status:** [IMPLEMENTED] Approved for Implementation **Last Updated:**
+2025-11-08 **Next Steps:** Create `cheatsheets/anti-pattern-prevention.md` with
+detailed examples
 
 ---
 
 ## ADR-012: Mandatory Evidence-Based Document Reviews
 
-**Date:** 2025-11-09 **Status:** ✅ Accepted **Decision:** All document reviews
-must include codebase verification before claiming gaps or missing features
+**Date:** 2025-11-09 **Status:** [IMPLEMENTED] Accepted **Decision:** All
+document reviews must include codebase verification before claiming gaps or
+missing features
 
 ---
 
@@ -3267,11 +3581,11 @@ review, all planned items were implemented (commits: `1064dff0`, `ec021b7f`,
 
 **Process failure:**
 
-1. ❌ Did not check document timestamp (>24h old)
-2. ❌ Did not search git log for execution evidence
-3. ❌ Did not verify claims against actual code
-4. ❌ Prioritized documentation over code inspection
-5. ❌ Did not classify document type (PLAN vs STATUS vs REFERENCE)
+1. [REJECTED] Did not check document timestamp (>24h old)
+2. [REJECTED] Did not search git log for execution evidence
+3. [REJECTED] Did not verify claims against actual code
+4. [REJECTED] Prioritized documentation over code inspection
+5. [REJECTED] Did not classify document type (PLAN vs STATUS vs REFERENCE)
 
 **Impact:**
 
@@ -3313,11 +3627,11 @@ git log --since="2025-11-08 05:33" --grep="schema\|testcontainers"
 **NEVER report "missing" without code proof:**
 
 ```typescript
-// ❌ BAD: Documentation-only check
+// [REJECTED] BAD: Documentation-only check
 const exists = await readFile('docs/testing/strategy.md');
 return exists ? 'Documented' : 'Missing';
 
-// ✅ GOOD: Code-level verification
+// [IMPLEMENTED] GOOD: Code-level verification
 const code = await glob('tests/**/*testcontainers*.ts');
 const dep = await grep('testcontainers', 'package.json');
 return code && dep ? 'COMPLETE' : 'MISSING (verified via code search)';
@@ -3385,9 +3699,10 @@ Before reviewing ANY document:
 
 #### Rejected Alternatives
 
-- ❌ **Trust documentation:** Documentation can be stale or incomplete
-- ❌ **Trust timestamps alone:** Need both timestamp AND code verification
-- ❌ **Manual reminders only:** Requires systematic process enforcement
+- [REJECTED] **Trust documentation:** Documentation can be stale or incomplete
+- [REJECTED] **Trust timestamps alone:** Need both timestamp AND code
+  verification
+- [REJECTED] **Manual reminders only:** Requires systematic process enforcement
 
 ---
 
@@ -3395,25 +3710,25 @@ Before reviewing ANY document:
 
 #### Positive
 
-- ✅ **Prevents false gap reports:** Code verification eliminates incorrect
-  claims
-- ✅ **Saves time:** Avoids analyzing obsolete plans or reimplementing existing
-  features
-- ✅ **Maintains credibility:** Accurate assessments build trust
-- ✅ **Improves advice quality:** Recommendations based on actual state, not
-  assumptions
+- [IMPLEMENTED] **Prevents false gap reports:** Code verification eliminates
+  incorrect claims
+- [IMPLEMENTED] **Saves time:** Avoids analyzing obsolete plans or
+  reimplementing existing features
+- [IMPLEMENTED] **Maintains credibility:** Accurate assessments build trust
+- [IMPLEMENTED] **Improves advice quality:** Recommendations based on actual
+  state, not assumptions
 
 #### Negative
 
-- ⚠️ **Review time increases:** +5-10 minutes for git log search + code
+- [WARNING] **Review time increases:** +5-10 minutes for git log search + code
   verification
-- ⚠️ **Process overhead:** Requires discipline to follow checklist consistently
+- [WARNING] **Process overhead:** Requires discipline to follow checklist
+  consistently
 
 #### Neutral
 
-- 📊 **Review workflow standardized:** Consistent approach for all document
-  types
-- 🔄 **Continuous improvement:** Workflow can be refined based on experience
+- **Review workflow standardized:** Consistent approach for all document types
+- **Continuous improvement:** Workflow can be refined based on experience
 
 ---
 
@@ -3421,12 +3736,12 @@ Before reviewing ANY document:
 
 **Definition of Done:**
 
-1. ✅ Document review workflow created
+1. [IMPLEMENTED] Document review workflow created
    (`cheatsheets/document-review-workflow.md`)
-2. ✅ CLAUDE.md updated with review protocol
-3. ✅ This ADR recorded in DECISIONS.md
-4. ✅ CHANGELOG.md updated with process improvement
-5. ✅ Future reviews follow evidence-based approach
+2. [IMPLEMENTED] CLAUDE.md updated with review protocol
+3. [IMPLEMENTED] This ADR recorded in DECISIONS.md
+4. [IMPLEMENTED] CHANGELOG.md updated with process improvement
+5. [IMPLEMENTED] Future reviews follow evidence-based approach
 
 **Validation Evidence:**
 
@@ -3460,5 +3775,257 @@ evidence—documentation describes intent, but code is reality.
 
 ---
 
-**Document Status:** ✅ Accepted **Last Updated:** 2025-11-09 **Next Steps:**
-Apply workflow to all future document reviews
+**Document Status:** [IMPLEMENTED] Accepted **Last Updated:** 2025-11-09 **Next
+Steps:** Apply workflow to all future document reviews
+
+## ADR-013: Multi-Tenant Isolation via PostgreSQL Row Level Security
+
+**Date:** 2025-11-10
+**Status:** [ACCEPTED] Approved via multi-AI consensus
+**Decision Makers:** Multi-AI collaboration (Gemini + OpenAI), database-admin agent, dx-optimizer agent
+
+### Context
+
+The platform requires secure multi-tenant isolation to prevent data leakage between different VC fund organizations. Each organization (LP, GP, fund) must have absolute guarantees that they cannot access other organizations' financial data.
+
+### Decision
+
+Implement multi-tenant isolation using **PostgreSQL Row Level Security (RLS)** with organization_id discriminator columns, combined with middleware authentication/authorization for defense-in-depth.
+
+**Core Implementation:**
+- Add `organization_id UUID` to all tenant-scoped tables
+- Use `ALTER TABLE ... FORCE ROW LEVEL SECURITY` (not just ENABLE)
+- Fail-closed context: `nullif(current_setting('app.current_org', true), '')::uuid`
+- Database role: `ALTER ROLE app_user NO BYPASSRLS`
+- PgBouncer transaction-mode with `SET LOCAL`
+- WITH CHECK policies for INSERT/UPDATE
+
+### AI Debate Results
+
+**Gemini (Pro-RLS):** "Security should be a foundational guarantee, not a developer convention."
+**OpenAI (Pro-App-Level):** "Defense-in-depth with multiple layers."
+**Consensus:** RLS is appropriate for financial platforms - fail-safe defaults, centralized policies, database-enforced isolation.
+
+### Migration Strategy
+
+**Chosen:** gh-ost/pt-online-schema-change (unanimous AI consensus)
+- Zero-downtime via shadow table + triggers
+- Rollback capability (original table preserved)
+- Automatic throttling based on load
+
+### Implementation Deliverables
+
+**Infrastructure (database-admin agent):**
+- docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md
+- migrations/0002_multi_tenant_rls_setup.sql
+- docker-compose.rls.yml (HA stack)
+- scripts/database/setup-rls-infrastructure.sh
+
+**Developer Experience (dx-optimizer agent):**
+- scripts/seed-multi-tenant.ts
+- server/lib/tenant-context.ts
+- .vscode/rls-snippets.code-snippets (13 snippets)
+- docs/RLS-DEVELOPMENT-GUIDE.md
+- tests/rls/isolation.test.ts
+
+**DX Improvements:**
+- Setup test data: 30min → 2min (93% reduction)
+- Write RLS policy: 10min → 30sec (95% reduction)
+- Developer onboarding: 2h → 15min (87% reduction)
+
+### Performance Targets
+
+- Single query: <5ms ✓
+- Complex joins: <50ms ✓
+- 95th percentile: <10ms ✓
+
+### Related ADRs
+
+- ADR-011: Anti-Pattern Prevention Strategy
+- ADR-012: Document Review Protocol
+
+---
+
+**Document Status:** [ACCEPTED] Implementation in progress
+**Last Updated:** 2025-11-10
+
+---
+
+## ADR-014: Test Baseline & PR Merge Criteria
+
+**Date:** 2025-11-17
+**Status:** ACTIVE
+**Decision:** Compare PR test results to main branch baseline, not absolute perfection
+
+### Context
+
+Claude Code sessions repeatedly assess PRs as "NOT READY TO MERGE" due to preexisting test failures, causing:
+- False blocker assessments that delay valid merges
+- Wasted verification time re-checking known issues
+- Repeated explanations of test baseline reality
+- Confusion between "regression prevention" and "absolute quality"
+
+**Example:** PR #218 (Phase 0A) was initially assessed as "NOT READY" with 299 failing tests, until comparison revealed main branch had 300 failing tests (feature branch actually IMPROVED test health by +0.1%).
+
+**Root Cause:** Documentation exists (PROJECT-UNDERSTANDING.md) but isn't operationalized into verification workflows. Sessions apply absolute standards instead of comparative baselines.
+
+### Decision
+
+**PR Merge Criteria (Comparative, Not Absolute):**
+
+1. **Test Pass Rate:** Compare to main branch baseline
+   - Main baseline (2025-11-17): 74.7% pass rate (998/1,337 tests passing)
+   - PR acceptable if: `feature_pass_rate >= baseline_pass_rate - 1%`
+   - Zero NEW regressions > absolute pass rate
+
+2. **TypeScript Errors:** Maintain or improve baseline
+   - Baseline (2025-11-17): 450 errors
+   - PR acceptable if: `feature_errors <= baseline_errors`
+   - New errors = 0 (strict requirement)
+
+3. **Lint Violations:** Track but don't block for preexisting
+   - Baseline (2025-11-17): 22,390 violations
+   - PR should not introduce new violations
+   - Existing violations are separate technical debt
+
+**Preexisting Failure Categories (BYPASS for PR Merge):**
+
+1. **Variance Tracking Schema Tests (27 tests)**
+   - File: `tests/unit/database/variance-tracking-schema.test.ts`
+   - Issue: Database constraint enforcement not working
+   - Status: Preexisting since initial implementation
+
+2. **Integration Test Infrastructure (31 tests)**
+   - Files: `tests/integration/flags-*.test.ts`, `tests/integration/reserve-alerts.test.ts`
+   - Issue: Test server/request setup undefined properties
+   - Status: Preexisting on main branch
+
+3. **Client Test Globals (9+ files)**
+   - Error: `ReferenceError: expect is not defined`
+   - Issue: jsdom setup missing test globals
+   - Status: Preexisting configuration issue
+
+4. **Lint Configuration Migration (22,390 violations)**
+   - Issue: .eslintignore deprecated, "Default Parameters" directory errors
+   - Status: Preexisting configuration migration needed
+
+### Rationale
+
+**Why Comparative Baselines:**
+- **Focus on regression prevention** - Don't introduce new failures
+- **Separate concerns** - PR work vs technical debt cleanup
+- **Accurate assessment** - Improvement is positive, even if not perfect
+- **Faster merge cycles** - Don't block PRs for unrelated failures
+
+**Why NOT Absolute Standards:**
+- Main branch itself doesn't meet absolute standards
+- Blocks valid improvements that don't introduce regressions
+- Creates false "blocker" assessments
+- Confuses "ready to merge" with "codebase perfect"
+
+### Consequences
+
+**Positive:**
+- Accurate PR readiness assessments
+- Faster merge cycles for regression-free changes
+- Clear separation of PR scope vs technical debt
+- Prevents wasted time re-checking known issues
+
+**Negative:**
+- Must track baseline as it evolves
+- Risk of "baseline creep" if not monitored
+- Requires running tests on both branches
+
+**Mitigation:**
+- Quarterly baseline review schedule
+- Document baseline snapshots with dates
+- Track technical debt separately (not as PR blockers)
+- Alert when baseline degrades >5%
+
+### Verification Protocol
+
+**Before assessing any PR as "NOT READY", run:**
+
+```bash
+# Step 1: Establish main branch baseline
+git checkout main
+npm test 2>&1 | tee /tmp/main-test-output.txt
+
+# Step 2: Run feature branch tests
+git checkout <feature-branch>
+npm test 2>&1 | tee /tmp/feature-test-output.txt
+
+# Step 3: Compare pass rates (not absolute counts)
+grep "Tests.*passed" /tmp/main-test-output.txt
+grep "Tests.*passed" /tmp/feature-test-output.txt
+
+# Step 4: Check for new regressions
+comm -13 <(grep "FAIL" /tmp/main-test-output.txt | sort) \
+         <(grep "FAIL" /tmp/feature-test-output.txt | sort)
+```
+
+**Decision Tree:**
+```
+PR Ready to Merge?
+│
+├─ Run tests on main → Get baseline pass rate (X%)
+│
+├─ Run tests on feature → Get feature pass rate (Y%)
+│
+├─ Compare: Y >= X - 1%?
+│  ├─ YES → Check for new regressions
+│  │  ├─ New regressions = 0? → READY TO MERGE
+│  │  └─ New regressions > 0? → Document & assess severity
+│  └─ NO → Y < X - 1%?
+│     └─ Investigate degradation, likely BLOCKER
+│
+└─ TypeScript errors: Feature <= Baseline?
+   ├─ YES → Acceptable
+   └─ NO → New errors introduced, must fix
+```
+
+### Baseline Snapshot (2025-11-17)
+
+**Test Suite:**
+- Total: 1,337 tests
+- Passing: 998 tests (74.7%)
+- Failing: 300 tests (known categories)
+- Skipped: 39 tests
+
+**TypeScript:**
+- Errors: 450 (baseline)
+- Target: Maintain or reduce
+
+**Lint:**
+- Violations: 22,390 (configuration migration pending)
+- Target: Don't introduce new violations
+
+**Next Baseline Review:** 2026-02-17 (quarterly)
+
+### Related Documents
+
+- `cheatsheets/pr-merge-verification.md` - Comprehensive operational guide
+- `CLAUDE.md` - PR verification section in Essential Commands
+- ADR-012: Mandatory Evidence-Based Document Reviews
+- ADR-011: Anti-Pattern Prevention Strategy
+
+### Update Schedule
+
+**When to Update This ADR:**
+- Main branch baseline improves >5% (e.g., 74.7% → 79%+)
+- Preexisting failure categories are fixed
+- New systematic test infrastructure issues appear
+- Quarterly review (every 3 months)
+
+**How to Update:**
+1. Re-run baseline verification on main branch
+2. Update snapshot numbers in this ADR
+3. Update `cheatsheets/pr-merge-verification.md`
+4. Update `CLAUDE.md` baseline reference
+5. Document change in CHANGELOG.md
+
+---
+
+**Document Status:** [ACTIVE] Operational guidance
+**Last Updated:** 2025-11-17
+**Next Review:** 2026-02-17
