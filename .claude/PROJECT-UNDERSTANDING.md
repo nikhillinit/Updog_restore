@@ -22,7 +22,7 @@ Before starting any work, read these four source files in order:
 
 ---
 
-## Three Major Quality Initiatives
+## Four Major Quality Initiatives
 
 ### 1. Anti-Pattern Prevention System (ADR-011)
 
@@ -71,7 +71,40 @@ Before starting any work, read these four source files in order:
 
 ---
 
-### 3. NotebookLM Documentation Strategy
+### 3. Test Baseline & PR Merge Criteria (ADR-014)
+
+**Status:** Implemented (Nov 17, 2025)
+
+**What it is:**
+
+- Comparative baseline approach for PR readiness assessment
+- Prevents false "NOT READY" claims for preexisting test failures
+- "Zero NEW regressions > absolute perfection"
+
+**Core Principles:**
+
+1. **Compare to baseline, not absolute standards**
+   - Main baseline (2025-11-17): 74.7% pass rate (998/1,337 tests)
+   - PR acceptable if: `feature_pass_rate >= baseline - 1%`
+   - Zero new regressions (strict requirement)
+
+2. **Known preexisting failures bypass for PR merge:**
+   - Variance tracking schema tests (27 tests)
+   - Integration test infrastructure (31 tests)
+   - Client test globals (9+ files)
+   - Lint configuration migration (22,390 violations)
+
+3. **Verification protocol required:**
+   - Run tests on BOTH main and feature branches
+   - Compare pass rates (not absolute counts)
+   - Identify new regressions (not preexisting failures)
+
+**Reference:** `DECISIONS.md` ADR-014, `cheatsheets/pr-merge-verification.md`,
+`CLAUDE.md` PR Verification section
+
+---
+
+### 4. NotebookLM Documentation Strategy
 
 **Status:** Phase 1 COMPLETE, Phase 2 COMPLETE (Oct-Nov 2025)
 

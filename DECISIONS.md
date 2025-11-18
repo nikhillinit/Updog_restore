@@ -10,6 +10,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-011: Anti-Pattern Prevention Strategy for Portfolio Route API](#adr-011-anti-pattern-prevention-strategy-for-portfolio-route-api)
 - [ADR-012: Mandatory Evidence-Based Document Reviews](#adr-012-mandatory-evidence-based-document-reviews)
 - [ADR-013: Multi-Tenant Isolation via PostgreSQL Row Level Security](#adr-013-multi-tenant-isolation-via-postgresql-row-level-security)
+- [ADR-014: Test Baseline & PR Merge Criteria](#adr-014-test-baseline--pr-merge-criteria)
 
 ---
 
@@ -3847,3 +3848,184 @@ Implement multi-tenant isolation using **PostgreSQL Row Level Security (RLS)** w
 
 **Document Status:** [ACCEPTED] Implementation in progress
 **Last Updated:** 2025-11-10
+
+---
+
+## ADR-014: Test Baseline & PR Merge Criteria
+
+**Date:** 2025-11-17
+**Status:** ACTIVE
+**Decision:** Compare PR test results to main branch baseline, not absolute perfection
+
+### Context
+
+Claude Code sessions repeatedly assess PRs as "NOT READY TO MERGE" due to preexisting test failures, causing:
+- False blocker assessments that delay valid merges
+- Wasted verification time re-checking known issues
+- Repeated explanations of test baseline reality
+- Confusion between "regression prevention" and "absolute quality"
+
+**Example:** PR #218 (Phase 0A) was initially assessed as "NOT READY" with 299 failing tests, until comparison revealed main branch had 300 failing tests (feature branch actually IMPROVED test health by +0.1%).
+
+**Root Cause:** Documentation exists (PROJECT-UNDERSTANDING.md) but isn't operationalized into verification workflows. Sessions apply absolute standards instead of comparative baselines.
+
+### Decision
+
+**PR Merge Criteria (Comparative, Not Absolute):**
+
+1. **Test Pass Rate:** Compare to main branch baseline
+   - Main baseline (2025-11-17): 74.7% pass rate (998/1,337 tests passing)
+   - PR acceptable if: `feature_pass_rate >= baseline_pass_rate - 1%`
+   - Zero NEW regressions > absolute pass rate
+
+2. **TypeScript Errors:** Maintain or improve baseline
+   - Baseline (2025-11-17): 450 errors
+   - PR acceptable if: `feature_errors <= baseline_errors`
+   - New errors = 0 (strict requirement)
+
+3. **Lint Violations:** Track but don't block for preexisting
+   - Baseline (2025-11-17): 22,390 violations
+   - PR should not introduce new violations
+   - Existing violations are separate technical debt
+
+**Preexisting Failure Categories (BYPASS for PR Merge):**
+
+1. **Variance Tracking Schema Tests (27 tests)**
+   - File: `tests/unit/database/variance-tracking-schema.test.ts`
+   - Issue: Database constraint enforcement not working
+   - Status: Preexisting since initial implementation
+
+2. **Integration Test Infrastructure (31 tests)**
+   - Files: `tests/integration/flags-*.test.ts`, `tests/integration/reserve-alerts.test.ts`
+   - Issue: Test server/request setup undefined properties
+   - Status: Preexisting on main branch
+
+3. **Client Test Globals (9+ files)**
+   - Error: `ReferenceError: expect is not defined`
+   - Issue: jsdom setup missing test globals
+   - Status: Preexisting configuration issue
+
+4. **Lint Configuration Migration (22,390 violations)**
+   - Issue: .eslintignore deprecated, "Default Parameters" directory errors
+   - Status: Preexisting configuration migration needed
+
+### Rationale
+
+**Why Comparative Baselines:**
+- **Focus on regression prevention** - Don't introduce new failures
+- **Separate concerns** - PR work vs technical debt cleanup
+- **Accurate assessment** - Improvement is positive, even if not perfect
+- **Faster merge cycles** - Don't block PRs for unrelated failures
+
+**Why NOT Absolute Standards:**
+- Main branch itself doesn't meet absolute standards
+- Blocks valid improvements that don't introduce regressions
+- Creates false "blocker" assessments
+- Confuses "ready to merge" with "codebase perfect"
+
+### Consequences
+
+**Positive:**
+- Accurate PR readiness assessments
+- Faster merge cycles for regression-free changes
+- Clear separation of PR scope vs technical debt
+- Prevents wasted time re-checking known issues
+
+**Negative:**
+- Must track baseline as it evolves
+- Risk of "baseline creep" if not monitored
+- Requires running tests on both branches
+
+**Mitigation:**
+- Quarterly baseline review schedule
+- Document baseline snapshots with dates
+- Track technical debt separately (not as PR blockers)
+- Alert when baseline degrades >5%
+
+### Verification Protocol
+
+**Before assessing any PR as "NOT READY", run:**
+
+```bash
+# Step 1: Establish main branch baseline
+git checkout main
+npm test 2>&1 | tee /tmp/main-test-output.txt
+
+# Step 2: Run feature branch tests
+git checkout <feature-branch>
+npm test 2>&1 | tee /tmp/feature-test-output.txt
+
+# Step 3: Compare pass rates (not absolute counts)
+grep "Tests.*passed" /tmp/main-test-output.txt
+grep "Tests.*passed" /tmp/feature-test-output.txt
+
+# Step 4: Check for new regressions
+comm -13 <(grep "FAIL" /tmp/main-test-output.txt | sort) \
+         <(grep "FAIL" /tmp/feature-test-output.txt | sort)
+```
+
+**Decision Tree:**
+```
+PR Ready to Merge?
+│
+├─ Run tests on main → Get baseline pass rate (X%)
+│
+├─ Run tests on feature → Get feature pass rate (Y%)
+│
+├─ Compare: Y >= X - 1%?
+│  ├─ YES → Check for new regressions
+│  │  ├─ New regressions = 0? → READY TO MERGE
+│  │  └─ New regressions > 0? → Document & assess severity
+│  └─ NO → Y < X - 1%?
+│     └─ Investigate degradation, likely BLOCKER
+│
+└─ TypeScript errors: Feature <= Baseline?
+   ├─ YES → Acceptable
+   └─ NO → New errors introduced, must fix
+```
+
+### Baseline Snapshot (2025-11-17)
+
+**Test Suite:**
+- Total: 1,337 tests
+- Passing: 998 tests (74.7%)
+- Failing: 300 tests (known categories)
+- Skipped: 39 tests
+
+**TypeScript:**
+- Errors: 450 (baseline)
+- Target: Maintain or reduce
+
+**Lint:**
+- Violations: 22,390 (configuration migration pending)
+- Target: Don't introduce new violations
+
+**Next Baseline Review:** 2026-02-17 (quarterly)
+
+### Related Documents
+
+- `cheatsheets/pr-merge-verification.md` - Comprehensive operational guide
+- `CLAUDE.md` - PR verification section in Essential Commands
+- ADR-012: Mandatory Evidence-Based Document Reviews
+- ADR-011: Anti-Pattern Prevention Strategy
+
+### Update Schedule
+
+**When to Update This ADR:**
+- Main branch baseline improves >5% (e.g., 74.7% → 79%+)
+- Preexisting failure categories are fixed
+- New systematic test infrastructure issues appear
+- Quarterly review (every 3 months)
+
+**How to Update:**
+1. Re-run baseline verification on main branch
+2. Update snapshot numbers in this ADR
+3. Update `cheatsheets/pr-merge-verification.md`
+4. Update `CLAUDE.md` baseline reference
+5. Document change in CHANGELOG.md
+
+---
+
+**Document Status:** [ACTIVE] Operational guidance
+**Last Updated:** 2025-11-17
+**Next Review:** 2026-02-17
