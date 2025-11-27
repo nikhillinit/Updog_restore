@@ -104,6 +104,138 @@ class DatabaseMock {
       fund_id: 'funds',
       snapshot_id: 'fund_state_snapshots'
     };
+
+    // Variance tracking constraints - fund_baselines
+    this.constraints.set('fund_baselines', {
+      enums: {
+        baseline_type: ['initial', 'quarterly', 'annual', 'milestone', 'custom']
+      },
+      checks: {
+        period_ordering: (row: any) => {
+          if (row.period_start && row.period_end) {
+            return new Date(row.period_end) > new Date(row.period_start);
+          }
+          return true;
+        },
+        confidence_bounds: (row: any) => {
+          if (row.confidence !== undefined && row.confidence !== null) {
+            const conf = parseFloat(row.confidence);
+            return conf >= 0.0 && conf <= 1.0;
+          }
+          return true;
+        }
+      },
+      unique: {
+        default_baseline: (row: any, existingData: any[]) => {
+          // Only one default baseline per fund
+          const isDefault = row.is_default === true || row.is_default === 'true' || row.is_default === 1;
+          if (isDefault) {
+            const existingDefault = existingData.find(
+              (r: any) => {
+                const rIsDefault = r.is_default === true || r.is_default === 'true' || r.is_default === 1;
+                return r.fund_id === row.fund_id && rIsDefault;
+              }
+            );
+            if (existingDefault) {
+              throw new Error('Violates unique constraint: only one default baseline per fund');
+            }
+          }
+          return true;
+        }
+      },
+      foreignKeys: {
+        fund_id: 'funds',
+        created_by: 'users'
+      }
+    });
+
+    // Variance tracking constraints - variance_reports
+    this.constraints.set('variance_reports', {
+      enums: {
+        report_type: ['periodic', 'milestone', 'ad_hoc', 'alert_triggered'],
+        status: ['draft', 'pending_review', 'approved', 'archived'],
+        risk_level: ['low', 'medium', 'high', 'critical']
+      },
+      checks: {
+        analysis_ordering: (row: any) => {
+          if (row.analysis_start && row.analysis_end) {
+            return new Date(row.analysis_end) >= new Date(row.analysis_start);
+          }
+          return true;
+        },
+        data_quality_bounds: (row: any) => {
+          if (row.data_quality_score !== undefined && row.data_quality_score !== null) {
+            const score = parseFloat(row.data_quality_score);
+            return score >= 0.0 && score <= 1.0;
+          }
+          return true;
+        }
+      },
+      foreignKeys: {
+        fund_id: 'funds',
+        baseline_id: 'fund_baselines'
+      }
+    });
+
+    // Variance tracking constraints - performance_alerts
+    this.constraints.set('performance_alerts', {
+      enums: {
+        severity: ['info', 'warning', 'critical', 'urgent'],
+        category: ['performance', 'risk', 'operational', 'compliance'],
+        status: ['active', 'acknowledged', 'resolved', 'dismissed']
+      },
+      checks: {
+        occurrence_count_min: (row: any) => {
+          if (row.occurrence_count !== undefined && row.occurrence_count !== null) {
+            return parseInt(row.occurrence_count) >= 1;
+          }
+          return true;
+        },
+        escalation_level_min: (row: any) => {
+          if (row.escalation_level !== undefined && row.escalation_level !== null) {
+            return parseInt(row.escalation_level) >= 0;
+          }
+          return true;
+        }
+      },
+      foreignKeys: {
+        fund_id: 'funds',
+        baseline_id: 'fund_baselines',
+        variance_report_id: 'variance_reports'
+      }
+    });
+
+    // Variance tracking constraints - alert_rules
+    this.constraints.set('alert_rules', {
+      enums: {
+        rule_type: ['threshold', 'trend', 'deviation', 'pattern'],
+        operator: ['gt', 'lt', 'eq', 'gte', 'lte', 'between'],
+        check_frequency: ['realtime', 'hourly', 'daily', 'weekly']
+      },
+      checks: {
+        suppression_period_min: (row: any) => {
+          if (row.suppression_period_minutes !== undefined && row.suppression_period_minutes !== null) {
+            return parseInt(row.suppression_period_minutes) >= 1;
+          }
+          return true;
+        },
+        trigger_count_min: (row: any) => {
+          if (row.trigger_count !== undefined && row.trigger_count !== null) {
+            return parseInt(row.trigger_count) >= 0;
+          }
+          return true;
+        },
+        between_operator_requires_secondary: (row: any) => {
+          if (row.operator === 'between') {
+            return row.secondary_threshold !== undefined && row.secondary_threshold !== null;
+          }
+          return true;
+        }
+      },
+      foreignKeys: {
+        created_by: 'users'
+      }
+    });
   }
 
   /**
@@ -165,7 +297,8 @@ class DatabaseMock {
       };
 
       // Validate constraints before inserting
-      this.validateConstraints(tableName, insertedRow, params || []);
+      const existingData = this.mockData.get(tableName) || [];
+      this.validateConstraints(tableName, insertedRow, params || [], existingData);
 
       // Add to mock data
       if (!this.mockData.has(tableName)) {
@@ -184,14 +317,31 @@ class DatabaseMock {
         result = this.getMockIndexes() as MockExecuteResult;
       } else {
         const tableName = this.extractTableName(normalizedQuery, 'select');
-        const tableData = this.mockData.get(tableName) || [];
-        result = [...tableData] as MockExecuteResult;
+
+        // Check if it's a database view
+        if (tableName === 'active_baselines') {
+          result = this.getActiveBaselinesView() as MockExecuteResult;
+        } else if (tableName === 'critical_alerts') {
+          result = this.getCriticalAlertsView() as MockExecuteResult;
+        } else if (tableName === 'variance_summary') {
+          result = this.getVarianceSummaryView() as MockExecuteResult;
+        } else {
+          const tableData = this.mockData.get(tableName) || [];
+          result = [...tableData] as MockExecuteResult;
+        }
       }
 
     } else if (normalizedQuery.startsWith('update')) {
       // Handle UPDATE queries
       const tableName = this.extractTableName(normalizedQuery, 'update');
       const tableData = this.mockData.get(tableName) || [];
+
+      // Auto-update updated_at timestamp (trigger simulation)
+      if (tableData.length > 0 && tableData[0].updated_at !== undefined) {
+        tableData.forEach((row: any) => {
+          row.updated_at = new Date().toISOString();
+        });
+      }
 
       result = [...tableData] as MockExecuteResult;
       result.affectedRows = tableData.length;
@@ -377,7 +527,7 @@ class DatabaseMock {
   /**
    * Validate database constraints
    */
-  private validateConstraints(tableName: string, row: Record<string, any>, params: any[]): void {
+  private validateConstraints(tableName: string, row: Record<string, any>, params: any[], existingData: any[] = []): void {
     const constraints = this.constraints.get(tableName);
     if (!constraints) return;
 
@@ -394,17 +544,17 @@ class DatabaseMock {
     // Validate check constraints
     if (constraints.checks) {
       for (const [checkName, checkFn] of Object.entries(constraints.checks)) {
-        if (checkName === 'self_comparison') {
-          // Special case for self-comparison check
-          if (!(checkFn as Function)(row)) {
-            throw new Error('Cannot compare snapshot with itself');
-          }
-        } else if (row[checkName] !== undefined) {
-          // Regular column checks
-          if (!(checkFn as Function)(row[checkName])) {
-            throw new Error(`Check constraint '${checkName}' failed for value '${row[checkName]}'`);
-          }
+        // All check functions now receive the entire row
+        if (!(checkFn as Function)(row)) {
+          throw new Error(`Check constraint '${checkName}' failed`);
         }
+      }
+    }
+
+    // Validate unique constraints
+    if (constraints.unique) {
+      for (const [uniqueName, uniqueFn] of Object.entries(constraints.unique)) {
+        (uniqueFn as Function)(row, existingData);
       }
     }
 
@@ -507,8 +657,129 @@ class DatabaseMock {
         tablename: 'state_restoration_logs',
         indexdef: 'CREATE INDEX state_restoration_logs_status_idx ON state_restoration_logs (status)',
         schemaname: 'public'
+      },
+
+      // Variance tracking indexes - fund_baselines
+      {
+        indexname: 'fund_baselines_fund_idx',
+        tablename: 'fund_baselines',
+        indexdef: 'CREATE INDEX fund_baselines_fund_idx ON fund_baselines (fund_id)',
+        schemaname: 'public'
+      },
+      {
+        indexname: 'fund_baselines_default_unique',
+        tablename: 'fund_baselines',
+        indexdef: 'CREATE UNIQUE INDEX fund_baselines_default_unique ON fund_baselines (fund_id) WHERE (is_default = true)',
+        schemaname: 'public'
+      },
+
+      // Variance tracking indexes - variance_reports
+      {
+        indexname: 'variance_reports_fund_idx',
+        tablename: 'variance_reports',
+        indexdef: 'CREATE INDEX variance_reports_fund_idx ON variance_reports (fund_id)',
+        schemaname: 'public'
+      },
+      {
+        indexname: 'variance_reports_baseline_idx',
+        tablename: 'variance_reports',
+        indexdef: 'CREATE INDEX variance_reports_baseline_idx ON variance_reports (baseline_id)',
+        schemaname: 'public'
+      },
+
+      // Variance tracking indexes - performance_alerts
+      {
+        indexname: 'performance_alerts_fund_idx',
+        tablename: 'performance_alerts',
+        indexdef: 'CREATE INDEX performance_alerts_fund_idx ON performance_alerts (fund_id)',
+        schemaname: 'public'
+      },
+      {
+        indexname: 'performance_alerts_severity_idx',
+        tablename: 'performance_alerts',
+        indexdef: 'CREATE INDEX performance_alerts_severity_idx ON performance_alerts (severity)',
+        schemaname: 'public'
+      },
+
+      // Variance tracking indexes - alert_rules
+      {
+        indexname: 'alert_rules_fund_idx',
+        tablename: 'alert_rules',
+        indexdef: 'CREATE INDEX alert_rules_fund_idx ON alert_rules (fund_id)',
+        schemaname: 'public'
+      },
+      {
+        indexname: 'alert_rules_enabled_idx',
+        tablename: 'alert_rules',
+        indexdef: 'CREATE INDEX alert_rules_enabled_idx ON alert_rules (is_enabled)',
+        schemaname: 'public'
       }
     ];
+  }
+
+  /**
+   * Mock database views for variance tracking
+   */
+  private getActiveBaselinesView(): MockQueryResult[] {
+    const baselines = this.mockData.get('fund_baselines') || [];
+    const funds = this.mockData.get('funds') || [];
+    const users = this.mockData.get('users') || [];
+
+    return baselines
+      .filter((baseline: any) => {
+        // Handle multiple boolean representations
+        const isActive = baseline.is_active === true || baseline.is_active === 'true' || baseline.is_active === 1;
+        return isActive;
+      })
+      .map((baseline: any) => {
+        const fund = funds.find((f: any) => f.id === baseline.fund_id);
+        const user = users.find((u: any) => u.id === baseline.created_by);
+
+        return {
+          ...baseline,
+          fund_name: fund?.name || 'Unknown Fund',
+          created_by_name: user?.name || 'Unknown User'
+        };
+      });
+  }
+
+  private getCriticalAlertsView(): MockQueryResult[] {
+    const alerts = this.mockData.get('performance_alerts') || [];
+    const funds = this.mockData.get('funds') || [];
+    const baselines = this.mockData.get('fund_baselines') || [];
+
+    return alerts
+      .filter((alert: any) => alert.severity === 'critical' && alert.status === 'active')
+      .map((alert: any) => {
+        const fund = funds.find((f: any) => f.id === alert.fund_id);
+        const baseline = baselines.find((b: any) => b.id === alert.baseline_id);
+
+        return {
+          ...alert,
+          fund_name: fund?.name || 'Unknown Fund',
+          baseline_name: baseline?.name || null
+        };
+      });
+  }
+
+  private getVarianceSummaryView(): MockQueryResult[] {
+    const reports = this.mockData.get('variance_reports') || [];
+    const funds = this.mockData.get('funds') || [];
+    const baselines = this.mockData.get('fund_baselines') || [];
+    const alerts = this.mockData.get('performance_alerts') || [];
+
+    return reports.map((report: any) => {
+      const fund = funds.find((f: any) => f.id === report.fund_id);
+      const baseline = baselines.find((b: any) => b.id === report.baseline_id);
+      const alertCount = alerts.filter((a: any) => a.variance_report_id === report.id).length;
+
+      return {
+        ...report,
+        fund_name: fund?.name || 'Unknown Fund',
+        baseline_name: baseline?.name || 'Unknown Baseline',
+        alert_count: alertCount
+      };
+    });
   }
 
   /**
