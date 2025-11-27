@@ -13,9 +13,9 @@ This repository contains the POVC Fund-Modeling Platform, a sophisticated applic
 ### Core Features
 
 **7-Step Fund Modeling Wizard:**
-1. ✅ **Fund Financials** - Capital structure, expenses, and capital call schedules
-2. ✅ **Sector Profiles** - Investment stage cohorts with graduation and exit rates
-3. ✅ **Capital Allocations** - Initial investment strategy, follow-on allocations, and pacing
+1. **[DONE]** **Fund Financials** - Capital structure, expenses, and capital call schedules
+2. **[DONE]** **Sector Profiles** - Investment stage cohorts with graduation and exit rates
+3. **[DONE]** **Capital Allocations** - Initial investment strategy, follow-on allocations, and pacing
 4. 🚧 **Fees & Expenses** - Management fee structures and operating expenses
 5. 🚧 **Exit & Recycling** - Exit strategy and capital recycling policies
 6. 🚧 **Waterfall** - Distribution waterfall configuration (American/European/Hybrid)
@@ -23,9 +23,8 @@ This repository contains the POVC Fund-Modeling Platform, a sophisticated applic
 
 ## Performance Status
 
-[![Guardian](https://github.com/nikhillinit/Updog_restore/actions/workflows/guardian.yml/badge.svg)](https://github.com/nikhillinit/Updog_restore/actions/workflows/guardian.yml)
+[![Guardian](https://github.com/nikhillinit/Updog_restore/actions/workflows/ci-unified.yml/badge.svg)](https://github.com/nikhillinit/Updog_restore/actions/workflows/ci-unified.yml)
 [![Async Migration](https://img.shields.io/badge/dynamic/json?url=https://gist.githubusercontent.com/raw/28e11ae43a0f276ed3f9e22c0202101e/progress.json&query=$.migration&label=async%20migration&color=blue)](./ASYNC_HARDENING_OPTIMIZATION_EVALUATION.md)
-[![Performance Baseline](https://img.shields.io/badge/perf_baseline-automated-blue)](https://github.com/nikhillinit/Updog_restore/actions/workflows/perf-baseline.yml)
 [![Benchmark Trend](https://img.shields.io/badge/benchmark_tracking-active-success)](https://github.com/nikhillinit/Updog_restore/tree/gh-pages/dev/bench)
 [![ESLint Rules](https://img.shields.io/badge/eslint_async-enforced-orange)](./eslint-rules/no-async-array-methods.js)
 
