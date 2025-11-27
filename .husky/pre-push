@@ -28,6 +28,15 @@ fi
 # Define patterns for files that require a full test run (Core configs, packages)
 FULL_RUN_PATTERN='(vitest\.config\.ts|vite\.config\.ts|tsconfig\.json|package\.json|package-lock\.json)'
 
+# Documentation freshness check (warning only, non-blocking)
+echo "📄 Checking documentation freshness..."
+node scripts/check-doc-freshness.mjs || {
+  echo ""
+  echo "⚠️  STALE documentation detected (warning only)"
+  echo "   Consider updating documents flagged above"
+  echo ""
+}
+
 # TypeScript baseline check (always run if code changed)
 echo "📋 Checking TypeScript baseline..."
 npm run baseline:check || {

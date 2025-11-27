@@ -45,3 +45,60 @@ EOF
     fi
   fi
 fi
+
+# Auto-track phase completions
+# Detects commits like "Complete Phase 0A" or "feat(portfolio): Complete Phase..."
+COMMIT_MSG=$(git log -1 --pretty=%B)
+PHASE_STATUS_FILE="docs/PHASE-STATUS.json"
+
+if echo "$COMMIT_MSG" | grep -qiE "(complete|finish|done).*(phase|step|milestone)"; then
+  # Extract phase identifier (e.g., "Phase 0A", "Phase 1", etc.)
+  PHASE_ID=$(echo "$COMMIT_MSG" | grep -oiE "phase [0-9]+[a-z]?" | head -1)
+
+  if [ -n "$PHASE_ID" ]; then
+    echo "Phase completion detected: $PHASE_ID"
+
+    # Create or update PHASE-STATUS.json
+    if [ ! -f "$PHASE_STATUS_FILE" ]; then
+      mkdir -p "$(dirname "$PHASE_STATUS_FILE")"
+      echo '{"phases":[]}' > "$PHASE_STATUS_FILE"
+    fi
+
+    # Add completion entry using node
+    node -e "
+      const fs = require('fs');
+      const path = '$PHASE_STATUS_FILE';
+      let data = JSON.parse(fs.readFileSync(path, 'utf-8'));
+      const phaseId = '$PHASE_ID';
+      const timestamp = new Date().toISOString();
+      const commitHash = '$(git rev-parse HEAD)';
+
+      // Update or add phase entry
+      const existingIndex = data.phases.findIndex(p => p.id === phaseId);
+      const entry = {
+        id: phaseId,
+        completedAt: timestamp,
+        commit: commitHash,
+        message: \`$COMMIT_MSG\`.trim()
+      };
+
+      if (existingIndex >= 0) {
+        data.phases[existingIndex] = entry;
+      } else {
+        data.phases.push(entry);
+      }
+
+      fs.writeFileSync(path, JSON.stringify(data, null, 2));
+      console.log('Updated $PHASE_STATUS_FILE');
+    " || echo "Could not update phase status (non-critical)"
+
+    # Flag handoff documents as potentially stale
+    HANDOFF_DOCS=$(find docs/sessions -name "*HANDOFF*.md" 2>/dev/null | head -5)
+    if [ -n "$HANDOFF_DOCS" ]; then
+      echo "Consider updating handoff documents for $PHASE_ID:"
+      echo "$HANDOFF_DOCS" | while read doc; do
+        echo "   - $doc"
+      done
+    fi
+  fi
+fi
