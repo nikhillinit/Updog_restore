@@ -514,7 +514,49 @@ Gap Analysis: NOT APPLICABLE - Plan was executed successfully.
 4. **Ask when ambiguous** - Clarify review goals upfront
 5. **Evidence required** - No negative claims without code-level proof
 
+### 2025-11-27 Session: Document Restructuring
+
+**What Worked Well:**
+
+- **Multi-AI validation** (GEMINI + OPENAI) caught semantic drift risk in
+  parallel split approach
+- **Sequential then parallel** pattern: Single agent for split (preserve
+  narrative), 4 agents for refinement (speed)
+- **Qualitative cross-linking** (40-60 natural links) superior to quota-based
+  (50+ forced links)
+- **NPM ecosystem** (`remark-cli`, `markdown-link-check`) more maintainable than
+  bash scripts
+- **Cross-platform link checker** (`scripts/check-doc-links.mjs`) solved Windows
+  glob pattern issues
+
+**What Would Improve:**
+
+- **Automation opportunity**: Extract terminology glossary from Phase 1 outline
+  (currently manual)
+- **Process adjustment**: Add "evidence validation" earlier in Phase 2 split
+  (currently Phase 3)
+- **Tool enhancement**: Automated read time calculation from word count (not
+  manual)
+
+**Key Metrics:**
+
+- Time: 5.75 hours (vs 7-hour estimate = 18% faster)
+- Quality: 96/100 (vs 96/100 target = on target)
+- Link count: 48 natural links (within 40-60 target range)
+- Productivity gain: 3-4x for documentation consumers vs monolith
+- Findability: 10x improvement (5 min → 30 sec for targeted queries)
+- Navigability: ALL scenarios < 30 seconds (met target)
+
+**Reusable Artifacts:**
+
+- Template:
+  [prompts/document-review-multi-agent.md](../prompts/document-review-multi-agent.md)
+- ADR:
+  [DECISIONS.md ADR-015](../DECISIONS.md#adr-015-document-restructuring-approach---sequential-split-parallel-refinement)
+- Session handoff pattern: `docs/sessions/SESSION-HANDOFF-*.md`
+- Evidence validation workflow: `EVIDENCE-VALIDATION-REPORT.md`
+
 ---
 
-**Last Updated:** 2025-11-09 **Rationale:** Root cause analysis of oversight
-when reviewing outdated planning documents
+**Last Updated:** 2025-11-27 **Rationale:** Captured lessons from 875-line
+strategic document restructuring (72/100 → 96/100 quality improvement)

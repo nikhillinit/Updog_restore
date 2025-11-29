@@ -280,7 +280,10 @@
     "evaluate:watch": "npm run evaluate:tools -- --watch",
     "evaluate:report": "npm run evaluate:tools -- --report evaluation-report.md",
     "audit:strictness": "node scripts/audit-tsconfig.mjs",
-    "audit:strictness:full": "node scripts/audit-tsconfig.mjs --scope=full"
+    "audit:strictness:full": "node scripts/audit-tsconfig.mjs --scope=full",
+    "docs:lint": "remark docs/analysis --frail --quiet",
+    "docs:check-links": "node scripts/check-doc-links.mjs",
+    "docs:verify": "npm run docs:lint && npm run docs:check-links"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
@@ -494,6 +497,7 @@
     "jsdom": "^26.1.0",
     "lint-staged": "^16.1.6",
     "madge": "8.0.0",
+    "markdown-link-check": "3.14.2",
     "npm-run-all": "^4.1.5",
     "open": "^10.2.0",
     "openapi-typescript": "^7.9.1",
@@ -502,6 +506,9 @@
     "postcss": "8.5.6",
     "preact": "^10.27.1",
     "prettier": "^3.6.2",
+    "remark-cli": "12.0.1",
+    "remark-lint": "10.0.1",
+    "remark-preset-lint-recommended": "7.0.1",
     "rimraf": "^6.0.1",
     "rollup-plugin-visualizer": "^5.12.0",
     "size-limit": "^11.2.0",

@@ -1,0 +1,129 @@
+name: Verify Strategic Documentation
+
+on:
+  push:
+    paths:
+      - 'docs/analysis/**/*.md'
+      - '.remarkrc.mjs'
+      - 'package.json'
+  pull_request:
+    paths:
+      - 'docs/analysis/**/*.md'
+      - '.remarkrc.mjs'
+      - 'package.json'
+
+jobs:
+  verify-docs:
+    name: Documentation Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci --prefer-offline --no-audit
+          npm install -g markdown-link-check remark-cli
+
+      - name: Run remark lint
+        id: remark
+        run: |
+          echo "REMARK_OUTPUT<<EOF" >> $GITHUB_OUTPUT
+          npm run docs:lint 2>&1 | tee -a $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Check for emoji violations
+        id: emoji
+        run: |
+          echo "Checking for emoji in markdown files..."
+          EMOJI_COUNT=0
+
+          # Search for common emoji patterns
+          if grep -r -E "[\x{1F300}-\x{1F9FF}]|[\x{2600}-\x{26FF}]|[\x{2700}-\x{27BF}]" docs/analysis/ 2>/dev/null; then
+            echo "EMOJI_FOUND=true" >> $GITHUB_OUTPUT
+            EMOJI_COUNT=$(grep -r -E "[\x{1F300}-\x{1F9FF}]|[\x{2600}-\x{26FF}]|[\x{2700}-\x{27BF}]" docs/analysis/ | wc -l)
+            echo "EMOJI_COUNT=$EMOJI_COUNT" >> $GITHUB_OUTPUT
+            echo "ERROR: Found $EMOJI_COUNT emoji violations in documentation"
+            exit 1
+          else
+            echo "EMOJI_FOUND=false" >> $GITHUB_OUTPUT
+            echo "SUCCESS: No emoji violations found"
+          fi
+
+      - name: Validate markdown links
+        id: links
+        run: |
+          echo "LINKS_OUTPUT<<EOF" >> $GITHUB_OUTPUT
+          npm run docs:check-links 2>&1 | tee -a $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## Documentation Verification Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Remark Lint Results
+          echo "### Markdown Linting" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.remark.outcome }}" == "success" ]; then
+            echo "[PASS] Markdown linting passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "[FAIL] Markdown linting found issues" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.remark.outputs.REMARK_OUTPUT }}" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Emoji Check Results
+          echo "### Emoji Compliance" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.emoji.outputs.EMOJI_FOUND }}" == "false" ]; then
+            echo "[PASS] No emoji violations detected" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "[FAIL] Found ${{ steps.emoji.outputs.EMOJI_COUNT }} emoji violations" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Action Required**: Replace emoji with text equivalents per CLAUDE.md emoji policy" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Link Validation Results
+          echo "### Link Validation" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.links.outcome }}" == "success" ]; then
+            echo "[PASS] All markdown links are valid" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "[FAIL] Broken links detected" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.links.outputs.LINKS_OUTPUT }}" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Overall Status
+          echo "### Overall Status" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.remark.outcome }}" == "success" ] && \
+             [ "${{ steps.emoji.outputs.EMOJI_FOUND }}" == "false" ] && \
+             [ "${{ steps.links.outcome }}" == "success" ]; then
+            echo "[PASS] All documentation verification checks passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "[FAIL] Documentation verification failed - see details above" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Final status check
+        if: always()
+        run: |
+          if [ "${{ steps.remark.outcome }}" != "success" ] || \
+             [ "${{ steps.emoji.outputs.EMOJI_FOUND }}" == "true" ] || \
+             [ "${{ steps.links.outcome }}" != "success" ]; then
+            echo "Documentation verification failed"
+            exit 1
+          fi
+          echo "All documentation verification checks passed"
