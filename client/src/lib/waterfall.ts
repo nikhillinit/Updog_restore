@@ -54,8 +54,8 @@ export function applyWaterfallChange(w: Waterfall, field: string, value: unknown
       typeof value !== 'object' ||
       !('cliffYears' in value) ||
       !('vestingYears' in value) ||
-      typeof (value as Record<string, unknown>).cliffYears !== 'number' ||
-      typeof (value as Record<string, unknown>).vestingYears !== 'number'
+      typeof (value as Record<string, unknown>)['cliffYears'] !== 'number' ||
+      typeof (value as Record<string, unknown>)['vestingYears'] !== 'number'
     ) {
       // Invalid value provided, return original state unchanged
       return w;
