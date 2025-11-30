@@ -393,15 +393,22 @@ class DatabaseMock {
 
   /**
    * Mock the insert method (Drizzle query builder)
+   * Pattern: db.insert(table).values(data).returning()
    */
-  insert = vi.fn(() => ({
-    into: vi.fn(() => ({
-      values: vi.fn(() => ({
-        returning: vi.fn(() => Promise.resolve([{ id: this.generateId() }])),
-        execute: vi.fn(() => Promise.resolve([{ id: this.generateId() }]))
-      })),
-      execute: vi.fn(() => Promise.resolve([{ id: this.generateId() }]))
-    }))
+  insert = vi.fn((table) => ({
+    values: vi.fn((data) => {
+      const result = { id: this.generateId(), ...data };
+      const chain = {
+        returning: vi.fn(() => Promise.resolve([result])),
+        execute: vi.fn(() => Promise.resolve([result]))
+      };
+
+      return {
+        ...chain,
+        onConflictDoUpdate: vi.fn((config) => chain)
+      };
+    }),
+    execute: vi.fn(() => Promise.resolve([{ id: this.generateId() }]))
   }));
 
   /**
