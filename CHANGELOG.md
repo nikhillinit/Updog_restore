@@ -8,6 +8,23 @@ and this project adheres to
 
 ## [Unreleased] - 2025-11-30
 
+### Added
+
+- **Phoenix v3.0 Phase 0 Complete**: Established ground zero baseline for
+  incremental modernization
+  - Locked TypeScript baseline at 452 errors (58 client, 392 server, 1 shared, 1
+    unknown)
+  - Captured test baseline: 74.2% pass rate (1005/1354 tests, 269 known
+    failures)
+  - Tagged ground zero commit: `phoenix-ground-zero-2025-11-30`
+  - CI enforcement: `code-quality.yml` runs `npm run check` (baseline ratchet)
+  - Updated pre-commit hook to exempt PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md
+    from emoji checks
+  - Added supersession banners to older Phoenix strategy documents
+  - **Strategy**:
+    [docs/strategies/PHOENIX-PLAN-2025-11-30.md](docs/strategies/PHOENIX-PLAN-2025-11-30.md)
+  - **Runbook**: [runbooks/phoenix-execution.md](runbooks/phoenix-execution.md)
+
 ### Changed
 
 - **AI Model Configuration Update**: Updated all AI provider models to latest

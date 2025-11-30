@@ -1,5 +1,9 @@
 # Project Phoenix: Comprehensive Strategy Overview
 
+**Note:** Execution details in this document are superseded by
+[docs/strategies/PHOENIX-PLAN-2025-11-30.md](docs/strategies/PHOENIX-PLAN-2025-11-30.md).
+This file is retained for historical context.
+
 **Status**: Foundation Phase Active **Timeline**: 21-week execution (5 phases)
 **Goal**: Transform documentation quality, eliminate Windows-specific
 workarounds, consolidate IA, and establish scalable architecture patterns

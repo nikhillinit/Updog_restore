@@ -1,12 +1,28 @@
 {
   "include": [
     "types/**/*.d.ts",
-    "client/src/**/*",
-    "shared/**/*",
-    "server/**/*",
-    "schema/src/**/*"
+    "client/src/**/*.ts",
+    "client/src/**/*.tsx",
+    "client/src/**/*.d.ts",
+    "shared/**/*.ts",
+    "shared/**/*.d.ts",
+    "server/**/*.ts",
+    "server/**/*.d.ts",
+    "schema/src/**/*.ts",
+    "schema/src/**/*.d.ts"
   ],
-  "exclude": ["node_modules", "build", "dist", "**/*.test.ts", "archive"],
+  "exclude": [
+    "node_modules",
+    "build",
+    "dist",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "archive",
+    "**/*.md",
+    ".tsc-baseline.json",
+    "HANDOFF-*.md",
+    "KICKOFF-*.md"
+  ],
   "compilerOptions": {
     "incremental": true,
     "tsBuildInfoFile": ".tscache",
