@@ -22,7 +22,7 @@ let pool: any;
 // Use mock database in test environment
 if (isTest) {
   // Import the database mock for testing
-  const { databaseMock } = require('../../tests/helpers/database-mock');
+  const { databaseMock } = require('../tests/helpers/database-mock');
   db = databaseMock;
   pool = null;
 } else if (isVercel) {
