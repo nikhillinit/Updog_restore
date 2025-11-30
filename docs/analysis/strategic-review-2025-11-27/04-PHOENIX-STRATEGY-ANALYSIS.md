@@ -1,5 +1,9 @@
 # Phoenix Strategy Analysis
 
+**Note:** Execution details in this document are superseded by
+[docs/strategies/PHOENIX-PLAN-2025-11-30.md](../../strategies/PHOENIX-PLAN-2025-11-30.md).
+This file is retained for historical context and analysis.
+
 <!-- Breadcrumb Navigation -->
 
 [← INDEX](00-INDEX.md) | [Next Section →](05-CROSS-DOCUMENT-SYNTHESIS.md)
