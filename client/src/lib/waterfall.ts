@@ -19,6 +19,55 @@ const clampInt = (n: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, Math.trunc(n)));
 
 /**
+ * Type guard: Validate carryVesting shape
+ *
+ * Extracts complex boolean checks to reduce cyclomatic complexity
+ * in the main applyWaterfallChange function.
+ *
+ * @param value - Unknown value to validate
+ * @returns True if value is a valid CarryVesting object
+ * @internal
+ */
+function isValidCarryVesting(value: unknown): value is Waterfall['carryVesting'] {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    'cliffYears' in value &&
+    'vestingYears' in value &&
+    typeof (value as Record<string, unknown>)['cliffYears'] === 'number' &&
+    typeof (value as Record<string, unknown>)['vestingYears'] === 'number'
+  );
+}
+
+/**
+ * Helper: Handle carryVesting updates with validation and clamping
+ *
+ * @param w - Current waterfall state
+ * @param value - New carryVesting value to apply
+ * @returns Updated waterfall (or unchanged if validation fails)
+ * @internal
+ */
+function updateCarryVesting(w: Waterfall, value: unknown): Waterfall {
+  // Runtime validation
+  if (!isValidCarryVesting(value)) {
+    return w;
+  }
+
+  const cliffYears = clampInt(value.cliffYears, 0, 10);
+  const vestingYears = clampInt(value.vestingYears, 1, 10);
+
+  // No-op optimization: return same reference if values unchanged
+  if (w.carryVesting.cliffYears === cliffYears && w.carryVesting.vestingYears === vestingYears) {
+    return w;
+  }
+
+  return {
+    ...w,
+    carryVesting: { cliffYears, vestingYears },
+  };
+}
+
+/**
  * Apply a validated update to a Waterfall object
  *
  * Features:
@@ -46,40 +95,14 @@ export function applyWaterfallChange(w: Waterfall, field: string, value: unknown
 // Implementation
 // eslint-disable-next-line no-redeclare
 export function applyWaterfallChange(w: Waterfall, field: string, value: unknown): Waterfall {
-  // Handle carryVesting with bounds validation
   if (field === 'carryVesting') {
-    // Runtime validation: Ensure value has correct shape before type assertion
-    if (
-      !value ||
-      typeof value !== 'object' ||
-      !('cliffYears' in value) ||
-      !('vestingYears' in value) ||
-      typeof (value as Record<string, unknown>)['cliffYears'] !== 'number' ||
-      typeof (value as Record<string, unknown>)['vestingYears'] !== 'number'
-    ) {
-      // Invalid value provided, return original state unchanged
-      return w;
-    }
-
-    const cv = value as Waterfall['carryVesting'];
-    const cliffYears = clampInt(cv.cliffYears, 0, 10);
-    const vestingYears = clampInt(cv.vestingYears, 1, 10);
-
-    // No-op optimization: return same reference if values unchanged
-    if (w.carryVesting.cliffYears === cliffYears && w.carryVesting.vestingYears === vestingYears) {
-      return w;
-    }
-
-    return {
-      ...w,
-      carryVesting: { cliffYears, vestingYears },
-    };
+    return updateCarryVesting(w, value);
   }
 
   // Guard: Reject all other field updates (AMERICAN waterfall only has 'type' and 'carryVesting')
   // 'type' field is immutable (always 'AMERICAN')
   // This prevents type-unsafe field additions that violate WaterfallSchema.strict()
-  return w; // Return unchanged for unknown/invalid fields
+  return w;
 }
 
 /**
