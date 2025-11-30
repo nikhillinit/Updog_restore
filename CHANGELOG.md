@@ -10,6 +10,25 @@ and this project adheres to
 
 ### Added
 
+- **Week 2 Skills Integration COMPLETE**: Added 2 architecture skills with
+  cross-reference updates
+  - **New Skills Created** (`.claude/skills/`):
+    - `task-decomposition.md` - Break complex tasks into manageable subtasks
+      (5-step process, 3 VC fund examples, 839 lines)
+    - `architecture-patterns.md` - Clean Architecture, Hexagonal Architecture,
+      DDD patterns for VC fund platform
+  - **Skills Library Growth**: 19 → 21 skills (+10%), maintained 7 categories
+  - **Cross-References Updated**: `dispatching-parallel-agents.md` now
+    references task-decomposition for dependency analysis
+  - **Integration**: Both skills include VC fund modeling examples (Monte Carlo
+    caching, European waterfall, LP reports) and integrate with existing
+    workflow patterns
+  - **Documentation**:
+    - Updated `.claude/skills/README.md` with task-decomposition in Planning &
+      Design section
+    - Updated `CAPABILITIES.md` to reflect 21 total skills
+    - architecture-patterns added to Data & API Design category (now 3 skills)
+
 - **Week 1 Skills Integration COMPLETE**: Transformed Claude Cookbook patterns
   into 6 new skills with 56% time savings via parallelization
   - **New Skills Created** (`.claude/skills/`):

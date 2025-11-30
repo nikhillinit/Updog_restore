@@ -178,7 +178,7 @@ Zencoder)
 
 **User-Level Location**:
 `C:\Users\nikhi\.claude\plugins\cache\superpowers\skills\` (20 skills)
-**Project-Level Location**: `.claude/skills/` (19 skills) **Source**:
+**Project-Level Location**: `.claude/skills/` (21 skills) **Source**:
 [obra/superpowers](https://github.com/obra/superpowers)
 
 Structured thinking frameworks and workflow patterns to enhance problem-solving.

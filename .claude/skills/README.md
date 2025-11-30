@@ -180,6 +180,34 @@ memoization → Design with validation → Document → Plan
 
 ---
 
+#### [task-decomposition](task-decomposition.md)
+
+**Overview**: Break complex tasks into manageable, independently testable
+subtasks with clear success criteria.
+
+**When to use**: Complex multi-step tasks (3+ steps, >2 hours), unclear
+requirements, large implementations, parallel execution opportunities
+
+**Don't use when**: Simple single-step tasks, already have detailed plan,
+trivial changes
+
+**Core process**:
+
+1. Analyze complexity (simple/moderate/complex)
+2. Identify dependencies (sequential/parallel/hybrid)
+3. Break into 10-30 minute subtasks
+4. Define clear success criteria for each
+5. Determine execution order
+
+**Integration**: Combines with writing-plans for detailed steps, works with
+dispatching-parallel-agents for parallel execution, feeds into
+subagent-driven-development
+
+**Example**: Monte Carlo caching → 8 subtasks → 3 batches with checkpoints →
+parallel execution of independent tracks
+
+---
+
 #### [writing-plans](writing-plans.md)
 
 **Overview**: Create comprehensive implementation plans with complete code
@@ -314,13 +342,15 @@ documentation
    ↓
 2. inversion-thinking (identify failure modes)
    ↓
-3. writing-plans (create implementation tasks)
+3. task-decomposition (break into subtasks)
    ↓
-4. Execute plan with /test-smart
+4. writing-plans (create detailed steps per subtask)
    ↓
-5. memory-management (track progress)
+5. Execute plan with /test-smart
    ↓
-6. continuous-improvement (reflect on process)
+6. memory-management (track progress)
+   ↓
+7. continuous-improvement (reflect on process)
 ```
 
 ### Research & Analysis Workflow
@@ -369,19 +399,22 @@ documentation
 
 ```
 Planning:
-  brainstorming + inversion-thinking + writing-plans
+  brainstorming + inversion-thinking + task-decomposition + writing-plans
 
 Debugging:
   systematic-debugging + root-cause-tracing + pattern-recognition
 
 Implementation:
-  writing-plans + /test-smart + /fix-auto + continuous-improvement
+  task-decomposition + writing-plans + /test-smart + /fix-auto + continuous-improvement
 
 Research:
   extended-thinking-framework + notebooklm + memory-management
 
 Quality:
   pattern-recognition + multi-ai-collab + continuous-improvement
+
+Complex Features:
+  brainstorming + task-decomposition + dispatching-parallel-agents
 ```
 
 ## Best Practices
@@ -389,10 +422,12 @@ Quality:
 ### 1. Choose the Right Skill
 
 - **Analysis**: pattern-recognition, memory-management
-- **Planning**: brainstorming, inversion-thinking, writing-plans
+- **Planning**: brainstorming, task-decomposition, inversion-thinking,
+  writing-plans
 - **Debugging**: systematic-debugging, root-cause-tracing
 - **Execution**: Project slash commands (/test-smart, /fix-auto)
 - **Reflection**: continuous-improvement
+- **Coordination**: task-decomposition, dispatching-parallel-agents
 
 ### 2. Layer Skills Strategically
 
@@ -648,17 +683,51 @@ standards
 
 ---
 
+#### [architecture-patterns](architecture-patterns.md)
+
+**Overview**: Clean Architecture, Hexagonal Architecture, and Domain-Driven
+Design patterns for VC fund modeling platform.
+
+**When to use**: Designing new backend systems, refactoring for maintainability,
+establishing architecture standards
+
+**Three Patterns**:
+
+1. **Clean Architecture**: Dependency inversion (domain → use cases → adapters →
+   frameworks)
+2. **Hexagonal Architecture**: Ports (interfaces) + Adapters (implementations)
+3. **Domain-Driven Design**: Bounded contexts, entities, value objects,
+   aggregates
+
+**VC Fund Context**:
+
+- Bounded Contexts: Fund Management, Portfolio Tracking, Scenario Planning
+- Entities: Fund, Portfolio, Company (identity + behavior)
+- Value Objects: Money, Waterfall, Percentage (immutable)
+- Aggregates: Fund (with Allocations), Portfolio (with Companies)
+
+**Key Benefits**:
+
+- Testable domain logic (no framework dependencies)
+- Swappable adapters (mock for testing, PostgreSQL/Redis for production)
+- Business rules in entities (rich domain models)
+
+**Example**: WaterfallEngine (domain) → IWaterfallCalculator (port) →
+AmericanWaterfallCalculator (adapter)
+
+---
+
 ## Summary
 
-**19 skills across 7 categories**:
+**21 skills across 7 categories**:
 
 - Thinking Frameworks (4)
 - Debugging & Problem Solving (3)
-- Planning & Design (2)
+- Planning & Design (3)
 - Memory & Knowledge Management (2)
 - Integration & Coordination (2)
 - AI Model Utilization (4)
-- Data & API Design (2)
+- Data & API Design (3)
 
 **Core principle**: Use the right tool for the job, layer strategically, track
 progress, and continuously improve.
@@ -666,7 +735,8 @@ progress, and continuously improve.
 **Start here for common tasks**:
 
 - Bug? → **systematic-debugging**
-- New feature? → **brainstorming** → **writing-plans**
+- New feature? → **brainstorming** → **task-decomposition** → **writing-plans**
 - Complex analysis? → **extended-thinking-framework**
 - Multiple problems? → **dispatching-parallel-agents**
 - Research? → **notebooklm** + **memory-management**
+- Large task breakdown? → **task-decomposition**
