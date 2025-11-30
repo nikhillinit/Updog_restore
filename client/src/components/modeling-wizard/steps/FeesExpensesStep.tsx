@@ -3,7 +3,7 @@
  * Step 4: Management fee basis and admin expenses
  */
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Input } from '@/components/ui/input';
@@ -11,18 +11,21 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { feesExpensesSchema, type FeesExpensesInput } from '@/schemas/modeling-wizard.schemas';
+import { useDebounce } from '@/hooks/useDebounce';
 
 export interface FeesExpensesStepProps {
   initialData?: Partial<FeesExpensesInput>;
   onSave: (data: FeesExpensesInput) => void;
+  shouldReset?: boolean;
 }
 
-export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps) {
+export function FeesExpensesStep({ initialData, onSave, shouldReset }: FeesExpensesStepProps) {
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    reset,
     formState: { errors }
   } = useForm<FeesExpensesInput>({
     resolver: zodResolver(feesExpensesSchema),
@@ -39,14 +42,69 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
     }
   });
 
+  const [isDirty, setIsDirty] = useState(false);
+  const formValuesRef = useRef<FeesExpensesInput | null>(null);
+
   const stepDownEnabled = watch('managementFee.stepDown.enabled');
 
+  // Debounced auto-save (750ms delay)
+  const formValues = watch();
+  const debouncedValues = useDebounce(formValues, 750);
+
   React.useEffect(() => {
-    const subscription = watch((value) => {
-      feesExpensesSchema.safeParse(value).success && onSave(value as FeesExpensesInput);
+    // Only save if validation passes (invalid data rejection)
+    const parseResult = feesExpensesSchema.safeParse(debouncedValues);
+    if (parseResult.success) {
+      onSave(parseResult.data);
+      setIsDirty(false);
+    }
+  }, [debouncedValues, onSave]);
+
+  // Unmount protection: save latest valid data on component unmount
+  React.useEffect(() => {
+    // Capture latest form state
+    const currentValues = watch();
+    formValuesRef.current = currentValues as FeesExpensesInput;
+
+    return () => {
+      // On unmount, save if validation passes
+      if (formValuesRef.current) {
+        const parseResult = feesExpensesSchema.safeParse(formValuesRef.current);
+        if (parseResult.success) {
+          onSave(parseResult.data);
+        }
+      }
+    };
+  }, [watch, onSave]);
+
+  // Track dirty state for beforeunload warning
+  React.useEffect(() => {
+    const subscription = watch(() => {
+      setIsDirty(true);
     });
     return () => subscription.unsubscribe();
-  }, [watch, onSave]);
+  }, [watch]);
+
+  // Warn user before navigation with unsaved changes
+  React.useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
+  // Reset form when shouldReset prop changes
+  React.useEffect(() => {
+    if (shouldReset) {
+      reset(initialData);
+      setIsDirty(false);
+    }
+  }, [shouldReset, reset, initialData]);
 
   return (
     <form onSubmit={handleSubmit(onSave)} className="space-y-8">
@@ -77,7 +135,7 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
             </Label>
             <Select
               defaultValue={initialData?.managementFee?.basis || 'committed'}
-              onValueChange={(value) => setValue('managementFee.basis', value as any)}
+              onValueChange={(value) => setValue('managementFee.basis', value as 'committed' | 'called' | 'fmv')}
             >
               <SelectTrigger className="mt-2">
                 <SelectValue />
@@ -88,6 +146,11 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
                 <SelectItem value="fmv">Fair Market Value</SelectItem>
               </SelectContent>
             </Select>
+            {errors.managementFee?.basis && (
+              <p className="text-sm text-error mt-1">
+                {errors.managementFee.basis.message}
+              </p>
+            )}
           </div>
         </div>
 
@@ -116,6 +179,11 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
                   placeholder="e.g., 5"
                   className="mt-2"
                 />
+                {errors.managementFee?.stepDown?.afterYear && (
+                  <p className="text-sm text-error mt-1">
+                    {errors.managementFee.stepDown.afterYear.message}
+                  </p>
+                )}
               </div>
               <div>
                 <Label htmlFor="newRate" className="font-poppins">
@@ -129,6 +197,11 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
                   placeholder="e.g., 1.5"
                   className="mt-2"
                 />
+                {errors.managementFee?.stepDown?.newRate && (
+                  <p className="text-sm text-error mt-1">
+                    {errors.managementFee.stepDown.newRate.message}
+                  </p>
+                )}
               </div>
             </div>
           )}

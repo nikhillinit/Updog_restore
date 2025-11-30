@@ -248,3 +248,220 @@ describe('FeesExpensesStep - Form Reset', () => {
     });
   });
 });
+
+describe('FeesExpensesStep - High Priority Edge Cases', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  test('HP-1: Rapid typing cancels previous debounce timers', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup({ delay: null });
+
+    render(<FeesExpensesStep onSave={onSave} />);
+    const rateInput = screen.getByLabelText(/Rate \(%\)/i);
+
+    // Type 2.5
+    await user.clear(rateInput);
+    await user.type(rateInput, '2.5');
+
+    // Advance 500ms (not full debounce)
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    // Type again (should cancel previous timer)
+    await user.clear(rateInput);
+    await user.type(rateInput, '2.8');
+
+    // Advance another 500ms (total 1000ms, but only 500ms since last change)
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(onSave).not.toHaveBeenCalled();
+
+    // Advance final 250ms (750ms since last change)
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          managementFee: expect.objectContaining({ rate: 2.8 })
+        })
+      );
+    });
+  });
+
+  test('HP-2: Multiple field changes batch into single debounced save', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup({ delay: null });
+
+    render(<FeesExpensesStep onSave={onSave} />);
+
+    // Change multiple fields rapidly
+    const rateInput = screen.getByLabelText(/Rate \(%\)/i);
+    await user.clear(rateInput);
+    await user.type(rateInput, '2.5');
+
+    const annualInput = screen.getByLabelText(/Annual Amount/i);
+    await user.clear(annualInput);
+    await user.type(annualInput, '1.5');
+
+    // Only one save should fire after debounce
+    act(() => {
+      vi.advanceTimersByTime(750);
+    });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          managementFee: expect.objectContaining({ rate: 2.5 }),
+          adminExpenses: expect.objectContaining({ annualAmount: 1.5 })
+        })
+      );
+    });
+  });
+
+  test('HP-3: Unmount during debounce period saves immediately with latest valid data', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup({ delay: null });
+
+    const { unmount } = render(<FeesExpensesStep onSave={onSave} />);
+    const rateInput = screen.getByLabelText(/Rate \(%\)/i);
+
+    // Change value
+    await user.clear(rateInput);
+    await user.type(rateInput, '2.5');
+
+    // Advance only 400ms (less than 750ms debounce)
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    // onSave should not be called yet
+    expect(onSave).not.toHaveBeenCalled();
+
+    // Unmount component
+    unmount();
+
+    // onSave should be called with latest valid data on unmount
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          managementFee: expect.objectContaining({ rate: 2.5 })
+        })
+      );
+    });
+  });
+
+  test('HP-4: Unmount with invalid data does NOT trigger save', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup({ delay: null });
+
+    const { unmount } = render(<FeesExpensesStep onSave={onSave} />);
+    const rateInput = screen.getByLabelText(/Rate \(%\)/i);
+
+    // Enter INVALID rate (> 5%)
+    await user.clear(rateInput);
+    await user.type(rateInput, '10');
+
+    // Unmount without waiting for debounce
+    unmount();
+
+    // onSave should NOT be called with invalid data
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  test('HP-5: Invalid → Valid → Invalid data transitions only save valid state', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup({ delay: null });
+
+    render(<FeesExpensesStep onSave={onSave} />);
+    const rateInput = screen.getByLabelText(/Rate \(%\)/i);
+
+    // Invalid data (rate > 5%)
+    await user.clear(rateInput);
+    await user.type(rateInput, '10');
+    act(() => {
+      vi.advanceTimersByTime(750);
+    });
+    expect(onSave).not.toHaveBeenCalled();
+
+    // Valid data
+    await user.clear(rateInput);
+    await user.type(rateInput, '2.5');
+    act(() => {
+      vi.advanceTimersByTime(750);
+    });
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+    });
+
+    // Invalid again
+    onSave.mockClear();
+    await user.clear(rateInput);
+    await user.type(rateInput, '8');
+    act(() => {
+      vi.advanceTimersByTime(750);
+    });
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  test('HP-6: Step-down required fields validation when enabled', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup({ delay: null });
+
+    render(<FeesExpensesStep onSave={onSave} />);
+
+    // Enable step-down
+    const stepDownSwitch = screen.getByRole('switch', { name: /Enable Fee Step-Down/i });
+    await user.click(stepDownSwitch);
+
+    // Without filling required fields, save should not be triggered
+    act(() => {
+      vi.advanceTimersByTime(750);
+    });
+
+    // onSave should NOT be called (missing afterYear and newRate)
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  test('HP-7: beforeunload listener cleanup after successful save', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup({ delay: null });
+
+    render(<FeesExpensesStep onSave={onSave} />);
+    const rateInput = screen.getByLabelText(/Rate \(%\)/i);
+
+    // Change value (sets isDirty = true)
+    await user.clear(rateInput);
+    await user.type(rateInput, '2.5');
+
+    // Wait for debounce and save (should clear isDirty)
+    act(() => {
+      vi.advanceTimersByTime(750);
+    });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
+    });
+
+    // Create beforeunload event
+    const event = new Event('beforeunload', { cancelable: true }) as BeforeUnloadEvent;
+
+    // Dispatch event (should NOT prevent default after save)
+    window.dispatchEvent(event);
+
+    // Event should not be prevented (isDirty cleared after save)
+    expect(event.defaultPrevented).toBe(false);
+  });
+});
