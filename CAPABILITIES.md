@@ -5,22 +5,28 @@ _Last Updated: 2025-11-10_
 This document provides a persistent reference of ALL available capabilities to
 ensure optimal tool selection and prevent redundant implementations.
 
-**IMPORTANT:** This document is 85% complete as a capability inventory. For complete infrastructure understanding, also read:
+**IMPORTANT:** This document is 85% complete as a capability inventory. For
+complete infrastructure understanding, also read:
 
-1. **[.claude/PROJECT-UNDERSTANDING.md](.claude/PROJECT-UNDERSTANDING.md)** - Complete infrastructure reference (permanent guide)
-2. **[PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md](PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md)** - 21-week transformation roadmap
-3. **[AI-WORKFLOW-COMPLETE-GUIDE.md](AI-WORKFLOW-COMPLETE-GUIDE.md)** - 28 agents, orchestration patterns
-4. **[COMPREHENSIVE-WORKFLOW-GUIDE.md](COMPREHENSIVE-WORKFLOW-GUIDE.md)** - Extended practical guide
+1. **[.claude/PROJECT-UNDERSTANDING.md](.claude/PROJECT-UNDERSTANDING.md)** -
+   Complete infrastructure reference (permanent guide)
+2. **[PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md](PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md)** -
+   21-week transformation roadmap
+3. **[AI-WORKFLOW-COMPLETE-GUIDE.md](AI-WORKFLOW-COMPLETE-GUIDE.md)** - 28
+   agents, orchestration patterns
+4. **[COMPREHENSIVE-WORKFLOW-GUIDE.md](COMPREHENSIVE-WORKFLOW-GUIDE.md)** -
+   Extended practical guide
 
-## 🎯 BEFORE STARTING ANY TASK
+## BEFORE STARTING ANY TASK
 
-1. **Read [.claude/PROJECT-UNDERSTANDING.md](.claude/PROJECT-UNDERSTANDING.md)** for complete infrastructure context
+1. **Read [.claude/PROJECT-UNDERSTANDING.md](.claude/PROJECT-UNDERSTANDING.md)**
+   for complete infrastructure context
 2. Check this inventory for existing solutions
 3. Verify if an agent/tool already handles the requirement
 4. Look for similar patterns that can be adapted
 5. Only build new if nothing exists
 
-## 📋 Available Agents (250+ across all levels)
+## Available Agents (250+ across all levels)
 
 ### Agent Architecture (Multi-Level)
 
@@ -33,9 +39,9 @@ maintenance:
 
 **Architecture & Planning:**
 
-- **architect-review** ⭐ - Architectural decisions and review
+- **architect-review** - Architectural decisions and review
 - **code-explorer** - Understand existing implementations
-- **context-orchestrator** ⭐ - Multi-agent workflow orchestration
+- **context-orchestrator** - Multi-agent workflow orchestration
 - **knowledge-synthesizer** - Extract patterns from interactions
 - **legacy-modernizer** - Refactor and modernize code
 - **dx-optimizer** - Developer experience improvements
@@ -50,12 +56,12 @@ maintenance:
 
 **Documentation & Analysis:**
 
-- **docs-architect** ⭐ - Comprehensive documentation
+- **docs-architect** - Comprehensive documentation
 - **debug-expert** - Error analysis
 
 **Testing:**
 
-- **test-automator** ⭐ - Comprehensive test generation, TDD, coverage
+- **test-automator** - Comprehensive test generation, TDD, coverage
 
 #### **Project-Level Agents (22)** - Updog_restore specific
 
@@ -63,8 +69,8 @@ maintenance:
 
 **Domain-Specific (Venture Capital Fund Modeling):**
 
-- **waterfall-specialist** ⭐ - Waterfall/carry calculations (HANDLES ALL
-  WATERFALL LOGIC)
+- **waterfall-specialist** - Waterfall/carry calculations (HANDLES ALL WATERFALL
+  LOGIC)
 
 **Testing & Quality:**
 
@@ -115,7 +121,7 @@ maintenance:
 
 **BMad Project Management Agents (10):**
 
-- analyst (Mary 📊), architect, pm, po, qa, sm, ux-expert
+- analyst (Mary ), architect, pm, po, qa, sm, ux-expert
 - bmad-master, bmad-orchestrator, dev
 
 **BMad Tasks (17):** Brownfield story creation, brainstorming facilitation,
@@ -133,17 +139,18 @@ git mv archive/.../BMad/agents/analyst.md .claude/agents/
 cp -r archive/.../BMAD-METHOD/ ./BMAD-METHOD/
 ```
 
-### Extended Thinking (ThinkingMixin) ⭐
+### Extended Thinking (ThinkingMixin)
 
 **Add deep reasoning to ANY agent via mixin pattern**
 
 **Location:** `packages/agent-core/ThinkingMixin.ts` **Docs:**
 `packages/agent-core/THINKING_QUICK_START.md`
 
-**Migrated:** [COMPLETE] ALL 6 TypeScript agents (TestRepair, BundleOptimization,
-CodexReview, DependencyAnalysis, RouteOptimization, Zencoder)
+**Migrated:** [COMPLETE] ALL 6 TypeScript agents (TestRepair,
+BundleOptimization, CodexReview, DependencyAnalysis, RouteOptimization,
+Zencoder)
 
-## 🛠 Built-in Tools
+## Built-in Tools
 
 ### File Operations
 
@@ -156,10 +163,10 @@ CodexReview, DependencyAnalysis, RouteOptimization, Zencoder)
 ### Development
 
 - **Bash** - System commands
-- **Task** - Launch specialized agents ⭐
+- **Task** - Launch specialized agents
 - **TodoWrite** - Task management
 - **SlashCommand** - Execute custom commands
-- **Skill** - Launch skills ⭐ (see Skills Library below)
+- **Skill** - Launch skills (see Skills Library below)
 
 ### External
 
@@ -167,11 +174,11 @@ CodexReview, DependencyAnalysis, RouteOptimization, Zencoder)
 - **WebSearch** - Search the web
 - **AskUserQuestion** - Get user clarification
 
-## 🧠 Skills Library (Superpowers Framework)
+## Skills Library (Superpowers Framework)
 
 **User-Level Location**:
 `C:\Users\nikhi\.claude\plugins\cache\superpowers\skills\` (20 skills)
-**Project-Level Location**: `.claude/skills/` (13 skills) **Source**:
+**Project-Level Location**: `.claude/skills/` (19 skills) **Source**:
 [obra/superpowers](https://github.com/obra/superpowers)
 
 Structured thinking frameworks and workflow patterns to enhance problem-solving.
@@ -182,36 +189,39 @@ their workflows mandatory.
 **Usage**: `Skill("skill-name")` - The skill's prompt expands with detailed
 guidance
 
-### 🧪 Testing Skills (3)
+**Latest Addition (2025-11-29):** 6 new skills added via Week 1 Skills
+Integration (+46% growth from 13 baseline)
 
-- **test-driven-development** ⭐ - RED-GREEN-REFACTOR cycle (write failing test
-  → implement → refactor). Activates when implementing features.
+### Testing Skills (3)
+
+- **test-driven-development** - RED-GREEN-REFACTOR cycle (write failing test →
+  implement → refactor). Activates when implementing features.
 - **condition-based-waiting** - Replace arbitrary timeouts with condition
   polling for async tests. Eliminates flaky tests from timing issues.
 - **testing-anti-patterns** - Prevent testing mock behavior, production
   pollution with test-only methods, and mocking without understanding
   dependencies.
 
-### 🐛 Debugging & Problem Solving (4)
+### Debugging & Problem Solving (4)
 
-- **systematic-debugging** ⭐ - Four-phase framework (root cause → pattern
-  analysis → hypothesis → implementation). **Iron Law: NO FIXES WITHOUT ROOT
-  CAUSE FIRST**. Activates automatically when debugging.
+- **systematic-debugging** - Four-phase framework (root cause → pattern analysis
+  → hypothesis → implementation). **Iron Law: NO FIXES WITHOUT ROOT CAUSE
+  FIRST**. Activates automatically when debugging.
 - **root-cause-tracing** - Trace bugs backward through call stack to find
   original trigger (not just symptom)
-- **verification-before-completion** ⭐ - Requires running verification commands
+- **verification-before-completion** - Requires running verification commands
   and confirming output before making success claims. Activates before claiming
   work complete. Evidence before assertions always.
 - **defense-in-depth** - Validates at every layer data passes through to make
   bugs structurally impossible. Use when invalid data causes failures deep in
   execution.
 
-### 🤝 Collaboration Skills (9)
+### Collaboration Skills (9)
 
-- **brainstorming** ⭐ - Transform rough ideas into designs through Socratic
+- **brainstorming** - Transform rough ideas into designs through Socratic
   questioning (6 phases: understanding → exploration → presentation →
   documentation → worktree → planning)
-- **writing-plans** ⭐ - Create implementation plans with complete code examples
+- **writing-plans** - Create implementation plans with complete code examples
   (bite-sized 2-5 min tasks, TDD cycle, frequent commits)
 - **executing-plans** - Execute plans in controlled batches with review
   checkpoints. Load plan, review critically, execute tasks in batches, report
@@ -229,7 +239,7 @@ guidance
 - **subagent-driven-development** - Dispatches fresh subagent for each task with
   code review between tasks, enabling fast iteration with quality gates
 
-### 🧠 Thinking Frameworks (4)
+### Thinking Frameworks (4)
 
 - **inversion-thinking** - Identify pitfalls by inverting questions ("What would
   make this terrible?")
@@ -240,21 +250,21 @@ guidance
 - **extended-thinking-framework** - Reusable XML scaffold for complex tasks
   (analysis → strategy → execution → synthesis → quality check)
 
-### 💾 Memory & Knowledge (2)
+### Memory & Knowledge (2)
 
 - **memory-management** - Structured notes with confidence levels (context
   maintenance, information organization, cross-referencing)
 - **continuous-improvement** - Self-review process (5 reflection prompts: what
   worked, what was inefficient, surprises, clarity improvements, next time)
 
-### 🔗 Integration & Tools (2)
+### Integration & Tools (2)
 
 - **integration-with-other-skills** - Coordinate multiple skills/tools (MCP
   servers, project tools, memory systems, thinking frameworks)
 - **notebooklm** - Query Google NotebookLM notebooks for source-grounded answers
   (browser automation, follow-up mechanism)
 
-### 📖 Meta Skills (4)
+### Meta Skills (4)
 
 - **writing-skills** - Apply TDD to process documentation by testing with
   subagents before writing, iterating until bulletproof against rationalization
@@ -263,11 +273,32 @@ guidance
 - **testing-skills-with-subagents** - Applies RED-GREEN-REFACTOR cycle to
   process documentation by running baseline without skill, writing to address
   failures, iterating to close loopholes
-- **using-superpowers** ⭐ - Establishes mandatory workflows for finding and
-  using skills, including using Skill tool before announcing usage, following
+- **using-superpowers** - Establishes mandatory workflows for finding and using
+  skills, including using Skill tool before announcing usage, following
   brainstorming before coding, and creating TodoWrite todos for checklists
 
-### 📋 Superpowers Slash Commands
+### AI Model Utilization Skills (4) - NEW 2025-11-29
+
+- **ai-model-selection** - Decision framework for routing tasks to optimal AI
+  models (Gemini/OpenAI/DeepSeek/Grok) based on complexity, cost optimization,
+  and task type
+- **multi-model-consensus** - Query multiple AI models for high-stakes decisions
+  requiring validation (financial calculations, security reviews, architecture
+  decisions)
+- **prompt-caching-usage** - Reduce latency by 85% and cost by 90% for repeated
+  context (test repair agents, multi-turn conversations, evaluator-optimizer
+  loops)
+- **iterative-improvement** - Systematic refinement through evaluation feedback
+  loops (Evaluator-Optimizer pattern with 3-criteria validation)
+
+### Data & API Design Skills (2) - NEW 2025-11-29
+
+- **xlsx** - Excel operations for LP reporting, portfolio import/export, and
+  golden testing (always use formulas, not hardcoded values)
+- **api-design-principles** - REST API design for Express + TypeScript + Zod +
+  BullMQ (resource-oriented, hierarchical nesting, sync/async patterns)
+
+### Superpowers Slash Commands
 
 **Location**: `.claude/commands/superpowers/` (if installed)
 
@@ -280,7 +311,7 @@ These commands are thin wrappers that activate the corresponding skill:
 **Quick Reference**: See [.claude/skills/README.md](.claude/skills/README.md)
 for:
 
-- Complete skill catalog with usage examples
+- Complete skill catalog with usage examples (19 skills across 7 categories)
 - Skill combination workflows (debugging, feature dev, research)
 - Integration with project tools (/test-smart, /fix-auto, /log-change)
 - VC fund modeling context examples
@@ -357,7 +388,7 @@ Identify independent failures → dispatching-parallel-agents →
 Each agent uses systematic-debugging → pattern-recognition (synthesize) →
 continuous-improvement (refine)
 
-## 🤖 MCP Tools (Multi-AI Collaboration)
+##  MCP Tools (Multi-AI Collaboration)
 
 ### Multi-AI Collaboration
 - **mcp__multi-ai-collab__ask_gemini** - Ask Gemini
@@ -369,7 +400,7 @@ continuous-improvement (refine)
 - **mcp__multi-ai-collab__ai_debate** - AI debate
 - **mcp__multi-ai-collab__collaborative_solve** - Multi-AI problem solving
 
-### NotebookLM Integration ⭐ NEW (2025-11-07)
+### NotebookLM Integration  NEW (2025-11-07)
 **Source-grounded research with Gemini 2.5 + your documentation**
 
 **Core Tools** (16 total):
@@ -398,7 +429,7 @@ continuous-improvement (refine)
 - [cheatsheets/notebooklm-agent-integration.md](cheatsheets/notebooklm-agent-integration.md) - Integration patterns
 - [NOTEBOOKLM-LINKS.md](NOTEBOOKLM-LINKS.md) - Notebook registry (9 notebooks, 70+ files)
 
-## 📝 Slash Commands
+##  Slash Commands
 
 ### Testing & Quality
 
@@ -414,17 +445,17 @@ continuous-improvement (refine)
 
 ### Documentation (Memory)
 
-- **/log-change** - Update CHANGELOG.md ⭐
-- **/log-decision** - Update DECISIONS.md ⭐
+- **/log-change** - Update CHANGELOG.md
+- **/log-decision** - Update DECISIONS.md
 - **/create-cheatsheet [topic]** - Create documentation
 
 ### Custom Commands
 
 - **/evaluate-tools** - Run tool evaluation framework (NEW)
 
-## 💾 Memory Systems
+##  Memory Systems
 
-### Native Memory Tool Integration ⭐ NEW (2025-11-05)
+### Native Memory Tool Integration  NEW (2025-11-05)
 
 **Claude's Native Memory Tool** (`memory_20250818`) with cross-conversation
 pattern learning:
@@ -459,67 +490,67 @@ const patterns = await engine.getRelevantPatterns({ operation, fileTypes });
 **Memory-Enabled TypeScript Agents (packages/):**
 
 - [x] **TestRepairAgent** (`agent:test-repair`) - Learns test failure patterns
-  and successful repairs
+      and successful repairs
 - [x] **BundleOptimizationAgent** (`agent:bundle-optimization`) - Learns
-  optimization patterns across builds
+      optimization patterns across builds
 - [x] **CodexReviewAgent** (`agent:codex-review`) - Remembers code review
-  patterns and common issues
+      patterns and common issues
 - [x] **DependencyAnalysisAgent** (`agent:dependency-analysis`) - Tracks
-  dependency patterns and successful optimizations
+      dependency patterns and successful optimizations
 - [x] **RouteOptimizationAgent** (`agent:route-optimization`) - Learns route
-  optimization patterns and lazy loading effectiveness
+      optimization patterns and lazy loading effectiveness
 - [x] **ZencoderAgent** (`agent:zencoder`) - Remembers fix patterns and
-  successful code transformations
+      successful code transformations
 
 **Memory-Enabled Project-Level Agents (.claude/agents/):**
 
-- [x] **code-reviewer** (`agent:code-reviewer`) - Learns CLAUDE.md violations and
-  project conventions
+- [x] **code-reviewer** (`agent:code-reviewer`) - Learns CLAUDE.md violations
+      and project conventions
 - [x] **waterfall-specialist** (`agent:waterfall-specialist`) - Remembers
-  waterfall validation patterns and edge cases
+      waterfall validation patterns and edge cases
 - [x] **test-repair** (`agent:test-repair`) - Learns test failure patterns and
-  repair strategies
+      repair strategies
 - [x] **perf-guard** (`agent:perf-guard`) - Tracks bundle size baselines and
-  optimization strategies
+      optimization strategies
 - [x] **db-migration** (`agent:db-migration`) - Remembers schema migration
-  patterns and rollback strategies
+      patterns and rollback strategies
 - [x] **code-simplifier** (`agent:code-simplifier`) - Learns project-specific
-  simplification patterns
+      simplification patterns
 - [x] **comment-analyzer** (`agent:comment-analyzer`) - Tracks comment rot
-  patterns and documentation standards
+      patterns and documentation standards
 - [x] **pr-test-analyzer** (`agent:pr-test-analyzer`) - Remembers test coverage
-  gaps and edge case patterns
+      gaps and edge case patterns
 - [x] **silent-failure-hunter** (`agent:silent-failure-hunter`) - Learns silent
-  failure patterns and error handling standards
+      failure patterns and error handling standards
 - [x] **type-design-analyzer** (`agent:type-design-analyzer`) - Remembers strong
-  type designs and invariant patterns
+      type designs and invariant patterns
 
 **Memory-Enabled Global Agents (Project Overrides in .claude/agents/):**
 
 - [x] **general-purpose** (`agent:general-purpose:updog`) - Learns research
-  patterns and codebase structure
+      patterns and codebase structure
 - [x] **test-automator** (`agent:test-automator:updog`) - Remembers TDD patterns
-  and coverage gaps
+      and coverage gaps
 - [x] **legacy-modernizer** (`agent:legacy-modernizer:updog`) - Tracks migration
-  patterns and refactoring strategies
-- [x] **incident-responder** (`agent:incident-responder:updog`) - Learns incident
-  patterns and mitigation strategies
-- [x] **dx-optimizer** (`agent:dx-optimizer:updog`) - Remembers workflow friction
-  points and automation solutions
+      patterns and refactoring strategies
+- [x] **incident-responder** (`agent:incident-responder:updog`) - Learns
+      incident patterns and mitigation strategies
+- [x] **dx-optimizer** (`agent:dx-optimizer:updog`) - Remembers workflow
+      friction points and automation solutions
 - [x] **docs-architect** (`agent:docs-architect:updog`) - Learns documentation
-  patterns and explanation strategies
+      patterns and explanation strategies
 - [x] **devops-troubleshooter** (`agent:devops-troubleshooter:updog`) - Tracks
-  infrastructure failure patterns
+      infrastructure failure patterns
 - [x] **debug-expert** (`agent:debug-expert:updog`) - Remembers bug patterns and
-  debugging strategies
+      debugging strategies
 - [x] **database-expert** (`agent:database-expert:updog`) - Learns schema
-  patterns and optimization strategies
+      patterns and optimization strategies
 - [x] **context-orchestrator** (`agent:context-orchestrator:updog`) - Tracks
-  context management and orchestration patterns
+      context management and orchestration patterns
 - [x] **code-explorer** (`agent:code-explorer:updog`) - Remembers codebase
-  structure and feature implementations
+      structure and feature implementations
 - [x] **chaos-engineer** (`agent:chaos-engineer:updog`) - Learns system weak
-  points and resilience strategies
+      points and resilience strategies
 
 **Total**: 28 memory-enabled agents (6 TypeScript + 10 Project-Level + 12 Global
 Overrides)
@@ -553,7 +584,7 @@ Overrides)
 - **Package.json scripts** - Available commands
 - **Learned patterns** - Success/failure patterns from past executions (NEW)
 
-## 🔄 Workflow Patterns
+## Workflow Patterns
 
 ### BEFORE IMPLEMENTING ANYTHING:
 
@@ -564,12 +595,12 @@ Overrides)
 
 ### Common Mistakes to Avoid:
 
-- ❌ Using Bash for file operations (use Read/Write/Edit)
-- ❌ Implementing financial calculations (use waterfall-specialist)
-- ❌ Writing test generation (use test-automator)
-- ❌ Manual code review (use code-reviewer)
-- ❌ Building evaluation frameworks (use existing evaluators)
-- ❌ Creating new memory systems (use CHANGELOG/DECISIONS)
+- Using Bash for file operations (use Read/Write/Edit)
+- Implementing financial calculations (use waterfall-specialist)
+- Writing test generation (use test-automator)
+- Manual code review (use code-reviewer)
+- Building evaluation frameworks (use existing evaluators)
+- Creating new memory systems (use CHANGELOG/DECISIONS)
 
 ### Optimal Patterns:
 
@@ -579,7 +610,7 @@ Overrides)
 - [x] Update CHANGELOG/DECISIONS for persistence
 - [x] Check this file FIRST before any task
 
-## 🎯 Decision Tree
+## Decision Tree
 
 ```
 User Request
@@ -599,7 +630,7 @@ System command? → YES → Use Bash
 [Only then implement new solution]
 ```
 
-## 📊 Documentation Quality Validation
+## Documentation Quality Validation
 
 ### Framework Overview
 
@@ -785,7 +816,7 @@ tests:
 
 ---
 
-## 📚 External Resources
+## External Resources
 
 ### Available Cookbook Patterns (C:\dev\Updog_restore\anthropic-cookbook)
 
@@ -843,7 +874,7 @@ tests:
 - Production-ready code examples
 - Evaluation framework design
 
-❌ **Don't use for:**
+  **Don't use for:**
 
 - Domain-specific business logic (use waterfall-specialist, etc.)
 - Project-specific calculations
@@ -852,7 +883,7 @@ tests:
 **See:** [cheatsheets/agent-architecture.md](cheatsheets/agent-architecture.md)
 for detailed cookbook workflow documentation
 
-## 🔍 Quick Reference Questions
+## Quick Reference Questions
 
 Before any task, ask yourself:
 
@@ -864,11 +895,11 @@ Before any task, ask yourself:
 6. **Is there a slash command?** → Check command list
 7. **Is there an npm script?** → Check package.json
 
-## 📌 Most Commonly Forgotten
+## Most Commonly Forgotten
 
 These are the capabilities most often overlooked:
 
-1. **Superpowers Skills Library** ⭐ - 28 skills across 6 categories that
+1. **Superpowers Skills Library** - 34 skills across 8 categories that
    **auto-activate when relevant**:
    - **test-driven-development** - Activates during feature implementation
    - **systematic-debugging** - Activates when debugging (NO FIXES WITHOUT ROOT
@@ -877,6 +908,12 @@ These are the capabilities most often overlooked:
    - **brainstorming** - Socratic design refinement before coding
    - **executing-plans** - Batch execution with review checkpoints
    - **subagent-driven-development** - Fast iteration with code review gates
+   - **ai-model-selection** - NEW: Route tasks to optimal AI model (cost
+     optimization)
+   - **multi-model-consensus** - NEW: Validate high-stakes decisions with
+     multiple AIs
+   - **iterative-improvement** - NEW: Systematic refinement with evaluation
+     loops
 2. **using-superpowers skill** - Establishes mandatory workflows for skill usage
    (check FIRST before announcing skill usage)
 3. **Extended Thinking (ThinkingMixin)** - Add deep reasoning to any agent with
@@ -887,7 +924,7 @@ These are the capabilities most often overlooked:
 7. **MCP tools** - Get second opinions from Gemini/OpenAI
 8. **code-explorer** - Understand existing code before modifying
 
-## 🧠 Extended Thinking Integration
+## Extended Thinking Integration
 
 **Location**: `packages/agent-core/ThinkingMixin.ts`
 
@@ -916,7 +953,8 @@ class MyAgent extends withThinking(BaseAgent) {
 - Cost tracking and health monitoring
 - Works alongside native memory (complementary capabilities)
 
-**Migrated Agents**: **SUCCESS:** **ALL 6 TypeScript agents MIGRATED** (100% complete):
+**Migrated Agents**: **SUCCESS:** **ALL 6 TypeScript agents MIGRATED** (100%
+complete):
 
 - TestRepairAgent, BundleOptimizationAgent, CodexReviewAgent
 - DependencyAnalysisAgent, RouteOptimizationAgent, ZencoderAgent
@@ -938,7 +976,7 @@ capabilities are added.
 
 ---
 
-## 🧪 Testing Infrastructure
+## Testing Infrastructure
 
 ### XIRR Calculation - Golden Test Suite
 
@@ -1013,9 +1051,9 @@ bundle analysis to justify optimization cost **Action:** Run
 
 #### Runtime Zod Validations (Covered - Phase 3)
 
-**Scope:** Schema validation at API boundaries **Status:** **SUCCESS:** COVERED by Phase 3
-Portfolio Route API work **Reference:** `shared/schemas/` for Zod validation
-schemas **ADR:** ADR-011 Anti-Pattern Prevention Strategy
+**Scope:** Schema validation at API boundaries **Status:** **SUCCESS:** COVERED
+by Phase 3 Portfolio Route API work **Reference:** `shared/schemas/` for Zod
+validation schemas **ADR:** ADR-011 Anti-Pattern Prevention Strategy
 
 ---
 
@@ -1023,9 +1061,9 @@ schemas **ADR:** ADR-011 Anti-Pattern Prevention Strategy
 
 #### lodash (Removed)
 
-**Status:** **SUCCESS:** REMOVED (not found in package.json) **Date:** Prior to Nov 2025
-**Replaced With:** Native ES2023+ methods (Array.prototype.at, Object.groupBy,
-etc.)
+**Status:** **SUCCESS:** REMOVED (not found in package.json) **Date:** Prior to
+Nov 2025 **Replaced With:** Native ES2023+ methods (Array.prototype.at,
+Object.groupBy, etc.)
 
 #### xlsx (Eager Loading)
 
