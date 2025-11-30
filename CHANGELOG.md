@@ -6,7 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2025-11-29
+## [Unreleased] - 2025-11-30
+
+### Changed
+
+- **AI Model Configuration Update**: Updated all AI provider models to latest
+  versions (November 2025)
+  - **Claude**: `claude-3-5-sonnet-latest` → `claude-opus-4-5-20251101` (Opus
+    4.5, released Nov 1, 2025)
+  - **OpenAI**: `gpt-4o-mini` → `gpt-5-mini-2025-08-07` (GPT-5 Mini, released
+    Aug 7, 2025)
+  - **Google**: `gemini-1.5-flash` → `gemini-3-pro-preview` (Gemini 3 Preview,
+    Nov 2025)
+  - **DeepSeek**: `deepseek-chat` → `deepseek-ai/DeepSeek-V3.2-Exp` (V3.2 685B
+    parameter model, Nov 17, 2025)
+  - **Pricing Updates** (per 1K tokens):
+    - Claude Opus 4.5: $0.005 input / $0.025 output (67% increase for premium
+      tier)
+    - GPT-5 Mini: $0.003 input / $0.012 output
+    - Gemini 3 Preview: $0.002 input / $0.012 output (preview pricing)
+    - DeepSeek V3.2: $0.00055 input / $0.00219 output
+  - **Files Updated**:
+    - [.env.local.example](.env.local.example) (lines 134-148)
+    - [claude_code-multi-AI-MCP/credentials.template.json](claude_code-multi-AI-MCP/credentials.template.json)
+  - **Verified Compatibility**: All multi-AI orchestrator functions
+    (`askAllAIs()`, `aiConsensus()`, `collaborativeSolve()`) confirmed working
+    with new model identifiers
+  - **Note**: Model identifiers validated against official provider
+    documentation (Anthropic, OpenAI, Google AI, HuggingFace)
 
 ### Added
 
