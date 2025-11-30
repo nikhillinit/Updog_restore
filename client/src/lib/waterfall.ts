@@ -29,14 +29,16 @@ const clampInt = (n: number, min: number, max: number): number =>
  * @internal
  */
 function isValidCarryVesting(value: unknown): value is Waterfall['carryVesting'] {
-  return (
-    !!value &&
-    typeof value === 'object' &&
-    'cliffYears' in value &&
-    'vestingYears' in value &&
-    typeof (value as Record<string, unknown>)['cliffYears'] === 'number' &&
-    typeof (value as Record<string, unknown>)['vestingYears'] === 'number'
-  );
+  // Early exit for non-objects
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  // Cast to record to safely check properties
+  const v = value as Record<string, unknown>;
+
+  // Verify required numeric properties exist
+  return typeof v.cliffYears === 'number' && typeof v.vestingYears === 'number';
 }
 
 /**
