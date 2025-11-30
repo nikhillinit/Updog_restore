@@ -4,8 +4,10 @@
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable no-console */
-import * as schema from "@shared/schema";
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+
+import * as schema from '@shared/schema';
 
 // Detect test environment
 const isTest = process.env['NODE_ENV'] === 'test' || process.env['VITEST'] === 'true';
@@ -20,23 +22,23 @@ let pool: any;
 // Use mock database in test environment
 if (isTest) {
   // Import the database mock for testing
-  const { databaseMock } = require('../tests/helpers/database-mock');
+  const { databaseMock } = require('../../tests/helpers/database-mock');
   db = databaseMock;
   pool = null;
 } else if (isVercel) {
   // Use HTTP driver for Vercel (no persistent connections)
   const { drizzle } = require('drizzle-orm/neon-http');
   const { neon } = require('@neondatabase/serverless');
-  
+
   const DATABASE_URL = process.env['DATABASE_URL'] || process.env['NEON_DATABASE_URL'];
-  
+
   if (!DATABASE_URL) {
     throw new Error('DATABASE_URL or NEON_DATABASE_URL environment variable is required');
   }
-  
+
   const sql = neon(DATABASE_URL);
   db = drizzle(sql, { schema });
-  
+
   // No pool in HTTP mode
   pool = null;
 } else {
@@ -44,14 +46,14 @@ if (isTest) {
   const { Pool, neonConfig } = await import('@neondatabase/serverless');
   const { drizzle } = await import('drizzle-orm/neon-serverless');
   const ws = await import('ws');
-  
+
   neonConfig.webSocketConstructor = ws;
-  
+
   if (!process.env['DATABASE_URL']) {
-    console.warn("DATABASE_URL not set - using mock mode for API testing");
-    process.env['DATABASE_URL'] = "postgresql://mock:mock@localhost:5432/mock";
+    console.warn('DATABASE_URL not set - using mock mode for API testing');
+    process.env['DATABASE_URL'] = 'postgresql://mock:mock@localhost:5432/mock';
   }
-  
+
   pool = new Pool({ connectionString: process.env['DATABASE_URL'] });
   db = drizzle({ client: pool, schema });
 }

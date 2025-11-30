@@ -40,20 +40,27 @@ export function applyWaterfallChange(
 ): Waterfall;
 
 // Fallback: Dynamic field updates
-export function applyWaterfallChange(
-  w: Waterfall,
-  field: string,
-  value: unknown
-): Waterfall;
+// eslint-disable-next-line no-redeclare
+export function applyWaterfallChange(w: Waterfall, field: string, value: unknown): Waterfall;
 
 // Implementation
-export function applyWaterfallChange(
-  w: Waterfall,
-  field: string,
-  value: unknown
-): Waterfall {
+// eslint-disable-next-line no-redeclare
+export function applyWaterfallChange(w: Waterfall, field: string, value: unknown): Waterfall {
   // Handle carryVesting with bounds validation
   if (field === 'carryVesting') {
+    // Runtime validation: Ensure value has correct shape before type assertion
+    if (
+      !value ||
+      typeof value !== 'object' ||
+      !('cliffYears' in value) ||
+      !('vestingYears' in value) ||
+      typeof (value as Record<string, unknown>).cliffYears !== 'number' ||
+      typeof (value as Record<string, unknown>).vestingYears !== 'number'
+    ) {
+      // Invalid value provided, return original state unchanged
+      return w;
+    }
+
     const cv = value as Waterfall['carryVesting'];
     const cliffYears = clampInt(cv.cliffYears, 0, 10);
     const vestingYears = clampInt(cv.vestingYears, 1, 10);
@@ -65,12 +72,14 @@ export function applyWaterfallChange(
 
     return {
       ...w,
-      carryVesting: { cliffYears, vestingYears }
+      carryVesting: { cliffYears, vestingYears },
     };
   }
 
-  // Default: pass-through update with type assertion
-  return { ...w, [field]: value } as Waterfall;
+  // Guard: Reject all other field updates (AMERICAN waterfall only has 'type' and 'carryVesting')
+  // 'type' field is immutable (always 'AMERICAN')
+  // This prevents type-unsafe field additions that violate WaterfallSchema.strict()
+  return w; // Return unchanged for unknown/invalid fields
 }
 
 /**
@@ -84,8 +93,8 @@ export function createDefaultWaterfall(overrides?: Partial<Waterfall>): Waterfal
     type: 'AMERICAN',
     carryVesting: {
       cliffYears: 0,
-      vestingYears: 4
+      vestingYears: 4,
     },
-    ...overrides
+    ...overrides,
   });
 }
