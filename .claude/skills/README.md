@@ -15,7 +15,7 @@ The skill's prompt will then expand and guide you through its process.
 
 ## Skills Catalog
 
-### 🧠 Thinking Frameworks
+### Thinking Frameworks
 
 #### [inversion-thinking](inversion-thinking.md)
 
@@ -101,7 +101,7 @@ synthesis
 
 ---
 
-### 🔍 Debugging & Problem Solving
+### Debugging & Problem Solving
 
 #### [systematic-debugging](systematic-debugging.md)
 
@@ -157,7 +157,7 @@ hours → 30 minutes
 
 ---
 
-### 📝 Planning & Design
+### Planning & Design
 
 #### [brainstorming](brainstorming.md)
 
@@ -177,6 +177,34 @@ questioning.
 
 **Example**: "I want to add caching" → Clarify goals → Explore Redis vs
 memoization → Design with validation → Document → Plan
+
+---
+
+#### [task-decomposition](task-decomposition.md)
+
+**Overview**: Break complex tasks into manageable, independently testable
+subtasks with clear success criteria.
+
+**When to use**: Complex multi-step tasks (3+ steps, >2 hours), unclear
+requirements, large implementations, parallel execution opportunities
+
+**Don't use when**: Simple single-step tasks, already have detailed plan,
+trivial changes
+
+**Core process**:
+
+1. Analyze complexity (simple/moderate/complex)
+2. Identify dependencies (sequential/parallel/hybrid)
+3. Break into 10-30 minute subtasks
+4. Define clear success criteria for each
+5. Determine execution order
+
+**Integration**: Combines with writing-plans for detailed steps, works with
+dispatching-parallel-agents for parallel execution, feeds into
+subagent-driven-development
+
+**Example**: Monte Carlo caching → 8 subtasks → 3 batches with checkpoints →
+parallel execution of independent tracks
 
 ---
 
@@ -202,7 +230,7 @@ documenting implementation
 
 ---
 
-### 💾 Memory & Knowledge Management
+### Memory & Knowledge Management
 
 #### [memory-management](memory-management.md)
 
@@ -245,7 +273,7 @@ learnings
 
 ---
 
-### 🔗 Integration & Coordination
+### Integration & Coordination
 
 #### [integration-with-other-skills](integration-with-other-skills.md)
 
@@ -314,13 +342,15 @@ documentation
    ↓
 2. inversion-thinking (identify failure modes)
    ↓
-3. writing-plans (create implementation tasks)
+3. task-decomposition (break into subtasks)
    ↓
-4. Execute plan with /test-smart
+4. writing-plans (create detailed steps per subtask)
    ↓
-5. memory-management (track progress)
+5. Execute plan with /test-smart
    ↓
-6. continuous-improvement (reflect on process)
+6. memory-management (track progress)
+   ↓
+7. continuous-improvement (reflect on process)
 ```
 
 ### Research & Analysis Workflow
@@ -369,19 +399,22 @@ documentation
 
 ```
 Planning:
-  brainstorming + inversion-thinking + writing-plans
+  brainstorming + inversion-thinking + task-decomposition + writing-plans
 
 Debugging:
   systematic-debugging + root-cause-tracing + pattern-recognition
 
 Implementation:
-  writing-plans + /test-smart + /fix-auto + continuous-improvement
+  task-decomposition + writing-plans + /test-smart + /fix-auto + continuous-improvement
 
 Research:
   extended-thinking-framework + notebooklm + memory-management
 
 Quality:
   pattern-recognition + multi-ai-collab + continuous-improvement
+
+Complex Features:
+  brainstorming + task-decomposition + dispatching-parallel-agents
 ```
 
 ## Best Practices
@@ -389,10 +422,12 @@ Quality:
 ### 1. Choose the Right Skill
 
 - **Analysis**: pattern-recognition, memory-management
-- **Planning**: brainstorming, inversion-thinking, writing-plans
+- **Planning**: brainstorming, task-decomposition, inversion-thinking,
+  writing-plans
 - **Debugging**: systematic-debugging, root-cause-tracing
 - **Execution**: Project slash commands (/test-smart, /fix-auto)
 - **Reflection**: continuous-improvement
+- **Coordination**: task-decomposition, dispatching-parallel-agents
 
 ### 2. Layer Skills Strategically
 
@@ -491,15 +526,208 @@ If you create new skills for this project:
 
 4. **Update this README**: Add to appropriate category
 
+### AI Model Utilization
+
+#### [ai-model-selection](ai-model-selection.md)
+
+**Overview**: Decision framework for routing to optimal AI model based on task
+characteristics.
+
+**When to use**: Before MCP multi-AI collaboration, cost optimization, unclear
+complexity
+
+**Decision Matrix**: Task type → Best model (Gemini/OpenAI/DeepSeek/Grok)
+
+**Complexity Thresholds**:
+
+- Level 1-2 (Trivial): Gemini (free)
+- Level 3-7 (Moderate): Strategic choice based on task
+- Level 8-10 (Complex): OpenAI o1 or multi-AI consensus
+
+**Cost Optimization**: Free-first routing, consensus for critical decisions
+($10k+ impact), hybrid workflows
+
+**Example**: Waterfall calculation bug → DeepSeek for debugging (logical
+reasoning) → Gemini validation (free)
+
+---
+
+#### [multi-model-consensus](multi-model-consensus.md)
+
+**Overview**: Query multiple AI models for high-stakes decisions requiring
+validation.
+
+**When to use**: Financial calculations, security reviews, architecture
+decisions, legal/compliance
+
+**DON'T use**: Simple fixes, low stakes (3-5x cost not justified)
+
+**Four Patterns**:
+
+1. **Consensus** (`ai_consensus`) - Validation and agreement
+2. **Debate** (`ai_debate`) - Trade-off exploration
+3. **Multi-perspective** (`ask_all_ais`) - Diverse viewpoints
+4. **Collaborative** (`collaborative_solve`) - Complex problem solving
+
+**Example**: Waterfall calculation validation → ai_consensus → All models agree
+→ HIGH confidence proceed
+
+---
+
+#### [prompt-caching-usage](prompt-caching-usage.md)
+
+**Overview**: Reduce latency by 85% and cost by 90% for repeated context.
+
+**When to use**: Test repair agents, multi-turn conversations,
+evaluator-optimizer loops
+
+**Expected Impact**: First call 20s/$0.30 → subsequent calls 3s/$0.03
+
+**Cache These**: CLAUDE.md, schemas, test structures, evaluation criteria (high
+reuse)
+
+**Don't Cache**: User queries, dynamic test failures, git diffs (low reuse)
+
+**Pattern**: Separate cacheable (static) from dynamic content with cache_control
+
+**Example**: Test repair agent - cache project context (50k chars) → 10
+iterations $3.00 → $0.33
+
+---
+
+#### [iterative-improvement](iterative-improvement.md)
+
+**Overview**: Systematic refinement through evaluation feedback loops
+(Evaluator-Optimizer pattern).
+
+**When to use**: Test repair, code generation, architectural design, performance
+optimization
+
+**Core Pattern**: Generate → Evaluate (3 criteria) → Optimize (with feedback) →
+Repeat
+
+**3-Criteria Pattern**:
+
+1. **Functional**: Does it work? (tests pass, requirements met)
+2. **Safe**: No regressions? (no anti-patterns, backwards compatible)
+3. **Conventional**: Follows project patterns? (matches codebase style)
+
+**Max Iterations**: 3 (beyond that = architectural issue)
+
+**Status Decision**: PASS (all 3 met) | NEEDS_IMPROVEMENT (continue) | FAIL
+(stop early)
+
+**Integration**: systematic-debugging FIRST (root cause), then iterate
+
+**Example**: Reserve engine null error → Iteration 1: null check → Iteration 2:
+type guards → Iteration 3: error handling → PASS
+
+---
+
+### Data & API Design
+
+#### [xlsx](xlsx.md)
+
+**Overview**: Excel operations for LP reporting, portfolio import/export, and
+golden testing.
+
+**Critical Principle**: Always use Excel formulas (not hardcoded Python values)
+for dynamic spreadsheets
+
+**When to use**: LP quarterly reports, waterfall distributions, portfolio data
+import, golden tests vs Excel models
+
+**Core Operations**:
+
+- Read: pandas (`pd.read_excel`)
+- Write with formulas: openpyxl (`sheet['B1'] = '=SUM(A1:A10)'`)
+- Modify existing: `load_workbook` (preserve formulas)
+
+**Financial Standards**:
+
+- Blue text: Hardcoded inputs
+- Black text: Formulas/calculations
+- Currency: `$#,##0` with unit headers
+- Mandatory formula recalculation (`python recalc.py`) before LP delivery
+
+**Example**: Export waterfall to Excel with formulas for Return of Capital,
+Preferred Return, Catch-up, Split
+
+---
+
+#### [api-design-principles](api-design-principles.md)
+
+**Overview**: REST API design for Express + TypeScript + Zod + BullMQ VC fund
+platform.
+
+**When to use**: Designing new endpoints, refactoring routes, establishing API
+standards
+
+**Core Principles**:
+
+1. Resource-oriented (nouns not verbs): `/api/funds/:fundId`
+2. HTTP method semantics: GET (retrieve), POST (create), PATCH (update), DELETE
+   (remove)
+3. Hierarchical nesting (max 2 levels): `/api/funds/:fundId/allocations`
+
+**VC Fund Patterns**:
+
+- Synchronous: `POST /api/waterfalls/calculate` (fast, < 100ms)
+- Async (BullMQ): `POST /api/simulations` → 202 Accepted with Location header
+- Validation: Zod schemas at endpoint level
+- Concurrency: Optimistic locking with version fields
+- Idempotency: Idempotency-Key header for POST/PATCH
+
+**Example**: Monte Carlo simulation → POST creates job → 202 Accepted → GET
+`/api/simulations/:jobId` → 200 OK when complete
+
+---
+
+#### [architecture-patterns](architecture-patterns.md)
+
+**Overview**: Clean Architecture, Hexagonal Architecture, and Domain-Driven
+Design patterns for VC fund modeling platform.
+
+**When to use**: Designing new backend systems, refactoring for maintainability,
+establishing architecture standards
+
+**Three Patterns**:
+
+1. **Clean Architecture**: Dependency inversion (domain → use cases → adapters →
+   frameworks)
+2. **Hexagonal Architecture**: Ports (interfaces) + Adapters (implementations)
+3. **Domain-Driven Design**: Bounded contexts, entities, value objects,
+   aggregates
+
+**VC Fund Context**:
+
+- Bounded Contexts: Fund Management, Portfolio Tracking, Scenario Planning
+- Entities: Fund, Portfolio, Company (identity + behavior)
+- Value Objects: Money, Waterfall, Percentage (immutable)
+- Aggregates: Fund (with Allocations), Portfolio (with Companies)
+
+**Key Benefits**:
+
+- Testable domain logic (no framework dependencies)
+- Swappable adapters (mock for testing, PostgreSQL/Redis for production)
+- Business rules in entities (rich domain models)
+
+**Example**: WaterfallEngine (domain) → IWaterfallCalculator (port) →
+AmericanWaterfallCalculator (adapter)
+
+---
+
 ## Summary
 
-**13 skills across 5 categories**:
+**21 skills across 7 categories**:
 
-- 🧠 Thinking Frameworks (4)
-- 🔍 Debugging & Problem Solving (3)
-- 📝 Planning & Design (2)
-- 💾 Memory & Knowledge Management (2)
-- 🔗 Integration & Coordination (2)
+- Thinking Frameworks (4)
+- Debugging & Problem Solving (3)
+- Planning & Design (3)
+- Memory & Knowledge Management (2)
+- Integration & Coordination (2)
+- AI Model Utilization (4)
+- Data & API Design (3)
 
 **Core principle**: Use the right tool for the job, layer strategically, track
 progress, and continuously improve.
@@ -507,7 +735,8 @@ progress, and continuously improve.
 **Start here for common tasks**:
 
 - Bug? → **systematic-debugging**
-- New feature? → **brainstorming** → **writing-plans**
+- New feature? → **brainstorming** → **task-decomposition** → **writing-plans**
 - Complex analysis? → **extended-thinking-framework**
 - Multiple problems? → **dispatching-parallel-agents**
 - Research? → **notebooklm** + **memory-management**
+- Large task breakdown? → **task-decomposition**

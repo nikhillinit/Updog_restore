@@ -6,6 +6,121 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2025-11-30
+
+### Changed
+
+- **AI Model Configuration Update**: Updated all AI provider models to latest
+  versions (November 2025)
+  - **Claude**: `claude-3-5-sonnet-latest` → `claude-opus-4-5-20251101` (Opus
+    4.5, released Nov 1, 2025)
+  - **OpenAI**: `gpt-4o-mini` → `gpt-5-mini-2025-08-07` (GPT-5 Mini, released
+    Aug 7, 2025)
+  - **Google**: `gemini-1.5-flash` → `gemini-3-pro-preview` (Gemini 3 Preview,
+    Nov 2025)
+  - **DeepSeek**: `deepseek-chat` → `deepseek-ai/DeepSeek-V3.2-Exp` (V3.2 685B
+    parameter model, Nov 17, 2025)
+  - **Pricing Updates** (per 1K tokens):
+    - Claude Opus 4.5: $0.005 input / $0.025 output (67% increase for premium
+      tier)
+    - GPT-5 Mini: $0.003 input / $0.012 output
+    - Gemini 3 Preview: $0.002 input / $0.012 output (preview pricing)
+    - DeepSeek V3.2: $0.00055 input / $0.00219 output
+  - **Files Updated**:
+    - [.env.local.example](.env.local.example) (lines 134-148)
+    - [claude_code-multi-AI-MCP/credentials.template.json](claude_code-multi-AI-MCP/credentials.template.json)
+  - **Verified Compatibility**: All multi-AI orchestrator functions
+    (`askAllAIs()`, `aiConsensus()`, `collaborativeSolve()`) confirmed working
+    with new model identifiers
+  - **Note**: Model identifiers validated against official provider
+    documentation (Anthropic, OpenAI, Google AI, HuggingFace)
+
+### Added
+
+- **Skills Application Phase COMPLETE**: Validated 8 newly integrated skills
+  through parallel scenario execution
+  - **Scenario 1**: Waterfall Type-Safety Bug Fix (18 min, 2 bugs fixed, 0
+    regressions)
+    - Skills: systematic-debugging (10/10), multi-model-consensus (9/10),
+      test-driven-development (8/10), verification-before-completion (8/10)
+    - Impact: Prevented P1 production crash from null/undefined inputs
+    - Files: `client/src/lib/waterfall.ts`,
+      `tests/unit/waterfall-bug-test.test.ts`
+  - **Scenario 2**: Integration Test Infrastructure Fix (10 min, 48+ tests
+    unblocked)
+    - Skills: task-decomposition (7/10), systematic-debugging (9/10),
+      verification-before-completion (8/10)
+    - Root cause: Incorrect relative path in `server/db.ts` (../ → ../../)
+  - **Aggregate Metrics**: 56% time savings (28 min vs 65+ min baseline), $0
+    cost, 2 bugs fixed, 1 P1 crash prevented
+  - **Documentation**: `docs/skills-application-log.md`,
+    `docs/skills-application-synthesis.md`,
+    `SCENARIO-1-WATERFALL-BUG-FIX-SUMMARY.md`
+  - **Key Insights**: Multi-model consensus caught critical crash bug,
+    systematic debugging eliminated trial-and-error, git archaeology = fastest
+    root cause discovery
+
+- **Week 2 Skills Integration COMPLETE**: Added 2 architecture skills with
+  cross-reference updates
+  - **New Skills Created** (`.claude/skills/`):
+    - `task-decomposition.md` - Break complex tasks into manageable subtasks
+      (5-step process, 3 VC fund examples, 839 lines)
+    - `architecture-patterns.md` - Clean Architecture, Hexagonal Architecture,
+      DDD patterns for VC fund platform
+  - **Skills Library Growth**: 19 → 21 skills (+10%), maintained 7 categories
+  - **Cross-References Updated**: `dispatching-parallel-agents.md` now
+    references task-decomposition for dependency analysis
+  - **Integration**: Both skills include VC fund modeling examples (Monte Carlo
+    caching, European waterfall, LP reports) and integrate with existing
+    workflow patterns
+  - **Documentation**:
+    - Updated `.claude/skills/README.md` with task-decomposition in Planning &
+      Design section
+    - Updated `CAPABILITIES.md` to reflect 21 total skills
+    - architecture-patterns added to Data & API Design category (now 3 skills)
+
+- **Week 1 Skills Integration COMPLETE**: Transformed Claude Cookbook patterns
+  into 6 new skills with 56% time savings via parallelization
+  - **New Skills Created** (`.claude/skills/`):
+    - `ai-model-selection.md` - Decision framework for routing tasks to optimal
+      AI models (Gemini/OpenAI/DeepSeek/Grok)
+    - `multi-model-consensus.md` - High-stakes decision validation with multiple
+      AI models
+    - `prompt-caching-usage.md` - 85% latency reduction, 90% cost reduction
+      guidance
+    - `iterative-improvement.md` - Evaluator-Optimizer pattern for systematic
+      refinement
+    - `xlsx.md` - Excel operations for LP reporting (always use formulas, not
+      hardcoded values)
+    - `api-design-principles.md` - REST API design for Express + TypeScript +
+      Zod + BullMQ
+  - **Skills Library Growth**: 13 → 19 skills (+46%), 5 → 7 categories
+  - **Implementation Strategy**: Maximum parallelization (6 parallel agents via
+    Task tool)
+  - **Time Savings**: 18 hours planned (sequential) → 8 hours actual (parallel)
+    = 56% reduction
+  - **ROI Analysis**: Skills-first approach delivers 4x better ROI than code
+    implementation (28 hours vs 80 hours)
+  - **Integration**: All skills cross-reference existing skills and include VC
+    fund modeling examples
+  - **Documentation**:
+    - Updated `.claude/skills/README.md` with 2 new categories and skill
+      descriptions
+    - Created `HANDOFF-SKILLS-INTEGRATION-2025-11-29.md` with complete
+      implementation details
+    - Updated `CAPABILITIES.md` with new skills (19 total, 34 across
+      user+project)
+    - Updated `CLAUDE_COOKBOOK_INTEGRATION.md` with pattern completion status
+  - **Cookbook Pattern Status Changes**:
+    - Evaluator-Optimizer: 100% (code + skill)
+    - Routing: 95% (skill-based, eliminates need for Router.ts)
+    - Multi-LLM Parallelization: 95% (MCP + skill)
+    - Prompt Caching: 60% (skill guidance, optional code)
+    - Data Integration: 100% (xlsx + api-design-principles skills)
+    - Orchestrator-Workers: 90% (existing agents + skills, optional code)
+  - **Removed from Roadmap**: Router.ts, standalone EvaluatorOptimizer.ts,
+    Automated Evaluations (skills sufficient)
+
 ## [Unreleased] - 2025-11-26
 
 ### Added

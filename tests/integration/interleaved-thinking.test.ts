@@ -28,6 +28,15 @@ vi.mock('../../server/db/pool', () => ({
   },
 }));
 
+// Import database mock helper
+import { databaseMock } from '../helpers/database-mock';
+
+// Mock server/db module to use databaseMock
+vi.mock('../../server/db', () => ({
+  db: databaseMock,
+  pool: null
+}));
+
 describe('Interleaved Thinking API', () => {
   let app: Application;
   let mockAnthropicCreate: ReturnType<typeof vi.fn>;
