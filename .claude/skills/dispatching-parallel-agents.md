@@ -20,6 +20,8 @@ concurrently.**
 - Each problem can be understood without context from others
 - No shared state between investigations
 - Time-sensitive (need fast parallel investigation)
+- Task decomposition has identified truly independent domains (see
+  task-decomposition skill)
 
 ❌ **Don't use when:**
 
@@ -27,6 +29,7 @@ concurrently.**
 - Need to understand full system state first
 - Agents would interfere with each other (file conflicts)
 - Single investigation would be faster than coordination overhead
+- Task decomposition reveals hidden dependencies between problems
 
 ## The Pattern
 
