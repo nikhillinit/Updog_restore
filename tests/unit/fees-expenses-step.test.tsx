@@ -465,3 +465,106 @@ describe('FeesExpensesStep - High Priority Edge Cases', () => {
     expect(event.defaultPrevented).toBe(false);
   });
 });
+
+describe('FeesExpensesStep - CRITICAL-3: Conditional Step-Down Validation', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  test('CRITICAL: Step-down with afterYear but missing newRate shows error', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup({ delay: null });
+
+    render(<FeesExpensesStep onSave={onSave} />);
+
+    // Enable step-down
+    const stepDownSwitch = screen.getByRole('switch', { name: /Enable Fee Step-Down/i });
+    await user.click(stepDownSwitch);
+
+    // Fill ONLY afterYear
+    const afterYearInput = screen.getByLabelText(/After Year/i);
+    await user.clear(afterYearInput);
+    await user.type(afterYearInput, '5');
+
+    // Advance debounce timer
+    act(() => {
+      vi.advanceTimersByTime(750);
+    });
+
+    // Should NOT save (missing newRate)
+    expect(onSave).not.toHaveBeenCalled();
+
+    // Should show error (validation message)
+    await waitFor(() => {
+      expect(screen.getByText(/new rate is required/i)).toBeInTheDocument();
+    });
+  });
+
+  test('CRITICAL: Step-down with newRate but missing afterYear shows error', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup({ delay: null });
+
+    render(<FeesExpensesStep onSave={onSave} />);
+
+    // Enable step-down
+    const stepDownSwitch = screen.getByRole('switch', { name: /Enable Fee Step-Down/i });
+    await user.click(stepDownSwitch);
+
+    // Fill ONLY newRate
+    const newRateInput = screen.getByLabelText(/New Rate/i);
+    await user.clear(newRateInput);
+    await user.type(newRateInput, '1.5');
+
+    // Advance debounce timer
+    act(() => {
+      vi.advanceTimersByTime(750);
+    });
+
+    // Should NOT save (missing afterYear)
+    expect(onSave).not.toHaveBeenCalled();
+
+    // Should show error (validation message)
+    await waitFor(() => {
+      expect(screen.getByText(/step-down year is required/i)).toBeInTheDocument();
+    });
+  });
+
+  test('CRITICAL: afterYear exceeds maximum value (> 10) shows error', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup({ delay: null });
+
+    render(<FeesExpensesStep onSave={onSave} />);
+
+    // Enable step-down
+    const stepDownSwitch = screen.getByRole('switch', { name: /Enable Fee Step-Down/i });
+    await user.click(stepDownSwitch);
+
+    // Enter afterYear > 10 (invalid per CRITICAL-1 fix)
+    const afterYearInput = screen.getByLabelText(/After Year/i);
+    await user.clear(afterYearInput);
+    await user.type(afterYearInput, '15');
+
+    // Also provide newRate to isolate afterYear validation
+    const newRateInput = screen.getByLabelText(/New Rate/i);
+    await user.clear(newRateInput);
+    await user.type(newRateInput, '1.5');
+
+    // Advance debounce timer
+    act(() => {
+      vi.advanceTimersByTime(750);
+    });
+
+    // Should NOT save (afterYear > 10)
+    expect(onSave).not.toHaveBeenCalled();
+
+    // Should show error matching CRITICAL-1 fix
+    await waitFor(() => {
+      expect(screen.getByText(/must be between 1 and 10/i)).toBeInTheDocument();
+    });
+  });
+});

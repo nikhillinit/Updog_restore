@@ -645,6 +645,7 @@ export const feesExpensesSchema = z.object({
       afterYear: z.number()
         .int('Step-down year must be a whole number')
         .min(1, 'Step-down year must be at least 1')
+        .max(10, 'Step-down year must be between 1 and 10')
         .optional(),
       newRate: percentageSchema.optional()
     }).optional()
@@ -871,6 +872,7 @@ export const fundFinancialsSchema = z.object({
       afterYear: z.number()
         .int('Step-down year must be a whole number')
         .min(1, 'Step-down year must be at least 1')
+        .max(10, 'Step-down year must be between 1 and 10')
         .optional(),
       newRate: percentageSchema.optional()
     }).optional()
