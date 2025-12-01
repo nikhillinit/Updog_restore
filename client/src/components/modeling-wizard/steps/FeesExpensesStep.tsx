@@ -3,15 +3,21 @@
  * Step 4: Management fee basis and admin expenses
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { feesExpensesSchema, type FeesExpensesInput } from '@/schemas/modeling-wizard.schemas';
-import { useDebounce } from '@/hooks/useDebounce';
+import { useDebounceDeep } from '@/hooks/useDebounce';
 
 export interface FeesExpensesStepProps {
   initialData?: Partial<FeesExpensesInput>;
@@ -26,71 +32,79 @@ export function FeesExpensesStep({ initialData, onSave, shouldReset }: FeesExpen
     watch,
     setValue,
     reset,
-    formState: { errors }
+    getValues,
+    formState: { errors },
   } = useForm<FeesExpensesInput>({
     resolver: zodResolver(feesExpensesSchema),
     defaultValues: initialData || {
       managementFee: {
         rate: 2.0,
         basis: 'committed',
-        stepDown: { enabled: false }
+        stepDown: { enabled: false },
       },
       adminExpenses: {
         annualAmount: 0,
-        growthRate: 3
-      }
-    }
+        growthRate: 3,
+      },
+    },
   });
 
+  // Stabilize onSave for effects
+  const onSaveRef = useRef(onSave);
+  useEffect(() => {
+    onSaveRef.current = onSave;
+  }, [onSave]);
+
+  // Local state decoupled from render cycles
+  const [formData, setFormData] = useState<FeesExpensesInput>(getValues());
   const [isDirty, setIsDirty] = useState(false);
-  const formValuesRef = useRef<FeesExpensesInput | null>(null);
 
-  const stepDownEnabled = watch('managementFee.stepDown.enabled');
+  // Deep debounce object state
+  const debouncedData = useDebounceDeep(formData, 750);
 
-  // Debounced auto-save (750ms delay)
-  const formValues = watch();
-  const debouncedValues = useDebounce(formValues, 750);
+  // For conditional rendering only (single field)
+  const stepDownEnabled = !!watch('managementFee.stepDown.enabled');
 
-  React.useEffect(() => {
-    // Only save if validation passes (invalid data rejection)
-    const parseResult = feesExpensesSchema.safeParse(debouncedValues);
-    if (parseResult.success) {
-      onSave(parseResult.data);
-      setIsDirty(false);
-    }
-  }, [debouncedValues, onSave]);
-
-  // Unmount protection: save latest valid data on component unmount
-  React.useEffect(() => {
-    // Capture latest form state
-    const currentValues = watch();
-    formValuesRef.current = currentValues as FeesExpensesInput;
-
-    return () => {
-      // On unmount, save if validation passes
-      if (formValuesRef.current) {
-        const parseResult = feesExpensesSchema.safeParse(formValuesRef.current);
-        if (parseResult.success) {
-          onSave(parseResult.data);
-        }
-      }
-    };
-  }, [watch, onSave]);
-
-  // Track dirty state for beforeunload warning
-  React.useEffect(() => {
-    const subscription = watch(() => {
+  // Subscription pattern: no watch() in render, no watch in deps
+  useEffect(() => {
+    const subscription = watch((value) => {
+      setFormData(value as FeesExpensesInput);
       setIsDirty(true);
     });
     return () => subscription.unsubscribe();
-  }, [watch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Warn user before navigation with unsaved changes
-  React.useEffect(() => {
+  // Auto-save on debounced valid data
+  useEffect(() => {
+    if (!isDirty) return;
+
+    const parseResult = feesExpensesSchema.safeParse(debouncedData);
+    if (parseResult.success) {
+      onSaveRef.current(parseResult.data);
+      setIsDirty(false);
+    }
+  }, [debouncedData, isDirty]);
+
+  // Unmount protection: use getValues() once, no unstable deps
+  useEffect(() => {
+    return () => {
+      const currentValues = getValues();
+      const parseResult = feesExpensesSchema.safeParse(currentValues);
+
+      if (parseResult.success) {
+        onSaveRef.current(parseResult.data);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Warn on tab close if we think there are unsaved/invalid changes
+  useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty) {
         e.preventDefault();
-        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        e.returnValue = '';
       }
     };
 
@@ -99,7 +113,7 @@ export function FeesExpensesStep({ initialData, onSave, shouldReset }: FeesExpen
   }, [isDirty]);
 
   // Reset form when shouldReset prop changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (shouldReset) {
       reset(initialData);
       setIsDirty(false);
@@ -135,7 +149,9 @@ export function FeesExpensesStep({ initialData, onSave, shouldReset }: FeesExpen
             </Label>
             <Select
               defaultValue={initialData?.managementFee?.basis || 'committed'}
-              onValueChange={(value) => setValue('managementFee.basis', value as 'committed' | 'called' | 'fmv')}
+              onValueChange={(value) =>
+                setValue('managementFee.basis', value as 'committed' | 'called' | 'fmv')
+              }
             >
               <SelectTrigger className="mt-2">
                 <SelectValue />
@@ -147,9 +163,7 @@ export function FeesExpensesStep({ initialData, onSave, shouldReset }: FeesExpen
               </SelectContent>
             </Select>
             {errors.managementFee?.basis && (
-              <p className="text-sm text-error mt-1">
-                {errors.managementFee.basis.message}
-              </p>
+              <p className="text-sm text-error mt-1">{errors.managementFee.basis.message}</p>
             )}
           </div>
         </div>

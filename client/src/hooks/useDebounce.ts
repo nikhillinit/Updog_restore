@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 /**
  * Debounces a value by delaying updates until after a specified delay
@@ -19,6 +19,34 @@ export function useDebounce<T>(value: T, delay: number = 750): T {
     return () => {
       clearTimeout(timer);
     };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+/**
+ * Debounces an object/array value with deep comparison
+ * Only triggers updates when the serialized value actually changes
+ * @param value The object/array to debounce
+ * @param delay Delay in milliseconds (default: 750ms for auto-save)
+ * @returns The debounced value
+ */
+export function useDebounceDeep<T>(value: T, delay: number = 750): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  const previousValueRef = useRef<string>(JSON.stringify(value));
+
+  useEffect(() => {
+    const serialized = JSON.stringify(value);
+
+    // Only set timer if value actually changed (deep comparison)
+    if (serialized !== previousValueRef.current) {
+      const timer = setTimeout(() => {
+        setDebouncedValue(value);
+        previousValueRef.current = serialized;
+      }, delay);
+
+      return () => clearTimeout(timer);
+    }
   }, [value, delay]);
 
   return debouncedValue;
