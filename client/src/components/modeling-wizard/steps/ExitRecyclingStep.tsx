@@ -17,6 +17,7 @@ import {
   type FundFinancialsOutput
 } from '@/schemas/modeling-wizard.schemas';
 import { useExitRecyclingCalculations } from '@/hooks/useExitRecyclingCalculations';
+import { useDebounceDeep } from '@/hooks/useDebounceDeep';
 import { RecyclingSummaryCard } from './exit-recycling/RecyclingSummaryCard';
 
 // ============================================================================
@@ -80,9 +81,12 @@ export function ExitRecyclingStep({
   const recyclingCap = watch('recyclingCap') || 15;
   const exitRecyclingRate = watch('exitRecyclingRate') || 75;
 
-  // Calculate all metrics in real-time
+  // Debounce form values to prevent watch() from defeating useMemo
+  const debouncedFormValues = useDebounceDeep(formValues, 250);
+
+  // Calculate all metrics in real-time (now properly memoized)
   const { calculations, validation } = useExitRecyclingCalculations({
-    formValues,
+    formValues: debouncedFormValues,
     fundSize: fundFinancials.fundSize
   });
 
@@ -121,6 +125,20 @@ export function ExitRecyclingStep({
       }
     };
   }, [watch, onSave]);
+
+  // Data loss prevention: warn on tab close if save pending
+  React.useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // Check if debounced save is in flight
+      if (saveTimeoutRef.current !== null) {
+        event.preventDefault();
+        event.returnValue = ''; // Required for legacy browsers
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []); // saveTimeoutRef is stable (ref never changes)
 
   // Toggle handler with preservation pattern
   const handleRecyclingToggle = (enabled: boolean) => {
