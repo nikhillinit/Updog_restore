@@ -10,6 +10,34 @@ and this project adheres to
 
 ### Fixed
 
+- **jsdom test infrastructure initialization failure** (GitHub Issue #232)
+  - **Severity**: HIGH (blocked 100% of client-side tests from executing)
+  - **Root Cause**:
+    - Setup file manually overrode Vitest's jsdom environment
+    - `tests/setup/jsdom-setup.ts` was redefining window/document objects
+    - Manual overrides broke React Testing Library's container logic
+  - **Solution Implemented**:
+    - Removed 65 lines of manual DOM manipulation from jsdom-setup.ts
+    - Let Vitest's `environment: 'jsdom'` handle DOM initialization correctly
+    - Added defensive assertion to throw early if jsdom not initialized
+    - Added DOM cleanup between tests to prevent leakage
+  - **Impact**:
+    - Client tests: 0 of 11 files executing → 11 of 11 files executing
+    - Zero "expect is not defined" errors
+    - Zero appendChild errors
+    - Environment initialization: FIXED
+  - **Diagnostic Approach**:
+    - Created jsdom-smoke.test.ts to prove environment works (bypasses setup)
+    - Smoke test passed, confirming problem was in setup file
+    - Diagnostic-first approach resolved issue in 60 minutes
+  - **Files Changed**:
+    - `tests/setup/jsdom-setup.ts` (simplified from 127→62 lines)
+    - `tests/unit/jsdom-smoke.test.ts` (NEW - diagnostic regression test)
+  - **Dependencies**: No updates required (all modern and compatible)
+    - vitest: 3.2.4, jsdom: 26.1.0, @testing-library/react: 16.3.0
+  - **Documentation**: `JSDOM-FIX-SUMMARY-2025-12-01.md` (complete resolution)
+  - **Fixes**: GitHub Issue #232
+
 - **CRITICAL: FeesExpensesStep infinite save loop** (PR
   phoenix/phase-1-wizard-fees)
   - **Severity**: P0 (460+ saves/second blocking all user interactions)
