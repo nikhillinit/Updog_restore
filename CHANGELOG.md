@@ -8,6 +8,32 @@ and this project adheres to
 
 ## [Unreleased] - 2025-12-01
 
+### Added
+
+- **FeesExpensesStep error message display** (GitHub Issue #234)
+  - **Component**:
+    `client/src/components/modeling-wizard/steps/FeesExpensesStep.tsx`
+  - **Changes**: Added 5 missing error message displays following established
+    pattern
+  - **Fields with New Error Display**:
+    1. Fee Basis Select field (line 119-121)
+    2. Step-Down After Year input field (line 150-154)
+    3. Step-Down New Rate input field (line 168-172)
+    4. Admin Expenses Annual Amount input field (line 195-199)
+    5. Admin Expenses Growth Rate input field (line 214-218)
+  - **Pattern Used**: Conditional rendering with
+    `{errors.field && <p className="text-sm text-error mt-1">...</p>}`
+  - **Styling**: Consistent with other wizard steps (text-sm text-error mt-1)
+  - **Accessibility**: Implicit screen reader support via text content proximity
+  - **Validation Integration**: react-hook-form errors object with Zod schema
+    validation
+  - **Build Status**: TypeScript: 0 new errors, Build: PASS
+  - **Test Status**: 0 new test regressions (baseline maintained at 68.3%)
+  - **Manual QA Required**: jsdom environment blocked (see
+    MANUAL-QA-BEFOREUNLOAD-PROTECTION.md)
+  - **Fixes**: GitHub Issue #234
+  - **Date**: 2025-12-01T11:14:00Z
+
 ### Fixed
 
 - **jsdom test infrastructure initialization failure** (GitHub Issue #232)

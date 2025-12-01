@@ -9,7 +9,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { feesExpensesSchema, type FeesExpensesInput } from '@/schemas/modeling-wizard.schemas';
 
 export interface FeesExpensesStepProps {
@@ -24,20 +30,20 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
     watch,
     setValue,
     getValues,
-    formState: { errors }
+    formState: { errors },
   } = useForm<FeesExpensesInput>({
     resolver: zodResolver(feesExpensesSchema),
     defaultValues: initialData || {
       managementFee: {
         rate: 2.0,
         basis: 'committed',
-        stepDown: { enabled: false }
+        stepDown: { enabled: false },
       },
       adminExpenses: {
         annualAmount: 0,
-        growthRate: 3
-      }
-    }
+        growthRate: 3,
+      },
+    },
   });
 
   // Preserve step-down fields when toggling
@@ -60,15 +66,13 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
       // Toggle OFF: Preserve nested fields
       preservedValuesRef.current.stepDown = {
         afterYear: getValues('managementFee.stepDown.afterYear'),
-        newRate: getValues('managementFee.stepDown.newRate')
+        newRate: getValues('managementFee.stepDown.newRate'),
       };
       setValue('managementFee.stepDown.enabled', false);
     } else if (preservedValuesRef.current.stepDown) {
       // Toggle ON: Restore from ref
-      setValue('managementFee.stepDown.afterYear',
-        preservedValuesRef.current.stepDown.afterYear);
-      setValue('managementFee.stepDown.newRate',
-        preservedValuesRef.current.stepDown.newRate);
+      setValue('managementFee.stepDown.afterYear', preservedValuesRef.current.stepDown.afterYear);
+      setValue('managementFee.stepDown.newRate', preservedValuesRef.current.stepDown.newRate);
       setValue('managementFee.stepDown.enabled', true);
     } else {
       // Toggle ON without preserved values
