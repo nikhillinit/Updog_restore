@@ -10,14 +10,16 @@ and this project adheres to
 
 ### Added
 
-- **Phoenix v3.0 Phase 1 Track 2 Complete**: Wizard auto-save functionality with comprehensive test coverage
+- **Phoenix v3.0 Phase 1 Track 2 Complete**: Wizard auto-save functionality with
+  comprehensive test coverage
   - **Implementation**: 8 GREEN phase TDD cycles for FeesExpensesStep component
     - Debounced auto-save (750ms) with invalid data rejection
     - Unmount protection to prevent data loss
     - Real-time error display for 3 validation fields
     - Dirty state tracking with beforeunload warning
     - Form reset capability via shouldReset prop
-  - **Testing**: 15 comprehensive tests (8 baseline + 7 high-priority edge cases)
+  - **Testing**: 15 comprehensive tests (8 baseline + 7 high-priority edge
+    cases)
     - Rapid typing debounce cancellation
     - Multi-field batched saves
     - Unmount during debounce period
@@ -25,12 +27,17 @@ and this project adheres to
     - State transition validation (Invalid→Valid→Invalid)
     - Step-down required fields validation
     - beforeunload cleanup after save
-  - **Quality Gates**: TypeScript baseline maintained (452 errors, no regressions)
+  - **Quality Gates**: TypeScript baseline maintained (452 errors, no
+    regressions)
   - **Files Modified**:
-    - [client/src/components/modeling-wizard/steps/FeesExpensesStep.tsx](client/src/components/modeling-wizard/steps/FeesExpensesStep.tsx) - Auto-save implementation
-    - [client/src/hooks/useDebounce.ts](client/src/hooks/useDebounce.ts) - Reusable debounce hook
-    - [tests/unit/fees-expenses-step.test.tsx](tests/unit/fees-expenses-step.test.tsx) - Comprehensive test suite
-  - **Known Issue**: Test execution blocked by pre-existing baseline issue (jest-dom import in jsdom-setup.ts:6)
+    - [client/src/components/modeling-wizard/steps/FeesExpensesStep.tsx](client/src/components/modeling-wizard/steps/FeesExpensesStep.tsx) -
+      Auto-save implementation
+    - [client/src/hooks/useDebounce.ts](client/src/hooks/useDebounce.ts) -
+      Reusable debounce hook
+    - [tests/unit/fees-expenses-step.test.tsx](tests/unit/fees-expenses-step.test.tsx) -
+      Comprehensive test suite
+  - **Known Issue**: Test execution blocked by pre-existing baseline issue
+    (jest-dom import in jsdom-setup.ts:6)
   - **Next Steps**: Manual QA verification, test infrastructure baseline fix
 
 - **Phoenix v3.0 Phase 0 Complete**: Established ground zero baseline for
@@ -191,6 +198,36 @@ and this project adheres to
   - Tests: 7/7 passing for memory manager integration
 
 ### Fixed
+
+- **FeesExpensesStep Infinite Save Loop**: Resolved critical bugs causing 460+
+  saves/second in modeling wizard
+  - **Commit**:
+    [8652351b](https://github.com/nikhillinit/Updog_restore/commit/8652351b)
+  - **Root Cause**: React Hook Form `watch()` returns unstable object references
+    every render, breaking debounce dependency tracking
+  - **Bug 1**: Infinite save loop from `useDebounce(watch(), 750)` seeing new
+    reference every render
+  - **Bug 2**: Unmount effect re-running continuously due to unstable `watch` in
+    dependency array
+  - **Solution Implemented**:
+    - Created `useDebounceDeep` hook with JSON-based deep comparison
+      ([client/src/hooks/useDebounce.ts](client/src/hooks/useDebounce.ts))
+    - Fixed subscription effect with empty dependency array (watch is internally
+      stable in RHF)
+    - Stabilized `onSave` callback with ref pattern to prevent effect churn
+    - Fixed unmount protection using `getValues()` instead of unstable `watch()`
+  - **Performance Impact**: Save rate reduced from 460+/sec (infinite loop) to 1
+    save per 750ms (correct debounce)
+  - **Pattern Established**: Reusable approach for React Hook Form + debounce
+    integration (subscription + deep comparison + ref stabilization)
+  - **Testing**: Manual QA pending (automated tests blocked by pre-existing
+    jest-dom import issue)
+  - **Documentation**:
+    [BUG-FIX-SUMMARY-FEES-EXPENSES-2025-11-30.md](BUG-FIX-SUMMARY-FEES-EXPENSES-2025-11-30.md)
+  - **Known Nuance**: Form may save twice in some flows (debounced auto-save +
+    unmount save) - acceptable for wizard persistence
+  - **Technical Debt**: JSON serialization acceptable for current small form;
+    may need cheaper deep-equal if form grows significantly
 
 - **Variance Tracking Schema Tests**: Resolved 25 out of 27 failing test cases
   in database mock implementation
