@@ -58,6 +58,7 @@ const SharedDashboard = React.lazy(() => import("@/pages/shared-dashboard"));
 const SecondaryMarketPage = React.lazy(() => import("@/pages/secondary-market"));
 // Notion Integration
 const NotionIntegrationPage = React.lazy(() => import("@/pages/notion-integration"));
+const ModelingWizardPage = React.lazy(() => import("@/pages/modeling-wizard"));
 
 const _moduleConfig = {
   dashboard: {
@@ -241,6 +242,7 @@ function Router() {
         <Route path="/portfolio-constructor">{() => <ProtectedRoute component={PortfolioConstructor} />}</Route>
         <Route path="/secondary-market">{() => <ProtectedRoute component={SecondaryMarketPage} />}</Route>
         <Route path="/notion-integration">{() => <ProtectedRoute component={NotionIntegrationPage} />}</Route>
+        <Route path="/modeling-wizard" component={ModelingWizardPage} />
         <Route path="/dev-dashboard" component={DevDashboardPage} />
         <Route path="/mobile-executive-dashboard">{() => <ProtectedRoute component={MobileExecutiveDashboardPage} />}</Route>
         <Route path="/reports">{() => <ProtectedRoute component={Reports} />}</Route>

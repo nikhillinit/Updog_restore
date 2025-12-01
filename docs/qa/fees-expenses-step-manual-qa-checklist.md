@@ -14,7 +14,7 @@
    ```
 
 2. Navigate to Modeling Wizard in browser:
-   - URL: `http://localhost:5000/modeling-wizard`
+   - URL: `http://localhost:5173/modeling-wizard`
    - Step 4: "Fees & Expenses"
 
 ## Test Scenarios
