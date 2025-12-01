@@ -4,6 +4,8 @@
     "client": {
       "errors": [
         "client/src/components/charts/LazyResponsiveContainer.tsx:TS2322:6ffbd1e2",
+        "client/src/components/modeling-wizard/steps/ExitRecyclingStep.tsx:TS2375:25f5f29b",
+        "client/src/components/modeling-wizard/steps/FeesExpensesStep.tsx:TS2375:e4da9b60",
         "client/src/components/portfolio-constructor/FundStrategyBuilder.tsx:TS2307:88267344",
         "client/src/components/ui/recharts-bundle.tsx:TS2375:e149ce5b",
         "client/src/core/pacing/PacingEngine.ts:TS18048:513a28ff",
@@ -62,8 +64,8 @@
         "client/src/utils/async-iteration.ts:TS2345:7355dce4",
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
-      "total": 58,
-      "lastUpdated": "2025-11-30T15:59:05.537Z"
+      "total": 60,
+      "lastUpdated": "2025-12-01T08:05:43.770Z"
     },
     "server": {
       "errors": [
@@ -461,21 +463,21 @@
         "server/websocket/dev-dashboard.ts:TS2532:de791f79"
       ],
       "total": 392,
-      "lastUpdated": "2025-11-30T15:59:05.537Z"
+      "lastUpdated": "2025-12-01T08:05:43.770Z"
     },
     "shared": {
       "errors": ["shared/variance-validation.ts:TS4111:236f2efb"],
       "total": 1,
-      "lastUpdated": "2025-11-30T15:59:05.537Z"
+      "lastUpdated": "2025-12-01T08:05:43.770Z"
     },
     "unknown": {
       "errors": ["vite.config.ts:TS7006:118fabe7"],
       "total": 1,
-      "lastUpdated": "2025-11-30T15:59:05.537Z"
+      "lastUpdated": "2025-12-01T08:05:43.770Z"
     }
   },
-  "totalErrors": 452,
-  "timestamp": "2025-11-30T15:59:05.537Z",
+  "totalErrors": 454,
+  "timestamp": "2025-12-01T08:05:43.770Z",
   "buildMode": "per-project",
-  "elapsedMs": 19856
+  "elapsedMs": 41091
 }
