@@ -42,17 +42,21 @@ jobs:
     name: Detect Changes
     runs-on: ubuntu-latest
     outputs:
+      # Simplified boolean outputs - dorny/paths-filter returns 'true'/'false' strings
       code: ${{ steps.filter.outputs.code }}
       docs: ${{ steps.filter.outputs.docs }}
-      affected_tests: ${{ steps.affected.outputs.tests }}
+      affected_tests: ${{ steps.affected.outputs.tests || 'all' }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # Required for accurate change detection
 
-      - uses: dorny/paths-filter@v3
+      - name: Detect changed file paths
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
         id: filter
         with:
+          # Output format: 'true'/'false' strings for each filter
           filters: |
             code:
               - '**/*.ts'
@@ -60,6 +64,7 @@ jobs:
               - '**/*.js'
               - '**/*.jsx'
               - 'package*.json'
+              - 'package-lock.json'
               - '.github/workflows/**'
               - 'server/**'
               - 'client/**'
@@ -76,8 +81,9 @@ jobs:
 
       - name: Detect affected tests
         id: affected
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.filter.outputs.code == 'true'
         run: |
+          # Smart test detection - only run tests affected by changes
           AFFECTED=$(node scripts/test-smart.mjs --list-only 2>/dev/null || echo "all")
           echo "tests=${AFFECTED}" >> $GITHUB_OUTPUT
 
@@ -92,9 +98,9 @@ jobs:
       cache-key: ${{ steps.cache-key.outputs.key }}
       bundle-baseline: ${{ steps.baseline.outputs.stats }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+      - uses: actions/setup-node@v4
         with:
           node-version: '20.19.0'
           cache: 'npm'
@@ -131,7 +137,7 @@ jobs:
           fi
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
+        uses: actions/upload-artifact@v4
         with:
           name: tsbuild
           path: |
@@ -189,7 +195,7 @@ jobs:
       - run: npm ci --prefer-offline --no-audit
 
       - name: Download build artifacts
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        uses: actions/download-artifact@v4
         with:
           name: tsbuild
 
@@ -261,11 +267,11 @@ jobs:
           - 6379:6379
 
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+      - uses: actions/setup-node@v4
         with:
           node-version: '20.19.0'
           cache: 'npm'
@@ -345,9 +351,9 @@ jobs:
           - 6379:6379
 
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+      - uses: actions/setup-node@v4
         with:
           node-version: '20.19.0'
           cache: 'npm'
@@ -400,9 +406,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+      - uses: actions/setup-node@v4
         with:
           node-version: '20.19.0'
           cache: 'npm'
@@ -435,14 +441,14 @@ jobs:
           fi
 
       - name: Upload bundle stats
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
+        uses: actions/upload-artifact@v4
         with:
           name: bundle-stats
           path: bundle-stats.json
           retention-days: 30
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
+        uses: actions/upload-artifact@v4
         with:
           name: production-build
           path: |
@@ -460,9 +466,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+      - uses: actions/setup-node@v4
         with:
           node-version: '20.19.0'
           cache: 'npm'
@@ -533,9 +539,9 @@ jobs:
         options: >-
           --mount type=bind,source=${{ github.workspace }}/monitoring/alertmanager.yml,target=/etc/alertmanager/alertmanager.yml,readonly
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+      - uses: actions/setup-node@v4
         with:
           node-version: '20.19.0'
           cache: 'npm'
@@ -562,7 +568,7 @@ jobs:
 
       - name: Upload drill results
         if: always()
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
+        uses: actions/upload-artifact@v4
         with:
           name: alert-drill-results
           path: |
@@ -576,7 +582,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -669,7 +675,7 @@ jobs:
 
       - name: Comment guard results
         if: always()
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        uses: actions/github-script@v7
         with:
           script: |
             const flagsBlocked = "${{ steps.flags-guard.outcome }}" === "failure";
@@ -719,7 +725,7 @@ jobs:
 
       - name: Comment PR status
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        uses: actions/github-script@v7
         with:
           script: |
             const status = "${{ steps.status.outcome }}";
