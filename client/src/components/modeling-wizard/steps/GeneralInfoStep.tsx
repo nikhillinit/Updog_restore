@@ -3,13 +3,19 @@
  * Step 1: Fund basics, vintage year, and size
  */
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { generalInfoSchema, type GeneralInfoInput } from '@/schemas/modeling-wizard.schemas';
 
 export interface GeneralInfoStepProps {
@@ -23,17 +29,46 @@ export function GeneralInfoStep({ initialData, onSave }: GeneralInfoStepProps) {
     handleSubmit,
     watch,
     setValue,
-    formState: { errors }
+    getValues,
+    formState: { errors },
   } = useForm<GeneralInfoInput>({
     resolver: zodResolver(generalInfoSchema),
     defaultValues: initialData || {
       isEvergreen: false,
-      currency: 'USD'
-    }
+      currency: 'USD',
+    },
   });
 
   const isEvergreen = watch('isEvergreen');
   const establishmentDate = watch('establishmentDate');
+
+  // Preserve fund life and investment period when toggling evergreen
+  const preservedValuesRef = useRef<{
+    fundLife?: number;
+    investmentPeriod?: number;
+  }>({});
+
+  const handleEvergreenToggle = (enabled: boolean) => {
+    if (enabled) {
+      // Preserve current values before switching to evergreen
+      const fundLife = getValues('fundLife');
+      const investmentPeriod = getValues('investmentPeriod');
+      preservedValuesRef.current = {
+        ...(fundLife !== undefined && { fundLife }),
+        ...(investmentPeriod !== undefined && { investmentPeriod }),
+      };
+      setValue('isEvergreen', true);
+    } else {
+      // Restore preserved values when switching from evergreen
+      if (preservedValuesRef.current.fundLife !== undefined) {
+        setValue('fundLife', preservedValuesRef.current.fundLife);
+      }
+      if (preservedValuesRef.current.investmentPeriod !== undefined) {
+        setValue('investmentPeriod', preservedValuesRef.current.investmentPeriod);
+      }
+      setValue('isEvergreen', false);
+    }
+  };
 
   // Auto-derive vintage year from establishment date
   React.useEffect(() => {
@@ -56,9 +91,7 @@ export function GeneralInfoStep({ initialData, onSave }: GeneralInfoStepProps) {
     <form onSubmit={handleSubmit(onSave)} className="space-y-8">
       {/* Fund Structure Section */}
       <div className="space-y-6">
-        <h3 className="font-inter font-bold text-lg text-pov-charcoal">
-          Fund Structure
-        </h3>
+        <h3 className="font-inter font-bold text-lg text-pov-charcoal">Fund Structure</h3>
 
         <div className="space-y-4">
           <div>
@@ -154,8 +187,8 @@ export function GeneralInfoStep({ initialData, onSave }: GeneralInfoStepProps) {
           <div className="flex items-center space-x-3 py-4 border-t border-charcoal-200">
             <Switch
               id="isEvergreen"
-              {...(isEvergreen !== undefined ? { checked: isEvergreen } : {})}
-              onCheckedChange={(checked) => setValue('isEvergreen', checked)}
+              checked={isEvergreen || false}
+              onCheckedChange={handleEvergreenToggle}
             />
             <Label htmlFor="isEvergreen" className="cursor-pointer font-poppins">
               Evergreen Fund Structure
