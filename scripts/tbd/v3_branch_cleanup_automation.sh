@@ -84,7 +84,8 @@ if [ ! -f "$TOKEN_FILE" ]; then
   exit 1
 fi
 
-TOKEN_TIMESTAMP=$(cat "$TOKEN_FILE" || echo "")
+# Use bash built-in instead of cat (Codacy: avoid UUoC)
+TOKEN_TIMESTAMP=$(<"$TOKEN_FILE") || TOKEN_TIMESTAMP=""
 if ! [[ "$TOKEN_TIMESTAMP" =~ ^[0-9]+$ ]]; then
   echo "[FAIL] ERROR: Safety token appears corrupted (expected unix timestamp)." | tee -a "$LOG_FILE"
   exit 1
@@ -119,7 +120,8 @@ fi
 
 echo "" | tee -a "$LOG_FILE"
 echo "Branches marked for deletion:" | tee -a "$LOG_FILE"
-cat "$SAFE_TO_DELETE_FILE" | tee -a "$LOG_FILE"
+# Use input redirection instead of cat | tee (Codacy: avoid UUoC)
+tee -a "$LOG_FILE" < "$SAFE_TO_DELETE_FILE"
 echo "" | tee -a "$LOG_FILE"
 
 ############################################
