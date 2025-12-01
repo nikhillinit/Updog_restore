@@ -287,6 +287,53 @@ function persistToStorage(context: ModelingWizardContext): void {
 }
 
 /**
+ * Async persistence service for XState invoke pattern
+ *
+ * Wraps localStorage persistence in a Promise-based service for future migration
+ * to async API calls. Handles localStorage-specific errors:
+ * - QuotaExceededError: Storage limit exceeded
+ * - SecurityError: Privacy mode blocks localStorage access
+ *
+ * @param input - Wizard context to persist
+ * @returns Promise that resolves on successful save
+ * @throws Error with specific message for each failure type
+ */
+export const persistDataService = fromPromise(async ({ input }: { input: ModelingWizardContext }) => {
+  try {
+    const storageData = {
+      steps: input.steps,
+      currentStep: input.currentStep,
+      completedSteps: Array.from(input.completedSteps),
+      visitedSteps: Array.from(input.visitedSteps),
+      skipOptionalSteps: input.skipOptionalSteps,
+      lastSaved: Date.now()
+    };
+
+    localStorage.setItem('modeling-wizard-progress', JSON.stringify(storageData));
+    console.log('[ModelingWizard] Progress saved to localStorage (async service)', { timestamp: storageData.lastSaved });
+
+    return storageData;
+  } catch (error) {
+    // Handle specific localStorage errors for better UX
+    if (error instanceof Error) {
+      if (error.name === 'QuotaExceededError') {
+        console.error('[ModelingWizard] Storage quota exceeded:', error);
+        throw new Error('Storage limit exceeded');
+      }
+
+      if (error.name === 'SecurityError') {
+        console.error('[ModelingWizard] Storage access blocked (privacy mode):', error);
+        throw new Error('Storage unavailable (privacy mode)');
+      }
+    }
+
+    // Generic error fallback
+    console.error('[ModelingWizard] Failed to save to localStorage:', error);
+    throw new Error('Could not save data');
+  }
+});
+
+/**
  * Load wizard context from localStorage
  */
 function loadFromStorage(): Partial<ModelingWizardContext> | null {
