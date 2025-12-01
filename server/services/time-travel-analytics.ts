@@ -10,7 +10,8 @@ import { fundEvents, fundSnapshots, funds, type FundEvent } from '@shared/schema
 import type { SQL } from 'drizzle-orm';
 import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { compare } from 'fast-json-patch';
+import * as fjp from 'fast-json-patch';
+const { compare } = fjp;
 import { NotFoundError } from '../errors';
 import { logger } from '../logger';
 

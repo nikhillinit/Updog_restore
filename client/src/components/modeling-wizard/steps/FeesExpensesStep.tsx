@@ -3,50 +3,122 @@
  * Step 4: Management fee basis and admin expenses
  */
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { feesExpensesSchema, type FeesExpensesInput } from '@/schemas/modeling-wizard.schemas';
+import { useDebounceDeep } from '@/hooks/useDebounce';
 
 export interface FeesExpensesStepProps {
   initialData?: Partial<FeesExpensesInput>;
   onSave: (data: FeesExpensesInput) => void;
+  shouldReset?: boolean;
 }
 
-export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps) {
+export function FeesExpensesStep({ initialData, onSave, shouldReset }: FeesExpensesStepProps) {
   const {
     register,
     handleSubmit,
     watch,
     setValue,
-    formState: { errors }
+    reset,
+    getValues,
+    formState: { errors },
   } = useForm<FeesExpensesInput>({
     resolver: zodResolver(feesExpensesSchema),
     defaultValues: initialData || {
       managementFee: {
         rate: 2.0,
         basis: 'committed',
-        stepDown: { enabled: false }
+        stepDown: { enabled: false },
       },
       adminExpenses: {
         annualAmount: 0,
-        growthRate: 3
-      }
-    }
+        growthRate: 3,
+      },
+    },
   });
 
-  const stepDownEnabled = watch('managementFee.stepDown.enabled');
+  // Stabilize onSave for effects
+  const onSaveRef = useRef(onSave);
+  useEffect(() => {
+    onSaveRef.current = onSave;
+  }, [onSave]);
 
-  React.useEffect(() => {
+  // Local state decoupled from render cycles
+  const [formData, setFormData] = useState<FeesExpensesInput>(getValues());
+  const [isDirty, setIsDirty] = useState(false);
+
+  // Deep debounce object state
+  const debouncedData = useDebounceDeep(formData, 750);
+
+  // For conditional rendering only (single field)
+  const stepDownEnabled = !!watch('managementFee.stepDown.enabled');
+
+  // Subscription pattern: no watch() in render, no watch in deps
+  useEffect(() => {
     const subscription = watch((value) => {
-      feesExpensesSchema.safeParse(value).success && onSave(value as FeesExpensesInput);
+      setFormData(value as FeesExpensesInput);
+      setIsDirty(true);
     });
     return () => subscription.unsubscribe();
-  }, [watch, onSave]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-save on debounced valid data
+  useEffect(() => {
+    if (!isDirty) return;
+
+    const parseResult = feesExpensesSchema.safeParse(debouncedData);
+    if (parseResult.success) {
+      onSaveRef.current(parseResult.data);
+      setIsDirty(false);
+    }
+  }, [debouncedData, isDirty]);
+
+  // Unmount protection: use getValues() once, no unstable deps
+  useEffect(() => {
+    return () => {
+      const currentValues = getValues();
+      const parseResult = feesExpensesSchema.safeParse(currentValues);
+
+      if (parseResult.success) {
+        onSaveRef.current(parseResult.data);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Warn on tab close if we think there are unsaved/invalid changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
+  // Reset form when shouldReset prop changes
+  useEffect(() => {
+    if (shouldReset) {
+      reset(initialData);
+      setIsDirty(false);
+    }
+  }, [shouldReset, reset, initialData]);
 
   return (
     <form onSubmit={handleSubmit(onSave)} className="space-y-8">
@@ -77,7 +149,9 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
             </Label>
             <Select
               defaultValue={initialData?.managementFee?.basis || 'committed'}
-              onValueChange={(value) => setValue('managementFee.basis', value as any)}
+              onValueChange={(value) =>
+                setValue('managementFee.basis', value as 'committed' | 'called' | 'fmv')
+              }
             >
               <SelectTrigger className="mt-2">
                 <SelectValue />
@@ -88,6 +162,9 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
                 <SelectItem value="fmv">Fair Market Value</SelectItem>
               </SelectContent>
             </Select>
+            {errors.managementFee?.basis && (
+              <p className="text-sm text-error mt-1">{errors.managementFee.basis.message}</p>
+            )}
           </div>
         </div>
 
@@ -116,6 +193,11 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
                   placeholder="e.g., 5"
                   className="mt-2"
                 />
+                {errors.managementFee?.stepDown?.afterYear && (
+                  <p className="text-sm text-error mt-1">
+                    {errors.managementFee.stepDown.afterYear.message}
+                  </p>
+                )}
               </div>
               <div>
                 <Label htmlFor="newRate" className="font-poppins">
@@ -129,6 +211,11 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
                   placeholder="e.g., 1.5"
                   className="mt-2"
                 />
+                {errors.managementFee?.stepDown?.newRate && (
+                  <p className="text-sm text-error mt-1">
+                    {errors.managementFee.stepDown.newRate.message}
+                  </p>
+                )}
               </div>
             </div>
           )}

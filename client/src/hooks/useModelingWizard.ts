@@ -147,14 +147,15 @@ export function useModelingWizard(options: UseModelingWizardOptions = {}): UseMo
   const currentStepIndex = context.currentStepIndex;
 
   const canGoNext = useMemo(() => {
+    // QA MODE: Allow skipping validation to jump to any step
     // Check if current step is valid
-    const isValid = context.isStepValid[currentStep] ?? false;
+    // const isValid = context.isStepValid[currentStep] ?? false;
 
     // Check if there is a next step
     const hasNext = getNextStep(currentStep, context.skipOptionalSteps) !== null;
 
-    return isValid && hasNext;
-  }, [currentStep, context.isStepValid, context.skipOptionalSteps]);
+    return hasNext; // Skip validation check for QA
+  }, [currentStep, context.skipOptionalSteps]);
 
   const canGoBack = useMemo(() => {
     return getPreviousStep(currentStep, context.skipOptionalSteps) !== null;
