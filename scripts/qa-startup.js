@@ -128,6 +128,7 @@ function isPortAvailable(port, timeout = 30000) {
 
 /**
  * Check system prerequisites
+ * Refactored to reduce cyclomatic complexity & length
  */
 function checkPrerequisites() {
   log.section('CHECKING PREREQUISITES');
@@ -135,70 +136,122 @@ function checkPrerequisites() {
   let passed = 0;
   let warnings = 0;
 
-  // 1. Check package.json exists
+  // 1. package.json
+  if (checkPackageJson()) passed++;
+
+  // 2. node_modules
+  if (checkNodeModules()) passed++;
+
+  // 3. Windows tools / doctor script
+  const winStatus = checkWindowsTools();
+  passed += winStatus.passed;
+  warnings += winStatus.warnings;
+
+  // 4. Docker
+  const dockerStatus = checkDocker();
+  passed += dockerStatus.passed;
+  warnings += dockerStatus.warnings;
+
+  logSummary(passed, warnings, 4);
+
+  // Keep existing semantics: return false if there are warnings
+  return warnings === 0;
+}
+
+// --- Helper functions for prerequisites ---
+
+/**
+ * Step 1: Ensure package.json exists.
+ * Exit hard if it's missing.
+ */
+function checkPackageJson() {
   log.step(1, 'Checking package.json...');
   if (!fs.existsSync(PACKAGE_JSON)) {
     log.error('package.json not found at ' + PACKAGE_JSON);
     process.exit(1);
   }
   log.success('package.json found');
-  passed++;
+  return true;
+}
 
-  // 2. Check node_modules
+/**
+ * Step 2: Ensure node_modules exists; if not, run npm install.
+ */
+function checkNodeModules() {
   log.step(2, 'Checking node_modules...');
-  if (!fs.existsSync(path.join(ROOT_DIR, 'node_modules'))) {
+  const nodeModulesPath = path.join(ROOT_DIR, 'node_modules');
+
+  if (!fs.existsSync(nodeModulesPath)) {
     log.warn('node_modules not found - running npm install');
     execSync('npm install', { cwd: ROOT_DIR, stdio: 'inherit' });
   }
+
   log.success('node_modules ready');
-  passed++;
+  return true;
+}
 
-  // 3. Check sidecar tools (Windows-specific)
-  if (os.platform() === 'win32') {
-    log.step(3, 'Checking sidecar tools (Windows)...');
-    try {
-      execSync('npm run doctor:quick', { cwd: ROOT_DIR, stdio: 'pipe' });
-      log.success('Sidecar tools verified');
-      passed++;
-    } catch (e) {
-      log.warn('Sidecar tools need setup - installing');
-      execSync('npm install', { cwd: ROOT_DIR, stdio: 'inherit' });
-      warnings++;
-    }
-  } else {
-    passed++;
+/**
+ * Step 3: On Windows, run a quick doctor check; on other OSes,
+ * treat as a no-op "pass" to keep the /4 total consistent.
+ */
+function checkWindowsTools() {
+  if (os.platform() !== 'win32') {
+    log.step(3, 'Skipping Windows sidecar tools (non-Windows platform)');
+    return { passed: 1, warnings: 0 };
   }
 
-  // 4. Docker check (informational, not blocking)
-  if (!quick && !lightweight) {
-    log.step(4, 'Checking Docker (optional)...');
-    try {
-      const result = spawnSync('docker', ['ps'], { timeout: 5000 });
-      if (result.status === 0) {
-        log.success('Docker available - full stack mode');
-        passed++;
-      } else {
-        log.warn('Docker not available - switching to lightweight mode');
-        strategy = 'Lightweight (Docker unavailable)';
-        warnings++;
-      }
-    } catch (e) {
-      log.warn('Docker not found - will use lightweight mode');
-      strategy = 'Lightweight (Docker not installed)';
-      warnings++;
-    }
-  } else {
-    passed++;
+  log.step(3, 'Checking sidecar tools (Windows)...');
+  try {
+    execSync('npm run doctor:quick', { cwd: ROOT_DIR, stdio: 'pipe' });
+    log.success('Sidecar tools verified');
+    return { passed: 1, warnings: 0 };
+  } catch (err) {
+    log.warn('Sidecar tools need setup - running npm install');
+    execSync('npm install', { cwd: ROOT_DIR, stdio: 'inherit' });
+    return { passed: 0, warnings: 1 };
+  }
+}
+
+/**
+ * Step 4: Check Docker availability unless we're in quick/lightweight mode.
+ * Assumes `quick`, `lightweight`, and `strategy` are defined in this module.
+ */
+function checkDocker() {
+  if (quick || lightweight) {
+    return { passed: 1, warnings: 0 };
   }
 
-  console.log(`\nPrerequisite check: ${colors.green}${passed}/4 passed${colors.reset}` +
-              (warnings > 0 ? `, ${colors.yellow}${warnings} warnings${colors.reset}` : ''));
+  log.step(4, 'Checking Docker (optional)...');
+  try {
+    const result = spawnSync('docker', ['ps'], { timeout: 5000 });
+    if (result.status === 0) {
+      log.success('Docker available - full stack mode');
+      return { passed: 1, warnings: 0 };
+    }
+  } catch (err) {
+    // ignore and fall through
+  }
 
-  return warnings === 0;
+  log.warn('Docker not available - switching to lightweight mode');
+  strategy = 'Lightweight (Docker unavailable)';
+  return { passed: 0, warnings: 1 };
+}
+
+/**
+ * Log a short summary line for the prerequisite checks.
+ */
+function logSummary(passed, warnings, totalChecks) {
+  const base = `\nPrerequisite check: ${colors.green}${passed}/${totalChecks} passed${colors.reset}`;
+  const warningText =
+    warnings > 0
+      ? `, ${colors.yellow}${warnings} warning${warnings > 1 ? 's' : ''}${colors.reset}`
+      : '';
+  console.log(base + warningText);
 }
 
 /**
  * Start development server
+ * Security: avoid shell:true, use explicit args
  */
 function startDevServer() {
   log.section(`STARTING DEV SERVER (${strategy})`);
@@ -206,16 +259,41 @@ function startDevServer() {
   log.step(1, `Running: ${colors.bright}${npmCmd}${colors.reset}`);
   console.log(`Strategy: ${colors.dim}${strategy}${colors.reset}\n`);
 
-  // Spawn the development server
-  const serverProcess = spawn('npm', ['run', ...npmCmd.split(' ').slice(2)], {
+  // Use npm.cmd on Windows, npm elsewhere
+  const npmExecutable = os.platform() === 'win32' ? 'npm.cmd' : 'npm';
+
+  // npmCmd is expected to look like:
+  //   "npm run dev"
+  //   "npm run dev:full -- --port 3000"
+  const parts = npmCmd.trim().split(/\s+/);
+  const [cmd, ...rest] = parts;
+
+  if (cmd !== 'npm' && cmd !== 'npm.cmd') {
+    log.error(`Unexpected npmCmd "${npmCmd}". Expected to start with "npm".`);
+    process.exit(1);
+  }
+
+  if (rest.length === 0) {
+    log.error(`Unexpected npmCmd "${npmCmd}". Missing script/args after "npm".`);
+    process.exit(1);
+  }
+
+  const serverProcess = spawn(npmExecutable, rest, {
     cwd: ROOT_DIR,
     stdio: 'inherit',
-    shell: true,
+    shell: false, // Security fix: no shell interpolation
   });
 
   serverProcess.on('error', (err) => {
-    log.error('Failed to start server: ' + err.message);
+    log.error('Failed to start dev server: ' + err.message);
     process.exit(1);
+  });
+
+  serverProcess.on('exit', (code) => {
+    if (code !== 0) {
+      log.error(`Dev server exited with code ${code}`);
+      process.exit(code ?? 1);
+    }
   });
 
   return serverProcess;
