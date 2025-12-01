@@ -30,6 +30,7 @@
  * @returns Debounced value
  */
 
+/// <reference types="node" />
 import { useState, useEffect, useRef } from 'react';
 
 // ============================================================================
@@ -80,7 +81,7 @@ function isDeepEqual<T>(a: T, b: T): boolean {
 export function useDebounceDeep<T>(value: T, delay: number = 250): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
   const previousValueRef = useRef<T>(value);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     // Check if value actually changed (deep comparison)
@@ -134,7 +135,7 @@ export function useDebouncePrimitive<T extends string | number | boolean>(
   delay: number = 250
 ): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     // Clear existing timer
@@ -177,12 +178,12 @@ export function useDebouncePrimitive<T extends string | number | boolean>(
  * debouncedSave(formValues);
  * ```
  */
-export function useDebounceCallback<Args extends any[]>(
+export function useDebounceCallback<Args extends unknown[]>(
   callback: (...args: Args) => void,
   delay: number = 250
 ) {
   const callbackRef = useRef(callback);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Update callback ref (avoid stale closures)
   useEffect(() => {
