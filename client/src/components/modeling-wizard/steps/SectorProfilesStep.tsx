@@ -111,6 +111,16 @@ export function SectorProfilesStep({ initialData, onSave }: SectorProfilesStepPr
     setValue('sectorProfiles', [...sectorProfiles, newProfile]);
   };
 
+  /**
+   * Updates a sector profile using explicit property spreading to comply with exactOptionalPropertyTypes.
+   *
+   * IMPORTANT: This verbose pattern is REQUIRED for TypeScript's exactOptionalPropertyTypes flag.
+   * We cannot use naive spreads like `{ ...stage, ...(updates[id] || {}) }` because they may
+   * include explicit `undefined` values, which violates the type constraint that optional
+   * properties must be OMITTED (not set to undefined).
+   *
+   * See: cheatsheets/exact-optional-property-types.md for full pattern documentation
+   */
   const updateSectorProfile = (id: string, updates: Partial<SectorProfile>) => {
     setValue(
       'sectorProfiles',
@@ -118,6 +128,7 @@ export function SectorProfilesStep({ initialData, onSave }: SectorProfilesStepPr
         if (profile.id !== id) return profile;
 
         // Determine stages array with conditional spreading for optional properties
+        // Pattern: Inline conditional spreading (cheatsheets/exact-optional-property-types.md)
         const stagesArray = updates.stages !== undefined ? updates.stages : profile.stages;
         const normalizedStages = stagesArray.map(stage => ({
           id: stage.id,
@@ -195,6 +206,8 @@ export function SectorProfilesStep({ initialData, onSave }: SectorProfilesStepPr
       <div className="space-y-6">
         {sectorProfiles.map((profile, index) => {
           // Normalize profile to satisfy exactOptionalPropertyTypes
+          // PATTERN: Each optional property (description, failureRate) is conditionally spread
+          // to avoid explicit `undefined` assignment. See: cheatsheets/exact-optional-property-types.md
           const normalizedProfile: SectorProfile = {
             id: profile.id,
             name: profile.name,

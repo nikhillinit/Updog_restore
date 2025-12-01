@@ -56,6 +56,7 @@ export function ExitRecyclingStep({
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors }
   } = useForm<ExitRecyclingInput>({
     resolver: zodResolver(exitRecyclingSchema),
@@ -64,6 +65,14 @@ export function ExitRecyclingStep({
       ...initialData
     }
   });
+
+  // Preserve recycling fields when toggling
+  const preservedValuesRef = React.useRef<{
+    recyclingCap?: number;
+    recyclingPeriod?: number;
+    exitRecyclingRate?: number;
+    mgmtFeeRecyclingRate?: number;
+  }>({});
 
   // Watch all form values for calculations
   const formValues = watch();
@@ -77,16 +86,65 @@ export function ExitRecyclingStep({
     fundSize: fundFinancials.fundSize
   });
 
-  // Auto-save effect
+  // Debounced auto-save effect (750ms debounce for 1-2 saves per window)
+  const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastValidDataRef = React.useRef<ExitRecyclingInput | null>(null);
+
   React.useEffect(() => {
     const subscription = watch(value => {
+      // Clear existing debounce timeout
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+
+      // Validate data before saving
       const result = exitRecyclingSchema.safeParse(value);
       if (result.success) {
-        onSave(result.data);
+        lastValidDataRef.current = result.data;
+
+        // Debounce save to prevent excessive calls (1-2 per 750ms window)
+        saveTimeoutRef.current = setTimeout(() => {
+          onSave(result.data);
+        }, 750);
       }
     });
-    return () => subscription.unsubscribe();
+
+    return () => {
+      subscription.unsubscribe();
+
+      // On unmount: save immediately if there's pending valid data (no data loss)
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      if (lastValidDataRef.current) {
+        onSave(lastValidDataRef.current);
+      }
+    };
   }, [watch, onSave]);
+
+  // Toggle handler with preservation pattern
+  const handleRecyclingToggle = (enabled: boolean) => {
+    if (!enabled) {
+      // Toggle OFF: Preserve all 4 recycling fields
+      preservedValuesRef.current = {
+        recyclingCap: getValues('recyclingCap'),
+        recyclingPeriod: getValues('recyclingPeriod'),
+        exitRecyclingRate: getValues('exitRecyclingRate'),
+        mgmtFeeRecyclingRate: getValues('mgmtFeeRecyclingRate')
+      };
+      setValue('enabled', false);
+    } else if (preservedValuesRef.current.recyclingCap !== undefined) {
+      // Toggle ON: Restore all fields
+      setValue('recyclingCap', preservedValuesRef.current.recyclingCap);
+      setValue('recyclingPeriod', preservedValuesRef.current.recyclingPeriod);
+      setValue('exitRecyclingRate', preservedValuesRef.current.exitRecyclingRate);
+      setValue('mgmtFeeRecyclingRate', preservedValuesRef.current.mgmtFeeRecyclingRate);
+      setValue('enabled', true);
+    } else {
+      // Toggle ON without preserved values
+      setValue('enabled', true);
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSave)} className="space-y-8">
@@ -115,7 +173,7 @@ export function ExitRecyclingStep({
             <Switch
               id="enabled"
               checked={enabled}
-              onCheckedChange={value => setValue('enabled', value)}
+              onCheckedChange={handleRecyclingToggle}
             />
           </div>
         </div>

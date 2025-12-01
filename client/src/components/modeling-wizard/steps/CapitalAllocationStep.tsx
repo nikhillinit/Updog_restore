@@ -95,15 +95,43 @@ export function CapitalAllocationStep({
     vintageYear: new Date().getFullYear()
   });
 
-  // Auto-save effect
+  // Auto-save with debouncing (750ms) and unmount protection
   React.useEffect(() => {
-    const subscription = watch(value => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    let pendingData: CapitalAllocationInput | null = null;
+
+    const subscription = watch((value) => {
       const result = capitalAllocationSchema.safeParse(value);
       if (result.success) {
-        onSave(result.data);
+        pendingData = result.data;
+
+        // Clear existing timeout
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
+        // Debounce save by 750ms
+        timeoutId = setTimeout(() => {
+          onSave(result.data);
+          pendingData = null;
+          timeoutId = null;
+        }, 750);
       }
     });
-    return () => subscription.unsubscribe();
+
+    // Cleanup: flush pending saves on unmount
+    return () => {
+      subscription.unsubscribe();
+
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
+      // Flush any pending data before unmount
+      if (pendingData) {
+        onSave(pendingData);
+      }
+    };
   }, [watch, onSave]);
 
   return (

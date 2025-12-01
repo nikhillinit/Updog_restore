@@ -3,7 +3,7 @@
  * Step 4: Management fee basis and admin expenses
  */
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Input } from '@/components/ui/input';
@@ -23,6 +23,7 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors }
   } = useForm<FeesExpensesInput>({
     resolver: zodResolver(feesExpensesSchema),
@@ -39,6 +40,11 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
     }
   });
 
+  // Preserve step-down fields when toggling
+  const preservedValuesRef = useRef<{
+    stepDown?: { afterYear?: number; newRate?: number };
+  }>({});
+
   const stepDownEnabled = watch('managementFee.stepDown.enabled');
 
   React.useEffect(() => {
@@ -47,6 +53,28 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
     });
     return () => subscription.unsubscribe();
   }, [watch, onSave]);
+
+  // Toggle handler with preservation pattern
+  const handleStepDownToggle = (enabled: boolean) => {
+    if (!enabled) {
+      // Toggle OFF: Preserve nested fields
+      preservedValuesRef.current.stepDown = {
+        afterYear: getValues('managementFee.stepDown.afterYear'),
+        newRate: getValues('managementFee.stepDown.newRate')
+      };
+      setValue('managementFee.stepDown.enabled', false);
+    } else if (preservedValuesRef.current.stepDown) {
+      // Toggle ON: Restore from ref
+      setValue('managementFee.stepDown.afterYear',
+        preservedValuesRef.current.stepDown.afterYear);
+      setValue('managementFee.stepDown.newRate',
+        preservedValuesRef.current.stepDown.newRate);
+      setValue('managementFee.stepDown.enabled', true);
+    } else {
+      // Toggle ON without preserved values
+      setValue('managementFee.stepDown.enabled', true);
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSave)} className="space-y-8">
@@ -96,7 +124,7 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
             <Switch
               id="stepDownEnabled"
               {...(stepDownEnabled !== undefined ? { checked: stepDownEnabled } : {})}
-              onCheckedChange={(checked) => setValue('managementFee.stepDown.enabled', checked)}
+              onCheckedChange={handleStepDownToggle}
             />
             <Label htmlFor="stepDownEnabled" className="cursor-pointer font-poppins">
               Enable Fee Step-Down
