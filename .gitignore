@@ -208,3 +208,9 @@ scripts/validation/results/**
 migration-*.txt
 migration-*.log
 dry-run-*.txt
+
+# Branch cleanup artifacts (TBD v3.2.1)
+branch_cleanup_reports/
+backups/
+.branch_cleanup_safety_token
+cleanup_*.log
