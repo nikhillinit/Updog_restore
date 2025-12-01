@@ -17,6 +17,7 @@ import {
   type SectorProfile
 } from '@/schemas/modeling-wizard.schemas';
 import { useCapitalAllocationCalculations } from '@/hooks/useCapitalAllocationCalculations';
+import { useDebounceDeep } from '@/hooks/useDebounceDeep';
 import { InitialInvestmentSection } from './capital-allocation/InitialInvestmentSection';
 import { FollowOnStrategyTable } from './capital-allocation/FollowOnStrategyTable';
 import { PacingHorizonBuilder } from './capital-allocation/PacingHorizonBuilder';
@@ -87,34 +88,41 @@ export function CapitalAllocationStep({
   const entryStrategy = watch('entryStrategy') || 'amount-based';
   const reserveRatio = watch('followOnStrategy.reserveRatio');
 
-  // Calculate all metrics in real-time
+  // Debounce form values to prevent watch() from defeating useMemo
+  // watch() returns new object every render → breaks memoization
+  // Debouncing with deep equality ensures stable references
+  const debouncedFormValues = useDebounceDeep(formValues, 250);
+
+  // Calculate all metrics in real-time (now properly memoized)
   const { calculations, validation } = useCapitalAllocationCalculations({
-    formValues,
+    formValues: debouncedFormValues,
     fundFinancials,
     sectorProfiles,
     vintageYear: new Date().getFullYear()
   });
 
+  // Refs for debounced auto-save with unmount protection
+  const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastValidDataRef = React.useRef<CapitalAllocationInput | null>(null);
+
   // Auto-save with debouncing (750ms) and unmount protection
   React.useEffect(() => {
-    let timeoutId: NodeJS.Timeout | null = null;
-    let pendingData: CapitalAllocationInput | null = null;
-
     const subscription = watch((value) => {
+      // Clear existing debounce timeout
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+
+      // Validate data before saving
       const result = capitalAllocationSchema.safeParse(value);
       if (result.success) {
-        pendingData = result.data;
+        lastValidDataRef.current = result.data;
 
-        // Clear existing timeout
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-
-        // Debounce save by 750ms
-        timeoutId = setTimeout(() => {
+        // Debounce save to prevent excessive calls (1-2 per 750ms window)
+        saveTimeoutRef.current = setTimeout(() => {
           onSave(result.data);
-          pendingData = null;
-          timeoutId = null;
+          lastValidDataRef.current = null;
+          saveTimeoutRef.current = null;
         }, 750);
       }
     });
@@ -123,16 +131,30 @@ export function CapitalAllocationStep({
     return () => {
       subscription.unsubscribe();
 
-      if (timeoutId) {
-        clearTimeout(timeoutId);
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
       }
 
-      // Flush any pending data before unmount
-      if (pendingData) {
-        onSave(pendingData);
+      // Flush any pending data before unmount (no data loss)
+      if (lastValidDataRef.current) {
+        onSave(lastValidDataRef.current);
       }
     };
   }, [watch, onSave]);
+
+  // Data loss prevention: warn on tab close if save pending
+  React.useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // Check if debounced save is in flight
+      if (saveTimeoutRef.current !== null) {
+        event.preventDefault();
+        event.returnValue = ''; // Required for legacy browsers
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []); // saveTimeoutRef is stable (ref never changes)
 
   return (
     <form onSubmit={handleSubmit(onSave)} className="space-y-8">

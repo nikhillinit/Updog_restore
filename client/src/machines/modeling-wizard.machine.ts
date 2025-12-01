@@ -163,6 +163,37 @@ export interface ModelingWizardContext {
   lastSaved: number | null;
   isDirty: boolean;
 
+  /**
+   * Error message from failed persistence attempt.
+   * null when no error. Used to show error UI and block navigation.
+   */
+  persistenceError: string | null;
+
+  /**
+   * Number of retry attempts for exponential backoff.
+   * Starts at 0, incremented on retry, reset on success.
+   */
+  retryCount: number;
+
+  /**
+   * Timestamp of last persistence attempt (for debugging).
+   * null initially.
+   */
+  lastPersistAttempt: number | null;
+
+  /**
+   * Navigation intent for persistence operation.
+   * Tracks which navigation action triggered persistence.
+   * Used to execute navigation after successful persistence.
+   */
+  navigationIntent: 'next' | 'back' | 'goto' | null;
+
+  /**
+   * Target step for GOTO navigation intent.
+   * null for 'next' and 'back' intents.
+   */
+  targetStep: WizardStep | null;
+
   // API state
   submissionError: string | null;
   submissionRetryCount: number;
@@ -186,7 +217,9 @@ export type ModelingWizardEvents =
   | { type: 'RESET' }
   | { type: 'LOAD_FROM_STORAGE' }
   | { type: 'PORTFOLIO_CHANGED' }
-  | { type: 'CALCULATE_RESERVES' };
+  | { type: 'CALCULATE_RESERVES' }
+  | { type: 'RETRY_PERSIST' }
+  | { type: 'DISMISS_PERSIST_ERROR' };
 
 // ============================================================================
 // STEP CONFIGURATION
@@ -285,6 +318,53 @@ function persistToStorage(context: ModelingWizardContext): void {
     console.error('[ModelingWizard] Failed to save to localStorage:', error);
   }
 }
+
+/**
+ * Async persistence service for XState invoke pattern
+ *
+ * Wraps localStorage persistence in a Promise-based service for future migration
+ * to async API calls. Handles localStorage-specific errors:
+ * - QuotaExceededError: Storage limit exceeded
+ * - SecurityError: Privacy mode blocks localStorage access
+ *
+ * @param input - Wizard context to persist
+ * @returns Promise that resolves on successful save
+ * @throws Error with specific message for each failure type
+ */
+export const persistDataService = fromPromise(async ({ input }: { input: ModelingWizardContext }) => {
+  try {
+    const storageData = {
+      steps: input.steps,
+      currentStep: input.currentStep,
+      completedSteps: Array.from(input.completedSteps),
+      visitedSteps: Array.from(input.visitedSteps),
+      skipOptionalSteps: input.skipOptionalSteps,
+      lastSaved: Date.now()
+    };
+
+    localStorage.setItem('modeling-wizard-progress', JSON.stringify(storageData));
+    console.log('[ModelingWizard] Progress saved to localStorage (async service)', { timestamp: storageData.lastSaved });
+
+    return storageData;
+  } catch (error) {
+    // Handle specific localStorage errors for better UX
+    if (error instanceof Error) {
+      if (error.name === 'QuotaExceededError') {
+        console.error('[ModelingWizard] Storage quota exceeded:', error);
+        throw new Error('Storage limit exceeded');
+      }
+
+      if (error.name === 'SecurityError') {
+        console.error('[ModelingWizard] Storage access blocked (privacy mode):', error);
+        throw new Error('Storage unavailable (privacy mode)');
+      }
+    }
+
+    // Generic error fallback
+    console.error('[ModelingWizard] Failed to save to localStorage:', error);
+    throw new Error('Could not save data');
+  }
+});
 
 /**
  * Load wizard context from localStorage
@@ -469,7 +549,7 @@ export const modelingWizardMachine = setup({
         throw new Error('No portfolio data available');
       }
 
-      // Validation should already be done (reactive)
+      // Validation should already been done (reactive)
       if (!input.portfolioValidation?.valid) {
         throw new Error('Portfolio validation must pass before calculation');
       }
@@ -484,7 +564,13 @@ export const modelingWizardMachine = setup({
       const enriched = enrichWizardMetrics(allocation, input);
 
       return { allocation, enriched };
-    })
+    }),
+
+    /**
+     * Persist wizard context to localStorage (ADR-016)
+     * Handles QuotaExceededError and SecurityError
+     */
+    persistDataService
   },
 
   actions: {
@@ -955,6 +1041,11 @@ function createInitialContext(input: {
     // portfolioValidation and calculations omitted (undefined) per exactOptionalPropertyTypes
     lastSaved: null,
     isDirty: false,
+    persistenceError: null,
+    retryCount: 0,
+    lastPersistAttempt: null,
+    navigationIntent: null,
+    targetStep: null,
     submissionError: null,
     submissionRetryCount: 0,
     skipOptionalSteps,
