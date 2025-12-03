@@ -48,7 +48,7 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
 
   // Preserve step-down fields when toggling
   const preservedValuesRef = useRef<{
-    stepDown?: { afterYear?: number; newRate?: number };
+    stepDown?: { afterYear: number | undefined; newRate: number | undefined };
   }>({});
 
   const stepDownEnabled = watch('managementFee.stepDown.enabled');
@@ -109,7 +109,9 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
             </Label>
             <Select
               defaultValue={initialData?.managementFee?.basis || 'committed'}
-              onValueChange={(value) => setValue('managementFee.basis', value as any)}
+              onValueChange={(value) =>
+                setValue('managementFee.basis', value as 'committed' | 'called' | 'fmv')
+              }
             >
               <SelectTrigger className="mt-2">
                 <SelectValue />

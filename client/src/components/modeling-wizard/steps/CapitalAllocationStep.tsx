@@ -14,7 +14,7 @@ import {
   capitalAllocationSchema,
   type CapitalAllocationInput,
   type FundFinancialsOutput,
-  type SectorProfile
+  type SectorProfile,
 } from '@/schemas/modeling-wizard.schemas';
 import { useCapitalAllocationCalculations } from '@/hooks/useCapitalAllocationCalculations';
 import { useDebounceDeep } from '@/hooks/useDebounceDeep';
@@ -44,13 +44,13 @@ const DEFAULT_CAPITAL_ALLOCATION: Partial<CapitalAllocationInput> = {
   initialCheckSize: 1.0,
   followOnStrategy: {
     reserveRatio: 0.5,
-    stageAllocations: []
+    stageAllocations: [],
   },
   pacingModel: {
     investmentsPerYear: 10,
-    deploymentCurve: 'linear'
+    deploymentCurve: 'linear',
   },
-  pacingHorizon: []
+  pacingHorizon: [],
 };
 
 // ============================================================================
@@ -61,7 +61,7 @@ export function CapitalAllocationStep({
   initialData,
   onSave,
   fundFinancials,
-  sectorProfiles
+  sectorProfiles,
 }: CapitalAllocationStepProps) {
   // Form setup
   const {
@@ -70,7 +70,7 @@ export function CapitalAllocationStep({
     watch,
     setValue,
     control,
-    formState: { errors }
+    formState: { errors },
   } = useForm<CapitalAllocationInput>({
     resolver: zodResolver(capitalAllocationSchema),
     defaultValues: {
@@ -79,8 +79,8 @@ export function CapitalAllocationStep({
       // Initialize pacing horizon if not provided
       pacingHorizon:
         initialData?.pacingHorizon ||
-        generateDefaultPacingPeriods(fundFinancials.investmentPeriod, 'linear')
-    }
+        generateDefaultPacingPeriods(fundFinancials.investmentPeriod, 'linear'),
+    },
   });
 
   // Watch all form values for calculations
@@ -98,7 +98,7 @@ export function CapitalAllocationStep({
     formValues: debouncedFormValues,
     fundFinancials,
     sectorProfiles,
-    vintageYear: new Date().getFullYear()
+    vintageYear: new Date().getFullYear(),
   });
 
   // Refs for debounced auto-save with unmount protection
@@ -123,7 +123,7 @@ export function CapitalAllocationStep({
           onSave(result.data);
           lastValidDataRef.current = null;
           saveTimeoutRef.current = null;
-        }, 750);
+        }, 500);
       }
     });
 
@@ -172,9 +172,7 @@ export function CapitalAllocationStep({
       {/* Reserve Ratio Configuration */}
       <div className="bg-charcoal-50 rounded-lg p-6">
         <div className="space-y-4">
-          <h3 className="font-inter font-bold text-lg text-pov-charcoal">
-            Reserve Strategy
-          </h3>
+          <h3 className="font-inter font-bold text-lg text-pov-charcoal">Reserve Strategy</h3>
           <div>
             <div className="flex justify-between items-center mb-3">
               <Label htmlFor="reserveRatio" className="font-poppins text-charcoal-700">
@@ -191,11 +189,8 @@ export function CapitalAllocationStep({
               max="70"
               step="5"
               value={reserveRatio * 100}
-              onChange={e =>
-                setValue(
-                  'followOnStrategy.reserveRatio',
-                  parseFloat(e.target.value) / 100
-                )
+              onChange={(e) =>
+                setValue('followOnStrategy.reserveRatio', parseFloat(e.target.value) / 100)
               }
               className="w-full"
             />
@@ -222,9 +217,7 @@ export function CapitalAllocationStep({
           sectorProfiles={sectorProfiles}
           stageAllocations={formValues.followOnStrategy.stageAllocations}
           calculations={calculations.followOnAllocations}
-          onChange={allocations =>
-            setValue('followOnStrategy.stageAllocations', allocations)
-          }
+          onChange={(allocations) => setValue('followOnStrategy.stageAllocations', allocations)}
           {...(errors.followOnStrategy !== undefined ? { errors: errors.followOnStrategy } : {})}
         />
       </div>
@@ -232,9 +225,7 @@ export function CapitalAllocationStep({
       {/* Investments Per Year */}
       <div className="bg-charcoal-50 rounded-lg p-6">
         <div className="space-y-4">
-          <h3 className="font-inter font-bold text-lg text-pov-charcoal">
-            Pacing Model
-          </h3>
+          <h3 className="font-inter font-bold text-lg text-pov-charcoal">Pacing Model</h3>
           <div>
             <Label htmlFor="investmentsPerYear" className="font-poppins text-charcoal-700">
               Investments Per Year *
@@ -265,8 +256,8 @@ export function CapitalAllocationStep({
         <PacingHorizonBuilder
           periods={formValues.pacingHorizon}
           fundFinancials={fundFinancials}
-          onChange={periods => setValue('pacingHorizon', periods)}
-          errors={errors.pacingHorizon as any}
+          onChange={(periods) => setValue('pacingHorizon', periods)}
+          errors={errors.pacingHorizon}
         />
       </div>
 
