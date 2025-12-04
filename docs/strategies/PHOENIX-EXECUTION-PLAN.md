@@ -1,6 +1,6 @@
 # Phoenix: Truth-Driven Fund Calculation Rebuild
 
-**Version:** 2.7
+**Version:** 2.8
 **Date:** December 4, 2025
 **Timeline:** 12-13 weeks (calibrated with realistic buffer)
 **Status:** ACTIVE - Supersedes all prior Phoenix plans
@@ -28,29 +28,33 @@
 
 ### Validation Layer Requirements by Phase
 
-Layer adoption is **progressive**, not all-or-nothing:
+Layer adoption is **progressive**, not all-or-nothing. L3 only required for **external-facing data** (CSV export, API response, LP reports).
 
 | Phase | L1 Plausibility | L2 Fund State | L3 Output | L4 Logging |
 |-------|-----------------|---------------|-----------|------------|
-| 0 | Scaffold only | - | - | Wrapper exists |
-| 1 (MOIC) | **Required** | Warn-only | Tests/exports | **Required** |
-| 2-3 | **Required** | **Required** | Tests/exports | **Required** |
+| 0A | - | - | - | - |
+| 0B | Scaffold only | - | - | Wrapper exists |
+| 1 (MOIC) | **Required** | Warn-only | External only | **Required** |
+| 2-3 | **Required** | **Required** | External only | **Required** |
 | 4+ | **Required** | **Required** | **Required** | **Required** |
 
-**Note:** "Warn-only" means Layer 2 logs violations but doesn't block calculation. Upgrade to enforced by Phase 2.
+**Notes:**
+- "Warn-only" = Layer 2 logs violations but doesn't block calculation. Upgrade to enforced by Phase 2.
+- "External only" = L3 contracts only for fields that leave the system (CSV/API/LP report) in this phase. Internal intermediates skip L3 until Phase 4.
 
 ### Quick Reference
 
 | Phase | Week | Focus | Exit Gate |
 |-------|------|-------|-----------|
 | Pre-0 | 1 | MOIC truth cases + provenance audit | Truth cases exist, provenance verified |
-| 0 | 2-4 | Engine audit + TS triage + validation layers | ENGINE_AUDIT.md + tsconfig.phoenix.json clean |
+| 0A | 2 | Read & Decide: Engine audit (Tier A only) | ENGINE_AUDIT.md + trust levels assigned |
+| 0B | 3-4 | Harden Happy Path: TS triage + L1/L4 for MOIC path | tsconfig.phoenix.json clean, MOIC path hardened |
 | 1 | 5-6 | MOIC (leverage existing) + API integration | 4 variants pass, API wired |
 | 2 | 7-8 | Capital calls/distributions + API integration | 3 scenarios validated, API wired |
 | 3 | 9 | Fee engine (4 bases) + API integration | 4 fee basis methods pass, API wired |
 | 4 | 10 | American waterfall + API integration | Deal-by-deal carry validated, API wired |
 | 5 | 11 | IRR (leverage existing XIRR) + API integration | All edge cases pass, API wired |
-| 6 | 12-13 | Shadow + rollout + rollback drill | 100% rollout, rollback drill passed |
+| 6 | 12-13 | MOIC canary shadow + rollout + rollback drill | MOIC 100% rollout, drill passed |
 
 **Critical Insight:** Engine existence ≠ correctness ≠ production-ready. Audit before assuming leverage.
 
@@ -69,7 +73,9 @@ Layer adoption is **progressive**, not all-or-nothing:
 |------|-------------|------|
 | 1 | NAV, simple sums | 1 AI, must be GREEN |
 | 2 | Fees, capital calls | 2 AI, both GREEN |
-| 3 | Waterfall, IRR, MOIC | 2-3 AI, unanimous GREEN |
+| 3 | Waterfall, IRR, MOIC | 2-3 AI, at least one GREEN, none RED |
+
+**Tier 3 Clarification:** If an AI returns YELLOW but others are GREEN and numbers match truth cases within thresholds, treat YELLOW as advisory comments, not a hard block. Truth cases + numeric parity are the ultimate arbiters.
 
 ### Error Thresholds
 
@@ -610,6 +616,17 @@ When extending truth cases:
 
 **Integration:** Use existing `tests/utils/golden-dataset.ts` utilities for CSV-based validations in Phases 2 and 4.
 
+**Golden Dataset Scope Freeze:**
+
+To prevent the hybrid approach from becoming a parallel spec system, limit initial Golden Datasets to:
+
+| Dataset | Phase | Purpose |
+|---------|-------|---------|
+| `phoenix_fund_timeseries.csv` | 2 | Fund-level cash flows & NAV |
+| `phoenix_waterfall_scenarios.csv` | 4 | Full-fund waterfall stories (3-5 scenarios) |
+
+**Rule:** No new Golden Datasets until after Phase 3 unless a P0 bug explicitly demands time-series validation. JSON truth cases are the default.
+
 ### Truth Case Audit (Phase 0 Prerequisite)
 
 Before Phase 1, run a one-time audit of each `*.truth-cases.json` file:
@@ -843,14 +860,26 @@ GP Commit: Treated as LP for distribution, no carry on own capital
 
 **Day 3: Truth Case Provenance Audit** ⭐ NEW
 
-Verify existing truth cases are reliable before trusting them:
+Verify existing truth cases are reliable before trusting them.
+
+**Mechanical Checklist (per MOIC case you will rely on in Phase 1):**
+
+```
+For each truth case (9-12 cases total):
+[ ] 1. Locate original Excel/Sheets formula (or back-solve it)
+[ ] 2. Verify JSON `expected` matches Excel within thresholds (MOIC: 0.1%)
+[ ] 3. Tag case with "tags": ["phoenix", "provenance-checked"]
+[ ] 4. Log result in TRUTH_CASE_INVENTORY.md
+```
+
+**Scope:** Only the 9-12 MOIC cases needed for Phase 1. Don't audit all 3,992 lines of truth cases.
 
 | Task | Exit Criteria |
 |------|---------------|
-| Document provenance for each file | Source identified (Excel? Domain expert? Legacy?) |
-| Sample verification (5 cases/file) | Rebuild in Excel, confirm within tolerance |
+| Document provenance for MOIC file | Source identified (Excel? Domain expert? Legacy?) |
+| Sample verification (all Phase 1 cases) | Rebuild in Excel, confirm within tolerance |
 | Flag suspicious cases | Mark with `status: "needs-review"` |
-| Create `TRUTH_CASE_INVENTORY.md` | Provenance documented |
+| Create `TRUTH_CASE_INVENTORY.md` | Provenance documented for Phase 1 cases |
 
 **Provenance Inventory Format:**
 ```markdown
@@ -883,42 +912,51 @@ Verify existing truth cases are reliable before trusting them:
 
 ---
 
-### Phase 0: Foundation + Validation Layers (Weeks 2-4)
+### Phase 0A: Read & Decide (Week 2)
 
-**Goal:** Engine audit + TS triage + 4 validation layers + feature flags
+**Goal:** Understand what exists. No refactors, no TS fixes yet.
 
-**Week 2, Days 1-2: Engine Audit** ⭐ MANDATORY NEW
+**Critical Insight:** Engine existence ≠ correctness ≠ Tactyc-aligned. Read and classify BEFORE touching code.
 
-**Critical Insight:** Engine existence ≠ correctness ≠ Tactyc-aligned. Audit BEFORE assuming leverage.
+#### Engine Audit with Tier Classification
+
+Engines are classified into **Tier A** (deep-dive now) vs **Tier B** (read now, deep-dive when used):
+
+| Tier | Engine | Location | Why This Tier |
+|------|--------|----------|---------------|
+| **A** | ReferenceFormulas | `client/src/lib/reference-formulas.ts` | Used in Phase 1 (MOIC) |
+| **A** | DeterministicReserveEngine | `shared/core/reserves/` | Pattern template, Exit MOIC |
+| **A** | XIRR | `client/src/lib/xirr.ts` | Used in Phase 5, but formula critical |
+| **B** | LiquidityEngine | `client/src/core/LiquidityEngine.ts` | Deep-dive in Phase 2 |
+| **B** | WaterfallSchema | `shared/schemas/waterfall-policy.ts` | Deep-dive in Phase 4 |
+| **B** | FeeProfileSchema | `shared/schemas/fee-profile.ts` | Deep-dive in Phase 3 |
+
+**Tier A: Full audit in Phase 0A.** Answer: Does it work? Can we trust it? What's missing?
+**Tier B: Structure review only.** Note locations, document entry points, defer deep-dive to their phase.
+
+**Phase 0A Tasks:**
 
 | Task | Exit Criteria |
 |------|---------------|
-| Audit all 6 engines against Tactyc spec | Alignment gaps documented |
-| Create `ENGINE_AUDIT.md` | Full audit table committed |
-| Identify semantic gaps | Each gap has resolution plan |
-| Map to Tactyc fee basis methods | 6 vs 7 methods reconciled |
+| Deep audit Tier A engines | Alignment gaps documented |
+| Structure review Tier B engines | Entry points noted, defer deep-dive |
+| Create `ENGINE_AUDIT.md` | Tier classification + trust levels |
+| Server import verification | `npx tsc --noEmit` passes or barrel created |
 
-**Engine Audit Template (ENGINE_AUDIT.md):**
+**ENGINE_AUDIT.md Template:**
 
-| Engine | Location | Tactyc Alignment | Test Coverage | Known TODOs | Risk Level |
-|--------|----------|------------------|---------------|-------------|------------|
-| ReferenceFormulas | `client/src/lib/reference-formulas.ts` | MOIC: ✅ DPI: ✅ TVPI: ✅ | 0 tests found | None visible | LOW |
-| DeterministicReserveEngine | `shared/core/reserves/` | Fractional: ❓ | 3 unit tests | TODO: validation | MEDIUM |
-| LiquidityEngine | `client/src/core/LiquidityEngine.ts` | Tactyc cashflow: ❓ | 0 tests found | FIXMEs visible | HIGH |
-| XIRR | `client/src/lib/xirr.ts` | Excel parity: ✅ | 25 truth cases | None | LOW |
-| WaterfallSchema | `shared/schemas/waterfall-policy.ts` | American: ✅ European: ❓ | 0 tests found | European untested? | HIGH |
-| FeeProfileSchema | `shared/schemas/fee-profile.ts` | 6 basis vs Tactyc's 7: ❓ | 0 tests found | Missing FMV? | MEDIUM |
-
-**Audit Questions (answer in ENGINE_AUDIT.md):**
-- Does each engine match Tactyc's published spec?
-- Fee basis: Do our 6 types map to Tactyc's 7? Which is missing?
-- Waterfall: Is European waterfall fully implemented or schema-only?
-- Reserve Engine: Does it handle fractional investments per Tactyc FAQ?
-- LiquidityEngine: What are the FIXMEs visible in the code?
+| Engine | Tier | Tactyc Alignment | Test Coverage | Trust Level | Deep-Dive Phase |
+|--------|------|------------------|---------------|-------------|-----------------|
+| ReferenceFormulas | A | MOIC: ✅ DPI: ✅ TVPI: ✅ | 0 tests | HIGH | 0A |
+| DeterministicReserveEngine | A | Exit MOIC: ✅ Fractional: ❓ | 3 unit tests | MEDIUM | 0A |
+| XIRR | A | Excel parity: ✅ | 25 truth cases | HIGH | 0A |
+| LiquidityEngine | B | Tactyc cashflow: ❓ | 0 tests | UNKNOWN | Phase 2 |
+| WaterfallSchema | B | American: ✅ European: ❓ | 0 tests | MEDIUM | Phase 4 |
+| FeeProfileSchema | B | 6 basis vs Tactyc's 7: ❓ | 0 tests | UNKNOWN | Phase 3 |
 
 **Tactyc Alignment Tables (TACTYC_ALIGNMENT.md):**
 
-Create per-engine alignment documentation during audit:
+Create per-engine alignment documentation. **Scope:** Terminology and primary formulas match, not every optional Tactyc switch.
 
 ```markdown
 ## MOIC Engine - Tactyc Alignment
@@ -930,7 +968,7 @@ Create per-engine alignment documentation during audit:
 | DPI | DPI | Y | Distributions / Called |
 | TVPI | TVPI | Y | (NAV + Distributions) / Called |
 
-## Fee Engine - Tactyc Alignment
+## Fee Engine - Tactyc Alignment (Phase 3 deep-dive)
 
 | Tactyc Basis Method | Our Method | Status |
 |---------------------|------------|--------|
@@ -938,15 +976,11 @@ Create per-engine alignment documentation during audit:
 | Called Capital | called | Implemented |
 | Invested Capital | invested | Implemented |
 | Net Asset Value | fmv | Implemented |
-| Unfunded Commitment | - | GAP: Not implemented |
-| Remaining Cost | - | GAP: Not implemented |
+| Unfunded Commitment | - | GAP: Defer to Phase 3 |
+| Remaining Cost | - | GAP: Defer to Phase 3 |
 ```
 
-**Exit Criterion:** `TACTYC_ALIGNMENT.md` committed before Phase 1.
-
-**Server Import Verification (Day 2, 2-4 hours):**
-
-Client-side engines (`reference-formulas.ts`, `xirr.ts`, `LiquidityEngine.ts`) use no browser APIs but may have Vite path alias issues when imported server-side.
+**Server Import Verification (2-4 hours):**
 
 | Task | Exit Criteria |
 |------|---------------|
@@ -954,11 +988,22 @@ Client-side engines (`reference-formulas.ts`, `xirr.ts`, `LiquidityEngine.ts`) u
 | If fails: Create barrel export | `shared/engines/index.ts` re-exports with explicit paths |
 | Verify no browser deps | Grep for `window`, `document`, `localStorage` |
 
-**Why This Matters:** Phoenix calculations must run in both API (server) and UI (client) contexts. If imports fail server-side, API integration (Phases 1-5) will be blocked.
+**Phase 0A Exit Criteria:**
 
-**Week 2, Days 3-5: TypeScript Surgical Triage** ⭐ MANDATORY
+- [ ] `ENGINE_AUDIT.md` committed with tier classification
+- [ ] `TACTYC_ALIGNMENT.md` committed (Tier A engines only)
+- [ ] Server import verification passed or barrel created
+- [ ] No refactors or TS fixes done (read-only phase)
 
-**Scope:** Phoenix entrypoints ONLY, not all 454 errors. Create strict-mode subset.
+---
+
+### Phase 0B: Harden Happy Path (Weeks 3-4)
+
+**Goal:** Apply TS triage and validation layers **only to the MOIC path** that Phase 1 will use. Push "nice-to-have" to later phases.
+
+#### TypeScript Surgical Triage
+
+**Scope:** Phoenix entrypoints ONLY, not all 454 errors. **Cap: Maximum 30 P0 errors fixed.**
 
 | Task | Exit Criteria |
 |------|---------------|
@@ -1026,24 +1071,28 @@ Client-side engines (`reference-formulas.ts`, `xirr.ts`, `LiquidityEngine.ts`) u
 | Document gaps | Missing scenarios listed |
 | Commit inventory | `TRUTH_CASE_INVENTORY.md` in repo |
 
-**Days 4-5: 4 Validation Layers**
+**Days 4-5: Validation Layers (MOIC Path Only)**
+
+Focus on L1 + L4 for the MOIC happy path. L2 warn-only, L3 deferred to Phase 1 for exports.
 
 | Task | Exit Criteria |
 |------|---------------|
-| Scaffold Layer 1 (Zod schemas) | `phoenix-validation.ts` created |
-| Scaffold Layer 2 (Fund lifecycle) | `fund-lifecycle.ts` created |
-| Scaffold Layer 3 (Output contracts) | `output-contracts.ts` created |
-| Scaffold Layer 4 (Instrumentation) | `phoenix-logger.ts` created |
+| Implement Layer 1 (Zod schemas) | `phoenix-validation.ts` with MOIC schema tested |
+| Scaffold Layer 2 (Fund lifecycle) | `fund-lifecycle.ts` created, warn-only mode |
+| Scaffold Layer 3 (Output contracts) | `output-contracts.ts` created (implement in Phase 1) |
+| Implement Layer 4 (Instrumentation) | `phoenix-logger.ts` with correlation IDs tested |
 
-**Phase 0 Exit Criteria (ALL REQUIRED):**
+**Phase 0B Exit Criteria (ALL REQUIRED):**
 
 - [ ] `npm test` runs completely (infrastructure works)
 - [ ] Phoenix feature flags defined and testable in `flag-definitions.ts`
 - [ ] `TRUTH_CASE_INVENTORY.md` committed with exact counts and gap list
-- [ ] All 4 validation layer modules created and importable
+- [ ] L1 + L4 implemented and tested for MOIC path; L2/L3 scaffolded
 - [ ] Zod schema for MOIC inputs defined and tested
+- [ ] **TS Smoke Test:** `npx tsc -p tsconfig.phoenix.json` returns 0 errors
+- [ ] **TS Fix Cap:** Maximum 30 errors fixed; remaining tracked in `TS_DEFERRED.md`
 
-**HARD GATE:** Phase 1 CANNOT start until all Phase 0 exit criteria are met.
+**HARD GATE:** Phase 1 CANNOT start until all Phase 0A + 0B exit criteria are met.
 
 ---
 
@@ -1051,23 +1100,25 @@ Client-side engines (`reference-formulas.ts`, `xirr.ts`, `LiquidityEngine.ts`) u
 
 **Purpose:** Explicit checkpoints to assess project health and decide whether to continue, pivot, or stop.
 
-### Gate 1: End of Phase 0 (Week 4)
+### Gate 1: End of Phase 0B (Week 4)
 
-**Question:** Is the foundation solid enough to build on?
+**Question:** Is the MOIC path hardened enough to build on?
 
 | Criterion | Required | Evidence |
 |-----------|----------|----------|
 | Test infrastructure works | YES | `npm test` completes without setup errors |
 | MOIC truth cases exist | YES | `docs/moic.truth-cases.json` has 9+ cases |
-| Engine audit complete | YES | `ENGINE_AUDIT.md` committed |
-| Tactyc alignment documented | YES | `TACTYC_ALIGNMENT.md` committed |
+| Tier A engine audit complete | YES | `ENGINE_AUDIT.md` with trust levels |
+| Tactyc alignment (Tier A) | YES | `TACTYC_ALIGNMENT.md` for MOIC/XIRR |
 | TS Phoenix subset compiles | YES | `npx tsc -p tsconfig.phoenix.json` = 0 errors |
+| TS fix cap respected | YES | ≤30 errors fixed; rest in `TS_DEFERRED.md` |
 | Feature flags defined | YES | `phoenix.*` flags in `flag-definitions.ts` |
+| L1 + L4 working | YES | MOIC validation + logging tested |
 
 **Decision:**
 - **GO:** All criteria met → Proceed to Phase 1
-- **CONDITIONAL GO:** 1-2 minor gaps → Document remediation plan, proceed with caution
-- **NO-GO:** 3+ gaps OR any critical gap → Stop, re-baseline, stakeholder review
+- **CONDITIONAL GO:** 1-2 minor gaps (e.g., L2 incomplete) → Document, proceed
+- **NO-GO:** TS smoke test fails OR Tier A audit incomplete → Stop, fix first
 
 ### Gate 2: End of Phase 3 (Week 9)
 
@@ -1221,22 +1272,29 @@ Client-side engines (`reference-formulas.ts`, `xirr.ts`, `LiquidityEngine.ts`) u
 
 **Exit Gate:** All XIRR edge cases pass AND API integration verified
 
-### Phase 6: Integration & Rollout (Weeks 12-13)
+### Phase 6: MOIC Canary & Rollout (Weeks 12-13)
 
-**Goal:** Feature flags live, in-memory shadow mode validated, rollback tested
+**Goal:** Prove shadow + rollout pattern with MOIC first, then apply to other calculations.
+
+**MOIC Canary Strategy:**
+
+MOIC is the **only** calculation to go through full shadow → partial rollout → 100% + rollback drill initially. Once MOIC proves the pattern, other calculations (Fees, Waterfall, IRR) follow the same pattern in their own phases without a separate "shadow phase."
 
 | Task | Criteria |
 |------|----------|
-| Feature flag implementation | Extend `flag-definitions.ts` with `phoenix.*` flags |
-| In-memory shadow mode | Dual calculation with async logging (no Redis) |
-| Shadow mode (0%) | Both calcs run, only legacy returned, discrepancies logged |
-| Gradual rollout (10% -> 50%) | Canary users see Phoenix results |
-| Full rollout (100%) | All users on new system |
-| Monitoring | Structured log alerts for discrepancies |
+| MOIC shadow mode (0%) | Both calcs run, only legacy returned, discrepancies logged |
+| MOIC gradual rollout (10% -> 50%) | Canary users see Phoenix MOIC |
+| MOIC full rollout (100%) | All users on Phoenix MOIC |
+| Rollback drill (MOIC) | Prove rollback works before rolling out Fees/Waterfall/IRR |
+| Pattern documented | Other calculations follow same rollout script |
 
-**Rollback Drill (REQUIRED before 100% rollout):**
+**Shadow Mode Clarification:**
 
-Before full production rollout, execute a rehearsed rollback:
+Shadow mode is a **diagnostic tool**, not a gate. It does not block rollout if MOIC already matches truth cases and Tactyc alignment within thresholds. Its purpose is to detect unexpected discrepancies in production data patterns.
+
+**Rollback Drill (REQUIRED before MOIC 100% rollout):**
+
+Before full MOIC rollout, execute a rehearsed rollback:
 
 | Step | Action | Verification |
 |------|--------|--------------|
@@ -1254,7 +1312,7 @@ Before full production rollout, execute a rehearsed rollback:
 - [ ] Legacy calculations resume correctly
 - [ ] Shadow mode can be re-enabled safely
 
-**Exit Gate:** 100% rollout with no P0 errors for 48 hours AND rollback drill completed successfully
+**Exit Gate:** MOIC at 100% rollout with no P0 errors for 48 hours AND rollback drill completed. Pattern documented for other calculations.
 
 ---
 
@@ -1733,6 +1791,7 @@ Track per-phase in a simple Markdown table (no script needed):
 | 2.5 | 2025-12-04 | **Final polish:** Truth case vs code bug classification table. MOIC limits split by context (fund: 100x, deal: 1000x). IRR `not_yet_realized` status for early funds. AI ceremony reduction for Tier 1/2 (batch validation, skip for wiring). PHOENIX_SHADOW_MODE env var toggle. Leverage ratio measurement heuristic. Corrected truth case example format. |
 | 2.6 | 2025-12-04 | **Calibration refinements:** Timeline extended to 12-13 weeks (from 11). Success probability calibrated to 75-80% (from overcorrected 85%). Added Engine Audit section (ENGINE_AUDIT.md) as mandatory Phase 0 deliverable. Added Tactyc Alignment Tables (TACTYC_ALIGNMENT.md) requirement. Added TypeScript Surgical Triage with tsconfig.phoenix.json (Phoenix files only, not all 454 errors). Replaced BullMQ/Redis shadow mode with simplified in-memory implementation. Added Working Agreements for cognitive load mitigation (ONE-at-a-time discipline). Added Go/No-Go Decision Gates at Phase 0, 3, and 6. |
 | 2.7 | 2025-12-04 | **Technical review integration:** Added Server Import Verification task (2-4h) to Phase 0 for client/server compatibility. Added Hybrid Truth Case Strategy (JSON for point-in-time, Golden Datasets CSV for time-series). Fixed shadow mode to use `setImmediate` instead of microtask queue to prevent event loop blocking. Added Layer 2 terminology alignment with existing `lifecycle-rules.ts`. |
+| 2.8 | 2025-12-04 | **Scope containment refinements:** Split Phase 0 into 0A (Read & Decide) + 0B (Harden Happy Path). Added Tier A/B engine classification (deep-dive now vs later). Tightened L3 to "external-facing data only" for Phase 1-3. Added Golden Dataset scope freeze (2 datasets max until Phase 3). Added mechanical provenance audit checklist. Relaxed Tier 3 AI validation to "at least one GREEN, none RED." Made MOIC the canary calculation for Phase 6 rollout. Capped TS fixes at 30 with smoke test at phase gates. Clarified shadow mode as diagnostic tool, not gate. |
 
 **This plan supersedes:**
 - PHOENIX-PLAN-2025-11-30.md
