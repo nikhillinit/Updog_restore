@@ -1,12 +1,28 @@
 # Phoenix: Truth-Driven Fund Calculation Rebuild
 
-**Version:** 2.9
+**Version:** 2.10
 **Date:** December 4, 2025
 **Timeline:** 12-13 weeks (calibrated with realistic buffer)
 **Status:** ACTIVE - Supersedes all prior Phoenix plans
 **Executor:** Solo Developer
 **Approach:** Leverage, Harden, Validate (not Rebuild)
-**Success Probability:** 75-80% with mandatory refinements
+**Success Probability:** 80-85% with v2.10 hardening (improved from 75-80%)
+
+---
+
+## CRITICAL GAPS IDENTIFIED (v2.10 Multi-Agent Analysis)
+
+**7 parallel agents scrutinized this plan. Below are blockers that must be addressed:**
+
+| Gap | Severity | Description | Resolution Phase |
+|-----|----------|-------------|------------------|
+| **PHOENIX_FLAGS don't exist** | CRITICAL | Plan assumes `phoenix.*` flags but they're not defined | Phase 0B |
+| **Scope mismatch** | CRITICAL | runbooks v2.2 (Wizard) vs this plan (Calculations) | Phase -1 |
+| **Shadow mode vulnerabilities** | CRITICAL | 5 P0 issues: no timeout, no circuit breaker, silent errors | Phase 0B |
+| **DeterministicReserveEngine path wrong** | MEDIUM | Actual: `client/src/core/reserves/...` (has subdirectory) | Phase 0A |
+| **4/6 engines lack tests** | MEDIUM | Only ReferenceFormulas + XIRR have tests | Phase 1+ |
+| **L3 output contracts 20% complete** | HIGH | Structure exists, no precision/rounding rules | Phase 0B |
+| **7.8% truth case provenance** | HIGH | Only XIRR has Excel formulas; others unvalidated | Pre-Phase 0 |
 
 ---
 
@@ -79,6 +95,22 @@ Layer adoption is **progressive**, not all-or-nothing. L3 only required for **ex
 | 2 | Fund Lifecycle State | Valid state for operation |
 | 3 | Output Contracts | Precision/rounding for target |
 | 4 | Debug Instrumentation | Structured logging with context |
+
+**Validation Layer Gap Analysis (v2.10):**
+
+| Layer | Existing | Gap | Priority |
+|-------|----------|-----|----------|
+| **L1** | 70% - Zod schemas, conservation validation, range checks | Missing: centralized limits, context-aware MOIC | HIGH |
+| **L2** | 40% - `lifecycle-rules.ts` with stages | Missing: operation validation, state transitions | MEDIUM |
+| **L3** | 20% - Contract schemas (structure only) | Missing: precision rules, rounding modes, `formatForContract()` | HIGH |
+| **L4** | 60% - Winston logging, performance monitors | Missing: Phoenix-specific wrappers, calculation context | LOW |
+
+**What Already Exists (Leverage, Don't Rebuild):**
+- `shared/schemas/decimal-zod.ts`: ZodPercentage, ZodPositiveDecimal
+- `shared/lib/lifecycle-rules.ts`: LifecycleStage, getFundAge(), getLifecycleStage()
+- `shared/validation/conservation.ts`: validateConservation(), validateReserveAllocationConservation()
+- `server/utils/logger.ts`: Winston with custom levels, performance monitors
+- `shared/instrumentation.ts`: Logger interface, runtime injection
 
 ### AI Validation Tiers
 
@@ -895,6 +927,31 @@ git diff main..origin/phoenix/phase-1-wizard-fees --stat
 
 **Why This Exists:** The `phoenix/phase-1-wizard-fees` branch and `runbooks/phoenix-execution.md` show significant Phase 0 work is already complete. This step prevents re-doing that work.
 
+**CRITICAL: Scope Clarification (v2.10)**
+
+Two Phoenix execution documents exist with DIFFERENT SCOPES:
+
+| Document | Version | Scope | Status |
+|----------|---------|-------|--------|
+| `runbooks/phoenix-execution.md` | v2.2 | IA + Wizard improvements | Phase 0 DONE, Track 2 DONE |
+| This plan (`PHOENIX-EXECUTION-PLAN.md`) | v2.10 | Calculation rebuild | Pre-Phase 0 NOT STARTED |
+
+**What's Been Completed (on `phoenix/phase-1-wizard-fees` branch):**
+- Phase 0 baseline locking (TS errors: 452, tests: 74.2%)
+- Ground zero tag: `phoenix-ground-zero-2025-11-30`
+- Wizard Track 2: FeesExpensesStep auto-save (15 tests)
+
+**What Has NOT Started:**
+- Pre-Phase 0: MOIC truth cases (this plan)
+- Phase 0A: Engine audit (this plan)
+- Phase 0B: Validation layers (this plan)
+- Phase 1: MOIC calculations (this plan)
+
+**Decision Required:** Before proceeding, choose ONE active track:
+- **Option A:** Continue this plan (calculation rebuild) - start at Pre-Phase 0
+- **Option B:** Continue runbook v2.2 (IA/Wizard) - complete Track 1 IA Consolidation
+- **Option C:** Run both in parallel (risk: cognitive overload for solo developer)
+
 ---
 
 ### Pre-Phase 0: Preparation (Week 1) - BLOCKER RESOLUTION
@@ -1101,18 +1158,36 @@ Create per-engine alignment documentation. **Scope:** Terminology and primary fo
 
 **Day 2: Feature Flag Infrastructure**
 
+**BLOCKER (v2.10 Gap Analysis):** These flags DO NOT EXIST. The infrastructure supports them (5 flag systems, percentage rollout ready), but `phoenix.*` flags must be created before shadow mode can work.
+
 | Task | Exit Criteria |
 |------|---------------|
 | Add `phoenix.*` flags to `flag-definitions.ts` | Flags compile and export |
 | Implement calculation switching logic | `isPhoenixEnabled()` function works |
 | Test flag toggling | Flag changes reflected in runtime |
 | Coordinate with wizard flags | No conflicts with `enable_wizard_*` |
+| Verify percentage rollout works | `shouldEnableForUser()` bucketing correct |
 
 ```typescript
 // Flags to create in shared/feature-flags/flag-definitions.ts
-'phoenix.enabled': { enabled: false, rolloutPercentage: 0 }
-'phoenix.shadow_mode': { enabled: false, rolloutPercentage: 0 }
-'phoenix.moic': { enabled: false, dependencies: ['phoenix.enabled'] }
+// CRITICAL: These DO NOT exist yet - must be created in Phase 0B
+export const PHOENIX_FLAGS = {
+  'phoenix.enabled': {
+    enabled: false,
+    rolloutPercentage: 0,
+    description: 'Master switch for Phoenix calculation engine'
+  },
+  'phoenix.shadow_mode': {
+    enabled: false,
+    rolloutPercentage: 0,
+    dependencies: ['phoenix.enabled'],
+    description: 'Run Phoenix in shadow mode (compare results, return legacy)'
+  },
+  'phoenix.moic': {
+    enabled: false,
+    dependencies: ['phoenix.enabled'],
+    description: 'Use Phoenix for MOIC calculations'
+  }
 'phoenix.irr': { enabled: false, dependencies: ['phoenix.moic'] }
 'phoenix.fees': { enabled: false, dependencies: ['phoenix.moic'] }
 'phoenix.waterfall': { enabled: false, dependencies: ['phoenix.fees'] }
@@ -1401,6 +1476,32 @@ When shadow mode or parallel validation detects a discrepancy, classify it immed
 **Expert Insight:** "Introducing BullMQ would add a brand-new operational surface area just to get shadow mode, which is a classic 'infra tax' for limited benefit."
 
 **Solution:** In-memory dual calculation with async structured logging. 80% of shadow mode value with 20% of DevOps overhead.
+
+### MANDATORY Hardening Requirements (v2.10)
+
+**Silent-failure-hunter agent identified 5 critical vulnerabilities in the shadow mode pattern. ALL must be addressed before Phase 6 rollout:**
+
+| Issue | Severity | Description | Required Fix |
+|-------|----------|-------------|--------------|
+| #1 | P0 | Phoenix errors silently swallowed | Add metrics + alerting for failure rate |
+| #2 | P0 | Context mutation race condition | Deep clone context before deferring |
+| #3 | P0 | No timeout for deferred execution | Add 5s timeout with abort |
+| #4 | HIGH | No circuit breaker | Disable after 10 consecutive failures |
+| #5 | HIGH | No sampling for high volume | Sample 10% for high-volume calcs |
+
+**Required Hardening Checklist (Phase 0B):**
+
+```
+[ ] Add PhoenixShadowMetrics interface (recordSuccess, recordFailure, recordTimeout)
+[ ] Implement circuit breaker (open after 10 failures, reset after 5 min)
+[ ] Add 5-second timeout with `setTimeout` + `clearTimeout`
+[ ] Deep clone context with `Object.freeze({...context})`
+[ ] Add sampling rates per calculation type (MOIC: 100%, Fees: 10%)
+[ ] Separate try-catch for compareResults vs phoenixFn
+[ ] Add ERROR_IDS constants for Sentry grouping
+```
+
+**Estimated Hardening Effort:** 8-12 hours
 
 ### Implementation (Zero Redis Dependency)
 
@@ -1869,6 +1970,7 @@ Track per-phase in a simple Markdown table (no script needed):
 | 2.7 | 2025-12-04 | **Technical review integration:** Added Server Import Verification task (2-4h) to Phase 0 for client/server compatibility. Added Hybrid Truth Case Strategy (JSON for point-in-time, Golden Datasets CSV for time-series). Fixed shadow mode to use `setImmediate` instead of microtask queue to prevent event loop blocking. Added Layer 2 terminology alignment with existing `lifecycle-rules.ts`. |
 | 2.8 | 2025-12-04 | **Scope containment refinements:** Split Phase 0 into 0A (Read & Decide) + 0B (Harden Happy Path). Added Tier A/B engine classification (deep-dive now vs later). Tightened L3 to "external-facing data only" for Phase 1-3. Added Golden Dataset scope freeze (2 datasets max until Phase 3). Added mechanical provenance audit checklist. Relaxed Tier 3 AI validation to "at least one GREEN, none RED." Made MOIC the canary calculation for Phase 6 rollout. Capped TS fixes at 30 with smoke test at phase gates. Clarified shadow mode as diagnostic tool, not gate. |
 | 2.9 | 2025-12-04 | **Reality sync & operational protocols:** Added Phase -1: Reality Sync to reconcile plan with actual execution state (prevents re-doing completed work from `phoenix/phase-1-wizard-fees` branch). Added Discrepancy Triage Protocol (P0/P1/P2 classification with action ladder). Added Restart After Breaks protocol for resuming after >5 day gaps. These additions improve plan operability for solo developer execution. |
+| 2.10 | 2025-12-04 | **Multi-agent gap analysis & hardening:** 7 parallel agents scrutinized plan. Added CRITICAL GAPS section at top with 7 blockers. Added scope clarification (runbook v2.2 vs this plan v2.10). Added PHOENIX_FLAGS BLOCKER warning (flags don't exist, must create). Added shadow mode MANDATORY hardening requirements (5 P0 vulnerabilities: timeout, circuit breaker, metrics, context cloning, sampling). Added validation layer gap analysis (L1: 70%, L2: 40%, L3: 20%, L4: 60%). Added "What Already Exists" list to prevent rebuilding. Improved success probability to 80-85% with hardening. |
 
 **This plan supersedes:**
 - PHOENIX-PLAN-2025-11-30.md
