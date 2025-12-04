@@ -1,6 +1,6 @@
 # Phoenix: Truth-Driven Fund Calculation Rebuild
 
-**Version:** 2.6
+**Version:** 2.7
 **Date:** December 4, 2025
 **Timeline:** 12-13 weeks (calibrated with realistic buffer)
 **Status:** ACTIVE - Supersedes all prior Phoenix plans
@@ -350,6 +350,17 @@ export function validateStateTransition(
 }
 ```
 
+**Leverage Existing:** The codebase already has `shared/lib/lifecycle-rules.ts` with `LifecycleStage` type. Align Phoenix terminology with existing code:
+
+| Phoenix Term | Existing Term | Location | Action |
+|--------------|---------------|----------|--------|
+| FUNDRAISING | (none) | - | Add to `LifecycleStage` type |
+| INVESTING | `investment` | `lifecycle-rules.ts:28` | Map via alias |
+| HARVESTING | `harvest` | `lifecycle-rules.ts:31` | Map via alias |
+| LIQUIDATED | `liquidation` | `lifecycle-rules.ts:32` | Map via alias |
+
+**Implementation Decision:** Extend existing `LifecycleStage` in `lifecycle-rules.ts` rather than creating parallel `FundState` type. Use `getLifecycleStage()` function which derives state from fund age.
+
 **Effort:** 6 hours
 
 ### Layer 3: Output Contract Validation
@@ -581,6 +592,23 @@ When extending truth cases:
 4. Run against DeterministicReserveEngine pattern
 
 **Excel Policy:** Do not introduce a *new* long-lived Excel workbook as a second source of truth. Temporary spreadsheets are allowed for scratch calculations and design verification, but **all authoritative truth must be encoded in the existing JSON truth cases** with `excelFormula` fields where applicable. Rule: *"No change is 'real' until it's encoded as a JSON truth case and tests pass."*
+
+### Hybrid Truth Case Strategy
+
+**Leverage existing Golden Dataset infrastructure** (`tests/fixtures/golden-datasets/`) for time-series validations. Use JSON for point-in-time formula verification.
+
+| Calculation Type | Format | Rationale | Location |
+|------------------|--------|-----------|----------|
+| MOIC (4 variants) | JSON | Point-in-time formula | `docs/moic.truth-cases.json` |
+| IRR/XIRR | JSON | Point-in-time, existing format | `docs/xirr.truth-cases.json` |
+| Fees | JSON | Per-period formula | `docs/fees.truth-cases.json` |
+| Capital Calls | Golden Dataset CSV | Time-series tabular data | `tests/fixtures/golden-datasets/capital-calls/` |
+| Distributions | Golden Dataset CSV | Time-series tabular data | `tests/fixtures/golden-datasets/distributions/` |
+| Waterfall | Golden Dataset CSV | Multi-step tabular output | `tests/fixtures/golden-datasets/waterfall/` |
+
+**Why Hybrid:** Golden Datasets provide byte-level reproducibility with 1e-6 tolerance for time-series data. JSON is simpler for single-output formula validation. Using both avoids reinventing infrastructure.
+
+**Integration:** Use existing `tests/utils/golden-dataset.ts` utilities for CSV-based validations in Phases 2 and 4.
 
 ### Truth Case Audit (Phase 0 Prerequisite)
 
@@ -915,6 +943,18 @@ Create per-engine alignment documentation during audit:
 ```
 
 **Exit Criterion:** `TACTYC_ALIGNMENT.md` committed before Phase 1.
+
+**Server Import Verification (Day 2, 2-4 hours):**
+
+Client-side engines (`reference-formulas.ts`, `xirr.ts`, `LiquidityEngine.ts`) use no browser APIs but may have Vite path alias issues when imported server-side.
+
+| Task | Exit Criteria |
+|------|---------------|
+| Test server-side import | `npx tsc --noEmit server/test-phoenix-imports.ts` |
+| If fails: Create barrel export | `shared/engines/index.ts` re-exports with explicit paths |
+| Verify no browser deps | Grep for `window`, `document`, `localStorage` |
+
+**Why This Matters:** Phoenix calculations must run in both API (server) and UI (client) contexts. If imports fail server-side, API integration (Phases 1-5) will be blocked.
 
 **Week 2, Days 3-5: TypeScript Surgical Triage** ⭐ MANDATORY
 
@@ -1279,8 +1319,12 @@ export function calculateWithShadow<T>(
   // Always return legacy result immediately
   const legacyResult = legacyFn();
 
-  // Run Phoenix calc async (don't block UI/API)
-  Promise.resolve().then(() => {
+  // Run Phoenix calc async using setImmediate to avoid blocking event loop
+  // NOTE: setImmediate defers to next event loop iteration (unlike Promise.resolve
+  // which runs in microtask queue and can still block). In browser, use setTimeout(fn, 0).
+  const deferFn = typeof setImmediate !== 'undefined' ? setImmediate : (fn: () => void) => setTimeout(fn, 0);
+
+  deferFn(() => {
     try {
       const phoenixResult = phoenixFn();
       const discrepancy = compareResults(legacyResult, phoenixResult);
@@ -1688,6 +1732,7 @@ Track per-phase in a simple Markdown table (no script needed):
 | 2.4 | 2025-12-04 | **Refinements:** Progressive layer adoption by phase (not all-or-nothing). Configurable plausibility limits with warnings vs hard-fails. Typed FundOperation constants. Output contract maxValue enforcement with clamping. POV Fund I truth case mapping table. Dev-mode guard for BullMQ (skip Redis in local dev). "When not to use AI" guidance. Daily checklist "ONE thing" focus item. |
 | 2.5 | 2025-12-04 | **Final polish:** Truth case vs code bug classification table. MOIC limits split by context (fund: 100x, deal: 1000x). IRR `not_yet_realized` status for early funds. AI ceremony reduction for Tier 1/2 (batch validation, skip for wiring). PHOENIX_SHADOW_MODE env var toggle. Leverage ratio measurement heuristic. Corrected truth case example format. |
 | 2.6 | 2025-12-04 | **Calibration refinements:** Timeline extended to 12-13 weeks (from 11). Success probability calibrated to 75-80% (from overcorrected 85%). Added Engine Audit section (ENGINE_AUDIT.md) as mandatory Phase 0 deliverable. Added Tactyc Alignment Tables (TACTYC_ALIGNMENT.md) requirement. Added TypeScript Surgical Triage with tsconfig.phoenix.json (Phoenix files only, not all 454 errors). Replaced BullMQ/Redis shadow mode with simplified in-memory implementation. Added Working Agreements for cognitive load mitigation (ONE-at-a-time discipline). Added Go/No-Go Decision Gates at Phase 0, 3, and 6. |
+| 2.7 | 2025-12-04 | **Technical review integration:** Added Server Import Verification task (2-4h) to Phase 0 for client/server compatibility. Added Hybrid Truth Case Strategy (JSON for point-in-time, Golden Datasets CSV for time-series). Fixed shadow mode to use `setImmediate` instead of microtask queue to prevent event loop blocking. Added Layer 2 terminology alignment with existing `lifecycle-rules.ts`. |
 
 **This plan supersedes:**
 - PHOENIX-PLAN-2025-11-30.md
