@@ -1,6 +1,6 @@
 # Phoenix: Truth-Driven Fund Calculation Rebuild
 
-**Version:** 2.4
+**Version:** 2.5
 **Date:** December 4, 2025
 **Timeline:** 11 weeks (revised based on critical gap analysis)
 **Status:** ACTIVE - Supersedes all prior Phoenix plans
@@ -161,10 +161,16 @@ import { z } from 'zod';
 // Configurable plausibility limits (tunable without code changes)
 export const PLAUSIBILITY_LIMITS = {
   MAX_FUND_SIZE: 10_000_000_000,      // $10B
-  MAX_REASONABLE_MOIC: 100,           // 100x (rare but possible for unicorns)
   MAX_FEE_RATE: 0.10,                 // 10%
   MIN_FUND_SIZE: 100_000,             // $100K
+  // MOIC limits differ by context (fund-level vs deal-level)
+  MAX_MOIC: {
+    fund: 100,    // Fund-level 100x is extreme but possible
+    deal: 1_000,  // Deal-level 10-100x is normal for seed; 1000x = safety cap
+  },
 } as const;
+
+export type MoicContext = 'fund' | 'deal';
 
 export const MOICInputSchema = z.object({
   contributions: z.number()
@@ -180,15 +186,20 @@ export const MOICInputSchema = z.object({
 );
 
 // Separate warning check (does not fail validation, only logs)
-export function checkMOICPlausibility(input: { contributions: number; currentValue: number; distributions: number }): {
+// Use context to apply appropriate limit (fund-level vs deal-level)
+export function checkMOICPlausibility(
+  input: { contributions: number; currentValue: number; distributions: number },
+  context: MoicContext = 'fund'  // Default to stricter fund-level
+): {
   warnings: string[];
   isPlausible: boolean;
 } {
   const warnings: string[] = [];
   const moic = (input.currentValue + input.distributions) / input.contributions;
+  const limit = PLAUSIBILITY_LIMITS.MAX_MOIC[context];
 
-  if (moic > PLAUSIBILITY_LIMITS.MAX_REASONABLE_MOIC) {
-    warnings.push(`MOIC ${moic.toFixed(2)}x exceeds ${PLAUSIBILITY_LIMITS.MAX_REASONABLE_MOIC}x threshold - verify inputs`);
+  if (moic > limit) {
+    warnings.push(`MOIC ${moic.toFixed(2)}x exceeds ${limit}x ${context}-level threshold - verify inputs`);
   }
 
   return { warnings, isPlausible: warnings.length === 0 };
@@ -198,18 +209,39 @@ export function checkMOICPlausibility(input: { contributions: number; currentVal
 // - HARD FAIL: negative values, zero contributions, impossible math
 // - WARNING: extreme but possible values (100x+ MOIC, very high fees)
 
+// IRR result type includes "not yet realized" status for early funds
+export type IRRResult =
+  | { status: 'computed'; irr: number; converged: boolean }
+  | { status: 'not_yet_realized'; irr: null; reason: string };
+
 export const IRRInputSchema = z.object({
   cashflows: z.array(z.object({
     date: z.string().datetime(),
     amount: z.number(),
-  })).min(2, "IRR requires at least 2 cash flows"),
+  })).min(1, "IRR requires at least 1 cash flow"),
 }).refine(
   data => data.cashflows.some(cf => cf.amount < 0),
   "IRR requires at least one negative cash flow (investment)"
-).refine(
-  data => data.cashflows.some(cf => cf.amount > 0),
-  "IRR requires at least one positive cash flow (return)"
 );
+// NOTE: Positive cash flow is NOT required - early funds may have only called capital
+
+// Handle funds with no distributions yet (IRR is undefined, not an error)
+export function computeIRR(input: z.infer<typeof IRRInputSchema>): IRRResult {
+  const hasPositive = input.cashflows.some(cf => cf.amount > 0);
+
+  if (!hasPositive) {
+    // Fund has only called capital, no exits/distributions yet
+    return {
+      status: 'not_yet_realized',
+      irr: null,
+      reason: 'No positive cash flows yet (no distributions or exits)',
+    };
+  }
+
+  // Normal IRR computation
+  const irr = xirr(input.cashflows); // Your existing XIRR implementation
+  return { status: 'computed', irr, converged: true };
+}
 
 export const FeeInputSchema = z.object({
   fundSize: z.number()
@@ -542,6 +574,29 @@ Before Phase 1, run a one-time audit of each `*.truth-cases.json` file:
 4. **Document in inventory** - Commit `TRUTH_CASE_INVENTORY.md` with up-to-date counts and tags
 
 **Exit Criterion:** `TRUTH_CASE_INVENTORY.md` committed before Phase 1 begins.
+
+### Truth Case vs Code Bug Classification
+
+When code fails a truth case, **classify before fixing**:
+
+| Classification | Symptom | Action |
+|----------------|---------|--------|
+| **Case Bug** | JSON `expected` doesn't match agreed financial logic | Fix JSON, add tag `["corrected"]`, add `correctionReason` field |
+| **Code Bug** | JSON is correct, implementation is wrong | Fix code, add regression test referencing truth-case ID |
+| **Spec Gap** | Neither clearly right (e.g., SAFE conversion ambiguous) | Move to `DEFERRED_VALIDATIONS.md`, mark JSON with `status: "pending"` |
+
+**Critical Rule:** Never change code just to make JSON go green unless you've confirmed the JSON represents correct financial behavior. When in doubt, defer.
+
+**Corrected Truth Case Example:**
+```json
+{
+  "scenario": "MOIC-003-edge-case",
+  "tags": ["phoenix", "moic", "corrected"],
+  "correctionReason": "Original expected value used wrong denominator (committed vs called)",
+  "input": { ... },
+  "expected": { "currentMOIC": 1.45 }
+}
+```
 
 ---
 
@@ -1007,6 +1062,19 @@ Shadow mode runs OLD + NEW calculations in parallel. Running both synchronously 
 
 **Solution:** Queue Phoenix calculations to BullMQ workers.
 
+### Environment Configuration
+
+Shadow mode is **opt-in** via environment variable to avoid Redis dependency in local dev:
+
+```bash
+# .env.development (local dev - shadow disabled by default)
+PHOENIX_SHADOW_MODE=false
+
+# .env.staging / .env.production
+PHOENIX_SHADOW_MODE=true
+REDIS_URL=redis://localhost:6379
+```
+
 ### Implementation
 
 ```typescript
@@ -1016,9 +1084,12 @@ import { Queue, Worker } from 'bullmq';
 import { calculateMOIC } from '@/lib/finance/moic-phoenix';
 import { calculateMOICLegacy } from '@/lib/finance/moic-legacy';
 
-const phoenixShadowQueue = new Queue('phoenix-shadow', {
-  connection: redisConnection,
-});
+// Shadow mode is opt-in; queue/worker are no-ops when disabled
+const isShadowEnabled = process.env.PHOENIX_SHADOW_MODE === 'true';
+
+const phoenixShadowQueue = isShadowEnabled
+  ? new Queue('phoenix-shadow', { connection: redisConnection })
+  : null; // No-op in local dev
 
 // Worker processes shadow validations async
 const worker = new Worker('phoenix-shadow', async (job) => {
@@ -1063,13 +1134,12 @@ export async function calculateWithShadow<T>(
   // Always return legacy result immediately
   const legacyResult = legacyFn();
 
-  // Dev-mode guard: Skip BullMQ in local dev/test to avoid Redis dependency
-  if (!process.env.REDIS_URL || process.env.NODE_ENV === 'test') {
-    // No shadow or queue in dev; just return legacy
+  // Skip shadow entirely if disabled (local dev, tests, or no Redis)
+  if (!isShadowEnabled || !phoenixShadowQueue) {
     return legacyResult;
   }
 
-  // If shadow mode enabled, queue Phoenix validation
+  // If calculation-specific shadow flag enabled, queue validation
   if (isPhoenixShadowEnabled(calculationType)) {
     await phoenixShadowQueue.add('validate', {
       calculationType,
@@ -1163,6 +1233,12 @@ export const PHOENIX_FLAGS: Record<string, FeatureFlag> = {
 | **Tier 2** | Moderate | 2 AI | Both GREEN required | Fees, capital calls |
 | **Tier 3** | Complex | 2-3 AI | Unanimous GREEN | Waterfall, IRR, MOIC |
 
+**Ceremony Reduction for Tier 1/2:**
+
+- **Tier 1:** Default is NO AI if truth cases already exist and code change is small (wiring, not math). Use AI only when changing the mathematical behavior.
+- **Tier 2:** Use a single consolidated AI run per batch of related changes (e.g., all four fee bases together), not per truth case. Batch validation saves time without losing rigor.
+- **Tier 3:** Full ceremony required - individual validation per truth case, unanimous consensus.
+
 ### Verdict Definitions
 
 | Verdict | Meaning | Action |
@@ -1172,6 +1248,8 @@ export const PHOENIX_FLAGS: Record<string, FeatureFlag> = {
 | **RED** | Fails threshold or logic error | Do not proceed, investigate |
 
 ### Validation Prompt Template
+
+**Use this template for Tier 2/3 validations only.** Skip for pure refactors or Tier 1 wiring changes.
 
 ```markdown
 ## Calculation Validation Request
@@ -1260,7 +1338,7 @@ AI validation is **required** when mathematical behavior changes. It is **option
 
 ## 11. Domain Expert Allocation (Optional Uplift)
 
-**Important:** This section describes an *optional uplift* if a human domain expert (CFO/quant/fund admin) is available. The Phoenix v2 plan does **not** assume such a person is guaranteed. The baseline validation relies on:
+**Important:** This section describes an *optional uplift* if a human domain expert (CFO/quant/fund admin) is available. This plan does **not** assume such a person is guaranteed. The baseline validation relies on:
 - JSON truth cases with Excel parity
 - The 4 validation layers
 - Multi-AI review (Tier 1/2/3)
@@ -1343,6 +1421,20 @@ If P0 error detected post-rollout:
 | **Leverage ratio** | > 40% existing code reused (not rebuilt) |
 | Rollback drill time | < 60 seconds |
 
+**Leverage Ratio Measurement Heuristic:**
+
+Track per-phase in a simple Markdown table (no script needed):
+
+| Phase | Functions Touched | Functions Kept | Functions Rebuilt | Leverage % |
+|-------|-------------------|----------------|-------------------|------------|
+| 1 MOIC | 4 | 3 | 1 | 75% |
+| 2 Capital | 6 | 4 | 2 | 67% |
+| ... | ... | ... | ... | ... |
+| **Total** | **X** | **Y** | **Z** | **Y/X%** |
+
+- **Function Kept** = existing implementation passes truth cases + gets validation layers
+- **Function Rebuilt** = new implementation or major rewrite (> 50% line change)
+
 ### Qualitative
 
 - [ ] All calculations traceable to JSON truth source
@@ -1411,6 +1503,7 @@ If P0 error detected post-rollout:
 | 2.2 | 2025-12-04 | Added AI consensus limitations protocol, explicit feature flag creation in Phase 0, hard gate on Phase 0 exit criteria, 8.5-week timeline |
 | 2.3 | 2025-12-04 | **Major revision:** Reframed as "Leverage, Harden, Validate" (not rebuild). Added Pre-Phase 0 for MOIC truth cases (blocker). Added existing assets table. Added incremental integration to all phases (not big-bang). Extended timeline to 11 weeks. Added rollback drill requirement. Added leverage ratio success metric. |
 | 2.4 | 2025-12-04 | **Refinements:** Progressive layer adoption by phase (not all-or-nothing). Configurable plausibility limits with warnings vs hard-fails. Typed FundOperation constants. Output contract maxValue enforcement with clamping. POV Fund I truth case mapping table. Dev-mode guard for BullMQ (skip Redis in local dev). "When not to use AI" guidance. Daily checklist "ONE thing" focus item. |
+| 2.5 | 2025-12-04 | **Final polish:** Truth case vs code bug classification table. MOIC limits split by context (fund: 100x, deal: 1000x). IRR `not_yet_realized` status for early funds. AI ceremony reduction for Tier 1/2 (batch validation, skip for wiring). PHOENIX_SHADOW_MODE env var toggle. Leverage ratio measurement heuristic. Corrected truth case example format. |
 
 **This plan supersedes:**
 - PHOENIX-PLAN-2025-11-30.md
