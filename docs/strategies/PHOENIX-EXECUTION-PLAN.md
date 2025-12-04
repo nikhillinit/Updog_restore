@@ -1,6 +1,6 @@
 # Phoenix: Truth-Driven Fund Calculation Rebuild
 
-**Version:** 2.8
+**Version:** 2.9
 **Date:** December 4, 2025
 **Timeline:** 12-13 weeks (calibrated with realistic buffer)
 **Status:** ACTIVE - Supersedes all prior Phoenix plans
@@ -25,6 +25,19 @@
 [ ] Are required validation layers for this phase passing? (see layer table below)
 [ ] What's my AI tier for this calculation?
 ```
+
+### Restart After Breaks (>5 days)
+
+Before resuming after any break of 5+ calendar days:
+
+```
+[ ] Re-run `npm test` and compare to last saved baseline
+[ ] Re-open the current phase's exit gate checklist - confirm what is actually Done
+[ ] Dump a 10-15 minute "what I was doing" brain recap into `notes/phoenix-journal.md`
+[ ] Choose a single "ONE thing" for the first day back (phase X, calculation Y, layer Z)
+```
+
+**Why:** Solo developers are especially vulnerable to "rusty brain" days after gaps. This protocol reinforces the Flight Card and single-focus discipline.
 
 ### Validation Layer Requirements by Phase
 
@@ -841,6 +854,49 @@ GP Commit: Treated as LP for distribution, no carry on own capital
 
 ## 7. Phased Execution
 
+### Phase -1: Reality Sync (Before Starting)
+
+**Goal:** Reconcile plan assumptions with actual execution state. Prevents duplicating completed work.
+
+**Context:** This plan is written as a self-contained blueprint. If execution has already started (phoenix/* branches exist, some exit gates already met), this step prevents blindly following the plan from the beginning.
+
+**Reality Sync Checklist:**
+
+For each phase, check the **exit criteria** and mark as:
+- DONE: Already met (skip this phase's work)
+- PARTIAL: Partially met (start from incomplete items)
+- NOT_STARTED: Proceed with full phase
+
+| Exit Criterion | Check Command / File | Status |
+|----------------|----------------------|--------|
+| `docs/moic.truth-cases.json` exists (9+ cases) | `ls docs/moic.truth-cases.json` | [ ] |
+| `TRUTH_CASE_INVENTORY.md` committed | `ls TRUTH_CASE_INVENTORY.md` | [ ] |
+| `ENGINE_AUDIT.md` with tier classification | `ls ENGINE_AUDIT.md` | [ ] |
+| `TACTYC_ALIGNMENT.md` committed | `ls TACTYC_ALIGNMENT.md` | [ ] |
+| `tsconfig.phoenix.json` created | `ls tsconfig.phoenix.json` | [ ] |
+| PHOENIX_FLAGS in `flag-definitions.ts` | `grep PHOENIX flag-definitions.ts` | [ ] |
+| Layer 3 output contracts implemented | Check `shared/schemas/` | [ ] |
+
+**Branch State Check:**
+
+```bash
+# What Phoenix work exists?
+git branch -a | grep phoenix
+git log --since="2025-11-30" --oneline --all | grep -i phoenix
+
+# Diff against main to see actual changes
+git diff main..origin/phoenix/phase-1-wizard-fees --stat
+```
+
+**Exit Criterion:** `REALITY_SYNC.md` committed documenting:
+- Which phases are DONE, PARTIAL, or NOT_STARTED
+- Current branch and last Phoenix-related commit
+- Adjusted starting point (e.g., "Start at Phase 1, skip Pre-Phase 0 and 0A")
+
+**Why This Exists:** The `phoenix/phase-1-wizard-fees` branch and `runbooks/phoenix-execution.md` show significant Phase 0 work is already complete. This step prevents re-doing that work.
+
+---
+
 ### Pre-Phase 0: Preparation (Week 1) - BLOCKER RESOLUTION
 
 **Goal:** Eliminate blockers + verify truth case provenance before Phase 0 starts
@@ -1313,6 +1369,26 @@ Before full MOIC rollout, execute a rehearsed rollback:
 - [ ] Shadow mode can be re-enabled safely
 
 **Exit Gate:** MOIC at 100% rollout with no P0 errors for 48 hours AND rollback drill completed. Pattern documented for other calculations.
+
+### Discrepancy Triage Protocol
+
+When shadow mode or parallel validation detects a discrepancy, classify it immediately to prevent investigation paralysis:
+
+| Tier | Definition | Action |
+|------|------------|--------|
+| **P0** | Violates thresholds by >10x, OR clear logic bug (sign error, null handling, missing cashflow) | **Immediate rollback** of phoenix.* flag |
+| **P1** | Above threshold but formula/logic looks plausible | **Investigate within 24-48 hours**, decide to fix or accept |
+| **P2** | Within per-metric thresholds (see Section 10) | **Accept** - document but do not block rollout |
+
+**Examples:**
+
+- **P0:** MOIC < 0 when NAV+distributions > 0, IRR wildly different from truth case, fee calculation returns NaN
+- **P1:** 2% MOIC difference on edge case fund, IRR off by 0.5% on illiquid fund
+- **P2:** $0.23 fee rounding difference, 0.0005 change in IRR on a 20% rate
+
+**Modified Gate Rule:** "STOP if >10% of funds show P0 or P1 discrepancies." P2 discrepancies are logged but do not count toward the threshold.
+
+**Why This Exists:** Without clear triage rules, every $1 rounding difference risks delaying rollout by days. This ladder provides decision rules tied to the existing per-metric thresholds.
 
 ---
 
@@ -1792,6 +1868,7 @@ Track per-phase in a simple Markdown table (no script needed):
 | 2.6 | 2025-12-04 | **Calibration refinements:** Timeline extended to 12-13 weeks (from 11). Success probability calibrated to 75-80% (from overcorrected 85%). Added Engine Audit section (ENGINE_AUDIT.md) as mandatory Phase 0 deliverable. Added Tactyc Alignment Tables (TACTYC_ALIGNMENT.md) requirement. Added TypeScript Surgical Triage with tsconfig.phoenix.json (Phoenix files only, not all 454 errors). Replaced BullMQ/Redis shadow mode with simplified in-memory implementation. Added Working Agreements for cognitive load mitigation (ONE-at-a-time discipline). Added Go/No-Go Decision Gates at Phase 0, 3, and 6. |
 | 2.7 | 2025-12-04 | **Technical review integration:** Added Server Import Verification task (2-4h) to Phase 0 for client/server compatibility. Added Hybrid Truth Case Strategy (JSON for point-in-time, Golden Datasets CSV for time-series). Fixed shadow mode to use `setImmediate` instead of microtask queue to prevent event loop blocking. Added Layer 2 terminology alignment with existing `lifecycle-rules.ts`. |
 | 2.8 | 2025-12-04 | **Scope containment refinements:** Split Phase 0 into 0A (Read & Decide) + 0B (Harden Happy Path). Added Tier A/B engine classification (deep-dive now vs later). Tightened L3 to "external-facing data only" for Phase 1-3. Added Golden Dataset scope freeze (2 datasets max until Phase 3). Added mechanical provenance audit checklist. Relaxed Tier 3 AI validation to "at least one GREEN, none RED." Made MOIC the canary calculation for Phase 6 rollout. Capped TS fixes at 30 with smoke test at phase gates. Clarified shadow mode as diagnostic tool, not gate. |
+| 2.9 | 2025-12-04 | **Reality sync & operational protocols:** Added Phase -1: Reality Sync to reconcile plan with actual execution state (prevents re-doing completed work from `phoenix/phase-1-wizard-fees` branch). Added Discrepancy Triage Protocol (P0/P1/P2 classification with action ladder). Added Restart After Breaks protocol for resuming after >5 day gaps. These additions improve plan operability for solo developer execution. |
 
 **This plan supersedes:**
 - PHOENIX-PLAN-2025-11-30.md
