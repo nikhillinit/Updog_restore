@@ -1,10 +1,11 @@
 # Phoenix: Truth-Driven Fund Calculation Rebuild
 
-**Version:** 2.2
+**Version:** 2.3
 **Date:** December 4, 2025
-**Timeline:** 8.5 weeks (adjusted for refinements)
+**Timeline:** 11 weeks (revised based on critical gap analysis)
 **Status:** ACTIVE - Supersedes all prior Phoenix plans
 **Executor:** Solo Developer
+**Approach:** Leverage, Harden, Validate (not Rebuild)
 
 ---
 
@@ -15,8 +16,9 @@
 ### Daily Checklist
 
 ```
-[ ] Which phase am I in? (0-6)
+[ ] Which phase am I in? (Pre-0, 0-6)
 [ ] What calculation am I validating?
+[ ] Have I checked EXISTING ENGINES first?
 [ ] Have I checked existing JSON truth cases?
 [ ] Are all 4 validation layers passing?
 [ ] What's my AI tier for this calculation?
@@ -24,15 +26,16 @@
 
 ### Quick Reference
 
-| Phase | Focus | Exit Gate |
-|-------|-------|-----------|
-| 0 | Test infrastructure + validation layers | `npm test` passes, 4 layers scaffolded |
-| 1 | MOIC only (prove pattern) | All 4 MOIC variants validated E2E |
-| 2 | Capital calls/distributions | 3 scenarios validated |
-| 3 | Fee engine (4 bases) | 4 fee basis methods pass |
-| 4 | American waterfall | Deal-by-deal carry validated |
-| 5 | IRR (XIRR) | All XIRR edge cases pass |
-| 6 | Integration + shadow | Feature flags live at 100% |
+| Phase | Week | Focus | Exit Gate |
+|-------|------|-------|-----------|
+| Pre-0 | 0 | MOIC truth cases + POV Fund I encoding | Truth cases exist, 9+ MOIC cases |
+| 0 | 1-2 | Infrastructure + audit existing engines | Audit complete, leverage decisions made |
+| 1 | 2-3 | MOIC (leverage existing) + API integration | 4 variants pass, API wired |
+| 2 | 4-5 | Capital calls/distributions + API integration | 3 scenarios validated, API wired |
+| 3 | 6 | Fee engine (4 bases) + API integration | 4 fee basis methods pass, API wired |
+| 4 | 7-8 | American waterfall + API integration | Deal-by-deal carry validated, API wired |
+| 5 | 8-9 | IRR (leverage existing XIRR) + API integration | All edge cases pass, API wired |
+| 6 | 10-11 | Shadow + rollout + rollback drill | 100% rollout, rollback drill passed |
 
 ### 4 Validation Layers (Defense-in-Depth)
 
@@ -71,14 +74,37 @@
 
 This plan rebuilds financial calculations for a VC fund modeling platform using a **truth-driven validation approach** with **defense-in-depth architecture**. Calculations are validated against existing JSON truth cases and protected by 4 validation layers.
 
-### Core Philosophy
+### Core Philosophy: Leverage, Harden, Validate
 
-1. **JSON Truth Cases are Source of Truth**: Extend existing 5 JSON truth case files (not Excel)
-2. **Follow DeterministicReserveEngine Pattern**: Proven production architecture
-3. **Defense-in-Depth**: 4 validation layers prevent production failures
-4. **Vertical-then-Horizontal**: MOIC only first, prove pattern, then expand
-5. **Feature Flags for Safety**: BullMQ async shadow mode with instant rollback
-6. **Solo Developer Optimized**: Multi-AI consensus replaces team review
+**NOT "Rebuild from Scratch"** - Audit existing engines first, leverage what works.
+
+1. **Leverage Existing Code**: Audit `reference-formulas.ts`, `LiquidityEngine.ts`, `DeterministicReserveEngine.ts`
+2. **Harden with 4 Validation Layers**: Add plausibility, lifecycle, contracts, instrumentation
+3. **Validate Against Truth Cases**: JSON truth cases are source of truth
+4. **Replace Only What Fails**: If existing code passes truth cases, don't rebuild
+5. **Integrate Incrementally**: Wire to API/UI after each phase (not big-bang in Phase 6)
+6. **Feature Flags for Safety**: BullMQ async shadow mode with instant rollback
+
+### Existing Assets to Leverage
+
+| Asset | Location | Phoenix Use |
+|-------|----------|-------------|
+| **ReferenceFormulas** | `client/src/lib/reference-formulas.ts` | GrossMOIC, NetMOIC, DPI, TVPI |
+| **DeterministicReserveEngine** | `shared/core/reserves/` | Pattern template, Exit MOIC |
+| **LiquidityEngine** | `client/src/core/LiquidityEngine.ts` | Cash flow analysis for Phase 2 |
+| **XIRR Implementation** | `client/src/lib/finance/xirr.ts` | Phase 5 leverage |
+| **Waterfall Schema** | `shared/schemas/waterfall-policy.ts` | Phase 4 leverage |
+| **Fee Profile Schema** | `shared/schemas/fee-profile.ts` | Phase 3 leverage |
+
+### Decision Framework
+
+For each calculation:
+1. **Check**: Does existing implementation exist?
+2. **Test**: Does it pass against truth cases?
+3. **Decide**:
+   - If passes → Add validation layers, skip rebuild
+   - If fails → Fix existing or replace
+   - If missing → Build new (as planned)
 
 ### Success Criteria
 
@@ -609,9 +635,74 @@ GP Commit: Treated as LP for distribution, no carry on own capital
 
 ## 7. Phased Execution
 
-### Phase 0: Foundation + Validation Layers (Week 1)
+### Pre-Phase 0: Preparation (Days 1-4) - BLOCKER RESOLUTION
 
-**Goal:** Test infrastructure works + 4 validation layers + feature flags + truth case audit
+**Goal:** Eliminate blockers before Phase 0 starts
+
+**CRITICAL:** MOIC truth cases do NOT exist. This blocks Phase 1.
+
+**Day 1-2: Create MOIC Truth Cases**
+
+| Task | Exit Criteria |
+|------|---------------|
+| Create `docs/moic.truth-cases.json` | File exists with valid JSON |
+| Add Current MOIC cases (3) | Cases MOIC-001 to MOIC-003 |
+| Add Realized MOIC cases (2) | Cases MOIC-004 to MOIC-005 |
+| Add Target MOIC cases (2) | Cases MOIC-006 to MOIC-007 |
+| Add Exit MOIC on Reserves cases (2) | Cases MOIC-008 to MOIC-009 |
+| Validate against Excel | `excelFormula` field populated |
+
+**MOIC Truth Case Template:**
+```json
+{
+  "scenario": "MOIC-001-current-simple",
+  "tags": ["phoenix-v2", "moic", "current"],
+  "input": {
+    "distributions": 5000000,
+    "nav": 8000000,
+    "calledCapital": 10000000
+  },
+  "expected": {
+    "currentMOIC": 1.30,
+    "formula": "(distributions + nav) / calledCapital"
+  },
+  "excelFormula": "=(5000000+8000000)/10000000"
+}
+```
+
+**Day 3: Encode POV Fund I Scenarios**
+
+| Task | Exit Criteria |
+|------|---------------|
+| Add POV Fund I MOIC cases | Tagged `["pov-fund-i", "phoenix-v2"]` |
+| Add POV Fund I capital calls | In `capital-allocation.truth-cases.json` |
+| Add POV Fund I fee scenarios | In `fees.truth-cases.json` |
+| Add POV Fund I waterfall | In `waterfall.truth-cases.json` |
+
+**Day 4: Audit Existing Engines**
+
+| Task | Exit Criteria |
+|------|---------------|
+| Audit `reference-formulas.ts` | Document MOIC formulas found |
+| Audit `LiquidityEngine.ts` | Document capital call functions |
+| Audit `xirr.ts` | Document XIRR implementation |
+| Create `docs/phoenix/existing-engine-audit.md` | Audit document committed |
+| Decide: Leverage vs. Rebuild for each | Decision table complete |
+
+**Pre-Phase 0 Exit Criteria (ALL REQUIRED):**
+
+- [ ] `docs/moic.truth-cases.json` exists with 9+ cases
+- [ ] POV Fund I scenarios encoded in truth case files
+- [ ] `docs/phoenix/existing-engine-audit.md` committed
+- [ ] Leverage vs. Rebuild decisions documented for MOIC, IRR, Fees
+
+**HARD GATE:** Phase 0 CANNOT start until Pre-Phase 0 is complete.
+
+---
+
+### Phase 0: Foundation + Validation Layers (Week 1-2)
+
+**Goal:** Test infrastructure + 4 validation layers + feature flags + integration strategy
 
 **Day 1: Test Infrastructure**
 
@@ -621,13 +712,14 @@ GP Commit: Treated as LP for distribution, no carry on own capital
 | Verify sidecar packages linked | `npm run doctor:links` passes |
 | Establish baseline test pass rate | Document current pass rate |
 
-**Day 2: Feature Flag Infrastructure (NEW)**
+**Day 2: Feature Flag Infrastructure**
 
 | Task | Exit Criteria |
 |------|---------------|
 | Add `phoenix.*` flags to `flag-definitions.ts` | Flags compile and export |
 | Implement calculation switching logic | `isPhoenixEnabled()` function works |
 | Test flag toggling | Flag changes reflected in runtime |
+| Coordinate with wizard flags | No conflicts with `enable_wizard_*` |
 
 ```typescript
 // Flags to create in shared/feature-flags/flag-definitions.ts
@@ -639,7 +731,7 @@ GP Commit: Treated as LP for distribution, no carry on own capital
 'phoenix.waterfall': { enabled: false, dependencies: ['phoenix.fees'] }
 ```
 
-**Day 3: Truth Case Audit (HARD PREREQUISITE)**
+**Day 3: Truth Case Inventory**
 
 | Task | Exit Criteria |
 |------|---------------|
@@ -692,11 +784,19 @@ GP Commit: Treated as LP for distribution, no carry on own capital
 - [ ] All 9 truth cases pass
 - [ ] AI consensus: GREEN from 2+ AIs
 
-**Exit Gate:** MOIC calculation proven E2E with 4 validation layers
+**Incremental Integration (End of Phase 1):**
+- [ ] Wire `calculateMOIC()` to existing API endpoint (behind `phoenix.moic` flag)
+- [ ] Add MOIC display to one UI component (read-only, flag-gated)
+- [ ] Verify API returns Phoenix result when flag enabled
+- [ ] **Integration test:** Call API, verify MOIC matches truth case
+
+**Exit Gate:** MOIC calculation proven E2E with 4 validation layers AND API integration verified
 
 ### Phase 2: Capital Operations (Weeks 4-5)
 
 **Goal:** Complete capital call and distribution logic
+
+**Leverage Check:** Audit `LiquidityEngine.ts` before building. If existing code passes truth cases, add validation layers instead of rebuilding.
 
 | Task | Truth Cases | AI Tier |
 |------|-------------|---------|
@@ -705,11 +805,19 @@ GP Commit: Treated as LP for distribution, no carry on own capital
 | Return of capital | 2 | Tier 2 |
 | Profit distributions | 3 | Tier 2 |
 
-**Exit Gate:** 3 distinct scenarios validated for calls and distributions
+**Incremental Integration (End of Phase 2):**
+- [ ] Wire capital call endpoint (behind `phoenix.capital_calls` flag)
+- [ ] Wire distribution endpoint (behind `phoenix.capital_calls` flag)
+- [ ] Add capital call UI component (flag-gated)
+- [ ] **Integration test:** Full capital call flow via API
+
+**Exit Gate:** 3 distinct scenarios validated for calls and distributions AND API integration verified
 
 ### Phase 3: Fee Engine (Week 6)
 
 **Goal:** All 4 fee basis methods working
+
+**Leverage Check:** Audit existing fee calculation in `fee-profile.ts` and related files. If existing code passes truth cases, add validation layers instead of rebuilding.
 
 | Fee Basis | Truth Cases | AI Tier |
 |-----------|-------------|---------|
@@ -718,11 +826,18 @@ GP Commit: Treated as LP for distribution, no carry on own capital
 | Cumulative Invested | 2 | Tier 2 |
 | FMV-based | 2 | Tier 2 |
 
-**Exit Gate:** Each fee basis method has 2 passing truth cases
+**Incremental Integration (End of Phase 3):**
+- [ ] Wire fee calculation endpoint (behind `phoenix.fees` flag)
+- [ ] Update fee display in Fund settings UI (flag-gated)
+- [ ] **Integration test:** Fee calculation via API matches truth case
 
-### Phase 4: American Waterfall (Week 7)
+**Exit Gate:** Each fee basis method has 2 passing truth cases AND API integration verified
+
+### Phase 4: American Waterfall (Weeks 7-8)
 
 **Goal:** Deal-by-deal carry calculation validated
+
+**Leverage Check:** Audit existing waterfall schema and calculations in `waterfall-policy.ts`. If existing code passes truth cases, add validation layers instead of rebuilding.
 
 | Scenario | Truth Cases | AI Tier |
 |----------|-------------|---------|
@@ -732,11 +847,18 @@ GP Commit: Treated as LP for distribution, no carry on own capital
 | Clawback scenario | 1 | Tier 3 |
 | GP commit treatment | 1 | Tier 3 |
 
-**Exit Gate:** All waterfall scenarios pass with unanimous AI consensus
+**Incremental Integration (End of Phase 4):**
+- [ ] Wire waterfall calculation endpoint (behind `phoenix.waterfall` flag)
+- [ ] Update waterfall display in distribution UI (flag-gated)
+- [ ] **Integration test:** Waterfall calculation via API matches truth case
 
-### Phase 5: IRR (XIRR) (Week 7, continued)
+**Exit Gate:** All waterfall scenarios pass with unanimous AI consensus AND API integration verified
+
+### Phase 5: IRR (XIRR) (Weeks 8-9)
 
 **Goal:** XIRR with edge cases validated
+
+**Leverage Check:** 25 existing truth cases in `docs/xirr.truth-cases.json` already validated. Audit existing XIRR implementation first - if it passes truth cases, add validation layers instead of rebuilding.
 
 | Metric | Truth Cases | AI Tier |
 |--------|-------------|---------|
@@ -745,13 +867,16 @@ GP Commit: Treated as LP for distribution, no carry on own capital
 | XIRR (edge: all negative) | 1 | Tier 3 |
 | XIRR (edge: very high return) | 1 | Tier 3 |
 
-**Note:** 25 existing truth cases in `docs/xirr.truth-cases.json`
+**Incremental Integration (End of Phase 5):**
+- [ ] Wire IRR calculation endpoint (behind `phoenix.irr` flag)
+- [ ] Update IRR display in fund metrics UI (flag-gated)
+- [ ] **Integration test:** IRR calculation via API matches truth case
 
-**Exit Gate:** All XIRR edge cases pass
+**Exit Gate:** All XIRR edge cases pass AND API integration verified
 
-### Phase 6: Integration & Rollout (Week 8)
+### Phase 6: Integration & Rollout (Weeks 10-11)
 
-**Goal:** Feature flags live, BullMQ shadow mode validated
+**Goal:** Feature flags live, BullMQ shadow mode validated, rollback tested
 
 | Task | Criteria |
 |------|----------|
@@ -762,7 +887,27 @@ GP Commit: Treated as LP for distribution, no carry on own capital
 | Full rollout (100%) | All users on new system |
 | Monitoring | Discrepancy alerts configured |
 
-**Exit Gate:** 100% rollout with no P0 errors for 48 hours
+**Rollback Drill (REQUIRED before 100% rollout):**
+
+Before full production rollout, execute a rehearsed rollback:
+
+| Step | Action | Verification |
+|------|--------|--------------|
+| 1 | Deploy Phoenix at 50% rollout | Shadow logs show Phoenix active |
+| 2 | Simulate P0 error (test flag) | Alert fires as expected |
+| 3 | Set `phoenix.*` flags to 0% | Instant rollback triggered |
+| 4 | Verify legacy calculations active | API returns legacy results |
+| 5 | Verify no data corruption | Database state unchanged |
+| 6 | Document rollback time | Target: < 60 seconds |
+
+**Rollback Drill Checklist:**
+- [ ] Alert-to-rollback time measured (target < 60s)
+- [ ] No manual database intervention required
+- [ ] All feature flags disable cleanly
+- [ ] Legacy calculations resume correctly
+- [ ] Shadow mode can be re-enabled safely
+
+**Exit Gate:** 100% rollout with no P0 errors for 48 hours AND rollback drill completed successfully
 
 ---
 
@@ -1089,6 +1234,8 @@ If P0 error detected post-rollout:
 | Rollback incidents | < 2 |
 | Layer 1 rejections (plausibility) | > 0 (proves layer works) |
 | Shadow mode discrepancies | < 0.1% |
+| **Leverage ratio** | > 40% existing code reused (not rebuilt) |
+| Rollback drill time | < 60 seconds |
 
 ### Qualitative
 
@@ -1097,6 +1244,8 @@ If P0 error detected post-rollout:
 - [ ] Feature flags enable instant rollback
 - [ ] No regressions in existing functionality
 - [ ] Clear documentation for each calculation
+- [ ] **Existing engines audited** before each phase
+- [ ] **Leverage decisions documented** per calculation
 
 ---
 
@@ -1154,6 +1303,7 @@ If P0 error detected post-rollout:
 | 2.0 | 2025-12-04 | Added 4 validation layers, replaced Excel with JSON, reduced Phase 1 to MOIC only, added BullMQ shadow mode |
 | 2.1 | 2025-12-04 | Softened Excel policy, added Truth Case Audit, marked Domain Expert as optional, added PII rules, per-metric shadow thresholds |
 | 2.2 | 2025-12-04 | Added AI consensus limitations protocol, explicit feature flag creation in Phase 0, hard gate on Phase 0 exit criteria, 8.5-week timeline |
+| 2.3 | 2025-12-04 | **Major revision:** Reframed as "Leverage, Harden, Validate" (not rebuild). Added Pre-Phase 0 for MOIC truth cases (blocker). Added existing assets table. Added incremental integration to all phases (not big-bang). Extended timeline to 11 weeks. Added rollback drill requirement. Added leverage ratio success metric. |
 
 **This plan supersedes:**
 - PHOENIX-PLAN-2025-11-30.md
