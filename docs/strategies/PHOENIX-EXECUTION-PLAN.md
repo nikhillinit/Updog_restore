@@ -1,11 +1,12 @@
 # Phoenix: Truth-Driven Fund Calculation Rebuild
 
-**Version:** 2.5
+**Version:** 2.6
 **Date:** December 4, 2025
-**Timeline:** 11 weeks (revised based on critical gap analysis)
+**Timeline:** 12-13 weeks (calibrated with realistic buffer)
 **Status:** ACTIVE - Supersedes all prior Phoenix plans
 **Executor:** Solo Developer
 **Approach:** Leverage, Harden, Validate (not Rebuild)
+**Success Probability:** 75-80% with mandatory refinements
 
 ---
 
@@ -42,14 +43,16 @@ Layer adoption is **progressive**, not all-or-nothing:
 
 | Phase | Week | Focus | Exit Gate |
 |-------|------|-------|-----------|
-| Pre-0 | 0 | MOIC truth cases + POV Fund I encoding | Truth cases exist, 9+ MOIC cases |
-| 0 | 1-2 | Infrastructure + audit existing engines | Audit complete, leverage decisions made |
-| 1 | 2-3 | MOIC (leverage existing) + API integration | 4 variants pass, API wired |
-| 2 | 4-5 | Capital calls/distributions + API integration | 3 scenarios validated, API wired |
-| 3 | 6 | Fee engine (4 bases) + API integration | 4 fee basis methods pass, API wired |
-| 4 | 7-8 | American waterfall + API integration | Deal-by-deal carry validated, API wired |
-| 5 | 8-9 | IRR (leverage existing XIRR) + API integration | All edge cases pass, API wired |
-| 6 | 10-11 | Shadow + rollout + rollback drill | 100% rollout, rollback drill passed |
+| Pre-0 | 1 | MOIC truth cases + provenance audit | Truth cases exist, provenance verified |
+| 0 | 2-4 | Engine audit + TS triage + validation layers | ENGINE_AUDIT.md + tsconfig.phoenix.json clean |
+| 1 | 5-6 | MOIC (leverage existing) + API integration | 4 variants pass, API wired |
+| 2 | 7-8 | Capital calls/distributions + API integration | 3 scenarios validated, API wired |
+| 3 | 9 | Fee engine (4 bases) + API integration | 4 fee basis methods pass, API wired |
+| 4 | 10 | American waterfall + API integration | Deal-by-deal carry validated, API wired |
+| 5 | 11 | IRR (leverage existing XIRR) + API integration | All edge cases pass, API wired |
+| 6 | 12-13 | Shadow + rollout + rollback drill | 100% rollout, rollback drill passed |
+
+**Critical Insight:** Engine existence ≠ correctness ≠ production-ready. Audit before assuming leverage.
 
 ### 4 Validation Layers (Defense-in-Depth)
 
@@ -82,6 +85,21 @@ Layer adoption is **progressive**, not all-or-nothing:
 - **Per-phase**: > 3 days slip -> reduce scope or re-estimate
 - **Cumulative**: > 10 days total -> stop, re-baseline, notify stakeholders
 
+### Working Agreements (Cognitive Load Mitigation)
+
+**ONE-at-a-time discipline prevents burnout:**
+
+- **ONE Phoenix flag at a time** - Don't enable shadow for MOIC + Fees simultaneously
+- **ONE calculation family at a time** - MOIC → Capital → Fees → Waterfall → IRR (sequential)
+- **ONE validation layer at a time** - Don't add Layer 2 while Layer 1 incomplete
+- **ONE deliverable per day** - From daily checklist "ONE thing shipping today"
+- **NO new infra without explicit scope change** - No BullMQ, Kafka, GraphQL
+
+**Themed Days (reduce context switching):**
+- Monday: Planning + truth case review
+- Tuesday-Thursday: Implementation
+- Friday: Testing + documentation
+
 ---
 
 ## 1. Executive Summary
@@ -97,7 +115,7 @@ This plan rebuilds financial calculations for a VC fund modeling platform using 
 3. **Validate Against Truth Cases**: JSON truth cases are source of truth
 4. **Replace Only What Fails**: If existing code passes truth cases, don't rebuild
 5. **Integrate Incrementally**: Wire to API/UI after each phase (not big-bang in Phase 6)
-6. **Feature Flags for Safety**: BullMQ async shadow mode with instant rollback
+6. **Feature Flags for Safety**: In-memory shadow mode with instant rollback (no Redis)
 
 ### Existing Assets to Leverage
 
@@ -778,11 +796,11 @@ GP Commit: Treated as LP for distribution, no carry on own capital
 
 ## 7. Phased Execution
 
-### Pre-Phase 0: Preparation (Days 1-4) - BLOCKER RESOLUTION
+### Pre-Phase 0: Preparation (Week 1) - BLOCKER RESOLUTION
 
-**Goal:** Eliminate blockers before Phase 0 starts
+**Goal:** Eliminate blockers + verify truth case provenance before Phase 0 starts
 
-**CRITICAL:** MOIC truth cases do NOT exist. This blocks Phase 1.
+**CRITICAL:** MOIC truth cases do NOT exist. Engine existence ≠ correctness.
 
 **Day 1-2: Create MOIC Truth Cases**
 
@@ -795,59 +813,144 @@ GP Commit: Treated as LP for distribution, no carry on own capital
 | Add Exit MOIC on Reserves cases (2) | Cases MOIC-008 to MOIC-009 |
 | Validate against Excel | `excelFormula` field populated |
 
-**MOIC Truth Case Template:**
-```json
-{
-  "scenario": "MOIC-001-current-simple",
-  "tags": ["phoenix-v2", "moic", "current"],
-  "input": {
-    "distributions": 5000000,
-    "nav": 8000000,
-    "calledCapital": 10000000
-  },
-  "expected": {
-    "currentMOIC": 1.30,
-    "formula": "(distributions + nav) / calledCapital"
-  },
-  "excelFormula": "=(5000000+8000000)/10000000"
-}
-```
+**Day 3: Truth Case Provenance Audit** ⭐ NEW
 
-**Day 3: Encode POV Fund I Scenarios**
+Verify existing truth cases are reliable before trusting them:
 
 | Task | Exit Criteria |
 |------|---------------|
-| Add POV Fund I MOIC cases | Tagged `["pov-fund-i", "phoenix-v2"]` |
+| Document provenance for each file | Source identified (Excel? Domain expert? Legacy?) |
+| Sample verification (5 cases/file) | Rebuild in Excel, confirm within tolerance |
+| Flag suspicious cases | Mark with `status: "needs-review"` |
+| Create `TRUTH_CASE_INVENTORY.md` | Provenance documented |
+
+**Provenance Inventory Format:**
+```markdown
+## xirr.truth-cases.json (25 cases)
+
+**Provenance:** Excel XIRR function (excelFormula field present in JSON)
+**Sample Verification:** 5 scenarios tested (01, 02, 13, 18, 24)
+**Result:** All within 0.01% of Excel XIRR output
+**Status:** VERIFIED - Excel parity confirmed
+**Gaps:** No negative rate edge cases (add in Phase 5)
+```
+
+**Day 4-5: Encode POV Fund I Scenarios**
+
+| Task | Exit Criteria |
+|------|---------------|
+| Add POV Fund I MOIC cases | Tagged `["pov-fund-i", "phoenix"]` |
 | Add POV Fund I capital calls | In `capital-allocation.truth-cases.json` |
 | Add POV Fund I fee scenarios | In `fees.truth-cases.json` |
 | Add POV Fund I waterfall | In `waterfall.truth-cases.json` |
 
-**Day 4: Audit Existing Engines**
-
-| Task | Exit Criteria |
-|------|---------------|
-| Audit `reference-formulas.ts` | Document MOIC formulas found |
-| Audit `LiquidityEngine.ts` | Document capital call functions |
-| Audit `xirr.ts` | Document XIRR implementation |
-| Create `docs/phoenix/existing-engine-audit.md` | Audit document committed |
-| Decide: Leverage vs. Rebuild for each | Decision table complete |
-
 **Pre-Phase 0 Exit Criteria (ALL REQUIRED):**
 
 - [ ] `docs/moic.truth-cases.json` exists with 9+ cases
+- [ ] `TRUTH_CASE_INVENTORY.md` committed with provenance verification
 - [ ] POV Fund I scenarios encoded in truth case files
-- [ ] `docs/phoenix/existing-engine-audit.md` committed
-- [ ] Leverage vs. Rebuild decisions documented for MOIC, IRR, Fees
+- [ ] No truth cases flagged `status: "needs-review"` without resolution plan
 
 **HARD GATE:** Phase 0 CANNOT start until Pre-Phase 0 is complete.
 
 ---
 
-### Phase 0: Foundation + Validation Layers (Week 1-2)
+### Phase 0: Foundation + Validation Layers (Weeks 2-4)
 
-**Goal:** Test infrastructure + 4 validation layers + feature flags + integration strategy
+**Goal:** Engine audit + TS triage + 4 validation layers + feature flags
 
-**Day 1: Test Infrastructure**
+**Week 2, Days 1-2: Engine Audit** ⭐ MANDATORY NEW
+
+**Critical Insight:** Engine existence ≠ correctness ≠ Tactyc-aligned. Audit BEFORE assuming leverage.
+
+| Task | Exit Criteria |
+|------|---------------|
+| Audit all 6 engines against Tactyc spec | Alignment gaps documented |
+| Create `ENGINE_AUDIT.md` | Full audit table committed |
+| Identify semantic gaps | Each gap has resolution plan |
+| Map to Tactyc fee basis methods | 6 vs 7 methods reconciled |
+
+**Engine Audit Template (ENGINE_AUDIT.md):**
+
+| Engine | Location | Tactyc Alignment | Test Coverage | Known TODOs | Risk Level |
+|--------|----------|------------------|---------------|-------------|------------|
+| ReferenceFormulas | `client/src/lib/reference-formulas.ts` | MOIC: ✅ DPI: ✅ TVPI: ✅ | 0 tests found | None visible | LOW |
+| DeterministicReserveEngine | `shared/core/reserves/` | Fractional: ❓ | 3 unit tests | TODO: validation | MEDIUM |
+| LiquidityEngine | `client/src/core/LiquidityEngine.ts` | Tactyc cashflow: ❓ | 0 tests found | FIXMEs visible | HIGH |
+| XIRR | `client/src/lib/xirr.ts` | Excel parity: ✅ | 25 truth cases | None | LOW |
+| WaterfallSchema | `shared/schemas/waterfall-policy.ts` | American: ✅ European: ❓ | 0 tests found | European untested? | HIGH |
+| FeeProfileSchema | `shared/schemas/fee-profile.ts` | 6 basis vs Tactyc's 7: ❓ | 0 tests found | Missing FMV? | MEDIUM |
+
+**Audit Questions (answer in ENGINE_AUDIT.md):**
+- Does each engine match Tactyc's published spec?
+- Fee basis: Do our 6 types map to Tactyc's 7? Which is missing?
+- Waterfall: Is European waterfall fully implemented or schema-only?
+- Reserve Engine: Does it handle fractional investments per Tactyc FAQ?
+- LiquidityEngine: What are the FIXMEs visible in the code?
+
+**Tactyc Alignment Tables (TACTYC_ALIGNMENT.md):**
+
+Create per-engine alignment documentation during audit:
+
+```markdown
+## MOIC Engine - Tactyc Alignment
+
+| Tactyc Term | Our Term | Formula Match | Notes |
+|-------------|----------|---------------|-------|
+| Gross MOIC | GrossMOIC | Y | Verified |
+| Net MOIC | NetMOIC | Y | After fees |
+| DPI | DPI | Y | Distributions / Called |
+| TVPI | TVPI | Y | (NAV + Distributions) / Called |
+
+## Fee Engine - Tactyc Alignment
+
+| Tactyc Basis Method | Our Method | Status |
+|---------------------|------------|--------|
+| Committed Capital | committed | Implemented |
+| Called Capital | called | Implemented |
+| Invested Capital | invested | Implemented |
+| Net Asset Value | fmv | Implemented |
+| Unfunded Commitment | - | GAP: Not implemented |
+| Remaining Cost | - | GAP: Not implemented |
+```
+
+**Exit Criterion:** `TACTYC_ALIGNMENT.md` committed before Phase 1.
+
+**Week 2, Days 3-5: TypeScript Surgical Triage** ⭐ MANDATORY
+
+**Scope:** Phoenix entrypoints ONLY, not all 454 errors. Create strict-mode subset.
+
+| Task | Exit Criteria |
+|------|---------------|
+| Create `tsconfig.phoenix.json` | Strict mode for Phoenix files only |
+| Run `npx tsc -p tsconfig.phoenix.json` | Identify P0 errors in Phoenix APIs |
+| Fix P0 errors (~20-30 estimated) | Phoenix interfaces compile strict |
+| Defer non-Phoenix errors | Tagged with `// TODO: PHOENIX-v3.1` |
+
+**tsconfig.phoenix.json:**
+```json
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true
+  },
+  "include": [
+    "client/src/lib/reference-formulas.ts",
+    "client/src/lib/xirr.ts",
+    "client/src/core/LiquidityEngine.ts",
+    "shared/schemas/waterfall-policy.ts",
+    "shared/schemas/fee-profile.ts",
+    "shared/core/reserves/DeterministicReserveEngine.ts",
+    "shared/schemas/phoenix-validation.ts"
+  ]
+}
+```
+
+**Goal:** `npx tsc -p tsconfig.phoenix.json` returns 0 errors
+
+**Week 3: Test Infrastructure + Feature Flags**
 
 | Task | Exit Criteria |
 |------|---------------|
@@ -901,6 +1004,67 @@ GP Commit: Treated as LP for distribution, no carry on own capital
 - [ ] Zod schema for MOIC inputs defined and tested
 
 **HARD GATE:** Phase 1 CANNOT start until all Phase 0 exit criteria are met.
+
+---
+
+## Go/No-Go Decision Gates
+
+**Purpose:** Explicit checkpoints to assess project health and decide whether to continue, pivot, or stop.
+
+### Gate 1: End of Phase 0 (Week 4)
+
+**Question:** Is the foundation solid enough to build on?
+
+| Criterion | Required | Evidence |
+|-----------|----------|----------|
+| Test infrastructure works | YES | `npm test` completes without setup errors |
+| MOIC truth cases exist | YES | `docs/moic.truth-cases.json` has 9+ cases |
+| Engine audit complete | YES | `ENGINE_AUDIT.md` committed |
+| Tactyc alignment documented | YES | `TACTYC_ALIGNMENT.md` committed |
+| TS Phoenix subset compiles | YES | `npx tsc -p tsconfig.phoenix.json` = 0 errors |
+| Feature flags defined | YES | `phoenix.*` flags in `flag-definitions.ts` |
+
+**Decision:**
+- **GO:** All criteria met → Proceed to Phase 1
+- **CONDITIONAL GO:** 1-2 minor gaps → Document remediation plan, proceed with caution
+- **NO-GO:** 3+ gaps OR any critical gap → Stop, re-baseline, stakeholder review
+
+### Gate 2: End of Phase 3 (Week 9)
+
+**Question:** Are core calculations validated and integrated?
+
+| Criterion | Required | Evidence |
+|-----------|----------|----------|
+| MOIC passes all truth cases | YES | 9/9 green |
+| Capital operations integrated | YES | API endpoints return correct values |
+| Fee engine works (4 bases) | YES | All 4 fee basis methods pass |
+| Leverage ratio acceptable | YES | > 40% existing code reused |
+| No P0 regressions | YES | Existing tests still pass |
+| Cumulative slip < 10 days | YES | Timeline tracking |
+
+**Decision:**
+- **GO:** All criteria met → Proceed to Phase 4 (Waterfall)
+- **CONDITIONAL GO:** Leverage ratio 30-40% → Document rebuild justifications, proceed
+- **NO-GO:** P0 regression OR slip > 10 days → Stop, root cause analysis
+
+### Gate 3: End of Phase 6 (Week 12-13)
+
+**Question:** Is Phoenix ready for production?
+
+| Criterion | Required | Evidence |
+|-----------|----------|----------|
+| All truth cases pass | YES | 100% green across all JSON files |
+| Shadow mode validated | YES | < 0.1% discrepancy rate |
+| Rollback drill passed | YES | < 60 second rollback time |
+| All 4 validation layers active | YES | Layers enforced in production builds |
+| No P0 errors in 48h soak | YES | Monitoring clean |
+
+**Decision:**
+- **GO:** All criteria met → 100% rollout
+- **CONDITIONAL GO:** Minor shadow discrepancies → Investigate, fix, re-soak
+- **NO-GO:** Rollback drill failed OR P0 in soak → Do not ship, investigate
+
+---
 
 ### Phase 1: MOIC Only - Prove Pattern (Weeks 2-3)
 
@@ -1017,18 +1181,18 @@ GP Commit: Treated as LP for distribution, no carry on own capital
 
 **Exit Gate:** All XIRR edge cases pass AND API integration verified
 
-### Phase 6: Integration & Rollout (Weeks 10-11)
+### Phase 6: Integration & Rollout (Weeks 12-13)
 
-**Goal:** Feature flags live, BullMQ shadow mode validated, rollback tested
+**Goal:** Feature flags live, in-memory shadow mode validated, rollback tested
 
 | Task | Criteria |
 |------|----------|
 | Feature flag implementation | Extend `flag-definitions.ts` with `phoenix.*` flags |
-| BullMQ shadow worker | Async calculation validation (not in API path) |
-| Shadow mode (0%) | New calculations run async, log discrepancies |
-| Gradual rollout (10% -> 50%) | Canary users see new calculations |
+| In-memory shadow mode | Dual calculation with async logging (no Redis) |
+| Shadow mode (0%) | Both calcs run, only legacy returned, discrepancies logged |
+| Gradual rollout (10% -> 50%) | Canary users see Phoenix results |
 | Full rollout (100%) | All users on new system |
-| Monitoring | Discrepancy alerts configured |
+| Monitoring | Structured log alerts for discrepancies |
 
 **Rollback Drill (REQUIRED before 100% rollout):**
 
@@ -1054,117 +1218,136 @@ Before full production rollout, execute a rehearsed rollback:
 
 ---
 
-## 8. Shadow Mode Architecture (BullMQ)
+## 8. Shadow Mode Architecture (Simplified)
 
-### Why BullMQ?
+### Why NOT BullMQ? ⭐ SIMPLIFIED
 
-Shadow mode runs OLD + NEW calculations in parallel. Running both synchronously in the API path would double latency and load.
+**Problem with BullMQ:** The existing codebase is a Vite+React SPA with Express API. There's no existing BullMQ/Redis worker infrastructure. Adding BullMQ would create a new operational surface area (Redis, queue monitoring, worker scaling) just for shadow mode validation.
 
-**Solution:** Queue Phoenix calculations to BullMQ workers.
+**Expert Insight:** "Introducing BullMQ would add a brand-new operational surface area just to get shadow mode, which is a classic 'infra tax' for limited benefit."
 
-### Environment Configuration
+**Solution:** In-memory dual calculation with async structured logging. 80% of shadow mode value with 20% of DevOps overhead.
 
-Shadow mode is **opt-in** via environment variable to avoid Redis dependency in local dev:
-
-```bash
-# .env.development (local dev - shadow disabled by default)
-PHOENIX_SHADOW_MODE=false
-
-# .env.staging / .env.production
-PHOENIX_SHADOW_MODE=true
-REDIS_URL=redis://localhost:6379
-```
-
-### Implementation
+### Implementation (Zero Redis Dependency)
 
 ```typescript
-// server/workers/phoenix-shadow-worker.ts
+// client/src/lib/phoenix-shadow.ts
 
-import { Queue, Worker } from 'bullmq';
-import { calculateMOIC } from '@/lib/finance/moic-phoenix';
-import { calculateMOICLegacy } from '@/lib/finance/moic-legacy';
+import { logger } from '@/lib/logger';
+import { getFeatureFlag } from '@/providers/FeatureFlagProvider';
 
-// Shadow mode is opt-in; queue/worker are no-ops when disabled
-const isShadowEnabled = process.env.PHOENIX_SHADOW_MODE === 'true';
+// Per-metric thresholds (from Section 10)
+const THRESHOLDS: Record<string, { relative?: number; absolute?: number }> = {
+  moic: { relative: 0.001 },      // 0.1%
+  irr: { absolute: 0.0001 },      // 0.01%
+  fees: { absolute: 100 },        // $100
+  nav: { absolute: 1 },           // $1
+};
 
-const phoenixShadowQueue = isShadowEnabled
-  ? new Queue('phoenix-shadow', { connection: redisConnection })
-  : null; // No-op in local dev
-
-// Worker processes shadow validations async
-const worker = new Worker('phoenix-shadow', async (job) => {
-  const { calculationType, input, legacyResult, context } = job.data;
-
-  try {
-    const phoenixResult = calculateMOIC(input, context);
-
-    const discrepancy = compareResults(legacyResult, phoenixResult);
-
-    if (discrepancy.significantDifference) {
-      logger.warn('Phoenix shadow mode discrepancy', {
-        calculationType,
-        legacyResult,
-        phoenixResult,
-        discrepancy,
-        context,
-      });
-
-      // Alert if discrepancy exceeds per-metric threshold
-      // Uses thresholds from Section 10: MOIC <0.1%, IRR <0.01%, Fees <$100/0.05%, etc.
-      if (exceedsMetricThreshold(calculationType, discrepancy)) {
-        await alertDiscrepancy(job.data, discrepancy);
-      }
-    }
-  } catch (error) {
-    logger.error('Phoenix shadow calculation failed', {
-      calculationType,
-      error: error.message,
-      context,
-    });
-  }
-}, { connection: redisConnection });
-
-// API endpoint enqueues shadow validation
-export async function calculateWithShadow<T>(
+function exceedsThreshold(
   calculationType: string,
-  input: any,
+  legacy: number,
+  phoenix: number
+): boolean {
+  const threshold = THRESHOLDS[calculationType];
+  if (!threshold) return false;
+
+  if (threshold.relative) {
+    const relDiff = Math.abs((phoenix - legacy) / legacy);
+    return relDiff > threshold.relative;
+  }
+  if (threshold.absolute) {
+    return Math.abs(phoenix - legacy) > threshold.absolute;
+  }
+  return false;
+}
+
+// Feature-flagged calculation wrapper
+export function calculateWithShadow<T>(
   legacyFn: () => T,
-  context: CalculationContext
-): Promise<T> {
+  phoenixFn: () => T,
+  flagKey: string,
+  context: { fundId: string; calculation: string }
+): T {
+  const flag = getFeatureFlag(flagKey);
+  const useShadow = flag?.shadowMode ?? false;
+
+  if (!useShadow) {
+    return legacyFn();
+  }
+
   // Always return legacy result immediately
   const legacyResult = legacyFn();
 
-  // Skip shadow entirely if disabled (local dev, tests, or no Redis)
-  if (!isShadowEnabled || !phoenixShadowQueue) {
-    return legacyResult;
-  }
+  // Run Phoenix calc async (don't block UI/API)
+  Promise.resolve().then(() => {
+    try {
+      const phoenixResult = phoenixFn();
+      const discrepancy = compareResults(legacyResult, phoenixResult);
 
-  // If calculation-specific shadow flag enabled, queue validation
-  if (isPhoenixShadowEnabled(calculationType)) {
-    await phoenixShadowQueue.add('validate', {
-      calculationType,
-      input,
-      legacyResult,
-      context,
-    });
-  }
+      if (discrepancy.significant) {
+        logger.warn('Phoenix shadow discrepancy', {
+          ...context,
+          legacy: legacyResult,
+          phoenix: phoenixResult,
+          delta: discrepancy.delta,
+          percentDiff: discrepancy.percentDiff,
+          correlationId: crypto.randomUUID(),
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch (err) {
+      logger.error('Phoenix shadow error', {
+        ...context,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  });
 
-  return legacyResult;
+  return legacyResult; // Always return trusted legacy result
 }
+
+function compareResults(legacy: any, phoenix: any): {
+  significant: boolean;
+  delta: number;
+  percentDiff: number;
+} {
+  const legacyNum = typeof legacy === 'number' ? legacy : legacy?.value ?? 0;
+  const phoenixNum = typeof phoenix === 'number' ? phoenix : phoenix?.value ?? 0;
+  const delta = phoenixNum - legacyNum;
+  const percentDiff = legacyNum !== 0 ? Math.abs(delta / legacyNum) : 0;
+
+  return {
+    significant: percentDiff > 0.001 || Math.abs(delta) > 1,
+    delta,
+    percentDiff,
+  };
+}
+```
+
+### Environment Configuration (Simplified)
+
+```bash
+# .env.development - No special config needed
+# Shadow mode controlled entirely by feature flags
+
+# .env.production - Same, no Redis required
 ```
 
 ### Rollout Sequence
 
 ```
-Phase 6 Rollout:
+Phase 6 Rollout (Weeks 12-13):
 
-  Day 1-2:   0% (shadow mode, BullMQ workers logging only)
+  Day 1-2:   0% + shadow logging (both calcs run, only legacy returned)
   Day 3-4:   10% (canary users see Phoenix results)
   Day 5-6:   50% (broader testing)
   Day 7:     100% (full rollout)
 
-  Rollback: Set rolloutPercentage to 0 instantly
+  Rollback: Set phoenix.* flag rolloutPercentage to 0 instantly
 ```
+
+**Benefit:** No Redis. No BullMQ. No worker scaling. Just structured logs.
 
 ---
 
@@ -1390,7 +1573,7 @@ If no domain expert: rely on Tactyc documentation updates and AI review for drif
 | Test infrastructure fragile | Medium | Medium | Phase 0 dedicated to fixing |
 | Scope creep (European waterfall) | Low | High | Explicit out-of-scope list |
 | AI consensus disagreement | Medium | Low | Escalate to YELLOW, manual review |
-| Shadow mode performance | Low | Medium | BullMQ async workers |
+| Shadow mode performance | Low | Medium | In-memory async (non-blocking) |
 
 ### Rollback Procedure
 
@@ -1504,6 +1687,7 @@ Track per-phase in a simple Markdown table (no script needed):
 | 2.3 | 2025-12-04 | **Major revision:** Reframed as "Leverage, Harden, Validate" (not rebuild). Added Pre-Phase 0 for MOIC truth cases (blocker). Added existing assets table. Added incremental integration to all phases (not big-bang). Extended timeline to 11 weeks. Added rollback drill requirement. Added leverage ratio success metric. |
 | 2.4 | 2025-12-04 | **Refinements:** Progressive layer adoption by phase (not all-or-nothing). Configurable plausibility limits with warnings vs hard-fails. Typed FundOperation constants. Output contract maxValue enforcement with clamping. POV Fund I truth case mapping table. Dev-mode guard for BullMQ (skip Redis in local dev). "When not to use AI" guidance. Daily checklist "ONE thing" focus item. |
 | 2.5 | 2025-12-04 | **Final polish:** Truth case vs code bug classification table. MOIC limits split by context (fund: 100x, deal: 1000x). IRR `not_yet_realized` status for early funds. AI ceremony reduction for Tier 1/2 (batch validation, skip for wiring). PHOENIX_SHADOW_MODE env var toggle. Leverage ratio measurement heuristic. Corrected truth case example format. |
+| 2.6 | 2025-12-04 | **Calibration refinements:** Timeline extended to 12-13 weeks (from 11). Success probability calibrated to 75-80% (from overcorrected 85%). Added Engine Audit section (ENGINE_AUDIT.md) as mandatory Phase 0 deliverable. Added Tactyc Alignment Tables (TACTYC_ALIGNMENT.md) requirement. Added TypeScript Surgical Triage with tsconfig.phoenix.json (Phoenix files only, not all 454 errors). Replaced BullMQ/Redis shadow mode with simplified in-memory implementation. Added Working Agreements for cognitive load mitigation (ONE-at-a-time discipline). Added Go/No-Go Decision Gates at Phase 0, 3, and 6. |
 
 **This plan supersedes:**
 - PHOENIX-PLAN-2025-11-30.md
