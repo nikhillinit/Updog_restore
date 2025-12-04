@@ -1,7 +1,8 @@
 # Phoenix: Truth-Driven Fund Calculation Rebuild
 
-**Version:** 2.1
+**Version:** 2.2
 **Date:** December 4, 2025
+**Timeline:** 8.5 weeks (adjusted for refinements)
 **Status:** ACTIVE - Supersedes all prior Phoenix plans
 **Executor:** Solo Developer
 
@@ -610,21 +611,61 @@ GP Commit: Treated as LP for distribution, no carry on own capital
 
 ### Phase 0: Foundation + Validation Layers (Week 1)
 
-**Goal:** Test infrastructure works + 4 validation layers scaffolded
+**Goal:** Test infrastructure works + 4 validation layers + feature flags + truth case audit
+
+**Day 1: Test Infrastructure**
 
 | Task | Exit Criteria |
 |------|---------------|
 | Fix `cross-env not found` error | `npm test` runs without setup errors |
 | Verify sidecar packages linked | `npm run doctor:links` passes |
+| Establish baseline test pass rate | Document current pass rate |
+
+**Day 2: Feature Flag Infrastructure (NEW)**
+
+| Task | Exit Criteria |
+|------|---------------|
+| Add `phoenix.*` flags to `flag-definitions.ts` | Flags compile and export |
+| Implement calculation switching logic | `isPhoenixEnabled()` function works |
+| Test flag toggling | Flag changes reflected in runtime |
+
+```typescript
+// Flags to create in shared/feature-flags/flag-definitions.ts
+'phoenix.enabled': { enabled: false, rolloutPercentage: 0 }
+'phoenix.shadow_mode': { enabled: false, rolloutPercentage: 0 }
+'phoenix.moic': { enabled: false, dependencies: ['phoenix.enabled'] }
+'phoenix.irr': { enabled: false, dependencies: ['phoenix.moic'] }
+'phoenix.fees': { enabled: false, dependencies: ['phoenix.moic'] }
+'phoenix.waterfall': { enabled: false, dependencies: ['phoenix.fees'] }
+```
+
+**Day 3: Truth Case Audit (HARD PREREQUISITE)**
+
+| Task | Exit Criteria |
+|------|---------------|
+| Count exact cases in each JSON file | No approximate counts (~15, ~20) |
+| Tag all phoenix-v2 scenarios | `["phoenix-v2", "moic"]` tags added |
+| Document gaps | Missing scenarios listed |
+| Commit inventory | `TRUTH_CASE_INVENTORY.md` in repo |
+
+**Days 4-5: 4 Validation Layers**
+
+| Task | Exit Criteria |
+|------|---------------|
 | Scaffold Layer 1 (Zod schemas) | `phoenix-validation.ts` created |
 | Scaffold Layer 2 (Fund lifecycle) | `fund-lifecycle.ts` created |
 | Scaffold Layer 3 (Output contracts) | `output-contracts.ts` created |
 | Scaffold Layer 4 (Instrumentation) | `phoenix-logger.ts` created |
 
-**Deliverables:**
-- [ ] Test suite runs (existing tests may fail, but infrastructure works)
-- [ ] 4 validation layer modules created and importable
-- [ ] Zod schema for MOIC inputs defined
+**Phase 0 Exit Criteria (ALL REQUIRED):**
+
+- [ ] `npm test` runs completely (infrastructure works)
+- [ ] Phoenix feature flags defined and testable in `flag-definitions.ts`
+- [ ] `TRUTH_CASE_INVENTORY.md` committed with exact counts and gap list
+- [ ] All 4 validation layer modules created and importable
+- [ ] Zod schema for MOIC inputs defined and tested
+
+**HARD GATE:** Phase 1 CANNOT start until all Phase 0 exit criteria are met.
 
 ### Phase 1: MOIC Only - Prove Pattern (Weeks 2-3)
 
@@ -932,6 +973,38 @@ export const PHOENIX_FLAGS: Record<string, FeatureFlag> = {
 | **NAV** | < $1 or 0.01% | Rounding tolerance |
 | **Distributions** | < $1 or 0.01% | LP statement precision |
 
+### AI Consensus Limitations (Critical)
+
+**AI verdicts are ADVISORY, not definitive.** Multi-AI consensus does not guarantee financial correctness.
+
+**Domain-specific errors invisible to AI:**
+- GIPS compliance violations
+- LP agreement specific clauses
+- Compounding conventions (quarterly vs. annually)
+- Day-count conventions (30/360 vs. ACT/365)
+
+**Required Investigation Protocol for YELLOW/RED Verdicts:**
+
+1. **Manual investigation by developer** - Do not blindly trust or dismiss
+2. **Reference against public GIPS standards** - Verify calculation methodology
+3. **Cross-validate with existing xirr.truth-cases.json patterns** - Check for precedent
+4. **If unclear: DEFER** - Do not proceed until external expertise consulted
+
+**Example Escalation:**
+```
+Tier 3 Validation (Waterfall):
+  AI-1: GREEN
+  AI-2: YELLOW ("catch-up calculation unclear")
+
+Action: DO NOT PROCEED
+  1. Developer reviews catch-up logic manually
+  2. Cross-reference Tactyc waterfall documentation
+  3. Check existing waterfall.truth-cases.json for similar scenario
+  4. If still unclear: document in DEFERRED_VALIDATIONS.md, proceed with other work
+```
+
+**Buffer Time:** +2 days allocated for manual investigation (included in Phase timeline)
+
 ---
 
 ## 11. Domain Expert Allocation (Optional Uplift)
@@ -1080,6 +1153,7 @@ If P0 error detected post-rollout:
 | 1.0 | 2025-12-04 | Initial release |
 | 2.0 | 2025-12-04 | Added 4 validation layers, replaced Excel with JSON, reduced Phase 1 to MOIC only, added BullMQ shadow mode |
 | 2.1 | 2025-12-04 | Softened Excel policy, added Truth Case Audit, marked Domain Expert as optional, added PII rules, per-metric shadow thresholds |
+| 2.2 | 2025-12-04 | Added AI consensus limitations protocol, explicit feature flag creation in Phase 0, hard gate on Phase 0 exit criteria, 8.5-week timeline |
 
 **This plan supersedes:**
 - PHOENIX-PLAN-2025-11-30.md
