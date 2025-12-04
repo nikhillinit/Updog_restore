@@ -1,6 +1,6 @@
 # Phoenix: Truth-Driven Fund Calculation Rebuild
 
-**Version:** 2.3
+**Version:** 2.4
 **Date:** December 4, 2025
 **Timeline:** 11 weeks (revised based on critical gap analysis)
 **Status:** ACTIVE - Supersedes all prior Phoenix plans
@@ -16,13 +16,27 @@
 ### Daily Checklist
 
 ```
+[ ] What is the ONE thing I'm shipping today? (e.g., "Realized MOIC truth cases pass")
 [ ] Which phase am I in? (Pre-0, 0-6)
 [ ] What calculation am I validating?
 [ ] Have I checked EXISTING ENGINES first?
 [ ] Have I checked existing JSON truth cases?
-[ ] Are all 4 validation layers passing?
+[ ] Are required validation layers for this phase passing? (see layer table below)
 [ ] What's my AI tier for this calculation?
 ```
+
+### Validation Layer Requirements by Phase
+
+Layer adoption is **progressive**, not all-or-nothing:
+
+| Phase | L1 Plausibility | L2 Fund State | L3 Output | L4 Logging |
+|-------|-----------------|---------------|-----------|------------|
+| 0 | Scaffold only | - | - | Wrapper exists |
+| 1 (MOIC) | **Required** | Warn-only | Tests/exports | **Required** |
+| 2-3 | **Required** | **Required** | Tests/exports | **Required** |
+| 4+ | **Required** | **Required** | **Required** | **Required** |
+
+**Note:** "Warn-only" means Layer 2 logs violations but doesn't block calculation. Upgrade to enforced by Phase 2.
 
 ### Quick Reference
 
@@ -144,10 +158,18 @@ They do NOT validate:
 // shared/schemas/phoenix-validation.ts
 import { z } from 'zod';
 
+// Configurable plausibility limits (tunable without code changes)
+export const PLAUSIBILITY_LIMITS = {
+  MAX_FUND_SIZE: 10_000_000_000,      // $10B
+  MAX_REASONABLE_MOIC: 100,           // 100x (rare but possible for unicorns)
+  MAX_FEE_RATE: 0.10,                 // 10%
+  MIN_FUND_SIZE: 100_000,             // $100K
+} as const;
+
 export const MOICInputSchema = z.object({
   contributions: z.number()
     .min(0, "Contributions cannot be negative")
-    .max(10_000_000_000, "Contributions exceed $10B plausibility limit"),
+    .max(PLAUSIBILITY_LIMITS.MAX_FUND_SIZE, "Contributions exceed plausibility limit"),
   currentValue: z.number()
     .min(0, "Current value cannot be negative"),
   distributions: z.number()
@@ -155,13 +177,26 @@ export const MOICInputSchema = z.object({
 }).refine(
   data => data.contributions > 0,
   "Contributions must be positive for MOIC calculation"
-).refine(
-  data => {
-    const moic = (data.currentValue + data.distributions) / data.contributions;
-    return moic < 100; // 100x MOIC is implausible
-  },
-  "Calculated MOIC > 100x is implausible - check inputs"
 );
+
+// Separate warning check (does not fail validation, only logs)
+export function checkMOICPlausibility(input: { contributions: number; currentValue: number; distributions: number }): {
+  warnings: string[];
+  isPlausible: boolean;
+} {
+  const warnings: string[] = [];
+  const moic = (input.currentValue + input.distributions) / input.contributions;
+
+  if (moic > PLAUSIBILITY_LIMITS.MAX_REASONABLE_MOIC) {
+    warnings.push(`MOIC ${moic.toFixed(2)}x exceeds ${PLAUSIBILITY_LIMITS.MAX_REASONABLE_MOIC}x threshold - verify inputs`);
+  }
+
+  return { warnings, isPlausible: warnings.length === 0 };
+}
+
+// Hard failures vs warnings:
+// - HARD FAIL: negative values, zero contributions, impossible math
+// - WARNING: extreme but possible values (100x+ MOIC, very high fees)
 
 export const IRRInputSchema = z.object({
   cashflows: z.array(z.object({
@@ -177,10 +212,12 @@ export const IRRInputSchema = z.object({
 );
 
 export const FeeInputSchema = z.object({
-  fundSize: z.number().min(100_000).max(10_000_000_000),
+  fundSize: z.number()
+    .min(PLAUSIBILITY_LIMITS.MIN_FUND_SIZE)
+    .max(PLAUSIBILITY_LIMITS.MAX_FUND_SIZE),
   feeRate: z.number()
     .min(0, "Fee rate cannot be negative")
-    .max(0.10, "Fee rate > 10% is implausible"), // 10% max, not 1000%
+    .max(PLAUSIBILITY_LIMITS.MAX_FEE_RATE, "Fee rate exceeds plausibility limit"),
   basisMethod: z.enum(['committed', 'called', 'invested', 'fmv']),
 });
 ```
@@ -206,6 +243,20 @@ export type FundState =
   | 'HARVESTING'    // No new investments, managing exits
   | 'LIQUIDATED';   // Fund closed, all assets distributed
 
+// Typed operation constants (avoid magic strings)
+export type FundOperation =
+  | 'capital_call'
+  | 'distribution'
+  | 'nav'
+  | 'fee'
+  | 'moic'
+  | 'irr'
+  | 'waterfall'
+  | 'final_distribution'
+  | 'final_nav'
+  | 'final_moic'
+  | 'final_irr';
+
 const VALID_TRANSITIONS: Record<FundState, FundState[]> = {
   FUNDRAISING: ['INVESTING'],
   INVESTING: ['HARVESTING'],
@@ -213,7 +264,7 @@ const VALID_TRANSITIONS: Record<FundState, FundState[]> = {
   LIQUIDATED: [],
 };
 
-const ALLOWED_OPERATIONS: Record<FundState, string[]> = {
+const ALLOWED_OPERATIONS: Record<FundState, FundOperation[]> = {
   FUNDRAISING: ['capital_call', 'nav'],
   INVESTING: ['capital_call', 'distribution', 'nav', 'fee', 'moic', 'irr'],
   HARVESTING: ['distribution', 'nav', 'fee', 'moic', 'irr', 'waterfall'],
@@ -222,7 +273,7 @@ const ALLOWED_OPERATIONS: Record<FundState, string[]> = {
 
 export function validateOperation(
   fundState: FundState,
-  operation: string
+  operation: FundOperation
 ): { valid: boolean; reason?: string } {
   const allowed = ALLOWED_OPERATIONS[fundState];
   if (!allowed.includes(operation)) {
@@ -299,14 +350,21 @@ export const OUTPUT_CONTRACTS: Record<string, OutputContract> = {
   },
 };
 
+// Contract usage mapping (where each contract is used):
+// - UI_DISPLAY: MainDashboardV2 KPIs, Portfolio tables, Fund metrics
+// - CSV_EXPORT: "Download to Excel" feature, LP reports
+// - API_RESPONSE: External integrations, mobile apps
+// - INTERNAL_CALC: Intermediate calculations, waterfall steps
+
 // Brand/UI Note: Any UI adjustments during Phoenix should reuse the existing
 // Inter/Poppins typography and gray/sand palette defined in brand-tokens.css.
 // Phoenix does not introduce new visual tokens.
 
 export function formatForContract(
   value: Decimal,
-  contractKey: keyof typeof OUTPUT_CONTRACTS
-): { formatted: string; precisionLoss: string } {
+  contractKey: keyof typeof OUTPUT_CONTRACTS,
+  logger?: { warn: (msg: string, ctx: object) => void }
+): { formatted: string; precisionLoss: string; clamped: boolean } {
   const contract = OUTPUT_CONTRACTS[contractKey];
 
   const rounded = value.toDecimalPlaces(
@@ -317,10 +375,26 @@ export function formatForContract(
   );
 
   const precisionLoss = value.minus(rounded).abs();
+  let clamped = false;
+
+  // Enforce maxValue with logging and clamping
+  if (rounded.abs().greaterThan(contract.maxValue)) {
+    logger?.warn('Value exceeded output contract maxValue', {
+      contractKey,
+      value: value.toString(),
+      rounded: rounded.toString(),
+      maxValue: contract.maxValue,
+    });
+
+    // Clamp for UI, but log for investigation
+    // API responses should throw instead if strict mode enabled
+    clamped = true;
+  }
 
   return {
     formatted: rounded.toFixed(contract.decimals),
     precisionLoss: precisionLoss.toString(),
+    clamped,
   };
 }
 ```
@@ -574,6 +648,20 @@ All calculations validated against a single reference fund:
 | Delta Co | Series A | $2.5M (Q4 2024) | $1.5M (Q3 2026) | $25M (Q4 2030) |
 
 **Note:** POV Fund I is a conceptual reference scenario. Its cashflows must be encoded as one or more JSON truth cases to be tested; there is no separate Excel file or hard-coded path for this scenario. The scenario parameters above inform what truth cases to create.
+
+### POV Fund I Truth Case Mapping
+
+Each aspect of POV Fund I is encoded in the appropriate truth case file:
+
+| Aspect | Truth File | Scenario ID Pattern | Phase |
+|--------|------------|---------------------|-------|
+| IRR/XIRR | `docs/xirr.truth-cases.json` | `pov-fund-irr-*` | 5 |
+| MOIC (4 variants) | `docs/moic.truth-cases.json` | `pov-fund-moic-*` | 1 |
+| Fees | `docs/fees.truth-cases.json` | `pov-fund-fees-*` | 3 |
+| Waterfall | `docs/waterfall.truth-cases.json` | `pov-fund-waterfall-*` | 4 |
+| Capital Calls | `docs/capital-allocation.truth-cases.json` | `pov-fund-capital-*` | 2 |
+
+**Tagging Convention:** All POV Fund I scenarios MUST include tags `["pov-fund-i", "phoenix-v2"]` for traceability.
 
 ---
 
@@ -975,6 +1063,12 @@ export async function calculateWithShadow<T>(
   // Always return legacy result immediately
   const legacyResult = legacyFn();
 
+  // Dev-mode guard: Skip BullMQ in local dev/test to avoid Redis dependency
+  if (!process.env.REDIS_URL || process.env.NODE_ENV === 'test') {
+    // No shadow or queue in dev; just return legacy
+    return legacyResult;
+  }
+
   // If shadow mode enabled, queue Phoenix validation
   if (isPhoenixShadowEnabled(calculationType)) {
     await phoenixShadowQueue.add('validate', {
@@ -1150,6 +1244,18 @@ Action: DO NOT PROCEED
 
 **Buffer Time:** +2 days allocated for manual investigation (included in Phase timeline)
 
+### When NOT to Use AI Validation
+
+AI validation is **required** when mathematical behavior changes. It is **optional** for:
+
+- Purely mechanical refactors (splitting functions, renaming variables)
+- Code style changes (formatting, import ordering)
+- Documentation-only changes (comments, JSDoc)
+- Test-only changes (unless testing new calculation logic)
+- Infrastructure changes (build config, CI/CD)
+
+**Rule:** If the calculation contract (inputs → outputs) doesn't change, skip AI validation.
+
 ---
 
 ## 11. Domain Expert Allocation (Optional Uplift)
@@ -1304,6 +1410,7 @@ If P0 error detected post-rollout:
 | 2.1 | 2025-12-04 | Softened Excel policy, added Truth Case Audit, marked Domain Expert as optional, added PII rules, per-metric shadow thresholds |
 | 2.2 | 2025-12-04 | Added AI consensus limitations protocol, explicit feature flag creation in Phase 0, hard gate on Phase 0 exit criteria, 8.5-week timeline |
 | 2.3 | 2025-12-04 | **Major revision:** Reframed as "Leverage, Harden, Validate" (not rebuild). Added Pre-Phase 0 for MOIC truth cases (blocker). Added existing assets table. Added incremental integration to all phases (not big-bang). Extended timeline to 11 weeks. Added rollback drill requirement. Added leverage ratio success metric. |
+| 2.4 | 2025-12-04 | **Refinements:** Progressive layer adoption by phase (not all-or-nothing). Configurable plausibility limits with warnings vs hard-fails. Typed FundOperation constants. Output contract maxValue enforcement with clamping. POV Fund I truth case mapping table. Dev-mode guard for BullMQ (skip Redis in local dev). "When not to use AI" guidance. Daily checklist "ONE thing" focus item. |
 
 **This plan supersedes:**
 - PHOENIX-PLAN-2025-11-30.md
