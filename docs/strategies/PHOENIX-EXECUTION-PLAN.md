@@ -1,6 +1,6 @@
 # Phoenix: Truth-Driven Fund Calculation Rebuild
 
-**Version:** 2.0
+**Version:** 2.1
 **Date:** December 4, 2025
 **Status:** ACTIVE - Supersedes all prior Phoenix plans
 **Executor:** Solo Developer
@@ -272,6 +272,10 @@ export const OUTPUT_CONTRACTS: Record<string, OutputContract> = {
   },
 };
 
+// Brand/UI Note: Any UI adjustments during Phoenix should reuse the existing
+// Inter/Poppins typography and gray/sand palette defined in brand-tokens.css.
+// Phoenix does not introduce new visual tokens.
+
 export function formatForContract(
   value: Decimal,
   contractKey: keyof typeof OUTPUT_CONTRACTS
@@ -366,6 +370,8 @@ export function withPhoenixLogging<TInput, TOutput>(
 }
 ```
 
+**PII Sanitization Rule:** `sanitizeForLogging` MUST strip or hash any PII (investor names, emails, phone numbers, account numbers). Only fund-level IDs and aggregate numeric values should be logged. Never log raw LP data.
+
 **Effort:** 4 hours
 
 ### Total Layer Implementation: 28 hours (~3.5 days)
@@ -423,7 +429,18 @@ When extending truth cases:
 3. Tag with `["phoenix", "v2"]` for traceability
 4. Run against DeterministicReserveEngine pattern
 
-**DO NOT:** Create new Excel workbook. Use existing JSON infrastructure.
+**Excel Policy:** Do not introduce a *new* long-lived Excel workbook as a second source of truth. Temporary spreadsheets are allowed for scratch calculations and design verification, but **all authoritative truth must be encoded in the existing JSON truth cases** with `excelFormula` fields where applicable. Rule: *"No change is 'real' until it's encoded as a JSON truth case and tests pass."*
+
+### Truth Case Audit (Phase 0 Prerequisite)
+
+Before Phase 1, run a one-time audit of each `*.truth-cases.json` file:
+
+1. **Confirm exact counts** - Replace approximate counts (~15, ~20) with actual numbers
+2. **Tag Phoenix scenarios** - Add `["phoenix-v2", "moic"]` tags to scenarios used by Phoenix
+3. **Identify gaps** - List missing scenarios needed for Phase 1-4 (e.g., multi-LP calls, fee step-downs)
+4. **Document in inventory** - Commit `TRUTH_CASE_INVENTORY.md` with up-to-date counts and tags
+
+**Exit Criterion:** `TRUTH_CASE_INVENTORY.md` committed before Phase 1 begins.
 
 ---
 
@@ -528,6 +545,8 @@ All calculations validated against a single reference fund:
 | Beta Inc | Series B | $3M (Q2 2024) | $2M (Q1 2026) | $8M (Q2 2029) |
 | Gamma LLC | Seed | $500K (Q3 2024) | $500K (Q2 2025) | $0 (Write-off Q1 2027) |
 | Delta Co | Series A | $2.5M (Q4 2024) | $1.5M (Q3 2026) | $25M (Q4 2030) |
+
+**Note:** POV Fund I is a conceptual reference scenario. Its cashflows must be encoded as one or more JSON truth cases to be tested; there is no separate Excel file or hard-coded path for this scenario. The scenario parameters above inform what truth cases to create.
 
 ---
 
@@ -745,8 +764,9 @@ const worker = new Worker('phoenix-shadow', async (job) => {
         context,
       });
 
-      // Alert if discrepancy exceeds threshold
-      if (discrepancy.percentDiff > 0.001) { // 0.1%
+      // Alert if discrepancy exceeds per-metric threshold
+      // Uses thresholds from Section 10: MOIC <0.1%, IRR <0.01%, Fees <$100/0.05%, etc.
+      if (exceedsMetricThreshold(calculationType, discrepancy)) {
         await alertDiscrepancy(job.data, discrepancy);
       }
     }
@@ -914,9 +934,16 @@ export const PHOENIX_FLAGS: Record<string, FeatureFlag> = {
 
 ---
 
-## 11. Domain Expert Allocation
+## 11. Domain Expert Allocation (Optional Uplift)
 
-### Total Hours: 9 hours over 8 weeks
+**Important:** This section describes an *optional uplift* if a human domain expert (CFO/quant/fund admin) is available. The Phoenix v2 plan does **not** assume such a person is guaranteed. The baseline validation relies on:
+- JSON truth cases with Excel parity
+- The 4 validation layers
+- Multi-AI review (Tier 1/2/3)
+
+If no domain expert is available, these hours are skipped and the AI + truth-case process carries the load.
+
+### If Domain Expert Available: 9 hours over 8 weeks
 
 | Phase | Activity | Hours |
 |-------|----------|-------|
@@ -926,11 +953,14 @@ export const PHOENIX_FLAGS: Record<string, FeatureFlag> = {
 | Phase 4 | Validate waterfall scenarios | 2 |
 | Phase 6 | Production sign-off | 2 |
 
-### Quarterly Review (Post-Launch)
+### Quarterly Review (Optional, Post-Launch)
 
+If domain expert relationship established:
 - 2 hours per quarter
 - Review truth cases for regulatory drift
 - Validate any new edge cases discovered
+
+If no domain expert: rely on Tactyc documentation updates and AI review for drift detection.
 
 ---
 
@@ -1047,8 +1077,9 @@ If P0 error detected post-rollout:
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.0 | 2024-12-04 | Initial release |
-| 2.0 | 2024-12-04 | Added 4 validation layers, replaced Excel with JSON, reduced Phase 1 to MOIC only, added BullMQ shadow mode |
+| 1.0 | 2025-12-04 | Initial release |
+| 2.0 | 2025-12-04 | Added 4 validation layers, replaced Excel with JSON, reduced Phase 1 to MOIC only, added BullMQ shadow mode |
+| 2.1 | 2025-12-04 | Softened Excel policy, added Truth Case Audit, marked Domain Expert as optional, added PII rules, per-metric shadow thresholds |
 
 **This plan supersedes:**
 - PHOENIX-PLAN-2025-11-30.md
