@@ -1,10 +1,19 @@
-{
-  "mcpServers": {
-    "multi-ai-collab": {
-      "command": "C:\\Python313\\python.exe",
-      "args": [
-        "C:\\Users\\nikhi\\AppData\\Roaming\\Claude\\Claude Extensions\\multi-ai-collab\\server.py"
-      ]
-    }
-  }
+﻿{
+    "mcpServers":  {
+                       "multi-ai-collab":  {
+                                               "command":  "C:\\Python313\\python.exe",
+                                               "args":  [
+                                                            "C:\\Users\\nikhi\\AppData\\Roaming\\Claude\\Claude Extensions\\multi-ai-collab\\server.py"
+                                                        ]
+                                           },
+                       "taskmaster-ai":  {
+                                             "command":  "cmd",
+                                             "args":  [
+                                                          "/c",
+                                                          "npx",
+                                                          "-y",
+                                                          "task-master-ai"
+                                                      ]
+                                         }
+                   }
 }
