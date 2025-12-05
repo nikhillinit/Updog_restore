@@ -1,7 +1,7 @@
 # Phoenix: Truth-Driven Fund Calculation Rebuild
 
-**Version:** 2.13
-**Date:** December 4, 2025
+**Version:** 2.14
+**Date:** December 5, 2025
 **Timeline:** 6-8 weeks (accelerated with workflow optimizations)
 **Status:** ACTIVE - Supersedes all prior Phoenix plans
 **Executor:** Solo Developer
@@ -10,7 +10,7 @@
 
 ---
 
-## v2.13 CRITICAL CORRECTIONS (Agent-Verified)
+## v2.14 CRITICAL CORRECTIONS (Agent-Verified + User Refinements)
 
 **Problem Identified:** External review contained same interpretation error it claimed to correct.
 
@@ -19,7 +19,7 @@
 | Claim | Review Said | Agent Verified | Impact |
 |-------|-------------|----------------|--------|
 | TypeScript errors | "454 errors exist, Phase 0B 5-7 days" | **ALL 454 FIXED** (0 current) | Phase 0B reduced to 2-3 days |
-| Phoenix branch | "Production-ready for merge" | **BLOCKED** (jest-dom issue) | Must fix before Phase 3 |
+| Phoenix branch | "Production-ready for merge" | **BLOCKED** (jest-dom issue) | Must fix **Pre-Phase 0** |
 | Excel-parity | "Already merged to main" | On current branch, NOT main | Cherry-pick required |
 | Precision | Not mentioned | **INCONSISTENCY** found | Phase 0A audit required |
 
@@ -27,18 +27,89 @@
 
 | Blocker | Location | Severity | Resolution Phase |
 |---------|----------|----------|------------------|
-| jest-dom import | `jsdom-setup.ts:6` | HIGH | Pre-Phase 3 |
+| jest-dom import | `jsdom-setup.ts:6` | **CRITICAL** | **Pre-Phase 0** (MANDATORY FIRST) |
 | Precision inconsistency | `portfolio-route.ts:433-436` | HIGH | Phase 0A |
 | TS baseline stale | `.tsc-baseline.json` | LOW | Pre-Phase 0 |
 
-**Immediate Actions Required:**
-1. Run `npm run baseline:save` to cement TypeScript progress
-2. Fix jest-dom import before phoenix branch merge validation
+**v2.14 IMMEDIATE ACTIONS (In Order):**
+1. **FIX jest-dom import** - No calculation code until test runner is green
+2. Run `npm run baseline:save` to cement TypeScript progress
 3. Audit precision inconsistency (parseFloat vs BigInt)
+
+**v2.14 Rationale:** Test Pairing requires a working test runner. Cannot write a single line of calculation code until jest-dom is fixed.
 
 ---
 
-## v2.13 CODING PAIRS PROTOCOL (Zero P0 Errors)
+## v2.14 PRECISION ENFORCEMENT (Zero Rounding Errors)
+
+**Problem:** Mixed precision strategies (BigInt in DB, parseFloat in routes) create P0 bugs.
+
+**Solution:** Mandate Decimal.js for all internal calculations. Banish parseFloat from calculation layer.
+
+### Layer 1 Precision Enforcement
+
+```typescript
+import Decimal from 'decimal.js';
+
+// Strict type alias for financial values
+type FinancialValue = Decimal;
+
+/**
+ * Convert any input to FinancialValue with early detection of unsafe floats.
+ * Use this at ALL calculation layer boundaries.
+ */
+function toFinancial(val: number | string | bigint): FinancialValue {
+  if (typeof val === 'number' && !Number.isSafeInteger(val)) {
+    throw new Error(
+      `Unsafe floating point input detected: ${val}. Use string or Decimal.`
+    );
+  }
+  return new Decimal(val.toString());
+}
+
+// Examples:
+toFinancial("1234567890.12345678");  // OK - string preserves precision
+toFinancial(1234567890n);            // OK - BigInt is exact
+toFinancial(1234567890);             // OK - safe integer
+toFinancial(1234567890.123456789);   // THROWS - unsafe float
+```
+
+### Precision Strategy by Domain
+
+| Domain | Storage | Calculation | Display |
+|--------|---------|-------------|---------|
+| Share counts | BigInt (cents) | Decimal.js | Format with separators |
+| MOIC/DPI/TVPI | String (in DB) | Decimal.js | 2-4 decimal places |
+| Percentages | String (in DB) | Decimal.js | Format as `X.XX%` |
+| Dollar amounts | BigInt (cents) | Decimal.js | Format as `$X,XXX.XX` |
+
+### Banned Patterns (Phase 0A Audit)
+
+```typescript
+// BANNED in calculation layer
+parseFloat(shares);           // Use toFinancial(shares)
+Number(bigintValue);          // Use new Decimal(bigintValue.toString())
+Math.round(financial);        // Use decimal.toDecimalPlaces(2)
+value * 100;                  // Use decimal.mul(100)
+
+// ALLOWED at UI boundary only
+parseFloat(userInput);        // For display formatting only
+Number(displayValue);         // For chart libraries only
+```
+
+### Phase 0A Audit Checklist
+
+```
+[ ] Search for parseFloat in calculation paths (not UI)
+[ ] Search for Number() on BigInt values
+[ ] Verify all MOIC/IRR calculations use Decimal.js
+[ ] Add toFinancial() wrapper to shared/lib/precision.ts
+[ ] Update ESLint with no-parseFloat-in-calculations rule
+```
+
+---
+
+## v2.14 CODING PAIRS PROTOCOL (Zero P0 Errors)
 
 **Source:** `cheatsheets/coding-pairs-playbook.md`
 
@@ -85,7 +156,7 @@
 
 ---
 
-## v2.13 PARALLEL AGENT STRATEGY (87% Time Savings)
+## v2.14 PARALLEL AGENT STRATEGY (87% Time Savings)
 
 **Source:** `cheatsheets/multi-agent-orchestration.md`
 
@@ -124,11 +195,30 @@ For each calculation validation:
 - **Iteration 2:** Apply feedback → re-evaluate
 - **Iteration 3:** Final refinement → must pass
 
-**Beyond 3 iterations = architectural issue → STOP, escalate**
+**Beyond 3 iterations = architectural issue → SIMPLIFICATION BREAK**
+
+### v2.14 Simplification Break Protocol (Solo Developer)
+
+When 3 iterations fail, do NOT abandon. Instead:
+
+```
+1. REVERT code to last known-good state (git stash or git checkout)
+2. IDENTIFY the complexity that caused failure
+3. WRITE a simpler test case (reduce scope, fewer edge cases)
+4. IMPLEMENT the simpler case (smaller scope = faster convergence)
+5. ITERATE back to full scope after simpler case passes
+```
+
+**Rationale:** Solo developers have no one to escalate to. Simplification Break transforms "I'm stuck" into "I'm decomposing." Maintains TDD discipline while acknowledging architectural complexity.
+
+**Example:**
+- **Original:** "Implement American waterfall with catch-up, vesting, and clawback"
+- **Simpler case:** "Implement American waterfall with catch-up only"
+- **After green:** Add vesting, re-test, add clawback, re-test
 
 ---
 
-## v2.13 DAILY PHOENIX WORKFLOW (Solo Developer)
+## v2.14 DAILY PHOENIX WORKFLOW (Solo Developer)
 
 **Source:** `cheatsheets/daily-workflow.md`
 
@@ -283,9 +373,9 @@ git commit -m "feat(testing): Add Excel parity test scenarios"
 
 ---
 
-## CRITICAL GAPS (v2.13 Agent-Verified Status)
+## CRITICAL GAPS (v2.14 Agent-Verified Status)
 
-| Gap | Severity | v2.12 Status | v2.13 Status |
+| Gap | Severity | v2.12 Status | v2.14 Status |
 |-----|----------|--------------|--------------|
 | **PHOENIX_FLAGS don't exist** | CRITICAL | Open | **Open** - Phase 0B (1-2 hours) |
 | **Scope mismatch** | CRITICAL | Open | **Open** - Phase -1 decision |
@@ -295,14 +385,14 @@ git commit -m "feat(testing): Add Excel parity test scenarios"
 | **L3 output contracts** | HIGH | 20% | **Open** - Phase 0B |
 | **Truth case provenance** | ~~HIGH~~ | Resolved | **Resolved** - excel-parity branch |
 | **TypeScript errors** | ~~HIGH~~ | "454 exist" | **RESOLVED** - All 454 fixed! |
-| **jest-dom blocker** | HIGH | Not identified | **NEW** - Pre-Phase 3 |
+| **jest-dom blocker** | **CRITICAL** | Not identified | **MANDATORY** - Pre-Phase 0 (first!) |
 | **Precision inconsistency** | HIGH | Not identified | **NEW** - Phase 0A audit |
 | **Excel-parity merge** | MEDIUM | "Merge now" | **CORRECTED** - Cherry-pick only |
-| **Phoenix branch tests** | HIGH | "Ready" | **BLOCKED** - jest-dom issue |
+| **Phoenix branch tests** | HIGH | "Ready" | **UNBLOCKED** after jest-dom fix |
 
-**v2.13 Gap Summary:**
+**v2.14 Gap Summary:**
 - **Resolved:** 5/12 (engine path, test coverage, provenance, TypeScript, excel-parity clarity)
-- **New blockers:** 3 (jest-dom, precision, phoenix branch tests)
+- **MANDATORY FIRST:** jest-dom fix (elevated to CRITICAL - blocks all Test Pairing)
 - **Remaining:** 4 open (flags, scope, shadow vulnerabilities, L3 contracts)
 
 ---
@@ -352,16 +442,17 @@ Layer adoption is **progressive**, not all-or-nothing. L3 only required for **ex
 - "Warn-only" = Layer 2 logs violations but doesn't block calculation. Upgrade to enforced by Phase 2.
 - "External only" = L3 contracts only for fields that leave the system (CSV/API/LP report) in this phase. Internal intermediates skip L3 until Phase 4.
 
-### Quick Reference (v2.13 Workflow-Optimized Timeline)
+### Quick Reference (v2.14 Workflow-Optimized Timeline)
 
-| Phase | Days | Focus | Exit Gate | v2.13 Changes |
+| Phase | Days | Focus | Exit Gate | v2.14 Changes |
 |-------|------|-------|-----------|---------------|
+| **Pre-0 (FIRST!)** | **0.5** | **jest-dom fix** | **Test runner green** | **v2.14: MANDATORY FIRST** |
 | Pre-0 | 2-3 | MOIC truth cases + baseline:save | Truth cases exist, TS baseline updated | +baseline:save |
-| 0A | 3-4 | Read & Decide + precision audit | ENGINE_AUDIT complete, precision resolved | +precision audit |
+| 0A | 3-4 | Read & Decide + precision audit | ENGINE_AUDIT complete, precision resolved | +precision audit, +toFinancial |
 | 0B | **2-3** | Validation scaffolds + Phoenix flags | L1/L4 scaffolds, flags defined | **-3 days** (TS done) |
 | 1 | 3-4 | MOIC (Coding Pairs + Test Pairing) | 4 variants pass, API wired | +coding pairs |
 | 2 | 5-7 | Capital (10-15 line review cycles) | 3 scenarios validated | +review cycles |
-| 3 | 1-2 | Fees + jest-dom fix + phoenix merge | 4 fee basis methods pass, branch merged | +jest-dom fix |
+| 3 | 1-2 | Fees + phoenix merge | 4 fee basis methods pass, branch merged | jest-dom moved to Pre-0 |
 | 4 | 3-4 | Waterfall (**5 line review cycles**) | American carry validated | +strict review |
 | 5 | 1-2 | IRR (leverage existing 25 cases) | All edge cases pass | unchanged |
 | 6 | **5-7** | Shadow + parallel validation | 100% rollout, 6-agent validation | **-2-3 days** |
@@ -2289,6 +2380,7 @@ Track per-phase in a simple Markdown table (no script needed):
 | 2.11 | 2025-12-04 | **Branch asset integration (MAJOR):** Verified 6 production-ready calculation implementations on main branch. Added BRANCH ASSET INVENTORY section with verified locations and test coverage. Integrated `feat/excel-parity-testing` discovery (3 scenarios, 100% provenance, automated validation). Corrected gap analysis: 5/6 engines have tests (not 4/6), truth case provenance resolved by excel-parity. Added REVISED TIMELINE: 8-10 weeks (accelerated from 12-13 weeks, 3-5 week savings). Updated success probability to 90-95%. Key assets: fee-calculations.ts, capital-allocation-calculations.ts, reference-formulas.ts, waterfall.ts, xirr.ts - all production-ready with test coverage. |
 | 2.12 | 2025-12-04 | **Overhead reduction (Solo developer optimization):** 9 targeted simplifications to prevent spending 1/3 of project on scaffolding. Pre-Phase 0: MOIC cases only (others built incrementally). Phase 0A: XIRR moved to Tier A-later (trust 25 existing truth cases). Phase 0B: Phoenix modules only for TS (legacy 450 errors accepted). Shadow mode: MOIC + Waterfall only (others added if P0 incident). Documentation: Sections not separate files (ENGINE_AUDIT, TRUTH_CASE_INVENTORY inline). AI ceremony: Explicit rules for when required vs optional. Slip rules: Pre-committed scope cuts (IRR shadow, Golden Datasets, or Shadow mode). Quick Reference updated to days-based accelerated timeline. Key principle: "Depth arrives when you need it, not as up-front tax." |
 | 2.13 | 2025-12-04 | **Workflow optimization + agent-verified corrections (MAJOR):** 5 parallel exploration agents verified review claims, found critical corrections. (1) TypeScript: ALL 454 errors FIXED (not "exist as claimed") - Phase 0B reduced from 5-7 to 2-3 days. (2) Phoenix branch: NOT production-ready (jest-dom blocker at jsdom-setup.ts:6). (3) Excel-parity: On current branch, NOT main - cherry-pick only (1,277 files, not "30+"). (4) Precision inconsistency: NEW blocker at portfolio-route.ts:433-436 (parseFloat vs BigInt). Added CODING PAIRS PROTOCOL (10-20 line review cycles, Test Pairing, 6-agent pre-commit stack, phase-specific review frequency). Added PARALLEL AGENT STRATEGY (87% time savings, Phase 6 parallel validation). Added DAILY PHOENIX WORKFLOW (enhanced Flight Card, emergency procedures). Added MAX 3 ITERATIONS RULE from evaluator-optimizer. Timeline: 6-8 weeks (from 8-10). Success probability: 95-98% (from 90-95%). Key insight: Review made same interpretation error it claimed to correct. |
+| 2.14 | 2025-12-05 | **Solo developer refinements (3 critical fixes):** (1) **Jest-dom timing:** Elevated from HIGH to CRITICAL, moved from Pre-Phase 3 to Pre-Phase 0 (MANDATORY FIRST). Rationale: Cannot do Test Pairing with broken test runner - no calculation code until test runner is green. (2) **Precision enforcement:** Added PRECISION ENFORCEMENT section with `toFinancial()` function at Layer 1. Mandated Decimal.js for all internal calculations. Banned parseFloat from calculation layer (allowed at UI boundary only). Added Phase 0A precision audit checklist with banned patterns. (3) **Simplification Break protocol:** Replaced "STOP, escalate" with concrete solo-developer protocol: revert to known-good state, write simpler test case, implement simpler scope, iterate back to full scope. Transforms "I'm stuck" into "I'm decomposing." Updated Quick Reference with Pre-0 (FIRST!) row. Updated all section headers to v2.14. |
 
 **This plan supersedes:**
 - PHOENIX-PLAN-2025-11-30.md
