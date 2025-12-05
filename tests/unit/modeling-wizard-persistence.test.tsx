@@ -21,7 +21,7 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { createActor, waitFor } from 'xstate';
-import { modelingWizardMachine, type ModelingWizardContext } from '../modeling-wizard.machine';
+import { modelingWizardMachine, persistDataService, type ModelingWizardContext } from '@/machines/modeling-wizard.machine';
 
 describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
   let localStorageMock: {

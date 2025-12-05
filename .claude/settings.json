@@ -13,21 +13,30 @@
       "Read(**/*)"
     ],
     "deny": [
-      "Bash(npm run db:push*)",
-      "Bash(git push*)",
+      "Bash(npm run db:push:*)",
+      "Bash(git push:*)",
       "Write(.env*)",
       "Write(package.json)"
     ]
   },
   "hooks": {
-    "PostToolUse": {
-      "Edit(**/*.ts)": "npm run lint:fix",
-      "Edit(**/*.tsx)": "npm run lint:fix"
-    }
+    "PostToolUse": [
+      {
+        "matcher": {
+          "tools": ["Edit"]
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm run lint:fix"
+          }
+        ]
+      }
+    ]
   },
   "statusLine": {
     "type": "command",
-    "command": "echo '🛠️ Commands: /test-smart /fix-auto /deploy-check /workflows | 🤖 Agents: waterfall-specialist test-repair perf-guard db-migration'"
+    "command": "echo 'Commands: /test-smart /fix-auto /deploy-check /workflows | Agents: waterfall-specialist test-repair perf-guard db-migration'"
   },
   "includeCoAuthoredBy": true,
   "cleanupPeriodDays": 30,

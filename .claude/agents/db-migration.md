@@ -1,8 +1,8 @@
 ---
 name: db-migration
 description:
-  Database schema change specialist. Use PROACTIVELY before any `npm run
-  db:push` or when schema files are modified.
+  Database schema change specialist. Use PROACTIVELY before any npm run db:push
+  or when schema files are modified.
 tools: Read, Edit, Bash, Grep, Glob
 model: sonnet
 ---
