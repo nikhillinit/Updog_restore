@@ -1,12 +1,12 @@
 # Phoenix: Truth-Driven Fund Calculation Rebuild
 
-**Version:** 2.14
+**Version:** 2.15
 **Date:** December 5, 2025
-**Timeline:** 6-8 weeks (accelerated with workflow optimizations)
+**Timeline:** 8-10 weeks (realistic with asset gaps addressed)
 **Status:** ACTIVE - Supersedes all prior Phoenix plans
 **Executor:** Solo Developer
 **Approach:** Leverage, Harden, Validate (not Rebuild)
-**Success Probability:** 95-98% with coding pairs + parallel agent validation
+**Success Probability:** 90-95% with coding pairs + parallel agent validation
 
 ---
 
@@ -40,7 +40,126 @@
 
 ---
 
-## v2.14 PRECISION ENFORCEMENT (Zero Rounding Errors)
+## v2.15 ASSET REALITY CHECK (Code-Verified Gaps)
+
+**Problem:** v2.12 review identified asset gaps that accelerated timeline failed to account for.
+
+**Verification Method:** Exploration agents examined actual code, not documentation claims.
+
+### Fee Calculations: Type Chaos Identified
+
+| Layer | Implementation | Status | Issue |
+|-------|----------------|--------|-------|
+| **Client** (`fee-calculations.ts`) | 1/3 basis methods | MVP ONLY | Lines 206-207: "For MVP, all basis types use committed" |
+| **Server** (`fee-profile.ts`) | 6/6 basis methods | COMPLETE | All basis types fully implemented |
+| **Wizard** (`fees-wizard.ts`) | 3 methods | ORPHANED | Never imported, no tests |
+
+**Type Definition Chaos (3 conflicting schemas):**
+- `kpi-selector.contract.ts`: `committed`, `called`, `cumulative_called`, `invested`, `nav`, `fmv`
+- `fee-profile.ts`: `committed_capital`, `called_capital_cumulative`, `called_capital_net_of_returns`...
+- `modeling-wizard.schemas.ts`: `committed`, `called`, `fmv`
+
+**Impact:** Phase 3 requires fee consolidation task (+0.5-1 day)
+
+**Resolution:**
+1. Deprecate client-side MVP `fee-calculations.ts`
+2. Standardize on server-side `fee-profile.ts` across codebase
+3. Delete orphaned `fees-wizard.ts`
+4. Align type names (`'fmv'` → `'fair_market_value'`)
+
+### Waterfall Clawback: Missing Calculation Logic
+
+| Component | Status | Evidence |
+|-----------|--------|----------|
+| **ClawbackPolicySchema** | EXISTS | `waterfall-policy.ts` lines 64-76 |
+| **Clawback tier in switch** | MISSING | `calculateAmericanWaterfall()` stops at carry split (line 292) |
+| **Lookback period logic** | MISSING | No underperformance detection |
+| **GP payback obligations** | MISSING | No obligation accumulation in ledger |
+
+**Impact:** Phase 4 requires clawback implementation (+1-2 weeks)
+
+**Resolution:**
+1. Write clawback truth case first (TDD)
+2. Implement underperformance detection
+3. Add lookback window logic
+4. Integrate with existing American waterfall tiers
+
+### Phase 0B Scope: 7-9 Distinct Contexts
+
+**v2.12 Claim:** "6 distinct contexts create bottleneck"
+
+**Actual Count:** 7-9 distinct contexts verified:
+1. PHOENIX_FLAGS creation (NOT EXISTS)
+2. L1 validation scaffolds (NOT EXISTS)
+3. L2 lifecycle mapping (PARTIAL)
+4. L4 instrumentation (NOT EXISTS)
+5. TypeScript baseline verification
+6. Truth case inventory
+7. Test infrastructure fixes
+8. tsconfig.phoenix.json (optional)
+9. Documentation updates
+
+**Impact:** Phase 0B needs buffer (+1 day: 2-3 → 3-4 days)
+
+**Resolution:** Parallelize flags + L1 (day 1-1.5), L4 (day 1.5-2.5), inventory (day 2.5-3)
+
+---
+
+## v2.15 OPERATIONAL FRAMEWORKS (Decision Support)
+
+### AI Ceremony Decision Tree
+
+Use this to determine validation tier without decision paralysis:
+
+```
+Does change involve financial formula?
+├── YES → Tier 3 (2-3 AI agents, consensus required)
+│   Examples: MOIC calculation, waterfall carry, IRR
+│
+└── NO → Does change handle money/percentages?
+    ├── YES → Tier 2 (1 AI agent, single validation)
+    │   Examples: Fee calculation, capital allocation
+    │
+    └── NO → Tier 1 (Optional review)
+        Examples: API wiring, UI updates, test fixes
+```
+
+**AI Overhead Budget:** 30-45 minutes per Tier 3 calculation (build into estimates)
+
+### Truth Source Hierarchy
+
+When conflicts arise between data sources:
+
+```
+PRIORITY 1: JSON Truth Case (version controlled, validated)
+     ↓
+PRIORITY 2: Golden Dataset CSV (Excel-exported, timestamped)
+     ↓
+PRIORITY 3: Excel Spreadsheet (lowest - versioning risks)
+```
+
+**Rule:** If JSON and Excel disagree, investigate before assuming either is wrong.
+
+### Slip Rules (Solo Developer Adjusted)
+
+**Original (too strict):** 3 days/phase, 10 days cumulative
+
+**v2.15 Adjusted:**
+
+| Threshold | Original | v2.15 | Rationale |
+|-----------|----------|-------|-----------|
+| Per-phase slip | 3 days | **5 days** | Solo developer context-switching costs |
+| Cumulative slip | 10 days | **15 days** | Accounts for unforeseeable blockers |
+| Action on exceed | STOP | **Re-scope** | Prevents unnecessary work stoppages |
+
+**New Slip Protocol:**
+1. **5 days/phase exceeded:** Reduce scope OR extend estimate (don't stop)
+2. **15 days cumulative:** STOP, re-baseline, document lessons learned
+3. **Any slip:** Log in Phoenix journal with root cause
+
+---
+
+## v2.15 PRECISION ENFORCEMENT (Zero Rounding Errors)
 
 **Problem:** Mixed precision strategies (BigInt in DB, parseFloat in routes) create P0 bugs.
 
@@ -442,21 +561,26 @@ Layer adoption is **progressive**, not all-or-nothing. L3 only required for **ex
 - "Warn-only" = Layer 2 logs violations but doesn't block calculation. Upgrade to enforced by Phase 2.
 - "External only" = L3 contracts only for fields that leave the system (CSV/API/LP report) in this phase. Internal intermediates skip L3 until Phase 4.
 
-### Quick Reference (v2.14 Workflow-Optimized Timeline)
+### Quick Reference (v2.15 Realistic Timeline with Asset Gaps)
 
-| Phase | Days | Focus | Exit Gate | v2.14 Changes |
+| Phase | Days | Focus | Exit Gate | v2.15 Changes |
 |-------|------|-------|-----------|---------------|
-| **Pre-0 (FIRST!)** | **0.5** | **jest-dom fix** | **Test runner green** | **v2.14: MANDATORY FIRST** |
-| Pre-0 | 2-3 | MOIC truth cases + baseline:save | Truth cases exist, TS baseline updated | +baseline:save |
-| 0A | 3-4 | Read & Decide + precision audit | ENGINE_AUDIT complete, precision resolved | +precision audit, +toFinancial |
-| 0B | **2-3** | Validation scaffolds + Phoenix flags | L1/L4 scaffolds, flags defined | **-3 days** (TS done) |
-| 1 | 3-4 | MOIC (Coding Pairs + Test Pairing) | 4 variants pass, API wired | +coding pairs |
-| 2 | 5-7 | Capital (10-15 line review cycles) | 3 scenarios validated | +review cycles |
-| 3 | 1-2 | Fees + phoenix merge | 4 fee basis methods pass, branch merged | jest-dom moved to Pre-0 |
-| 4 | 3-4 | Waterfall (**5 line review cycles**) | American carry validated | +strict review |
+| **Pre-0 (FIRST!)** | **0.5** | **jest-dom fix** | **Test runner green** | v2.14: MANDATORY FIRST |
+| Pre-0 | 2-3 | MOIC truth cases + baseline:save | Truth cases exist, TS baseline updated | unchanged |
+| 0A | 3-4 | Read & Decide + precision audit | ENGINE_AUDIT complete, precision resolved | unchanged |
+| 0B | **3-4** | Validation scaffolds + Phoenix flags | L1/L4 scaffolds, flags defined | **+1 day buffer** (7-9 contexts) |
+| 1 | 3-4 | MOIC (Coding Pairs + Test Pairing) | 4 variants pass, API wired | unchanged |
+| 2 | 5-7 | Capital (10-15 line review cycles) | 3 scenarios validated | unchanged |
+| 3 | **2-3** | Fees + type consolidation + merge | 4 fee basis, types aligned, branch merged | **+1 day** (fee type chaos) |
+| 4 | **7-10** | Waterfall + **CLAWBACK** | American carry + clawback validated | **+5-7 days** (clawback missing) |
 | 5 | 1-2 | IRR (leverage existing 25 cases) | All edge cases pass | unchanged |
-| 6 | **5-7** | Shadow + parallel validation | 100% rollout, 6-agent validation | **-2-3 days** |
-| **Total** | **26-38** | | | **5-8 days saved** |
+| 6 | 5-7 | Shadow + parallel validation | 100% rollout, 6-agent validation | unchanged |
+| **Total** | **33-48** | | | **8-10 weeks realistic** |
+
+**v2.15 Timeline Adjustments:**
+- Phase 0B: +1 day buffer for 7-9 distinct contexts
+- Phase 3: +1 day for fee type consolidation (3 conflicting schemas)
+- Phase 4: +5-7 days for clawback implementation (calculation logic missing entirely)
 
 **Critical Insight:** Engine existence ≠ correctness ≠ production-ready. Audit before assuming leverage.
 
@@ -519,10 +643,13 @@ Layer adoption is **progressive**, not all-or-nothing. L3 only required for **ex
 | Fees | < $100 or 0.05% |
 | NAV | < $1 or 0.01% |
 
-### Slip Rules
+### Slip Rules (v2.15 Adjusted for Solo Developer)
 
-- **Per-phase**: > 3 days slip -> reduce scope or re-estimate
-- **Cumulative**: > 10 days total -> stop, re-baseline, notify stakeholders
+- **Per-phase**: > 5 days slip -> reduce scope OR extend estimate (don't stop)
+- **Cumulative**: > 15 days total -> STOP, re-baseline, document lessons learned
+- **Any slip**: Log in Phoenix journal with root cause
+
+**Rationale:** Original thresholds (3/10 days) too strict for solo developer context-switching costs.
 
 ### Working Agreements (Cognitive Load Mitigation)
 
@@ -2381,6 +2508,7 @@ Track per-phase in a simple Markdown table (no script needed):
 | 2.12 | 2025-12-04 | **Overhead reduction (Solo developer optimization):** 9 targeted simplifications to prevent spending 1/3 of project on scaffolding. Pre-Phase 0: MOIC cases only (others built incrementally). Phase 0A: XIRR moved to Tier A-later (trust 25 existing truth cases). Phase 0B: Phoenix modules only for TS (legacy 450 errors accepted). Shadow mode: MOIC + Waterfall only (others added if P0 incident). Documentation: Sections not separate files (ENGINE_AUDIT, TRUTH_CASE_INVENTORY inline). AI ceremony: Explicit rules for when required vs optional. Slip rules: Pre-committed scope cuts (IRR shadow, Golden Datasets, or Shadow mode). Quick Reference updated to days-based accelerated timeline. Key principle: "Depth arrives when you need it, not as up-front tax." |
 | 2.13 | 2025-12-04 | **Workflow optimization + agent-verified corrections (MAJOR):** 5 parallel exploration agents verified review claims, found critical corrections. (1) TypeScript: ALL 454 errors FIXED (not "exist as claimed") - Phase 0B reduced from 5-7 to 2-3 days. (2) Phoenix branch: NOT production-ready (jest-dom blocker at jsdom-setup.ts:6). (3) Excel-parity: On current branch, NOT main - cherry-pick only (1,277 files, not "30+"). (4) Precision inconsistency: NEW blocker at portfolio-route.ts:433-436 (parseFloat vs BigInt). Added CODING PAIRS PROTOCOL (10-20 line review cycles, Test Pairing, 6-agent pre-commit stack, phase-specific review frequency). Added PARALLEL AGENT STRATEGY (87% time savings, Phase 6 parallel validation). Added DAILY PHOENIX WORKFLOW (enhanced Flight Card, emergency procedures). Added MAX 3 ITERATIONS RULE from evaluator-optimizer. Timeline: 6-8 weeks (from 8-10). Success probability: 95-98% (from 90-95%). Key insight: Review made same interpretation error it claimed to correct. |
 | 2.14 | 2025-12-05 | **Solo developer refinements (3 critical fixes):** (1) **Jest-dom timing:** Elevated from HIGH to CRITICAL, moved from Pre-Phase 3 to Pre-Phase 0 (MANDATORY FIRST). Rationale: Cannot do Test Pairing with broken test runner - no calculation code until test runner is green. (2) **Precision enforcement:** Added PRECISION ENFORCEMENT section with `toFinancial()` function at Layer 1. Mandated Decimal.js for all internal calculations. Banned parseFloat from calculation layer (allowed at UI boundary only). Added Phase 0A precision audit checklist with banned patterns. (3) **Simplification Break protocol:** Replaced "STOP, escalate" with concrete solo-developer protocol: revert to known-good state, write simpler test case, implement simpler scope, iterate back to full scope. Transforms "I'm stuck" into "I'm decomposing." Updated Quick Reference with Pre-0 (FIRST!) row. Updated all section headers to v2.14. |
+| 2.15 | 2025-12-05 | **Asset reality check + timeline correction (Code-verified gaps):** Exploration agents examined actual code to verify v2.12 review claims. (1) **Fee calculations:** Client has 1/3 basis methods (MVP only), server has 6/6 complete. Type chaos identified (3 conflicting schemas). Added fee consolidation task to Phase 3 (+1 day). (2) **Waterfall clawback:** Confirmed MISSING entirely - schema exists but no calculation logic. Extended Phase 4 from 3-4 days to 7-10 days. (3) **Phase 0B scope:** Verified 7-9 distinct contexts (not 6). Added 1-day buffer (3-4 days total). (4) **Slip rules relaxed:** 3→5 days per-phase, 10→15 days cumulative (solo developer context-switching). (5) **Operational frameworks added:** AI Ceremony Decision Tree, Truth Source Hierarchy. Timeline updated: 6-8 weeks → 8-10 weeks (realistic). Success probability: 95-98% → 90-95% (honest assessment). |
 
 **This plan supersedes:**
 - PHOENIX-PLAN-2025-11-30.md
