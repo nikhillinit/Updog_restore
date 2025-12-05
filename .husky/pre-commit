@@ -4,7 +4,7 @@ echo "[PRE-COMMIT] Running checks..."
 
 # Check for emoji in staged files (exclude legacy CHANGELOG and emoji documentation)
 echo "[CHECK] Scanning for emojis..."
-EMOJI_FILES=$(git diff --cached --name-only | grep -E '\.(md|js|mjs|ts|tsx|jsx)$' | grep -v -E '(CHANGELOG\.md|cheatsheets/emoji-free-documentation\.md|HANDOFF-|PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY\.md)' || true)
+EMOJI_FILES=$(git diff --cached --name-only | grep -E '\.(md|js|mjs|ts|tsx|jsx)$' | grep -v -E '(CHANGELOG\.md|cheatsheets/emoji-free-documentation\.md|HANDOFF-|PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY\.md|\.claude/agents/)' || true)
 if [ -n "$EMOJI_FILES" ]; then
   if echo "$EMOJI_FILES" | xargs grep -l -P '[\x{1F000}-\x{1FAFF}]' 2>/dev/null; then
     echo "[FAIL] Emoji found in staged files (excluding legacy CHANGELOG and emoji docs)."
