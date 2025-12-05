@@ -1,12 +1,12 @@
 # Phoenix: Truth-Driven Fund Calculation Rebuild
 
-**Version:** 2.15
+**Version:** 2.16
 **Date:** December 5, 2025
-**Timeline:** 8-10 weeks (realistic with asset gaps addressed)
+**Timeline:** 7-9 weeks (streamlined with ceremony reduction)
 **Status:** ACTIVE - Supersedes all prior Phoenix plans
 **Executor:** Solo Developer
 **Approach:** Leverage, Harden, Validate (not Rebuild)
-**Success Probability:** 90-95% with coding pairs + parallel agent validation
+**Success Probability:** 90-95% with coding pairs + minimal viable rigor
 
 ---
 
@@ -159,7 +159,208 @@ PRIORITY 3: Excel Spreadsheet (lowest - versioning risks)
 
 ---
 
-## v2.15 PRECISION ENFORCEMENT (Zero Rounding Errors)
+## v2.16 CEREMONY REDUCTION (Skill-Framework Verified)
+
+**Analysis Method:** Applied 4 skill frameworks (Inversion Thinking, Pattern Recognition, Extended Thinking, Continuous Improvement) to 8 recommendations.
+
+**Meta-Pattern Identified:** Solo developer overhead comes from over-application of sound principles, not from the principles themselves.
+
+**Core Principle:** "Minimum viable rigor" - Apply exactly what's needed per module, not blanket rules.
+
+### 1. Pre-Phase 0B: MOIC-Only (Not Global Inventory)
+
+**Before:** Inventory all truth case files + provenance + coverage (2-3 days)
+
+**After:** Create `docs/moic.truth-cases.json` with 4 canonical scenarios only (0.5-1 day)
+
+| Scenario | Purpose | Complexity |
+|----------|---------|------------|
+| Simple 2.0x | Happy path | LOW |
+| Partial write-off | Loss handling | MEDIUM |
+| Zero-distribution / all NAV | Edge case | MEDIUM |
+| Big single exit late in life | Realistic weird | MEDIUM |
+
+**Deferred:** Full TRUTH_CASE_INVENTORY.md until after Phase 2 (pattern proven)
+
+**Format Header (Required):**
+```json
+{
+  "version": "1.0",
+  "provenance": "Excel parity testing + POV Fund I",
+  "lastValidated": "2025-12-05",
+  "scenarios": [...]
+}
+```
+
+### 2. Module-Specific Validation Layer Matrix
+
+**Principle:** Don't apply all 4 layers everywhere. Apply minimum required per module.
+
+| Module | L1 (Plausibility) | L2 (Fund State) | L3 (Output Contract) | L4 (Instrumentation) | Rationale |
+|--------|-------------------|-----------------|----------------------|----------------------|-----------|
+| **MOIC (all 4)** | **Required** | Skip | **Required** | **Required** | Fund state doesn't change formula |
+| **Capital calls** | **Required** | **Required** | Skip | **Required** | Lifecycle stage matters |
+| **Fees** | **Required** | Skip | **Required** | **Required** | Valid ranges + formatting |
+| **IRR (XIRR)** | **Required** | Skip | Layer later | **Required** | State doesn't affect math |
+| **Waterfall** | **Required** | **Required** | **Required** | **Required** | Full validation (highest risk) |
+| **Reserves** | **Required** | Skip | Skip | **Required** | Planning logic only |
+
+**Rule:** Do NOT implement skipped layers in Phase 1-2. Add only when they block a real consumer.
+
+### 3. Consolidated Documentation: GROUND-TRUTH.md
+
+**Before:** 3+ separate docs (TRUTH_CASE_INVENTORY.md, ENGINE_AUDIT.md, TACTYC_ALIGNMENT.md)
+
+**After:** Single `docs/phoenix/GROUND-TRUTH.md` with sections:
+
+```markdown
+# Phoenix Ground Truth
+
+## 1. Engines & Locations
+[Engine locations, status, test coverage]
+
+## 2. Truth Cases & Coverage
+[Case counts per module, provenance, gaps]
+
+## 3. Tactyc Alignment Notes
+[Where we match/differ from Tactyc]
+
+## 4. Known Deviations vs Legacy
+[Accepted differences with rationale]
+```
+
+**Update Pattern:** "Update section X of GROUND-TRUTH.md" (not separate files)
+
+### 4. Narrowed AI Validation Tiers
+
+**Before:** Tier 3 (multi-AI consensus) for MOIC, fees, capital, IRR, waterfall
+
+**After:** Tier 3 only where human intuition is worst
+
+| Module | AI Tier | Validation |
+|--------|---------|------------|
+| **MOIC** | **Tier 1** | One spec review (does formula match Investopedia?) |
+| **Capital/Fees** | **Tier 1** | One AI pass per module (not per scenario) |
+| **IRR** | **Tier 3** | Newton-Raphson convergence issues |
+| **Waterfall** | **Tier 3** | Catch-up/clawback edge cases |
+
+**Gate Update:** "MOIC truth cases pass + POV fund matches + at least one AI GREEN" (not 2-3 all GREEN)
+
+### 5. Minimal Viable Shadow Mode (Phase 6)
+
+**Before:** Metrics per calculation, circuit-breaker, timeout heuristics, sampling knobs
+
+**After:** Minimal viable version for first rollout:
+
+```typescript
+function calculateWithShadow(newFn, legacyFn, input, context) {
+  const legacyResult = legacyFn(input);
+
+  if (phoenixEnabled) {
+    setTimeout(() => {
+      const phoenixResult = newFn(input);
+      const delta = Math.abs(phoenixResult - legacyResult);
+      if (delta > threshold) {
+        logger.warn({
+          correlationId: context.correlationId,
+          calculationType: context.type,
+          delta,
+          legacy: legacyResult,
+          phoenix: phoenixResult
+        });
+      }
+    }, 0);
+  }
+
+  return legacyResult; // Always return legacy during shadow
+}
+```
+
+**Manual Rollback:** If >N warnings/day, set rolloutPercentage = 0 and investigate.
+
+**Deferred to Phase 6.1+:** Metrics, circuit-breaker, automatic sampling
+
+### 6. Merged Phase: Cashflows & Fees (was Phases 2 + 3)
+
+**Rationale:** Fee basis methods (`called_capital_cumulative`, `invested_capital`) depend directly on capital call data structures. Tight coupling verified in code.
+
+**Before:**
+- Phase 2: Capital ops (5-7 days)
+- Phase 3: Fees (2-3 days)
+
+**After:**
+- Phase 2: Cashflows & Fees (6-8 days total)
+
+**Sub-Steps:**
+1. Implement capital call/distribution timeline
+2. Implement one canonical fee basis (Net Cumulative Called)
+3. Add remaining 2-3 fee bases on stable timeline
+4. Wire both into same test fixtures + POV fund scenarios
+
+**Exit Gate:** 3 capital scenarios + 4 fee bases pass, wired to API
+
+### 7. "Good Enough" Clause (Early Phases)
+
+**Problem:** Risk of blocking on pathological edge cases that don't affect production.
+
+**Materiality Thresholds:**
+
+| Deviation | Action |
+|-----------|--------|
+| Within tolerance | **PASS** |
+| Outside tolerance but <$100 | **Document in Known Deviations, PROCEED** |
+| Material deviation (>$100 or >0.1%) | **BLOCK, investigate** |
+
+**Phase 1 (MOIC) Example:**
+- **Required:** POV fund scenario + 3-4 canonical truth cases pass
+- **Non-blocking:** Exotic edge cases (document any failures in Known Deviations)
+
+**Known Deviations Format:**
+```markdown
+## 4. Known Deviations vs Legacy
+
+| Scenario | Deviation | Reason | Impact | Resolution |
+|----------|-----------|--------|--------|------------|
+| Zero-distribution edge | $0.37 | Rounding method | Immaterial | Accepted |
+```
+
+### 8. Minor Clean-ups
+
+**a. "One Thing" as First Checkbox:**
+```
+[ ] What is the ONE thing I'm shipping today?  ← FIRST
+[ ] Which phase am I in?
+[ ] Have I checked EXISTING ENGINES first?
+...
+```
+
+**b. Note Waterfall Work Underway:**
+Add to Phase 4: "Waterfall numeric implementation is already underway; this phase focuses on validation + wiring, not greenfield math."
+
+**c. Mark Completed Sections:**
+- TypeScript triage: **[COMPLETED]** - 454 errors fixed
+- Engine existence verification: **[COMPLETED]** - 6 engines verified
+
+---
+
+## v2.16 REVISED TIMELINE (Ceremony-Reduced)
+
+| Phase | v2.15 | v2.16 | Change |
+|-------|-------|-------|--------|
+| Pre-0 (FIRST!) | 0.5 | 0.5 | unchanged |
+| Pre-0 (Truth cases) | 2-3 | **1** | MOIC-only, not global |
+| 0A | 3-4 | 3-4 | unchanged |
+| 0B | 3-4 | **2-3** | Layer matrix reduces scope |
+| 1 (MOIC) | 3-4 | 3-4 | unchanged |
+| 2+3 (Cashflows & Fees) | 7-10 | **6-8** | Merged, less rework |
+| 4 (Waterfall + Clawback) | 7-10 | 7-10 | unchanged |
+| 5 (IRR) | 1-2 | 1-2 | unchanged |
+| 6 (Shadow) | 5-7 | **3-5** | Minimal viable shadow |
+| **Total** | **33-48** | **27-40** | **7-9 weeks** |
+
+---
+
+## v2.16 PRECISION ENFORCEMENT (Zero Rounding Errors)
 
 **Problem:** Mixed precision strategies (BigInt in DB, parseFloat in routes) create P0 bugs.
 
@@ -561,26 +762,28 @@ Layer adoption is **progressive**, not all-or-nothing. L3 only required for **ex
 - "Warn-only" = Layer 2 logs violations but doesn't block calculation. Upgrade to enforced by Phase 2.
 - "External only" = L3 contracts only for fields that leave the system (CSV/API/LP report) in this phase. Internal intermediates skip L3 until Phase 4.
 
-### Quick Reference (v2.15 Realistic Timeline with Asset Gaps)
+### Quick Reference (v2.16 Ceremony-Reduced Timeline)
 
-| Phase | Days | Focus | Exit Gate | v2.15 Changes |
+| Phase | Days | Focus | Exit Gate | v2.16 Changes |
 |-------|------|-------|-----------|---------------|
 | **Pre-0 (FIRST!)** | **0.5** | **jest-dom fix** | **Test runner green** | v2.14: MANDATORY FIRST |
-| Pre-0 | 2-3 | MOIC truth cases + baseline:save | Truth cases exist, TS baseline updated | unchanged |
-| 0A | 3-4 | Read & Decide + precision audit | ENGINE_AUDIT complete, precision resolved | unchanged |
-| 0B | **3-4** | Validation scaffolds + Phoenix flags | L1/L4 scaffolds, flags defined | **+1 day buffer** (7-9 contexts) |
-| 1 | 3-4 | MOIC (Coding Pairs + Test Pairing) | 4 variants pass, API wired | unchanged |
-| 2 | 5-7 | Capital (10-15 line review cycles) | 3 scenarios validated | unchanged |
-| 3 | **2-3** | Fees + type consolidation + merge | 4 fee basis, types aligned, branch merged | **+1 day** (fee type chaos) |
-| 4 | **7-10** | Waterfall + **CLAWBACK** | American carry + clawback validated | **+5-7 days** (clawback missing) |
-| 5 | 1-2 | IRR (leverage existing 25 cases) | All edge cases pass | unchanged |
-| 6 | 5-7 | Shadow + parallel validation | 100% rollout, 6-agent validation | unchanged |
-| **Total** | **33-48** | | | **8-10 weeks realistic** |
+| Pre-0 | **1** | **MOIC truth cases only** (4 scenarios) | moic.truth-cases.json exists | **-1-2 days** (MOIC-only) |
+| 0A | 3-4 | Read & Decide + precision audit | GROUND-TRUTH.md section 1 complete | Consolidated docs |
+| 0B | **2-3** | **Module-specific scaffolds** | L1/L4 per matrix, flags defined | Layer matrix reduces scope |
+| 1 | 3-4 | MOIC (Tier 1 AI only) | 4 variants pass, POV fund matches | AI reduced to Tier 1 |
+| **2** | **6-8** | **Cashflows & Fees (merged)** | 3 capital + 4 fee bases pass | **Phases 2+3 merged** |
+| ~~3~~ | ~~-~~ | ~~(absorbed into Phase 2)~~ | - | Merged |
+| 4 | 7-10 | Waterfall + CLAWBACK | American carry + clawback validated | Clawback implementation |
+| 5 | 1-2 | IRR (Tier 3, leverage 25 cases) | All edge cases pass | Tier 3 for IRR |
+| 6 | **3-5** | **Minimal shadow mode** | 100% rollout, manual rollback ready | **-2-3 days** (minimal viable) |
+| **Total** | **27-40** | | | **7-9 weeks** |
 
-**v2.15 Timeline Adjustments:**
-- Phase 0B: +1 day buffer for 7-9 distinct contexts
-- Phase 3: +1 day for fee type consolidation (3 conflicting schemas)
-- Phase 4: +5-7 days for clawback implementation (calculation logic missing entirely)
+**v2.16 Key Changes (Ceremony Reduction):**
+- Pre-Phase 0: MOIC-only truth cases (defer global inventory until pattern proven)
+- Phase 0B: Layer matrix reduces validation scope per module
+- Phases 2+3: Merged into "Cashflows & Fees" (tight coupling, less rework)
+- Phase 6: Minimal viable shadow mode (defer sophistication to 6.1+)
+- AI: Tier 1 for MOIC/Capital/Fees, Tier 3 only for IRR/Waterfall
 
 **Critical Insight:** Engine existence ≠ correctness ≠ production-ready. Audit before assuming leverage.
 
@@ -2509,6 +2712,7 @@ Track per-phase in a simple Markdown table (no script needed):
 | 2.13 | 2025-12-04 | **Workflow optimization + agent-verified corrections (MAJOR):** 5 parallel exploration agents verified review claims, found critical corrections. (1) TypeScript: ALL 454 errors FIXED (not "exist as claimed") - Phase 0B reduced from 5-7 to 2-3 days. (2) Phoenix branch: NOT production-ready (jest-dom blocker at jsdom-setup.ts:6). (3) Excel-parity: On current branch, NOT main - cherry-pick only (1,277 files, not "30+"). (4) Precision inconsistency: NEW blocker at portfolio-route.ts:433-436 (parseFloat vs BigInt). Added CODING PAIRS PROTOCOL (10-20 line review cycles, Test Pairing, 6-agent pre-commit stack, phase-specific review frequency). Added PARALLEL AGENT STRATEGY (87% time savings, Phase 6 parallel validation). Added DAILY PHOENIX WORKFLOW (enhanced Flight Card, emergency procedures). Added MAX 3 ITERATIONS RULE from evaluator-optimizer. Timeline: 6-8 weeks (from 8-10). Success probability: 95-98% (from 90-95%). Key insight: Review made same interpretation error it claimed to correct. |
 | 2.14 | 2025-12-05 | **Solo developer refinements (3 critical fixes):** (1) **Jest-dom timing:** Elevated from HIGH to CRITICAL, moved from Pre-Phase 3 to Pre-Phase 0 (MANDATORY FIRST). Rationale: Cannot do Test Pairing with broken test runner - no calculation code until test runner is green. (2) **Precision enforcement:** Added PRECISION ENFORCEMENT section with `toFinancial()` function at Layer 1. Mandated Decimal.js for all internal calculations. Banned parseFloat from calculation layer (allowed at UI boundary only). Added Phase 0A precision audit checklist with banned patterns. (3) **Simplification Break protocol:** Replaced "STOP, escalate" with concrete solo-developer protocol: revert to known-good state, write simpler test case, implement simpler scope, iterate back to full scope. Transforms "I'm stuck" into "I'm decomposing." Updated Quick Reference with Pre-0 (FIRST!) row. Updated all section headers to v2.14. |
 | 2.15 | 2025-12-05 | **Asset reality check + timeline correction (Code-verified gaps):** Exploration agents examined actual code to verify v2.12 review claims. (1) **Fee calculations:** Client has 1/3 basis methods (MVP only), server has 6/6 complete. Type chaos identified (3 conflicting schemas). Added fee consolidation task to Phase 3 (+1 day). (2) **Waterfall clawback:** Confirmed MISSING entirely - schema exists but no calculation logic. Extended Phase 4 from 3-4 days to 7-10 days. (3) **Phase 0B scope:** Verified 7-9 distinct contexts (not 6). Added 1-day buffer (3-4 days total). (4) **Slip rules relaxed:** 3→5 days per-phase, 10→15 days cumulative (solo developer context-switching). (5) **Operational frameworks added:** AI Ceremony Decision Tree, Truth Source Hierarchy. Timeline updated: 6-8 weeks → 8-10 weeks (realistic). Success probability: 95-98% → 90-95% (honest assessment). |
+| 2.16 | 2025-12-05 | **Ceremony reduction (Skill-framework verified):** Applied 4 skill frameworks (Inversion Thinking, Pattern Recognition, Extended Thinking, Continuous Improvement) to 8 recommendations. Meta-pattern: Solo dev overhead from over-application of sound principles. (1) **Pre-Phase 0B:** MOIC-only (4 scenarios), defer global inventory until pattern proven (-1-2 days). (2) **Module-specific layer matrix:** L1+L3+L4 for MOIC/Fees, L1+L2+L4 for Capital, full L1-L4 only for Waterfall. (3) **Consolidated docs:** GROUND-TRUTH.md replaces 3 separate files. (4) **Narrowed AI:** Tier 1 for MOIC/Capital/Fees, Tier 3 only for IRR/Waterfall. (5) **Minimal shadow mode:** Dual-calc + logging + manual rollback; defer metrics/circuit-breaker to Phase 6.1+. (6) **Merged phases:** Phases 2+3 become "Cashflows & Fees" (6-8 days total, less rework). (7) **"Good enough" clause:** Materiality threshold (<$100 = document and proceed). (8) **Clean-ups:** "One Thing" first checkbox, waterfall note, mark completed sections. Timeline: 8-10 weeks → 7-9 weeks. Core principle: "Minimum viable rigor" - apply exactly what's needed per module. |
 
 **This plan supersedes:**
 - PHOENIX-PLAN-2025-11-30.md
