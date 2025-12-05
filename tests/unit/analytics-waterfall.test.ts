@@ -117,7 +117,7 @@ describe('Waterfall Edge Cases', () => {
 });
 
 describe('Fund-Level Clawback', () => {
-  it('should clawback all GP carry when fund earns less than 1.0x (LP not made whole)', () => {
+  it('should have no carry to clawback when fund is below 1.0x (loss scenario)', () => {
     // Fund earns 0.8x - LPs are not made whole, all carry should be clawed back
     const config = {
       carryPct: 0.2,
@@ -139,7 +139,7 @@ describe('Fund-Level Clawback', () => {
     expect(result.totals.dpi).toBe(0.8);
   });
 
-  it('should clawback carry when total fund profit exists but LP below floor', () => {
+  it('should not clawback when LP is above floor despite positive carry', () => {
     // Fund with multiple exits: first exit returns some capital,
     // second exit generates carry, but total LP distributions below 1.0x
     const config = {
@@ -371,5 +371,44 @@ describe('Fund-Level Clawback', () => {
     expect(result.totals.gpCarryTotal).toBe(0);
     expect(result.totals.gpClawback).toBeUndefined();
     expect(result.totals.dpi).toBe(0.9);
+  });
+
+  it('should clawback 100% of carry when LP shortfall exceeds total fund profit', () => {
+    // Scenario: LP needs 1.2x (20% hurdle), fund profits exist but insufficient
+    // Tests branch: allowedGpCarry = totalFundProfit > lpShortfall ? ... : 0
+    const config = {
+      carryPct: 0.2,
+      clawbackEnabled: true,
+      clawbackLpHurdleMultiple: 1.2, // LP must receive 1.2M
+    };
+    const contributions = [{ quarter: 1, amount: 1000000 }];
+    // Fund returns 1.1M total - generates some carry but LP still below floor
+    const exits = [{ quarter: 4, grossProceeds: 1100000 }];
+
+    const result = calculateAmericanWaterfallLedger(config, contributions, exits);
+
+    // Exit: lpCapitalReturn = 1M, remaining = 100K
+    //   gpCarry = 20K, lpProfitShare = 80K
+    //   distributed = 1M + 80K = 1.08M
+    // LP floor = 1.2M, LP current = 1.08M
+    // Total fund profit = 1.08M + 20K - 1M = 100K
+    // LP shortfall = 1.2M - 1.08M = 120K
+    // Since totalFundProfit (100K) <= lpShortfall (120K): allowedGpCarry = 0
+    // Full clawback: gpClawback = 20K - 0 = 20K
+
+    expect(result.totals.paidIn).toBe(1000000);
+    expect(result.totals.gpCarryTotal).toBe(20000);
+    expect(result.totals.gpClawback).toBe(20000); // Full carry clawed back
+    expect(result.totals.gpCarryNet).toBe(0); // GP keeps nothing
+    // After clawback, LP receives all 1.1M
+    expect(result.totals.distributed).toBe(1100000);
+    expect(result.totals.dpi).toBeCloseTo(1.1, 3);
+
+    // Verify clawback row exists
+    expect(result.rows).toHaveLength(2);
+    const clawbackRow = result.rows[1];
+    expect(clawbackRow.gpClawback).toBe(20000);
+    expect(clawbackRow.gpCarry).toBe(-20000); // GP returns all carry
+    expect(clawbackRow.lpCapitalReturn).toBe(20000); // LP receives clawback
   });
 });
