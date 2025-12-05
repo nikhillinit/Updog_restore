@@ -84,20 +84,18 @@ export function calculateAmericanWaterfallLedger(
   const recycleWindow = cfg.recyclingWindowQuarters ?? 0;
   const recycleTakePct = Math.max(0, Math.min(1, cfg.recyclingTakePctPerEvent ?? 0.5));
 
+  // Defensive sort to ensure chronological processing
+  const sortedContribs = [...contributions].sort((a, b) => a.quarter - b.quarter);
+  const sortedExits = [...exits].sort((a, b) => a.quarter - b.quarter);
+
   // Precompute cumulative paid-in per quarter
   const contribByQuarter = new Map<number, number>();
-  for (const c of contributions) {
-    contribByQuarter['set'](
-      c.quarter,
-      (contribByQuarter['get'](c.quarter) ?? 0) + Math.max(0, c.amount)
-    );
+  for (const c of sortedContribs) {
+    contribByQuarter.set(c.quarter, (contribByQuarter.get(c.quarter) ?? 0) + Math.max(0, c.amount));
   }
 
   // Determine committed (for recycle cap)
-  const committed = contributions.reduce(
-    (s: number, c: ContributionCF) => s + Math.max(0, c.amount),
-    0
-  );
+  const committed = sortedContribs.reduce((sum, c) => sum + Math.max(0, c.amount), 0);
 
   let paidIn = 0;
   let distributed = 0;
@@ -112,18 +110,18 @@ export function calculateAmericanWaterfallLedger(
     return { unrealized, dpi, tvpi };
   };
 
-  // Update paid-in for quarters with exits (and any earlier quarters if sparse)
+  // Update paid-in for all contributions up to and including a given quarter
   const updatePaidInUpTo = (quarter: number) => {
     for (const [q, amt] of contribByQuarter) {
       if (q <= quarter && amt > 0) {
         paidIn += amt;
-        contribByQuarter['set'](q, 0);
+        contribByQuarter.set(q, 0);
       }
     }
   };
 
   const rows: WaterfallRow[] = [];
-  for (const ev of exits) {
+  for (const ev of sortedExits) {
     const q = ev.quarter;
     const gross = Math.max(0, ev.grossProceeds);
 
@@ -150,7 +148,7 @@ export function calculateAmericanWaterfallLedger(
 
     // Step 3: optional recycling (skim from LP proceeds this event)
     let recycledAmount = 0;
-    if (recycleOn && q <= recycleWindow && recycleCap > 0) {
+    if (recycleOn && q <= recycleWindow && recycleCap > 0 && committed > 0) {
       const maxCapDollars = committed * recycleCap;
       const room = Math.max(0, maxCapDollars - recycled);
       const availableForRecycling = lpCapitalReturn + lpProfitShare;
@@ -198,15 +196,17 @@ export function calculateAmericanWaterfallLedger(
     // Current LP outcome in cash
     const lpCurrent = distributed;
 
-    // If LPs are below their floor, some or all GP carry must be clawed back
-    if (totalFundProfit > 0 && lpCurrent < lpRequiredFloor) {
+    // If LPs are below floor, clawback may be required
+    if (lpCurrent < lpRequiredFloor) {
       // How many dollars are LPs short of their floor?
       const lpShortfall = lpRequiredFloor - lpCurrent;
 
-      // At fund level, GP is entitled to at most carry% of *fund profit above LP floor*.
-      // If LPs haven't even hit the floor, allowed carry is zero.
-      const allowedGpCarry =
-        totalFundProfit > lpShortfall ? carry * (totalFundProfit - lpShortfall) : 0;
+      // Profit available *above* the floor:
+      // if totalFundProfit <= lpShortfall, LPs never reach the floor → GP gets zero carry.
+      const profitAboveFloor = Math.max(0, totalFundProfit - lpShortfall);
+
+      // GP is entitled to carry% of profit above floor, but never negative.
+      const allowedGpCarry = carry * profitAboveFloor;
 
       // Any excess over allowedGpCarry is clawback.
       gpClawback = Math.max(0, gpCarryTotal - allowedGpCarry);
@@ -217,7 +217,7 @@ export function calculateAmericanWaterfallLedger(
         distributed += gpClawback; // LPs receive clawed-back cash
 
         // Create synthetic clawback row at the end of the ledger
-        const lastExit = exits[exits.length - 1];
+        const lastExit = sortedExits[sortedExits.length - 1];
         const clawbackQuarter = lastExit ? lastExit.quarter : 0;
         const runAfter = mkRunning();
 

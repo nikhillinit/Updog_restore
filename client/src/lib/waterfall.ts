@@ -123,3 +123,15 @@ export function createDefaultWaterfall(overrides?: Partial<Waterfall>): Waterfal
     ...overrides,
   });
 }
+
+// ──────────────────────────────────────────────────────────────
+// Phoenix: American waterfall ledger exports
+// ──────────────────────────────────────────────────────────────
+
+export {
+  calculateAmericanWaterfallLedger,
+  type AmericanWaterfallConfig,
+  type AmericanWaterfallResult,
+  type ContributionCF,
+  type ExitCF,
+} from './waterfall/american-ledger';
