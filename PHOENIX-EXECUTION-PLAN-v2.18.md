@@ -76,13 +76,13 @@ All metrics below have been independently verified via direct codebase inspectio
 
 ---
 
-## Phase 0: Reality Check (8-12 hours)
+## Phase 0: Reality Check (9.5-13 hours)
 
 **Goal:** Determine what actually works before planning fixes.
 
-**Duration:** 8-12 hours (1-1.5 days)
-- Best case: 8 hours (test suite healthy, runners exist)
-- Slip case: 12 hours (runner issues, infrastructure fixes needed)
+**Duration:** 9.5-13 hours (1-1.5 days)
+- Best case: 9.5 hours (test suite healthy, spot-check passes)
+- Slip case: 13 hours (runner issues, spot-check finds oracle errors)
 
 ### Morning: Environment Setup (4 hours)
 
@@ -131,9 +131,38 @@ Categorize each failing test:
 
 **Document in:** `docs/phase0-test-analysis.md`
 
-### Afternoon: Truth Case Validation (4 hours)
+### Afternoon: Truth Case Validation (5.5 hours)
 
-#### Step 0.4: Run Existing Truth Case Runners (1 hour)
+#### Step 0.4: Truth Case Spot-Check (1.5 hours) - CRITICAL
+
+**Goal:** Independent verification of 5 high-risk scenarios BEFORE automated validation.
+
+**Why This Cannot Be Skipped:**
+- Automated runner validates CODE against ORACLES
+- If oracles are wrong, runner cannot detect it (Oracle Problem)
+- Capital Allocation: 1,381 lines, unclear validation provenance
+- Waterfall clawback: Recently added, needs verification
+
+**Method:** Use DIFFERENT tool than original creation (Excel/hand-calc)
+
+**Scope (5 scenarios):**
+
+| Scenario | Module | Verification Method | Time |
+|----------|--------|---------------------|------|
+| CA-001 | Capital Allocation | Excel: 20% of 100 = 20 reserve | 15 min |
+| CA-013 | Capital Allocation | Hand-calc: reserve override | 20 min |
+| L08 | Waterfall Ledger | Ledger trace: partial clawback | 20 min |
+| FEE-001 | Fees | Arithmetic: 2% of commitment | 10 min |
+| XIRR-01 | XIRR | Excel XIRR() function | 15 min |
+
+**Deliverable:** `docs/phase0-truth-case-audit.md`
+
+**Decision Gate:**
+- All 5 match → Proceed with runner (confidence +50%)
+- 1-2 discrepancies → Fix truth cases, re-verify
+- 3+ discrepancies → STOP - truth case generation process is broken
+
+#### Step 0.5: Run Existing Truth Case Runners (1 hour)
 
 ```bash
 # Waterfall tier-based (15 scenarios)
@@ -150,7 +179,7 @@ find tests -name "*truth*" -o -name "*golden*"
 - XIRR: X/25 passing
 - Waterfall (tier): X/15 passing
 
-#### Step 0.5: Build Missing Module Runners (2 hours)
+#### Step 0.6: Build Missing Module Runners (2 hours)
 
 Create `tests/truth-cases/truth-case-runner.test.ts`:
 
@@ -186,7 +215,7 @@ describe('Waterfall Ledger Truth Cases', () => {
 });
 ```
 
-#### Step 0.6: Run Full Truth Case Suite (30 min)
+#### Step 0.7: Run Full Truth Case Suite (30 min)
 
 ```bash
 # Run all truth case tests
@@ -208,7 +237,7 @@ npm test -- --grep "Truth Case" 2>&1 | tee truth-case-results.txt
 | Exit Recycling | 20 | X | X | X% |
 | **Total** | **105** | X | X | **X%** |
 
-#### Step 0.7: Waterfall Implementation Wiring Check (30 min)
+#### Step 0.8: Waterfall Implementation Wiring Check (30 min)
 
 Verify both waterfall implementations are correctly wired:
 
@@ -225,7 +254,7 @@ grep "calculateAmericanWaterfallLedger" tests/truth-cases/truth-case-runner.test
 
 **Document:** Which API is used where (production vs legacy)
 
-#### Step 0.8: Phase 0 Decision Gate (30 min)
+#### Step 0.9: Phase 0 Decision Gate (30 min)
 
 Based on findings, determine path:
 
@@ -881,22 +910,38 @@ npm run deploy:production
 |---------|------|--------|---------|
 | v2.18 | 2025-12-09 | Solo Developer | Initial validation-first plan |
 | v2.19 | 2025-12-09 | Solo Developer | Integrated feedback: moved runner to Phase 0, added wiring check, updated truth cases to 105 |
+| v2.20 | 2025-12-09 | Solo Developer | Added truth case spot-check after multi-AI consensus review |
 
 ### v2.19 Changes
 
 **Accepted from feedback:**
 1. Move truth-case runner build from Phase 1A to Phase 0 (eliminates duplication)
-2. Add waterfall implementation wiring check (Step 0.7)
-3. Adjust Phase 0 timing to "8-12 hours" (honest expectations)
+2. Add waterfall implementation wiring check (Step 0.8)
+3. Adjust Phase 0 timing (honest expectations)
 4. Add truth case CI workflow template
 
 **Already completed:**
 - Created `docs/waterfall-ledger.truth-cases.json` (15 clawback scenarios)
 - Updated truth case count from 90 to 105
 
-**Rejected from feedback:**
-- Path overlap refactoring (current DRY-via-reference optimal for solo dev)
-- 2-3 hour manual spot-check (excessive overhead, runner catches errors)
+### v2.20 Changes
+
+**Reconsidered after multi-AI consensus review:**
+
+The "Oracle Problem" argument is valid: automated runners cannot detect errors in truth cases themselves. If oracles are wrong, runner validates wrong behavior as "correct".
+
+**Added:**
+1. Step 0.4: Truth Case Spot-Check (1.5 hours) - Independent verification of 5 high-risk scenarios
+2. Updated Phase 0 timing: 8-12h → 9.5-13h
+
+**Rationale for reversal:**
+- Capital Allocation: 1,381 lines with unclear validation provenance
+- Cost-benefit: 1.5h overhead vs potential 2-3 weeks debugging wrong oracles
+- Defense-in-depth: Spot-check catches systematic oracle generation errors
+
+**Still rejected:**
+- 2-3 hour spot-check (reduced to 1.5 hours, 5 scenarios sufficient)
+- Path overlap refactoring (current DRY-via-reference optimal)
 
 ---
 
