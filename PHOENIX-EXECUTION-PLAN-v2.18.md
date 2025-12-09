@@ -1,4 +1,4 @@
-# Phoenix Execution Plan v2.x (current: v2.26)
+# Phoenix Execution Plan v2.x (current: v2.27)
 
 **Date:** December 9, 2025
 **Status:** ACTIVE - Ready for Execution
@@ -49,6 +49,7 @@ This plan validates and hardens 6 financial calculation modules through empirica
 - Within a Phase, only one module is "hot" at a time (e.g., "today is Waterfall")
 - No starting work on the next Phase until the current Phase's exit gate checklist is fully ticked
 - Context switches between modules require explicit handoff notes
+- If any truth-case runner exceeds ~50-60 lines of glue logic, factor shared helpers into `tests/truth-cases/validation-helpers.ts` before adding new behavior
 
 ---
 
@@ -476,6 +477,8 @@ describe('Waterfall Cross-Validation', () => {
 - All scenarios match → Proceed (confidence in both implementations)
 - Discrepancies found → Document which engine is correct, prioritize fix
 
+> **Limitation:** This cross-validation only covers simple single-exit tier scenarios. It does **not** validate recycling, multi-exit timing, or clawback behavior, which are covered only by the ledger truth cases.
+
 #### Step 0.9: Phase 0 Decision Gate (30 min)
 
 **Module-aware thresholds** (not just aggregate):
@@ -551,7 +554,7 @@ REASON: [Based on findings above]
 
 ---
 
-## Phase 1A: Cleanup Path (Days 2-7)
+## Phase 1A: Cleanup Path (Days 2-8)
 
 **Condition:** test_pass_rate >= 70% AND truth_case_pass_rate >= 80%
 
@@ -766,6 +769,35 @@ Validating modules in isolation may miss integration bugs.
 
 **Decision:** If integration issues found, document and prioritize for Phase 1B.
 
+### Step 1A.8a: Fix `clawbackLpHurdleMultiple` JSDoc (30 min)
+
+**Goal:** Align code-level documentation with the semantics documented in this plan.
+
+**Target file:** `client/src/lib/waterfall/american-ledger.ts`
+
+**Issue:** The current JSDoc for `clawbackLpHurdleMultiple` implies Option B (hard floor: "no carry until LP >= floor") but the implementation uses Option A (shortfall-based partial clawback).
+
+**Updated JSDoc:**
+
+```typescript
+/**
+ * Fund-level clawback target for LP outcome, expressed as an LP multiple.
+ *
+ * Example:
+ *   1.0  => target LP net multiple is at least 1.0x paid-in.
+ *   1.1  => target LP net multiple is at least ~1.1x.
+ *
+ * The current implementation uses a shortfall-based, partial clawback:
+ *   - It computes total fund profit and LP shortfall vs this floor.
+ *   - It then limits GP's KEEPABLE carry based on profit above the shortfall.
+ *   - In some edge cases, LP may remain slightly below this multiple even after clawback.
+ *
+ * Non-goal: a strict "no carry until LP >= floor" hard-stop or multi-period escrow.
+ */
+```
+
+**Why this matters:** L08 truth case explicitly demonstrates LP below floor (1.04x vs 1.1x target) with GP still keeping some carry (16K net after 4K clawback). Without updated JSDoc, future developers may assume the hard floor semantics and file false bugs.
+
 ### Phase 1A Exit Criteria
 
 - [ ] All 105 truth cases pass
@@ -775,6 +807,12 @@ Validating modules in isolation may miss integration bugs.
 - [ ] P0 parseFloat issues addressed
 - [ ] Integration smoke test passed (or issues documented)
 - [ ] Deployed to staging
+
+### Phase 1A/1B Deferred Tasks
+
+The following tasks are explicitly deferred to keep Phase 0 lean:
+
+- **Truth case JSON canonicalization:** Introduce `docs/waterfall-ledger.truth-cases.canonical.json` (or normalize the existing JSON) once the runner is stable. This will strip `notes` from `expected.totals`, normalize `gpClawback` null/undefined handling, and optionally convert L14/L15 into proper automated or purely manual scenarios.
 
 ---
 
@@ -1332,6 +1370,7 @@ npm run deploy:production
 | v2.24 | 2025-12-09 | Solo Developer | Fixed module/truth-case mismatch, added module-aware gates, triage rules, execution discipline |
 | v2.25 | 2025-12-09 | Solo Developer | Documented clawback semantics, truth case JSON issues, runner enhancement pattern |
 | v2.26 | 2025-12-09 | Solo Developer | Fixed clawback formula, expanded runner pattern for L04/row checks, added integration test phase |
+| v2.27 | 2025-12-09 | Solo Developer | Added timing buffer, cross-validation limitation note, complexity rule, explicit JSDoc fix task |
 
 ### v2.19 Changes
 
@@ -1575,6 +1614,40 @@ The "Oracle Problem" argument is valid: automated runners cannot detect errors i
 **Rejected:**
 - Full JSON schema validation (overkill for 15 scenarios)
 - Automated L14/L15 completion (placeholder cleanup is separate task)
+
+### v2.27 Changes
+
+**Feedback source:** Final refinement review with internal contradiction analysis
+
+**Accepted edits (minimal, high-leverage):**
+
+1. **Phase 1A timing buffer**
+   - Changed "Days 2-7" → "Days 2-8"
+   - Rationale: Small buffer for paper cuts (doc fixes, CI flakiness) without schedule lies
+
+2. **Step 0.10 limitation note**
+   - Added caveat: cross-validation only covers single-exit tier scenarios
+   - Does NOT validate recycling, multi-exit timing, or clawback (ledger-only)
+
+3. **Execution Discipline complexity rule**
+   - Added: "If runner exceeds ~50-60 lines, factor into validation-helpers.ts"
+   - Protects elegance without forcing immediate abstraction
+
+4. **Explicit JSDoc fix task (Step 1A.8a)**
+   - Made `clawbackLpHurdleMultiple` JSDoc fix a first-class Phase 1A task
+   - Includes proposed JSDoc text with Option A (shortfall-based) semantics
+
+5. **Deferred canonicalization note**
+   - Added "Phase 1A/1B Deferred Tasks" section
+   - Records canonicalization as explicit deferred work, not forgotten
+
+**Rejected (reviewer's own contradiction):**
+
+- Step 0.3.5 "Canonicalize ledger truth cases NOW" - Reviewer's Section 3.1 said defer to Phase 1A
+- Full validation-helpers.ts code NOW - Reviewer said "Medium priority, Phase 1A"
+- Rewrite Steps 0.6/0.8 with helper references - Current version sufficient for Phase 0
+
+**Key insight:** The feedback contained internal contradictions. Section 3 recommended deferring canonicalization and helpers to Phase 1A, but Section A provided full code to add NOW. We followed Section 3's "keep Phase 0 lean" recommendation.
 
 ---
 
