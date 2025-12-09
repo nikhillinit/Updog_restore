@@ -1,0 +1,446 @@
+[
+  {
+    "scenario": "L01-basic-no-carry",
+    "tags": ["baseline", "ledger"],
+    "notes": "Basic waterfall with zero carry - LP gets all proceeds",
+    "source": "Migrated from tests/unit/analytics-waterfall.test.ts",
+    "input": {
+      "config": {
+        "carryPct": 0
+      },
+      "contributions": [
+        { "quarter": 1, "amount": 1000000 }
+      ],
+      "exits": [
+        { "quarter": 4, "grossProceeds": 1000000 }
+      ]
+    },
+    "expected": {
+      "totals": {
+        "paidIn": 1000000,
+        "distributed": 1000000,
+        "gpCarryTotal": 0,
+        "dpi": 1.0,
+        "tvpi": 1.0
+      }
+    }
+  },
+  {
+    "scenario": "L02-carry-on-profits",
+    "tags": ["baseline", "carry"],
+    "notes": "20% carry on 2x return - GP gets 20% of profits",
+    "source": "Migrated from tests/unit/analytics-waterfall.test.ts",
+    "input": {
+      "config": {
+        "carryPct": 0.2
+      },
+      "contributions": [
+        { "quarter": 1, "amount": 1000000 }
+      ],
+      "exits": [
+        { "quarter": 4, "grossProceeds": 2000000 }
+      ]
+    },
+    "expected": {
+      "totals": {
+        "paidIn": 1000000,
+        "distributed": 1800000,
+        "gpCarryTotal": 200000,
+        "dpi": 1.8
+      }
+    }
+  },
+  {
+    "scenario": "L03-multiple-exits",
+    "tags": ["multi-exit", "ledger"],
+    "notes": "Two exits - first returns capital, second generates carry",
+    "source": "Migrated from tests/unit/analytics-waterfall.test.ts",
+    "input": {
+      "config": {
+        "carryPct": 0.2
+      },
+      "contributions": [
+        { "quarter": 1, "amount": 500000 },
+        { "quarter": 2, "amount": 500000 }
+      ],
+      "exits": [
+        { "quarter": 4, "grossProceeds": 800000 },
+        { "quarter": 8, "grossProceeds": 1500000 }
+      ]
+    },
+    "expected": {
+      "totals": {
+        "paidIn": 1000000
+      },
+      "rows": [
+        {
+          "quarter": 4,
+          "lpCapitalReturn": 800000,
+          "gpCarry": 0,
+          "notes": "First exit returns capital only"
+        },
+        {
+          "quarter": 8,
+          "lpCapitalReturn": 200000,
+          "gpCarry": 260000,
+          "notes": "Second exit: remaining capital + 20% of 1.3M profit"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "L04-recycling-enabled",
+    "tags": ["recycling", "ledger"],
+    "notes": "Recycling skims 50% of LP proceeds up to 15% cap",
+    "source": "Migrated from tests/unit/analytics-waterfall.test.ts",
+    "input": {
+      "config": {
+        "carryPct": 0.2,
+        "recyclingEnabled": true,
+        "recyclingCapPctOfCommitted": 0.15,
+        "recyclingWindowQuarters": 12,
+        "recyclingTakePctPerEvent": 0.5
+      },
+      "contributions": [
+        { "quarter": 1, "amount": 1000000 }
+      ],
+      "exits": [
+        { "quarter": 4, "grossProceeds": 500000 }
+      ]
+    },
+    "expected": {
+      "totals": {
+        "recycled_min": 0,
+        "recycled_max": 150000,
+        "notes": "Recycled amount should be >0 and <=15% of 1M committed"
+      }
+    }
+  },
+  {
+    "scenario": "L05-clawback-loss-no-carry",
+    "tags": ["clawback", "loss"],
+    "notes": "Fund at 0.8x - no carry earned, no clawback needed",
+    "source": "Migrated from tests/unit/analytics-waterfall.test.ts",
+    "input": {
+      "config": {
+        "carryPct": 0.2,
+        "clawbackEnabled": true,
+        "clawbackLpHurdleMultiple": 1.0
+      },
+      "contributions": [
+        { "quarter": 1, "amount": 1000000 }
+      ],
+      "exits": [
+        { "quarter": 4, "grossProceeds": 800000 }
+      ]
+    },
+    "expected": {
+      "totals": {
+        "paidIn": 1000000,
+        "gpCarryTotal": 0,
+        "gpClawback": null,
+        "gpCarryNet": 0,
+        "dpi": 0.8
+      }
+    }
+  },
+  {
+    "scenario": "L06-clawback-lp-above-floor",
+    "tags": ["clawback", "no-trigger"],
+    "notes": "LP at 1.08x above 1.0x floor - no clawback needed",
+    "source": "Migrated from tests/unit/analytics-waterfall.test.ts",
+    "input": {
+      "config": {
+        "carryPct": 0.2,
+        "clawbackEnabled": true,
+        "clawbackLpHurdleMultiple": 1.0
+      },
+      "contributions": [
+        { "quarter": 1, "amount": 1000000 }
+      ],
+      "exits": [
+        { "quarter": 4, "grossProceeds": 300000 },
+        { "quarter": 8, "grossProceeds": 800000 }
+      ]
+    },
+    "expected": {
+      "totals": {
+        "paidIn": 1000000,
+        "gpCarryTotal": 20000,
+        "gpClawback": null,
+        "distributed": 1080000
+      }
+    }
+  },
+  {
+    "scenario": "L07-clawback-2x-return-no-clawback",
+    "tags": ["clawback", "no-trigger"],
+    "notes": "Fund at 2.0x - LP well above floor, no clawback",
+    "source": "Migrated from tests/unit/analytics-waterfall.test.ts",
+    "input": {
+      "config": {
+        "carryPct": 0.2,
+        "clawbackEnabled": true,
+        "clawbackLpHurdleMultiple": 1.0
+      },
+      "contributions": [
+        { "quarter": 1, "amount": 1000000 }
+      ],
+      "exits": [
+        { "quarter": 4, "grossProceeds": 2000000 }
+      ]
+    },
+    "expected": {
+      "totals": {
+        "paidIn": 1000000,
+        "distributed": 1800000,
+        "gpCarryTotal": 200000,
+        "gpClawback": null,
+        "gpCarryNet": 200000
+      }
+    }
+  },
+  {
+    "scenario": "L08-clawback-partial-with-hurdle",
+    "tags": ["clawback", "partial", "hurdle"],
+    "notes": "1.1x hurdle, fund at 1.1x - partial clawback of 4K",
+    "source": "Migrated from tests/unit/analytics-waterfall.test.ts",
+    "input": {
+      "config": {
+        "carryPct": 0.2,
+        "clawbackEnabled": true,
+        "clawbackLpHurdleMultiple": 1.1
+      },
+      "contributions": [
+        { "quarter": 1, "amount": 1000000 }
+      ],
+      "exits": [
+        { "quarter": 4, "grossProceeds": 1100000 }
+      ]
+    },
+    "expected": {
+      "totals": {
+        "paidIn": 1000000,
+        "gpCarryTotal": 20000,
+        "gpClawback": 4000,
+        "gpCarryNet": 16000,
+        "distributed": 1084000,
+        "dpi": 1.084
+      },
+      "rows_count": 2,
+      "clawback_row": {
+        "quarter": 4,
+        "grossProceeds": 0,
+        "gpClawback": 4000,
+        "gpCarry": -4000,
+        "lpCapitalReturn": 4000
+      }
+    }
+  },
+  {
+    "scenario": "L09-clawback-disabled",
+    "tags": ["clawback", "disabled"],
+    "notes": "Clawback disabled - GP keeps all carry despite LP below hurdle",
+    "source": "Migrated from tests/unit/analytics-waterfall.test.ts",
+    "input": {
+      "config": {
+        "carryPct": 0.2,
+        "clawbackEnabled": false,
+        "clawbackLpHurdleMultiple": 1.1
+      },
+      "contributions": [
+        { "quarter": 1, "amount": 1000000 }
+      ],
+      "exits": [
+        { "quarter": 4, "grossProceeds": 1100000 }
+      ]
+    },
+    "expected": {
+      "totals": {
+        "gpClawback": null,
+        "gpCarryTotal": 20000,
+        "gpCarryNet": 20000
+      },
+      "rows_count": 1
+    }
+  },
+  {
+    "scenario": "L10-clawback-exactly-1x",
+    "tags": ["clawback", "boundary"],
+    "notes": "Fund exactly at 1.0x floor - no profit, no carry, no clawback",
+    "source": "Migrated from tests/unit/analytics-waterfall.test.ts",
+    "input": {
+      "config": {
+        "carryPct": 0.2,
+        "clawbackEnabled": true,
+        "clawbackLpHurdleMultiple": 1.0
+      },
+      "contributions": [
+        { "quarter": 1, "amount": 1000000 }
+      ],
+      "exits": [
+        { "quarter": 4, "grossProceeds": 1000000 }
+      ]
+    },
+    "expected": {
+      "totals": {
+        "paidIn": 1000000,
+        "distributed": 1000000,
+        "gpCarryTotal": 0,
+        "gpClawback": null,
+        "dpi": 1.0
+      }
+    }
+  },
+  {
+    "scenario": "L11-clawback-full-100-percent",
+    "tags": ["clawback", "full"],
+    "notes": "LP shortfall exceeds fund profit - 100% clawback",
+    "source": "Migrated from tests/unit/analytics-waterfall.test.ts",
+    "input": {
+      "config": {
+        "carryPct": 0.2,
+        "clawbackEnabled": true,
+        "clawbackLpHurdleMultiple": 1.2
+      },
+      "contributions": [
+        { "quarter": 1, "amount": 1000000 }
+      ],
+      "exits": [
+        { "quarter": 4, "grossProceeds": 1100000 }
+      ]
+    },
+    "expected": {
+      "totals": {
+        "paidIn": 1000000,
+        "gpCarryTotal": 20000,
+        "gpClawback": 20000,
+        "gpCarryNet": 0,
+        "distributed": 1100000,
+        "dpi": 1.1
+      },
+      "rows_count": 2,
+      "clawback_row": {
+        "gpClawback": 20000,
+        "gpCarry": -20000,
+        "lpCapitalReturn": 20000
+      }
+    }
+  },
+  {
+    "scenario": "L12-clawback-default-hurdle",
+    "tags": ["clawback", "default"],
+    "notes": "Clawback enabled without explicit hurdle - defaults to 1.0x",
+    "source": "Migrated from tests/unit/analytics-waterfall.test.ts",
+    "input": {
+      "config": {
+        "carryPct": 0.2,
+        "clawbackEnabled": true
+      },
+      "contributions": [
+        { "quarter": 1, "amount": 1000000 }
+      ],
+      "exits": [
+        { "quarter": 4, "grossProceeds": 1020000 }
+      ]
+    },
+    "expected": {
+      "totals": {
+        "paidIn": 1000000,
+        "gpCarryTotal": 4000,
+        "gpClawback": null,
+        "gpCarryNet": 4000,
+        "distributed": 1016000,
+        "dpi": 1.016,
+        "notes": "LP at 1.016x > 1.0x default floor, no clawback"
+      }
+    }
+  },
+  {
+    "scenario": "L13-multi-exit-early-winner-late-loss",
+    "tags": ["clawback", "multi-exit", "complex"],
+    "notes": "Early profitable exit, late total loss - tests deal-by-deal carry vs fund-level clawback",
+    "source": "Migrated from tests/unit/analytics-waterfall.test.ts",
+    "input": {
+      "config": {
+        "carryPct": 0.2,
+        "clawbackEnabled": true,
+        "clawbackLpHurdleMultiple": 1.0
+      },
+      "contributions": [
+        { "quarter": 1, "amount": 500000 },
+        { "quarter": 2, "amount": 500000 }
+      ],
+      "exits": [
+        { "quarter": 4, "grossProceeds": 1500000 },
+        { "quarter": 8, "grossProceeds": 0 }
+      ]
+    },
+    "expected": {
+      "totals": {
+        "paidIn": 1000000,
+        "distributed": 1400000,
+        "gpCarryTotal": 100000,
+        "gpClawback": null,
+        "dpi": 1.4,
+        "notes": "LP at 1.4x > 1.0x, no clawback despite later total loss"
+      }
+    }
+  },
+  {
+    "scenario": "L14-clawback-production-sec-reporting",
+    "tags": ["clawback", "production", "sec"],
+    "notes": "SEC reporting scenario: 5-year fund with quarterly contributions and mixed exits",
+    "source": "New production scenario",
+    "input": {
+      "config": {
+        "carryPct": 0.2,
+        "clawbackEnabled": true,
+        "clawbackLpHurdleMultiple": 1.08
+      },
+      "contributions": [
+        { "quarter": 1, "amount": 2500000 },
+        { "quarter": 4, "amount": 2500000 },
+        { "quarter": 8, "amount": 2500000 },
+        { "quarter": 12, "amount": 2500000 }
+      ],
+      "exits": [
+        { "quarter": 16, "grossProceeds": 3000000 },
+        { "quarter": 20, "grossProceeds": 8000000 },
+        { "quarter": 24, "grossProceeds": 2000000 }
+      ]
+    },
+    "expected": {
+      "totals": {
+        "paidIn": 10000000,
+        "notes": "Verify: distributed + gpCarryNet = 13M gross proceeds, LP floor = 10.8M"
+      }
+    }
+  },
+  {
+    "scenario": "L15-clawback-institutional-lpa",
+    "tags": ["clawback", "production", "institutional"],
+    "notes": "Institutional LP scenario: 1.15x hurdle with management fee offset",
+    "source": "New production scenario",
+    "input": {
+      "config": {
+        "carryPct": 0.2,
+        "hurdleRate": 0.08,
+        "clawbackEnabled": true,
+        "clawbackLpHurdleMultiple": 1.15
+      },
+      "contributions": [
+        { "quarter": 1, "amount": 50000000 }
+      ],
+      "exits": [
+        { "quarter": 20, "grossProceeds": 65000000 }
+      ]
+    },
+    "expected": {
+      "totals": {
+        "paidIn": 50000000,
+        "notes": "1.3x gross return. LP floor = 57.5M. Verify clawback calculation."
+      }
+    }
+  }
+]
