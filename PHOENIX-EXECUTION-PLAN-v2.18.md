@@ -1,4 +1,4 @@
-# Phoenix Execution Plan v2.x (current: v2.27)
+# Phoenix Execution Plan v2.x (current: v2.28)
 
 **Date:** December 9, 2025
 **Status:** ACTIVE - Ready for Execution
@@ -814,6 +814,12 @@ The following tasks are explicitly deferred to keep Phase 0 lean:
 
 - **Truth case JSON canonicalization:** Introduce `docs/waterfall-ledger.truth-cases.canonical.json` (or normalize the existing JSON) once the runner is stable. This will strip `notes` from `expected.totals`, normalize `gpClawback` null/undefined handling, and optionally convert L14/L15 into proper automated or purely manual scenarios.
 
+- **Validation helpers extraction:** When runners exceed ~50-60 lines (per Execution Discipline), create `tests/truth-cases/waterfall-validation-helpers.ts` with:
+  - Tolerance constants: `DOLLAR_EPS` (0.01) for currency, `MULTIPLE_EPS` (1e-4) for ratios
+  - `expectLedgerTotalsToMatch()` - handles `gpClawback: null`, range semantics
+  - `expectTierScenarioToMatch()` - folds tier waterfall assertions
+  - Reference design exists in v2.28 changelog (deferred, not blocked)
+
 ---
 
 ## Phase 1B: Bug Fix Path (Days 2-14)
@@ -1371,6 +1377,7 @@ npm run deploy:production
 | v2.25 | 2025-12-09 | Solo Developer | Documented clawback semantics, truth case JSON issues, runner enhancement pattern |
 | v2.26 | 2025-12-09 | Solo Developer | Fixed clawback formula, expanded runner pattern for L04/row checks, added integration test phase |
 | v2.27 | 2025-12-09 | Solo Developer | Added timing buffer, cross-validation limitation note, complexity rule, explicit JSDoc fix task |
+| v2.28 | 2025-12-09 | Solo Developer | Deferred validation-helpers.ts proposal; documented reference design for Phase 1A |
 
 ### v2.19 Changes
 
@@ -1648,6 +1655,36 @@ The "Oracle Problem" argument is valid: automated runners cannot detect errors i
 - Rewrite Steps 0.6/0.8 with helper references - Current version sufficient for Phase 0
 
 **Key insight:** The feedback contained internal contradictions. Section 3 recommended deferring canonicalization and helpers to Phase 1A, but Section A provided full code to add NOW. We followed Section 3's "keep Phase 0 lean" recommendation.
+
+### v2.28 Changes
+
+**Feedback source:** Concrete code proposal for `waterfall-validation-helpers.ts` + test refactors
+
+**Proposal contained:**
+- ~300 lines of helper code (`tests/truth-cases/waterfall-validation-helpers.ts`)
+- Tolerance constants: DOLLAR_EPS (0.01), MULTIPLE_EPS (1e-4), CONSERVATION_EPS (0.02)
+- `expectLedgerTotalsToMatch()` - ledger totals with range/null handling
+- `expectClawbackRowToMatch()` - clawback row validation
+- `expectTierScenarioToMatch()` - tier waterfall assertions with Excel rounding
+- Refactors for `analytics-waterfall.test.ts` and `waterfall-truth-table.test.ts`
+
+**Decision: DEFER entire implementation to Phase 1A**
+
+**Rationale:**
+
+1. **Timing contradiction** - Plan says "create helpers when runners exceed ~50-60 lines" (Phase 1A), not before Phase 0
+
+2. **Premature abstraction** - 300+ lines of infrastructure before running a single truth case violates "avoid over-engineering" principle
+
+3. **Unknown codebase state** - Proposal assumes specific test file structures not yet verified against current codebase
+
+4. **Phase 0 scope** - Phase 0 is "Reality Check" (run tests, categorize failures), not "refactor test infrastructure"
+
+**Preserved as reference:**
+- Tolerance strategy documented in Phase 1A/1B Deferred Tasks section
+- Design patterns available when complexity threshold triggers helper extraction
+
+**Key insight:** Good design work, wrong timing. Abstractions follow observed complexity, not precede it.
 
 ---
 
