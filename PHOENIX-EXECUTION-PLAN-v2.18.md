@@ -30,7 +30,7 @@ All metrics below have been independently verified via direct codebase inspectio
 |--------|----------------|--------|
 | TypeScript errors | 454 (baselined) | `.tsc-baseline.json` |
 | Test pass rate baseline | 74.7% (998/1,337) | `cheatsheets/pr-merge-verification.md` |
-| Truth case scenarios | 90 total | `docs/*.truth-cases.json` |
+| Truth case scenarios | 105 total | `docs/*.truth-cases.json` |
 | parseFloat occurrences | 301 in 96 files | `grep -r "parseFloat"` |
 | Feature flags | 19 defined | `shared/feature-flags/flag-definitions.ts` |
 | Test files | 175 | `find -name "*.test.ts"` |
@@ -42,9 +42,14 @@ All metrics below have been independently verified via direct codebase inspectio
 | XIRR | 25 | `docs/xirr.truth-cases.json` |
 | Capital Allocation | 20 | `docs/capital-allocation.truth-cases.json` |
 | Exit Recycling | 20 | `docs/exit-recycling.truth-cases.json` |
-| Waterfall | 15 | `docs/waterfall.truth-cases.json` |
+| Waterfall (Tier-based) | 15 | `docs/waterfall.truth-cases.json` |
+| Waterfall (Ledger + Clawback) | 15 | `docs/waterfall-ledger.truth-cases.json` |
 | Fees | 10 | `docs/fees.truth-cases.json` |
-| **Total** | **90** | |
+| **Total** | **105** | |
+
+**Note:** Two waterfall implementations exist and both require validation:
+- **Tier-based** (`calculateAmericanWaterfall`): Single-exit, Excel parity, Decimal.js precision
+- **Ledger-based** (`calculateAmericanWaterfallLedger`): Multi-exit, clawback, recycling, DPI/TVPI
 
 ### parseFloat Triage (Estimated)
 
@@ -377,7 +382,7 @@ npm run deploy:staging
 
 ### Phase 1A Exit Criteria
 
-- [ ] All 90 truth cases pass
+- [ ] All 105 truth cases pass
 - [ ] Test pass rate >= 74% (baseline)
 - [ ] No new TypeScript errors (ratchet holds)
 - [ ] Fee schema consolidated
@@ -464,7 +469,7 @@ Same as Phase 1A deployment steps.
 ### Phase 1B Exit Criteria
 
 - [ ] All identified calculation bugs fixed
-- [ ] All 90 truth cases pass
+- [ ] All 105 truth cases pass
 - [ ] Test pass rate >= 74% (baseline)
 - [ ] No new TypeScript errors
 - [ ] Root cause documented for each bug
@@ -603,7 +608,7 @@ npm run deploy:production
 
 ### Minimum Viable (Must Have)
 
-- [ ] All 90 truth cases pass
+- [ ] All 105 truth cases pass
 - [ ] Test pass rate >= 74% (matches baseline)
 - [ ] TypeScript errors <= 454 (ratchet maintained)
 - [ ] No calculation precision bugs in P0 paths
