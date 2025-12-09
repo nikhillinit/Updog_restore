@@ -1,9 +1,10 @@
-# Phoenix Execution Plan v2.18
+# Phoenix Execution Plan v2.x (current: v2.26)
 
 **Date:** December 9, 2025
 **Status:** ACTIVE - Ready for Execution
 **Author:** Solo Developer
 **Approach:** Validation-First, Evidence-Driven
+**Note:** File name is `v2.18.md` but internal version tracked via changelog below.
 
 ---
 
@@ -88,11 +89,26 @@ All metrics below have been independently verified via direct codebase inspectio
 
 GP carry is limited by fund-level profit above the LP shortfall to the floor, but LP is not guaranteed to reach the floor in all scenarios.
 
-**Example (L08):**
-- 1.1x hurdle, fund at 1.1x gross
-- LP shortfall: 1.1M floor - 1.08M distributed = 20K
-- Clawback: min(20K shortfall, 20K carry) × (20K/100K) = 4K
-- GP keeps 16K net carry, LP ends at 1.084x
+**Exact Formula (from `american-ledger.ts:206-212`):**
+
+```typescript
+// If LP below floor and fund has profit:
+const lpShortfall = lpRequiredFloor - lpDistributed;
+const allowedGpCarry = fundProfit > lpShortfall
+  ? carryPct × (fundProfit - lpShortfall)
+  : 0;
+const gpClawback = max(0, gpCarryTotal - allowedGpCarry);
+```
+
+**Worked Example (L08):**
+- Input: 1M contribution, 1.1M exit, 1.1x hurdle, 20% carry
+- Fund profit: 1.1M - 1M = 100K
+- GP carry (pre-clawback): 20% × 100K = 20K
+- LP distributed (pre-clawback): 1.1M - 20K = 1.08M
+- LP shortfall: 1.1M floor - 1.08M = 20K
+- Allowed carry: 20% × (100K profit - 20K shortfall) = 20% × 80K = **16K**
+- Clawback: 20K - 16K = **4K**
+- Final: GP keeps 16K, LP ends at 1.084x
 
 **Explicit non-goals for v2.x:**
 - Hard floor semantics (LP must hit floor before any net carry)
@@ -100,6 +116,8 @@ GP carry is limited by fund-level profit above the LP shortfall to the floor, bu
 - Multi-year clawback true-ups
 
 **Future iteration:** Hard floor semantics may be added if institutional LPs require it.
+
+**NOTE (v2.26):** The JSDoc on `clawbackLpHurdleMultiple` says "minimum LP multiple before GP is allowed to KEEP carry" which implies hard-floor semantics. This is a **documentation mismatch** - the actual implementation uses shortfall-based partial clawback. Updating the JSDoc is a Phase 1 task.
 
 ### Truth Case Provenance
 
@@ -348,35 +366,68 @@ npm test -- --grep "Truth Case" 2>&1 | tee truth-case-results.txt
    - Only have `paidIn` + `notes`, no complete expectations
    - Mark as `skip` or `manual-only` in runner
 
-**Runner enhancement pattern:**
+**Runner enhancement pattern (handles all structural variations):**
 
 ```typescript
 describe('Waterfall Ledger Truth Cases', () => {
   ledgerCases.forEach((tc) => {
-    // Skip placeholder scenarios
+    // Skip placeholder scenarios (L14, L15 - only have paidIn + notes)
     if (tc.expected.totals?.notes && Object.keys(tc.expected.totals).length <= 2) {
       it.skip(`${tc.scenario} (placeholder)`, () => {});
       return;
     }
 
     it(tc.scenario, () => {
-      const result = calculateAmericanWaterfallLedger(...);
+      const result = calculateAmericanWaterfallLedger(
+        tc.input.config,
+        tc.input.contributions,
+        tc.input.exits
+      );
 
-      // Strip notes and handle null semantics
-      const expectedTotals = { ...tc.expected.totals };
-      delete expectedTotals.notes;
+      // Extract special fields that need custom handling
+      const { notes, recycled_min, recycled_max, ...simple } = {
+        ...(tc.expected.totals ?? {}),
+      };
 
-      Object.entries(expectedTotals).forEach(([key, value]) => {
+      // L04: Range assertions for recycling
+      if (typeof recycled_min === 'number') {
+        expect(result.totals.recycled).toBeGreaterThanOrEqual(recycled_min);
+      }
+      if (typeof recycled_max === 'number') {
+        expect(result.totals.recycled).toBeLessThanOrEqual(recycled_max);
+      }
+
+      // Standard totals: null means "expect undefined"
+      Object.entries(simple).forEach(([key, value]) => {
         if (value === null) {
-          expect(result.totals[key]).toBeUndefined();
+          expect(result.totals[key as keyof typeof result.totals]).toBeUndefined();
         } else {
-          expect(result.totals[key]).toBe(value);
+          expect(result.totals[key as keyof typeof result.totals]).toBe(value);
         }
       });
+
+      // L08/L09/L11: Optional row-level checks
+      if (tc.expected.rows_count != null) {
+        expect(result.rows.length).toBe(tc.expected.rows_count);
+      }
+      if (tc.expected.clawback_row) {
+        const lastRow = result.rows[result.rows.length - 1];
+        expect(lastRow.gpClawback).toBe(tc.expected.clawback_row.gpClawback);
+        expect(lastRow.gpCarry).toBe(tc.expected.clawback_row.gpCarry);
+        expect(lastRow.lpCapitalReturn).toBe(tc.expected.clawback_row.lpCapitalReturn);
+      }
     });
   });
 });
 ```
+
+**Structural variations handled:**
+- `notes` inside totals → stripped (L04, L12, L13, L14, L15)
+- `gpClawback: null` → expect undefined (L05-L07, L09, L10, L12, L13)
+- `recycled_min/max` → range assertions (L04)
+- `rows_count` → count validation (L08, L09, L11)
+- `clawback_row` → row-level assertions (L08, L11)
+- Placeholders → skipped (L14, L15)
 
 **Deliverable:** Runner handles all 15 ledger scenarios (13 real, 2 skipped placeholders)
 
@@ -697,6 +748,24 @@ npm run test:smoke
 npm run deploy:staging
 ```
 
+### Phase 1A.8: Integration Smoke Test (Optional, 2 hours)
+
+**Goal:** Verify modules work together, not just in isolation.
+
+**Why this matters:** Modules have dependencies:
+- Waterfall depends on Capital Allocation (contribution timing)
+- Exit Recycling depends on Waterfall (proceeds calculation)
+- Fees affect Waterfall inputs (reduced proceeds)
+
+Validating modules in isolation may miss integration bugs.
+
+**Scope:** 2-3 manual integration scenarios testing the complete flow:
+1. Contributions → Fees → Capital Allocation → Waterfall → Exit
+2. Multi-exit with recycling and clawback
+3. Edge case: negative proceeds after fees
+
+**Decision:** If integration issues found, document and prioritize for Phase 1B.
+
 ### Phase 1A Exit Criteria
 
 - [ ] All 105 truth cases pass
@@ -704,6 +773,7 @@ npm run deploy:staging
 - [ ] No new TypeScript errors (ratchet holds)
 - [ ] Fee schema consolidated
 - [ ] P0 parseFloat issues addressed
+- [ ] Integration smoke test passed (or issues documented)
 - [ ] Deployed to staging
 
 ---
@@ -1261,6 +1331,7 @@ npm run deploy:production
 | v2.23 | 2025-12-09 | Solo Developer | Fixed timing math, corrected CA/ER provenance, expanded ESLint, documented rollout gaps |
 | v2.24 | 2025-12-09 | Solo Developer | Fixed module/truth-case mismatch, added module-aware gates, triage rules, execution discipline |
 | v2.25 | 2025-12-09 | Solo Developer | Documented clawback semantics, truth case JSON issues, runner enhancement pattern |
+| v2.26 | 2025-12-09 | Solo Developer | Fixed clawback formula, expanded runner pattern for L04/row checks, added integration test phase |
 
 ### v2.19 Changes
 
@@ -1459,6 +1530,51 @@ The "Oracle Problem" argument is valid: automated runners cannot detect errors i
 **Rejected:**
 - Updating file header to v2.25 (intentional: single file with internal versioning)
 - Modifying truth case JSON in this PR (JSON cleanup is separate task)
+
+### v2.26 Changes
+
+**Feedback source:** Final comprehensive review before execution
+
+**Issues identified:**
+
+1. **Clawback formula example was misleading**
+   - v2.25 example: `Clawback = min(20K shortfall, 20K carry) × (20K/100K) = 4K`
+   - This implied ratio-based clamping not present in code
+   - Actual implementation uses `allowedGpCarry` approach
+
+2. **Runner pattern incomplete**
+   - Didn't handle L04's `recycled_min`/`recycled_max` range assertions
+   - Didn't handle L08/L09/L11's `rows_count` and `clawback_row` checks
+
+3. **JSDoc mismatch**
+   - `clawbackLpHurdleMultiple` JSDoc describes Option B (hard floor)
+   - Implementation uses Option A (shortfall-based partial)
+
+4. **Integration testing gap**
+   - No smoke test for complete contribution → exit flow
+
+**Fixes applied:**
+
+1. **Replaced misleading clawback example**
+   - Added exact formula from `american-ledger.ts:206-212`
+   - Shows actual `lpShortfall` → `allowedGpCarry` → `gpClawback` flow
+
+2. **Expanded runner pattern**
+   - Added L04 range assertion handling (`recycled_min`/`recycled_max`)
+   - Added L08/L09/L11 row-level checks (`rows_count`, `clawback_row`)
+   - Added placeholder detection for L14/L15
+
+3. **Added Phase 1A.8: Integration Smoke Test**
+   - 2-3 manual scenarios testing complete flow
+   - Covers: contributions → fees → allocation → waterfall → exit
+   - Catches module boundary integration issues
+
+4. **Added Phase 1 task note**
+   - Update `clawbackLpHurdleMultiple` JSDoc to match Option A semantics
+
+**Rejected:**
+- Full JSON schema validation (overkill for 15 scenarios)
+- Automated L14/L15 completion (placeholder cleanup is separate task)
 
 ---
 
