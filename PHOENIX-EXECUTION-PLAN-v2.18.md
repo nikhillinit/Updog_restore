@@ -84,22 +84,53 @@ All metrics below have been independently verified via direct codebase inspectio
 - Best case: 9.5 hours (test suite healthy, spot-check passes)
 - Slip case: 13 hours (runner issues, spot-check finds oracle errors)
 
-### Morning: Environment Setup (4 hours)
+### Morning: Infrastructure Audit & Setup (4.5 hours)
 
-#### Step 0.1: Dependency Installation (1 hour)
+#### Step 0.1: Infrastructure Audit (1 hour) - DO FIRST
+
+**Goal:** Verify critical infrastructure before spending time on runners.
+
+**0.1.1: Waterfall Wiring Check (15 min)**
 
 ```bash
-# Install all dependencies
-npm ci --prefix tools_local && npm install
+# Which waterfall implementation is used in production?
+grep -r "calculateAmericanWaterfall" client/src --include="*.ts" --include="*.tsx" | grep -v test | head -10
 
-# Verify sidecar health
+# Count usage of each
+echo "Tier-based usage:"
+grep -r "calculateAmericanWaterfall[^L]" client/src --include="*.ts" | wc -l
+echo "Ledger-based usage:"
+grep -r "calculateAmericanWaterfallLedger" client/src --include="*.ts" | wc -l
+```
+
+**Decision:** If production uses Tier-based, focus validation there. If Ledger-based, prioritize clawback scenarios.
+
+**0.1.2: Database Schema Audit (30 min)**
+
+```bash
+# Check for FLOAT/DOUBLE columns in financial tables
+grep -n "real\|doublePrecision" shared/schema.ts
+
+# Verify NUMERIC/DECIMAL is used for money
+grep -n "decimal\|numeric" shared/schema.ts | head -20
+```
+
+**Decision Gate:**
+- If financial columns use FLOAT/DOUBLE → **STOP** - Triggers Phase 1C (Rebuild)
+- If NUMERIC/DECIMAL → Proceed normally
+
+**0.1.3: Dependency Installation (15 min)**
+
+```bash
+npm ci --prefix tools_local && npm install
 npm run doctor:quick
 ```
 
 **Success Criteria:**
+- [ ] Wiring check completed - know which API is production
+- [ ] Schema audit passed - no FLOAT columns for money
 - [ ] `npm install` completes without errors
 - [ ] `npm run doctor:quick` passes
-- [ ] No missing peer dependencies
 
 #### Step 0.2: Test Suite Execution (1 hour)
 
@@ -254,6 +285,51 @@ grep "calculateAmericanWaterfallLedger" tests/truth-cases/truth-case-runner.test
 
 **Document:** Which API is used where (production vs legacy)
 
+#### Step 0.10: Cross-Validation - Waterfall Parity Check (30 min)
+
+**Goal:** Verify tier-based and ledger-based waterfalls produce identical results for single-exit scenarios.
+
+**Why This Matters:**
+- Two implementations exist: `calculateAmericanWaterfall` (tier) and `calculateAmericanWaterfallLedger` (ledger)
+- For single-exit cases (no clawback/recycling), they MUST produce identical results
+- Divergence indicates a bug in one or both implementations
+
+**Method:**
+
+```typescript
+// Cross-validation runner
+import tierCases from '../../docs/waterfall.truth-cases.json';
+import { calculateAmericanWaterfall } from '@shared/schemas/waterfall-policy';
+import { calculateAmericanWaterfallLedger } from '@/lib/waterfall/american-ledger';
+
+describe('Waterfall Cross-Validation', () => {
+  tierCases.forEach((tc) => {
+    it(`${tc.scenario} produces same result in both engines`, () => {
+      // Convert tier input to ledger format
+      const ledgerConfig = {
+        carryPct: tc.input.carryPct,
+        hurdleRate: tc.input.hurdle || 0,
+        recyclingEnabled: false,
+        clawbackEnabled: false,
+      };
+      const contributions = [{ quarter: 1, amount: tc.input.investment }];
+      const exits = [{ quarter: 4, grossProceeds: tc.input.exitProceeds }];
+
+      // Run both engines
+      const tierResult = calculateAmericanWaterfall(tc.input);
+      const ledgerResult = calculateAmericanWaterfallLedger(ledgerConfig, contributions, exits);
+
+      // Compare GP carry (core calculation)
+      expect(ledgerResult.totals.gpCarryTotal).toBeCloseTo(tierResult.gpCarry, 2);
+    });
+  });
+});
+```
+
+**Decision Gate:**
+- All scenarios match → Proceed (confidence in both implementations)
+- Discrepancies found → Document which engine is correct, prioritize fix
+
 #### Step 0.9: Phase 0 Decision Gate (30 min)
 
 Based on findings, determine path:
@@ -375,14 +451,49 @@ For each P0 file:
 
 #### Step 1A.6: Fix Critical parseFloat (3 hours)
 
-If fixes needed:
+**Strategy: Boundary Cast (Minimize Refactoring Risk)**
+
+The trap: Refactoring entire calculation chains to use Decimal.js method chaining creates massive diff risk and potential for subtle bugs.
+
+**Boundary Cast Pattern:**
+
+```typescript
+// WRONG: Deep refactoring (high risk)
+function calculateCarry(investment: Decimal, exitProceeds: Decimal): Decimal {
+  return exitProceeds.minus(investment).times(0.2); // Every operation is a refactor
+}
+
+// RIGHT: Boundary cast (low risk)
+function calculateCarry(investment: number, exitProceeds: number): number {
+  // Cast to Decimal at INPUT boundary
+  const inv = new Decimal(investment);
+  const exit = new Decimal(exitProceeds);
+
+  // Internal calculation in Decimal
+  const carry = exit.minus(inv).times(0.2);
+
+  // Cast back to number at OUTPUT boundary
+  return carry.toNumber();
+}
+```
+
+**Implementation rules:**
+1. Keep function signatures as `number` (no cascade refactoring)
+2. Cast to `Decimal` at function entry (input boundary)
+3. Perform all internal math using Decimal methods
+4. Cast back to `number` at function exit (output boundary)
+5. Never use `parseFloat()` - use `new Decimal(string)` directly
+
+**If fixes needed:**
 ```typescript
 // BEFORE (problematic)
 const amount = parseFloat(input);
 
-// AFTER (safe)
+// AFTER (safe - boundary cast)
 import Decimal from 'decimal.js';
-const amount = new Decimal(input);
+const amount = new Decimal(input).toNumber(); // For number signatures
+// OR
+const amount = new Decimal(input); // For Decimal-internal use
 ```
 
 Add ESLint rule to prevent regression:
@@ -650,14 +761,32 @@ If risk tolerance is low:
 const oldResult = legacyCalculation(input);
 const newResult = newCalculation(input);
 
-// Log discrepancies
-if (!deepEqual(oldResult, newResult)) {
-  logger.warn('Calculation discrepancy', { input, oldResult, newResult });
+// Use tolerance comparator (not strict equality)
+// Decimal.js may produce slightly different results due to precision
+const TOLERANCE = 0.01; // $0.01 for dollar amounts
+
+function withinTolerance(old: number, new_: number): boolean {
+  return Math.abs(old - new_) <= TOLERANCE;
+}
+
+// Log discrepancies beyond tolerance
+if (!withinTolerance(oldResult.gpCarry, newResult.gpCarry)) {
+  logger.warn('Calculation discrepancy', {
+    input,
+    oldResult,
+    newResult,
+    delta: Math.abs(oldResult.gpCarry - newResult.gpCarry),
+  });
 }
 
 // Return old result until validated
 return oldResult;
 ```
+
+**Tolerance Guidelines:**
+- Dollar amounts: $0.01 (1 cent)
+- Percentages: 0.0001 (0.01%)
+- Multiples (DPI/TVPI): 0.0001
 
 ### Feature Flag Rollout
 
@@ -911,6 +1040,7 @@ npm run deploy:production
 | v2.18 | 2025-12-09 | Solo Developer | Initial validation-first plan |
 | v2.19 | 2025-12-09 | Solo Developer | Integrated feedback: moved runner to Phase 0, added wiring check, updated truth cases to 105 |
 | v2.20 | 2025-12-09 | Solo Developer | Added truth case spot-check after multi-AI consensus review |
+| v2.21 | 2025-12-09 | Solo Developer | Added infrastructure audit, cross-validation, boundary cast strategy, tolerance comparator |
 
 ### v2.19 Changes
 
@@ -942,6 +1072,35 @@ The "Oracle Problem" argument is valid: automated runners cannot detect errors i
 **Still rejected:**
 - 2-3 hour spot-check (reduced to 1.5 hours, 5 scenarios sufficient)
 - Path overlap refactoring (current DRY-via-reference optimal)
+
+### v2.21 Changes
+
+**Accepted from technical feedback review:**
+
+1. **Step 0.1: Infrastructure Audit** (1 hour) - Added as FIRST step
+   - Waterfall wiring check: Determine which API is production
+   - Database schema audit: Verify no FLOAT columns for money
+   - Rationale: Discover showstoppers before spending time on runners
+
+2. **Step 0.10: Cross-Validation** (30 min) - Waterfall parity check
+   - Run tier-based scenarios through ledger engine
+   - Verify identical results for single-exit cases
+   - Rationale: Catch divergence bugs between twin implementations
+
+3. **Step 1A.6: Boundary Cast Strategy** - Decimal.js refactoring approach
+   - Keep function signatures as `number` (no cascade)
+   - Cast to Decimal at input boundary, back to number at output
+   - Rationale: Minimize diff risk while achieving precision
+
+4. **Phase 3: Tolerance Comparator** - Shadow mode improvement
+   - Use `Math.abs(old - new) <= TOLERANCE` instead of strict equality
+   - Guidelines: $0.01 for dollars, 0.0001 for percentages/multiples
+   - Rationale: Decimal.js may produce marginally different precision
+
+**Rejected from feedback:**
+- Risk A (Decimal.js trap): Mitigated by Boundary Cast strategy, not a blocker
+- Risk B (Twin Waterfall): Mitigated by Cross-Validation step
+- Risk C (Persistence): Schema audit added to Phase 0.1; full persistence validation deferred (production schema already established)
 
 ---
 
