@@ -51,6 +51,19 @@ All metrics below have been independently verified via direct codebase inspectio
 - **Tier-based** (`calculateAmericanWaterfall`): Single-exit, Excel parity, Decimal.js precision
 - **Ledger-based** (`calculateAmericanWaterfallLedger`): Multi-exit, clawback, recycling, DPI/TVPI
 
+### Truth Case Provenance
+
+| Module | Source | Validation Method | Confidence |
+|--------|--------|-------------------|------------|
+| XIRR | Excel `XIRR()` function | `excelFormula` field in JSON | HIGH - Excel is authoritative |
+| Waterfall (Tier) | Internal spreadsheet model | Hand-verified arithmetic | MEDIUM - Needs spot-check |
+| Waterfall (Ledger) | Unit tests + LPA terms | Migrated from `analytics-waterfall.test.ts` | MEDIUM - Needs spot-check |
+| Fees | Arithmetic derivations | 2% of commitment, etc. | HIGH - Simple math |
+| Capital Allocation | Unknown | 1,381 lines, unclear origin | LOW - Priority for spot-check |
+| Exit Recycling | Unknown | Needs investigation | LOW - Priority for spot-check |
+
+**Action:** Phase 0 spot-check (Step 0.4) specifically targets LOW/MEDIUM confidence scenarios.
+
 ### parseFloat Triage (Estimated)
 
 | Priority | Description | Est. Files | Est. Occurrences |
@@ -710,17 +723,26 @@ Same as Phase 1A deployment steps.
 ```javascript
 // Add to eslint.config.js
 
-// Prevent parseFloat in calculation paths
+// Prevent parseFloat in FINANCIAL calculation paths only
+// (Scoped to avoid false positives in generic utility code)
 {
-  files: ['server/services/**/*.ts', 'client/src/core/**/*.ts'],
+  files: [
+    'server/services/xirr-*.ts',
+    'server/services/fund-metrics-*.ts',
+    'server/services/monte-carlo-*.ts',
+    'client/src/lib/waterfall/**/*.ts',
+    'client/src/core/reserves/**/*.ts',
+    'shared/schemas/waterfall-*.ts',
+    'shared/schemas/fee-*.ts'
+  ],
   rules: {
-    'no-restricted-globals': ['error', 'parseFloat', 'parseInt'],
-    'no-restricted-properties': ['error', {
-      object: 'Number',
-      property: 'parseFloat'
+    'no-restricted-globals': ['error', {
+      name: 'parseFloat',
+      message: 'Use new Decimal(value) for financial calculations'
     }]
   }
 }
+// Note: parseInt left alone (not a precision issue for integers)
 ```
 
 ### TypeScript Strictness
@@ -807,6 +829,39 @@ Rollout schedule:
 - Day 7: 50% of users
 - Day 14: 100% of users
 
+### Rollout Metrics & Gates
+
+**Metrics to monitor during rollout:**
+
+| Metric | Source | Alert Threshold |
+|--------|--------|-----------------|
+| Invalid calculation outputs | `validateCalculationOutput` logs | > 0.1% of requests |
+| Shadow mode discrepancies | Calculation discrepancy logs | > 0.5% of calls |
+| User-reported "numbers wrong" | Support tickets | > 2 per week |
+| API error rate (calculation endpoints) | Prometheus | > 1% increase |
+
+**Rollout gates:**
+
+```
+BEFORE advancing to next rollout percentage:
+
+IF invalid_output_rate > 0.1% OR discrepancy_rate > 0.5%:
+    → FREEZE rollout, investigate root cause
+    → Fix identified issues before resuming
+
+ELIF user_reports > 2 in past 7 days:
+    → PAUSE rollout, investigate reports
+    → Resume after 48 hours if reports are false positives
+
+ELSE:
+    → PROCEED to next rollout % after 48 hours at current level
+```
+
+**Rollback trigger:**
+- Any calculation producing NaN/Infinity
+- > 1% error rate on financial endpoints
+- CFO/audit escalation
+
 ### Production Deployment
 
 ```bash
@@ -833,6 +888,28 @@ npm run deploy:production
 - [ ] TypeScript errors <= 454 (ratchet maintained)
 - [ ] No calculation precision bugs in P0 paths
 - [ ] Deployed to production with feature flags
+
+### Module-Level Truth Case Checkboxes
+
+Track progress per module (intermediate wins):
+
+| Module | Target | Status |
+|--------|--------|--------|
+| XIRR | 25/25 | [ ] |
+| Waterfall (Tier) | 15/15 | [ ] |
+| Waterfall (Ledger) | 15/15 | [ ] |
+| Fees | 10/10 | [ ] |
+| Capital Allocation | 20/20 | [ ] |
+| Exit Recycling | 20/20 | [ ] |
+| **Total** | **105/105** | [ ] |
+
+**Completion order recommendation:**
+1. XIRR (highest user visibility)
+2. Waterfall Tier (Excel parity critical)
+3. Fees (simple arithmetic)
+4. Waterfall Ledger (clawback complexity)
+5. Capital Allocation (low provenance confidence)
+6. Exit Recycling (low provenance confidence)
 
 ### Target (Should Have)
 
@@ -1041,6 +1118,7 @@ npm run deploy:production
 | v2.19 | 2025-12-09 | Solo Developer | Integrated feedback: moved runner to Phase 0, added wiring check, updated truth cases to 105 |
 | v2.20 | 2025-12-09 | Solo Developer | Added truth case spot-check after multi-AI consensus review |
 | v2.21 | 2025-12-09 | Solo Developer | Added infrastructure audit, cross-validation, boundary cast strategy, tolerance comparator |
+| v2.22 | 2025-12-09 | Solo Developer | Added provenance, narrowed ESLint, rollout metrics, module checkboxes |
 
 ### v2.19 Changes
 
@@ -1101,6 +1179,34 @@ The "Oracle Problem" argument is valid: automated runners cannot detect errors i
 - Risk A (Decimal.js trap): Mitigated by Boundary Cast strategy, not a blocker
 - Risk B (Twin Waterfall): Mitigated by Cross-Validation step
 - Risk C (Persistence): Schema audit added to Phase 0.1; full persistence validation deferred (production schema already established)
+
+### v2.22 Changes
+
+**Note:** Some feedback suggestions were already implemented in v2.19-v2.21 (truth-case runner in Phase 0, 1.5-day timing). This version addresses remaining valid suggestions.
+
+**Accepted:**
+
+1. **Truth Case Provenance** - Added table showing source, validation method, and confidence level per module
+   - Links spot-check priority to LOW/MEDIUM confidence modules
+   - Improves auditability for CFO/external review
+
+2. **Narrowed ESLint Rules** - Scoped parseFloat ban to specific financial files only
+   - Before: `server/services/**/*.ts`, `client/src/core/**/*.ts` (too broad)
+   - After: `xirr-*.ts`, `fund-metrics-*.ts`, `waterfall/**/*.ts`, etc. (7 specific patterns)
+   - Removed `parseInt` ban (not a precision issue for integers)
+
+3. **Rollout Metrics & Gates** - Added concrete observability targets
+   - 4 metrics: invalid outputs, shadow discrepancies, user reports, API error rate
+   - Explicit freeze/pause/proceed gates with thresholds
+   - Rollback triggers defined
+
+4. **Module-Level Success Criteria** - Added per-module checkboxes
+   - Provides intermediate wins during validation
+   - Recommended completion order based on visibility + confidence
+
+**Rejected:**
+- Core Phase 1 restructuring: Current DRY-via-reference (1B → "execute 1A steps") is sufficient
+- Restructuring a planning document doesn't improve execution quality
 
 ---
 
