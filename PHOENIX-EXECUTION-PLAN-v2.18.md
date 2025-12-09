@@ -76,11 +76,13 @@ All metrics below have been independently verified via direct codebase inspectio
 
 ---
 
-## Phase 0: Reality Check (Day 1)
+## Phase 0: Reality Check (8-12 hours)
 
 **Goal:** Determine what actually works before planning fixes.
 
-**Duration:** 1 day (8 hours)
+**Duration:** 8-12 hours (1-1.5 days)
+- Best case: 8 hours (test suite healthy, runners exist)
+- Slip case: 12 hours (runner issues, infrastructure fixes needed)
 
 ### Morning: Environment Setup (4 hours)
 
@@ -129,44 +131,101 @@ Categorize each failing test:
 
 **Document in:** `docs/phase0-test-analysis.md`
 
-### Afternoon: Calculation Validation (4 hours)
+### Afternoon: Truth Case Validation (4 hours)
 
-#### Step 0.4: Truth Case Validation (3 hours)
+#### Step 0.4: Run Existing Truth Case Runners (1 hour)
 
-For each module, validate against truth cases:
-
-**XIRR (25 scenarios):**
 ```bash
-# Load truth cases
-cat docs/xirr.truth-cases.json | jq '.[0]'
+# Waterfall tier-based (15 scenarios)
+npm test tests/unit/waterfall-truth-table.test.ts
 
-# Run calculation with same inputs
-# Compare output to expected result
+# XIRR (25 scenarios)
+npm test tests/unit/xirr-golden-set.test.ts
+
+# Check for other existing runners
+find tests -name "*truth*" -o -name "*golden*"
 ```
 
-**Waterfall (15 scenarios):**
-- Test American waterfall with clawback
-- Test European waterfall
-- Verify carry calculations
+**Capture results:**
+- XIRR: X/25 passing
+- Waterfall (tier): X/15 passing
 
-**Fees (10 scenarios):**
-- Management fee calculations
-- Fund expense allocations
+#### Step 0.5: Build Missing Module Runners (2 hours)
 
-**Capital Allocation (20 scenarios):**
-- Pacing calculations
-- Reserve allocations
+Create `tests/truth-cases/truth-case-runner.test.ts`:
 
-**Exit Recycling (20 scenarios):**
-- Recycling logic
-- Distribution timing
+```typescript
+import feesCases from '../../docs/fees.truth-cases.json';
+import capitalCases from '../../docs/capital-allocation.truth-cases.json';
+import exitCases from '../../docs/exit-recycling.truth-cases.json';
+import ledgerCases from '../../docs/waterfall-ledger.truth-cases.json';
 
-**Document findings:**
-- [ ] Scenarios that PASS (calculation matches expected)
-- [ ] Scenarios that FAIL (calculation differs from expected)
-- [ ] Scenarios that ERROR (calculation throws exception)
+describe('Fees Truth Cases', () => {
+  feesCases.forEach((tc) => {
+    it(tc.scenario, () => {
+      const result = calculateFees(tc.input);
+      expect(result).toMatchObject(tc.expected);
+    });
+  });
+});
 
-#### Step 0.5: Phase 0 Decision Gate (1 hour)
+describe('Capital Allocation Truth Cases', () => { /* similar */ });
+describe('Exit Recycling Truth Cases', () => { /* similar */ });
+
+describe('Waterfall Ledger Truth Cases', () => {
+  ledgerCases.forEach((tc) => {
+    it(tc.scenario, () => {
+      const result = calculateAmericanWaterfallLedger(
+        tc.input.config,
+        tc.input.contributions,
+        tc.input.exits
+      );
+      expect(result.totals).toMatchObject(tc.expected.totals);
+    });
+  });
+});
+```
+
+#### Step 0.6: Run Full Truth Case Suite (30 min)
+
+```bash
+# Run all truth case tests
+npm test -- --grep "Truth Case"
+
+# Capture summary
+npm test -- --grep "Truth Case" 2>&1 | tee truth-case-results.txt
+```
+
+**Document in:** `docs/phase0-truth-case-results.md`
+
+| Module | Total | Pass | Fail | Rate |
+|--------|-------|------|------|------|
+| XIRR | 25 | X | X | X% |
+| Waterfall (tier) | 15 | X | X | X% |
+| Waterfall (ledger) | 15 | X | X | X% |
+| Fees | 10 | X | X | X% |
+| Capital Allocation | 20 | X | X | X% |
+| Exit Recycling | 20 | X | X | X% |
+| **Total** | **105** | X | X | **X%** |
+
+#### Step 0.7: Waterfall Implementation Wiring Check (30 min)
+
+Verify both waterfall implementations are correctly wired:
+
+```bash
+# Which implementation is used in production?
+grep -r "calculateAmericanWaterfall" client/src --include="*.ts" --include="*.tsx" | grep -v test
+
+# Verify tier-based tests use tier-based function
+grep "calculateAmericanWaterfall" tests/unit/waterfall-truth-table.test.ts
+
+# Verify ledger tests use ledger function
+grep "calculateAmericanWaterfallLedger" tests/truth-cases/truth-case-runner.test.ts
+```
+
+**Document:** Which API is used where (production vs legacy)
+
+#### Step 0.8: Phase 0 Decision Gate (30 min)
 
 Based on findings, determine path:
 
@@ -308,34 +367,37 @@ rules: {
 }
 ```
 
-### Day 5: Truth Case Activation
+### Day 5: Truth Case CI Integration
 
-#### Step 1A.7: Create Truth Case Test Runner (4 hours)
+#### Step 1A.7: Integrate Truth Cases into CI (2 hours)
 
-```typescript
-// tests/truth-cases/runner.ts
-import waterfallCases from '../../docs/waterfall.truth-cases.json';
-import xirrCases from '../../docs/xirr.truth-cases.json';
-// etc.
+Truth case runner was built in Phase 0. Now integrate into CI pipeline:
 
-describe('Truth Case Validation', () => {
-  describe('Waterfall', () => {
-    waterfallCases.forEach((tc, i) => {
-      it(`scenario ${i + 1}: ${tc.description}`, () => {
-        const result = calculateWaterfall(tc.input);
-        expect(result).toMatchObject(tc.expected);
-      });
-    });
-  });
-  // Repeat for other modules
-});
+```yaml
+# .github/workflows/truth-cases.yml
+name: Truth Case Validation
+on: [push, pull_request]
+
+jobs:
+  truth-cases:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm ci
+      - run: npm test -- --grep "Truth Case"
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: truth-case-results
+          path: truth-case-results.txt
 ```
 
-#### Step 1A.8: Run Truth Cases in CI (2 hours)
-
-Add to test suite:
+**Verification:**
 ```bash
+# Run locally to confirm CI will pass
 npm test -- --grep "Truth Case"
+# Expected: 105 passing scenarios
 ```
 
 ### Day 6-7: Documentation and Deployment Prep
@@ -754,7 +816,8 @@ npm run deploy:production
 |--------|--------------|-----------|
 | XIRR | `server/services/xirr-calculator.ts` | `tests/unit/xirr-golden-set.test.ts` |
 | MOIC | `server/services/fund-metrics-calculator.ts` | `tests/unit/services/fund-metrics-calculator.test.ts` |
-| Waterfall | `client/src/lib/waterfall/american-ledger.ts` | `tests/unit/waterfall-truth-table.test.ts` |
+| Waterfall (tier) | `shared/schemas/waterfall-policy.ts` | `tests/unit/waterfall-truth-table.test.ts` |
+| Waterfall (ledger) | `client/src/lib/waterfall/american-ledger.ts` | `tests/unit/analytics-waterfall.test.ts` |
 | Fees | `shared/schemas/fee-profile.ts` | `tests/unit/fees.test.ts` |
 | Reserves | `client/src/core/reserves/` | `tests/unit/reserves-engine.test.ts` |
 
@@ -801,8 +864,14 @@ npm run deploy:production
 ### Decision 4: Truth Cases as Gate
 
 **Date:** December 9, 2025
-**Decision:** 90 truth cases must pass before deployment
+**Decision:** 105 truth cases must pass before deployment
 **Rationale:** Truth cases represent known-correct calculations. If they fail, code is wrong.
+
+### Decision 5: Dual Waterfall Validation
+
+**Date:** December 9, 2025
+**Decision:** Validate BOTH waterfall implementations (tier-based and ledger-based)
+**Rationale:** They serve different purposes - tier-based for single-exit Excel parity, ledger-based for fund lifecycle with clawback/recycling.
 
 ---
 
@@ -811,6 +880,23 @@ npm run deploy:production
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | v2.18 | 2025-12-09 | Solo Developer | Initial validation-first plan |
+| v2.19 | 2025-12-09 | Solo Developer | Integrated feedback: moved runner to Phase 0, added wiring check, updated truth cases to 105 |
+
+### v2.19 Changes
+
+**Accepted from feedback:**
+1. Move truth-case runner build from Phase 1A to Phase 0 (eliminates duplication)
+2. Add waterfall implementation wiring check (Step 0.7)
+3. Adjust Phase 0 timing to "8-12 hours" (honest expectations)
+4. Add truth case CI workflow template
+
+**Already completed:**
+- Created `docs/waterfall-ledger.truth-cases.json` (15 clawback scenarios)
+- Updated truth case count from 90 to 105
+
+**Rejected from feedback:**
+- Path overlap refactoring (current DRY-via-reference optimal for solo dev)
+- 2-3 hour manual spot-check (excessive overhead, runner catches errors)
 
 ---
 
