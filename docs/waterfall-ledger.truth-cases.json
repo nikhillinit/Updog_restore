@@ -413,33 +413,11 @@
     "expected": {
       "totals": {
         "paidIn": 10000000,
-        "notes": "Verify: distributed + gpCarryNet = 13M gross proceeds, LP floor = 10.8M"
-      }
-    }
-  },
-  {
-    "scenario": "L15-clawback-institutional-lpa",
-    "tags": ["clawback", "production", "institutional"],
-    "notes": "Institutional LP scenario: 1.15x hurdle with management fee offset",
-    "source": "New production scenario",
-    "input": {
-      "config": {
-        "carryPct": 0.2,
-        "hurdleRate": 0.08,
-        "clawbackEnabled": true,
-        "clawbackLpHurdleMultiple": 1.15
-      },
-      "contributions": [
-        { "quarter": 1, "amount": 50000000 }
-      ],
-      "exits": [
-        { "quarter": 20, "grossProceeds": 65000000 }
-      ]
-    },
-    "expected": {
-      "totals": {
-        "paidIn": 50000000,
-        "notes": "1.3x gross return. LP floor = 57.5M. Verify clawback calculation."
+        "distributed": 12400000,
+        "gpCarryTotal": 600000,
+        "gpCarryNet": 600000,
+        "gpClawback": null,
+        "dpi": 1.24
       }
     }
   }

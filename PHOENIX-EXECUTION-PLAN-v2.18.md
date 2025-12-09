@@ -1,4 +1,4 @@
-# Phoenix Execution Plan v2.x (current: v2.28)
+# Phoenix Execution Plan v2.x (current: v2.29)
 
 **Date:** December 9, 2025
 **Status:** ACTIVE - Ready for Execution
@@ -15,7 +15,7 @@ This plan validates and hardens 6 financial calculation modules through empirica
 **Modules covered by truth-case validation:**
 - XIRR (25 scenarios)
 - Waterfall - Tier-based (15 scenarios)
-- Waterfall - Ledger-based (15 scenarios)
+- Waterfall - Ledger-based (14 scenarios)
 - Fees (10 scenarios)
 - Capital Allocation (20 scenarios)
 - Exit Recycling (20 scenarios)
@@ -63,7 +63,7 @@ All metrics below have been independently verified via direct codebase inspectio
 |--------|----------------|--------|
 | TypeScript errors | 454 (baselined) | `.tsc-baseline.json` |
 | Test pass rate baseline | 74.7% (998/1,337) | `cheatsheets/pr-merge-verification.md` |
-| Truth case scenarios | 105 total | `docs/*.truth-cases.json` |
+| Truth case scenarios | 104 total | `docs/*.truth-cases.json` |
 | parseFloat occurrences | 301 in 96 files | `grep -r "parseFloat"` |
 | Feature flags | 19 defined | `shared/feature-flags/flag-definitions.ts` |
 | Test files | 175 | `find -name "*.test.ts"` |
@@ -76,9 +76,9 @@ All metrics below have been independently verified via direct codebase inspectio
 | Capital Allocation | 20 | `docs/capital-allocation.truth-cases.json` |
 | Exit Recycling | 20 | `docs/exit-recycling.truth-cases.json` |
 | Waterfall (Tier-based) | 15 | `docs/waterfall.truth-cases.json` |
-| Waterfall (Ledger + Clawback) | 15 | `docs/waterfall-ledger.truth-cases.json` |
+| Waterfall (Ledger + Clawback) | 14 | `docs/waterfall-ledger.truth-cases.json` |
 | Fees | 10 | `docs/fees.truth-cases.json` |
-| **Total** | **105** | |
+| **Total** | **104** | |
 
 **Note:** Two waterfall implementations exist and both require validation:
 - **Tier-based** (`calculateAmericanWaterfall`): Single-exit, Excel parity, Decimal.js precision
@@ -344,11 +344,11 @@ npm test -- --grep "Truth Case" 2>&1 | tee truth-case-results.txt
 |--------|-------|------|------|------|
 | XIRR | 25 | X | X | X% |
 | Waterfall (tier) | 15 | X | X | X% |
-| Waterfall (ledger) | 15 | X | X | X% |
+| Waterfall (ledger) | 14 | X | X | X% |
 | Fees | 10 | X | X | X% |
 | Capital Allocation | 20 | X | X | X% |
 | Exit Recycling | 20 | X | X | X% |
-| **Total** | **105** | X | X | **X%** |
+| **Total** | **104** | X | X | **X%** |
 
 #### Step 0.8: Truth Case Runner Validation (30 min)
 
@@ -356,28 +356,25 @@ npm test -- --grep "Truth Case" 2>&1 | tee truth-case-results.txt
 
 **Known JSON structural issues to handle:**
 
-1. **`notes` inside `expected.totals`** (L04, L12, L13, L14, L15)
+1. **`notes` inside `expected.totals`** (L03, L04, L12, L13)
    - These will break `toMatchObject` - runner must strip `notes` before comparison
 
-2. **`gpClawback: null` vs `undefined`** (L05-L07, L09, L10, L12, L13)
+2. **`gpClawback: null` vs `undefined`** (L05-L07, L09, L10, L12, L13, L14)
    - Engine returns `undefined` when no clawback, JSON uses `null`
    - Runner must treat `null` as "expect undefined or missing"
+   - **Critical:** This is the only way to strictly test "No Clawback" scenarios
 
-3. **Placeholder scenarios** (L14, L15)
-   - Only have `paidIn` + `notes`, no complete expectations
-   - Mark as `skip` or `manual-only` in runner
+3. **Range assertions** (L04)
+   - `recycled_min`/`recycled_max` instead of exact value
+   - Justified: recycling is partial and capped, exact value depends on timing
+
+**Note:** L15 was removed (out of scope - time-accreted hurdle not supported by ledger engine). L14 now has complete expected values.
 
 **Runner enhancement pattern (handles all structural variations):**
 
 ```typescript
 describe('Waterfall Ledger Truth Cases', () => {
   ledgerCases.forEach((tc) => {
-    // Skip placeholder scenarios (L14, L15 - only have paidIn + notes)
-    if (tc.expected.totals?.notes && Object.keys(tc.expected.totals).length <= 2) {
-      it.skip(`${tc.scenario} (placeholder)`, () => {});
-      return;
-    }
-
     it(tc.scenario, () => {
       const result = calculateAmericanWaterfallLedger(
         tc.input.config,
@@ -398,7 +395,7 @@ describe('Waterfall Ledger Truth Cases', () => {
         expect(result.totals.recycled).toBeLessThanOrEqual(recycled_max);
       }
 
-      // Standard totals: null means "expect undefined"
+      // Standard totals: null means "expect undefined" (strict negative assertion)
       Object.entries(simple).forEach(([key, value]) => {
         if (value === null) {
           expect(result.totals[key as keyof typeof result.totals]).toBeUndefined();
@@ -423,16 +420,15 @@ describe('Waterfall Ledger Truth Cases', () => {
 ```
 
 **Structural variations handled:**
-- `notes` inside totals → stripped (L04, L12, L13, L14, L15)
-- `gpClawback: null` → expect undefined (L05-L07, L09, L10, L12, L13)
+- `notes` inside totals → stripped (L03, L04, L12, L13)
+- `gpClawback: null` → expect undefined (L05-L07, L09, L10, L12, L13, L14)
 - `recycled_min/max` → range assertions (L04)
 - `rows_count` → count validation (L08, L09, L11)
 - `clawback_row` → row-level assertions (L08, L11)
-- Placeholders → skipped (L14, L15)
 
-**Deliverable:** Runner handles all 15 ledger scenarios (13 real, 2 skipped placeholders)
+**Deliverable:** Runner handles all 14 ledger scenarios (all fully validated, no placeholders)
 
-#### Step 0.10: Cross-Validation - Waterfall Parity Check (30 min)
+#### Step 0.9: Cross-Validation - Waterfall Parity Check (30 min)
 
 **Goal:** Verify tier-based and ledger-based waterfalls produce identical results for single-exit scenarios.
 
@@ -479,7 +475,7 @@ describe('Waterfall Cross-Validation', () => {
 
 > **Limitation:** This cross-validation only covers simple single-exit tier scenarios. It does **not** validate recycling, multi-exit timing, or clawback behavior, which are covered only by the ledger truth cases.
 
-#### Step 0.9: Phase 0 Decision Gate (30 min)
+#### Step 0.10: Phase 0 Decision Gate (30 min)
 
 **Module-aware thresholds** (not just aggregate):
 
@@ -706,7 +702,7 @@ jobs:
 ```bash
 # Run locally to confirm CI will pass
 npm test -- --grep "Truth Case"
-# Expected: 105 passing scenarios
+# Expected: 104 passing scenarios
 ```
 
 ### Day 6-7: Documentation and Deployment Prep
@@ -800,7 +796,7 @@ Validating modules in isolation may miss integration bugs.
 
 ### Phase 1A Exit Criteria
 
-- [ ] All 105 truth cases pass
+- [ ] All 104 truth cases pass
 - [ ] Test pass rate >= 74% (baseline)
 - [ ] No new TypeScript errors (ratchet holds)
 - [ ] Fee schema consolidated
@@ -900,7 +896,7 @@ Same as Phase 1A deployment steps.
 ### Phase 1B Exit Criteria
 
 - [ ] All identified calculation bugs fixed
-- [ ] All 105 truth cases pass
+- [ ] All 104 truth cases pass
 - [ ] Test pass rate >= 74% (baseline)
 - [ ] No new TypeScript errors
 - [ ] Root cause documented for each bug
@@ -1136,7 +1132,7 @@ npm run deploy:production
 
 ### Minimum Viable (Must Have)
 
-- [ ] All 105 truth cases pass
+- [ ] All 104 truth cases pass
 - [ ] Test pass rate >= 74% (matches baseline)
 - [ ] TypeScript errors <= 454 (ratchet maintained)
 - [ ] No calculation precision bugs in P0 paths
@@ -1150,11 +1146,11 @@ Track progress per module (intermediate wins):
 |--------|--------|--------|
 | XIRR | 25/25 | [ ] |
 | Waterfall (Tier) | 15/15 | [ ] |
-| Waterfall (Ledger) | 15/15 | [ ] |
+| Waterfall (Ledger) | 14/14 | [ ] |
 | Fees | 10/10 | [ ] |
 | Capital Allocation | 20/20 | [ ] |
 | Exit Recycling | 20/20 | [ ] |
-| **Total** | **105/105** | [ ] |
+| **Total** | **104/104** | [ ] |
 
 **Completion order recommendation:**
 1. XIRR (highest user visibility)
@@ -1352,7 +1348,7 @@ npm run deploy:production
 ### Decision 4: Truth Cases as Gate
 
 **Date:** December 9, 2025
-**Decision:** 105 truth cases must pass before deployment
+**Decision:** 104 truth cases must pass before deployment
 **Rationale:** Truth cases represent known-correct calculations. If they fail, code is wrong.
 
 ### Decision 5: Dual Waterfall Validation
@@ -1378,6 +1374,7 @@ npm run deploy:production
 | v2.26 | 2025-12-09 | Solo Developer | Fixed clawback formula, expanded runner pattern for L04/row checks, added integration test phase |
 | v2.27 | 2025-12-09 | Solo Developer | Added timing buffer, cross-validation limitation note, complexity rule, explicit JSDoc fix task |
 | v2.28 | 2025-12-09 | Solo Developer | Deferred validation-helpers.ts proposal; documented reference design for Phase 1A |
+| v2.29 | 2025-12-09 | Solo Developer | Fixed L14 (real values), removed L15 (out of scope), counts 104, step renumbering |
 
 ### v2.19 Changes
 
@@ -1685,6 +1682,44 @@ The "Oracle Problem" argument is valid: automated runners cannot detect errors i
 - Design patterns available when complexity threshold triggers helper extraction
 
 **Key insight:** Good design work, wrong timing. Abstractions follow observed complexity, not precede it.
+
+### v2.29 Changes
+
+**Feedback source:** Critical review identifying broken validation data
+
+**Problem:** L14 was a placeholder (only `paidIn` + `notes`), L15 was out of scope (time-accreted hurdle not supported). Phase 0 would validate only 13/15 scenarios, missing critical SEC reporting validation.
+
+**Fixes applied:**
+
+1. **JSON file (`docs/waterfall-ledger.truth-cases.json`):**
+   - L14: Replaced placeholder with real expected values (SEC reporting scenario)
+     - `paidIn: 10000000`, `distributed: 12400000`, `gpCarryTotal: 600000`
+     - `gpCarryNet: 600000`, `gpClawback: null`, `dpi: 1.24`
+   - L15: Removed entirely (time-accreted hurdle not supported by ledger engine)
+   - Result: 14 fully-testable scenarios (was 15 with 2 broken)
+
+2. **Plan counts updated:**
+   - Ledger scenarios: 15 → 14
+   - Total truth cases: 105 → 104
+   - Updated in: Executive Summary, Codebase Metrics, Truth Case Distribution, exit criteria, success checklists
+
+3. **Step renumbering:**
+   - Step 0.10 (Cross-Validation) → Step 0.9
+   - Step 0.9 (Decision Gate) → Step 0.10
+   - Now follows logical flow: 0.8 runner → 0.9 cross-validation → 0.10 decision
+
+4. **Step 0.8 updated:**
+   - Removed L15 references
+   - Updated L14 from "placeholder" to "complete expected values"
+   - Removed placeholder skip logic from runner pattern
+   - Added note: "L15 was removed (out of scope)"
+
+**Rationale:** Cannot run Phase 0 with broken data. This is data quality fix, not infrastructure investment.
+
+**L14 calculation verification:**
+- 10M paidIn, 13M gross proceeds, 20% carry, 1.08x hurdle
+- Fund profit = 3M → carry = 600K → LP distributed = 12.4M → DPI = 1.24
+- LP floor = 10.8M, actual LP = 12.4M → NO CLAWBACK ✓
 
 ---
 
