@@ -9,14 +9,45 @@
 
 ## Executive Summary
 
-This plan validates and hardens 5 financial calculation modules (XIRR, MOIC, Waterfall, Fees, Reserves) through empirical testing before optimization. It rejects analysis paralysis in favor of actionable validation.
+This plan validates and hardens 6 financial calculation modules through empirical testing before optimization. It rejects analysis paralysis in favor of actionable validation.
 
-**Core Principle:** Code is truth. Validate first, then fix what's actually broken.
+**Modules covered by truth-case validation:**
+- XIRR (25 scenarios)
+- Waterfall - Tier-based (15 scenarios)
+- Waterfall - Ledger-based (15 scenarios)
+- Fees (10 scenarios)
+- Capital Allocation (20 scenarios)
+- Exit Recycling (20 scenarios)
 
-**Timeline:** 1-3 weeks (conditional on validation findings)
-- Best case (calculations work): 1-2 weeks
-- Moderate case (minor bugs): 2-3 weeks
-- Worst case (fundamental errors): 4-6 weeks
+**Modules covered by unit tests only (no truth cases):**
+- MOIC (via `fund-metrics-calculator.ts` tests)
+- Reserves (via `reserves-engine.test.ts`)
+
+**Core Principle:** Production code + JSON truth cases are the joint source of truth. We validate current behavior against truth cases first, then only change code where behavior is demonstrably wrong.
+
+**Timeline:** 1-3 weeks in the expected case, up to 4-6 weeks in the worst case.
+- Best case (calculations largely correct): 1-2 weeks
+- Moderate case (contained bugs in existing engines): 2-3 weeks
+- Worst case (fundamental errors in waterfall/XIRR): 4-6 weeks
+
+**Assumption:** Phase 0 shows that the existing engines are structurally sound and we are mostly fixing integration and spec drift, not building new engines.
+
+### Path Summary
+
+| Path | Trigger (Phase 0) | Focus | Duration |
+|------|-------------------|-------|----------|
+| 1A | Core tests >= 70% AND critical truth cases >= 95% | Cleanup + hardening | 1-2 wks |
+| 1B | Core tests >= 50% AND truth cases >= 60% | Bug fixes then cleanup | 2-3 wks |
+| 1C | Anything below | Targeted rebuild | 4-6 wks |
+
+**Note:** As of 2025-12-09, test pass rate is ~74.7%, so Phase 1A is the expected path unless significant regressions occur.
+
+### Execution Discipline (Solo-Developer Guardrail)
+
+- Only one Phase path is active at a time (1A OR 1B OR 1C)
+- Within a Phase, only one module is "hot" at a time (e.g., "today is Waterfall")
+- No starting work on the next Phase until the current Phase's exit gate checklist is fully ticked
+- Context switches between modules require explicit handoff notes
 
 ---
 
@@ -345,14 +376,30 @@ describe('Waterfall Cross-Validation', () => {
 
 #### Step 0.9: Phase 0 Decision Gate (30 min)
 
-Based on findings, determine path:
+**Module-aware thresholds** (not just aggregate):
+
+| Module | 1A Threshold | 1B Threshold | Critical? |
+|--------|--------------|--------------|-----------|
+| XIRR | 100% (0 failures) | >= 80% | YES |
+| Waterfall (tier + ledger) | >= 95% (max 1-2 failures) | >= 70% | YES |
+| Fees | >= 90% | >= 60% | NO |
+| Capital Allocation | >= 80% | >= 50% | NO |
+| Exit Recycling | >= 80% | >= 50% | NO |
+
+**Decision logic:**
 
 ```
-IF test_pass_rate >= 70% AND truth_case_pass_rate >= 80%:
+IF (R_tests >= 70%) AND
+   (XIRR == 100%) AND
+   (Waterfalls >= 95%) AND
+   (all other modules >= 80%):
     → PROCEED to Phase 1A (Cleanup Path)
     → Timeline: 1-2 weeks
 
-ELIF test_pass_rate >= 50% AND truth_case_pass_rate >= 60%:
+ELIF (R_tests >= 50%) AND
+     (XIRR >= 80%) AND
+     (Waterfalls >= 70%) AND
+     (overall >= 60%):
     → PROCEED to Phase 1B (Bug Fix Path)
     → Timeline: 2-3 weeks
 
@@ -361,9 +408,13 @@ ELSE:
     → Timeline: 4-6 weeks
 ```
 
+**Key insight:** 80% aggregate can hide "Waterfall is broken". XIRR and Waterfall are critical because they directly govern cashflows, carry, and DPI/TVPI.
+
 ### Phase 0 Deliverable
 
-Create: `docs/phase0-validation-report.md`
+Create single consolidated file: `docs/PHOENIX-VALIDATION-LOG.md`
+
+(Combines test analysis, truth case audit, results, and decision into one artifact)
 
 ```markdown
 # Phase 0 Validation Report
@@ -709,6 +760,29 @@ Same as Phase 1A deployment steps.
 **Timeline:** 4-6 weeks minimum
 
 **Recommendation:** If Phase 0 indicates this path, pause and create dedicated rebuild plan.
+
+---
+
+## Discrepancy Triage Rules
+
+Not all differences are created equal. To keep momentum and avoid analysis paralysis:
+
+### Tier 1 (BLOCKING)
+
+- Sign errors, obviously wrong formula, NaNs, or differences > **1%** on any fund-level metric (MOIC, DPI, IRR)
+- **Action:** Must be fixed before shipping the module
+
+### Tier 2 (INVESTIGATE)
+
+- Differences between **0.1% and 1%**, or > **$100** on fee/waterfall cashflows
+- **Action:** Investigate up to 1-2 hours; if the cause is benign (e.g., rounding mode), document and move on
+
+### Tier 3 (ACCEPTABLE)
+
+- Differences < **0.1%** and < **$100** on cashflows
+- **Action:** Do not block rollout. Document once and treat as noise unless multiple Tier 3s cluster in one area
+
+**Application:** Investigate all Tier 1 discrepancies and any Tier 2 discrepancies that cluster in the same module. Tier 3 discrepancies do not block rollout.
 
 ---
 
@@ -1134,6 +1208,7 @@ npm run deploy:production
 | v2.21 | 2025-12-09 | Solo Developer | Added infrastructure audit, cross-validation, boundary cast strategy, tolerance comparator |
 | v2.22 | 2025-12-09 | Solo Developer | Added provenance, narrowed ESLint, rollout metrics, module checkboxes |
 | v2.23 | 2025-12-09 | Solo Developer | Fixed timing math, corrected CA/ER provenance, expanded ESLint, documented rollout gaps |
+| v2.24 | 2025-12-09 | Solo Developer | Fixed module/truth-case mismatch, added module-aware gates, triage rules, execution discipline |
 
 ### v2.19 Changes
 
@@ -1262,6 +1337,43 @@ The "Oracle Problem" argument is valid: automated runners cannot detect errors i
 - Removed: CA-001, CA-013 (Capital Allocation now MEDIUM-HIGH confidence)
 - Added: ER-001, ER-005 (Exit Recycling is MEDIUM, needs verification)
 - Added: W-TIER-01 (Cross-validation between waterfall engines)
+
+### v2.24 Changes
+
+**Feedback source:** Comprehensive review of timeline, gates, and scope
+
+**Major issue identified:** Module/truth-case mismatch
+- Exec summary claimed "5 modules: XIRR, MOIC, Waterfall, Fees, Reserves"
+- Actual truth cases: XIRR, Waterfall (tier+ledger), Fees, Capital Allocation, Exit Recycling
+- MOIC and Reserves have NO dedicated truth case files
+
+**Fixes applied:**
+
+1. **Fixed module inventory** - Now explicitly lists 6 truth-case validated modules + 2 unit-test-only modules (MOIC, Reserves)
+
+2. **Fixed timeline contradiction** - "1-3 weeks" with "worst case 4-6 weeks" was internally inconsistent
+   - Now: "1-3 weeks expected, up to 4-6 weeks worst case"
+
+3. **Added module-aware gate thresholds** - Prevents "92% aggregate but Waterfall broken" failure mode
+   - XIRR: 100% required for 1A (0 failures allowed)
+   - Waterfall: 95% required for 1A (max 1-2 failures)
+   - Other modules: 80% for 1A
+
+4. **Added discrepancy triage rules** - Tier 1 (blocking), Tier 2 (investigate), Tier 3 (acceptable)
+   - Prevents analysis paralysis on small rounding differences
+
+5. **Added execution discipline** - Solo-developer guardrail
+   - One Phase active at a time
+   - One module "hot" at a time
+   - No context switching without handoff notes
+
+6. **Added path summary table** - Quick visual reference in Executive Summary
+
+7. **Consolidated Phase 0 docs** - Single `PHOENIX-VALIDATION-LOG.md` instead of 4 separate files
+
+**Rejected:**
+- Creating MOIC/Reserves truth case files in this plan (out of scope, documented as unit-test-only)
+- Phase 0.6 split into 0.6a/0.6b (adds complexity without proportional benefit)
 
 ---
 
