@@ -82,6 +82,25 @@ All metrics below have been independently verified via direct codebase inspectio
 - **Tier-based** (`calculateAmericanWaterfall`): Single-exit, Excel parity, Decimal.js precision
 - **Ledger-based** (`calculateAmericanWaterfallLedger`): Multi-exit, clawback, recycling, DPI/TVPI
 
+### Current Clawback Semantics (v2.x)
+
+**Implementation:** Shortfall-based partial clawback (Option A)
+
+GP carry is limited by fund-level profit above the LP shortfall to the floor, but LP is not guaranteed to reach the floor in all scenarios.
+
+**Example (L08):**
+- 1.1x hurdle, fund at 1.1x gross
+- LP shortfall: 1.1M floor - 1.08M distributed = 20K
+- Clawback: min(20K shortfall, 20K carry) × (20K/100K) = 4K
+- GP keeps 16K net carry, LP ends at 1.084x
+
+**Explicit non-goals for v2.x:**
+- Hard floor semantics (LP must hit floor before any net carry)
+- Escrow-based clawback (carry held in reserve)
+- Multi-year clawback true-ups
+
+**Future iteration:** Hard floor semantics may be added if institutional LPs require it.
+
 ### Truth Case Provenance
 
 | Module | Source | Validation Method | Confidence |
@@ -312,22 +331,54 @@ npm test -- --grep "Truth Case" 2>&1 | tee truth-case-results.txt
 | Exit Recycling | 20 | X | X | X% |
 | **Total** | **105** | X | X | **X%** |
 
-#### Step 0.8: Waterfall Implementation Wiring Check (30 min)
+#### Step 0.8: Truth Case Runner Validation (30 min)
 
-Verify both waterfall implementations are correctly wired:
+**Goal:** Verify the runner handles all truth case structures correctly.
 
-```bash
-# Which implementation is used in production?
-grep -r "calculateAmericanWaterfall" client/src --include="*.ts" --include="*.tsx" | grep -v test
+**Known JSON structural issues to handle:**
 
-# Verify tier-based tests use tier-based function
-grep "calculateAmericanWaterfall" tests/unit/waterfall-truth-table.test.ts
+1. **`notes` inside `expected.totals`** (L04, L12, L13, L14, L15)
+   - These will break `toMatchObject` - runner must strip `notes` before comparison
 
-# Verify ledger tests use ledger function
-grep "calculateAmericanWaterfallLedger" tests/truth-cases/truth-case-runner.test.ts
+2. **`gpClawback: null` vs `undefined`** (L05-L07, L09, L10, L12, L13)
+   - Engine returns `undefined` when no clawback, JSON uses `null`
+   - Runner must treat `null` as "expect undefined or missing"
+
+3. **Placeholder scenarios** (L14, L15)
+   - Only have `paidIn` + `notes`, no complete expectations
+   - Mark as `skip` or `manual-only` in runner
+
+**Runner enhancement pattern:**
+
+```typescript
+describe('Waterfall Ledger Truth Cases', () => {
+  ledgerCases.forEach((tc) => {
+    // Skip placeholder scenarios
+    if (tc.expected.totals?.notes && Object.keys(tc.expected.totals).length <= 2) {
+      it.skip(`${tc.scenario} (placeholder)`, () => {});
+      return;
+    }
+
+    it(tc.scenario, () => {
+      const result = calculateAmericanWaterfallLedger(...);
+
+      // Strip notes and handle null semantics
+      const expectedTotals = { ...tc.expected.totals };
+      delete expectedTotals.notes;
+
+      Object.entries(expectedTotals).forEach(([key, value]) => {
+        if (value === null) {
+          expect(result.totals[key]).toBeUndefined();
+        } else {
+          expect(result.totals[key]).toBe(value);
+        }
+      });
+    });
+  });
+});
 ```
 
-**Document:** Which API is used where (production vs legacy)
+**Deliverable:** Runner handles all 15 ledger scenarios (13 real, 2 skipped placeholders)
 
 #### Step 0.10: Cross-Validation - Waterfall Parity Check (30 min)
 
@@ -1209,6 +1260,7 @@ npm run deploy:production
 | v2.22 | 2025-12-09 | Solo Developer | Added provenance, narrowed ESLint, rollout metrics, module checkboxes |
 | v2.23 | 2025-12-09 | Solo Developer | Fixed timing math, corrected CA/ER provenance, expanded ESLint, documented rollout gaps |
 | v2.24 | 2025-12-09 | Solo Developer | Fixed module/truth-case mismatch, added module-aware gates, triage rules, execution discipline |
+| v2.25 | 2025-12-09 | Solo Developer | Documented clawback semantics, truth case JSON issues, runner enhancement pattern |
 
 ### v2.19 Changes
 
@@ -1374,6 +1426,39 @@ The "Oracle Problem" argument is valid: automated runners cannot detect errors i
 **Rejected:**
 - Creating MOIC/Reserves truth case files in this plan (out of scope, documented as unit-test-only)
 - Phase 0.6 split into 0.6a/0.6b (adds complexity without proportional benefit)
+
+### v2.25 Changes
+
+**Feedback source:** Detailed review of plan + truth case JSON alignment
+
+**Issues identified:**
+
+1. **Truth case JSON structural problems**
+   - `notes` inside `expected.totals` breaks `toMatchObject` (L04, L12, L13, L14, L15)
+   - `gpClawback: null` vs engine's `undefined` causes test failures
+   - L14 and L15 are placeholders with only `paidIn` + notes
+
+2. **Duplicate wiring checks**
+   - Step 0.1.1 and Step 0.8 both checked waterfall wiring
+
+3. **Clawback semantics undocumented**
+   - No explicit statement of current implementation approach
+
+**Fixes applied:**
+
+1. **Step 0.8 repurposed** - Now "Truth Case Runner Validation"
+   - Documents known JSON structural issues
+   - Provides runner enhancement pattern to handle `null` vs `undefined`
+   - Marks L14/L15 as placeholders to skip
+
+2. **Added "Current Clawback Semantics" section**
+   - Explicitly documents shortfall-based partial clawback (Option A)
+   - States non-goals: hard floor, escrow, multi-year true-ups
+   - Includes worked example (L08: 4K clawback from 20K carry)
+
+**Rejected:**
+- Updating file header to v2.25 (intentional: single file with internal versioning)
+- Modifying truth case JSON in this PR (JSON cleanup is separate task)
 
 ---
 
