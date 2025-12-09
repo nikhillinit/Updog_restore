@@ -59,10 +59,10 @@ All metrics below have been independently verified via direct codebase inspectio
 | Waterfall (Tier) | Internal spreadsheet model | Hand-verified arithmetic | MEDIUM - Needs spot-check |
 | Waterfall (Ledger) | Unit tests + LPA terms | Migrated from `analytics-waterfall.test.ts` | MEDIUM - Needs spot-check |
 | Fees | Arithmetic derivations | 2% of commitment, etc. | HIGH - Simple math |
-| Capital Allocation | Unknown | 1,381 lines, unclear origin | LOW - Priority for spot-check |
-| Exit Recycling | Unknown | Needs investigation | LOW - Priority for spot-check |
+| Capital Allocation | NotebookLM docs (822 lines) | `docs/notebooklm-sources/capital-allocation.md` | MEDIUM-HIGH - Has formulas |
+| Exit Recycling | NotebookLM docs (648 lines) | `docs/notebooklm-sources/exit-recycling.md` | MEDIUM - Needs cross-check |
 
-**Action:** Phase 0 spot-check (Step 0.4) specifically targets LOW/MEDIUM confidence scenarios.
+**Action:** Phase 0 spot-check (Step 0.4) targets MEDIUM confidence scenarios (Waterfall, Exit Recycling).
 
 ### parseFloat Triage (Estimated)
 
@@ -89,13 +89,13 @@ All metrics below have been independently verified via direct codebase inspectio
 
 ---
 
-## Phase 0: Reality Check (9.5-13 hours)
+## Phase 0: Reality Check (11-14 hours)
 
 **Goal:** Determine what actually works before planning fixes.
 
-**Duration:** 9.5-13 hours (1-1.5 days)
-- Best case: 9.5 hours (test suite healthy, spot-check passes)
-- Slip case: 13 hours (runner issues, spot-check finds oracle errors)
+**Duration:** 11-14 hours (1.5-2 days)
+- Best case: 11 hours (test suite healthy, spot-check passes)
+- Slip case: 14 hours (runner issues, spot-check finds oracle errors)
 
 ### Morning: Infrastructure Audit & Setup (4.5 hours)
 
@@ -175,7 +175,7 @@ Categorize each failing test:
 
 **Document in:** `docs/phase0-test-analysis.md`
 
-### Afternoon: Truth Case Validation (5.5 hours)
+### Afternoon: Truth Case Validation (6.5 hours)
 
 #### Step 0.4: Truth Case Spot-Check (1.5 hours) - CRITICAL
 
@@ -184,8 +184,8 @@ Categorize each failing test:
 **Why This Cannot Be Skipped:**
 - Automated runner validates CODE against ORACLES
 - If oracles are wrong, runner cannot detect it (Oracle Problem)
-- Capital Allocation: 1,381 lines, unclear validation provenance
-- Waterfall clawback: Recently added, needs verification
+- Waterfall implementations: Two engines must produce identical results
+- Exit Recycling: Has docs but no independent validation yet
 
 **Method:** Use DIFFERENT tool than original creation (Excel/hand-calc)
 
@@ -193,11 +193,11 @@ Categorize each failing test:
 
 | Scenario | Module | Verification Method | Time |
 |----------|--------|---------------------|------|
-| CA-001 | Capital Allocation | Excel: 20% of 100 = 20 reserve | 15 min |
-| CA-013 | Capital Allocation | Hand-calc: reserve override | 20 min |
+| ER-001 | Exit Recycling | Hand-calc: Basic recycling logic | 15 min |
+| ER-005 | Exit Recycling | Cross-check against docs | 20 min |
 | L08 | Waterfall Ledger | Ledger trace: partial clawback | 20 min |
-| FEE-001 | Fees | Arithmetic: 2% of commitment | 10 min |
-| XIRR-01 | XIRR | Excel XIRR() function | 15 min |
+| W-TIER-01 | Waterfall Tier | Compare tier vs ledger output | 15 min |
+| XIRR-01 | XIRR | Excel XIRR() function | 10 min |
 
 **Deliverable:** `docs/phase0-truth-case-audit.md`
 
@@ -724,14 +724,20 @@ Same as Phase 1A deployment steps.
 // Add to eslint.config.js
 
 // Prevent parseFloat in FINANCIAL calculation paths only
-// (Scoped to avoid false positives in generic utility code)
+// v2.23: Expanded patterns to catch 68 occurrences (was ~17)
 {
   files: [
-    'server/services/xirr-*.ts',
-    'server/services/fund-metrics-*.ts',
+    // Server calculation services (68 parseFloat occurrences)
+    'server/services/*-calculator.ts',
+    'server/services/*-metrics-*.ts',
     'server/services/monte-carlo-*.ts',
+    'server/services/variance-*.ts',
+    'server/services/*-prediction*.ts',
+    'server/services/*-engine.ts',
+    // Client calculation code
     'client/src/lib/waterfall/**/*.ts',
     'client/src/core/reserves/**/*.ts',
+    // Shared schemas
     'shared/schemas/waterfall-*.ts',
     'shared/schemas/fee-*.ts'
   ],
@@ -743,6 +749,7 @@ Same as Phase 1A deployment steps.
   }
 }
 // Note: parseInt left alone (not a precision issue for integers)
+// Excluded: ai-orchestrator.ts (non-financial), metrics-aggregator.ts (aggregation only)
 ```
 
 ### TypeScript Strictness
@@ -812,9 +819,10 @@ return oldResult;
 
 ### Feature Flag Rollout
 
-Use existing feature flag infrastructure:
+**NOTE:** The following flag must be CREATED during Phase 2 (does not exist yet):
+
 ```typescript
-// shared/feature-flags/flag-definitions.ts
+// TO BE ADDED to shared/feature-flags/flag-definitions.ts
 export const PHOENIX_VALIDATED_CALCULATIONS = {
   name: 'phoenix-validated-calculations',
   description: 'Use Phoenix-validated calculation engines',
@@ -822,6 +830,12 @@ export const PHOENIX_VALIDATED_CALCULATIONS = {
   rolloutPercentage: 0, // Start at 0%, increase gradually
 };
 ```
+
+**Implementation checklist (Phase 2):**
+- [ ] Add flag to `flag-definitions.ts`
+- [ ] Create `validateCalculationOutput` middleware
+- [ ] Wire feature flag to calculation endpoints
+- [ ] Set up Prometheus metrics for rollout monitoring
 
 Rollout schedule:
 - Day 1: 5% of users
@@ -1119,6 +1133,7 @@ npm run deploy:production
 | v2.20 | 2025-12-09 | Solo Developer | Added truth case spot-check after multi-AI consensus review |
 | v2.21 | 2025-12-09 | Solo Developer | Added infrastructure audit, cross-validation, boundary cast strategy, tolerance comparator |
 | v2.22 | 2025-12-09 | Solo Developer | Added provenance, narrowed ESLint, rollout metrics, module checkboxes |
+| v2.23 | 2025-12-09 | Solo Developer | Fixed timing math, corrected CA/ER provenance, expanded ESLint, documented rollout gaps |
 
 ### v2.19 Changes
 
@@ -1207,6 +1222,46 @@ The "Oracle Problem" argument is valid: automated runners cannot detect errors i
 **Rejected:**
 - Core Phase 1 restructuring: Current DRY-via-reference (1B → "execute 1A steps") is sufficient
 - Restructuring a planning document doesn't improve execution quality
+
+### v2.23 Changes
+
+**Feedback source:** systematic-debugging + 5 parallel Plan agents review
+
+**Verified issues and fixes:**
+
+1. **Phase 0 Timing Math Error** - VALID
+   - Afternoon steps: 1.5h + 1h + 2h + 0.5h + 0.5h + 0.5h + 0.5h = 6.5h (not 5.5h)
+   - Updated: 9.5-13h → 11-14h
+
+2. **Capital Allocation Provenance** - VALID (but different reason)
+   - Claimed "1,381 lines, unknown origin" - WRONG
+   - Actual: 822-line documentation at `docs/notebooklm-sources/capital-allocation.md`
+   - Updated confidence: LOW → MEDIUM-HIGH
+
+3. **Exit Recycling Provenance** - ALSO WRONG
+   - Claimed "Needs investigation" - WRONG
+   - Actual: 648-line documentation at `docs/notebooklm-sources/exit-recycling.md`
+   - Updated confidence: LOW → MEDIUM
+
+4. **ESLint Patterns** - VALID
+   - Was: 7 patterns covering ~17 parseFloat occurrences
+   - Now: 11 patterns covering ~68 parseFloat occurrences
+   - Added: `*-calculator.ts`, `*-metrics-*.ts`, `variance-*.ts`, `*-prediction*.ts`, `*-engine.ts`
+
+5. **Rollout Infrastructure** - VALID
+   - `phoenix-validated-calculations` flag: Does NOT exist in code yet
+   - `validateCalculationOutput` middleware: Documentation only
+   - Added: Implementation checklist for Phase 2
+
+**Rejected from feedback:**
+- Phase 0.0A (2h pre-flight): Excessive - Step 0.1 already has schema audit + wiring check
+- Tolerance calibration (4h): Reasonable but deferred to Phase 3 execution time
+- Full rollout infrastructure docs: Flag/middleware creation is Phase 2 work, not planning
+
+**Spot-check targets updated:**
+- Removed: CA-001, CA-013 (Capital Allocation now MEDIUM-HIGH confidence)
+- Added: ER-001, ER-005 (Exit Recycling is MEDIUM, needs verification)
+- Added: W-TIER-01 (Cross-validation between waterfall engines)
 
 ---
 
