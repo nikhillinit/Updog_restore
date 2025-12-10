@@ -14,9 +14,10 @@ import {
   capitalAllocationSchema,
   type CapitalAllocationInput,
   type FundFinancialsOutput,
-  type SectorProfile
+  type SectorProfile,
 } from '@/schemas/modeling-wizard.schemas';
 import { useCapitalAllocationCalculations } from '@/hooks/useCapitalAllocationCalculations';
+import { useDebounceDeep } from '@/hooks/useDebounceDeep';
 import { InitialInvestmentSection } from './capital-allocation/InitialInvestmentSection';
 import { FollowOnStrategyTable } from './capital-allocation/FollowOnStrategyTable';
 import { PacingHorizonBuilder } from './capital-allocation/PacingHorizonBuilder';
@@ -43,13 +44,13 @@ const DEFAULT_CAPITAL_ALLOCATION: Partial<CapitalAllocationInput> = {
   initialCheckSize: 1.0,
   followOnStrategy: {
     reserveRatio: 0.5,
-    stageAllocations: []
+    stageAllocations: [],
   },
   pacingModel: {
     investmentsPerYear: 10,
-    deploymentCurve: 'linear'
+    deploymentCurve: 'linear',
   },
-  pacingHorizon: []
+  pacingHorizon: [],
 };
 
 // ============================================================================
@@ -60,7 +61,7 @@ export function CapitalAllocationStep({
   initialData,
   onSave,
   fundFinancials,
-  sectorProfiles
+  sectorProfiles,
 }: CapitalAllocationStepProps) {
   // Form setup
   const {
@@ -69,7 +70,7 @@ export function CapitalAllocationStep({
     watch,
     setValue,
     control,
-    formState: { errors }
+    formState: { errors },
   } = useForm<CapitalAllocationInput>({
     resolver: zodResolver(capitalAllocationSchema),
     defaultValues: {
@@ -78,8 +79,8 @@ export function CapitalAllocationStep({
       // Initialize pacing horizon if not provided
       pacingHorizon:
         initialData?.pacingHorizon ||
-        generateDefaultPacingPeriods(fundFinancials.investmentPeriod, 'linear')
-    }
+        generateDefaultPacingPeriods(fundFinancials.investmentPeriod, 'linear'),
+    },
   });
 
   // Watch all form values for calculations
@@ -87,35 +88,42 @@ export function CapitalAllocationStep({
   const entryStrategy = watch('entryStrategy') || 'amount-based';
   const reserveRatio = watch('followOnStrategy.reserveRatio');
 
-  // Calculate all metrics in real-time
+  // Debounce form values to prevent watch() from defeating useMemo
+  // watch() returns new object every render → breaks memoization
+  // Debouncing with deep equality ensures stable references
+  const debouncedFormValues = useDebounceDeep(formValues, 250);
+
+  // Calculate all metrics in real-time (now properly memoized)
   const { calculations, validation } = useCapitalAllocationCalculations({
-    formValues,
+    formValues: debouncedFormValues,
     fundFinancials,
     sectorProfiles,
-    vintageYear: new Date().getFullYear()
+    vintageYear: new Date().getFullYear(),
   });
+
+  // Refs for debounced auto-save with unmount protection
+  const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastValidDataRef = React.useRef<CapitalAllocationInput | null>(null);
 
   // Auto-save with debouncing (750ms) and unmount protection
   React.useEffect(() => {
-    let timeoutId: NodeJS.Timeout | null = null;
-    let pendingData: CapitalAllocationInput | null = null;
-
     const subscription = watch((value) => {
+      // Clear existing debounce timeout
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+
+      // Validate data before saving
       const result = capitalAllocationSchema.safeParse(value);
       if (result.success) {
-        pendingData = result.data;
+        lastValidDataRef.current = result.data;
 
-        // Clear existing timeout
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-
-        // Debounce save by 750ms
-        timeoutId = setTimeout(() => {
+        // Debounce save to prevent excessive calls (1-2 per 750ms window)
+        saveTimeoutRef.current = setTimeout(() => {
           onSave(result.data);
-          pendingData = null;
-          timeoutId = null;
-        }, 750);
+          lastValidDataRef.current = null;
+          saveTimeoutRef.current = null;
+        }, 500);
       }
     });
 
@@ -123,16 +131,30 @@ export function CapitalAllocationStep({
     return () => {
       subscription.unsubscribe();
 
-      if (timeoutId) {
-        clearTimeout(timeoutId);
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
       }
 
-      // Flush any pending data before unmount
-      if (pendingData) {
-        onSave(pendingData);
+      // Flush any pending data before unmount (no data loss)
+      if (lastValidDataRef.current) {
+        onSave(lastValidDataRef.current);
       }
     };
   }, [watch, onSave]);
+
+  // Data loss prevention: warn on tab close if save pending
+  React.useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // Check if debounced save is in flight
+      if (saveTimeoutRef.current !== null) {
+        event.preventDefault();
+        event.returnValue = ''; // Required for legacy browsers
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []); // saveTimeoutRef is stable (ref never changes)
 
   return (
     <form onSubmit={handleSubmit(onSave)} className="space-y-8">
@@ -150,9 +172,7 @@ export function CapitalAllocationStep({
       {/* Reserve Ratio Configuration */}
       <div className="bg-charcoal-50 rounded-lg p-6">
         <div className="space-y-4">
-          <h3 className="font-inter font-bold text-lg text-pov-charcoal">
-            Reserve Strategy
-          </h3>
+          <h3 className="font-inter font-bold text-lg text-pov-charcoal">Reserve Strategy</h3>
           <div>
             <div className="flex justify-between items-center mb-3">
               <Label htmlFor="reserveRatio" className="font-poppins text-charcoal-700">
@@ -169,11 +189,8 @@ export function CapitalAllocationStep({
               max="70"
               step="5"
               value={reserveRatio * 100}
-              onChange={e =>
-                setValue(
-                  'followOnStrategy.reserveRatio',
-                  parseFloat(e.target.value) / 100
-                )
+              onChange={(e) =>
+                setValue('followOnStrategy.reserveRatio', parseFloat(e.target.value) / 100)
               }
               className="w-full"
             />
@@ -200,9 +217,7 @@ export function CapitalAllocationStep({
           sectorProfiles={sectorProfiles}
           stageAllocations={formValues.followOnStrategy.stageAllocations}
           calculations={calculations.followOnAllocations}
-          onChange={allocations =>
-            setValue('followOnStrategy.stageAllocations', allocations)
-          }
+          onChange={(allocations) => setValue('followOnStrategy.stageAllocations', allocations)}
           {...(errors.followOnStrategy !== undefined ? { errors: errors.followOnStrategy } : {})}
         />
       </div>
@@ -210,9 +225,7 @@ export function CapitalAllocationStep({
       {/* Investments Per Year */}
       <div className="bg-charcoal-50 rounded-lg p-6">
         <div className="space-y-4">
-          <h3 className="font-inter font-bold text-lg text-pov-charcoal">
-            Pacing Model
-          </h3>
+          <h3 className="font-inter font-bold text-lg text-pov-charcoal">Pacing Model</h3>
           <div>
             <Label htmlFor="investmentsPerYear" className="font-poppins text-charcoal-700">
               Investments Per Year *
@@ -243,8 +256,8 @@ export function CapitalAllocationStep({
         <PacingHorizonBuilder
           periods={formValues.pacingHorizon}
           fundFinancials={fundFinancials}
-          onChange={periods => setValue('pacingHorizon', periods)}
-          errors={errors.pacingHorizon as any}
+          onChange={(periods) => setValue('pacingHorizon', periods)}
+          errors={errors.pacingHorizon}
         />
       </div>
 

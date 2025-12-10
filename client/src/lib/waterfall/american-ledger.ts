@@ -1,11 +1,21 @@
 export interface AmericanWaterfallConfig {
-  carryPct: number;              // e.g., 0.20
-  hurdleRate?: number;           // optional pref; if unset, treated as 0
+  carryPct: number; // e.g., 0.20
+  hurdleRate?: number; // optional pref; if unset, treated as 0
   // Optional recycling (if you decide to expose later — defaults harmless):
   recyclingEnabled?: boolean;
-  recyclingCapPctOfCommitted?: number;  // e.g., 0.15 (15% of committed)
-  recyclingWindowQuarters?: number;     // e.g., 12 (Q1..Q12)
-  recyclingTakePctPerEvent?: number;    // conservative skim of LP proceeds (e.g., 0.5)
+  recyclingCapPctOfCommitted?: number; // e.g., 0.15 (15% of committed)
+  recyclingWindowQuarters?: number; // e.g., 12 (Q1..Q12)
+  recyclingTakePctPerEvent?: number; // conservative skim of LP proceeds (e.g., 0.5)
+  // Optional fund-level clawback:
+  clawbackEnabled?: boolean;
+  /**
+   * Minimum LP multiple before GP is allowed to KEEP carry.
+   * Example:
+   *   1.0  => LPs must at least get 1.0x paid-in capital.
+   *   1.1  => LPs must get at least 1.1x (includes 10% hurdle).
+   * Default: 1.0.
+   */
+  clawbackLpHurdleMultiple?: number;
 }
 
 export interface ContributionCF {
@@ -17,7 +27,7 @@ export interface ExitCF {
   grossProceeds: number; // positive; distributable gross exit proceeds
 }
 
-// One row per exit event:
+// One row per exit event (or synthetic clawback event):
 export interface WaterfallRow {
   quarter: number;
   grossProceeds: number;
@@ -25,13 +35,15 @@ export interface WaterfallRow {
   lpProfitShare: number; // LP share of profits after carry
   gpCarry: number;
   recycledAmount: number; // reinvested (treated as reducing distributions this event)
+  // Optional: positive when GP is returning carry in this row (clawback event)
+  gpClawback?: number;
   running: {
-    paidIn: number;       // cumulative contributions
-    distributed: number;  // cumulative distributions to LP (net of recycling)
-    recycled: number;     // cumulative recycled amount
+    paidIn: number; // cumulative contributions
+    distributed: number; // cumulative distributions to LP (net of recycling)
+    recycled: number; // cumulative recycled amount
     unrealizedCapital: number; // max(paidIn - distributed, 0)
-    dpi: number;          // distributed / paidIn
-    tvpi: number;         // (distributed + unrealized) / paidIn
+    dpi: number; // distributed / paidIn
+    tvpi: number; // (distributed + unrealized) / paidIn
   };
 }
 
@@ -44,7 +56,11 @@ export interface AmericanWaterfallResult {
     unrealizedCapital: number;
     dpi: number;
     tvpi: number;
+    // Sum of per-exit gpCarry before clawback
     gpCarryTotal: number;
+    // Clawback summary (only present when clawback is triggered)
+    gpClawback?: number; // positive when GP must return cash
+    gpCarryNet?: number; // gpCarryTotal - gpClawback
   };
 }
 
@@ -71,11 +87,17 @@ export function calculateAmericanWaterfallLedger(
   // Precompute cumulative paid-in per quarter
   const contribByQuarter = new Map<number, number>();
   for (const c of contributions) {
-    contribByQuarter['set'](c.quarter, (contribByQuarter['get'](c.quarter) ?? 0) + Math.max(0, c.amount));
+    contribByQuarter['set'](
+      c.quarter,
+      (contribByQuarter['get'](c.quarter) ?? 0) + Math.max(0, c.amount)
+    );
   }
 
   // Determine committed (for recycle cap)
-  const committed = contributions.reduce((s: any, c: any) => s + Math.max(0, c.amount), 0);
+  const committed = contributions.reduce(
+    (s: number, c: ContributionCF) => s + Math.max(0, c.amount),
+    0
+  );
 
   let paidIn = 0;
   let distributed = 0;
@@ -118,7 +140,10 @@ export function calculateAmericanWaterfallLedger(
     // With deal-by-deal American carry, a typical pattern is: capital return first (done),
     // then carry on the remaining profit. If you require a stricter time-based pref,
     // you can parameterize/extend this block.
-    const excessProfit = Math.max(0, remaining - (hurdleRate > 0 ? outstandingCapital * hurdleRate : 0));
+    const excessProfit = Math.max(
+      0,
+      remaining - (hurdleRate > 0 ? outstandingCapital * hurdleRate : 0)
+    );
     const gpCarry = excessProfit * carry;
     const lpProfitShare = remaining - gpCarry;
     gpCarryTotal += gpCarry;
@@ -133,7 +158,7 @@ export function calculateAmericanWaterfallLedger(
     }
 
     // Step 4: update distributed + recycled
-    distributed += (lpCapitalReturn + lpProfitShare - recycledAmount);
+    distributed += lpCapitalReturn + lpProfitShare - recycledAmount;
     recycled += recycledAmount;
 
     const run = mkRunning();
@@ -155,17 +180,83 @@ export function calculateAmericanWaterfallLedger(
     });
   }
 
+  // ──────────────────────────────────────────────────────────────
+  // FUND-LEVEL CLAWBACK (OPTIONAL)
+  // ──────────────────────────────────────────────────────────────
+  let gpClawback = 0;
+  let gpCarryNet = gpCarryTotal;
+
+  if (cfg.clawbackEnabled && paidIn > 0 && gpCarryTotal > 0) {
+    // Total economic profit of the fund (LP + GP) in cash terms:
+    // contributions (paidIn) are negative to LP; distributions + gp carry are positive.
+    const totalFundProfit = distributed + gpCarryTotal - paidIn;
+
+    // LP must first hit a minimum multiple before GP is allowed to keep any carry.
+    const lpHurdleMultiple = cfg.clawbackLpHurdleMultiple ?? 1.0;
+    const lpRequiredFloor = paidIn * lpHurdleMultiple;
+
+    // Current LP outcome in cash
+    const lpCurrent = distributed;
+
+    // If LPs are below their floor, some or all GP carry must be clawed back
+    if (totalFundProfit > 0 && lpCurrent < lpRequiredFloor) {
+      // How many dollars are LPs short of their floor?
+      const lpShortfall = lpRequiredFloor - lpCurrent;
+
+      // At fund level, GP is entitled to at most carry% of *fund profit above LP floor*.
+      // If LPs haven't even hit the floor, allowed carry is zero.
+      const allowedGpCarry =
+        totalFundProfit > lpShortfall ? carry * (totalFundProfit - lpShortfall) : 0;
+
+      // Any excess over allowedGpCarry is clawback.
+      gpClawback = Math.max(0, gpCarryTotal - allowedGpCarry);
+
+      if (gpClawback > 0) {
+        // GP pays back clawback to LPs:
+        gpCarryNet = gpCarryTotal - gpClawback;
+        distributed += gpClawback; // LPs receive clawed-back cash
+
+        // Create synthetic clawback row at the end of the ledger
+        const lastExit = exits[exits.length - 1];
+        const clawbackQuarter = lastExit ? lastExit.quarter : 0;
+        const runAfter = mkRunning();
+
+        rows.push({
+          quarter: clawbackQuarter,
+          grossProceeds: 0,
+          lpCapitalReturn: gpClawback, // LP receives this back
+          lpProfitShare: 0,
+          gpCarry: -gpClawback, // negative = GP paying back
+          recycledAmount: 0,
+          gpClawback,
+          running: {
+            paidIn,
+            distributed,
+            recycled,
+            unrealizedCapital: runAfter.unrealized,
+            dpi: runAfter.dpi,
+            tvpi: runAfter.tvpi,
+          },
+        });
+      }
+    }
+  }
+
+  // Recompute running metrics AFTER any clawback adjustment
   const run = mkRunning();
+  const baseTotals = {
+    paidIn,
+    distributed,
+    recycled,
+    unrealizedCapital: run.unrealized,
+    dpi: run.dpi,
+    tvpi: run.tvpi,
+    gpCarryTotal,
+    gpCarryNet,
+  };
+
   return {
     rows,
-    totals: {
-      paidIn,
-      distributed,
-      recycled,
-      unrealizedCapital: run.unrealized,
-      dpi: run.dpi,
-      tvpi: run.tvpi,
-      gpCarryTotal,
-    },
+    totals: gpClawback > 0 ? { ...baseTotals, gpClawback } : baseTotals,
   };
 }

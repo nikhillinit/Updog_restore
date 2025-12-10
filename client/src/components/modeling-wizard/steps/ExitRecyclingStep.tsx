@@ -14,9 +14,10 @@ import { Switch } from '@/components/ui/switch';
 import {
   exitRecyclingSchema,
   type ExitRecyclingInput,
-  type FundFinancialsOutput
+  type FundFinancialsOutput,
 } from '@/schemas/modeling-wizard.schemas';
 import { useExitRecyclingCalculations } from '@/hooks/useExitRecyclingCalculations';
+import { useDebounceDeep } from '@/hooks/useDebounceDeep';
 import { RecyclingSummaryCard } from './exit-recycling/RecyclingSummaryCard';
 
 // ============================================================================
@@ -38,18 +39,14 @@ const DEFAULT_EXIT_RECYCLING: Partial<ExitRecyclingInput> = {
   recyclingCap: 15, // 15% typical
   recyclingPeriod: 5, // 5 years typical
   exitRecyclingRate: 75, // 75% of exit proceeds
-  mgmtFeeRecyclingRate: 0 // Uncommon, default off
+  mgmtFeeRecyclingRate: 0, // Uncommon, default off
 };
 
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
-export function ExitRecyclingStep({
-  initialData,
-  onSave,
-  fundFinancials
-}: ExitRecyclingStepProps) {
+export function ExitRecyclingStep({ initialData, onSave, fundFinancials }: ExitRecyclingStepProps) {
   // Form setup
   const {
     register,
@@ -57,13 +54,13 @@ export function ExitRecyclingStep({
     watch,
     setValue,
     getValues,
-    formState: { errors }
+    formState: { errors },
   } = useForm<ExitRecyclingInput>({
     resolver: zodResolver(exitRecyclingSchema),
     defaultValues: {
       ...DEFAULT_EXIT_RECYCLING,
-      ...initialData
-    }
+      ...initialData,
+    },
   });
 
   // Preserve recycling fields when toggling
@@ -80,10 +77,13 @@ export function ExitRecyclingStep({
   const recyclingCap = watch('recyclingCap') || 15;
   const exitRecyclingRate = watch('exitRecyclingRate') || 75;
 
-  // Calculate all metrics in real-time
+  // Debounce form values to prevent watch() from defeating useMemo
+  const debouncedFormValues = useDebounceDeep(formValues, 250);
+
+  // Calculate all metrics in real-time (now properly memoized)
   const { calculations, validation } = useExitRecyclingCalculations({
-    formValues,
-    fundSize: fundFinancials.fundSize
+    formValues: debouncedFormValues,
+    fundSize: fundFinancials.fundSize,
   });
 
   // Debounced auto-save effect (750ms debounce for 1-2 saves per window)
@@ -91,7 +91,7 @@ export function ExitRecyclingStep({
   const lastValidDataRef = React.useRef<ExitRecyclingInput | null>(null);
 
   React.useEffect(() => {
-    const subscription = watch(value => {
+    const subscription = watch((value) => {
       // Clear existing debounce timeout
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
@@ -105,7 +105,7 @@ export function ExitRecyclingStep({
         // Debounce save to prevent excessive calls (1-2 per 750ms window)
         saveTimeoutRef.current = setTimeout(() => {
           onSave(result.data);
-        }, 750);
+        }, 500);
       }
     });
 
@@ -122,6 +122,20 @@ export function ExitRecyclingStep({
     };
   }, [watch, onSave]);
 
+  // Data loss prevention: warn on tab close if save pending
+  React.useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // Check if debounced save is in flight
+      if (saveTimeoutRef.current !== null) {
+        event.preventDefault();
+        event.returnValue = ''; // Required for legacy browsers
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []); // saveTimeoutRef is stable (ref never changes)
+
   // Toggle handler with preservation pattern
   const handleRecyclingToggle = (enabled: boolean) => {
     if (!enabled) {
@@ -130,7 +144,7 @@ export function ExitRecyclingStep({
         recyclingCap: getValues('recyclingCap'),
         recyclingPeriod: getValues('recyclingPeriod'),
         exitRecyclingRate: getValues('exitRecyclingRate'),
-        mgmtFeeRecyclingRate: getValues('mgmtFeeRecyclingRate')
+        mgmtFeeRecyclingRate: getValues('mgmtFeeRecyclingRate'),
       };
       setValue('enabled', false);
     } else if (preservedValuesRef.current.recyclingCap !== undefined) {
@@ -152,9 +166,7 @@ export function ExitRecyclingStep({
       <div className="bg-charcoal-50 rounded-lg p-6">
         <div className="space-y-4">
           <div>
-            <h3 className="font-inter font-bold text-lg text-pov-charcoal mb-2">
-              Exit Recycling
-            </h3>
+            <h3 className="font-inter font-bold text-lg text-pov-charcoal mb-2">Exit Recycling</h3>
             <p className="text-sm text-charcoal-700 font-poppins mb-4">
               Exit recycling allows you to reinvest proceeds from early exits back into new
               portfolio companies, extending your fund's deployment capacity within policy limits.
@@ -170,11 +182,7 @@ export function ExitRecyclingStep({
                 Allows recycling of exit proceeds during the recycling period
               </p>
             </div>
-            <Switch
-              id="enabled"
-              checked={enabled}
-              onCheckedChange={handleRecyclingToggle}
-            />
+            <Switch id="enabled" checked={enabled} onCheckedChange={handleRecyclingToggle} />
           </div>
         </div>
       </div>
@@ -185,9 +193,7 @@ export function ExitRecyclingStep({
           {/* Section B: Recycling Configuration */}
           <div className="bg-charcoal-50 rounded-lg p-6">
             <div className="space-y-4">
-              <h3 className="font-inter font-bold text-lg text-pov-charcoal">
-                Recycling Policy
-              </h3>
+              <h3 className="font-inter font-bold text-lg text-pov-charcoal">Recycling Policy</h3>
 
               {/* Recycling Cap */}
               <div>
@@ -206,7 +212,7 @@ export function ExitRecyclingStep({
                   max="25"
                   step="1"
                   value={recyclingCap}
-                  onChange={e => setValue('recyclingCap', parseFloat(e.target.value))}
+                  onChange={(e) => setValue('recyclingCap', parseFloat(e.target.value))}
                   className="w-full"
                 />
                 {errors.recyclingCap && (
@@ -218,8 +224,8 @@ export function ExitRecyclingStep({
                   <span>25% (Aggressive)</span>
                 </div>
                 <div className="mt-2 text-sm font-poppins text-charcoal-700">
-                  Maximum recyclable: $
-                  {((fundFinancials.fundSize * recyclingCap) / 100).toFixed(1)}M
+                  Maximum recyclable: ${((fundFinancials.fundSize * recyclingCap) / 100).toFixed(1)}
+                  M
                 </div>
               </div>
 
@@ -250,9 +256,7 @@ export function ExitRecyclingStep({
           {/* Section C: Recycling Rates */}
           <div className="bg-charcoal-50 rounded-lg p-6">
             <div className="space-y-4">
-              <h3 className="font-inter font-bold text-lg text-pov-charcoal">
-                Recycling Rates
-              </h3>
+              <h3 className="font-inter font-bold text-lg text-pov-charcoal">Recycling Rates</h3>
 
               {/* Exit Recycling Rate */}
               <div>
@@ -271,7 +275,7 @@ export function ExitRecyclingStep({
                   max="100"
                   step="5"
                   value={exitRecyclingRate}
-                  onChange={e => setValue('exitRecyclingRate', parseFloat(e.target.value))}
+                  onChange={(e) => setValue('exitRecyclingRate', parseFloat(e.target.value))}
                   className="w-full"
                 />
                 {errors.exitRecyclingRate && (
@@ -291,10 +295,7 @@ export function ExitRecyclingStep({
 
               {/* Management Fee Recycling Rate (Optional/Advanced) */}
               <div>
-                <Label
-                  htmlFor="mgmtFeeRecyclingRate"
-                  className="font-poppins text-charcoal-700"
-                >
+                <Label htmlFor="mgmtFeeRecyclingRate" className="font-poppins text-charcoal-700">
                   Management Fee Recycling Rate (% of fees) - Optional
                 </Label>
                 <Input
@@ -308,9 +309,7 @@ export function ExitRecyclingStep({
                   placeholder="0"
                 />
                 {errors.mgmtFeeRecyclingRate && (
-                  <p className="text-sm text-error mt-1">
-                    {errors.mgmtFeeRecyclingRate.message}
-                  </p>
+                  <p className="text-sm text-error mt-1">{errors.mgmtFeeRecyclingRate.message}</p>
                 )}
                 <p className="text-xs text-charcoal-600 mt-1 font-poppins">
                   Uncommon provision. Allows recycling unused management fees. Typically 0%.

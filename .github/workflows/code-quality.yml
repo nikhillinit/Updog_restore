@@ -125,24 +125,24 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Critical checks (fail build)
-          if [ "${TYPECHECK_FAILED:-false}" = "true" ] || [ "${{ env.TS_ERRORS }}" -gt "${{ env.MAX_TS_ERRORS }}" ]; then
-            echo "**CRITICAL**: TypeScript type check failed (${{ env.TS_ERRORS }} errors)" | tee -a $GITHUB_STEP_SUMMARY
+          if [ "${TYPECHECK_FAILED:-false}" = "true" ] || [ "${TS_ERRORS:-0}" -gt "${{ env.MAX_TS_ERRORS }}" ]; then
+            echo "**CRITICAL**: TypeScript type check failed (${TS_ERRORS:-0} errors)" | tee -a $GITHUB_STEP_SUMMARY
             FAILED=1
           fi
 
           if [ "${LINT_FAILED:-false}" = "true" ]; then
-            echo "**CRITICAL**: ESLint check failed (${{ env.LINT_ISSUES }} issues)" | tee -a $GITHUB_STEP_SUMMARY
+            echo "**CRITICAL**: ESLint check failed (${LINT_ISSUES:-0} issues)" | tee -a $GITHUB_STEP_SUMMARY
             FAILED=1
           fi
 
           # Warning checks (don't fail build)
-          if [ "${{ env.ANY_COUNT }}" -ge "${{ env.WARNING_ANY_TYPES }}" ]; then
-            echo "**WARNING**: 'any' types (${{ env.ANY_COUNT }}) exceed threshold (${{ env.WARNING_ANY_TYPES }})" | tee -a $GITHUB_STEP_SUMMARY
+          if [ "${ANY_COUNT:-0}" -ge "${{ env.WARNING_ANY_TYPES }}" ]; then
+            echo "**WARNING**: 'any' types (${ANY_COUNT:-0}) exceed threshold (${{ env.WARNING_ANY_TYPES }})" | tee -a $GITHUB_STEP_SUMMARY
             WARNINGS=$((WARNINGS + 1))
           fi
 
-          if [ "${{ env.DISABLE_COUNT }}" -ge "${{ env.WARNING_ESLINT_DISABLE }}" ]; then
-            echo "**WARNING**: eslint-disable comments (${{ env.DISABLE_COUNT }}) exceed threshold (${{ env.WARNING_ESLINT_DISABLE }})" | tee -a $GITHUB_STEP_SUMMARY
+          if [ "${DISABLE_COUNT:-0}" -ge "${{ env.WARNING_ESLINT_DISABLE }}" ]; then
+            echo "**WARNING**: eslint-disable comments (${DISABLE_COUNT:-0}) exceed threshold (${{ env.WARNING_ESLINT_DISABLE }})" | tee -a $GITHUB_STEP_SUMMARY
             WARNINGS=$((WARNINGS + 1))
           fi
 
@@ -185,7 +185,7 @@ jobs:
           EOF
 
           # Add specific guidance based on failures
-          if [ "${{ env.TS_ERRORS }}" -gt 0 ]; then
+          if [ "${TS_ERRORS:-0}" -gt 0 ]; then
             cat >> fixes-report.md << 'EOF'
           **TypeScript Errors**: Review type definitions and fix type mismatches.
           - Check `typecheck-results.txt` artifact for detailed error messages
