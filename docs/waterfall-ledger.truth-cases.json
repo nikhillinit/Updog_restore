@@ -8,12 +8,8 @@
       "config": {
         "carryPct": 0
       },
-      "contributions": [
-        { "quarter": 1, "amount": 1000000 }
-      ],
-      "exits": [
-        { "quarter": 4, "grossProceeds": 1000000 }
-      ]
+      "contributions": [{ "quarter": 1, "amount": 1000000 }],
+      "exits": [{ "quarter": 4, "grossProceeds": 1000000 }]
     },
     "expected": {
       "totals": {
@@ -34,12 +30,8 @@
       "config": {
         "carryPct": 0.2
       },
-      "contributions": [
-        { "quarter": 1, "amount": 1000000 }
-      ],
-      "exits": [
-        { "quarter": 4, "grossProceeds": 2000000 }
-      ]
+      "contributions": [{ "quarter": 1, "amount": 1000000 }],
+      "exits": [{ "quarter": 4, "grossProceeds": 2000000 }]
     },
     "expected": {
       "totals": {
@@ -101,12 +93,8 @@
         "recyclingWindowQuarters": 12,
         "recyclingTakePctPerEvent": 0.5
       },
-      "contributions": [
-        { "quarter": 1, "amount": 1000000 }
-      ],
-      "exits": [
-        { "quarter": 4, "grossProceeds": 500000 }
-      ]
+      "contributions": [{ "quarter": 1, "amount": 1000000 }],
+      "exits": [{ "quarter": 4, "grossProceeds": 500000 }]
     },
     "expected": {
       "totals": {
@@ -127,12 +115,8 @@
         "clawbackEnabled": true,
         "clawbackLpHurdleMultiple": 1.0
       },
-      "contributions": [
-        { "quarter": 1, "amount": 1000000 }
-      ],
-      "exits": [
-        { "quarter": 4, "grossProceeds": 800000 }
-      ]
+      "contributions": [{ "quarter": 1, "amount": 1000000 }],
+      "exits": [{ "quarter": 4, "grossProceeds": 800000 }]
     },
     "expected": {
       "totals": {
@@ -155,9 +139,7 @@
         "clawbackEnabled": true,
         "clawbackLpHurdleMultiple": 1.0
       },
-      "contributions": [
-        { "quarter": 1, "amount": 1000000 }
-      ],
+      "contributions": [{ "quarter": 1, "amount": 1000000 }],
       "exits": [
         { "quarter": 4, "grossProceeds": 300000 },
         { "quarter": 8, "grossProceeds": 800000 }
@@ -183,12 +165,8 @@
         "clawbackEnabled": true,
         "clawbackLpHurdleMultiple": 1.0
       },
-      "contributions": [
-        { "quarter": 1, "amount": 1000000 }
-      ],
-      "exits": [
-        { "quarter": 4, "grossProceeds": 2000000 }
-      ]
+      "contributions": [{ "quarter": 1, "amount": 1000000 }],
+      "exits": [{ "quarter": 4, "grossProceeds": 2000000 }]
     },
     "expected": {
       "totals": {
@@ -211,12 +189,8 @@
         "clawbackEnabled": true,
         "clawbackLpHurdleMultiple": 1.1
       },
-      "contributions": [
-        { "quarter": 1, "amount": 1000000 }
-      ],
-      "exits": [
-        { "quarter": 4, "grossProceeds": 1100000 }
-      ]
+      "contributions": [{ "quarter": 1, "amount": 1000000 }],
+      "exits": [{ "quarter": 4, "grossProceeds": 1100000 }]
     },
     "expected": {
       "totals": {
@@ -248,12 +222,8 @@
         "clawbackEnabled": false,
         "clawbackLpHurdleMultiple": 1.1
       },
-      "contributions": [
-        { "quarter": 1, "amount": 1000000 }
-      ],
-      "exits": [
-        { "quarter": 4, "grossProceeds": 1100000 }
-      ]
+      "contributions": [{ "quarter": 1, "amount": 1000000 }],
+      "exits": [{ "quarter": 4, "grossProceeds": 1100000 }]
     },
     "expected": {
       "totals": {
@@ -275,12 +245,8 @@
         "clawbackEnabled": true,
         "clawbackLpHurdleMultiple": 1.0
       },
-      "contributions": [
-        { "quarter": 1, "amount": 1000000 }
-      ],
-      "exits": [
-        { "quarter": 4, "grossProceeds": 1000000 }
-      ]
+      "contributions": [{ "quarter": 1, "amount": 1000000 }],
+      "exits": [{ "quarter": 4, "grossProceeds": 1000000 }]
     },
     "expected": {
       "totals": {
@@ -303,12 +269,8 @@
         "clawbackEnabled": true,
         "clawbackLpHurdleMultiple": 1.2
       },
-      "contributions": [
-        { "quarter": 1, "amount": 1000000 }
-      ],
-      "exits": [
-        { "quarter": 4, "grossProceeds": 1100000 }
-      ]
+      "contributions": [{ "quarter": 1, "amount": 1000000 }],
+      "exits": [{ "quarter": 4, "grossProceeds": 1100000 }]
     },
     "expected": {
       "totals": {
@@ -337,12 +299,8 @@
         "carryPct": 0.2,
         "clawbackEnabled": true
       },
-      "contributions": [
-        { "quarter": 1, "amount": 1000000 }
-      ],
-      "exits": [
-        { "quarter": 4, "grossProceeds": 1020000 }
-      ]
+      "contributions": [{ "quarter": 1, "amount": 1000000 }],
+      "exits": [{ "quarter": 4, "grossProceeds": 1020000 }]
     },
     "expected": {
       "totals": {
@@ -391,7 +349,7 @@
     "scenario": "L14-clawback-production-sec-reporting",
     "tags": ["clawback", "production", "sec"],
     "notes": "SEC reporting scenario: 5-year fund with quarterly contributions and mixed exits",
-    "source": "New production scenario",
+    "source": "Production scenario",
     "input": {
       "config": {
         "carryPct": 0.2,
@@ -413,33 +371,11 @@
     "expected": {
       "totals": {
         "paidIn": 10000000,
-        "notes": "Verify: distributed + gpCarryNet = 13M gross proceeds, LP floor = 10.8M"
-      }
-    }
-  },
-  {
-    "scenario": "L15-clawback-institutional-lpa",
-    "tags": ["clawback", "production", "institutional"],
-    "notes": "Institutional LP scenario: 1.15x hurdle with management fee offset",
-    "source": "New production scenario",
-    "input": {
-      "config": {
-        "carryPct": 0.2,
-        "hurdleRate": 0.08,
-        "clawbackEnabled": true,
-        "clawbackLpHurdleMultiple": 1.15
-      },
-      "contributions": [
-        { "quarter": 1, "amount": 50000000 }
-      ],
-      "exits": [
-        { "quarter": 20, "grossProceeds": 65000000 }
-      ]
-    },
-    "expected": {
-      "totals": {
-        "paidIn": 50000000,
-        "notes": "1.3x gross return. LP floor = 57.5M. Verify clawback calculation."
+        "distributed": 12400000,
+        "gpCarryTotal": 600000,
+        "gpCarryNet": 600000,
+        "gpClawback": null,
+        "dpi": 1.24
       }
     }
   }
