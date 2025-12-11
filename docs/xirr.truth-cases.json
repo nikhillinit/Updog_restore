@@ -557,7 +557,7 @@
     "id": "xirr-13-leap-year-handling",
     "scenario": "13-leap-year-handling",
     "tags": ["excel", "date-convention", "leap-year"],
-    "notes": "2-day period in leap year. Actual/365 uses 365 denominator always (not 366). Excel parity.",
+    "notes": "2-day period in leap year. Actual/365 uses 365 denominator always (not 366). 1% gain over 2 days = 515% annualized IRR. CORRECTED in Phase 1.2 from 4.2843 (truth case bug).",
     "cashflows": [
       {
         "date": "2020-02-28",
@@ -568,7 +568,7 @@
         "amount": 10100000
       }
     ],
-    "expectedIRR": 4.284325690000001,
+    "expectedIRR": 5.14682311,
     "input": {
       "cashflows": [
         {
@@ -586,9 +586,9 @@
       }
     },
     "expected": {
-      "irr": 4.284325690000001,
+      "irr": 5.14682311,
       "converged": true,
-      "algorithm": "Newton",
+      "algorithm": "newton",
       "excelParity": true
     },
     "category": "excel",
