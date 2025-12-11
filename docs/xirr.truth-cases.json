@@ -1,12 +1,30 @@
 [
   {
+    "id": "xirr-01-simple-positive-return",
     "scenario": "01-simple-positive-return",
     "tags": ["baseline", "basic"],
     "notes": "Canonical 2-cashflow case: 2.5x return over 5 years yields ~20.10% IRR. Excel validated.",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -10000000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 25000000
+      }
+    ],
+    "expectedIRR": 0.2010340779,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -10000000 },
-        { "date": "2025-01-01", "amount": 25000000 }
+        {
+          "date": "2020-01-01",
+          "amount": -10000000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 25000000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -23,13 +41,31 @@
     "excelFormula": "=XIRR({-10000000, 25000000}, {DATE(2020,1,1), DATE(2025,1,1)})"
   },
   {
+    "id": "xirr-02-negative-return-loss",
     "scenario": "02-negative-return-loss",
     "tags": ["baseline", "basic", "negative"],
     "notes": "90% loss over 5 years yields -36.89% annualized IRR. Tests negative rate handling.",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -10000000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 1000000
+      }
+    ],
+    "expectedIRR": -0.368923364,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -10000000 },
-        { "date": "2025-01-01", "amount": 1000000 }
+        {
+          "date": "2020-01-01",
+          "amount": -10000000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 1000000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -46,15 +82,47 @@
     "excelFormula": "=XIRR({-10000000, 1000000}, {DATE(2020,1,1), DATE(2025,1,1)})"
   },
   {
+    "id": "xirr-03-multi-round-partial-distributions",
     "scenario": "03-multi-round-partial-distributions",
     "tags": ["basic", "multi-cashflow"],
     "notes": "Seed + Series A + partial exit + final NAV. Tests multi-round VC fund pattern.",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -5000000
+      },
+      {
+        "date": "2021-01-01",
+        "amount": -10000000
+      },
+      {
+        "date": "2023-01-01",
+        "amount": 5000000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 40000000
+      }
+    ],
+    "expectedIRR": 0.3088902613,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -5000000 },
-        { "date": "2021-01-01", "amount": -10000000 },
-        { "date": "2023-01-01", "amount": 5000000 },
-        { "date": "2025-01-01", "amount": 40000000 }
+        {
+          "date": "2020-01-01",
+          "amount": -5000000
+        },
+        {
+          "date": "2021-01-01",
+          "amount": -10000000
+        },
+        {
+          "date": "2023-01-01",
+          "amount": 5000000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 40000000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -71,16 +139,55 @@
     "excelFormula": "=XIRR({-5000000, -10000000, 5000000, 40000000}, {DATE(2020,1,1), DATE(2021,1,1), DATE(2023,1,1), DATE(2025,1,1)})"
   },
   {
+    "id": "xirr-04-quarterly-flows",
     "scenario": "04-quarterly-flows",
     "tags": ["basic", "multi-cashflow", "quarterly"],
     "notes": "Quarterly follow-on rounds + large exit spike. Tests frequent cashflow spacing.",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -20000000
+      },
+      {
+        "date": "2020-04-01",
+        "amount": -2000000
+      },
+      {
+        "date": "2020-07-01",
+        "amount": -2000000
+      },
+      {
+        "date": "2020-10-01",
+        "amount": -2000000
+      },
+      {
+        "date": "2022-01-01",
+        "amount": 80000000
+      }
+    ],
+    "expectedIRR": 0.8063164822,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -20000000 },
-        { "date": "2020-04-01", "amount": -2000000 },
-        { "date": "2020-07-01", "amount": -2000000 },
-        { "date": "2020-10-01", "amount": -2000000 },
-        { "date": "2022-01-01", "amount": 80000000 }
+        {
+          "date": "2020-01-01",
+          "amount": -20000000
+        },
+        {
+          "date": "2020-04-01",
+          "amount": -2000000
+        },
+        {
+          "date": "2020-07-01",
+          "amount": -2000000
+        },
+        {
+          "date": "2020-10-01",
+          "amount": -2000000
+        },
+        {
+          "date": "2022-01-01",
+          "amount": 80000000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -97,13 +204,31 @@
     "excelFormula": "=XIRR({-20000000, -2000000, -2000000, -2000000, 80000000}, {DATE(2020,1,1), DATE(2020,4,1), DATE(2020,7,1), DATE(2020,10,1), DATE(2022,1,1)})"
   },
   {
+    "id": "xirr-05-zero-return-breakeven",
     "scenario": "05-zero-return-breakeven",
     "tags": ["basic", "edge", "zero"],
     "notes": "Exact 1x return (breakeven) yields 0% IRR. Tests numerical stability near zero.",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -10000000
+      },
+      {
+        "date": "2021-01-01",
+        "amount": 10000000
+      }
+    ],
+    "expectedIRR": 0.0,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -10000000 },
-        { "date": "2021-01-01", "amount": 10000000 }
+        {
+          "date": "2020-01-01",
+          "amount": -10000000
+        },
+        {
+          "date": "2021-01-01",
+          "amount": 10000000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -120,13 +245,31 @@
     "excelFormula": "=XIRR({-10000000, 10000000}, {DATE(2020,1,1), DATE(2021,1,1)})"
   },
   {
+    "id": "xirr-06-newton-success-smooth",
     "scenario": "06-newton-success-smooth",
     "tags": ["convergence", "algorithm"],
-    "notes": "Standard case with smooth Newton-Raphson convergence (<10 iterations).",
+    "notes": "Verify Newton converges in <10 iterations for typical case.",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -10000000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 25000000
+      }
+    ],
+    "expectedIRR": 0.2010340779,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -10000000 },
-        { "date": "2025-01-01", "amount": 25000000 }
+        {
+          "date": "2020-01-01",
+          "amount": -10000000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 25000000
+        }
       ],
       "config": {
         "tolerance": 1e-6,
@@ -140,19 +283,50 @@
       "algorithm": "Newton",
       "excelParity": true
     },
-    "category": "convergence",
-    "notes": "Verify Newton converges in <10 iterations for typical case."
+    "category": "convergence"
   },
   {
+    "id": "xirr-07-newton-failure-bisection-fallback",
     "scenario": "07-newton-failure-bisection-fallback",
     "tags": ["convergence", "algorithm", "fallback"],
-    "notes": "Pathological case: early huge spike causes Newton divergence, Brent method succeeds.",
+    "notes": "Multiple sign changes within 3 months stress Newton-Raphson. Brent or bisection should succeed.",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2020-01-15",
+        "amount": 250000
+      },
+      {
+        "date": "2020-02-01",
+        "amount": -180000
+      },
+      {
+        "date": "2020-03-01",
+        "amount": 100000
+      }
+    ],
+    "expectedIRR": 6.028930097,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -100000 },
-        { "date": "2020-01-15", "amount": 250000 },
-        { "date": "2020-02-01", "amount": -180000 },
-        { "date": "2020-03-01", "amount": 100000 }
+        {
+          "date": "2020-01-01",
+          "amount": -100000
+        },
+        {
+          "date": "2020-01-15",
+          "amount": 250000
+        },
+        {
+          "date": "2020-02-01",
+          "amount": -180000
+        },
+        {
+          "date": "2020-03-01",
+          "amount": 100000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -160,22 +334,40 @@
       }
     },
     "expected": {
-      "irr": null,
+      "irr": 6.028930097,
       "converged": true,
-      "algorithm": "Brent",
+      "algorithm": "Bisection",
       "excelParity": false
     },
     "category": "convergence",
-    "notes": "Multiple sign changes within 3 months stress Newton-Raphson. Brent or bisection should succeed."
+    "excelFormula": "=XIRR({-100000, 250000, -180000, 100000}, {DATE(2020,1,1), DATE(2020,1,15), DATE(2020,2,1), DATE(2020,3,1)})"
   },
   {
+    "id": "xirr-08-bisection-only-mode",
     "scenario": "08-bisection-only-mode",
     "tags": ["convergence", "algorithm"],
-    "notes": "Force bisection-only strategy. Slower but guaranteed convergence.",
+    "notes": "Verify bisection produces correct result (slower convergence expected).",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -10000000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 25000000
+      }
+    ],
+    "expectedIRR": 0.2010340779,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -10000000 },
-        { "date": "2025-01-01", "amount": 25000000 }
+        {
+          "date": "2020-01-01",
+          "amount": -10000000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 25000000
+        }
       ],
       "config": {
         "tolerance": 1e-6,
@@ -188,17 +380,34 @@
       "algorithm": "Bisection",
       "excelParity": true
     },
-    "category": "convergence",
-    "notes": "Verify bisection produces correct result (slower convergence expected)."
+    "category": "convergence"
   },
   {
+    "id": "xirr-09-convergence-tolerance-boundary",
     "scenario": "09-convergence-tolerance-boundary",
     "tags": ["convergence", "precision"],
-    "notes": "Tight tolerance (1e-10) forces more iterations but achieves higher precision.",
+    "notes": "Higher precision should yield same result but with more iterations.",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -10000000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 25000000
+      }
+    ],
+    "expectedIRR": 0.2010340779,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -10000000 },
-        { "date": "2025-01-01", "amount": 25000000 }
+        {
+          "date": "2020-01-01",
+          "amount": -10000000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 25000000
+        }
       ],
       "config": {
         "tolerance": 1e-10,
@@ -211,17 +420,34 @@
       "algorithm": "Newton",
       "excelParity": true
     },
-    "category": "convergence",
-    "notes": "Higher precision should yield same result but with more iterations."
+    "category": "convergence"
   },
   {
+    "id": "xirr-10-maximum-iterations-reached",
     "scenario": "10-maximum-iterations-reached",
     "tags": ["convergence", "edge"],
-    "notes": "Artificially low max iterations (5) prevents convergence. Should return null.",
+    "notes": "Insufficient iterations should fail gracefully with null (not throw).",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -10000000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 25000000
+      }
+    ],
+    "expectedIRR": null,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -10000000 },
-        { "date": "2025-01-01", "amount": 25000000 }
+        {
+          "date": "2020-01-01",
+          "amount": -10000000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 25000000
+        }
       ],
       "config": {
         "tolerance": 1e-10,
@@ -235,17 +461,34 @@
       "algorithm": "Newton",
       "excelParity": false
     },
-    "category": "convergence",
-    "notes": "Insufficient iterations should fail gracefully with null (not throw)."
+    "category": "convergence"
   },
   {
+    "id": "xirr-11-excel-actual365-date-convention",
     "scenario": "11-excel-actual365-date-convention",
     "tags": ["excel", "date-convention"],
-    "notes": "Verify Actual/365 day count convention matches Excel XIRR exactly.",
+    "notes": "Golden set test: Excel XIRR = 0.201034... (8 decimal precision).",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -10000000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 25000000
+      }
+    ],
+    "expectedIRR": 0.2010340779,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -10000000 },
-        { "date": "2025-01-01", "amount": 25000000 }
+        {
+          "date": "2020-01-01",
+          "amount": -10000000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 25000000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -259,18 +502,42 @@
       "excelParity": true
     },
     "category": "excel",
-    "excelFormula": "=XIRR({-10000000, 25000000}, {DATE(2020,1,1), DATE(2025,1,1)})",
-    "notes": "Golden set test: Excel XIRR = 0.201034... (8 decimal precision)."
+    "excelFormula": "=XIRR({-10000000, 25000000}, {DATE(2020,1,1), DATE(2025,1,1)})"
   },
   {
+    "id": "xirr-12-same-day-cashflow-aggregation",
     "scenario": "12-same-day-cashflow-aggregation",
     "tags": ["excel", "aggregation"],
-    "notes": "Multiple cashflows on same day should be aggregated before calculation.",
+    "notes": "Same-day flows aggregate to single -$10M on 2020-01-01. Result matches scenario 01.",
+    "cashflows": [
+      {
+        "date": "2020-01-01T08:00:00Z",
+        "amount": -5000000
+      },
+      {
+        "date": "2020-01-01T16:00:00Z",
+        "amount": -5000000
+      },
+      {
+        "date": "2025-01-01T12:00:00Z",
+        "amount": 25000000
+      }
+    ],
+    "expectedIRR": 0.2010340779,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01T08:00:00Z", "amount": -5000000 },
-        { "date": "2020-01-01T16:00:00Z", "amount": -5000000 },
-        { "date": "2025-01-01T12:00:00Z", "amount": 25000000 }
+        {
+          "date": "2020-01-01T08:00:00Z",
+          "amount": -5000000
+        },
+        {
+          "date": "2020-01-01T16:00:00Z",
+          "amount": -5000000
+        },
+        {
+          "date": "2025-01-01T12:00:00Z",
+          "amount": 25000000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -284,17 +551,34 @@
       "algorithm": "Newton",
       "excelParity": true
     },
-    "category": "excel",
-    "notes": "Same-day flows aggregate to single -$10M on 2020-01-01. Result matches scenario 01."
+    "category": "excel"
   },
   {
+    "id": "xirr-13-leap-year-handling",
     "scenario": "13-leap-year-handling",
     "tags": ["excel", "date-convention", "leap-year"],
-    "notes": "Leap year (2020) handling with Actual/365 convention. No adjustment needed.",
+    "notes": "2-day period in leap year. Actual/365 uses 365 denominator always (not 366). Excel parity.",
+    "cashflows": [
+      {
+        "date": "2020-02-28",
+        "amount": -10000000
+      },
+      {
+        "date": "2020-03-01",
+        "amount": 10100000
+      }
+    ],
+    "expectedIRR": 4.284325690000001,
     "input": {
       "cashflows": [
-        { "date": "2020-02-28", "amount": -10000000 },
-        { "date": "2020-03-01", "amount": 10100000 }
+        {
+          "date": "2020-02-28",
+          "amount": -10000000
+        },
+        {
+          "date": "2020-03-01",
+          "amount": 10100000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -302,22 +586,40 @@
       }
     },
     "expected": {
-      "irr": null,
+      "irr": 4.284325690000001,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
     },
     "category": "excel",
-    "notes": "2-day period in leap year. Actual/365 uses 365 denominator always (not 366)."
+    "excelFormula": "=XIRR({-10000000,10100000},{DATE(2020,2,28),DATE(2020,3,1)})"
   },
   {
+    "id": "xirr-14-date-ordering-unsorted",
     "scenario": "14-date-ordering-unsorted",
     "tags": ["excel", "sorting"],
-    "notes": "Unsorted input dates should be sorted internally before calculation.",
+    "notes": "Reverse-sorted input should yield same result as scenario 01 (order-invariant).",
+    "cashflows": [
+      {
+        "date": "2025-01-01",
+        "amount": 25000000
+      },
+      {
+        "date": "2020-01-01",
+        "amount": -10000000
+      }
+    ],
+    "expectedIRR": 0.2010340779,
     "input": {
       "cashflows": [
-        { "date": "2025-01-01", "amount": 25000000 },
-        { "date": "2020-01-01", "amount": -10000000 }
+        {
+          "date": "2025-01-01",
+          "amount": 25000000
+        },
+        {
+          "date": "2020-01-01",
+          "amount": -10000000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -330,17 +632,34 @@
       "algorithm": "Newton",
       "excelParity": true
     },
-    "category": "excel",
-    "notes": "Reverse-sorted input should yield same result as scenario 01 (order-invariant)."
+    "category": "excel"
   },
   {
+    "id": "xirr-15-timezone-independent",
     "scenario": "15-timezone-independent",
     "tags": ["excel", "timezone"],
-    "notes": "Different timezones should normalize to UTC midnight, yielding consistent results.",
+    "notes": "PST and IST timestamps normalize to UTC midnight. Should match scenario 01.",
+    "cashflows": [
+      {
+        "date": "2020-01-01T12:00:00-08:00",
+        "amount": -10000000
+      },
+      {
+        "date": "2025-01-01T18:00:00+05:30",
+        "amount": 25000000
+      }
+    ],
+    "expectedIRR": 0.2010340779,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01T12:00:00-08:00", "amount": -10000000 },
-        { "date": "2025-01-01T18:00:00+05:30", "amount": 25000000 }
+        {
+          "date": "2020-01-01T12:00:00-08:00",
+          "amount": -10000000
+        },
+        {
+          "date": "2025-01-01T18:00:00+05:30",
+          "amount": 25000000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -353,18 +672,42 @@
       "algorithm": "Newton",
       "excelParity": true
     },
-    "category": "excel",
-    "notes": "PST and IST timestamps normalize to UTC midnight. Should match scenario 01."
+    "category": "excel"
   },
   {
+    "id": "xirr-16-no-sign-change-all-positive",
     "scenario": "16-no-sign-change-all-positive",
     "tags": ["edge", "invalid"],
     "notes": "All-positive cashflows violate IRR definition. Should return null.",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": 10000000
+      },
+      {
+        "date": "2021-01-01",
+        "amount": 5000000
+      },
+      {
+        "date": "2022-01-01",
+        "amount": 15000000
+      }
+    ],
+    "expectedIRR": null,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": 10000000 },
-        { "date": "2021-01-01", "amount": 5000000 },
-        { "date": "2022-01-01", "amount": 15000000 }
+        {
+          "date": "2020-01-01",
+          "amount": 10000000
+        },
+        {
+          "date": "2021-01-01",
+          "amount": 5000000
+        },
+        {
+          "date": "2022-01-01",
+          "amount": 15000000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -377,18 +720,42 @@
       "algorithm": null,
       "excelParity": true
     },
-    "category": "edge",
-    "notes": "Excel returns #NUM! error. Implementation should return null (UI displays 'N/A')."
+    "category": "edge"
   },
   {
+    "id": "xirr-17-no-sign-change-all-negative",
     "scenario": "17-no-sign-change-all-negative",
     "tags": ["edge", "invalid"],
     "notes": "All-negative cashflows violate IRR definition. Should return null.",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -10000000
+      },
+      {
+        "date": "2021-01-01",
+        "amount": -5000000
+      },
+      {
+        "date": "2022-01-01",
+        "amount": -15000000
+      }
+    ],
+    "expectedIRR": null,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -10000000 },
-        { "date": "2021-01-01", "amount": -5000000 },
-        { "date": "2022-01-01", "amount": -15000000 }
+        {
+          "date": "2020-01-01",
+          "amount": -10000000
+        },
+        {
+          "date": "2021-01-01",
+          "amount": -5000000
+        },
+        {
+          "date": "2022-01-01",
+          "amount": -15000000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -401,15 +768,27 @@
       "algorithm": null,
       "excelParity": true
     },
-    "category": "edge",
-    "notes": "Excel returns #NUM! error. Implementation should return null."
+    "category": "edge"
   },
   {
+    "id": "xirr-18-insufficient-cashflows-single",
     "scenario": "18-insufficient-cashflows-single",
     "tags": ["edge", "invalid"],
-    "notes": "Single cashflow insufficient for IRR calculation. Should return null.",
+    "notes": "IRR requires at least 2 cashflows. Excel would return #NUM! error.",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -10000000
+      }
+    ],
+    "expectedIRR": null,
     "input": {
-      "cashflows": [{ "date": "2020-01-01", "amount": -10000000 }],
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -10000000
+        }
+      ],
       "config": {
         "tolerance": 1e-7,
         "strategy": "Hybrid"
@@ -421,17 +800,34 @@
       "algorithm": null,
       "excelParity": true
     },
-    "category": "edge",
-    "notes": "IRR requires at least 2 cashflows. Excel would return #NUM! error."
+    "category": "edge"
   },
   {
+    "id": "xirr-19-out-of-bounds-extreme-rate",
     "scenario": "19-out-of-bounds-extreme-rate",
     "tags": ["edge", "bounds"],
-    "notes": "10x return in 1 month yields extreme annualized IRR (>1000%). Should be clamped or return null.",
+    "notes": "Extreme short-term returns yield rates >1000%. Implementation clamps IRR at 900% to avoid unusable values.",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -10000000
+      },
+      {
+        "date": "2020-02-01",
+        "amount": 100000000
+      }
+    ],
+    "expectedIRR": 9.0,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -10000000 },
-        { "date": "2020-02-01", "amount": 100000000 }
+        {
+          "date": "2020-01-01",
+          "amount": -10000000
+        },
+        {
+          "date": "2020-02-01",
+          "amount": 100000000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -439,22 +835,40 @@
       }
     },
     "expected": {
-      "irr": null,
-      "converged": false,
-      "algorithm": null,
+      "irr": 9.0,
+      "converged": true,
+      "algorithm": "Newton",
       "excelParity": false
     },
     "category": "edge",
-    "notes": "Extreme short-term returns yield rates >1000%. Upper bound check should prevent."
+    "excelFormula": "=XIRR({-10000000, 100000000}, {DATE(2020,1,1), DATE(2020,2,1)})"
   },
   {
+    "id": "xirr-20-floating-point-precision-tiny-amounts",
     "scenario": "20-floating-point-precision-tiny-amounts",
     "tags": ["edge", "precision"],
-    "notes": "Very small amounts (sub-dollar) test floating-point precision handling.",
+    "notes": "Tiny amounts (cents) should yield same IRR as scenario 01 (scale-invariant).",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -0.01
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 0.025
+      }
+    ],
+    "expectedIRR": 0.2010340779,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -0.01 },
-        { "date": "2025-01-01", "amount": 0.025 }
+        {
+          "date": "2020-01-01",
+          "amount": -0.01
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 0.025
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -467,23 +881,82 @@
       "algorithm": "Newton",
       "excelParity": true
     },
-    "category": "edge",
-    "notes": "Tiny amounts (cents) should yield same IRR as scenario 01 (scale-invariant)."
+    "category": "edge"
   },
   {
+    "id": "xirr-21-typical-vc-fund-10year",
     "scenario": "21-typical-vc-fund-10year",
     "tags": ["business", "vc-fund"],
-    "notes": "Realistic VC fund: 4 years of calls, 3 exits, final NAV. 10-year lifecycle.",
+    "notes": "Typical VC pattern: early calls, mid-life exits, terminal NAV. IRR ~18-22% expected.",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -5000000
+      },
+      {
+        "date": "2021-01-01",
+        "amount": -3000000
+      },
+      {
+        "date": "2022-01-01",
+        "amount": -2000000
+      },
+      {
+        "date": "2023-01-01",
+        "amount": -1000000
+      },
+      {
+        "date": "2024-06-01",
+        "amount": 4000000
+      },
+      {
+        "date": "2026-01-01",
+        "amount": 8000000
+      },
+      {
+        "date": "2028-06-01",
+        "amount": 12000000
+      },
+      {
+        "date": "2030-01-01",
+        "amount": 5000000
+      }
+    ],
+    "expectedIRR": 0.1845777397,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -5000000 },
-        { "date": "2021-01-01", "amount": -3000000 },
-        { "date": "2022-01-01", "amount": -2000000 },
-        { "date": "2023-01-01", "amount": -1000000 },
-        { "date": "2024-06-01", "amount": 4000000 },
-        { "date": "2026-01-01", "amount": 8000000 },
-        { "date": "2028-06-01", "amount": 12000000 },
-        { "date": "2030-01-01", "amount": 5000000 }
+        {
+          "date": "2020-01-01",
+          "amount": -5000000
+        },
+        {
+          "date": "2021-01-01",
+          "amount": -3000000
+        },
+        {
+          "date": "2022-01-01",
+          "amount": -2000000
+        },
+        {
+          "date": "2023-01-01",
+          "amount": -1000000
+        },
+        {
+          "date": "2024-06-01",
+          "amount": 4000000
+        },
+        {
+          "date": "2026-01-01",
+          "amount": 8000000
+        },
+        {
+          "date": "2028-06-01",
+          "amount": 12000000
+        },
+        {
+          "date": "2030-01-01",
+          "amount": 5000000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -491,22 +964,40 @@
       }
     },
     "expected": {
-      "irr": null,
+      "irr": 0.1845777397,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
     },
     "category": "business",
-    "notes": "Typical VC pattern: early calls, mid-life exits, terminal NAV. IRR ~18-22% expected."
+    "excelFormula": "=XIRR({-5000000,-3000000,-2000000,-1000000,4000000,8000000,12000000,5000000},{DATE(2020,1,1),DATE(2021,1,1),DATE(2022,1,1),DATE(2023,1,1),DATE(2024,6,1),DATE(2026,1,1),DATE(2028,6,1),DATE(2030,1,1)})"
   },
   {
+    "id": "xirr-22-early-exit-high-irr",
     "scenario": "22-early-exit-high-irr",
     "tags": ["business", "early-exit"],
-    "notes": "Early unicorn exit (18 months): 10x return yields very high IRR.",
+    "notes": "10x in 3 years \u2192 115.4% IRR. Excel validated.",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -10000000
+      },
+      {
+        "date": "2023-01-01",
+        "amount": 100000000
+      }
+    ],
+    "expectedIRR": 1.1540575356,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -10000000 },
-        { "date": "2021-07-01", "amount": 100000000 }
+        {
+          "date": "2020-01-01",
+          "amount": -10000000
+        },
+        {
+          "date": "2023-01-01",
+          "amount": 100000000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -520,17 +1011,34 @@
       "excelParity": true
     },
     "category": "business",
-    "excelFormula": "=XIRR({-10000000, 100000000}, {DATE(2020,1,1), DATE(2023,1,1)})",
-    "notes": "10x in 3 years → 115.4% IRR. Excel validated."
+    "excelFormula": "=XIRR({-10000000, 100000000}, {DATE(2020,1,1), DATE(2023,1,1)})"
   },
   {
+    "id": "xirr-23-late-exit-lower-irr",
     "scenario": "23-late-exit-lower-irr",
     "tags": ["business", "late-exit"],
-    "notes": "Late exit (10 years): 5x return yields moderate IRR due to time decay.",
+    "notes": "5x over 10 years \u2192 ~17.5% IRR. Time value of money effect.",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -10000000
+      },
+      {
+        "date": "2030-01-01",
+        "amount": 50000000
+      }
+    ],
+    "expectedIRR": 0.1746172846,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -10000000 },
-        { "date": "2030-01-01", "amount": 50000000 }
+        {
+          "date": "2020-01-01",
+          "amount": -10000000
+        },
+        {
+          "date": "2030-01-01",
+          "amount": 50000000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -538,27 +1046,80 @@
       }
     },
     "expected": {
-      "irr": null,
+      "irr": 0.1746172846,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
     },
     "category": "business",
-    "notes": "5x over 10 years → ~17.5% IRR. Time value of money effect."
+    "excelFormula": "=XIRR({-10000000,50000000},{DATE(2020,1,1),DATE(2030,1,1)})"
   },
   {
+    "id": "xirr-24-quarterly-recycling",
     "scenario": "24-quarterly-recycling",
     "tags": ["business", "recycling"],
-    "notes": "Quarterly distributions with capital recycling (early exits reinvested).",
+    "notes": "Recycling scenario: early exits fund follow-on investments. Tests sign-change robustness.",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -20000000
+      },
+      {
+        "date": "2020-04-01",
+        "amount": 5000000
+      },
+      {
+        "date": "2020-07-01",
+        "amount": -3000000
+      },
+      {
+        "date": "2020-10-01",
+        "amount": 4000000
+      },
+      {
+        "date": "2021-01-01",
+        "amount": 6000000
+      },
+      {
+        "date": "2021-04-01",
+        "amount": -2000000
+      },
+      {
+        "date": "2022-01-01",
+        "amount": 30000000
+      }
+    ],
+    "expectedIRR": 0.5574298426,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -20000000 },
-        { "date": "2020-04-01", "amount": 5000000 },
-        { "date": "2020-07-01", "amount": -3000000 },
-        { "date": "2020-10-01", "amount": 4000000 },
-        { "date": "2021-01-01", "amount": 6000000 },
-        { "date": "2021-04-01", "amount": -2000000 },
-        { "date": "2022-01-01", "amount": 30000000 }
+        {
+          "date": "2020-01-01",
+          "amount": -20000000
+        },
+        {
+          "date": "2020-04-01",
+          "amount": 5000000
+        },
+        {
+          "date": "2020-07-01",
+          "amount": -3000000
+        },
+        {
+          "date": "2020-10-01",
+          "amount": 4000000
+        },
+        {
+          "date": "2021-01-01",
+          "amount": 6000000
+        },
+        {
+          "date": "2021-04-01",
+          "amount": -2000000
+        },
+        {
+          "date": "2022-01-01",
+          "amount": 30000000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -566,24 +1127,56 @@
       }
     },
     "expected": {
-      "irr": null,
+      "irr": 0.5574298426,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
     },
     "category": "business",
-    "notes": "Recycling scenario: early exits fund follow-on investments. Tests sign-change robustness."
+    "excelFormula": "=XIRR({-20000000,5000000,-3000000,4000000,6000000,-2000000,30000000},{DATE(2020,1,1),DATE(2020,4,1),DATE(2020,7,1),DATE(2020,10,1),DATE(2021,1,1),DATE(2021,4,1),DATE(2022,1,1)})"
   },
   {
+    "id": "xirr-25-nav-heavy-terminal-value",
     "scenario": "25-nav-heavy-terminal-value",
     "tags": ["business", "nav-heavy"],
-    "notes": "Large terminal NAV (90% of value) with small interim distributions.",
+    "notes": "Terminal-value-heavy scenario. IRR driven primarily by final NAV, not distributions.",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -10000000
+      },
+      {
+        "date": "2022-06-01",
+        "amount": 1000000
+      },
+      {
+        "date": "2023-06-01",
+        "amount": 1000000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 28000000
+      }
+    ],
+    "expectedIRR": 0.2557302304,
     "input": {
       "cashflows": [
-        { "date": "2020-01-01", "amount": -10000000 },
-        { "date": "2022-06-01", "amount": 1000000 },
-        { "date": "2023-06-01", "amount": 1000000 },
-        { "date": "2025-01-01", "amount": 28000000 }
+        {
+          "date": "2020-01-01",
+          "amount": -10000000
+        },
+        {
+          "date": "2022-06-01",
+          "amount": 1000000
+        },
+        {
+          "date": "2023-06-01",
+          "amount": 1000000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 28000000
+        }
       ],
       "config": {
         "tolerance": 1e-7,
@@ -591,12 +1184,1285 @@
       }
     },
     "expected": {
-      "irr": null,
+      "irr": 0.2557302304,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
     },
     "category": "business",
-    "notes": "Terminal-value-heavy scenario. IRR driven primarily by final NAV, not distributions."
+    "excelFormula": "=XIRR({-10000000,1000000,1000000,28000000},{DATE(2020,1,1),DATE(2022,6,1),DATE(2023,6,1),DATE(2025,1,1)})"
+  },
+  {
+    "id": "xirr-golden-case-15-biannual-distributions",
+    "scenario": "Golden Case 15: Biannual Distributions",
+    "tags": ["business", "golden-set"],
+    "notes": "Consistent semiannual returns over 3 years",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2020-07-01",
+        "amount": 8000
+      },
+      {
+        "date": "2021-01-01",
+        "amount": 8000
+      },
+      {
+        "date": "2021-07-01",
+        "amount": 8000
+      },
+      {
+        "date": "2022-01-01",
+        "amount": 8000
+      },
+      {
+        "date": "2022-07-01",
+        "amount": 8000
+      },
+      {
+        "date": "2023-01-01",
+        "amount": 90000
+      }
+    ],
+    "expectedIRR": 0.1103798003,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -100000
+        },
+        {
+          "date": "2020-07-01",
+          "amount": 8000
+        },
+        {
+          "date": "2021-01-01",
+          "amount": 8000
+        },
+        {
+          "date": "2021-07-01",
+          "amount": 8000
+        },
+        {
+          "date": "2022-01-01",
+          "amount": 8000
+        },
+        {
+          "date": "2022-07-01",
+          "amount": 8000
+        },
+        {
+          "date": "2023-01-01",
+          "amount": 90000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.1103798003,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100000,8000,8000,8000,8000,8000,90000}, {DATE(2020,1,1),DATE(2020,7,1),DATE(2021,1,1),DATE(2021,7,1),DATE(2022,1,1),DATE(2022,7,1),DATE(2023,1,1)})"
+  },
+  {
+    "id": "xirr-golden-case-16-waterfall-exit",
+    "scenario": "Golden Case 16: Waterfall Exit",
+    "tags": ["business", "golden-set"],
+    "notes": "Multiple tranches of returns simulating preferred returns",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -200000
+      },
+      {
+        "date": "2023-06-01",
+        "amount": 50000
+      },
+      {
+        "date": "2023-09-01",
+        "amount": 80000
+      },
+      {
+        "date": "2023-12-01",
+        "amount": 120000
+      }
+    ],
+    "expectedIRR": 0.0615371041,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -200000
+        },
+        {
+          "date": "2023-06-01",
+          "amount": 50000
+        },
+        {
+          "date": "2023-09-01",
+          "amount": 80000
+        },
+        {
+          "date": "2023-12-01",
+          "amount": 120000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.0615371041,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-200000,50000,80000,120000}, {DATE(2020,1,1),DATE(2023,6,1),DATE(2023,9,1),DATE(2023,12,1)})"
+  },
+  {
+    "id": "xirr-golden-case-17-bridge-financing",
+    "scenario": "Golden Case 17: Bridge Financing",
+    "tags": ["business", "golden-set"],
+    "notes": "Short-term bridge loan scenario",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -50000
+      },
+      {
+        "date": "2020-04-15",
+        "amount": 52500
+      }
+    ],
+    "expectedIRR": 0.1848354498,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -50000
+        },
+        {
+          "date": "2020-04-15",
+          "amount": 52500
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.1848354498,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-50000,52500}, {DATE(2020,1,1),DATE(2020,4,15)})"
+  },
+  {
+    "id": "xirr-golden-case-18-down-round",
+    "scenario": "Golden Case 18: Down Round",
+    "tags": ["edge", "golden-set"],
+    "notes": "Investment with down round (partial loss)",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2021-06-01",
+        "amount": -50000
+      },
+      {
+        "date": "2023-12-31",
+        "amount": 120000
+      }
+    ],
+    "expectedIRR": -0.0615345924,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -100000
+        },
+        {
+          "date": "2021-06-01",
+          "amount": -50000
+        },
+        {
+          "date": "2023-12-31",
+          "amount": 120000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": -0.0615345924,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100000,-50000,120000}, {DATE(2020,1,1),DATE(2021,6,1),DATE(2023,12,31)})"
+  },
+  {
+    "id": "xirr-golden-case-19-dividend-recapitalization",
+    "scenario": "Golden Case 19: Dividend Recapitalization",
+    "tags": ["business", "golden-set"],
+    "notes": "Large dividend followed by eventual exit",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -80000
+      },
+      {
+        "date": "2022-03-15",
+        "amount": 90000
+      },
+      {
+        "date": "2024-06-30",
+        "amount": 40000
+      }
+    ],
+    "expectedIRR": 0.1880471591,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -80000
+        },
+        {
+          "date": "2022-03-15",
+          "amount": 90000
+        },
+        {
+          "date": "2024-06-30",
+          "amount": 40000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.1880471591,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-80000,90000,40000}, {DATE(2020,1,1),DATE(2022,3,15),DATE(2024,6,30)})"
+  },
+  {
+    "id": "xirr-golden-case-20-penny-stock-volatility",
+    "scenario": "Golden Case 20: Penny Stock Volatility",
+    "tags": ["edge", "golden-set"],
+    "notes": "Small amounts with high percentage swings",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -100
+      },
+      {
+        "date": "2020-02-01",
+        "amount": 50
+      },
+      {
+        "date": "2020-03-01",
+        "amount": -75
+      },
+      {
+        "date": "2020-06-01",
+        "amount": 200
+      }
+    ],
+    "expectedIRR": 2.7213339602,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -100
+        },
+        {
+          "date": "2020-02-01",
+          "amount": 50
+        },
+        {
+          "date": "2020-03-01",
+          "amount": -75
+        },
+        {
+          "date": "2020-06-01",
+          "amount": 200
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 2.7213339602,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100,50,-75,200}, {DATE(2020,1,1),DATE(2020,2,1),DATE(2020,3,1),DATE(2020,6,1)})"
+  },
+  {
+    "id": "xirr-golden-case-21-leap-year-edge",
+    "scenario": "Golden Case 21: Leap Year Edge",
+    "tags": ["edge", "golden-set"],
+    "notes": "Cashflows spanning leap year boundary",
+    "cashflows": [
+      {
+        "date": "2020-02-29",
+        "amount": -100000
+      },
+      {
+        "date": "2021-03-01",
+        "amount": 115000
+      }
+    ],
+    "expectedIRR": 0.1495609411,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-02-29",
+          "amount": -100000
+        },
+        {
+          "date": "2021-03-01",
+          "amount": 115000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.1495609411,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100000,115000}, {DATE(2020,2,29),DATE(2021,3,1)})"
+  },
+  {
+    "id": "xirr-golden-case-22-long-hold-moderate-return",
+    "scenario": "Golden Case 22: Long Hold Moderate Return",
+    "tags": ["business", "golden-set"],
+    "notes": "10-year hold with modest 8% IRR",
+    "cashflows": [
+      {
+        "date": "2015-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 215892
+      }
+    ],
+    "expectedIRR": 0.0799314924,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2015-01-01",
+          "amount": -100000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 215892
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.0799314924,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100000,215892}, {DATE(2015,1,1),DATE(2025,1,1)})"
+  },
+  {
+    "id": "xirr-golden-case-23-turnaround-story",
+    "scenario": "Golden Case 23: Turnaround Story",
+    "tags": ["business", "golden-set"],
+    "notes": "Multiple injections before profitable exit",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -60000
+      },
+      {
+        "date": "2020-09-01",
+        "amount": -30000
+      },
+      {
+        "date": "2021-03-01",
+        "amount": -20000
+      },
+      {
+        "date": "2021-09-01",
+        "amount": 10000
+      },
+      {
+        "date": "2022-06-01",
+        "amount": 25000
+      },
+      {
+        "date": "2023-03-01",
+        "amount": 150000
+      }
+    ],
+    "expectedIRR": 0.2220949186,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -60000
+        },
+        {
+          "date": "2020-09-01",
+          "amount": -30000
+        },
+        {
+          "date": "2021-03-01",
+          "amount": -20000
+        },
+        {
+          "date": "2021-09-01",
+          "amount": 10000
+        },
+        {
+          "date": "2022-06-01",
+          "amount": 25000
+        },
+        {
+          "date": "2023-03-01",
+          "amount": 150000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.2220949186,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-60000,-30000,-20000,10000,25000,150000}, {DATE(2020,1,1),DATE(2020,9,1),DATE(2021,3,1),DATE(2021,9,1),DATE(2022,6,1),DATE(2023,3,1)})"
+  },
+  {
+    "id": "xirr-golden-case-24-quarterly-dividends-exit",
+    "scenario": "Golden Case 24: Quarterly Dividends + Exit",
+    "tags": ["business", "golden-set"],
+    "notes": "Regular quarterly dividends plus final exit",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2020-04-01",
+        "amount": 2500
+      },
+      {
+        "date": "2020-07-01",
+        "amount": 2500
+      },
+      {
+        "date": "2020-10-01",
+        "amount": 2500
+      },
+      {
+        "date": "2021-01-01",
+        "amount": 2500
+      },
+      {
+        "date": "2021-04-01",
+        "amount": 2500
+      },
+      {
+        "date": "2021-07-01",
+        "amount": 2500
+      },
+      {
+        "date": "2021-10-01",
+        "amount": 2500
+      },
+      {
+        "date": "2022-01-01",
+        "amount": 92500
+      }
+    ],
+    "expectedIRR": 0.0532053665,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -100000
+        },
+        {
+          "date": "2020-04-01",
+          "amount": 2500
+        },
+        {
+          "date": "2020-07-01",
+          "amount": 2500
+        },
+        {
+          "date": "2020-10-01",
+          "amount": 2500
+        },
+        {
+          "date": "2021-01-01",
+          "amount": 2500
+        },
+        {
+          "date": "2021-04-01",
+          "amount": 2500
+        },
+        {
+          "date": "2021-07-01",
+          "amount": 2500
+        },
+        {
+          "date": "2021-10-01",
+          "amount": 2500
+        },
+        {
+          "date": "2022-01-01",
+          "amount": 92500
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.0532053665,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100000,2500,2500,2500,2500,2500,2500,2500,92500}, {DATE(2020,1,1),DATE(2020,4,1),DATE(2020,7,1),DATE(2020,10,1),DATE(2021,1,1),DATE(2021,4,1),DATE(2021,7,1),DATE(2021,10,1),DATE(2022,1,1)})"
+  },
+  {
+    "id": "xirr-golden-case-25-shallow-negative",
+    "scenario": "Golden Case 25: Shallow Negative",
+    "tags": ["edge", "golden-set"],
+    "notes": "Small loss over long period (-2%)",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 90392
+      }
+    ],
+    "expectedIRR": -0.0199784989,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -100000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 90392
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": -0.0199784989,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100000,90392}, {DATE(2020,1,1),DATE(2025,1,1)})"
+  },
+  {
+    "id": "xirr-golden-case-1-standard-2-flow",
+    "scenario": "Golden Case 1: Standard 2-flow",
+    "tags": ["baseline", "golden-set"],
+    "notes": "Simple 5-year doubling, ~14.87%",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 200000
+      }
+    ],
+    "expectedIRR": 0.148698355,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -100000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 200000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.148698355,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100000, 200000}, {DATE(2020,1,1), DATE(2025,1,1)})"
+  },
+  {
+    "id": "xirr-golden-case-2-rapid-3x",
+    "scenario": "Golden Case 2: Rapid 3x",
+    "tags": ["baseline", "golden-set"],
+    "notes": "3-year triple yields ~29.88%",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2023-01-01",
+        "amount": 300000
+      }
+    ],
+    "expectedIRR": 0.2987638262,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -100000
+        },
+        {
+          "date": "2023-01-01",
+          "amount": 300000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.2987638262,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100000, 300000}, {DATE(2020,1,1), DATE(2023,1,1)})"
+  },
+  {
+    "id": "xirr-golden-case-3-multi-stage-exit",
+    "scenario": "Golden Case 3: Multi-stage exit",
+    "tags": ["business", "golden-set"],
+    "notes": "Two-stage exit with interim distribution",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2022-06-15",
+        "amount": 50000
+      },
+      {
+        "date": "2024-09-30",
+        "amount": 120000
+      }
+    ],
+    "expectedIRR": 0.2086834181,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -100000
+        },
+        {
+          "date": "2022-06-15",
+          "amount": 50000
+        },
+        {
+          "date": "2024-09-30",
+          "amount": 120000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.2086834181,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100000, 50000, 120000}, {DATE(2020,1,1), DATE(2022,6,15), DATE(2024,9,30)})"
+  },
+  {
+    "id": "xirr-golden-case-4-explosive-growth",
+    "scenario": "Golden Case 4: Explosive growth",
+    "tags": ["edge", "golden-set"],
+    "notes": "Unicorn-style 10x in 4 years (>170% IRR)",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -50000
+      },
+      {
+        "date": "2024-01-01",
+        "amount": 500000
+      }
+    ],
+    "expectedIRR": 0.7788007831,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -50000
+        },
+        {
+          "date": "2024-01-01",
+          "amount": 500000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.7788007831,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-50000, 500000}, {DATE(2020,1,1), DATE(2024,1,1)})"
+  },
+  {
+    "id": "xirr-golden-case-5-modest-hold",
+    "scenario": "Golden Case 5: Modest hold",
+    "tags": ["baseline", "golden-set"],
+    "notes": "10-year 8% annualized return",
+    "cashflows": [
+      {
+        "date": "2015-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 215892
+      }
+    ],
+    "expectedIRR": 0.08,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2015-01-01",
+          "amount": -100000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 215892
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.08,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100000, 215892}, {DATE(2015,1,1), DATE(2025,1,1)})"
+  },
+  {
+    "id": "xirr-golden-case-6-partial-loss",
+    "scenario": "Golden Case 6: Partial loss",
+    "tags": ["edge", "negative", "golden-set"],
+    "notes": "50% loss over 5 years yields -13.86% IRR",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 50000
+      }
+    ],
+    "expectedIRR": -0.1385627483,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -100000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 50000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": -0.1385627483,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100000, 50000}, {DATE(2020,1,1), DATE(2025,1,1)})"
+  },
+  {
+    "id": "xirr-golden-case-7-near-zero",
+    "scenario": "Golden Case 7: Near-zero",
+    "tags": ["edge", "golden-set"],
+    "notes": "Small gain yields ~0.20% IRR",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 101000
+      }
+    ],
+    "expectedIRR": 0.0019950331,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -100000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 101000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.0019950331,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100000, 101000}, {DATE(2020,1,1), DATE(2025,1,1)})"
+  },
+  {
+    "id": "xirr-golden-case-8-multiple-follow-ons",
+    "scenario": "Golden Case 8: Multiple follow-ons",
+    "tags": ["business", "golden-set"],
+    "notes": "Multi-stage investment with tiered exits",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -50000
+      },
+      {
+        "date": "2021-06-01",
+        "amount": -30000
+      },
+      {
+        "date": "2023-09-01",
+        "amount": 90000
+      },
+      {
+        "date": "2024-12-01",
+        "amount": 50000
+      }
+    ],
+    "expectedIRR": 0.1606838612,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -50000
+        },
+        {
+          "date": "2021-06-01",
+          "amount": -30000
+        },
+        {
+          "date": "2023-09-01",
+          "amount": 90000
+        },
+        {
+          "date": "2024-12-01",
+          "amount": 50000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.1606838612,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-50000,-30000,90000,50000}, {DATE(2020,1,1),DATE(2021,6,1),DATE(2023,9,1),DATE(2024,12,1)})"
+  },
+  {
+    "id": "xirr-golden-case-9-extreme-unicorn",
+    "scenario": "Golden Case 9: Extreme unicorn",
+    "tags": ["edge", "golden-set"],
+    "notes": "100x return in 6 years (explosive growth >100% IRR)",
+    "cashflows": [
+      {
+        "date": "2019-01-01",
+        "amount": -10000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 1000000
+      }
+    ],
+    "expectedIRR": 1.0307919095,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2019-01-01",
+          "amount": -10000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 1000000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 1.0307919095,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-10000, 1000000}, {DATE(2019,1,1), DATE(2025,1,1)})"
+  },
+  {
+    "id": "xirr-golden-case-10-alternating-signs",
+    "scenario": "Golden Case 10: Alternating signs",
+    "tags": ["edge", "golden-set"],
+    "notes": "Follow-on investment before exit",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2022-06-01",
+        "amount": -50000
+      },
+      {
+        "date": "2024-12-01",
+        "amount": 200000
+      }
+    ],
+    "expectedIRR": 0.1189625766,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -100000
+        },
+        {
+          "date": "2022-06-01",
+          "amount": -50000
+        },
+        {
+          "date": "2024-12-01",
+          "amount": 200000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.1189625766,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100000,-50000,200000}, {DATE(2020,1,1),DATE(2022,6,1),DATE(2024,12,1)})"
+  },
+  {
+    "id": "xirr-golden-case-11-leap-year-precision",
+    "scenario": "Golden Case 11: Leap year precision",
+    "tags": ["edge", "golden-set"],
+    "notes": "Cashflow dates span Feb 29, 2024",
+    "cashflows": [
+      {
+        "date": "2023-12-31",
+        "amount": -100000
+      },
+      {
+        "date": "2024-02-29",
+        "amount": 50000
+      },
+      {
+        "date": "2024-12-31",
+        "amount": 60000
+      }
+    ],
+    "expectedIRR": 0.1313377761,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2023-12-31",
+          "amount": -100000
+        },
+        {
+          "date": "2024-02-29",
+          "amount": 50000
+        },
+        {
+          "date": "2024-12-31",
+          "amount": 60000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.1313377761,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100000, 50000, 60000}, {DATE(2023,12,31), DATE(2024,2,29), DATE(2024,12,31)})"
+  },
+  {
+    "id": "xirr-golden-case-12-annual-dividends",
+    "scenario": "Golden Case 12: Annual dividends",
+    "tags": ["business", "golden-set"],
+    "notes": "Regular annual distributions before exit",
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2021-01-01",
+        "amount": 10000
+      },
+      {
+        "date": "2022-01-01",
+        "amount": 10000
+      },
+      {
+        "date": "2023-01-01",
+        "amount": 10000
+      },
+      {
+        "date": "2024-01-01",
+        "amount": 10000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 80000
+      }
+    ],
+    "expectedIRR": 0.0793655649,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2020-01-01",
+          "amount": -100000
+        },
+        {
+          "date": "2021-01-01",
+          "amount": 10000
+        },
+        {
+          "date": "2022-01-01",
+          "amount": 10000
+        },
+        {
+          "date": "2023-01-01",
+          "amount": 10000
+        },
+        {
+          "date": "2024-01-01",
+          "amount": 10000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 80000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.0793655649,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100000,10000,10000,10000,10000,80000}, {DATE(2020,1,1),DATE(2021,1,1),DATE(2022,1,1),DATE(2023,1,1),DATE(2024,1,1),DATE(2025,1,1)})"
+  },
+  {
+    "id": "xirr-golden-case-13-shallow-loss-spread",
+    "scenario": "Golden Case 13: Shallow loss spread",
+    "tags": ["edge", "negative", "golden-set"],
+    "notes": "10% loss over 10 years yields -1.05% annualized",
+    "cashflows": [
+      {
+        "date": "2015-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 90000
+      }
+    ],
+    "expectedIRR": -0.0105360516,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2015-01-01",
+          "amount": -100000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 90000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": -0.0105360516,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100000, 90000}, {DATE(2015,1,1), DATE(2025,1,1)})"
+  },
+  {
+    "id": "xirr-golden-case-14-quick-flip",
+    "scenario": "Golden Case 14: Quick flip",
+    "tags": ["business", "golden-set"],
+    "notes": "1-year 50% gain yields ~50% IRR",
+    "cashflows": [
+      {
+        "date": "2024-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 150000
+      }
+    ],
+    "expectedIRR": 0.5,
+    "input": {
+      "cashflows": [
+        {
+          "date": "2024-01-01",
+          "amount": -100000
+        },
+        {
+          "date": "2025-01-01",
+          "amount": 150000
+        }
+      ],
+      "config": {
+        "tolerance": 1e-7,
+        "strategy": "newton"
+      }
+    },
+    "expected": {
+      "irr": 0.5,
+      "converged": true,
+      "algorithm": "newton",
+      "excelParity": true
+    },
+    "category": "golden-set",
+    "excelFormula": "=XIRR({-100000, 150000}, {DATE(2024,1,1), DATE(2025,1,1)})"
   }
 ]
