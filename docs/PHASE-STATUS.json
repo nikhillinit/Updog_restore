@@ -11,6 +11,12 @@
       "completedAt": "2025-12-11T10:50:30.515Z",
       "commit": "eda20590",
       "message": "fix(phoenix): XIRR Excel parity + waterfall clawback JSDoc alignment\n\nXIRR Changes:\n- UTC-normalized Actual/365 year fractions (eliminates timezone/DST drift)\n- Thread IRRConfig parameters through solver chain\n- Fix convergence robustness (null failures: ~10 → 3)\n\nWaterfall Changes:\n- Update clawback JSDoc from 'hard floor' to 'shortfall-based'\n- Zero behavior changes (documentation-only)\n\nResults:\n- Pass rate: 20/51 (39%) - but 28 failures are precision tolerance (0.08 bps median)\n- Adjusting tolerance 5e-7 → 5e-4 would yield 94% pass rate\n- Core bugs eliminated: timezone drift ✓, 365.25 vs 365.0 ✓, IRRConfig ignored ✓\n\nSee: docs/phase0-xirr-analysis-eda20590.md for detailed analysis"
+    },
+    {
+      "id": "Phase 1",
+      "completedAt": "2025-12-11T19:40:27.303Z",
+      "commit": "8e27032ff40041d112d84889a26ef44f253c3df2",
+      "message": "docs(xirr): Phase 1.2 session handoff for next continuation\n\nComplete handoff document for Phase 1.2 continuation:\n- Session summary: 1/8 tests fixed (Test 13)\n- Pass rate improvement: 36/51 → 37/51 (+1.9%)\n- Investigation framework created and ready to use\n- Remaining work: 7 tests (likely 5-7 more truth bugs)\n- Quick start guide for next session (30-60 min estimated)\n\nTools ready:\n- scripts/investigate-all-failures.ts (batch analysis)\n- scripts/debug-xirr.ts (manual deep-dive)\n- docs/xirr-failing-cases-export.json (test data)\n\nNext steps checklist:\n1. Run batch investigation script\n2. Update truth cases JSON for confirmed bugs\n3. Excel validation for multi-flow cases\n4. Re-run test suite\n5. Generate final baseline\n\nTarget: 44-46/51 (86-90%) pass rate\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>"
     }
   ],
   "lastUpdated": "2025-12-11T10:50:30.515Z",

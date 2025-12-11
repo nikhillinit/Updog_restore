@@ -1864,7 +1864,7 @@
     "id": "xirr-golden-case-2-rapid-3x",
     "scenario": "Golden Case 2: Rapid 3x",
     "tags": ["baseline", "golden-set"],
-    "notes": "3-year triple yields ~29.88%",
+    "notes": "3-year triple yields ~44.18% IRR. CORRECTED: Phase 1.2 truth case investigation - closed-form IRR (3^(1/3) - 1 = 44.18%) matches solver, previous expected value 29.88% was incorrect.",
     "cashflows": [
       {
         "date": "2020-01-01",
@@ -1875,7 +1875,7 @@
         "amount": 300000
       }
     ],
-    "expectedIRR": 0.2987638262,
+    "expectedIRR": 0.4417677550937617,
     "input": {
       "cashflows": [
         {
@@ -1893,9 +1893,9 @@
       }
     },
     "expected": {
-      "irr": 0.2987638262,
+      "irr": 0.4417677550937617,
       "converged": true,
-      "algorithm": "newton",
+      "algorithm": "Newton",
       "excelParity": true
     },
     "category": "golden-set",
@@ -2175,7 +2175,7 @@
     "id": "xirr-golden-case-9-extreme-unicorn",
     "scenario": "Golden Case 9: Extreme unicorn",
     "tags": ["edge", "golden-set"],
-    "notes": "100x return in 6 years (explosive growth >100% IRR)",
+    "notes": "100x return in 6 years yields ~115.29% IRR. CORRECTED: Phase 1.2 truth case investigation - closed-form IRR (100^(1/6) - 1 = 115.29%) matches solver, previous expected value 103.08% was incorrect.",
     "cashflows": [
       {
         "date": "2019-01-01",
@@ -2186,7 +2186,7 @@
         "amount": 1000000
       }
     ],
-    "expectedIRR": 1.0307919095,
+    "expectedIRR": 1.1529264684399876,
     "input": {
       "cashflows": [
         {
@@ -2204,9 +2204,9 @@
       }
     },
     "expected": {
-      "irr": 1.0307919095,
+      "irr": 1.1529264684399876,
       "converged": true,
-      "algorithm": "newton",
+      "algorithm": "Newton",
       "excelParity": true
     },
     "category": "golden-set",
