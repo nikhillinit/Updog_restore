@@ -12,19 +12,32 @@ export interface XIRRResult {
   method: 'newton' | 'bisection' | 'brent' | 'none';
 }
 
-type XIRRStrategy = 'Hybrid' | 'Newton' | 'Bisection';
+type XIRRStrategy = 'hybrid' | 'newton' | 'bisection';
 
-const YEAR_MS = 365.25 * 24 * 60 * 60 * 1000;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 // Rate bounds: from -99.9999% to +900%
 const MIN_RATE = -0.999999;
 const MAX_RATE = 9.0;
 
 /**
- * Normalize date to UTC midnight to avoid timezone drift.
+ * Normalize a JS Date to UTC midnight and return the corresponding
+ * "Excel-style" serial day number (days since epoch).
  */
-function normalizeDate(date: Date): Date {
-  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+function serialDayUtc(date: Date): number {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / MS_PER_DAY;
+}
+
+/**
+ * Excel-style Actual/365 year fraction with UTC-normalized dates.
+ * This matches how XIRR treats day counts: actual day difference,
+ * 365-day denominator, no timezone/DST drift.
+ */
+function yearFraction(start: Date, current: Date): number {
+  const startSerial = serialDayUtc(start);
+  const currentSerial = serialDayUtc(current);
+  const dayDiff = currentSerial - startSerial;
+  return dayDiff / 365.0; // NOT 365.25
 }
 
 /**
@@ -41,7 +54,7 @@ function clampRate(rate: number): number {
  */
 function npvAt(rate: number, flows: CashFlow[], t0: Date): number {
   return flows.reduce((sum, cf) => {
-    const years = (cf.date.getTime() - t0.getTime()) / YEAR_MS;
+    const years = yearFraction(t0, cf.date);
     const denom = Math.pow(1 + rate, years);
     return sum + cf.amount / denom;
   }, 0);
@@ -52,7 +65,7 @@ function npvAt(rate: number, flows: CashFlow[], t0: Date): number {
  */
 function dNpvAt(rate: number, flows: CashFlow[], t0: Date): number {
   return flows.reduce((sum, cf) => {
-    const years = (cf.date.getTime() - t0.getTime()) / YEAR_MS;
+    const years = yearFraction(t0, cf.date);
     const denom = Math.pow(1 + rate, years + 1);
     return sum - (years * cf.amount) / denom;
   }, 0);
@@ -217,24 +230,19 @@ function solveBisection(
 
 /**
  * XIRR solver with configurable strategy:
- * - 'Hybrid': Newton → Brent → Bisection
- * - 'Newton': Newton only
- * - 'Bisection': Bisection only
+ * - 'hybrid': Newton → Brent → Bisection
+ * - 'newton': Newton only
+ * - 'bisection': Bisection only
  */
 export function xirrNewtonBisection(
   flowsIn: CashFlow[],
   guess = 0.1,
   tolerance = 1e-7,
   maxIterations = 100,
-  strategy: XIRRStrategy = 'Hybrid'
+  strategy: XIRRStrategy = 'hybrid'
 ): XIRRResult {
-  // Normalize and sort cash flows by date (UTC midnight)
-  const flows: CashFlow[] = [...flowsIn]
-    .map((cf) => ({
-      date: normalizeDate(cf.date),
-      amount: cf.amount,
-    }))
-    .sort((a, b) => a.date.getTime() - b.date.getTime());
+  // Sort cash flows by date (UTC normalization happens in yearFraction)
+  const flows: CashFlow[] = [...flowsIn].sort((a, b) => a.date.getTime() - b.date.getTime());
 
   // Need at least two flows
   if (flows.length < 2) {
@@ -251,12 +259,12 @@ export function xirrNewtonBisection(
   }
 
   // Strategy: Newton only
-  if (strategy === 'Newton') {
+  if (strategy === 'newton') {
     return solveNewton(flows, t0, guess, tolerance, maxIterations);
   }
 
   // Strategy: Bisection only
-  if (strategy === 'Bisection') {
+  if (strategy === 'bisection') {
     return solveBisection(flows, t0, tolerance, maxIterations);
   }
 
