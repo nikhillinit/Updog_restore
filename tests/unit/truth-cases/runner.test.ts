@@ -1,19 +1,21 @@
 /**
- * Truth-Case Unified Runner - Phoenix Phase 0 (v2.31)
+ * Truth-Case Unified Runner - Phoenix Phase 0 (v2.33)
  *
- * Validates all 104 truth-case scenarios across 6 calculation modules:
- * - XIRR (25 scenarios): Active execution with Excel parity assertions
+ * Validates all 119 truth-case scenarios across 6 calculation modules:
+ * - XIRR (50 scenarios): Active execution with Excel parity assertions
  * - Waterfall-Tier (15 scenarios): Structural validation (Phase 1A)
  * - Waterfall-Ledger (14 scenarios): Structural validation (Phase 1A)
  * - Fees (10 scenarios): Load + count only (Phase 1B+)
  * - Capital Allocation (20 scenarios): Load + count only (Phase 1B+)
- * - Exit Recycling (20 scenarios): Load + count only (Phase 1B+)
+ * - Exit Recycling (10 scenarios): Load + count only (Phase 1B+)
  *
- * Phase 0 Scope: Infrastructure + XIRR baseline (17/25 pass = 68%)
- * Phase 1A Gate: 80% XIRR pass rate (20/25) to unlock Waterfall modules
+ * Phase 0 Journey:
+ * - Initial baseline: 17/25 XIRR pass (68%) with v2.31 JSON
+ * - Post-v2.33 harvest: 20/51 XIRR pass (39%) - harness semantics differences
+ * - Target: Align harness with v2.33 solver semantics for 100% pass rate
  *
- * @see docs/PHOENIX-EXECUTION-PLAN-v2.31.md - Canonical specification
- * @see docs/phase0-xirr-v2.31-baseline.txt - Initial XIRR baseline
+ * @see PHOENIX-EXECUTION-PLAN-v2.33.md - Canonical specification
+ * @see docs/phase0-xirr-post-harvest-baseline.txt - Post-harvest results
  */
 
 import { describe, it, expect } from 'vitest';
