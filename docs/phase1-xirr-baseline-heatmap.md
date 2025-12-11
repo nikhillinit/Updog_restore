@@ -1,6 +1,6 @@
 # Phase 1.1.1 XIRR Baseline Heatmap
 
-**Generated:** 2025-12-11T21:12:57.275Z  
+**Generated:** 2025-12-11T22:05:58.949Z  
 **Pass Rate:** 36/51 (70.6%)
 
 ## Results Table
