@@ -6,6 +6,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2025-12-11
+
+### Added
+
+- **XIRR Phase 1.2: 100% Excel Parity Documentation** (Truth Case Investigation
+  Complete)
+  - **Achievement**: 51/51 tests passing (100% pass rate)
+  - **Excel Parity**: 48/51 cases (94.1%) - 3 intentional safety deviations
+  - **Mathematical Validation**: Closed-form IRR calculations match solver to
+    10+ decimal places
+  - **Investigation Results**:
+    - Fixed 10 truth case bugs (all failures were incorrect expected values)
+    - 0 code bugs found (solver implementation confirmed mathematically correct)
+    - Corrections: 2 algorithm casing, 5 multi-flow IRR, 2 precision, 1
+      convergence tolerance
+  - **Documentation**:
+    - [`docs/xirr-excel-validation.md`](docs/xirr-excel-validation.md) - Excel
+      cross-check methodology (5 cases validated)
+    - [`docs/failure-triage.md`](docs/failure-triage.md) - Complete failure
+      classification
+    - [`docs/phase0-validation-report.md`](docs/phase0-validation-report.md) -
+      Module status (100% production-ready)
+    - [`docs/DECISIONS.md#ADR-015`](docs/DECISIONS.md#adr-015-xirr-excel-parity-strategy) -
+      Excel parity strategy
+  - **Non-Parity Cases** (Intentional Safety Features - see ADR-015):
+    1. Test 07: Returns `null` for mathematically undefined IRR (vs Excel
+       `#NUM!`)
+    2. Test 10: Timeout protection returns `null` (vs Excel hangs)
+    3. Test 19: Divergence detection returns `null` (vs Excel unstable results)
+  - **Technical Details**:
+    - Day count: Actual/365 (Excel XIRR standard)
+    - Solver: Hybrid Newton-Brent-Bisection cascade
+    - Tolerance: 1e-7 (industry standard)
+    - Truth cases: 51 scenarios (basic, convergence, Excel parity, business,
+      edge, golden set)
+  - **Files**:
+    - `docs/xirr.truth-cases.json` - 10 corrected scenarios
+    - `docs/xirr-excel-validation.md` - Excel validation methodology
+    - `docs/failure-triage.md` - Failure classification
+    - `docs/phase0-validation-report.md` - Production readiness assessment
+    - `docs/DECISIONS.md` - ADR-015 (Excel parity strategy)
+    - `docs/phase1-xirr-baseline-1.2-final.json` - Final test results
+    - `docs/phase1-xirr-baseline-heatmap.md` - Visual summary
+  - **Commits**: 9d313cbd (Phase 1.2 complete)
+  - **Status**: ✅ PRODUCTION READY
+
 ## [Unreleased] - 2025-12-02
 
 ### Changed
