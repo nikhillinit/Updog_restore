@@ -183,7 +183,49 @@ The discovery system generates machine-readable artifacts:
 
 ---
 
-# 7. Maintenance
+# 7. Settings.json Configuration
+
+The `.claude/settings.json` file controls permissions, hooks, and status line.
+
+## Schema (Required Structure)
+
+```json
+{
+  "permissions": {
+    "allow": ["pattern1", "pattern2"],
+    "deny": ["pattern3"]
+  },
+  "hooks": { ... },
+  "statusLine": { ... }
+}
+```
+
+The `permissions` object is required. Other keys are optional.
+
+## Policy (Pattern Syntax)
+
+Bash permission patterns use **prefix matching** with `:*` suffix:
+
+| Pattern | Meaning |
+|---------|---------|
+| `Bash(git status)` | Exact match only (no args allowed) |
+| `Bash(git status:*)` | Prefix match (allows any args like `--porcelain`) |
+
+**Common patterns:**
+```json
+"allow": [
+  "Bash(npm run lint:*)",    // npm run lint, npm run lint:fix, etc.
+  "Bash(git status:*)",       // git status --porcelain=v1, etc.
+  "Bash(git diff:*)",         // git diff HEAD, git diff --name-only, etc.
+  "Read(**/*)"                // Read any file
+]
+```
+
+**Prefix match caveat:** `Bash(npm run lint:*)` also matches `npm run lintfix` (starts with same prefix). For stricter matching, include a space: `Bash(npm run lint :*)`.
+
+---
+
+# 8. Maintenance
 
 **Update this file when:**
 - New Phoenix agent/skill created

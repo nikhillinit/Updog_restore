@@ -11,6 +11,26 @@
  * Output:
  *   docs/_generated/router-index.json    # Machine-readable routing index
  *   docs/_generated/staleness-report.md  # Maintenance tracking report
+ *
+ * Frontmatter Validation Notes:
+ * -----------------------------
+ * This script uses a simplified frontmatter parser that extracts key-value
+ * pairs between the first `---` and second `---` markers.
+ *
+ * Known limitations:
+ * - Simple grep-based extraction may match `name:` in non-frontmatter content
+ * - Nested YAML structures are not fully supported
+ * - Multi-line values may not parse correctly
+ *
+ * For production use, consider:
+ * - Installing `gray-matter` package for robust frontmatter parsing
+ * - Installing `js-yaml` for full YAML support
+ * - Adding schema validation against DOC-FRONTMATTER-SCHEMA.md
+ *
+ * To validate agent/skill names, use frontmatter-aware extraction:
+ *   1. Parse only content between first `---` and next `---`
+ *   2. Extract `name:` field from that block only
+ *   3. Confirm uniqueness (name collisions resolve by scope precedence)
  */
 
 import fs from 'node:fs/promises';
