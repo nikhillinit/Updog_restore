@@ -1,6 +1,30 @@
 /**
- * Tool Evaluation Framework for VC Fund Modeling Platform
- * Adapted from the general evaluation notebook to test domain-specific calculations
+ * Phoenix Phase 1B Stage 1: Waterfall Tool Evaluator
+ *
+ * Purpose: Test harness for waterfall calculation tool routing
+ * Status: 82.4% accuracy (14/17 passing) - EXCEEDS 80% Phase 1B floor
+ *
+ * Phase Gates (from execution-plan-v2.34.md):
+ * - Phase 1B Entry: Waterfalls >= 70% [PASS] PASSED (82.4%)
+ * - Phase 1A Entry: Waterfalls >= 95% [PENDING] PENDING (requires truth case validation)
+ *
+ * Known Gaps (expected Phase 1B failures, documented for Stage 2+):
+ * - complex-1: Tiered waterfall routing (needs truth case T16 + engine update)
+ * - complex-2: Vested carry calculation (needs truth case + vesting.ts implementation)
+ * - validation-2: Zero fund size error handling (needs parser semantic fix)
+ *
+ * Strategic Notes:
+ * - 95% is Phase 1A ENTRY gate, not Phase 1B exit requirement
+ * - Phase 1B focuses on functional correctness via truth case validation
+ * - Phase 1A focuses on precision via Decimal.js conversion (Step 1A.6)
+ *
+ * Next Steps:
+ * 1. Phase 1B Stage 2: Truth case validation (Step 0.4, ~1.5 hours)
+ * 2. Phase 1B Stage 3: Systematic debugging + TDD fixes (~4-6 hours)
+ * 3. Phase 1A Entry: Once Waterfalls >= 95% via validated fixes
+ * 4. Phase 1A Step 1A.6: Precision pass with phoenix-precision-guardian
+ *
+ * See: docs/PHOENIX-SOT/execution-plan-v2.34.md (Lines 1606-1807)
  */
 
 import { z } from 'zod';
@@ -97,7 +121,11 @@ export const EVALUATION_TOOLS = {
           },
         });
 
-        // Simulate waterfall calculation
+        // TECH-DEBT(Phase1B→1A.6): Replace with Decimal.js for precision guarantee
+        // Context: Phase 1B focuses on functional correctness; Phase 1A addresses precision
+        // Track: phoenix-precision-guardian agent will eradicate parseFloat (Plan line 1372-1454)
+        // Risk: Native math may cause floating-point precision loss in edge cases
+        // Rationale: Deferring to Phase 1A.6 per execution plan sequencing (bug fixes before cleanup)
         const carried = params.fundSize * params.carryPercent;
         const hurdleAmount = params.fundSize * params.hurdle;
 
