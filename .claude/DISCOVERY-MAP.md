@@ -172,14 +172,38 @@ The discovery system generates machine-readable artifacts:
 
 | Artifact | Path | Description |
 |---|---|---|
-| Router Index | `docs/_generated/router-index.json` | Machine-readable routing patterns |
+| Router Index | `docs/_generated/router-index.json` | Full routing data with stats |
+| Router Fast | `docs/_generated/router-fast.json` | Consumer-optimized fast router |
 | Staleness Report | `docs/_generated/staleness-report.md` | Documents needing review |
 
 **Commands:**
 - `npm run docs:routing:generate` - Regenerate artifacts
 - `npm run docs:routing:check` - Verify sync (used in CI)
+- `npm run docs:routing:query "<query>"` - Route a query programmatically
 
 **Source of truth:** `docs/DISCOVERY-MAP.source.yaml`
+
+## Consumer Router API
+
+For programmatic routing, use `scripts/routeQueryFast.ts`:
+
+```typescript
+import { routeQueryFast, loadRouterIndex } from './scripts/routeQueryFast';
+
+const index = await loadRouterIndex();
+const result = routeQueryFast('help with waterfall', index);
+
+if (result.matched) {
+  console.log(`Route to: ${result.route_to}`);
+  console.log(`Why: ${result.why}`);
+}
+```
+
+**Scoring:**
+- Each matched phrase: +1 point
+- Generic terms (test, error, fix): +0.5 points (penalized)
+- Minimum score to route: 2 (configurable)
+- Tie-breakers: score DESC, priority ASC
 
 ---
 

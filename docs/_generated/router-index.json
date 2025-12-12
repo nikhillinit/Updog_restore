@@ -1,0 +1,2997 @@
+{
+  "generatedAt": "2025-12-12T21:44:49.543Z",
+  "version": "2.0",
+  "config": {
+    "min_score_to_route": 2,
+    "generic_terms": [
+      "test",
+      "error",
+      "fix",
+      "update",
+      "change",
+      "help"
+    ]
+  },
+  "decision_tree": {},
+  "patterns": [
+    {
+      "id": "security",
+      "priority": 5,
+      "category": "Security",
+      "keywords": [
+        "secret",
+        "key",
+        "token",
+        "password",
+        "auth",
+        "security",
+        "credential",
+        "env"
+      ],
+      "target": "SIDECAR_GUIDE.md"
+    },
+    {
+      "id": "phoenix_truth",
+      "priority": 10,
+      "category": "Phoenix",
+      "keywords": [
+        "truth case",
+        "validation",
+        "deterministic",
+        "pass rate",
+        "baseline"
+      ],
+      "target": ".claude/commands/phoenix-truth.md"
+    },
+    {
+      "id": "phoenix_phase2",
+      "priority": 11,
+      "category": "Phoenix",
+      "keywords": [
+        "monte carlo",
+        "probabilistic",
+        "expectation mode",
+        "seeded",
+        "distribution",
+        "phase 2"
+      ],
+      "target": ".claude/commands/phoenix-phase2.md"
+    },
+    {
+      "id": "phoenix_waterfall",
+      "priority": 12,
+      "category": "Phoenix",
+      "keywords": [
+        "waterfall",
+        "clawback",
+        "carry",
+        "ledger",
+        "tier",
+        "gp",
+        "lp"
+      ],
+      "target": ".claude/agents/waterfall-specialist.md"
+    },
+    {
+      "id": "phoenix_precision",
+      "priority": 13,
+      "category": "Phoenix",
+      "keywords": [
+        "precision",
+        "parseFloat",
+        "decimal",
+        "numeric drift",
+        "rounding"
+      ],
+      "target": ".claude/agents/phoenix-precision-guardian.md"
+    },
+    {
+      "id": "phoenix_xirr",
+      "priority": 14,
+      "category": "Phoenix",
+      "keywords": [
+        "xirr",
+        "irr",
+        "fees",
+        "management fee",
+        "carry fee"
+      ],
+      "target": ".claude/agents/xirr-fees-validator.md"
+    },
+    {
+      "id": "phoenix_allocation",
+      "priority": 15,
+      "category": "Phoenix",
+      "keywords": [
+        "capital allocation",
+        "exit recycling",
+        "deployment",
+        "stage allocation"
+      ],
+      "target": ".claude/agents/phoenix-capital-allocation-analyst.md"
+    },
+    {
+      "id": "capabilities",
+      "priority": 20,
+      "category": "Capabilities",
+      "keywords": [
+        "capability",
+        "feature",
+        "existing solution",
+        "already built",
+        "what can"
+      ],
+      "target": "CAPABILITIES.md"
+    },
+    {
+      "id": "production",
+      "priority": 30,
+      "category": "Production",
+      "keywords": [
+        "deploy",
+        "release",
+        "prod",
+        "production",
+        "rollout",
+        "shipping"
+      ],
+      "target": "docs/workflows/PRODUCTION_SCRIPTS.md"
+    },
+    {
+      "id": "ci_cd",
+      "priority": 31,
+      "category": "CI/CD",
+      "keywords": [
+        "ci",
+        "cd",
+        "github actions",
+        "workflow",
+        "pipeline"
+      ],
+      "target": "docs/workflows/README.md"
+    },
+    {
+      "id": "testing",
+      "priority": 40,
+      "category": "Testing",
+      "keywords": [
+        "test",
+        "unit test",
+        "integration",
+        "e2e",
+        "jest",
+        "vitest",
+        "coverage"
+      ],
+      "target": "docs/INDEX.md#testing"
+    },
+    {
+      "id": "database",
+      "priority": 50,
+      "category": "Database",
+      "keywords": [
+        "database",
+        "db",
+        "sql",
+        "migration",
+        "schema",
+        "postgres",
+        "drizzle"
+      ],
+      "target": "SIDECAR_GUIDE.md"
+    },
+    {
+      "id": "memory",
+      "priority": 60,
+      "category": "Memory",
+      "keywords": [
+        "memory",
+        "context",
+        "vector",
+        "embedding",
+        "semantic search",
+        "pgvector"
+      ],
+      "target": "docs/INDEX.md#ai--automation"
+    },
+    {
+      "id": "ai_tools",
+      "priority": 70,
+      "category": "AI Tools",
+      "keywords": [
+        "ai",
+        "llm",
+        "model",
+        "inference",
+        "prompt",
+        "agent",
+        "claude"
+      ],
+      "target": "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    },
+    {
+      "id": "performance",
+      "priority": 80,
+      "category": "Performance",
+      "keywords": [
+        "perf",
+        "performance",
+        "slow",
+        "latency",
+        "benchmark",
+        "optimization"
+      ],
+      "target": "cheatsheets/pr-merge-verification.md"
+    },
+    {
+      "id": "troubleshooting",
+      "priority": 90,
+      "category": "Troubleshooting",
+      "keywords": [
+        "error",
+        "debug",
+        "fix",
+        "broken",
+        "issue",
+        "problem",
+        "not working"
+      ],
+      "target": "SIDECAR_GUIDE.md"
+    }
+  ],
+  "agents": [
+    {
+      "name": "phoenix-truth-case-runner",
+      "skill": "phoenix-truth-case-orchestrator",
+      "phase": [
+        "0"
+      ]
+    },
+    {
+      "name": "phoenix-precision-guardian",
+      "skill": "phoenix-precision-guard",
+      "phase": [
+        "1A"
+      ]
+    },
+    {
+      "name": "waterfall-specialist",
+      "skill": "phoenix-waterfall-ledger-semantics",
+      "phase": [
+        "0",
+        "1B"
+      ]
+    },
+    {
+      "name": "xirr-fees-validator",
+      "skill": "phoenix-xirr-fees-validator",
+      "phase": [
+        "0",
+        "1B"
+      ]
+    },
+    {
+      "name": "phoenix-capital-allocation-analyst",
+      "skill": "phoenix-capital-exit-investigator",
+      "phase": [
+        "0",
+        "1A"
+      ]
+    },
+    {
+      "name": "phoenix-docs-scribe",
+      "skill": "phoenix-docs-sync",
+      "phase": [
+        "1A"
+      ]
+    },
+    {
+      "name": "phoenix-probabilistic-engineer",
+      "skill": "phoenix-advanced-forecasting",
+      "phase": [
+        "2"
+      ]
+    },
+    {
+      "name": "phoenix-reserves-optimizer",
+      "skill": "phoenix-reserves-optimizer",
+      "phase": [
+        "2"
+      ]
+    },
+    {
+      "name": "phoenix-brand-reporting-stylist",
+      "skill": "phoenix-brand-reporting",
+      "phase": [
+        "3"
+      ]
+    }
+  ],
+  "docs": [
+    {
+      "path": "docs/.templates/DEPRECATION-HEADER.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/.templates/DOC-FRONTMATTER-SCHEMA.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/PHOENIX-SOT/README.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/PHOENIX-SOT/deferred-vesting-plan.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/PHOENIX-SOT/execution-plan-v2.34-enhancements.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/PHOENIX-SOT/execution-plan-v2.34.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/PHOENIX-SOT/mcp-tools-guide.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/PHOENIX-SOT/prompt-templates.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/PHOENIX-SOT/skills-overview.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/PR_NOTES/CODACY_JCURVE_NOTE.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/action-plans/CODEX-FIXES-EXECUTION-SUMMARY.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/action-plans/CODEX-ISSUES-RESOLUTION-PLAN.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/adr/0001-evaluator-metrics.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/adr/0002-token-budgeting.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/adr/0003-streaming-architecture.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/adr/ADR-004-waterfall-names.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/adr/ADR-005-xirr-excel-parity.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/adr/ADR-006-fee-calculation-standards.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/adr/ADR-007-exit-recycling-policy.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/adr/ADR-008-capital-allocation-policy.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/adr/ADR-010-monte-carlo-validation-strategy.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/adr/ADR-011-stage-normalization-v2.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/adr/ADR-012-mem0-integration.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/adr/README.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/ai-optimization/AGENTS.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/ai-optimization/AI_AGENT_BACKTEST_FRAMEWORK.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/ai-optimization/AI_COLLABORATION_GUIDE.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/ai-optimization/AI_ORCHESTRATOR_IMPLEMENTATION.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/ai-optimization/BACKTEST_QUICKSTART.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/ai-optimization/CODEX-REVIEW-AGENT-SETUP.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/ai-optimization/CODEX_AGENT_MIGRATION.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/ai-optimization/MULTI_AI_REVIEW_SYNTHESIS.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/analysis/perf-watch-memoization-root-cause.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/analysis/wizard-steps-pattern-analysis.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/api/fund-allocations-phase1b.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/auth/RS256-SETUP.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/behavioral-specs/time-travel-analytics-service-specs.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/chaos/catalog.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/chaos-engineering/QUICK-REFERENCE.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/chaos-engineering/README.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/chaos-engineering/RLS-CHAOS-TESTING-PLAN.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/chaos-engineering/RLS-GAME-DAY-RUNBOOK.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/chaos-engineering/RLS-MONITORING-SPECS.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/code-review/CODEX-BOT-FINDINGS-SUMMARY.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/components/NumericInput.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/components/reallocation-tab-implementation.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/components/reserve-adapter-integration.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/components/reserve-engine-architecture.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/components/reserve-engine-delivery.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/components/reserve-engine-spec.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/components/worker-implementation.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/contracts/parallel-foundation.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/contracts/selector-contract-readme.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/database/MULTI-TENANT-RLS-INFRASTRUCTURE.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/debugging/profiling-playbook.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/debugging/triage-guide.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/deployment/CODEX-FIXES-DEPLOYMENT-STATUS.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/deployment/ROLLBACK_PLAN.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/deployment/STAGING_CHECKLIST.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/deployment/STAGING_DEPLOYMENT_SUMMARY.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/deployment/STAGING_METRICS.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/deployment/vercel-setup.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/dev/async-iteration.md",
+      "exists": true,
+      "frontmatter": {
+        "title": "Async Iteration Utilities",
+        "description": "Safe, type‑centric alternatives to native array methods",
+        "lastUpdated": "2025‑07‑28"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/dev/foreach-fix-improved.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/dev/foreach-fix.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/dev/wsl2-quickstart.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/development/windows-setup.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/fixes/PR-112-MANAGEMENT-FEE-HORIZON-FIX.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/fixes/vercel-sidecar-ci-fix.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/fixes/vite-build-vercel-fix.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/forecasting/CALIBRATION_GUIDE.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/forecasting/power-law-implementation.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/forecasting/streaming-monte-carlo-migration.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/gates/GATE_TRACKING.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/gates/RACI_MATRIX.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/governance/abort-matrix.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/governance/decision-log.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/governance/risk-matrix.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/governance/sync-point-failure-plans.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/integration/SCHEMA-MIGRATION-PLAN.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/integration/mem0-integration.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/integration/upstash-setup.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/internal/WEEK46-VALIDATION-NOTES.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/internal/index.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/iterations/ALIGNMENT-STATUS.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/iterations/IMPLEMENTATION-STATUS.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/iterations/PR2-PROGRESS.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/iterations/PRE-TEST-HARDENING.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/iterations/REVIEW-ACTION-PLAN.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/iterations/STRATEGY-SUMMARY.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/iterations/iteration-a-implementation-guide.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/notebooklm-sources/PHASE2-COMPLETE.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/notebooklm-sources/capital-allocation.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/notebooklm-sources/exit-recycling.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/notebooklm-sources/fees.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/notebooklm-sources/waterfall.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/notebooklm-sources/xirr.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/observability/EDITORIAL-V2-CHANGELOG.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/observability/README.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/observability/ai-metrics.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/observability/auth-comment.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/observability/business-kpis.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/observability/fundcalc-comment.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/observability/rum.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/observability/split-plan-comment.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/phase2 docs/CHECKLIST-Phase2.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/phase2 docs/PR_BODY-Phase2.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/phase2 docs/README.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/phase2 docs/STRATEGY-Phase2-CapitalAllocation.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/plans/xstate-persistence-implementation.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/policies/feasibility-constraints.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/processes/AUTOMATION_GUIDE.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/processes/COMMIT_LOG.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/processes/CONTRIBUTING.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/processes/DEPLOYMENT_COMPLETE.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/processes/DEPLOYMENT_TODO.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/processes/FINAL_VALIDATION.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/processes/GITHUB_COMMIT_GUIDE.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/processes/GITHUB_SETUP.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/processes/PEER_REVIEW.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/processes/PIPELINE_SCHEMA_COMPLETE.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/processes/PIPELINE_TODO.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/processes/PRE_PUSH_CHECKLIST.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/processes/TEAM_SETUP.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/processes/code-review-checklist.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/references/capital-allocation-follow-on.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/references/claude-agent-engines.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/references/claude-agent-integration.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/references/claude-agent-schema.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/references/claude-agent-testing.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/references/replit.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/references/seed-cases-ca-007-020.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/release/compat-matrix.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/releases/SlackBatchAPI-v1.0.0.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/releases/stage-norm-phase4.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/releases/stage-norm-phase5.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/releases/stage-norm-v3.4-option-b.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/releases/stage-norm-v3.4-review.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/releases/stage-normalization-v3.4.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/runbooks/blue-green.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/runbooks/canary.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/runbooks/dr.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/runbooks/incident.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/runbooks/rollback.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/runbooks/stage-normalization-migration.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/runbooks/stage-normalization-rollout.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/runbooks/stage-validation.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/runbooks/synthetic-monitoring.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/runbooks/synthetics-debug.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/schemas/README.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/schemas/schema-helpers-integration.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/schemas/schema-mapping.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/security/CODACY_REMEDIATION_2025.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/security/cve-exceptions.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/strategies/PHOENIX-PLAN-2025-11-30.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/templates/README.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/templates/design-system-template.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/templates/feature-flow-template.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/validation/DeterministicReserveEngine.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/validation/stage-validation-patched.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/validation/stage-validation-v3.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/wizard/COMPLETION_SUMMARY.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/wizard/MIGRATION_GUIDE.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/wizard/RESERVES_CARD_IMPROVEMENTS.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/wizard/WIZARD_INTEGRATION.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/wizard/modeling-wizard-design.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/workflows/CONSOLIDATION_FINAL_VALIDATED.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/workflows/CONSOLIDATION_PLAN_FINAL.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/workflows/CONSOLIDATION_PLAN_V2.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/workflows/CONSOLIDATION_PLAN_V3_FINAL.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/workflows/PAIRED-AGENT-VALIDATION.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/workflows/PRODUCTION_SCRIPTS.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "docs/workflows/README.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "cheatsheets/agent-memory/database-expert-schema-tdd.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/PHOENIX-AGENTS.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/chaos-engineer.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "chaos-engineer",
+        "tools": "All tools",
+        "model": "inherit"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/code-explorer.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "code-explorer",
+        "tools": "All tools",
+        "model": "inherit"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/code-reviewer.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "code-reviewer",
+        "description": "Use this agent when you need to review code for adherence to project guidelines, style guides, and best practices. This agent should be used proactively after writing or modifying code, especially before committing changes or creating pull requests. It will check for style violations, potential issues, and ensure code follows the established patterns in CLAUDE.md. Also the agent needs to know which files to focus on for the review. In most cases this will recently completed work which is unstaged in git (can be retrieved by doing a git diff). However there can be cases where this is different, make sure to specify this as the agent input when calling the agent. \\n\\nExamples:\\n<example>\\nContext: The user has just implemented a new feature with several TypeScript files.\\nuser: \"I've added the new authentication feature. Can you check if everything looks good?\"\\nassistant: \"I'll use the Task tool to launch the code-reviewer agent to review your recent changes.\"\\n<commentary>\\nSince the user has completed a feature and wants validation, use the code-reviewer agent to ensure the code meets project standards.\\n</commentary>\\n</example>\\n<example>\\nContext: The assistant has just written a new utility function.\\nuser: \"Please create a function to validate email addresses\"\\nassistant: \"Here's the email validation function:\"\\n<function call omitted for brevity>\\nassistant: \"Now I'll use the Task tool to launch the code-reviewer agent to review this implementation.\"\\n<commentary>\\nProactively use the code-reviewer agent after writing new code to catch issues early.\\n</commentary>\\n</example>\\n<example>\\nContext: The user is about to create a PR.\\nuser: \"I think I'm ready to create a PR for this feature\"\\nassistant: \"Before creating the PR, I'll use the Task tool to launch the code-reviewer agent to ensure all code meets our standards.\"\\n<commentary>\\nProactively review code before PR creation to avoid review comments and iterations.\\n</commentary>\\n</example>",
+        "model": "opus",
+        "color": "green"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/code-simplifier.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "code-simplifier",
+        "description": "Use this agent when code has been written or modified and needs to be simplified for clarity, consistency, and maintainability while preserving all functionality. This agent should be triggered automatically after completing a coding task or writing a logical chunk of code. It simplifies code by following project best practices while retaining all functionality. The agent focuses only on recently modified code unless instructed otherwise.\\n\\nExamples:\\n\\n<example>",
+        "Context": "The assistant has just refactored a function to improve performance.",
+        "user": "Optimize the data sorting algorithm for better performance",
+        "assistant": "Now I'll use the code-simplifier agent to ensure the optimized code is also clear and follows our coding standards",
+        "model": "opus"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/comment-analyzer.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "comment-analyzer",
+        "description": "Use this agent when you need to analyze code comments for accuracy, completeness, and long-term maintainability. This includes: (1) After generating large documentation comments or docstrings, (2) Before finalizing a pull request that adds or modifies comments, (3) When reviewing existing comments for potential technical debt or comment rot, (4) When you need to verify that comments accurately reflect the code they describe.",
+        "Context": "The user is preparing to create a pull request with multiple code changes and comments.",
+        "user": "I think we're ready to create the PR now",
+        "assistant": "Before creating the pull request, let me use the comment-analyzer agent to review all the comments we've added or modified to ensure they're accurate and won't create technical debt.",
+        "model": "inherit",
+        "color": "green"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/context-orchestrator.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "context-orchestrator",
+        "tools": "All tools",
+        "model": "inherit"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/database-expert.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "database-expert",
+        "tools": "All tools",
+        "model": "inherit"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/db-migration.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "db-migration",
+        "Database schema change specialist. Use PROACTIVELY before any npm run db": "push",
+        "tools": "Read, Edit, Bash, Grep, Glob",
+        "model": "sonnet"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/debug-expert.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "debug-expert",
+        "tools": "All tools",
+        "model": "inherit"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/devops-troubleshooter.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "devops-troubleshooter",
+        "tools": "All tools",
+        "model": "inherit"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/docs-architect.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "docs-architect",
+        "tools": "All tools",
+        "model": "inherit"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/dx-optimizer.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "dx-optimizer",
+        "tools": "All tools",
+        "model": "inherit"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/general-purpose.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "general-purpose",
+        "tools": "All tools",
+        "model": "inherit"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/incident-responder.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "incident-responder",
+        "tools": "All tools",
+        "model": "inherit"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/legacy-modernizer.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "legacy-modernizer",
+        "tools": "All tools",
+        "model": "inherit"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/perf-guard.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "perf-guard",
+        "tools": "Read, Bash, Grep, Glob, Write",
+        "model": "sonnet"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/phoenix-brand-reporting-stylist.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "phoenix-brand-reporting-stylist",
+        "model": "sonnet",
+        "tools": "Read, Grep, Glob",
+        "skills": "phoenix-brand-reporting",
+        "permissionMode": "default",
+        "enabled": true,
+        "tenant_id": "agent:phoenix-brand-reporting-stylist"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/phoenix-capital-allocation-analyst.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "phoenix-capital-allocation-analyst",
+        "model": "sonnet",
+        "tools": "Read, Write, Grep, Glob, Bash",
+        "permissionMode": "default",
+        "enabled": true,
+        "tenant_id": "agent:phoenix-capital-allocation-analyst"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/phoenix-docs-scribe.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "phoenix-docs-scribe",
+        "model": "sonnet",
+        "tools": "Read, Write, Grep, Glob",
+        "permissionMode": "default",
+        "enabled": true,
+        "tenant_id": "agent:phoenix-docs-scribe"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/phoenix-precision-guardian.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "phoenix-precision-guardian",
+        "model": "sonnet",
+        "tools": "Read, Write, Grep, Glob, Bash",
+        "permissionMode": "default",
+        "enabled": true,
+        "tenant_id": "agent:phoenix-precision-guardian"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/phoenix-probabilistic-engineer.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "phoenix-probabilistic-engineer",
+        "model": "sonnet",
+        "tools": "Read, Write, Grep, Glob, Bash",
+        "permissionMode": "default",
+        "enabled": true,
+        "tenant_id": "agent:phoenix-probabilistic-engineer"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/phoenix-reserves-optimizer.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "phoenix-reserves-optimizer",
+        "model": "sonnet",
+        "tools": "Read, Write, Grep, Glob, Bash",
+        "permissionMode": "default",
+        "enabled": true,
+        "tenant_id": "agent:phoenix-reserves-optimizer"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/phoenix-truth-case-runner.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "phoenix-truth-case-runner",
+        "model": "sonnet",
+        "tools": "Read, Write, Grep, Glob, Bash",
+        "permissionMode": "default",
+        "enabled": true,
+        "tenant_id": "agent:phoenix-truth-case-runner"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/pr-test-analyzer.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "pr-test-analyzer",
+        "description": "Use this agent when you need to review a pull request for test coverage quality and completeness. This agent should be invoked after a PR is created or updated to ensure tests adequately cover new functionality and edge cases. Examples:\\n\\n<example>\\nContext: Daisy has just created a pull request with new functionality.\\nuser: \"I've created the PR. Can you check if the tests are thorough?\"\\nassistant: \"I'll use the pr-test-analyzer agent to review the test coverage and identify any critical gaps.\"\\n<commentary>\\nSince Daisy is asking about test thoroughness in a PR, use the Task tool to launch the pr-test-analyzer agent.\\n</commentary>\\n</example>\\n\\n<example>\\nContext: A pull request has been updated with new code changes.\\nuser: \"The PR is ready for review - I added the new validation logic we discussed\"\\nassistant: \"Let me analyze the PR to ensure the tests adequately cover the new validation logic and edge cases.\"\\n<commentary>\\nThe PR has new functionality that needs test coverage analysis, so use the pr-test-analyzer agent.\\n</commentary>\\n</example>\\n\\n<example>\\nContext: Reviewing PR feedback before marking as ready.\\nuser: \"Before I mark this PR as ready, can you double-check the test coverage?\"\\nassistant: \"I'll use the pr-test-analyzer agent to thoroughly review the test coverage and identify any critical gaps before you mark it ready.\"\\n<commentary>\\nDaisy wants a final test coverage check before marking PR ready, use the pr-test-analyzer agent.\\n</commentary>\\n</example>",
+        "model": "inherit",
+        "color": "cyan"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/silent-failure-hunter.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "silent-failure-hunter",
+        "description": "Use this agent when reviewing code changes in a pull request to identify silent failures, inadequate error handling, and inappropriate fallback behavior. This agent should be invoked proactively after completing a logical chunk of work that involves error handling, catch blocks, fallback logic, or any code that could potentially suppress errors. Examples:\\n\\n<example>\\nContext: Daisy has just finished implementing a new feature that fetches data from an API with fallback behavior.\\nDaisy: \"I've added error handling to the API client. Can you review it?\"\\nAssistant: \"Let me use the silent-failure-hunter agent to thoroughly examine the error handling in your changes.\"\\n<Task tool invocation to launch silent-failure-hunter agent>\\n</example>\\n\\n<example>\\nContext: Daisy has created a PR with changes that include try-catch blocks.\\nDaisy: \"Please review PR #1234\"\\nAssistant: \"I'll use the silent-failure-hunter agent to check for any silent failures or inadequate error handling in this PR.\"\\n<Task tool invocation to launch silent-failure-hunter agent>\\n</example>\\n\\n<example>\\nContext: Daisy has just refactored error handling code.\\nDaisy: \"I've updated the error handling in the authentication module\"\\nAssistant: \"Let me proactively use the silent-failure-hunter agent to ensure the error handling changes don't introduce silent failures.\"\\n<Task tool invocation to launch silent-failure-hunter agent>\\n</example>",
+        "model": "inherit",
+        "color": "yellow"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/test-automator.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "test-automator",
+        "tools": "All tools",
+        "model": "inherit"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/test-repair.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "test-repair",
+        "tools": "Read, Edit, Write, Bash, Grep, Glob",
+        "model": "sonnet"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/type-design-analyzer.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "type-design-analyzer",
+        "description": "Use this agent when you need expert analysis of type design in your codebase. Specifically use it: (1) when introducing a new type to ensure it follows best practices for encapsulation and invariant expression, (2) during pull request creation to review all types being added, (3) when refactoring existing types to improve their design quality. The agent will provide both qualitative feedback and quantitative ratings on encapsulation, invariant expression, usefulness, and enforcement.\\n\\n<example>\\nContext: Daisy is writing code that introduces a new UserAccount type and wants to ensure it has well-designed invariants.\\nuser: \"I've just created a new UserAccount type that handles user authentication and permissions\"\\nassistant: \"I'll use the type-design-analyzer agent to review the UserAccount type design\"\\n<commentary>\\nSince a new type is being introduced, use the type-design-analyzer to ensure it has strong invariants and proper encapsulation.\\n</commentary>\\n</example>\\n\\n<example>\\nContext: Daisy is creating a pull request and wants to review all newly added types.\\nuser: \"I'm about to create a PR with several new data model types\"\\nassistant: \"Let me use the type-design-analyzer agent to review all the types being added in this PR\"\\n<commentary>\\nDuring PR creation with new types, use the type-design-analyzer to review their design quality.\\n</commentary>\\n</example>",
+        "model": "inherit",
+        "color": "pink"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/waterfall-specialist.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "waterfall-specialist",
+        "tools": "Read, Edit, Grep, Glob, Bash",
+        "model": "sonnet",
+        "enabled": true,
+        "tenant_id": "agent:waterfall-specialist"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/agents/xirr-fees-validator.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "xirr-fees-validator",
+        "model": "sonnet",
+        "tools": "Read, Write, Grep, Glob, Bash",
+        "permissionMode": "default",
+        "enabled": true,
+        "tenant_id": "agent:xirr-fees-validator"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/commands/catalog-tooling.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/commands/deploy-check.md",
+      "exists": true,
+      "frontmatter": {
+        "description": "Comprehensive pre-deployment validation (build, bundle, smoke tests, idempotency)"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/commands/enable-agent-memory.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/commands/evaluate-tools.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/commands/fix-auto.md",
+      "exists": true,
+      "frontmatter": {
+        "description": "Automated repair of lint, format, and simple test failures"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/commands/phoenix-phase2.md",
+      "exists": true,
+      "frontmatter": {
+        "description": "Phase 2 workflow: validate Expectation Mode, run seeded Monte Carlo, summarize distributions",
+        "argument-hint": "[goal] seed=<int> iters=<int> scenario=<name> focus=<graduation|moic|reserves|monte-carlo>",
+        "allowed-tools": "Read, Write, Grep, Glob, Bash"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/commands/phoenix-prob-report.md",
+      "exists": true,
+      "frontmatter": {
+        "description": "Format Monte Carlo artifact into PR-ready distribution summary table",
+        "argument-hint": "path=<artifact.json|artifact.csv> [metric=TVPI|DPI|MOIC|IRR|all]",
+        "allowed-tools": "Read, Grep, Glob"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/commands/phoenix-truth.md",
+      "exists": true,
+      "frontmatter": {
+        "description": "Run deterministic Phoenix truth cases and update baseline reports",
+        "argument-hint": "[focus=xirr|waterfall|fees|capital|recycling|all]",
+        "allowed-tools": "Read, Write, Grep, Glob, Bash"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/commands/session-start.md",
+      "exists": true,
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/commands/test-smart.md",
+      "exists": true,
+      "frontmatter": {
+        "description": "Intelligent test selection based on file changes - runs only affected tests"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/commands/workflows.md",
+      "exists": true,
+      "frontmatter": {
+        "description": "Interactive helper showing available tools and when to use them"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": true,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/phoenix-advanced-forecasting/SKILL.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "phoenix-advanced-forecasting",
+        "\"Architecture for the 'living model'": "graduation rates, multi-MOIC analysis,"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/phoenix-brand-reporting/SKILL.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "phoenix-brand-reporting"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/phoenix-capital-exit-investigator/SKILL.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "phoenix-capital-exit-investigator"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/phoenix-docs-sync/SKILL.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "phoenix-docs-sync"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/phoenix-precision-guard/SKILL.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "phoenix-precision-guard"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/phoenix-reserves-optimizer/SKILL.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "phoenix-reserves-optimizer"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/phoenix-truth-case-orchestrator/SKILL.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "phoenix-truth-case-orchestrator"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/phoenix-waterfall-ledger-semantics/SKILL.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "phoenix-waterfall-ledger-semantics"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": ".claude/skills/phoenix-xirr-fees-validator/SKILL.md",
+      "exists": true,
+      "frontmatter": {
+        "name": "phoenix-xirr-fees-validator"
+      },
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    }
+  ],
+  "stats": {
+    "total_docs": 225,
+    "stale_docs": 225,
+    "missing_frontmatter": 178,
+    "by_status": {
+      "UNKNOWN": 225
+    }
+  }
+}

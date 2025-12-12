@@ -128,6 +128,31 @@ interface RouterIndex {
   };
 }
 
+/**
+ * Consumer-optimized router schema
+ * Used by routeQueryFast() for fast pattern matching
+ */
+interface RouterFast {
+  version: string;
+  generatedAt: string;
+  scoring: {
+    generic_terms: string[];
+    min_score: number;
+  };
+  patterns: RouterFastPattern[];
+  keyword_to_docs: Record<string, string[]>;
+}
+
+interface RouterFastPattern {
+  id: string;
+  priority: number;
+  match_any: string[];
+  route_to: string;
+  why: string;
+  command?: string;
+  agent?: string;
+}
+
 // =============================================================================
 // CONSTANTS
 // =============================================================================
@@ -135,6 +160,7 @@ interface RouterIndex {
 const SOURCE_FILE = 'docs/DISCOVERY-MAP.source.yaml';
 const OUT_DIR = 'docs/_generated';
 const OUT_JSON = path.join(OUT_DIR, 'router-index.json');
+const OUT_FAST = path.join(OUT_DIR, 'router-fast.json');
 const OUT_STALENESS = path.join(OUT_DIR, 'staleness-report.md');
 
 // =============================================================================
@@ -531,6 +557,47 @@ async function main(): Promise<void> {
 
   const jsonOutput = JSON.stringify(routerIndex, null, 2);
 
+  // 4b. Generate Router-Fast JSON (consumer-optimized schema)
+  // Build keyword_to_docs map for fallback routing
+  const keywordToDocs: Record<string, string[]> = {};
+  for (const pattern of config.patterns) {
+    for (const keyword of pattern.keywords) {
+      const normalizedKeyword = keyword.toLowerCase();
+      if (!keywordToDocs[normalizedKeyword]) {
+        keywordToDocs[normalizedKeyword] = [];
+      }
+      if (!keywordToDocs[normalizedKeyword].includes(pattern.target)) {
+        keywordToDocs[normalizedKeyword].push(pattern.target);
+      }
+    }
+  }
+
+  // Build consumer-friendly pattern format
+  const fastPatterns: RouterFastPattern[] = config.patterns
+    .sort((a, b) => a.priority - b.priority)
+    .map((p, index) => ({
+      id: p.id,
+      priority: p.priority,
+      match_any: p.keywords,
+      route_to: p.target,
+      why: p.message || p.warning || `${p.category} routing (priority ${p.priority})`,
+      ...(p.command && { command: p.command }),
+      ...(p.agent && { agent: p.agent }),
+    }));
+
+  const routerFast: RouterFast = {
+    version: config.version,
+    generatedAt: new Date().toISOString(),
+    scoring: {
+      generic_terms: config.configuration.generic_terms,
+      min_score: config.configuration.min_score_to_route,
+    },
+    patterns: fastPatterns,
+    keyword_to_docs: keywordToDocs,
+  };
+
+  const fastOutput = JSON.stringify(routerFast, null, 2);
+
   // 5. Generate Staleness Report
   let mdOutput = `# Staleness Report
 
@@ -623,10 +690,17 @@ Documents without proper YAML frontmatter:
   // 6. Write or Check
   if (isCheckMode) {
     let existingJson = '';
+    let existingFast = '';
     let existingStaleness = '';
 
     try {
       existingJson = await fs.readFile(OUT_JSON, 'utf8');
+    } catch {
+      // File doesn't exist
+    }
+
+    try {
+      existingFast = await fs.readFile(OUT_FAST, 'utf8');
     } catch {
       // File doesn't exist
     }
@@ -640,22 +714,30 @@ Documents without proper YAML frontmatter:
     // For check mode, we compare structure, not timestamps
     const existingParsed = existingJson ? JSON.parse(existingJson) : null;
     const newParsed = JSON.parse(jsonOutput);
+    const existingFastParsed = existingFast ? JSON.parse(existingFast) : null;
+    const newFastParsed = JSON.parse(fastOutput);
 
     // Remove timestamps for comparison
     if (existingParsed) {
       delete existingParsed.generatedAt;
     }
     delete newParsed.generatedAt;
+    if (existingFastParsed) {
+      delete existingFastParsed.generatedAt;
+    }
+    delete newFastParsed.generatedAt;
 
     const jsonMatch = JSON.stringify(existingParsed) === JSON.stringify(newParsed);
+    const fastMatch = JSON.stringify(existingFastParsed) === JSON.stringify(newFastParsed);
 
     // For staleness report, just check if it exists (content will differ due to timestamps)
     const stalenessExists = existingStaleness.length > 0;
 
-    if (!jsonMatch || !stalenessExists) {
+    if (!jsonMatch || !fastMatch || !stalenessExists) {
       console.error('ERROR: Generated files are out of sync with source!');
       console.error('Run: npm run docs:routing:generate');
       if (!jsonMatch) console.error('  - router-index.json needs regeneration');
+      if (!fastMatch) console.error('  - router-fast.json needs regeneration');
       if (!stalenessExists) console.error('  - staleness-report.md is missing');
       process.exit(1);
     }
@@ -667,10 +749,12 @@ Documents without proper YAML frontmatter:
 
     // Write files
     await fs.writeFile(OUT_JSON, jsonOutput);
+    await fs.writeFile(OUT_FAST, fastOutput);
     await fs.writeFile(OUT_STALENESS, mdOutput);
 
     console.log('SUCCESS: Discovery map generated.');
     console.log(`  - ${OUT_JSON}`);
+    console.log(`  - ${OUT_FAST}`);
     console.log(`  - ${OUT_STALENESS}`);
     console.log('');
     console.log(`Stats: ${stats.total_docs} docs, ${stats.stale_docs} stale, ${stats.missing_frontmatter} missing frontmatter`);

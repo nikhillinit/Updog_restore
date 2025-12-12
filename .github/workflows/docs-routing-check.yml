@@ -9,6 +9,7 @@ on:
       - '.claude/**/*.md'
       - 'docs/DISCOVERY-MAP.source.yaml'
       - 'scripts/generate-discovery-map.ts'
+      - 'scripts/routeQueryFast.ts'
   pull_request:
     paths:
       - 'docs/**/*.md'
@@ -16,6 +17,7 @@ on:
       - '.claude/**/*.md'
       - 'docs/DISCOVERY-MAP.source.yaml'
       - 'scripts/generate-discovery-map.ts'
+      - 'scripts/routeQueryFast.ts'
   workflow_dispatch:
 
 jobs:
@@ -68,5 +70,6 @@ jobs:
           name: discovery-routing-artifacts
           path: |
             docs/_generated/router-index.json
+            docs/_generated/router-fast.json
             docs/_generated/staleness-report.md
           retention-days: 7
