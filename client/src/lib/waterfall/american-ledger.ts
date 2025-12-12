@@ -9,11 +9,20 @@ export interface AmericanWaterfallConfig {
   // Optional fund-level clawback:
   clawbackEnabled?: boolean;
   /**
-   * Minimum LP multiple before GP is allowed to KEEP carry.
-   * Example:
-   *   1.0  => LPs must at least get 1.0x paid-in capital.
-   *   1.1  => LPs must get at least 1.1x (includes 10% hurdle).
-   * Default: 1.0.
+   * LP hurdle multiple for fund-level clawback (e.g., 1.1 = 110% of paid-in capital).
+   *
+   * SHORTFALL-BASED CLAWBACK (not a binary threshold):
+   * - LPs have a required outcome = paid-in capital × this multiple.
+   * - At liquidation, if LPs' actual outcome < required outcome, a shortfall exists.
+   * - GP carry is reduced proportionally to the shortfall amount:
+   *   • No shortfall → GP keeps 100% of earned carry
+   *   • Partial shortfall → GP keeps carry on (fund profit - shortfall) only
+   *   • Full shortfall → GP keeps 0% of earned carry
+   *
+   * Example: 1.0 = LPs must reach 100% capital return before GP keeps any carry.
+   *          1.1 = LPs must reach 110% (includes 10% preferred return).
+   *
+   * Default: 1.0
    */
   clawbackLpHurdleMultiple?: number;
 }
@@ -191,16 +200,16 @@ export function calculateAmericanWaterfallLedger(
     // contributions (paidIn) are negative to LP; distributions + gp carry are positive.
     const totalFundProfit = distributed + gpCarryTotal - paidIn;
 
-    // LP must first hit a minimum multiple before GP is allowed to keep any carry.
+    // Hurdle multiple used to compute LPs' required outcome for clawback
     const lpHurdleMultiple = cfg.clawbackLpHurdleMultiple ?? 1.0;
     const lpRequiredFloor = paidIn * lpHurdleMultiple;
 
     // Current LP outcome in cash
     const lpCurrent = distributed;
 
-    // If LPs are below their floor, some or all GP carry must be clawed back
+    // If LPs are below the required outcome, GP carry is clawed back proportionally to the shortfall
     if (totalFundProfit > 0 && lpCurrent < lpRequiredFloor) {
-      // How many dollars are LPs short of their floor?
+      // Dollar shortfall vs the required LP outcome
       const lpShortfall = lpRequiredFloor - lpCurrent;
 
       // At fund level, GP is entitled to at most carry% of *fund profit above LP floor*.

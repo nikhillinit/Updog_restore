@@ -1,0 +1,174 @@
+[
+  {
+    "id": "xirr-13-leap-year-handling",
+    "scenario": "13-leap-year-handling",
+    "expectedIRR": 4.284325690000001,
+    "cashflows": [
+      {
+        "date": "2020-02-28",
+        "amount": -10000000
+      },
+      {
+        "date": "2020-03-01",
+        "amount": 10100000
+      }
+    ]
+  },
+  {
+    "id": "xirr-21-typical-vc-fund-10year",
+    "scenario": "21-typical-vc-fund-10year",
+    "expectedIRR": 0.1845777397,
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -5000000
+      },
+      {
+        "date": "2021-01-01",
+        "amount": -3000000
+      },
+      {
+        "date": "2022-01-01",
+        "amount": -2000000
+      },
+      {
+        "date": "2023-01-01",
+        "amount": -1000000
+      },
+      {
+        "date": "2024-06-01",
+        "amount": 4000000
+      },
+      {
+        "date": "2026-01-01",
+        "amount": 8000000
+      },
+      {
+        "date": "2028-06-01",
+        "amount": 12000000
+      },
+      {
+        "date": "2030-01-01",
+        "amount": 5000000
+      }
+    ]
+  },
+  {
+    "id": "xirr-golden-case-2-rapid-3x",
+    "scenario": "Golden Case 2: Rapid 3x",
+    "expectedIRR": 0.2987638262,
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2023-01-01",
+        "amount": 300000
+      }
+    ]
+  },
+  {
+    "id": "xirr-golden-case-3-multi-stage-exit",
+    "scenario": "Golden Case 3: Multi-stage exit",
+    "expectedIRR": 0.2086834181,
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2022-06-15",
+        "amount": 50000
+      },
+      {
+        "date": "2024-09-30",
+        "amount": 120000
+      }
+    ]
+  },
+  {
+    "id": "xirr-golden-case-9-extreme-unicorn",
+    "scenario": "Golden Case 9: Extreme unicorn",
+    "expectedIRR": 1.0307919095,
+    "cashflows": [
+      {
+        "date": "2019-01-01",
+        "amount": -10000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 1000000
+      }
+    ]
+  },
+  {
+    "id": "xirr-golden-case-10-alternating-signs",
+    "scenario": "Golden Case 10: Alternating signs",
+    "expectedIRR": 0.1189625766,
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2022-06-01",
+        "amount": -50000
+      },
+      {
+        "date": "2024-12-01",
+        "amount": 200000
+      }
+    ]
+  },
+  {
+    "id": "xirr-golden-case-11-leap-year-precision",
+    "scenario": "Golden Case 11: Leap year precision",
+    "expectedIRR": 0.1313377761,
+    "cashflows": [
+      {
+        "date": "2023-12-31",
+        "amount": -100000
+      },
+      {
+        "date": "2024-02-29",
+        "amount": 50000
+      },
+      {
+        "date": "2024-12-31",
+        "amount": 60000
+      }
+    ]
+  },
+  {
+    "id": "xirr-golden-case-12-annual-dividends",
+    "scenario": "Golden Case 12: Annual dividends",
+    "expectedIRR": 0.0793655649,
+    "cashflows": [
+      {
+        "date": "2020-01-01",
+        "amount": -100000
+      },
+      {
+        "date": "2021-01-01",
+        "amount": 10000
+      },
+      {
+        "date": "2022-01-01",
+        "amount": 10000
+      },
+      {
+        "date": "2023-01-01",
+        "amount": 10000
+      },
+      {
+        "date": "2024-01-01",
+        "amount": 10000
+      },
+      {
+        "date": "2025-01-01",
+        "amount": 80000
+      }
+    ]
+  }
+]

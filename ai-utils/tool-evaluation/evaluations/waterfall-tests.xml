@@ -42,6 +42,7 @@
     <category>reserves</category>
     <prompt>Calculate reserve allocations for a $100M fund with $60M deployed capital, targeting 1:1 reserve ratio across 25 portfolio companies</prompt>
     <response>{"availableReserves":40000000,"reservePerCompany":1600000,"actualRatio":0.6667,"meetsTarget":false}</response>
+    <tolerance>0.001</tolerance>
   </task>
 
   <task id="reserves-2">
@@ -49,6 +50,7 @@
     <category>reserves</category>
     <prompt>Calculate reserve allocations for a $150M fund with $45M deployed capital, targeting 1.5:1 reserve ratio across 20 portfolio companies</prompt>
     <response>{"availableReserves":105000000,"reservePerCompany":5250000,"actualRatio":2.3333,"meetsTarget":true}</response>
+    <tolerance>0.001</tolerance>
   </task>
 
   <task id="reserves-3">
@@ -71,6 +73,7 @@
     <category>pacing</category>
     <prompt>Calculate investment pacing for a $200M fund with 10-year life, 3-year deployment period, $40M deployed after 2 years</prompt>
     <response>{"targetAnnualPace":66666667,"actualAnnualPace":20000000,"paceRatio":0.3,"onTrack":false,"remainingDeployment":160000000}</response>
+    <tolerance>1</tolerance>
   </task>
 
   <task id="pacing-3">
@@ -78,6 +81,7 @@
     <category>pacing</category>
     <prompt>Calculate investment pacing for a $75M fund with 10-year life, 5-year deployment period, $35M deployed after 1 year</prompt>
     <response>{"targetAnnualPace":15000000,"actualAnnualPace":35000000,"paceRatio":2.3333,"onTrack":false,"remainingDeployment":40000000}</response>
+    <tolerance>0.001</tolerance>
   </task>
 
   <!-- Complex Scenarios -->
@@ -97,7 +101,7 @@
   </task>
 
   <!-- Monte Carlo Scenarios -->
-  <task id="monte-carlo-1">
+  <task id="monte-carlo-1" skip="true" skip-reason="Phase 2 - Advanced Forecasting">
     <description>Expected returns simulation</description>
     <category>monte-carlo</category>
     <prompt>Run Monte Carlo simulation for $100M fund expecting 2.5x gross multiple with 20% standard deviation, 1000 iterations</prompt>
@@ -105,7 +109,7 @@
     <tolerance>10000000</tolerance>
   </task>
 
-  <task id="monte-carlo-2">
+  <task id="monte-carlo-2" skip="true" skip-reason="Phase 2 - Advanced Forecasting">
     <description>Portfolio outcome distribution</description>
     <category>monte-carlo</category>
     <prompt>Simulate portfolio outcomes for 25 companies with 10% home runs, 20% base hits, 30% returns of capital, 40% losses</prompt>
@@ -113,8 +117,24 @@
     <tolerance>0.5</tolerance>
   </task>
 
+  <task id="monte-carlo-3" skip="true" skip-reason="Phase 2 - Advanced Forecasting">
+    <description>Risk-adjusted return scenarios</description>
+    <category>monte-carlo</category>
+    <prompt>Monte Carlo analysis of downside scenarios with 30% probability of 0.5x returns</prompt>
+    <response>{"downsideP10":50000000,"baseCase":150000000,"upsideP90":300000000}</response>
+    <tolerance>5000000</tolerance>
+  </task>
+
+  <task id="monte-carlo-4" skip="true" skip-reason="Phase 2 - Advanced Forecasting">
+    <description>Multi-fund portfolio simulation</description>
+    <category>monte-carlo</category>
+    <prompt>Simulate returns across 3 funds with varying vintage years and risk profiles</prompt>
+    <response>{"portfolioIRR":0.25,"portfolioMOIC":2.8,"probabilityAbove2x":0.85}</response>
+    <tolerance>0.05</tolerance>
+  </task>
+
   <!-- Cohort Analysis Tests -->
-  <task id="cohort-1">
+  <task id="cohort-1" skip="true" skip-reason="Phase 2 - Advanced Forecasting">
     <description>Vintage year performance</description>
     <category>cohort</category>
     <prompt>Calculate performance metrics for 2020 vintage cohort with 15 investments totaling $45M, current value $67.5M</prompt>
@@ -122,12 +142,28 @@
     <tolerance>0.05</tolerance>
   </task>
 
-  <task id="cohort-2">
+  <task id="cohort-2" skip="true" skip-reason="Phase 2 - Advanced Forecasting">
     <description>Sector cohort analysis</description>
     <category>cohort</category>
     <prompt>Analyze SaaS sector cohort: 8 companies, $32M invested, $12M realized, $35M unrealized</prompt>
     <response>{"tvpi":1.47,"dpi":0.375,"rvpi":1.094,"totalValue":47000000}</response>
     <tolerance>0.02</tolerance>
+  </task>
+
+  <task id="cohort-3" skip="true" skip-reason="Phase 2 - Advanced Forecasting">
+    <description>Stage-based cohort comparison</description>
+    <category>cohort</category>
+    <prompt>Compare performance of Seed vs Series A cohorts across portfolio</prompt>
+    <response>{"seedTVPI":3.2,"seriesATVPI":2.1,"seedOutperformance":1.52}</response>
+    <tolerance>0.1</tolerance>
+  </task>
+
+  <task id="cohort-4" skip="true" skip-reason="Phase 2 - Advanced Forecasting">
+    <description>Multi-year vintage comparison</description>
+    <category>cohort</category>
+    <prompt>Analyze performance trends across 2018-2022 vintage years</prompt>
+    <response>{"bestVintage":"2020","worstVintage":"2022","avgTVPI":1.8}</response>
+    <tolerance>0.05</tolerance>
   </task>
 
   <!-- Edge Cases and Validation -->

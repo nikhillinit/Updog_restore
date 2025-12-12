@@ -1,9 +1,10 @@
 import { brent } from './brent-solver';
 
 export interface CashFlow {
-  date: Date; // JS Date (normalized to UTC midnight)
+  date: Date; // JS Date (will be normalized to UTC midnight internally)
   amount: number; // negative = contribution, positive = distribution
 }
+
 export interface XIRRResult {
   irr: number | null; // annualized rate (e.g., 0.1487); null for invalid inputs
   converged: boolean;
@@ -11,124 +12,206 @@ export interface XIRRResult {
   method: 'newton' | 'bisection' | 'brent' | 'none';
 }
 
-const YEAR_MS = 365.25 * 24 * 60 * 60 * 1000;
+type XIRRStrategy = 'hybrid' | 'newton' | 'bisection';
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// Rate bounds: from -99.9999% to +900%
+const MIN_RATE = -0.999999;
+const MAX_RATE = 9.0;
 
 /**
- * Normalize date to UTC midnight to avoid timezone drift
+ * Normalize a JS Date to UTC midnight and return the corresponding
+ * "Excel-style" serial day number (days since epoch).
  */
-function normalizeDate(date: Date): Date {
-  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+function serialDayUtc(date: Date): number {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / MS_PER_DAY;
 }
 
-// Helper: NPV at rate
+/**
+ * Excel-style Actual/365 year fraction with UTC-normalized dates.
+ * This matches how XIRR treats day counts: actual day difference,
+ * 365-day denominator, no timezone/DST drift.
+ */
+function yearFraction(start: Date, current: Date): number {
+  const startSerial = serialDayUtc(start);
+  const currentSerial = serialDayUtc(current);
+  const dayDiff = currentSerial - startSerial;
+  return dayDiff / 365.0; // NOT 365.25
+}
+
+/**
+ * Clamp IRR into a safe, well-defined range.
+ */
+function clampRate(rate: number): number {
+  if (!Number.isFinite(rate)) return rate;
+  return Math.max(MIN_RATE, Math.min(MAX_RATE, rate));
+}
+
+/**
+ * NPV at a given rate.
+ * `flows` are assumed to be normalized and sorted by date.
+ */
 function npvAt(rate: number, flows: CashFlow[], t0: Date): number {
-  return flows.reduce((sum: any, cf: any) => {
-    const years = (cf.date.getTime() - t0.getTime()) / YEAR_MS;
-    return sum + cf.amount / Math.pow(1 + rate, years);
+  return flows.reduce((sum, cf) => {
+    const years = yearFraction(t0, cf.date);
+    const denom = Math.pow(1 + rate, years);
+    return sum + cf.amount / denom;
   }, 0);
 }
 
-// Derivative of NPV wrt rate
+/**
+ * Derivative of NPV with respect to rate (for Newton).
+ */
 function dNpvAt(rate: number, flows: CashFlow[], t0: Date): number {
-  return flows.reduce((sum: any, cf: any) => {
-    const years = (cf.date.getTime() - t0.getTime()) / YEAR_MS;
-    return sum - (years * cf.amount) / Math.pow(1 + rate, years + 1);
+  return flows.reduce((sum, cf) => {
+    const years = yearFraction(t0, cf.date);
+    const denom = Math.pow(1 + rate, years + 1);
+    return sum - (years * cf.amount) / denom;
   }, 0);
 }
 
-export function xirrNewtonBisection(
-  flowsIn: CashFlow[],
-  guess = 0.1,
-  tolerance = 1e-7,
-  maxIterations = 100
+/**
+ * Newton-Raphson solver.
+ * Returns success only if tolerance is met; otherwise returns a failure
+ * with method 'newton'.
+ */
+function solveNewton(
+  flows: CashFlow[],
+  t0: Date,
+  guess: number,
+  tolerance: number,
+  maxIterations: number
 ): XIRRResult {
-  const flows = [...flowsIn].sort((a: any, b: any) => a.date.getTime() - b.date.getTime());
-  if (flows.length < 2) return { irr: null, converged: false, iterations: 0, method: 'none' };
-  const t0 = flows[0]!.date;
+  let rate = clampRate(guess);
+  let iterations = 0;
 
-  // Quick sanity: need at least one negative and one positive
-  const hasNeg = flows.some((cf) => cf.amount < 0);
-  const hasPos = flows.some((cf) => cf.amount > 0);
-  if (!hasNeg || !hasPos) return { irr: null, converged: false, iterations: 0, method: 'none' };
-
-  // 1. Try Newton-Raphson (fast)
-  let rate = guess;
-  let newtonIterations = 0;
   for (let i = 0; i < maxIterations; i++) {
-    newtonIterations = i + 1;
+    iterations = i + 1;
+
     const f = npvAt(rate, flows, t0);
     if (Math.abs(f) < tolerance) {
-      // Validate result is within reasonable bounds
-      if (rate < -0.999999 || rate > 1000) {
-        console.warn(`XIRR: Newton converged to out-of-bounds rate: ${rate}`);
-        break; // Fall through to Brent
-      }
-      return { irr: rate, converged: true, iterations: newtonIterations, method: 'newton' };
+      const irr = clampRate(rate);
+      return {
+        irr,
+        converged: true,
+        iterations,
+        method: 'newton',
+      };
     }
+
     const df = dNpvAt(rate, flows, t0);
-    // Derivative too small or rate diverging - switch to Brent
-    if (Math.abs(df) < 1e-12) break;
+
+    // Derivative too small or invalid: can't progress safely with Newton
+    if (!Number.isFinite(df) || Math.abs(df) < 1e-12) {
+      return {
+        irr: null,
+        converged: false,
+        iterations,
+        method: 'newton',
+      };
+    }
 
     const next = rate - f / df;
-    // Check for divergence
-    if (!Number.isFinite(next) || Math.abs(next - rate) > 100) break;
 
-    // Clip to reasonable bounds
-    rate = Math.min(1000, Math.max(-0.999999, next));
+    // Divergence or non-finite: abandon Newton
+    if (!Number.isFinite(next) || Math.abs(next - rate) > 100) {
+      return {
+        irr: null,
+        converged: false,
+        iterations,
+        method: 'newton',
+      };
+    }
+
+    rate = clampRate(next);
   }
 
-  // 2. Try Brent's method (more robust)
-  const brentResult = brent(
-    (r) => npvAt(r, flows, t0),
-    -0.95, // Lower bound: ~-95% (allow for losses)
-    15, // Upper bound: 1500% (allow for high returns)
-    { tolerance: 1e-8, maxIterations: 200 }
-  );
+  // Hit maxIterations without reaching tolerance: timeout
+  return {
+    irr: null,
+    converged: false,
+    iterations: maxIterations,
+    method: 'newton',
+  };
+}
 
-  if (brentResult.converged && brentResult.root !== null) {
+/**
+ * Brent wrapper.
+ */
+function solveBrent(flows: CashFlow[], t0: Date, tolerance: number): XIRRResult {
+  const f = (r: number) => npvAt(r, flows, t0);
+
+  const result = brent(f, -0.95, 15, {
+    tolerance: Math.min(tolerance, 1e-8),
+    maxIterations: 200,
+  });
+
+  if (result.converged && result.root !== null && Number.isFinite(result.root)) {
+    const irr = clampRate(result.root);
     return {
-      irr: brentResult.root,
+      irr,
       converged: true,
-      iterations: newtonIterations + brentResult.iterations,
+      iterations: result.iterations,
       method: 'brent',
     };
   }
 
-  // 3. Last resort: bisection
-  let lo = -0.99,
-    hi = 50.0;
-  let fLo = npvAt(lo, flows, t0),
-    fHi = npvAt(hi, flows, t0);
+  return {
+    irr: null,
+    converged: false,
+    iterations: result.iterations,
+    method: 'brent',
+  };
+}
 
-  // Try to find a valid bracket by expanding the search range
+/**
+ * Bisection solver (last resort).
+ */
+function solveBisection(
+  flows: CashFlow[],
+  t0: Date,
+  tolerance: number,
+  maxIterations: number
+): XIRRResult {
+  let lo = -0.99;
+  let hi = 50.0; // wide upper bound; final IRR is still clamped
+  let fLo = npvAt(lo, flows, t0);
+  let fHi = npvAt(hi, flows, t0);
+
+  // Try to ensure a sign change; expand upper bound if needed
   if (fLo * fHi > 0) {
-    // Try even higher upper bound for extreme cases
     hi = 100.0;
     fHi = npvAt(hi, flows, t0);
     if (fLo * fHi > 0) {
       // Cannot bracket a root
-      console.warn('XIRR: Cannot bracket root - no sign change found');
       return {
         irr: null,
         converged: false,
-        iterations: newtonIterations + maxIterations,
+        iterations: 0,
         method: 'bisection',
       };
     }
   }
+
+  let iterations = 0;
+
   for (let i = 0; i < maxIterations; i++) {
+    iterations = i + 1;
     const mid = (lo + hi) / 2;
     const fMid = npvAt(mid, flows, t0);
+
     if (Math.abs(fMid) < tolerance || Math.abs(hi - lo) < tolerance) {
+      const irr = clampRate(mid);
       return {
-        irr: mid,
+        irr,
         converged: true,
-        iterations: newtonIterations + i + 1,
+        iterations,
         method: 'bisection',
       };
     }
-    const signChange = fLo * fMid < 0;
-    if (signChange) {
+
+    if (fLo * fMid < 0) {
       hi = mid;
       fHi = fMid;
     } else {
@@ -136,10 +219,88 @@ export function xirrNewtonBisection(
       fLo = fMid;
     }
   }
+
   return {
     irr: null,
     converged: false,
-    iterations: newtonIterations + maxIterations,
+    iterations,
     method: 'bisection',
   };
+}
+
+/**
+ * XIRR solver with configurable strategy:
+ * - 'hybrid': Newton → Brent → Bisection
+ * - 'newton': Newton only
+ * - 'bisection': Bisection only
+ */
+export function xirrNewtonBisection(
+  flowsIn: CashFlow[],
+  guess = 0.1,
+  tolerance = 1e-7,
+  maxIterations = 100,
+  strategy: XIRRStrategy = 'hybrid'
+): XIRRResult {
+  // Sort cash flows by date (UTC normalization happens in yearFraction)
+  const flows: CashFlow[] = [...flowsIn].sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  // Need at least two flows
+  if (flows.length < 2) {
+    return { irr: null, converged: false, iterations: 0, method: 'none' };
+  }
+
+  const t0 = flows[0]!.date;
+
+  // Require at least one negative and one positive cashflow
+  const hasNeg = flows.some((cf) => cf.amount < 0);
+  const hasPos = flows.some((cf) => cf.amount > 0);
+  if (!hasNeg || !hasPos) {
+    return { irr: null, converged: false, iterations: 0, method: 'none' };
+  }
+
+  // Strategy: Newton only
+  if (strategy === 'newton') {
+    return solveNewton(flows, t0, guess, tolerance, maxIterations);
+  }
+
+  // Strategy: Bisection only
+  if (strategy === 'bisection') {
+    return solveBisection(flows, t0, tolerance, maxIterations);
+  }
+
+  // Strategy: Hybrid (Newton → Brent → Bisection)
+
+  const newtonResult = solveNewton(flows, t0, guess, tolerance, maxIterations);
+
+  if (newtonResult.converged) {
+    return newtonResult;
+  }
+
+  // If Newton used all iterations (timeout), treat that as a hard failure and
+  // do not silently "fix" it with fallback.
+  const timedOut = newtonResult.iterations >= maxIterations;
+  if (timedOut) {
+    return newtonResult;
+  }
+
+  // Newton failed early (derivative/divergence) → try Brent
+  const brentResult = solveBrent(flows, t0, tolerance);
+  if (brentResult.converged) {
+    return {
+      ...brentResult,
+      iterations: newtonResult.iterations + brentResult.iterations,
+    };
+  }
+
+  // Brent also failed → try Bisection
+  const bisectionResult = solveBisection(flows, t0, tolerance, maxIterations);
+  if (bisectionResult.converged) {
+    return {
+      ...bisectionResult,
+      iterations: newtonResult.iterations + bisectionResult.iterations,
+    };
+  }
+
+  // All methods failed; report Newton failure by default
+  return newtonResult;
 }

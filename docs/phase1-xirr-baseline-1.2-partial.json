@@ -1,0 +1,527 @@
+{
+  "numTotalTestSuites": 2,
+  "numPassedTestSuites": 0,
+  "numFailedTestSuites": 2,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 51,
+  "numPassedTests": 37,
+  "numFailedTests": 14,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1765481849221,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 01-simple-positive-return: Canonical 2-cashflow case: 2.5x return over 5 years yields ~20.10% IRR. Excel validated.",
+          "status": "passed",
+          "title": "01-simple-positive-return: Canonical 2-cashflow case: 2.5x return over 5 years yields ~20.10% IRR. Excel validated.",
+          "duration": 4.365200000000073,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 02-negative-return-loss: 90% loss over 5 years yields -36.89% annualized IRR. Tests negative rate handling.",
+          "status": "passed",
+          "title": "02-negative-return-loss: 90% loss over 5 years yields -36.89% annualized IRR. Tests negative rate handling.",
+          "duration": 0.9333999999998923,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 03-multi-round-partial-distributions: Seed + Series A + partial exit + final NAV. Tests multi-round VC fund pattern.",
+          "status": "passed",
+          "title": "03-multi-round-partial-distributions: Seed + Series A + partial exit + final NAV. Tests multi-round VC fund pattern.",
+          "duration": 0.48710000000005493,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 04-quarterly-flows: Quarterly follow-on rounds + large exit spike. Tests frequent cashflow spacing.",
+          "status": "passed",
+          "title": "04-quarterly-flows: Quarterly follow-on rounds + large exit spike. Tests frequent cashflow spacing.",
+          "duration": 0.7324000000000979,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 05-zero-return-breakeven: Exact 1x return (breakeven) yields 0% IRR. Tests numerical stability near zero.",
+          "status": "passed",
+          "title": "05-zero-return-breakeven: Exact 1x return (breakeven) yields 0% IRR. Tests numerical stability near zero.",
+          "duration": 0.37989999999990687,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 06-newton-success-smooth: Verify Newton converges in <10 iterations for typical case.",
+          "status": "passed",
+          "title": "06-newton-success-smooth: Verify Newton converges in <10 iterations for typical case.",
+          "duration": 0.5878999999999905,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 07-newton-failure-bisection-fallback: Multiple sign changes within 3 months stress Newton-Raphson. Brent or bisection should succeed.",
+          "status": "failed",
+          "title": "07-newton-failure-bisection-fallback: Multiple sign changes within 3 months stress Newton-Raphson. Brent or bisection should succeed.",
+          "duration": 10.09920000000011,
+          "failureMessages": [
+            "AssertionError: expected null not to be null\n    at c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\xirr.test.ts:93:32\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\n    at runTest (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 08-bisection-only-mode: Verify bisection produces correct result (slower convergence expected).",
+          "status": "passed",
+          "title": "08-bisection-only-mode: Verify bisection produces correct result (slower convergence expected).",
+          "duration": 1.4052999999998974,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 09-convergence-tolerance-boundary: Higher precision should yield same result but with more iterations.",
+          "status": "failed",
+          "title": "09-convergence-tolerance-boundary: Higher precision should yield same result but with more iterations.",
+          "duration": 2.136700000000019,
+          "failureMessages": [
+            "AssertionError: expected null not to be null\n    at c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\xirr.test.ts:93:32\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\n    at runTest (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 10-maximum-iterations-reached: Insufficient iterations should fail gracefully with null (not throw).",
+          "status": "passed",
+          "title": "10-maximum-iterations-reached: Insufficient iterations should fail gracefully with null (not throw).",
+          "duration": 0.5459000000000742,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 11-excel-actual365-date-convention: Golden set test: Excel XIRR = 0.201034... (8 decimal precision).",
+          "status": "passed",
+          "title": "11-excel-actual365-date-convention: Golden set test: Excel XIRR = 0.201034... (8 decimal precision).",
+          "duration": 0.4432000000001608,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 12-same-day-cashflow-aggregation: Same-day flows aggregate to single -$10M on 2020-01-01. Result matches scenario 01.",
+          "status": "passed",
+          "title": "12-same-day-cashflow-aggregation: Same-day flows aggregate to single -$10M on 2020-01-01. Result matches scenario 01.",
+          "duration": 0.19990000000007058,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 13-leap-year-handling: 2-day period in leap year. Actual/365 uses 365 denominator always (not 366). 1% gain over 2 days = 515% annualized IRR. CORRECTED in Phase 1.2 from 4.2843 (truth case bug).",
+          "status": "passed",
+          "title": "13-leap-year-handling: 2-day period in leap year. Actual/365 uses 365 denominator always (not 366). 1% gain over 2 days = 515% annualized IRR. CORRECTED in Phase 1.2 from 4.2843 (truth case bug).",
+          "duration": 0.3607999999999265,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 14-date-ordering-unsorted: Reverse-sorted input should yield same result as scenario 01 (order-invariant).",
+          "status": "passed",
+          "title": "14-date-ordering-unsorted: Reverse-sorted input should yield same result as scenario 01 (order-invariant).",
+          "duration": 0.963799999999992,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 15-timezone-independent: PST and IST timestamps normalize to UTC midnight. Should match scenario 01.",
+          "status": "passed",
+          "title": "15-timezone-independent: PST and IST timestamps normalize to UTC midnight. Should match scenario 01.",
+          "duration": 0.2746999999999389,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 16-no-sign-change-all-positive: All-positive cashflows violate IRR definition. Should return null.",
+          "status": "passed",
+          "title": "16-no-sign-change-all-positive: All-positive cashflows violate IRR definition. Should return null.",
+          "duration": 0.4318000000000666,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 17-no-sign-change-all-negative: All-negative cashflows violate IRR definition. Should return null.",
+          "status": "passed",
+          "title": "17-no-sign-change-all-negative: All-negative cashflows violate IRR definition. Should return null.",
+          "duration": 0.2721999999998843,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 18-insufficient-cashflows-single: IRR requires at least 2 cashflows. Excel would return #NUM! error.",
+          "status": "passed",
+          "title": "18-insufficient-cashflows-single: IRR requires at least 2 cashflows. Excel would return #NUM! error.",
+          "duration": 0.22899999999981446,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 19-out-of-bounds-extreme-rate: Extreme short-term returns yield rates >1000%. Implementation clamps IRR at 900% to avoid unusable values.",
+          "status": "failed",
+          "title": "19-out-of-bounds-extreme-rate: Extreme short-term returns yield rates >1000%. Implementation clamps IRR at 900% to avoid unusable values.",
+          "duration": 1.6650999999999385,
+          "failureMessages": [
+            "AssertionError: expected null not to be null\n    at c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\xirr.test.ts:93:32\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\n    at runTest (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 20-floating-point-precision-tiny-amounts: Tiny amounts (cents) should yield same IRR as scenario 01 (scale-invariant).",
+          "status": "passed",
+          "title": "20-floating-point-precision-tiny-amounts: Tiny amounts (cents) should yield same IRR as scenario 01 (scale-invariant).",
+          "duration": 0.6585000000000036,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 21-typical-vc-fund-10year: Typical VC pattern: early calls, mid-life exits, terminal NAV. IRR ~18-22% expected.",
+          "status": "failed",
+          "title": "21-typical-vc-fund-10year: Typical VC pattern: early calls, mid-life exits, terminal NAV. IRR ~18-22% expected.",
+          "duration": 4.52800000000002,
+          "failureMessages": [
+            "AssertionError: expected 0.16412263419507883 to be close to 0.1845777397, received difference is 0.02045510550492116, but expected 0.005\n    at Module.assertNumericField (c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\helpers.ts:28:24)\n    at c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\xirr.test.ts:94:9\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\n    at runTest (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 22-early-exit-high-irr: 10x in 3 years → 115.4% IRR. Excel validated.",
+          "status": "passed",
+          "title": "22-early-exit-high-irr: 10x in 3 years → 115.4% IRR. Excel validated.",
+          "duration": 0.2511000000001786,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 23-late-exit-lower-irr: 5x over 10 years → ~17.5% IRR. Time value of money effect.",
+          "status": "passed",
+          "title": "23-late-exit-lower-irr: 5x over 10 years → ~17.5% IRR. Time value of money effect.",
+          "duration": 0.2139999999999418,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 24-quarterly-recycling: Recycling scenario: early exits fund follow-on investments. Tests sign-change robustness.",
+          "status": "passed",
+          "title": "24-quarterly-recycling: Recycling scenario: early exits fund follow-on investments. Tests sign-change robustness.",
+          "duration": 0.31330000000002656,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) 25-nav-heavy-terminal-value: Terminal-value-heavy scenario. IRR driven primarily by final NAV, not distributions.",
+          "status": "passed",
+          "title": "25-nav-heavy-terminal-value: Terminal-value-heavy scenario. IRR driven primarily by final NAV, not distributions.",
+          "duration": 0.4080999999998767,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 15: Biannual Distributions: Consistent semiannual returns over 3 years",
+          "status": "passed",
+          "title": "Golden Case 15: Biannual Distributions: Consistent semiannual returns over 3 years",
+          "duration": 0.15570000000002437,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 16: Waterfall Exit: Multiple tranches of returns simulating preferred returns",
+          "status": "passed",
+          "title": "Golden Case 16: Waterfall Exit: Multiple tranches of returns simulating preferred returns",
+          "duration": 0.9322999999999411,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 17: Bridge Financing: Short-term bridge loan scenario",
+          "status": "passed",
+          "title": "Golden Case 17: Bridge Financing: Short-term bridge loan scenario",
+          "duration": 0.24450000000001637,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 18: Down Round: Investment with down round (partial loss)",
+          "status": "passed",
+          "title": "Golden Case 18: Down Round: Investment with down round (partial loss)",
+          "duration": 0.14429999999993015,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 19: Dividend Recapitalization: Large dividend followed by eventual exit",
+          "status": "passed",
+          "title": "Golden Case 19: Dividend Recapitalization: Large dividend followed by eventual exit",
+          "duration": 0.2617999999999938,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 20: Penny Stock Volatility: Small amounts with high percentage swings",
+          "status": "passed",
+          "title": "Golden Case 20: Penny Stock Volatility: Small amounts with high percentage swings",
+          "duration": 0.16639999999983957,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 21: Leap Year Edge: Cashflows spanning leap year boundary",
+          "status": "passed",
+          "title": "Golden Case 21: Leap Year Edge: Cashflows spanning leap year boundary",
+          "duration": 0.6921999999999571,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 22: Long Hold Moderate Return: 10-year hold with modest 8% IRR",
+          "status": "passed",
+          "title": "Golden Case 22: Long Hold Moderate Return: 10-year hold with modest 8% IRR",
+          "duration": 0.2943000000000211,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 23: Turnaround Story: Multiple injections before profitable exit",
+          "status": "passed",
+          "title": "Golden Case 23: Turnaround Story: Multiple injections before profitable exit",
+          "duration": 0.1529000000000451,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 24: Quarterly Dividends + Exit: Regular quarterly dividends plus final exit",
+          "status": "passed",
+          "title": "Golden Case 24: Quarterly Dividends + Exit: Regular quarterly dividends plus final exit",
+          "duration": 0.17609999999990578,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 25: Shallow Negative: Small loss over long period (-2%)",
+          "status": "passed",
+          "title": "Golden Case 25: Shallow Negative: Small loss over long period (-2%)",
+          "duration": 0.5551000000000386,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 1: Standard 2-flow: Simple 5-year doubling, ~14.87%",
+          "status": "failed",
+          "title": "Golden Case 1: Standard 2-flow: Simple 5-year doubling, ~14.87%",
+          "duration": 3.388400000000047,
+          "failureMessages": [
+            "AssertionError: expected 'Newton' to be 'newton' // Object.is equality\n    at c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\xirr.test.ts:112:35\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\n    at runTest (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 2: Rapid 3x: 3-year triple yields ~29.88%",
+          "status": "failed",
+          "title": "Golden Case 2: Rapid 3x: 3-year triple yields ~29.88%",
+          "duration": 0.9811999999999443,
+          "failureMessages": [
+            "AssertionError: expected 0.4417677550937617 to be close to 0.2987638262, received difference is 0.14300392889376168, but expected 0.005\n    at Module.assertNumericField (c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\helpers.ts:28:24)\n    at c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\xirr.test.ts:94:9\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\n    at runTest (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 3: Multi-stage exit: Two-stage exit with interim distribution",
+          "status": "failed",
+          "title": "Golden Case 3: Multi-stage exit: Two-stage exit with interim distribution",
+          "duration": 2.412599999999884,
+          "failureMessages": [
+            "AssertionError: expected 0.14185985339458154 to be close to 0.2086834181, received difference is 0.06682356470541845, but expected 0.005\n    at Module.assertNumericField (c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\helpers.ts:28:24)\n    at c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\xirr.test.ts:94:9\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\n    at runTest (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 4: Explosive growth: Unicorn-style 10x in 4 years (>170% IRR)",
+          "status": "passed",
+          "title": "Golden Case 4: Explosive growth: Unicorn-style 10x in 4 years (>170% IRR)",
+          "duration": 0.487999999999829,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 5: Modest hold: 10-year 8% annualized return",
+          "status": "failed",
+          "title": "Golden Case 5: Modest hold: 10-year 8% annualized return",
+          "duration": 3.365099999999984,
+          "failureMessages": [
+            "AssertionError: expected 'Newton' to be 'newton' // Object.is equality\n    at c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\xirr.test.ts:112:35\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\n    at runTest (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 6: Partial loss: 50% loss over 5 years yields -13.86% IRR",
+          "status": "failed",
+          "title": "Golden Case 6: Partial loss: 50% loss over 5 years yields -13.86% IRR",
+          "duration": 1.3175000000001091,
+          "failureMessages": [
+            "AssertionError: expected -0.12931731509310712 to be close to -0.1385627483, received difference is 0.009245433206892889, but expected 0.005\n    at Module.assertNumericField (c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\helpers.ts:28:24)\n    at c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\xirr.test.ts:94:9\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\n    at runTest (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 7: Near-zero: Small gain yields ~0.20% IRR",
+          "status": "passed",
+          "title": "Golden Case 7: Near-zero: Small gain yields ~0.20% IRR",
+          "duration": 0.19419999999990978,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 8: Multiple follow-ons: Multi-stage investment with tiered exits",
+          "status": "failed",
+          "title": "Golden Case 8: Multiple follow-ons: Multi-stage investment with tiered exits",
+          "duration": 1.8733000000001994,
+          "failureMessages": [
+            "AssertionError: expected 0.1685408788999544 to be close to 0.1606838612, received difference is 0.007857017699954394, but expected 0.005\n    at Module.assertNumericField (c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\helpers.ts:28:24)\n    at c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\xirr.test.ts:94:9\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\n    at runTest (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 9: Extreme unicorn: 100x return in 6 years (explosive growth >100% IRR)",
+          "status": "failed",
+          "title": "Golden Case 9: Extreme unicorn: 100x return in 6 years (explosive growth >100% IRR)",
+          "duration": 1.748299999999972,
+          "failureMessages": [
+            "AssertionError: expected 1.1529264684399876 to be close to 1.0307919095, received difference is 0.12213455893998759, but expected 0.005\n    at Module.assertNumericField (c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\helpers.ts:28:24)\n    at c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\xirr.test.ts:94:9\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\n    at runTest (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 10: Alternating signs: Follow-on investment before exit",
+          "status": "failed",
+          "title": "Golden Case 10: Alternating signs: Follow-on investment before exit",
+          "duration": 1.256399999999985,
+          "failureMessages": [
+            "AssertionError: expected 0.07161799769184078 to be close to 0.1189625766, received difference is 0.04734457890815921, but expected 0.005\n    at Module.assertNumericField (c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\helpers.ts:28:24)\n    at c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\xirr.test.ts:94:9\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\n    at runTest (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 11: Leap year precision: Cashflow dates span Feb 29, 2024",
+          "status": "failed",
+          "title": "Golden Case 11: Leap year precision: Cashflow dates span Feb 29, 2024",
+          "duration": 1.1125999999999294,
+          "failureMessages": [
+            "AssertionError: expected 0.16972564011701144 to be close to 0.1313377761, received difference is 0.03838786401701144, but expected 0.005\n    at Module.assertNumericField (c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\helpers.ts:28:24)\n    at c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\xirr.test.ts:94:9\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\n    at runTest (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 12: Annual dividends: Regular annual distributions before exit",
+          "status": "failed",
+          "title": "Golden Case 12: Annual dividends: Regular annual distributions before exit",
+          "duration": 0.7771000000000186,
+          "failureMessages": [
+            "AssertionError: expected 0.04513169536892111 to be close to 0.0793655649, received difference is 0.034233869531078896, but expected 0.005\n    at Module.assertNumericField (c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\helpers.ts:28:24)\n    at c:\\dev\\Updog_restore\\tests\\unit\\truth-cases\\xirr.test.ts:94:9\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\n    at runTest (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at runSuite (file:///c:/dev/Updog_restore/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 13: Shallow loss spread: 10% loss over 10 years yields -1.05% annualized",
+          "status": "passed",
+          "title": "Golden Case 13: Shallow loss spread: 10% loss over 10 years yields -1.05% annualized",
+          "duration": 0.3067000000000917,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) Golden Case 14: Quick flip: 1-year 50% gain yields ~50% IRR",
+          "status": "passed",
+          "title": "Golden Case 14: Quick flip: 1-year 50% gain yields ~50% IRR",
+          "duration": 0.23849999999993088,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": ["XIRR Truth Cases (50 scenarios)"],
+          "fullName": "XIRR Truth Cases (50 scenarios) truth table covers all required categories",
+          "status": "passed",
+          "title": "truth table covers all required categories",
+          "duration": 0.3671999999999116,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1765481850349,
+      "endTime": 1765481850406.3672,
+      "status": "failed",
+      "message": "",
+      "name": "c:/dev/Updog_restore/tests/unit/truth-cases/xirr.test.ts"
+    }
+  ]
+}

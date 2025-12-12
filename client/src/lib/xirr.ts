@@ -1,4 +1,3 @@
-import { differenceInDays } from 'date-fns';
 import { toDecimal } from './decimal-utils';
 import type { PeriodResult } from '@shared/schemas/fund-model';
 
@@ -47,10 +46,29 @@ const DEFAULT_IRR_CONFIG: IRRConfig = {
   sortAndAggregateSameDay: true,
 };
 
-const TOLERANCE = 1e-6;
-const MAX_ITERATIONS = 100;
-const LOWER_BOUND = -0.999;  // Avoid division by zero
-const UPPER_BOUND = 10.0;    // 1000% return upper limit
+const LOWER_BOUND = -0.999; // Avoid division by zero
+const UPPER_BOUND = 10.0; // 1000% return upper limit
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Normalize a JS Date to UTC midnight and return the corresponding
+ * "Excel-style" serial day number (days since epoch).
+ */
+function serialDayUtc(date: Date): number {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / MS_PER_DAY;
+}
+
+/**
+ * Excel-style Actual/365 year fraction with UTC-normalized dates.
+ * This matches how XIRR treats day counts: actual day difference,
+ * 365-day denominator, no timezone/DST drift.
+ */
+function yearFraction(start: Date, current: Date): number {
+  const startSerial = serialDayUtc(start);
+  const currentSerial = serialDayUtc(current);
+  const dayDiff = currentSerial - startSerial;
+  return dayDiff / 365.0;
+}
 
 /**
  * Calculate XIRR using Newton-Raphson with bisection fallback
@@ -82,7 +100,7 @@ const UPPER_BOUND = 10.0;    // 1000% return upper limit
  */
 export function calculateXIRR(
   cashflows: Cashflow[],
-  guess: number = 0.1,
+  _guess: number = 0.1, // DEPRECATED: use config.initialGuess instead
   config: Partial<IRRConfig> = {}
 ): number | null {
   const opts = { ...DEFAULT_IRR_CONFIG, ...config };
@@ -98,14 +116,14 @@ export function calculateXIRR(
   // =====================
   // EDGE CASE: Assert sign change
   // =====================
-  const hasPositive = cashflows.some(cf => cf.amount > 0);
-  const hasNegative = cashflows.some(cf => cf.amount < 0);
+  const hasPositive = cashflows.some((cf) => cf.amount > 0);
+  const hasNegative = cashflows.some((cf) => cf.amount < 0);
 
   if (!hasPositive || !hasNegative) {
     console.warn(
       'XIRR requires both positive and negative cashflows. ' +
-      `Found: ${hasPositive ? 'positive' : 'no positive'}, ` +
-      `${hasNegative ? 'negative' : 'no negative'}`
+        `Found: ${hasPositive ? 'positive' : 'no positive'}, ` +
+        `${hasNegative ? 'negative' : 'no negative'}`
     );
     return null; // Return null instead of throwing
   }
@@ -124,9 +142,9 @@ export function calculateXIRR(
     if (opts.strategy === 'Hybrid') {
       return tryNewtonThenBisection(processed, opts);
     } else if (opts.strategy === 'Newton') {
-      return newtonRaphson(processed, opts.initialGuess);
+      return newtonRaphson(processed, opts.initialGuess, opts.tolerance, opts.maxIterations);
     } else {
-      return bisection(processed);
+      return bisection(processed, opts.tolerance, opts.maxIterations);
     }
   } catch (err) {
     console.error('XIRR calculation failed:', err);
@@ -160,31 +178,40 @@ function aggregateSameDayCashflows(cashflows: Cashflow[]): Cashflow[] {
  */
 function tryNewtonThenBisection(cashflows: Cashflow[], opts: IRRConfig): number {
   try {
-    return newtonRaphson(cashflows, opts.initialGuess);
+    return newtonRaphson(cashflows, opts.initialGuess, opts.tolerance, opts.maxIterations);
   } catch (err) {
-    console.warn('Newton-Raphson failed, falling back to bisection:', err instanceof Error ? err.message : err);
-    return bisection(cashflows);
+    console.warn(
+      'Newton-Raphson failed, falling back to bisection:',
+      err instanceof Error ? err.message : err
+    );
+    return bisection(cashflows, opts.tolerance, opts.maxIterations);
   }
 }
 
 /**
- * Newton-Raphson method for IRR
+ * Newton-Raphson method for IRR.
  *
  * Fast convergence when initial guess is good.
- * May fail on pathological cases (throws error).
+ * Throws on failure so the caller can fall back to bisection.
  */
-function newtonRaphson(cashflows: Cashflow[], guess: number): number {
+function newtonRaphson(
+  cashflows: Cashflow[],
+  guess: number,
+  tolerance: number,
+  maxIterations: number
+): number {
   let rate = guess;
+  const startDate = cashflows[0]!.date;
 
-  for (let i = 0; i < MAX_ITERATIONS; i++) {
+  for (let i = 0; i < maxIterations; i++) {
     const { npv, derivative } = cashflows.reduce(
       (acc, cf) => {
-        const days = differenceInDays(cf.date, cashflows[0].date);
-        const years = toDecimal(days).dividedBy(365);  // Actual/365
-        const discount = toDecimal(1).plus(rate).pow(years.toNumber());
+        const years = yearFraction(startDate, cf.date);
+        const onePlusRate = toDecimal(1).plus(rate);
+        const discount = onePlusRate.pow(years);
 
         const pv = toDecimal(cf.amount).dividedBy(discount);
-        const dvdt = pv.times(years).dividedBy(toDecimal(1).plus(rate));
+        const dvdt = pv.times(years).dividedBy(onePlusRate);
 
         return {
           npv: acc.npv.plus(pv),
@@ -195,7 +222,7 @@ function newtonRaphson(cashflows: Cashflow[], guess: number): number {
     );
 
     // Check convergence
-    if (Math.abs(npv.toNumber()) < TOLERANCE) {
+    if (Math.abs(npv.toNumber()) < tolerance) {
       return rate;
     }
 
@@ -211,64 +238,64 @@ function newtonRaphson(cashflows: Cashflow[], guess: number): number {
     if (rate < LOWER_BOUND || rate > UPPER_BOUND) {
       throw new Error(
         `Newton-Raphson rate out of bounds: ${rate.toFixed(4)} ` +
-        `(bounds: ${LOWER_BOUND} to ${UPPER_BOUND})`
+          `(bounds: ${LOWER_BOUND} to ${UPPER_BOUND})`
       );
     }
   }
 
-  throw new Error(
-    `Newton-Raphson did not converge after ${MAX_ITERATIONS} iterations`
-  );
+  throw new Error(`Newton-Raphson did not converge after ${maxIterations} iterations`);
 }
 
 /**
- * Bisection method for IRR
+ * Bisection method for IRR.
  *
- * Slower but guaranteed to converge if solution exists.
+ * Slower but robust when a root is bracketed.
  */
-function bisection(cashflows: Cashflow[]): number {
+function bisection(cashflows: Cashflow[], tolerance: number, maxIterations: number): number {
   let low = LOWER_BOUND;
   let high = UPPER_BOUND;
+  const startDate = cashflows[0]!.date;
 
-  for (let i = 0; i < MAX_ITERATIONS; i++) {
+  for (let i = 0; i < maxIterations; i++) {
     const mid = (low + high) / 2;
-    const npv = calculateNPV(cashflows, mid);
+    const npvMid = calculateNPV(cashflows, mid, startDate);
 
-    if (Math.abs(npv) < TOLERANCE) {
+    if (Math.abs(npvMid) < tolerance) {
       return mid;
     }
 
-    const npvLow = calculateNPV(cashflows, low);
+    const npvLow = calculateNPV(cashflows, low, startDate);
 
-    // If npvLow and npv have same sign, move low bound
-    if ((npvLow > 0 && npv > 0) || (npvLow < 0 && npv < 0)) {
+    // If npvLow and npvMid have the same sign, move low bound up
+    if ((npvLow > 0 && npvMid > 0) || (npvLow < 0 && npvMid < 0)) {
       low = mid;
     } else {
       high = mid;
     }
 
-    // Check convergence by interval size
-    if (high - low < TOLERANCE) {
+    // Converged by interval width
+    if (high - low < tolerance) {
       return mid;
     }
   }
 
-  throw new Error(
-    `Bisection did not converge after ${MAX_ITERATIONS} iterations`
-  );
+  throw new Error(`Bisection did not converge after ${maxIterations} iterations`);
 }
 
 /**
- * Calculate Net Present Value for a given rate
+ * Calculate Net Present Value for a given rate using Actual/365
+ * with UTC-normalized dates.
  */
-function calculateNPV(cashflows: Cashflow[], rate: number): number {
-  return cashflows.reduce((npv, cf) => {
-    const days = differenceInDays(cf.date, cashflows[0].date);
-    const years = toDecimal(days).dividedBy(365);  // Actual/365
-    const discount = toDecimal(1).plus(rate).pow(years.toNumber());
-    const pv = toDecimal(cf.amount).dividedBy(discount);
-    return npv.plus(pv);
-  }, toDecimal(0)).toNumber();
+function calculateNPV(cashflows: Cashflow[], rate: number, startDate?: Date): number {
+  const start = startDate ?? cashflows[0]!.date;
+  return cashflows
+    .reduce((npv, cf) => {
+      const years = yearFraction(start, cf.date);
+      const discount = toDecimal(1).plus(rate).pow(years);
+      const pv = toDecimal(cf.amount).dividedBy(discount);
+      return npv.plus(pv);
+    }, toDecimal(0))
+    .toNumber();
 }
 
 /**
@@ -283,8 +310,8 @@ function calculateNPV(cashflows: Cashflow[], rate: number): number {
 export function buildCashflowSchedule(periodResults: PeriodResult[]): Cashflow[] {
   const cashflows: Cashflow[] = [];
 
-  periodResults.forEach(period => {
-    const date = new Date(period.periodEnd);  // Use period-end for Excel parity
+  periodResults.forEach((period) => {
+    const date = new Date(period.periodEnd); // Use period-end for Excel parity
 
     // Contributions are negative (outflows from LP perspective)
     if (period.contributions > 0) {

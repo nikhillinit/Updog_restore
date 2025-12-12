@@ -1,0 +1,207 @@
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mc:/dev/Updog_restore[39m
+
+ [31m❯[39m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts [2m([22m[2m26 tests[22m[2m | [22m[31m9 failed[39m[2m)[22m[32m 48[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m01-simple-positive-return: Canonical 2-cashflow case: 2.5x return over 5 years yields ~20.10% IRR. Excel validated.[32m 3[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m02-negative-return-loss: 90% loss over 5 years yields -36.89% annualized IRR. Tests negative rate handling.[32m 1[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m03-multi-round-partial-distributions: Seed + Series A + partial exit + final NAV. Tests multi-round VC fund pattern.[32m 1[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m04-quarterly-flows: Quarterly follow-on rounds + large exit spike. Tests frequent cashflow spacing.[32m 0[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m05-zero-return-breakeven: Exact 1x return (breakeven) yields 0% IRR. Tests numerical stability near zero.[32m 0[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m06-newton-success-smooth: Verify Newton converges in <10 iterations for typical case.[32m 1[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m07-newton-failure-bisection-fallback: Multiple sign changes within 3 months stress Newton-Raphson. Brent or bisection should succeed.[32m 1[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m08-bisection-only-mode: Verify bisection produces correct result (slower convergence expected).[32m 0[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m09-convergence-tolerance-boundary: Higher precision should yield same result but with more iterations.[32m 1[2mms[22m[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22m10-maximum-iterations-reached: Insufficient iterations should fail gracefully with null (not throw).[39m[32m 11[2mms[22m[39m
+[31m     → expected 0.20103407784104393 to be null[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m11-excel-actual365-date-convention: Golden set test: Excel XIRR = 0.201034... (8 decimal precision).[32m 1[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m12-same-day-cashflow-aggregation: Same-day flows aggregate to single -$10M on 2020-01-01. Result matches scenario 01.[32m 0[2mms[22m[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22m13-leap-year-handling: 2-day period in leap year. Actual/365 uses 365 denominator always (not 366).[39m[32m 2[2mms[22m[39m
+[31m     → expected 5.154473231008948 to be null[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m14-date-ordering-unsorted: Reverse-sorted input should yield same result as scenario 01 (order-invariant).[32m 2[2mms[22m[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22m15-timezone-independent: PST and IST timestamps normalize to UTC midnight. Should match scenario 01.[39m[32m 4[2mms[22m[39m
+[31m     → expected 0.20107171638989396 to be close to 0.2010340779, received difference is 0.00003763848989396523, but expected 5e-7[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m16-no-sign-change-all-positive: Excel returns #NUM! error. Implementation should return null (UI displays 'N/A').[32m 1[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m17-no-sign-change-all-negative: Excel returns #NUM! error. Implementation should return null.[32m 0[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m18-insufficient-cashflows-single: IRR requires at least 2 cashflows. Excel would return #NUM! error.[32m 0[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m19-out-of-bounds-extreme-rate: Extreme short-term returns yield rates >1000%. Upper bound check should prevent.[32m 0[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m20-floating-point-precision-tiny-amounts: Tiny amounts (cents) should yield same IRR as scenario 01 (scale-invariant).[32m 0[2mms[22m[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22m21-typical-vc-fund-10year: Typical VC pattern: early calls, mid-life exits, terminal NAV. IRR ~18-22% expected.[39m[32m 1[2mms[22m[39m
+[31m     → expected 0.16424381107596514 to be null[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22m22-early-exit-high-irr: 10x in 3 years → 115.4% IRR. Excel validated.[39m[32m 1[2mms[22m[39m
+[31m     → expected 3.653000396910967 to be close to 1.1540575356, received difference is 2.498942861310967, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22m23-late-exit-lower-irr: 5x over 10 years → ~17.5% IRR. Time value of money effect.[39m[32m 1[2mms[22m[39m
+[31m     → expected 0.17459306770563215 to be null[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22m24-quarterly-recycling: Recycling scenario: early exits fund follow-on investments. Tests sign-change robustness.[39m[32m 3[2mms[22m[39m
+[31m     → expected 0.5574298425988785 to be null[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22m25-nav-heavy-terminal-value: Terminal-value-heavy scenario. IRR driven primarily by final NAV, not distributions.[39m[32m 2[2mms[22m[39m
+[31m     → expected 0.2557302304253443 to be null[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mtruth table covers all required categories[39m[32m 4[2mms[22m[39m
+[31m     → expected 25 to be 50 // Object.is equality[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 9 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22m10-maximum-iterations-reached: Insufficient iterations should fail gracefully with null (not throw).
+[31m[1mAssertionError[22m: expected 0.20103407784104393 to be null[39m
+
+[32m- Expected:[39m 
+null
+
+[31m+ Received:[39m 
+0.20103407784104393
+
+[36m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m77:28[22m[39m
+    [90m 75| [39m        // Cases with no mathematical solution (NPV has no zero crossi…
+    [90m 76| [39m        [90m// or invalid inputs should return null[39m
+    [90m 77| [39m        [34mexpect[39m(result[33m.[39mirr)[33m.[39m[34mtoBeNull[39m()[33m;[39m
+    [90m   | [39m                           [31m^[39m
+    [90m 78| [39m        [34mexpect[39m(result[33m.[39mconverged)[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
+    [90m 79| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22m13-leap-year-handling: 2-day period in leap year. Actual/365 uses 365 denominator always (not 366).
+[31m[1mAssertionError[22m: expected 5.154473231008948 to be null[39m
+
+[32m- Expected:[39m 
+null
+
+[31m+ Received:[39m 
+5.154473231008948
+
+[36m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m77:28[22m[39m
+    [90m 75| [39m        // Cases with no mathematical solution (NPV has no zero crossi…
+    [90m 76| [39m        [90m// or invalid inputs should return null[39m
+    [90m 77| [39m        [34mexpect[39m(result[33m.[39mirr)[33m.[39m[34mtoBeNull[39m()[33m;[39m
+    [90m   | [39m                           [31m^[39m
+    [90m 78| [39m        [34mexpect[39m(result[33m.[39mconverged)[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
+    [90m 79| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22m15-timezone-independent: PST and IST timestamps normalize to UTC midnight. Should match scenario 01.
+[31m[1mAssertionError[22m: expected 0.20107171638989396 to be close to 0.2010340779, received difference is 0.00003763848989396523, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22m21-typical-vc-fund-10year: Typical VC pattern: early calls, mid-life exits, terminal NAV. IRR ~18-22% expected.
+[31m[1mAssertionError[22m: expected 0.16424381107596514 to be null[39m
+
+[32m- Expected:[39m 
+null
+
+[31m+ Received:[39m 
+0.16424381107596514
+
+[36m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m77:28[22m[39m
+    [90m 75| [39m        // Cases with no mathematical solution (NPV has no zero crossi…
+    [90m 76| [39m        [90m// or invalid inputs should return null[39m
+    [90m 77| [39m        [34mexpect[39m(result[33m.[39mirr)[33m.[39m[34mtoBeNull[39m()[33m;[39m
+    [90m   | [39m                           [31m^[39m
+    [90m 78| [39m        [34mexpect[39m(result[33m.[39mconverged)[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
+    [90m 79| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22m22-early-exit-high-irr: 10x in 3 years → 115.4% IRR. Excel validated.
+[31m[1mAssertionError[22m: expected 3.653000396910967 to be close to 1.1540575356, received difference is 2.498942861310967, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22m23-late-exit-lower-irr: 5x over 10 years → ~17.5% IRR. Time value of money effect.
+[31m[1mAssertionError[22m: expected 0.17459306770563215 to be null[39m
+
+[32m- Expected:[39m 
+null
+
+[31m+ Received:[39m 
+0.17459306770563215
+
+[36m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m77:28[22m[39m
+    [90m 75| [39m        // Cases with no mathematical solution (NPV has no zero crossi…
+    [90m 76| [39m        [90m// or invalid inputs should return null[39m
+    [90m 77| [39m        [34mexpect[39m(result[33m.[39mirr)[33m.[39m[34mtoBeNull[39m()[33m;[39m
+    [90m   | [39m                           [31m^[39m
+    [90m 78| [39m        [34mexpect[39m(result[33m.[39mconverged)[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
+    [90m 79| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22m24-quarterly-recycling: Recycling scenario: early exits fund follow-on investments. Tests sign-change robustness.
+[31m[1mAssertionError[22m: expected 0.5574298425988785 to be null[39m
+
+[32m- Expected:[39m 
+null
+
+[31m+ Received:[39m 
+0.5574298425988785
+
+[36m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m77:28[22m[39m
+    [90m 75| [39m        // Cases with no mathematical solution (NPV has no zero crossi…
+    [90m 76| [39m        [90m// or invalid inputs should return null[39m
+    [90m 77| [39m        [34mexpect[39m(result[33m.[39mirr)[33m.[39m[34mtoBeNull[39m()[33m;[39m
+    [90m   | [39m                           [31m^[39m
+    [90m 78| [39m        [34mexpect[39m(result[33m.[39mconverged)[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
+    [90m 79| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22m25-nav-heavy-terminal-value: Terminal-value-heavy scenario. IRR driven primarily by final NAV, not distributions.
+[31m[1mAssertionError[22m: expected 0.2557302304253443 to be null[39m
+
+[32m- Expected:[39m 
+null
+
+[31m+ Received:[39m 
+0.2557302304253443
+
+[36m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m77:28[22m[39m
+    [90m 75| [39m        // Cases with no mathematical solution (NPV has no zero crossi…
+    [90m 76| [39m        [90m// or invalid inputs should return null[39m
+    [90m 77| [39m        [34mexpect[39m(result[33m.[39mirr)[33m.[39m[34mtoBeNull[39m()[33m;[39m
+    [90m   | [39m                           [31m^[39m
+    [90m 78| [39m        [34mexpect[39m(result[33m.[39mconverged)[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
+    [90m 79| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mtruth table covers all required categories
+[31m[1mAssertionError[22m: expected 25 to be 50 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 50[39m
+[31m+ 25[39m
+
+[36m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m131:30[22m[39m
+    [90m129| [39m    [90m// Report total scenarios[39m
+    [90m130| [39m
+    [90m131| [39m    [34mexpect[39m(xirrCases[33m.[39mlength)[33m.[39m[34mtoBe[39m([34m50[39m)[33m;[39m
+    [90m   | [39m                             [31m^[39m
+    [90m132| [39m  })[33m;[39m
+    [90m133| [39m})[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/9]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m9 failed[39m[22m[2m | [22m[1m[32m17 passed[39m[22m[90m (26)[39m
+[2m   Start at [22m 00:18:29
+[2m   Duration [22m 1.97s[2m (transform 281ms, setup 179ms, collect 184ms, tests 48ms, environment 0ms, prepare 1.11s)[22m
+

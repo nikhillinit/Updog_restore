@@ -1,0 +1,473 @@
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mc:/dev/Updog_restore[39m
+
+ [31m❯[39m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts [2m([22m[2m51 tests[22m[2m | [22m[31m31 failed[39m[2m)[22m[32m 63[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m01-simple-positive-return: Canonical 2-cashflow case: 2.5x return over 5 years yields ~20.10% IRR. Excel validated.[32m 5[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m02-negative-return-loss: 90% loss over 5 years yields -36.89% annualized IRR. Tests negative rate handling.[32m 1[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m03-multi-round-partial-distributions: Seed + Series A + partial exit + final NAV. Tests multi-round VC fund pattern.[32m 0[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m04-quarterly-flows: Quarterly follow-on rounds + large exit spike. Tests frequent cashflow spacing.[32m 1[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m05-zero-return-breakeven: Exact 1x return (breakeven) yields 0% IRR. Tests numerical stability near zero.[32m 0[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m06-newton-success-smooth: Verify Newton converges in <10 iterations for typical case.[32m 1[2mms[22m[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22m07-newton-failure-bisection-fallback: Multiple sign changes within 3 months stress Newton-Raphson. Brent or bisection should succeed.[39m[32m 10[2mms[22m[39m
+[31m     → expected null not to be null[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m08-bisection-only-mode: Verify bisection produces correct result (slower convergence expected).[32m 1[2mms[22m[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22m09-convergence-tolerance-boundary: Higher precision should yield same result but with more iterations.[39m[32m 2[2mms[22m[39m
+[31m     → expected null not to be null[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m10-maximum-iterations-reached: Insufficient iterations should fail gracefully with null (not throw).[32m 1[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m11-excel-actual365-date-convention: Golden set test: Excel XIRR = 0.201034... (8 decimal precision).[32m 0[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m12-same-day-cashflow-aggregation: Same-day flows aggregate to single -$10M on 2020-01-01. Result matches scenario 01.[32m 0[2mms[22m[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22m13-leap-year-handling: 2-day period in leap year. Actual/365 uses 365 denominator always (not 366). Excel parity.[39m[32m 3[2mms[22m[39m
+[31m     → expected 5.154473231008948 to be close to 4.284325690000001, received difference is 0.8701475410089472, but expected 5e-7[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m14-date-ordering-unsorted: Reverse-sorted input should yield same result as scenario 01 (order-invariant).[32m 1[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m15-timezone-independent: PST and IST timestamps normalize to UTC midnight. Should match scenario 01.[32m 0[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m16-no-sign-change-all-positive: All-positive cashflows violate IRR definition. Should return null.[32m 0[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m17-no-sign-change-all-negative: All-negative cashflows violate IRR definition. Should return null.[32m 0[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m18-insufficient-cashflows-single: IRR requires at least 2 cashflows. Excel would return #NUM! error.[32m 0[2mms[22m[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22m19-out-of-bounds-extreme-rate: Extreme short-term returns yield rates >1000%. Implementation clamps IRR at 900% to avoid unusable values.[39m[32m 2[2mms[22m[39m
+[31m     → expected null not to be null[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m20-floating-point-precision-tiny-amounts: Tiny amounts (cents) should yield same IRR as scenario 01 (scale-invariant).[32m 0[2mms[22m[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22m21-typical-vc-fund-10year: Typical VC pattern: early calls, mid-life exits, terminal NAV. IRR ~18-22% expected.[39m[32m 1[2mms[22m[39m
+[31m     → expected 0.16424381107596514 to be close to 0.1845777397, received difference is 0.020333928624034853, but expected 5e-7[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m22-early-exit-high-irr: 10x in 3 years → 115.4% IRR. Excel validated.[32m 0[2mms[22m[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22m23-late-exit-lower-irr: 5x over 10 years → ~17.5% IRR. Time value of money effect.[39m[32m 2[2mms[22m[39m
+[31m     → expected 0.17459306770563215 to be close to 0.1746172846, received difference is 0.000024216894367851127, but expected 5e-7[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m24-quarterly-recycling: Recycling scenario: early exits fund follow-on investments. Tests sign-change robustness.[32m 1[2mms[22m[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22m25-nav-heavy-terminal-value: Terminal-value-heavy scenario. IRR driven primarily by final NAV, not distributions.[32m 0[2mms[22m[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 15: Biannual Distributions: Consistent semiannual returns over 3 years[39m[32m 1[2mms[22m[39m
+[31m     → expected 0.11045943270411557 to be close to 0.1103798003, received difference is 0.00007963240411557049, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 16: Waterfall Exit: Multiple tranches of returns simulating preferred returns[39m[32m 2[2mms[22m[39m
+[31m     → expected 0.061580524719819035 to be close to 0.0615371041, received difference is 0.00004342061981903872, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 17: Bridge Financing: Short-term bridge loan scenario[39m[32m 1[2mms[22m[39m
+[31m     → expected 0.18497309664368303 to be close to 0.1848354498, received difference is 0.00013764684368303137, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 18: Down Round: Investment with down round (partial loss)[39m[32m 1[2mms[22m[39m
+[31m     → expected -0.06157541431760786 to be close to -0.0615345924, received difference is 0.000040821917607861136, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 19: Dividend Recapitalization: Large dividend followed by eventual exit[39m[32m 2[2mms[22m[39m
+[31m     → expected 0.18818738207496633 to be close to 0.1880471591, received difference is 0.0001402229749663253, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 20: Penny Stock Volatility: Small amounts with high percentage swings[39m[32m 1[2mms[22m[39m
+[31m     → expected 2.724684878066269 to be close to 2.7213339602, received difference is 0.0033509178662689543, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 21: Leap Year Edge: Cashflows spanning leap year boundary[39m[32m 1[2mms[22m[39m
+[31m     → expected 0.14967069012266612 to be close to 0.1495609411, received difference is 0.0001097490226661113, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 22: Long Hold Moderate Return: 10-year hold with modest 8% IRR[39m[32m 0[2mms[22m[39m
+[31m     → expected 0.07998837344209463 to be close to 0.0799314924, received difference is 0.000056881042094628076, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 23: Turnaround Story: Multiple injections before profitable exit[39m[32m 1[2mms[22m[39m
+[31m     → expected 0.22226281463491065 to be close to 0.2220949186, received difference is 0.0001678960349106584, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 24: Quarterly Dividends + Exit: Regular quarterly dividends plus final exit[39m[32m 1[2mms[22m[39m
+[31m     → expected 0.05324276187103312 to be close to 0.0532053665, received difference is 0.00003739537103312346, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 25: Shallow Negative: Small loss over long period (-2%)[39m[32m 4[2mms[22m[39m
+[31m     → expected -0.01999204514362336 to be close to -0.0199784989, received difference is 0.000013546243623360765, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 1: Standard 2-flow: Simple 5-year doubling, ~14.87%[39m[32m 1[2mms[22m[39m
+[31m     → expected 0.1486329860010818 to be close to 0.148698355, received difference is 0.00006536899891820824, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 2: Rapid 3x: 3-year triple yields ~29.88%[39m[32m 1[2mms[22m[39m
+[31m     → expected 0.44212910141096357 to be close to 0.2987638262, received difference is 0.14336527521096354, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 3: Multi-stage exit: Two-stage exit with interim distribution[39m[32m 1[2mms[22m[39m
+[31m     → expected 0.14196360967140828 to be close to 0.2086834181, received difference is 0.06671980842859171, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 4: Explosive growth: Unicorn-style 10x in 4 years (>170% IRR)[39m[32m 1[2mms[22m[39m
+[31m     → expected 0.7782794100389228 to be close to 0.7788007831, received difference is 0.000521373061077246, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 5: Modest hold: 10-year 8% annualized return[39m[32m 1[2mms[22m[39m
+[31m     → expected 0.07998837344209463 to be close to 0.08, received difference is 0.000011626557905375368, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 6: Partial loss: 50% loss over 5 years yields -13.86% IRR[39m[32m 0[2mms[22m[39m
+[31m     → expected -0.1293998934494666 to be close to -0.1385627483, received difference is 0.00916285485053342, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 7: Near-zero: Small gain yields ~0.20% IRR[39m[32m 0[2mms[22m[39m
+[31m     → expected 0.001991229099348247 to be close to 0.0019950331, received difference is 0.000003804000651753004, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 8: Multiple follow-ons: Multi-stage investment with tiered exits[39m[32m 0[2mms[22m[39m
+[31m     → expected 0.16866554793868008 to be close to 0.1606838612, received difference is 0.007981686738680077, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 9: Extreme unicorn: 100x return in 6 years (explosive growth >100% IRR)[39m[32m 1[2mms[22m[39m
+[31m     → expected 1.1540575356087264 to be close to 1.0307919095, received difference is 0.12326562610872638, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 10: Alternating signs: Follow-on investment before exit[39m[32m 0[2mms[22m[39m
+[31m     → expected 0.07166876837792775 to be close to 0.1189625766, received difference is 0.04729380822207224, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 11: Leap year precision: Cashflow dates span Feb 29, 2024[39m[32m 0[2mms[22m[39m
+[31m     → expected 0.16985124753370812 to be close to 0.1313377761, received difference is 0.03851347143370812, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 12: Annual dividends: Regular annual distributions before exit[39m[32m 0[2mms[22m[39m
+[31m     → expected 0.04516329526152403 to be close to 0.0793655649, received difference is 0.034202269638475974, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 13: Shallow loss spread: 10% loss over 10 years yields -1.05% annualized[39m[32m 0[2mms[22m[39m
+[31m     → expected -0.010479314797693777 to be close to -0.0105360516, received difference is 0.00005673680230622313, but expected 5e-7[39m
+[31m   [31m×[31m XIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 14: Quick flip: 1-year 50% gain yields ~50% IRR[39m[32m 0[2mms[22m[39m
+[31m     → expected 0.49875421093199146 to be close to 0.5, received difference is 0.0012457890680085404, but expected 5e-7[39m
+   [32m✓[39m XIRR Truth Cases (50 scenarios)[2m > [22mtruth table covers all required categories[32m 1[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 31 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22m07-newton-failure-bisection-fallback: Multiple sign changes within 3 months stress Newton-Raphson. Brent or bisection should succeed.
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22m09-convergence-tolerance-boundary: Higher precision should yield same result but with more iterations.
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22m19-out-of-bounds-extreme-rate: Extreme short-term returns yield rates >1000%. Implementation clamps IRR at 900% to avoid unusable values.
+[31m[1mAssertionError[22m: expected null not to be null[39m
+[36m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m91:32[22m[39m
+    [90m 89| [39m      } [35melse[39m {
+    [90m 90| [39m        [90m// Valid cases: assert numeric precision (6 decimals)[39m
+    [90m 91| [39m        [34mexpect[39m(result[33m.[39mirr)[33m.[39mnot[33m.[39m[34mtoBeNull[39m()[33m;[39m
+    [90m   | [39m                               [31m^[39m
+    [90m 92| [39m        [34massertNumericField[39m(result[33m.[39mirr[33m![39m[33m,[39m expected[33m.[39mirr[33m,[39m [34m6[39m)[33m;[39m
+    [90m 93| [39m        [34mexpect[39m(result[33m.[39mconverged)[33m.[39m[34mtoBe[39m([35mtrue[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22m13-leap-year-handling: 2-day period in leap year. Actual/365 uses 365 denominator always (not 366). Excel parity.
+[31m[1mAssertionError[22m: expected 5.154473231008948 to be close to 4.284325690000001, received difference is 0.8701475410089472, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22m21-typical-vc-fund-10year: Typical VC pattern: early calls, mid-life exits, terminal NAV. IRR ~18-22% expected.
+[31m[1mAssertionError[22m: expected 0.16424381107596514 to be close to 0.1845777397, received difference is 0.020333928624034853, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22m23-late-exit-lower-irr: 5x over 10 years → ~17.5% IRR. Time value of money effect.
+[31m[1mAssertionError[22m: expected 0.17459306770563215 to be close to 0.1746172846, received difference is 0.000024216894367851127, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 15: Biannual Distributions: Consistent semiannual returns over 3 years
+[31m[1mAssertionError[22m: expected 0.11045943270411557 to be close to 0.1103798003, received difference is 0.00007963240411557049, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 16: Waterfall Exit: Multiple tranches of returns simulating preferred returns
+[31m[1mAssertionError[22m: expected 0.061580524719819035 to be close to 0.0615371041, received difference is 0.00004342061981903872, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 17: Bridge Financing: Short-term bridge loan scenario
+[31m[1mAssertionError[22m: expected 0.18497309664368303 to be close to 0.1848354498, received difference is 0.00013764684368303137, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 18: Down Round: Investment with down round (partial loss)
+[31m[1mAssertionError[22m: expected -0.06157541431760786 to be close to -0.0615345924, received difference is 0.000040821917607861136, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 19: Dividend Recapitalization: Large dividend followed by eventual exit
+[31m[1mAssertionError[22m: expected 0.18818738207496633 to be close to 0.1880471591, received difference is 0.0001402229749663253, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 20: Penny Stock Volatility: Small amounts with high percentage swings
+[31m[1mAssertionError[22m: expected 2.724684878066269 to be close to 2.7213339602, received difference is 0.0033509178662689543, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 21: Leap Year Edge: Cashflows spanning leap year boundary
+[31m[1mAssertionError[22m: expected 0.14967069012266612 to be close to 0.1495609411, received difference is 0.0001097490226661113, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 22: Long Hold Moderate Return: 10-year hold with modest 8% IRR
+[31m[1mAssertionError[22m: expected 0.07998837344209463 to be close to 0.0799314924, received difference is 0.000056881042094628076, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 23: Turnaround Story: Multiple injections before profitable exit
+[31m[1mAssertionError[22m: expected 0.22226281463491065 to be close to 0.2220949186, received difference is 0.0001678960349106584, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 24: Quarterly Dividends + Exit: Regular quarterly dividends plus final exit
+[31m[1mAssertionError[22m: expected 0.05324276187103312 to be close to 0.0532053665, received difference is 0.00003739537103312346, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 25: Shallow Negative: Small loss over long period (-2%)
+[31m[1mAssertionError[22m: expected -0.01999204514362336 to be close to -0.0199784989, received difference is 0.000013546243623360765, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 1: Standard 2-flow: Simple 5-year doubling, ~14.87%
+[31m[1mAssertionError[22m: expected 0.1486329860010818 to be close to 0.148698355, received difference is 0.00006536899891820824, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 2: Rapid 3x: 3-year triple yields ~29.88%
+[31m[1mAssertionError[22m: expected 0.44212910141096357 to be close to 0.2987638262, received difference is 0.14336527521096354, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 3: Multi-stage exit: Two-stage exit with interim distribution
+[31m[1mAssertionError[22m: expected 0.14196360967140828 to be close to 0.2086834181, received difference is 0.06671980842859171, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 4: Explosive growth: Unicorn-style 10x in 4 years (>170% IRR)
+[31m[1mAssertionError[22m: expected 0.7782794100389228 to be close to 0.7788007831, received difference is 0.000521373061077246, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 5: Modest hold: 10-year 8% annualized return
+[31m[1mAssertionError[22m: expected 0.07998837344209463 to be close to 0.08, received difference is 0.000011626557905375368, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 6: Partial loss: 50% loss over 5 years yields -13.86% IRR
+[31m[1mAssertionError[22m: expected -0.1293998934494666 to be close to -0.1385627483, received difference is 0.00916285485053342, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 7: Near-zero: Small gain yields ~0.20% IRR
+[31m[1mAssertionError[22m: expected 0.001991229099348247 to be close to 0.0019950331, received difference is 0.000003804000651753004, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 8: Multiple follow-ons: Multi-stage investment with tiered exits
+[31m[1mAssertionError[22m: expected 0.16866554793868008 to be close to 0.1606838612, received difference is 0.007981686738680077, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 9: Extreme unicorn: 100x return in 6 years (explosive growth >100% IRR)
+[31m[1mAssertionError[22m: expected 1.1540575356087264 to be close to 1.0307919095, received difference is 0.12326562610872638, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 10: Alternating signs: Follow-on investment before exit
+[31m[1mAssertionError[22m: expected 0.07166876837792775 to be close to 0.1189625766, received difference is 0.04729380822207224, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 11: Leap year precision: Cashflow dates span Feb 29, 2024
+[31m[1mAssertionError[22m: expected 0.16985124753370812 to be close to 0.1313377761, received difference is 0.03851347143370812, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 12: Annual dividends: Regular annual distributions before exit
+[31m[1mAssertionError[22m: expected 0.04516329526152403 to be close to 0.0793655649, received difference is 0.034202269638475974, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 13: Shallow loss spread: 10% loss over 10 years yields -1.05% annualized
+[31m[1mAssertionError[22m: expected -0.010479314797693777 to be close to -0.0105360516, received difference is 0.00005673680230622313, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/31]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m server [49m[39m tests/unit/truth-cases/xirr.test.ts[2m > [22mXIRR Truth Cases (50 scenarios)[2m > [22mGolden Case 14: Quick flip: 1-year 50% gain yields ~50% IRR
+[31m[1mAssertionError[22m: expected 0.49875421093199146 to be close to 0.5, received difference is 0.0012457890680085404, but expected 5e-7[39m
+[36m [2m❯[22m Module.assertNumericField tests/unit/truth-cases/helpers.ts:[2m28:24[22m[39m
+    [90m 26| [39m)[33m:[39m [35mvoid[39m {
+    [90m 27| [39m  const actualNumber = actual instanceof Decimal ? actual.toNumber() :…
+    [90m 28| [39m  [34mexpect[39m(actualNumber)[33m.[39m[34mtoBeCloseTo[39m(expected[33m,[39m decimals)[33m;[39m
+    [90m   | [39m                       [31m^[39m
+    [90m 29| [39m}
+    [90m 30| [39m
+[90m [2m❯[22m tests/unit/truth-cases/xirr.test.ts:[2m92:9[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/31]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m31 failed[39m[22m[2m | [22m[1m[32m20 passed[39m[22m[90m (51)[39m
+[2m   Start at [22m 01:15:10
+[2m   Duration [22m 1.81s[2m (transform 267ms, setup 156ms, collect 168ms, tests 63ms, environment 1ms, prepare 980ms)[22m
+

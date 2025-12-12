@@ -5,6 +5,12 @@ description:
   changes touching waterfall logic, validation, or UI components.
 tools: Read, Edit, Grep, Glob, Bash
 model: sonnet
+skills:
+  phoenix-waterfall-ledger-semantics, phoenix-precision-guard,
+  systematic-debugging, verification-before-completion
+memory:
+  enabled: true
+  tenant_id: agent:waterfall-specialist
 ---
 
 ## Memory Integration 🧠
