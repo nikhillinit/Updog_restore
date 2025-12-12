@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-⚠️ **CRITICAL: Read CAPABILITIES.md FIRST before ANY task to check for existing
+**CRITICAL: Read CAPABILITIES.md FIRST before ANY task to check for existing
 solutions!**
 
 This file provides guidance to Claude Code (claude.ai/code) when working with
@@ -55,12 +55,14 @@ cheatsheets for testing, APIs, and UI conventions.
 **CRITICAL: Compare to Baseline, Not Perfection**
 
 Before assessing PR readiness:
+
 1. Check `cheatsheets/pr-merge-verification.md` for baseline
 2. Run tests on BOTH main and feature branches
 3. Compare pass rates (not absolute counts)
 4. See ADR-014 in DECISIONS.md for merge criteria
 
 **Quick Baseline Check:**
+
 ```bash
 # Main baseline (as of 2025-11-17)
 # Pass rate: 74.7% (998/1,337 tests)
@@ -71,6 +73,7 @@ Before assessing PR readiness:
 ```
 
 **Known preexisting failures to BYPASS:**
+
 - Variance tracking schema tests (27 tests)
 - Integration test infrastructure (31 tests)
 - Client test globals (9+ files)
@@ -81,13 +84,14 @@ Before assessing PR readiness:
 - `npm run ai` - Gateway to AI agent operations
 - `npm run ai:metrics` - Start observability metrics server
 
-## ⚠️ MANDATORY WORKFLOW - CHECK THESE FIRST
+## MANDATORY WORKFLOW - CHECK THESE FIRST
 
-1. **CAPABILITIES.md** - ⭐ ALWAYS READ FIRST before creating any todos or
+1. **CAPABILITIES.md** - ALWAYS READ FIRST before creating any todos or
    implementing anything
-2. **CHANGELOG.md** - Check for similar past work
-3. **DECISIONS.md** - Review architectural decisions
-4. **cheatsheets/** - Detailed implementation guides
+2. **docs/INDEX.md** - Central routing table for all documentation (NEW)
+3. **CHANGELOG.md** - Check for similar past work
+4. **DECISIONS.md** - Review architectural decisions
+5. **cheatsheets/** - Detailed implementation guides
 
 ## BEFORE ANY TASK
 
@@ -361,7 +365,7 @@ See [SIDECAR_GUIDE.md](SIDECAR_GUIDE.md) for complete troubleshooting guide.
 
 ## Quality-First Development
 
-⚠️ **CRITICAL**: This rebuild exists to AVOID 24 anti-patterns identified in the
+**CRITICAL**: This rebuild exists to AVOID 24 anti-patterns identified in the
 existing codebase. Quality is **mandatory**, not optional.
 
 ### Foundation Principle
@@ -375,11 +379,11 @@ existing codebase. Quality is **mandatory**, not optional.
 
 **Zero Tolerance Policy:**
 
-- ❌ No anti-pattern violations accepted in code review
-- ✅ All mutations MUST have idempotency
-- ✅ All updates MUST use optimistic locking (version field)
-- ✅ All cursors MUST be validated
-- ✅ All queue jobs MUST have timeouts
+- [REQUIRED] No anti-pattern violations accepted in code review
+- [REQUIRED] All mutations MUST have idempotency
+- [REQUIRED] All updates MUST use optimistic locking (version field)
+- [REQUIRED] All cursors MUST be validated
+- [REQUIRED] All queue jobs MUST have timeouts
 
 ### Workflow: Before → During → After
 
@@ -432,41 +436,47 @@ foundation, not a checkbox.
 
 ## No Emoji Policy
 
-**Rationale**: Emojis cause encoding issues in GitHub Actions, break CI/CD pipelines, reduce accessibility, and impair searchability.
+**Rationale**: Emojis cause encoding issues in GitHub Actions, break CI/CD
+pipelines, reduce accessibility, and impair searchability.
 
 ### Prohibited Usage
-- **Documentation**: All *.md files
-- **Scripts**: Any code that outputs to GitHub Actions (`$GITHUB_OUTPUT`, `$GITHUB_STEP_SUMMARY`)
+
+- **Documentation**: All \*.md files
+- **Scripts**: Any code that outputs to GitHub Actions (`$GITHUB_OUTPUT`,
+  `$GITHUB_STEP_SUMMARY`)
 - **Commit messages**: Keep professional and parseable
 - **Code comments**: Use text for clarity
 
 ### Approved Replacements
 
-| Instead of | Use |
-|------------|-----|
-| ✅ | `[x]` or `PASS:` or `SUCCESS:` |
-| ❌ | `[ ]` or `FAIL:` or `ERROR:` |
-| ⚠️ | `**WARNING:**` or `**NOTE:**` |
-| 🛑 | `**GATE:**` or `**CHECKPOINT:**` |
-| 🎯 | `**KEY POINT:**` or `**FOCUS:**` |
-| 📋 | `-` (bullet point) or `**CHECKLIST:**` |
-| 🔍 | `Checking:` or `Searching:` |
-| 🧪 | `**TESTING:**` or `[TEST]` |
-| 🤖 | `[AI-GENERATED]` or `(automated)` |
+| Instead of       | Use                                    |
+| ---------------- | -------------------------------------- |
+| Check mark       | `[x]` or `PASS:` or `SUCCESS:`         |
+| X mark           | `[ ]` or `FAIL:` or `ERROR:`           |
+| Warning triangle | `**WARNING:**` or `**NOTE:**`          |
+| Stop sign        | `**GATE:**` or `**CHECKPOINT:**`       |
+| Target           | `**KEY POINT:**` or `**FOCUS:**`       |
+| Clipboard        | `-` (bullet point) or `**CHECKLIST:**` |
+| Magnifying glass | `Checking:` or `Searching:`            |
+| Test tube        | `**TESTING:**` or `[TEST]`             |
+| Robot face       | `[AI-GENERATED]` or `(automated)`      |
 
 ### Why This Matters
 
 **Technical Issues:**
+
 - GitHub Actions `$GITHUB_OUTPUT` format doesn't support UTF-8 emoji encoding
 - CI/CD log parsing (grep/awk/sed) breaks on multi-byte characters
 - Windows terminal emoji rendering varies by environment
 
 **Accessibility:**
+
 - Screen readers announce emojis verbosely ("white heavy check mark")
 - Cognitive load: Text is more scannable than symbols
 
 **Maintainability:**
-- `grep "GATE"` works; `grep "🛑"` requires Unicode regex
+
+- `grep "GATE"` works; `grep "[stop-sign-emoji]"` requires Unicode regex
 - Git diffs show emoji as `\u{1F6D1}` in some tools
 - Text translates across locales; emojis don't
 
@@ -474,4 +484,6 @@ foundation, not a checkbox.
 
 - **Pre-commit hook**: Automatically blocks emoji in staged files
 - **CI validation**: Pull requests fail if emojis detected
-- **See**: [cheatsheets/emoji-free-documentation.md](cheatsheets/emoji-free-documentation.md) for complete guide
+- **See**:
+  [cheatsheets/emoji-free-documentation.md](cheatsheets/emoji-free-documentation.md)
+  for complete guide
