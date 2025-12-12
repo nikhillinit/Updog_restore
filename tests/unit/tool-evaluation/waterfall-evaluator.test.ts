@@ -105,35 +105,26 @@ describe('Tool Evaluation Framework', () => {
         'waterfall-tests.xml'
       );
 
-      // Check if file exists (may not exist in CI)
-      let results, summary;
-      try {
-        const suiteResults = await runEvaluationSuite(evaluationFile);
-        results = suiteResults.results;
-        summary = suiteResults.summary;
-      } catch {
-        // Skip test if evaluation file doesn't exist
-        console.warn('Evaluation file not found, skipping full suite test');
-        return;
-      }
+      // Load tasks once to derive expectations
+      const allTasks = await parseEvaluationFile(evaluationFile);
+      const expectedSkipped = allTasks.filter((t) => t.skip).length;
+      const expectedPhase1BTotal = allTasks.length - expectedSkipped;
+
+      const { results, summary } = await runEvaluationSuite(evaluationFile);
 
       // Verify suite ran successfully with Phase 1B metrics
-      expect(summary.overallTotal).toBeGreaterThan(0);
-      expect(summary.skipped).toBeGreaterThanOrEqual(0);
       expect(summary.phase1B).toBeDefined();
+      const phase1B = summary.phase1B!;
+      const { total: phase1BTotal, accuracy: phase1BAccuracy } = phase1B;
 
-      const phase1B = summary.phase1B;
-      if (!phase1B) {
-        return;
-      }
-
-      const { total: phase1BTotal, passed: phase1BPassed, accuracy: phase1BAccuracy } = phase1B;
-
-      expect(phase1BTotal).toBe(summary.total);
-      expect(results.length).toBe(phase1BTotal);
+      // Structural invariants (derived from XML, not hardcoded)
+      expect(summary.overallTotal).toBe(allTasks.length);
+      expect(summary.skipped).toBe(expectedSkipped);
+      expect(phase1BTotal).toBe(expectedPhase1BTotal);
+      expect(results.length).toBe(expectedPhase1BTotal);
       expect(Object.keys(summary.byCategory).length).toBeGreaterThan(0);
 
-      // Log failing Phase 1B tasks
+      // Log failing Phase 1B tasks for diagnostics
       const failedPhase1B = results.filter((r) => !r.passed);
       if (failedPhase1B.length > 0) {
         console.log('\nFAILING PHASE 1B TASKS:');
@@ -144,17 +135,20 @@ describe('Tool Evaluation Framework', () => {
         });
       }
 
-      // Assert Phase 1B metrics
-      expect(summary.overallTotal).toBe(phase1BTotal + summary.skipped);
-      expect(phase1BTotal).toBe(17);
-      expect(summary.skipped).toBe(8);
-      expect(phase1BPassed).toBeGreaterThanOrEqual(
-        14,
-        `Phase 1B passing count dropped below the validated 14/17 baseline; failures: ${failedPhase1B
-          .map((r) => r.taskId)
-          .join(', ')}`
-      );
-      expect(phase1BAccuracy).toBeGreaterThanOrEqual(82.0);
+      // Phase 1B feature gaps we explicitly accept for now
+      const knownGaps = new Set(['complex-1', 'complex-2', 'validation-2']);
+
+      const failingIds = failedPhase1B.map((r) => r.taskId).sort();
+      const unexpectedFailures = failingIds.filter((id) => !knownGaps.has(id));
+
+      // Zero tolerance for new regressions
+      expect(unexpectedFailures).toEqual([]);
+
+      // It's fine if we fix some known gaps; don't require them to fail
+      expect(failingIds.length).toBeLessThanOrEqual(knownGaps.size);
+
+      // Soft accuracy floor to prevent mass breakage
+      expect(phase1BAccuracy).toBeGreaterThanOrEqual(80);
       expect(phase1BAccuracy).toBeLessThanOrEqual(100);
     }, 30000); // Increase timeout for full suite
 
