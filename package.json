@@ -283,7 +283,9 @@
     "audit:strictness:full": "node scripts/audit-tsconfig.mjs --scope=full",
     "docs:lint": "remark docs/analysis --frail --quiet",
     "docs:check-links": "node scripts/check-doc-links.mjs",
-    "docs:verify": "npm run docs:lint && npm run docs:check-links"
+    "docs:verify": "npm run docs:lint && npm run docs:check-links",
+    "docs:routing:generate": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/generate-discovery-map.ts",
+    "docs:routing:check": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/generate-discovery-map.ts --check"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [

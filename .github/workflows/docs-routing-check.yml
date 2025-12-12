@@ -1,0 +1,72 @@
+name: Documentation Routing Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**/*.md'
+      - 'cheatsheets/**/*.md'
+      - '.claude/**/*.md'
+      - 'docs/DISCOVERY-MAP.source.yaml'
+      - 'scripts/generate-discovery-map.ts'
+  pull_request:
+    paths:
+      - 'docs/**/*.md'
+      - 'cheatsheets/**/*.md'
+      - '.claude/**/*.md'
+      - 'docs/DISCOVERY-MAP.source.yaml'
+      - 'scripts/generate-discovery-map.ts'
+  workflow_dispatch:
+
+jobs:
+  validate-routing:
+    name: Validate Discovery Routing
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check routing generation
+        id: routing-check
+        run: |
+          echo "::group::Discovery Map Validation"
+          npm run docs:routing:check
+          echo "::endgroup::"
+
+      - name: Generate staleness report (info only)
+        if: always()
+        run: |
+          echo "::group::Staleness Report"
+          npm run docs:routing:generate
+          echo "::endgroup::"
+
+          # Output summary
+          if [ -f "docs/_generated/staleness-report.md" ]; then
+            STALE_COUNT=$(grep -c "^\- \[ \]" docs/_generated/staleness-report.md || echo "0")
+            echo "### Documentation Staleness Check" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Stale documents found:** ${STALE_COUNT}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "See \`docs/_generated/staleness-report.md\` for details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload generated artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: discovery-routing-artifacts
+          path: |
+            docs/_generated/router-index.json
+            docs/_generated/staleness-report.md
+          retention-days: 7

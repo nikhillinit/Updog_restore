@@ -2,6 +2,8 @@
 status: ACTIVE
 audience: agents
 last_updated: 2025-12-12
+owner: "Platform Team"
+review_cadence: P30D
 categories: [discovery, agents, routing]
 keywords: [discovery-map, routing, capability-discovery, decision-tree]
 ---
@@ -15,6 +17,10 @@ Prevent re-implementation by routing agents to existing assets first.
 **Two-layer discovery:**
 - Humans use: `docs/INDEX.md`
 - Agents use: this file
+
+**Machine-readable index:** `docs/_generated/router-index.json`
+- Generated from: `docs/DISCOVERY-MAP.source.yaml`
+- Regenerate: `npm run docs:routing:generate`
 
 ## Global Rule: CAPABILITIES-First
 
@@ -160,12 +166,34 @@ When reviewing docs that claim execution results:
 
 ---
 
-# 6. Maintenance
+# 6. Generated Artifacts
+
+The discovery system generates machine-readable artifacts:
+
+| Artifact | Path | Description |
+|---|---|---|
+| Router Index | `docs/_generated/router-index.json` | Machine-readable routing patterns |
+| Staleness Report | `docs/_generated/staleness-report.md` | Documents needing review |
+
+**Commands:**
+- `npm run docs:routing:generate` - Regenerate artifacts
+- `npm run docs:routing:check` - Verify sync (used in CI)
+
+**Source of truth:** `docs/DISCOVERY-MAP.source.yaml`
+
+---
+
+# 7. Maintenance
 
 **Update this file when:**
 - New Phoenix agent/skill created
 - Agent names changed (check frontmatter `name:`)
 - New commands added
 - Routing patterns change
+
+**Update source YAML when:**
+- Adding new routing patterns
+- Changing staleness rules
+- Adding new agent registry entries
 
 **Last verified against repo:** 2025-12-12
