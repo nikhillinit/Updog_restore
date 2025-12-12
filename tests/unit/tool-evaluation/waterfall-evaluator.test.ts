@@ -105,24 +105,92 @@ describe('Tool Evaluation Framework', () => {
         'waterfall-tests.xml'
       );
 
-      // Check if file exists (may not exist in CI)
-      try {
-        const { results, summary } = await runEvaluationSuite(evaluationFile);
+      // Load tasks once to derive expectations
+      const allTasks = await parseEvaluationFile(evaluationFile);
+      const expectedSkipped = allTasks.filter((t) => t.skip).length;
+      const expectedPhase1BTotal = allTasks.length - expectedSkipped;
 
-        // Verify suite ran successfully
-        expect(summary.total).toBeGreaterThan(0);
-        expect(summary.accuracy).toBeGreaterThanOrEqual(0);
-        expect(summary.accuracy).toBeLessThanOrEqual(100);
+      const { results, summary } = await runEvaluationSuite(evaluationFile);
 
-        // Check that we have results
-        expect(results.length).toBe(summary.total);
+      // Verify suite ran successfully with Phase 1B metrics
+      expect(summary.phase1B).toBeDefined();
+      const phase1B = summary.phase1B!;
+      const { total: phase1BTotal, accuracy: phase1BAccuracy } = phase1B;
 
-        // Verify categories are tracked
-        expect(Object.keys(summary.byCategory).length).toBeGreaterThan(0);
-      } catch {
-        // Skip test if evaluation file doesn't exist
-        console.warn('Evaluation file not found, skipping full suite test');
+      // Structural invariants (derived from XML, not hardcoded)
+      expect(summary.overallTotal).toBe(allTasks.length);
+      expect(summary.skipped).toBe(expectedSkipped);
+      expect(phase1BTotal).toBe(expectedPhase1BTotal);
+      expect(results.length).toBe(expectedPhase1BTotal);
+      expect(Object.keys(summary.byCategory).length).toBeGreaterThan(0);
+
+      // Log failing Phase 1B tasks for diagnostics
+      const failedPhase1B = results.filter((r) => !r.passed);
+      if (failedPhase1B.length > 0) {
+        console.log('\nFAILING PHASE 1B TASKS:');
+        failedPhase1B.forEach((task) => {
+          console.log(`  - ID: ${task.taskId}, Category: ${task.category || 'unknown'}`);
+          console.log(`    Expected: ${JSON.stringify(task.expected)?.substring(0, 100)}...`);
+          console.log(`    Actual: ${JSON.stringify(task.actual)?.substring(0, 100)}...`);
+        });
       }
+
+      // Phoenix Phase 1B Stage 1: Known feature gaps tracked for Stage 2+ work
+      //
+      // These failures are EXPECTED and DO NOT block Phase 1B→1A transition:
+      //
+      // complex-1 (Tiered Waterfall):
+      //   - Root cause: Multi-hurdle waterfall engine unimplemented
+      //   - Required: Truth case T16 + server/analytics/waterfall-tier.ts update
+      //   - Time estimate: 20-30 min (truth case) + 1-2 hours (implementation + TDD)
+      //
+      // complex-2 (Vested Carry):
+      //   - Root cause: Vesting calculation feature not implemented
+      //   - Required: Truth case + server/analytics/vesting.ts + engine integration
+      //   - Time estimate: 30 min (truth case) + 2-3 hours (implementation + TDD)
+      //   - Defer: Consider Phase 2 (Advanced Forecasting) per execution plan line 1821-1887
+      //
+      // validation-2 (Zero Fund Size):
+      //   - Root cause: Parser semantic handling of "$0" vs null
+      //   - Required: Truth case to define expected behavior + parser fix
+      //   - Time estimate: 15 min (truth case) + 30 min (parser semantic fix)
+      //   - Note: String pattern matching (e.g. promptLower.includes('0')) is ANTI-PATTERN
+      //
+      // Counter-Proposal Rejected:
+      // - Parser patching with string matching creates false positive risk
+      // - Result injection (if taskId === 'complex-1') violates ADR-011 (shadow engine)
+      // - Must follow execution plan: Truth cases → Systematic debugging → TDD fixes
+      //
+      // Strategic Note:
+      // - 82.4% accuracy EXCEEDS Phase 1B 80% floor requirement
+      // - 95% is Phase 1A ENTRY gate (not Phase 1B exit requirement)
+      // - Systematic-debugging skill is MANDATORY before fixes (Plan line 153-154)
+      //
+      const knownGaps = new Set(['complex-1', 'complex-2', 'validation-2']);
+
+      const failingIds = failedPhase1B.map((r) => r.taskId).sort();
+      const unexpectedFailures = failingIds.filter((id) => !knownGaps.has(id));
+
+      // REGRESSION PREVENTION: Zero tolerance for failures outside knownGaps
+      // Aligns with execution plan line 1745-1771: Mandatory regression tracking
+      //
+      // This pattern ensures:
+      // 1. New bugs are caught immediately (unexpectedFailures.length === 0)
+      // 2. Existing gaps don't block progress (knownGaps tracking)
+      // 3. Baseline stability maintained (no previously-passing tests now failing)
+      //
+      expect(unexpectedFailures).toEqual([]);
+
+      // It's fine if we fix some known gaps; don't require them to fail
+      expect(failingIds.length).toBeLessThanOrEqual(knownGaps.size);
+
+      // Phase 1B Stage 1 Gate: 14/17 passing = 82.4% accuracy
+      // Status: [PASS] EXCEEDS 80% Phase 1B requirement
+      // Next: Phase 1B Stage 2 (Truth Case Validation, ~1.5 hours)
+
+      // Soft accuracy floor to prevent mass breakage
+      expect(phase1BAccuracy).toBeGreaterThanOrEqual(80);
+      expect(phase1BAccuracy).toBeLessThanOrEqual(100);
     }, 30000); // Increase timeout for full suite
 
     it('should parse XML evaluation files correctly', async () => {

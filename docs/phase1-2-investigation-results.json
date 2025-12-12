@@ -1,0 +1,77 @@
+[
+  {
+    "id": "xirr-13-leap-year-handling",
+    "scenario": "13-leap-year-handling",
+    "expectedIRR": 4.284325690000001,
+    "solverIRR": 5.146823108963283,
+    "closedFormIRR": 5.146823108963465,
+    "delta": 8624.974189632821,
+    "verdict": "TRUTH_BUG",
+    "reason": "Closed-form IRR (514.68%) matches solver but not expected (428.43%)"
+  },
+  {
+    "id": "xirr-21-typical-vc-fund-10year",
+    "scenario": "21-typical-vc-fund-10year",
+    "expectedIRR": 0.1845777397,
+    "solverIRR": 0.16412263419507883,
+    "delta": 204.5510550492116,
+    "verdict": "NEEDS_EXCEL",
+    "reason": "Multi-flow scenario (8 cashflows) - manual Excel validation required"
+  },
+  {
+    "id": "xirr-golden-case-2-rapid-3x",
+    "scenario": "Golden Case 2: Rapid 3x",
+    "expectedIRR": 0.2987638262,
+    "solverIRR": 0.4417677550937617,
+    "closedFormIRR": 0.44176775509376176,
+    "delta": 1430.0392889376167,
+    "verdict": "TRUTH_BUG",
+    "reason": "Closed-form IRR (44.18%) matches solver but not expected (29.88%)"
+  },
+  {
+    "id": "xirr-golden-case-3-multi-stage-exit",
+    "scenario": "Golden Case 3: Multi-stage exit",
+    "expectedIRR": 0.2086834181,
+    "solverIRR": 0.14185985339458154,
+    "delta": 668.2356470541845,
+    "verdict": "NEEDS_EXCEL",
+    "reason": "Multi-flow scenario (3 cashflows) - manual Excel validation required"
+  },
+  {
+    "id": "xirr-golden-case-9-extreme-unicorn",
+    "scenario": "Golden Case 9: Extreme unicorn",
+    "expectedIRR": 1.0307919095,
+    "solverIRR": 1.1529264684399876,
+    "closedFormIRR": 1.152926468439988,
+    "delta": 1221.345589399876,
+    "verdict": "TRUTH_BUG",
+    "reason": "Closed-form IRR (115.29%) matches solver but not expected (103.08%)"
+  },
+  {
+    "id": "xirr-golden-case-10-alternating-signs",
+    "scenario": "Golden Case 10: Alternating signs",
+    "expectedIRR": 0.1189625766,
+    "solverIRR": 0.07161799769184078,
+    "delta": 473.4457890815921,
+    "verdict": "NEEDS_EXCEL",
+    "reason": "Multi-flow scenario (3 cashflows) - manual Excel validation required"
+  },
+  {
+    "id": "xirr-golden-case-11-leap-year-precision",
+    "scenario": "Golden Case 11: Leap year precision",
+    "expectedIRR": 0.1313377761,
+    "solverIRR": 0.16972564011701144,
+    "delta": 383.8786401701144,
+    "verdict": "NEEDS_EXCEL",
+    "reason": "Multi-flow scenario (3 cashflows) - manual Excel validation required"
+  },
+  {
+    "id": "xirr-golden-case-12-annual-dividends",
+    "scenario": "Golden Case 12: Annual dividends",
+    "expectedIRR": 0.0793655649,
+    "solverIRR": 0.04513169536892111,
+    "delta": 342.338695310789,
+    "verdict": "NEEDS_EXCEL",
+    "reason": "Multi-flow scenario (6 cashflows) - manual Excel validation required"
+  }
+]

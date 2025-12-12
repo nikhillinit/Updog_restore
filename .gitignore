@@ -152,6 +152,11 @@ playwright-report/
 test-results/
 coverage/
 
+# Waterfall evaluator test output logs (regenerated per run)
+waterfall-baseline.txt
+waterfall-unmasked-output.txt
+waterfall-*.log
+
 # Local scratch
 Updog_restore-main/
 .specstory/
