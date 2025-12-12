@@ -11,8 +11,8 @@ Phoenix reports.
 
 ## Context Gathering
 
-!git branch --show-current
-!git status --porcelain=v1
+- Current branch: !`git branch --show-current`
+- Working tree status: !`git status --porcelain=v1`
 
 ## Step 1: Run Deterministic Suite
 
