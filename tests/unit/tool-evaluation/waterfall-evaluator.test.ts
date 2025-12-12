@@ -106,23 +106,56 @@ describe('Tool Evaluation Framework', () => {
       );
 
       // Check if file exists (may not exist in CI)
+      let results, summary;
       try {
-        const { results, summary } = await runEvaluationSuite(evaluationFile);
-
-        // Verify suite ran successfully
-        expect(summary.total).toBeGreaterThan(0);
-        expect(summary.accuracy).toBeGreaterThanOrEqual(0);
-        expect(summary.accuracy).toBeLessThanOrEqual(100);
-
-        // Check that we have results
-        expect(results.length).toBe(summary.total);
-
-        // Verify categories are tracked
-        expect(Object.keys(summary.byCategory).length).toBeGreaterThan(0);
+        const suiteResults = await runEvaluationSuite(evaluationFile);
+        results = suiteResults.results;
+        summary = suiteResults.summary;
       } catch {
         // Skip test if evaluation file doesn't exist
         console.warn('Evaluation file not found, skipping full suite test');
+        return;
       }
+
+      // Verify suite ran successfully with Phase 1B metrics
+      expect(summary.overallTotal).toBeGreaterThan(0);
+      expect(summary.skipped).toBeGreaterThanOrEqual(0);
+      expect(summary.phase1B).toBeDefined();
+
+      const phase1B = summary.phase1B;
+      if (!phase1B) {
+        return;
+      }
+
+      const { total: phase1BTotal, passed: phase1BPassed, accuracy: phase1BAccuracy } = phase1B;
+
+      expect(phase1BTotal).toBe(summary.total);
+      expect(results.length).toBe(phase1BTotal);
+      expect(Object.keys(summary.byCategory).length).toBeGreaterThan(0);
+
+      // Log failing Phase 1B tasks
+      const failedPhase1B = results.filter((r) => !r.passed);
+      if (failedPhase1B.length > 0) {
+        console.log('\nFAILING PHASE 1B TASKS:');
+        failedPhase1B.forEach((task) => {
+          console.log(`  - ID: ${task.taskId}, Category: ${task.category || 'unknown'}`);
+          console.log(`    Expected: ${JSON.stringify(task.expected)?.substring(0, 100)}...`);
+          console.log(`    Actual: ${JSON.stringify(task.actual)?.substring(0, 100)}...`);
+        });
+      }
+
+      // Assert Phase 1B metrics
+      expect(summary.overallTotal).toBe(phase1BTotal + summary.skipped);
+      expect(phase1BTotal).toBe(17);
+      expect(summary.skipped).toBe(8);
+      expect(phase1BPassed).toBeGreaterThanOrEqual(
+        14,
+        `Phase 1B passing count dropped below the validated 14/17 baseline; failures: ${failedPhase1B
+          .map((r) => r.taskId)
+          .join(', ')}`
+      );
+      expect(phase1BAccuracy).toBeGreaterThanOrEqual(82.0);
+      expect(phase1BAccuracy).toBeLessThanOrEqual(100);
     }, 30000); // Increase timeout for full suite
 
     it('should parse XML evaluation files correctly', async () => {
