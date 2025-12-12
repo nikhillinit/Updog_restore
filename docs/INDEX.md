@@ -203,7 +203,9 @@ Humans AND Agents **Last Updated**: 2025-12-12
 **Key Commands**:
 
 - `npm run phoenix:truth` - Run truth-case validation suite
-- `/run-truth` - Slash command alias
+- `/phoenix-truth` - Deterministic truth case validation
+- `/phoenix-phase2` - Phase 2 probabilistic workflow
+- `/phoenix-prob-report` - Format Monte Carlo distributions
 
 ---
 
@@ -284,4 +286,4 @@ structural changes) **Last Updated**: 2025-12-12 **Next Review**: 2026-01-12
 ---
 
 **Navigation Tip**: For agent-facing decision tree and pattern routing, see
-`.claude/DISCOVERY-MAP.md` (Phase 2 implementation)
+[.claude/DISCOVERY-MAP.md](../.claude/DISCOVERY-MAP.md)
