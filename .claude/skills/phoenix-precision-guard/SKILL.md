@@ -19,6 +19,14 @@ Invoke this skill when:
 - Tightening ESLint or TypeScript strictness for analytics modules
 - Configuring or validating Decimal.js usage
 - Adding or updating precision tests
+- Investigating numeric drift or rounding errors in calculations
+
+Do **not** use this skill for:
+
+- Waterfall semantic changes (use `phoenix-waterfall-ledger-semantics`)
+- Truth-case orchestration (use `phoenix-truth-case-orchestrator`)
+- XIRR or fee logic bugs (use `phoenix-xirr-fees-validator`)
+- Probabilistic/Monte Carlo work (use `phoenix-advanced-forecasting`)
 
 ## Scope
 
