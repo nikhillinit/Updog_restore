@@ -1,0 +1,204 @@
+---TASK---
+id: pacing_parsing_1733936400
+workdir: c:\dev\Updog_restore
+---CONTENT---
+Fix the pacing prompt parsing in @ai-utils/tool-evaluation/waterfall-evaluator.ts
+
+Goal:
+- Replace hardcoded pacing parameters with prompt-driven parsing so each pacing XML task runs with its own scenario.
+- Keep pacing math unchanged; only fix the evaluation harness.
+- Use tolerance-based assertions in tests (no .toFixed()).
+
+Context:
+- Current state: lines around the pacing branch use hardcoded values, so pacing-1/2/3 all produce identical results.
+- Desired behavior: pacing-1, pacing-2, and pacing-3 should be parameter-sensitive, matching their prompts.
+
+Current broken code (approx. lines 271–283):
+```typescript
+} else if (prompt.includes('pacing')) {
+  // Parse pacing calculation parameters
+  const result = await tools.calculatePacing.execute({
+    fundSize: 100000000,  // HARDCODED!
+    fundLifeYears: 10,
+    deploymentPeriodYears: 4,
+    currentDeployed: 30000000,
+    yearsElapsed: 1.5,
+  });
+
+  if (result.success) {
+    actual = JSON.stringify(result);
+  }
+}
+```
+
+Example prompts from XML (or equivalent structure):
+- pacing-1: "Calculate investment pacing for a $100M fund with 10-year life, 4-year deployment period, $30M deployed after 1.5 years"
+- pacing-2: "Calculate investment pacing for a $200M fund with 10-year life, 3-year deployment period, $40M deployed after 2 years"
+- pacing-3: "Calculate investment pacing for a $75M fund with 10-year life, 5-year deployment period, $35M deployed after 1 year"
+
+Requirements for the pacing branch:
+
+1. Case-insensitive routing
+   - Normalize the prompt once near the top of the function:
+     ```ts
+     const promptLower = prompt.toLowerCase();
+     ```
+   - Use `promptLower.includes('pacing')` (or an equivalent case-insensitive check) to enter the pacing branch.
+
+2. Regex-based extraction (similar to the reserves branch)
+   - Use patterns modeled on the existing reserves parsing. For example:
+     ```ts
+     const fundSizeMatch = prompt.match(/\$?([\d,]+)m?\s*(million\s*)?(fund|total\s*capital)/i);
+     const lifeMatch = prompt.match(/(\d+)-year\s*life/i);
+     const deploymentMatch = prompt.match(/(\d+)-year\s*deployment\s*period/i);
+     const deployedMatch = prompt.match(/\$?([\d,]+)m?\s*deployed/i);
+     const yearsElapsedMatch = prompt.match(/after\s*([\d.]+)\s*years?/i);
+     ```
+   - Remove commas from numeric strings before parsing:
+     ```ts
+     const parseMillions = (s: string) => parseFloat(s.replace(/,/g, '')) * 1_000_000;
+     ```
+
+3. Defaults and fallbacks
+   - Use the existing hardcoded values as defaults if parsing fails:
+     ```ts
+     const defaultFundSize = 100_000_000;
+     const defaultFundLifeYears = 10;
+     const defaultDeploymentYears = 4;
+     const defaultCurrentDeployed = 30_000_000;
+     const defaultYearsElapsed = 1.5;
+
+     const fundSize = fundSizeMatch ? parseMillions(fundSizeMatch[1]) : defaultFundSize;
+     const fundLifeYears = lifeMatch ? parseInt(lifeMatch[1], 10) : defaultFundLifeYears;
+     const deploymentPeriodYears = deploymentMatch ? parseInt(deploymentMatch[1], 10) : defaultDeploymentYears;
+     const currentDeployed = deployedMatch ? parseMillions(deployedMatch[1]) : defaultCurrentDeployed;
+     const yearsElapsed = yearsElapsedMatch ? parseFloat(yearsElapsedMatch[1]) : defaultYearsElapsed;
+     ```
+   - Do NOT try to "calculate" currentDeployed from other fields; just parse it or fall back to the default.
+
+4. Call the pacing tool with parsed values
+   - Replace the hardcoded object with:
+     ```ts
+     const result = await tools.calculatePacing.execute({
+       fundSize,
+       fundLifeYears,
+       deploymentPeriodYears,
+       currentDeployed,
+       yearsElapsed,
+     });
+     ```
+
+5. Align JSON shape with reserves
+   - Strip the `success` flag before serializing so the business payload matches the XML expected JSON shape:
+     ```ts
+     if (result.success) {
+       const { success, ...data } = result;
+       actual = JSON.stringify(data);
+     }
+     ```
+
+6. Observability (optional but preferred)
+   - If this file already collects `toolCalls`, add an entry for `calculatePacing` using the same structure, including a flag if any fallback defaults were used.
+
+Test / validation requirements (in @tests/unit/tool-evaluation/waterfall-evaluator.test.ts):
+- Ensure that the pacing tests (or the XML evaluation harness) assert on the following expected values using `toBeCloseTo` (tolerance-based, no .toFixed):
+  - pacing-1: expected `targetAnnualPace = 25_000_000`, expected `actualAnnualPace = 20_000_000`
+  - pacing-2: expected `targetAnnualPace ≈ 66_666_666.67`, expected `actualAnnualPace = 20_000_000`
+  - pacing-3: expected `targetAnnualPace = 15_000_000`, expected `actualAnnualPace = 35_000_000`
+- Example assertion style:
+  ```ts
+  expect(result.targetAnnualPace).toBeCloseTo(expectedTargetAnnualPace, 0);
+  expect(result.actualAnnualPace).toBeCloseTo(expectedActualAnnualPace, 0);
+  ```
+
+Constraints:
+- Do NOT modify the calculatePacing tool implementation itself; only modify the evaluation harness.
+- Do NOT introduce any `.toFixed()` rounding in either the tool or the evaluator.
+- Use tolerance-based numeric assertions (`toBeCloseTo`) in tests.
+- Keep all changes backward-compatible for non-pacing evaluation tasks.
+---TASK---
+id: test_sanitization_1733936401
+workdir: c:\dev\Updog_restore
+dependencies: pacing_parsing_1733936400
+---CONTENT---
+Update waterfall test evaluation framework to mark Phase 2 tests as skipped and report Phase 1B metrics separately
+
+Context:
+- Current state: 15/21 XML tests passing (71.4%)
+- Phase 1B scope: 13 tests (waterfall basic + complex, reserves, pacing, validation)
+- Phase 2 scope: 8 tests (Monte Carlo x4, Cohort x4) – these should be skipped and excluded from Phase 1B metrics
+- Goal: Clean Phase 1B metrics that exclude Phase 2 tests, while keeping overall context (21 tests total)
+
+Files to modify:
+1. @ai-utils/tool-evaluation/waterfall-evaluator.ts
+2. @tests/unit/tool-evaluation/waterfall-evaluator.test.ts
+3. @docs/phase1b-waterfall-evaluator-hardening.md
+
+Required changes:
+
+1. Schema updates (waterfall-evaluator.ts):
+   - In EvaluationTaskSchema, add:
+     - `skip: z.boolean().optional()`
+     - `skipReason: z.string().optional()`
+   - In parseEvaluationFile(), read optional XML attributes into these fields:
+     ```typescript
+     skip: task.$?.skip === 'true',
+     skipReason: task.$?.['skip-reason']?.trim(),
+     ```
+   - Keep behavior fully backward-compatible: tasks without `skip` attributes should behave exactly as before.
+
+2. Test filtering & summary logic (waterfall-evaluator.ts runEvaluationSuite):
+   - After loading all tasks from XML, compute:
+     - `const totalTasks = allTasks.length;`
+     - `const skippedTasks = allTasks.filter(t => t.skip);`
+     - `const executableTasks = allTasks.filter(t => !t.skip);`
+   - Only execute `executableTasks` (do not run skipped tasks).
+   - After execution, compute:
+     - `const phase1BTotal = executableTasks.length;`
+     - `const phase1BPassed = executableTasks.filter(t => t.passed).length;`
+     - `const phase1BAccuracy = phase1BTotal > 0 ? (phase1BPassed / phase1BTotal) * 100 : 0;`
+   - Optionally compute an overall passed count for context (e.g., number of tasks that passed out of `totalTasks`), but Phase 1B gating should be based on `phase1BTotal` and `phase1BPassed`.
+   - Log a concise summary using plain text markers (no emoji), for example:
+     - `SUMMARY: 21 total tasks`
+     - `PHASE1B: 13 executable, 10 passed (76.9% accuracy)`
+     - `SKIPPED: 8 Phase 2 tasks (Monte Carlo & Cohort)`
+   - For skipped tasks, log their IDs and `skipReason` lines, for example:
+     - `SKIPPED: monte-carlo-1 (reason: Phase 2 – Advanced Forecasting)`
+   - Do NOT change any calculation logic in the underlying tools; only adjust routing, filtering, and logging.
+
+3. Test assertion updates (waterfall-evaluator.test.ts):
+   - In the "Full Evaluation Suite" test:
+     - Ensure the test runs the same `runEvaluationSuite` (or equivalent) and asserts against **Phase 1B** metrics (non-skipped tasks only).
+     - The assertion should reference Phase 1B explicitly in the error message, for example:
+       - `Expected Phase 1B pass rate to meet minimum threshold, but got ${phase1BPassed}/${phase1BTotal}.`
+   - Keep the logging of all failures for executable tasks, so any failing Phase 1B task (including `complex-1` and `complex-2`) is clearly visible in test output.
+   - IMPORTANT: `complex-1` and `complex-2` remain in **Phase 1B scope** and MUST NOT be skipped or removed from the assertion set. They should be treated like any other executable Phase 1B task.
+   - Monte Carlo (`monte-carlo-1`..`monte-carlo-4`) and Cohort (`cohort-1`..`cohort-4`) tests should be considered skipped via the XML attributes and must not affect the Phase 1B assertion.
+
+4. Documentation updates (@docs/phase1b-waterfall-evaluator-hardening.md):
+   - After the initial status / summary section (around line 29), add a new section titled "Skipped Tests (Phase 2 Scope)" that:
+     - Explains that Monte Carlo and Cohort tests are Phase 2 (Advanced Forecasting) and currently marked as skipped in the XML suite.
+     - Lists the 8 skipped tests with IDs and reasons, for example:
+       - `monte-carlo-1 – Phase 2: Monte Carlo return simulation (tool not implemented yet)`
+       - `monte-carlo-2 – Phase 2: Monte Carlo portfolio distribution (tool not implemented yet)`
+       - `cohort-1 – Phase 2: Vintage year cohort analysis (tool not implemented yet)`
+       - `cohort-2 – Phase 2: Sector cohort analysis (tool not implemented yet)`
+   - Update any "Final Status" line to clearly separate overall results from Phase 1B:
+     - Example: `Final Status: 15/21 overall (71.4%) – 10/13 Phase 1B deterministic tests passing (76.9%).`
+   - Make sure the doc explicitly states:
+     - Phase 1B gate is evaluated on the 13 deterministic tests only (waterfall basic + complex, reserves, pacing, validation).
+     - Phase 2 Monte Carlo and Cohort features are tracked separately and are not counted against the Phase 1B stability gate.
+
+Important constraints:
+- NO emoji in console output (GitHub Actions encoding issues).
+- Use clear text markers only: `PASS:`, `FAIL:`, `SUMMARY:`, `PHASE1B:`, `SKIPPED:`, `CHECKPOINT:`, `KEY POINT:`.
+- Maintain backward compatibility with existing tool implementations and XML structures.
+- Do NOT change any underlying calculator math or business logic; this is evaluation harness and documentation BOOKKEEPING only.
+- Assume the XML file has already been updated to include `skip="true"` and `skip-reason="..."` attributes for all 8 Monte Carlo and Cohort tests.
+
+Expected outcome:
+- The test suite still parses all 21 XML tasks but:
+  - Executes only the 13 Phase 1B deterministic tasks.
+  - Logs 8 Phase 2 tests as skipped with reasons.
+- The primary test assertion and summary numbers reflect Phase 1B pass rate (13-task denominator).
+- The documentation clearly distinguishes Phase 1B deterministic scope from Phase 2 advanced forecasting scope and reports both overall and Phase 1B metrics.
