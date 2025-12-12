@@ -280,7 +280,7 @@ patterns:
       - "jest"
       - "vitest"
       - "coverage"
-    target: "docs/INDEX.md#testing"
+    target: "docs/INDEX.md"
     commands:
       - "/test-smart"
       - "/fix-auto"
@@ -311,7 +311,7 @@ patterns:
       - "embedding"
       - "semantic search"
       - "pgvector"
-    target: "docs/INDEX.md#ai--automation"
+    target: "docs/INDEX.md"
 
   # --- AI Tools ---
   - id: "ai_tools"

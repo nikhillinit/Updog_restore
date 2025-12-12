@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "generatedAt": "2025-12-12T22:45:08.105Z",
+  "generatedAt": "2025-12-12T22:57:03.753Z",
   "scoring": {
     "generic_terms": [
       "test",
@@ -249,7 +249,7 @@
         "vitest",
         "coverage"
       ],
-      "route_to": "docs/INDEX.md#testing",
+      "route_to": "docs/INDEX.md",
       "why": "Testing routing (priority 40)"
     },
     {
@@ -295,7 +295,7 @@
         "semantic search",
         "pgvector"
       ],
-      "route_to": "docs/INDEX.md#ai--automation",
+      "route_to": "docs/INDEX.md",
       "why": "Memory routing (priority 60)"
     },
     {
@@ -539,25 +539,25 @@
       "docs/workflows/README.md"
     ],
     "test": [
-      "docs/INDEX.md#testing"
+      "docs/INDEX.md"
     ],
     "unit test": [
-      "docs/INDEX.md#testing"
+      "docs/INDEX.md"
     ],
     "integration": [
-      "docs/INDEX.md#testing"
+      "docs/INDEX.md"
     ],
     "e2e": [
-      "docs/INDEX.md#testing"
+      "docs/INDEX.md"
     ],
     "jest": [
-      "docs/INDEX.md#testing"
+      "docs/INDEX.md"
     ],
     "vitest": [
-      "docs/INDEX.md#testing"
+      "docs/INDEX.md"
     ],
     "coverage": [
-      "docs/INDEX.md#testing"
+      "docs/INDEX.md"
     ],
     "database": [
       "SIDECAR_GUIDE.md"
@@ -581,22 +581,22 @@
       "SIDECAR_GUIDE.md"
     ],
     "memory": [
-      "docs/INDEX.md#ai--automation"
+      "docs/INDEX.md"
     ],
     "context": [
-      "docs/INDEX.md#ai--automation"
+      "docs/INDEX.md"
     ],
     "vector": [
-      "docs/INDEX.md#ai--automation"
+      "docs/INDEX.md"
     ],
     "embedding": [
-      "docs/INDEX.md#ai--automation"
+      "docs/INDEX.md"
     ],
     "semantic search": [
-      "docs/INDEX.md#ai--automation"
+      "docs/INDEX.md"
     ],
     "pgvector": [
-      "docs/INDEX.md#ai--automation"
+      "docs/INDEX.md"
     ],
     "ai": [
       "docs/DEVELOPMENT-TOOLING-CATALOG.md"

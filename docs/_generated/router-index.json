@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-12-12T22:45:08.102Z",
+  "generatedAt": "2025-12-12T22:57:03.751Z",
   "version": "2.0",
   "config": {
     "min_score_to_route": 2,
@@ -163,7 +163,7 @@
         "vitest",
         "coverage"
       ],
-      "target": "docs/INDEX.md#testing"
+      "target": "docs/INDEX.md"
     },
     {
       "id": "database",
@@ -192,7 +192,7 @@
         "semantic search",
         "pgvector"
       ],
-      "target": "docs/INDEX.md#ai--automation"
+      "target": "docs/INDEX.md"
     },
     {
       "id": "ai_tools",
@@ -336,13 +336,41 @@
       "path": "docs/PHOENIX-SOT/README.md",
       "exists": true,
       "docType": "doc",
-      "frontmatter": {},
-      "isStale": true,
-      "staleDays": 999,
+      "frontmatter": {
+        "status": "ACTIVE",
+        "audience": "both",
+        "last_updated": "2025-12-12",
+        "categories": [
+          "phoenix",
+          "validation",
+          "vc-modeling"
+        ],
+        "keywords": [
+          "phoenix",
+          "truth-case",
+          "xirr",
+          "waterfall",
+          "fees",
+          "capital",
+          "forecasting"
+        ],
+        "source_of_truth": true,
+        "phase": "1B",
+        "priority": 1,
+        "route_hint": "Entry point for all Phoenix project work.",
+        "use_cases": [
+          "phoenix_validation",
+          "vc_modeling"
+        ],
+        "owner": "Phoenix Team",
+        "review_cadence": "P30D"
+      },
+      "isStale": false,
+      "staleDays": 0,
       "hasExecutionClaims": false,
-      "lastUpdated": null,
-      "status": "UNKNOWN",
-      "owner": null
+      "lastUpdated": "2025-12-12",
+      "status": "ACTIVE",
+      "owner": "Phoenix Team"
     },
     {
       "path": "docs/PHOENIX-SOT/deferred-vesting-plan.md",
@@ -3214,10 +3242,11 @@
   ],
   "stats": {
     "total_docs": 225,
-    "stale_docs": 225,
-    "missing_frontmatter": 178,
+    "stale_docs": 224,
+    "missing_frontmatter": 177,
     "by_status": {
-      "UNKNOWN": 225
+      "UNKNOWN": 224,
+      "ACTIVE": 1
     }
   }
 }

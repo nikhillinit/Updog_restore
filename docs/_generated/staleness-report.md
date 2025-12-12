@@ -1,6 +1,6 @@
 # Staleness Report
 
-*Generated: 2025-12-12T22:45:08.105Z*
+*Generated: 2025-12-12T22:57:03.753Z*
 *Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
@@ -8,14 +8,15 @@
 | Metric | Value |
 |--------|-------|
 | Total Documents | 225 |
-| Stale Documents | 225 |
-| Missing Frontmatter | 178 |
+| Stale Documents | 224 |
+| Missing Frontmatter | 177 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
-| UNKNOWN | 225 |
+| UNKNOWN | 224 |
+| ACTIVE | 1 |
 
 ## Stale Documents
 
@@ -25,7 +26,6 @@ Documents that need review (older than their cadence threshold):
 |----------|--------------|----------|---------------------|-------|
 | `docs/.templates/DEPRECATION-HEADER.md` | Never | 999 | No | Unassigned |
 | `docs/.templates/DOC-FRONTMATTER-SCHEMA.md` | Never | 999 | No | Unassigned |
-| `docs/PHOENIX-SOT/README.md` | Never | 999 | No | Unassigned |
 | `docs/PHOENIX-SOT/deferred-vesting-plan.md` | Never | 999 | No | Unassigned |
 | `docs/PHOENIX-SOT/execution-plan-v2.34-enhancements.md` | Never | 999 | No | Unassigned |
 | `docs/PHOENIX-SOT/execution-plan-v2.34.md` | Never | 999 | No | Unassigned |
@@ -73,8 +73,9 @@ Documents that need review (older than their cadence threshold):
 | `docs/components/reserve-engine-architecture.md` | Never | 999 | No | Unassigned |
 | `docs/components/reserve-engine-delivery.md` | Never | 999 | No | Unassigned |
 | `docs/components/reserve-engine-spec.md` | Never | 999 | No | Unassigned |
+| `docs/components/worker-implementation.md` | Never | 999 | No | Unassigned |
 
-*...and 175 more stale documents.*
+*...and 174 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -123,7 +124,6 @@ Documents without proper YAML frontmatter:
 
 - [ ] `docs/.templates/DEPRECATION-HEADER.md`
 - [ ] `docs/.templates/DOC-FRONTMATTER-SCHEMA.md`
-- [ ] `docs/PHOENIX-SOT/README.md`
 - [ ] `docs/PHOENIX-SOT/deferred-vesting-plan.md`
 - [ ] `docs/PHOENIX-SOT/execution-plan-v2.34-enhancements.md`
 - [ ] `docs/PHOENIX-SOT/execution-plan-v2.34.md`

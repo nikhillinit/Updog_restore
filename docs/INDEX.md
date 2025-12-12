@@ -1,3 +1,19 @@
+---
+status: ACTIVE
+audience: both
+last_updated: 2025-12-12
+categories: [documentation, navigation]
+keywords: [index, docs, navigation, routing, documentation]
+source_of_truth: true
+agent_routing:
+  priority: 2
+  route_hint: "Central navigation for all documentation."
+  use_cases: [doc_discovery, onboarding]
+maintenance:
+  owner: "Core Team"
+  review_cadence: "P90D"
+---
+
 # Documentation Index
 
 **Purpose**: Central routing table for all project documentation **Audience**:
