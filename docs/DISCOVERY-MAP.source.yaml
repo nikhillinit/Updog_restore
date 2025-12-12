@@ -18,7 +18,9 @@ configuration:
 
   # Paths to scan for documentation
   scan_paths:
-    - "docs/**/*.md"
+    - "*.md"              # Root-level docs (CAPABILITIES.md, etc.)
+    - "docs/*.md"         # Top-level docs/ files (INDEX.md, etc.)
+    - "docs/**/*.md"      # Nested docs/ subdirectories
     - "cheatsheets/**/*.md"
     - ".claude/agents/*.md"
     - ".claude/skills/**/*.md"

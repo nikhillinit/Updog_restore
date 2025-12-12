@@ -336,10 +336,34 @@ async function globFiles(patterns: string[], excludes: string[]): Promise<string
 
   // Extract base directories from patterns
   const baseDirs = new Set<string>();
+  let hasRootPattern = false;
   for (const pattern of patterns) {
     const baseDir = pattern.split('/')[0];
     if (baseDir && !baseDir.includes('*')) {
       baseDirs.add(baseDir);
+    } else if (baseDir.includes('*')) {
+      // Pattern like "*.md" - needs to scan current directory
+      hasRootPattern = true;
+    }
+  }
+
+  // Scan root directory if we have root-level patterns
+  if (hasRootPattern) {
+    try {
+      const entries = await fs.readdir('.', { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory() && entry.name.endsWith('.md')) {
+          const matches = patterns.some(pat => {
+            const patternRegex = pat.replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
+            return new RegExp(`^${patternRegex}$`).test(entry.name);
+          });
+          if (matches) {
+            results.push(entry.name);
+          }
+        }
+      }
+    } catch {
+      // Current directory scan failed, skip
     }
   }
 
@@ -440,7 +464,9 @@ async function main(): Promise<void> {
       min_score_to_route: 2,
       staleness_cadence_default: 'P180D',
       scan_paths: [
-        'docs/**/*.md',
+        '*.md',              // Root-level docs (CAPABILITIES.md, etc.)
+        'docs/*.md',         // Top-level docs/ files (INDEX.md, etc.)
+        'docs/**/*.md',      // Nested docs/ subdirectories
         'cheatsheets/**/*.md',
         '.claude/agents/*.md',
         '.claude/skills/**/*.md',
