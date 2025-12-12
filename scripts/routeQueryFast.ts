@@ -29,6 +29,9 @@ export interface RouterFast {
     generic_terms: string[];
     min_score: number;
   };
+  config: {
+    max_docs_per_keyword: number;
+  };
   patterns: RouterFastPattern[];
   keyword_to_docs: Record<string, string[]>;
 }
@@ -37,6 +40,7 @@ export interface RouterFastPattern {
   id: string;
   priority: number;
   match_any: string[];
+  match_any_normalized: string[];
   route_to: string;
   why: string;
   command?: string;
@@ -108,10 +112,13 @@ export function routeQueryFast(query: string, index: RouterFast): RouteResult {
     let score = 0;
     const matchedPhrases: string[] = [];
 
-    for (const phrase of pattern.match_any) {
-      const normalizedPhrase = phrase.toLowerCase();
+    // Use pre-normalized keywords if available (more efficient)
+    const normalizedPhrases = pattern.match_any_normalized || pattern.match_any.map(p => p.toLowerCase());
+
+    for (let i = 0; i < normalizedPhrases.length; i++) {
+      const normalizedPhrase = normalizedPhrases[i];
       if (normalizedQuery.includes(normalizedPhrase)) {
-        matchedPhrases.push(phrase);
+        matchedPhrases.push(pattern.match_any[i]);
 
         // Check if this is a generic term
         const words = normalizedPhrase.split(/\s+/);

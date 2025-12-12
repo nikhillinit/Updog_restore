@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "generatedAt": "2025-12-12T21:44:49.545Z",
+  "generatedAt": "2025-12-12T21:53:07.398Z",
   "scoring": {
     "generic_terms": [
       "test",
@@ -12,11 +12,24 @@
     ],
     "min_score": 2
   },
+  "config": {
+    "max_docs_per_keyword": 25
+  },
   "patterns": [
     {
       "id": "security",
       "priority": 5,
       "match_any": [
+        "secret",
+        "key",
+        "token",
+        "password",
+        "auth",
+        "security",
+        "credential",
+        "env"
+      ],
+      "match_any_normalized": [
         "secret",
         "key",
         "token",
@@ -39,6 +52,13 @@
         "pass rate",
         "baseline"
       ],
+      "match_any_normalized": [
+        "truth case",
+        "validation",
+        "deterministic",
+        "pass rate",
+        "baseline"
+      ],
       "route_to": ".claude/commands/phoenix-truth.md",
       "why": "Phoenix routing (priority 10)"
     },
@@ -46,6 +66,14 @@
       "id": "phoenix_phase2",
       "priority": 11,
       "match_any": [
+        "monte carlo",
+        "probabilistic",
+        "expectation mode",
+        "seeded",
+        "distribution",
+        "phase 2"
+      ],
+      "match_any_normalized": [
         "monte carlo",
         "probabilistic",
         "expectation mode",
@@ -68,6 +96,15 @@
         "gp",
         "lp"
       ],
+      "match_any_normalized": [
+        "waterfall",
+        "clawback",
+        "carry",
+        "ledger",
+        "tier",
+        "gp",
+        "lp"
+      ],
       "route_to": ".claude/agents/waterfall-specialist.md",
       "why": "Phoenix routing (priority 12)"
     },
@@ -81,6 +118,13 @@
         "numeric drift",
         "rounding"
       ],
+      "match_any_normalized": [
+        "precision",
+        "parsefloat",
+        "decimal",
+        "numeric drift",
+        "rounding"
+      ],
       "route_to": ".claude/agents/phoenix-precision-guardian.md",
       "why": "Phoenix routing (priority 13)"
     },
@@ -88,6 +132,13 @@
       "id": "phoenix_xirr",
       "priority": 14,
       "match_any": [
+        "xirr",
+        "irr",
+        "fees",
+        "management fee",
+        "carry fee"
+      ],
+      "match_any_normalized": [
         "xirr",
         "irr",
         "fees",
@@ -106,6 +157,12 @@
         "deployment",
         "stage allocation"
       ],
+      "match_any_normalized": [
+        "capital allocation",
+        "exit recycling",
+        "deployment",
+        "stage allocation"
+      ],
       "route_to": ".claude/agents/phoenix-capital-allocation-analyst.md",
       "why": "Phoenix routing (priority 15)"
     },
@@ -113,6 +170,13 @@
       "id": "capabilities",
       "priority": 20,
       "match_any": [
+        "capability",
+        "feature",
+        "existing solution",
+        "already built",
+        "what can"
+      ],
+      "match_any_normalized": [
         "capability",
         "feature",
         "existing solution",
@@ -133,6 +197,14 @@
         "rollout",
         "shipping"
       ],
+      "match_any_normalized": [
+        "deploy",
+        "release",
+        "prod",
+        "production",
+        "rollout",
+        "shipping"
+      ],
       "route_to": "docs/workflows/PRODUCTION_SCRIPTS.md",
       "why": "Production routing (priority 30)"
     },
@@ -146,6 +218,13 @@
         "workflow",
         "pipeline"
       ],
+      "match_any_normalized": [
+        "ci",
+        "cd",
+        "github actions",
+        "workflow",
+        "pipeline"
+      ],
       "route_to": "docs/workflows/README.md",
       "why": "CI/CD routing (priority 31)"
     },
@@ -153,6 +232,15 @@
       "id": "testing",
       "priority": 40,
       "match_any": [
+        "test",
+        "unit test",
+        "integration",
+        "e2e",
+        "jest",
+        "vitest",
+        "coverage"
+      ],
+      "match_any_normalized": [
         "test",
         "unit test",
         "integration",
@@ -176,6 +264,15 @@
         "postgres",
         "drizzle"
       ],
+      "match_any_normalized": [
+        "database",
+        "db",
+        "sql",
+        "migration",
+        "schema",
+        "postgres",
+        "drizzle"
+      ],
       "route_to": "SIDECAR_GUIDE.md",
       "why": "Database routing (priority 50)"
     },
@@ -183,6 +280,14 @@
       "id": "memory",
       "priority": 60,
       "match_any": [
+        "memory",
+        "context",
+        "vector",
+        "embedding",
+        "semantic search",
+        "pgvector"
+      ],
+      "match_any_normalized": [
         "memory",
         "context",
         "vector",
@@ -205,6 +310,15 @@
         "agent",
         "claude"
       ],
+      "match_any_normalized": [
+        "ai",
+        "llm",
+        "model",
+        "inference",
+        "prompt",
+        "agent",
+        "claude"
+      ],
       "route_to": "docs/DEVELOPMENT-TOOLING-CATALOG.md",
       "why": "AI Tools routing (priority 70)"
     },
@@ -219,6 +333,14 @@
         "benchmark",
         "optimization"
       ],
+      "match_any_normalized": [
+        "perf",
+        "performance",
+        "slow",
+        "latency",
+        "benchmark",
+        "optimization"
+      ],
       "route_to": "cheatsheets/pr-merge-verification.md",
       "why": "Performance routing (priority 80)"
     },
@@ -226,6 +348,15 @@
       "id": "troubleshooting",
       "priority": 90,
       "match_any": [
+        "error",
+        "debug",
+        "fix",
+        "broken",
+        "issue",
+        "problem",
+        "not working"
+      ],
+      "match_any_normalized": [
         "error",
         "debug",
         "fix",

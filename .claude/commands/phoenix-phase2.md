@@ -1,7 +1,8 @@
 ---
 description: "Phase 2 workflow: validate Expectation Mode, run seeded Monte Carlo, summarize distributions"
 argument-hint: "[goal] seed=<int> iters=<int> scenario=<name> focus=<graduation|moic|reserves|monte-carlo>"
-allowed-tools: Read, Write, Grep, Glob, Bash
+disable-model-invocation: true
+allowed-tools: Read, Write, Edit, Grep, Glob, Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(npm test:*), Bash(npm run phoenix:*)
 ---
 
 # Phoenix Phase 2: Probabilistic Workflow

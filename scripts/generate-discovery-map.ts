@@ -97,9 +97,12 @@ interface AgentEntry {
   phase: (string | number)[];
 }
 
+type DocType = 'agent' | 'skill' | 'command' | 'doc';
+
 interface DocMetadata {
   path: string;
   exists: boolean;
+  docType: DocType;
   frontmatter: Record<string, unknown>;
   isStale: boolean;
   staleDays: number;
@@ -139,6 +142,9 @@ interface RouterFast {
     generic_terms: string[];
     min_score: number;
   };
+  config: {
+    max_docs_per_keyword: number;
+  };
   patterns: RouterFastPattern[];
   keyword_to_docs: Record<string, string[]>;
 }
@@ -147,6 +153,7 @@ interface RouterFastPattern {
   id: string;
   priority: number;
   match_any: string[];
+  match_any_normalized: string[];
   route_to: string;
   why: string;
   command?: string;
@@ -163,9 +170,35 @@ const OUT_JSON = path.join(OUT_DIR, 'router-index.json');
 const OUT_FAST = path.join(OUT_DIR, 'router-fast.json');
 const OUT_STALENESS = path.join(OUT_DIR, 'staleness-report.md');
 
+// Limit docs per keyword to prevent index bloat
+const MAX_DOCS_PER_KEYWORD = 25;
+
 // =============================================================================
 // UTILITIES
 // =============================================================================
+
+/**
+ * Normalize a string for keyword matching
+ */
+function normalize(s: string): string {
+  return s.trim().toLowerCase();
+}
+
+/**
+ * Determine document type from path
+ */
+function getDocType(filePath: string): DocType {
+  if (filePath.includes('/agents/') || filePath.includes('\\agents\\')) {
+    return 'agent';
+  }
+  if (filePath.includes('/skills/') || filePath.includes('\\skills\\')) {
+    return 'skill';
+  }
+  if (filePath.includes('/commands/') || filePath.includes('\\commands\\')) {
+    return 'command';
+  }
+  return 'doc';
+}
 
 /**
  * Parse ISO 8601 duration (P30D, P90D, P180D, P365D)
@@ -520,6 +553,7 @@ async function main(): Promise<void> {
       docsData.push({
         path: file,
         exists: true,
+        docType: getDocType(file),
         frontmatter: parsed.data,
         isStale,
         staleDays,
@@ -558,27 +592,32 @@ async function main(): Promise<void> {
   const jsonOutput = JSON.stringify(routerIndex, null, 2);
 
   // 4b. Generate Router-Fast JSON (consumer-optimized schema)
-  // Build keyword_to_docs map for fallback routing
+  // Build keyword_to_docs map for fallback routing (with limit to prevent bloat)
   const keywordToDocs: Record<string, string[]> = {};
   for (const pattern of config.patterns) {
     for (const keyword of pattern.keywords) {
-      const normalizedKeyword = keyword.toLowerCase();
+      const normalizedKeyword = normalize(keyword);
       if (!keywordToDocs[normalizedKeyword]) {
         keywordToDocs[normalizedKeyword] = [];
       }
-      if (!keywordToDocs[normalizedKeyword].includes(pattern.target)) {
+      // Enforce max_docs_per_keyword limit
+      if (
+        keywordToDocs[normalizedKeyword].length < MAX_DOCS_PER_KEYWORD &&
+        !keywordToDocs[normalizedKeyword].includes(pattern.target)
+      ) {
         keywordToDocs[normalizedKeyword].push(pattern.target);
       }
     }
   }
 
-  // Build consumer-friendly pattern format
+  // Build consumer-friendly pattern format with normalized keywords for matching
   const fastPatterns: RouterFastPattern[] = config.patterns
     .sort((a, b) => a.priority - b.priority)
-    .map((p, index) => ({
+    .map((p) => ({
       id: p.id,
       priority: p.priority,
       match_any: p.keywords,
+      match_any_normalized: p.keywords.map(normalize),
       route_to: p.target,
       why: p.message || p.warning || `${p.category} routing (priority ${p.priority})`,
       ...(p.command && { command: p.command }),
@@ -591,6 +630,9 @@ async function main(): Promise<void> {
     scoring: {
       generic_terms: config.configuration.generic_terms,
       min_score: config.configuration.min_score_to_route,
+    },
+    config: {
+      max_docs_per_keyword: MAX_DOCS_PER_KEYWORD,
     },
     patterns: fastPatterns,
     keyword_to_docs: keywordToDocs,
