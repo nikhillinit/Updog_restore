@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-12-12T23:09:38.705Z",
+  "generatedAt": "2025-12-12T23:37:54.986Z",
   "version": "2.0",
   "config": {
     "min_score_to_route": 2,
@@ -12,7 +12,111 @@
       "help"
     ]
   },
-  "decision_tree": {},
+  "decision_tree": {
+    "Q0": {
+      "id": "risk_check",
+      "question": "Is this a high-risk task or targeting an INACTIVE/DEPRECATED doc?",
+      "next": "Q1",
+      "action_if_true": "REQUIRE_EVIDENCE_CHECK",
+      "action_if_false": "CONTINUE",
+      "condition": {
+        "raw": "or:\n        - field: \"risk_level\"\n          equals: \"high\"\n        - field: \"status\"\n          not_equals: \"ACTIVE\""
+      }
+    },
+    "Q1": {
+      "id": "capability_check",
+      "question": "Does this involve implementing something NEW?",
+      "keywords": [
+        "implement",
+        "create",
+        "add",
+        "build",
+        "new feature"
+      ],
+      "next": "Q2",
+      "action_if_true": {
+        "route": "CAPABILITIES.md",
+        "message": "Check existing solutions before building"
+      },
+      "action_if_false": "CONTINUE"
+    },
+    "Q2": {
+      "id": "phoenix_check",
+      "question": "Is this a Phoenix project task?",
+      "keywords": [
+        "phoenix",
+        "truth case",
+        "xirr",
+        "waterfall",
+        "fees",
+        "capital",
+        "recycling"
+      ],
+      "next": "Q3",
+      "action_if_true": {
+        "route": "docs/PHOENIX-SOT/README.md"
+      },
+      "action_if_false": "CONTINUE"
+    },
+    "Q3": {
+      "id": "decision_check",
+      "question": "Is this about understanding WHY a decision was made?",
+      "keywords": [
+        "why",
+        "decision",
+        "rationale",
+        "adr",
+        "architecture decision"
+      ],
+      "next": "Q4",
+      "action_if_true": {
+        "route": "DECISIONS.md"
+      },
+      "action_if_false": "CONTINUE"
+    },
+    "Q4": {
+      "id": "history_check",
+      "question": "Is this about recent changes or history?",
+      "keywords": [
+        "changed",
+        "history",
+        "changelog",
+        "recent",
+        "update"
+      ],
+      "next": "Q5",
+      "action_if_true": {
+        "route": "CHANGELOG.md"
+      },
+      "action_if_false": "CONTINUE"
+    },
+    "Q5": {
+      "id": "category_routing",
+      "question": "Which category does this fall into?",
+      "keywords": [
+        "develop",
+        "code",
+        "implement",
+        "feature"
+      ],
+      "next": "Q6",
+      "branches": {
+        "raw": "development:\n        keywords: [\"develop\", \"code\", \"implement\", \"feature\"]\n        route: \"docs/INDEX.md\"\n      testing:\n        keywords: [\"test\", \"spec\", \"coverage\", \"jest\", \"vitest\"]\n        route: \"docs/INDEX.md#testing\"\n      deployment:\n        keywords: [\"deploy\", \"prod\", \"release\", \"ci\", \"cd\"]\n        route: \"docs/workflows/PRODUCTION_SCRIPTS.md\"\n      troubleshooting:\n        keywords: [\"error\", \"debug\", \"fix\", \"broken\", \"issue\"]\n        route: \"SIDECAR_GUIDE.md\""
+      }
+    },
+    "Q6": {
+      "id": "staleness_check",
+      "question": "Is the target document potentially stale?",
+      "action_if_true": {
+        "route": "cheatsheets/document-review-workflow.md",
+        "warning": "Document may be stale - apply Document Review Protocol"
+      },
+      "action_if_false": "PROCEED",
+      "condition": {
+        "raw": "and:\n        - field: \"age_days\"\n          greater_than: 30\n        - field: \"contains_execution_claims\"\n          equals: true"
+      }
+    }
+  },
   "patterns": [
     {
       "id": "security",

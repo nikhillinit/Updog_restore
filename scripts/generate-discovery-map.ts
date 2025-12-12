@@ -436,6 +436,131 @@ async function validatePatternTargets(patterns: Pattern[]): Promise<void> {
   }
 }
 
+/**
+ * Parse decision_tree section from YAML
+ * Extracts Q0-Q6 nodes with their properties
+ */
+function parseDecisionTree(rawConfig: string): Record<string, DecisionNode> {
+  const tree: Record<string, DecisionNode> = {};
+
+  // Extract the decision_tree block (between decision_tree: and the next section)
+  const dtMatch = rawConfig.match(/decision_tree:\s*\n([\s\S]*?)(?=\n# ===|patterns:)/);
+  if (!dtMatch) {
+    return tree;
+  }
+
+  const dtBlock = '\n' + dtMatch[1]; // Prepend newline for consistent matching
+
+  // Find all Q node positions
+  const nodeRegex = /\n {2}(Q\d+):\s*\n/g;
+  const nodePositions: { id: string; start: number; matchEnd: number }[] = [];
+  let match;
+
+  while ((match = nodeRegex.exec(dtBlock)) !== null) {
+    nodePositions.push({
+      id: match[1],
+      start: match.index,
+      matchEnd: match.index + match[0].length,
+    });
+  }
+
+  // Extract content for each node
+  for (let i = 0; i < nodePositions.length; i++) {
+    const nodeId = nodePositions[i].id;
+    const contentStart = nodePositions[i].matchEnd;
+    const contentEnd = i < nodePositions.length - 1
+      ? nodePositions[i + 1].start
+      : dtBlock.length;
+
+    const nodeContent = dtBlock.slice(contentStart, contentEnd);
+
+    const node: DecisionNode = {
+      id: extractField(nodeContent, 'id') || nodeId.toLowerCase(),
+      question: extractField(nodeContent, 'question') || '',
+    };
+
+    // Extract keywords array
+    const keywordsMatch = nodeContent.match(/keywords:\s*\[(.*?)\]/);
+    if (keywordsMatch) {
+      node.keywords = keywordsMatch[1]
+        .split(',')
+        .map(k => k.trim().replace(/"/g, ''))
+        .filter(k => k.length > 0);
+    }
+
+    // Extract next
+    const next = extractField(nodeContent, 'next');
+    if (next) {
+      node.next = next;
+    }
+
+    // Extract action_if_true (can be string or object with nested properties)
+    const actionTrueLineMatch = nodeContent.match(/action_if_true:\s*"([^"]+)"/);
+    const actionTrueSimpleMatch = nodeContent.match(/action_if_true:\s*([A-Z_]+)\s*\n/);
+
+    if (actionTrueLineMatch) {
+      node.action_if_true = actionTrueLineMatch[1];
+    } else if (actionTrueSimpleMatch) {
+      node.action_if_true = actionTrueSimpleMatch[1];
+    } else {
+      // Check for nested object (route/message/warning on subsequent lines)
+      const actionTrueObjMatch = nodeContent.match(/action_if_true:\s*\n([\s\S]*?)(?=\n {4}action_if_false:|\n {4}next:|\n {2}Q\d+:|\n\n {2}Q|$)/);
+      if (actionTrueObjMatch) {
+        const nested = actionTrueObjMatch[1];
+        const route = extractField(nested, 'route');
+        const message = extractField(nested, 'message');
+        const warning = extractField(nested, 'warning');
+        if (route || message || warning) {
+          node.action_if_true = {
+            ...(route && { route }),
+            ...(message && { message }),
+            ...(warning && { warning }),
+          };
+        }
+      }
+    }
+
+    // Extract action_if_false
+    const actionFalse = extractField(nodeContent, 'action_if_false');
+    if (actionFalse) {
+      node.action_if_false = actionFalse;
+    }
+
+    // Extract condition if present (nested structure)
+    const conditionMatch = nodeContent.match(/condition:\s*\n([\s\S]*?)(?=\n {4}action_|\n {4}next:)/);
+    if (conditionMatch) {
+      node.condition = { raw: conditionMatch[1].trim() };
+    }
+
+    // Extract branches if present
+    const branchesMatch = nodeContent.match(/branches:\s*\n([\s\S]*?)(?=\n {4}default_route:|\n {4}next:)/);
+    if (branchesMatch) {
+      node.branches = { raw: branchesMatch[1].trim() };
+    }
+
+    tree[nodeId] = node;
+  }
+
+  return tree;
+}
+
+/**
+ * Helper to extract a simple field value from YAML-like content
+ */
+function extractField(content: string, field: string): string | null {
+  // Try quoted value first (handles spaces and special chars)
+  const quotedMatch = content.match(new RegExp(`${field}:\\s*"([^"]+)"`));
+  if (quotedMatch) {
+    return quotedMatch[1];
+  }
+  // Fall back to unquoted single value
+  const unquotedMatch = content.match(new RegExp(`${field}:\\s*(\\S+)`));
+  if (unquotedMatch && !unquotedMatch[1].includes(':')) {
+    return unquotedMatch[1];
+  }
+  return null;
+}
+
 // =============================================================================
 // MAIN GENERATOR
 // =============================================================================
@@ -527,9 +652,13 @@ async function main(): Promise<void> {
     });
   }
 
+  // Parse decision_tree from YAML
+  config.decision_tree = parseDecisionTree(rawConfig);
+
   if (isVerbose) {
     console.log(`Loaded ${config.patterns.length} patterns`);
     console.log(`Loaded ${config.agents.phoenix.length} agents`);
+    console.log(`Loaded ${Object.keys(config.decision_tree).length} decision tree nodes`);
   }
 
   // 2. Validate Configuration
