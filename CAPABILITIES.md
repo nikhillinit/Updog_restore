@@ -1,6 +1,22 @@
+---
+status: ACTIVE
+audience: both
+last_updated: 2025-12-12
+categories: [development, skills-tools]
+keywords: [capabilities, agents, skills, tools, scripts, existing-solutions]
+source_of_truth: true
+agent_routing:
+  priority: 1
+  route_hint: "Read this FIRST before implementing anything new."
+  use_cases: [capability_discovery, feature_planning]
+maintenance:
+  owner: "Core Team"
+  review_cadence: "P90D"
+---
+
 # Claude Code Capability Inventory
 
-_Last Updated: 2025-11-10_
+_Last Updated: 2025-12-12_
 
 This document provides a persistent reference of ALL available capabilities to
 ensure optimal tool selection and prevent redundant implementations.

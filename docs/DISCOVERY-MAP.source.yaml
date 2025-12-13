@@ -1,0 +1,412 @@
+# DISCOVERY-MAP.source.yaml
+# Single Source of Truth for Documentation Routing & Discovery
+# Generator: scripts/generate-discovery-map.ts
+# Output: docs/_generated/router-index.json, docs/_generated/staleness-report.md
+
+version: "2.0"
+generated_at: null  # Filled by generator
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+configuration:
+  # Minimum keyword match score to trigger routing
+  min_score_to_route: 2
+
+  # Default staleness threshold (ISO 8601 duration)
+  staleness_cadence_default: P180D
+
+  # Paths to scan for documentation
+  scan_paths:
+    - "*.md"              # Root-level docs (CAPABILITIES.md, etc.)
+    - "docs/*.md"         # Top-level docs/ files (INDEX.md, etc.)
+    - "docs/**/*.md"      # Nested docs/ subdirectories
+    - "cheatsheets/**/*.md"
+    - ".claude/agents/*.md"
+    - ".claude/skills/**/*.md"
+    - ".claude/commands/*.md"
+
+  # Exclude patterns
+  exclude_paths:
+    - "docs/_generated/**"
+    - "docs/archive/**"
+    - "**/node_modules/**"
+
+  # Generic terms that need additional context (don't route on these alone)
+  generic_terms:
+    - "test"
+    - "error"
+    - "fix"
+    - "update"
+    - "change"
+    - "help"
+
+# =============================================================================
+# DECISION TREE (Q0-Q6)
+# Processed by generator, output to router-index.json
+# =============================================================================
+decision_tree:
+  Q0:
+    id: "risk_check"
+    question: "Is this a high-risk task or targeting an INACTIVE/DEPRECATED doc?"
+    condition:
+      or:
+        - field: "risk_level"
+          equals: "high"
+        - field: "status"
+          not_equals: "ACTIVE"
+    action_if_true: "REQUIRE_EVIDENCE_CHECK"
+    action_if_false: "CONTINUE"
+    next: "Q1"
+
+  Q1:
+    id: "capability_check"
+    question: "Does this involve implementing something NEW?"
+    keywords: ["implement", "create", "add", "build", "new feature"]
+    action_if_true:
+      route: "CAPABILITIES.md"
+      message: "Check existing solutions before building"
+    action_if_false: "CONTINUE"
+    next: "Q2"
+
+  Q2:
+    id: "phoenix_check"
+    question: "Is this a Phoenix project task?"
+    keywords: ["phoenix", "truth case", "xirr", "waterfall", "fees", "capital", "recycling"]
+    action_if_true:
+      route: "docs/PHOENIX-SOT/README.md"
+      sub_routing:
+        - condition: "deterministic validation"
+          route: "/phoenix-truth"
+        - condition: "phase 2 OR probabilistic OR monte carlo"
+          route: "/phoenix-phase2"
+        - condition: "distribution report"
+          route: "/phoenix-prob-report"
+    action_if_false: "CONTINUE"
+    next: "Q3"
+
+  Q3:
+    id: "decision_check"
+    question: "Is this about understanding WHY a decision was made?"
+    keywords: ["why", "decision", "rationale", "adr", "architecture decision"]
+    action_if_true:
+      route: "DECISIONS.md"
+    action_if_false: "CONTINUE"
+    next: "Q4"
+
+  Q4:
+    id: "history_check"
+    question: "Is this about recent changes or history?"
+    keywords: ["changed", "history", "changelog", "recent", "update"]
+    action_if_true:
+      route: "CHANGELOG.md"
+    action_if_false: "CONTINUE"
+    next: "Q5"
+
+  Q5:
+    id: "category_routing"
+    question: "Which category does this fall into?"
+    branches:
+      development:
+        keywords: ["develop", "code", "implement", "feature"]
+        route: "docs/INDEX.md"
+      testing:
+        keywords: ["test", "spec", "coverage", "jest", "vitest"]
+        route: "docs/INDEX.md#testing"
+      deployment:
+        keywords: ["deploy", "prod", "release", "ci", "cd"]
+        route: "docs/workflows/PRODUCTION_SCRIPTS.md"
+      troubleshooting:
+        keywords: ["error", "debug", "fix", "broken", "issue"]
+        route: "SIDECAR_GUIDE.md"
+    default_route: "docs/INDEX.md"
+    next: "Q6"
+
+  Q6:
+    id: "staleness_check"
+    question: "Is the target document potentially stale?"
+    condition:
+      and:
+        - field: "age_days"
+          greater_than: 30
+        - field: "contains_execution_claims"
+          equals: true
+    action_if_true:
+      warning: "Document may be stale - apply Document Review Protocol"
+      route: "cheatsheets/document-review-workflow.md"
+    action_if_false: "PROCEED"
+
+# =============================================================================
+# PATTERN ROUTING RULES
+# Priority: lower number = higher priority (checked first)
+# =============================================================================
+patterns:
+  # --- Security (highest priority - always check first) ---
+  - id: "security"
+    priority: 5
+    category: "Security"
+    keywords:
+      - "secret"
+      - "key"
+      - "token"
+      - "password"
+      - "auth"
+      - "security"
+      - "credential"
+      - "env"
+    target: "SIDECAR_GUIDE.md"
+    warning: "Security-sensitive operation - verify permissions"
+
+  # --- Phoenix System (domain-specific, high priority) ---
+  - id: "phoenix_truth"
+    priority: 10
+    category: "Phoenix"
+    keywords:
+      - "truth case"
+      - "validation"
+      - "deterministic"
+      - "pass rate"
+      - "baseline"
+    target: ".claude/commands/phoenix-truth.md"
+    command: "/phoenix-truth"
+
+  - id: "phoenix_phase2"
+    priority: 11
+    category: "Phoenix"
+    keywords:
+      - "monte carlo"
+      - "probabilistic"
+      - "expectation mode"
+      - "seeded"
+      - "distribution"
+      - "phase 2"
+    target: ".claude/commands/phoenix-phase2.md"
+    command: "/phoenix-phase2"
+    gate: "deterministic_must_pass"
+
+  - id: "phoenix_waterfall"
+    priority: 12
+    category: "Phoenix"
+    keywords:
+      - "waterfall"
+      - "clawback"
+      - "carry"
+      - "ledger"
+      - "tier"
+      - "gp"
+      - "lp"
+    target: ".claude/agents/waterfall-specialist.md"
+    agent: "waterfall-specialist"
+
+  - id: "phoenix_precision"
+    priority: 13
+    category: "Phoenix"
+    keywords:
+      - "precision"
+      - "parseFloat"
+      - "decimal"
+      - "numeric drift"
+      - "rounding"
+    target: ".claude/agents/phoenix-precision-guardian.md"
+    agent: "phoenix-precision-guardian"
+
+  - id: "phoenix_xirr"
+    priority: 14
+    category: "Phoenix"
+    keywords:
+      - "xirr"
+      - "irr"
+      - "fees"
+      - "management fee"
+      - "carry fee"
+    target: ".claude/agents/xirr-fees-validator.md"
+    agent: "xirr-fees-validator"
+
+  - id: "phoenix_allocation"
+    priority: 15
+    category: "Phoenix"
+    keywords:
+      - "capital allocation"
+      - "exit recycling"
+      - "deployment"
+      - "stage allocation"
+    target: ".claude/agents/phoenix-capital-allocation-analyst.md"
+    agent: "phoenix-capital-allocation-analyst"
+
+  # --- Core Capabilities ---
+  - id: "capabilities"
+    priority: 20
+    category: "Capabilities"
+    keywords:
+      - "capability"
+      - "feature"
+      - "existing solution"
+      - "already built"
+      - "what can"
+    target: "CAPABILITIES.md"
+    message: "Check here FIRST before building anything new"
+
+  # --- Production & Deployment ---
+  - id: "production"
+    priority: 30
+    category: "Production"
+    keywords:
+      - "deploy"
+      - "release"
+      - "prod"
+      - "production"
+      - "rollout"
+      - "shipping"
+    target: "docs/workflows/PRODUCTION_SCRIPTS.md"
+
+  - id: "ci_cd"
+    priority: 31
+    category: "CI/CD"
+    keywords:
+      - "ci"
+      - "cd"
+      - "github actions"
+      - "workflow"
+      - "pipeline"
+    target: "docs/workflows/README.md"
+
+  # --- Testing ---
+  - id: "testing"
+    priority: 40
+    category: "Testing"
+    keywords:
+      - "test"
+      - "unit test"
+      - "integration"
+      - "e2e"
+      - "jest"
+      - "vitest"
+      - "coverage"
+    target: "docs/INDEX.md"
+    commands:
+      - "/test-smart"
+      - "/fix-auto"
+
+  # --- Database ---
+  - id: "database"
+    priority: 50
+    category: "Database"
+    keywords:
+      - "database"
+      - "db"
+      - "sql"
+      - "migration"
+      - "schema"
+      - "postgres"
+      - "drizzle"
+    target: "SIDECAR_GUIDE.md"
+    agent: "database-expert"
+
+  # --- Memory Systems ---
+  - id: "memory"
+    priority: 60
+    category: "Memory"
+    keywords:
+      - "memory"
+      - "context"
+      - "vector"
+      - "embedding"
+      - "semantic search"
+      - "pgvector"
+    target: "docs/INDEX.md"
+
+  # --- AI Tools ---
+  - id: "ai_tools"
+    priority: 70
+    category: "AI Tools"
+    keywords:
+      - "ai"
+      - "llm"
+      - "model"
+      - "inference"
+      - "prompt"
+      - "agent"
+      - "claude"
+    target: "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+
+  # --- Performance ---
+  - id: "performance"
+    priority: 80
+    category: "Performance"
+    keywords:
+      - "perf"
+      - "performance"
+      - "slow"
+      - "latency"
+      - "benchmark"
+      - "optimization"
+    target: "cheatsheets/pr-merge-verification.md"
+    command: "/deploy-check"
+
+  # --- Troubleshooting (fallback) ---
+  - id: "troubleshooting"
+    priority: 90
+    category: "Troubleshooting"
+    keywords:
+      - "error"
+      - "debug"
+      - "fix"
+      - "broken"
+      - "issue"
+      - "problem"
+      - "not working"
+    target: "SIDECAR_GUIDE.md"
+    secondary: "cheatsheets/document-review-workflow.md"
+
+# =============================================================================
+# AGENT REGISTRY (for cross-reference)
+# =============================================================================
+agents:
+  phoenix:
+    - name: "phoenix-truth-case-runner"
+      skill: "phoenix-truth-case-orchestrator"
+      phase: [0]
+    - name: "phoenix-precision-guardian"
+      skill: "phoenix-precision-guard"
+      phase: [1A]
+    - name: "waterfall-specialist"
+      skill: "phoenix-waterfall-ledger-semantics"
+      phase: [0, 1B]
+    - name: "xirr-fees-validator"
+      skill: "phoenix-xirr-fees-validator"
+      phase: [0, 1B]
+    - name: "phoenix-capital-allocation-analyst"
+      skill: "phoenix-capital-exit-investigator"
+      phase: [0, 1A]
+    - name: "phoenix-docs-scribe"
+      skill: "phoenix-docs-sync"
+      phase: [1A]
+    - name: "phoenix-probabilistic-engineer"
+      skill: "phoenix-advanced-forecasting"
+      phase: [2]
+    - name: "phoenix-reserves-optimizer"
+      skill: "phoenix-reserves-optimizer"
+      phase: [2]
+    - name: "phoenix-brand-reporting-stylist"
+      skill: "phoenix-brand-reporting"
+      phase: [3]
+
+# =============================================================================
+# STALENESS RULES
+# =============================================================================
+staleness:
+  # Documents with these patterns in content are considered to have "execution claims"
+  execution_claim_patterns:
+    - "tests pass"
+    - "PR merged"
+    - "deployed to"
+    - "completed on"
+    - "verified that"
+    - "confirmed working"
+
+  # Override cadences by path pattern
+  cadence_overrides:
+    "docs/PHOENIX-SOT/**": "P30D"      # Phoenix docs: 30 days
+    "CHANGELOG.md": "P7D"               # Changelog: 7 days
+    "cheatsheets/**": "P90D"            # Cheatsheets: 90 days
+    "docs/archive/**": "P365D"          # Archives: 1 year (low priority)

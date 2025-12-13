@@ -101,6 +101,25 @@ STOP! Have you checked CAPABILITIES.md for existing solutions?
 - If YES: Use existing agents/tools in your todo list
 ```
 
+## Discovery Routing (Quick Reference)
+
+For detailed routing logic, see `.claude/DISCOVERY-MAP.md`. Key patterns:
+
+| Task Type | Route To |
+|-----------|----------|
+| New feature/capability | CAPABILITIES.md first |
+| Phoenix validation | `/phoenix-truth` command |
+| Phoenix Phase 2 (probabilistic) | `/phoenix-phase2` command |
+| Waterfall/clawback issues | `waterfall-specialist` agent |
+| Precision/numeric drift | `phoenix-precision-guardian` agent |
+| XIRR/fees issues | `xirr-fees-validator` agent |
+| Architecture decisions | DECISIONS.md |
+| Troubleshooting | SIDECAR_GUIDE.md |
+
+**Machine-readable index**: `docs/_generated/router-index.json`
+**Staleness report**: `docs/_generated/staleness-report.md`
+**Regenerate**: `npm run docs:routing:generate`
+
 ### Memory Management
 
 - **CLAUDE.md**: Core architecture & conventions only (see

@@ -42,6 +42,14 @@ with:
 - Precision / Decimal.js issues.
 - Type-safety or linting changes.
 
+## Coordination
+
+- **Before Phase 2 work**: Verify Phase 1 deterministic modules pass via `phoenix-truth-case-runner`
+- **For waterfall semantic questions**: Coordinate with `waterfall-specialist`
+- **For precision concerns in MC outputs**: Coordinate with `phoenix-precision-guardian`
+- **For reserves optimization**: Coordinate with `phoenix-reserves-optimizer`
+- **After implementing features**: Use `/phoenix-phase2` workflow to validate
+
 ## How You Work
 
 1. **Start from Architecture**
