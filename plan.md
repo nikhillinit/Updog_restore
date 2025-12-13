@@ -1,149 +1,237 @@
-# PR #253 Review: Capital Allocation Verification Plan
+# Automatic Discovery System Design
 
-## Summary
+## Problem Statement
 
-This PR adds an "Existence Verification Protocol" to prevent reviewers from making false claims about non-existent assets when those assets actually exist in the codebase.
+**Current State:** CLAUDE.md says "check CAPABILITIES.md first" but this is advisory guidance that agents can skip.
 
-**Files changed:**
-- `.claude/DISCOVERY-MAP.md` (+44 lines) - New Section 0B
-- `CLAUDE.md` (+33 lines) - Two new sections
+**Ideal State:** When prompted, the agent automatically discovers and selects the best existing tools/assets to execute the task.
 
----
-
-## Review Assessment
-
-### What Works Well
-
-1. **Valid Problem Statement**: The issue of stale documentation leading to incorrect "doesn't exist" claims is real and documented in this codebase.
-
-2. **Actionable Checklist**: The VERIFY-BEFORE-CRITIQUE checklist provides concrete steps:
-   - Glob for agents
-   - Glob for skills
-   - Glob for implementations
-   - Grep for references
-   - Check router index
-
-3. **Trigger Phrase Awareness**: Defining phrases that should trigger verification ("doesn't exist", "not implemented", etc.) is a good defensive pattern.
-
-4. **Cross-referencing**: CLAUDE.md correctly references DISCOVERY-MAP.md Section 0B for the full protocol.
+**PR #253 Gap:** Adds defensive verification (prevents false "doesn't exist" claims) but doesn't implement proactive discovery.
 
 ---
 
-### Issues to Address
+## Existing Infrastructure Analysis
 
-#### 1. Content Duplication (Medium Priority)
+### What Already Exists
 
-The verification protocol appears in **two places** with slight variations:
-- `DISCOVERY-MAP.md` Section 0B (full version)
-- `CLAUDE.md` (condensed version)
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `routeQueryFast.ts` | `scripts/` | Pattern-based query routing with scoring |
+| `router-fast.json` | `docs/_generated/` | Pre-generated pattern index (17+ routes) |
+| `CAPABILITIES.md` | root | 250+ agent/skill/tool inventory |
+| `DISCOVERY-MAP.md` | `.claude/` | Agent-facing routing decision tree |
+| `settings.json` | `.claude/` | Hooks configuration (PostToolUse active) |
 
-**Problem**:
-- CLAUDE.md omits the skills glob step that DISCOVERY-MAP.md includes
-- Trigger phrases differ slightly ("the codebase" vs "codebase")
-- Creates maintenance burden - updates must happen in both places
+### What's Missing
 
-**Recommendation**: Consider having CLAUDE.md simply reference DISCOVERY-MAP.md rather than duplicating content. Keep one source of truth.
+1. **UserPromptSubmit hook** - To intercept prompts and run discovery BEFORE processing
+2. **Discovery output format** - Structured recommendations for agent consumption
+3. **Enforcement mechanism** - Ensuring agent acknowledges discovery results
 
-#### 2. Section Numbering Inconsistency (Low Priority)
+---
 
-Using "0B" as a section number in DISCOVERY-MAP.md breaks the sequential pattern:
-- Current: 0B, 1, 2, 3, 4, 5, 6, 7, 8
-- Expected: Sequential numbering
+## Proposed Architecture
 
-**Recommendation**: Either use "0" or renumber to maintain logical flow. "Section 0B" implies there's a "0A" which doesn't exist.
+### Design: UserPromptSubmit Discovery Hook
 
-#### 3. CLAUDE.md Already Overloaded (Medium Priority)
-
-The current CLAUDE.md is ~509 lines and includes 39 "memory" placeholder lines (345-384). Adding more sections increases cognitive load.
-
-**Recommendation**: Before adding content:
-1. Clean up the "memory" placeholders (lines 345-384)
-2. Consider if the brief CLAUDE.md section adds value beyond "see DISCOVERY-MAP.md"
-
-#### 4. Glob Syntax Presentation (Low Priority)
-
-The examples show:
 ```
-Glob .claude/agents/*.md
+USER PROMPT
+    |
+    v
+[UserPromptSubmit Hook]
+    |
+    +---> Run routeQueryFast(prompt)
+    |
+    +---> Check CAPABILITIES.md for matches
+    |
+    +---> Output discovery context
+    |
+    v
+[Agent receives prompt + discovery context]
+    |
+    v
+Agent processes with awareness of available tools
 ```
 
-This might be interpreted as a CLI command rather than a tool invocation. Claude Code's Glob tool takes a `pattern` parameter.
+### Implementation Components
 
-**Recommendation**: Clarify that these are tool invocations, e.g.:
+#### 1. Discovery Hook Script (`scripts/hooks/discovery-hook.sh`)
+
+```bash
+#!/bin/bash
+# UserPromptSubmit hook for automatic discovery
+
+# Read prompt from stdin (JSON)
+INPUT=$(cat)
+PROMPT=$(echo "$INPUT" | jq -r '.prompt // ""')
+
+# Skip if prompt is too short or is a command
+if [ ${#PROMPT} -lt 10 ] || [[ "$PROMPT" == /* ]]; then
+  exit 0  # Pass through without discovery
+fi
+
+# Run the router
+ROUTE_RESULT=$(npx tsx scripts/routeQueryFast.ts "$PROMPT" 2>/dev/null)
+
+if [ $? -eq 0 ] && echo "$ROUTE_RESULT" | grep -q "MATCH:"; then
+  echo "---"
+  echo "DISCOVERY RESULT (auto-generated):"
+  echo "$ROUTE_RESULT"
+  echo ""
+  echo "Use the recommended asset above before implementing from scratch."
+  echo "---"
+fi
+
+exit 0
 ```
-Use Glob tool with pattern: .claude/agents/*.md
+
+#### 2. Settings.json Update
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/hooks/discovery-hook.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": { "tools": ["Edit"] },
+        "hooks": [
+          { "type": "command", "command": "npm run lint:fix" }
+        ]
+      }
+    ]
+  }
+}
 ```
 
-#### 5. Missing Skills Check in CLAUDE.md (Low Priority)
+#### 3. Enhanced Router Output
 
-DISCOVERY-MAP.md checklist includes 5 steps, but CLAUDE.md version only has 3:
-- Agents (present)
-- Skills (MISSING in CLAUDE.md)
-- Implementations (present)
-- Grep references (MISSING in CLAUDE.md)
-- Discovery index (present)
+Current `routeQueryFast.ts` CLI output:
+```
+Query: help with waterfall clawback
+---
+MATCH: phoenix_waterfall
+Route: .claude/agents/waterfall-specialist.md
+Score: 2.0
+Why: Phoenix routing (priority 12)
+Agent: waterfall-specialist
+```
 
-**Recommendation**: Either include all steps or explicitly state it's a condensed version.
+Proposed structured output for hook consumption:
+```
+DISCOVERY RESULT (auto-generated):
+  Best match: waterfall-specialist agent
+  Confidence: HIGH (score 2.0)
+  Action: Use Task tool with subagent_type='waterfall-specialist'
+  Alternatives:
+    - phoenix-capital-allocation-analyst (score 1.5)
+    - xirr-fees-validator (score 1.0)
+```
 
 ---
 
-### Verification Questions
+## Implementation Phases
 
-Before approving, the following should be verified:
+### Phase 1: Basic Discovery Hook (MVP)
+- [ ] Create `scripts/hooks/discovery-hook.sh`
+- [ ] Update `.claude/settings.json` with UserPromptSubmit hook
+- [ ] Test with sample prompts
+- [ ] Measure latency impact (<500ms target)
 
-1. **Does this solve a documented problem?**
-   - [x] YES - Stale documentation causing false critiques is mentioned in Document Review Protocol
+### Phase 2: Enhanced Router
+- [ ] Add `--format=hook` output mode to routeQueryFast.ts
+- [ ] Include agent invocation syntax in output
+- [ ] Add confidence levels (HIGH/MEDIUM/LOW based on score)
 
-2. **Are the referenced paths correct?**
-   - [x] `.claude/agents/*.md` - EXISTS (31 files confirmed)
-   - [x] `.claude/skills/*.md` - EXISTS (22 files confirmed)
-   - [x] `docs/_generated/router-index.json` - EXISTS (confirmed)
-
-3. **Is this consistent with existing patterns?**
-   - [x] Document Review Protocol already exists in CLAUDE.md (lines 171-187)
-   - [ ] New sections should use same formatting style
-
----
-
-## Recommendations
-
-### Required Changes
-
-1. **Consistency**: Align trigger phrases between the two files
-2. **Skills step**: Add skills glob to CLAUDE.md version OR explicitly note it's condensed
-
-### Suggested Improvements
-
-1. **Clean up CLAUDE.md**: Remove the 39 "memory" placeholder lines before adding new content
-2. **Single source of truth**: Consider CLAUDE.md just pointing to DISCOVERY-MAP.md without duplicating the protocol
-3. **Section numbering**: Change "0B" to "0" or insert before section 1 properly
-
-### Optional Enhancements
-
-1. Add a simple test case to verify the protocol catches real issues
-2. Consider adding this to the Document Review Protocol section rather than as separate sections
+### Phase 3: Enforcement & Feedback
+- [ ] Add SessionStart hook for one-time capability reminder
+- [ ] Track discovery hit rate in metrics
+- [ ] Add `--no-discovery` flag for power users
 
 ---
 
-## Decision
+## Comparison: PR #253 vs This Design
 
-**Status**: CHANGES REQUESTED
+| Aspect | PR #253 | This Design |
+|--------|---------|-------------|
+| Timing | Reactive (before claiming non-existence) | Proactive (before any work) |
+| Trigger | Trigger phrases like "doesn't exist" | Every user prompt |
+| Action | Manual verification checklist | Automatic router execution |
+| Output | Documentation guidance | Structured recommendations |
+| Enforcement | None (advisory) | Hook injection (mandatory) |
 
-The concept is sound and addresses a real problem. However, the implementation introduces duplication and inconsistency that will create maintenance burden.
+### Verdict
 
-Key fixes needed:
-1. Align content between the two files
-2. Clean up CLAUDE.md memory placeholders
-3. Address section numbering
+PR #253 is a **subset** of this design. It addresses one failure mode (false non-existence claims) but doesn't solve the core problem (proactive tool selection).
+
+**Recommendation:**
+1. Decline PR #253 as-is
+2. Implement the discovery hook system
+3. PR #253's verification logic becomes unnecessary once discovery is automatic
 
 ---
 
-## Summary for PR Comment
+## Technical Considerations
 
-The verification protocol is a good defensive pattern. Main concerns:
-1. Duplicated content with slight inconsistencies between files
-2. CLAUDE.md skills step missing vs DISCOVERY-MAP.md version
-3. "0B" section numbering is unconventional
-4. CLAUDE.md has 39 "memory" placeholder lines that should be cleaned before adding more content
+### Performance
+- Router query: ~50ms (cached JSON)
+- Hook overhead: ~100ms per prompt
+- Target: <200ms total latency
 
-Recommend aligning content or using CLAUDE.md as a brief pointer to the full protocol in DISCOVERY-MAP.md.
+### Edge Cases
+1. **Slash commands** - Skip discovery (already routing)
+2. **Very short prompts** - Skip (insufficient signal)
+3. **No match found** - Silent pass-through (don't block)
+4. **Timeout** - Fail open (proceed without discovery)
+
+### Metrics to Track
+- Discovery match rate (% of prompts with matches)
+- Tool usage correlation (did agent use recommended tool?)
+- False positive rate (matched but wrong recommendation)
+
+---
+
+## File Structure
+
+```
+scripts/
+├── hooks/
+│   ├── discovery-hook.sh      # UserPromptSubmit hook
+│   └── session-init-hook.sh   # SessionStart hook (optional)
+├── routeQueryFast.ts          # Existing router (enhance)
+└── generateRouterArtifacts.ts # Existing generator
+
+.claude/
+├── settings.json              # Add UserPromptSubmit hook
+├── DISCOVERY-MAP.md           # Keep as agent reference
+└── agents/                    # No changes needed
+```
+
+---
+
+## Next Steps
+
+1. **Validate approach** - Does this design match your vision?
+2. **Prototype hook** - Create minimal discovery-hook.sh
+3. **Test integration** - Verify latency and output format
+4. **Iterate** - Refine based on real usage
+
+---
+
+## Decision Required
+
+Should I:
+A) **Proceed with implementation** - Create the discovery hook system
+B) **Refine design** - Address specific concerns before building
+C) **Hybrid approach** - Accept PR #253 as interim, build discovery system in parallel
+
+Please advise which direction to take.
