@@ -250,51 +250,139 @@ export function clearRouterCache(): void {
 // CLI INTERFACE
 // =============================================================================
 
+type OutputFormat = 'default' | 'hook' | 'json';
+
+/**
+ * Format result for hook consumption (discovery-hook.sh)
+ */
+function formatForHook(result: RouteResult): string {
+  if (!result.matched) {
+    return '';
+  }
+
+  const lines: string[] = [];
+
+  // Determine confidence level
+  let confidence = 'LOW';
+  if (result.score >= 3) {
+    confidence = 'HIGH';
+  } else if (result.score >= 2) {
+    confidence = 'MEDIUM';
+  }
+
+  lines.push('');
+  lines.push('==============================================');
+  lines.push('ROUTER DISCOVERY (auto-generated)');
+  lines.push('==============================================');
+  lines.push(`Confidence: ${confidence} (score: ${result.score.toFixed(1)})`);
+  lines.push('');
+  lines.push('Best match:');
+
+  if (result.agent) {
+    lines.push(`  [AGENT] Use Task tool: subagent_type='${result.agent}'`);
+  }
+  if (result.command) {
+    lines.push(`  [COMMAND] Run: ${result.command}`);
+  }
+  if (result.route_to && !result.agent && !result.command) {
+    lines.push(`  [DOC] Reference: ${result.route_to}`);
+  }
+
+  if (result.alternatives.length > 0) {
+    lines.push('');
+    lines.push('Alternatives:');
+    for (const alt of result.alternatives.slice(0, 3)) {
+      lines.push(`  - ${alt.route_to} (score: ${alt.score.toFixed(1)})`);
+    }
+  }
+
+  lines.push('');
+  lines.push('Use recommended assets before implementing from scratch.');
+  lines.push('==============================================');
+  lines.push('');
+
+  return lines.join('\n');
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
 
-  if (args.length === 0) {
-    console.log('Usage: npx tsx scripts/routeQueryFast.ts "<query>"');
+  // Parse flags
+  let format: OutputFormat = 'default';
+  const queryParts: string[] = [];
+
+  for (const arg of args) {
+    if (arg === '--format=hook') {
+      format = 'hook';
+    } else if (arg === '--format=json') {
+      format = 'json';
+    } else if (arg.startsWith('--format=')) {
+      console.error(`Unknown format: ${arg}`);
+      process.exit(1);
+    } else {
+      queryParts.push(arg);
+    }
+  }
+
+  if (queryParts.length === 0) {
+    console.log('Usage: npx tsx scripts/routeQueryFast.ts [--format=hook|json] "<query>"');
+    console.log('');
+    console.log('Formats:');
+    console.log('  default  Human-readable output');
+    console.log('  hook     Formatted for discovery hook injection');
+    console.log('  json     Machine-readable JSON');
     console.log('');
     console.log('Examples:');
     console.log('  npx tsx scripts/routeQueryFast.ts "help with waterfall"');
-    console.log('  npx tsx scripts/routeQueryFast.ts "run phoenix truth cases"');
-    console.log('  npx tsx scripts/routeQueryFast.ts "fix test failures"');
+    console.log('  npx tsx scripts/routeQueryFast.ts --format=hook "run phoenix truth cases"');
+    console.log('  npx tsx scripts/routeQueryFast.ts --format=json "fix test failures"');
     process.exit(0);
   }
 
-  const query = args.join(' ');
+  const query = queryParts.join(' ');
 
   try {
     const index = await loadRouterIndex();
     const result = routeQueryFast(query, index);
 
-    console.log('Query:', query);
-    console.log('---');
-
-    if (result.matched) {
-      console.log('MATCH: ' + result.pattern_id);
-      console.log('Route: ' + result.route_to);
-      console.log('Score: ' + result.score.toFixed(1));
-      console.log('Why:   ' + result.why);
-
-      if (result.command) {
-        console.log('Command: ' + result.command);
+    // Output based on format
+    if (format === 'json') {
+      console.log(JSON.stringify(result, null, 2));
+    } else if (format === 'hook') {
+      const hookOutput = formatForHook(result);
+      if (hookOutput) {
+        console.log(hookOutput);
       }
-      if (result.agent) {
-        console.log('Agent: ' + result.agent);
-      }
-
-      if (result.alternatives.length > 0) {
-        console.log('');
-        console.log('Alternatives:');
-        for (const alt of result.alternatives) {
-          console.log(`  - ${alt.pattern_id}: ${alt.route_to} (score: ${alt.score.toFixed(1)})`);
-        }
-      }
+      // Exit silently if no match (hook should pass through)
     } else {
-      console.log('NO MATCH');
-      console.log('Reason: ' + result.why);
+      // Default format
+      console.log('Query:', query);
+      console.log('---');
+
+      if (result.matched) {
+        console.log('MATCH: ' + result.pattern_id);
+        console.log('Route: ' + result.route_to);
+        console.log('Score: ' + result.score.toFixed(1));
+        console.log('Why:   ' + result.why);
+
+        if (result.command) {
+          console.log('Command: ' + result.command);
+        }
+        if (result.agent) {
+          console.log('Agent: ' + result.agent);
+        }
+
+        if (result.alternatives.length > 0) {
+          console.log('');
+          console.log('Alternatives:');
+          for (const alt of result.alternatives) {
+            console.log(`  - ${alt.pattern_id}: ${alt.route_to} (score: ${alt.score.toFixed(1)})`);
+          }
+        }
+      } else {
+        console.log('NO MATCH');
+        console.log('Reason: ' + result.why);
+      }
     }
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
