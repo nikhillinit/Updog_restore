@@ -162,7 +162,7 @@
   {
     "scenario": "04-profits-exceed-hurdle-with-catchup",
     "tags": ["baseline", "catch-up", "full-waterfall"],
-    "notes": "Profits exceed hurdle, GP catch-up activates to reach 20% carry target",
+    "notes": "Profits exceed hurdle, GP catch-up activates to reach 20% carry parity (GP_target = LP_preferred × carry/(1-carry))",
     "input": {
       "policy": {
         "id": "truth-004",
@@ -197,8 +197,8 @@
       "dealCost": "1000000.00"
     },
     "expected": {
-      "lpDistribution": "1080000.00",
-      "gpDistribution": "420000.00",
+      "lpDistribution": "1400000.00",
+      "gpDistribution": "100000.00",
       "totalDistributed": "1500000.00",
       "breakdown": [
         {
@@ -214,7 +214,12 @@
         {
           "tier": "gp_catch_up",
           "lpAmount": "0.00",
-          "gpAmount": "420000.00"
+          "gpAmount": "20000.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "320000.00",
+          "gpAmount": "80000.00"
         }
       ]
     }
@@ -346,7 +351,7 @@
   {
     "scenario": "08-full-catchup-100-percent",
     "tags": ["catch-up", "full-catchup"],
-    "notes": "100% catch-up rate - GP gets all residual until target carry achieved",
+    "notes": "100% catch-up rate - GP gets all residual until parity target (GP_target = $80K × 0.25 = $20K)",
     "input": {
       "policy": {
         "id": "truth-008",
@@ -381,8 +386,8 @@
       "dealCost": "1000000.00"
     },
     "expected": {
-      "lpDistribution": "1080000.00",
-      "gpDistribution": "120000.00",
+      "lpDistribution": "1160000.00",
+      "gpDistribution": "40000.00",
       "totalDistributed": "1200000.00",
       "breakdown": [
         {
@@ -398,7 +403,12 @@
         {
           "tier": "gp_catch_up",
           "lpAmount": "0.00",
-          "gpAmount": "120000.00"
+          "gpAmount": "20000.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "80000.00",
+          "gpAmount": "20000.00"
         }
       ]
     }
@@ -406,7 +416,7 @@
   {
     "scenario": "09-partial-catchup-50-percent",
     "tags": ["catch-up", "partial-catchup"],
-    "notes": "50% catch-up rate - GP and LP split residual 50/50 during catch-up phase",
+    "notes": "50% catch-up rate - GP gets 50% of catch-up distributions until parity target ($20K), LP gets other 50%",
     "input": {
       "policy": {
         "id": "truth-009",
@@ -441,8 +451,8 @@
       "dealCost": "1000000.00"
     },
     "expected": {
-      "lpDistribution": "1128000.00",
-      "gpDistribution": "72000.00",
+      "lpDistribution": "1164000.00",
+      "gpDistribution": "36000.00",
       "totalDistributed": "1200000.00",
       "breakdown": [
         {
@@ -457,13 +467,13 @@
         },
         {
           "tier": "gp_catch_up",
-          "lpAmount": "0.00",
-          "gpAmount": "60000.00"
+          "lpAmount": "20000.00",
+          "gpAmount": "20000.00"
         },
         {
           "tier": "carry",
-          "lpAmount": "48000.00",
-          "gpAmount": "12000.00"
+          "lpAmount": "64000.00",
+          "gpAmount": "16000.00"
         }
       ]
     }
@@ -471,7 +481,7 @@
   {
     "scenario": "10-zero-hurdle-with-catchup",
     "tags": ["catch-up", "no-hurdle", "degenerate"],
-    "notes": "Zero hurdle + catch-up - degenerate case, effectively bypasses catch-up logic",
+    "notes": "Zero hurdle + catch-up - GP target = $0 × (0.2/0.8) = $0, so catch-up is skipped and proceeds go to carry",
     "input": {
       "policy": {
         "id": "truth-010",
@@ -506,8 +516,8 @@
       "dealCost": "1000000.00"
     },
     "expected": {
-      "lpDistribution": "1000000.00",
-      "gpDistribution": "500000.00",
+      "lpDistribution": "1400000.00",
+      "gpDistribution": "100000.00",
       "totalDistributed": "1500000.00",
       "breakdown": [
         {
@@ -521,9 +531,9 @@
           "gpAmount": "0.00"
         },
         {
-          "tier": "gp_catch_up",
-          "lpAmount": "0.00",
-          "gpAmount": "500000.00"
+          "tier": "carry",
+          "lpAmount": "400000.00",
+          "gpAmount": "100000.00"
         }
       ]
     }
@@ -531,7 +541,7 @@
   {
     "scenario": "11-gp-commit-as-lp",
     "tags": ["gp-commitment", "policy-toggle"],
-    "notes": "GP commitment included in LP capital - ROC tier includes GP's contributed portion",
+    "notes": "GP commitment included in LP capital - GP target = $81,600 × 0.25 = $20,400",
     "input": {
       "policy": {
         "id": "truth-011",
@@ -566,8 +576,8 @@
       "dealCost": "1020000.00"
     },
     "expected": {
-      "lpDistribution": "1101600.00",
-      "gpDistribution": "398400.00",
+      "lpDistribution": "1404000.00",
+      "gpDistribution": "96000.00",
       "totalDistributed": "1500000.00",
       "breakdown": [
         {
@@ -583,7 +593,12 @@
         {
           "tier": "gp_catch_up",
           "lpAmount": "0.00",
-          "gpAmount": "398400.00"
+          "gpAmount": "20400.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "302400.00",
+          "gpAmount": "75600.00"
         }
       ]
     }
@@ -730,7 +745,7 @@
   {
     "scenario": "15-very-large-proceeds-precision",
     "tags": ["stress", "precision", "scale"],
-    "notes": "Large exit ($100M) - tests precision and performance at scale",
+    "notes": "Large exit ($100M) - GP target = $800K × 0.25 = $200K, carry distributes remaining $89M at 80/20",
     "input": {
       "policy": {
         "id": "truth-015",
@@ -765,8 +780,8 @@
       "dealCost": "10000000.00"
     },
     "expected": {
-      "lpDistribution": "10800000.00",
-      "gpDistribution": "89200000.00",
+      "lpDistribution": "82000000.00",
+      "gpDistribution": "18000000.00",
       "totalDistributed": "100000000.00",
       "breakdown": [
         {
@@ -782,7 +797,12 @@
         {
           "tier": "gp_catch_up",
           "lpAmount": "0.00",
-          "gpAmount": "89200000.00"
+          "gpAmount": "200000.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "71200000.00",
+          "gpAmount": "17800000.00"
         }
       ]
     }
