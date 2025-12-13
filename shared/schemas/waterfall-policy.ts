@@ -258,11 +258,11 @@ export function calculateAmericanWaterfall(
         // GP catch-up using industry-standard parity formula
         // GP catch-up target = LP_preferred × (carry_rate / (1 - carry_rate))
         // This ensures GP reaches parity at the target carry percentage
-        const catchUpRate = tier.catchUpRate || new Decimal(1);
+        const catchUpRate = new Decimal(tier.catchUpRate ?? 1);
 
         // Find the carry rate from the carry tier
         const carryTier = sortedTiers.find((t) => t.tierType === 'carry');
-        const carryRate = carryTier?.rate || new Decimal(0.2);
+        const carryRate = new Decimal(carryTier?.rate ?? 0.2);
 
         // Sum LP preferred return from breakdown
         const lpPreferred = breakdown

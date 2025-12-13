@@ -28,7 +28,10 @@
 import { describe, it, expect } from 'vitest';
 import { xirrNewtonBisection } from '@/lib/finance/xirr';
 import type { CashFlow } from '@/lib/finance/xirr';
-import { calculateAmericanWaterfall, type AmericanWaterfall } from '@shared/schemas/waterfall-policy';
+import {
+  calculateAmericanWaterfall,
+  type AmericanWaterfall,
+} from '@shared/schemas/waterfall-policy';
 import { assertNumericField } from './helpers';
 import Decimal from 'decimal.js';
 
@@ -204,14 +207,22 @@ describe('Truth Cases: Waterfall-Tier (Phase 1A - Active)', () => {
 
   // Summary: Report pass rate
   it('Waterfall-Tier truth table summary', () => {
-    const allTags = waterfallTierCases.flatMap((tc: unknown) => (tc as WaterfallTierCase).tags || []);
+    const allTags = waterfallTierCases.flatMap(
+      (tc: unknown) => (tc as WaterfallTierCase).tags || []
+    );
     const tagSet = new Set(allTags);
 
     // Required categories per truth case design
-    const requiredCategories = ['baseline', 'roc', 'carry'];
+    const requiredCategories = ['baseline', 'roc'];
     requiredCategories.forEach((category) => {
       expect(tagSet.has(category)).toBe(true);
     });
+
+    // Verify carry-related tags exist (simple-carry, full-catchup, partial-catchup)
+    const hasCarryTags = ['simple-carry', 'full-catchup', 'partial-catchup'].some((tag) =>
+      tagSet.has(tag)
+    );
+    expect(hasCarryTags).toBe(true);
 
     expect(waterfallTierCases.length).toBeGreaterThan(0);
     console.log(`Waterfall-Tier: ${waterfallTierCases.length} scenarios validated`);
@@ -317,8 +328,11 @@ describe('Truth Cases: Coverage Summary', () => {
 
   it('validates Decimal.js infrastructure', () => {
     // Verify Decimal.js is being used (not parseFloat) for waterfall calculations
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
     const sampleWaterfallCase = waterfallTierCases[0] as any;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
     const exitProceeds = new Decimal(sampleWaterfallCase.input.exitProceeds);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
     const dealCost = new Decimal(sampleWaterfallCase.input.dealCost);
 
     // Decimal.js objects should have toNumber() method
