@@ -1,7 +1,7 @@
 # Phase 0 Validation Report
 
-**Last Updated:** 2025-12-11 **Phase:** 1.2 Complete - 100% Excel Parity
-Documented **Status:** XIRR Module Production-Ready
+**Last Updated:** 2025-12-13 **Phase:** 1.3 In Progress - Fees Complete
+**Status:** XIRR + Fees Modules Production-Ready
 
 ---
 
@@ -27,11 +27,11 @@ provide superior error handling compared to Excel.
 | Module             | Scenarios | Passing | Pass Rate | Excel Parity  | Status                      | Recommended Path       |
 | ------------------ | --------- | ------- | --------- | ------------- | --------------------------- | ---------------------- |
 | **XIRR**           | 51        | 51      | **100%**  | 48/51 (94.1%) | [PASS] **PRODUCTION READY** | **Phase 1.2 Complete** |
-| Waterfall (Tier)   | TBD       | TBD     | TBD       | TBD           | **PENDING:** Pending        | Phase 1.3              |
-| Waterfall (Ledger) | TBD       | TBD     | TBD       | TBD           | **PENDING:** Pending        | Phase 1.3              |
-| Fees               | TBD       | TBD     | TBD       | TBD           | **PENDING:** Pending        | Phase 1.3              |
-| Capital Allocation | TBD       | TBD     | TBD       | TBD           | **PENDING:** Pending        | Phase 1.3              |
-| Exit Recycling     | TBD       | TBD     | TBD       | TBD           | **PENDING:** Pending        | Phase 1.3              |
+| Waterfall (Tier)   | 15        | 15      | **100%**  | N/A           | [PASS] **VALIDATED**        | Phase 1A Complete      |
+| Waterfall (Ledger) | 14        | TBD     | TBD       | TBD           | **PENDING:** Structural     | Phase 1B               |
+| **Fees**           | 10        | 10      | **100%**  | N/A           | [PASS] **VALIDATED**        | **Phase 1.3 Complete** |
+| Capital Allocation | 20        | TBD     | TBD       | TBD           | **PENDING:** Load Only      | Phase 1.4              |
+| Exit Recycling     | 20        | TBD     | TBD       | TBD           | **PENDING:** Load Only      | Phase 1.4              |
 
 ---
 
@@ -88,6 +88,39 @@ all 2-cashflow cases.
 
 **Validation:** All multi-cashflow cases recalculated in Excel 2024 using
 `=XIRR()` function.
+
+---
+
+## Fees Module Detailed Status
+
+### Test Coverage
+
+| Category            | Count  | Pass Rate        | Notes                                       |
+| ------------------- | ------ | ---------------- | ------------------------------------------- |
+| **Committed Basis** | 4      | 4/4 (100%)       | Baseline, step-down, high/low rates         |
+| **Called Basis**    | 1      | 1/1 (100%)       | Progressive capital call schedule           |
+| **FMV/NAV Basis**   | 1      | 1/1 (100%)       | Portfolio growth schedule with decline      |
+| **Edge Cases**      | 4      | 4/4 (100%)       | Zero fund size, single-year, boundary rates |
+| **TOTAL**           | **10** | **10/10 (100%)** | All tests passing                           |
+
+### Truth Case Corrections (2 total)
+
+| Test ID | Issue                     | Fix                                                         |
+| ------- | ------------------------- | ----------------------------------------------------------- |
+| FEE-003 | Arithmetic error in total | totalFees: 18.0 -> 17.5 (sum of yearlyFees = 5*2.0 + 5*1.5) |
+| FEE-006 | Arithmetic error in total | totalFees: 34.2 -> 34.4 (sum of yearlyFees array)           |
+
+**Root Cause:** Both failures were **TRUTH CASE ERRORS** (incorrect expected
+values). Production code (`computeFeePreview()`) was correct.
+
+### Validation Approach
+
+- **Adapter Pattern:** Created `fee-adapter.ts` to map truth case JSON to
+  production function signatures
+- **Unit Scaling:** Truth cases use $M, production uses whole $ (scale x
+  1,000,000)
+- **Basis Mapping:** Truth case `fmv` maps to production `nav`
+- **Step-Down Logic:** `afterYear` + 1 = `feeCutoverYear`
 
 ---
 
@@ -279,6 +312,9 @@ safety not available in Excel.
 
 | Date       | Phase | Change                                             | Author                  |
 | ---------- | ----- | -------------------------------------------------- | ----------------------- |
+| 2025-12-13 | 1.3   | Fees module validation complete (10/10 passing)    | Claude Code             |
+| 2025-12-13 | 1.3   | 2 truth case corrections (FEE-003, FEE-006)        | Claude Code             |
+| 2025-12-13 | 1.3   | Created fee-adapter.ts for truth case mapping      | Claude Code             |
 | 2025-12-11 | 1.2   | 10 truth case corrections, 100% pass rate achieved | Claude + Phoenix Team   |
 | 2025-12-11 | 1.2   | Excel validation methodology documented            | XIRR Validator Agent    |
 | 2025-12-11 | 1.2   | Failure triage and classification complete         | Truth Case Orchestrator |
