@@ -48,6 +48,13 @@ import {
   type WaterfallLedgerTruthCase,
 } from './waterfall-ledger-adapter';
 
+// Phase 1.4A: Exit Recycling validation imports
+import {
+  executeExitRecyclingTruthCase,
+  validateExitRecyclingResult,
+  type ExitRecyclingTruthCase,
+} from './exit-recycling-adapter';
+
 // Import all truth-case JSON files
 import xirrCases from '../../../docs/xirr.truth-cases.json';
 import waterfallTierCases from '../../../docs/waterfall.truth-cases.json';
@@ -339,17 +346,48 @@ describe('Truth Cases: Capital Allocation (Phase 1B+ - Load Only)', () => {
   });
 });
 
-// [PHASE 1B+] Exit Recycling - Load + Count Only
-describe('Truth Cases: Exit Recycling (Phase 1B+ - Load Only)', () => {
-  it('loads exit recycling truth cases', () => {
-    expect(exitCases).toBeDefined();
-    expect(Array.isArray(exitCases)).toBe(true);
-    expect(exitCases.length).toBeGreaterThan(0);
+// [PHASE 1.4A] Exit Recycling - Active Execution
+describe('Truth Cases: Exit Recycling (Phase 1.4A - Active)', () => {
+  (exitCases as ExitRecyclingTruthCase[]).forEach((testCase) => {
+    const { id, description, category } = testCase;
+
+    it(`${id}: ${description}`, () => {
+      // Execute production code
+      const result = executeExitRecyclingTruthCase(testCase);
+
+      // Validate result against expected values
+      const validation = validateExitRecyclingResult(result, testCase);
+
+      // Assert all validations pass
+      if (!validation.pass) {
+        console.error(`[${id}] Category: ${category}`);
+        console.error(`[${id}] Validation failures:`, validation.failures);
+      }
+      expect(validation.pass).toBe(true);
+    });
   });
 
-  // PHASE 1B+: Execution deferred until Waterfall modules complete
-  it.skip('[GATE] Exit Recycling execution requires Waterfall-Tier + Ledger completion', () => {
-    // See: docs/PHOENIX-EXECUTION-PLAN-v2.31.md Section 1B
+  // Summary: Exit Recycling coverage and pass rate
+  it('Exit Recycling truth table summary', () => {
+    expect(exitCases.length).toBe(20);
+
+    const allTags = (exitCases as ExitRecyclingTruthCase[]).flatMap((tc) => tc.tags);
+    const tagSet = new Set(allTags);
+
+    // Required coverage categories per Phoenix plan
+    expect(tagSet.has('baseline')).toBe(true);
+    expect(tagSet.has('capacity')).toBe(true);
+
+    // Report category distribution
+    const categories = (exitCases as ExitRecyclingTruthCase[]).reduce(
+      (acc, tc) => {
+        acc[tc.category] = (acc[tc.category] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+    console.log(`Exit Recycling: ${exitCases.length} scenarios validated`);
+    console.log('Category distribution:', categories);
   });
 });
 
