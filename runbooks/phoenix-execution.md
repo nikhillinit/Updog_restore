@@ -25,9 +25,9 @@ Phases:
 
 1. **Verify Phoenix Documentation State**
    - [ ] Open:
-     - `PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md`
-     - `docs/analysis/strategic-review-2025-11-27/04-PHOENIX-STRATEGY-ANALYSIS.md`
-   - [ ] Confirm they do **not** claim to be the current execution plan, or add a short "Superseded by `docs/strategies/PHOENIX-PLAN-2025-11-30.md` for execution details" banner.
+     - `docs/PHOENIX-SOT/execution-plan-v2.34.md` (current Phoenix execution plan)
+     - `docs/archive/phoenix/PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md` (archived)
+   - [ ] Confirm v2.34 is the active execution plan. Phoenix v3.0 docs were archived 2025-12-13.
 
 2. **Verify MOIC Features**
    - [ ] Start the dev server:
@@ -123,19 +123,12 @@ Phase 0 is complete when:
 
 **Goal:** Remove ambiguity about which Phoenix plan is current while preserving history.
 
-- [ ] At the top of:
-  - `PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md`
-  - `docs/analysis/strategic-review-2025-11-27/04-PHOENIX-STRATEGY-ANALYSIS.md`
+- [x] **COMPLETED 2025-12-13:** Phoenix v3.0 docs have been archived:
+  - `docs/archive/phoenix/PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md`
+  - `docs/archive/phoenix/v3.0/HANDOFF-PHOENIX-PHASE1-2025-11-30.md`
+  - `docs/archive/phoenix/v3.0/KICKOFF-PHOENIX-PHASE1-2025-11-30.md`
 
-  Add a short note such as:
-
-  > **Note:** Execution details in this document are superseded by `docs/strategies/PHOENIX-PLAN-2025-11-30.md`. This file is retained for historical context.
-
-- [ ] Commit the changes with a message such as:
-  ```bash
-  git add PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md docs/analysis/strategic-review-2025-11-27/04-PHOENIX-STRATEGY-ANALYSIS.md
-  git commit -m "docs: mark older Phoenix strategy docs as superseded by PHOENIX-PLAN-2025-11-30"
-  ```
+  All have deprecation headers pointing to `docs/PHOENIX-SOT/execution-plan-v2.34.md`.
 
 ---
 
