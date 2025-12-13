@@ -1,21 +1,21 @@
 # Staleness Report
 
-*Generated: 2025-12-13T03:21:48.191Z*
+*Generated: 2025-12-13T04:21:35.441Z*
 *Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 563 |
-| Stale Documents | 558 |
-| Missing Frontmatter | 511 |
+| Total Documents | 559 |
+| Stale Documents | 554 |
+| Missing Frontmatter | 507 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
-| UNKNOWN | 558 |
+| UNKNOWN | 554 |
 | ACTIVE | 5 |
 
 ## Stale Documents
@@ -46,7 +46,6 @@ Documents that need review (older than their cadence threshold):
 | `HANDOFF-MEMO-PHASE2-MERGED-2025-11-06.md` | Never | 999 | No | Unassigned |
 | `HANDOFF-MEMO-PHASE2-READY-2025-11-06.md` | Never | 999 | No | Unassigned |
 | `HANDOFF-MEMO-SCHEMA-TDD-PHASE1-COMPLETE.md` | Never | 999 | YES - verify! | Unassigned |
-| `HANDOFF-PHOENIX-PHASE1-2025-11-30.md` | Never | 999 | No | Unassigned |
 | `HANDOFF-PORTFOLIO-PHASE0-COMPLETE.md` | Never | 999 | YES - verify! | Unassigned |
 | `HANDOFF-SKILLS-APPLICATION-2025-11-29.md` | Never | 999 | No | Unassigned |
 | `HANDOFF-SKILLS-INTEGRATION-2025-11-29.md` | Never | 999 | No | Unassigned |
@@ -55,7 +54,6 @@ Documents that need review (older than their cadence threshold):
 | `IMPLEMENTATION_SYNTHESIS.md` | Never | 999 | YES - verify! | Unassigned |
 | `ITERATION-A-QUICKSTART.md` | Never | 999 | YES - verify! | Unassigned |
 | `JSDOM-FIX-SUMMARY-2025-12-01.md` | Never | 999 | YES - verify! | Unassigned |
-| `KICKOFF-PHOENIX-PHASE1-2025-11-30.md` | Never | 999 | YES - verify! | Unassigned |
 | `KICKOFF-SKILLS-APPLICATION.md` | Never | 999 | YES - verify! | Unassigned |
 | `MERGE_RISK_ANALYSIS.md` | Never | 999 | YES - verify! | Unassigned |
 | `MIGRATION-NATIVE-MEMORY.md` | Never | 999 | YES - verify! | Unassigned |
@@ -74,8 +72,10 @@ Documents that need review (older than their cadence threshold):
 | `PHASE2_HANDOFF_MEMO.md` | Never | 999 | No | Unassigned |
 | `PHASE3-IMPLEMENTATION-HANDOFF-2025-11-06.md` | Never | 999 | No | Unassigned |
 | `PHASE3-KICKOFF-CHECKLIST.md` | Never | 999 | YES - verify! | Unassigned |
+| `PHASE3-STRATEGY-FINAL-2025-11-06.md` | Never | 999 | No | Unassigned |
+| `PHASE3-STRATEGY-HANDOFF-2025-11-06.md` | Never | 999 | No | Unassigned |
 
-*...and 508 more stale documents.*
+*...and 504 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -92,7 +92,6 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **IMPLEMENTATION_SYNTHESIS.md** (999 days old)
 - [ ] **ITERATION-A-QUICKSTART.md** (999 days old)
 - [ ] **JSDOM-FIX-SUMMARY-2025-12-01.md** (999 days old)
-- [ ] **KICKOFF-PHOENIX-PHASE1-2025-11-30.md** (999 days old)
 - [ ] **KICKOFF-SKILLS-APPLICATION.md** (999 days old)
 - [ ] **MERGE_RISK_ANALYSIS.md** (999 days old)
 - [ ] **MIGRATION-NATIVE-MEMORY.md** (999 days old)
@@ -225,7 +224,6 @@ Documents without proper YAML frontmatter:
 - [ ] `HANDOFF-MEMO-PHASE2-MERGED-2025-11-06.md`
 - [ ] `HANDOFF-MEMO-PHASE2-READY-2025-11-06.md`
 - [ ] `HANDOFF-MEMO-SCHEMA-TDD-PHASE1-COMPLETE.md`
-- [ ] `HANDOFF-PHOENIX-PHASE1-2025-11-30.md`
 - [ ] `HANDOFF-PORTFOLIO-PHASE0-COMPLETE.md`
 - [ ] `HANDOFF-SKILLS-APPLICATION-2025-11-29.md`
 - [ ] `HANDOFF-SKILLS-INTEGRATION-2025-11-29.md`
@@ -234,7 +232,6 @@ Documents without proper YAML frontmatter:
 - [ ] `IMPLEMENTATION_SYNTHESIS.md`
 - [ ] `ITERATION-A-QUICKSTART.md`
 - [ ] `JSDOM-FIX-SUMMARY-2025-12-01.md`
-- [ ] `KICKOFF-PHOENIX-PHASE1-2025-11-30.md`
 - [ ] `KICKOFF-SKILLS-APPLICATION.md`
 - [ ] `MERGE_RISK_ANALYSIS.md`
 - [ ] `MIGRATION-NATIVE-MEMORY.md`
@@ -261,7 +258,6 @@ Documents without proper YAML frontmatter:
 - [ ] `PR-201-MERGE-ANALYSIS.md`
 - [ ] `PRE_MERGE_CHECKLIST.md`
 - [ ] `PRODUCTION_RUNBOOK.md`
-- [ ] `PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md`
 - [ ] `PROMPT_PATTERNS.md`
 - [ ] `Proposed Next Steps - Oct 30 v2 - VALIDATION REPORT.md`
 - [ ] `QA-RESULTS-FEES-EXPENSES-STEP-2025-12-01.md`
@@ -335,7 +331,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/PHASE1B-FEES-IN-PROGRESS.md`
 - [ ] `docs/PHASE1B-TRUTH-CASES-REFERENCE.md`
 - [ ] `docs/PHASE1_INTEGRATION_SUMMARY.md`
-- [ ] `docs/PHOENIX-PHASE0-CONTINUATION-KICKOFF.md`
 - [ ] `docs/PHOENIX-SOT/deferred-vesting-plan.md`
 - [ ] `docs/PHOENIX-SOT/execution-plan-v2.34.md`
 - [ ] `docs/PHOENIX-SOT/mcp-tools-guide.md`

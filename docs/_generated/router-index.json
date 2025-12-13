@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-12-13T03:21:48.189Z",
+  "generatedAt": "2025-12-13T04:21:35.438Z",
   "version": "2.0",
   "config": {
     "min_score_to_route": 2,
@@ -714,18 +714,6 @@
       "owner": null
     },
     {
-      "path": "HANDOFF-PHOENIX-PHASE1-2025-11-30.md",
-      "exists": true,
-      "docType": "doc",
-      "frontmatter": {},
-      "isStale": true,
-      "staleDays": 999,
-      "hasExecutionClaims": false,
-      "lastUpdated": null,
-      "status": "UNKNOWN",
-      "owner": null
-    },
-    {
       "path": "HANDOFF-PORTFOLIO-PHASE0-COMPLETE.md",
       "exists": true,
       "docType": "doc",
@@ -811,18 +799,6 @@
     },
     {
       "path": "JSDOM-FIX-SUMMARY-2025-12-01.md",
-      "exists": true,
-      "docType": "doc",
-      "frontmatter": {},
-      "isStale": true,
-      "staleDays": 999,
-      "hasExecutionClaims": true,
-      "lastUpdated": null,
-      "status": "UNKNOWN",
-      "owner": null
-    },
-    {
-      "path": "KICKOFF-PHOENIX-PHASE1-2025-11-30.md",
       "exists": true,
       "docType": "doc",
       "frontmatter": {},
@@ -1141,18 +1117,6 @@
       "isStale": true,
       "staleDays": 999,
       "hasExecutionClaims": true,
-      "lastUpdated": null,
-      "status": "UNKNOWN",
-      "owner": null
-    },
-    {
-      "path": "PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md",
-      "exists": true,
-      "docType": "doc",
-      "frontmatter": {},
-      "isStale": true,
-      "staleDays": 999,
-      "hasExecutionClaims": false,
       "lastUpdated": null,
       "status": "UNKNOWN",
       "owner": null
@@ -2098,18 +2062,6 @@
     },
     {
       "path": "docs/PHASE1_INTEGRATION_SUMMARY.md",
-      "exists": true,
-      "docType": "doc",
-      "frontmatter": {},
-      "isStale": true,
-      "staleDays": 999,
-      "hasExecutionClaims": false,
-      "lastUpdated": null,
-      "status": "UNKNOWN",
-      "owner": null
-    },
-    {
-      "path": "docs/PHOENIX-PHASE0-CONTINUATION-KICKOFF.md",
       "exists": true,
       "docType": "doc",
       "frontmatter": {},
@@ -7494,11 +7446,11 @@
     }
   ],
   "stats": {
-    "total_docs": 563,
-    "stale_docs": 558,
-    "missing_frontmatter": 511,
+    "total_docs": 559,
+    "stale_docs": 554,
+    "missing_frontmatter": 507,
     "by_status": {
-      "UNKNOWN": 558,
+      "UNKNOWN": 554,
       "ACTIVE": 5
     }
   }

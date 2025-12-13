@@ -26,8 +26,9 @@ complete infrastructure understanding, also read:
 
 1. **[.claude/PROJECT-UNDERSTANDING.md](.claude/PROJECT-UNDERSTANDING.md)** -
    Complete infrastructure reference (permanent guide)
-2. **[PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md](PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md)** -
-   21-week transformation roadmap
+2. **[docs/PHOENIX-SOT/execution-plan-v2.34.md](docs/PHOENIX-SOT/execution-plan-v2.34.md)** -
+   Phoenix validation-first execution plan (current)
+   _(Note: PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md archived - see docs/archive/phoenix/)_
 3. **[AI-WORKFLOW-COMPLETE-GUIDE.md](AI-WORKFLOW-COMPLETE-GUIDE.md)** - 28
    agents, orchestration patterns
 4. **[COMPREHENSIVE-WORKFLOW-GUIDE.md](COMPREHENSIVE-WORKFLOW-GUIDE.md)** -
