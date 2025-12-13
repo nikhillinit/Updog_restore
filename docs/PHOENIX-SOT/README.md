@@ -156,6 +156,22 @@ When making changes:
 For detailed historical context (e.g., how the agent and command system
 evolved), see the v2.33 version history section.
 
+### Deprecated: Phoenix v3.0 Infrastructure Track
+
+Phoenix v3.0 (infrastructure modernization) was abandoned in favor of the
+validation-first approach in v2.34. Infrastructure goals (pnpm migration,
+sidecar removal, TS baseline cleanup) were NOT executed.
+
+**Archived Documents:**
+
+- `docs/archive/phoenix/v3.0/HANDOFF-PHOENIX-PHASE1-2025-11-30.md`
+- `docs/archive/phoenix/v3.0/KICKOFF-PHOENIX-PHASE1-2025-11-30.md`
+- `docs/archive/phoenix/PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md`
+- `docs/archive/phoenix/PHOENIX-PLAN-2025-11-30.md`
+
+**What was executed:** Wizard Step 4 work (PR #227 - active as of Dec 1, 2025)
+**What was NOT executed:** pnpm migration, sidecar removal, TS baseline cleanup
+
 ---
 
 ## 6. Known Limitations (as of 2025-12-12)

@@ -547,7 +547,8 @@ gates:
 ## Related Documentation
 
 - **ANTI_PATTERNS.md** - What NOT to do (comprehensive failure catalog)
-- **PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md** - Overall project strategy
+- **docs/PHOENIX-SOT/execution-plan-v2.34.md** - Current Phoenix execution plan
+  _(archived: docs/archive/phoenix/PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md)_
 - **CAPABILITIES.md** - Existing tools and agents (check FIRST)
 - **HANDOFF-MEMO-CAPITAL-ALLOCATION-COMPLETE-2025-11-05.md** - Phase 1 case
   study

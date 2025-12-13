@@ -1,3 +1,12 @@
+> **DEPRECATED - 2025-12-13** Phoenix v3.0 (infrastructure modernization) was
+> superseded by Phoenix v2.34 (validation-first execution). Infrastructure goals
+> (pnpm, sidecar, TS baseline cleanup) were NOT executed. For current Phoenix
+> work: `docs/PHOENIX-SOT/execution-plan-v2.34.md`
+>
+> **Note:** Wizard Step 4 work from this plan is under active development on
+> `phoenix/phase-1-wizard-fees` branch with open PR #227 (as of 2025-12-01).
+> Core wizard redesign was merged to main in September 2025 (PRs #87, #88).
+
 # Phoenix v3.0 Phase 1 Kickoff Prompt
 
 **Copy this entire prompt into your next Claude Code session to continue Phoenix

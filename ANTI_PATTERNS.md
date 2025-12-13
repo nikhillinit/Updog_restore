@@ -159,7 +159,9 @@ grep -i "extract\|reference" CAPABILITIES.md
 # Use existing tool, contribute improvements if needed
 ```
 
-**Project Phoenix Alignment:** From PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md:
+**Project Phoenix Alignment:** From docs/PHOENIX-SOT/execution-plan-v2.34.md
+(historical context:
+docs/archive/phoenix/PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md):
 
 > **Core Principle**: Foundation-first methodology - fix root causes before
 > symptoms, establish patterns before scaling.
@@ -1129,7 +1131,7 @@ function resolvePath(input: string): string {
 
 ## 6. Project Phoenix Alignment
 
-### Core Principles from PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md
+### Core Principles from Phoenix Strategy (archived: docs/archive/phoenix/PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md)
 
 **Foundation-First Methodology:**
 
@@ -1250,7 +1252,8 @@ Before starting any documentation task, verify:
 ## Related Documentation
 
 - **PROMPT_PATTERNS.md** - Proven patterns from Phase 1 (what TO do)
-- **PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md** - Overall project strategy
+- **docs/PHOENIX-SOT/execution-plan-v2.34.md** - Current Phoenix execution plan
+  _(archived: docs/archive/phoenix/PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md)_
 - **CAPABILITIES.md** - Existing tools and agents (check FIRST)
 - **HANDOFF-MEMO-CAPITAL-ALLOCATION-COMPLETE-2025-11-05.md** - Phase 1 case
   study
