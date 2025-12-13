@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-12-12T23:37:54.986Z",
+  "generatedAt": "2025-12-13T00:12:36.564Z",
   "version": "2.0",
   "config": {
     "min_score_to_route": 2,
@@ -503,7 +503,7 @@
         "review_cadence": "P90D"
       },
       "isStale": false,
-      "staleDays": 0,
+      "staleDays": 1,
       "hasExecutionClaims": false,
       "lastUpdated": "2025-12-12",
       "status": "ACTIVE",
@@ -1802,7 +1802,7 @@
         "review_cadence": "P90D"
       },
       "isStale": false,
-      "staleDays": 0,
+      "staleDays": 1,
       "hasExecutionClaims": false,
       "lastUpdated": "2025-12-12",
       "status": "ACTIVE",
@@ -1898,7 +1898,7 @@
         "review_cadence": "P90D"
       },
       "isStale": false,
-      "staleDays": 0,
+      "staleDays": 1,
       "hasExecutionClaims": false,
       "lastUpdated": "2025-12-12",
       "status": "ACTIVE",
@@ -2190,7 +2190,7 @@
         "review_cadence": "P30D"
       },
       "isStale": false,
-      "staleDays": 0,
+      "staleDays": 1,
       "hasExecutionClaims": false,
       "lastUpdated": "2025-12-12",
       "status": "ACTIVE",
@@ -6423,7 +6423,7 @@
         ]
       },
       "isStale": false,
-      "staleDays": 0,
+      "staleDays": 1,
       "hasExecutionClaims": false,
       "lastUpdated": "2025-12-12",
       "status": "ACTIVE",
