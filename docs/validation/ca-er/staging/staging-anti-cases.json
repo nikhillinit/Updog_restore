@@ -1,0 +1,298 @@
+[
+  {
+    "id": "CA-ADV-001",
+    "module": "CapitalAllocation",
+    "category": "reserve_engine",
+    "description": "Binding constraint inversion: reserve floor binds while cohort cap is non-binding (opposite of CA-015)",
+    "inputs": {
+      "fund": {
+        "commitment": 100,
+        "target_reserve_pct": 0.3,
+        "reserve_policy": "static_pct",
+        "pacing_window_months": 24,
+        "vintage_year": 2024
+      },
+      "timeline": {
+        "start_date": "2024-01-01",
+        "end_date": "2024-12-31"
+      },
+      "flows": {
+        "contributions": [
+          {
+            "date": "2024-03-31",
+            "amount": 15
+          }
+        ],
+        "distributions": [
+          {
+            "date": "2024-02-15",
+            "amount": 10,
+            "recycle_eligible": false
+          }
+        ]
+      },
+      "constraints": {
+        "min_cash_buffer": 5,
+        "rebalance_frequency": "quarterly"
+      },
+      "cohorts": [
+        {
+          "name": "Seed",
+          "weight": 0.4,
+          "max_allocation_pct": 0.8
+        },
+        {
+          "name": "Series-A",
+          "weight": 0.6,
+          "max_allocation_pct": 0.8
+        }
+      ]
+    },
+    "expected": {
+      "reserve_balance": 30,
+      "reserve_needs": 25,
+      "allocations_by_cohort": [
+        {
+          "cohort": "Seed",
+          "amount": 0
+        },
+        {
+          "cohort": "Series-A",
+          "amount": 0
+        }
+      ],
+      "violations": [],
+      "precedence_applied": {
+        "reserve_precedence": true,
+        "description": "Reserve floor (max(30% target, $5M buffer) = $30M) binds; all $15M contribution allocated to reserve, zero to cohorts"
+      }
+    },
+    "invariants": [
+      "Reserve precedence: reserve_balance >= max(target_reserve, min_cash_buffer)",
+      "No negative allocations: all cohort amounts >= 0",
+      "Conservation: sum(allocations) + reserve_needs = contribution - distribution",
+      "Cohort caps non-binding: Seed weight=40% < max=80%, Series-A weight=60% < max=80%"
+    ],
+    "adr_references": [
+      "ADR-008 Section 2.1: Core Precedence (Reserve floor > Pacing > Cohort)",
+      "ADR-008 Section 2.2: Reserve Policy floor enforcement",
+      "ADR-008 Section 4.1: Liquidity Protection rationale"
+    ],
+    "rationale": "Tests reserve precedence when reserve floor is severely underfunded (net cash = $5M after $10M distribution, needs $30M reserve). Expected: all available capital ($15M contribution) flows to reserve, zero cohort allocation despite non-binding caps. Validates that reserve floor binding prevents deployment even when cohorts have capacity.",
+    "notes": "Adversarial case: flips CA-015 scenario where cohort caps bind but reserve satisfied. Here reserve binds absolutely while cohort caps remain slack. Tests reserve-first enforcement per ADR-008 Section 2.1.",
+    "schemaVersion": "1.0.0"
+  },
+  {
+    "id": "CA-ADV-002",
+    "module": "CapitalAllocation",
+    "category": "pacing_engine",
+    "description": "Equality boundary: pacing target EXACTLY equals reserve floor (tie-breaking test)",
+    "inputs": {
+      "fund": {
+        "commitment": 100,
+        "target_reserve_pct": 0.2,
+        "reserve_policy": "static_pct",
+        "pacing_window_months": 12,
+        "vintage_year": 2024
+      },
+      "timeline": {
+        "start_date": "2024-01-01",
+        "end_date": "2024-03-31"
+      },
+      "flows": {
+        "contributions": [
+          {
+            "date": "2024-01-15",
+            "amount": 20
+          }
+        ],
+        "distributions": []
+      },
+      "constraints": {
+        "min_cash_buffer": 0,
+        "rebalance_frequency": "monthly"
+      },
+      "cohorts": [
+        {
+          "name": "Core",
+          "weight": 1.0,
+          "max_allocation_pct": 1.0
+        }
+      ],
+      "pacing": {
+        "monthly_target": 20,
+        "carryover_from_previous": 0
+      }
+    },
+    "expected": {
+      "reserve_balance": 20,
+      "reserve_needs": 0,
+      "pacing_budget": 20,
+      "allocations_by_cohort": [
+        {
+          "cohort": "Core",
+          "amount": 0
+        }
+      ],
+      "violations": [],
+      "precedence_applied": {
+        "reserve_precedence": true,
+        "pacing_satisfied": false,
+        "description": "Reserve target ($20M) = Pacing target ($20M). Reserve precedence takes all capital. Pacing foregone."
+      }
+    },
+    "invariants": [
+      "Precedence monotonicity: reserve >= pacing when values equal",
+      "Deterministic tie-breaking: same inputs always produce same output",
+      "Conservation: reserve_balance = contribution when pacing_budget = reserve_target",
+      "Zero allocation: allocations_by_cohort sum to 0 when reserve consumes all capital"
+    ],
+    "adr_references": [
+      "ADR-008 Section 2.1: Core Precedence (Reserve floor > Pacing)",
+      "ADR-008 Section 4.1: Liquidity Protection takes priority over deployment smoothness",
+      "ADR-008 Section 7.3: Idempotency and order-stable calculations"
+    ],
+    "rationale": "Tests tie-breaking behavior when reserve floor ($20M = 20% of $100M) exactly equals monthly pacing target ($20M). Per ADR-008 Section 2.1 precedence rule: reserve > pacing. Expected: reserve gets 100% of capital ($20M), pacing and cohorts get zero. Validates that precedence is strictly enforced even at equality boundary.",
+    "notes": "Adversarial equality test: demonstrates precedence is not symmetric. When values tie, higher-precedence rule wins (reserve). Tests determinism: running twice with same inputs must produce identical result (idempotency per ADR-008 Section 7.3).",
+    "schemaVersion": "1.0.0"
+  },
+  {
+    "id": "ER-ADV-001",
+    "category": "capacity_enforcement",
+    "description": "Spill-into-capped: exit eligible for recycling but capacity already at 99% (near-cap boundary)",
+    "input": {
+      "fundSize": 100,
+      "recyclingCapPercent": 15,
+      "recyclingPeriod": 5,
+      "exitRecyclingRate": 100,
+      "cumulativeRecycled": 14.85,
+      "exits": [
+        {
+          "id": "exit-near-cap",
+          "year": 3,
+          "grossProceeds": 25,
+          "ownershipPercent": 20
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 15.0,
+      "totalReturnedToLPs": 4.85,
+      "remainingCapacity": 0,
+      "capReached": true,
+      "recyclingByExit": [
+        {
+          "exitId": "exit-near-cap",
+          "exitYear": 3,
+          "fundProceeds": 5.0,
+          "recycledAmount": 0.15,
+          "returnedToLPs": 4.85,
+          "withinPeriod": true,
+          "appliedRate": 100,
+          "capEnforcement": {
+            "capacityBeforeExit": 0.15,
+            "attemptedRecycling": 5.0,
+            "cappedAt": 0.15,
+            "overflow": 4.85
+          }
+        }
+      ],
+      "cumulativeByYear": [
+        {
+          "year": 3,
+          "cumulativeRecycled": 15.0,
+          "annualRecycled": 0.15
+        }
+      ]
+    },
+    "tolerance": 0.01,
+    "invariants": [
+      "Cap enforcement: totalRecycled <= maxRecyclableCapital (15.0)",
+      "Split allocation: recycledAmount + returnedToLPs = fundProceeds",
+      "Conservation of capital: no capital lost in split",
+      "Capacity exhaustion: remainingCapacity = 0, capReached = true",
+      "Partial recycling: recycledAmount (0.15) < fundProceeds (5.0)"
+    ],
+    "adr_references": [
+      "ADR-008 Section 2.5: Recycling Integration",
+      "ADR-008 Section 6.1: Predictable outputs (deterministic cap enforcement)"
+    ],
+    "rationale": "Tests near-cap boundary condition: fund has already recycled $14.85M of $15M capacity (99% utilized). New $5M exit occurs within recycling period. Expected: $0.15M recycled (fills remaining capacity to exactly $15M cap), $4.85M returned to LPs. Validates that cap is strictly enforced and overflow is deterministically split to LPs.",
+    "notes": "Adversarial near-cap test: validates partial recycling when capacity headroom ($0.15M) is much smaller than exit proceeds ($5M). Tests conservation of capital: $0.15M + $4.85M = $5M (no rounding loss). Per ADR-008 Section 6.1, output must be deterministic and auditable.",
+    "tags": [
+      "adversarial",
+      "capacity-enforcement",
+      "partial-recycling",
+      "cap-boundary"
+    ]
+  },
+  {
+    "id": "ER-ADV-002",
+    "category": "period_enforcement",
+    "description": "Period boundary + 1: exit occurs in year 6 when period = 5 (just outside boundary, exclusive upper bound test)",
+    "input": {
+      "fundSize": 100,
+      "recyclingCapPercent": 15,
+      "recyclingPeriod": 5,
+      "exitRecyclingRate": 100,
+      "exits": [
+        {
+          "id": "exit-year-6",
+          "year": 6,
+          "grossProceeds": 30,
+          "ownershipPercent": 25
+        }
+      ]
+    },
+    "expectedOutput": {
+      "totalRecycled": 0,
+      "totalReturnedToLPs": 7.5,
+      "remainingCapacity": 15.0,
+      "capReached": false,
+      "recyclingByExit": [
+        {
+          "exitId": "exit-year-6",
+          "exitYear": 6,
+          "fundProceeds": 7.5,
+          "recycledAmount": 0,
+          "returnedToLPs": 7.5,
+          "withinPeriod": false,
+          "appliedRate": 0,
+          "periodEnforcement": {
+            "recyclingPeriod": 5,
+            "exitYear": 6,
+            "eligible": false,
+            "reason": "Exit year (6) exceeds recycling period (5); exclusive upper bound"
+          }
+        }
+      ],
+      "cumulativeByYear": [
+        {
+          "year": 6,
+          "cumulativeRecycled": 0,
+          "annualRecycled": 0
+        }
+      ]
+    },
+    "tolerance": 0.01,
+    "invariants": [
+      "Period enforcement: exitYear > recyclingPeriod => ineligible (exclusive upper bound)",
+      "Zero recycling: recycledAmount = 0 when ineligible",
+      "Full LP return: returnedToLPs = fundProceeds when ineligible",
+      "Capacity untouched: remainingCapacity = maxRecyclableCapital when no recycling occurs",
+      "withinPeriod = false: eligibility flag correctly set"
+    ],
+    "adr_references": [
+      "ADR-008 Section 2.5: Recycling Integration (eligible distributions increase allocable capacity)",
+      "ADR-008 Section 6.1: Predictable outputs and clear conflict resolution"
+    ],
+    "rationale": "Tests exclusive upper bound of recycling period: period = 5 years means exits in years 1-5 eligible, year 6+ ineligible. Exit occurs in year 6 (first year outside period). Expected: zero recycling, 100% to LPs ($7.5M), withinPeriod = false. Validates that period boundary is strictly exclusive (not <=, but <).",
+    "notes": "Adversarial period boundary test: year 6 is just outside the [1, 5] eligible window. Tests that boundary is not inclusive of upper bound (year 5 eligible, year 6 ineligible). Per ADR-008 Section 6.1, enforcement must be deterministic and auditable with clear eligibility reason.",
+    "tags": [
+      "adversarial",
+      "period-enforcement",
+      "boundary-exclusive",
+      "ineligible-exit"
+    ]
+  }
+]

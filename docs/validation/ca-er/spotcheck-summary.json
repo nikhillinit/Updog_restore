@@ -1,0 +1,215 @@
+{
+  "runMeta": {
+    "date": "2025-12-13T00:40:59Z",
+    "branch": "main",
+    "commit": "480c15f5",
+    "scope": ["capital-allocation", "exit-recycling"],
+    "testCommand": "npx vitest run tests/unit/truth-cases/runner.test.ts",
+    "passRate": "94.9% (75/79 tests)",
+    "duration": "2.93s"
+  },
+  "scenarios": [
+    {
+      "scenarioId": "CA-013",
+      "module": "capital-allocation",
+      "category": "reserve_engine",
+      "classification": "TRUTH_CASE_ERROR",
+      "severity": "HIGH",
+      "adrRefs": [
+        "ADR-008:§2.1 (Core Precedence)",
+        "ADR-008:§2.2 (Reserve Policy)",
+        "ADR-008:§4.1 (Liquidity Protection)"
+      ],
+      "invariants": {
+        "conservationOfCapital": "VIOLATED",
+        "reserveFloorEnforcement": "VIOLATED",
+        "cohortCapConstraint": "VIOLATED",
+        "precedenceMonotonicity": "RESPECTED (in computed trace)"
+      },
+      "diffs": [
+        {
+          "field": "reserve_balance (2025-03-31)",
+          "expected": 12500000,
+          "computed": 8000000,
+          "delta": -4500000,
+          "percentDiff": "-36%",
+          "status": "FAIL"
+        },
+        {
+          "field": "cohort[General].amount",
+          "expected": 3000000,
+          "computed": 0,
+          "delta": -3000000,
+          "percentDiff": "-100%",
+          "status": "FAIL"
+        }
+      ],
+      "notes": "Expected outputs violate conservation of capital: $8M contribution cannot produce $12.5M reserve + $3M allocation = $15.5M total. Either inputs are incomplete (missing prior contributions) or expected outputs contain arithmetic error.",
+      "nextActions": [
+        "Clarify truth case intent with stakeholders",
+        "Review related scenarios for consistent pattern",
+        "Validate schema documentation (actual cash vs target)",
+        "Create ERRATA.md entry",
+        "Mark CA-013 as BLOCKED in test suite"
+      ]
+    },
+    {
+      "scenarioId": "CA-015",
+      "module": "capital-allocation",
+      "category": "cohort_engine",
+      "classification": "PASS",
+      "severity": "NONE",
+      "adrRefs": [
+        "ADR-008:§2.4 (Cohort Allocation Rules)",
+        "ADR-008:§4.3 (Deterministic Spill Rationale)"
+      ],
+      "invariants": {
+        "cohortCapConstraint": "PASS",
+        "spillConsistency": "PASS",
+        "sumReconciliation": "PASS (exact)",
+        "proRataBaseCalculation": "PASS",
+        "violationFlagCorrectness": "PASS"
+      },
+      "diffs": [],
+      "notes": "All checks satisfied: arithmetic verified with bash/node, exact matches for all monetary amounts, cohort cap enforced correctly, spill redistribution deterministic and complete, sum reconciliation exact, violation flag accurate. Confidence: HIGH.",
+      "nextActions": [
+        "Implementation verification against actual engine code",
+        "Verify logs emit 'cohorts_pre_caps' and 'caps.spilled' fields",
+        "Test edge case where BOTH cohorts exceed cap",
+        "Add canonical example walkthrough to ADR-008"
+      ]
+    },
+    {
+      "scenarioId": "CA-020",
+      "module": "capital-allocation",
+      "category": "integration",
+      "classification": "NEEDS_CLARIFICATION",
+      "severity": "HIGH",
+      "adrRefs": [
+        "ADR-008:§2.1 (Core Precedence)",
+        "ADR-008:§2.2 (Reserve Floor Enforcement)",
+        "ADR-008:§2.5 (Recycling Integration)"
+      ],
+      "invariants": {
+        "precedenceMonotonicity": "PASS",
+        "sumReconciliation": "CONDITIONAL (interpretation-dependent)",
+        "noNegativeAllocations": "PASS",
+        "cohortWeightConservation": "PASS"
+      },
+      "diffs": [
+        {
+          "field": "Cohort A allocation",
+          "expected": 2500000,
+          "computed": 1000000,
+          "delta": -1500000,
+          "percentDiff": "-60%",
+          "status": "FAIL"
+        },
+        {
+          "field": "Cohort B allocation",
+          "expected": 2500000,
+          "computed": 1000000,
+          "delta": -1500000,
+          "percentDiff": "-60%",
+          "status": "FAIL"
+        }
+      ],
+      "notes": "Cohort allocations differ by 60% from expected values. Reserve accounting model is ambiguous (cash vs commitments). Insufficient specification of how deployments interact with reserve cash. Expected: A=2.5M, B=2.5M; Computed: A=1M, B=1M.",
+      "nextActions": [
+        "CRITICAL: Clarify reserve accounting model (liquid cash vs net of commitments)",
+        "CRITICAL: Validate truth case CA-020 expected outputs",
+        "Add 'initial_conditions' field to schema for starting balances",
+        "Enhance integration test with intermediate checkpoints",
+        "Cross-reference CA-013, CA-015, CA-005 for accounting consistency"
+      ]
+    },
+    {
+      "scenarioId": "ER-005",
+      "module": "exit-recycling",
+      "category": "schedule_calculation",
+      "classification": "VALIDATED",
+      "severity": "NONE",
+      "adrRefs": ["ADR-008:§2.5 (Exit Recycling Integration)"],
+      "invariants": {
+        "conservationOfCapitalPerExit": "PASS (3/3 exits)",
+        "conservationOfCapitalAggregate": "PASS",
+        "recyclingRateApplication": "PASS (3/3 exits)",
+        "cumulativeMonotonicity": "PASS",
+        "cumulativeAccuracy": "PASS",
+        "annualVsCumulativeConsistency": "PASS",
+        "capNotExceeded": "PASS",
+        "remainingCapacityAccuracy": "PASS",
+        "capReachedFlagAccuracy": "PASS",
+        "periodEligibilityConsistency": "PASS",
+        "appliedRateConsistency": "PASS",
+        "nonNegativeValues": "PASS"
+      },
+      "diffs": [],
+      "notes": "All 12 invariants pass. Arithmetic verified (0% variance across 18 fields). Validates fundamental exit recycling formula across multiple exits. Confirms chronological processing maintains cumulative accuracy. Demonstrates capacity tracking correctly accounts for sequential exits.",
+      "nextActions": [
+        "Implement multi-exit recycling logic with chronological processing",
+        "Add unit tests for ER-005",
+        "Implement cumulative tracking (cumulativeByYear array)",
+        "Update ADR-008 §2.5 with explicit Exit Recycling Formula subsection"
+      ]
+    },
+    {
+      "scenarioId": "ER-010",
+      "module": "exit-recycling",
+      "category": "schedule_calculation",
+      "classification": "VALIDATED",
+      "severity": "NONE",
+      "adrRefs": ["ADR-008:§2.5 (Recycling Integration)"],
+      "invariants": {
+        "zeroRecyclingEnforcement": "PASS",
+        "fullLPReturn": "PASS",
+        "capacityUntouched": "PASS",
+        "conservationOfCapital": "PASS",
+        "periodEligibilityIndependent": "PASS",
+        "appliedRateCorrect": "PASS"
+      },
+      "diffs": [],
+      "notes": "Zero recycling rate edge case validated. All proceeds returned to LPs despite exit being within period and cap available. Tests boundary condition where eligibility exists but application requires non-zero rate. Exact arithmetic match for all fields.",
+      "nextActions": [
+        "Implement zero-rate edge case handling",
+        "Add unit test for 0% recycling rate",
+        "Document in ADR-008 that 0% rate is valid (all proceeds to LPs)",
+        "Test full spectrum: 0%, 25%, 50%, 75%, 100%"
+      ]
+    },
+    {
+      "scenarioId": "ER-015",
+      "module": "exit-recycling",
+      "category": "term_validation",
+      "classification": "VALIDATED",
+      "severity": "NONE",
+      "adrRefs": ["ADR-008:§2.5 (Recycling Integration)"],
+      "invariants": {
+        "inclusiveBoundaryLogic": "PASS",
+        "periodEligibilityCorrect": "PASS",
+        "recyclingFormulaCorrect": "PASS",
+        "conservationOfCapital": "PASS",
+        "toleranceCompliance": "PASS"
+      },
+      "diffs": [],
+      "notes": "Period boundary inclusive test validated. Exit in year 5 of 5-year period IS eligible (year <= period, not year < period). Confirms inclusive upper bound logic. Exact arithmetic match for all fields.",
+      "nextActions": [
+        "Implement inclusive boundary logic (year <= period)",
+        "Add unit test for boundary year (year 5 of 5-year period)",
+        "Add complementary test for year 6 (exclusive boundary)",
+        "Document boundary logic explicitly in ADR-008"
+      ]
+    }
+  ],
+  "summary": {
+    "totalSpotChecked": 6,
+    "passedValidation": 4,
+    "needsClarification": 1,
+    "truthCaseErrors": 1,
+    "confidence": {
+      "capital_allocation": "MEDIUM",
+      "exit_recycling": "HIGH"
+    },
+    "notes": "Capital Allocation has 1 confirmed truth case error (CA-013) and 1 scenario needing clarification (CA-020). Exit Recycling shows strong validation with 3/3 scenarios passing with exact arithmetic matches. Precision recon identified LOW risk (native math in non-P0 paths is acceptable for strategic planning)."
+  }
+}
