@@ -22,64 +22,65 @@
 
 Documents that need review (older than their cadence threshold):
 
-| Document | Last Updated | Days Old | Has Execution Claims | Owner |
-|----------|--------------|----------|---------------------|-------|
-| `.agents-feedback.md` | Never | 999 | No | Unassigned |
-| `.agents-metrics.md` | Never | 999 | No | Unassigned |
-| `AI-WORKFLOW-COMPLETE-GUIDE.md` | Never | 999 | No | Unassigned |
-| `ANTI_PATTERNS.md` | Never | 999 | YES - verify! | Unassigned |
-| `BUG-FIX-SUMMARY-FEES-EXPENSES-2025-11-30.md` | Never | 999 | YES - verify! | Unassigned |
-| `CHANGELOG.md` | Never | 999 | YES - verify! | Unassigned |
-| `CLAUDE.md` | Never | 999 | No | Unassigned |
-| `CLAUDE_COOKBOOK_INTEGRATION.md` | Never | 999 | No | Unassigned |
-| `CLAUDE_PROJECT_INSTRUCTIONS.md` | Never | 999 | No | Unassigned |
-| `COMPREHENSIVE-WORKFLOW-GUIDE.md` | Never | 999 | YES - verify! | Unassigned |
-| `DECISIONS.md` | Never | 999 | YES - verify! | Unassigned |
-| `DEV_BOOTSTRAP_README.md` | Never | 999 | No | Unassigned |
-| `DOCUMENTATION-NAVIGATION-GUIDE.md` | Never | 999 | No | Unassigned |
-| `ENHANCED_DESIGN_SYSTEM_IMPLEMENTATION.md` | Never | 999 | No | Unassigned |
-| `FEATURE_FLAGS_READY.md` | Never | 999 | No | Unassigned |
-| `HANDOFF-MEMO-2025-10-30.md` | Never | 999 | YES - verify! | Unassigned |
-| `HANDOFF-MEMO-CAPITAL-ALLOCATION-COMPLETE-2025-11-05.md` | Never | 999 | No | Unassigned |
-| `HANDOFF-MEMO-PHASE-2-STRATEGY-2025-11-05.md` | Never | 999 | No | Unassigned |
-| `HANDOFF-MEMO-PHASE1D-EXPANSION-2025-11-04.md` | Never | 999 | No | Unassigned |
-| `HANDOFF-MEMO-PHASE2-MERGED-2025-11-06.md` | Never | 999 | No | Unassigned |
-| `HANDOFF-MEMO-PHASE2-READY-2025-11-06.md` | Never | 999 | No | Unassigned |
-| `HANDOFF-MEMO-SCHEMA-TDD-PHASE1-COMPLETE.md` | Never | 999 | YES - verify! | Unassigned |
-| `HANDOFF-PORTFOLIO-PHASE0-COMPLETE.md` | Never | 999 | YES - verify! | Unassigned |
-| `HANDOFF-SKILLS-APPLICATION-2025-11-29.md` | Never | 999 | No | Unassigned |
-| `HANDOFF-SKILLS-INTEGRATION-2025-11-29.md` | Never | 999 | No | Unassigned |
-| `HANDOFF-WEEK-2-SKILLS-2025-11-29.md` | Never | 999 | No | Unassigned |
-| `IMPLEMENTATION-SUMMARY-WATCH-DEBOUNCE-FIX.md` | Never | 999 | No | Unassigned |
-| `IMPLEMENTATION_SYNTHESIS.md` | Never | 999 | YES - verify! | Unassigned |
-| `ITERATION-A-QUICKSTART.md` | Never | 999 | YES - verify! | Unassigned |
-| `JSDOM-FIX-SUMMARY-2025-12-01.md` | Never | 999 | YES - verify! | Unassigned |
-| `KICKOFF-SKILLS-APPLICATION.md` | Never | 999 | YES - verify! | Unassigned |
-| `MERGE_RISK_ANALYSIS.md` | Never | 999 | YES - verify! | Unassigned |
-| `MIGRATION-NATIVE-MEMORY.md` | Never | 999 | YES - verify! | Unassigned |
-| `MIGRATION-QUICK-START.md` | Never | 999 | No | Unassigned |
-| `NATIVE-MEMORY-INTEGRATION.md` | Never | 999 | No | Unassigned |
-| `NEXT-SESSION-KICKOFF-PROMPT.md` | Never | 999 | No | Unassigned |
-| `NEXT_ACTIONS.md` | Never | 999 | YES - verify! | Unassigned |
-| `NEXT_STEPS_CHECKLIST.md` | Never | 999 | YES - verify! | Unassigned |
-| `PHASE-0A-MIDDLEWARE-PLAN.md` | Never | 999 | YES - verify! | Unassigned |
-| `PHASE-0A-STATUS-ASSESSMENT.md` | Never | 999 | No | Unassigned |
-| `PHASE0-DATA-MIGRATION-STRATEGY.md` | Never | 999 | No | Unassigned |
-| `PHASE0-FEATURE-FLAG-DEPLOYMENT-PLAN.md` | Never | 999 | YES - verify! | Unassigned |
-| `PHASE0-FRONTEND-INTEGRATION-SCOPE.md` | Never | 999 | No | Unassigned |
-| `PHASE0B-QUICK-REFERENCE.md` | Never | 999 | No | Unassigned |
-| `PHASE0B-SERVICE-ARCHITECTURE-REVIEW.md` | Never | 999 | YES - verify! | Unassigned |
-| `PHASE2_HANDOFF_MEMO.md` | Never | 999 | No | Unassigned |
-| `PHASE3-IMPLEMENTATION-HANDOFF-2025-11-06.md` | Never | 999 | No | Unassigned |
-| `PHASE3-KICKOFF-CHECKLIST.md` | Never | 999 | YES - verify! | Unassigned |
-| `PHASE3-STRATEGY-FINAL-2025-11-06.md` | Never | 999 | No | Unassigned |
-| `PHASE3-STRATEGY-HANDOFF-2025-11-06.md` | Never | 999 | No | Unassigned |
+| Document                                                 | Last Updated | Days Old | Has Execution Claims | Owner      |
+| -------------------------------------------------------- | ------------ | -------- | -------------------- | ---------- |
+| `.agents-feedback.md`                                    | Never        | 999      | No                   | Unassigned |
+| `.agents-metrics.md`                                     | Never        | 999      | No                   | Unassigned |
+| `AI-WORKFLOW-COMPLETE-GUIDE.md`                          | Never        | 999      | No                   | Unassigned |
+| `ANTI_PATTERNS.md`                                       | Never        | 999      | YES - verify!        | Unassigned |
+| `BUG-FIX-SUMMARY-FEES-EXPENSES-2025-11-30.md`            | Never        | 999      | YES - verify!        | Unassigned |
+| `CHANGELOG.md`                                           | Never        | 999      | YES - verify!        | Unassigned |
+| `CLAUDE.md`                                              | Never        | 999      | No                   | Unassigned |
+| `CLAUDE_COOKBOOK_INTEGRATION.md`                         | Never        | 999      | No                   | Unassigned |
+| `CLAUDE_PROJECT_INSTRUCTIONS.md`                         | Never        | 999      | No                   | Unassigned |
+| `COMPREHENSIVE-WORKFLOW-GUIDE.md`                        | Never        | 999      | YES - verify!        | Unassigned |
+| `DECISIONS.md`                                           | Never        | 999      | YES - verify!        | Unassigned |
+| `DEV_BOOTSTRAP_README.md`                                | Never        | 999      | No                   | Unassigned |
+| `DOCUMENTATION-NAVIGATION-GUIDE.md`                      | Never        | 999      | No                   | Unassigned |
+| `ENHANCED_DESIGN_SYSTEM_IMPLEMENTATION.md`               | Never        | 999      | No                   | Unassigned |
+| `FEATURE_FLAGS_READY.md`                                 | Never        | 999      | No                   | Unassigned |
+| `HANDOFF-MEMO-2025-10-30.md`                             | Never        | 999      | YES - verify!        | Unassigned |
+| `HANDOFF-MEMO-CAPITAL-ALLOCATION-COMPLETE-2025-11-05.md` | Never        | 999      | No                   | Unassigned |
+| `HANDOFF-MEMO-PHASE-2-STRATEGY-2025-11-05.md`            | Never        | 999      | No                   | Unassigned |
+| `HANDOFF-MEMO-PHASE1D-EXPANSION-2025-11-04.md`           | Never        | 999      | No                   | Unassigned |
+| `HANDOFF-MEMO-PHASE2-MERGED-2025-11-06.md`               | Never        | 999      | No                   | Unassigned |
+| `HANDOFF-MEMO-PHASE2-READY-2025-11-06.md`                | Never        | 999      | No                   | Unassigned |
+| `HANDOFF-MEMO-SCHEMA-TDD-PHASE1-COMPLETE.md`             | Never        | 999      | YES - verify!        | Unassigned |
+| `HANDOFF-PORTFOLIO-PHASE0-COMPLETE.md`                   | Never        | 999      | YES - verify!        | Unassigned |
+| `HANDOFF-SKILLS-APPLICATION-2025-11-29.md`               | Never        | 999      | No                   | Unassigned |
+| `HANDOFF-SKILLS-INTEGRATION-2025-11-29.md`               | Never        | 999      | No                   | Unassigned |
+| `HANDOFF-WEEK-2-SKILLS-2025-11-29.md`                    | Never        | 999      | No                   | Unassigned |
+| `IMPLEMENTATION-SUMMARY-WATCH-DEBOUNCE-FIX.md`           | Never        | 999      | No                   | Unassigned |
+| `IMPLEMENTATION_SYNTHESIS.md`                            | Never        | 999      | YES - verify!        | Unassigned |
+| `ITERATION-A-QUICKSTART.md`                              | Never        | 999      | YES - verify!        | Unassigned |
+| `JSDOM-FIX-SUMMARY-2025-12-01.md`                        | Never        | 999      | YES - verify!        | Unassigned |
+| `KICKOFF-SKILLS-APPLICATION.md`                          | Never        | 999      | YES - verify!        | Unassigned |
+| `MERGE_RISK_ANALYSIS.md`                                 | Never        | 999      | YES - verify!        | Unassigned |
+| `MIGRATION-NATIVE-MEMORY.md`                             | Never        | 999      | YES - verify!        | Unassigned |
+| `MIGRATION-QUICK-START.md`                               | Never        | 999      | No                   | Unassigned |
+| `NATIVE-MEMORY-INTEGRATION.md`                           | Never        | 999      | No                   | Unassigned |
+| `NEXT-SESSION-KICKOFF-PROMPT.md`                         | Never        | 999      | No                   | Unassigned |
+| `NEXT_ACTIONS.md`                                        | Never        | 999      | YES - verify!        | Unassigned |
+| `NEXT_STEPS_CHECKLIST.md`                                | Never        | 999      | YES - verify!        | Unassigned |
+| `PHASE-0A-MIDDLEWARE-PLAN.md`                            | Never        | 999      | YES - verify!        | Unassigned |
+| `PHASE-0A-STATUS-ASSESSMENT.md`                          | Never        | 999      | No                   | Unassigned |
+| `PHASE0-DATA-MIGRATION-STRATEGY.md`                      | Never        | 999      | No                   | Unassigned |
+| `PHASE0-FEATURE-FLAG-DEPLOYMENT-PLAN.md`                 | Never        | 999      | YES - verify!        | Unassigned |
+| `PHASE0-FRONTEND-INTEGRATION-SCOPE.md`                   | Never        | 999      | No                   | Unassigned |
+| `PHASE0B-QUICK-REFERENCE.md`                             | Never        | 999      | No                   | Unassigned |
+| `PHASE0B-SERVICE-ARCHITECTURE-REVIEW.md`                 | Never        | 999      | YES - verify!        | Unassigned |
+| `PHASE2_HANDOFF_MEMO.md`                                 | Never        | 999      | No                   | Unassigned |
+| `PHASE3-IMPLEMENTATION-HANDOFF-2025-11-06.md`            | Never        | 999      | No                   | Unassigned |
+| `PHASE3-KICKOFF-CHECKLIST.md`                            | Never        | 999      | YES - verify!        | Unassigned |
+| `PHASE3-STRATEGY-FINAL-2025-11-06.md`                    | Never        | 999      | No                   | Unassigned |
+| `PHASE3-STRATEGY-HANDOFF-2025-11-06.md`                  | Never        | 999      | No                   | Unassigned |
 
 *...and 505 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
-These documents contain phrases like "tests pass", "PR merged", etc. and should be verified:
+These documents contain phrases like "tests pass", "PR merged", etc. and should
+be verified:
 
 - [ ] **ANTI_PATTERNS.md** (999 days old)
 - [ ] **BUG-FIX-SUMMARY-FEES-EXPENSES-2025-11-30.md** (999 days old)
@@ -141,7 +142,8 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **docs/ai-optimization/AI_AGENT_BACKTEST_FRAMEWORK.md** (999 days old)
 - [ ] **docs/api/architecture/portfolio-route-api.md** (999 days old)
 - [ ] **docs/api/testing/portfolio-route-test-strategy.md** (999 days old)
-- [ ] **docs/behavioral-specs/time-travel-analytics-service-specs.md** (999 days old)
+- [ ] **docs/behavioral-specs/time-travel-analytics-service-specs.md** (999 days
+      old)
 - [ ] **docs/chaos-engineering/README.md** (999 days old)
 - [ ] **docs/chaos-engineering/RLS-CHAOS-TESTING-PLAN.md** (999 days old)
 - [ ] **docs/chart-migration-decision.md** (999 days old)
@@ -159,9 +161,12 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **docs/npm-bin-resolution-investigation.md** (999 days old)
 - [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (999 days old)
 - [ ] **docs/observability/README.md** (999 days old)
-- [ ] **docs/observability/archive/2025-10-06/pr-113-auth-comment-v1.md** (999 days old)
-- [ ] **docs/observability/archive/2025-10-06/pr-113-split-instructions-v1.md** (999 days old)
-- [ ] **docs/observability/archive/2025-10-06/pr-113-summary-v1.md** (999 days old)
+- [ ] **docs/observability/archive/2025-10-06/pr-113-auth-comment-v1.md** (999
+      days old)
+- [ ] **docs/observability/archive/2025-10-06/pr-113-split-instructions-v1.md**
+      (999 days old)
+- [ ] **docs/observability/archive/2025-10-06/pr-113-summary-v1.md** (999 days
+      old)
 - [ ] **docs/phase0-validation-report.md** (999 days old)
 - [ ] **docs/phase0-xirr-analysis-eda20590.md** (999 days old)
 - [ ] **docs/phase1-1-1-analysis.md** (999 days old)
@@ -713,6 +718,6 @@ Documents without proper YAML frontmatter:
 
 ---
 
-*To fix staleness: Update `last_updated` field in document frontmatter.*
-*To set owner: Add `owner` field in document frontmatter.*
-*See: docs/.templates/DOC-FRONTMATTER-SCHEMA.md for schema details.*
+_To fix staleness: Update `last_updated` field in document frontmatter._ _To set
+owner: Add `owner` field in document frontmatter._ _See:
+docs/.templates/DOC-FRONTMATTER-SCHEMA.md for schema details._

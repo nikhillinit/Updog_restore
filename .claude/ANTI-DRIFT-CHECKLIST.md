@@ -393,8 +393,8 @@ PREVENTION: Connect all metrics to actual deliverable files
 1. **PROJECT-UNDERSTANDING.md** - This reference guide (complete infrastructure)
 2. **CAPABILITIES.md** - Check-first discovery (85% complete inventory)
 3. **docs/PHOENIX-SOT/execution-plan-v2.34.md** - Phoenix validation-first
-   execution plan (current)
-   _(Note: PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md archived - see docs/archive/phoenix/)_
+   execution plan (current) _(Note: PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md
+   archived - see docs/archive/phoenix/)_
 4. **AI-WORKFLOW-COMPLETE-GUIDE.md** - 28 agents, orchestration patterns
 
 ---

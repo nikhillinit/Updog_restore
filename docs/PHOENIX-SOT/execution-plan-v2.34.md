@@ -4,7 +4,8 @@
 Solo Developer **Approach:** Validation-First, Evidence-Driven, Agent-Enhanced
 
 **Version Note:** v2.34 = v2.33 + MCP tool routing + 6 new skills + PHOENIX-SOT
-directory structure (skill invocation templates, TaskMaster/Multi-AI integration)
+directory structure (skill invocation templates, TaskMaster/Multi-AI
+integration)
 
 ---
 
@@ -243,14 +244,14 @@ from user-level and 18+ plugins.
 
 ### MCP Tool Integration (NEW in v2.34)
 
-**TaskMaster (mcp__taskmaster-ai__):**
+**TaskMaster (mcp**taskmaster-ai**):**
 
 - **Step 0.0:** `initialize_project` - Initialize project tracking
 - **Step 0.2:** `expand_task` - Expand truth case work into subtasks
 - **Step 0.10:** `autopilot_start` - Start TDD autopilot (if proceeding to 1A)
 - **Steps 1A.5-1A.6:** `add_task` - Track TDD subtasks
 
-**Multi-AI Collaboration (mcp__multi-ai-collab__):**
+**Multi-AI Collaboration (mcp**multi-ai-collab**):**
 
 - **Step 0.4:** `ai_debate` - Cross-validate L08 clawback semantics
 - **Step 0.9:** `ask_all_ais` - XIRR Excel semantics validation
@@ -2272,16 +2273,16 @@ agent:phoenix-brand-reporting-stylist     # Brand violations
 
 ## Version History
 
-| Version  | Date       | Changes                                                                                                         |
-| -------- | ---------- | --------------------------------------------------------------------------------------------------------------- |
-| v2.18    | 2025-12-08 | Initial comprehensive plan (GitHub commit 375ea58, internally v2.29)                                            |
-| v2.23    | 2025-12-09 | Skills/agents/commands integration                                                                              |
-| v2.23-A1 | 2025-12-09 | **ADDENDUM:** Restored 4 critical sections from v2.18/v2.29                                                     |
-| v2.30    | 2025-12-09 | Merged v2.29 foundation + v2.23 enhancements                                                                    |
-| v2.31    | 2025-12-09 | Plan ↔ JSON synchronized, verification gates refined                                                           |
-| v2.32    | 2025-12-09 | Command-enhanced execution (+40 commands, 6.5hr savings, MANDATORY gates)                                       |
-| v2.33    | 2025-12-10 | Phoenix agent integration (9 specialized agents with unique tenant IDs for cross-session learning)              |
-| v2.34    | 2025-12-13 | **CURRENT:** MCP tool routing + 6 new skills + PHOENIX-SOT directory + skill invocation templates               |
+| Version  | Date       | Changes                                                                                            |
+| -------- | ---------- | -------------------------------------------------------------------------------------------------- |
+| v2.18    | 2025-12-08 | Initial comprehensive plan (GitHub commit 375ea58, internally v2.29)                               |
+| v2.23    | 2025-12-09 | Skills/agents/commands integration                                                                 |
+| v2.23-A1 | 2025-12-09 | **ADDENDUM:** Restored 4 critical sections from v2.18/v2.29                                        |
+| v2.30    | 2025-12-09 | Merged v2.29 foundation + v2.23 enhancements                                                       |
+| v2.31    | 2025-12-09 | Plan ↔ JSON synchronized, verification gates refined                                              |
+| v2.32    | 2025-12-09 | Command-enhanced execution (+40 commands, 6.5hr savings, MANDATORY gates)                          |
+| v2.33    | 2025-12-10 | Phoenix agent integration (9 specialized agents with unique tenant IDs for cross-session learning) |
+| v2.34    | 2025-12-13 | **CURRENT:** MCP tool routing + 6 new skills + PHOENIX-SOT directory + skill invocation templates  |
 
 ### v2.34 Changes (MCP & Tool Routing Integration)
 

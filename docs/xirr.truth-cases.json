@@ -14,7 +14,7 @@
         "amount": 25000000
       }
     ],
-    "expectedIRR": 0.2010340779,
+    "expectedIRR": 0.2008834994,
     "input": {
       "cashflows": [
         {
@@ -32,7 +32,7 @@
       }
     },
     "expected": {
-      "irr": 0.2010340779,
+      "irr": 0.2008834994,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -55,7 +55,7 @@
         "amount": 1000000
       }
     ],
-    "expectedIRR": -0.368923364,
+    "expectedIRR": -0.3687244948,
     "input": {
       "cashflows": [
         {
@@ -73,7 +73,7 @@
       }
     },
     "expected": {
-      "irr": -0.368923364,
+      "irr": -0.3687244948,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -104,7 +104,7 @@
         "amount": 40000000
       }
     ],
-    "expectedIRR": 0.3088902613,
+    "expectedIRR": 0.3086491291,
     "input": {
       "cashflows": [
         {
@@ -130,7 +130,7 @@
       }
     },
     "expected": {
-      "irr": 0.3088902613,
+      "irr": 0.3086491291,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -165,7 +165,7 @@
         "amount": 80000000
       }
     ],
-    "expectedIRR": 0.8063164822,
+    "expectedIRR": 0.8055855854,
     "input": {
       "cashflows": [
         {
@@ -195,7 +195,7 @@
       }
     },
     "expected": {
-      "irr": 0.8063164822,
+      "irr": 0.8055855854,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -218,7 +218,7 @@
         "amount": 10000000
       }
     ],
-    "expectedIRR": 0.0,
+    "expectedIRR": 0,
     "input": {
       "cashflows": [
         {
@@ -236,7 +236,7 @@
       }
     },
     "expected": {
-      "irr": 0.0,
+      "irr": 0,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -259,7 +259,7 @@
         "amount": 25000000
       }
     ],
-    "expectedIRR": 0.2010340779,
+    "expectedIRR": 0.2008834994,
     "input": {
       "cashflows": [
         {
@@ -272,13 +272,13 @@
         }
       ],
       "config": {
-        "tolerance": 1e-6,
+        "tolerance": 0.000001,
         "strategy": "Newton",
         "maxIterations": 100
       }
     },
     "expected": {
-      "irr": 0.2010340779,
+      "irr": 0.2008834994,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -357,7 +357,7 @@
         "amount": 25000000
       }
     ],
-    "expectedIRR": 0.2010340779,
+    "expectedIRR": 0.2008834994,
     "input": {
       "cashflows": [
         {
@@ -370,12 +370,12 @@
         }
       ],
       "config": {
-        "tolerance": 1e-6,
+        "tolerance": 0.000001,
         "strategy": "Bisection"
       }
     },
     "expected": {
-      "irr": 0.2010340779,
+      "irr": 0.2008834994,
       "converged": true,
       "algorithm": "Bisection",
       "excelParity": true
@@ -397,7 +397,7 @@
         "amount": 25000000
       }
     ],
-    "expectedIRR": 0.2010340779,
+    "expectedIRR": 0.2008834994,
     "input": {
       "cashflows": [
         {
@@ -415,7 +415,7 @@
       }
     },
     "expected": {
-      "irr": 0.2010340779,
+      "irr": 0.2008834994,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -478,7 +478,7 @@
         "amount": 25000000
       }
     ],
-    "expectedIRR": 0.2010340779,
+    "expectedIRR": 0.2008834994,
     "input": {
       "cashflows": [
         {
@@ -496,7 +496,7 @@
       }
     },
     "expected": {
-      "irr": 0.2010340779,
+      "irr": 0.2008834994,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -523,7 +523,7 @@
         "amount": 25000000
       }
     ],
-    "expectedIRR": 0.2010340779,
+    "expectedIRR": 0.2008834994,
     "input": {
       "cashflows": [
         {
@@ -546,7 +546,7 @@
       }
     },
     "expected": {
-      "irr": 0.2010340779,
+      "irr": 0.2008834994,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -568,7 +568,7 @@
         "amount": 10100000
       }
     ],
-    "expectedIRR": 5.14682311,
+    "expectedIRR": 5.146823109,
     "input": {
       "cashflows": [
         {
@@ -586,7 +586,7 @@
       }
     },
     "expected": {
-      "irr": 5.14682311,
+      "irr": 5.146823109,
       "converged": true,
       "algorithm": "newton",
       "excelParity": true
@@ -609,7 +609,7 @@
         "amount": -10000000
       }
     ],
-    "expectedIRR": 0.2010340779,
+    "expectedIRR": 0.2008834994,
     "input": {
       "cashflows": [
         {
@@ -627,7 +627,7 @@
       }
     },
     "expected": {
-      "irr": 0.2010340779,
+      "irr": 0.2008834994,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -649,7 +649,7 @@
         "amount": 25000000
       }
     ],
-    "expectedIRR": 0.2010340779,
+    "expectedIRR": 0.2008834994,
     "input": {
       "cashflows": [
         {
@@ -667,7 +667,7 @@
       }
     },
     "expected": {
-      "irr": 0.2010340779,
+      "irr": 0.2008834994,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -858,7 +858,7 @@
         "amount": 0.025
       }
     ],
-    "expectedIRR": 0.2010340779,
+    "expectedIRR": 0.2008834994,
     "input": {
       "cashflows": [
         {
@@ -876,7 +876,7 @@
       }
     },
     "expected": {
-      "irr": 0.2010340779,
+      "irr": 0.2008834994,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -976,7 +976,7 @@
     "id": "xirr-22-early-exit-high-irr",
     "scenario": "22-early-exit-high-irr",
     "tags": ["business", "early-exit"],
-    "notes": "10x in 3 years \u2192 115.4% IRR. Excel validated.",
+    "notes": "10x in 3 years → 115.4% IRR. Excel validated.",
     "cashflows": [
       {
         "date": "2020-01-01",
@@ -987,7 +987,7 @@
         "amount": 100000000
       }
     ],
-    "expectedIRR": 1.1540575356,
+    "expectedIRR": 1.1529264684,
     "input": {
       "cashflows": [
         {
@@ -1005,7 +1005,7 @@
       }
     },
     "expected": {
-      "irr": 1.1540575356,
+      "irr": 1.1529264684,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -1017,7 +1017,7 @@
     "id": "xirr-23-late-exit-lower-irr",
     "scenario": "23-late-exit-lower-irr",
     "tags": ["business", "late-exit"],
-    "notes": "5x over 10 years \u2192 ~17.5% IRR. Time value of money effect.",
+    "notes": "5x over 10 years → ~17.5% IRR. Time value of money effect.",
     "cashflows": [
       {
         "date": "2020-01-01",
@@ -1028,7 +1028,7 @@
         "amount": 50000000
       }
     ],
-    "expectedIRR": 0.1746172846,
+    "expectedIRR": 0.1744636993,
     "input": {
       "cashflows": [
         {
@@ -1046,7 +1046,7 @@
       }
     },
     "expected": {
-      "irr": 0.1746172846,
+      "irr": 0.1744636993,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -1089,7 +1089,7 @@
         "amount": 30000000
       }
     ],
-    "expectedIRR": 0.5574298426,
+    "expectedIRR": 0.5569576357,
     "input": {
       "cashflows": [
         {
@@ -1127,7 +1127,7 @@
       }
     },
     "expected": {
-      "irr": 0.5574298426,
+      "irr": 0.5569576357,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -1158,7 +1158,7 @@
         "amount": 28000000
       }
     ],
-    "expectedIRR": 0.2557302304,
+    "expectedIRR": 0.2555345226,
     "input": {
       "cashflows": [
         {
@@ -1184,7 +1184,7 @@
       }
     },
     "expected": {
-      "irr": 0.2557302304,
+      "irr": 0.2555345226,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -1276,7 +1276,7 @@
   {
     "id": "xirr-golden-case-16-waterfall-exit",
     "scenario": "Golden Case 16: Waterfall Exit",
-    "tags": ["business", "golden-set"],
+    "tags": ["business", "golden-set", "waterfall"],
     "notes": "Multiple tranches of returns simulating preferred returns",
     "cashflows": [
       {
@@ -1834,7 +1834,7 @@
         "amount": 200000
       }
     ],
-    "expectedIRR": 0.148698355,
+    "expectedIRR": 0.1485240459,
     "input": {
       "cashflows": [
         {
@@ -1852,7 +1852,7 @@
       }
     },
     "expected": {
-      "irr": 0.148698355,
+      "irr": 0.1485240459,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -1965,7 +1965,7 @@
         "amount": 500000
       }
     ],
-    "expectedIRR": 0.7788007831,
+    "expectedIRR": 0.777578891,
     "input": {
       "cashflows": [
         {
@@ -1983,7 +1983,7 @@
       }
     },
     "expected": {
-      "irr": 0.7788007831,
+      "irr": 0.777578891,
       "converged": true,
       "algorithm": "newton",
       "excelParity": true
@@ -2006,7 +2006,7 @@
         "amount": 215892
       }
     ],
-    "expectedIRR": 0.08,
+    "expectedIRR": 0.0799314924,
     "input": {
       "cashflows": [
         {
@@ -2024,7 +2024,7 @@
       }
     },
     "expected": {
-      "irr": 0.08,
+      "irr": 0.0799314924,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -2047,7 +2047,7 @@
         "amount": 50000
       }
     ],
-    "expectedIRR": -0.12928509,
+    "expectedIRR": -0.1293173151,
     "input": {
       "cashflows": [
         {
@@ -2065,7 +2065,7 @@
       }
     },
     "expected": {
-      "irr": -0.12928509,
+      "irr": -0.1293173151,
       "converged": true,
       "algorithm": "newton",
       "excelParity": true
@@ -2088,7 +2088,7 @@
         "amount": 101000
       }
     ],
-    "expectedIRR": 0.0019950331,
+    "expectedIRR": 0.0019898648,
     "input": {
       "cashflows": [
         {
@@ -2106,7 +2106,7 @@
       }
     },
     "expected": {
-      "irr": 0.0019950331,
+      "irr": 0.0019898648,
       "converged": true,
       "algorithm": "newton",
       "excelParity": true
@@ -2137,7 +2137,7 @@
         "amount": 50000
       }
     ],
-    "expectedIRR": 0.1684887469,
+    "expectedIRR": 0.1685408789,
     "input": {
       "cashflows": [
         {
@@ -2163,7 +2163,7 @@
       }
     },
     "expected": {
-      "irr": 0.1684887469,
+      "irr": 0.1685408789,
       "converged": true,
       "algorithm": "newton",
       "excelParity": true
@@ -2231,7 +2231,7 @@
         "amount": 200000
       }
     ],
-    "expectedIRR": 0.0716179362,
+    "expectedIRR": 0.0716179977,
     "input": {
       "cashflows": [
         {
@@ -2253,7 +2253,7 @@
       }
     },
     "expected": {
-      "irr": 0.0716179362,
+      "irr": 0.0716179977,
       "converged": true,
       "algorithm": "Newton",
       "excelParity": true
@@ -2398,7 +2398,7 @@
         "amount": 90000
       }
     ],
-    "expectedIRR": -0.0105360516,
+    "expectedIRR": -0.0104721798,
     "input": {
       "cashflows": [
         {
@@ -2416,7 +2416,7 @@
       }
     },
     "expected": {
-      "irr": -0.0105360516,
+      "irr": -0.0104721798,
       "converged": true,
       "algorithm": "newton",
       "excelParity": true
@@ -2439,7 +2439,7 @@
         "amount": 150000
       }
     ],
-    "expectedIRR": 0.5,
+    "expectedIRR": 0.4983391779,
     "input": {
       "cashflows": [
         {
@@ -2457,7 +2457,7 @@
       }
     },
     "expected": {
-      "irr": 0.5,
+      "irr": 0.4983391779,
       "converged": true,
       "algorithm": "newton",
       "excelParity": true

@@ -1,6 +1,8 @@
 > **DEPRECATED - 2025-12-13** Superseded by:
+>
 > - `docs/PHOENIX-SOT/execution-plan-v2.34.md` (current Phoenix execution plan)
-> - Infrastructure goals from this plan were abandoned in favor of validation-first approach
+> - Infrastructure goals from this plan were abandoned in favor of
+>   validation-first approach
 >
 > Kept for historical reference only. Do not use for planning or execution.
 

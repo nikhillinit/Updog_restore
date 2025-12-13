@@ -1,5 +1,5 @@
-> **DEPRECATED:** Superseded by `docs/PHOENIX-SOT/execution-plan-v2.34.md`
-> This file is retained for historical reference only. Do not use for active
+> **DEPRECATED:** Superseded by `docs/PHOENIX-SOT/execution-plan-v2.34.md` This
+> file is retained for historical reference only. Do not use for active
 > development.
 
 # Phoenix Execution Plan v2.31 - Plan ↔ JSON Synchronized

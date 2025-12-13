@@ -2,14 +2,7 @@
   "version": "2.0",
   "generatedAt": "2025-12-13T08:44:43.302Z",
   "scoring": {
-    "generic_terms": [
-      "test",
-      "error",
-      "fix",
-      "update",
-      "change",
-      "help"
-    ],
+    "generic_terms": ["test", "error", "fix", "update", "change", "help"],
     "min_score": 2
   },
   "config": {
@@ -133,13 +126,7 @@
     {
       "id": "phoenix_xirr",
       "priority": 14,
-      "match_any": [
-        "xirr",
-        "irr",
-        "fees",
-        "management fee",
-        "carry fee"
-      ],
+      "match_any": ["xirr", "irr", "fees", "management fee", "carry fee"],
       "match_any_normalized": [
         "xirr",
         "irr",
@@ -215,13 +202,7 @@
     {
       "id": "ci_cd",
       "priority": 31,
-      "match_any": [
-        "ci",
-        "cd",
-        "github actions",
-        "workflow",
-        "pipeline"
-      ],
+      "match_any": ["ci", "cd", "github actions", "workflow", "pipeline"],
       "match_any_normalized": [
         "ci",
         "cd",
@@ -480,123 +461,47 @@
     }
   ],
   "keyword_to_docs": {
-    "secret": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "key": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "token": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "password": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "auth": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "security": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "credential": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "env": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "truth case": [
-      ".claude/commands/phoenix-truth.md"
-    ],
-    "validation": [
-      ".claude/commands/phoenix-truth.md"
-    ],
-    "deterministic": [
-      ".claude/commands/phoenix-truth.md"
-    ],
-    "pass rate": [
-      ".claude/commands/phoenix-truth.md"
-    ],
-    "baseline": [
-      ".claude/commands/phoenix-truth.md"
-    ],
-    "monte carlo": [
-      ".claude/commands/phoenix-phase2.md"
-    ],
-    "probabilistic": [
-      ".claude/commands/phoenix-phase2.md"
-    ],
-    "expectation mode": [
-      ".claude/commands/phoenix-phase2.md"
-    ],
-    "seeded": [
-      ".claude/commands/phoenix-phase2.md"
-    ],
-    "distribution": [
-      ".claude/commands/phoenix-phase2.md"
-    ],
-    "phase 2": [
-      ".claude/commands/phoenix-phase2.md"
-    ],
-    "waterfall": [
-      ".claude/agents/waterfall-specialist.md"
-    ],
-    "clawback": [
-      ".claude/agents/waterfall-specialist.md"
-    ],
-    "carry": [
-      ".claude/agents/waterfall-specialist.md"
-    ],
-    "ledger": [
-      ".claude/agents/waterfall-specialist.md"
-    ],
-    "tier": [
-      ".claude/agents/waterfall-specialist.md"
-    ],
-    "gp": [
-      ".claude/agents/waterfall-specialist.md"
-    ],
-    "lp": [
-      ".claude/agents/waterfall-specialist.md"
-    ],
-    "precision": [
-      ".claude/agents/phoenix-precision-guardian.md"
-    ],
-    "parsefloat": [
-      ".claude/agents/phoenix-precision-guardian.md"
-    ],
-    "decimal": [
-      ".claude/agents/phoenix-precision-guardian.md"
-    ],
-    "numeric drift": [
-      ".claude/agents/phoenix-precision-guardian.md"
-    ],
-    "rounding": [
-      ".claude/agents/phoenix-precision-guardian.md"
-    ],
-    "xirr": [
-      ".claude/agents/xirr-fees-validator.md"
-    ],
-    "irr": [
-      ".claude/agents/xirr-fees-validator.md"
-    ],
-    "fees": [
-      ".claude/agents/xirr-fees-validator.md"
-    ],
-    "management fee": [
-      ".claude/agents/xirr-fees-validator.md"
-    ],
-    "carry fee": [
-      ".claude/agents/xirr-fees-validator.md"
-    ],
+    "secret": ["SIDECAR_GUIDE.md"],
+    "key": ["SIDECAR_GUIDE.md"],
+    "token": ["SIDECAR_GUIDE.md"],
+    "password": ["SIDECAR_GUIDE.md"],
+    "auth": ["SIDECAR_GUIDE.md"],
+    "security": ["SIDECAR_GUIDE.md"],
+    "credential": ["SIDECAR_GUIDE.md"],
+    "env": ["SIDECAR_GUIDE.md"],
+    "truth case": [".claude/commands/phoenix-truth.md"],
+    "validation": [".claude/commands/phoenix-truth.md"],
+    "deterministic": [".claude/commands/phoenix-truth.md"],
+    "pass rate": [".claude/commands/phoenix-truth.md"],
+    "baseline": [".claude/commands/phoenix-truth.md"],
+    "monte carlo": [".claude/commands/phoenix-phase2.md"],
+    "probabilistic": [".claude/commands/phoenix-phase2.md"],
+    "expectation mode": [".claude/commands/phoenix-phase2.md"],
+    "seeded": [".claude/commands/phoenix-phase2.md"],
+    "distribution": [".claude/commands/phoenix-phase2.md"],
+    "phase 2": [".claude/commands/phoenix-phase2.md"],
+    "waterfall": [".claude/agents/waterfall-specialist.md"],
+    "clawback": [".claude/agents/waterfall-specialist.md"],
+    "carry": [".claude/agents/waterfall-specialist.md"],
+    "ledger": [".claude/agents/waterfall-specialist.md"],
+    "tier": [".claude/agents/waterfall-specialist.md"],
+    "gp": [".claude/agents/waterfall-specialist.md"],
+    "lp": [".claude/agents/waterfall-specialist.md"],
+    "precision": [".claude/agents/phoenix-precision-guardian.md"],
+    "parsefloat": [".claude/agents/phoenix-precision-guardian.md"],
+    "decimal": [".claude/agents/phoenix-precision-guardian.md"],
+    "numeric drift": [".claude/agents/phoenix-precision-guardian.md"],
+    "rounding": [".claude/agents/phoenix-precision-guardian.md"],
+    "xirr": [".claude/agents/xirr-fees-validator.md"],
+    "irr": [".claude/agents/xirr-fees-validator.md"],
+    "fees": [".claude/agents/xirr-fees-validator.md"],
+    "management fee": [".claude/agents/xirr-fees-validator.md"],
+    "carry fee": [".claude/agents/xirr-fees-validator.md"],
     "capital allocation": [
       ".claude/agents/phoenix-capital-allocation-analyst.md"
     ],
-    "exit recycling": [
-      ".claude/agents/phoenix-capital-allocation-analyst.md"
-    ],
-    "deployment": [
-      ".claude/agents/phoenix-capital-allocation-analyst.md"
-    ],
+    "exit recycling": [".claude/agents/phoenix-capital-allocation-analyst.md"],
+    "deployment": [".claude/agents/phoenix-capital-allocation-analyst.md"],
     "stage allocation": [
       ".claude/agents/phoenix-capital-allocation-analyst.md"
     ],

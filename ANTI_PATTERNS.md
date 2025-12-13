@@ -159,7 +159,9 @@ grep -i "extract\|reference" CAPABILITIES.md
 # Use existing tool, contribute improvements if needed
 ```
 
-**Project Phoenix Alignment:** From docs/PHOENIX-SOT/execution-plan-v2.34.md (historical context: docs/archive/phoenix/PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md):
+**Project Phoenix Alignment:** From docs/PHOENIX-SOT/execution-plan-v2.34.md
+(historical context:
+docs/archive/phoenix/PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md):
 
 > **Core Principle**: Foundation-first methodology - fix root causes before
 > symptoms, establish patterns before scaling.
