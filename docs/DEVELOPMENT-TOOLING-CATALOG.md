@@ -1,3 +1,19 @@
+---
+status: ACTIVE
+audience: both
+last_updated: 2025-12-12
+categories: [development, skills-tools, ai-automation]
+keywords: [agents, tools, scripts, mcp, skills, workflows, catalog]
+source_of_truth: true
+agent_routing:
+  priority: 2
+  route_hint: "Complete inventory of AI tools and automation."
+  use_cases: [tool_discovery, agent_selection]
+maintenance:
+  owner: "Core Team"
+  review_cadence: "P90D"
+---
+
 # Development Tooling Catalog (Corrected)
 
 **Date**: 2025-12-12 **Version**: 2.0 (Post-Review Corrections) **Status**:

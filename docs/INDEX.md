@@ -1,3 +1,19 @@
+---
+status: ACTIVE
+audience: both
+last_updated: 2025-12-12
+categories: [documentation, navigation]
+keywords: [index, docs, navigation, routing, documentation]
+source_of_truth: true
+agent_routing:
+  priority: 2
+  route_hint: "Central navigation for all documentation."
+  use_cases: [doc_discovery, onboarding]
+maintenance:
+  owner: "Core Team"
+  review_cadence: "P90D"
+---
+
 # Documentation Index
 
 **Purpose**: Central routing table for all project documentation **Audience**:
@@ -203,7 +219,9 @@ Humans AND Agents **Last Updated**: 2025-12-12
 **Key Commands**:
 
 - `npm run phoenix:truth` - Run truth-case validation suite
-- `/run-truth` - Slash command alias
+- `/phoenix-truth` - Deterministic truth case validation
+- `/phoenix-phase2` - Phase 2 probabilistic workflow
+- `/phoenix-prob-report` - Format Monte Carlo distributions
 
 ---
 
@@ -284,4 +302,4 @@ structural changes) **Last Updated**: 2025-12-12 **Next Review**: 2026-01-12
 ---
 
 **Navigation Tip**: For agent-facing decision tree and pattern routing, see
-`.claude/DISCOVERY-MAP.md` (Phase 2 implementation)
+[.claude/DISCOVERY-MAP.md](../.claude/DISCOVERY-MAP.md)

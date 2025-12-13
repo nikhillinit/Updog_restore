@@ -6,15 +6,18 @@
       "Bash(npm run check:*)",
       "Bash(npm run build:*)",
       "Bash(npm run doctor:*)",
+      "Bash(npm run phoenix:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
       "Bash(git branch:*)",
+      "Bash(git fetch:*)",
       "Read(**/*)"
     ],
     "deny": [
       "Bash(npm run db:push:*)",
       "Bash(git push:*)",
+      "Bash(rm -rf:*)",
       "Write(.env*)",
       "Write(package.json)"
     ]

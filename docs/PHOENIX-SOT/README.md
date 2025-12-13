@@ -1,3 +1,20 @@
+---
+status: ACTIVE
+audience: both
+last_updated: 2025-12-12
+categories: [phoenix, validation, vc-modeling]
+keywords: [phoenix, truth-case, xirr, waterfall, fees, capital, forecasting]
+source_of_truth: true
+phase: "1B"
+agent_routing:
+  priority: 1
+  route_hint: "Entry point for all Phoenix project work."
+  use_cases: [phoenix_validation, vc_modeling]
+maintenance:
+  owner: "Phoenix Team"
+  review_cadence: "P30D"
+---
+
 # Phoenix SOT (Source of Truth) Hub
 
 > Start here for any work on the VC fund modeling, forecasting, validation, and
