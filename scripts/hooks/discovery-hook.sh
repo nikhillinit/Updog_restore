@@ -140,29 +140,48 @@ for bundle_triggers in "${!TASK_BUNDLES[@]}"; do
 done
 
 # =============================================================================
-# PHASE 1: Router-based matching (highest priority)
+# PHASE 1: Router-based matching (highest priority) - Pure jq for speed
 # =============================================================================
 
 ROUTER_FILE="$PROJECT_ROOT/docs/_generated/router-fast.json"
 if [ -f "$ROUTER_FILE" ]; then
-  ROUTER_RESULT=$(cd "$PROJECT_ROOT" && npx tsx scripts/routeQueryFast.ts "$PROMPT" 2>/dev/null || true)
-  if echo "$ROUTER_RESULT" | grep -q "MATCH:"; then
-    ROUTE_AGENT=$(echo "$ROUTER_RESULT" | grep "^Agent:" | cut -d' ' -f2-)
-    ROUTE_CMD=$(echo "$ROUTER_RESULT" | grep "^Command:" | cut -d' ' -f2-)
-    ROUTE_TO=$(echo "$ROUTER_RESULT" | grep "^Route:" | cut -d' ' -f2-)
-    ROUTE_SCORE=$(echo "$ROUTER_RESULT" | grep "^Score:" | awk '{print $2}')
+  # Pure jq pattern matching - ~50ms vs ~1.5s with npx tsx
+  ROUTER_RESULT=$(jq -r --arg query "$PROMPT_LOWER" '
+    .patterns[] |
+    select(
+      (.match_any_normalized // .match_any | map(ascii_downcase)) as $keywords |
+      any($keywords[]; $query | contains(.))
+    ) |
+    {
+      id: .id,
+      route_to: .route_to,
+      agent: (.agent // ""),
+      command: (.command // ""),
+      priority: .priority,
+      score: (
+        (.match_any_normalized // .match_any | map(ascii_downcase)) as $keywords |
+        [$keywords[] | select($query | contains(.))] | length
+      )
+    }
+  ' "$ROUTER_FILE" 2>/dev/null | jq -s 'sort_by(-.score, .priority) | .[0] // empty' 2>/dev/null || true)
+
+  if [ -n "$ROUTER_RESULT" ]; then
+    ROUTE_AGENT=$(echo "$ROUTER_RESULT" | jq -r '.agent // ""')
+    ROUTE_CMD=$(echo "$ROUTER_RESULT" | jq -r '.command // ""')
+    ROUTE_TO=$(echo "$ROUTER_RESULT" | jq -r '.route_to // ""')
+    ROUTE_SCORE=$(echo "$ROUTER_RESULT" | jq -r '.score // 0')
 
     # Router matches get high base score
     BASE_SCORE=${ROUTE_SCORE:-2}
-    PRIORITY_SCORE=$((${BASE_SCORE%.*} * 10 + 50))  # Convert to integer, add priority bonus
+    PRIORITY_SCORE=$((BASE_SCORE * 10 + 50))
 
-    if [ -n "$ROUTE_AGENT" ]; then
+    if [ -n "$ROUTE_AGENT" ] && [ "$ROUTE_AGENT" != "" ]; then
       add_match "router-agent" "$ROUTE_AGENT" "$PRIORITY_SCORE"
     fi
-    if [ -n "$ROUTE_CMD" ]; then
+    if [ -n "$ROUTE_CMD" ] && [ "$ROUTE_CMD" != "" ]; then
       add_match "router-command" "$ROUTE_CMD" "$PRIORITY_SCORE"
     fi
-    if [ -n "$ROUTE_TO" ] && [ -z "$ROUTE_AGENT" ] && [ -z "$ROUTE_CMD" ]; then
+    if [ -n "$ROUTE_TO" ] && [ "$ROUTE_TO" != "" ] && [ -z "$ROUTE_AGENT" ] && [ -z "$ROUTE_CMD" ]; then
       add_match "router-doc" "$ROUTE_TO" "$((PRIORITY_SCORE - 10))"
     fi
   fi
@@ -232,6 +251,19 @@ if [ "$KEYWORD_COUNT" -gt 0 ]; then
     done
   fi
 
+  # --- Cheatsheets (targeted search) ---
+  CHEATSHEET_DIR="$PROJECT_ROOT/cheatsheets"
+  if [ -d "$CHEATSHEET_DIR" ]; then
+    for keyword in $KEYWORDS; do
+      # Filename matches
+      CHEAT_MATCHES=$(find "$CHEATSHEET_DIR" -name "*${keyword}*.md" -type f 2>/dev/null || true)
+      for match in $CHEAT_MATCHES; do
+        CHEAT_NAME=$(basename "$match" .md)
+        add_match "cheatsheet" "$CHEAT_NAME" "22"
+      done
+    done
+  fi
+
   # --- MCP Servers ---
   MCP_FILE="$PROJECT_ROOT/.mcp.json"
   if [ -f "$MCP_FILE" ]; then
@@ -290,6 +322,9 @@ if [ "$MATCH_COUNT" -ge 1 ]; then
           ;;
         skill|bundle-skill)
           echo "  [SKILL] $name"
+          ;;
+        cheatsheet)
+          echo "  [CHEATSHEET] cheatsheets/${name}.md"
           ;;
         mcp)
           echo "  [MCP] mcp__${name}__* tools available"
