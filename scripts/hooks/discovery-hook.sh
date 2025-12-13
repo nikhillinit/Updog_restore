@@ -13,7 +13,7 @@
 set -e
 
 # Configuration
-MAX_RESULTS=5
+MAX_RESULTS=7
 MIN_KEYWORD_LENGTH=4
 
 # Read JSON input from stdin
@@ -36,6 +36,55 @@ fi
 if echo "$PROMPT" | grep -qiE "^(yes|no|ok|thanks|thank you|y|n|sure|done|good)$"; then
   exit 0
 fi
+
+# =============================================================================
+# TASK BUNDLES - Groups of related skills/agents for common tasks
+# =============================================================================
+# Format: "trigger_phrase|type1:name1,type2:name2,..."
+
+declare -A TASK_BUNDLES=(
+  # Critical evaluation - thorough review with multiple perspectives
+  ["critical|critique|evaluate|assess|validate|verify|thorough"]="skill:inversion-thinking,skill:pattern-recognition,agent:code-reviewer,agent:silent-failure-hunter"
+
+  # Planning and design - structured approach to new work
+  ["plan|design|architect|strategy|approach"]="skill:brainstorming,skill:writing-plans,skill:task-decomposition,skill:architecture-patterns,agent:docs-architect"
+
+  # Deep debugging - systematic investigation
+  ["debug|investigate|root cause|trace|diagnose"]="skill:systematic-debugging,skill:root-cause-tracing,skill:inversion-thinking,agent:debug-expert"
+
+  # Code review workflow - giving or receiving reviews
+  ["review|code review|pr review|pull request"]="skill:requesting-code-review,skill:receiving-code-review,agent:code-reviewer,agent:silent-failure-hunter,agent:type-design-analyzer"
+
+  # Feature implementation - TDD workflow
+  ["implement|feature|new feature|build|create"]="skill:writing-plans,skill:executing-plans,skill:continuous-improvement,agent:test-automator"
+
+  # Testing strategy - thorough test coverage
+  ["test strategy|test plan|coverage|comprehensive test"]="skill:testing-anti-patterns,skill:condition-based-waiting,agent:test-automator,agent:test-repair,agent:pr-test-analyzer"
+
+  # Refactoring - safe code improvement
+  ["refactor|simplify|clean|improve code|technical debt"]="agent:code-simplifier,skill:iterative-improvement,skill:continuous-improvement,agent:code-reviewer"
+
+  # Performance - optimization and analysis
+  ["performance|optimize|slow|bottleneck|latency"]="agent:perf-guard,skill:pattern-recognition,agent:code-simplifier"
+
+  # Complex problem solving - multi-perspective thinking frameworks
+  ["complex|difficult|tricky|challenging|hard problem"]="skill:inversion-thinking,skill:analogical-thinking,skill:extended-thinking-framework,skill:task-decomposition"
+
+  # Anti-pattern prevention - quality and security
+  ["anti-pattern|security|safe|prevent|vulnerability|race condition"]="skill:pattern-recognition,skill:inversion-thinking,agent:silent-failure-hunter,agent:code-reviewer"
+
+  # Git workflow - branching and finishing work
+  ["branch|worktree|merge|finish|complete branch"]="skill:finishing-a-development-branch,skill:using-git-worktrees,skill:verification-before-completion"
+
+  # Parallel work - multi-agent coordination
+  ["parallel|concurrent|multiple|simultaneously"]="skill:dispatching-parallel-agents,skill:subagent-driven-development,skill:task-decomposition"
+
+  # Phoenix/VC domain - fund modeling specific
+  ["waterfall|carry|clawback|xirr|irr|fees|reserves|capital|allocation"]="agent:waterfall-specialist,agent:xirr-fees-validator,agent:phoenix-capital-allocation-analyst,agent:phoenix-reserves-optimizer"
+
+  # Documentation - writing and maintaining docs
+  ["document|documentation|docs|jsdoc|readme"]="agent:docs-architect,agent:phoenix-docs-scribe,skill:memory-management"
+)
 
 # =============================================================================
 # DISCOVERY FUNCTIONS
@@ -64,6 +113,31 @@ extract_keywords() {
     grep -vE "^(help|with|this|that|have|from|what|when|where|which|would|could|should|about|after|before|between|into|through|during|before|after|above|below|under|over|again|further|then|once|here|there|where|when|some|more|most|other|such|only|same|than|also|just|like|will|make|made|know|take|come|want|look|give|find|think|tell|become|seem|leave|feel|being|because|every|still|might|while|each|both|these|those|being|doing|having|getting|going|using|trying|need|please|thanks|thank|okay|hello)$" | \
     sort -u
 }
+
+# =============================================================================
+# PHASE 0: Bundle matching (highest priority - curated task bundles)
+# =============================================================================
+
+PROMPT_LOWER=$(echo "$PROMPT" | tr '[:upper:]' '[:lower:]')
+
+for bundle_triggers in "${!TASK_BUNDLES[@]}"; do
+  # Split triggers by |
+  IFS='|' read -ra TRIGGERS <<< "$bundle_triggers"
+  for trigger in "${TRIGGERS[@]}"; do
+    if echo "$PROMPT_LOWER" | grep -qi "$trigger"; then
+      # Found a bundle match - add all bundled assets with high score
+      BUNDLE_ASSETS="${TASK_BUNDLES[$bundle_triggers]}"
+      IFS=',' read -ra ASSETS <<< "$BUNDLE_ASSETS"
+      for asset in "${ASSETS[@]}"; do
+        ASSET_TYPE=$(echo "$asset" | cut -d':' -f1)
+        ASSET_NAME=$(echo "$asset" | cut -d':' -f2)
+        # Bundle matches get score 60 (higher than router's 50 base)
+        add_match "bundle-$ASSET_TYPE" "$ASSET_NAME" "60"
+      done
+      break 2  # Only match one bundle per prompt
+    fi
+  done
+done
 
 # =============================================================================
 # PHASE 1: Router-based matching (highest priority)
@@ -177,9 +251,9 @@ fi
 # OUTPUT: Sort by score, deduplicate, limit results
 # =============================================================================
 
-# Sort by score descending, deduplicate by type+name, take top N
+# Sort by score descending, deduplicate by name only (ignore type prefix), take top N
 SORTED_MATCHES=$(sort -t'|' -k1 -nr "$MATCHES_FILE" | \
-  awk -F'|' '!seen[$2":"$3]++' | \
+  awk -F'|' '!seen[$3]++' | \
   head -n $MAX_RESULTS)
 
 MATCH_COUNT=$(echo "$SORTED_MATCHES" | grep -c '|' || echo 0)
@@ -208,14 +282,14 @@ if [ "$MATCH_COUNT" -ge 1 ]; then
   echo "$SORTED_MATCHES" | while IFS='|' read -r score type name; do
     if [ -n "$type" ] && [ -n "$name" ]; then
       case "$type" in
-        router-agent|agent)
+        router-agent|agent|bundle-agent)
           echo "  [AGENT] Task tool: subagent_type='$name'"
           ;;
         router-command|command)
           echo "  [COMMAND] $name"
           ;;
-        skill)
-          echo "  [SKILL] $name (auto-activates or use explicitly)"
+        skill|bundle-skill)
+          echo "  [SKILL] $name"
           ;;
         mcp)
           echo "  [MCP] mcp__${name}__* tools available"
