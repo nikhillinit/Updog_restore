@@ -1,21 +1,22 @@
 # Staleness Report
 
-_Generated: 2025-12-13T04:21:35.441Z_ _Source: docs/DISCOVERY-MAP.source.yaml_
+*Generated: 2025-12-13T08:44:43.302Z*
+*Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
 
-| Metric              | Value |
-| ------------------- | ----- |
-| Total Documents     | 559   |
-| Stale Documents     | 554   |
-| Missing Frontmatter | 507   |
+| Metric | Value |
+|--------|-------|
+| Total Documents | 560 |
+| Stale Documents | 555 |
+| Missing Frontmatter | 508 |
 
 ### By Status
 
-| Status  | Count |
-| ------- | ----- |
-| UNKNOWN | 554   |
-| ACTIVE  | 5     |
+| Status | Count |
+|--------|-------|
+| UNKNOWN | 555 |
+| ACTIVE | 5 |
 
 ## Stale Documents
 
@@ -74,7 +75,7 @@ Documents that need review (older than their cadence threshold):
 | `PHASE3-STRATEGY-FINAL-2025-11-06.md`                    | Never        | 999      | No                   | Unassigned |
 | `PHASE3-STRATEGY-HANDOFF-2025-11-06.md`                  | Never        | 999      | No                   | Unassigned |
 
-_...and 504 more stale documents._
+*...and 505 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -292,6 +293,7 @@ Documents without proper YAML frontmatter:
 - [ ] `VERCEL_ACCESS.md`
 - [ ] `VERCEL_SOLUTION.md`
 - [ ] `WEEK_1_FINAL_VALIDATED.md`
+- [ ] `plan.md`
 - [ ] `triage-interleaved-thinking-failures.md`
 - [ ] `docs/.templates/DEPRECATION-HEADER.md`
 - [ ] `docs/.templates/DOC-FRONTMATTER-SCHEMA.md`

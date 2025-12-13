@@ -343,14 +343,79 @@ patterns:
     target: "cheatsheets/pr-merge-verification.md"
     command: "/deploy-check"
 
+  # --- Debugging ---
+  - id: "debugging"
+    priority: 85
+    category: "Development"
+    keywords:
+      - "debug"
+      - "debugging"
+      - "investigate"
+      - "root cause"
+      - "trace"
+      - "stack trace"
+    target: ".claude/agents/debug-expert.md"
+    agent: "debug-expert"
+
+  # --- Code Review ---
+  - id: "code_review"
+    priority: 86
+    category: "Development"
+    keywords:
+      - "review"
+      - "code review"
+      - "pr review"
+      - "pull request"
+      - "check code"
+    target: ".claude/agents/code-reviewer.md"
+    agent: "code-reviewer"
+
+  # --- Refactoring ---
+  - id: "refactoring"
+    priority: 87
+    category: "Development"
+    keywords:
+      - "refactor"
+      - "simplify"
+      - "clean up"
+      - "improve code"
+      - "reduce complexity"
+    target: ".claude/agents/code-simplifier.md"
+    agent: "code-simplifier"
+
+  # --- Test Repair ---
+  - id: "test_repair"
+    priority: 88
+    category: "Testing"
+    keywords:
+      - "fix test"
+      - "test fail"
+      - "failing test"
+      - "repair test"
+      - "broken test"
+    target: ".claude/agents/test-repair.md"
+    agent: "test-repair"
+
+  # --- Documentation ---
+  - id: "documentation"
+    priority: 89
+    category: "Documentation"
+    keywords:
+      - "document"
+      - "documentation"
+      - "docs"
+      - "jsdoc"
+      - "readme"
+      - "write docs"
+    target: ".claude/agents/docs-architect.md"
+    agent: "docs-architect"
+
   # --- Troubleshooting (fallback) ---
   - id: "troubleshooting"
     priority: 90
     category: "Troubleshooting"
     keywords:
       - "error"
-      - "debug"
-      - "fix"
       - "broken"
       - "issue"
       - "problem"

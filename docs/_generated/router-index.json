@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-12-13T04:21:35.438Z",
+  "generatedAt": "2025-12-13T08:44:43.298Z",
   "version": "2.0",
   "config": {
     "min_score_to_route": 2,
@@ -150,7 +150,8 @@
         "gp",
         "lp"
       ],
-      "target": ".claude/agents/waterfall-specialist.md"
+      "target": ".claude/agents/waterfall-specialist.md",
+      "agent": "waterfall-specialist"
     },
     {
       "id": "phoenix_precision",
@@ -163,14 +164,22 @@
         "numeric drift",
         "rounding"
       ],
-      "target": ".claude/agents/phoenix-precision-guardian.md"
+      "target": ".claude/agents/phoenix-precision-guardian.md",
+      "agent": "phoenix-precision-guardian"
     },
     {
       "id": "phoenix_xirr",
       "priority": 14,
       "category": "Phoenix",
-      "keywords": ["xirr", "irr", "fees", "management fee", "carry fee"],
-      "target": ".claude/agents/xirr-fees-validator.md"
+      "keywords": [
+        "xirr",
+        "irr",
+        "fees",
+        "management fee",
+        "carry fee"
+      ],
+      "target": ".claude/agents/xirr-fees-validator.md",
+      "agent": "xirr-fees-validator"
     },
     {
       "id": "phoenix_allocation",
@@ -182,7 +191,8 @@
         "deployment",
         "stage allocation"
       ],
-      "target": ".claude/agents/phoenix-capital-allocation-analyst.md"
+      "target": ".claude/agents/phoenix-capital-allocation-analyst.md",
+      "agent": "phoenix-capital-allocation-analyst"
     },
     {
       "id": "capabilities",
@@ -246,7 +256,8 @@
         "postgres",
         "drizzle"
       ],
-      "target": "SIDECAR_GUIDE.md"
+      "target": "SIDECAR_GUIDE.md",
+      "agent": "database-expert"
     },
     {
       "id": "memory",
@@ -292,13 +303,83 @@
       "target": "cheatsheets/pr-merge-verification.md"
     },
     {
+      "id": "debugging",
+      "priority": 85,
+      "category": "Development",
+      "keywords": [
+        "debug",
+        "debugging",
+        "investigate",
+        "root cause",
+        "trace",
+        "stack trace"
+      ],
+      "target": ".claude/agents/debug-expert.md",
+      "agent": "debug-expert"
+    },
+    {
+      "id": "code_review",
+      "priority": 86,
+      "category": "Development",
+      "keywords": [
+        "review",
+        "code review",
+        "pr review",
+        "pull request",
+        "check code"
+      ],
+      "target": ".claude/agents/code-reviewer.md",
+      "agent": "code-reviewer"
+    },
+    {
+      "id": "refactoring",
+      "priority": 87,
+      "category": "Development",
+      "keywords": [
+        "refactor",
+        "simplify",
+        "clean up",
+        "improve code",
+        "reduce complexity"
+      ],
+      "target": ".claude/agents/code-simplifier.md",
+      "agent": "code-simplifier"
+    },
+    {
+      "id": "test_repair",
+      "priority": 88,
+      "category": "Testing",
+      "keywords": [
+        "fix test",
+        "test fail",
+        "failing test",
+        "repair test",
+        "broken test"
+      ],
+      "target": ".claude/agents/test-repair.md",
+      "agent": "test-repair"
+    },
+    {
+      "id": "documentation",
+      "priority": 89,
+      "category": "Documentation",
+      "keywords": [
+        "document",
+        "documentation",
+        "docs",
+        "jsdoc",
+        "readme",
+        "write docs"
+      ],
+      "target": ".claude/agents/docs-architect.md",
+      "agent": "docs-architect"
+    },
+    {
       "id": "troubleshooting",
       "priority": 90,
       "category": "Troubleshooting",
       "keywords": [
         "error",
-        "debug",
-        "fix",
         "broken",
         "issue",
         "problem",
@@ -1408,6 +1489,18 @@
     },
     {
       "path": "WEEK_1_FINAL_VALIDATED.md",
+      "exists": true,
+      "docType": "doc",
+      "frontmatter": {},
+      "isStale": true,
+      "staleDays": 999,
+      "hasExecutionClaims": false,
+      "lastUpdated": null,
+      "status": "UNKNOWN",
+      "owner": null
+    },
+    {
+      "path": "plan.md",
       "exists": true,
       "docType": "doc",
       "frontmatter": {},
@@ -7353,11 +7446,11 @@
     }
   ],
   "stats": {
-    "total_docs": 559,
-    "stale_docs": 554,
-    "missing_frontmatter": 507,
+    "total_docs": 560,
+    "stale_docs": 555,
+    "missing_frontmatter": 508,
     "by_status": {
-      "UNKNOWN": 554,
+      "UNKNOWN": 555,
       "ACTIVE": 5
     }
   }
