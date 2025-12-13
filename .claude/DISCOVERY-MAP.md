@@ -28,6 +28,50 @@ If a task sounds like "build / implement / add / create", check `CAPABILITIES.md
 
 ---
 
+# 0B. Existence Verification Protocol (MANDATORY)
+
+**BEFORE claiming any project asset "doesn't exist" or "is not implemented":**
+
+```
+VERIFY-BEFORE-CRITIQUE CHECKLIST:
+[ ] 1. Glob for agents:     Glob .claude/agents/*.md
+[ ] 2. Glob for skills:     Glob .claude/skills/*.md
+[ ] 3. Glob for impl files: Glob **/*<keyword>*.ts
+[ ] 4. Grep for references: Grep "<asset-name>" --glob "**/*.md"
+[ ] 5. Check router index:  Read docs/_generated/router-index.json
+```
+
+**Anti-Pattern (What NOT to do):**
+```
+# BAD: Assuming based on stale documentation
+"ADR-008 says engines are 'planned', therefore they don't exist"
+
+# BAD: Claiming non-existence without verification
+"phoenix-capital-allocation-analyst agent doesn't exist"
+```
+
+**Correct Pattern:**
+```
+# GOOD: Verify before claiming
+Glob .claude/agents/phoenix*.md
+# Result: 7 files found including phoenix-capital-allocation-analyst.md
+# Conclusion: Agent EXISTS, read its capabilities before critiquing
+```
+
+**Trigger Phrases (if you're about to say these, STOP and verify first):**
+- "doesn't exist"
+- "not implemented"
+- "is not available"
+- "cannot be found"
+- "there is no"
+- "missing from the codebase"
+
+**Failure Mode This Prevents:**
+Critiquing a plan for referencing "non-existent" tools when those tools actually exist,
+wasting user time correcting false assumptions.
+
+---
+
 # 1. Pattern-Based Routing (Fast Path)
 
 Pattern matching uses OR logic: any match triggers the route.

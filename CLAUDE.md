@@ -101,6 +101,18 @@ STOP! Have you checked CAPABILITIES.md for existing solutions?
 - If YES: Use existing agents/tools in your todo list
 ```
 
+## BEFORE CRITIQUING ANY PLAN
+
+```
+STOP! Before claiming something "doesn't exist":
+1. Glob .claude/agents/*.md (verify agents)
+2. Glob **/*<keyword>*.ts (verify implementations)
+3. Read docs/_generated/router-index.json (check discovery index)
+
+NEVER trust stale documentation over codebase reality.
+See: .claude/DISCOVERY-MAP.md Section 0B
+```
+
 ## Discovery Routing (Quick Reference)
 
 For detailed routing logic, see `.claude/DISCOVERY-MAP.md`. Key patterns:
@@ -185,6 +197,27 @@ claims against actual implementation.
 **See:**
 [cheatsheets/document-review-workflow.md](cheatsheets/document-review-workflow.md)
 for comprehensive workflow
+
+## Asset Existence Verification (MANDATORY)
+
+**BEFORE claiming any agent, skill, command, or implementation "doesn't exist":**
+
+1. **Verify agents**: `Glob .claude/agents/*.md`
+2. **Verify skills**: `Glob .claude/skills/*.md`
+3. **Verify implementations**: `Glob **/*<keyword>*.ts`
+4. **Check discovery index**: `Read docs/_generated/router-index.json`
+
+**Trigger phrases requiring verification FIRST:**
+- "doesn't exist" / "not implemented" / "is not available"
+- "cannot be found" / "there is no" / "missing from codebase"
+
+**Anti-pattern this prevents:** Critiquing plans for referencing "non-existent"
+tools that actually exist, wasting user time on false corrections.
+
+**Root cause:** Stale documentation (e.g., ADR saying "planned") doesn't reflect
+current implementation state. Code is truth; always verify against codebase.
+
+**See:** `.claude/DISCOVERY-MAP.md` Section 0B for full protocol.
 
 ## Architecture
 
