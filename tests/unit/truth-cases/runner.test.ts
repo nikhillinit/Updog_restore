@@ -4,7 +4,7 @@
  * Validates all truth-case scenarios across 6 calculation modules using Decimal.js precision:
  * - XIRR (51 scenarios): Active execution with Excel parity assertions
  * - Waterfall-Tier (15 scenarios): Decimal.js tier-based calculations (Phase 1A)
- * - Waterfall-Ledger (8 scenarios): Decimal.js ledger-based calculations (Phase 1A)
+ * - Waterfall-Ledger (14 scenarios): Active execution with clawback/recycling (Phase 1B)
  * - Reserves (3 scenarios): Decimal.js allocation calculations (Phase 1B)
  * - Pacing (3 scenarios): Decimal.js pacing calculations (Phase 1B)
  * - Fees (10 scenarios): Active execution (Phase 1.3)
@@ -39,6 +39,14 @@ import Decimal from 'decimal.js';
 // Phase 1.3: Fees validation imports
 import { computeFeePreview } from '@/lib/fees-wizard';
 import { adaptFeeTruthCase, scaleExpectedOutput, type FeeTruthCase } from './fee-adapter';
+
+// Phase 1B: Waterfall-Ledger validation imports
+import { calculateAmericanWaterfallLedger } from '@/lib/waterfall/american-ledger';
+import {
+  adaptWaterfallLedgerTruthCase,
+  validateWaterfallLedgerResult,
+  type WaterfallLedgerTruthCase,
+} from './waterfall-ledger-adapter';
 
 // Import all truth-case JSON files
 import xirrCases from '../../../docs/xirr.truth-cases.json';
@@ -228,30 +236,42 @@ describe('Truth Cases: Waterfall-Tier (Phase 1A - Active)', () => {
   });
 });
 
-// [PHASE 1A] Waterfall-Ledger - Structural Validation Only
-describe('Truth Cases: Waterfall-Ledger (Phase 1A - Structural)', () => {
-  it('loads waterfall-ledger truth cases', () => {
-    expect(waterfallLedgerCases).toBeDefined();
-    expect(Array.isArray(waterfallLedgerCases)).toBe(true);
-    expect(waterfallLedgerCases.length).toBeGreaterThan(0);
-  });
+// [PHASE 1B] Waterfall-Ledger - Active Execution
+describe('Truth Cases: Waterfall-Ledger (Phase 1B - Active)', () => {
+  (waterfallLedgerCases as WaterfallLedgerTruthCase[]).forEach((testCase) => {
+    const { scenario, notes, expected } = testCase;
 
-  it('waterfall-ledger scenarios have required structure', () => {
-    waterfallLedgerCases.forEach((testCase: unknown) => {
-      const tc = testCase as Record<string, unknown>;
-      expect(tc).toHaveProperty('scenario');
-      expect(tc).toHaveProperty('input');
-      expect(tc).toHaveProperty('expected');
+    it(`${scenario}: ${notes}`, () => {
+      // Adapt truth case to production function input
+      const { config, contributions, exits } = adaptWaterfallLedgerTruthCase(testCase);
+
+      // Execute production code
+      const result = calculateAmericanWaterfallLedger(config, contributions, exits);
+
+      // Validate result against expected values
+      const validation = validateWaterfallLedgerResult(result, expected, 0.01);
+
+      // Assert all validations pass
+      if (!validation.pass) {
+        console.error(`[${scenario}] Validation failures:`, validation.failures);
+      }
+      expect(validation.pass).toBe(true);
     });
   });
 
-  // PHASE 1B: Ledger calculation engine not yet wired
-  // Requires multi-exit ledger tracking with cumulative waterfall state
-  // Will be activated after tier-based calculations stabilize
-  it.skip('[DEFERRED] Waterfall-Ledger execution requires ledger engine wiring', () => {
-    // Structural: 8/8 scenarios loaded
-    // Execution: Deferred to Phase 1B follow-up
-    // Reason: Requires ledger state tracking across multiple exits
+  // Summary: Waterfall-Ledger coverage and pass rate
+  it('Waterfall-Ledger truth table summary', () => {
+    expect(waterfallLedgerCases.length).toBe(14);
+
+    const allTags = (waterfallLedgerCases as WaterfallLedgerTruthCase[]).flatMap((tc) => tc.tags);
+    const tagSet = new Set(allTags);
+
+    // Required coverage categories per Phoenix plan
+    expect(tagSet.has('baseline')).toBe(true);
+    expect(tagSet.has('ledger')).toBe(true);
+    expect(tagSet.has('clawback')).toBe(true);
+
+    console.log(`Waterfall-Ledger: ${waterfallLedgerCases.length} scenarios validated`);
   });
 });
 
