@@ -1,19 +1,25 @@
+> **DEPRECATED:** Superseded by `docs/PHOENIX-SOT/execution-plan-v2.34.md` This
+> file is retained for historical reference only. Do not use for active
+> development.
+
 # Phoenix Execution Plan v2.18
 
-**Date:** December 9, 2025
-**Status:** ACTIVE - Ready for Execution
-**Author:** Solo Developer
+**Date:** December 9, 2025 **Status:** DEPRECATED **Author:** Solo Developer
 **Approach:** Validation-First, Evidence-Driven
 
 ---
 
 ## Executive Summary
 
-This plan validates and hardens 5 financial calculation modules (XIRR, MOIC, Waterfall, Fees, Reserves) through empirical testing before optimization. It rejects analysis paralysis in favor of actionable validation.
+This plan validates and hardens 5 financial calculation modules (XIRR, MOIC,
+Waterfall, Fees, Reserves) through empirical testing before optimization. It
+rejects analysis paralysis in favor of actionable validation.
 
-**Core Principle:** Code is truth. Validate first, then fix what's actually broken.
+**Core Principle:** Code is truth. Validate first, then fix what's actually
+broken.
 
 **Timeline:** 1-3 weeks (conditional on validation findings)
+
 - Best case (calculations work): 1-2 weeks
 - Moderate case (minor bugs): 2-3 weeks
 - Worst case (fundamental errors): 4-6 weeks
@@ -22,70 +28,76 @@ This plan validates and hardens 5 financial calculation modules (XIRR, MOIC, Wat
 
 ## Verified Ground Truth
 
-All metrics below have been independently verified via direct codebase inspection (December 9, 2025).
+All metrics below have been independently verified via direct codebase
+inspection (December 9, 2025).
 
 ### Codebase Metrics
 
-| Metric | Verified Value | Source |
-|--------|----------------|--------|
-| TypeScript errors | 454 (baselined) | `.tsc-baseline.json` |
-| Test pass rate baseline | 74.7% (998/1,337) | `cheatsheets/pr-merge-verification.md` |
-| Truth case scenarios | 105 total | `docs/*.truth-cases.json` |
-| parseFloat occurrences | 301 in 96 files | `grep -r "parseFloat"` |
-| Feature flags | 19 defined | `shared/feature-flags/flag-definitions.ts` |
-| Test files | 175 | `find -name "*.test.ts"` |
+| Metric                  | Verified Value    | Source                                     |
+| ----------------------- | ----------------- | ------------------------------------------ |
+| TypeScript errors       | 454 (baselined)   | `.tsc-baseline.json`                       |
+| Test pass rate baseline | 74.7% (998/1,337) | `cheatsheets/pr-merge-verification.md`     |
+| Truth case scenarios    | 105 total         | `docs/*.truth-cases.json`                  |
+| parseFloat occurrences  | 301 in 96 files   | `grep -r "parseFloat"`                     |
+| Feature flags           | 19 defined        | `shared/feature-flags/flag-definitions.ts` |
+| Test files              | 175               | `find -name "*.test.ts"`                   |
 
 ### Truth Case Distribution
 
-| Module | Scenarios | File |
-|--------|-----------|------|
-| XIRR | 25 | `docs/xirr.truth-cases.json` |
-| Capital Allocation | 20 | `docs/capital-allocation.truth-cases.json` |
-| Exit Recycling | 20 | `docs/exit-recycling.truth-cases.json` |
-| Waterfall (Tier-based) | 15 | `docs/waterfall.truth-cases.json` |
-| Waterfall (Ledger + Clawback) | 15 | `docs/waterfall-ledger.truth-cases.json` |
-| Fees | 10 | `docs/fees.truth-cases.json` |
-| **Total** | **105** | |
+| Module                        | Scenarios | File                                       |
+| ----------------------------- | --------- | ------------------------------------------ |
+| XIRR                          | 25        | `docs/xirr.truth-cases.json`               |
+| Capital Allocation            | 20        | `docs/capital-allocation.truth-cases.json` |
+| Exit Recycling                | 20        | `docs/exit-recycling.truth-cases.json`     |
+| Waterfall (Tier-based)        | 15        | `docs/waterfall.truth-cases.json`          |
+| Waterfall (Ledger + Clawback) | 15        | `docs/waterfall-ledger.truth-cases.json`   |
+| Fees                          | 10        | `docs/fees.truth-cases.json`               |
+| **Total**                     | **105**   |                                            |
 
 **Note:** Two waterfall implementations exist and both require validation:
-- **Tier-based** (`calculateAmericanWaterfall`): Single-exit, Excel parity, Decimal.js precision
-- **Ledger-based** (`calculateAmericanWaterfallLedger`): Multi-exit, clawback, recycling, DPI/TVPI
+
+- **Tier-based** (`calculateAmericanWaterfall`): Single-exit, Excel parity,
+  Decimal.js precision
+- **Ledger-based** (`calculateAmericanWaterfallLedger`): Multi-exit, clawback,
+  recycling, DPI/TVPI
 
 ### Truth Case Provenance
 
-| Module | Source | Validation Method | Confidence |
-|--------|--------|-------------------|------------|
-| XIRR | Excel `XIRR()` function | `excelFormula` field in JSON | HIGH - Excel is authoritative |
-| Waterfall (Tier) | Internal spreadsheet model | Hand-verified arithmetic | MEDIUM - Needs spot-check |
-| Waterfall (Ledger) | Unit tests + LPA terms | Migrated from `analytics-waterfall.test.ts` | MEDIUM - Needs spot-check |
-| Fees | Arithmetic derivations | 2% of commitment, etc. | HIGH - Simple math |
-| Capital Allocation | Unknown | 1,381 lines, unclear origin | LOW - Priority for spot-check |
-| Exit Recycling | Unknown | Needs investigation | LOW - Priority for spot-check |
+| Module             | Source                     | Validation Method                           | Confidence                    |
+| ------------------ | -------------------------- | ------------------------------------------- | ----------------------------- |
+| XIRR               | Excel `XIRR()` function    | `excelFormula` field in JSON                | HIGH - Excel is authoritative |
+| Waterfall (Tier)   | Internal spreadsheet model | Hand-verified arithmetic                    | MEDIUM - Needs spot-check     |
+| Waterfall (Ledger) | Unit tests + LPA terms     | Migrated from `analytics-waterfall.test.ts` | MEDIUM - Needs spot-check     |
+| Fees               | Arithmetic derivations     | 2% of commitment, etc.                      | HIGH - Simple math            |
+| Capital Allocation | Unknown                    | 1,381 lines, unclear origin                 | LOW - Priority for spot-check |
+| Exit Recycling     | Unknown                    | Needs investigation                         | LOW - Priority for spot-check |
 
-**Action:** Phase 0 spot-check (Step 0.4) specifically targets LOW/MEDIUM confidence scenarios.
+**Action:** Phase 0 spot-check (Step 0.4) specifically targets LOW/MEDIUM
+confidence scenarios.
 
 ### parseFloat Triage (Estimated)
 
-| Priority | Description | Est. Files | Est. Occurrences |
-|----------|-------------|------------|------------------|
-| P0 | Calculation paths | ~12 | ~20 |
-| P1 | Config/ENV parsing | ~3 | ~15 |
-| P2 | UI input boundaries | ~25 | ~65 |
-| P3 | Tests/fixtures | ~56 | ~200 |
-| **Total** | | **96** | **301** |
+| Priority  | Description         | Est. Files | Est. Occurrences |
+| --------- | ------------------- | ---------- | ---------------- |
+| P0        | Calculation paths   | ~12        | ~20              |
+| P1        | Config/ENV parsing  | ~3         | ~15              |
+| P2        | UI input boundaries | ~25        | ~65              |
+| P3        | Tests/fixtures      | ~56        | ~200             |
+| **Total** |                     | **96**     | **301**          |
 
-**Note:** P0+P1 (~35 occurrences) are the only ones that matter for calculation precision.
+**Note:** P0+P1 (~35 occurrences) are the only ones that matter for calculation
+precision.
 
 ### Existing Assets
 
-| Asset | Status | Location |
-|-------|--------|----------|
-| Clawback implementation | Merged (Dec 4) | `client/src/lib/waterfall/american-ledger.ts:183-243` |
-| Fee profile schema | Active | `shared/schemas/fee-profile.ts` |
-| Waterfall helpers | Active | `client/src/lib/waterfall.ts` |
-| TypeScript baseline ratchet | Active | `.tsc-baseline.json` |
-| Skills framework | 21 skills | `.claude/skills/README.md` |
-| Agent library | 22 agents | `.claude/agents/*.md` |
+| Asset                       | Status         | Location                                              |
+| --------------------------- | -------------- | ----------------------------------------------------- |
+| Clawback implementation     | Merged (Dec 4) | `client/src/lib/waterfall/american-ledger.ts:183-243` |
+| Fee profile schema          | Active         | `shared/schemas/fee-profile.ts`                       |
+| Waterfall helpers           | Active         | `client/src/lib/waterfall.ts`                         |
+| TypeScript baseline ratchet | Active         | `.tsc-baseline.json`                                  |
+| Skills framework            | 21 skills      | `.claude/skills/README.md`                            |
+| Agent library               | 22 agents      | `.claude/agents/*.md`                                 |
 
 ---
 
@@ -94,6 +106,7 @@ All metrics below have been independently verified via direct codebase inspectio
 **Goal:** Determine what actually works before planning fixes.
 
 **Duration:** 9.5-13 hours (1-1.5 days)
+
 - Best case: 9.5 hours (test suite healthy, spot-check passes)
 - Slip case: 13 hours (runner issues, spot-check finds oracle errors)
 
@@ -116,7 +129,8 @@ echo "Ledger-based usage:"
 grep -r "calculateAmericanWaterfallLedger" client/src --include="*.ts" | wc -l
 ```
 
-**Decision:** If production uses Tier-based, focus validation there. If Ledger-based, prioritize clawback scenarios.
+**Decision:** If production uses Tier-based, focus validation there. If
+Ledger-based, prioritize clawback scenarios.
 
 **0.1.2: Database Schema Audit (30 min)**
 
@@ -129,6 +143,7 @@ grep -n "decimal\|numeric" shared/schema.ts | head -20
 ```
 
 **Decision Gate:**
+
 - If financial columns use FLOAT/DOUBLE → **STOP** - Triggers Phase 1C (Rebuild)
 - If NUMERIC/DECIMAL → Proceed normally
 
@@ -140,6 +155,7 @@ npm run doctor:quick
 ```
 
 **Success Criteria:**
+
 - [ ] Wiring check completed - know which API is production
 - [ ] Schema audit passed - no FLOAT columns for money
 - [ ] `npm install` completes without errors
@@ -156,6 +172,7 @@ grep -E "(Tests|PASS|FAIL|passed|failed)" test-results-phase0.txt | tail -20
 ```
 
 **Capture:**
+
 - Total tests run
 - Pass count / Fail count
 - Pass percentage
@@ -165,13 +182,13 @@ grep -E "(Tests|PASS|FAIL|passed|failed)" test-results-phase0.txt | tail -20
 
 Categorize each failing test:
 
-| Category | Priority | Action |
-|----------|----------|--------|
-| Calculation logic error | CRITICAL | Must fix |
-| Type error | MODERATE | Fix if blocking |
-| Test infrastructure (jest-dom, globals) | LOW | Fix separately |
-| Flaky/timeout | IGNORE | Skip for now |
-| Integration/DB | DEFER | Requires setup |
+| Category                                | Priority | Action          |
+| --------------------------------------- | -------- | --------------- |
+| Calculation logic error                 | CRITICAL | Must fix        |
+| Type error                              | MODERATE | Fix if blocking |
+| Test infrastructure (jest-dom, globals) | LOW      | Fix separately  |
+| Flaky/timeout                           | IGNORE   | Skip for now    |
+| Integration/DB                          | DEFER    | Requires setup  |
 
 **Document in:** `docs/phase0-test-analysis.md`
 
@@ -179,9 +196,11 @@ Categorize each failing test:
 
 #### Step 0.4: Truth Case Spot-Check (1.5 hours) - CRITICAL
 
-**Goal:** Independent verification of 5 high-risk scenarios BEFORE automated validation.
+**Goal:** Independent verification of 5 high-risk scenarios BEFORE automated
+validation.
 
 **Why This Cannot Be Skipped:**
+
 - Automated runner validates CODE against ORACLES
 - If oracles are wrong, runner cannot detect it (Oracle Problem)
 - Capital Allocation: 1,381 lines, unclear validation provenance
@@ -191,17 +210,18 @@ Categorize each failing test:
 
 **Scope (5 scenarios):**
 
-| Scenario | Module | Verification Method | Time |
-|----------|--------|---------------------|------|
-| CA-001 | Capital Allocation | Excel: 20% of 100 = 20 reserve | 15 min |
-| CA-013 | Capital Allocation | Hand-calc: reserve override | 20 min |
-| L08 | Waterfall Ledger | Ledger trace: partial clawback | 20 min |
-| FEE-001 | Fees | Arithmetic: 2% of commitment | 10 min |
-| XIRR-01 | XIRR | Excel XIRR() function | 15 min |
+| Scenario | Module             | Verification Method            | Time   |
+| -------- | ------------------ | ------------------------------ | ------ |
+| CA-001   | Capital Allocation | Excel: 20% of 100 = 20 reserve | 15 min |
+| CA-013   | Capital Allocation | Hand-calc: reserve override    | 20 min |
+| L08      | Waterfall Ledger   | Ledger trace: partial clawback | 20 min |
+| FEE-001  | Fees               | Arithmetic: 2% of commitment   | 10 min |
+| XIRR-01  | XIRR               | Excel XIRR() function          | 15 min |
 
 **Deliverable:** `docs/phase0-truth-case-audit.md`
 
 **Decision Gate:**
+
 - All 5 match → Proceed with runner (confidence +50%)
 - 1-2 discrepancies → Fix truth cases, re-verify
 - 3+ discrepancies → STOP - truth case generation process is broken
@@ -220,6 +240,7 @@ find tests -name "*truth*" -o -name "*golden*"
 ```
 
 **Capture results:**
+
 - XIRR: X/25 passing
 - Waterfall (tier): X/15 passing
 
@@ -242,8 +263,12 @@ describe('Fees Truth Cases', () => {
   });
 });
 
-describe('Capital Allocation Truth Cases', () => { /* similar */ });
-describe('Exit Recycling Truth Cases', () => { /* similar */ });
+describe('Capital Allocation Truth Cases', () => {
+  /* similar */
+});
+describe('Exit Recycling Truth Cases', () => {
+  /* similar */
+});
 
 describe('Waterfall Ledger Truth Cases', () => {
   ledgerCases.forEach((tc) => {
@@ -271,15 +296,15 @@ npm test -- --grep "Truth Case" 2>&1 | tee truth-case-results.txt
 
 **Document in:** `docs/phase0-truth-case-results.md`
 
-| Module | Total | Pass | Fail | Rate |
-|--------|-------|------|------|------|
-| XIRR | 25 | X | X | X% |
-| Waterfall (tier) | 15 | X | X | X% |
-| Waterfall (ledger) | 15 | X | X | X% |
-| Fees | 10 | X | X | X% |
-| Capital Allocation | 20 | X | X | X% |
-| Exit Recycling | 20 | X | X | X% |
-| **Total** | **105** | X | X | **X%** |
+| Module             | Total   | Pass | Fail | Rate   |
+| ------------------ | ------- | ---- | ---- | ------ |
+| XIRR               | 25      | X    | X    | X%     |
+| Waterfall (tier)   | 15      | X    | X    | X%     |
+| Waterfall (ledger) | 15      | X    | X    | X%     |
+| Fees               | 10      | X    | X    | X%     |
+| Capital Allocation | 20      | X    | X    | X%     |
+| Exit Recycling     | 20      | X    | X    | X%     |
+| **Total**          | **105** | X    | X    | **X%** |
 
 #### Step 0.8: Waterfall Implementation Wiring Check (30 min)
 
@@ -300,11 +325,15 @@ grep "calculateAmericanWaterfallLedger" tests/truth-cases/truth-case-runner.test
 
 #### Step 0.10: Cross-Validation - Waterfall Parity Check (30 min)
 
-**Goal:** Verify tier-based and ledger-based waterfalls produce identical results for single-exit scenarios.
+**Goal:** Verify tier-based and ledger-based waterfalls produce identical
+results for single-exit scenarios.
 
 **Why This Matters:**
-- Two implementations exist: `calculateAmericanWaterfall` (tier) and `calculateAmericanWaterfallLedger` (ledger)
-- For single-exit cases (no clawback/recycling), they MUST produce identical results
+
+- Two implementations exist: `calculateAmericanWaterfall` (tier) and
+  `calculateAmericanWaterfallLedger` (ledger)
+- For single-exit cases (no clawback/recycling), they MUST produce identical
+  results
 - Divergence indicates a bug in one or both implementations
 
 **Method:**
@@ -330,16 +359,24 @@ describe('Waterfall Cross-Validation', () => {
 
       // Run both engines
       const tierResult = calculateAmericanWaterfall(tc.input);
-      const ledgerResult = calculateAmericanWaterfallLedger(ledgerConfig, contributions, exits);
+      const ledgerResult = calculateAmericanWaterfallLedger(
+        ledgerConfig,
+        contributions,
+        exits
+      );
 
       // Compare GP carry (core calculation)
-      expect(ledgerResult.totals.gpCarryTotal).toBeCloseTo(tierResult.gpCarry, 2);
+      expect(ledgerResult.totals.gpCarryTotal).toBeCloseTo(
+        tierResult.gpCarry,
+        2
+      );
     });
   });
 });
 ```
 
 **Decision Gate:**
+
 - All scenarios match → Proceed (confidence in both implementations)
 - Discrepancies found → Document which engine is correct, prioritize fix
 
@@ -367,33 +404,36 @@ Create: `docs/phase0-validation-report.md`
 
 ```markdown
 # Phase 0 Validation Report
-**Date:** [DATE]
-**Duration:** [X hours]
+
+**Date:** [DATE] **Duration:** [X hours]
 
 ## Test Results
+
 - Total tests: X
 - Passing: X (X%)
 - Failing: X (X%)
 - Skipped: X
 
 ## Failure Categories
+
 - Calculation errors: X tests
 - Type errors: X tests
 - Infrastructure: X tests
 - Flaky: X tests
 
 ## Truth Case Validation
-| Module | Pass | Fail | Error | Rate |
-|--------|------|------|-------|------|
-| XIRR | X | X | X | X% |
-| Waterfall | X | X | X | X% |
-| Fees | X | X | X | X% |
-| Capital | X | X | X | X% |
-| Exit | X | X | X | X% |
+
+| Module    | Pass | Fail | Error | Rate |
+| --------- | ---- | ---- | ----- | ---- |
+| XIRR      | X    | X    | X     | X%   |
+| Waterfall | X    | X    | X     | X%   |
+| Fees      | X    | X    | X     | X%   |
+| Capital   | X    | X    | X     | X%   |
+| Exit      | X    | X    | X     | X%   |
 
 ## Decision
-PATH: [1A/1B/1C]
-REASON: [Based on findings above]
+
+PATH: [1A/1B/1C] REASON: [Based on findings above]
 ```
 
 ---
@@ -414,6 +454,7 @@ grep -r "FeeSchema\|fee.*schema\|fees.*schema" --include="*.ts" -l
 ```
 
 **Expected files:**
+
 - `shared/schemas/fee-profile.ts` (canonical)
 - `client/src/lib/fees-wizard.ts` (orphaned - delete)
 
@@ -427,6 +468,7 @@ grep -r "FeeSchema\|fee.*schema\|fees.*schema" --include="*.ts" -l
 #### Step 1A.3: Add Schema Tests (2 hours)
 
 Add edge case tests for:
+
 - Zero fee scenarios
 - Maximum fee bounds
 - Invalid fee combinations
@@ -445,6 +487,7 @@ grep -r "parseFloat" --include="*.ts" \
 ```
 
 **Expected P0 files (~12):**
+
 - `server/services/monte-carlo-engine.ts`
 - `server/services/fund-metrics-calculator.ts`
 - `client/src/lib/waterfall/american-ledger.ts`
@@ -453,11 +496,13 @@ grep -r "parseFloat" --include="*.ts" \
 #### Step 1A.5: Assess P0 Impact (2 hours)
 
 For each P0 file:
+
 1. Is parseFloat used in actual calculations?
 2. Does it affect precision-sensitive outputs?
 3. Is there a truth case that would catch errors?
 
 **Decision:** Only fix parseFloat if:
+
 - It's in a calculation path AND
 - No Zod validation exists AND
 - Truth case shows precision error
@@ -466,7 +511,8 @@ For each P0 file:
 
 **Strategy: Boundary Cast (Minimize Refactoring Risk)**
 
-The trap: Refactoring entire calculation chains to use Decimal.js method chaining creates massive diff risk and potential for subtle bugs.
+The trap: Refactoring entire calculation chains to use Decimal.js method
+chaining creates massive diff risk and potential for subtle bugs.
 
 **Boundary Cast Pattern:**
 
@@ -491,6 +537,7 @@ function calculateCarry(investment: number, exitProceeds: number): number {
 ```
 
 **Implementation rules:**
+
 1. Keep function signatures as `number` (no cascade refactoring)
 2. Cast to `Decimal` at function entry (input boundary)
 3. Perform all internal math using Decimal methods
@@ -498,6 +545,7 @@ function calculateCarry(investment: number, exitProceeds: number): number {
 5. Never use `parseFloat()` - use `new Decimal(string)` directly
 
 **If fixes needed:**
+
 ```typescript
 // BEFORE (problematic)
 const amount = parseFloat(input);
@@ -510,6 +558,7 @@ const amount = new Decimal(input); // For Decimal-internal use
 ```
 
 Add ESLint rule to prevent regression:
+
 ```javascript
 // eslint.config.js
 rules: {
@@ -547,6 +596,7 @@ jobs:
 ```
 
 **Verification:**
+
 ```bash
 # Run locally to confirm CI will pass
 npm test -- --grep "Truth Case"
@@ -558,8 +608,9 @@ npm test -- --grep "Truth Case"
 #### Step 1A.9: Archive Stale Documentation (2 hours)
 
 Move to `archive/2025-12/`:
-- Obsolete PHASE* documents
-- Superseded STRATEGY* documents
+
+- Obsolete PHASE\* documents
+- Superseded STRATEGY\* documents
 - Old planning documents
 
 #### Step 1A.10: Update CHANGELOG (1 hour)
@@ -568,6 +619,7 @@ Move to `archive/2025-12/`:
 ## [Unreleased] - 2025-12-XX
 
 ### Validated
+
 - XIRR calculations (25 truth cases)
 - Waterfall calculations (15 truth cases)
 - Fee calculations (10 truth cases)
@@ -575,10 +627,12 @@ Move to `archive/2025-12/`:
 - Exit recycling (20 truth cases)
 
 ### Fixed
+
 - [List any parseFloat fixes]
 - [List any schema consolidations]
 
 ### Removed
+
 - Orphaned fees-wizard.ts schema
 ```
 
@@ -619,6 +673,7 @@ npm run deploy:staging
 For each failing truth case:
 
 1. **Identify the bug:**
+
    ```bash
    # Run single truth case with debugging
    DEBUG=true npm test -- --grep "scenario X"
@@ -630,19 +685,19 @@ For each failing truth case:
    - Is it an edge case not handled?
 
 3. **Document in issue tracker:**
+
    ```markdown
    ## Bug: [Module] [Scenario X] fails
 
-   **Input:** [truth case input]
-   **Expected:** [truth case expected]
-   **Actual:** [what code produces]
-   **Root Cause:** [analysis]
-   **Fix Approach:** [proposed solution]
+   **Input:** [truth case input] **Expected:** [truth case expected] **Actual:**
+   [what code produces] **Root Cause:** [analysis] **Fix Approach:** [proposed
+   solution]
    ```
 
 #### Days 4-5: Fix Critical Calculation Bugs
 
 Priority order:
+
 1. XIRR bugs (most user-visible)
 2. Waterfall bugs (affects distributions)
 3. Fee bugs (affects fund economics)
@@ -650,6 +705,7 @@ Priority order:
 5. Exit recycling bugs
 
 For each fix:
+
 - Write failing test first (TDD)
 - Implement fix
 - Verify truth case passes
@@ -673,6 +729,7 @@ npm run check
 #### Days 11-12: Phase 1A Cleanup Tasks
 
 Execute Phase 1A steps:
+
 - Fee schema consolidation
 - parseFloat P0 audit (now informed by actual bugs found)
 - Documentation updates
@@ -701,6 +758,7 @@ Same as Phase 1A deployment steps.
 ### This path requires separate detailed planning based on Phase 0 findings.
 
 **Key activities:**
+
 1. Identify which engines are fundamentally broken
 2. Design corrected calculation logic
 3. Implement with TDD against truth cases
@@ -708,7 +766,8 @@ Same as Phase 1A deployment steps.
 
 **Timeline:** 4-6 weeks minimum
 
-**Recommendation:** If Phase 0 indicates this path, pause and create dedicated rebuild plan.
+**Recommendation:** If Phase 0 indicates this path, pause and create dedicated
+rebuild plan.
 
 ---
 
@@ -748,6 +807,7 @@ Same as Phase 1A deployment steps.
 ### TypeScript Strictness
 
 Maintain baseline ratchet:
+
 ```bash
 # Before any PR merge
 npm run check 2>&1 | grep "Found.*error"
@@ -757,6 +817,7 @@ npm run check 2>&1 | grep "Found.*error"
 ### Monitoring Setup
 
 Add calculation validation to runtime:
+
 ```typescript
 // server/middleware/calculation-validator.ts
 export function validateCalculationOutput(
@@ -778,6 +839,7 @@ export function validateCalculationOutput(
 ### Shadow Mode (Optional)
 
 If risk tolerance is low:
+
 ```typescript
 // Run old and new calculations in parallel
 const oldResult = legacyCalculation(input);
@@ -806,6 +868,7 @@ return oldResult;
 ```
 
 **Tolerance Guidelines:**
+
 - Dollar amounts: $0.01 (1 cent)
 - Percentages: 0.0001 (0.01%)
 - Multiples (DPI/TVPI): 0.0001
@@ -813,6 +876,7 @@ return oldResult;
 ### Feature Flag Rollout
 
 Use existing feature flag infrastructure:
+
 ```typescript
 // shared/feature-flags/flag-definitions.ts
 export const PHOENIX_VALIDATED_CALCULATIONS = {
@@ -824,6 +888,7 @@ export const PHOENIX_VALIDATED_CALCULATIONS = {
 ```
 
 Rollout schedule:
+
 - Day 1: 5% of users
 - Day 3: 25% of users
 - Day 7: 50% of users
@@ -833,12 +898,12 @@ Rollout schedule:
 
 **Metrics to monitor during rollout:**
 
-| Metric | Source | Alert Threshold |
-|--------|--------|-----------------|
-| Invalid calculation outputs | `validateCalculationOutput` logs | > 0.1% of requests |
-| Shadow mode discrepancies | Calculation discrepancy logs | > 0.5% of calls |
-| User-reported "numbers wrong" | Support tickets | > 2 per week |
-| API error rate (calculation endpoints) | Prometheus | > 1% increase |
+| Metric                                 | Source                           | Alert Threshold    |
+| -------------------------------------- | -------------------------------- | ------------------ |
+| Invalid calculation outputs            | `validateCalculationOutput` logs | > 0.1% of requests |
+| Shadow mode discrepancies              | Calculation discrepancy logs     | > 0.5% of calls    |
+| User-reported "numbers wrong"          | Support tickets                  | > 2 per week       |
+| API error rate (calculation endpoints) | Prometheus                       | > 1% increase      |
 
 **Rollout gates:**
 
@@ -858,6 +923,7 @@ ELSE:
 ```
 
 **Rollback trigger:**
+
 - Any calculation producing NaN/Infinity
 - > 1% error rate on financial endpoints
 - CFO/audit escalation
@@ -893,17 +959,18 @@ npm run deploy:production
 
 Track progress per module (intermediate wins):
 
-| Module | Target | Status |
-|--------|--------|--------|
-| XIRR | 25/25 | [ ] |
-| Waterfall (Tier) | 15/15 | [ ] |
-| Waterfall (Ledger) | 15/15 | [ ] |
-| Fees | 10/10 | [ ] |
-| Capital Allocation | 20/20 | [ ] |
-| Exit Recycling | 20/20 | [ ] |
-| **Total** | **105/105** | [ ] |
+| Module             | Target      | Status |
+| ------------------ | ----------- | ------ |
+| XIRR               | 25/25       | [ ]    |
+| Waterfall (Tier)   | 15/15       | [ ]    |
+| Waterfall (Ledger) | 15/15       | [ ]    |
+| Fees               | 10/10       | [ ]    |
+| Capital Allocation | 20/20       | [ ]    |
+| Exit Recycling     | 20/20       | [ ]    |
+| **Total**          | **105/105** | [ ]    |
 
 **Completion order recommendation:**
+
 1. XIRR (highest user visibility)
 2. Waterfall Tier (Excel parity critical)
 3. Fees (simple arithmetic)
@@ -933,26 +1000,25 @@ Track progress per module (intermediate wins):
 
 ### Risk 1: Phase 0 Reveals Fundamental Bugs
 
-**Probability:** Medium (30%)
-**Impact:** High (timeline extends to 4-6 weeks)
-**Mitigation:** Phase 0 designed to surface this early. If triggered, pause and create detailed rebuild plan.
+**Probability:** Medium (30%) **Impact:** High (timeline extends to 4-6 weeks)
+**Mitigation:** Phase 0 designed to surface this early. If triggered, pause and
+create detailed rebuild plan.
 
 ### Risk 2: Test Infrastructure Blocks Validation
 
-**Probability:** Medium (40%)
-**Impact:** Medium (delays by 1-2 days)
-**Mitigation:** Fix jest-dom/globals issues before calculation validation. Document workarounds.
+**Probability:** Medium (40%) **Impact:** Medium (delays by 1-2 days)
+**Mitigation:** Fix jest-dom/globals issues before calculation validation.
+Document workarounds.
 
 ### Risk 3: parseFloat Causes Production Precision Errors
 
-**Probability:** Low (15%)
-**Impact:** High (incorrect financial calculations)
-**Mitigation:** P0 audit focused on calculation paths. ESLint rules prevent future issues.
+**Probability:** Low (15%) **Impact:** High (incorrect financial calculations)
+**Mitigation:** P0 audit focused on calculation paths. ESLint rules prevent
+future issues.
 
 ### Risk 4: Feature Flag Rollout Reveals Edge Cases
 
-**Probability:** Medium (25%)
-**Impact:** Medium (requires hotfix)
+**Probability:** Medium (25%) **Impact:** Medium (requires hotfix)
 **Mitigation:** Shadow mode comparison. Gradual rollout with monitoring.
 
 ---
@@ -963,15 +1029,19 @@ Track progress per module (intermediate wins):
 ## Phoenix Standup - [DATE]
 
 ### Yesterday
+
 - [Completed tasks]
 
 ### Today
+
 - [Planned tasks]
 
 ### Blockers
+
 - [Any blockers]
 
 ### Metrics
+
 - Test pass rate: X%
 - Truth cases passing: X/90
 - TypeScript errors: X (baseline: 454)
@@ -1047,32 +1117,32 @@ npm run deploy:production
 
 ### Core Calculation Files
 
-| Module | Primary File | Test File |
-|--------|--------------|-----------|
-| XIRR | `server/services/xirr-calculator.ts` | `tests/unit/xirr-golden-set.test.ts` |
-| MOIC | `server/services/fund-metrics-calculator.ts` | `tests/unit/services/fund-metrics-calculator.test.ts` |
-| Waterfall (tier) | `shared/schemas/waterfall-policy.ts` | `tests/unit/waterfall-truth-table.test.ts` |
-| Waterfall (ledger) | `client/src/lib/waterfall/american-ledger.ts` | `tests/unit/analytics-waterfall.test.ts` |
-| Fees | `shared/schemas/fee-profile.ts` | `tests/unit/fees.test.ts` |
-| Reserves | `client/src/core/reserves/` | `tests/unit/reserves-engine.test.ts` |
+| Module             | Primary File                                  | Test File                                             |
+| ------------------ | --------------------------------------------- | ----------------------------------------------------- |
+| XIRR               | `server/services/xirr-calculator.ts`          | `tests/unit/xirr-golden-set.test.ts`                  |
+| MOIC               | `server/services/fund-metrics-calculator.ts`  | `tests/unit/services/fund-metrics-calculator.test.ts` |
+| Waterfall (tier)   | `shared/schemas/waterfall-policy.ts`          | `tests/unit/waterfall-truth-table.test.ts`            |
+| Waterfall (ledger) | `client/src/lib/waterfall/american-ledger.ts` | `tests/unit/analytics-waterfall.test.ts`              |
+| Fees               | `shared/schemas/fee-profile.ts`               | `tests/unit/fees.test.ts`                             |
+| Reserves           | `client/src/core/reserves/`                   | `tests/unit/reserves-engine.test.ts`                  |
 
 ### Configuration Files
 
-| Purpose | File |
-|---------|------|
-| TypeScript baseline | `.tsc-baseline.json` |
-| Test config | `vitest.config.ts` |
-| ESLint config | `eslint.config.js` |
-| Feature flags | `shared/feature-flags/flag-definitions.ts` |
+| Purpose             | File                                       |
+| ------------------- | ------------------------------------------ |
+| TypeScript baseline | `.tsc-baseline.json`                       |
+| Test config         | `vitest.config.ts`                         |
+| ESLint config       | `eslint.config.js`                         |
+| Feature flags       | `shared/feature-flags/flag-definitions.ts` |
 
 ### Documentation
 
-| Purpose | File |
-|---------|------|
-| Project instructions | `CLAUDE.md` |
-| Change log | `CHANGELOG.md` |
-| Decisions | `DECISIONS.md` |
-| PR verification | `cheatsheets/pr-merge-verification.md` |
+| Purpose              | File                                   |
+| -------------------- | -------------------------------------- |
+| Project instructions | `CLAUDE.md`                            |
+| Change log           | `CHANGELOG.md`                         |
+| Decisions            | `DECISIONS.md`                         |
+| PR verification      | `cheatsheets/pr-merge-verification.md` |
 
 ---
 
@@ -1080,55 +1150,59 @@ npm run deploy:production
 
 ### Decision 1: Validation-First Approach
 
-**Date:** December 9, 2025
-**Decision:** Validate calculations before optimization
-**Rationale:** Cannot optimize what isn't working. Empirical evidence beats hypothetical analysis.
+**Date:** December 9, 2025 **Decision:** Validate calculations before
+optimization **Rationale:** Cannot optimize what isn't working. Empirical
+evidence beats hypothetical analysis.
 
 ### Decision 2: Conditional Timeline
 
-**Date:** December 9, 2025
-**Decision:** Timeline depends on Phase 0 findings
-**Rationale:** Honest assessment requires acknowledging uncertainty. Planning for multiple paths is more realistic than committing to a single timeline.
+**Date:** December 9, 2025 **Decision:** Timeline depends on Phase 0 findings
+**Rationale:** Honest assessment requires acknowledging uncertainty. Planning
+for multiple paths is more realistic than committing to a single timeline.
 
 ### Decision 3: parseFloat Audit Scope
 
-**Date:** December 9, 2025
-**Decision:** Only fix parseFloat in P0 (calculation path) files
-**Rationale:** 301 total occurrences, but only ~20 in calculation paths. UI/test parseFloat is low risk.
+**Date:** December 9, 2025 **Decision:** Only fix parseFloat in P0 (calculation
+path) files **Rationale:** 301 total occurrences, but only ~20 in calculation
+paths. UI/test parseFloat is low risk.
 
 ### Decision 4: Truth Cases as Gate
 
-**Date:** December 9, 2025
-**Decision:** 105 truth cases must pass before deployment
-**Rationale:** Truth cases represent known-correct calculations. If they fail, code is wrong.
+**Date:** December 9, 2025 **Decision:** 105 truth cases must pass before
+deployment **Rationale:** Truth cases represent known-correct calculations. If
+they fail, code is wrong.
 
 ### Decision 5: Dual Waterfall Validation
 
-**Date:** December 9, 2025
-**Decision:** Validate BOTH waterfall implementations (tier-based and ledger-based)
-**Rationale:** They serve different purposes - tier-based for single-exit Excel parity, ledger-based for fund lifecycle with clawback/recycling.
+**Date:** December 9, 2025 **Decision:** Validate BOTH waterfall implementations
+(tier-based and ledger-based) **Rationale:** They serve different purposes -
+tier-based for single-exit Excel parity, ledger-based for fund lifecycle with
+clawback/recycling.
 
 ---
 
 ## Version History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| v2.18 | 2025-12-09 | Solo Developer | Initial validation-first plan |
-| v2.19 | 2025-12-09 | Solo Developer | Integrated feedback: moved runner to Phase 0, added wiring check, updated truth cases to 105 |
-| v2.20 | 2025-12-09 | Solo Developer | Added truth case spot-check after multi-AI consensus review |
-| v2.21 | 2025-12-09 | Solo Developer | Added infrastructure audit, cross-validation, boundary cast strategy, tolerance comparator |
-| v2.22 | 2025-12-09 | Solo Developer | Added provenance, narrowed ESLint, rollout metrics, module checkboxes |
+| Version | Date       | Author         | Changes                                                                                      |
+| ------- | ---------- | -------------- | -------------------------------------------------------------------------------------------- |
+| v2.18   | 2025-12-09 | Solo Developer | Initial validation-first plan                                                                |
+| v2.19   | 2025-12-09 | Solo Developer | Integrated feedback: moved runner to Phase 0, added wiring check, updated truth cases to 105 |
+| v2.20   | 2025-12-09 | Solo Developer | Added truth case spot-check after multi-AI consensus review                                  |
+| v2.21   | 2025-12-09 | Solo Developer | Added infrastructure audit, cross-validation, boundary cast strategy, tolerance comparator   |
+| v2.22   | 2025-12-09 | Solo Developer | Added provenance, narrowed ESLint, rollout metrics, module checkboxes                        |
 
 ### v2.19 Changes
 
 **Accepted from feedback:**
-1. Move truth-case runner build from Phase 1A to Phase 0 (eliminates duplication)
+
+1. Move truth-case runner build from Phase 1A to Phase 0 (eliminates
+   duplication)
 2. Add waterfall implementation wiring check (Step 0.8)
 3. Adjust Phase 0 timing (honest expectations)
 4. Add truth case CI workflow template
 
 **Already completed:**
+
 - Created `docs/waterfall-ledger.truth-cases.json` (15 clawback scenarios)
 - Updated truth case count from 90 to 105
 
@@ -1136,18 +1210,24 @@ npm run deploy:production
 
 **Reconsidered after multi-AI consensus review:**
 
-The "Oracle Problem" argument is valid: automated runners cannot detect errors in truth cases themselves. If oracles are wrong, runner validates wrong behavior as "correct".
+The "Oracle Problem" argument is valid: automated runners cannot detect errors
+in truth cases themselves. If oracles are wrong, runner validates wrong behavior
+as "correct".
 
 **Added:**
-1. Step 0.4: Truth Case Spot-Check (1.5 hours) - Independent verification of 5 high-risk scenarios
+
+1. Step 0.4: Truth Case Spot-Check (1.5 hours) - Independent verification of 5
+   high-risk scenarios
 2. Updated Phase 0 timing: 8-12h → 9.5-13h
 
 **Rationale for reversal:**
+
 - Capital Allocation: 1,381 lines with unclear validation provenance
 - Cost-benefit: 1.5h overhead vs potential 2-3 weeks debugging wrong oracles
 - Defense-in-depth: Spot-check catches systematic oracle generation errors
 
 **Still rejected:**
+
 - 2-3 hour spot-check (reduced to 1.5 hours, 5 scenarios sufficient)
 - Path overlap refactoring (current DRY-via-reference optimal)
 
@@ -1176,27 +1256,35 @@ The "Oracle Problem" argument is valid: automated runners cannot detect errors i
    - Rationale: Decimal.js may produce marginally different precision
 
 **Rejected from feedback:**
+
 - Risk A (Decimal.js trap): Mitigated by Boundary Cast strategy, not a blocker
 - Risk B (Twin Waterfall): Mitigated by Cross-Validation step
-- Risk C (Persistence): Schema audit added to Phase 0.1; full persistence validation deferred (production schema already established)
+- Risk C (Persistence): Schema audit added to Phase 0.1; full persistence
+  validation deferred (production schema already established)
 
 ### v2.22 Changes
 
-**Note:** Some feedback suggestions were already implemented in v2.19-v2.21 (truth-case runner in Phase 0, 1.5-day timing). This version addresses remaining valid suggestions.
+**Note:** Some feedback suggestions were already implemented in v2.19-v2.21
+(truth-case runner in Phase 0, 1.5-day timing). This version addresses remaining
+valid suggestions.
 
 **Accepted:**
 
-1. **Truth Case Provenance** - Added table showing source, validation method, and confidence level per module
+1. **Truth Case Provenance** - Added table showing source, validation method,
+   and confidence level per module
    - Links spot-check priority to LOW/MEDIUM confidence modules
    - Improves auditability for CFO/external review
 
-2. **Narrowed ESLint Rules** - Scoped parseFloat ban to specific financial files only
+2. **Narrowed ESLint Rules** - Scoped parseFloat ban to specific financial files
+   only
    - Before: `server/services/**/*.ts`, `client/src/core/**/*.ts` (too broad)
-   - After: `xirr-*.ts`, `fund-metrics-*.ts`, `waterfall/**/*.ts`, etc. (7 specific patterns)
+   - After: `xirr-*.ts`, `fund-metrics-*.ts`, `waterfall/**/*.ts`, etc. (7
+     specific patterns)
    - Removed `parseInt` ban (not a precision issue for integers)
 
 3. **Rollout Metrics & Gates** - Added concrete observability targets
-   - 4 metrics: invalid outputs, shadow discrepancies, user reports, API error rate
+   - 4 metrics: invalid outputs, shadow discrepancies, user reports, API error
+     rate
    - Explicit freeze/pause/proceed gates with thresholds
    - Rollback triggers defined
 
@@ -1205,7 +1293,9 @@ The "Oracle Problem" argument is valid: automated runners cannot detect errors i
    - Recommended completion order based on visibility + confidence
 
 **Rejected:**
-- Core Phase 1 restructuring: Current DRY-via-reference (1B → "execute 1A steps") is sufficient
+
+- Core Phase 1 restructuring: Current DRY-via-reference (1B → "execute 1A
+  steps") is sufficient
 - Restructuring a planning document doesn't improve execution quality
 
 ---

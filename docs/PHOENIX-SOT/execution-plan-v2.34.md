@@ -1,10 +1,11 @@
-# Phoenix Execution Plan v2.33 - Phoenix Agent Integration
+# Phoenix Execution Plan v2.34 - MCP & Tool Routing Integration
 
-**Date:** December 10, 2025 **Status:** ACTIVE - Ready for Execution **Author:**
+**Date:** December 13, 2025 **Status:** ACTIVE - Ready for Execution **Author:**
 Solo Developer **Approach:** Validation-First, Evidence-Driven, Agent-Enhanced
 
-**Version Note:** v2.33 = v2.32 + 9 Phoenix agents (specialized for truth case
-validation, precision, waterfall, XIRR, docs, forecasting, reserves, branding)
+**Version Note:** v2.34 = v2.33 + MCP tool routing + 6 new skills + PHOENIX-SOT
+directory structure (skill invocation templates, TaskMaster/Multi-AI
+integration)
 
 ---
 
@@ -149,7 +150,7 @@ Scenario: Partial clawback with 1.1x hurdle
 `cheatsheets/slash-commands-phoenix.md` for complete inventory of 30+ commands
 from user-level and 18+ plugins.
 
-**Skills Framework (22 skills from .claude/skills/):**
+**Skills Framework (28 skills from .claude/skills/):**
 
 - `systematic-debugging` - MANDATORY: Root cause analysis before fixes
 - `verification-before-completion` - MANDATORY at phase gates
@@ -159,6 +160,17 @@ from user-level and 18+ plugins.
 - `iterative-improvement` - Small cycles with verification
 - `pattern-recognition` - Anti-pattern detection
 - `inversion-thinking` - Failure mode analysis
+
+**NEW in v2.34 (6 skills):**
+
+- `task-decomposition` - Break complex tasks into ordered subtasks (Step 0.2,
+  1A.4)
+- `writing-plans` - Generate 2-5 min TDD plans (Steps 1A.5-1A.6)
+- `memory-management` - Cross-phase context management (Step 0.0, retros)
+- `continuous-improvement` - End-of-phase retrospectives (After P0, P1A, P1B,
+  P2)
+- `extended-thinking-framework` - Escalate complex bugs (Phase 1B, Phase 2)
+- `prompt-caching-usage` - Optimize shared context (Phase 2 multi-agent work)
 
 **Agents (23 agents from .claude/agents/):**
 
@@ -229,6 +241,63 @@ from user-level and 18+ plugins.
 - Use slash commands for common workflows; fallback to npm if unavailable
 - **See `cheatsheets/slash-commands-phoenix.md` for complete command reference,
   comparison matrices, and phase-specific recommendations**
+
+### MCP Tool Integration (NEW in v2.34)
+
+**TaskMaster (mcp**taskmaster-ai**):**
+
+- **Step 0.0:** `initialize_project` - Initialize project tracking
+- **Step 0.2:** `expand_task` - Expand truth case work into subtasks
+- **Step 0.10:** `autopilot_start` - Start TDD autopilot (if proceeding to 1A)
+- **Steps 1A.5-1A.6:** `add_task` - Track TDD subtasks
+
+**Multi-AI Collaboration (mcp**multi-ai-collab**):**
+
+- **Step 0.4:** `ai_debate` - Cross-validate L08 clawback semantics
+- **Step 0.9:** `ask_all_ais` - XIRR Excel semantics validation
+- **Phase 1B:** `collaborative_solve` - Multi-module bug solving
+
+**Tool Routing:** See `.claude/PHOENIX-TOOL-ROUTING.md` for decision tree and
+file-based auto-activation rules.
+
+### Skill Invocation Templates (NEW in v2.34)
+
+**task-decomposition (Step 0.2, 1A.4):**
+
+```
+Use task-decomposition skill to break down [task] into subtasks:
+1. Analyze complexity (simple/moderate/complex)
+2. Identify dependencies (sequential/parallel/hybrid)
+3. Define acceptance criteria for each subtask
+4. Estimate 10-30 minute time boxes per subtask
+```
+
+**writing-plans (Steps 1A.5-1A.6):**
+
+```
+Use writing-plans skill to generate TDD implementation plan:
+1. RED phase (2-5 min): Write failing test, expected behavior, edge cases
+2. GREEN phase (2-5 min): Minimal implementation, passes test, no extras
+3. REFACTOR phase (2-5 min): Extract pure functions, improve names, add JSDoc
+```
+
+**memory-management (Step 0.0, retros):**
+
+```
+Use memory-management skill to determine context handling:
+1. Persist: Truth case pass rates, bug classifications, architecture decisions
+2. Summarize: Long error messages → root cause + file:line
+3. Discard: Verbose logs, intermediate debugging output, redundant traces
+```
+
+**multi-model-consensus (Step 0.4, 0.9, 1B):**
+
+```
+Use multi-model-consensus with MCP Multi-AI:
+1. Frame question (specific edge case, expected behavior options, constraints)
+2. Query multiple models (mcp__multi-ai-collab__ask_all_ais or ai_consensus)
+3. Synthesize (common agreement → use as truth; disagreement → escalate)
+```
 
 ---
 
@@ -2059,7 +2128,7 @@ for complete documentation
 | phoenix-reserves-optimizer         | 2     | Reserve allocation, "next dollar"             | agent:phoenix-reserves-optimizer         |
 | phoenix-brand-reporting-stylist    | 3     | Press On Ventures branding                    | agent:phoenix-brand-reporting-stylist    |
 
-### Skills Framework (22+ Skills)
+### Skills Framework (28+ Skills)
 
 **Phoenix-Specific Skills (9 skills):**
 
@@ -2089,8 +2158,20 @@ for complete documentation
 - `pattern-recognition` - Anti-pattern detection
 - `inversion-thinking` - Failure mode analysis
 
+**v2.34 Skills (6 skills - MCP/Tool Routing):**
+
+- `task-decomposition` - Break complex tasks into ordered subtasks (Step 0.2,
+  1A.4)
+- `writing-plans` - Generate 2-5 min TDD plans (Steps 1A.5-1A.6)
+- `memory-management` - Cross-phase context management (Step 0.0, retros)
+- `continuous-improvement` - End-of-phase retrospectives (After P0, P1A, P1B,
+  P2)
+- `extended-thinking-framework` - Escalate complex bugs (Phase 1B, Phase 2)
+- `prompt-caching-usage` - Optimize shared context (Phase 2 multi-agent work)
+
 **Usage:** Skills auto-activate based on context. Explicitly invoke for complex
-scenarios.
+scenarios. See Skill Invocation Templates section for v2.34 skill usage
+patterns.
 
 ### Agent Invocation Patterns
 
@@ -2192,15 +2273,45 @@ agent:phoenix-brand-reporting-stylist     # Brand violations
 
 ## Version History
 
-| Version  | Date       | Changes                                                                                                         |
-| -------- | ---------- | --------------------------------------------------------------------------------------------------------------- |
-| v2.18    | 2025-12-08 | Initial comprehensive plan (GitHub commit 375ea58, internally v2.29)                                            |
-| v2.23    | 2025-12-09 | Skills/agents/commands integration                                                                              |
-| v2.23-A1 | 2025-12-09 | **ADDENDUM:** Restored 4 critical sections from v2.18/v2.29                                                     |
-| v2.30    | 2025-12-09 | Merged v2.29 foundation + v2.23 enhancements                                                                    |
-| v2.31    | 2025-12-09 | Plan ↔ JSON synchronized, verification gates refined                                                           |
-| v2.32    | 2025-12-09 | Command-enhanced execution (+40 commands, 6.5hr savings, MANDATORY gates)                                       |
-| v2.33    | 2025-12-10 | **CURRENT:** Phoenix agent integration (9 specialized agents with unique tenant IDs for cross-session learning) |
+| Version  | Date       | Changes                                                                                            |
+| -------- | ---------- | -------------------------------------------------------------------------------------------------- |
+| v2.18    | 2025-12-08 | Initial comprehensive plan (GitHub commit 375ea58, internally v2.29)                               |
+| v2.23    | 2025-12-09 | Skills/agents/commands integration                                                                 |
+| v2.23-A1 | 2025-12-09 | **ADDENDUM:** Restored 4 critical sections from v2.18/v2.29                                        |
+| v2.30    | 2025-12-09 | Merged v2.29 foundation + v2.23 enhancements                                                       |
+| v2.31    | 2025-12-09 | Plan ↔ JSON synchronized, verification gates refined                                              |
+| v2.32    | 2025-12-09 | Command-enhanced execution (+40 commands, 6.5hr savings, MANDATORY gates)                          |
+| v2.33    | 2025-12-10 | Phoenix agent integration (9 specialized agents with unique tenant IDs for cross-session learning) |
+| v2.34    | 2025-12-13 | **CURRENT:** MCP tool routing + 6 new skills + PHOENIX-SOT directory + skill invocation templates  |
+
+### v2.34 Changes (MCP & Tool Routing Integration)
+
+**PHOENIX-SOT Directory Structure:**
+
+- Created `docs/PHOENIX-SOT/` - Single source of truth hub for Phoenix work
+- Navigation hub via `README.md` for humans and AI agents
+- Skill catalog, MCP tools guide, prompt templates centralized
+
+**Tool Routing System:**
+
+- Created `.claude/PHOENIX-TOOL-ROUTING.md` - Comprehensive routing guide
+- 6-node decision tree for ambiguous cases
+- 9 file-based auto-activation rules
+- Phase-by-phase routing (P0/1A/1B/2/3+)
+
+**6 New Skills:**
+
+- `task-decomposition` - Break complex tasks into ordered subtasks
+- `writing-plans` - Generate 2-5 min TDD plans
+- `memory-management` - Cross-phase context management
+- `continuous-improvement` - End-of-phase retrospectives
+- `extended-thinking-framework` - Escalate complex bugs
+- `prompt-caching-usage` - Optimize shared context
+
+**MCP Tool Integration Points:**
+
+- TaskMaster: Steps 0.0, 0.2, 0.10, 1A.5-1A.6
+- Multi-AI Collaboration: Steps 0.4, 0.9, Phase 1B
 
 ### v2.31 Changes
 
