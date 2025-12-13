@@ -1,7 +1,11 @@
+> **DEPRECATED:** Superseded by `docs/PHOENIX-SOT/execution-plan-v2.34.md`
+> This file is retained for historical reference only. Do not use for active
+> development.
+
 # Phoenix Execution Plan v2.31 - Plan ↔ JSON Synchronized
 
-**Date:** December 9, 2025 **Status:** ACTIVE - Ready for Execution **Author:**
-Solo Developer **Approach:** Validation-First, Evidence-Driven, Skills-Enhanced
+**Date:** December 9, 2025 **Status:** DEPRECATED **Author:** Solo Developer
+**Approach:** Validation-First, Evidence-Driven, Skills-Enhanced
 
 **Version Note:** v2.31 = v2.30 + Plan ↔ JSON synchronization + verification
 gate refinements

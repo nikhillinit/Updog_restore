@@ -1,7 +1,11 @@
+> **DEPRECATED:** Superseded by `docs/PHOENIX-SOT/execution-plan-v2.34.md`
+> This file is retained for historical reference only. Do not use for active
+> development.
+
 # Phoenix Execution Plan v2.33 - Phoenix Agent Integration
 
-**Date:** December 10, 2025 **Status:** ACTIVE - Ready for Execution **Author:**
-Solo Developer **Approach:** Validation-First, Evidence-Driven, Agent-Enhanced
+**Date:** December 10, 2025 **Status:** DEPRECATED **Author:** Solo Developer
+**Approach:** Validation-First, Evidence-Driven, Agent-Enhanced
 
 **Version Note:** v2.33 = v2.32 + 9 Phoenix agents (specialized for truth case
 validation, precision, waterfall, XIRR, docs, forecasting, reserves, branding)

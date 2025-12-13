@@ -1,8 +1,15 @@
 {
   "version": "2.0",
-  "generatedAt": "2025-12-13T00:53:11.036Z",
+  "generatedAt": "2025-12-13T03:21:48.191Z",
   "scoring": {
-    "generic_terms": ["test", "error", "fix", "update", "change", "help"],
+    "generic_terms": [
+      "test",
+      "error",
+      "fix",
+      "update",
+      "change",
+      "help"
+    ],
     "min_score": 2
   },
   "config": {
@@ -124,7 +131,13 @@
     {
       "id": "phoenix_xirr",
       "priority": 14,
-      "match_any": ["xirr", "irr", "fees", "management fee", "carry fee"],
+      "match_any": [
+        "xirr",
+        "irr",
+        "fees",
+        "management fee",
+        "carry fee"
+      ],
       "match_any_normalized": [
         "xirr",
         "irr",
@@ -198,7 +211,13 @@
     {
       "id": "ci_cd",
       "priority": 31,
-      "match_any": ["ci", "cd", "github actions", "workflow", "pipeline"],
+      "match_any": [
+        "ci",
+        "cd",
+        "github actions",
+        "workflow",
+        "pipeline"
+      ],
       "match_any_normalized": [
         "ci",
         "cd",
@@ -351,105 +370,293 @@
     }
   ],
   "keyword_to_docs": {
-    "secret": ["SIDECAR_GUIDE.md"],
-    "key": ["SIDECAR_GUIDE.md"],
-    "token": ["SIDECAR_GUIDE.md"],
-    "password": ["SIDECAR_GUIDE.md"],
-    "auth": ["SIDECAR_GUIDE.md"],
-    "security": ["SIDECAR_GUIDE.md"],
-    "credential": ["SIDECAR_GUIDE.md"],
-    "env": ["SIDECAR_GUIDE.md"],
-    "truth case": [".claude/commands/phoenix-truth.md"],
-    "validation": [".claude/commands/phoenix-truth.md"],
-    "deterministic": [".claude/commands/phoenix-truth.md"],
-    "pass rate": [".claude/commands/phoenix-truth.md"],
-    "baseline": [".claude/commands/phoenix-truth.md"],
-    "monte carlo": [".claude/commands/phoenix-phase2.md"],
-    "probabilistic": [".claude/commands/phoenix-phase2.md"],
-    "expectation mode": [".claude/commands/phoenix-phase2.md"],
-    "seeded": [".claude/commands/phoenix-phase2.md"],
-    "distribution": [".claude/commands/phoenix-phase2.md"],
-    "phase 2": [".claude/commands/phoenix-phase2.md"],
-    "waterfall": [".claude/agents/waterfall-specialist.md"],
-    "clawback": [".claude/agents/waterfall-specialist.md"],
-    "carry": [".claude/agents/waterfall-specialist.md"],
-    "ledger": [".claude/agents/waterfall-specialist.md"],
-    "tier": [".claude/agents/waterfall-specialist.md"],
-    "gp": [".claude/agents/waterfall-specialist.md"],
-    "lp": [".claude/agents/waterfall-specialist.md"],
-    "precision": [".claude/agents/phoenix-precision-guardian.md"],
-    "parsefloat": [".claude/agents/phoenix-precision-guardian.md"],
-    "decimal": [".claude/agents/phoenix-precision-guardian.md"],
-    "numeric drift": [".claude/agents/phoenix-precision-guardian.md"],
-    "rounding": [".claude/agents/phoenix-precision-guardian.md"],
-    "xirr": [".claude/agents/xirr-fees-validator.md"],
-    "irr": [".claude/agents/xirr-fees-validator.md"],
-    "fees": [".claude/agents/xirr-fees-validator.md"],
-    "management fee": [".claude/agents/xirr-fees-validator.md"],
-    "carry fee": [".claude/agents/xirr-fees-validator.md"],
+    "secret": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "key": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "token": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "password": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "auth": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "security": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "credential": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "env": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "truth case": [
+      ".claude/commands/phoenix-truth.md"
+    ],
+    "validation": [
+      ".claude/commands/phoenix-truth.md"
+    ],
+    "deterministic": [
+      ".claude/commands/phoenix-truth.md"
+    ],
+    "pass rate": [
+      ".claude/commands/phoenix-truth.md"
+    ],
+    "baseline": [
+      ".claude/commands/phoenix-truth.md"
+    ],
+    "monte carlo": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "probabilistic": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "expectation mode": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "seeded": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "distribution": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "phase 2": [
+      ".claude/commands/phoenix-phase2.md"
+    ],
+    "waterfall": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "clawback": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "carry": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "ledger": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "tier": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "gp": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "lp": [
+      ".claude/agents/waterfall-specialist.md"
+    ],
+    "precision": [
+      ".claude/agents/phoenix-precision-guardian.md"
+    ],
+    "parsefloat": [
+      ".claude/agents/phoenix-precision-guardian.md"
+    ],
+    "decimal": [
+      ".claude/agents/phoenix-precision-guardian.md"
+    ],
+    "numeric drift": [
+      ".claude/agents/phoenix-precision-guardian.md"
+    ],
+    "rounding": [
+      ".claude/agents/phoenix-precision-guardian.md"
+    ],
+    "xirr": [
+      ".claude/agents/xirr-fees-validator.md"
+    ],
+    "irr": [
+      ".claude/agents/xirr-fees-validator.md"
+    ],
+    "fees": [
+      ".claude/agents/xirr-fees-validator.md"
+    ],
+    "management fee": [
+      ".claude/agents/xirr-fees-validator.md"
+    ],
+    "carry fee": [
+      ".claude/agents/xirr-fees-validator.md"
+    ],
     "capital allocation": [
       ".claude/agents/phoenix-capital-allocation-analyst.md"
     ],
-    "exit recycling": [".claude/agents/phoenix-capital-allocation-analyst.md"],
-    "deployment": [".claude/agents/phoenix-capital-allocation-analyst.md"],
+    "exit recycling": [
+      ".claude/agents/phoenix-capital-allocation-analyst.md"
+    ],
+    "deployment": [
+      ".claude/agents/phoenix-capital-allocation-analyst.md"
+    ],
     "stage allocation": [
       ".claude/agents/phoenix-capital-allocation-analyst.md"
     ],
-    "capability": ["CAPABILITIES.md"],
-    "feature": ["CAPABILITIES.md"],
-    "existing solution": ["CAPABILITIES.md"],
-    "already built": ["CAPABILITIES.md"],
-    "what can": ["CAPABILITIES.md"],
-    "deploy": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "release": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "prod": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "production": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "rollout": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "shipping": ["docs/workflows/PRODUCTION_SCRIPTS.md"],
-    "ci": ["docs/workflows/README.md"],
-    "cd": ["docs/workflows/README.md"],
-    "github actions": ["docs/workflows/README.md"],
-    "workflow": ["docs/workflows/README.md"],
-    "pipeline": ["docs/workflows/README.md"],
-    "test": ["docs/INDEX.md"],
-    "unit test": ["docs/INDEX.md"],
-    "integration": ["docs/INDEX.md"],
-    "e2e": ["docs/INDEX.md"],
-    "jest": ["docs/INDEX.md"],
-    "vitest": ["docs/INDEX.md"],
-    "coverage": ["docs/INDEX.md"],
-    "database": ["SIDECAR_GUIDE.md"],
-    "db": ["SIDECAR_GUIDE.md"],
-    "sql": ["SIDECAR_GUIDE.md"],
-    "migration": ["SIDECAR_GUIDE.md"],
-    "schema": ["SIDECAR_GUIDE.md"],
-    "postgres": ["SIDECAR_GUIDE.md"],
-    "drizzle": ["SIDECAR_GUIDE.md"],
-    "memory": ["docs/INDEX.md"],
-    "context": ["docs/INDEX.md"],
-    "vector": ["docs/INDEX.md"],
-    "embedding": ["docs/INDEX.md"],
-    "semantic search": ["docs/INDEX.md"],
-    "pgvector": ["docs/INDEX.md"],
-    "ai": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "llm": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "model": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "inference": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "prompt": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "agent": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "claude": ["docs/DEVELOPMENT-TOOLING-CATALOG.md"],
-    "perf": ["cheatsheets/pr-merge-verification.md"],
-    "performance": ["cheatsheets/pr-merge-verification.md"],
-    "slow": ["cheatsheets/pr-merge-verification.md"],
-    "latency": ["cheatsheets/pr-merge-verification.md"],
-    "benchmark": ["cheatsheets/pr-merge-verification.md"],
-    "optimization": ["cheatsheets/pr-merge-verification.md"],
-    "error": ["SIDECAR_GUIDE.md"],
-    "debug": ["SIDECAR_GUIDE.md"],
-    "fix": ["SIDECAR_GUIDE.md"],
-    "broken": ["SIDECAR_GUIDE.md"],
-    "issue": ["SIDECAR_GUIDE.md"],
-    "problem": ["SIDECAR_GUIDE.md"],
-    "not working": ["SIDECAR_GUIDE.md"]
+    "capability": [
+      "CAPABILITIES.md"
+    ],
+    "feature": [
+      "CAPABILITIES.md"
+    ],
+    "existing solution": [
+      "CAPABILITIES.md"
+    ],
+    "already built": [
+      "CAPABILITIES.md"
+    ],
+    "what can": [
+      "CAPABILITIES.md"
+    ],
+    "deploy": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "release": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "prod": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "production": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "rollout": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "shipping": [
+      "docs/workflows/PRODUCTION_SCRIPTS.md"
+    ],
+    "ci": [
+      "docs/workflows/README.md"
+    ],
+    "cd": [
+      "docs/workflows/README.md"
+    ],
+    "github actions": [
+      "docs/workflows/README.md"
+    ],
+    "workflow": [
+      "docs/workflows/README.md"
+    ],
+    "pipeline": [
+      "docs/workflows/README.md"
+    ],
+    "test": [
+      "docs/INDEX.md"
+    ],
+    "unit test": [
+      "docs/INDEX.md"
+    ],
+    "integration": [
+      "docs/INDEX.md"
+    ],
+    "e2e": [
+      "docs/INDEX.md"
+    ],
+    "jest": [
+      "docs/INDEX.md"
+    ],
+    "vitest": [
+      "docs/INDEX.md"
+    ],
+    "coverage": [
+      "docs/INDEX.md"
+    ],
+    "database": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "db": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "sql": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "migration": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "schema": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "postgres": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "drizzle": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "memory": [
+      "docs/INDEX.md"
+    ],
+    "context": [
+      "docs/INDEX.md"
+    ],
+    "vector": [
+      "docs/INDEX.md"
+    ],
+    "embedding": [
+      "docs/INDEX.md"
+    ],
+    "semantic search": [
+      "docs/INDEX.md"
+    ],
+    "pgvector": [
+      "docs/INDEX.md"
+    ],
+    "ai": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "llm": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "model": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "inference": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "prompt": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "agent": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "claude": [
+      "docs/DEVELOPMENT-TOOLING-CATALOG.md"
+    ],
+    "perf": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "performance": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "slow": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "latency": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "benchmark": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "optimization": [
+      "cheatsheets/pr-merge-verification.md"
+    ],
+    "error": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "debug": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "fix": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "broken": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "issue": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "problem": [
+      "SIDECAR_GUIDE.md"
+    ],
+    "not working": [
+      "SIDECAR_GUIDE.md"
+    ]
   }
 }
