@@ -258,8 +258,8 @@ export function calculateAmericanWaterfall(
         // GP catch-up using parity formula
         // Target: GP catches up until GP / (LP_preferred + GP) = carry_rate
         const carryTier = policy.tiers.find((t) => t.tierType === 'carry');
-        const carryRate = carryTier?.rate || new Decimal(0.2);
-        const catchUpRate = tier.catchUpRate || new Decimal(1);
+        const carryRate = new Decimal(carryTier?.rate ?? 0.2);
+        const catchUpRate = new Decimal(tier.catchUpRate ?? 1);
 
         // Validate carryRate < 1
         if (carryRate.gte(1)) {

@@ -884,11 +884,6 @@
           "tier": "return_of_capital",
           "lpAmount": "50000000.00",
           "gpAmount": "0.00"
-        },
-        {
-          "tier": "carry",
-          "lpAmount": "0.00",
-          "gpAmount": "0.00"
         }
       ]
     }
@@ -934,11 +929,6 @@
         {
           "tier": "return_of_capital",
           "lpAmount": "100000000.00",
-          "gpAmount": "0.00"
-        },
-        {
-          "tier": "carry",
-          "lpAmount": "0.00",
           "gpAmount": "0.00"
         }
       ]
@@ -1194,16 +1184,6 @@
         {
           "tier": "return_of_capital",
           "lpAmount": "90000000.00",
-          "gpAmount": "0.00"
-        },
-        {
-          "tier": "preferred_return",
-          "lpAmount": "0.00",
-          "gpAmount": "0.00"
-        },
-        {
-          "tier": "carry",
-          "lpAmount": "0.00",
           "gpAmount": "0.00"
         }
       ]
