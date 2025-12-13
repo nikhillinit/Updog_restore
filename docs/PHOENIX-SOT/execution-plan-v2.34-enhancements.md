@@ -1,7 +1,7 @@
 # Phoenix Execution Plan v2.34 - MCP & Tool Routing Enhancements
 
-**Date:** 2025-12-11 **Status:** ACTIVE - Foundation Complete, Content
-Integration In Progress **Base:** v2.33 (Phoenix Agent Integration)
+**Date:** 2025-12-11 **Status:** FOUNDATION COMPLETE - Command infrastructure
+delivered in PR #249 **Base:** v2.33 (Phoenix Agent Integration)
 
 **Version Note:** v2.34 = v2.33 + MCP tool routing + Skill invocation
 templates + PHOENIX-SOT directory structure
@@ -346,26 +346,44 @@ When starting a Phoenix session:
 
 ## Success Criteria for v2.34
 
-✅ PHOENIX-SOT directory structure created ✅ Tool routing guide eliminates
-decision paralysis ✅ 6 v2.34 skills documented with invocation templates ✅ MCP
-tools integrated at 7 key steps (0.0, 0.2, 0.4, 0.9, 0.10, 1A, 1B) ✅ Prompt
-templates created (Waterfall, ReserveSizing, PortfolioQA) ✅ Legacy plans
-deprecated and archived ⏳ **IN PROGRESS:** Full v2.34 plan with inline
-MCP/skill references
+**What's Complete:**
 
-**Next:** Complete inline integration of MCP/skill references into full
-execution-plan-v2.34.md
+- ✅ PHOENIX-SOT directory structure created
+- ✅ Discovery routing system (DISCOVERY-MAP.md + router-index.json) - PR #249
+- ✅ Command file structure (/phoenix-truth, /phoenix-phase2,
+  /phoenix-prob-report) - PR #249
+- ✅ Tool routing guide eliminates decision paralysis
+- ✅ 6 v2.34 skills documented with invocation templates
+- ✅ MCP tools integrated at 7 key steps (0.0, 0.2, 0.4, 0.9, 0.10, 1A, 1B)
+- ✅ Prompt templates created (Waterfall, ReserveSizing, PortfolioQA)
+- ✅ Legacy plans deprecated and archived
+- ✅ Documentation templates (DOC-FRONTMATTER-SCHEMA.md) - PR #249
+- ✅ Agent coordination updates (5 agents) - PR #249
+
+**What's Deferred:**
+
+- ⏳ npm script automation (`phoenix:truth`, `phoenix:phase2`) - awaiting
+  sidecar environment fix
+- ⏳ Command execution testing - manual workarounds documented
+- ⏳ Full inline integration of MCP/skill references into
+  execution-plan-v2.34.md
+
+**Next Steps:** Commands exist as slash command wrappers around manual
+workflows. To enable npm script shortcuts, add to package.json after sidecar
+environment stabilized. See README.md Known Limitations section for current
+workarounds.
 
 ---
 
 ## Version History
 
-| Version | Date       | Changes                                                                   |
-| ------- | ---------- | ------------------------------------------------------------------------- |
-| v2.33   | 2025-12-10 | Phoenix agent integration (9 specialized agents)                          |
-| v2.34   | 2025-12-11 | **PHOENIX-SOT directory + Tool routing + MCP integration + 6 new skills** |
+| Version | Date       | Changes                                                                | PR   |
+| ------- | ---------- | ---------------------------------------------------------------------- | ---- |
+| v2.33   | 2025-12-10 | Phoenix agent integration (9 specialized agents)                       | #247 |
+| v2.34   | 2025-12-11 | PHOENIX-SOT directory + Discovery routing + Commands + MCP integration | #249 |
 
 ---
 
-**Status:** Foundation complete (Phase 1 done), content integration in progress
-(Phase 2)
+**Delivered:** Foundation complete (discovery system, command infrastructure,
+templates) **Deferred:** npm script automation, full plan integration (awaiting
+sidecar fix)

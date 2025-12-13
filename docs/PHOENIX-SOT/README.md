@@ -5,14 +5,14 @@ last_updated: 2025-12-12
 categories: [phoenix, validation, vc-modeling]
 keywords: [phoenix, truth-case, xirr, waterfall, fees, capital, forecasting]
 source_of_truth: true
-phase: "1B"
+phase: '1B'
 agent_routing:
   priority: 1
-  route_hint: "Entry point for all Phoenix project work."
+  route_hint: 'Entry point for all Phoenix project work.'
   use_cases: [phoenix_validation, vc_modeling]
 maintenance:
-  owner: "Phoenix Team"
-  review_cadence: "P30D"
+  owner: 'Phoenix Team'
+  review_cadence: 'P30D'
 ---
 
 # Phoenix SOT (Source of Truth) Hub
@@ -158,7 +158,40 @@ evolved), see the v2.33 version history section.
 
 ---
 
-## 6. Checklist for a "Good Citizen" Change
+## 6. Known Limitations (as of 2025-12-12)
+
+### Commands vs npm Scripts
+
+The `/phoenix-truth`, `/phoenix-phase2`, and `/phoenix-prob-report` commands are
+**designed** but reference npm scripts that don't exist yet. Current workflows:
+
+| Command                | Current Workaround                                     |
+| ---------------------- | ------------------------------------------------------ |
+| `/phoenix-truth`       | `npx vitest run tests/unit/truth-cases/runner.test.ts` |
+| `/phoenix-phase2`      | Manual Phase 2 workflow (see execution-plan-v2.34.md)  |
+| `/phoenix-prob-report` | Use command as-is (read-only, no automation needed)    |
+
+**Why:** npm scripts deferred until sidecar environment stabilized (version
+drift detected in pre-flight checks).
+
+### Version Status
+
+- **v2.33**: Agent framework integration (ACTIVE)
+- **v2.34**: Discovery system + commands (FOUNDATION COMPLETE, not fully merged)
+
+Both plans are complementary, not alternatives. The v2.34 enhancements
+(discovery routing, command infrastructure, MCP integration) were delivered in
+PR #249 as separate tooling that supplements v2.33.
+
+### Sidecar Environment
+
+Version drift detected (vite 5.4.20 vs expected 5.4.11, tsx 4.20.6 vs expected
+4.19.2). Run `node scripts/ensure-sidecar.mjs` if encountering module resolution
+issues.
+
+---
+
+## 7. Checklist for a "Good Citizen" Change
 
 Before merging a meaningful change:
 
