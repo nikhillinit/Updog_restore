@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "generatedAt": "2025-12-13T04:21:35.441Z",
+  "generatedAt": "2025-12-13T08:44:43.302Z",
   "scoring": {
     "generic_terms": [
       "test",
@@ -106,7 +106,8 @@
         "lp"
       ],
       "route_to": ".claude/agents/waterfall-specialist.md",
-      "why": "Phoenix routing (priority 12)"
+      "why": "Phoenix routing (priority 12)",
+      "agent": "waterfall-specialist"
     },
     {
       "id": "phoenix_precision",
@@ -126,7 +127,8 @@
         "rounding"
       ],
       "route_to": ".claude/agents/phoenix-precision-guardian.md",
-      "why": "Phoenix routing (priority 13)"
+      "why": "Phoenix routing (priority 13)",
+      "agent": "phoenix-precision-guardian"
     },
     {
       "id": "phoenix_xirr",
@@ -146,7 +148,8 @@
         "carry fee"
       ],
       "route_to": ".claude/agents/xirr-fees-validator.md",
-      "why": "Phoenix routing (priority 14)"
+      "why": "Phoenix routing (priority 14)",
+      "agent": "xirr-fees-validator"
     },
     {
       "id": "phoenix_allocation",
@@ -164,7 +167,8 @@
         "stage allocation"
       ],
       "route_to": ".claude/agents/phoenix-capital-allocation-analyst.md",
-      "why": "Phoenix routing (priority 15)"
+      "why": "Phoenix routing (priority 15)",
+      "agent": "phoenix-capital-allocation-analyst"
     },
     {
       "id": "capabilities",
@@ -274,7 +278,8 @@
         "drizzle"
       ],
       "route_to": "SIDECAR_GUIDE.md",
-      "why": "Database routing (priority 50)"
+      "why": "Database routing (priority 50)",
+      "agent": "database-expert"
     },
     {
       "id": "memory",
@@ -345,12 +350,119 @@
       "why": "Performance routing (priority 80)"
     },
     {
+      "id": "debugging",
+      "priority": 85,
+      "match_any": [
+        "debug",
+        "debugging",
+        "investigate",
+        "root cause",
+        "trace",
+        "stack trace"
+      ],
+      "match_any_normalized": [
+        "debug",
+        "debugging",
+        "investigate",
+        "root cause",
+        "trace",
+        "stack trace"
+      ],
+      "route_to": ".claude/agents/debug-expert.md",
+      "why": "Development routing (priority 85)",
+      "agent": "debug-expert"
+    },
+    {
+      "id": "code_review",
+      "priority": 86,
+      "match_any": [
+        "review",
+        "code review",
+        "pr review",
+        "pull request",
+        "check code"
+      ],
+      "match_any_normalized": [
+        "review",
+        "code review",
+        "pr review",
+        "pull request",
+        "check code"
+      ],
+      "route_to": ".claude/agents/code-reviewer.md",
+      "why": "Development routing (priority 86)",
+      "agent": "code-reviewer"
+    },
+    {
+      "id": "refactoring",
+      "priority": 87,
+      "match_any": [
+        "refactor",
+        "simplify",
+        "clean up",
+        "improve code",
+        "reduce complexity"
+      ],
+      "match_any_normalized": [
+        "refactor",
+        "simplify",
+        "clean up",
+        "improve code",
+        "reduce complexity"
+      ],
+      "route_to": ".claude/agents/code-simplifier.md",
+      "why": "Development routing (priority 87)",
+      "agent": "code-simplifier"
+    },
+    {
+      "id": "test_repair",
+      "priority": 88,
+      "match_any": [
+        "fix test",
+        "test fail",
+        "failing test",
+        "repair test",
+        "broken test"
+      ],
+      "match_any_normalized": [
+        "fix test",
+        "test fail",
+        "failing test",
+        "repair test",
+        "broken test"
+      ],
+      "route_to": ".claude/agents/test-repair.md",
+      "why": "Testing routing (priority 88)",
+      "agent": "test-repair"
+    },
+    {
+      "id": "documentation",
+      "priority": 89,
+      "match_any": [
+        "document",
+        "documentation",
+        "docs",
+        "jsdoc",
+        "readme",
+        "write docs"
+      ],
+      "match_any_normalized": [
+        "document",
+        "documentation",
+        "docs",
+        "jsdoc",
+        "readme",
+        "write docs"
+      ],
+      "route_to": ".claude/agents/docs-architect.md",
+      "why": "Documentation routing (priority 89)",
+      "agent": "docs-architect"
+    },
+    {
       "id": "troubleshooting",
       "priority": 90,
       "match_any": [
         "error",
-        "debug",
-        "fix",
         "broken",
         "issue",
         "problem",
@@ -358,8 +470,6 @@
       ],
       "match_any_normalized": [
         "error",
-        "debug",
-        "fix",
         "broken",
         "issue",
         "problem",
@@ -637,13 +747,88 @@
     "optimization": [
       "cheatsheets/pr-merge-verification.md"
     ],
-    "error": [
-      "SIDECAR_GUIDE.md"
-    ],
     "debug": [
-      "SIDECAR_GUIDE.md"
+      ".claude/agents/debug-expert.md"
     ],
-    "fix": [
+    "debugging": [
+      ".claude/agents/debug-expert.md"
+    ],
+    "investigate": [
+      ".claude/agents/debug-expert.md"
+    ],
+    "root cause": [
+      ".claude/agents/debug-expert.md"
+    ],
+    "trace": [
+      ".claude/agents/debug-expert.md"
+    ],
+    "stack trace": [
+      ".claude/agents/debug-expert.md"
+    ],
+    "review": [
+      ".claude/agents/code-reviewer.md"
+    ],
+    "code review": [
+      ".claude/agents/code-reviewer.md"
+    ],
+    "pr review": [
+      ".claude/agents/code-reviewer.md"
+    ],
+    "pull request": [
+      ".claude/agents/code-reviewer.md"
+    ],
+    "check code": [
+      ".claude/agents/code-reviewer.md"
+    ],
+    "refactor": [
+      ".claude/agents/code-simplifier.md"
+    ],
+    "simplify": [
+      ".claude/agents/code-simplifier.md"
+    ],
+    "clean up": [
+      ".claude/agents/code-simplifier.md"
+    ],
+    "improve code": [
+      ".claude/agents/code-simplifier.md"
+    ],
+    "reduce complexity": [
+      ".claude/agents/code-simplifier.md"
+    ],
+    "fix test": [
+      ".claude/agents/test-repair.md"
+    ],
+    "test fail": [
+      ".claude/agents/test-repair.md"
+    ],
+    "failing test": [
+      ".claude/agents/test-repair.md"
+    ],
+    "repair test": [
+      ".claude/agents/test-repair.md"
+    ],
+    "broken test": [
+      ".claude/agents/test-repair.md"
+    ],
+    "document": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "documentation": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "docs": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "jsdoc": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "readme": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "write docs": [
+      ".claude/agents/docs-architect.md"
+    ],
+    "error": [
       "SIDECAR_GUIDE.md"
     ],
     "broken": [

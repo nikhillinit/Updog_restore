@@ -143,6 +143,21 @@ if [ "$KEYWORD_COUNT" -gt 0 ]; then
     done
   fi
 
+  # --- Skills (targeted search) ---
+  SKILL_DIR="$PROJECT_ROOT/.claude/skills"
+  if [ -d "$SKILL_DIR" ]; then
+    for keyword in $KEYWORDS; do
+      # Filename matches only (skills are more specific)
+      SKILL_MATCHES=$(find "$SKILL_DIR" -name "*${keyword}*.md" -type f 2>/dev/null || true)
+      for match in $SKILL_MATCHES; do
+        SKILL_NAME=$(basename "$match" .md)
+        if [[ "$SKILL_NAME" != "README" ]]; then
+          add_match "skill" "$SKILL_NAME" "20"
+        fi
+      done
+    done
+  fi
+
   # --- MCP Servers ---
   MCP_FILE="$PROJECT_ROOT/.mcp.json"
   if [ -f "$MCP_FILE" ]; then
@@ -198,6 +213,9 @@ if [ "$MATCH_COUNT" -ge 1 ]; then
           ;;
         router-command|command)
           echo "  [COMMAND] $name"
+          ;;
+        skill)
+          echo "  [SKILL] $name (auto-activates or use explicitly)"
           ;;
         mcp)
           echo "  [MCP] mcp__${name}__* tools available"

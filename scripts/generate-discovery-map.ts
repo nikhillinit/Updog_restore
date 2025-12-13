@@ -622,8 +622,9 @@ async function main(): Promise<void> {
   };
 
   // Parse patterns from YAML (simplified extraction)
+  // Enhanced regex to capture optional agent, command fields
   const patternMatches = rawConfig.matchAll(
-    /- id: "([^"]+)"\s+priority: (\d+)\s+category: "([^"]+)"\s+keywords:\s+([\s\S]*?)target: "([^"]+)"/g
+    /- id: "([^"]+)"\s+priority: (\d+)\s+category: "([^"]+)"\s+keywords:\s+([\s\S]*?)target: "([^"]+)"(?:\s+(?:agent: "([^"]+)")?)?(?:\s+(?:command: "([^"]+)")?)?/g
   );
 
   for (const match of patternMatches) {
@@ -636,6 +637,8 @@ async function main(): Promise<void> {
       category: match[3],
       keywords,
       target: match[5],
+      ...(match[6] && { agent: match[6] }),
+      ...(match[7] && { command: match[7] }),
     });
   }
 
