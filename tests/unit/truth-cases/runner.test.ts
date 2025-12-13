@@ -4,10 +4,11 @@
  * Validates all truth-case scenarios across 6 calculation modules using Decimal.js precision:
  * - XIRR (51 scenarios): Active execution with Excel parity assertions
  * - Waterfall-Tier (15 scenarios): Decimal.js tier-based calculations (Phase 1A)
- * - Waterfall-Ledger (8 scenarios): Decimal.js ledger-based calculations (Phase 1A)
+ * - Waterfall-Ledger (14 scenarios): Active execution with clawback/recycling (Phase 1B)
  * - Reserves (3 scenarios): Decimal.js allocation calculations (Phase 1B)
  * - Pacing (3 scenarios): Decimal.js pacing calculations (Phase 1B)
- * - Fees/Capital/Exit: Load + count only (Phase 1B+)
+ * - Fees (10 scenarios): Active execution (Phase 1.3)
+ * - Capital/Exit: Load + count only (Phase 1B+)
  *
  * **Decimal.js Contract**:
  * - All numeric comparisons use assertNumericField() with configurable precision
@@ -28,9 +29,24 @@
 import { describe, it, expect } from 'vitest';
 import { xirrNewtonBisection } from '@/lib/finance/xirr';
 import type { CashFlow } from '@/lib/finance/xirr';
-import { calculateAmericanWaterfall, type AmericanWaterfall } from '@shared/schemas/waterfall-policy';
+import {
+  calculateAmericanWaterfall,
+  type AmericanWaterfall,
+} from '@shared/schemas/waterfall-policy';
 import { assertNumericField } from './helpers';
 import Decimal from 'decimal.js';
+
+// Phase 1.3: Fees validation imports
+import { computeFeePreview } from '@/lib/fees-wizard';
+import { adaptFeeTruthCase, scaleExpectedOutput, type FeeTruthCase } from './fee-adapter';
+
+// Phase 1B: Waterfall-Ledger validation imports
+import { calculateAmericanWaterfallLedger } from '@/lib/waterfall/american-ledger';
+import {
+  adaptWaterfallLedgerTruthCase,
+  validateWaterfallLedgerResult,
+  type WaterfallLedgerTruthCase,
+} from './waterfall-ledger-adapter';
 
 // Import all truth-case JSON files
 import xirrCases from '../../../docs/xirr.truth-cases.json';
@@ -204,7 +220,9 @@ describe('Truth Cases: Waterfall-Tier (Phase 1A - Active)', () => {
 
   // Summary: Report pass rate
   it('Waterfall-Tier truth table summary', () => {
-    const allTags = waterfallTierCases.flatMap((tc: unknown) => (tc as WaterfallTierCase).tags || []);
+    const allTags = waterfallTierCases.flatMap(
+      (tc: unknown) => (tc as WaterfallTierCase).tags || []
+    );
     const tagSet = new Set(allTags);
 
     // Required categories per truth case design
@@ -218,44 +236,92 @@ describe('Truth Cases: Waterfall-Tier (Phase 1A - Active)', () => {
   });
 });
 
-// [PHASE 1A] Waterfall-Ledger - Structural Validation Only
-describe('Truth Cases: Waterfall-Ledger (Phase 1A - Structural)', () => {
-  it('loads waterfall-ledger truth cases', () => {
-    expect(waterfallLedgerCases).toBeDefined();
-    expect(Array.isArray(waterfallLedgerCases)).toBe(true);
-    expect(waterfallLedgerCases.length).toBeGreaterThan(0);
-  });
+// [PHASE 1B] Waterfall-Ledger - Active Execution
+describe('Truth Cases: Waterfall-Ledger (Phase 1B - Active)', () => {
+  (waterfallLedgerCases as WaterfallLedgerTruthCase[]).forEach((testCase) => {
+    const { scenario, notes, expected } = testCase;
 
-  it('waterfall-ledger scenarios have required structure', () => {
-    waterfallLedgerCases.forEach((testCase: unknown) => {
-      const tc = testCase as Record<string, unknown>;
-      expect(tc).toHaveProperty('scenario');
-      expect(tc).toHaveProperty('input');
-      expect(tc).toHaveProperty('expected');
+    it(`${scenario}: ${notes}`, () => {
+      // Adapt truth case to production function input
+      const { config, contributions, exits } = adaptWaterfallLedgerTruthCase(testCase);
+
+      // Execute production code
+      const result = calculateAmericanWaterfallLedger(config, contributions, exits);
+
+      // Validate result against expected values
+      const validation = validateWaterfallLedgerResult(result, expected, 0.01);
+
+      // Assert all validations pass
+      if (!validation.pass) {
+        console.error(`[${scenario}] Validation failures:`, validation.failures);
+      }
+      expect(validation.pass).toBe(true);
     });
   });
 
-  // PHASE 1B: Ledger calculation engine not yet wired
-  // Requires multi-exit ledger tracking with cumulative waterfall state
-  // Will be activated after tier-based calculations stabilize
-  it.skip('[DEFERRED] Waterfall-Ledger execution requires ledger engine wiring', () => {
-    // Structural: 8/8 scenarios loaded
-    // Execution: Deferred to Phase 1B follow-up
-    // Reason: Requires ledger state tracking across multiple exits
+  // Summary: Waterfall-Ledger coverage and pass rate
+  it('Waterfall-Ledger truth table summary', () => {
+    expect(waterfallLedgerCases.length).toBe(14);
+
+    const allTags = (waterfallLedgerCases as WaterfallLedgerTruthCase[]).flatMap((tc) => tc.tags);
+    const tagSet = new Set(allTags);
+
+    // Required coverage categories per Phoenix plan
+    expect(tagSet.has('baseline')).toBe(true);
+    expect(tagSet.has('ledger')).toBe(true);
+    expect(tagSet.has('clawback')).toBe(true);
+
+    console.log(`Waterfall-Ledger: ${waterfallLedgerCases.length} scenarios validated`);
   });
 });
 
-// [PHASE 1B+] Fees - Load + Count Only
-describe('Truth Cases: Fees (Phase 1B+ - Load Only)', () => {
-  it('loads fees truth cases', () => {
-    expect(feesCases).toBeDefined();
-    expect(Array.isArray(feesCases)).toBe(true);
-    expect(feesCases.length).toBeGreaterThan(0);
+// [PHASE 1.3] Fees - Active Execution
+describe('Truth Cases: Fees (Phase 1.3 - Active)', () => {
+  (feesCases as FeeTruthCase[]).forEach((testCase) => {
+    const { id, description, input, expectedOutput } = testCase;
+
+    it(`${id}: ${description}`, () => {
+      // Adapt truth case to production function input
+      const { basis, input: previewInput } = adaptFeeTruthCase(testCase);
+      const scaled = scaleExpectedOutput(expectedOutput);
+
+      // Execute production code
+      const result = computeFeePreview(basis, previewInput);
+
+      // Assert total fees (integer precision for whole $)
+      assertNumericField(result.totalUSD, scaled.totalFeesUSD, 0);
+
+      // Assert yearly breakdown
+      expect(result.rows.length).toBe(scaled.yearlyFeesUSD.length);
+
+      scaled.yearlyFeesUSD.forEach((expectedFeeUSD, idx) => {
+        const actualFeeUSD = result.rows[idx]?.feeUSD ?? 0;
+        assertNumericField(actualFeeUSD, expectedFeeUSD, 0);
+      });
+
+      // Assert pctOfFund matches expected total/fundSize ratio
+      if (input.fundSize > 0) {
+        const expectedPct = (expectedOutput.totalFees / input.fundSize) * 100;
+        assertNumericField(result.pctOfFund, expectedPct, 2);
+      }
+    });
   });
 
-  // PHASE 1B+: Execution deferred until Waterfall modules complete
-  it.skip('[GATE] Fees execution requires Waterfall-Tier + Ledger completion', () => {
-    // See: docs/PHOENIX-EXECUTION-PLAN-v2.31.md Section 1B
+  // Summary: Fees coverage and pass rate
+  it('Fees truth table summary', () => {
+    expect(feesCases.length).toBe(10);
+
+    const allTags = (feesCases as FeeTruthCase[]).flatMap((tc) => tc.tags);
+    const tagSet = new Set(allTags);
+
+    // Required coverage categories per Phoenix plan
+    expect(tagSet.has('baseline')).toBe(true);
+    expect(tagSet.has('stepdown')).toBe(true);
+    expect(tagSet.has('called-basis')).toBe(true);
+    expect(tagSet.has('fmv-basis')).toBe(true);
+    expect(tagSet.has('edge-case')).toBe(true);
+
+    console.log(`Fees: ${feesCases.length} scenarios validated`);
   });
 });
 
@@ -317,7 +383,9 @@ describe('Truth Cases: Coverage Summary', () => {
 
   it('validates Decimal.js infrastructure', () => {
     // Verify Decimal.js is being used (not parseFloat) for waterfall calculations
-    const sampleWaterfallCase = waterfallTierCases[0] as any;
+    const sampleWaterfallCase = waterfallTierCases[0] as {
+      input: { exitProceeds: string; dealCost: string };
+    };
     const exitProceeds = new Decimal(sampleWaterfallCase.input.exitProceeds);
     const dealCost = new Decimal(sampleWaterfallCase.input.dealCost);
 
