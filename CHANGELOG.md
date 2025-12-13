@@ -6,7 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2025-12-11
+## [Unreleased] - 2025-12-13
+
+### Deprecated
+
+- **Phoenix v3.0 Infrastructure Track** - Superseded by v2.34 validation-first
+  approach
+  - Archived `HANDOFF-PHOENIX-PHASE1-2025-11-30.md` to
+    `docs/archive/phoenix/v3.0/`
+  - Archived `KICKOFF-PHOENIX-PHASE1-2025-11-30.md` to
+    `docs/archive/phoenix/v3.0/`
+  - Archived `PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md` to
+    `docs/archive/phoenix/`
+  - Removed duplicate `docs/PHOENIX-PHASE0-CONTINUATION-KICKOFF.md`
+  - Updated 7 cross-reference files to point to v2.34 or archived paths
+  - Infrastructure goals (pnpm, sidecar, TS baseline cleanup) were NOT executed
+  - **Note:** Wizard Step 4 work continues on `phoenix/phase-1-wizard-fees`
+    branch (PR #227 active)
 
 ### Added
 
