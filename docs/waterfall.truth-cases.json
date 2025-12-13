@@ -221,7 +221,7 @@
   },
   {
     "scenario": "05-no-hurdle-classic-carry-split",
-    "tags": ["baseline", "no-hurdle", "simple-carry"],
+    "tags": ["baseline", "no-hurdle", "simple-carry", "carry"],
     "notes": "Zero preferred return - simple 80/20 split after ROC",
     "input": {
       "policy": {
@@ -266,7 +266,7 @@
   },
   {
     "scenario": "06-rounding-tie-positive-0.005",
-    "tags": ["rounding", "excel-parity", "edge-case"],
+    "tags": ["rounding", "excel-parity", "edge-case", "carry"],
     "notes": "Exit proceeds with 0.005 tie - tests Excel ROUND away from zero (positive)",
     "input": {
       "policy": {
@@ -405,7 +405,7 @@
   },
   {
     "scenario": "09-partial-catchup-50-percent",
-    "tags": ["catch-up", "partial-catchup"],
+    "tags": ["catch-up", "partial-catchup", "carry"],
     "notes": "50% catch-up rate - GP and LP split residual 50/50 during catch-up phase",
     "input": {
       "policy": {
@@ -590,7 +590,7 @@
   },
   {
     "scenario": "12-no-preferred-tier-simple-waterfall",
-    "tags": ["policy-toggle", "simplified"],
+    "tags": ["policy-toggle", "simplified", "carry"],
     "notes": "Only ROC + carry tiers - no preferred return or catch-up complexity",
     "input": {
       "policy": {
