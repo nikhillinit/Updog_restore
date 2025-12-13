@@ -255,19 +255,63 @@ export function calculateAmericanWaterfall(
       }
 
       case 'gp_catch_up': {
-        // GP catch-up
+        // GP catch-up using parity formula
+        // Target: GP catches up until GP / (LP_preferred + GP) = carry_rate
+        const carryTier = policy.tiers.find((t) => t.tierType === 'carry');
+        const carryRate = carryTier?.rate || new Decimal(0.2);
         const catchUpRate = tier.catchUpRate || new Decimal(1);
-        const allocation = Decimal.min(remaining, remaining.times(catchUpRate));
 
-        gpTotal = gpTotal.plus(allocation);
-        remaining = remaining.minus(allocation);
+        // Validate carryRate < 1
+        if (carryRate.gte(1)) {
+          throw new Error('Carry rate must be less than 1');
+        }
 
-        breakdown.push({
-          tier: tier.tierType,
-          amount: allocation,
-          lpAmount: new Decimal(0),
-          gpAmount: allocation,
-        });
+        // Validate catchUpRate ∈ (0, 1]
+        if (catchUpRate.lte(0) || catchUpRate.gt(1)) {
+          throw new Error('Catch-up rate must be in range (0, 1]');
+        }
+
+        // Sum LP preferred from breakdown
+        const lpPreferred = breakdown
+          .filter((b) => b.tier === 'preferred_return')
+          .reduce((sum, b) => sum.plus(b.lpAmount), new Decimal(0));
+
+        // Calculate GP catch-up target: LP_pref * (carry / (1 - carry))
+        const gpTarget = lpPreferred.times(carryRate).div(new Decimal(1).minus(carryRate));
+
+        // Track how much GP catch-up has already been paid
+        const gpCatchUpPaid = breakdown
+          .filter((b) => b.tier === 'gp_catch_up')
+          .reduce((sum, b) => sum.plus(b.gpAmount), new Decimal(0));
+
+        // Calculate how much more GP needs
+        const gpNeeded = Decimal.max(new Decimal(0), gpTarget.minus(gpCatchUpPaid));
+
+        if (gpNeeded.gt(0)) {
+          // Calculate GP's share based on catchUpRate
+          const gpShare = catchUpRate;
+
+          // Calculate total distribution needed: gpNeeded / gpShare
+          const distNeeded = gpNeeded.div(gpShare);
+
+          // Allocate up to remaining
+          const dist = Decimal.min(remaining, distNeeded);
+
+          // Split distribution
+          const gpAmount = dist.times(gpShare);
+          const lpAmount = dist.minus(gpAmount);
+
+          lpTotal = lpTotal.plus(lpAmount);
+          gpTotal = gpTotal.plus(gpAmount);
+          remaining = remaining.minus(dist);
+
+          breakdown.push({
+            tier: tier.tierType,
+            amount: dist,
+            lpAmount,
+            gpAmount,
+          });
+        }
         break;
       }
 

@@ -197,8 +197,8 @@
       "dealCost": "1000000.00"
     },
     "expected": {
-      "lpDistribution": "1080000.00",
-      "gpDistribution": "420000.00",
+      "lpDistribution": "1400000.00",
+      "gpDistribution": "100000.00",
       "totalDistributed": "1500000.00",
       "breakdown": [
         {
@@ -214,7 +214,12 @@
         {
           "tier": "gp_catch_up",
           "lpAmount": "0.00",
-          "gpAmount": "420000.00"
+          "gpAmount": "20000.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "320000.00",
+          "gpAmount": "80000.00"
         }
       ]
     }
@@ -381,8 +386,8 @@
       "dealCost": "1000000.00"
     },
     "expected": {
-      "lpDistribution": "1080000.00",
-      "gpDistribution": "120000.00",
+      "lpDistribution": "1160000.00",
+      "gpDistribution": "40000.00",
       "totalDistributed": "1200000.00",
       "breakdown": [
         {
@@ -398,7 +403,12 @@
         {
           "tier": "gp_catch_up",
           "lpAmount": "0.00",
-          "gpAmount": "120000.00"
+          "gpAmount": "20000.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "80000.00",
+          "gpAmount": "20000.00"
         }
       ]
     }
@@ -783,6 +793,480 @@
           "tier": "gp_catch_up",
           "lpAmount": "0.00",
           "gpAmount": "89200000.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "16-excel-vc-standard-2x-return",
+    "tags": [
+      "excel-validated",
+      "vc-standard",
+      "no-hurdle",
+      "market",
+      "success"
+    ],
+    "notes": "Excel validated. Market standard VC: 2x return with no hurdle. GP gets 20% of $100M profit = $20M. LP gets capital + 80% profit = $180M.",
+    "input": {
+      "policy": {
+        "id": "excel-vc-001",
+        "name": "Market Standard VC (No Hurdle)",
+        "type": "american",
+        "preferredReturnRate": "0",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "carry",
+            "priority": 2,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "200000000.00",
+      "dealCost": "100000000.00"
+    },
+    "expected": {
+      "lpDistribution": "180000000.00",
+      "gpDistribution": "20000000.00",
+      "totalDistributed": "200000000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "100000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "80000000.00",
+          "gpAmount": "20000000.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "17-excel-vc-standard-loss-05x",
+    "tags": ["excel-validated", "vc-standard", "no-hurdle", "loss"],
+    "notes": "Excel validated. Loss scenario: 0.5x return. LP gets partial capital back ($50M), GP gets $0.",
+    "input": {
+      "policy": {
+        "id": "excel-vc-001",
+        "name": "Market Standard VC (No Hurdle)",
+        "type": "american",
+        "preferredReturnRate": "0",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "carry",
+            "priority": 2,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "50000000.00",
+      "dealCost": "100000000.00"
+    },
+    "expected": {
+      "lpDistribution": "50000000.00",
+      "gpDistribution": "0.00",
+      "totalDistributed": "50000000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "50000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "0.00",
+          "gpAmount": "0.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "18-excel-vc-standard-breakeven-1x",
+    "tags": [
+      "excel-validated",
+      "vc-standard",
+      "no-hurdle",
+      "breakeven",
+      "boundary"
+    ],
+    "notes": "Excel validated. Break-even: exactly 1.0x return. LP gets full capital back, GP gets $0.",
+    "input": {
+      "policy": {
+        "id": "excel-vc-001",
+        "name": "Market Standard VC (No Hurdle)",
+        "type": "american",
+        "preferredReturnRate": "0",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "carry",
+            "priority": 2,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "100000000.00",
+      "dealCost": "100000000.00"
+    },
+    "expected": {
+      "lpDistribution": "100000000.00",
+      "gpDistribution": "0.00",
+      "totalDistributed": "100000000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "100000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "0.00",
+          "gpAmount": "0.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "19-excel-vc-standard-minimal-profit",
+    "tags": [
+      "excel-validated",
+      "vc-standard",
+      "no-hurdle",
+      "edge-case",
+      "boundary"
+    ],
+    "notes": "Excel validated. Minimal profit: 1.0x + $1. GP gets $0.20 (20% of $1 profit), LP gets $100M + $0.80. Tests smallest profitable carry calculation.",
+    "input": {
+      "policy": {
+        "id": "excel-vc-001",
+        "name": "Market Standard VC (No Hurdle)",
+        "type": "american",
+        "preferredReturnRate": "0",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "carry",
+            "priority": 2,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "100000001.00",
+      "dealCost": "100000000.00"
+    },
+    "expected": {
+      "lpDistribution": "100000000.80",
+      "gpDistribution": "0.20",
+      "totalDistributed": "100000001.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "100000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "0.80",
+          "gpAmount": "0.20"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "20-excel-vc-standard-3x-return",
+    "tags": ["excel-validated", "vc-standard", "no-hurdle", "success"],
+    "notes": "Excel validated. Strong return: 3x. Profit = $200M. GP gets 20% = $40M, LP gets capital + 80% = $260M.",
+    "input": {
+      "policy": {
+        "id": "excel-vc-001",
+        "name": "Market Standard VC (No Hurdle)",
+        "type": "american",
+        "preferredReturnRate": "0",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "carry",
+            "priority": 2,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "300000000.00",
+      "dealCost": "100000000.00"
+    },
+    "expected": {
+      "lpDistribution": "260000000.00",
+      "gpDistribution": "40000000.00",
+      "totalDistributed": "300000000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "100000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "160000000.00",
+          "gpAmount": "40000000.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "21-excel-vc-standard-10x-unicorn",
+    "tags": ["excel-validated", "vc-standard", "no-hurdle", "unicorn", "scale"],
+    "notes": "Excel validated. Unicorn exit: 10x return. Profit = $900M. GP gets 20% = $180M, LP gets capital + 80% = $820M. Tests large-scale calculations.",
+    "input": {
+      "policy": {
+        "id": "excel-vc-001",
+        "name": "Market Standard VC (No Hurdle)",
+        "type": "american",
+        "preferredReturnRate": "0",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "carry",
+            "priority": 2,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "1000000000.00",
+      "dealCost": "100000000.00"
+    },
+    "expected": {
+      "lpDistribution": "820000000.00",
+      "gpDistribution": "180000000.00",
+      "totalDistributed": "1000000000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "100000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "720000000.00",
+          "gpAmount": "180000000.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "22-excel-pe-hurdle-standard-2x",
+    "tags": [
+      "excel-validated",
+      "pe-hurdle",
+      "traditional",
+      "8pct-hurdle",
+      "success"
+    ],
+    "notes": "Excel validated. Traditional PE with 8% hurdle (no catch-up): 2x return. GP carry only on excess over hurdle ($108M). ROC=$100M, Pref=$8M, Carry on $92M.",
+    "input": {
+      "policy": {
+        "id": "excel-pe-001",
+        "name": "Traditional PE Waterfall (8% Hurdle, No Catch-up)",
+        "type": "american",
+        "preferredReturnRate": "0.08",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "preferred_return",
+            "priority": 2,
+            "rate": "0.08",
+            "basis": "contributed"
+          },
+          {
+            "tierType": "carry",
+            "priority": 3,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "200000000.00",
+      "dealCost": "100000000.00"
+    },
+    "expected": {
+      "lpDistribution": "181600000.00",
+      "gpDistribution": "18400000.00",
+      "totalDistributed": "200000000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "100000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "preferred_return",
+          "lpAmount": "8000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "73600000.00",
+          "gpAmount": "18400000.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "23-excel-pe-hurdle-loss-09x",
+    "tags": [
+      "excel-validated",
+      "pe-hurdle",
+      "traditional",
+      "8pct-hurdle",
+      "loss"
+    ],
+    "notes": "Excel validated. Loss scenario with 8% hurdle: 0.9x return. No carry because proceeds ($90M) < hurdle target ($108M). LP gets all.",
+    "input": {
+      "policy": {
+        "id": "excel-pe-001",
+        "name": "Traditional PE Waterfall (8% Hurdle, No Catch-up)",
+        "type": "american",
+        "preferredReturnRate": "0.08",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "preferred_return",
+            "priority": 2,
+            "rate": "0.08",
+            "basis": "contributed"
+          },
+          {
+            "tierType": "carry",
+            "priority": 3,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "90000000.00",
+      "dealCost": "100000000.00"
+    },
+    "expected": {
+      "lpDistribution": "90000000.00",
+      "gpDistribution": "0.00",
+      "totalDistributed": "90000000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "90000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "preferred_return",
+          "lpAmount": "0.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "0.00",
+          "gpAmount": "0.00"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "24-excel-pe-hurdle-high-3x",
+    "tags": [
+      "excel-validated",
+      "pe-hurdle",
+      "traditional",
+      "8pct-hurdle",
+      "strong-success"
+    ],
+    "notes": "Excel validated. High profit with 8% hurdle (no catch-up): 3x return. Large excess over hurdle. GP gets 20% of $192M excess = $38.4M.",
+    "input": {
+      "policy": {
+        "id": "excel-pe-001",
+        "name": "Traditional PE Waterfall (8% Hurdle, No Catch-up)",
+        "type": "american",
+        "preferredReturnRate": "0.08",
+        "hurdleRateBasis": "contributed",
+        "cumulativeCalculations": true,
+        "tiers": [
+          {
+            "tierType": "return_of_capital",
+            "priority": 1
+          },
+          {
+            "tierType": "preferred_return",
+            "priority": 2,
+            "rate": "0.08",
+            "basis": "contributed"
+          },
+          {
+            "tierType": "carry",
+            "priority": 3,
+            "rate": "0.20"
+          }
+        ]
+      },
+      "exitProceeds": "300000000.00",
+      "dealCost": "100000000.00"
+    },
+    "expected": {
+      "lpDistribution": "261600000.00",
+      "gpDistribution": "38400000.00",
+      "totalDistributed": "300000000.00",
+      "breakdown": [
+        {
+          "tier": "return_of_capital",
+          "lpAmount": "100000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "preferred_return",
+          "lpAmount": "8000000.00",
+          "gpAmount": "0.00"
+        },
+        {
+          "tier": "carry",
+          "lpAmount": "153600000.00",
+          "gpAmount": "38400000.00"
         }
       ]
     }
