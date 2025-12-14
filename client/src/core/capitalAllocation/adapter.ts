@@ -65,7 +65,9 @@ export interface TruthCaseInput {
     id?: string | number;
     name?: string;
     start_date?: string | null;
+    startDate?: string | null;  // camelCase variant for flexibility
     end_date?: string | null;
+    endDate?: string | null;    // camelCase variant for flexibility
     weight?: number;
     max_allocation?: number;
   }>;
@@ -261,11 +263,15 @@ function normalizeCohorts(
       ? toCentsWithInference(c.max_allocation, unitScale)
       : null;
 
+    // Handle both snake_case (start_date) and camelCase (startDate) variants
+    const rawStartDate = c.start_date ?? c.startDate;
+    const rawEndDate = c.end_date ?? c.endDate;
+
     return {
       id,
       name: c.name ?? id,
-      startDate: c.start_date || FAR_FUTURE,
-      endDate: c.end_date ?? null,
+      startDate: rawStartDate || FAR_FUTURE,
+      endDate: rawEndDate ?? null,
       weightBps: c.weightBps,
       maxAllocationCents: maxAllocation,
       allocationCents: 0, // Computed later

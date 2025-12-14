@@ -11,6 +11,8 @@
  * @see docs/CA-SEMANTIC-LOCK.md Section 3.4
  */
 
+import { dollarsToCents } from './rounding';
+
 /**
  * Million scale multiplier for small commitment values.
  */
@@ -114,13 +116,16 @@ export function inferUnitScaleType(commitment: number): UnitScale {
 
 /**
  * Convert a value to cents based on unit scale.
+ * Uses banker's rounding per CA-SEMANTIC-LOCK.md Section 4.1.
  *
  * @param value - Input value (in $M or $ depending on scale)
  * @param unitScale - Scale multiplier (MILLION or 1)
- * @returns Value in cents
+ * @returns Value in cents (integer)
  */
 export function toCentsWithInference(value: number, unitScale: number): number {
-  return Math.round(value * unitScale * 100);
+  // Convert to dollars first (apply scale), then to cents with banker's rounding
+  const dollars = value * unitScale;
+  return dollarsToCents(dollars);
 }
 
 /**
@@ -150,6 +155,18 @@ export function validateSanityCap(
 /**
  * Convert cents back to original units.
  *
+ * @param cents - Value in cents
+ * @param unitScale - Scale multiplier (MILLION or 1) - should be passed from context, NOT re-inferred
+ * @returns Value in original units ($M or $)
+ */
+export function fromCentsWithScale(cents: number, unitScale: number): number {
+  return cents / (unitScale * 100);
+}
+
+/**
+ * Convert cents back to original units (legacy wrapper).
+ *
+ * @deprecated Use fromCentsWithScale with explicit unitScale to avoid re-inference bugs
  * @param cents - Value in cents
  * @param commitmentForScale - Commitment value to infer scale from
  * @returns Value in original units ($M or $)

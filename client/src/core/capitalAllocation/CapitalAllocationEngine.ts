@@ -189,12 +189,15 @@ export function allocateCapacityToCohorts(
 }
 
 /**
- * Apply per-cohort caps with spill-over to next cohort.
+ * Apply per-cohort caps with FORWARD-ONLY spill-over.
  *
  * Per CA-SEMANTIC-LOCK.md Section 4.3:
- * - If cohort hits cap, excess spills to next cohort in sort order
+ * - If cohort hits cap, excess spills to NEXT cohort in sort order (forward-only)
  * - Continue until all capacity allocated or all cohorts at cap
  * - Termination: remaining unallocated stays as remaining_capacity
+ *
+ * CRITICAL: Spillover only flows forward (i -> i+1 -> i+2...), never backward.
+ * This ensures deterministic allocation order based on canonical sort.
  */
 function applyCohortCaps(
   cohorts: InternalCohort[],
@@ -203,34 +206,26 @@ function applyCohortCaps(
   globalCapCents: number | null
 ): { finalAllocations: number[]; spilloverCents: number } {
   const finalAllocations = [...initialAllocations];
-  let spillover = 0;
+  let carryForward = 0;
 
-  // First pass: apply caps and collect spillover
+  // Single forward pass: apply caps and carry excess to next cohort
   for (let i = 0; i < cohorts.length; i++) {
+    // Add any carry-forward from previous capped cohorts
+    finalAllocations[i] += carryForward;
+    carryForward = 0;
+
     // Determine effective cap for this cohort
     const cohortCap = cohorts[i].maxAllocationCents ?? globalCapCents ?? Infinity;
 
+    // If over cap, collect excess for next cohort
     if (finalAllocations[i] > cohortCap) {
-      spillover += finalAllocations[i] - cohortCap;
+      carryForward = finalAllocations[i] - cohortCap;
       finalAllocations[i] = cohortCap;
     }
   }
 
-  // Second pass: distribute spillover to uncapped cohorts
-  if (spillover > 0) {
-    for (let i = 0; i < cohorts.length && spillover > 0; i++) {
-      const cohortCap = cohorts[i].maxAllocationCents ?? globalCapCents ?? Infinity;
-      const headroom = cohortCap - finalAllocations[i];
-
-      if (headroom > 0) {
-        const addition = Math.min(headroom, spillover);
-        finalAllocations[i] += addition;
-        spillover -= addition;
-      }
-    }
-  }
-
-  return { finalAllocations, spilloverCents: spillover };
+  // Any remaining carryForward becomes unallocated (all cohorts at cap)
+  return { finalAllocations, spilloverCents: carryForward };
 }
 
 // =============================================================================
@@ -421,10 +416,10 @@ function formatOutput(
   timeSeries: ReserveBalancePoint[],
   violations: Violation[]
 ): CAEngineOutput {
-  // Format allocations (sorted by cohort name)
-  const allocationsByCohort = cohorts
-    .map((c) => formatCohortOutput(c, input.unitScale))
-    .sort((a, b) => cmp(a.cohort, b.cohort));
+  // Format allocations - PRESERVE canonical sort order from adapter
+  // Cohorts are already sorted by (startDate, id) in normalizeCohorts
+  // DO NOT re-sort by display name as this breaks canonical ordering
+  const allocationsByCohort = cohorts.map((c) => formatCohortOutput(c, input.unitScale));
 
   // Sort time series by date
   const sortedTimeSeries = [...timeSeries].sort((a, b) => cmp(a.date, b.date));

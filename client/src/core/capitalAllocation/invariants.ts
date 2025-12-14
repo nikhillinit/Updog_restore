@@ -15,6 +15,7 @@
 
 import { type CAEngineOutput, type Violation, createViolation } from './types';
 import { type NormalizedInput } from './adapter';
+import { dollarsToCents, roundPercentDerivedToCents } from './rounding';
 
 // =============================================================================
 // Types
@@ -112,9 +113,10 @@ export function verifyCapacityConservation(
   const commitmentCents = input.commitmentCents;
 
   // Calculate actual: sum allocations from array (non-tautological)
+  // CRITICAL: Use banker's rounding for cents conversion per semantic lock Section 4.1
   const totalAllocatedCents = output.allocations_by_cohort.reduce((sum, cohort) => {
-    // Convert back to cents from output units
-    const amountCents = Math.round(cohort.amount * input.unitScale * 100);
+    // Convert back to cents from output units using banker's rounding
+    const amountCents = dollarsToCents(cohort.amount * input.unitScale);
     return sum + amountCents;
   }, 0);
 
@@ -294,7 +296,8 @@ export function calculateExpectedReserveIndependently(
   const endingCashCents = contributionsCents.reduce((a, b) => a + b, 0) -
     distributionsCents.reduce((a, b) => a + b, 0);
 
-  const targetReserveCents = Math.round(commitmentCents * targetReservePct);
+  // CRITICAL: Use banker's rounding for percent-derived values per semantic lock Section 4.1
+  const targetReserveCents = roundPercentDerivedToCents(commitmentCents * targetReservePct);
   const effectiveBufferCents = Math.max(minCashBufferCents, targetReserveCents);
 
   const reserveBalanceCents = Math.min(endingCashCents, effectiveBufferCents);
