@@ -15,9 +15,14 @@
 | **Commitment Capacity** | `commitment = reserved_capacity + allocable_capacity + deployed` | reserve_balance represents budgeted capacity |
 | **Hybrid** | `reserve_balance` is cash; `allocations_by_cohort` is planned capacity | Mixed semantics |
 
-**DECISION**: [ ] Cash Ledger / [ ] Commitment Capacity / [ ] Hybrid
+**DECISION**: [ ] Cash Ledger / [ ] Commitment Capacity / [x] Hybrid
 
-**Rationale**: _[Document why this model was chosen]_
+**Rationale**: Hybrid model selected because:
+1. **Full truth case coverage** - Only Hybrid can pass all 119 Phoenix cases (CA-001 to CA-006 require cash tracking; CA-007+ require capacity planning)
+2. **Real-world accuracy** - VC funds track both actual cash (LP contributions/distributions) AND planned capacity allocation (deployment strategy by cohort)
+3. **No semantic overloading** - `reserve_balance` = actual cash on hand; `allocations_by_cohort` = planned capacity allocation. Each field has ONE meaning.
+4. **Audit + planning** - Cash component reconciles to bank statements (auditor-friendly); capacity component integrates with pacing engine
+5. **Existing code alignment** - reserves-v11.ts patterns for cash; fund-calc.ts patterns for capacity
 
 ### 1.1.1 Term Definitions (MANDATORY)
 
@@ -25,14 +30,16 @@
 
 | Term | Definition | Represented By |
 |------|------------|----------------|
-| `allocations` | [ ] Cash deployed into portfolio / [ ] Cash moved to reserves / [ ] Planned capacity / [ ] Cohort allocations (not cash outflow) | Output field(s): ___ |
-| `reserve_balance` | [ ] Actual cash on hand / [ ] Reserved commitment capacity / [ ] Hybrid: ___ | Output field: `reserve_balance` |
-| `available_capacity` | Formula: ___ (e.g., `commitment - deployed - reserved`) | Derived from: ___ |
-| `deployed` | [ ] Cumulative cash outflows / [ ] Cumulative allocated amounts | Tracked in: ___ |
+| `allocations` | [x] Planned capacity allocation to cohorts (NOT cash outflow). Represents how much of the fund's commitment is earmarked for each vintage year. | Output field: `allocations_by_cohort[].amount` |
+| `reserve_balance` | [x] Actual cash on hand after contributions received, distributions paid, and cash deployed. This is CASH, not capacity. | Output field: `reserve_balance` |
+| `cash_deployed` | Cumulative actual cash outflows to portfolio companies. Subset of allocations that have been funded. | Output field: `cumulative_deployed` or derived from `allocations_by_cohort[].type === 'deployed'` |
+| `available_capacity` | Formula: `commitment - sum(allocations_by_cohort) - remaining_capacity` | Derived from: commitment and allocations |
+| `remaining_capacity` | Unallocated commitment that can still be planned for future cohorts. | Output field: `remaining_capacity` |
+| `deployed` | [x] Cumulative cash outflows (actual money sent to portfolio companies) | Tracked in: `cumulative_deployed` or filtered `allocations_by_cohort` |
 
 ### 1.2 Model-Specific Invariants (Machine-Testable)
 
-**Select the invariants matching your chosen model in 1.1:**
+**Selected: Invariant Set C (Hybrid)** - Two invariants must hold: cash conservation AND capacity conservation.
 
 **CRITICAL**: Variable names MUST include unit and semantic to prevent misinterpretation. Use `Decimal.eq()` or tolerance check for non-integer comparisons (never `===` for floating point).
 
@@ -567,8 +574,11 @@ describe('CA Determinism', () => {
 
 | Field | Definition | Type |
 |-------|------------|------|
-| `reserve_balance` | [ ] Cash on hand / [ ] Reserved commitment capacity / [ ] Other: ___ | [ ] Cash / [ ] Capacity |
-| `allocations_by_cohort[].amount` | [ ] Actual deployed cash / [ ] Planned allocation / [ ] Committed capacity | [ ] Cash / [ ] Plan |
+| `reserve_balance` | [x] Cash on hand - actual cash available after all inflows/outflows | **Cash** |
+| `allocations_by_cohort[].amount` | [x] Planned allocation - capacity earmarked for cohort (may or may not be deployed yet) | **Plan** |
+| `allocations_by_cohort[].type` | `'planned'` = capacity reservation, `'deployed'` = actual cash outflow | Discriminator |
+| `cumulative_deployed` | Sum of all `type === 'deployed'` allocations - actual cash sent to portfolio | **Cash** |
+| `remaining_capacity` | `commitment - sum(all allocations)` - unallocated commitment | **Capacity** |
 | `violations[]` | Conditions that trigger a violation entry | See 5.2 |
 
 ### 5.2 Violation Conditions
