@@ -21,6 +21,7 @@ configuration:
     - "*.md"              # Root-level docs (CAPABILITIES.md, etc.)
     - "docs/*.md"         # Top-level docs/ files (INDEX.md, etc.)
     - "docs/**/*.md"      # Nested docs/ subdirectories
+    - "docs/notebooklm-sources/**/*.md"  # Domain knowledge truth sources
     - "cheatsheets/**/*.md"
     - ".claude/agents/*.md"
     - ".claude/skills/**/*.md"
@@ -232,6 +233,33 @@ patterns:
       - "stage allocation"
     target: ".claude/agents/phoenix-capital-allocation-analyst.md"
     agent: "phoenix-capital-allocation-analyst"
+
+  # --- Domain Knowledge (NotebookLM Sources) ---
+  - id: "domain_knowledge"
+    priority: 16
+    category: "Domain Knowledge"
+    keywords:
+      - "domain knowledge"
+      - "vc modeling"
+      - "fund calculations"
+      - "notebooklm"
+      - "truth source"
+      - "canonical"
+    target: "docs/notebooklm-sources/"
+    message: "85K words of domain truth - XIRR, Waterfall, Fees, Capital, Reserves, Pacing, Cohorts, Monte Carlo"
+
+  - id: "phoenix_engines"
+    priority: 17
+    category: "Phoenix"
+    keywords:
+      - "reserve engine"
+      - "pacing engine"
+      - "cohort engine"
+      - "reserves"
+      - "pacing"
+      - "cohorts"
+    target: "docs/notebooklm-sources/"
+    message: "Phase 2 engine documentation (complete Nov 6, 2025)"
 
   # --- Core Capabilities ---
   - id: "capabilities"
@@ -472,6 +500,7 @@ staleness:
   # Override cadences by path pattern
   cadence_overrides:
     "docs/PHOENIX-SOT/**": "P30D"      # Phoenix docs: 30 days
+    "docs/notebooklm-sources/**": "P90D"  # Domain knowledge: 90 days (stable)
     "CHANGELOG.md": "P7D"               # Changelog: 7 days
     "cheatsheets/**": "P90D"            # Cheatsheets: 90 days
     "docs/archive/**": "P365D"          # Archives: 1 year (low priority)
