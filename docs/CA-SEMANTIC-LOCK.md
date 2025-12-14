@@ -39,9 +39,35 @@ Where:
 - `contributions`: LP capital calls received (actual cash in)
 - `distributions`: LP distributions paid (actual cash out)
 - `deployed_cash`: Cash sent to portfolio companies (actual investment outflows)
-- `ending_cash`: Maps to `reserve_balance` in output
+- `ending_cash`: Total cash on hand (NOT the same as `reserve_balance`)
 
-**CRITICAL**: Planned allocations (`allocations_by_cohort`) do NOT appear in this equation. Only actual cash movements affect `reserve_balance`.
+**CRITICAL**: Planned allocations (`allocations_by_cohort`) do NOT appear in this equation. Only actual cash movements affect cash position.
+
+#### Reserve Balance Formula (TRUTH-CASE VERIFIED)
+
+**This formula is validated against CA-001, CA-002, CA-003:**
+
+```typescript
+// Step 1: Calculate target reserve based on policy
+const target_reserve = fund.commitment * (fund.target_reserve_pct ?? 0);
+
+// Step 2: Effective buffer = max of absolute floor and percentage target
+const effective_buffer = Math.max(
+  constraints.min_cash_buffer ?? 0,
+  target_reserve
+);
+
+// Step 3: reserve_balance = the held-back portion (capped by what we have)
+const reserve_balance = Math.min(ending_cash, effective_buffer);
+```
+
+**Interpretation**: `reserve_balance` is the **reserved/held-back portion** of cash, NOT total cash on hand.
+
+| Truth Case | ending_cash | effective_buffer | reserve_balance | Validation |
+|------------|-------------|------------------|-----------------|------------|
+| CA-001 | 20 | max(1, 20) = 20 | min(20, 20) = 20 | PASS |
+| CA-002 | 2 | max(2, 20) = 20 | min(2, 20) = 2 | PASS |
+| CA-003 | 25 | max(1, 15) = 15 | min(25, 15) = 15 | PASS |
 
 #### Capacity Planning Identity (Separately)
 
@@ -85,9 +111,11 @@ The capacity plan (`allocations_by_cohort`) is driven by **commitment budget**, 
 | Term | Definition | Represented By |
 |------|------------|----------------|
 | `allocations` | [x] Planned capacity allocation to cohorts (NOT cash outflow). Represents how much of the fund's commitment is earmarked for each vintage year. | Output field: `allocations_by_cohort[].amount` |
-| `reserve_balance` | [x] Actual cash on hand after contributions received, distributions paid, and cash deployed. This is CASH, not capacity. | Output field: `reserve_balance` |
+| `reserve_balance` | [x] **The held-back portion of cash** = `min(ending_cash, effective_buffer)`. This is the reserve being protected, NOT total cash on hand. Verified against CA-001/002/003. | Output field: `reserve_balance` |
+| `ending_cash` | Total cash on hand = `starting_cash + contributions - distributions - deployed_cash`. Different from `reserve_balance`. | Internal calculation |
+| `effective_buffer` | `max(min_cash_buffer, commitment * target_reserve_pct)` - the target reserve level. | Internal calculation |
+| `allocable_cash` | Cash available for allocation = `max(0, ending_cash - reserve_balance)` = excess above reserve. | Derived |
 | `cash_deployed` | Cumulative actual cash outflows to portfolio companies. Subset of allocations that have been funded. | Output field: `cumulative_deployed` or derived from `allocations_by_cohort[].type === 'deployed'` |
-| `available_capacity` | Formula: `commitment - sum(allocations_by_cohort) - remaining_capacity` | Derived from: commitment and allocations |
 | `remaining_capacity` | Unallocated commitment that can still be planned for future cohorts. | Output field: `remaining_capacity` |
 | `deployed` | [x] Cumulative cash outflows (actual money sent to portfolio companies) | Tracked in: `cumulative_deployed` or filtered `allocations_by_cohort` |
 
