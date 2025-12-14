@@ -554,10 +554,30 @@ Fix: Ensure all monetary fields use the same unit scale (either $M or raw dollar
 
 | Context | Rounding Method | Precision |
 |---------|-----------------|-----------|
-| Intermediate calculations | [ ] Bankers / [ ] Half-up / [ ] Truncate | Full precision (no rounding) |
-| Final allocation amounts | [ ] Bankers / [ ] Half-up | [ ] Cents / [ ] Dollars |
-| Percentage calculations | [ ] Bankers / [ ] Half-up | 4 decimal places |
-| When rounding occurs | [ ] Per-event / [ ] End-of-period only | |
+| Intermediate calculations | [x] Full precision (no rounding) | N/A |
+| Final allocation amounts | [x] Bankers (half-to-even) | [x] Cents |
+| Percentage calculations | [x] Bankers (half-to-even) | 4 decimal places |
+| When rounding occurs | [x] End-of-period only | N/A |
+
+**Rationale**: CA-018 explicitly specifies "Bankers' rounding with stable tie-break". Bankers rounding is statistically unbiased and standard in financial systems.
+
+**Implementation** (JS doesn't have native Bankers rounding):
+```typescript
+function bankersRound(x: number): number {
+  const floor = Math.floor(x);
+  const decimal = x - floor;
+  if (Math.abs(decimal - 0.5) < 1e-9) {
+    // Exactly 0.5 - round to nearest even
+    return floor % 2 === 0 ? floor : floor + 1;
+  }
+  return Math.round(x);
+}
+
+// For negative values (CA-019 capital recalls), use symmetric version:
+function bankersRoundSymmetric(x: number): number {
+  return Math.sign(x) * bankersRound(Math.abs(x));
+}
+```
 
 **Alignment with runner**: Use same approach as `assertNumericField()` in helpers.ts
 
@@ -568,16 +588,54 @@ When allocating to multiple cohorts:
 | Step | Rule |
 |------|------|
 | 1. Base allocation | Pro-rata by cohort weight |
-| 2. Remainder handling | [ ] Largest remainder method / [ ] First cohort / [ ] Last cohort |
-| 3. Tie-break (equal remainders) | [ ] Stable sort by cohort name / [ ] By cohort index / [ ] By cohort start date |
+| 2. Remainder handling | [x] **Largest remainder method** (CA-018 verified) |
+| 3. Tie-break (equal remainders) | [x] First cohort in canonical sort order |
+
+**CA-018 Verification**:
+```
+Weights: [0.3333333, 0.3333333, 0.3333334] for cohorts A, B, C
+Total to allocate: 1,000,000 cents
+
+Base allocation (floor):
+  A: floor(1000000 × 0.3333333) = 333333, remainder = 0.3
+  B: floor(1000000 × 0.3333333) = 333333, remainder = 0.3
+  C: floor(1000000 × 0.3333334) = 333333, remainder = 0.4
+
+Sum of floors: 999999 (1 cent short)
+Largest remainder: C (0.4 > 0.3)
+C gets +1 → 333334
+
+Expected: [333333, 333333, 333334] ✓
+```
 
 ### 4.3 Ordering Rules (Input Processing)
 
 | Scenario | Deterministic Order |
 |----------|---------------------|
-| Multiple flows on same date | [ ] By flow type (contrib > distrib) / [ ] By flow ID / [ ] By amount (descending) |
-| Multiple cohorts eligible | [ ] By cohort name (alpha) / [ ] By cohort start date / [ ] By cohort weight (descending) |
-| Cap spill-over (CA-015) | Excess goes to: [ ] Next cohort in order / [ ] Reserve / [ ] Pro-rata to remaining |
+| Multiple flows on same date | [x] Contributions first, then distributions (cash in before cash out) |
+| Multiple cohorts eligible | [x] By canonical sort key: `(start_date \|\| '9999-12-31', id.toLowerCase())` |
+| Cap spill-over (CA-015) | [x] Next cohort in canonical sort order |
+
+**Canonical Sort Key** (LOCKED):
+```typescript
+function cohortSortKey(c: Cohort): [string, string] {
+  return [
+    c.start_date || '9999-12-31',         // Empty/null = far future
+    (c.id || c.name || '').toLowerCase()  // Case-insensitive
+  ];
+}
+
+// Sort ascending by tuple comparison
+cohorts.sort((a, b) => {
+  const [aDate, aId] = cohortSortKey(a);
+  const [bDate, bId] = cohortSortKey(b);
+  return aDate.localeCompare(bDate) || aId.localeCompare(bId);
+});
+```
+
+**Cap Spill-Over (CA-015 Verified)**:
+- If cohort hits `max_allocation_per_cohort` cap, excess spills to next cohort in sort order
+- Continue until all capacity allocated or all cohorts at cap
 
 ### 4.4 Output Sorting + Presence Requirements (MANDATORY)
 
