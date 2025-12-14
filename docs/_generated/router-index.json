@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-12-13T08:44:43.298Z",
+  "generatedAt": "2025-12-14T01:43:43.336Z",
   "version": "2.0",
   "config": {
     "min_score_to_route": 2,
@@ -217,6 +217,34 @@
       ],
       "target": ".claude/agents/phoenix-capital-allocation-analyst.md",
       "agent": "phoenix-capital-allocation-analyst"
+    },
+    {
+      "id": "domain_knowledge",
+      "priority": 16,
+      "category": "Domain Knowledge",
+      "keywords": [
+        "domain knowledge",
+        "vc modeling",
+        "fund calculations",
+        "notebooklm",
+        "truth source",
+        "canonical"
+      ],
+      "target": "docs/notebooklm-sources/"
+    },
+    {
+      "id": "phoenix_engines",
+      "priority": 17,
+      "category": "Phoenix",
+      "keywords": [
+        "reserve engine",
+        "pacing engine",
+        "cohort engine",
+        "reserves",
+        "pacing",
+        "cohorts"
+      ],
+      "target": "docs/notebooklm-sources/"
     },
     {
       "id": "capabilities",
@@ -578,7 +606,7 @@
         "review_cadence": "P90D"
       },
       "isStale": false,
-      "staleDays": 1,
+      "staleDays": 2,
       "hasExecutionClaims": false,
       "lastUpdated": "2025-12-12",
       "status": "ACTIVE",
@@ -1817,7 +1845,7 @@
         "review_cadence": "P90D"
       },
       "isStale": false,
-      "staleDays": 1,
+      "staleDays": 2,
       "hasExecutionClaims": false,
       "lastUpdated": "2025-12-12",
       "status": "ACTIVE",
@@ -1890,7 +1918,7 @@
       "frontmatter": {
         "status": "ACTIVE",
         "audience": "both",
-        "last_updated": "2025-12-12",
+        "last_updated": "2025-12-14",
         "categories": [
           "documentation",
           "navigation"
@@ -1913,9 +1941,9 @@
         "review_cadence": "P90D"
       },
       "isStale": false,
-      "staleDays": 1,
+      "staleDays": 0,
       "hasExecutionClaims": false,
-      "lastUpdated": "2025-12-12",
+      "lastUpdated": "2025-12-14",
       "status": "ACTIVE",
       "owner": "Core Team"
     },
@@ -2166,7 +2194,7 @@
       "frontmatter": {
         "status": "ACTIVE",
         "audience": "both",
-        "last_updated": "2025-12-12",
+        "last_updated": "2025-12-14",
         "categories": [
           "phoenix",
           "validation",
@@ -2183,6 +2211,7 @@
         ],
         "source_of_truth": true,
         "phase": "1B",
+        "phase2_docs": "COMPLETE",
         "priority": 1,
         "route_hint": "Entry point for all Phoenix project work.",
         "use_cases": [
@@ -2193,9 +2222,9 @@
         "review_cadence": "P30D"
       },
       "isStale": false,
-      "staleDays": 1,
+      "staleDays": 0,
       "hasExecutionClaims": false,
-      "lastUpdated": "2025-12-12",
+      "lastUpdated": "2025-12-14",
       "status": "ACTIVE",
       "owner": "Phoenix Team"
     },
@@ -6398,7 +6427,7 @@
       "frontmatter": {
         "status": "ACTIVE",
         "audience": "agents",
-        "last_updated": "2025-12-12",
+        "last_updated": "2025-12-14",
         "owner": "Platform Team",
         "review_cadence": "P30D",
         "categories": [
@@ -6414,9 +6443,9 @@
         ]
       },
       "isStale": false,
-      "staleDays": 1,
+      "staleDays": 0,
       "hasExecutionClaims": false,
-      "lastUpdated": "2025-12-12",
+      "lastUpdated": "2025-12-14",
       "status": "ACTIVE",
       "owner": "Platform Team"
     },

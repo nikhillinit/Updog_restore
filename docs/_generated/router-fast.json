@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "generatedAt": "2025-12-13T08:44:43.302Z",
+  "generatedAt": "2025-12-14T01:43:43.339Z",
   "scoring": {
     "generic_terms": [
       "test",
@@ -169,6 +169,50 @@
       "route_to": ".claude/agents/phoenix-capital-allocation-analyst.md",
       "why": "Phoenix routing (priority 15)",
       "agent": "phoenix-capital-allocation-analyst"
+    },
+    {
+      "id": "domain_knowledge",
+      "priority": 16,
+      "match_any": [
+        "domain knowledge",
+        "vc modeling",
+        "fund calculations",
+        "notebooklm",
+        "truth source",
+        "canonical"
+      ],
+      "match_any_normalized": [
+        "domain knowledge",
+        "vc modeling",
+        "fund calculations",
+        "notebooklm",
+        "truth source",
+        "canonical"
+      ],
+      "route_to": "docs/notebooklm-sources/",
+      "why": "Domain Knowledge routing (priority 16)"
+    },
+    {
+      "id": "phoenix_engines",
+      "priority": 17,
+      "match_any": [
+        "reserve engine",
+        "pacing engine",
+        "cohort engine",
+        "reserves",
+        "pacing",
+        "cohorts"
+      ],
+      "match_any_normalized": [
+        "reserve engine",
+        "pacing engine",
+        "cohort engine",
+        "reserves",
+        "pacing",
+        "cohorts"
+      ],
+      "route_to": "docs/notebooklm-sources/",
+      "why": "Phoenix routing (priority 17)"
     },
     {
       "id": "capabilities",
@@ -599,6 +643,42 @@
     ],
     "stage allocation": [
       ".claude/agents/phoenix-capital-allocation-analyst.md"
+    ],
+    "domain knowledge": [
+      "docs/notebooklm-sources/"
+    ],
+    "vc modeling": [
+      "docs/notebooklm-sources/"
+    ],
+    "fund calculations": [
+      "docs/notebooklm-sources/"
+    ],
+    "notebooklm": [
+      "docs/notebooklm-sources/"
+    ],
+    "truth source": [
+      "docs/notebooklm-sources/"
+    ],
+    "canonical": [
+      "docs/notebooklm-sources/"
+    ],
+    "reserve engine": [
+      "docs/notebooklm-sources/"
+    ],
+    "pacing engine": [
+      "docs/notebooklm-sources/"
+    ],
+    "cohort engine": [
+      "docs/notebooklm-sources/"
+    ],
+    "reserves": [
+      "docs/notebooklm-sources/"
+    ],
+    "pacing": [
+      "docs/notebooklm-sources/"
+    ],
+    "cohorts": [
+      "docs/notebooklm-sources/"
     ],
     "capability": [
       "CAPABILITIES.md"
