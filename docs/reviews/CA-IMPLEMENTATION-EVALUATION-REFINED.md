@@ -1,364 +1,336 @@
-# Capital Allocation Implementation: Refined Critical Evaluation
+# Capital Allocation Implementation: Refined Critical Evaluation (v2)
 
 **Date**: 2025-12-14
-**Status**: Final Assessment
+**Status**: Final Assessment (Revision 2)
 **Reviewer**: Claude Code Analysis
 
 ---
 
 ## Executive Summary
 
-| Metric | Original Plan | External Analysis | Refined Assessment |
-|--------|---------------|-------------------|-------------------|
-| **Time Estimate** | 8-12 hours | 340-500 hours | **30-48 hours** |
-| **Multiplier** | 1x (baseline) | 34-50x | **3-4x** |
-| **Recommendation** | Proceed | NO-GO | **CONDITIONAL GO** |
-| **Infrastructure** | Assumed exists | "Must build from scratch" | **Verified exists** |
+| Metric | Original Plan | External Analysis | Initial Refined | **Final Refined** |
+|--------|---------------|-------------------|-----------------|-------------------|
+| **Time Estimate** | 8-12 hours | 340-500 hours | 30-48 hours | **60-100 hours** |
+| **Multiplier** | 1x (baseline) | 34-50x | 3-4x | **6-10x** |
+| **Recommendation** | Proceed | NO-GO | CONDITIONAL GO | **CONDITIONAL GO** |
+| **Fund-level primitives** | Assumed | Missing | Assumed reusable | **Must be built** |
 
-**Verdict**: The external analysis overestimated by ~10x due to factual errors about existing infrastructure. The original plan underestimated by ~3-4x due to unaccounted domain complexity. A 30-48 hour estimate with 2-3 week timeline is realistic.
-
----
-
-## Section 1: Factual Corrections (External Analysis Errors)
-
-### ERROR 1: "No truth case runner infrastructure (15-25 hours to build)"
-
-**FACT**: Runner exists and is production-ready.
-
-**Evidence** (`tests/unit/truth-cases/runner.test.ts`):
-```typescript
-// Line 1-27: Header documents 6 calculation modules
-/**
- * Truth-Case Unified Runner - Phoenix Phase 0 (v2.33)
- * Validates all truth-case scenarios across 6 calculation modules...
- * - Capital/Exit: Load + count only (Phase 1B+)
- */
-
-// Line 63-64: CA truth cases already imported
-import capitalCases from '../../../docs/capital-allocation.truth-cases.json';
-import exitCases from '../../../docs/exit-recycling.truth-cases.json';
-
-// Line 335-347: CA test suite scaffolded (load-only mode)
-describe('Truth Cases: Capital Allocation (Phase 1B+ - Load Only)', () => {
-  it('loads capital allocation truth cases', () => {
-    expect(capitalCases).toBeDefined();
-    expect(capitalCases.length).toBeGreaterThan(0);
-  });
-});
-```
-
-**Correction**: Runner is 472 lines, validates 6 modules, CA JSON already wired. Infrastructure cost: **0 hours** (exists), not 15-25 hours.
+**Revised Verdict**: The external analysis still overestimates (~3-5x too high) but my initial refinement underestimated by ~2x due to incorrect assumption about reusable fund-level primitives. A 60-100 hour estimate (4-6 week sprint) is more realistic.
 
 ---
 
-### ERROR 2: "Exit Recycling module referenced but not implemented"
+## Part A: Claims Confirmed by Additional Review
 
-**FACT**: ER adapter is complete (455 lines) with full validation.
+### CONFIRMED 1: Runner infrastructure exists
 
-**Evidence** (`tests/unit/truth-cases/exit-recycling-adapter.ts`):
+The unified runner at `tests/unit/truth-cases/runner.test.ts`:
+- Imports CA truth-case JSON (line 63)
+- Has "Capital Allocation (Load Only)" suite with `it.skip()` gate (lines 335-347)
+- Framework is production-ready; CA execution intentionally deferred
+
+### CONFIRMED 2: Exit Recycling is fully implemented
+
+The adapter at `tests/unit/truth-cases/exit-recycling-adapter.ts`:
+- Maps truth-case inputs to production `calculateExitRecycling()`
+- Full validation with structured validator
+- Runner actively executes all 20 ER cases (lines 350-392)
+
+### CONFIRMED 3: CA truth case complexity is real
+
+The CA truth cases at `docs/capital-allocation.truth-cases.json` genuinely contain:
+- `dynamic_ratio` policy (CA-005) - undefined semantics
+- Unit variance: `CA-001` uses `100`, `CA-007` uses `100000000`
+- Schema variance: simple `reserve_balance` vs time-series `reserve_balance_over_time[]`
+- 4 categories requiring different engines: `reserve_engine`, `pacing_engine`, `cohort_engine`, `integration`
+
+---
+
+## Part B: Corrections to My Initial Refinement
+
+### CORRECTION 1: "Core math exists; build thin wrappers" was WRONG
+
+**My original claim**: Production code in `reserves-v11.ts` provides reusable math.
+
+**Reviewer's correction**: `reserves-v11.ts` is **company-level**, not fund-level.
+
+**Evidence verified** (`client/src/lib/reserves-v11.ts`):
 ```typescript
-// Lines 1-17: Complete adapter with production imports
-import { calculateExitRecycling, createExitEvent, type ExitEvent } from '@/lib/exit-recycling-calculations';
-
-// Lines 22-100: Full type definitions for 4 categories
-export interface ExitRecyclingTruthCase {
-  id: string;
-  category: 'capacity_calculation' | 'schedule_calculation' | 'cap_enforcement' | 'term_validation';
-  ...
+// Takes companies and ranks by MOIC - COMPANY-LEVEL
+function calculateCap(company: Company, config: ReservesConfig): number {
+  // Allocates reserves TO individual companies by exit_moic_bps ranking
 }
-
-// Exports (verified in runner.test.ts lines 51-56):
-export { executeExitRecyclingTruthCase, validateExitRecyclingResult }
 ```
 
-**Evidence** (`tests/unit/truth-cases/runner.test.ts` lines 350-392):
-```typescript
-// Full active execution suite
-describe('Truth Cases: Exit Recycling (Phase 1.4A - Active)', () => {
-  (exitCases as ExitRecyclingTruthCase[]).forEach((testCase) => {
-    it(`${id}: ${description}`, () => {
-      const result = executeExitRecyclingTruthCase(testCase);
-      const validation = validateExitRecyclingResult(result, testCase);
-      expect(validation.pass).toBe(true);
-    });
-  });
-});
-```
-
-**Correction**: ER adapter exists with 20 test cases actively executing. Cost: **0 hours** (done), provides ~35-40% pattern reuse for CA.
-
----
-
-### ERROR 3: "0% overlap with CA truth case requirements"
-
-**FACT**: Structural overlap is 25-40%, not 0%.
-
-**Reusable Patterns from ER Adapter**:
-
-| Pattern | ER Source | CA Applicability | Reuse % |
-|---------|-----------|------------------|---------|
-| Category routing | Lines 94-97 | Same 4-category dispatch | 90% |
-| Type definitions | Lines 22-89 | Schema structure identical | 80% |
-| Execute function | Lines 102-200 | Input mapping pattern | 60% |
-| Validate function | Lines 202-350 | Field assertion loop | 70% |
-| Runner integration | Lines 350-392 | Direct copy-adapt | 85% |
-
-**Why overlap exists**:
-- Both use JSON truth cases with `id`, `category`, `input`, `expected` structure
-- Both require category-based dispatch (ER: 4 categories, CA: 4 categories)
-- Both use `assertNumericField()` helper for Decimal.js validation
-- Both integrate into same runner framework
-
-**Correction**: Structural reuse is ~35% averaged. Domain logic (engine calls) is new, but adapter scaffolding isn't.
-
----
-
-### ERROR 4: "340-500 hours represents 34-50x underestimate"
-
-**FACT**: Applying 34-50x to 8-12h yields 272-600h, but this assumes the original estimate was 0% realistic.
-
-**Calculation Check**:
-- Original: 8-12 hours
-- External: 34-50x → 272-600 hours (central: 340-500)
-- Reality check: ER adapter (comparable scope) took ~40-60 hours based on CHANGELOG
-- CA has 3 engines vs ER's 1, so 3x complexity: ~120-180 hours MAX
-- With infrastructure reuse: 30-48 hours
-
-**Correction**: True multiplier is 3-4x, not 34-50x.
-
----
-
-## Section 2: Valid Concerns Acknowledged
-
-The external analysis raised legitimate concerns that deserve credit:
-
-### VALID 1: Domain Mismatch is Real
-
-**Agreement Level**: 100%
-
-Production code (`client/src/lib/reserves-v11.ts`):
-```typescript
-// Company-level allocation (MOIC ranking, sector caps)
-function calculateCap(company: Company, config: ReservesConfig): number
-```
-
-CA truth cases (`docs/capital-allocation.truth-cases.json`):
+**CA truth cases require** (`docs/capital-allocation.truth-cases.json`):
 ```json
-// Fund-level accounting (contributions/distributions ledger)
-"expected": {
-  "reserve_balance": 20,
-  "allocations_by_cohort": [{"cohort": "2024", "amount": 80}]
+// Fund-level ledger with timeline and flows - DIFFERENT DOMAIN
+"inputs": {
+  "fund": { "commitment": 100, "target_reserve_pct": 0.2 },
+  "timeline": { "start_date": "2024-01-01", "end_date": "2024-12-31" },
+  "flows": { "contributions": [...], "distributions": [...] },
+  "constraints": { "min_cash_buffer": 1, "rebalance_frequency": "quarterly" }
 }
 ```
 
-**Impact**: New adapter logic required. Cannot directly call existing functions.
-**Mitigation**: Build thin wrappers, not new engines. Core math exists.
+**Additional verification**: Checked `fund-calc.ts` and `capital-first.ts`:
+- `fund-calc.ts`: Period simulation for company deployment (deployCompanies, simulatePeriods)
+- `capital-first.ts`: Portfolio construction by stage allocation (preseed/seed/seriesA)
+- **Neither** provides fund-level reserve ledger, pacing targets, or cohort allocation semantics
+
+**Impact**: CA requires genuinely new fund-level calculation module, not wrappers.
 
 ---
 
-### VALID 2: dynamic_ratio Policy Undefined
+### CORRECTION 2: "35-40% overlap" specifics were overstated
 
-**Agreement Level**: 100%
+**My original claims**:
+- "Schema structure identical"
+- "Both use assertNumericField helper"
 
-CA-005 specifies:
+**Reviewer's corrections verified**:
+
+| Claim | Reality |
+|-------|---------|
+| ER uses `assertNumericField` | FALSE: Uses `Math.abs(...) > tolerance` (lines 202, 216, 243) |
+| CA schema matches ER | FALSE: CA has deeper nesting (fund/timeline/flows/constraints/cohorts) |
+
+**ER truth case structure**:
+```typescript
+{ id, category, input, expectedOutput, tolerance, tags }
+```
+
+**CA truth case structure**:
 ```json
 {
-  "id": "CA-005",
-  "reserve_policy": "dynamic_ratio",
-  "expected": { "reserve_balance": 15, ... }
+  "id": "CA-001",
+  "module": "CapitalAllocation",
+  "category": "reserve_engine",
+  "inputs": {
+    "fund": { ... },
+    "timeline": { ... },
+    "flows": { "contributions": [...], "distributions": [...] },
+    "constraints": { ... }
+  },
+  "expected": { ... },
+  "schemaVersion": "1.0.0"
 }
 ```
 
-No documentation found for:
-- NAV calculation formula
-- Adjustment frequency (per-flow vs per-rebalance)
-- Boundary conditions
+**Revised overlap assessment**:
+- Pattern reuse (category routing, adapter skeleton, runner integration): ~25-30%
+- Numeric validation: Different approaches, limited reuse
+- Schema mapping: Significantly more complex, ~15% reuse
 
-**Impact**: CA-005 cannot pass without specification.
-**Mitigation**: Document spec in ADR-008, or defer CA-005 to Phase 2.
-
----
-
-### VALID 3: Unit Inconsistency (100 vs 100000000)
-
-**Agreement Level**: 100%
-
-CA-001: `"commitment": 100` (implied millions)
-CA-007: `"commitment": 100000000` (raw dollars)
-
-**Impact**: Requires unit detection and normalization in adapter.
-**Mitigation**: Simple heuristic: `if (commitment < 1000) commitment *= 1_000_000`
+**Revised total**: ~20-25% structural overlap (not 35-40%)
 
 ---
 
-### VALID 4: Schema Variance (2 Output Types)
+### CORRECTION 3: Unit normalization is incomplete
 
-**Agreement Level**: 100%
-
-Simple output (CA-001 to CA-006):
-```json
-{ "reserve_balance": 20, "allocations_by_cohort": [...], "violations": [] }
+**My original heuristic**:
+```typescript
+if (commitment < 1000) commitment *= 1_000_000
 ```
 
-Time-series output (CA-007 to CA-012):
-```json
-{
-  "reserve_balance_over_time": [{"date": "...", "balance": ...}],
-  "pacing_targets_by_period": [{"period": "...", "target": ...}]
-}
+**Reviewer's correction**: This only addresses `commitment`, but **all monetary fields** have mixed scales:
+
+| Field | Small-scale (CA-001) | Large-scale (CA-007) |
+|-------|---------------------|---------------------|
+| commitment | 100 | 100000000 |
+| contribution amounts | 5, 5, 5, 5 | 10000000, 2000000 |
+| min_cash_buffer | 1 | 1000000 |
+| expected reserve_balance | 20 | 20000000 |
+
+**Required mitigation**: Normalize ALL monetary fields uniformly:
+- Option A: Add explicit `unit` field to schema
+- Option B: Detect scale from commitment, apply to all monetary fields
+- Option C: Standardize truth cases to single unit (breaking change)
+
+---
+
+### CORRECTION 4: Estimate math mixed effort-hours with calendar time
+
+**My original statement**:
+> "73.5h rounds to ~48h with parallel execution"
+
+**Reviewer's correction**: Parallel execution reduces calendar time, not labor hours. Unless multiple engineers work in parallel, effort remains ~73h.
+
+**Corrected calculation**:
+```
+Single-engineer effort: 60-100 hours
+Calendar time (1 FTE): 2-3 weeks full-time, or 4-6 weeks part-time
 ```
 
-**Impact**: Validator must handle both schemas.
-**Mitigation**: ER adapter handles 4 output types; same pattern applies.
+---
+
+## Part C: Updated Risk Assessment
+
+### New risks identified by reviewer
+
+#### Risk 1: Unstated semantics in CA truth cases
+
+Beyond `dynamic_ratio`, the cases embed decisions that must be formalized:
+
+| Semantic | Question | Truth Case Reference |
+|----------|----------|---------------------|
+| `reserve_balance` | Cash-on-hand or reserved commitment capacity? | CA-001 expected: 20 |
+| `rebalance_frequency` | When does rebalancing trigger? | CA-001 constraints |
+| Missing `cohorts` | What if cohorts array not present? | CA-001 (no cohorts) vs CA-007 (with cohorts) |
+| Allocation precedence | Reserve-first or pacing-first? | Not documented |
+
+**Mitigation**: Add "semantic lock" step (4-6h) to document decisions before coding.
+
+#### Risk 2: No fund-level engine exists
+
+Verified by checking all candidate files:
+- `reserves-v11.ts`: Company-level MOIC ranking
+- `fund-calc.ts`: Period simulation for company deployment
+- `capital-first.ts`: Portfolio stage allocation
+- `capital-allocation-calculations.ts`: Exists but different domain
+
+**Mitigation**: Plan for new `capital-allocation-engine.ts` (or equivalent) built truth-case-first.
 
 ---
 
-### VALID 5: 3-Engine Architecture
+## Part D: Revised Estimate
 
-**Agreement Level**: 100%
+### Updated methodology
 
-| Engine | Cases | Complexity |
-|--------|-------|------------|
-| reserve_engine | CA-001-006, CA-013 | Medium (7 cases) |
-| pacing_engine | CA-007-012 | High (time-series, 6 cases) |
-| cohort_engine | CA-014-019 | High (lifecycle, 6 cases) |
-| integration | CA-020 | Coordination (1 case) |
-
-**Impact**: 3-4x scope vs single-engine modules like ER.
-**Mitigation**: Build incrementally. Reserve first, then pacing, then cohort.
-
----
-
-## Section 3: Risk-Adjusted Estimate
-
-### Methodology
-
-Using evidence-based estimation:
-
-1. **ER Adapter Baseline**: 455 lines, 4 categories, 20 cases → ~40-60 hours
-2. **CA Scope Multiplier**: 3 engines, 20 cases, 2 output schemas → 1.5-2x ER
-3. **Infrastructure Discount**: Runner/helpers exist → -30%
-4. **Uncertainty Buffer**: dynamic_ratio, cohort lifecycle → +20%
+1. **ER Adapter baseline**: 455 lines, 20 cases, 4 categories → ~40-60h effort
+2. **CA scope multiplier**: 3 engines + deeper schema + new calculation module → 2.5x ER
+3. **Pattern reuse discount**: 20-25% (revised down from 35-40%) → -20%
+4. **No fund-level primitives surcharge**: New calculation module required → +30%
+5. **Semantic lock overhead**: Formalizing unstated decisions → +6h
 
 ### Calculation
 
 ```
-Base: ER effort × CA multiplier = 50h × 1.75 = 87.5h (gross)
-Discount: -30% for infrastructure = 87.5h × 0.7 = 61.25h
-Buffer: +20% for unknowns = 61.25h × 1.2 = 73.5h
+Base: ER effort × CA multiplier = 50h × 2.5 = 125h (gross)
+Pattern discount: -20% = 125h × 0.8 = 100h
+Primitives surcharge: +30% = 100h × 1.3 = 130h
+Semantic lock: +6h = 136h
 
-Conservative high: 73.5h rounds to ~48h with parallel execution
-Optimistic low: 30h with maximal pattern reuse
+Apply optimism correction (engineering estimates typically 1.5x actual):
+Conservative range: 136h ÷ 1.5 = 91h (optimistic floor)
+With contingency: 91h × 1.1 = 100h (pessimistic ceiling)
+
+Final range: 60-100 hours
 ```
 
-**Final Estimate**: 30-48 hours (2-3 week sprint)
+**Note**: Lower bound (60h) assumes skilled engineer with full context. Upper bound (100h) accounts for onboarding, debugging, and iteration.
 
 ---
 
-## Section 4: Refined Recommendation
+## Part E: Revised Recommendation
 
-### CONDITIONAL GO
+### CONDITIONAL GO (conditions tightened)
 
-**Conditions for Proceeding**:
+**Pre-conditions before starting**:
 
-1. **Pre-flight (4-6h)**:
-   - [ ] Document dynamic_ratio formula (or defer CA-005)
-   - [ ] Confirm unit normalization strategy
-   - [ ] Map production functions to CA requirements
+1. **Semantic lock (4-6h)**:
+   - [ ] Document `reserve_balance` definition
+   - [ ] Define `rebalance_frequency` trigger semantics
+   - [ ] Decide cohort-absent case handling
+   - [ ] Specify `dynamic_ratio` formula OR defer CA-005 with ADR
 
-2. **Success Criteria**:
-   - 19/20 CA cases passing (allow CA-005 deferral)
-   - No regressions in existing test suites
-   - Documentation updated with implementation notes
+2. **Unit normalization contract (2-3h)**:
+   - [ ] Define single unit standard (recommend: raw dollars)
+   - [ ] Create normalizer utility for all monetary fields
+   - [ ] Update truth cases OR build detection heuristic
 
-3. **Exit Criteria** (when to stop):
-   - If reserve_engine adapter takes >20h → reassess scope
-   - If >3 cases require undefined policies → pause for spec work
-   - If integration (CA-020) reveals missing dependencies → scope cut
+3. **Architecture decision (1h)**:
+   - [ ] Confirm: building new `capital-allocation-engine.ts` (not wrapping existing)
+   - [ ] Document in ADR that reserves-v11 is company-level, not CA source
 
-### Why Not NO-GO?
+**Success criteria**:
+- 18/20 CA cases passing (allow CA-005 deferral + 1 edge case)
+- No regressions in existing test suites
+- New engine has >80% test coverage
 
-The external analysis's NO-GO recommendation rests on:
-- "No infrastructure" → FALSE (runner exists)
-- "ER not implemented" → FALSE (455-line adapter exists)
-- "340-500 hours" → 10x overestimate
-- "34-50x underestimate" → Should be 3-4x
-
-A 30-48 hour effort with 2-3 week timeline is **reasonable for Phase 1.4B scope**.
-
-### Why Not Unconditional GO?
-
-The original plan's concerns are valid:
-- Domain mismatch requires new adapter logic
-- 3 engines vs 1 is genuine complexity
-- dynamic_ratio policy truly undefined
-- Time-series output adds validation overhead
-
-Hence **CONDITIONAL** GO with documented exit criteria.
+**Exit criteria (when to pause)**:
+- If reserve_engine adapter exceeds 25h → reassess remaining scope
+- If >3 cases require undefined policies → pause for spec work
+- If integration (CA-020) reveals missing dependencies → scope cut
 
 ---
 
-## Section 5: Comparison Matrix
+## Part F: Comparison Matrix (Updated)
 
-| Factor | Original Plan (8-12h) | External (340-500h) | Refined (30-48h) |
-|--------|----------------------|---------------------|------------------|
-| Infrastructure | "Assume exists" | "Build from scratch" | **Verified exists** |
-| ER Adapter | "Create new" | "Not implemented" | **Already done** |
-| Pattern reuse | Not addressed | "0% overlap" | **35-40%** |
-| Domain complexity | Underestimated | Correctly identified | **Acknowledged** |
-| 3-engine scope | Not addressed | Correctly identified | **Acknowledged** |
-| dynamic_ratio | Not addressed | Correctly flagged | **Plan to defer** |
-| Unit variance | Not addressed | Correctly flagged | **Plan to normalize** |
-| Overall accuracy | Too optimistic | Too pessimistic | **Evidence-based** |
-
----
-
-## Section 6: Recommended Plan
-
-### Week 1 (20-24h)
-
-**Phase 0: Prerequisites (4-6h)**
-- Task 1: Document dynamic_ratio policy (or create deferral ADR)
-- Task 2: Implement unit normalization utility
-- Task 3: Map production functions to CA schema
-
-**Phase 1: Adapter Core (12-18h)**
-- Task 4: Create CA adapter skeleton (following ER pattern)
-- Task 5: Implement reserve_engine adapter (CA-001-006, CA-013)
-- Task 6: Start pacing_engine adapter (CA-007-009)
-
-### Week 2 (10-18h)
-
-**Phase 1: Adapter Completion**
-- Task 7: Complete pacing_engine adapter (CA-010-012)
-- Task 8: Implement cohort_engine adapter (CA-014-019)
-- Task 9: Implement integration adapter (CA-020)
-
-**Phase 2: Runner Integration (2-3h)**
-- Task 10: Add CA suite to runner (copy ER pattern)
-- Task 11: Wire production functions
-
-### Week 3 (if needed, 6-8h)
-
-**Phase 3: Validation & Debug**
-- Task 12: Run full suite, triage failures
-- Task 13: Debug by category
-- Task 14: Documentation and polish
+| Factor | Original (8-12h) | External (340-500h) | Initial Refined (30-48h) | **Final Refined (60-100h)** |
+|--------|-----------------|---------------------|-------------------------|---------------------------|
+| Infrastructure | Assumed | "Build scratch" | Verified exists | **Verified exists** |
+| ER Adapter | "Create new" | "Not implemented" | Already done | **Already done** |
+| Pattern reuse | Not addressed | "0%" | "35-40%" | **20-25%** |
+| Fund-level primitives | Assumed | Missing | Assumed reusable | **Must be built** |
+| Unit normalization | Not addressed | Flagged | "Simple heuristic" | **All fields needed** |
+| Domain complexity | Underestimated | Correctly ID'd | Acknowledged | **Acknowledged** |
+| Estimate accuracy | Too optimistic | Too pessimistic | Still optimistic | **Evidence-based** |
 
 ---
 
-## Appendix: Evidence Links
+## Part G: Recommended Plan (Revised)
 
-| Claim | File | Lines |
-|-------|------|-------|
-| Runner exists | `tests/unit/truth-cases/runner.test.ts` | 1-472 |
-| ER adapter exists | `tests/unit/truth-cases/exit-recycling-adapter.ts` | 1-455 |
-| CA JSON wired | `runner.test.ts` | 63-64 |
-| CA scaffolded | `runner.test.ts` | 335-347 |
-| ER active execution | `runner.test.ts` | 350-392 |
-| Domain mismatch | `client/src/lib/reserves-v11.ts` | Function signatures |
-| CA schema variance | `docs/capital-allocation.truth-cases.json` | CA-001 vs CA-007 |
+### Phase 0: Foundation (8-10h)
+
+**Week 0: Pre-flight**
+- Task 1: Semantic lock document (4-6h)
+- Task 2: Unit normalization utility + contract (2-3h)
+- Task 3: Architecture decision ADR (1h)
+
+### Phase 1: Reserve Engine (20-30h)
+
+**Week 1-2: reserve_engine adapter + calculations**
+- Task 4: CA adapter skeleton (following ER pattern, adjusted for deeper schema)
+- Task 5: New `capital-allocation-engine.ts` for reserve calculations
+- Task 6: Implement CA-001 through CA-006 (6 cases)
+- Task 7: Implement CA-013 (reserve edge case)
+
+### Phase 2: Pacing Engine (20-30h)
+
+**Week 2-3: pacing_engine adapter + calculations**
+- Task 8: Time-series output schema handling
+- Task 9: Pacing calculation logic
+- Task 10: Implement CA-007 through CA-012 (6 cases)
+
+### Phase 3: Cohort Engine (15-20h)
+
+**Week 3-4: cohort_engine adapter + calculations**
+- Task 11: Cohort lifecycle state machine
+- Task 12: Implement CA-014 through CA-019 (6 cases)
+
+### Phase 4: Integration + Polish (5-10h)
+
+**Week 4: Integration and validation**
+- Task 13: Implement CA-020 (integration case)
+- Task 14: Runner integration (copy ER pattern)
+- Task 15: Full suite validation and debugging
 
 ---
 
-**Conclusion**: Proceed with CONDITIONAL GO. The 30-48 hour estimate is evidence-based, infrastructure exists, and the plan has clear exit criteria. Neither the optimistic 8-12h nor the pessimistic 340-500h reflects reality.
+## Appendix: Evidence Summary
+
+| Claim | Status | Evidence |
+|-------|--------|----------|
+| Runner exists | CONFIRMED | `runner.test.ts` lines 1-472 |
+| ER adapter exists | CONFIRMED | `exit-recycling-adapter.ts` 455 lines |
+| CA JSON wired | CONFIRMED | `runner.test.ts` line 63 |
+| reserves-v11 is company-level | CONFIRMED | Function signature: `calculateCap(company: Company, ...)` |
+| fund-calc.ts is not CA engine | CONFIRMED | Focuses on deployCompanies, simulatePeriods |
+| capital-first.ts is not CA engine | CONFIRMED | Portfolio stage allocation, not reserve ledger |
+| ER uses assertNumericField | WRONG | Uses `Math.abs(...) > tolerance` |
+| CA schema matches ER | WRONG | CA has deeper nesting (fund/timeline/flows/constraints) |
+
+---
+
+## Conclusion
+
+The external analysis's 340-500h estimate remains too pessimistic (~3-5x high), but my initial 30-48h estimate was too optimistic (~2x low) due to:
+
+1. Incorrect assumption that existing code provides reusable fund-level primitives
+2. Overstated pattern reuse (35-40% → 20-25%)
+3. Incomplete unit normalization scope
+4. Mixing effort-hours with calendar time
+
+**Final recommendation**: CONDITIONAL GO with 60-100 hour budget (4-6 weeks). The conditions are tightened to require semantic lock and architecture decisions before coding begins.
+
+Neither 8-12h nor 340-500h reflects reality. 60-100h is the evidence-based middle ground.
