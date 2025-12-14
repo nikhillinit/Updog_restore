@@ -34,15 +34,31 @@
 
 **Select the invariants matching your chosen model in 1.1:**
 
+**CRITICAL**: Variable names MUST include unit and semantic to prevent misinterpretation. Use `Decimal.eq()` or tolerance check for non-integer comparisons (never `===` for floating point).
+
 #### Invariant Set A: Cash Ledger Model
 
 ```typescript
 // INVARIANT 1A: Cash Conservation (Cash Ledger only)
 // Must hold at end of every period
-const total_allocated = sum(result.allocations_by_cohort.map(c => c.amount));
+// Variable names explicitly encode: unit (Cents) + semantic (Cash/Deployed)
+
+const startingCashCents = input.startingCash * 100; // Normalize to cents
+const contributionsCents = input.flows.contributions.map(c => c.amountCents);
+const distributionsCents = input.flows.distributions.map(d => d.amountCents);
+
+// "deployedCashCents" = cash outflows to portfolio (NOT planned allocations)
+const deployedCashCents = result.allocations_by_cohort
+  .filter(a => a.type === 'deployed') // Only actual cash outflows
+  .reduce((sum, a) => sum + a.amountCents, 0);
+
+const lhsCents = startingCashCents + sum(contributionsCents) - sum(distributionsCents) - deployedCashCents;
+const endingReserveBalanceCents = result.reserve_balance * 100;
+
+// Use tolerance for floating point, or Decimal.eq() for Decimal.js
 assert(
-  starting_cash + sum(contributions) - sum(distributions) - total_allocated === result.reserve_balance,
-  "Cash conservation violation"
+  Math.abs(lhsCents - endingReserveBalanceCents) < 1, // 1 cent tolerance
+  `Cash conservation violation: LHS=${lhsCents}, RHS=${endingReserveBalanceCents}`
 );
 ```
 
@@ -50,30 +66,41 @@ assert(
 
 ```typescript
 // INVARIANT 1B: Capacity Conservation (Commitment Capacity only)
+// Variable names: unit (Dollars) + semantic (Capacity/Deployed)
+
+const commitmentDollars = input.fund.commitment;
+const reservedCapacityDollars = result.reserve_balance; // In capacity model, this is capacity, not cash
+const allocableCapacityDollars = result.allocations_by_cohort
+  .filter(a => a.type === 'planned')
+  .reduce((sum, a) => sum + a.amountDollars, 0);
+const deployedDollars = result.cumulative_deployed; // Actual deployments
+
 assert(
-  commitment === reserved_capacity + allocable_capacity + deployed,
+  Math.abs(commitmentDollars - (reservedCapacityDollars + allocableCapacityDollars + deployedDollars)) < 0.01,
   "Capacity conservation violation"
 );
-
-// Where:
-// - reserved_capacity = reserve_balance (in capacity model)
-// - allocable_capacity = sum(allocations_by_cohort) that are "planned"
-// - deployed = cumulative actual deployments
 ```
 
 #### Invariant Set C: Hybrid Model
 
 ```typescript
 // INVARIANT 1C-i: Cash component (Hybrid)
+// reserve_balance is CASH, allocations_by_cohort is PLANNED CAPACITY
+
+const cashLhsCents = startingCashCents + sum(contributionsCents) - sum(distributionsCents) - sum(actualCashOutflowsCents);
 assert(
-  starting_cash + sum(contributions) - sum(distributions) - sum(cash_outflows) === result.reserve_balance,
-  "Cash component violation"
+  Math.abs(cashLhsCents - result.reserve_balance * 100) < 1,
+  "Hybrid cash component violation"
 );
 
 // INVARIANT 1C-ii: Capacity component (Hybrid)
+const capacityLhsDollars = input.fund.commitment;
+const plannedCapacityDollars = result.allocations_by_cohort.reduce((sum, a) => sum + a.amountDollars, 0);
+const remainingCapacityDollars = result.remaining_capacity;
+
 assert(
-  commitment === sum(result.allocations_by_cohort.map(c => c.amount)) + remaining_capacity,
-  "Capacity component violation"
+  Math.abs(capacityLhsDollars - (plannedCapacityDollars + remainingCapacityDollars)) < 0.01,
+  "Hybrid capacity component violation"
 );
 ```
 
@@ -81,16 +108,16 @@ assert(
 
 ```typescript
 // INVARIANT 2: Buffer Constraint
-assert(reserve_balance >= min_cash_buffer, "Buffer breach");
+assert(result.reserve_balance >= input.constraints.min_cash_buffer, "Buffer breach");
 // Decision: [ ] Hard (fail) / [ ] Soft (warning + violation flag)
 
 // INVARIANT 3: Allocation Cap
-const total_allocated = sum(result.allocations_by_cohort.map(c => c.amount));
-assert(total_allocated <= available_capacity, "Over-allocation");
+const totalAllocatedCents = result.allocations_by_cohort.reduce((sum, a) => sum + a.amountCents, 0);
+assert(totalAllocatedCents <= availableCapacityCents, "Over-allocation");
 
 // INVARIANT 4: Non-negativity
-assert(reserve_balance >= 0, "Negative reserve");
-assert(result.allocations_by_cohort.every(a => a.amount >= 0), "Negative allocation");
+assert(result.reserve_balance >= 0, "Negative reserve");
+assert(result.allocations_by_cohort.every(a => a.amountCents >= 0), "Negative allocation");
 // Exception: CA-019 allows negative distributions (capital recall)
 ```
 
@@ -98,36 +125,74 @@ assert(result.allocations_by_cohort.every(a => a.amount >= 0), "Negative allocat
 
 **CRITICAL**: Invariant tests MUST compute totals from **independent outputs** (e.g., sum of arrays), NOT from a `total_*` scalar emitted by the same function. Self-referential tests are tautological.
 
+**ADDITIONAL REQUIREMENT**: At least ONE test must have an expected allocation that is **independently derivable from the spec** (not from any engine output). This prevents an engine from "making up" coherent but incorrect internals.
+
 Create `tests/unit/truth-cases/ca-invariants.test.ts` with:
 
 ```typescript
 describe('CA Conservation Invariants', () => {
-  it('micro-ledger: 2 contributions + 1 distribution conserves', () => {
+  /**
+   * TEST 1: Independently-derivable allocation (MANDATORY)
+   *
+   * This test uses a simplified case where the expected allocation can be
+   * calculated by hand from the spec, WITHOUT running the engine first.
+   *
+   * Setup: target_reserve = 20%, single cohort (100%), no constraints
+   * Net inflows: 50 + 50 - 20 = 80
+   * Expected reserve: 80 * 0.20 = 16
+   * Expected allocation: 80 - 16 = 64
+   */
+  it('independently-derivable: single cohort with 20% reserve', () => {
     const input = {
       starting_cash: 0,
       contributions: [{ date: '2024-03-31', amount: 50 }, { date: '2024-06-30', amount: 50 }],
       distributions: [{ date: '2024-09-30', amount: 20 }],
       target_reserve_pct: 0.2,
+      cohorts: [], // Empty = single implicit cohort at 100%
     };
+
+    // CALCULATE EXPECTED VALUES BY HAND (from spec, not from engine)
+    const netInflowsCents = (0 + 50 + 50 - 20) * 100; // = 8000 cents
+    const expectedReserveCents = Math.round(netInflowsCents * 0.2); // = 1600 cents
+    const expectedAllocationCents = netInflowsCents - expectedReserveCents; // = 6400 cents
+
     const result = calculateReserve(input);
 
-    // CORRECT: Derive total_allocated from INDEPENDENT output array
-    const total_allocated = result.allocations_by_cohort.reduce(
-      (sum, cohort) => sum + cohort.amount,
-      0
+    // Assert allocation matches hand-calculated value (NOT derived from engine)
+    const actualAllocationCents = result.allocations_by_cohort.reduce(
+      (sum, cohort) => sum + cohort.amountCents, 0
     );
+    expect(actualAllocationCents).toBe(expectedAllocationCents); // 6400
 
-    // Conservation check using derived value
-    const expected_reserve = 0 + 50 + 50 - 20 - total_allocated;
-    expect(result.reserve_balance).toBe(expected_reserve);
-
-    // ALSO assert the allocation itself matches expected behavior
-    // (This prevents the function from "making up" both values consistently)
-    expect(total_allocated).toBe(64); // 80% of (100 - 20) based on target_reserve_pct
+    // Then verify conservation holds using that allocation
+    const conservationLhsCents = 0 + 5000 + 5000 - 2000 - actualAllocationCents;
+    expect(result.reserve_balance * 100).toBe(conservationLhsCents); // 1600
   });
 
+  /**
+   * TEST 2: Conservation across multiple periods
+   */
   it('conservation holds across multiple periods', () => {
     // Test that running balance + allocations = inputs at each checkpoint
+  });
+
+  /**
+   * TEST 3: Multi-cohort with known weights
+   */
+  it('independently-derivable: two cohorts with 60/40 split', () => {
+    const input = {
+      // ... setup for 2 cohorts with weights [0.6, 0.4]
+    };
+
+    // HAND CALCULATION
+    const totalToAllocate = 10000; // cents
+    const cohort1Expected = Math.round(totalToAllocate * 0.6); // 6000
+    const cohort2Expected = totalToAllocate - cohort1Expected; // 4000 (remainder goes here)
+
+    const result = calculateReserve(input);
+
+    expect(result.allocations_by_cohort[0].amountCents).toBe(cohort1Expected);
+    expect(result.allocations_by_cohort[1].amountCents).toBe(cohort2Expected);
   });
 });
 ```
@@ -146,24 +211,57 @@ describe('CA Conservation Invariants', () => {
 - Comparison: Date-only equality, not timestamp equality
 - Storage: ISO 8601 format with explicit Z suffix when timestamps needed
 
-```typescript
-// CORRECT: UTC parsing
-const date = new Date('2024-03-31T00:00:00.000Z');
+#### Implementation Prohibition (MANDATORY)
 
-// WRONG: Local time parsing (nondeterministic across timezones)
-const date = new Date('2024-03-31'); // Behavior varies by system timezone
+**NEVER use these in production logic** - they parse as local time and cause nondeterminism:
+
+```typescript
+// PROHIBITED - These parse as LOCAL TIME (nondeterministic)
+new Date('2024-03-31');           // WRONG - local time
+Date.parse('2024-03-31');         // WRONG - local time
+parseISO('2024-03-31');           // WRONG - depends on library
+dayjs('2024-03-31');              // WRONG - local time default
 ```
 
-**Spec test (timezone boundary)**:
-```typescript
-it('boundary date assignment is timezone-independent', () => {
-  // This test would fail if local time parsing is used in certain timezones
-  const flow = { date: '2024-03-31', amount: 100 };
-  const q1End = '2024-03-31';
+**APPROVED patterns** - Deterministic UTC handling:
 
-  // Flow on Q1 end date should consistently belong to Q1 (or Q2, per decision)
-  const assignment = assignFlowToPeriod(flow, q1End);
-  expect(assignment.period).toBe('Q1'); // Or 'Q2' - but deterministic
+```typescript
+// OPTION A: Keep as string, compare lexicographically (PREFERRED for date-only)
+const dateStr = '2024-03-31';
+if (dateStr <= '2024-03-31') { /* Q1 */ }
+
+// OPTION B: Explicit UTC parsing when Date object needed
+const date = new Date(Date.UTC(2024, 2, 31)); // Month is 0-indexed
+const date = new Date('2024-03-31T00:00:00.000Z'); // Explicit Z suffix
+
+// OPTION C: Library with explicit UTC
+dayjs.utc('2024-03-31');
+```
+
+**Spec test (timezone boundary + implementation check)**:
+```typescript
+describe('Timezone Determinism', () => {
+  it('boundary date assignment is timezone-independent', () => {
+    // This test would fail if local time parsing is used in certain timezones
+    const flow = { date: '2024-03-31', amount: 100 };
+    const q1End = '2024-03-31';
+
+    // Flow on Q1 end date should consistently belong to Q1 (or Q2, per decision)
+    const assignment = assignFlowToPeriod(flow, q1End);
+    expect(assignment.period).toBe('Q1'); // Or 'Q2' - but deterministic
+  });
+
+  it('date-only strings are never parsed as local time', () => {
+    // This test fails if implementation uses new Date('YYYY-MM-DD')
+    // Run in a timezone where local != UTC (e.g., TZ=America/Los_Angeles)
+    const testDate = '2024-01-15';
+
+    // If implementation parses as local time, this will shift by timezone offset
+    const result = parseDateForCA(testDate);
+
+    // Must always produce the same UTC date regardless of system timezone
+    expect(result.toISOString().startsWith('2024-01-15')).toBe(true);
+  });
 });
 ```
 
@@ -245,33 +343,63 @@ function normalizeInput(input: TruthCaseInput): NormalizedInput {
 }
 ```
 
-### 3.4 Cross-Field Sanity Check (MANDATORY)
+### 3.4 Million-Scale Mismatch Detector (MANDATORY)
 
-**CRITICAL**: Heuristic inference can silently mis-scale edge cases. Add a sanity check.
+**CRITICAL**: The most common unit error is "off by ~1,000,000×" between fields. This detector targets that specific failure mode with deterministic ratio comparison.
 
-After inferring scale from commitment, verify other fields are consistent:
+**Algorithm**: Compare ratios between each monetary field and commitment. If any ratio differs from others by ~1,000,000×, trigger the trap.
 
 ```typescript
-function validateUnitConsistency(input: TruthCaseInput, inferredScale: number): void {
-  const commitment_scaled = input.fund.commitment * inferredScale;
+/**
+ * Detects million-scale mismatches between monetary fields.
+ *
+ * Failure mode we're catching:
+ * - commitment=100 (implying $M scale)
+ * - but min_cash_buffer=1000000 (raw dollars, not scaled)
+ *
+ * Detection: The ratio (field/commitment) should be similar across all fields.
+ * If one ratio is ~1,000,000× different from others, we have a scale mismatch.
+ */
+function detectMillionScaleMismatch(input: TruthCaseInput): void {
+  const commitment = input.fund.commitment;
+  if (commitment === 0) return; // Can't compute ratios
 
-  // Check each monetary field is in plausible range relative to commitment
-  const checkField = (value: number, fieldName: string) => {
-    const value_scaled = value * inferredScale;
+  // Collect all non-zero monetary field values
+  const fields: { name: string; value: number; ratio: number }[] = [];
 
-    // If field is > 10x commitment or commitment is > 1000x field, likely inconsistent
-    if (value_scaled > commitment_scaled * 10 || commitment_scaled > value_scaled * 1000) {
-      // This catches: commitment=100 ($M) but buffer=1000000 (raw dollars)
-      throw new Error(
-        `Unit inconsistency detected: ${fieldName}=${value} appears inconsistent with commitment=${input.fund.commitment} at scale=${inferredScale}`
-      );
+  const addField = (name: string, value: number) => {
+    if (value !== 0 && value !== undefined) {
+      fields.push({ name, value, ratio: value / commitment });
     }
   };
 
-  // Check all monetary fields
-  checkField(input.constraints.min_cash_buffer, 'min_cash_buffer');
-  input.flows.contributions.forEach((c, i) => checkField(c.amount, `contributions[${i}].amount`));
-  input.flows.distributions.forEach((d, i) => checkField(d.amount, `distributions[${i}].amount`));
+  addField('min_cash_buffer', input.constraints?.min_cash_buffer);
+  input.flows?.contributions?.forEach((c, i) => addField(`contributions[${i}]`, c.amount));
+  input.flows?.distributions?.forEach((d, i) => addField(`distributions[${i}]`, d.amount));
+
+  if (fields.length < 2) return; // Need at least 2 fields to compare
+
+  // Find min and max ratios
+  const ratios = fields.map(f => f.ratio);
+  const minRatio = Math.min(...ratios);
+  const maxRatio = Math.max(...ratios);
+
+  // If max/min ratio exceeds ~100,000 (allowing some tolerance), likely mismatch
+  // This catches the 1,000,000× case with margin for legitimate variation
+  const MISMATCH_THRESHOLD = 100_000;
+
+  if (minRatio > 0 && maxRatio / minRatio > MISMATCH_THRESHOLD) {
+    const minField = fields.find(f => f.ratio === minRatio)!;
+    const maxField = fields.find(f => f.ratio === maxRatio)!;
+
+    throw new Error(
+      `Million-scale mismatch detected:\n` +
+      `  commitment=${commitment}\n` +
+      `  ${minField.name}=${minField.value} (ratio=${minField.ratio.toExponential(2)})\n` +
+      `  ${maxField.name}=${maxField.value} (ratio=${maxField.ratio.toExponential(2)})\n` +
+      `  Ratio difference: ${(maxRatio / minRatio).toExponential(2)}× exceeds threshold ${MISMATCH_THRESHOLD}×`
+    );
+  }
 }
 ```
 
@@ -327,7 +455,7 @@ When allocating to multiple cohorts:
 | Multiple cohorts eligible | [ ] By cohort name (alpha) / [ ] By cohort start date / [ ] By cohort weight (descending) |
 | Cap spill-over (CA-015) | Excess goes to: [ ] Next cohort in order / [ ] Reserve / [ ] Pro-rata to remaining |
 
-### 4.4 Output Sorting Requirements (MANDATORY)
+### 4.4 Output Sorting + Presence Requirements (MANDATORY)
 
 **CRITICAL**: Even if computation is deterministic, output arrays can become nondeterministic due to:
 - Object key iteration order
@@ -335,25 +463,57 @@ When allocating to multiple cohorts:
 - Insertion order dependent on input ordering
 - Unstable sorts
 
-**All output arrays MUST be sorted by explicit keys:**
+#### Exact Sort Keys (LOCKED)
 
-| Output Array | Sort Key | Order |
-|--------------|----------|-------|
-| `reserve_balance_over_time[]` | `date` | Ascending (earliest first) |
-| `allocations_by_cohort[]` | `cohort` identifier (name or start_date) | Ascending (alphabetical or chronological) |
-| `pacing_targets_by_period[]` | `period` | Ascending (earliest first) |
-| `violations[]` | `(severity, type, period, cohort)` | Severity desc, then stable sort by type/period/cohort |
+| Output Array | Sort Key | Sort Order | String Comparison |
+|--------------|----------|------------|-------------------|
+| `reserve_balance_over_time[]` | `date` | Ascending | Lexicographic (`'2024-01-01' < '2024-03-31'`) |
+| `allocations_by_cohort[]` | `cohort` | Ascending | Lexicographic (`'2023' < '2024'`) |
+| `pacing_targets_by_period[]` | `period` | Ascending | Lexicographic (`'2024-Q1' < '2024-Q2'`) |
+| `violations[]` | `(period, type, cohort)` | Ascending | Period first, then type, then cohort; nulls LAST |
+
+#### Arrays MUST Be Present (Even If Empty)
+
+**CRITICAL**: Avoid `undefined` vs `[]` drift, which causes validation failures.
+
+```typescript
+// WRONG - Creates undefined/[] inconsistency
+return {
+  reserve_balance: 100,
+  allocations_by_cohort: hasAllocations ? allocations : undefined, // WRONG
+};
+
+// CORRECT - Always return arrays (empty if needed)
+return {
+  reserve_balance: 100,
+  allocations_by_cohort: allocations ?? [],    // Always array
+  reserve_balance_over_time: timeSeries ?? [], // Always array
+  violations: violations ?? [],                 // Always array
+};
+```
 
 **Implementation requirement**:
 ```typescript
-// ALWAYS sort output arrays before returning
+// ALWAYS sort output arrays AND ensure they exist before returning
 function formatOutput(result: InternalResult): TruthCaseOutput {
   return {
     reserve_balance: result.reserve_balance,
-    allocations_by_cohort: result.allocations
-      .sort((a, b) => a.cohort.localeCompare(b.cohort)), // Deterministic sort
-    violations: result.violations
-      .sort((a, b) => b.severity - a.severity || a.type.localeCompare(b.type)),
+
+    // Sort by cohort (lexicographic), always present
+    allocations_by_cohort: (result.allocations ?? [])
+      .sort((a, b) => a.cohort.localeCompare(b.cohort)),
+
+    // Sort by date (lexicographic), always present
+    reserve_balance_over_time: (result.timeSeries ?? [])
+      .sort((a, b) => a.date.localeCompare(b.date)),
+
+    // Sort by period → type → cohort, nulls last
+    violations: (result.violations ?? [])
+      .sort((a, b) =>
+        (a.period ?? 'zzz').localeCompare(b.period ?? 'zzz') ||
+        a.type.localeCompare(b.type) ||
+        (a.cohort ?? 'zzz').localeCompare(b.cohort ?? 'zzz')
+      ),
   };
 }
 ```
@@ -483,8 +643,9 @@ All items must be checked before Phase 1 begins:
 ### Section 1: Conservation Identity
 - [ ] Conservation model chosen (Cash Ledger / Capacity / Hybrid)
 - [ ] Term definitions completed (allocations, reserve_balance, available_capacity, deployed)
-- [ ] Model-specific invariants selected
+- [ ] Model-specific invariants selected (with explicit variable naming: unit + semantic)
 - [ ] Spec test created with **non-tautological** assertions (derives totals from independent outputs)
+- [ ] At least ONE test with **independently-derivable** expected values (hand-calculated from spec)
 - [ ] Spec test passing
 
 ### Section 2: Time Boundary Rules
@@ -494,22 +655,24 @@ All items must be checked before Phase 1 begins:
 - [ ] Boundary date assignment rules documented
 - [ ] Rebalance trigger semantics defined
 - [ ] Timezone spec test created
+- [ ] **ANTI-REGRESSION**: No `new Date('YYYY-MM-DD')` in production code (verified by grep)
 
 ### Section 3: Unit Normalization
 - [ ] Canonical internal representation chosen (integer cents recommended)
 - [ ] Field-by-field unit table complete
 - [ ] Unit inference rules documented
-- [ ] **Cross-field sanity check** implemented
+- [ ] **Million-scale mismatch detector** implemented (ratio-based, not heuristic)
 - [ ] Inconsistency trap decision made and documented
 - [ ] Unit inconsistency spec test created
 
 ### Section 4: Determinism Contract
-- [ ] Rounding rules specified
+- [ ] Rounding rules specified (with tolerance for floating point, never `===`)
 - [ ] Allocation algorithm documented (base, remainder, tie-break)
 - [ ] Input ordering rules defined
-- [ ] **Output sorting requirements** documented for all arrays
+- [ ] **Output sorting requirements** documented with EXACT sort keys
+- [ ] **ANTI-REGRESSION**: Output arrays always present (never undefined, always `[]` if empty)
 - [ ] Determinism spec test created (10 identical runs)
-- [ ] Output ordering spec test created
+- [ ] Output ordering + presence spec test created
 
 ### Section 5-7: Remaining Sections
 - [ ] Section 5: All semantic definitions complete
@@ -519,6 +682,9 @@ All items must be checked before Phase 1 begins:
 ### Final Verification
 - [ ] All spec tests passing: `pnpm test -- tests/unit/truth-cases/ca-invariants.test.ts`
 - [ ] No TODO comments remaining in completed sections
+- [ ] Grep for prohibited patterns returns zero matches:
+  - `grep -r "new Date\('[0-9]" --include="*.ts" client/ server/` → 0 results
+  - `grep -r "Date.parse\('[0-9]" --include="*.ts" client/ server/` → 0 results
 
 **Reviewed by**: _______________
 **Date**: _______________
