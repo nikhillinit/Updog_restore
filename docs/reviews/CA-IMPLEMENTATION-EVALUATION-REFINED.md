@@ -235,9 +235,14 @@ Final range: 60-100 hours
 
 The semantic lock is the **primary risk reducer**. CA truth cases encode policy, not just inputs/outputs. They include multiple engines, mixed temporal cadences, explicit rounding behavior (CA-018), capital recalls (CA-019), and recycling semantics (CA-020).
 
-**Required deliverables in `docs/CA-SEMANTIC-LOCK.md`**:
+**CRITICAL (v4)**: A doc-only gate is easy to "declare done" while leaving ambiguity. The semantic lock must be **machine-testable**.
 
-#### 1.1 Conservation Law (MANDATORY)
+**Required deliverables**:
+
+1. **`docs/CA-SEMANTIC-LOCK.md`** - Complete template (see `docs/CA-SEMANTIC-LOCK.md`)
+2. **`tests/unit/truth-cases/ca-invariants.test.ts`** - Spec tests encoding semantic decisions
+
+#### 1.1 Conservation Law (MANDATORY + MACHINE-TESTABLE)
 
 Define ONE conserved quantity and reconcile each case against it:
 
@@ -249,11 +254,17 @@ Define ONE conserved quantity and reconcile each case against it:
 
 **Gate requirement**: Explicitly state which fields are **cash** vs **plan/capacity** vs **cumulative**. Without this, implementation becomes "fit code to 20 unrelated outputs."
 
-#### 1.2 Period Boundary Rules
+#### 1.2 Period Boundary Rules (Time Bucketing Critical)
 
-- [ ] Are period snapshots taken at period end (e.g., 03/31) or last event date?
-- [ ] Are flows applied before or after rebalance within a period?
-- [ ] What triggers a rebalance: calendar date, event, or threshold?
+The biggest determinism bugs in finance models are **period bucketing** bugs. These must be locked:
+
+- [ ] Period bounds: `[start, end]` inclusive vs `[start, end)` exclusive
+- [ ] Quarterly definition: Calendar quarters vs rolling 3-month windows
+- [ ] Boundary date assignment: Flow on period end → belongs to which period?
+- [ ] Same-date flow ordering: Contributions first? Distributions first? By ID?
+- [ ] Rebalance trigger: Calendar date, event-based, or threshold?
+
+**Align with**: `fund-calc.ts` period generation (00:00:00.000 start, 23:59:59.999 end)
 
 #### 1.3 Semantic Definitions
 
@@ -290,6 +301,8 @@ CA-018 explicitly requires rounding/tie-break determinism. CA-015 requires deter
 
 Truth cases mix scales: `commitment: 100` (implied millions) vs `commitment: 100000000` (raw dollars). ALL monetary fields have this variance.
 
+**CRITICAL (v4)**: Do ALL unit normalization at the **adapter boundary**, not inside the engine. Adapter emits typed "normalized input" (internally consistent); engine accepts ONLY normalized inputs.
+
 **Required deliverables** (choose one, in order of robustness):
 
 | Option | Approach | Robustness |
@@ -298,7 +311,10 @@ Truth cases mix scales: `commitment: 100` (implied millions) vs `commitment: 100
 | B | Add explicit `unit`/`currencyScale` field to schema | HIGH - schema change |
 | C (minimum) | Infer from commitment, apply to ALL fields, log inconsistencies | MEDIUM - requires violation trap |
 
-**Gate requirement**: Document canonical internal representation (integer cents recommended) and how inference works. Include "truth case inconsistent" violation handling.
+**Gate requirement**:
+- Document canonical internal representation (integer cents recommended - matches reserves-v11)
+- Create Unit + Precision Table (per field) - see `docs/CA-SEMANTIC-LOCK.md` Section 3
+- Include "truth case inconsistent" violation handling (fail? warn? auto-correct?)
 
 ---
 
@@ -483,6 +499,14 @@ The external analysis's 340-500h estimate remains too pessimistic (~3-5x high), 
 8. Changed from **adapter-first** to **case-first** implementation approach
 9. Added explicit **gate-return checkpoints** (if 4 core cases fail → return to Phase 0)
 
-**Final recommendation**: CONDITIONAL GO with 60-100 hour budget (4-6 weeks). The conditions are hardened: four acceptance gates must pass before any implementation begins. The main risk is not engineering difficulty but **semantic ambiguity**.
+**v4 Improvements** (based on final robustness review):
 
-Neither 8-12h nor 340-500h reflects reality. 60-100h is the evidence-based middle ground, **contingent on Phase 0 producing a crisp spec**.
+10. Semantic lock must be **machine-testable** (spec tests, not just docs)
+11. Added **time boundary rules** (period bucketing is major bug source)
+12. Unit normalization at **adapter boundary** (engine accepts only normalized inputs)
+13. Created comprehensive **CA-SEMANTIC-LOCK.md template** with invariants + unit table
+14. Added **plain CLI path** requirement (pnpm test must work without slash commands)
+
+**Final recommendation**: CONDITIONAL GO with 60-100 hour budget (4-6 weeks). The conditions are hardened: four acceptance gates must pass (with machine-testable spec tests) before any implementation begins. The main risk is not engineering difficulty but **semantic ambiguity**.
+
+Neither 8-12h nor 340-500h reflects reality. 60-100h is the evidence-based middle ground, **contingent on Phase 0 producing an enforceable spec**.
