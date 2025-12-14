@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-12-14T01:43:43.336Z",
+  "generatedAt": "2025-12-14T01:56:54.840Z",
   "version": "2.0",
   "config": {
     "min_score_to_route": 2,
@@ -247,6 +247,32 @@
       "target": "docs/notebooklm-sources/"
     },
     {
+      "id": "adr_directory",
+      "priority": 18,
+      "category": "Architecture",
+      "keywords": [
+        "adr",
+        "architecture decision",
+        "mem0",
+        "stage normalization",
+        "token budgeting",
+        "streaming"
+      ],
+      "target": "docs/adr/"
+    },
+    {
+      "id": "truth_schemas",
+      "priority": 19,
+      "category": "Phoenix",
+      "keywords": [
+        "schema",
+        "json schema",
+        "truth case schema",
+        "validation schema"
+      ],
+      "target": "docs/schemas/"
+    },
+    {
       "id": "capabilities",
       "priority": 20,
       "category": "Capabilities",
@@ -433,8 +459,89 @@
       "agent": "docs-architect"
     },
     {
+      "id": "runbooks",
+      "priority": 91,
+      "category": "Operations",
+      "keywords": [
+        "runbook",
+        "incident",
+        "rollback",
+        "canary",
+        "blue green",
+        "disaster recovery",
+        "dr"
+      ],
+      "target": "docs/runbooks/"
+    },
+    {
+      "id": "observability",
+      "priority": 92,
+      "category": "Operations",
+      "keywords": [
+        "metrics",
+        "prometheus",
+        "grafana",
+        "monitoring",
+        "alerting",
+        "dashboard",
+        "kpi"
+      ],
+      "target": "docs/observability/"
+    },
+    {
+      "id": "chaos_engineering",
+      "priority": 93,
+      "category": "Testing",
+      "keywords": [
+        "chaos",
+        "chaos engineering",
+        "rls testing",
+        "game day",
+        "failure injection"
+      ],
+      "target": "docs/chaos-engineering/"
+    },
+    {
+      "id": "quality_gates",
+      "priority": 94,
+      "category": "Quality",
+      "keywords": [
+        "gate",
+        "quality gate",
+        "raci",
+        "gate tracking",
+        "approval"
+      ],
+      "target": "docs/gates/"
+    },
+    {
+      "id": "wizard",
+      "priority": 95,
+      "category": "Implementation",
+      "keywords": [
+        "wizard",
+        "modeling wizard",
+        "xstate",
+        "state machine",
+        "wizard step"
+      ],
+      "target": "docs/wizard/"
+    },
+    {
+      "id": "forecasting",
+      "priority": 96,
+      "category": "Phoenix",
+      "keywords": [
+        "forecasting",
+        "power law",
+        "calibration",
+        "streaming monte carlo"
+      ],
+      "target": "docs/forecasting/"
+    },
+    {
       "id": "troubleshooting",
-      "priority": 90,
+      "priority": 100,
       "category": "Troubleshooting",
       "keywords": [
         "error",
