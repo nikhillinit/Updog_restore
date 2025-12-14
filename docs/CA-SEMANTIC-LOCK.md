@@ -198,7 +198,8 @@ assert(
 ```typescript
 // INVARIANT 2: Buffer Constraint
 assert(result.reserve_balance >= input.constraints.min_cash_buffer, "Buffer breach");
-// Decision: [ ] Hard (fail) / [ ] Soft (warning + violation flag)
+// Decision: [x] Soft (warning + violation flag) - per enforcement matrix
+// Behavior: Silently clip allocations to preserve buffer. Only emit violation if uncurable.
 
 // INVARIANT 3: Allocation Cap
 const totalAllocatedCents = result.allocations_by_cohort.reduce((sum, a) => sum + a.amountCents, 0);
@@ -758,20 +759,37 @@ describe('CA Determinism', () => {
 
 ### 5.2 Violation Conditions
 
-| Violation Type | Trigger Condition | Severity |
-|----------------|-------------------|----------|
-| `buffer_breach` | `reserve_balance < min_cash_buffer` | [ ] Error / [ ] Warning |
-| `over_allocation` | `sum(allocations) > available` | [ ] Error / [ ] Warning |
-| `cap_exceeded` | `cohort_allocation > cohort_cap` | [ ] Error / [ ] Warning |
-| `negative_balance` | `reserve_balance < 0` | [ ] Error / [ ] Warning |
+| Violation Type | Trigger Condition | Severity | Enforcement Behavior |
+|----------------|-------------------|----------|---------------------|
+| `buffer_breach` | `reserve_balance < min_cash_buffer` | [x] **Warning** | Silently clip allocations first; only emit violation if uncurable at zero allocation |
+| `over_allocation` | `sum(allocations) > available` | [x] **Error** | Always satisfiable via pro-rata clip; violation never actually emitted |
+| `cap_exceeded` | `cohort_allocation > cohort_cap` | [x] **Warning** | Always satisfiable via spill-over to next cohort; no violation emitted |
+| `negative_balance` | `reserve_balance < 0` | [x] **Error** | Throw immediately - indicates invalid input or calculation bug |
+
+**Key Distinction** (from CA-IMPLEMENTATION-EVALUATION-FINAL.md):
+- **Binding** = constraint was satisfied by automatic clipping/spill-over; `violations: []`
+- **Breach** = constraint cannot be satisfied even at zero allocation; violation emitted and/or error thrown
 
 ### 5.3 Cohort Handling
 
-| Scenario | Behavior |
-|----------|----------|
-| No cohorts array (CA-001 style) | [ ] Single implicit "default" cohort / [ ] Error |
-| Empty cohorts array | [ ] Single implicit cohort / [ ] Zero allocation / [ ] Error |
-| Cohort weights don't sum to 1.0 | [ ] Normalize / [ ] Error / [ ] Warn and proceed |
+| Scenario | Behavior | Rationale |
+|----------|----------|-----------|
+| No cohorts array (CA-001 style) | [x] **Single implicit cohort** named by vintage year | CA-001 outputs `allocations_by_cohort: [{cohort: "2024", ...}]` with no explicit cohorts input |
+| Empty cohorts array | [x] **Single implicit cohort** named by vintage year | Same as "no cohorts" - vintage year is canonical default |
+| Cohort weights don't sum to 1.0 | [x] **Normalize** to sum=1.0 | More forgiving for emerging managers; avoids rejection for rounding in inputs |
+
+**Implicit Cohort Generation**:
+```typescript
+function getDefaultCohort(fund: FundInput): Cohort {
+  return {
+    name: String(fund.vintage_year),
+    id: String(fund.vintage_year),
+    start_date: `${fund.vintage_year}-01-01`,
+    end_date: `${fund.vintage_year}-12-31`,
+    weight: 1.0
+  };
+}
+```
 
 ---
 
@@ -780,7 +798,16 @@ describe('CA Determinism', () => {
 ### 6.1 Decision
 
 [ ] **IMPLEMENT**: Define formula below
-[ ] **DEFER**: Skip with gate in runner (recommended if formula unclear)
+[x] **DEFER**: Skip with gate in runner
+
+**Rationale**: CA-005 requires NAV (Net Asset Value) calculation which is:
+1. Not defined in the truth case schema (no NAV input field)
+2. Requires portfolio valuation logic outside Phase 1 scope
+3. Note says "adjusts reserve based on NAV changes" but formula is unspecified
+4. Expected `reserve_balance: 5` cannot be derived from inputs without NAV formula
+
+For emerging VC managers, `static_pct` policy is sufficient for Phase 1.
+Dynamic ratio can be added in Phase 2 when NAV calculation is defined.
 
 ### 6.2 Formula (if implementing)
 
@@ -826,42 +853,42 @@ pnpm test -- tests/unit/truth-cases/ca-invariants.test.ts
 All items must be checked before Phase 1 begins:
 
 ### Section 1: Conservation Identity
-- [ ] Conservation model chosen (Cash Ledger / Capacity / Hybrid)
-- [ ] Term definitions completed (allocations, reserve_balance, available_capacity, deployed)
-- [ ] Model-specific invariants selected (with explicit variable naming: unit + semantic)
+- [x] Conservation model chosen (Cash Ledger / Capacity / Hybrid) → **Hybrid** (dual-ledger)
+- [x] Term definitions completed (allocations, reserve_balance, available_capacity, deployed) → Section 1.1.1
+- [x] Model-specific invariants selected (with explicit variable naming: unit + semantic) → Section 1.2
 - [ ] Spec test created with **non-tautological** assertions (derives totals from independent outputs)
 - [ ] At least ONE test with **independently-derivable** expected values (hand-calculated from spec)
 - [ ] Spec test passing
 
 ### Section 2: Time Boundary Rules
-- [ ] Timezone rule confirmed (UTC date buckets)
-- [ ] Period bounds defined (inclusive/exclusive)
-- [ ] Quarterly definition specified
-- [ ] Boundary date assignment rules documented
-- [ ] Rebalance trigger semantics defined
+- [x] Timezone rule confirmed (UTC date buckets) → Section 2.0
+- [x] Period bounds defined (inclusive/exclusive) → Section 2.1 (`[start, end]` inclusive)
+- [x] Quarterly definition specified → Section 2.1 (calendar quarters)
+- [x] Boundary date assignment rules documented → Section 2.2
+- [x] Rebalance trigger semantics defined → Section 2.3 (calendar-based)
 - [ ] Timezone spec test created
 - [ ] **ANTI-REGRESSION**: No `new Date('YYYY-MM-DD')` in production code (verified by grep)
 
 ### Section 3: Unit Normalization
-- [ ] Canonical internal representation chosen (integer cents recommended)
-- [ ] Field-by-field unit table complete
-- [ ] Unit inference rules documented
+- [x] Canonical internal representation chosen (integer cents recommended) → Section 3.2
+- [x] Field-by-field unit table complete → Section 3.3
+- [x] Unit inference rules documented → Section 3.4
 - [ ] **Million-scale mismatch detector** implemented (ratio-based, not heuristic)
-- [ ] Inconsistency trap decision made and documented
+- [x] Inconsistency trap decision made and documented → Section 3.5 (fail with error)
 - [ ] Unit inconsistency spec test created
 
 ### Section 4: Determinism Contract
-- [ ] Rounding rules specified (with tolerance for floating point, never `===`)
-- [ ] Allocation algorithm documented (base, remainder, tie-break)
-- [ ] Input ordering rules defined
-- [ ] **Output sorting requirements** documented with EXACT sort keys
+- [x] Rounding rules specified (with tolerance for floating point, never `===`) → Section 4.1 (Bankers)
+- [x] Allocation algorithm documented (base, remainder, tie-break) → Section 4.2 (Largest remainder)
+- [x] Input ordering rules defined → Section 4.3 (Canonical sort key)
+- [x] **Output sorting requirements** documented with EXACT sort keys → Section 4.4
 - [ ] **ANTI-REGRESSION**: Output arrays always present (never undefined, always `[]` if empty)
 - [ ] Determinism spec test created (10 identical runs)
 - [ ] Output ordering + presence spec test created
 
 ### Section 5-7: Remaining Sections
-- [ ] Section 5: All semantic definitions complete
-- [ ] Section 6: CA-005 decision made (implement or defer with skip gate)
+- [x] Section 5: All semantic definitions complete → Sections 5.1, 5.2, 5.3
+- [x] Section 6: CA-005 decision made (implement or defer with skip gate) → **Deferred** to Phase 2
 - [ ] Section 7: Plain CLI commands verified working
 
 ### Final Verification
