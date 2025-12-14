@@ -15,9 +15,94 @@
 | **Commitment Capacity** | `commitment = reserved_capacity + allocable_capacity + deployed` | reserve_balance represents budgeted capacity |
 | **Hybrid** | `reserve_balance` is cash; `allocations_by_cohort` is planned capacity | Mixed semantics |
 
-**DECISION**: [ ] Cash Ledger / [ ] Commitment Capacity / [ ] Hybrid
+**DECISION**: [ ] Cash Ledger / [ ] Commitment Capacity / [x] Hybrid
 
-**Rationale**: _[Document why this model was chosen]_
+**Rationale**: Hybrid model selected because:
+1. **Full truth case coverage** - Only Hybrid can pass all 119 Phoenix cases (CA-001 to CA-006 require cash tracking; CA-007+ require capacity planning)
+2. **Real-world accuracy** - VC funds track both actual cash (LP contributions/distributions) AND planned capacity allocation (deployment strategy by cohort)
+3. **No semantic overloading** - `reserve_balance` = actual cash on hand; `allocations_by_cohort` = planned capacity allocation. Each field has ONE meaning.
+4. **Audit + planning** - Cash component reconciles to bank statements (auditor-friendly); capacity component integrates with pacing engine
+5. **Existing code alignment** - reserves-v11.ts patterns for cash; fund-calc.ts patterns for capacity
+
+### 1.1.0 Hybrid Model: What Exactly Is Conserved? (CRITICAL)
+
+**Two separate conservation identities must hold:**
+
+#### Cash Ledger Identity (Always)
+
+```
+ending_cash = starting_cash + sum(contributions) - sum(distributions) - sum(deployed_cash)
+```
+
+Where:
+- `starting_cash`: Cash on hand at period start (or 0 for fund inception)
+- `contributions`: LP capital calls received (actual cash in)
+- `distributions`: LP distributions paid (actual cash out)
+- `deployed_cash`: Cash sent to portfolio companies (actual investment outflows)
+- `ending_cash`: Total cash on hand (NOT the same as `reserve_balance`)
+
+**CRITICAL**: Planned allocations (`allocations_by_cohort`) do NOT appear in this equation. Only actual cash movements affect cash position.
+
+#### Reserve Balance Formula (TRUTH-CASE VERIFIED)
+
+**This formula is validated against CA-001, CA-002, CA-003:**
+
+```typescript
+// Step 1: Calculate target reserve based on policy
+const target_reserve = fund.commitment * (fund.target_reserve_pct ?? 0);
+
+// Step 2: Effective buffer = max of absolute floor and percentage target
+const effective_buffer = Math.max(
+  constraints.min_cash_buffer ?? 0,
+  target_reserve
+);
+
+// Step 3: reserve_balance = the held-back portion (capped by what we have)
+const reserve_balance = Math.min(ending_cash, effective_buffer);
+```
+
+**Interpretation**: `reserve_balance` is the **reserved/held-back portion** of cash, NOT total cash on hand.
+
+| Truth Case | ending_cash | effective_buffer | reserve_balance | Validation |
+|------------|-------------|------------------|-----------------|------------|
+| CA-001 | 20 | max(1, 20) = 20 | min(20, 20) = 20 | PASS |
+| CA-002 | 2 | max(2, 20) = 20 | min(2, 20) = 2 | PASS |
+| CA-003 | 25 | max(1, 15) = 15 | min(25, 15) = 15 | PASS |
+
+#### Capacity Planning Identity (Separately)
+
+```
+commitment = sum(allocations_by_cohort) + remaining_capacity
+```
+
+Where:
+- `commitment`: Total fund commitment from LPA (ceiling, not cash)
+- `allocations_by_cohort`: Planned capacity earmarked for each vintage/cohort
+- `remaining_capacity`: Unallocated commitment available for future planning
+
+**CRITICAL**: This identity is about **planning against commitment**, not cash movement. A cohort can have $10M allocated (planned) but $0 deployed (no cash moved yet).
+
+#### Mapping Rule: What Drives the Capacity Plan?
+
+**DECISION**: [x] Commitment-driven planning
+
+The capacity plan (`allocations_by_cohort`) is driven by **commitment budget**, not called capital:
+- GPs plan deployment against total fund size ($100M commitment)
+- Actual cash available (`reserve_balance`) may be less than planned allocations
+- This is intentional: you can plan to deploy $20M to Cohort 2024 even if you've only called $15M
+
+**Constraint**: `sum(deployed_cash)` for a cohort cannot exceed `allocations_by_cohort` for that cohort (can't deploy more than planned).
+
+#### Event Type Separation
+
+| Event Type | Affects Cash Ledger? | Affects Capacity Plan? | Example |
+|------------|---------------------|------------------------|---------|
+| Contribution | Yes (+cash) | No | LP wires $5M capital call |
+| Distribution | Yes (-cash) | No | Fund distributes $2M to LPs |
+| Plan allocation | No | Yes (+allocated) | Earmark $10M for 2024 cohort |
+| Cash deployment | Yes (-cash) | Yes (type='deployed') | Invest $1M in portfolio company |
+
+**CRITICAL**: "Contributions first" ordering only applies to the **cash ledger**. Planned allocations have no ordering constraint because they don't move cash.
 
 ### 1.1.1 Term Definitions (MANDATORY)
 
@@ -25,14 +110,18 @@
 
 | Term | Definition | Represented By |
 |------|------------|----------------|
-| `allocations` | [ ] Cash deployed into portfolio / [ ] Cash moved to reserves / [ ] Planned capacity / [ ] Cohort allocations (not cash outflow) | Output field(s): ___ |
-| `reserve_balance` | [ ] Actual cash on hand / [ ] Reserved commitment capacity / [ ] Hybrid: ___ | Output field: `reserve_balance` |
-| `available_capacity` | Formula: ___ (e.g., `commitment - deployed - reserved`) | Derived from: ___ |
-| `deployed` | [ ] Cumulative cash outflows / [ ] Cumulative allocated amounts | Tracked in: ___ |
+| `allocations` | [x] Planned capacity allocation to cohorts (NOT cash outflow). Represents how much of the fund's commitment is earmarked for each vintage year. | Output field: `allocations_by_cohort[].amount` |
+| `reserve_balance` | [x] **The held-back portion of cash** = `min(ending_cash, effective_buffer)`. This is the reserve being protected, NOT total cash on hand. Verified against CA-001/002/003. | Output field: `reserve_balance` |
+| `ending_cash` | Total cash on hand = `starting_cash + contributions - distributions - deployed_cash`. Different from `reserve_balance`. | Internal calculation |
+| `effective_buffer` | `max(min_cash_buffer, commitment * target_reserve_pct)` - the target reserve level. | Internal calculation |
+| `allocable_cash` | Cash available for allocation = `max(0, ending_cash - reserve_balance)` = excess above reserve. | Derived |
+| `cash_deployed` | Cumulative actual cash outflows to portfolio companies. Subset of allocations that have been funded. | Output field: `cumulative_deployed` or derived from `allocations_by_cohort[].type === 'deployed'` |
+| `remaining_capacity` | Unallocated commitment that can still be planned for future cohorts. | Output field: `remaining_capacity` |
+| `deployed` | [x] Cumulative cash outflows (actual money sent to portfolio companies) | Tracked in: `cumulative_deployed` or filtered `allocations_by_cohort` |
 
 ### 1.2 Model-Specific Invariants (Machine-Testable)
 
-**Select the invariants matching your chosen model in 1.1:**
+**Selected: Invariant Set C (Hybrid)** - Two invariants must hold: cash conservation AND capacity conservation.
 
 **CRITICAL**: Variable names MUST include unit and semantic to prevent misinterpretation. Use `Decimal.eq()` or tolerance check for non-integer comparisons (never `===` for floating point).
 
@@ -107,9 +196,15 @@ assert(
 #### Common Invariants (All Models)
 
 ```typescript
-// INVARIANT 2: Buffer Constraint
-assert(result.reserve_balance >= input.constraints.min_cash_buffer, "Buffer breach");
-// Decision: [ ] Hard (fail) / [ ] Soft (warning + violation flag)
+// INVARIANT 2: Buffer Constraint (uses EFFECTIVE BUFFER, not just min_cash_buffer)
+// effective_buffer = max(min_cash_buffer ?? 0, commitment * target_reserve_pct ?? 0)
+const effectiveBufferCents = Math.max(
+  (input.constraints.min_cash_buffer ?? 0) * 100,
+  Math.round((input.fund.commitment ?? 0) * (input.fund.target_reserve_pct ?? 0) * 100)
+);
+assert(result.reserve_balance * 100 >= effectiveBufferCents, "Buffer breach");
+// Decision: [x] Soft (warning + violation flag) - per enforcement matrix
+// Behavior: Silently clip allocations to preserve buffer. Only emit violation if uncurable.
 
 // INVARIANT 3: Allocation Cap
 const totalAllocatedCents = result.allocations_by_cohort.reduce((sum, a) => sum + a.amountCents, 0);
@@ -120,6 +215,11 @@ assert(result.reserve_balance >= 0, "Negative reserve");
 assert(result.allocations_by_cohort.every(a => a.amountCents >= 0), "Negative allocation");
 // Exception: CA-019 allows negative distributions (capital recall)
 ```
+
+**Effective Buffer Unified Rule** (LOCKED):
+> `effective_buffer = max(min_cash_buffer ?? 0, commitment * target_reserve_pct ?? 0)`
+>
+> This unifies absolute floor (`min_cash_buffer`) and percentage reserve (`target_reserve_pct`) into a single constraint. CA-001 uses percentage only; CA-002 uses absolute floor only; both paths evaluate against `effective_buffer`.
 
 ### 1.3 Spec Test Requirement
 
@@ -269,10 +369,12 @@ describe('Timezone Determinism', () => {
 
 | Rule | Decision | Example |
 |------|----------|---------|
-| Period bounds | [ ] `[start, end]` inclusive / [ ] `[start, end)` exclusive | Q1 = Jan 1 to Mar 31 vs Jan 1 to Apr 1 |
-| Quarterly definition | [ ] Calendar quarters / [ ] Rolling 3-month | Q1 = Jan-Mar vs "3 months from start" |
-| Period start time | [ ] 00:00:00.000Z (UTC) / [ ] Other | Consistent with fund-calc.ts |
-| Period end time | [ ] 23:59:59.999Z (UTC) / [ ] 00:00:00.000Z next day | Consistent with fund-calc.ts |
+| Period bounds | [x] `[start, end]` inclusive | Q1 = Jan 1 to Mar 31 (both inclusive) |
+| Quarterly definition | [x] Calendar quarters | Q1 = Jan-Mar, Q2 = Apr-Jun, Q3 = Jul-Sep, Q4 = Oct-Dec |
+| Period start time | [x] 00:00:00.000Z (UTC) | Captures all activity on start date |
+| Period end time | [x] 23:59:59.999Z (UTC) | Mar 31 at any time = Q1 |
+
+**Rationale**: Matches LPA language ("through March 31"), fund admin conventions, LP reporting cadence, and auditor expectations.
 
 ### 2.2 Boundary Date Assignment
 
@@ -280,22 +382,26 @@ When a flow occurs on a period boundary date:
 
 | Scenario | Decision |
 |----------|----------|
-| Flow on period end date | [ ] Belongs to ending period / [ ] Belongs to next period |
-| Flow on period start date | [ ] Belongs to starting period / [ ] Belongs to previous period |
-| Multiple flows same date | Processing order: [ ] Contributions first / [ ] Distributions first / [ ] Chronological by timestamp / [ ] Stable sort by ID |
+| Flow on period end date | [x] Belongs to ending period (Mar 31 call = Q1) |
+| Flow on period start date | [x] Belongs to starting period (Apr 1 call = Q2) |
+| Multiple flows same date | [x] Contributions first, then distributions (cash in before cash out) |
+
+**Rationale**: Matches capital call notice date convention. Contributions first prevents negative interim balances and matches fund admin practice.
 
 ### 2.3 Rebalance Trigger
 
 | Trigger Type | Decision |
 |--------------|----------|
-| Calendar-based | [ ] Every period end / [ ] Specific dates |
-| Event-based | [ ] After each flow / [ ] After net flow exceeds threshold |
-| Hybrid | [ ] Calendar + event |
+| Calendar-based | [x] Every period end |
+| Event-based | Not required (low transaction volume for emerging managers) |
+| Hybrid | Future enhancement if needed |
+
+**Rationale**: Calendar-based matches LP reporting cadence, provides clean audit trail. Emerging managers typically have 2-4 capital calls/year, making event-based triggers unnecessary complexity.
 
 **rebalance_frequency mapping**:
-- `"quarterly"`: _[Define exact behavior]_
-- `"monthly"`: _[Define exact behavior]_
-- `"annual"`: _[Define exact behavior]_
+- `"quarterly"`: Recalculate at end of each calendar quarter (Mar 31, Jun 30, Sep 30, Dec 31)
+- `"monthly"`: Recalculate at end of each calendar month
+- `"annual"`: Recalculate at fund fiscal year end only
 
 ---
 
@@ -303,9 +409,26 @@ When a flow occurs on a period boundary date:
 
 ### 3.1 Canonical Internal Representation
 
-**DECISION**: [ ] Integer cents / [ ] Decimal dollars (2 places) / [ ] Decimal dollars (4 places)
+**DECISION**: [x] Integer cents (JS safe integer) / [ ] Decimal dollars (2 places) / [ ] Decimal dollars (4 places)
 
-**Rationale**: Integer cents recommended for determinism (matches reserves-v11 pattern)
+**Rationale**: Integer cents selected for determinism (matches reserves-v11 pattern).
+
+**Technical Note**: JavaScript `number` is IEEE 754 double, not true int64. Max safe integer is `Number.MAX_SAFE_INTEGER` (2^53 - 1 ≈ $90 quadrillion in cents). This is sufficient for all fund sizes.
+
+**Implementation requirement**:
+```typescript
+function toCents(dollars: number): number {
+  const cents = Math.round(dollars * 100);
+  if (!Number.isSafeInteger(cents)) {
+    throw new Error(`Value ${dollars} exceeds safe integer range when converted to cents`);
+  }
+  return cents;
+}
+```
+
+**Weights representation**: Use basis points (bps, 1e4 scale) for deterministic integer math:
+- 33.33% = 3333 bps
+- Allocation: `Math.floor(totalCents * weightBps / 10000)` + largest remainder distribution
 
 ### 3.2 Field-by-Field Specification
 
@@ -420,7 +543,19 @@ it('detects unit inconsistency between commitment and other fields', () => {
 
 If a truth case has inconsistent scales (e.g., commitment in $M but buffer in raw dollars):
 
-**DECISION**: [ ] Fail with error (recommended) / [ ] Warn and proceed / [ ] Auto-correct with log
+**DECISION**: [x] Fail with error / [ ] Warn and proceed / [ ] Auto-correct with log
+
+**Rationale**: Fail-fast prevents silent data corruption. Clear error message guides user to fix input. Audit trail remains clean.
+
+**Error message format**:
+```
+Million-scale mismatch detected:
+  commitment=100 (ratio to self: 1.00)
+  min_cash_buffer=5000000 (ratio to commitment: 50000.00)
+  Ratio difference: 50000× exceeds threshold 1000×
+
+Fix: Ensure all monetary fields use the same unit scale (either $M or raw dollars).
+```
 
 ---
 
@@ -430,10 +565,56 @@ If a truth case has inconsistent scales (e.g., commitment in $M but buffer in ra
 
 | Context | Rounding Method | Precision |
 |---------|-----------------|-----------|
-| Intermediate calculations | [ ] Bankers / [ ] Half-up / [ ] Truncate | Full precision (no rounding) |
-| Final allocation amounts | [ ] Bankers / [ ] Half-up | [ ] Cents / [ ] Dollars |
-| Percentage calculations | [ ] Bankers / [ ] Half-up | 4 decimal places |
-| When rounding occurs | [ ] Per-event / [ ] End-of-period only | |
+| Intermediate calculations | [x] Full precision (no rounding) | N/A |
+| **Allocation amounts** | [x] **Largest Remainder Method** (Section 4.2) | Cents (integer) |
+| Percent-derived scalars | [x] Bankers (half-to-even) | Cents |
+| When rounding occurs | [x] End-of-period only | N/A |
+
+**CRITICAL Distinction**:
+> - **Allocation amounts** are produced by **Largest Remainder Method** (Section 4.2), NOT by banker's rounding.
+> - **Banker's rounding** applies ONLY to percent-derived scalars (e.g., `effective_buffer_cents`) and any non-integer-to-integer conversions.
+> - Do NOT apply banker's rounding to each cohort share before remainder distribution - that would change outputs.
+
+**Rationale**: CA-018 explicitly specifies "Bankers' rounding with stable tie-break". Bankers rounding is statistically unbiased and standard in financial systems.
+
+**Usage Scope** (LOCKED):
+> Bankers rounding is applied **only** when converting external decimal inputs to integer cents (and when rendering outputs). **Never** apply during integer-cent internal computation. **Never** apply to allocation amounts (use LRM instead).
+
+**Implementation** (JS doesn't have native Bankers rounding):
+```typescript
+// Rounds to nearest integer; ties go to nearest EVEN integer
+// NOTE: 0.5 is exactly representable in IEEE-754, so strict comparison is safe
+// if upstream doesn't manufacture float noise
+function bankersRoundPositive(x: number): number {
+  const n = Math.floor(x);
+  const frac = x - n;
+
+  if (frac < 0.5) return n;
+  if (frac > 0.5) return n + 1;
+  // exactly half - round to nearest even
+  return (n % 2 === 0) ? n : n + 1;
+}
+
+// For negative values (CA-019 capital recalls), use symmetric version:
+function bankersRoundSymmetric(x: number): number {
+  return Math.sign(x) * bankersRoundPositive(Math.abs(x));
+}
+
+// Canonical usage: dollars → cents conversion
+function dollarsToCents(dollars: number): number {
+  return bankersRoundSymmetric(dollars * 100);
+}
+```
+
+**Required Test Vectors** (spec test must include):
+| Input | Expected | Reason |
+|-------|----------|--------|
+| `bankersRoundSymmetric(2.5)` | `2` | Tie → even (2) |
+| `bankersRoundSymmetric(3.5)` | `4` | Tie → even (4) |
+| `bankersRoundSymmetric(-2.5)` | `-2` | Negative tie → even (-2) |
+| `bankersRoundSymmetric(-3.5)` | `-4` | Negative tie → even (-4) |
+| `bankersRoundSymmetric(2.4)` | `2` | Below midpoint |
+| `bankersRoundSymmetric(2.6)` | `3` | Above midpoint |
 
 **Alignment with runner**: Use same approach as `assertNumericField()` in helpers.ts
 
@@ -444,16 +625,135 @@ When allocating to multiple cohorts:
 | Step | Rule |
 |------|------|
 | 1. Base allocation | Pro-rata by cohort weight |
-| 2. Remainder handling | [ ] Largest remainder method / [ ] First cohort / [ ] Last cohort |
-| 3. Tie-break (equal remainders) | [ ] Stable sort by cohort name / [ ] By cohort index / [ ] By cohort start date |
+| 2. Remainder handling | [x] **Largest remainder method** (CA-018 verified) |
+| 3. Tie-break (equal remainders) | [x] First cohort in canonical sort order |
+
+**CRITICAL**: LRM remainder ranking must be computed using **integer arithmetic** (no float remainders).
+
+**Integer LRM via Basis Points** (LOCKED):
+```typescript
+// Convert weights to basis points (0-10000), enforce sum = 10000
+function normalizeWeightsToBps(weights: number[]): number[] {
+  const rawBps = weights.map(w => Math.round(w * 10000));
+  const sum = rawBps.reduce((a, b) => a + b, 0);
+
+  // Adjust last element to ensure sum = 10000
+  if (sum !== 10000) {
+    rawBps[rawBps.length - 1] += (10000 - sum);
+  }
+  return rawBps;
+}
+
+// LRM with pure integer math (no float remainders)
+function allocateLRM(totalCents: number, weightsBps: number[]): number[] {
+  const allocations: number[] = [];
+  const remainders: { index: number; rem: number }[] = [];
+
+  for (let i = 0; i < weightsBps.length; i++) {
+    const base = Math.floor(totalCents * weightsBps[i] / 10000);
+    const rem = (totalCents * weightsBps[i]) % 10000;  // Integer remainder!
+    allocations.push(base);
+    remainders.push({ index: i, rem });
+  }
+
+  // Distribute shortfall to largest remainders (stable sort for tie-break)
+  const sumBase = allocations.reduce((a, b) => a + b, 0);
+  let shortfall = totalCents - sumBase;
+
+  // Sort by remainder DESC, then by index ASC (canonical order tie-break)
+  remainders.sort((a, b) => b.rem - a.rem || a.index - b.index);
+
+  for (let i = 0; shortfall > 0 && i < remainders.length; i++) {
+    allocations[remainders[i].index] += 1;
+    shortfall--;
+  }
+
+  return allocations;
+}
+```
+
+**Why basis points?** Float weights like `0.3333333` produce float remainders that can compare inconsistently. Integer `% 10000` produces exact integer remainders with deterministic comparison.
+
+**CA-018 Verification (Integer Method)**:
+```
+Input weights: [0.3333333, 0.3333333, 0.3333334]
+Normalized bps: [3333, 3333, 3334] (sum = 10000)
+Total: 1,000,000 cents
+
+Base allocation:
+  A: floor(1000000 * 3333 / 10000) = 333300, rem = (1000000 * 3333) % 10000 = 0
+  B: floor(1000000 * 3333 / 10000) = 333300, rem = 0
+  C: floor(1000000 * 3334 / 10000) = 333400, rem = 0
+
+Wait - that gives 999,900 + 333,400 = 1,000,000. Let me recalculate...
+
+Actually with 7-decimal weights, use higher precision (1e7 scale):
+  weightScale = [3333333, 3333333, 3333334] (sum = 10,000,000)
+  A: floor(1000000 * 3333333 / 10000000) = 333333, rem = 3333330000000 % 10000000 = 3000000
+  B: floor(1000000 * 3333333 / 10000000) = 333333, rem = 3000000
+  C: floor(1000000 * 3333334 / 10000000) = 333333, rem = 4000000
+
+Sum of floors: 999999 (1 cent short)
+Largest remainder: C (4000000 > 3000000)
+C gets +1 → 333334
+
+Expected: [333333, 333333, 333334] ✓
+```
+
+**Precision Choice**: For CA-018 style 7-decimal weights, use 1e7 scale (not 1e4). Adapter normalizes to this scale on input.
 
 ### 4.3 Ordering Rules (Input Processing)
 
 | Scenario | Deterministic Order |
 |----------|---------------------|
-| Multiple flows on same date | [ ] By flow type (contrib > distrib) / [ ] By flow ID / [ ] By amount (descending) |
-| Multiple cohorts eligible | [ ] By cohort name (alpha) / [ ] By cohort start date / [ ] By cohort weight (descending) |
-| Cap spill-over (CA-015) | Excess goes to: [ ] Next cohort in order / [ ] Reserve / [ ] Pro-rata to remaining |
+| Multiple flows on same date | [x] Contributions first, then distributions (cash in before cash out) |
+| Multiple cohorts eligible | [x] By canonical sort key: `(start_date, id)` |
+| Cap spill-over (CA-015) | [x] Next cohort in canonical sort order |
+
+**Constraint Evaluation Timing** (LOCKED):
+> Ordering only affects the cash ledger **if** constraints are evaluated per-flow. In Phase 1, cash constraints are evaluated **at period end** (unless a truth case explicitly requires per-flow enforcement). This prevents "contributions-first" from becoming a silent semantic dependency.
+
+**Canonical Sort Key** (LOCKED):
+```typescript
+// Type-safe sort key with explicit coercion
+function cohortSortKey(c: Cohort): [string, string] {
+  return [
+    c.start_date || '9999-12-31',                    // Empty/null = far future
+    String(c.id ?? c.name ?? '').toLowerCase()       // Coerce to string (handles numeric ids)
+  ];
+}
+
+// Deterministic string comparator (avoids locale-sensitive localeCompare)
+// localeCompare can produce different results for non-ASCII in different environments
+const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
+// Sort ascending by tuple comparison
+cohorts.sort((a, b) => {
+  const [aDate, aId] = cohortSortKey(a);
+  const [bDate, bId] = cohortSortKey(b);
+  return cmp(aDate, bDate) || cmp(aId, bId);
+});
+```
+
+**Why not `localeCompare`?** It can be locale-sensitive for non-ASCII identifiers, causing cross-environment drift. Simple `<`/`>` comparison is deterministic for ASCII ISO dates and IDs.
+
+**Date Format Requirement** (LOCKED):
+> All cohort dates **must** be canonical `YYYY-MM-DD` (zero-padded). Non-canonical formats (e.g., `2024-1-1`) are **adapter errors**. Lexicographic sort only works with zero-padded ISO dates.
+
+**Sort Key Test Cases** (spec test must include):
+| `start_date` | `id` | Expected Sort Position |
+|--------------|------|------------------------|
+| `'2024-01-01'` | `'A'` | First |
+| `'2024-01-01'` | `'B'` | Second (same date, id tiebreak) |
+| `'2024-06-01'` | `'A'` | Third |
+| `''` (empty) | `'Z'` | Last (empty = far future) |
+| `null` | `'Y'` | Last (null = far future) |
+| `'2024-01-01'` | `0` (numeric) | Works - coerced to `'0'` |
+
+**Cap Spill-Over (CA-015 Verified)**:
+- If cohort hits `max_allocation_per_cohort` cap, excess spills to next cohort in sort order
+- Continue until all capacity allocated or all cohorts at cap
+- **Termination rule**: If all cohorts at cap, remaining allocable capacity stays **unallocated** (no violation emitted, appears as `unallocated_capacity` in output if field exists)
 
 ### 4.4 Output Sorting + Presence Requirements (MANDATORY)
 
@@ -567,26 +867,110 @@ describe('CA Determinism', () => {
 
 | Field | Definition | Type |
 |-------|------------|------|
-| `reserve_balance` | [ ] Cash on hand / [ ] Reserved commitment capacity / [ ] Other: ___ | [ ] Cash / [ ] Capacity |
-| `allocations_by_cohort[].amount` | [ ] Actual deployed cash / [ ] Planned allocation / [ ] Committed capacity | [ ] Cash / [ ] Plan |
+| `reserve_balance` | [x] Cash on hand - actual cash available after all inflows/outflows | **Cash** |
+| `allocations_by_cohort[].amount` | [x] Planned allocation - capacity earmarked for cohort (may or may not be deployed yet) | **Plan** |
+| `allocations_by_cohort[].type` | `'planned'` = capacity reservation, `'deployed'` = actual cash outflow | Discriminator |
+| `cumulative_deployed` | Sum of all `type === 'deployed'` allocations - actual cash sent to portfolio | **Cash** |
+| `remaining_capacity` | `commitment - sum(all allocations)` - unallocated commitment | **Capacity** |
 | `violations[]` | Conditions that trigger a violation entry | See 5.2 |
 
 ### 5.2 Violation Conditions
 
-| Violation Type | Trigger Condition | Severity |
-|----------------|-------------------|----------|
-| `buffer_breach` | `reserve_balance < min_cash_buffer` | [ ] Error / [ ] Warning |
-| `over_allocation` | `sum(allocations) > available` | [ ] Error / [ ] Warning |
-| `cap_exceeded` | `cohort_allocation > cohort_cap` | [ ] Error / [ ] Warning |
-| `negative_balance` | `reserve_balance < 0` | [ ] Error / [ ] Warning |
+| Violation Type | Trigger Condition | Severity | Enforcement Behavior |
+|----------------|-------------------|----------|---------------------|
+| `buffer_breach` | `reserve_balance < effective_buffer` | [x] **Warning** | Silently clip allocations first; only emit violation if uncurable at zero allocation |
+| `over_allocation` | `sum(allocations) > available` | [x] **Warning** (correctable) | Always satisfiable via pro-rata clip; never actually emitted |
+| `cap_exceeded` | `cohort_allocation > cohort_cap` | [x] **Warning** | Satisfiable via spill-over; see termination rule below |
+| `negative_balance` | `reserve_balance < 0` | [x] **Error** | Throw immediately - indicates invalid input or calculation bug |
+| `negative_capacity` | `commitment - sum(allocations) < 0` | [x] **Error** | Throw immediately - allocation exceeds commitment |
+
+**Note**: `buffer_breach` uses `effective_buffer` (see Section 1.2), not just `min_cash_buffer`.
+
+**Key Distinction** (from CA-IMPLEMENTATION-EVALUATION-FINAL.md):
+- **Binding** = constraint was satisfied by automatic clipping/spill-over; `violations: []`
+- **Breach** = constraint cannot be satisfied even at zero allocation; violation emitted and/or error thrown
+
+**Cap Exhaustion Termination Rule** (LOCKED):
+> If all cohorts are at their `max_allocation_per_cohort` cap, remaining allocable capacity stays **unallocated**:
+> - `violations: []` (not a violation - caps are advisory)
+> - Unallocated amount appears as `remaining_capacity > 0` in output
+> - **Rationale**: Caps are portfolio construction guardrails, not hard failures. GP can review and adjust caps if needed.
 
 ### 5.3 Cohort Handling
 
-| Scenario | Behavior |
-|----------|----------|
-| No cohorts array (CA-001 style) | [ ] Single implicit "default" cohort / [ ] Error |
-| Empty cohorts array | [ ] Single implicit cohort / [ ] Zero allocation / [ ] Error |
-| Cohort weights don't sum to 1.0 | [ ] Normalize / [ ] Error / [ ] Warn and proceed |
+| Scenario | Behavior | Rationale |
+|----------|----------|-----------|
+| No cohorts array (CA-001 style) | [x] **Single implicit cohort** by vintage year | CA-001 outputs `allocations_by_cohort: [{cohort: "2024", ...}]` with no explicit cohorts input |
+| Empty cohorts array | [x] **Single implicit cohort** by vintage year | Same as "no cohorts" - vintage year is canonical default |
+| Cohort weights sum within 0.1% of 1.0 | [x] **Normalize** to sum=1.0 | More forgiving for emerging managers; avoids rejection for minor rounding |
+| Cohort weights sum > 0.1% off from 1.0 | [x] **Error** | Don't normalize garbage - large deviation indicates input error |
+| Any weight < 0 | [x] **Error** | Negative weights are invalid |
+| Sum of weights <= 0 | [x] **Error** | Would cause division by zero in normalization |
+| Missing `vintage_year` | [x] Derive from `timeline.start_date` year | Fallback prevents undefined cohort name |
+| User cohort named same as implicit | [x] Use collision-safe internal ID | Prevents identity collisions |
+
+**Weight Validation Rules** (LOCKED):
+```typescript
+function validateAndNormalizeWeights(weights: number[]): number[] {
+  // Rule 1: No negative weights
+  if (weights.some(w => w < 0)) {
+    throw new Error('Cohort weights cannot be negative');
+  }
+
+  const sum = weights.reduce((a, b) => a + b, 0);
+
+  // Rule 2: Sum must be positive
+  if (sum <= 0) {
+    throw new Error('Sum of cohort weights must be positive');
+  }
+
+  // Rule 3: Only normalize if within 0.1% tolerance
+  const tolerance = 0.001; // 0.1%
+  if (Math.abs(sum - 1.0) > tolerance) {
+    throw new Error(`Cohort weights sum to ${sum}, which differs from 1.0 by more than ${tolerance * 100}%`);
+  }
+
+  // Normalize to exactly 1.0
+  return weights.map(w => w / sum);
+}
+```
+
+**Implicit Cohort Generation** (with fallback and collision safety):
+```typescript
+function deriveVintageYear(fund: FundInput, timeline: TimelineInput): number {
+  // Primary: explicit vintage_year
+  if (fund.vintage_year != null) {
+    return fund.vintage_year;
+  }
+  // Fallback: derive from timeline start date
+  if (timeline?.start_date) {
+    return parseInt(timeline.start_date.substring(0, 4), 10);
+  }
+  // Last resort: current year (should not happen in well-formed input)
+  return new Date().getUTCFullYear();
+}
+
+function getDefaultCohort(fund: FundInput, timeline: TimelineInput): Cohort {
+  const year = deriveVintageYear(fund, timeline);
+  return {
+    name: String(year),                           // Display name: "2024"
+    id: `_implicit_${year}`,                      // Internal ID: collision-safe
+    start_date: `${year}-01-01`,
+    end_date: `${year}-12-31`,
+    weight: 1.0
+  };
+}
+
+// In output adapter: map internal id back to display name
+function toCohortOutput(cohort: Cohort): CohortOutput {
+  return {
+    cohort: cohort.name,  // CA-001 expects "2024", not "_implicit_2024"
+    amount: cohort.allocation,
+  };
+}
+```
+
+**Collision Rule**: If user provides a cohort with `id: "2024"` and we generate `_implicit_2024`, they are distinct. User cohorts are never auto-prefixed.
 
 ---
 
@@ -595,7 +979,16 @@ describe('CA Determinism', () => {
 ### 6.1 Decision
 
 [ ] **IMPLEMENT**: Define formula below
-[ ] **DEFER**: Skip with gate in runner (recommended if formula unclear)
+[x] **DEFER**: Skip with gate in runner
+
+**Rationale**: CA-005 requires NAV (Net Asset Value) calculation which is:
+1. Not defined in the truth case schema (no NAV input field)
+2. Requires portfolio valuation logic outside Phase 1 scope
+3. Note says "adjusts reserve based on NAV changes" but formula is unspecified
+4. Expected `reserve_balance: 5` cannot be derived from inputs without NAV formula
+
+For emerging VC managers, `static_pct` policy is sufficient for Phase 1.
+Dynamic ratio can be added in Phase 2 when NAV calculation is defined.
 
 ### 6.2 Formula (if implementing)
 
@@ -641,42 +1034,44 @@ pnpm test -- tests/unit/truth-cases/ca-invariants.test.ts
 All items must be checked before Phase 1 begins:
 
 ### Section 1: Conservation Identity
-- [ ] Conservation model chosen (Cash Ledger / Capacity / Hybrid)
-- [ ] Term definitions completed (allocations, reserve_balance, available_capacity, deployed)
-- [ ] Model-specific invariants selected (with explicit variable naming: unit + semantic)
+- [x] Conservation model chosen (Cash Ledger / Capacity / Hybrid) → **Hybrid** (dual-ledger)
+- [x] Term definitions completed (allocations, reserve_balance, available_capacity, deployed) → Section 1.1.1
+- [x] Model-specific invariants selected (with explicit variable naming: unit + semantic) → Section 1.2
 - [ ] Spec test created with **non-tautological** assertions (derives totals from independent outputs)
 - [ ] At least ONE test with **independently-derivable** expected values (hand-calculated from spec)
 - [ ] Spec test passing
 
 ### Section 2: Time Boundary Rules
-- [ ] Timezone rule confirmed (UTC date buckets)
-- [ ] Period bounds defined (inclusive/exclusive)
-- [ ] Quarterly definition specified
-- [ ] Boundary date assignment rules documented
-- [ ] Rebalance trigger semantics defined
+- [x] Timezone rule confirmed (UTC date buckets) → Section 2.0
+- [x] Period bounds defined (inclusive/exclusive) → Section 2.1 (`[start, end]` inclusive)
+- [x] Quarterly definition specified → Section 2.1 (calendar quarters)
+- [x] Boundary date assignment rules documented → Section 2.2
+- [x] Rebalance trigger semantics defined → Section 2.3 (calendar-based)
 - [ ] Timezone spec test created
 - [ ] **ANTI-REGRESSION**: No `new Date('YYYY-MM-DD')` in production code (verified by grep)
 
 ### Section 3: Unit Normalization
-- [ ] Canonical internal representation chosen (integer cents recommended)
-- [ ] Field-by-field unit table complete
-- [ ] Unit inference rules documented
+- [x] Canonical internal representation chosen (integer cents recommended) → Section 3.2
+- [x] Field-by-field unit table complete → Section 3.3
+- [x] Unit inference rules documented → Section 3.4
 - [ ] **Million-scale mismatch detector** implemented (ratio-based, not heuristic)
-- [ ] Inconsistency trap decision made and documented
+- [x] Inconsistency trap decision made and documented → Section 3.5 (fail with error)
 - [ ] Unit inconsistency spec test created
 
 ### Section 4: Determinism Contract
-- [ ] Rounding rules specified (with tolerance for floating point, never `===`)
-- [ ] Allocation algorithm documented (base, remainder, tie-break)
-- [ ] Input ordering rules defined
-- [ ] **Output sorting requirements** documented with EXACT sort keys
+- [x] Rounding rules specified (with tolerance for floating point, never `===`) → Section 4.1 (Bankers)
+- [x] Allocation algorithm documented (base, remainder, tie-break) → Section 4.2 (Largest remainder)
+- [x] Input ordering rules defined → Section 4.3 (Canonical sort key)
+- [x] **Output sorting requirements** documented with EXACT sort keys → Section 4.4
 - [ ] **ANTI-REGRESSION**: Output arrays always present (never undefined, always `[]` if empty)
 - [ ] Determinism spec test created (10 identical runs)
 - [ ] Output ordering + presence spec test created
+- [ ] **Rounding spec test**: positive/negative half ties (ensures true bankers + symmetric) - test vectors in Section 4.1
+- [ ] **Cohort sort key spec test**: empty `start_date: ""` sorts last; numeric `id: 0` doesn't crash; non-canonical date fails adapter - test vectors in Section 4.3
 
 ### Section 5-7: Remaining Sections
-- [ ] Section 5: All semantic definitions complete
-- [ ] Section 6: CA-005 decision made (implement or defer with skip gate)
+- [x] Section 5: All semantic definitions complete → Sections 5.1, 5.2, 5.3
+- [x] Section 6: CA-005 decision made (implement or defer with skip gate) → **Deferred** to Phase 2
 - [ ] Section 7: Plain CLI commands verified working
 
 ### Final Verification
