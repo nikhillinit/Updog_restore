@@ -171,7 +171,7 @@ export function validateSanityCap(
   inputValue: number,
   scale: number
 ): void {
-  if (cents > SANITY_CAP_CENTS) {
+  if (cents >= SANITY_CAP_CENTS) {
     const dollars = cents / 100;
     throw new Error(
       `${fieldName} exceeds $1 Trillion sanity cap. ` +

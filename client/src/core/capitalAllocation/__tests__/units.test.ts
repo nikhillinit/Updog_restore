@@ -113,6 +113,18 @@ describe('Unit Inference and Mismatch Detection', () => {
       // 5.0055 * MILLION = 5,005,500 dollars = 500,550,000 cents (exact)
       expect(toCentsWithInference(5.0055, MILLION)).toBe(500_550_000);
     });
+
+    it('demonstrates half-to-even tie-breaking (banker rounding)', () => {
+      // True half-cent tests: verify tie-to-even behavior
+      // 12.345 dollars = 1234.5 cents → rounds to 1234 (even)
+      expect(toCentsWithInference(12.345, 1)).toBe(1234);
+      // 12.355 dollars = 1235.5 cents → rounds to 1236 (even)
+      expect(toCentsWithInference(12.355, 1)).toBe(1236);
+      // 12.365 dollars = 1236.5 cents → rounds to 1236 (even)
+      expect(toCentsWithInference(12.365, 1)).toBe(1236);
+      // 12.375 dollars = 1237.5 cents → rounds to 1238 (even)
+      expect(toCentsWithInference(12.375, 1)).toBe(1238);
+    });
   });
 
   describe('fromCentsWithCommitmentInference (deprecated)', () => {
