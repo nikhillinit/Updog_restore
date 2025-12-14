@@ -53,3 +53,86 @@ export {
   type UnitScale,
   type CAInputValidation,
 } from './units';
+
+// Types and schemas
+export {
+  // Constants
+  FAR_FUTURE,
+  WEIGHT_SUM_TOLERANCE,
+
+  // Schemas
+  CanonicalDateSchema,
+  CentsSchema,
+  SignedCentsSchema,
+  PercentageSchema,
+  CashFlowSchema,
+  CohortInputSchema,
+  CohortOutputSchema,
+  FundInputSchema,
+  ConstraintsInputSchema,
+  TimelineInputSchema,
+  CAEngineInputSchema,
+  ViolationTypeSchema,
+  ViolationSeveritySchema,
+  ViolationSchema,
+  ReserveBalancePointSchema,
+  CAEngineOutputSchema,
+
+  // Types
+  type CashFlow,
+  type FlowsInput,
+  type CohortInput,
+  type CohortOutput,
+  type FundInput,
+  type ConstraintsInput,
+  type TimelineInput,
+  type CAEngineInput,
+  type ViolationType,
+  type ViolationSeverity,
+  type Violation,
+  type ReserveBalancePoint,
+  type CAEngineOutput,
+  type InternalCohort,
+  type CashLedgerState,
+  type CapacityState,
+
+  // Type guards and factories
+  isImplicitCohort,
+  isValidCanonicalDate,
+  createEmptyOutput,
+  createViolation,
+} from './types';
+
+// Input/Output adapter
+export {
+  adaptTruthCaseInput,
+  shouldSkipTruthCase,
+  centsToOutputUnits,
+  formatCohortOutput,
+  type TruthCaseInput,
+  type NormalizedInput,
+} from './adapter';
+
+// Core engine
+export {
+  calculateEffectiveBuffer,
+  calculateReserveBalance,
+  calculateCashLedger,
+  allocateCapacityToCohorts,
+  executeCapitalAllocation,
+  calculateCapitalAllocation,
+} from './CapitalAllocationEngine';
+
+// Invariant validators
+export {
+  CONSERVATION_TOLERANCE_CENTS,
+  verifyCashConservation,
+  verifyCapacityConservation,
+  verifyBufferConstraint,
+  verifyNonNegativity,
+  checkAllInvariants,
+  calculateExpectedReserveIndependently,
+  calculateExpectedAllocationIndependently,
+  type InvariantResult,
+  type ConservationCheckResult,
+} from './invariants';
