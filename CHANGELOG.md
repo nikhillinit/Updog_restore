@@ -6,7 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2025-12-13
+## [Unreleased] - 2025-12-14
+
+### Fixed
+
+- **CLAUDE.md Corruption Cleanup**
+  - Removed 39 corrupted `- memory` placeholder lines (lines 345-383)
+  - Impact: 508 → 468 lines
+  - Root cause: Artifact from initial file creation (commit 94becf73, Oct
+    7 2025)
+
+### Added
+
+- **CLAUDE.md Validation Infrastructure**
+  - `validate:claude-md` script using markdown-link-check
+  - `.markdown-link-check.json` configuration (10s timeout, retry on 429)
+  - `docs:verify:all` script for comprehensive documentation validation
+  - Technical Note: Existing validation (`docs:lint`, `docs:check-links`) only
+    covered `docs/analysis/`, new validation ensures CLAUDE.md link integrity
+
+## [2025-12-13]
 
 ### Deprecated
 

@@ -105,20 +105,20 @@ STOP! Have you checked CAPABILITIES.md for existing solutions?
 
 For detailed routing logic, see `.claude/DISCOVERY-MAP.md`. Key patterns:
 
-| Task Type | Route To |
-|-----------|----------|
-| New feature/capability | CAPABILITIES.md first |
-| Phoenix validation | `/phoenix-truth` command |
-| Phoenix Phase 2 (probabilistic) | `/phoenix-phase2` command |
-| Waterfall/clawback issues | `waterfall-specialist` agent |
-| Precision/numeric drift | `phoenix-precision-guardian` agent |
-| XIRR/fees issues | `xirr-fees-validator` agent |
-| Architecture decisions | DECISIONS.md |
-| Troubleshooting | SIDECAR_GUIDE.md |
+| Task Type                       | Route To                           |
+| ------------------------------- | ---------------------------------- |
+| New feature/capability          | CAPABILITIES.md first              |
+| Phoenix validation              | `/phoenix-truth` command           |
+| Phoenix Phase 2 (probabilistic) | `/phoenix-phase2` command          |
+| Waterfall/clawback issues       | `waterfall-specialist` agent       |
+| Precision/numeric drift         | `phoenix-precision-guardian` agent |
+| XIRR/fees issues                | `xirr-fees-validator` agent        |
+| Architecture decisions          | DECISIONS.md                       |
+| Troubleshooting                 | SIDECAR_GUIDE.md                   |
 
-**Machine-readable index**: `docs/_generated/router-index.json`
-**Staleness report**: `docs/_generated/staleness-report.md`
-**Regenerate**: `npm run docs:routing:generate`
+**Machine-readable index**: `docs/_generated/router-index.json` **Staleness
+report**: `docs/_generated/staleness-report.md` **Regenerate**:
+`npm run docs:routing:generate`
 
 ### Memory Management
 
@@ -341,46 +341,6 @@ npm run doctor
 | After `npm install`          | Auto-fixed by postinstall hook           |
 
 See [SIDECAR_GUIDE.md](SIDECAR_GUIDE.md) for complete troubleshooting guide.
-
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
-- memory
 
 ## Quality-First Development
 
