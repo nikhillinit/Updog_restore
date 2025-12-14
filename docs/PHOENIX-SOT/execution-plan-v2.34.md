@@ -1,10 +1,16 @@
 # Phoenix Execution Plan v2.34 - MCP & Tool Routing Integration
 
-**Date:** December 13, 2025 **Status:** ACTIVE - Ready for Execution **Author:**
+**Date:** December 14, 2025 **Status:** ACTIVE - Ready for Execution **Author:**
 Solo Developer **Approach:** Validation-First, Evidence-Driven, Agent-Enhanced
 
 **Version Note:** v2.34 = v2.33 + MCP tool routing + 6 new skills + PHOENIX-SOT
 directory structure (skill invocation templates, TaskMaster/Multi-AI integration)
+
+**Updates (Dec 14, 2025):**
+- Added Domain Knowledge Sources section referencing NotebookLM (85K words, 22 files)
+- Phase 2 engine documentation marked COMPLETE (Nov 6, 2025)
+- Added known issue: Pacing validation config mismatch
+- Cross-references to `docs/notebooklm-sources/` for domain truth
 
 ---
 
@@ -71,6 +77,36 @@ expected path unless significant regressions occur.
 ---
 
 ## Verified Ground Truth
+
+### Domain Knowledge Sources (NotebookLM)
+
+**Location:** `docs/notebooklm-sources/` (22 files, ~85,000 words)
+
+The canonical domain knowledge base for ALL Phoenix validation work. **Status:
+Phase 2 COMPLETE** as of Nov 6, 2025.
+
+**Phase 1 (Deterministic):**
+- `xirr.md` - XIRR calculation semantics (96.3% validation score)
+- `waterfall.md` - Waterfall distribution logic (94.3%)
+- `fees.md` - Fee calculation standards (94.5%)
+- `capital-allocation.md` - Capital allocation policy (99%)
+- `exit-recycling.md` - Exit recycling rules (91%)
+
+**Phase 2 (Engine Documentation):**
+- `reserves/` (4 files, ~23 pages) - ReserveEngine documentation
+- `pacing/` (4 files, ~26 pages) - PacingEngine documentation
+- `cohorts/` (3 files, ~69 pages) - CohortEngine documentation
+- `monte-carlo/` (4 files, ~120 pages) - Monte Carlo simulation engine
+
+**When to use:** Any validation, domain questions, or implementation requiring
+VC fund modeling knowledge.
+
+**Known Issue:** Pacing validation config mismatch documented in
+`docs/notebooklm-sources/pacing/VALIDATION-NOTES.md` - configs need alignment
+with current implementation before running full test suite.
+
+**Reference:** See `docs/notebooklm-sources/PHASE2-COMPLETE.md` for Phase 2
+completion summary and quality metrics.
 
 ### Truth Case Distribution
 
