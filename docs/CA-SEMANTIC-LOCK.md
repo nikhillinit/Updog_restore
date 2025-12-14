@@ -1068,9 +1068,9 @@ All items must be checked before Phase 1 begins:
 - [x] Conservation model chosen (Cash Ledger / Capacity / Hybrid) → **Hybrid** (dual-ledger)
 - [x] Term definitions completed (allocations, reserve_balance, available_capacity, deployed) → Section 1.1.1
 - [x] Model-specific invariants selected (with explicit variable naming: unit + semantic) → Section 1.2
-- [ ] Spec test created with **non-tautological** assertions (derives totals from independent outputs)
-- [ ] At least ONE test with **independently-derivable** expected values (hand-calculated from spec)
-- [ ] Spec test passing
+- [x] Spec test created with **non-tautological** assertions (derives totals from independent outputs) → `invariants.test.ts`
+- [x] At least ONE test with **independently-derivable** expected values (hand-calculated from spec) → `invariants.test.ts:37-97`
+- [x] Spec test passing → `calculateExpectedReserveIndependently`, `calculateExpectedAllocationIndependently`
 
 ### Section 2: Time Boundary Rules
 - [x] Timezone rule confirmed (UTC date buckets) → Section 2.0
@@ -1085,9 +1085,9 @@ All items must be checked before Phase 1 begins:
 - [x] Canonical internal representation chosen (integer cents recommended) → Section 3.2
 - [x] Field-by-field unit table complete → Section 3.3
 - [x] Unit inference rules documented → Section 3.4
-- [ ] **Million-scale mismatch detector** implemented (ratio-based, not heuristic)
+- [x] **Million-scale mismatch detector** implemented (ratio-based, not heuristic) → `detectUnitMismatch()` in `units.ts`
 - [x] Inconsistency trap decision made and documented → Section 3.5 (fail with error)
-- [ ] Unit inconsistency spec test created
+- [x] Unit inconsistency spec test created → `units.test.ts` (detectUnitMismatch, validateUnitConsistency tests)
 
 ### Section 4: Determinism Contract
 - [x] Rounding rules specified (with tolerance for floating point, never `===`) → Section 4.1 (Bankers)
