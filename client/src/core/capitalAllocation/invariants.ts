@@ -38,6 +38,30 @@ export interface ConservationCheckResult {
   allPassed: boolean;
 }
 
+/**
+ * Options for invariant checking.
+ *
+ * Used to handle special cases like CA-019 (capital recalls) where
+ * negative allocations are valid.
+ */
+export interface InvariantOptions {
+  /**
+   * Allow negative allocation amounts (for capital recalls).
+   * Default: false (standard non-negativity constraint)
+   *
+   * Set to true for CA-019 and similar recall scenarios.
+   */
+  allowNegativeAllocations?: boolean;
+
+  /**
+   * Treat buffer constraint as warning-only (exclude from allPassed).
+   * Default: false (buffer breach with curable cash fails allPassed)
+   *
+   * Set to true if buffer is purely advisory.
+   */
+  bufferIsWarningOnly?: boolean;
+}
+
 // =============================================================================
 // Constants
 // =============================================================================
@@ -54,6 +78,11 @@ export const CONSERVATION_TOLERANCE_CENTS = 1;
  *
  * Formula: ending_cash = starting_cash + contributions - distributions - deployed_cash
  *
+ * SIGN CONVENTION (per CA-SEMANTIC-LOCK.md):
+ * - contributions: POSITIVE values = cash inflows (capital calls)
+ * - distributions: POSITIVE values = cash outflows (returns to LPs)
+ * - Recalls (CA-019): represented as NEGATIVE distributions (cash inflow)
+ *
  * CRITICAL: Planned allocations do NOT affect this equation.
  */
 export function verifyCashConservation(
@@ -63,13 +92,16 @@ export function verifyCashConservation(
   // Calculate expected ending cash from inputs
   const startingCashCents = 0; // Fund inception
 
+  // Contributions are positive inflows
   const contributionsCents = input.contributionsCents.reduce(
     (sum, flow) => sum + (flow.amountCents ?? 0),
     0
   );
 
+  // Distributions are positive outflows (negative = recall/inflow)
+  // DO NOT use Math.abs - this would break recall semantics (CA-019)
   const distributionsCents = input.distributionsCents.reduce(
-    (sum, flow) => sum + Math.abs(flow.amountCents ?? 0),
+    (sum, flow) => sum + (flow.amountCents ?? 0),
     0
   );
 
@@ -191,12 +223,20 @@ export function verifyBufferConstraint(
 /**
  * Verify non-negativity constraints.
  *
- * All values must be >= 0, except for CA-019 capital recalls.
+ * All values must be >= 0, except when allowNegativeAllocations is true
+ * (for CA-019 capital recalls and similar scenarios).
+ *
+ * @param output - Engine output to validate
+ * @param options - Optional settings (allowNegativeAllocations for recalls)
  */
-export function verifyNonNegativity(output: CAEngineOutput): InvariantResult[] {
+export function verifyNonNegativity(
+  output: CAEngineOutput,
+  options: InvariantOptions = {}
+): InvariantResult[] {
+  const { allowNegativeAllocations = false } = options;
   const results: InvariantResult[] = [];
 
-  // Check reserve_balance
+  // Check reserve_balance (always must be non-negative)
   const reserveBalanceCents = output.reserveBalanceCents ?? 0;
   results.push({
     name: 'Non-Negativity: reserve_balance',
@@ -208,19 +248,23 @@ export function verifyNonNegativity(output: CAEngineOutput): InvariantResult[] {
   });
 
   // Check each allocation
+  // Note: For CA-019 recalls, negative allocations are valid
   output.allocations_by_cohort.forEach((cohort, index) => {
-    const passed = cohort.amount >= 0;
+    const isNonNegative = cohort.amount >= 0;
+    const passed = isNonNegative || allowNegativeAllocations;
+    const suffix = !isNonNegative && allowNegativeAllocations ? ' (allowed for recalls)' : '';
+
     results.push({
       name: `Non-Negativity: allocation[${index}] (${cohort.cohort})`,
       passed,
       message: passed
-        ? `Allocation for ${cohort.cohort} is non-negative`
+        ? `Allocation for ${cohort.cohort} is ${isNonNegative ? 'non-negative' : 'negative' + suffix}`
         : `Negative allocation for ${cohort.cohort}: ${cohort.amount}`,
       actual: cohort.amount,
     });
   });
 
-  // Check remaining_capacity
+  // Check remaining_capacity (always must be non-negative)
   const remainingCapacityCents = output.remainingCapacityCents ?? 0;
   results.push({
     name: 'Non-Negativity: remaining_capacity',
@@ -243,20 +287,30 @@ export function verifyNonNegativity(output: CAEngineOutput): InvariantResult[] {
  *
  * Per CA-SEMANTIC-LOCK.md Section 1.3:
  * Tests MUST compute totals from independent outputs, NOT from scalar fields.
+ *
+ * @param input - Normalized engine input
+ * @param output - Engine output to validate
+ * @param options - Optional settings for special cases (CA-019 recalls, etc.)
  */
 export function checkAllInvariants(
   input: NormalizedInput,
-  output: CAEngineOutput
+  output: CAEngineOutput,
+  options: InvariantOptions = {}
 ): ConservationCheckResult {
+  const { bufferIsWarningOnly = false } = options;
+
   const cashConservation = verifyCashConservation(input, output);
   const capacityConservation = verifyCapacityConservation(input, output);
   const bufferConstraint = verifyBufferConstraint(input, output);
-  const nonNegativity = verifyNonNegativity(output);
+  const nonNegativity = verifyNonNegativity(output, options);
+
+  // Buffer constraint may be warning-only (excluded from allPassed)
+  const bufferPassed = bufferIsWarningOnly || bufferConstraint.passed;
 
   const allPassed =
     cashConservation.passed &&
     capacityConservation.passed &&
-    bufferConstraint.passed &&
+    bufferPassed &&
     nonNegativity.every((r) => r.passed);
 
   return {

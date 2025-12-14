@@ -105,13 +105,41 @@ export function inferUnitScale(
 }
 
 /**
- * Get the unit scale type as a string.
+ * Get the unit scale type as a human-readable string.
+ *
+ * Uses the same thresholds as inferUnitScale:
+ * - < SCALE_MILLIONS_THRESHOLD (1K): 'millions'
+ * - >= SCALE_RAW_THRESHOLD (10M): 'dollars'
+ * - Ambiguous zone: throws error
  *
  * @param commitment - Fund commitment value
+ * @param explicitUnits - Optional explicit unit configuration
  * @returns 'millions' or 'dollars'
+ * @throws Error if value is in ambiguous zone without explicit config
  */
-export function inferUnitScaleType(commitment: number): UnitScale {
-  return commitment < SCALE_INFERENCE_THRESHOLD ? 'millions' : 'dollars';
+export function inferUnitScaleType(
+  commitment: number,
+  explicitUnits?: ExplicitUnits
+): UnitScale {
+  // Honor explicit config first
+  if (explicitUnits === 'millions') return 'millions';
+  if (explicitUnits === 'raw') return 'dollars';
+
+  // Check for invalid values
+  if (commitment <= 0) {
+    throw new Error(`Invalid commitment amount: ${commitment}. Must be positive.`);
+  }
+
+  // Clear cases
+  if (commitment < SCALE_MILLIONS_THRESHOLD) return 'millions';
+  if (commitment >= SCALE_RAW_THRESHOLD) return 'dollars';
+
+  // Ambiguous zone - fail fast
+  throw new Error(
+    `Commitment ${commitment.toLocaleString()} falls in ambiguous range ` +
+    `(${SCALE_MILLIONS_THRESHOLD.toLocaleString()} - ${SCALE_RAW_THRESHOLD.toLocaleString()}). ` +
+    `Please specify explicit units: 'millions' or 'raw'.`
+  );
 }
 
 /**
@@ -238,10 +266,13 @@ export function normalizeFieldsToCents<T extends Record<string, number | undefin
   fields: T,
   commitmentForScale: number
 ): Record<keyof T, number> {
+  // CRITICAL: Infer the unitScale FIRST, then use it for all conversions
+  // Do NOT pass commitmentForScale directly to toCentsWithInference
+  const unitScale = inferUnitScale(commitmentForScale);
   const result = {} as Record<keyof T, number>;
 
   for (const [key, value] of Object.entries(fields)) {
-    result[key as keyof T] = value != null ? toCentsWithInference(value, commitmentForScale) : 0;
+    result[key as keyof T] = value != null ? toCentsWithInference(value, unitScale) : 0;
   }
 
   return result;
@@ -265,16 +296,18 @@ export interface CAInputValidation {
  * @param commitment - Fund commitment
  * @param minCashBuffer - Minimum cash buffer constraint
  * @param targetReservePct - Target reserve percentage (0-1)
+ * @param explicitUnits - Optional explicit unit configuration for ambiguous values
  * @returns Validated and normalized values
- * @throws Error if unit mismatch detected
+ * @throws Error if unit mismatch detected or ambiguous zone without explicit config
  */
 export function validateAndNormalizeCAInput(
   commitment: number,
   minCashBuffer: number | undefined | null,
-  targetReservePct: number | undefined | null
+  targetReservePct: number | undefined | null,
+  explicitUnits?: ExplicitUnits
 ): CAInputValidation {
-  const unitScale = inferUnitScaleType(commitment);
-  const unitScaleMultiplier = inferUnitScale(commitment);
+  const unitScale = inferUnitScaleType(commitment, explicitUnits);
+  const unitScaleMultiplier = inferUnitScale(commitment, explicitUnits);
 
   // Validate unit consistency
   if (minCashBuffer != null && minCashBuffer !== 0) {
@@ -290,10 +323,10 @@ export function validateAndNormalizeCAInput(
   // Calculate target reserve in same units
   const targetReserve = commitment * (targetReservePct ?? 0);
 
-  // Convert to cents
-  const commitmentCents = Math.round(commitment * unitScaleMultiplier * 100);
-  const minCashBufferCents = Math.round((minCashBuffer ?? 0) * unitScaleMultiplier * 100);
-  const targetReserveCents = Math.round(targetReserve * unitScaleMultiplier * 100);
+  // Convert to cents using banker's rounding per semantic lock Section 4.1
+  const commitmentCents = dollarsToCents(commitment * unitScaleMultiplier);
+  const minCashBufferCents = dollarsToCents((minCashBuffer ?? 0) * unitScaleMultiplier);
+  const targetReserveCents = roundPercentDerivedToCents(targetReserve * unitScaleMultiplier);
 
   return {
     commitmentCents,
