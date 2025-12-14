@@ -7,6 +7,42 @@ citation-backed answers from Gemini. Browser automation, library management,
 persistent auth. Drastically reduced hallucinations through document-only
 responses.
 
+---
+
+## LOCAL Domain Knowledge (Use First!)
+
+**IMPORTANT**: Before querying external NotebookLM, check the LOCAL domain
+knowledge sources in `docs/notebooklm-sources/` (22 files, ~85,000 words).
+
+This directory contains the canonical domain truth for ALL Phoenix validation:
+
+| Category | Location | Content |
+|----------|----------|---------|
+| XIRR | `xirr.md` | XIRR calculation semantics, Excel parity |
+| Waterfall | `waterfall.md` | Carry distribution, clawback logic |
+| Fees | `fees.md` | Management/performance fee standards |
+| Capital | `capital-allocation.md` | Capital deployment policy |
+| Recycling | `exit-recycling.md` | Recycled capital handling |
+| Reserves | `reserves/` (4 files) | ReserveEngine documentation |
+| Pacing | `pacing/` (4 files) | PacingEngine patterns |
+| Cohorts | `cohorts/` (3 files) | CohortEngine analytics |
+| Monte Carlo | `monte-carlo/` (4 files) | Simulation engine |
+
+**Quality**: 91-99% validation scores. Phase 2 COMPLETE (Nov 6, 2025).
+
+**When to use LOCAL sources**:
+- VC fund modeling domain questions
+- Truth case validation
+- Engine implementation guidance
+- Phoenix project work
+
+**When to use EXTERNAL NotebookLM** (below):
+- User-specific notebooks not in repository
+- Real-time queries to Google NotebookLM
+- Content not covered by local sources
+
+---
+
 ## When to Use
 
 Trigger when user:

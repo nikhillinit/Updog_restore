@@ -1,10 +1,29 @@
 # Phoenix Agent & Skill Registry
 
-**Last Updated**: 2025-12-10 **Phoenix Version**: v2.32 **Total Components**: 9
+**Last Updated**: 2025-12-14 **Phoenix Version**: v2.34 **Total Components**: 9
 skills + 9 agents = 18 components
 
 This document catalogs all Phoenix-specific agents and skills for the Updog VC
 fund modeling platform, organized by Phoenix execution phase.
+
+---
+
+## Domain Knowledge Sources (CRITICAL)
+
+**Location**: `docs/notebooklm-sources/` (22 files, ~85,000 words)
+
+All Phoenix agents should reference this canonical domain knowledge for VC fund
+modeling validation. Phase 2 documentation is COMPLETE (Nov 6, 2025).
+
+| Category | Files | Use Case |
+|----------|-------|----------|
+| Phase 1 Deterministic | `xirr.md`, `waterfall.md`, `fees.md`, `capital-allocation.md`, `exit-recycling.md` | Truth case validation |
+| Phase 2 Engines | `reserves/` (4), `pacing/` (4), `cohorts/` (3), `monte-carlo/` (4) | Engine implementation |
+| Summary | `PHASE2-COMPLETE.md` | Phase 2 deliverables overview |
+
+**Quality**: 91-99% validation scores (Phase 1), 95-99% self-validation (Phase 2)
+
+**See Also**: `.claude/skills/notebooklm.md` for querying external NotebookLM notebooks
 
 ---
 
@@ -456,12 +475,15 @@ Task("phoenix-brand-reporting-stylist", "Review MainDashboardV2 branding")
 
 - 2025-12-10: Initial registry (9 skills + 9 agents)
 - Phoenix v2.32: Command enhancements integrated
+- 2025-12-14: v2.34 - Added Domain Knowledge Sources section, NotebookLM cross-reference
 
 **See Also**:
 
-- [PHOENIX-EXECUTION-PLAN-v2.31.md](../PHOENIX-EXECUTION-PLAN-v2.31.md) -
-  Execution plan
-- [docs/phoenix-v2.32-command-enhancements.md](../docs/phoenix-v2.32-command-enhancements.md) -
-  Command recommendations
-- [.claude/specs/truth-case-runner/dev-plan.md](../specs/truth-case-runner/dev-plan.md) -
-  Truth case runner implementation plan
+- [docs/PHOENIX-SOT/execution-plan-v2.34.md](../../docs/PHOENIX-SOT/execution-plan-v2.34.md) -
+  Current execution plan
+- [docs/notebooklm-sources/](../../docs/notebooklm-sources/) - Domain knowledge
+  base (85K words, 22 files)
+- [docs/notebooklm-sources/PHASE2-COMPLETE.md](../../docs/notebooklm-sources/PHASE2-COMPLETE.md) -
+  Phase 2 documentation summary
+- [.claude/skills/notebooklm.md](../skills/notebooklm.md) - External NotebookLM
+  query skill
