@@ -17,6 +17,8 @@
 
 **Revised Verdict**: The external analysis still overestimates (~3-5x too high) but my initial refinement underestimated by ~2x due to incorrect assumption about reusable fund-level primitives. A 60-100 hour estimate (4-6 week sprint) is more realistic.
 
+**Main Risk (v3 insight)**: Not engineering difficulty - **semantic ambiguity** and **determinism** (units/rounding/time boundaries). Phase 0 acceptance gates are the primary risk reducers.
+
 ---
 
 ## Part A: Claims Confirmed by Additional Review
@@ -223,34 +225,118 @@ Final range: 60-100 hours
 
 ## Part E: Revised Recommendation
 
-### CONDITIONAL GO (conditions tightened)
+### CONDITIONAL GO (conditions tightened - v3)
 
-**Pre-conditions before starting**:
+**CRITICAL**: Phase 0 is an **acceptance gate**, not a documentation task. Implementation MUST NOT begin until all gates pass.
 
-1. **Semantic lock (4-6h)**:
-   - [ ] Document `reserve_balance` definition
-   - [ ] Define `rebalance_frequency` trigger semantics
-   - [ ] Decide cohort-absent case handling
-   - [ ] Specify `dynamic_ratio` formula OR defer CA-005 with ADR
+---
 
-2. **Unit normalization contract (2-3h)**:
-   - [ ] Define single unit standard (recommend: raw dollars)
-   - [ ] Create normalizer utility for all monetary fields
-   - [ ] Update truth cases OR build detection heuristic
+### Gate 1: Semantic Lock (Acceptance Gate, 6-8h)
 
-3. **Architecture decision (1h)**:
-   - [ ] Confirm: building new `capital-allocation-engine.ts` (not wrapping existing)
-   - [ ] Document in ADR that reserves-v11 is company-level, not CA source
+The semantic lock is the **primary risk reducer**. CA truth cases encode policy, not just inputs/outputs. They include multiple engines, mixed temporal cadences, explicit rounding behavior (CA-018), capital recalls (CA-019), and recycling semantics (CA-020).
 
-**Success criteria**:
+**Required deliverables in `docs/CA-SEMANTIC-LOCK.md`**:
+
+#### 1.1 Conservation Law (MANDATORY)
+
+Define ONE conserved quantity and reconcile each case against it:
+
+| Conservation Model | Formula | Applies To |
+|-------------------|---------|------------|
+| Cash ledger | `beginning_cash + net_flows - allocations = ending_reserve_balance` | CA-001 to CA-006 |
+| Commitment capacity | `commitment = reserved_capacity + allocable_capacity + deployed` | CA-007 to CA-012 |
+| Hybrid | `reserve_balance` is cash, `allocations_by_cohort` is planned capacity | TBD |
+
+**Gate requirement**: Explicitly state which fields are **cash** vs **plan/capacity** vs **cumulative**. Without this, implementation becomes "fit code to 20 unrelated outputs."
+
+#### 1.2 Period Boundary Rules
+
+- [ ] Are period snapshots taken at period end (e.g., 03/31) or last event date?
+- [ ] Are flows applied before or after rebalance within a period?
+- [ ] What triggers a rebalance: calendar date, event, or threshold?
+
+#### 1.3 Semantic Definitions
+
+- [ ] `reserve_balance`: Cash-on-hand OR reserved commitment capacity?
+- [ ] `rebalance_frequency`: Event trigger semantics
+- [ ] Cohort-absent handling (CA-001 style vs CA-007+ style)
+- [ ] `dynamic_ratio` formula (CA-005): Fully specify OR defer with skip gate
+
+---
+
+### Gate 2: Determinism Contract (Acceptance Gate, 3-4h)
+
+CA-018 explicitly requires rounding/tie-break determinism. CA-015 requires deterministic cohort cap spill behavior.
+
+**Required deliverables**:
+
+#### 2.1 Rounding Rules
+
+- [ ] Rounding method: Bankers (round-half-even) vs half-up
+- [ ] Precision: Integer cents vs 2-decimal dollars vs 4-decimal
+- [ ] Align with existing `Decimal.js` contract in runner
+
+#### 2.2 Allocation Algorithm
+
+- [ ] Remainder allocation rule (e.g., largest remainder method)
+- [ ] Tie-break rule (e.g., stable sort by cohort name/index)
+- [ ] Spill-over ordering when cohort cap exceeded
+
+**Gate requirement**: Single deterministic algorithm documented. No "it passes locally but fails in CI" allowed.
+
+---
+
+### Gate 3: Unit Contract (Acceptance Gate, 2-3h)
+
+Truth cases mix scales: `commitment: 100` (implied millions) vs `commitment: 100000000` (raw dollars). ALL monetary fields have this variance.
+
+**Required deliverables** (choose one, in order of robustness):
+
+| Option | Approach | Robustness |
+|--------|----------|------------|
+| A (best) | Standardize truth cases to raw dollars | HIGH - breaking change but cleanest |
+| B | Add explicit `unit`/`currencyScale` field to schema | HIGH - schema change |
+| C (minimum) | Infer from commitment, apply to ALL fields, log inconsistencies | MEDIUM - requires violation trap |
+
+**Gate requirement**: Document canonical internal representation (integer cents recommended) and how inference works. Include "truth case inconsistent" violation handling.
+
+---
+
+### Gate 4: Architecture Decision (1h)
+
+- [ ] ADR confirming new `capital-allocation-engine.ts` (not wrapping existing)
+- [ ] ADR documenting that `reserves-v11` is company-level, not CA source
+
+---
+
+### Implementation Approach: Case-First, Not Adapter-First
+
+**CRITICAL CHANGE**: Do NOT build a big adapter skeleton first.
+
+**Correct sequence**:
+1. Lock semantics for CA-002/003/004/006 (simplest reserve cases)
+2. Build smallest engine surface that satisfies those 4 cases
+3. Only then build adapter to translate JSON to engine calls
+4. Unskip CA execution in runner only when reserve_engine passes consistently
+5. Expand to pacing_engine, cohort_engine, integration
+
+**Rationale**: "Big adapter skeleton + debug everything" kills feasibility. "Prove semantics with 1-2 cases, then expand" is robust.
+
+---
+
+### Success Criteria
+
 - 18/20 CA cases passing (allow CA-005 deferral + 1 edge case)
 - No regressions in existing test suites
 - New engine has >80% test coverage
+- All four gates documented and reviewed before Phase 1 begins
 
-**Exit criteria (when to pause)**:
-- If reserve_engine adapter exceeds 25h → reassess remaining scope
-- If >3 cases require undefined policies → pause for spec work
-- If integration (CA-020) reveals missing dependencies → scope cut
+### Exit Criteria (when to pause)
+
+- If reserve_engine (4 core cases) exceeds 15h → semantic lock incomplete
+- If >2 cases fail due to undocumented semantics → return to Gate 1
+- If determinism issues (flaky tests) → return to Gate 2
+- If unit inconsistencies cause failures → return to Gate 3
 
 ---
 
@@ -268,42 +354,100 @@ Final range: 60-100 hours
 
 ---
 
-## Part G: Recommended Plan (Revised)
+## Part G: Recommended Plan (Revised - Case-First Approach)
 
-### Phase 0: Foundation (8-10h)
+### Phase 0: Acceptance Gates (12-16h) - BLOCKING
 
-**Week 0: Pre-flight**
-- Task 1: Semantic lock document (4-6h)
-- Task 2: Unit normalization utility + contract (2-3h)
-- Task 3: Architecture decision ADR (1h)
+**MUST COMPLETE BEFORE ANY IMPLEMENTATION**
 
-### Phase 1: Reserve Engine (20-30h)
+| Gate | Deliverable | Time | Status |
+|------|-------------|------|--------|
+| Gate 1 | `docs/CA-SEMANTIC-LOCK.md` with conservation law, period rules, definitions | 6-8h | [ ] |
+| Gate 2 | Determinism contract (rounding, allocation algorithm, tie-break) | 3-4h | [ ] |
+| Gate 3 | Unit contract (canonical representation, inference rules, violation trap) | 2-3h | [ ] |
+| Gate 4 | Architecture ADR (new engine, reserves-v11 exclusion) | 1h | [ ] |
 
-**Week 1-2: reserve_engine adapter + calculations**
-- Task 4: CA adapter skeleton (following ER pattern, adjusted for deeper schema)
-- Task 5: New `capital-allocation-engine.ts` for reserve calculations
-- Task 6: Implement CA-001 through CA-006 (6 cases)
-- Task 7: Implement CA-013 (reserve edge case)
+**Gate review**: All four documents reviewed before Phase 1 begins. If any gate incomplete, do not proceed.
 
-### Phase 2: Pacing Engine (20-30h)
+---
 
-**Week 2-3: pacing_engine adapter + calculations**
-- Task 8: Time-series output schema handling
-- Task 9: Pacing calculation logic
-- Task 10: Implement CA-007 through CA-012 (6 cases)
+### Phase 1: Prove Semantics with Core Cases (15-20h)
 
-### Phase 3: Cohort Engine (15-20h)
+**Objective**: Validate semantic lock with 4 simplest cases before building full adapter.
 
-**Week 3-4: cohort_engine adapter + calculations**
-- Task 11: Cohort lifecycle state machine
-- Task 12: Implement CA-014 through CA-019 (6 cases)
+**Week 1: Minimal viable engine**
 
-### Phase 4: Integration + Polish (5-10h)
+| Task | Description | Cases | Gate Check |
+|------|-------------|-------|------------|
+| 1.1 | Create minimal `capital-allocation-engine.ts` with reserve calculation | - | Architecture |
+| 1.2 | Implement CA-002 (underfunded reserve) | CA-002 | Conservation |
+| 1.3 | Implement CA-003 (distribution reduces balance) | CA-003 | Conservation |
+| 1.4 | Implement CA-004 (buffer breach) | CA-004 | Period rules |
+| 1.5 | Implement CA-006 (multiple cohorts) | CA-006 | Determinism |
 
-**Week 4: Integration and validation**
-- Task 13: Implement CA-020 (integration case)
-- Task 14: Runner integration (copy ER pattern)
-- Task 15: Full suite validation and debugging
+**Checkpoint**: 4/4 core cases passing with deterministic results. If not, return to Phase 0.
+
+---
+
+### Phase 2: Reserve Engine Completion (10-15h)
+
+**Week 1-2: Expand reserve_engine coverage**
+
+| Task | Description | Cases |
+|------|-------------|-------|
+| 2.1 | Build CA adapter skeleton (only after Phase 1 proves semantics) | - |
+| 2.2 | Implement CA-001 (baseline static reserve) | CA-001 |
+| 2.3 | Implement CA-005 OR defer with skip gate | CA-005 (dynamic_ratio) |
+| 2.4 | Implement CA-013 (reserve edge case) | CA-013 |
+| 2.5 | Unskip reserve_engine in runner | - |
+
+**Checkpoint**: 7/7 reserve_engine cases passing (or 6/7 with CA-005 deferred).
+
+---
+
+### Phase 3: Pacing Engine (20-25h)
+
+**Week 2-3: Time-series output handling**
+
+| Task | Description | Cases |
+|------|-------------|-------|
+| 3.1 | Extend engine for time-series outputs (`reserve_balance_over_time[]`) | - |
+| 3.2 | Implement pacing target calculation | - |
+| 3.3 | Implement CA-007 through CA-012 | CA-007 to CA-012 |
+| 3.4 | Validate unit normalization across large-number cases | - |
+
+**Checkpoint**: 13/13 cases passing (reserve + pacing).
+
+---
+
+### Phase 4: Cohort Engine (15-20h)
+
+**Week 3-4: Cohort lifecycle and determinism**
+
+| Task | Description | Cases |
+|------|-------------|-------|
+| 4.1 | Implement cohort lifecycle state machine | - |
+| 4.2 | Implement CA-014, CA-015 (cohort caps, spill behavior) | CA-014, CA-015 |
+| 4.3 | Implement CA-016, CA-017 (lifecycle transitions) | CA-016, CA-017 |
+| 4.4 | Implement CA-018 (rounding/tie-break - determinism critical) | CA-018 |
+| 4.5 | Implement CA-019 (capital recall / negative distributions) | CA-019 |
+
+**Checkpoint**: 19/19 cases passing (reserve + pacing + cohort).
+
+---
+
+### Phase 5: Integration + Validation (5-8h)
+
+**Week 4: Final integration**
+
+| Task | Description | Cases |
+|------|-------------|-------|
+| 5.1 | Implement CA-020 (integration with recycling semantics) | CA-020 |
+| 5.2 | Full suite validation | All 20 |
+| 5.3 | Regression check against existing modules | - |
+| 5.4 | Documentation and cleanup | - |
+
+**Final checkpoint**: 18-20/20 cases passing. `/deploy-check` green.
 
 ---
 
@@ -331,6 +475,14 @@ The external analysis's 340-500h estimate remains too pessimistic (~3-5x high), 
 3. Incomplete unit normalization scope
 4. Mixing effort-hours with calendar time
 
-**Final recommendation**: CONDITIONAL GO with 60-100 hour budget (4-6 weeks). The conditions are tightened to require semantic lock and architecture decisions before coding begins.
+**v3 Improvements** (based on robustness review):
 
-Neither 8-12h nor 340-500h reflects reality. 60-100h is the evidence-based middle ground.
+5. Phase 0 elevated from "documentation task" to **acceptance gate**
+6. Added **conservation law** requirement (cash vs capacity vs hybrid)
+7. Added **determinism contract** (rounding, allocation algorithm, tie-break)
+8. Changed from **adapter-first** to **case-first** implementation approach
+9. Added explicit **gate-return checkpoints** (if 4 core cases fail → return to Phase 0)
+
+**Final recommendation**: CONDITIONAL GO with 60-100 hour budget (4-6 weeks). The conditions are hardened: four acceptance gates must pass before any implementation begins. The main risk is not engineering difficulty but **semantic ambiguity**.
+
+Neither 8-12h nor 340-500h reflects reality. 60-100h is the evidence-based middle ground, **contingent on Phase 0 producing a crisp spec**.
