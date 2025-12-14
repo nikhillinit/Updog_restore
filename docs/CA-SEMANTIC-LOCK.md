@@ -24,6 +24,60 @@
 4. **Audit + planning** - Cash component reconciles to bank statements (auditor-friendly); capacity component integrates with pacing engine
 5. **Existing code alignment** - reserves-v11.ts patterns for cash; fund-calc.ts patterns for capacity
 
+### 1.1.0 Hybrid Model: What Exactly Is Conserved? (CRITICAL)
+
+**Two separate conservation identities must hold:**
+
+#### Cash Ledger Identity (Always)
+
+```
+ending_cash = starting_cash + sum(contributions) - sum(distributions) - sum(deployed_cash)
+```
+
+Where:
+- `starting_cash`: Cash on hand at period start (or 0 for fund inception)
+- `contributions`: LP capital calls received (actual cash in)
+- `distributions`: LP distributions paid (actual cash out)
+- `deployed_cash`: Cash sent to portfolio companies (actual investment outflows)
+- `ending_cash`: Maps to `reserve_balance` in output
+
+**CRITICAL**: Planned allocations (`allocations_by_cohort`) do NOT appear in this equation. Only actual cash movements affect `reserve_balance`.
+
+#### Capacity Planning Identity (Separately)
+
+```
+commitment = sum(allocations_by_cohort) + remaining_capacity
+```
+
+Where:
+- `commitment`: Total fund commitment from LPA (ceiling, not cash)
+- `allocations_by_cohort`: Planned capacity earmarked for each vintage/cohort
+- `remaining_capacity`: Unallocated commitment available for future planning
+
+**CRITICAL**: This identity is about **planning against commitment**, not cash movement. A cohort can have $10M allocated (planned) but $0 deployed (no cash moved yet).
+
+#### Mapping Rule: What Drives the Capacity Plan?
+
+**DECISION**: [x] Commitment-driven planning
+
+The capacity plan (`allocations_by_cohort`) is driven by **commitment budget**, not called capital:
+- GPs plan deployment against total fund size ($100M commitment)
+- Actual cash available (`reserve_balance`) may be less than planned allocations
+- This is intentional: you can plan to deploy $20M to Cohort 2024 even if you've only called $15M
+
+**Constraint**: `sum(deployed_cash)` for a cohort cannot exceed `allocations_by_cohort` for that cohort (can't deploy more than planned).
+
+#### Event Type Separation
+
+| Event Type | Affects Cash Ledger? | Affects Capacity Plan? | Example |
+|------------|---------------------|------------------------|---------|
+| Contribution | Yes (+cash) | No | LP wires $5M capital call |
+| Distribution | Yes (-cash) | No | Fund distributes $2M to LPs |
+| Plan allocation | No | Yes (+allocated) | Earmark $10M for 2024 cohort |
+| Cash deployment | Yes (-cash) | Yes (type='deployed') | Invest $1M in portfolio company |
+
+**CRITICAL**: "Contributions first" ordering only applies to the **cash ledger**. Planned allocations have no ordering constraint because they don't move cash.
+
 ### 1.1.1 Term Definitions (MANDATORY)
 
 **CRITICAL**: These definitions are referenced by invariants and tests. Ambiguity here propagates everywhere.
@@ -276,10 +330,12 @@ describe('Timezone Determinism', () => {
 
 | Rule | Decision | Example |
 |------|----------|---------|
-| Period bounds | [ ] `[start, end]` inclusive / [ ] `[start, end)` exclusive | Q1 = Jan 1 to Mar 31 vs Jan 1 to Apr 1 |
-| Quarterly definition | [ ] Calendar quarters / [ ] Rolling 3-month | Q1 = Jan-Mar vs "3 months from start" |
-| Period start time | [ ] 00:00:00.000Z (UTC) / [ ] Other | Consistent with fund-calc.ts |
-| Period end time | [ ] 23:59:59.999Z (UTC) / [ ] 00:00:00.000Z next day | Consistent with fund-calc.ts |
+| Period bounds | [x] `[start, end]` inclusive | Q1 = Jan 1 to Mar 31 (both inclusive) |
+| Quarterly definition | [x] Calendar quarters | Q1 = Jan-Mar, Q2 = Apr-Jun, Q3 = Jul-Sep, Q4 = Oct-Dec |
+| Period start time | [x] 00:00:00.000Z (UTC) | Captures all activity on start date |
+| Period end time | [x] 23:59:59.999Z (UTC) | Mar 31 at any time = Q1 |
+
+**Rationale**: Matches LPA language ("through March 31"), fund admin conventions, LP reporting cadence, and auditor expectations.
 
 ### 2.2 Boundary Date Assignment
 
@@ -287,22 +343,26 @@ When a flow occurs on a period boundary date:
 
 | Scenario | Decision |
 |----------|----------|
-| Flow on period end date | [ ] Belongs to ending period / [ ] Belongs to next period |
-| Flow on period start date | [ ] Belongs to starting period / [ ] Belongs to previous period |
-| Multiple flows same date | Processing order: [ ] Contributions first / [ ] Distributions first / [ ] Chronological by timestamp / [ ] Stable sort by ID |
+| Flow on period end date | [x] Belongs to ending period (Mar 31 call = Q1) |
+| Flow on period start date | [x] Belongs to starting period (Apr 1 call = Q2) |
+| Multiple flows same date | [x] Contributions first, then distributions (cash in before cash out) |
+
+**Rationale**: Matches capital call notice date convention. Contributions first prevents negative interim balances and matches fund admin practice.
 
 ### 2.3 Rebalance Trigger
 
 | Trigger Type | Decision |
 |--------------|----------|
-| Calendar-based | [ ] Every period end / [ ] Specific dates |
-| Event-based | [ ] After each flow / [ ] After net flow exceeds threshold |
-| Hybrid | [ ] Calendar + event |
+| Calendar-based | [x] Every period end |
+| Event-based | Not required (low transaction volume for emerging managers) |
+| Hybrid | Future enhancement if needed |
+
+**Rationale**: Calendar-based matches LP reporting cadence, provides clean audit trail. Emerging managers typically have 2-4 capital calls/year, making event-based triggers unnecessary complexity.
 
 **rebalance_frequency mapping**:
-- `"quarterly"`: _[Define exact behavior]_
-- `"monthly"`: _[Define exact behavior]_
-- `"annual"`: _[Define exact behavior]_
+- `"quarterly"`: Recalculate at end of each calendar quarter (Mar 31, Jun 30, Sep 30, Dec 31)
+- `"monthly"`: Recalculate at end of each calendar month
+- `"annual"`: Recalculate at fund fiscal year end only
 
 ---
 
@@ -310,9 +370,26 @@ When a flow occurs on a period boundary date:
 
 ### 3.1 Canonical Internal Representation
 
-**DECISION**: [ ] Integer cents / [ ] Decimal dollars (2 places) / [ ] Decimal dollars (4 places)
+**DECISION**: [x] Integer cents (JS safe integer) / [ ] Decimal dollars (2 places) / [ ] Decimal dollars (4 places)
 
-**Rationale**: Integer cents recommended for determinism (matches reserves-v11 pattern)
+**Rationale**: Integer cents selected for determinism (matches reserves-v11 pattern).
+
+**Technical Note**: JavaScript `number` is IEEE 754 double, not true int64. Max safe integer is `Number.MAX_SAFE_INTEGER` (2^53 - 1 ≈ $90 quadrillion in cents). This is sufficient for all fund sizes.
+
+**Implementation requirement**:
+```typescript
+function toCents(dollars: number): number {
+  const cents = Math.round(dollars * 100);
+  if (!Number.isSafeInteger(cents)) {
+    throw new Error(`Value ${dollars} exceeds safe integer range when converted to cents`);
+  }
+  return cents;
+}
+```
+
+**Weights representation**: Use basis points (bps, 1e4 scale) for deterministic integer math:
+- 33.33% = 3333 bps
+- Allocation: `Math.floor(totalCents * weightBps / 10000)` + largest remainder distribution
 
 ### 3.2 Field-by-Field Specification
 
@@ -427,7 +504,19 @@ it('detects unit inconsistency between commitment and other fields', () => {
 
 If a truth case has inconsistent scales (e.g., commitment in $M but buffer in raw dollars):
 
-**DECISION**: [ ] Fail with error (recommended) / [ ] Warn and proceed / [ ] Auto-correct with log
+**DECISION**: [x] Fail with error / [ ] Warn and proceed / [ ] Auto-correct with log
+
+**Rationale**: Fail-fast prevents silent data corruption. Clear error message guides user to fix input. Audit trail remains clean.
+
+**Error message format**:
+```
+Million-scale mismatch detected:
+  commitment=100 (ratio to self: 1.00)
+  min_cash_buffer=5000000 (ratio to commitment: 50000.00)
+  Ratio difference: 50000× exceeds threshold 1000×
+
+Fix: Ensure all monetary fields use the same unit scale (either $M or raw dollars).
+```
 
 ---
 
