@@ -16,6 +16,7 @@ import {
   inferUnitScaleType,
   toCentsWithInference,
   fromCentsWithInference,
+  fromCentsWithCommitmentInference,
   fromCentsWithScale,
   detectUnitMismatch,
   validateUnitConsistency,
@@ -114,15 +115,23 @@ describe('Unit Inference and Mismatch Detection', () => {
     });
   });
 
-  describe('fromCentsWithInference (deprecated)', () => {
+  describe('fromCentsWithCommitmentInference (deprecated)', () => {
     it('converts cents back to $M using commitment-based inference', () => {
       // Uses commitment=100 to infer MILLION scale
+      expect(fromCentsWithCommitmentInference(500_000_000, 100)).toBe(5);
+      // Alias also works
       expect(fromCentsWithInference(500_000_000, 100)).toBe(5);
     });
 
     it('converts cents back to raw dollars using commitment-based inference', () => {
       // Uses commitment=100,000,000 to infer scale=1
-      expect(fromCentsWithInference(500_000_000, 100_000_000)).toBe(5_000_000);
+      expect(fromCentsWithCommitmentInference(500_000_000, 100_000_000)).toBe(5_000_000);
+    });
+
+    it('supports explicit units in ambiguous zone', () => {
+      // commitment=50,000 is in ambiguous zone, but explicit units resolve it
+      expect(fromCentsWithCommitmentInference(500_000_000, 50_000, 'millions')).toBe(5);
+      expect(fromCentsWithCommitmentInference(500_000_000, 50_000, 'raw')).toBe(5_000_000);
     });
   });
 
@@ -174,6 +183,16 @@ describe('Unit Inference and Mismatch Detection', () => {
 
     it('handles order independence', () => {
       expect(detectUnitMismatch(1, 1_000_000)).toBe(detectUnitMismatch(1_000_000, 1));
+    });
+
+    it('handles negative values correctly (for recalls)', () => {
+      // Negative values should be compared by absolute value
+      expect(detectUnitMismatch(-100, 50)).toBe(false);
+      expect(detectUnitMismatch(100, -50)).toBe(false);
+      expect(detectUnitMismatch(-100, -50)).toBe(false);
+      // Large mismatch should still be detected with negatives
+      expect(detectUnitMismatch(-100, 100_000_000)).toBe(true);
+      expect(detectUnitMismatch(100, -100_000_000)).toBe(true);
     });
   });
 

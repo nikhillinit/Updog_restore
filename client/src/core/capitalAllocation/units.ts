@@ -98,7 +98,7 @@ export function inferUnitScale(
   // 3. Ambiguous zone (1K - 10M): FAIL-FAST
   // Example: commitment = 50,000 could be $50K raw or $50B in millions
   throw new Error(
-    `Commitment ${commitment.toLocaleString()} falls in ambiguous range (1K - 10M). ` +
+    `Commitment ${commitment} falls in ambiguous range (${SCALE_MILLIONS_THRESHOLD} - ${SCALE_RAW_THRESHOLD}). ` +
     `Unable to determine if this is raw dollars or millions. ` +
     `Provide explicit 'units: "millions" | "raw"' in fund configuration to disambiguate.`
   );
@@ -136,8 +136,8 @@ export function inferUnitScaleType(
 
   // Ambiguous zone - fail fast
   throw new Error(
-    `Commitment ${commitment.toLocaleString()} falls in ambiguous range ` +
-    `(${SCALE_MILLIONS_THRESHOLD.toLocaleString()} - ${SCALE_RAW_THRESHOLD.toLocaleString()}). ` +
+    `Commitment ${commitment} falls in ambiguous range ` +
+    `(${SCALE_MILLIONS_THRESHOLD} - ${SCALE_RAW_THRESHOLD}). ` +
     `Please specify explicit units: 'millions' or 'raw'.`
   );
 }
@@ -172,9 +172,10 @@ export function validateSanityCap(
   scale: number
 ): void {
   if (cents > SANITY_CAP_CENTS) {
+    const dollars = cents / 100;
     throw new Error(
       `${fieldName} exceeds $1 Trillion sanity cap. ` +
-      `Input: ${inputValue}, Scale: ${scale}x, Result: $${(cents / 100).toLocaleString()}. ` +
+      `Input: ${inputValue}, Scale: ${scale}x, Result: $${dollars}. ` +
       `Check input units - you may have applied millions scale to a raw dollar value.`
     );
   }
@@ -192,33 +193,52 @@ export function fromCentsWithScale(cents: number, unitScale: number): number {
 }
 
 /**
- * Convert cents back to original units (legacy wrapper).
+ * Convert cents back to original units using commitment-based inference.
  *
- * @deprecated Use fromCentsWithScale with explicit unitScale to avoid re-inference bugs
+ * WARNING: This function RE-INFERS the scale from commitment, which can cause
+ * bugs if the caller passes a unitScale instead of a commitment value.
+ *
+ * @deprecated Use fromCentsWithScale with explicit unitScale to avoid re-inference bugs.
+ *             This function is kept only for backwards compatibility.
  * @param cents - Value in cents
- * @param commitmentForScale - Commitment value to infer scale from
+ * @param commitmentForScale - Commitment value (NOT unitScale!) to infer scale from
  * @returns Value in original units ($M or $)
  */
-export function fromCentsWithInference(cents: number, commitmentForScale: number): number {
-  const scale = inferUnitScale(commitmentForScale);
-  return cents / (scale * 100);
+export function fromCentsWithCommitmentInference(
+  cents: number,
+  commitmentForScale: number,
+  explicitUnits?: ExplicitUnits
+): number {
+  const scale = inferUnitScale(commitmentForScale, explicitUnits);
+  return fromCentsWithScale(cents, scale);
 }
+
+/**
+ * @deprecated Alias for fromCentsWithCommitmentInference. Use fromCentsWithScale instead.
+ */
+export const fromCentsWithInference = fromCentsWithCommitmentInference;
 
 /**
  * Check if two values appear to be in mismatched units.
  * Uses ratio-based detection (not absolute difference).
  *
- * @param value1 - First value
- * @param value2 - Second value
+ * Handles negative values correctly (e.g., recall flows) by using absolute values.
+ *
+ * @param value1 - First value (can be negative)
+ * @param value2 - Second value (can be negative)
  * @returns true if values appear to be in different units
  */
 export function detectUnitMismatch(value1: number, value2: number): boolean {
+  // Use absolute values to handle negative flows (recalls, etc.)
+  const a = Math.abs(value1);
+  const b = Math.abs(value2);
+
   // Handle zero/near-zero cases
-  if (value1 === 0 || value2 === 0) {
+  if (a === 0 || b === 0) {
     return false; // Can't detect mismatch with zero
   }
 
-  const ratio = Math.max(value1, value2) / Math.min(value1, value2);
+  const ratio = Math.max(a, b) / Math.min(a, b);
   return ratio > MISMATCH_RATIO_THRESHOLD;
 }
 
@@ -325,8 +345,16 @@ export function validateAndNormalizeCAInput(
 
   // Convert to cents using banker's rounding per semantic lock Section 4.1
   const commitmentCents = dollarsToCents(commitment * unitScaleMultiplier);
+  validateSanityCap(commitmentCents, 'commitment', commitment, unitScaleMultiplier);
+
   const minCashBufferCents = dollarsToCents((minCashBuffer ?? 0) * unitScaleMultiplier);
+  if (minCashBuffer != null && minCashBuffer !== 0) {
+    validateSanityCap(minCashBufferCents, 'minCashBuffer', minCashBuffer, unitScaleMultiplier);
+  }
+
   const targetReserveCents = roundPercentDerivedToCents(targetReserve * unitScaleMultiplier);
+  // Target reserve derives from commitment, so if commitment passed sanity check,
+  // target reserve (a percentage of it) will also pass - no need to double-check
 
   return {
     commitmentCents,
