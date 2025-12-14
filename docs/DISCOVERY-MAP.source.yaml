@@ -22,6 +22,12 @@ configuration:
     - "docs/*.md"         # Top-level docs/ files (INDEX.md, etc.)
     - "docs/**/*.md"      # Nested docs/ subdirectories
     - "docs/notebooklm-sources/**/*.md"  # Domain knowledge truth sources
+    - "docs/adr/*.md"     # Architecture Decision Records
+    - "docs/runbooks/*.md"        # Operational runbooks
+    - "docs/observability/*.md"   # Metrics and monitoring
+    - "docs/chaos-engineering/*.md"  # Chaos testing
+    - "docs/wizard/*.md"          # Wizard implementation
+    - "docs/forecasting/*.md"     # Monte Carlo, power law
     - "cheatsheets/**/*.md"
     - ".claude/agents/*.md"
     - ".claude/skills/**/*.md"
@@ -261,6 +267,32 @@ patterns:
     target: "docs/notebooklm-sources/"
     message: "Phase 2 engine documentation (complete Nov 6, 2025)"
 
+  # --- ADRs (Additional Architecture Decisions) ---
+  - id: "adr_directory"
+    priority: 18
+    category: "Architecture"
+    keywords:
+      - "adr"
+      - "architecture decision"
+      - "mem0"
+      - "stage normalization"
+      - "token budgeting"
+      - "streaming"
+    target: "docs/adr/"
+    message: "12 ADRs: Monte Carlo validation, mem0 integration, stage normalization, etc."
+
+  # --- Truth Case Schemas ---
+  - id: "truth_schemas"
+    priority: 19
+    category: "Phoenix"
+    keywords:
+      - "schema"
+      - "json schema"
+      - "truth case schema"
+      - "validation schema"
+    target: "docs/schemas/"
+    message: "5 JSON schemas for truth case validation (XIRR, waterfall, fees, capital, recycling)"
+
   # --- Core Capabilities ---
   - id: "capabilities"
     priority: 20
@@ -438,9 +470,91 @@ patterns:
     target: ".claude/agents/docs-architect.md"
     agent: "docs-architect"
 
+  # --- Runbooks (Operational) ---
+  - id: "runbooks"
+    priority: 91
+    category: "Operations"
+    keywords:
+      - "runbook"
+      - "incident"
+      - "rollback"
+      - "canary"
+      - "blue green"
+      - "disaster recovery"
+      - "dr"
+    target: "docs/runbooks/"
+    message: "10 runbooks: incident response, rollback, canary, blue-green, DR"
+
+  # --- Observability ---
+  - id: "observability"
+    priority: 92
+    category: "Operations"
+    keywords:
+      - "metrics"
+      - "prometheus"
+      - "grafana"
+      - "monitoring"
+      - "alerting"
+      - "dashboard"
+      - "kpi"
+    target: "docs/observability/"
+    message: "AI metrics, Prometheus, Grafana dashboards, business KPIs"
+
+  # --- Chaos Engineering ---
+  - id: "chaos_engineering"
+    priority: 93
+    category: "Testing"
+    keywords:
+      - "chaos"
+      - "chaos engineering"
+      - "rls testing"
+      - "game day"
+      - "failure injection"
+    target: "docs/chaos-engineering/"
+    message: "RLS chaos testing, game day runbooks, monitoring specs"
+
+  # --- Quality Gates ---
+  - id: "quality_gates"
+    priority: 94
+    category: "Quality"
+    keywords:
+      - "gate"
+      - "quality gate"
+      - "raci"
+      - "gate tracking"
+      - "approval"
+    target: "docs/gates/"
+    message: "RACI matrix, gate tracking for releases"
+
+  # --- Wizard Implementation ---
+  - id: "wizard"
+    priority: 95
+    category: "Implementation"
+    keywords:
+      - "wizard"
+      - "modeling wizard"
+      - "xstate"
+      - "state machine"
+      - "wizard step"
+    target: "docs/wizard/"
+    secondary: "docs/plans/xstate-persistence-implementation.md"
+    message: "Wizard implementation, XState persistence plan (ADR-016)"
+
+  # --- Forecasting ---
+  - id: "forecasting"
+    priority: 96
+    category: "Phoenix"
+    keywords:
+      - "forecasting"
+      - "power law"
+      - "calibration"
+      - "streaming monte carlo"
+    target: "docs/forecasting/"
+    message: "Power law implementation, Monte Carlo calibration guide"
+
   # --- Troubleshooting (fallback) ---
   - id: "troubleshooting"
-    priority: 90
+    priority: 100
     category: "Troubleshooting"
     keywords:
       - "error"

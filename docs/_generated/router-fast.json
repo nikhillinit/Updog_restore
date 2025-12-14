@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "generatedAt": "2025-12-14T01:43:43.339Z",
+  "generatedAt": "2025-12-14T01:56:54.843Z",
   "scoring": {
     "generic_terms": [
       "test",
@@ -213,6 +213,46 @@
       ],
       "route_to": "docs/notebooklm-sources/",
       "why": "Phoenix routing (priority 17)"
+    },
+    {
+      "id": "adr_directory",
+      "priority": 18,
+      "match_any": [
+        "adr",
+        "architecture decision",
+        "mem0",
+        "stage normalization",
+        "token budgeting",
+        "streaming"
+      ],
+      "match_any_normalized": [
+        "adr",
+        "architecture decision",
+        "mem0",
+        "stage normalization",
+        "token budgeting",
+        "streaming"
+      ],
+      "route_to": "docs/adr/",
+      "why": "Architecture routing (priority 18)"
+    },
+    {
+      "id": "truth_schemas",
+      "priority": 19,
+      "match_any": [
+        "schema",
+        "json schema",
+        "truth case schema",
+        "validation schema"
+      ],
+      "match_any_normalized": [
+        "schema",
+        "json schema",
+        "truth case schema",
+        "validation schema"
+      ],
+      "route_to": "docs/schemas/",
+      "why": "Phoenix routing (priority 19)"
     },
     {
       "id": "capabilities",
@@ -503,8 +543,134 @@
       "agent": "docs-architect"
     },
     {
+      "id": "runbooks",
+      "priority": 91,
+      "match_any": [
+        "runbook",
+        "incident",
+        "rollback",
+        "canary",
+        "blue green",
+        "disaster recovery",
+        "dr"
+      ],
+      "match_any_normalized": [
+        "runbook",
+        "incident",
+        "rollback",
+        "canary",
+        "blue green",
+        "disaster recovery",
+        "dr"
+      ],
+      "route_to": "docs/runbooks/",
+      "why": "Operations routing (priority 91)"
+    },
+    {
+      "id": "observability",
+      "priority": 92,
+      "match_any": [
+        "metrics",
+        "prometheus",
+        "grafana",
+        "monitoring",
+        "alerting",
+        "dashboard",
+        "kpi"
+      ],
+      "match_any_normalized": [
+        "metrics",
+        "prometheus",
+        "grafana",
+        "monitoring",
+        "alerting",
+        "dashboard",
+        "kpi"
+      ],
+      "route_to": "docs/observability/",
+      "why": "Operations routing (priority 92)"
+    },
+    {
+      "id": "chaos_engineering",
+      "priority": 93,
+      "match_any": [
+        "chaos",
+        "chaos engineering",
+        "rls testing",
+        "game day",
+        "failure injection"
+      ],
+      "match_any_normalized": [
+        "chaos",
+        "chaos engineering",
+        "rls testing",
+        "game day",
+        "failure injection"
+      ],
+      "route_to": "docs/chaos-engineering/",
+      "why": "Testing routing (priority 93)"
+    },
+    {
+      "id": "quality_gates",
+      "priority": 94,
+      "match_any": [
+        "gate",
+        "quality gate",
+        "raci",
+        "gate tracking",
+        "approval"
+      ],
+      "match_any_normalized": [
+        "gate",
+        "quality gate",
+        "raci",
+        "gate tracking",
+        "approval"
+      ],
+      "route_to": "docs/gates/",
+      "why": "Quality routing (priority 94)"
+    },
+    {
+      "id": "wizard",
+      "priority": 95,
+      "match_any": [
+        "wizard",
+        "modeling wizard",
+        "xstate",
+        "state machine",
+        "wizard step"
+      ],
+      "match_any_normalized": [
+        "wizard",
+        "modeling wizard",
+        "xstate",
+        "state machine",
+        "wizard step"
+      ],
+      "route_to": "docs/wizard/",
+      "why": "Implementation routing (priority 95)"
+    },
+    {
+      "id": "forecasting",
+      "priority": 96,
+      "match_any": [
+        "forecasting",
+        "power law",
+        "calibration",
+        "streaming monte carlo"
+      ],
+      "match_any_normalized": [
+        "forecasting",
+        "power law",
+        "calibration",
+        "streaming monte carlo"
+      ],
+      "route_to": "docs/forecasting/",
+      "why": "Phoenix routing (priority 96)"
+    },
+    {
       "id": "troubleshooting",
-      "priority": 90,
+      "priority": 100,
       "match_any": [
         "error",
         "broken",
@@ -520,7 +686,7 @@
         "not working"
       ],
       "route_to": "SIDECAR_GUIDE.md",
-      "why": "Troubleshooting routing (priority 90)"
+      "why": "Troubleshooting routing (priority 100)"
     }
   ],
   "keyword_to_docs": {
@@ -680,6 +846,37 @@
     "cohorts": [
       "docs/notebooklm-sources/"
     ],
+    "adr": [
+      "docs/adr/"
+    ],
+    "architecture decision": [
+      "docs/adr/"
+    ],
+    "mem0": [
+      "docs/adr/"
+    ],
+    "stage normalization": [
+      "docs/adr/"
+    ],
+    "token budgeting": [
+      "docs/adr/"
+    ],
+    "streaming": [
+      "docs/adr/"
+    ],
+    "schema": [
+      "docs/schemas/",
+      "SIDECAR_GUIDE.md"
+    ],
+    "json schema": [
+      "docs/schemas/"
+    ],
+    "truth case schema": [
+      "docs/schemas/"
+    ],
+    "validation schema": [
+      "docs/schemas/"
+    ],
     "capability": [
       "CAPABILITIES.md"
     ],
@@ -759,9 +956,6 @@
       "SIDECAR_GUIDE.md"
     ],
     "migration": [
-      "SIDECAR_GUIDE.md"
-    ],
-    "schema": [
       "SIDECAR_GUIDE.md"
     ],
     "postgres": [
@@ -907,6 +1101,105 @@
     ],
     "write docs": [
       ".claude/agents/docs-architect.md"
+    ],
+    "runbook": [
+      "docs/runbooks/"
+    ],
+    "incident": [
+      "docs/runbooks/"
+    ],
+    "rollback": [
+      "docs/runbooks/"
+    ],
+    "canary": [
+      "docs/runbooks/"
+    ],
+    "blue green": [
+      "docs/runbooks/"
+    ],
+    "disaster recovery": [
+      "docs/runbooks/"
+    ],
+    "dr": [
+      "docs/runbooks/"
+    ],
+    "metrics": [
+      "docs/observability/"
+    ],
+    "prometheus": [
+      "docs/observability/"
+    ],
+    "grafana": [
+      "docs/observability/"
+    ],
+    "monitoring": [
+      "docs/observability/"
+    ],
+    "alerting": [
+      "docs/observability/"
+    ],
+    "dashboard": [
+      "docs/observability/"
+    ],
+    "kpi": [
+      "docs/observability/"
+    ],
+    "chaos": [
+      "docs/chaos-engineering/"
+    ],
+    "chaos engineering": [
+      "docs/chaos-engineering/"
+    ],
+    "rls testing": [
+      "docs/chaos-engineering/"
+    ],
+    "game day": [
+      "docs/chaos-engineering/"
+    ],
+    "failure injection": [
+      "docs/chaos-engineering/"
+    ],
+    "gate": [
+      "docs/gates/"
+    ],
+    "quality gate": [
+      "docs/gates/"
+    ],
+    "raci": [
+      "docs/gates/"
+    ],
+    "gate tracking": [
+      "docs/gates/"
+    ],
+    "approval": [
+      "docs/gates/"
+    ],
+    "wizard": [
+      "docs/wizard/"
+    ],
+    "modeling wizard": [
+      "docs/wizard/"
+    ],
+    "xstate": [
+      "docs/wizard/"
+    ],
+    "state machine": [
+      "docs/wizard/"
+    ],
+    "wizard step": [
+      "docs/wizard/"
+    ],
+    "forecasting": [
+      "docs/forecasting/"
+    ],
+    "power law": [
+      "docs/forecasting/"
+    ],
+    "calibration": [
+      "docs/forecasting/"
+    ],
+    "streaming monte carlo": [
+      "docs/forecasting/"
     ],
     "error": [
       "SIDECAR_GUIDE.md"
