@@ -196,8 +196,13 @@ assert(
 #### Common Invariants (All Models)
 
 ```typescript
-// INVARIANT 2: Buffer Constraint
-assert(result.reserve_balance >= input.constraints.min_cash_buffer, "Buffer breach");
+// INVARIANT 2: Buffer Constraint (uses EFFECTIVE BUFFER, not just min_cash_buffer)
+// effective_buffer = max(min_cash_buffer ?? 0, commitment * target_reserve_pct ?? 0)
+const effectiveBufferCents = Math.max(
+  (input.constraints.min_cash_buffer ?? 0) * 100,
+  Math.round((input.fund.commitment ?? 0) * (input.fund.target_reserve_pct ?? 0) * 100)
+);
+assert(result.reserve_balance * 100 >= effectiveBufferCents, "Buffer breach");
 // Decision: [x] Soft (warning + violation flag) - per enforcement matrix
 // Behavior: Silently clip allocations to preserve buffer. Only emit violation if uncurable.
 
@@ -210,6 +215,11 @@ assert(result.reserve_balance >= 0, "Negative reserve");
 assert(result.allocations_by_cohort.every(a => a.amountCents >= 0), "Negative allocation");
 // Exception: CA-019 allows negative distributions (capital recall)
 ```
+
+**Effective Buffer Unified Rule** (LOCKED):
+> `effective_buffer = max(min_cash_buffer ?? 0, commitment * target_reserve_pct ?? 0)`
+>
+> This unifies absolute floor (`min_cash_buffer`) and percentage reserve (`target_reserve_pct`) into a single constraint. CA-001 uses percentage only; CA-002 uses absolute floor only; both paths evaluate against `effective_buffer`.
 
 ### 1.3 Spec Test Requirement
 
@@ -562,8 +572,12 @@ Fix: Ensure all monetary fields use the same unit scale (either $M or raw dollar
 
 **Rationale**: CA-018 explicitly specifies "Bankers' rounding with stable tie-break". Bankers rounding is statistically unbiased and standard in financial systems.
 
+**Usage Scope** (LOCKED):
+> Bankers rounding is applied **only** when converting external decimal inputs to integer cents (and when rendering outputs). **Never** apply during integer-cent internal computation.
+
 **Implementation** (JS doesn't have native Bankers rounding):
 ```typescript
+// Rounds to nearest integer; ties go to nearest EVEN integer
 function bankersRound(x: number): number {
   const floor = Math.floor(x);
   const decimal = x - floor;
@@ -578,7 +592,22 @@ function bankersRound(x: number): number {
 function bankersRoundSymmetric(x: number): number {
   return Math.sign(x) * bankersRound(Math.abs(x));
 }
+
+// Canonical usage: dollars → cents conversion
+function dollarsToCents(dollars: number): number {
+  return bankersRoundSymmetric(dollars * 100);
+}
 ```
+
+**Required Test Vectors** (spec test must include):
+| Input | Expected | Reason |
+|-------|----------|--------|
+| `bankersRoundSymmetric(2.5)` | `2` | Tie → even (2) |
+| `bankersRoundSymmetric(3.5)` | `4` | Tie → even (4) |
+| `bankersRoundSymmetric(-2.5)` | `-2` | Negative tie → even (-2) |
+| `bankersRoundSymmetric(-3.5)` | `-4` | Negative tie → even (-4) |
+| `bankersRoundSymmetric(2.4)` | `2` | Below midpoint |
+| `bankersRoundSymmetric(2.6)` | `3` | Above midpoint |
 
 **Alignment with runner**: Use same approach as `assertNumericField()` in helpers.ts
 
@@ -592,37 +621,98 @@ When allocating to multiple cohorts:
 | 2. Remainder handling | [x] **Largest remainder method** (CA-018 verified) |
 | 3. Tie-break (equal remainders) | [x] First cohort in canonical sort order |
 
-**CA-018 Verification**:
-```
-Weights: [0.3333333, 0.3333333, 0.3333334] for cohorts A, B, C
-Total to allocate: 1,000,000 cents
+**CRITICAL**: LRM remainder ranking must be computed using **integer arithmetic** (no float remainders).
 
-Base allocation (floor):
-  A: floor(1000000 × 0.3333333) = 333333, remainder = 0.3
-  B: floor(1000000 × 0.3333333) = 333333, remainder = 0.3
-  C: floor(1000000 × 0.3333334) = 333333, remainder = 0.4
+**Integer LRM via Basis Points** (LOCKED):
+```typescript
+// Convert weights to basis points (0-10000), enforce sum = 10000
+function normalizeWeightsToBps(weights: number[]): number[] {
+  const rawBps = weights.map(w => Math.round(w * 10000));
+  const sum = rawBps.reduce((a, b) => a + b, 0);
+
+  // Adjust last element to ensure sum = 10000
+  if (sum !== 10000) {
+    rawBps[rawBps.length - 1] += (10000 - sum);
+  }
+  return rawBps;
+}
+
+// LRM with pure integer math (no float remainders)
+function allocateLRM(totalCents: number, weightsBps: number[]): number[] {
+  const allocations: number[] = [];
+  const remainders: { index: number; rem: number }[] = [];
+
+  for (let i = 0; i < weightsBps.length; i++) {
+    const base = Math.floor(totalCents * weightsBps[i] / 10000);
+    const rem = (totalCents * weightsBps[i]) % 10000;  // Integer remainder!
+    allocations.push(base);
+    remainders.push({ index: i, rem });
+  }
+
+  // Distribute shortfall to largest remainders (stable sort for tie-break)
+  const sumBase = allocations.reduce((a, b) => a + b, 0);
+  let shortfall = totalCents - sumBase;
+
+  // Sort by remainder DESC, then by index ASC (canonical order tie-break)
+  remainders.sort((a, b) => b.rem - a.rem || a.index - b.index);
+
+  for (let i = 0; shortfall > 0 && i < remainders.length; i++) {
+    allocations[remainders[i].index] += 1;
+    shortfall--;
+  }
+
+  return allocations;
+}
+```
+
+**Why basis points?** Float weights like `0.3333333` produce float remainders that can compare inconsistently. Integer `% 10000` produces exact integer remainders with deterministic comparison.
+
+**CA-018 Verification (Integer Method)**:
+```
+Input weights: [0.3333333, 0.3333333, 0.3333334]
+Normalized bps: [3333, 3333, 3334] (sum = 10000)
+Total: 1,000,000 cents
+
+Base allocation:
+  A: floor(1000000 * 3333 / 10000) = 333300, rem = (1000000 * 3333) % 10000 = 0
+  B: floor(1000000 * 3333 / 10000) = 333300, rem = 0
+  C: floor(1000000 * 3334 / 10000) = 333400, rem = 0
+
+Wait - that gives 999,900 + 333,400 = 1,000,000. Let me recalculate...
+
+Actually with 7-decimal weights, use higher precision (1e7 scale):
+  weightScale = [3333333, 3333333, 3333334] (sum = 10,000,000)
+  A: floor(1000000 * 3333333 / 10000000) = 333333, rem = 3333330000000 % 10000000 = 3000000
+  B: floor(1000000 * 3333333 / 10000000) = 333333, rem = 3000000
+  C: floor(1000000 * 3333334 / 10000000) = 333333, rem = 4000000
 
 Sum of floors: 999999 (1 cent short)
-Largest remainder: C (0.4 > 0.3)
+Largest remainder: C (4000000 > 3000000)
 C gets +1 → 333334
 
 Expected: [333333, 333333, 333334] ✓
 ```
+
+**Precision Choice**: For CA-018 style 7-decimal weights, use 1e7 scale (not 1e4). Adapter normalizes to this scale on input.
 
 ### 4.3 Ordering Rules (Input Processing)
 
 | Scenario | Deterministic Order |
 |----------|---------------------|
 | Multiple flows on same date | [x] Contributions first, then distributions (cash in before cash out) |
-| Multiple cohorts eligible | [x] By canonical sort key: `(start_date \|\| '9999-12-31', id.toLowerCase())` |
+| Multiple cohorts eligible | [x] By canonical sort key: `(start_date, id)` |
 | Cap spill-over (CA-015) | [x] Next cohort in canonical sort order |
+
+**Constraint Evaluation Timing** (LOCKED):
+> Ordering only affects the cash ledger **if** constraints are evaluated per-flow. In Phase 1, cash constraints are evaluated **at period end** (unless a truth case explicitly requires per-flow enforcement). This prevents "contributions-first" from becoming a silent semantic dependency.
 
 **Canonical Sort Key** (LOCKED):
 ```typescript
+// Type-safe sort key with explicit coercion
 function cohortSortKey(c: Cohort): [string, string] {
   return [
-    c.start_date || '9999-12-31',         // Empty/null = far future
-    (c.id || c.name || '').toLowerCase()  // Case-insensitive
+    c.start_date || '9999-12-31',                    // Empty/null = far future
+    String(c.id ?? c.name ?? '').toLowerCase()       // Coerce to string (handles numeric ids)
   ];
 }
 
@@ -634,9 +724,23 @@ cohorts.sort((a, b) => {
 });
 ```
 
+**Date Format Requirement** (LOCKED):
+> All cohort dates **must** be canonical `YYYY-MM-DD` (zero-padded). Non-canonical formats (e.g., `2024-1-1`) are **adapter errors**. Lexicographic sort only works with zero-padded ISO dates.
+
+**Sort Key Test Cases** (spec test must include):
+| `start_date` | `id` | Expected Sort Position |
+|--------------|------|------------------------|
+| `'2024-01-01'` | `'A'` | First |
+| `'2024-01-01'` | `'B'` | Second (same date, id tiebreak) |
+| `'2024-06-01'` | `'A'` | Third |
+| `''` (empty) | `'Z'` | Last (empty = far future) |
+| `null` | `'Y'` | Last (null = far future) |
+| `'2024-01-01'` | `0` (numeric) | Works - coerced to `'0'` |
+
 **Cap Spill-Over (CA-015 Verified)**:
 - If cohort hits `max_allocation_per_cohort` cap, excess spills to next cohort in sort order
 - Continue until all capacity allocated or all cohorts at cap
+- **Termination rule**: If all cohorts at cap, remaining allocable capacity stays **unallocated** (no violation emitted, appears as `unallocated_capacity` in output if field exists)
 
 ### 4.4 Output Sorting + Presence Requirements (MANDATORY)
 
@@ -761,35 +865,70 @@ describe('CA Determinism', () => {
 
 | Violation Type | Trigger Condition | Severity | Enforcement Behavior |
 |----------------|-------------------|----------|---------------------|
-| `buffer_breach` | `reserve_balance < min_cash_buffer` | [x] **Warning** | Silently clip allocations first; only emit violation if uncurable at zero allocation |
-| `over_allocation` | `sum(allocations) > available` | [x] **Error** | Always satisfiable via pro-rata clip; violation never actually emitted |
-| `cap_exceeded` | `cohort_allocation > cohort_cap` | [x] **Warning** | Always satisfiable via spill-over to next cohort; no violation emitted |
+| `buffer_breach` | `reserve_balance < effective_buffer` | [x] **Warning** | Silently clip allocations first; only emit violation if uncurable at zero allocation |
+| `over_allocation` | `sum(allocations) > available` | [x] **Warning** (correctable) | Always satisfiable via pro-rata clip; never actually emitted |
+| `cap_exceeded` | `cohort_allocation > cohort_cap` | [x] **Warning** | Satisfiable via spill-over; see termination rule below |
 | `negative_balance` | `reserve_balance < 0` | [x] **Error** | Throw immediately - indicates invalid input or calculation bug |
+| `negative_capacity` | `commitment - sum(allocations) < 0` | [x] **Error** | Throw immediately - allocation exceeds commitment |
+
+**Note**: `buffer_breach` uses `effective_buffer` (see Section 1.2), not just `min_cash_buffer`.
 
 **Key Distinction** (from CA-IMPLEMENTATION-EVALUATION-FINAL.md):
 - **Binding** = constraint was satisfied by automatic clipping/spill-over; `violations: []`
 - **Breach** = constraint cannot be satisfied even at zero allocation; violation emitted and/or error thrown
 
+**Cap Exhaustion Termination Rule** (LOCKED):
+> If all cohorts are at their `max_allocation_per_cohort` cap, remaining allocable capacity stays **unallocated**:
+> - `violations: []` (not a violation - caps are advisory)
+> - Unallocated amount appears as `remaining_capacity > 0` in output
+> - **Rationale**: Caps are portfolio construction guardrails, not hard failures. GP can review and adjust caps if needed.
+
 ### 5.3 Cohort Handling
 
 | Scenario | Behavior | Rationale |
 |----------|----------|-----------|
-| No cohorts array (CA-001 style) | [x] **Single implicit cohort** named by vintage year | CA-001 outputs `allocations_by_cohort: [{cohort: "2024", ...}]` with no explicit cohorts input |
-| Empty cohorts array | [x] **Single implicit cohort** named by vintage year | Same as "no cohorts" - vintage year is canonical default |
+| No cohorts array (CA-001 style) | [x] **Single implicit cohort** by vintage year | CA-001 outputs `allocations_by_cohort: [{cohort: "2024", ...}]` with no explicit cohorts input |
+| Empty cohorts array | [x] **Single implicit cohort** by vintage year | Same as "no cohorts" - vintage year is canonical default |
 | Cohort weights don't sum to 1.0 | [x] **Normalize** to sum=1.0 | More forgiving for emerging managers; avoids rejection for rounding in inputs |
+| Missing `vintage_year` | [x] Derive from `timeline.start_date` year | Fallback prevents undefined cohort name |
+| User cohort named same as implicit | [x] Use collision-safe internal ID | Prevents identity collisions |
 
-**Implicit Cohort Generation**:
+**Implicit Cohort Generation** (with fallback and collision safety):
 ```typescript
-function getDefaultCohort(fund: FundInput): Cohort {
+function deriveVintageYear(fund: FundInput, timeline: TimelineInput): number {
+  // Primary: explicit vintage_year
+  if (fund.vintage_year != null) {
+    return fund.vintage_year;
+  }
+  // Fallback: derive from timeline start date
+  if (timeline?.start_date) {
+    return parseInt(timeline.start_date.substring(0, 4), 10);
+  }
+  // Last resort: current year (should not happen in well-formed input)
+  return new Date().getUTCFullYear();
+}
+
+function getDefaultCohort(fund: FundInput, timeline: TimelineInput): Cohort {
+  const year = deriveVintageYear(fund, timeline);
   return {
-    name: String(fund.vintage_year),
-    id: String(fund.vintage_year),
-    start_date: `${fund.vintage_year}-01-01`,
-    end_date: `${fund.vintage_year}-12-31`,
+    name: String(year),                           // Display name: "2024"
+    id: `_implicit_${year}`,                      // Internal ID: collision-safe
+    start_date: `${year}-01-01`,
+    end_date: `${year}-12-31`,
     weight: 1.0
   };
 }
+
+// In output adapter: map internal id back to display name
+function toCohortOutput(cohort: Cohort): CohortOutput {
+  return {
+    cohort: cohort.name,  // CA-001 expects "2024", not "_implicit_2024"
+    amount: cohort.allocation,
+  };
+}
 ```
+
+**Collision Rule**: If user provides a cohort with `id: "2024"` and we generate `_implicit_2024`, they are distinct. User cohorts are never auto-prefixed.
 
 ---
 
@@ -885,6 +1024,8 @@ All items must be checked before Phase 1 begins:
 - [ ] **ANTI-REGRESSION**: Output arrays always present (never undefined, always `[]` if empty)
 - [ ] Determinism spec test created (10 identical runs)
 - [ ] Output ordering + presence spec test created
+- [ ] **Rounding spec test**: positive/negative half ties (ensures true bankers + symmetric) - test vectors in Section 4.1
+- [ ] **Cohort sort key spec test**: empty `start_date: ""` sorts last; numeric `id: 0` doesn't crash; non-canonical date fails adapter - test vectors in Section 4.3
 
 ### Section 5-7: Remaining Sections
 - [x] Section 5: All semantic definitions complete → Sections 5.1, 5.2, 5.3
