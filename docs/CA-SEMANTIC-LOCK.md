@@ -566,31 +566,38 @@ Fix: Ensure all monetary fields use the same unit scale (either $M or raw dollar
 | Context | Rounding Method | Precision |
 |---------|-----------------|-----------|
 | Intermediate calculations | [x] Full precision (no rounding) | N/A |
-| Final allocation amounts | [x] Bankers (half-to-even) | [x] Cents |
-| Percentage calculations | [x] Bankers (half-to-even) | 4 decimal places |
+| **Allocation amounts** | [x] **Largest Remainder Method** (Section 4.2) | Cents (integer) |
+| Percent-derived scalars | [x] Bankers (half-to-even) | Cents |
 | When rounding occurs | [x] End-of-period only | N/A |
+
+**CRITICAL Distinction**:
+> - **Allocation amounts** are produced by **Largest Remainder Method** (Section 4.2), NOT by banker's rounding.
+> - **Banker's rounding** applies ONLY to percent-derived scalars (e.g., `effective_buffer_cents`) and any non-integer-to-integer conversions.
+> - Do NOT apply banker's rounding to each cohort share before remainder distribution - that would change outputs.
 
 **Rationale**: CA-018 explicitly specifies "Bankers' rounding with stable tie-break". Bankers rounding is statistically unbiased and standard in financial systems.
 
 **Usage Scope** (LOCKED):
-> Bankers rounding is applied **only** when converting external decimal inputs to integer cents (and when rendering outputs). **Never** apply during integer-cent internal computation.
+> Bankers rounding is applied **only** when converting external decimal inputs to integer cents (and when rendering outputs). **Never** apply during integer-cent internal computation. **Never** apply to allocation amounts (use LRM instead).
 
 **Implementation** (JS doesn't have native Bankers rounding):
 ```typescript
 // Rounds to nearest integer; ties go to nearest EVEN integer
-function bankersRound(x: number): number {
-  const floor = Math.floor(x);
-  const decimal = x - floor;
-  if (Math.abs(decimal - 0.5) < 1e-9) {
-    // Exactly 0.5 - round to nearest even
-    return floor % 2 === 0 ? floor : floor + 1;
-  }
-  return Math.round(x);
+// NOTE: 0.5 is exactly representable in IEEE-754, so strict comparison is safe
+// if upstream doesn't manufacture float noise
+function bankersRoundPositive(x: number): number {
+  const n = Math.floor(x);
+  const frac = x - n;
+
+  if (frac < 0.5) return n;
+  if (frac > 0.5) return n + 1;
+  // exactly half - round to nearest even
+  return (n % 2 === 0) ? n : n + 1;
 }
 
 // For negative values (CA-019 capital recalls), use symmetric version:
 function bankersRoundSymmetric(x: number): number {
-  return Math.sign(x) * bankersRound(Math.abs(x));
+  return Math.sign(x) * bankersRoundPositive(Math.abs(x));
 }
 
 // Canonical usage: dollars → cents conversion
@@ -716,13 +723,19 @@ function cohortSortKey(c: Cohort): [string, string] {
   ];
 }
 
+// Deterministic string comparator (avoids locale-sensitive localeCompare)
+// localeCompare can produce different results for non-ASCII in different environments
+const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
 // Sort ascending by tuple comparison
 cohorts.sort((a, b) => {
   const [aDate, aId] = cohortSortKey(a);
   const [bDate, bId] = cohortSortKey(b);
-  return aDate.localeCompare(bDate) || aId.localeCompare(bId);
+  return cmp(aDate, bDate) || cmp(aId, bId);
 });
 ```
+
+**Why not `localeCompare`?** It can be locale-sensitive for non-ASCII identifiers, causing cross-environment drift. Simple `<`/`>` comparison is deterministic for ASCII ISO dates and IDs.
 
 **Date Format Requirement** (LOCKED):
 > All cohort dates **must** be canonical `YYYY-MM-DD` (zero-padded). Non-canonical formats (e.g., `2024-1-1`) are **adapter errors**. Lexicographic sort only works with zero-padded ISO dates.
@@ -889,9 +902,38 @@ describe('CA Determinism', () => {
 |----------|----------|-----------|
 | No cohorts array (CA-001 style) | [x] **Single implicit cohort** by vintage year | CA-001 outputs `allocations_by_cohort: [{cohort: "2024", ...}]` with no explicit cohorts input |
 | Empty cohorts array | [x] **Single implicit cohort** by vintage year | Same as "no cohorts" - vintage year is canonical default |
-| Cohort weights don't sum to 1.0 | [x] **Normalize** to sum=1.0 | More forgiving for emerging managers; avoids rejection for rounding in inputs |
+| Cohort weights sum within 0.1% of 1.0 | [x] **Normalize** to sum=1.0 | More forgiving for emerging managers; avoids rejection for minor rounding |
+| Cohort weights sum > 0.1% off from 1.0 | [x] **Error** | Don't normalize garbage - large deviation indicates input error |
+| Any weight < 0 | [x] **Error** | Negative weights are invalid |
+| Sum of weights <= 0 | [x] **Error** | Would cause division by zero in normalization |
 | Missing `vintage_year` | [x] Derive from `timeline.start_date` year | Fallback prevents undefined cohort name |
 | User cohort named same as implicit | [x] Use collision-safe internal ID | Prevents identity collisions |
+
+**Weight Validation Rules** (LOCKED):
+```typescript
+function validateAndNormalizeWeights(weights: number[]): number[] {
+  // Rule 1: No negative weights
+  if (weights.some(w => w < 0)) {
+    throw new Error('Cohort weights cannot be negative');
+  }
+
+  const sum = weights.reduce((a, b) => a + b, 0);
+
+  // Rule 2: Sum must be positive
+  if (sum <= 0) {
+    throw new Error('Sum of cohort weights must be positive');
+  }
+
+  // Rule 3: Only normalize if within 0.1% tolerance
+  const tolerance = 0.001; // 0.1%
+  if (Math.abs(sum - 1.0) > tolerance) {
+    throw new Error(`Cohort weights sum to ${sum}, which differs from 1.0 by more than ${tolerance * 100}%`);
+  }
+
+  // Normalize to exactly 1.0
+  return weights.map(w => w / sum);
+}
+```
 
 **Implicit Cohort Generation** (with fallback and collision safety):
 ```typescript

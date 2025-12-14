@@ -1,7 +1,13 @@
 # Capital Allocation Implementation: Refined Critical Evaluation (v2)
 
+> **SUPERSEDED**: This document has been superseded by:
+> - `CA-IMPLEMENTATION-EVALUATION-FINAL.md` (v6) - Current strategic assessment
+> - `docs/CA-SEMANTIC-LOCK.md` - Authoritative specification with all decisions locked
+>
+> This file is retained for historical reference only. Do not use for implementation decisions.
+
 **Date**: 2025-12-14
-**Status**: Final Assessment (Revision 2)
+**Status**: SUPERSEDED (see banner above)
 **Reviewer**: Claude Code Analysis
 
 ---
