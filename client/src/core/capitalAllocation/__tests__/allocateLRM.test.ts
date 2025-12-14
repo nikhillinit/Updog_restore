@@ -128,6 +128,107 @@ describe('Largest Remainder Method (LRM)', () => {
       // All should sum to total
       expect(allocations.reduce((a, b) => a + b, 0)).toBe(totalCents);
     });
+
+    it('throws on unsafe integer total', () => {
+      // Number.MAX_SAFE_INTEGER + 1 is not a safe integer
+      const unsafeTotal = Number.MAX_SAFE_INTEGER + 1;
+      expect(() => allocateLRM(unsafeTotal, [WEIGHT_SCALE])).toThrow('MAX_SAFE_INTEGER');
+    });
+  });
+
+  describe('BigInt Overflow Safety (CRITICAL)', () => {
+    /**
+     * These tests verify that BigInt prevents overflow for large fund sizes.
+     * The old number-based implementation would overflow for:
+     * - product = totalCents * weightsBps
+     * - With $100M fund and 1e7 weights: 10^10 * 10^7 = 10^17
+     * - Number.MAX_SAFE_INTEGER ≈ 9×10^15
+     *
+     * Without BigInt, allocation would be WRONG for funds > $9M.
+     */
+
+    it('$100M fund with thirds split (overflow case)', () => {
+      // $100M = 10 billion cents
+      // product = 10^10 * 3.33×10^6 ≈ 3.33×10^16 > MAX_SAFE_INTEGER
+      const totalCents = 10_000_000_000; // $100M
+      const weightsBps = [3_333_333, 3_333_333, 3_333_334];
+
+      const allocations = allocateLRM(totalCents, weightsBps);
+
+      // Verify exact conservation
+      expect(allocations.reduce((a, b) => a + b, 0)).toBe(totalCents);
+
+      // Verify expected values (calculated via BigInt externally)
+      // floor(10^10 * 3333333 / 10^7) = floor(3.333333×10^9) = 3333333000
+      // floor(10^10 * 3333334 / 10^7) = floor(3.333334×10^9) = 3333334000
+      expect(allocations[0]).toBe(3_333_333_000);
+      expect(allocations[1]).toBe(3_333_333_000);
+      expect(allocations[2]).toBe(3_333_334_000);
+    });
+
+    it('$1B fund with equal split (extreme overflow case)', () => {
+      // $1B = 100 billion cents
+      // product = 10^11 * 5×10^6 = 5×10^17 >> MAX_SAFE_INTEGER
+      const totalCents = 100_000_000_000; // $1B
+      const weightsBps = [5_000_000, 5_000_000]; // 50/50
+
+      const allocations = allocateLRM(totalCents, weightsBps);
+
+      // Verify conservation
+      expect(allocations.reduce((a, b) => a + b, 0)).toBe(totalCents);
+
+      // Verify 50/50 split
+      expect(allocations[0]).toBe(50_000_000_000);
+      expect(allocations[1]).toBe(50_000_000_000);
+    });
+
+    it('$10B fund with complex split (maximum practical overflow)', () => {
+      // $10B = 1 trillion cents
+      // product = 10^12 * 10^7 = 10^19 >>> MAX_SAFE_INTEGER
+      const totalCents = 1_000_000_000_000; // $10B
+      const weightsBps = [2_500_000, 2_500_000, 2_500_000, 2_500_000]; // 25% each
+
+      const allocations = allocateLRM(totalCents, weightsBps);
+
+      // Verify conservation
+      expect(allocations.reduce((a, b) => a + b, 0)).toBe(totalCents);
+
+      // Verify 25% each = $2.5B each
+      expect(allocations[0]).toBe(250_000_000_000);
+      expect(allocations[1]).toBe(250_000_000_000);
+      expect(allocations[2]).toBe(250_000_000_000);
+      expect(allocations[3]).toBe(250_000_000_000);
+    });
+
+    it('$100M with odd split produces correct remainder distribution', () => {
+      const totalCents = 10_000_000_001; // $100M + 1 cent (odd)
+      const weightsBps = [5_000_000, 5_000_000]; // 50/50
+
+      const allocations = allocateLRM(totalCents, weightsBps);
+
+      // Verify conservation
+      expect(allocations.reduce((a, b) => a + b, 0)).toBe(totalCents);
+
+      // With equal weights and odd total, first cohort gets extra cent
+      expect(allocations[0]).toBe(5_000_000_001);
+      expect(allocations[1]).toBe(5_000_000_000);
+    });
+
+    it('is deterministic at scale (10 runs of $100M)', () => {
+      const totalCents = 10_000_000_000;
+      const weights = [0.3333333, 0.3333333, 0.3333334];
+
+      const results: number[][] = [];
+      for (let i = 0; i < 10; i++) {
+        results.push(allocateFromDecimalWeights(totalCents, weights));
+      }
+
+      // All results must be identical
+      const first = results[0];
+      for (let i = 1; i < results.length; i++) {
+        expect(results[i]).toEqual(first);
+      }
+    });
   });
 
   describe('allocateFromDecimalWeights', () => {
@@ -218,22 +319,29 @@ describe('Largest Remainder Method (LRM)', () => {
       }
     });
 
-    it('uses NO float comparison for remainders', () => {
-      // This test documents that remainders are integers
-      // The implementation uses (total * weightBps) % WEIGHT_SCALE
-      // which is pure integer arithmetic
+    it('uses BigInt for intermediate arithmetic (no float)', () => {
+      // This test documents that the implementation uses BigInt
+      // to prevent overflow for large fund sizes.
+      //
+      // The implementation uses:
+      //   const product = BigInt(total) * BigInt(weightBps);
+      //   const base = product / WEIGHT_SCALE_BIG;
+      //   const remainder = product % WEIGHT_SCALE_BIG;
+      //
+      // This is pure integer arithmetic with no float drift.
 
       const weightsBps = normalizeWeightsToBps([0.3333333, 0.3333333, 0.3333334]);
-      const totalCents = 1_000_000;
+      const totalCents = 10_000_000_000; // $100M - would overflow without BigInt
 
-      // Verify remainders are computed as integers
-      for (const wbps of weightsBps) {
-        const product = totalCents * wbps;
-        const remainder = product % WEIGHT_SCALE;
+      // This should NOT throw and should produce deterministic results
+      const allocations = allocateLRM(totalCents, weightsBps);
 
-        // Remainder must be a safe integer (no float drift)
-        expect(Number.isSafeInteger(product)).toBe(true);
-        expect(Number.isSafeInteger(remainder)).toBe(true);
+      // Verify conservation
+      expect(allocations.reduce((a, b) => a + b, 0)).toBe(totalCents);
+
+      // Verify all allocations are safe integers
+      for (const alloc of allocations) {
+        expect(Number.isSafeInteger(alloc)).toBe(true);
       }
     });
   });

@@ -91,11 +91,43 @@ export function compareCohorts(a: SortableCohort, b: SortableCohort): number {
  * Sort an array of cohorts in canonical order.
  * Returns a new sorted array (does not mutate input).
  *
+ * Uses decorate-sort-undecorate pattern for stable sorting:
+ * 1. Attach original index to each cohort
+ * 2. Sort by (date, id, originalIndex)
+ * 3. Return sorted cohorts
+ *
+ * This ensures deterministic ordering even when date and id are identical.
+ *
  * @param cohorts - Array of cohorts to sort
- * @returns New array sorted by canonical key
+ * @returns New array sorted by canonical key with stable tie-break
  */
 export function sortCohorts<T extends SortableCohort>(cohorts: T[]): T[] {
-  return [...cohorts].sort(compareCohorts);
+  // Decorate with original index for stable tie-break
+  const decorated = cohorts.map((cohort, originalIndex) => ({
+    cohort,
+    originalIndex,
+    key: cohortSortKey(cohort),
+  }));
+
+  // Sort by key (date, id) then by originalIndex for stability
+  decorated.sort((a, b) => {
+    const [aDate, aId] = a.key;
+    const [bDate, bId] = b.key;
+
+    // Primary: date
+    const dateComparison = cmp(aDate, bDate);
+    if (dateComparison !== 0) return dateComparison;
+
+    // Secondary: id
+    const idComparison = cmp(aId, bId);
+    if (idComparison !== 0) return idComparison;
+
+    // Tertiary: original index (stable tie-break)
+    return a.originalIndex - b.originalIndex;
+  });
+
+  // Undecorate
+  return decorated.map((d) => d.cohort);
 }
 
 /**
