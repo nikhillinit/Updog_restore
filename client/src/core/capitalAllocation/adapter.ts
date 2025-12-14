@@ -23,6 +23,8 @@ import {
   inferUnitScale,
   detectUnitMismatch,
   toCentsWithInference,
+  validateSanityCap,
+  type ExplicitUnits,
 } from './units';
 import { dollarsToCents, roundPercentDerivedToCents } from './rounding';
 import { normalizeWeightsToBps, WEIGHT_SCALE as LRM_WEIGHT_SCALE } from './allocateLRM';
@@ -42,6 +44,8 @@ export interface TruthCaseInput {
     vintage_year?: number;
     target_reserve_pct?: number | null;
     reserve_policy?: 'static_pct' | 'dynamic_ratio';
+    /** Explicit unit configuration (preferred over inference) */
+    units?: 'millions' | 'raw';
   };
   constraints?: {
     min_cash_buffer?: number | null;
@@ -113,14 +117,17 @@ export interface NormalizedInput {
  * - Detect million-scale mismatches
  */
 export function adaptTruthCaseInput(input: TruthCaseInput): NormalizedInput {
-  // Step 1: Infer unit scale from commitment
-  const unitScale = inferUnitScale(input.fund.commitment);
+  // Step 1: Infer unit scale from commitment with explicit config support
+  // Explicit units take precedence over inference (hybrid approach)
+  const explicitUnits = input.fund.units as ExplicitUnits | undefined;
+  const unitScale = inferUnitScale(input.fund.commitment, explicitUnits);
 
-  // Step 2: Validate unit consistency
+  // Step 2: Validate unit consistency (ratio-based mismatch detection)
   validateUnitConsistency(input, unitScale);
 
-  // Step 3: Convert monetary values to cents
+  // Step 3: Convert monetary values to cents with sanity check
   const commitmentCents = toCentsWithInference(input.fund.commitment, unitScale);
+  validateSanityCap(commitmentCents, 'commitment', input.fund.commitment, unitScale);
   const targetReservePct = input.fund.target_reserve_pct ?? 0;
   const minCashBufferCents = input.constraints?.min_cash_buffer != null
     ? toCentsWithInference(input.constraints.min_cash_buffer, unitScale)

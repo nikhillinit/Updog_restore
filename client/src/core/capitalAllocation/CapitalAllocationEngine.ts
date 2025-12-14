@@ -157,8 +157,9 @@ export function allocateCapacityToCohorts(
   // Per Section 1.1.1:
   //   allocable_cash = max(0, ending_cash - reserve_balance) = excess above reserve
   //
-  // This represents the amount available for immediate deployment.
-  // The capacity identity (commitment = allocated + remaining) still holds.
+  // This represents the "Net Available Investable Capital" (Called Capital - Outflows - Reserves).
+  // It ensures we only allocate dry powder that is actually in the bank.
+  // The capacity identity (commitment = allocated + remaining) still holds separately.
   const allocableCapacityCents = Math.max(0, endingCashCents - reserveBalanceCents);
 
   // If nothing to allocate, set all allocations to 0

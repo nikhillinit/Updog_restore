@@ -1,10 +1,12 @@
 /**
  * Unit Inference and Mismatch Detection
  *
- * Per CA-SEMANTIC-LOCK.md Section 3.4:
- * - commitment < 10,000 → assume $M scale (multiply by 1M)
- * - commitment >= 10,000 → assume raw dollars
- * - Ratio-based mismatch detector (>100,000x difference = error)
+ * HYBRID APPROACH:
+ * 1. Honor explicit `units: 'millions' | 'raw'` configuration (PREFERRED)
+ * 2. Clear inference for extreme values (< 1K = millions, >= 10M = raw)
+ * 3. FAIL-FAST for ambiguous zone (1K-10M) - require explicit config
+ * 4. Ratio-based mismatch detector (>100,000x difference = error)
+ * 5. Sanity cap at $1 Trillion (catches catastrophic scaling errors)
  *
  * @see docs/CA-SEMANTIC-LOCK.md Section 3.4
  */
@@ -15,8 +17,20 @@
 export const MILLION = 1_000_000;
 
 /**
- * Threshold for inferring $M scale vs raw dollars.
- * Values below this are assumed to be in $M.
+ * Threshold for clear $M inference (< 1K → definitely millions).
+ * Below this, values are unambiguously in millions.
+ */
+export const SCALE_MILLIONS_THRESHOLD = 1_000;
+
+/**
+ * Threshold for clear raw inference (>= 10M → definitely raw).
+ * Above this, values are unambiguously raw dollars.
+ */
+export const SCALE_RAW_THRESHOLD = 10_000_000;
+
+/**
+ * Legacy threshold for backwards compatibility.
+ * @deprecated Use SCALE_MILLIONS_THRESHOLD and SCALE_RAW_THRESHOLD instead
  */
 export const SCALE_INFERENCE_THRESHOLD = 10_000;
 
@@ -27,25 +41,65 @@ export const SCALE_INFERENCE_THRESHOLD = 10_000;
 export const MISMATCH_RATIO_THRESHOLD = 100_000;
 
 /**
+ * Sanity cap in cents ($1 Trillion).
+ * Prevents catastrophic scaling errors from producing impossible values.
+ */
+export const SANITY_CAP_CENTS = 100_000_000_000_000;
+
+/**
  * Unit scale types.
  */
 export type UnitScale = 'millions' | 'dollars';
 
 /**
- * Infer unit scale from commitment value.
+ * Explicit unit scale type for fund inputs.
+ */
+export type ExplicitUnits = 'millions' | 'raw';
+
+/**
+ * Detect and validate unit scale with hybrid approach.
  *
- * Per semantic lock:
- * - commitment < 10,000 → $M scale (returns MILLION)
- * - commitment >= 10,000 → raw dollars (returns 1)
+ * Priority:
+ * 1. Explicit `units` config (PREFERRED - eliminates guessing)
+ * 2. Clear inference: < 1K → millions, >= 10M → raw
+ * 3. FAIL-FAST: Ambiguous zone (1K-10M) throws error
  *
  * @param commitment - Fund commitment value
+ * @param explicitUnits - Optional explicit unit configuration
  * @returns Scale multiplier (MILLION or 1)
+ * @throws Error if value is in ambiguous zone without explicit config
  */
-export function inferUnitScale(commitment: number): number {
-  if (commitment < SCALE_INFERENCE_THRESHOLD) {
+export function inferUnitScale(
+  commitment: number,
+  explicitUnits?: ExplicitUnits
+): number {
+  // Validate positive commitment
+  if (commitment <= 0) {
+    throw new Error(`Invalid commitment amount: ${commitment}. Must be positive.`);
+  }
+
+  // 1. Honor explicit configuration (PREFERRED)
+  if (explicitUnits === 'millions') return MILLION;
+  if (explicitUnits === 'raw') return 1;
+
+  // 2. Clear cases (no ambiguity)
+  if (commitment < SCALE_MILLIONS_THRESHOLD) {
+    // < 1K → definitely millions (e.g., 100 = $100M)
     return MILLION;
   }
-  return 1;
+
+  if (commitment >= SCALE_RAW_THRESHOLD) {
+    // >= 10M → definitely raw dollars
+    return 1;
+  }
+
+  // 3. Ambiguous zone (1K - 10M): FAIL-FAST
+  // Example: commitment = 50,000 could be $50K raw or $50B in millions
+  throw new Error(
+    `Commitment ${commitment.toLocaleString()} falls in ambiguous range (1K - 10M). ` +
+    `Unable to determine if this is raw dollars or millions. ` +
+    `Provide explicit 'units: "millions" | "raw"' in fund configuration to disambiguate.`
+  );
 }
 
 /**
@@ -59,15 +113,38 @@ export function inferUnitScaleType(commitment: number): UnitScale {
 }
 
 /**
- * Convert a value to cents based on inferred scale.
+ * Convert a value to cents based on unit scale.
  *
- * @param value - Input value (in $M or $ depending on commitment)
- * @param commitmentForScale - Commitment value to infer scale from
+ * @param value - Input value (in $M or $ depending on scale)
+ * @param unitScale - Scale multiplier (MILLION or 1)
  * @returns Value in cents
  */
-export function toCentsWithInference(value: number, commitmentForScale: number): number {
-  const scale = inferUnitScale(commitmentForScale);
-  return Math.round(value * scale * 100);
+export function toCentsWithInference(value: number, unitScale: number): number {
+  return Math.round(value * unitScale * 100);
+}
+
+/**
+ * Validate that the calculated cents don't exceed sanity cap.
+ *
+ * @param cents - Calculated cents value
+ * @param fieldName - Name of the field for error message
+ * @param inputValue - Original input value for error context
+ * @param scale - Applied scale for error context
+ * @throws Error if value exceeds $1 Trillion
+ */
+export function validateSanityCap(
+  cents: number,
+  fieldName: string,
+  inputValue: number,
+  scale: number
+): void {
+  if (cents > SANITY_CAP_CENTS) {
+    throw new Error(
+      `${fieldName} exceeds $1 Trillion sanity cap. ` +
+      `Input: ${inputValue}, Scale: ${scale}x, Result: $${(cents / 100).toLocaleString()}. ` +
+      `Check input units - you may have applied millions scale to a raw dollar value.`
+    );
+  }
 }
 
 /**

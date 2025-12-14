@@ -102,6 +102,8 @@ export const FundInputSchema = z.object({
   vintage_year: z.number().optional(),
   target_reserve_pct: FlexiblePercentageSchema.optional().nullable(),
   reserve_policy: z.enum(['static_pct', 'dynamic_ratio']).optional(),
+  // Explicit unit configuration (preferred over inference)
+  units: z.enum(['millions', 'raw']).optional(),
 });
 
 export type FundInput = z.infer<typeof FundInputSchema>;
