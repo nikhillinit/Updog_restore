@@ -552,6 +552,49 @@ patterns:
     target: "docs/forecasting/"
     message: "Power law implementation, Monte Carlo calibration guide"
 
+  # --- Agent Memory & Architecture ---
+  - id: "agent_memory"
+    priority: 97
+    category: "AI Agents"
+    keywords:
+      - "agent memory"
+      - "memory integration"
+      - "pattern learning"
+      - "hybrid memory"
+      - "memory scope"
+      - "tenant"
+    target: "cheatsheets/agent-memory-integration.md"
+    secondary: "cheatsheets/memory-patterns.md"
+    message: "Agent memory integration, pattern learning, multi-tenant isolation"
+
+  - id: "agent_architecture"
+    priority: 98
+    category: "AI Agents"
+    keywords:
+      - "agent architecture"
+      - "base agent"
+      - "agent core"
+      - "agent framework"
+      - "multi-agent"
+      - "orchestration"
+    target: "cheatsheets/agent-architecture.md"
+    secondary: "packages/bundle-optimization-agents.md"
+    message: "Agent framework, BaseAgent class, multi-agent orchestration"
+
+  # --- Bundle Optimization ---
+  - id: "bundle_optimization"
+    priority: 99
+    category: "Performance"
+    keywords:
+      - "bundle"
+      - "bundle size"
+      - "bundle optimization"
+      - "tree shaking"
+      - "code splitting"
+      - "lazy loading"
+    target: "packages/bundle-optimization-agents.md"
+    message: "AI-powered bundle optimization, dependency analysis, route optimization"
+
   # --- Troubleshooting (fallback) ---
   - id: "troubleshooting"
     priority: 100
