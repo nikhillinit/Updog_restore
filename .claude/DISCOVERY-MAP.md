@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: agents
-last_updated: 2025-12-12
+last_updated: 2025-12-14
 owner: "Platform Team"
 review_cadence: P30D
 categories: [discovery, agents, routing]
@@ -28,6 +28,46 @@ If a task sounds like "build / implement / add / create", check `CAPABILITIES.md
 
 ---
 
+# CRITICAL: NotebookLM Truth Sources
+
+**Location:** `docs/notebooklm-sources/` (22 files, ~85,000 words)
+
+The canonical domain knowledge base for ALL Phoenix validation work. Phase 2 COMPLETE as of Nov 6, 2025.
+
+**Contents:**
+- `xirr.md` - XIRR calculation semantics
+- `waterfall.md` - Waterfall distribution logic
+- `fees.md` - Fee calculation standards
+- `capital-allocation.md` - Capital allocation policy
+- `exit-recycling.md` - Exit recycling rules
+- `reserves/` (4 files) - ReserveEngine documentation
+- `pacing/` (4 files) - PacingEngine documentation (includes VALIDATION-NOTES.md)
+- `cohorts/` (3 files) - CohortEngine documentation
+- `monte-carlo/` (4 files) - Monte Carlo simulation engine
+- `PHASE2-COMPLETE.md` - Phase 2 completion summary
+
+**When to use:** Any validation, domain questions, or implementation requiring VC fund modeling knowledge.
+
+---
+
+# WARNING: ADR Number Conflicts
+
+**Status:** Requires resolution (renumbering needed)
+
+ADR-010, ADR-011, ADR-012 exist in BOTH locations with DIFFERENT content:
+
+| ADR | In DECISIONS.md | In docs/adr/ |
+|-----|-----------------|--------------|
+| 010 | PowerLawDistribution API Design | Monte Carlo Validation Strategy |
+| 011 | Anti-Pattern Prevention Strategy | Typed Stage Normalization |
+| 012 | Evidence-Based Document Reviews | mem0 Integration |
+
+**Resolution:** docs/adr/ ADRs should be renumbered to ADR-017, ADR-018, ADR-019.
+
+**Action:** When referencing ADRs, specify the file path explicitly until resolved.
+
+---
+
 # 1. Pattern-Based Routing (Fast Path)
 
 Pattern matching uses OR logic: any match triggers the route.
@@ -35,6 +75,8 @@ Pattern matching uses OR logic: any match triggers the route.
 | Query Pattern | Route To | Why |
 |---|---|---|
 | "implement feature" OR "new agent" OR "add tool" | CAPABILITIES.md | Check existing solutions before building |
+| "domain knowledge" OR "vc modeling" OR "fund calculations" | docs/notebooklm-sources/ | Canonical domain truth (85K words) |
+| "reserve engine" OR "pacing engine" OR "cohort engine" | docs/notebooklm-sources/ | Phase 2 engine documentation |
 | "phoenix" OR "truth case" OR "validation" | docs/PHOENIX-SOT/README.md | Phoenix workflows entry point |
 | "phase 2" OR "monte carlo" OR "probabilistic" | /phoenix-phase2 command | Phase 2 workflow |
 | "expectation mode" OR "deterministic parity" | /phoenix-phase2 command | Expectation Mode in command |
@@ -262,4 +304,4 @@ Bash permission patterns use **prefix matching** with `:*` suffix:
 - Changing staleness rules
 - Adding new agent registry entries
 
-**Last verified against repo:** 2025-12-12
+**Last verified against repo:** 2025-12-14

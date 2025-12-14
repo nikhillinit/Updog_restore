@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2025-12-12
+last_updated: 2025-12-14
 categories: [documentation, navigation]
 keywords: [index, docs, navigation, routing, documentation]
 source_of_truth: true
@@ -17,25 +17,26 @@ maintenance:
 # Documentation Index
 
 **Purpose**: Central routing table for all project documentation **Audience**:
-Humans AND Agents **Last Updated**: 2025-12-12
+Humans AND Agents **Last Updated**: 2025-12-14
 
 ---
 
 ## Quick Navigation
 
-| Category                              | When to Use                          | Primary Docs                   |
-| ------------------------------------- | ------------------------------------ | ------------------------------ |
-| [Getting Started](#getting-started)   | First time setup, onboarding         | README.md                      |
-| [Development](#development)           | Building features, coding workflows  | CLAUDE.md, CAPABILITIES.md     |
-| [Testing](#testing)                   | Running tests, fixing failures       | tests/README.md                |
-| [Deployment](#deployment)             | Deploying to staging/production      | scripts/README.md              |
-| [Architecture](#architecture)         | Design decisions, technical strategy | DECISIONS.md                   |
-| [AI & Automation](#ai--automation)    | Agent development, AI workflows      | ai-utils/README.md             |
-| [Workflows & CI/CD](#workflows--cicd) | GitHub Actions, deployment scripts   | workflows/README.md            |
-| [Scripts](#scripts)                   | NPM scripts, utility commands        | package.json, scripts/         |
-| [Phoenix Project](#phoenix-project)   | Truth-case validation, VC modeling   | PHOENIX-SOT/README.md          |
-| [Skills & Tools](#skills--tools)      | Available agents, tools, skills      | DEVELOPMENT-TOOLING-CATALOG.md |
-| [Troubleshooting](#troubleshooting)   | Debugging, common issues             | SIDECAR_GUIDE.md               |
+| Category                                        | When to Use                             | Primary Docs                   |
+| ----------------------------------------------- | --------------------------------------- | ------------------------------ |
+| [Getting Started](#getting-started)             | First time setup, onboarding            | README.md                      |
+| [Development](#development)                     | Building features, coding workflows     | CLAUDE.md, CAPABILITIES.md     |
+| [Testing](#testing)                             | Running tests, fixing failures          | tests/README.md                |
+| [Deployment](#deployment)                       | Deploying to staging/production         | scripts/README.md              |
+| [Architecture](#architecture)                   | Design decisions, technical strategy    | DECISIONS.md                   |
+| [AI & Automation](#ai--automation)              | Agent development, AI workflows         | ai-utils/README.md             |
+| [Workflows & CI/CD](#workflows--cicd)           | GitHub Actions, deployment scripts      | workflows/README.md            |
+| [Scripts](#scripts)                             | NPM scripts, utility commands           | package.json, scripts/         |
+| [Phoenix Project](#phoenix-project)             | Truth-case validation, VC modeling      | PHOENIX-SOT/README.md          |
+| [Domain Knowledge](#domain-knowledge-notebooklm)| VC fund modeling truth sources          | notebooklm-sources/            |
+| [Skills & Tools](#skills--tools)                | Available agents, tools, skills         | DEVELOPMENT-TOOLING-CATALOG.md |
+| [Troubleshooting](#troubleshooting)             | Debugging, common issues                | SIDECAR_GUIDE.md               |
 
 ---
 
@@ -123,13 +124,27 @@ Humans AND Agents **Last Updated**: 2025-12-12
 | Document                                                             | Description                           | When to Use                       |
 | -------------------------------------------------------------------- | ------------------------------------- | --------------------------------- |
 | [DECISIONS.md](../DECISIONS.md)                                      | Architectural Decision Records (ADRs) | Understanding technical rationale |
+| [adr/](adr/)                                                          | Additional ADRs (12 files)            | Monte Carlo, mem0, stages         |
 | [DEVELOPMENT_STRATEGY.md](DEVELOPMENT_STRATEGY.md)                   | Long-term development strategy        | Strategic planning                |
 | [MULTI-AI-DEVELOPMENT-WORKFLOW.md](MULTI-AI-DEVELOPMENT-WORKFLOW.md) | Multi-AI collaboration patterns       | Leveraging multiple AIs           |
 
 **Key ADRs**:
 
-- ADR-011: Anti-Pattern Prevention Strategy
+- ADR-011: Anti-Pattern Prevention Strategy (DECISIONS.md)
 - ADR-014: PR Merge Criteria (baseline comparison)
+
+**WARNING: ADR Number Conflicts**
+
+ADR-010, ADR-011, ADR-012 exist in BOTH `DECISIONS.md` AND `docs/adr/` with
+different content. When referencing, specify the file path explicitly:
+
+| ADR | In DECISIONS.md                      | In docs/adr/                     |
+| --- | ------------------------------------ | -------------------------------- |
+| 010 | PowerLawDistribution API Design      | Monte Carlo Validation Strategy  |
+| 011 | Anti-Pattern Prevention Strategy     | Typed Stage Normalization        |
+| 012 | Evidence-Based Document Reviews      | mem0 Integration                 |
+
+**Resolution needed**: docs/adr/ ADRs should be renumbered to ADR-017+.
 
 ---
 
@@ -200,13 +215,14 @@ Humans AND Agents **Last Updated**: 2025-12-12
 
 ## Phoenix Project
 
-**Status**: [ACTIVE] **Audience**: Agents
+**Status**: [ACTIVE] **Audience**: Agents **Current Phase**: 1B (Fees/Waterfall-Ledger validated)
 
 | Document                                                                                             | Description                            | When to Use                       |
 | ---------------------------------------------------------------------------------------------------- | -------------------------------------- | --------------------------------- |
 | [PHOENIX-SOT/README.md](PHOENIX-SOT/README.md)                                                       | Phoenix project single source of truth | Phoenix workflows                 |
 | [PHOENIX-SOT/execution-plan-v2.34.md](PHOENIX-SOT/execution-plan-v2.34.md)                           | 2000+ line execution plan              | Phase 0/1A/1B/2/3+ implementation |
-| [PHOENIX-SOT/execution-plan-v2.34-enhancements.md](PHOENIX-SOT/execution-plan-v2.34-enhancements.md) | v2.34 MCP + tool routing updates       | Recent enhancements               |
+| [notebooklm-sources/](notebooklm-sources/)                                                            | Domain knowledge (85K words, 22 files) | VC fund modeling truth sources    |
+| [notebooklm-sources/PHASE2-COMPLETE.md](notebooklm-sources/PHASE2-COMPLETE.md)                       | Phase 2 engine docs completion summary | Understanding Phase 2 deliverables|
 
 **Key Features**:
 
@@ -214,7 +230,8 @@ Humans AND Agents **Last Updated**: 2025-12-12
   Allocation, Exit Recycling)
 - 9 Phoenix-specific agents (truth-case-runner, precision-guardian,
   waterfall-specialist, etc.)
-- Phase 1B active: 82.4% accuracy (14/17 tests)
+- Phase 1B complete: Fees 10/10, Waterfall-Ledger 14/14 validated
+- Phase 2 Documentation: COMPLETE (Nov 6, 2025) - All 4 engines documented
 
 **Key Commands**:
 
@@ -222,6 +239,36 @@ Humans AND Agents **Last Updated**: 2025-12-12
 - `/phoenix-truth` - Deterministic truth case validation
 - `/phoenix-phase2` - Phase 2 probabilistic workflow
 - `/phoenix-prob-report` - Format Monte Carlo distributions
+
+---
+
+## Domain Knowledge (NotebookLM)
+
+**Status**: [ACTIVE] **Audience**: Agents **Completion**: Phase 2 COMPLETE (Nov 6, 2025)
+
+The canonical domain knowledge base for ALL Phoenix validation work. 22 files,
+~85,000 words of AI-consumable truth sources.
+
+| Document                                                                       | Description                           | When to Use                      |
+| ------------------------------------------------------------------------------ | ------------------------------------- | -------------------------------- |
+| [notebooklm-sources/xirr.md](notebooklm-sources/xirr.md)                        | XIRR calculation semantics            | XIRR validation, Excel parity    |
+| [notebooklm-sources/waterfall.md](notebooklm-sources/waterfall.md)              | Waterfall distribution logic          | Carry, clawback, tier validation |
+| [notebooklm-sources/fees.md](notebooklm-sources/fees.md)                        | Fee calculation standards             | Management/performance fees      |
+| [notebooklm-sources/capital-allocation.md](notebooklm-sources/capital-allocation.md) | Capital allocation policy        | Capital deployment logic         |
+| [notebooklm-sources/exit-recycling.md](notebooklm-sources/exit-recycling.md)    | Exit recycling rules                  | Recycled capital handling        |
+| [notebooklm-sources/reserves/](notebooklm-sources/reserves/)                    | ReserveEngine docs (4 files, ~23 pages)| Reserve allocation strategies   |
+| [notebooklm-sources/pacing/](notebooklm-sources/pacing/)                        | PacingEngine docs (4 files, ~26 pages) | Investment pacing patterns      |
+| [notebooklm-sources/cohorts/](notebooklm-sources/cohorts/)                      | CohortEngine docs (3 files, ~69 pages) | Cohort-based analytics          |
+| [notebooklm-sources/monte-carlo/](notebooklm-sources/monte-carlo/)              | Monte Carlo docs (4 files, ~120 pages) | Simulation engine               |
+
+**Quality Metrics**:
+
+- Phase 1: 91-99% validation scores (capital-allocation: 99%, xirr: 96.3%)
+- Phase 2: 95-99% self-validation (all 4 engines documented)
+- Total: ~238 pages across 15 files for Phase 2 alone
+
+**Known Issue**: Pacing validation config mismatch documented in
+`notebooklm-sources/pacing/VALIDATION-NOTES.md`
 
 ---
 
@@ -290,7 +337,7 @@ for complete workflow
 ## Maintenance
 
 **Document Owner**: Development Team **Review Cycle**: Monthly (or after major
-structural changes) **Last Updated**: 2025-12-12 **Next Review**: 2026-01-12
+structural changes) **Last Updated**: 2025-12-14 **Next Review**: 2026-01-14
 
 **Update Triggers**:
 

@@ -1,11 +1,12 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2025-12-12
+last_updated: 2025-12-14
 categories: [phoenix, validation, vc-modeling]
 keywords: [phoenix, truth-case, xirr, waterfall, fees, capital, forecasting]
 source_of_truth: true
 phase: "1B"
+phase2_docs: "COMPLETE"
 agent_routing:
   priority: 1
   route_hint: "Entry point for all Phoenix project work."
@@ -21,6 +22,10 @@ maintenance:
 > branding system. This directory defines the **living execution spec** for
 > Phoenix.
 
+**Current Status:**
+- Phase 1B: Fees 10/10, Waterfall-Ledger 14/14 validated
+- Phase 2 Documentation: COMPLETE (Nov 6, 2025) - 85K words, 22 files
+
 ---
 
 ## 1. What Lives Here
@@ -28,6 +33,12 @@ maintenance:
 - **Execution Plan**
   - `execution-plan-v2.34.md` Canonical description of phases, steps, gates, and
     agent/skill usage.
+
+- **Domain Knowledge (NotebookLM Sources)**
+  - `../notebooklm-sources/` (22 files, ~85K words) - Canonical domain truth
+  - Phase 1: XIRR, Waterfall, Fees, Capital Allocation, Exit Recycling
+  - Phase 2: ReserveEngine, PacingEngine, CohortEngine, Monte Carlo
+  - `../notebooklm-sources/PHASE2-COMPLETE.md` - Phase 2 completion summary
 
 - **Skill System**
   - `skills-overview.md` Single reference for all skills (Phoenix-specific,
