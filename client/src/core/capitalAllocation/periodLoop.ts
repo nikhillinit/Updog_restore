@@ -372,10 +372,11 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
     let allocableCents = 0;
 
     if (category === 'cohort_engine') {
-      // Cohort engine: allocate THIS PERIOD's cash flow (CAPACITY PLANNING MODEL)
+      // Cohort engine: allocate contributions only (CAPACITY PLANNING MODEL)
       // Reserve is a planning target, NOT a constraint on allocation
-      // Only allocate cash that arrived this period
-      allocableCents = Math.max(0, periodNetCashCents);
+      // Recalls (cashImpact) add to cash but NOT to allocatable pool (CA-019)
+      // Only contributions are allocatable, not recalls or recycling proceeds
+      allocableCents = Math.max(0, cashInCents);
     } else if (category === 'pacing_engine') {
       // Pacing engine: allocation capped by pacing target (CAPACITY PLANNING MODEL)
       // Use period's cash or pacing target, whichever is smaller
