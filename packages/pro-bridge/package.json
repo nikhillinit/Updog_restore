@@ -4,6 +4,9 @@
   "description": "Pro Subscription Bridge for ChatGPT Pro and Gemini Advanced automation",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "pro-bridge": "dist/cli.js"
+  },
   "files": [
     "dist"
   ],
@@ -12,7 +15,8 @@
     "dev": "tsc --watch",
     "clean": "rimraf dist",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "start": "node dist/cli.js"
   },
   "keywords": [
     "ai",
