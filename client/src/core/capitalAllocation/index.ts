@@ -20,6 +20,7 @@ export {
 export {
   WEIGHT_SCALE,
   normalizeWeightsToBps,
+  normalizeWeightsLenient,
   allocateLRM,
   allocateFromDecimalWeights,
   verifyCA018,
@@ -136,3 +137,16 @@ export {
   type InvariantResult,
   type ConservationCheckResult,
 } from './invariants';
+
+// Period Loop Engine (Phase 2: Pacing Model)
+export {
+  generatePeriods,
+  calculateMonthlyPacingTarget,
+  calculatePeriodPacingTarget,
+  getActiveCohorts,
+  executePeriodLoop,
+  convertPeriodLoopOutput,
+  type Period,
+  type PeriodResult,
+  type PeriodLoopOutput,
+} from './periodLoop';

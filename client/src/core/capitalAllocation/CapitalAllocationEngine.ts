@@ -174,11 +174,15 @@ export function allocateCapacityToCohorts(
   const allocations = allocateLRM(allocableCapacityCents, weightsBps);
 
   // Apply per-cohort caps if specified (with spill-over)
+  // Convert percentage to cents if specified
+  const globalCapCents = input.maxAllocationPerCohortPct !== null
+    ? roundPercentDerivedToCents(input.commitmentCents * input.maxAllocationPerCohortPct)
+    : null;
   const { finalAllocations, spilloverCents } = applyCohortCaps(
     cohorts,
     allocations,
     allocableCapacityCents,
-    input.maxAllocationPerCohortCents
+    globalCapCents
   );
 
   // Update cohort allocations

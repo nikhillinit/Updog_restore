@@ -76,6 +76,44 @@ export function normalizeWeightsToBps(weights: number[]): number[] {
 }
 
 /**
+ * Normalize weights to basis points with lenient sum handling.
+ *
+ * For lifecycle cohorts with different date ranges, weights may not sum to 1.0
+ * globally because only a subset is active at any time. This function scales
+ * the weights proportionally to sum to 1.0 regardless of input sum.
+ *
+ * Use this when cohorts have varying lifecycles (CA-016 pattern).
+ */
+export function normalizeWeightsLenient(weights: number[]): number[] {
+  if (weights.length === 0) {
+    throw new Error('Weights array cannot be empty');
+  }
+
+  // Rule 1: No negative weights
+  if (weights.some((w) => w < 0)) {
+    throw new Error('Cohort weights cannot be negative');
+  }
+
+  const sum = weights.reduce((a, b) => a + b, 0);
+
+  // Rule 2: Sum must be positive
+  if (sum <= 0) {
+    throw new Error('Sum of cohort weights must be positive');
+  }
+
+  // Scale proportionally to sum = WEIGHT_SCALE (no tolerance check)
+  const rawBps = weights.map((w) => Math.round((w / sum) * WEIGHT_SCALE));
+  const bpsSum = rawBps.reduce((a, b) => a + b, 0);
+
+  // Adjust last element to ensure exact sum
+  if (bpsSum !== WEIGHT_SCALE) {
+    rawBps[rawBps.length - 1] += WEIGHT_SCALE - bpsSum;
+  }
+
+  return rawBps;
+}
+
+/**
  * Allocate total cents to cohorts using Largest Remainder Method.
  *
  * Algorithm:
