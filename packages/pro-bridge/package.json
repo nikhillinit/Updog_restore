@@ -16,7 +16,10 @@
     "clean": "rimraf dist",
     "test": "vitest run",
     "test:watch": "vitest",
-    "start": "node dist/cli.js"
+    "start": "node dist/cli.js",
+    "validate": "./scripts/validate.sh",
+    "validate:quick": "./scripts/validate.sh --quick",
+    "validate:all": "./scripts/validate.sh --all"
   },
   "keywords": [
     "ai",
