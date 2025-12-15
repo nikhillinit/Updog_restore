@@ -10,15 +10,7 @@
  * @see docs/CA-SEMANTIC-LOCK.md Section 3
  */
 
-import {
-  type CAEngineInput,
-  type CohortInput,
-  type InternalCohort,
-  type CashFlow,
-  FAR_FUTURE,
-  WEIGHT_SCALE,
-  WEIGHT_SUM_TOLERANCE,
-} from './types';
+import { type InternalCohort, type CashFlow, FAR_FUTURE, WEIGHT_SCALE } from './types';
 import {
   inferUnitScale,
   detectUnitMismatch,
@@ -26,9 +18,9 @@ import {
   validateSanityCap,
   type ExplicitUnits,
 } from './units';
-import { dollarsToCents, roundPercentDerivedToCents } from './rounding';
-import { normalizeWeightsToBps, WEIGHT_SCALE as LRM_WEIGHT_SCALE } from './allocateLRM';
-import { sortAndValidateCohorts, isCanonicalDate } from './sorting';
+import { roundPercentDerivedToCents } from './rounding';
+import { normalizeWeightsToBps } from './allocateLRM';
+import { sortAndValidateCohorts } from './sorting';
 
 // =============================================================================
 // Truth Case Input Types
@@ -65,9 +57,9 @@ export interface TruthCaseInput {
     id?: string | number;
     name?: string;
     start_date?: string | null;
-    startDate?: string | null;  // camelCase variant for flexibility
+    startDate?: string | null; // camelCase variant for flexibility
     end_date?: string | null;
-    endDate?: string | null;    // camelCase variant for flexibility
+    endDate?: string | null; // camelCase variant for flexibility
     weight?: number;
     max_allocation?: number;
   }>;
@@ -131,9 +123,10 @@ export function adaptTruthCaseInput(input: TruthCaseInput): NormalizedInput {
   const commitmentCents = toCentsWithInference(input.fund.commitment, unitScale);
   validateSanityCap(commitmentCents, 'commitment', input.fund.commitment, unitScale);
   const targetReservePct = input.fund.target_reserve_pct ?? 0;
-  const minCashBufferCents = input.constraints?.min_cash_buffer != null
-    ? toCentsWithInference(input.constraints.min_cash_buffer, unitScale)
-    : 0;
+  const minCashBufferCents =
+    input.constraints?.min_cash_buffer != null
+      ? toCentsWithInference(input.constraints.min_cash_buffer, unitScale)
+      : 0;
 
   // Step 4: Calculate effective buffer
   // Per Section 1.2: effective_buffer = max(min_cash_buffer, commitment * target_reserve_pct)
@@ -164,9 +157,10 @@ export function adaptTruthCaseInput(input: TruthCaseInput): NormalizedInput {
   const rebalanceFrequency = input.timeline?.rebalance_frequency ?? 'quarterly';
 
   // Step 8: Max allocation per cohort
-  const maxAllocationPerCohortCents = input.constraints?.max_allocation_per_cohort != null
-    ? toCentsWithInference(input.constraints.max_allocation_per_cohort, unitScale)
-    : null;
+  const maxAllocationPerCohortCents =
+    input.constraints?.max_allocation_per_cohort != null
+      ? toCentsWithInference(input.constraints.max_allocation_per_cohort, unitScale)
+      : null;
 
   return {
     original: input,
@@ -190,7 +184,7 @@ export function adaptTruthCaseInput(input: TruthCaseInput): NormalizedInput {
  * Validate unit consistency across all monetary fields.
  * Per CA-SEMANTIC-LOCK.md Section 3.4: Detect million-scale mismatches.
  */
-function validateUnitConsistency(input: TruthCaseInput, unitScale: number): void {
+function validateUnitConsistency(input: TruthCaseInput, _unitScale: number): void {
   const commitment = input.fund.commitment;
   if (commitment === 0) return; // Can't validate ratios
 
@@ -218,10 +212,10 @@ function validateUnitConsistency(input: TruthCaseInput, unitScale: number): void
     if (detectUnitMismatch(commitment, field.value)) {
       throw new Error(
         `Million-scale mismatch detected:\n` +
-        `  commitment=${commitment}\n` +
-        `  ${field.name}=${field.value}\n` +
-        `  Ratio: ${(field.value / commitment).toExponential(2)}\n` +
-        `Fix: Ensure all monetary fields use the same unit scale (either $M or raw dollars).`
+          `  commitment=${commitment}\n` +
+          `  ${field.name}=${field.value}\n` +
+          `  Ratio: ${(field.value / commitment).toExponential(2)}\n` +
+          `Fix: Ensure all monetary fields use the same unit scale (either $M or raw dollars).`
       );
     }
   }
@@ -249,7 +243,7 @@ function normalizeCohorts(
   // Validate dates and sort
   const sortableCohorts = rawCohorts.map((c, index) => ({
     ...c,
-    weightBps: normalizedWeightsBps[index],
+    weightBps: normalizedWeightsBps[index] ?? 0,
     originalIndex: index,
   }));
 
@@ -259,24 +253,27 @@ function normalizeCohorts(
   // Convert to internal representation
   return sortedCohorts.map((c, sortedIndex) => {
     const id = String(c.id ?? c.name ?? `cohort_${sortedIndex}`);
-    const maxAllocation = c.max_allocation != null
-      ? toCentsWithInference(c.max_allocation, unitScale)
-      : null;
+    const maxAllocation =
+      c.max_allocation != null ? toCentsWithInference(c.max_allocation, unitScale) : null;
 
     // Handle both snake_case (start_date) and camelCase (startDate) variants
     const rawStartDate = c.start_date ?? c.startDate;
     const rawEndDate = c.end_date ?? c.endDate;
+    const startDate = rawStartDate ?? FAR_FUTURE;
+    const endDate = rawEndDate ?? null;
 
-    return {
+    const normalized: InternalCohort = {
       id,
       name: c.name ?? id,
-      startDate: rawStartDate || FAR_FUTURE,
-      endDate: rawEndDate ?? null,
+      startDate,
+      endDate,
       weightBps: c.weightBps,
       maxAllocationCents: maxAllocation,
       allocationCents: 0, // Computed later
-      type: 'planned' as const,
+      type: 'planned',
     };
+
+    return normalized;
   });
 }
 
@@ -284,7 +281,7 @@ function normalizeCohorts(
  * Create an implicit cohort based on vintage year.
  * Per CA-SEMANTIC-LOCK.md Section 5.3.
  */
-function createImplicitCohort(input: TruthCaseInput, commitmentCents: number): InternalCohort {
+function createImplicitCohort(input: TruthCaseInput, _commitmentCents: number): InternalCohort {
   const year = deriveVintageYear(input);
   return {
     id: `_implicit_${year}`,
@@ -327,7 +324,8 @@ function deriveStartDate(input: TruthCaseInput): string {
   });
 
   if (allDates.length > 0) {
-    return allDates.sort()[0]; // Earliest date
+    const sorted = allDates.sort();
+    return sorted[0] ?? `${deriveVintageYear(input)}-01-01`; // Earliest date
   }
 
   const year = deriveVintageYear(input);
@@ -371,7 +369,8 @@ export function shouldSkipTruthCase(
   if (caseId === 'CA-005' || reservePolicy === 'dynamic_ratio') {
     return {
       skip: true,
-      reason: 'CA-005 (dynamic_ratio) deferred to Phase 2 per CA-SEMANTIC-LOCK.md Section 6. ' +
+      reason:
+        'CA-005 (dynamic_ratio) deferred to Phase 2 per CA-SEMANTIC-LOCK.md Section 6. ' +
         'Requires NAV calculation formula which is not yet specified.',
     };
   }

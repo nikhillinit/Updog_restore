@@ -45,7 +45,6 @@
         "client/src/lib/wizard-schemas.ts:TS2769:12605ac9",
         "client/src/lib/wizard-types.ts:TS2322:9ff14b39",
         "client/src/lib/xirr.ts:TS2345:abd27e8f",
-        "client/src/lib/xirr.ts:TS2532:3c320933",
         "client/src/machines/modeling-wizard.machine.ts:TS2322:1077d9af",
         "client/src/machines/modeling-wizard.machine.ts:TS2322:20fec2aa",
         "client/src/machines/modeling-wizard.machine.ts:TS2345:ae414d67",
@@ -64,8 +63,8 @@
         "client/src/utils/async-iteration.ts:TS2345:7355dce4",
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
-      "total": 60,
-      "lastUpdated": "2025-12-02T20:33:20.336Z"
+      "total": 59,
+      "lastUpdated": "2025-12-15T23:02:45.461Z"
     },
     "server": {
       "errors": [
@@ -463,21 +462,21 @@
         "server/websocket/dev-dashboard.ts:TS2532:de791f79"
       ],
       "total": 392,
-      "lastUpdated": "2025-12-02T20:33:20.336Z"
+      "lastUpdated": "2025-12-15T23:02:45.461Z"
     },
     "shared": {
       "errors": ["shared/variance-validation.ts:TS4111:236f2efb"],
       "total": 1,
-      "lastUpdated": "2025-12-02T20:33:20.336Z"
+      "lastUpdated": "2025-12-15T23:02:45.461Z"
     },
     "unknown": {
       "errors": ["vite.config.ts:TS7006:118fabe7"],
       "total": 1,
-      "lastUpdated": "2025-12-02T20:33:20.336Z"
+      "lastUpdated": "2025-12-15T23:02:45.461Z"
     }
   },
-  "totalErrors": 454,
-  "timestamp": "2025-12-02T20:33:20.336Z",
+  "totalErrors": 453,
+  "timestamp": "2025-12-15T23:02:45.461Z",
   "buildMode": "per-project",
-  "elapsedMs": 21204
+  "elapsedMs": 30807
 }

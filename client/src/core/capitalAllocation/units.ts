@@ -11,7 +11,7 @@
  * @see docs/CA-SEMANTIC-LOCK.md Section 3.4
  */
 
-import { dollarsToCents } from './rounding';
+import { dollarsToCents, roundPercentDerivedToCents } from './rounding';
 
 /**
  * Million scale multiplier for small commitment values.
@@ -71,10 +71,7 @@ export type ExplicitUnits = 'millions' | 'raw';
  * @returns Scale multiplier (MILLION or 1)
  * @throws Error if value is in ambiguous zone without explicit config
  */
-export function inferUnitScale(
-  commitment: number,
-  explicitUnits?: ExplicitUnits
-): number {
+export function inferUnitScale(commitment: number, explicitUnits?: ExplicitUnits): number {
   // Validate positive commitment
   if (commitment <= 0) {
     throw new Error(`Invalid commitment amount: ${commitment}. Must be positive.`);
@@ -99,8 +96,8 @@ export function inferUnitScale(
   // Example: commitment = 50,000 could be $50K raw or $50B in millions
   throw new Error(
     `Commitment ${commitment} falls in ambiguous range (${SCALE_MILLIONS_THRESHOLD} - ${SCALE_RAW_THRESHOLD}). ` +
-    `Unable to determine if this is raw dollars or millions. ` +
-    `Provide explicit 'units: "millions" | "raw"' in fund configuration to disambiguate.`
+      `Unable to determine if this is raw dollars or millions. ` +
+      `Provide explicit 'units: "millions" | "raw"' in fund configuration to disambiguate.`
   );
 }
 
@@ -117,10 +114,7 @@ export function inferUnitScale(
  * @returns 'millions' or 'dollars'
  * @throws Error if value is in ambiguous zone without explicit config
  */
-export function inferUnitScaleType(
-  commitment: number,
-  explicitUnits?: ExplicitUnits
-): UnitScale {
+export function inferUnitScaleType(commitment: number, explicitUnits?: ExplicitUnits): UnitScale {
   // Honor explicit config first
   if (explicitUnits === 'millions') return 'millions';
   if (explicitUnits === 'raw') return 'dollars';
@@ -137,8 +131,8 @@ export function inferUnitScaleType(
   // Ambiguous zone - fail fast
   throw new Error(
     `Commitment ${commitment} falls in ambiguous range ` +
-    `(${SCALE_MILLIONS_THRESHOLD} - ${SCALE_RAW_THRESHOLD}). ` +
-    `Please specify explicit units: 'millions' or 'raw'.`
+      `(${SCALE_MILLIONS_THRESHOLD} - ${SCALE_RAW_THRESHOLD}). ` +
+      `Please specify explicit units: 'millions' or 'raw'.`
   );
 }
 
@@ -175,8 +169,8 @@ export function validateSanityCap(
     const dollars = cents / 100;
     throw new Error(
       `${fieldName} exceeds $1 Trillion sanity cap. ` +
-      `Input: ${inputValue}, Scale: ${scale}x, Result: $${dollars}. ` +
-      `Check input units - you may have applied millions scale to a raw dollar value.`
+        `Input: ${inputValue}, Scale: ${scale}x, Result: $${dollars}. ` +
+        `Check input units - you may have applied millions scale to a raw dollar value.`
     );
   }
 }
