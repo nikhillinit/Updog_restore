@@ -272,6 +272,99 @@ function classifyDistributions(
 }
 
 // =============================================================================
+// Cap + Spill Allocation (CA-015)
+// =============================================================================
+
+/**
+ * Allocate with per-cohort caps and deterministic spill redistribution.
+ *
+ * When a cohort's pro-rata share exceeds the cap, the excess "spills" to
+ * uncapped cohorts. This continues iteratively until no cohort exceeds cap.
+ *
+ * @param allocableCents - Total amount to allocate
+ * @param cohorts - Active cohorts with IDs
+ * @param weightsBps - Normalized weights in basis points
+ * @param maxAllocationPct - Per-cohort cap as percentage of allocation pool (null = no cap)
+ */
+function allocateWithCaps(
+  allocableCents: number,
+  cohorts: InternalCohort[],
+  weightsBps: number[],
+  maxAllocationPct: number | null
+): Map<string, number> {
+  const result = new Map<string, number>();
+
+  // No cap or no allocation: use simple LRM
+  if (maxAllocationPct === null || allocableCents <= 0 || cohorts.length === 0) {
+    const allocations = allocateLRM(allocableCents, weightsBps);
+    for (let i = 0; i < cohorts.length; i++) {
+      result.set(cohorts[i].id, allocations[i]);
+    }
+    return result;
+  }
+
+  // Cap in cents (percentage of allocation pool)
+  const capCents = Math.round(allocableCents * maxAllocationPct);
+
+  // Track allocation state for each cohort
+  const cohortState = cohorts.map((c, i) => ({
+    id: c.id,
+    weightBps: weightsBps[i],
+    allocated: 0,
+    capped: false,
+  }));
+
+  // Iteratively allocate and spill excess
+  let remaining = allocableCents;
+  const maxIterations = cohorts.length + 1; // Safety bound
+
+  for (let iter = 0; iter < maxIterations && remaining > 0; iter++) {
+    const uncapped = cohortState.filter((cs) => !cs.capped);
+    if (uncapped.length === 0) break;
+
+    // Re-normalize weights for uncapped cohorts
+    const uncappedWeightSum = uncapped.reduce((s, cs) => s + cs.weightBps, 0);
+    if (uncappedWeightSum === 0) break;
+
+    // Calculate pro-rata shares and check for caps
+    let spill = 0;
+    const shares: Array<{ cs: typeof cohortState[0]; share: number }> = [];
+
+    for (const cs of uncapped) {
+      const share = Math.round((remaining * cs.weightBps) / uncappedWeightSum);
+      shares.push({ cs, share });
+    }
+
+    // Apply shares and detect caps
+    for (const { cs, share } of shares) {
+      const wouldBe = cs.allocated + share;
+      if (wouldBe > capCents) {
+        // Cap binds
+        const excess = wouldBe - capCents;
+        cs.allocated = capCents;
+        cs.capped = true;
+        spill += excess;
+      } else {
+        cs.allocated += share;
+      }
+    }
+
+    // If no spill, allocation is complete
+    if (spill === 0) break;
+
+    // Continue with spill amount
+    remaining = spill;
+  }
+
+  // Build result map
+  for (const cs of cohortState) {
+    result.set(cs.id, cs.allocated);
+  }
+
+  return result;
+}
+
+// =============================================================================
 // Period Loop Engine
 // =============================================================================
 
@@ -402,8 +495,8 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
       allocableCents = Math.min(periodPacingTargetCents, cashAfterReserveCents);
     }
 
-    // Allocate to active cohorts using LRM
-    const periodAllocationsByCohort = new Map<string, number>();
+    // Allocate to active cohorts using LRM with cap+spill (CA-015)
+    let periodAllocationsByCohort = new Map<string, number>();
 
     if (allocableCents > 0 && activeCohorts.length > 0) {
       // Re-normalize weights for active cohorts only
@@ -422,17 +515,21 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
         normalizedWeights[normalizedWeights.length - 1] += WEIGHT_SCALE - normalizedSum;
       }
 
-      const allocations = allocateLRM(allocableCents, normalizedWeights);
+      // Use cap+spill allocation (CA-015)
+      // For cohort_engine: apply max_allocation_per_cohort cap with spill redistribution
+      const capPct = category === 'cohort_engine' ? input.maxAllocationPerCohortPct : null;
+      periodAllocationsByCohort = allocateWithCaps(
+        allocableCents,
+        activeCohorts,
+        normalizedWeights,
+        capPct
+      );
 
-      for (let i = 0; i < activeCohorts.length; i++) {
-        const cohortId = activeCohorts[i].id;
-        const cohortAllocation = allocations[i];
-
-        periodAllocationsByCohort.set(cohortId, cohortAllocation);
-
-        // Update cumulative
-        const prev = cumulativeAllocationsByCohort.get(cohortId) ?? 0;
-        cumulativeAllocationsByCohort.set(cohortId, prev + cohortAllocation);
+      // Update cumulative allocations
+      for (const cohort of activeCohorts) {
+        const cohortAllocation = periodAllocationsByCohort.get(cohort.id) ?? 0;
+        const prev = cumulativeAllocationsByCohort.get(cohort.id) ?? 0;
+        cumulativeAllocationsByCohort.set(cohort.id, prev + cohortAllocation);
       }
     }
 
