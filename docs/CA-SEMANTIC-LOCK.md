@@ -1,7 +1,21 @@
 # Capital Allocation Semantic Lock
 
-**Status**: TEMPLATE - Requires completion before Phase 1 implementation
-**Gate**: Implementation MUST NOT begin until all sections are completed and reviewed
+**Status**: ACTIVE - Phase 1 Implementation In Progress
+**Gate**: Implementation MUST follow all sections as specified
+**Authority**: This document is the AUTHORITATIVE SOURCE for all CA engine behavior
+
+---
+
+## Document Authority
+
+This semantic lock document is the single source of truth for:
+- Conservation identity formulas
+- Term definitions and semantics
+- Rounding and allocation algorithms
+- Violation handling and severity levels
+
+All implementations, tests, and reviews MUST reference this document.
+Any code behavior that contradicts this spec is a BUG.
 
 ---
 
@@ -42,6 +56,21 @@ Where:
 - `ending_cash`: Total cash on hand (NOT the same as `reserve_balance`)
 
 **CRITICAL**: Planned allocations (`allocations_by_cohort`) do NOT appear in this equation. Only actual cash movements affect cash position.
+
+**NOTE (Phase 2 Deferral)**: Management fees and fund expenses are NOT included in the cash formula for Phase 1. Fee handling will be added in Phase 2 when fee waterfall integration is implemented.
+
+#### Commitment Remaining (Capacity Tracking)
+
+```
+commitment_remaining = commitment - sum(deployed_cash_by_cohort)
+```
+
+Where:
+- `commitment`: Total fund commitment from LPA
+- `deployed_cash_by_cohort`: Actual cash deployed to each cohort (not planned allocations)
+- `commitment_remaining`: Unfunded commitment available for future deployment
+
+This tracks the remaining DEPLOYMENT CAPACITY, separate from the cash ledger.
 
 #### Reserve Balance Formula (TRUTH-CASE VERIFIED)
 
@@ -628,6 +657,8 @@ When allocating to multiple cohorts:
 | 2. Remainder handling | [x] **Largest remainder method** (CA-018 verified) |
 | 3. Tie-break (equal remainders) | [x] First cohort in canonical sort order |
 
+**NOTE (Simplification)**: When remainders are exactly equal, the "first cohort" rule (lower index in canonical sort order) replaces the traditional LRM "largest fraction" approach. This simplification ensures determinism without requiring complex fraction comparison, and produces identical results for all CA truth cases.
+
 **CRITICAL**: LRM remainder ranking must be computed using **integer arithmetic** (no float remainders).
 
 **Integer LRM via Basis Points** (LOCKED):
@@ -1037,9 +1068,9 @@ All items must be checked before Phase 1 begins:
 - [x] Conservation model chosen (Cash Ledger / Capacity / Hybrid) → **Hybrid** (dual-ledger)
 - [x] Term definitions completed (allocations, reserve_balance, available_capacity, deployed) → Section 1.1.1
 - [x] Model-specific invariants selected (with explicit variable naming: unit + semantic) → Section 1.2
-- [ ] Spec test created with **non-tautological** assertions (derives totals from independent outputs)
-- [ ] At least ONE test with **independently-derivable** expected values (hand-calculated from spec)
-- [ ] Spec test passing
+- [x] Spec test created with **non-tautological** assertions (derives totals from independent outputs) → `invariants.test.ts`
+- [x] At least ONE test with **independently-derivable** expected values (hand-calculated from spec) → `invariants.test.ts:37-97`
+- [x] Spec test passing → `calculateExpectedReserveIndependently`, `calculateExpectedAllocationIndependently`
 
 ### Section 2: Time Boundary Rules
 - [x] Timezone rule confirmed (UTC date buckets) → Section 2.0
@@ -1054,9 +1085,9 @@ All items must be checked before Phase 1 begins:
 - [x] Canonical internal representation chosen (integer cents recommended) → Section 3.2
 - [x] Field-by-field unit table complete → Section 3.3
 - [x] Unit inference rules documented → Section 3.4
-- [ ] **Million-scale mismatch detector** implemented (ratio-based, not heuristic)
+- [x] **Million-scale mismatch detector** implemented (ratio-based, not heuristic) → `detectUnitMismatch()` in `units.ts`
 - [x] Inconsistency trap decision made and documented → Section 3.5 (fail with error)
-- [ ] Unit inconsistency spec test created
+- [x] Unit inconsistency spec test created → `units.test.ts` (detectUnitMismatch, validateUnitConsistency tests)
 
 ### Section 4: Determinism Contract
 - [x] Rounding rules specified (with tolerance for floating point, never `===`) → Section 4.1 (Bankers)
@@ -1115,3 +1146,101 @@ All items must be checked before Phase 1 begins:
 | Category routing | Lines 94-97 | Yes - engine dispatch |
 | Tolerance validation | `Math.abs() > tolerance` | Yes - numeric comparison |
 | Structured result | `ValidationResult` type | Yes - validation output |
+
+### A.4 Code Reuse Policy (GATE)
+
+**RULE**: BAN code import, ENCOURAGE pattern reuse.
+
+| Source File | Action | Rationale |
+|-------------|--------|-----------|
+| `reserves-v11.ts` | **DO NOT import** | Contains 24 identified anti-patterns; direct import propagates technical debt |
+| `reserves-v11.ts` patterns | **DO study and adapt** | Integer cents, conservation checks, tie-break patterns are sound |
+| `fund-calc.ts` | **DO NOT import** | Different domain (waterfall); separate evolution path |
+| `fund-calc.ts` patterns | **DO study and adapt** | Period generation, date handling patterns are reusable |
+
+**Implementation Guidance**:
+```typescript
+// WRONG - imports technical debt
+import { calculateReserve } from '@/core/reserves-v11';
+
+// CORRECT - reimplements pattern cleanly
+// Pattern from reserves-v11: integer cents for conservation
+const commitmentCents = Math.round(commitment * unitScale * 100);
+const totalAllocatedCents = cohorts.reduce((sum, c) => sum + c.allocationCents, 0);
+```
+
+---
+
+## Appendix B: Phase Dependency Diagram
+
+```
+Phase 0 (Foundation)                    Phase 1 (Core Engine)
++--------------------------+            +--------------------------+
+| - types.ts               |            | - CapitalAllocationEngine|
+| - rounding.ts            |----------->| - allocateLRM.ts         |
+| - sorting.ts             |            | - invariants.ts          |
+| - units.ts               |            | - adapter.ts             |
+| - allocateLRM.ts         |            +--------------------------+
++--------------------------+                        |
+                                                    v
+                                        Phase 2 (Truth Cases)
+                                        +--------------------------+
+                                        | - truthCaseRunner.test   |
+                                        | - 19/20 pass target      |
+                                        | - CA-005 deferred        |
+                                        +--------------------------+
+                                                    |
+                                                    v
+                                        Phase 3 (API Integration)
+                                        +--------------------------+
+                                        | - server/routes/ca.ts    |
+                                        | - Phoenix integration    |
+                                        | - UI components          |
+                                        +--------------------------+
+```
+
+**Critical Path**: Phase 0 → Phase 1 → Phase 2 (CURRENT) → Phase 3
+
+**Blocking Dependencies**:
+- Phase 1 cannot start until Phase 0 utilities are tested
+- Phase 2 cannot pass until BigInt overflow is fixed (DONE)
+- Phase 3 cannot start until 19/20 truth cases pass
+
+---
+
+## Appendix C: Execution Approval Checklist
+
+### Pre-Implementation Gate (Before Writing Code)
+
+- [ ] CA-SEMANTIC-LOCK.md read completely
+- [ ] Conservation model understood (Hybrid: dual-ledger)
+- [ ] Term definitions memorized (allocations vs deployed vs reserve)
+- [ ] Rounding rules understood (Banker's for scalars, LRM for allocations)
+- [ ] Unit inference rules understood (explicit preferred, fail-fast for ambiguous)
+
+### Per-Feature Gate (Before Marking Complete)
+
+- [ ] All unit tests passing
+- [ ] TypeScript compiles with no errors
+- [ ] No `any` type usage without explicit comment
+- [ ] Conservation invariants verified
+- [ ] No `new Date('YYYY-MM-DD')` patterns (grep check)
+
+### Pre-Merge Gate (Before PR Approval)
+
+- [ ] Truth case runner: 19/20 minimum pass rate
+- [ ] BigInt overflow tests pass (100M, 1B, 10B funds)
+- [ ] Determinism test: 10 identical runs
+- [ ] No console.warn in production code paths
+- [ ] All TODO comments have linked issue
+
+### Phase Completion Gate
+
+| Phase | Completion Criteria |
+|-------|---------------------|
+| Phase 0 | All utilities exported, unit tests pass |
+| Phase 1 | Engine computes reserve_balance correctly for CA-001/002/003 |
+| Phase 2 | 19/20 truth cases pass (CA-005 deferred) |
+| Phase 3 | API endpoint returns valid response, UI renders |
+
+**Sign-off Required**: Each phase requires explicit approval before proceeding to next.

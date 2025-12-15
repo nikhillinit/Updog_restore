@@ -2,518 +2,320 @@
  * Capital Allocation Truth Case Adapter
  *
  * Maps truth case JSON structure to production function signatures.
- * Implements the Hybrid Conservation Model from CA-SEMANTIC-LOCK.md:
- * - Cash Ledger Identity: ending_cash = starting_cash + contributions - distributions - deployed_cash
- * - Capacity Planning Identity: commitment = sum(allocations_by_cohort) + remaining_capacity
+ * Follows semantic lock specification at docs/CA-SEMANTIC-LOCK.md
  *
- * @see docs/capital-allocation.truth-cases.json - Truth case definitions
- * @see docs/CA-SEMANTIC-LOCK.md - Semantic lock specification
+ * @see docs/capital-allocation.truth-cases.json
+ * @see docs/CA-SEMANTIC-LOCK.md
  */
 
-/**
- * Truth case fund configuration
- */
-export interface CATruthCaseFund {
-  commitment: number;
-  target_reserve_pct: number;
-  reserve_policy: 'static_pct' | 'dynamic_ratio';
-  pacing_window_months: number;
-  vintage_year: number;
-}
+// ============================================================================
+// Truth Case Types (from JSON schema)
+// ============================================================================
 
-/**
- * Truth case timeline
- */
-export interface CATruthCaseTimeline {
-  start_date: string;
-  end_date: string;
-}
-
-/**
- * Truth case contribution
- */
-export interface CATruthCaseContribution {
-  date: string;
-  amount: number;
-}
-
-/**
- * Truth case distribution
- */
-export interface CATruthCaseDistribution {
-  date: string;
-  amount: number;
-  recycle_eligible: boolean;
-}
-
-/**
- * Truth case flows
- */
-export interface CATruthCaseFlows {
-  contributions: CATruthCaseContribution[];
-  distributions: CATruthCaseDistribution[];
-}
-
-/**
- * Truth case constraints
- */
-export interface CATruthCaseConstraints {
-  min_cash_buffer: number;
-  rebalance_frequency: 'monthly' | 'quarterly' | 'annual';
-  max_allocation_per_cohort?: number;
-}
-
-/**
- * Truth case cohort definition
- */
-export interface CATruthCaseCohort {
-  name: string;
-  start_date: string;
-  end_date: string;
-  weight: number;
-}
-
-/**
- * Truth case input structure
- */
-export interface CATruthCaseInput {
-  fund: CATruthCaseFund;
-  timeline: CATruthCaseTimeline;
-  flows: CATruthCaseFlows;
-  constraints: CATruthCaseConstraints;
-  cohorts?: CATruthCaseCohort[];
-}
-
-/**
- * Truth case cohort allocation (expected)
- */
-export interface CACohortAllocation {
-  cohort: string;
-  amount: number;
-}
-
-/**
- * Truth case reserve balance over time (expected)
- */
-export interface CAReserveBalanceOverTime {
-  date: string;
-  balance: number;
-}
-
-/**
- * Truth case pacing target (expected)
- */
-export interface CAPacingTarget {
-  period: string;
-  target: number;
-}
-
-/**
- * Truth case expected output (simple cases CA-001 to CA-006)
- */
-export interface CASimpleExpectedOutput {
-  reserve_balance: number;
-  allocations_by_cohort: CACohortAllocation[];
-  violations: string[];
-}
-
-/**
- * Truth case expected output (complex cases CA-007+)
- */
-export interface CAComplexExpectedOutput {
-  allocations_by_cohort: CACohortAllocation[];
-  reserve_balance_over_time?: CAReserveBalanceOverTime[];
-  pacing_targets_by_period?: CAPacingTarget[];
-  violations: string[];
-}
-
-/**
- * Full truth case structure
- */
-export interface CapitalAllocationTruthCase {
+export interface CATruthCase {
   id: string;
   module: 'CapitalAllocation';
-  category: 'reserve_engine' | 'pacing_engine' | 'cohort_engine';
+  category: 'reserve_engine' | 'pacing_engine' | 'cohort_engine' | 'integration';
   description: string;
-  inputs: CATruthCaseInput;
-  expected: CASimpleExpectedOutput | CAComplexExpectedOutput;
+  inputs: CATruthCaseInputs;
+  expected: CATruthCaseExpected;
   notes: string;
   schemaVersion: string;
 }
 
-/**
- * Type guard for simple expected output (CA-001 to CA-006)
- */
-export function isSimpleExpectedOutput(
-  output: CASimpleExpectedOutput | CAComplexExpectedOutput
-): output is CASimpleExpectedOutput {
-  return 'reserve_balance' in output && typeof output.reserve_balance === 'number';
+export interface CATruthCaseInputs {
+  fund: {
+    commitment: number;
+    target_reserve_pct: number;
+    reserve_policy: 'static_pct' | 'dynamic_ratio';
+    pacing_window_months: number;
+    vintage_year: number;
+  };
+  timeline: {
+    start_date: string;
+    end_date: string;
+  };
+  flows: {
+    contributions: Array<{
+      date: string;
+      amount: number;
+    }>;
+    distributions: Array<{
+      date: string;
+      amount: number;
+      recycle_eligible?: boolean;
+    }>;
+  };
+  constraints: {
+    min_cash_buffer: number;
+    rebalance_frequency: 'monthly' | 'quarterly' | 'annual';
+    max_allocation_per_cohort?: number;
+  };
+  cohorts?: Array<{
+    name: string;
+    start_date: string;
+    end_date: string;
+    weight: number;
+  }>;
 }
 
-/**
- * Calculation result structure
- */
-export interface CACalculationResult {
+export interface CATruthCaseExpected {
   reserve_balance: number;
-  allocations_by_cohort: CACohortAllocation[];
+  allocations_by_cohort: Array<{
+    cohort: string;
+    amount: number;
+  }>;
   violations: string[];
-  // Additional fields for complex cases
-  reserve_balance_over_time?: CAReserveBalanceOverTime[];
-  pacing_targets_by_period?: CAPacingTarget[];
+  // Optional fields for more complex cases
+  reserve_balance_over_time?: Array<{
+    date: string;
+    balance: number;
+  }>;
+  pacing_targets_by_period?: Array<{
+    period: string;
+    target: number;
+  }>;
+}
+
+// ============================================================================
+// Production Engine Types (to be created in client/src/core/capitalAllocation/)
+// ============================================================================
+
+export interface CAEngineInput {
+  fund: {
+    commitmentCents: number;
+    targetReservePct: number;
+    reservePolicy: 'static_pct' | 'dynamic_ratio';
+    pacingWindowMonths: number;
+    vintageYear: number;
+  };
+  timeline: {
+    startDate: string;
+    endDate: string;
+  };
+  flows: {
+    contributions: Array<{
+      date: string;
+      amountCents: number;
+    }>;
+    distributions: Array<{
+      date: string;
+      amountCents: number;
+      recycleEligible: boolean;
+    }>;
+  };
+  constraints: {
+    minCashBufferCents: number;
+    rebalanceFrequency: 'monthly' | 'quarterly' | 'annual';
+    maxAllocationPerCohortCents?: number;
+  };
+  cohorts: Array<{
+    name: string;
+    id: string;
+    startDate: string;
+    endDate: string;
+    weightBps: number; // Basis points (0-10000000 for 1e7 scale)
+  }>;
+}
+
+export interface CAEngineOutput {
+  reserveBalanceCents: number;
+  allocationsByCohort: Array<{
+    cohort: string;
+    amountCents: number;
+  }>;
+  violations: string[];
+  // Conservation tracking
+  endingCashCents: number;
+  effectiveBufferCents: number;
+  remainingCapacityCents: number;
+}
+
+// ============================================================================
+// Unit Inference (per CA-SEMANTIC-LOCK.md Section 3.4)
+// ============================================================================
+
+/**
+ * Infer unit scale from commitment value.
+ * Per semantic lock: commitment < 10,000 assumes $M scale
+ */
+export function inferUnitScale(commitment: number): number {
+  return commitment < 10_000 ? 1_000_000 : 1;
 }
 
 /**
- * Calculate ending cash from flows
+ * Convert truth case dollar amount to cents
  */
-function calculateEndingCash(flows: CATruthCaseFlows, startingCash: number = 0): number {
-  const totalContributions = flows.contributions.reduce((sum, c) => sum + c.amount, 0);
-  const totalDistributions = flows.distributions.reduce((sum, d) => sum + d.amount, 0);
-  return startingCash + totalContributions - totalDistributions;
+export function toCents(amount: number, unitScale: number): number {
+  return Math.round(amount * unitScale * 100);
 }
 
 /**
- * Calculate effective buffer (max of min_cash_buffer and target_reserve)
- * Per CA-SEMANTIC-LOCK.md Section 1.1.0
+ * Convert cents back to truth case units for comparison
  */
-function calculateEffectiveBuffer(
-  commitment: number,
-  targetReservePct: number,
-  minCashBuffer: number
-): number {
-  const targetReserve = commitment * targetReservePct;
-  return Math.max(minCashBuffer, targetReserve);
+export function fromCents(cents: number, unitScale: number): number {
+  return cents / (unitScale * 100);
 }
 
+// ============================================================================
+// Weight Normalization (per CA-SEMANTIC-LOCK.md Section 5.3)
+// ============================================================================
+
+const WEIGHT_SCALE = 10_000_000; // 1e7 for 7-decimal precision
+
 /**
- * Calculate reserve balance per CA-SEMANTIC-LOCK.md
- * reserve_balance = min(ending_cash, effective_buffer)
+ * Validate and normalize weights to 1e7 scale basis points.
+ * Throws if weights are invalid per semantic lock rules.
  */
-function calculateReserveBalance(endingCash: number, effectiveBuffer: number): number {
-  return Math.min(endingCash, effectiveBuffer);
+export function normalizeWeightsToBps(weights: number[]): number[] {
+  // Rule 1: No negative weights
+  if (weights.some(w => w < 0)) {
+    throw new Error('Cohort weights cannot be negative');
+  }
+
+  const sum = weights.reduce((a, b) => a + b, 0);
+
+  // Rule 2: Sum must be positive
+  if (sum <= 0) {
+    throw new Error('Sum of cohort weights must be positive');
+  }
+
+  // Rule 3: Only normalize if within 0.1% tolerance
+  const tolerance = 0.001;
+  if (Math.abs(sum - 1.0) > tolerance) {
+    throw new Error(
+      `Cohort weights sum to ${sum}, which differs from 1.0 by more than ${tolerance * 100}%`
+    );
+  }
+
+  // Normalize to exactly sum=WEIGHT_SCALE
+  const rawBps = weights.map(w => Math.round((w / sum) * WEIGHT_SCALE));
+  const bpsSum = rawBps.reduce((a, b) => a + b, 0);
+
+  // Adjust last element to ensure exact sum
+  if (bpsSum !== WEIGHT_SCALE) {
+    rawBps[rawBps.length - 1] += WEIGHT_SCALE - bpsSum;
+  }
+
+  return rawBps;
 }
 
-/**
- * Calculate allocations for static_pct policy
- *
- * Formula based on truth case analysis:
- *
- * For SIMPLE cases (no cohorts defined - CA-001 to CA-006):
- * - If ending_cash < effective_buffer: allocations = 0 (underfunded)
- * - If ending_cash == effective_buffer: allocations = commitment * (1 - target_reserve_pct) (at target)
- * - If ending_cash > effective_buffer: allocations = ending_cash - effective_buffer (excess)
- *
- * For COHORT cases (CA-007+):
- * - allocations = ending_cash (total contribution for deployment, reserve is tracked separately)
- * - Split by cohort weights with optional max per-cohort cap
- */
-function calculateStaticPctAllocations(
-  endingCash: number,
-  effectiveBuffer: number,
-  commitment: number,
-  targetReservePct: number,
-  cohorts: CATruthCaseCohort[] | undefined,
-  vintageYear: number,
-  maxAllocationPerCohort?: number
-): CACohortAllocation[] {
-  // Multi-cohort case: different allocation logic
-  const hasMultipleCohorts = cohorts && cohorts.length >= 2;
-
-  let allocableAmount = 0;
-
-  if (hasMultipleCohorts) {
-    // For multi-cohort cases: allocate full ending cash (capacity-based)
-    allocableAmount = endingCash;
-  } else {
-    // Simple reserve_engine cases: allocate excess or capacity
-    if (endingCash < effectiveBuffer) {
-      // Underfunded: no allocations
-      allocableAmount = 0;
-    } else if (Math.abs(endingCash - effectiveBuffer) < 0.01) {
-      // At target exactly: use capacity-based allocation
-      allocableAmount = commitment * (1 - targetReservePct);
-    } else {
-      // Over target: allocate excess cash
-      allocableAmount = endingCash - effectiveBuffer;
-    }
-  }
-
-  // Single cohort case (simple)
-  if (!cohorts || cohorts.length === 0) {
-    const cohortName = String(vintageYear);
-    return [{ cohort: cohortName, amount: allocableAmount }];
-  }
-
-  // Single cohort with name
-  if (cohorts.length === 1) {
-    const cohortName = cohorts[0]!.name;
-    return [{ cohort: cohortName, amount: allocableAmount }];
-  }
-
-  // Multi-cohort: split by weights
-  const allocations: CACohortAllocation[] = [];
-  const totalWeight = cohorts.reduce((sum, c) => sum + c.weight, 0);
-
-  // Calculate max allocation per cohort if constraint exists
-  const maxPerCohort = maxAllocationPerCohort
-    ? commitment * maxAllocationPerCohort
-    : Infinity;
-
-  let remainingToAllocate = allocableAmount;
-  const sortedCohorts = [...cohorts].sort((a, b) => b.weight - a.weight); // Largest first
-  const cappedCohorts: CACohortAllocation[] = [];
-  const uncappedCohorts: typeof sortedCohorts = [];
-
-  // First pass: identify capped vs uncapped cohorts
-  for (const cohort of sortedCohorts) {
-    const weightShare = cohort.weight / totalWeight;
-    const naturalAllocation = allocableAmount * weightShare;
-
-    if (naturalAllocation > maxPerCohort) {
-      // This cohort is capped
-      cappedCohorts.push({ cohort: cohort.name, amount: maxPerCohort });
-      remainingToAllocate -= maxPerCohort;
-    } else {
-      uncappedCohorts.push(cohort);
-    }
-  }
-
-  // Second pass: allocate remaining to uncapped cohorts (with spill)
-  if (uncappedCohorts.length > 0) {
-    const uncappedTotalWeight = uncappedCohorts.reduce((sum, c) => sum + c.weight, 0);
-
-    for (const cohort of uncappedCohorts) {
-      const spillShare = cohort.weight / uncappedTotalWeight;
-      const spillAllocation = remainingToAllocate * spillShare;
-
-      cappedCohorts.push({
-        cohort: cohort.name,
-        amount: Math.round(spillAllocation),
-      });
-    }
-  }
-
-  // Sort by cohort name for consistent output order
-  cappedCohorts.sort((a, b) => a.cohort.localeCompare(b.cohort));
-
-  return cappedCohorts;
-}
+// ============================================================================
+// Adapter Function
+// ============================================================================
 
 /**
- * Calculate allocations for dynamic_ratio policy
- * NAV-dependent reserve target
+ * Adapt truth case JSON to production engine input.
+ * Performs unit inference and normalization.
  */
-function calculateDynamicRatioAllocations(
-  endingCash: number,
-  flows: CATruthCaseFlows,
-  commitment: number,
-  targetReservePct: number,
-  minCashBuffer: number,
-  cohorts: CATruthCaseCohort[] | undefined,
-  vintageYear: number
-): { allocations: CACohortAllocation[]; reserveBalance: number } {
-  const cohortName = cohorts?.[0]?.name ?? String(vintageYear);
+export function adaptCATruthCase(tc: CATruthCase): CAEngineInput {
+  const unitScale = inferUnitScale(tc.inputs.fund.commitment);
 
-  // For dynamic_ratio, reserve target is based on current NAV (approximated by ending_cash)
-  // This is a simplified implementation
-  const dynamicTarget = endingCash * targetReservePct;
-  const effectiveBuffer = Math.max(minCashBuffer, dynamicTarget);
-  const reserveBalance = Math.min(endingCash, effectiveBuffer);
+  // Generate implicit cohort if none provided (per CA-001 pattern)
+  const cohorts = tc.inputs.cohorts ?? [
+    {
+      name: String(tc.inputs.fund.vintage_year),
+      start_date: `${tc.inputs.fund.vintage_year}-01-01`,
+      end_date: `${tc.inputs.fund.vintage_year}-12-31`,
+      weight: 1.0,
+    },
+  ];
 
-  // Allocations = excess above reserve
-  const allocations = Math.max(0, endingCash - reserveBalance);
+  const weights = cohorts.map(c => c.weight);
+  const weightsBps = normalizeWeightsToBps(weights);
 
   return {
-    allocations: [{ cohort: cohortName, amount: allocations }],
-    reserveBalance,
+    fund: {
+      commitmentCents: toCents(tc.inputs.fund.commitment, unitScale),
+      targetReservePct: tc.inputs.fund.target_reserve_pct,
+      reservePolicy: tc.inputs.fund.reserve_policy,
+      pacingWindowMonths: tc.inputs.fund.pacing_window_months,
+      vintageYear: tc.inputs.fund.vintage_year,
+    },
+    timeline: {
+      startDate: tc.inputs.timeline.start_date,
+      endDate: tc.inputs.timeline.end_date,
+    },
+    flows: {
+      contributions: tc.inputs.flows.contributions.map(c => ({
+        date: c.date,
+        amountCents: toCents(c.amount, unitScale),
+      })),
+      distributions: tc.inputs.flows.distributions.map(d => ({
+        date: d.date,
+        amountCents: toCents(d.amount, unitScale),
+        recycleEligible: d.recycle_eligible ?? false,
+      })),
+    },
+    constraints: {
+      minCashBufferCents: toCents(tc.inputs.constraints.min_cash_buffer, unitScale),
+      rebalanceFrequency: tc.inputs.constraints.rebalance_frequency,
+      maxAllocationPerCohortCents: tc.inputs.constraints.max_allocation_per_cohort
+        ? toCents(tc.inputs.constraints.max_allocation_per_cohort, unitScale)
+        : undefined,
+    },
+    cohorts: cohorts.map((c, i) => ({
+      name: c.name,
+      id: `_implicit_${c.name}`,
+      startDate: c.start_date,
+      endDate: c.end_date,
+      weightBps: weightsBps[i],
+    })),
   };
 }
 
 /**
- * Detect violations
+ * Convert engine output back to truth case units for comparison.
  */
-function detectViolations(
-  endingCash: number,
-  minCashBuffer: number,
-  effectiveBuffer: number
-): string[] {
-  const violations: string[] = [];
+export function convertOutputToTruthCaseUnits(
+  output: CAEngineOutput,
+  commitment: number
+): CATruthCaseExpected {
+  const unitScale = inferUnitScale(commitment);
 
-  // Reserve below minimum cash buffer
-  if (endingCash < minCashBuffer) {
-    violations.push('reserve_below_minimum');
-  }
+  return {
+    reserve_balance: fromCents(output.reserveBalanceCents, unitScale),
+    allocations_by_cohort: output.allocationsByCohort.map(a => ({
+      cohort: a.cohort,
+      amount: fromCents(a.amountCents, unitScale),
+    })),
+    violations: output.violations,
+  };
+}
 
-  return violations;
+// ============================================================================
+// Loader
+// ============================================================================
+
+import * as fs from 'fs';
+import * as path from 'path';
+
+/**
+ * Load all CA truth cases from JSON file.
+ */
+export function loadCATruthCases(): CATruthCase[] {
+  const filePath = path.resolve(__dirname, '../../../docs/capital-allocation.truth-cases.json');
+  const content = fs.readFileSync(filePath, 'utf-8');
+  return JSON.parse(content) as CATruthCase[];
 }
 
 /**
- * Execute capital allocation calculation for a truth case
+ * Load a specific truth case by ID.
  */
-export function executeCapitalAllocationTruthCase(
-  tc: CapitalAllocationTruthCase
-): CACalculationResult {
-  const { inputs } = tc;
-  const { fund, flows, constraints, cohorts } = inputs;
+export function loadCATruthCaseById(id: string): CATruthCase | undefined {
+  const cases = loadCATruthCases();
+  return cases.find(tc => tc.id === id);
+}
 
-  // Calculate ending cash
-  const endingCash = calculateEndingCash(flows);
-
-  // Handle different reserve policies
-  if (fund.reserve_policy === 'dynamic_ratio') {
-    const result = calculateDynamicRatioAllocations(
-      endingCash,
-      flows,
-      fund.commitment,
-      fund.target_reserve_pct,
-      constraints.min_cash_buffer,
-      cohorts,
-      fund.vintage_year
-    );
-
+/**
+ * Check if a truth case should be skipped (e.g., CA-005 deferred).
+ */
+export function shouldSkipCase(tc: CATruthCase): { skip: boolean; reason?: string } {
+  if (tc.id === 'CA-005') {
     return {
-      reserve_balance: result.reserveBalance,
-      allocations_by_cohort: result.allocations,
-      violations: detectViolations(endingCash, constraints.min_cash_buffer, result.reserveBalance),
+      skip: true,
+      reason: 'CA-005 deferred to Phase 2 (NAV formula unspecified per CA-SEMANTIC-LOCK.md Section 6)',
     };
   }
-
-  // Default: static_pct policy
-  const effectiveBuffer = calculateEffectiveBuffer(
-    fund.commitment,
-    fund.target_reserve_pct,
-    constraints.min_cash_buffer
-  );
-
-  const reserveBalance = calculateReserveBalance(endingCash, effectiveBuffer);
-
-  const allocations = calculateStaticPctAllocations(
-    endingCash,
-    effectiveBuffer,
-    fund.commitment,
-    fund.target_reserve_pct,
-    cohorts,
-    fund.vintage_year,
-    constraints.max_allocation_per_cohort
-  );
-
-  const violations = detectViolations(endingCash, constraints.min_cash_buffer, effectiveBuffer);
-
-  return {
-    reserve_balance: reserveBalance,
-    allocations_by_cohort: allocations,
-    violations,
-  };
-}
-
-/**
- * Validation result structure
- */
-export interface ValidationResult {
-  pass: boolean;
-  failures: string[];
-}
-
-/**
- * Validate simple result (CA-001 to CA-006)
- */
-function validateSimpleResult(
-  result: CACalculationResult,
-  expected: CASimpleExpectedOutput,
-  tolerance: number
-): ValidationResult {
-  const failures: string[] = [];
-
-  // reserve_balance
-  if (Math.abs(result.reserve_balance - expected.reserve_balance) > tolerance) {
-    failures.push(
-      `reserve_balance: expected ${expected.reserve_balance}, got ${result.reserve_balance}`
-    );
-  }
-
-  // allocations_by_cohort
-  if (result.allocations_by_cohort.length !== expected.allocations_by_cohort.length) {
-    failures.push(
-      `allocations_by_cohort.length: expected ${expected.allocations_by_cohort.length}, got ${result.allocations_by_cohort.length}`
-    );
-  } else {
-    expected.allocations_by_cohort.forEach((expectedCohort, idx) => {
-      const actualCohort = result.allocations_by_cohort[idx];
-      if (!actualCohort) {
-        failures.push(`allocations_by_cohort[${idx}]: missing in result`);
-        return;
-      }
-
-      if (actualCohort.cohort !== expectedCohort.cohort) {
-        failures.push(
-          `allocations_by_cohort[${idx}].cohort: expected ${expectedCohort.cohort}, got ${actualCohort.cohort}`
-        );
-      }
-
-      if (Math.abs(actualCohort.amount - expectedCohort.amount) > tolerance) {
-        failures.push(
-          `allocations_by_cohort[${idx}].amount: expected ${expectedCohort.amount}, got ${actualCohort.amount}`
-        );
-      }
-    });
-  }
-
-  // violations
-  const expectedViolations = new Set(expected.violations);
-  const actualViolations = new Set(result.violations);
-
-  expected.violations.forEach((v) => {
-    if (!actualViolations.has(v)) {
-      failures.push(`violations: missing expected violation '${v}'`);
-    }
-  });
-
-  result.violations.forEach((v) => {
-    if (!expectedViolations.has(v)) {
-      failures.push(`violations: unexpected violation '${v}'`);
-    }
-  });
-
-  return { pass: failures.length === 0, failures };
-}
-
-/**
- * Validate capital allocation result against expected values
- */
-export function validateCapitalAllocationResult(
-  result: CACalculationResult,
-  tc: CapitalAllocationTruthCase
-): ValidationResult {
-  const { expected } = tc;
-
-  // Use tolerance of 0.01 for most cases, 1 for large numbers (CA-007+)
-  const tolerance = tc.inputs.fund.commitment > 1000 ? 1 : 0.01;
-
-  if (isSimpleExpectedOutput(expected)) {
-    return validateSimpleResult(result, expected, tolerance);
-  }
-
-  // For complex cases, just validate allocations_by_cohort for now
-  const failures: string[] = [];
-
-  if (result.allocations_by_cohort.length !== expected.allocations_by_cohort.length) {
-    failures.push(
-      `allocations_by_cohort.length: expected ${expected.allocations_by_cohort.length}, got ${result.allocations_by_cohort.length}`
-    );
-  } else {
-    expected.allocations_by_cohort.forEach((expectedCohort, idx) => {
-      const actualCohort = result.allocations_by_cohort[idx];
-      if (!actualCohort) {
-        failures.push(`allocations_by_cohort[${idx}]: missing in result`);
-        return;
-      }
-
-      if (Math.abs(actualCohort.amount - expectedCohort.amount) > tolerance) {
-        failures.push(
-          `allocations_by_cohort[${idx}].amount: expected ${expectedCohort.amount}, got ${actualCohort.amount}`
-        );
-      }
-    });
-  }
-
-  return { pass: failures.length === 0, failures };
+  return { skip: false };
 }

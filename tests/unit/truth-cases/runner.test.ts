@@ -55,12 +55,9 @@ import {
   type ExitRecyclingTruthCase,
 } from './exit-recycling-adapter';
 
-// Phase 1.5: Capital Allocation validation imports
-import {
-  executeCapitalAllocationTruthCase,
-  validateCapitalAllocationResult,
-  type CapitalAllocationTruthCase,
-} from './capital-allocation-adapter';
+// Phase 1.5: Capital Allocation - tests moved to client/src/core/capitalAllocation/__tests__/truthCaseRunner.test.ts
+// Import type only for load verification
+import type { CATruthCase as CapitalAllocationTruthCase } from './capital-allocation-adapter';
 
 // Import all truth-case JSON files
 import xirrCases from '../../../docs/xirr.truth-cases.json';
@@ -342,40 +339,15 @@ describe('Truth Cases: Fees (Phase 1.3 - Active)', () => {
   });
 });
 
-// [PHASE 1.5] Capital Allocation - Active Execution
-describe('Truth Cases: Capital Allocation (Phase 1.5 - Active)', () => {
-  (capitalCases as CapitalAllocationTruthCase[]).forEach((testCase) => {
-    const { id, description, category } = testCase;
-
-    it(`${id}: ${description}`, () => {
-      // Execute production code
-      const result = executeCapitalAllocationTruthCase(testCase);
-
-      // Validate result against expected values
-      const validation = validateCapitalAllocationResult(result, testCase);
-
-      // Assert all validations pass
-      if (!validation.pass) {
-        console.error(`[${id}] Category: ${category}`);
-        console.error(`[${id}] Validation failures:`, validation.failures);
-      }
-      expect(validation.pass).toBe(true);
-    });
-  });
-
-  // Summary: Capital Allocation coverage and pass rate
-  it('Capital Allocation truth table summary', () => {
+// [PHASE 1.5] Capital Allocation - Execution moved to dedicated runner
+// Tests now run from: client/src/core/capitalAllocation/__tests__/truthCaseRunner.test.ts
+describe('Truth Cases: Capital Allocation (Phase 1.5 - Load Verification)', () => {
+  it('loads capital allocation truth cases', () => {
+    expect(capitalCases).toBeDefined();
+    expect(Array.isArray(capitalCases)).toBe(true);
     expect(capitalCases.length).toBe(20);
-
-    const categories = (capitalCases as CapitalAllocationTruthCase[]).reduce(
-      (acc, tc) => {
-        acc[tc.category] = (acc[tc.category] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>
-    );
-    console.log(`Capital Allocation: ${capitalCases.length} scenarios validated`);
-    console.log('Category distribution:', categories);
+    console.log(`Capital Allocation: ${capitalCases.length} scenarios loaded`);
+    console.log('NOTE: Execution tests in client/src/core/capitalAllocation/__tests__/truthCaseRunner.test.ts');
   });
 });
 
