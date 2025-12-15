@@ -55,6 +55,10 @@ import {
   type ExitRecyclingTruthCase,
 } from './exit-recycling-adapter';
 
+// Phase 1.5: Capital Allocation - tests moved to client/src/core/capitalAllocation/__tests__/truthCaseRunner.test.ts
+// Import type only for load verification
+import type { CATruthCase as CapitalAllocationTruthCase } from './capital-allocation-adapter';
+
 // Import all truth-case JSON files
 import xirrCases from '../../../docs/xirr.truth-cases.json';
 import waterfallTierCases from '../../../docs/waterfall.truth-cases.json';
@@ -233,10 +237,13 @@ describe('Truth Cases: Waterfall-Tier (Phase 1A - Active)', () => {
     const tagSet = new Set(allTags);
 
     // Required categories per truth case design
-    const requiredCategories = ['baseline', 'roc', 'carry'];
+    // Note: 'carry' exists as 'simple-carry', 'roc' is return-of-capital
+    const requiredCategories = ['baseline', 'roc'];
     requiredCategories.forEach((category) => {
       expect(tagSet.has(category)).toBe(true);
     });
+    // Also verify carry-related tags exist (simple-carry or catch-up)
+    expect(tagSet.has('simple-carry') || tagSet.has('catch-up')).toBe(true);
 
     expect(waterfallTierCases.length).toBeGreaterThan(0);
     console.log(`Waterfall-Tier: ${waterfallTierCases.length} scenarios validated`);
@@ -332,17 +339,15 @@ describe('Truth Cases: Fees (Phase 1.3 - Active)', () => {
   });
 });
 
-// [PHASE 1B+] Capital Allocation - Load + Count Only
-describe('Truth Cases: Capital Allocation (Phase 1B+ - Load Only)', () => {
+// [PHASE 1.5] Capital Allocation - Execution moved to dedicated runner
+// Tests now run from: client/src/core/capitalAllocation/__tests__/truthCaseRunner.test.ts
+describe('Truth Cases: Capital Allocation (Phase 1.5 - Load Verification)', () => {
   it('loads capital allocation truth cases', () => {
     expect(capitalCases).toBeDefined();
     expect(Array.isArray(capitalCases)).toBe(true);
-    expect(capitalCases.length).toBeGreaterThan(0);
-  });
-
-  // PHASE 1B+: Execution deferred until Waterfall modules complete
-  it.skip('[GATE] Capital Allocation execution requires Waterfall-Tier + Ledger completion', () => {
-    // See: docs/PHOENIX-EXECUTION-PLAN-v2.31.md Section 1B
+    expect(capitalCases.length).toBe(20);
+    console.log(`Capital Allocation: ${capitalCases.length} scenarios loaded`);
+    console.log('NOTE: Execution tests in client/src/core/capitalAllocation/__tests__/truthCaseRunner.test.ts');
   });
 });
 
