@@ -485,10 +485,21 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
       // Use period's cash or pacing target, whichever is smaller
       allocableCents = Math.min(periodPacingTargetCents, Math.max(0, periodNetCashCents));
     } else if (category === 'reserve_engine') {
-      // Reserve engine in period loop: pacing-based with period cash constraint
-      // For multi-period reserve_engine cases (CA-007, CA-013), use pacing target
-      // but constrained by period's cash flow
-      allocableCents = Math.min(periodPacingTargetCents, Math.max(0, periodNetCashCents));
+      // Reserve engine: floor and pacing interact based on presence of distributions
+      // Per CA-013: without distributions, floor takes precedence over pacing
+      // Per CA-007: with distributions, apply both constraints
+      const reserveFloorCents = input.minCashBufferCents;
+      const cashAboveFloorCents = Math.max(0, cumulativeCashCents - reserveFloorCents);
+      const cashConstrainedCents = Math.min(cashAboveFloorCents, Math.max(0, periodNetCashCents));
+      const hasAnyDistributions = input.distributionsCents.length > 0;
+
+      if (hasAnyDistributions) {
+        // With distributions (CA-007): pacing caps allocation
+        allocableCents = Math.min(periodPacingTargetCents, cashConstrainedCents);
+      } else {
+        // Without distributions (CA-013): floor overrides pacing
+        allocableCents = cashConstrainedCents;
+      }
     } else {
       // Integration: all constraints apply (pacing + cash + reserve)
       // Use minimum of pacing target and available cash after reserve
