@@ -22,3 +22,7 @@ export {
 
 // Quota management
 export { FileQuotaManager } from './FileQuotaManager';
+
+// Agents
+export { GeminiProAgent } from './GeminiProAgent';
+export type { GeminiProAgentConfig } from './GeminiProAgent';
