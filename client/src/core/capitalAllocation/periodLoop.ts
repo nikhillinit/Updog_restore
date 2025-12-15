@@ -501,9 +501,11 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
         allocableCents = cashConstrainedCents;
       }
     } else {
-      // Integration: all constraints apply (pacing + cash + reserve)
-      // Use minimum of pacing target and available cash after reserve
-      allocableCents = Math.min(periodPacingTargetCents, cashAfterReserveCents);
+      // Integration: allocate contributions ONLY, recycled distributions add to reserve
+      // Per CA-020: total allocation = contributions only (not recycled cash)
+      // Recycled distributions flow into cash/reserve pool but NOT allocation pool
+      // This ensures cap applies to contribution base, not total cash flow
+      allocableCents = Math.max(0, cashInCents);
     }
 
     // Allocate to active cohorts using LRM with cap+spill (CA-015)
@@ -526,9 +528,11 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
         normalizedWeights[normalizedWeights.length - 1] += WEIGHT_SCALE - normalizedSum;
       }
 
-      // Use cap+spill allocation (CA-015)
-      // For cohort_engine: apply max_allocation_per_cohort cap with spill redistribution
-      const capPct = category === 'cohort_engine' ? input.maxAllocationPerCohortPct : null;
+      // Use cap+spill allocation (CA-015, CA-020)
+      // For cohort_engine and integration: apply max_allocation_per_cohort cap with spill
+      const capPct = (category === 'cohort_engine' || category === 'integration')
+        ? input.maxAllocationPerCohortPct
+        : null;
       periodAllocationsByCohort = allocateWithCaps(
         allocableCents,
         activeCohorts,
