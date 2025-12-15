@@ -203,34 +203,203 @@ npm test -- --project=client -t "wizard"
 
 ---
 
-## Agent & Skill Utilization Strategy
+## Optimal Dev Tool Combinations
 
-### Phoenix-Specific Agents (Priority Order)
+### Phase 1 Tool Stack (Comprehensive)
 
-1. **phoenix-truth-case-runner** - Truth case execution and validation
-2. **waterfall-specialist** - Complex waterfall/CA edge cases (has memory of clawback semantics)
-3. **phoenix-capital-allocation-analyst** - CA implementation (LOW confidence modules)
-4. **xirr-fees-validator** - Cross-validation against Excel
-5. **test-repair** - Automated failure triage
+This section maps the best combination of all available tools for maximum efficiency.
 
-### Skills (Auto-Activation)
+---
 
-| Skill | Activation Trigger | Usage |
-|-------|-------------------|-------|
-| `systematic-debugging` | When debugging | ROOT CAUSE FIRST |
-| `verification-before-completion` | At gates | MANDATORY |
-| `test-driven-development` | When implementing | RED-GREEN-REFACTOR |
-| `root-cause-tracing` | On failures | Backward trace |
-| `multi-model-consensus` | Complex logic | Cross-validate |
+### Layer 1: Slash Commands (Workflow Automation)
 
-### Commands (Workflow Shortcuts)
+| Command | Phase | Usage | Fallback |
+|---------|-------|-------|----------|
+| `/phoenix-truth` | All | Run 119 truth cases, classify failures, route to specialists | `npm run phoenix:truth` |
+| `/test-smart` | After changes | Intelligent test selection based on modified files | `npm test -- --changed` |
+| `/fix-auto` | After failures | Auto-repair lint, format, simple test failures (4-phase) | `npm run lint:fix` |
+| `/deploy-check` | Before merge | Pre-deployment validation (8 phases) | `npm run check && npm run build` |
 
-| Command | Usage | Fallback |
-|---------|-------|----------|
-| `/phoenix-truth` | Run truth case validation | `npm test -- tests/unit/truth-cases/runner.test.ts` |
-| `/test-smart` | Intelligent test selection | `npm test -- --changed` |
-| `/fix-auto` | Automated repairs | `npm run lint:fix && npm run format:fix` |
-| `/deploy-check` | Pre-deployment validation | `npm run check && npm run build && npm test` |
+**Workflow Chain:**
+```
+/phoenix-truth → identify failures → /fix-auto → /test-smart → /deploy-check
+```
+
+---
+
+### Layer 2: Skills (Auto-Activate on Context)
+
+| Skill | Activation | Phase 1 Usage |
+|-------|------------|---------------|
+| `task-decomposition` | Complex task (3+ steps) | Break CA into 20 subtasks |
+| `systematic-debugging` | Any bug/failure | ROOT CAUSE FIRST (Iron Law) |
+| `root-cause-tracing` | Deep call stack errors | Trace backward through function calls |
+| `dispatching-parallel-agents` | 3+ independent failures | Parallelize CA truth case validation |
+| `writing-plans` | Before implementation | Generate TDD plans (2-5 min tasks) |
+| `multi-model-consensus` | Complex logic | Cross-validate clawback semantics via MCP |
+| `memory-management` | Cross-session context | Persist truth case pass rates, bug classifications |
+| `iterative-improvement` | After each subtask | Small cycles with verification |
+
+**Skill Chain for CA Implementation:**
+```
+task-decomposition → writing-plans → systematic-debugging (if failures) → iterative-improvement
+```
+
+---
+
+### Layer 3: MCP Tools (Multi-AI Collaboration)
+
+| Tool | Usage | Phase 1 Application |
+|------|-------|---------------------|
+| `mcp__multi-ai-collab__ai_debate` | Complex semantics | Validate CA conservation models |
+| `mcp__multi-ai-collab__collaborative_solve` | Multi-module bugs | Cross-validate CA + Exit Recycling integration |
+| `mcp__multi-ai-collab__ask_gemini` | Quick validation | Spot-check individual truth cases |
+| `mcp__notebooklm-mcp__ask_question` | Domain knowledge | Query 85K word Phoenix documentation (zero hallucination) |
+
+**MCP Chain for LOW Confidence Scenarios:**
+```
+notebooklm__ask_question (domain knowledge) → ai_debate (semantics validation) → collaborative_solve (integration)
+```
+
+---
+
+### Layer 4: Phoenix-Specific Agents
+
+| Agent | Scope | Phase 1 Task Assignment |
+|-------|-------|-------------------------|
+| `phoenix-truth-case-runner` | Truth case execution | CA-001 to CA-020 validation |
+| `waterfall-specialist` | Waterfall/allocation edge cases | CA conservation model verification |
+| `phoenix-capital-allocation-analyst` | LOW confidence modules | CA/Exit Recycling spot-checks |
+| `xirr-fees-validator` | Excel parity | Cross-validate Exit Recycling |
+| `test-repair` | Automated failure triage | Classify failures as CODE BUG / TRUTH CASE ERROR / MISSING FEATURE |
+
+**Agent Dispatch Strategy:**
+```typescript
+// Parallel dispatch for independent CA truth cases (single message)
+Task({ subagent_type: "phoenix-capital-allocation-analyst", prompt: "Validate CA-001 to CA-010..." });
+Task({ subagent_type: "phoenix-capital-allocation-analyst", prompt: "Validate CA-011 to CA-020..." });
+```
+
+---
+
+### Layer 5: TodoWrite Integration
+
+**Track all Phase 1 work with TodoWrite:**
+
+```typescript
+TodoWrite({
+  todos: [
+    { content: "Run /phoenix-truth baseline", activeForm: "Running Phoenix truth baseline", status: "pending" },
+    { content: "Decompose CA into 20 subtasks", activeForm: "Decomposing CA implementation", status: "pending" },
+    { content: "Validate CA conservation models", activeForm: "Validating CA conservation models", status: "pending" },
+    { content: "Execute Exit Recycling truth cases", activeForm: "Executing Exit Recycling validation", status: "pending" },
+    { content: "Run /deploy-check before merge", activeForm: "Running pre-deployment validation", status: "pending" }
+  ]
+});
+```
+
+---
+
+### Optimal Tool Combinations by Step
+
+#### Step 1.1: Capital Allocation (3-5 days)
+
+| Phase | Tools | Rationale |
+|-------|-------|-----------|
+| **Decomposition** | `task-decomposition` skill + TodoWrite | Break 20 truth cases into testable chunks |
+| **Domain Research** | `mcp__notebooklm-mcp__ask_question` | Query CA documentation (99% quality) |
+| **Implementation** | `writing-plans` skill + `test-driven-development` | RED-GREEN-REFACTOR for each case |
+| **Validation** | `/phoenix-truth --module=capital` | Execute CA truth cases |
+| **Debugging** | `systematic-debugging` + `root-cause-tracing` | ROOT CAUSE FIRST for failures |
+| **Cross-Validate** | `mcp__multi-ai-collab__ai_debate` | Verify conservation model semantics |
+| **Parallel Work** | `dispatching-parallel-agents` (if 3+ failures) | Dispatch agents per failure domain |
+
+**Command Sequence:**
+```bash
+# 1. Domain research
+mcp__notebooklm-mcp__ask_question("What are the 6 CA conservation models?")
+
+# 2. Decompose
+Use task-decomposition skill for CA-001 to CA-020
+
+# 3. Execute with TDD
+For each truth case: write test → run (FAIL) → implement → run (PASS)
+
+# 4. Validate
+/phoenix-truth --module=capital
+
+# 5. Cross-validate semantics
+mcp__multi-ai-collab__ai_debate("Validate CA conservation model: total_allocated == sum(investments)")
+```
+
+#### Step 1.2: Exit Recycling (1-2 days)
+
+| Phase | Tools | Rationale |
+|-------|-------|-----------|
+| **Enable Adapter** | `systematic-debugging` | Debug adapter integration issues |
+| **Execute Cases** | `/phoenix-truth --module=recycling` | Run 10 Exit Recycling scenarios |
+| **Cross-Validate** | `xirr-fees-validator` agent | Verify recycling math against Excel |
+| **Integration** | `mcp__multi-ai-collab__collaborative_solve` | Validate CA + Exit Recycling work together |
+
+**Command Sequence:**
+```bash
+# 1. Enable adapter in runner
+Edit tests/unit/truth-cases/runner.test.ts to include exit-recycling-adapter
+
+# 2. Run focused validation
+/phoenix-truth --module=recycling
+
+# 3. Cross-validate with agent
+Task("xirr-fees-validator", "Cross-check Exit Recycling ER-001 to ER-010 against Excel")
+```
+
+#### Step 1.3: PR #227 Resolution (2-3 hours)
+
+| Phase | Tools | Rationale |
+|-------|-------|-----------|
+| **Diagnose** | `gh pr view 227` + `systematic-debugging` | Identify 11 blocked test root causes |
+| **Fix** | `/fix-auto` | Auto-repair simple failures |
+| **Verify** | `/test-smart` | Run affected wizard tests |
+| **Merge** | `/deploy-check` | Pre-merge validation |
+
+**Command Sequence:**
+```bash
+# 1. Check PR status
+gh pr view 227 --json statusCheckRollup
+
+# 2. Run blocked tests
+npm test -- --project=client -t "wizard"
+
+# 3. Auto-fix if simple failures
+/fix-auto
+
+# 4. Pre-merge validation
+/deploy-check
+```
+
+---
+
+### Anti-Pattern Prevention (Per ADR-011)
+
+| Anti-Pattern | Tool Prevention |
+|--------------|-----------------|
+| Fixing without root cause | `systematic-debugging` skill (Iron Law: NO FIXES WITHOUT ROOT CAUSE) |
+| Sequential agent dispatch | `dispatching-parallel-agents` (single message for parallelism) |
+| Missing validation | `/phoenix-truth` (119 truth cases) |
+| Regression introduction | `/test-smart` after each change |
+| Pre-merge failures | `/deploy-check` (8-phase validation) |
+
+---
+
+### Quality Gates with Tools
+
+| Gate | Tool | Success Criteria |
+|------|------|------------------|
+| **Phase 0** | `/phoenix-truth` | Baseline captured, failures classified |
+| **CA Implementation** | `task-decomposition` + TodoWrite | 20/20 truth cases passing |
+| **Exit Recycling** | `/phoenix-truth --module=recycling` | 10/10 truth cases passing |
+| **Pre-Merge** | `/deploy-check` | Build, lint, test, bundle all pass |
+| **Phase 1 COMPLETE** | `/phoenix-truth` | 119/119 truth cases (100%) |
 
 ---
 
