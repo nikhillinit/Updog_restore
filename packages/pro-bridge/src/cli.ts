@@ -3,10 +3,19 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { GeminiProAgent } from './GeminiProAgent';
+import { GeminiBrowserAgent } from './GeminiBrowserAgent';
 import { ChatGPTProAgent } from './ChatGPTProAgent';
 import { ConsensusOrchestrator } from './ConsensusOrchestrator';
 import { FileQuotaManager } from './FileQuotaManager';
 import type { ReviewModel, ReviewContext, ConsensusResult } from './types';
+
+/**
+ * Gemini mode determines how Gemini provider is accessed
+ * - api: Use official API (requires GEMINI_API_KEY)
+ * - browser: Use browser automation (works with Gemini Advanced subscription)
+ * - auto: Use API if key available, otherwise browser
+ */
+type GeminiMode = 'api' | 'browser' | 'auto';
 
 /**
  * CLI configuration loaded from environment
@@ -16,9 +25,12 @@ interface CLIConfig {
   openaiApiKey?: string | undefined;
   sessionDir: string;
   providers: ('gemini' | 'chatgpt')[];
+  geminiMode: GeminiMode;
+  enableDeepThink: boolean;
   output: 'json' | 'text';
   minAgreement: number;
   severityResolution: 'max' | 'min' | 'average';
+  debugSnapshots: boolean;
 }
 
 /**
@@ -45,6 +57,13 @@ function parseArgs(args: string[]): {
     } else if (arg === '--providers' || arg === '-p') {
       const val = args[++i];
       if (val) options.providers = val.split(',') as ('gemini' | 'chatgpt')[];
+    } else if (arg === '--gemini-mode') {
+      const val = args[++i];
+      if (val) options.geminiMode = val as GeminiMode;
+    } else if (arg === '--deep-think') {
+      options.enableDeepThink = true;
+    } else if (arg === '--debug-snapshots') {
+      options.debugSnapshots = true;
     } else if (arg === '--min-agreement') {
       const val = args[++i];
       if (val) options.minAgreement = parseFloat(val);
@@ -67,15 +86,21 @@ function parseArgs(args: string[]): {
  */
 function loadConfig(options: Partial<CLIConfig>): CLIConfig {
   const env = process.env;
+  const geminiMode = options.geminiMode ??
+    (env['GEMINI_MODE'] as GeminiMode | undefined) ?? 'auto';
+
   return {
     geminiApiKey: env['GEMINI_API_KEY'],
     openaiApiKey: env['OPENAI_API_KEY'],
     sessionDir: options.sessionDir ?? env['PRO_BRIDGE_SESSION_DIR'] ?? './data/sessions',
     providers: options.providers ?? ['gemini', 'chatgpt'],
+    geminiMode,
+    enableDeepThink: options.enableDeepThink ?? env['GEMINI_DEEP_THINK'] === 'true',
     output: options.output ?? 'text',
     minAgreement: options.minAgreement ?? parseFloat(env['CONSENSUS_MIN_AGREEMENT'] ?? '0.5'),
     severityResolution: options.severityResolution ??
       (env['CONSENSUS_SEVERITY_RESOLUTION'] as 'max' | 'min' | 'average' | undefined) ?? 'max',
+    debugSnapshots: options.debugSnapshots ?? env['PRO_BRIDGE_DEBUG_SNAPSHOTS'] === 'true',
   };
 }
 
@@ -86,13 +111,43 @@ function createProviders(config: CLIConfig): ReviewModel[] {
   const providers: ReviewModel[] = [];
 
   if (config.providers.includes('gemini')) {
-    if (!config.geminiApiKey) {
-      console.error('Error: GEMINI_API_KEY environment variable required for Gemini provider');
-      process.exit(1);
+    // Determine Gemini mode
+    let useApi = false;
+    let useBrowser = false;
+
+    if (config.geminiMode === 'api') {
+      useApi = true;
+    } else if (config.geminiMode === 'browser') {
+      useBrowser = true;
+    } else {
+      // auto: prefer API if key available
+      useApi = !!config.geminiApiKey;
+      useBrowser = !useApi;
     }
-    providers.push(new GeminiProAgent({
-      apiKey: config.geminiApiKey,
-    }));
+
+    if (useApi) {
+      if (!config.geminiApiKey) {
+        console.error('Error: GEMINI_API_KEY required for Gemini API mode');
+        console.error('Hint: Use --gemini-mode browser to use Gemini Advanced subscription instead');
+        process.exit(1);
+      }
+      providers.push(new GeminiProAgent({
+        apiKey: config.geminiApiKey,
+      }));
+      console.log('Using Gemini API mode');
+    } else if (useBrowser) {
+      if (!config.openaiApiKey) {
+        console.error('Error: OPENAI_API_KEY required for browser automation (Stagehand)');
+        process.exit(1);
+      }
+      providers.push(new GeminiBrowserAgent({
+        sessionDir: config.sessionDir,
+        openaiApiKey: config.openaiApiKey,
+        enableDeepThink: config.enableDeepThink,
+        debugSnapshots: config.debugSnapshots,
+      }));
+      console.log('Using Gemini browser mode (Gemini Advanced subscription)');
+    }
   }
 
   if (config.providers.includes('chatgpt')) {
@@ -104,6 +159,7 @@ function createProviders(config: CLIConfig): ReviewModel[] {
       sessionDir: config.sessionDir,
       openaiApiKey: config.openaiApiKey,
     }));
+    console.log('Using ChatGPT browser mode (ChatGPT Pro subscription)');
   }
 
   if (providers.length === 0) {
@@ -224,27 +280,47 @@ OPTIONS:
   -h, --help                Show this help message
   -o, --output <format>     Output format: json or text (default: text)
   -p, --providers <list>    Comma-separated providers: gemini,chatgpt (default: both)
+  --gemini-mode <mode>      How to access Gemini: api, browser, auto (default: auto)
+  --deep-think              Enable Gemini Deep Think mode (browser mode only)
+  --debug-snapshots         Save debug snapshots on failure
   --min-agreement <n>       Minimum agreement rate 0-1 (default: 0.5)
   --severity-resolution <s> How to resolve severity: max, min, average (default: max)
   --session-dir <path>      Session directory for browser data
 
+GEMINI MODES:
+  api      Use Gemini API (requires GEMINI_API_KEY, has API costs)
+  browser  Use browser automation with Gemini Advanced subscription (no API costs)
+  auto     Use API if GEMINI_API_KEY set, otherwise use browser (default)
+
 ENVIRONMENT VARIABLES:
-  GEMINI_API_KEY            API key for Gemini (required for gemini provider)
-  OPENAI_API_KEY            API key for OpenAI (required for chatgpt provider)
+  GEMINI_API_KEY            API key for Gemini API mode
+  GEMINI_MODE               Default Gemini mode: api, browser, auto
+  GEMINI_DEEP_THINK         Enable Deep Think by default: true/false
+  OPENAI_API_KEY            Required for ChatGPT and browser automation (Stagehand)
   PRO_BRIDGE_SESSION_DIR    Default session directory
+  PRO_BRIDGE_DEBUG_SNAPSHOTS Enable debug snapshots: true/false
+
+SUBSCRIPTION-ONLY MODE (NO API COSTS):
+  # Use both subscriptions without API keys (except OPENAI_API_KEY for Stagehand)
+  export GEMINI_MODE=browser
+  export OPENAI_API_KEY=sk-...  # Still needed for Stagehand selectors
+  pro-bridge --deep-think src/critical.ts
 
 EXAMPLES:
-  # Review a single file
+  # Review with API mode (needs GEMINI_API_KEY)
   pro-bridge src/api/users.ts
 
-  # Review multiple files with JSON output
-  pro-bridge -o json src/*.ts
+  # Review with browser mode (uses subscriptions)
+  pro-bridge --gemini-mode browser src/api/users.ts
 
-  # Use only Gemini provider
-  pro-bridge -p gemini src/index.ts
+  # Use Deep Think for thorough analysis
+  pro-bridge --gemini-mode browser --deep-think src/security.ts
 
-  # High consensus threshold
-  pro-bridge --min-agreement 0.75 src/critical.ts
+  # Only ChatGPT (subscription via browser)
+  pro-bridge -p chatgpt src/index.ts
+
+  # High consensus threshold with JSON output
+  pro-bridge --min-agreement 0.75 -o json src/critical.ts
 `);
 }
 

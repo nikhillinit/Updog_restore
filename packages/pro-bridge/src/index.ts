@@ -26,6 +26,8 @@ export { FileQuotaManager } from './FileQuotaManager';
 // Agents
 export { GeminiProAgent } from './GeminiProAgent';
 export type { GeminiProAgentConfig } from './GeminiProAgent';
+export { GeminiBrowserAgent } from './GeminiBrowserAgent';
+export type { GeminiBrowserAgentConfig } from './GeminiBrowserAgent';
 export { ChatGPTProAgent } from './ChatGPTProAgent';
 export type { ChatGPTProAgentConfig } from './ChatGPTProAgent';
 
