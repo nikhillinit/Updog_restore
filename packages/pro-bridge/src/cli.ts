@@ -12,8 +12,8 @@ import type { ReviewModel, ReviewContext, ConsensusResult } from './types';
  * CLI configuration loaded from environment
  */
 interface CLIConfig {
-  geminiApiKey?: string;
-  openaiApiKey?: string;
+  geminiApiKey?: string | undefined;
+  openaiApiKey?: string | undefined;
   sessionDir: string;
   providers: ('gemini' | 'chatgpt')[];
   output: 'json' | 'text';
@@ -35,19 +35,25 @@ function parseArgs(args: string[]): {
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
+    if (!arg) continue;
 
     if (arg === '--help' || arg === '-h') {
       help = true;
     } else if (arg === '--output' || arg === '-o') {
-      options.output = args[++i] as 'json' | 'text';
+      const val = args[++i];
+      if (val) options.output = val as 'json' | 'text';
     } else if (arg === '--providers' || arg === '-p') {
-      options.providers = args[++i].split(',') as ('gemini' | 'chatgpt')[];
+      const val = args[++i];
+      if (val) options.providers = val.split(',') as ('gemini' | 'chatgpt')[];
     } else if (arg === '--min-agreement') {
-      options.minAgreement = parseFloat(args[++i]);
+      const val = args[++i];
+      if (val) options.minAgreement = parseFloat(val);
     } else if (arg === '--severity-resolution') {
-      options.severityResolution = args[++i] as 'max' | 'min' | 'average';
+      const val = args[++i];
+      if (val) options.severityResolution = val as 'max' | 'min' | 'average';
     } else if (arg === '--session-dir') {
-      options.sessionDir = args[++i];
+      const val = args[++i];
+      if (val) options.sessionDir = val;
     } else if (!arg.startsWith('-')) {
       files.push(arg);
     }
@@ -60,15 +66,16 @@ function parseArgs(args: string[]): {
  * Load configuration from environment and CLI options
  */
 function loadConfig(options: Partial<CLIConfig>): CLIConfig {
+  const env = process.env;
   return {
-    geminiApiKey: process.env.GEMINI_API_KEY,
-    openaiApiKey: process.env.OPENAI_API_KEY,
-    sessionDir: options.sessionDir ?? process.env.PRO_BRIDGE_SESSION_DIR ?? './data/sessions',
+    geminiApiKey: env['GEMINI_API_KEY'],
+    openaiApiKey: env['OPENAI_API_KEY'],
+    sessionDir: options.sessionDir ?? env['PRO_BRIDGE_SESSION_DIR'] ?? './data/sessions',
     providers: options.providers ?? ['gemini', 'chatgpt'],
     output: options.output ?? 'text',
-    minAgreement: options.minAgreement ?? parseFloat(process.env.CONSENSUS_MIN_AGREEMENT ?? '0.5'),
+    minAgreement: options.minAgreement ?? parseFloat(env['CONSENSUS_MIN_AGREEMENT'] ?? '0.5'),
     severityResolution: options.severityResolution ??
-      (process.env.CONSENSUS_SEVERITY_RESOLUTION as 'max' | 'min' | 'average') ?? 'max',
+      (env['CONSENSUS_SEVERITY_RESOLUTION'] as 'max' | 'min' | 'average' | undefined) ?? 'max',
   };
 }
 

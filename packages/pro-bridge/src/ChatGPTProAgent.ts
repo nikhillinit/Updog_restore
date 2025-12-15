@@ -24,7 +24,7 @@ export interface ChatGPTProAgentConfig {
   openaiApiKey: string;
 
   /**
-   * Model to use (default: gpt-5.2)
+   * Model to use (default: gpt-4o)
    */
   model?: string;
 
@@ -61,18 +61,32 @@ interface LockData {
 }
 
 /**
- * Zod schema for Stagehand extract response
+ * Zod schemas for Stagehand extract responses
+ * Defined at module level to avoid deep type instantiation issues
  */
+const PageInfoSchema = z.object({
+  url: z.string(),
+  hasLoginButton: z.boolean(),
+});
+
+const GenerationStatusSchema = z.object({
+  isGenerating: z.boolean(),
+});
+
 const ExtractResponseSchema = z.object({
   response: z.string(),
   hasCode: z.boolean().optional(),
 });
 
+type PageInfo = z.infer<typeof PageInfoSchema>;
+type GenerationStatus = z.infer<typeof GenerationStatusSchema>;
+type ExtractResponse = z.infer<typeof ExtractResponseSchema>;
+
 /**
  * ChatGPT Pro Agent using Stagehand v3 browser automation
  *
  * Uses @browserbasehq/stagehand for resilient browser automation
- * with self-healing selectors powered by GPT-4o.
+ * with self-healing selectors.
  */
 export class ChatGPTProAgent implements ReviewModel {
   readonly provider = 'chatgpt';
@@ -84,7 +98,7 @@ export class ChatGPTProAgent implements ReviewModel {
 
   constructor(config: ChatGPTProAgentConfig) {
     this.config = config;
-    this.model = config.model ?? 'gpt-5.2';
+    this.model = config.model ?? 'gpt-4o';
     this.ensureSessionDir();
   }
 
@@ -98,31 +112,30 @@ export class ChatGPTProAgent implements ReviewModel {
     await this.acquireSessionLock();
 
     try {
-      // Initialize Stagehand
+      // Initialize Stagehand with local browser
       this.stagehand = new Stagehand({
         env: 'LOCAL',
         localBrowserLaunchOptions: {
           headless: this.config.headless ?? false,
           userDataDir: path.join(this.config.sessionDir, 'chrome-profile'),
         },
-        modelName: 'gpt-4o',
-        modelApiKey: this.config.openaiApiKey,
+        verbose: 0,
       });
 
       await this.stagehand.init();
 
-      // Navigate to ChatGPT and check auth status
-      await this.stagehand.page.goto('https://chatgpt.com/', {
-        waitUntil: 'networkidle',
-        timeout: this.config.timeoutMs ?? 30000,
-      });
+      // Navigate to ChatGPT
+      await this.stagehand.act('navigate to https://chatgpt.com/');
 
-      // Check if we're logged in
-      const currentUrl = this.stagehand.page.url();
-      if (currentUrl.includes('auth0.openai.com') || currentUrl.includes('/auth/')) {
+      // Check if we need to login
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pageInfo = await this.stagehand.extract(
+        'Extract the current page URL and whether there is a login button visible',
+        PageInfoSchema as any
+      ) as PageInfo;
+
+      if (pageInfo.hasLoginButton || pageInfo.url.includes('auth')) {
         console.log('ChatGPT requires login. Please log in manually in the browser window.');
-        // In a real implementation, we'd wait for user to complete login
-        // For now, we still mark as ready and let review() handle auth checks
       }
 
       this.ready = true;
@@ -151,17 +164,8 @@ export class ChatGPTProAgent implements ReviewModel {
     const prompt = this.buildPrompt(code, context);
     const startTime = Date.now();
 
-    // Navigate to ChatGPT if not already there
-    const currentUrl = this.stagehand.page.url();
-    if (!currentUrl.includes('chatgpt.com')) {
-      await this.stagehand.page.goto('https://chatgpt.com/', {
-        waitUntil: 'networkidle',
-        timeout: this.config.timeoutMs ?? 30000,
-      });
-    }
-
-    // Type the prompt using Stagehand's act() with natural language
-    await this.stagehand.act(`type "${this.escapeForAct(prompt)}" into the message input field`);
+    // Type the prompt into ChatGPT
+    await this.stagehand.act(`type the following text into the message input field: ${this.escapeForAct(prompt)}`);
 
     // Send the message
     await this.stagehand.act('click the send message button');
@@ -169,11 +173,12 @@ export class ChatGPTProAgent implements ReviewModel {
     // Wait for response to complete
     await this.waitForResponse();
 
-    // Extract the response using Stagehand's extract()
+    // Extract the response
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const extracted = await this.stagehand.extract(
-      'Extract the complete assistant response text from the last message',
-      ExtractResponseSchema
-    );
+      'Extract the complete text content of the last assistant message in the chat',
+      ExtractResponseSchema as any
+    ) as ExtractResponse;
 
     const parsed = this.parseResponse(extracted.response);
 
@@ -193,11 +198,11 @@ export class ChatGPTProAgent implements ReviewModel {
   async dispose(): Promise<void> {
     if (this.stagehand) {
       try {
-        await this.stagehand.close();
+        // Close is not available in V3 - just null out the reference
+        this.stagehand = null;
       } catch {
         // Ignore close errors
       }
-      this.stagehand = null;
     }
 
     await this.releaseSessionLock();
@@ -338,26 +343,25 @@ export class ChatGPTProAgent implements ReviewModel {
    * Wait for ChatGPT to finish generating response
    */
   private async waitForResponse(): Promise<void> {
-    // Wait for the streaming indicator to disappear
-    // This is a simplified version - in production, use more robust detection
     const timeout = this.config.timeoutMs ?? 60000;
     const startTime = Date.now();
 
     while (Date.now() - startTime < timeout) {
       try {
-        // Check if still generating
-        const isGenerating = await this.stagehand!.page.evaluate(() => {
-          const stopButton = document.querySelector('[data-testid="stop-button"]');
-          return stopButton !== null;
-        });
+        // Check if still generating by looking for stop button
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const status = await this.stagehand!.extract(
+          'Check if there is a stop generation button visible (indicating the AI is still responding)',
+          GenerationStatusSchema as any
+        ) as GenerationStatus;
 
-        if (!isGenerating) {
+        if (!status.isGenerating) {
           // Give a small buffer for final render
           await this.sleep(500);
           return;
         }
       } catch {
-        // Page changed, wait and retry
+        // Extraction failed, wait and retry
       }
 
       await this.sleep(1000);
@@ -372,7 +376,7 @@ export class ChatGPTProAgent implements ReviewModel {
   private parseResponse(text: string): ParsedResponse {
     // Try to extract JSON from markdown code blocks first
     const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (codeBlockMatch) {
+    if (codeBlockMatch && codeBlockMatch[1]) {
       return this.validateAndParse(codeBlockMatch[1].trim());
     }
 
@@ -432,37 +436,53 @@ export class ChatGPTProAgent implements ReviewModel {
    * Validate and parse JSON response
    */
   private validateAndParse(json: string): ParsedResponse {
-    const parsed = JSON.parse(json);
+    const parsed = JSON.parse(json) as Record<string, unknown>;
 
-    if (!Array.isArray(parsed.issues)) {
+    if (!Array.isArray(parsed['issues'])) {
       throw new Error('Response missing "issues" array');
     }
 
-    if (typeof parsed.summary !== 'string') {
+    if (typeof parsed['summary'] !== 'string') {
       throw new Error('Response missing "summary" string');
     }
 
-    const issues: ReviewIssue[] = parsed.issues.map((issue: Record<string, unknown>) => {
-      if (!['critical', 'high', 'medium', 'low'].includes(issue.severity as string)) {
-        throw new Error(`Invalid severity: ${issue.severity}`);
+    const issues: ReviewIssue[] = (parsed['issues'] as Record<string, unknown>[]).map((issue) => {
+      const severity = issue['severity'] as string;
+      if (!['critical', 'high', 'medium', 'low'].includes(severity)) {
+        throw new Error(`Invalid severity: ${severity}`);
       }
 
-      if (typeof issue.description !== 'string' || !issue.description) {
+      const description = issue['description'] as string;
+      if (typeof description !== 'string' || !description) {
         throw new Error('Issue missing description');
       }
 
-      return {
-        severity: issue.severity as ReviewIssue['severity'],
-        description: issue.description as string,
-        line: typeof issue.line === 'number' ? issue.line : undefined,
-        file: typeof issue.file === 'string' ? issue.file : undefined,
-        suggestion: typeof issue.suggestion === 'string' ? issue.suggestion : undefined,
+      const result: ReviewIssue = {
+        severity: severity as ReviewIssue['severity'],
+        description,
       };
+
+      const line = issue['line'];
+      if (typeof line === 'number') {
+        result.line = line;
+      }
+
+      const file = issue['file'];
+      if (typeof file === 'string') {
+        result.file = file;
+      }
+
+      const suggestion = issue['suggestion'];
+      if (typeof suggestion === 'string') {
+        result.suggestion = suggestion;
+      }
+
+      return result;
     });
 
     return {
       issues,
-      summary: parsed.summary,
+      summary: parsed['summary'] as string,
     };
   }
 

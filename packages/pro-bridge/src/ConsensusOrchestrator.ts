@@ -133,31 +133,35 @@ export class ConsensusOrchestrator {
           if (!existing.file && issue.file) existing.file = issue.file;
           if (!existing.suggestion && issue.suggestion) existing.suggestion = issue.suggestion;
         } else {
-          // New issue
-          issueMap.set(key, {
+          // New issue - only include defined optional properties
+          const acc: IssueAccumulator = {
             description: issue.description,
-            line: issue.line,
-            file: issue.file,
-            suggestion: issue.suggestion,
             reportedBy: [result.provider],
             severities: { [result.provider]: issue.severity },
-          });
+          };
+          if (issue.line !== undefined) acc.line = issue.line;
+          if (issue.file !== undefined) acc.file = issue.file;
+          if (issue.suggestion !== undefined) acc.suggestion = issue.suggestion;
+          issueMap.set(key, acc);
         }
       }
     }
 
     // Convert to MergedIssue array
     const totalProviders = results.length;
-    return Array.from(issueMap.values()).map(acc => ({
-      severity: this.resolveSeverity(Object.values(acc.severities)),
-      description: acc.description,
-      line: acc.line,
-      file: acc.file,
-      suggestion: acc.suggestion,
-      reportedBy: acc.reportedBy,
-      confidence: acc.reportedBy.length / totalProviders,
-      originalSeverities: acc.severities,
-    }));
+    return Array.from(issueMap.values()).map(acc => {
+      const merged: MergedIssue = {
+        severity: this.resolveSeverity(Object.values(acc.severities)),
+        description: acc.description,
+        reportedBy: acc.reportedBy,
+        confidence: acc.reportedBy.length / totalProviders,
+        originalSeverities: acc.severities,
+      };
+      if (acc.line !== undefined) merged.line = acc.line;
+      if (acc.file !== undefined) merged.file = acc.file;
+      if (acc.suggestion !== undefined) merged.suggestion = acc.suggestion;
+      return merged;
+    });
   }
 
   /**
@@ -176,17 +180,22 @@ export class ConsensusOrchestrator {
 
     const ranks = severities.map(s => SEVERITY_RANK[s]);
 
+    // Helper to safely get severity from rank (ranks are always 1-4)
+    const getSeverity = (rank: number): IssueSeverity => {
+      return RANK_TO_SEVERITY[rank] ?? 'low';
+    };
+
     switch (this.config.severityResolution) {
       case 'max':
-        return RANK_TO_SEVERITY[Math.max(...ranks)];
+        return getSeverity(Math.max(...ranks));
       case 'min':
-        return RANK_TO_SEVERITY[Math.min(...ranks)];
+        return getSeverity(Math.min(...ranks));
       case 'average': {
         const avg = Math.round(ranks.reduce((a, b) => a + b, 0) / ranks.length);
-        return RANK_TO_SEVERITY[Math.min(Math.max(avg, 1), 4)];
+        return getSeverity(Math.min(Math.max(avg, 1), 4));
       }
       default:
-        return RANK_TO_SEVERITY[Math.max(...ranks)];
+        return getSeverity(Math.max(...ranks));
     }
   }
 

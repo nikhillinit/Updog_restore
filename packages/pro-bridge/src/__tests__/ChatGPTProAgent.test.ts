@@ -5,26 +5,29 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-// Create mock instance that will be reused
+// Create mock instance for Stagehand V3 API (no page property)
 const createMockStagehand = () => ({
   init: vi.fn().mockResolvedValue(undefined),
-  page: {
-    goto: vi.fn().mockResolvedValue(undefined),
-    url: vi.fn().mockReturnValue('https://chatgpt.com/'),
-    waitForSelector: vi.fn().mockResolvedValue(undefined),
-    fill: vi.fn().mockResolvedValue(undefined),
-    click: vi.fn().mockResolvedValue(undefined),
-    evaluate: vi.fn().mockResolvedValue(false), // Not generating
-    keyboard: {
-      press: vi.fn().mockResolvedValue(undefined),
-    },
-  },
   act: vi.fn().mockResolvedValue(undefined),
-  extract: vi.fn().mockResolvedValue({
-    response: '{"issues": [], "summary": "Clean"}',
-    hasCode: false,
+  extract: vi.fn().mockImplementation((instruction: string) => {
+    // Return different results based on the instruction
+    if (instruction.includes('current page URL')) {
+      return Promise.resolve({
+        url: 'https://chatgpt.com/',
+        hasLoginButton: false,
+      });
+    }
+    if (instruction.includes('stop generation button')) {
+      return Promise.resolve({
+        isGenerating: false,
+      });
+    }
+    // Default: return response for message extraction
+    return Promise.resolve({
+      response: '{"issues": [], "summary": "Clean"}',
+      hasCode: false,
+    });
   }),
-  close: vi.fn().mockResolvedValue(undefined),
 });
 
 let mockStagehandInstance = createMockStagehand();
@@ -56,7 +59,7 @@ describe('ChatGPTProAgent', () => {
   describe('constructor', () => {
     it('sets provider and model correctly', () => {
       expect(agent.provider).toBe('chatgpt');
-      expect(agent.model).toBe('gpt-5.2');
+      expect(agent.model).toBe('gpt-4o');
     });
 
     it('allows custom model override', () => {
@@ -118,9 +121,15 @@ describe('ChatGPTProAgent', () => {
       expect(Stagehand).toHaveBeenCalledWith(
         expect.objectContaining({
           env: 'LOCAL',
-          modelName: 'gpt-4o',
-          modelApiKey: 'test-openai-key',
         })
+      );
+    });
+
+    it('navigates to ChatGPT via act()', async () => {
+      await agent.initialize();
+
+      expect(mockStagehandInstance.act).toHaveBeenCalledWith(
+        expect.stringContaining('navigate to https://chatgpt.com/')
       );
     });
 
@@ -154,7 +163,22 @@ describe('ChatGPTProAgent', () => {
     };
 
     beforeEach(async () => {
-      mockStagehandInstance.extract.mockResolvedValue(mockExtractResult);
+      // Override extract to return different results based on instruction
+      mockStagehandInstance.extract.mockImplementation((instruction: string) => {
+        if (instruction.includes('current page URL')) {
+          return Promise.resolve({
+            url: 'https://chatgpt.com/',
+            hasLoginButton: false,
+          });
+        }
+        if (instruction.includes('stop generation button')) {
+          return Promise.resolve({
+            isGenerating: false,
+          });
+        }
+        // Return the mock review result
+        return Promise.resolve(mockExtractResult);
+      });
       await agent.initialize();
     });
 
@@ -170,18 +194,24 @@ describe('ChatGPTProAgent', () => {
       const result = await agent.review('const html = "<div>" + userInput + "</div>"');
 
       expect(result.provider).toBe('chatgpt');
-      expect(result.model).toBe('gpt-5.2');
+      expect(result.model).toBe('gpt-4o');
       expect(result.issues).toHaveLength(1);
       expect(result.issues[0].severity).toBe('high');
       expect(result.summary).toBe('Found 1 security issue');
       expect(result.timestamp).toBeGreaterThan(0);
     });
 
-    it('navigates to ChatGPT and submits prompt', async () => {
+    it('uses act() to type and submit prompt', async () => {
       await agent.review('const x = 1');
 
-      expect(mockStagehandInstance.page.goto).toHaveBeenCalled();
-      expect(mockStagehandInstance.act).toHaveBeenCalled();
+      // Should call act for typing and clicking send
+      const actCalls = mockStagehandInstance.act.mock.calls;
+      expect(actCalls.some((call: unknown[]) =>
+        typeof call[0] === 'string' && call[0].includes('type')
+      )).toBe(true);
+      expect(actCalls.some((call: unknown[]) =>
+        typeof call[0] === 'string' && call[0].includes('send')
+      )).toBe(true);
     });
 
     it('applies review context to prompt', async () => {
@@ -199,6 +229,8 @@ describe('ChatGPTProAgent', () => {
         typeof call[0] === 'string' && call[0].includes('type')
       );
       expect(promptCall).toBeDefined();
+      // The prompt should include the context
+      expect(promptCall?.[0]).toContain('src/components/Form.tsx');
     });
   });
 
@@ -223,11 +255,12 @@ describe('ChatGPTProAgent', () => {
   });
 
   describe('dispose', () => {
-    it('closes Stagehand browser', async () => {
+    it('nulls out Stagehand reference (V3 has no close method)', async () => {
       await agent.initialize();
       await agent.dispose();
 
-      expect(mockStagehandInstance.close).toHaveBeenCalled();
+      // In V3, we just null out the reference
+      expect((agent as any).stagehand).toBeNull();
     });
 
     it('marks agent as not ready', async () => {
@@ -247,18 +280,34 @@ describe('ChatGPTProAgent', () => {
   });
 
   describe('authentication', () => {
-    it('detects logged-in state from URL', async () => {
-      mockStagehandInstance.page.url.mockReturnValue('https://chatgpt.com/');
-      await agent.initialize();
+    it('detects logged-in state from URL extraction', async () => {
+      mockStagehandInstance.extract.mockImplementation((instruction: string) => {
+        if (instruction.includes('current page URL')) {
+          return Promise.resolve({
+            url: 'https://chatgpt.com/',
+            hasLoginButton: false,
+          });
+        }
+        return Promise.resolve({});
+      });
 
+      await agent.initialize();
       expect(agent.isReady()).toBe(true);
     });
 
-    it('handles login redirect', async () => {
-      // Simulate login page redirect
-      mockStagehandInstance.page.url.mockReturnValue('https://auth0.openai.com/login');
+    it('handles login redirect (still initializes for manual login)', async () => {
+      // Simulate login page redirect via extract
+      mockStagehandInstance.extract.mockImplementation((instruction: string) => {
+        if (instruction.includes('current page URL')) {
+          return Promise.resolve({
+            url: 'https://auth0.openai.com/login',
+            hasLoginButton: true,
+          });
+        }
+        return Promise.resolve({});
+      });
 
-      // Should still initialize but may need manual login
+      // Should still initialize but will log message about manual login
       await agent.initialize();
       expect(agent.isReady()).toBe(true);
     });

@@ -16,20 +16,19 @@ export interface GeminiProAgentConfig {
   apiKey: string;
 
   /**
-   * Model to use (default: gemini-2.5-pro-preview)
+   * Model to use (default: gemini-2.0-flash)
    */
   model?: string;
 
   /**
-   * Thinking level for Deep Think (default: 'high')
-   * Only applies to models that support thinking config
-   */
-  thinkingLevel?: 'low' | 'medium' | 'high';
-
-  /**
-   * Thinking budget in tokens (alternative to thinkingLevel for some models)
+   * Thinking budget in tokens (for models that support thinking)
    */
   thinkingBudget?: number;
+
+  /**
+   * Include thought process in response
+   */
+  includeThoughts?: boolean;
 }
 
 /**
@@ -56,8 +55,8 @@ export class GeminiProAgent implements ReviewModel {
 
   constructor(config: GeminiProAgentConfig) {
     this.config = config;
-    this.model = config.model ?? 'gemini-2.5-pro-preview';
-    this.client = new GoogleGenAI(config.apiKey);
+    this.model = config.model ?? 'gemini-2.0-flash';
+    this.client = new GoogleGenAI({ apiKey: config.apiKey });
   }
 
   /**
@@ -65,9 +64,6 @@ export class GeminiProAgent implements ReviewModel {
    */
   async initialize(): Promise<void> {
     if (this.ready) return;
-
-    // Verify API key works by making a minimal request
-    // In production, we might want to do a health check here
     this.ready = true;
   }
 
@@ -97,17 +93,25 @@ export class GeminiProAgent implements ReviewModel {
       },
     });
 
-    const parsed = this.parseResponse(response.text ?? '');
+    const text = response.text ?? '';
+    const parsed = this.parseResponse(text);
 
-    return {
+    const result: ReviewResult = {
       provider: this.provider,
       model: this.model,
       issues: parsed.issues,
       summary: parsed.summary,
       timestamp: startTime,
-      tokenUsage: this.extractTokenUsage(response.usageMetadata),
-      raw: response.text,
+      raw: text,
     };
+
+    // Add token usage if available
+    const usage = this.extractTokenUsage(response);
+    if (usage) {
+      result.tokenUsage = usage;
+    }
+
+    return result;
   }
 
   /**
@@ -152,29 +156,20 @@ export class GeminiProAgent implements ReviewModel {
   }
 
   /**
-   * Get thinking config based on model
+   * Get thinking config based on model and settings
    */
-  private getThinkingConfig(): { thinkingLevel?: string; thinkingBudget?: number; includeThoughts?: boolean } {
-    // For gemini-2.5 models, use thinkingLevel
-    if (this.model.includes('2.5')) {
-      return {
-        thinkingLevel: this.config.thinkingLevel ?? 'high',
-        includeThoughts: true,
-      };
+  private getThinkingConfig(): { thinkingBudget?: number; includeThoughts?: boolean } {
+    const config: { thinkingBudget?: number; includeThoughts?: boolean } = {};
+
+    if (this.config.thinkingBudget !== undefined) {
+      config.thinkingBudget = this.config.thinkingBudget;
     }
 
-    // For gemini-3 models (future), might use thinkingBudget
-    if (this.config.thinkingBudget) {
-      return {
-        thinkingBudget: this.config.thinkingBudget,
-        includeThoughts: true,
-      };
+    if (this.config.includeThoughts !== undefined) {
+      config.includeThoughts = this.config.includeThoughts;
     }
 
-    return {
-      thinkingLevel: this.config.thinkingLevel ?? 'high',
-      includeThoughts: true,
-    };
+    return config;
   }
 
   /**
@@ -184,7 +179,7 @@ export class GeminiProAgent implements ReviewModel {
   private parseResponse(text: string): ParsedResponse {
     // Try to extract JSON from markdown code blocks first
     const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (codeBlockMatch) {
+    if (codeBlockMatch && codeBlockMatch[1]) {
       return this.validateAndParse(codeBlockMatch[1].trim());
     }
 
@@ -245,55 +240,74 @@ export class GeminiProAgent implements ReviewModel {
    * Validate and parse JSON response
    */
   private validateAndParse(json: string): ParsedResponse {
-    const parsed = JSON.parse(json);
+    const parsed = JSON.parse(json) as Record<string, unknown>;
 
-    if (!Array.isArray(parsed.issues)) {
+    if (!Array.isArray(parsed['issues'])) {
       throw new Error('Response missing "issues" array');
     }
 
-    if (typeof parsed.summary !== 'string') {
+    if (typeof parsed['summary'] !== 'string') {
       throw new Error('Response missing "summary" string');
     }
 
     // Validate each issue
-    const issues: ReviewIssue[] = parsed.issues.map((issue: Record<string, unknown>) => {
-      if (!['critical', 'high', 'medium', 'low'].includes(issue.severity as string)) {
-        throw new Error(`Invalid severity: ${issue.severity}`);
+    const issues: ReviewIssue[] = (parsed['issues'] as Record<string, unknown>[]).map((issue) => {
+      const severity = issue['severity'] as string;
+      if (!['critical', 'high', 'medium', 'low'].includes(severity)) {
+        throw new Error(`Invalid severity: ${severity}`);
       }
 
-      if (typeof issue.description !== 'string' || !issue.description) {
+      const description = issue['description'] as string;
+      if (typeof description !== 'string' || !description) {
         throw new Error('Issue missing description');
       }
 
-      return {
-        severity: issue.severity as ReviewIssue['severity'],
-        description: issue.description as string,
-        line: typeof issue.line === 'number' ? issue.line : undefined,
-        file: typeof issue.file === 'string' ? issue.file : undefined,
-        suggestion: typeof issue.suggestion === 'string' ? issue.suggestion : undefined,
+      const result: ReviewIssue = {
+        severity: severity as ReviewIssue['severity'],
+        description,
       };
+
+      const line = issue['line'];
+      if (typeof line === 'number') {
+        result.line = line;
+      }
+
+      const file = issue['file'];
+      if (typeof file === 'string') {
+        result.file = file;
+      }
+
+      const suggestion = issue['suggestion'];
+      if (typeof suggestion === 'string') {
+        result.suggestion = suggestion;
+      }
+
+      return result;
     });
 
     return {
       issues,
-      summary: parsed.summary,
+      summary: parsed['summary'] as string,
     };
   }
 
   /**
-   * Extract token usage from response metadata
+   * Extract token usage from response
    */
-  private extractTokenUsage(metadata?: {
-    promptTokenCount?: number;
-    candidatesTokenCount?: number;
-    thoughtsTokenCount?: number;
-  }): ReviewResult['tokenUsage'] | undefined {
+  private extractTokenUsage(response: { usageMetadata?: unknown }): ReviewResult['tokenUsage'] | undefined {
+    const metadata = response.usageMetadata as Record<string, unknown> | undefined;
     if (!metadata) return undefined;
 
-    return {
-      input: metadata.promptTokenCount ?? 0,
-      output: metadata.candidatesTokenCount ?? 0,
-      thinking: metadata.thoughtsTokenCount,
+    const result: { input: number; output: number; thinking?: number } = {
+      input: (metadata['promptTokenCount'] as number) ?? 0,
+      output: (metadata['candidatesTokenCount'] as number) ?? 0,
     };
+
+    const thinking = metadata['thoughtsTokenCount'] as number | undefined;
+    if (thinking !== undefined) {
+      result.thinking = thinking;
+    }
+
+    return result;
   }
 }

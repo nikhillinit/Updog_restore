@@ -27,15 +27,15 @@ describe('GeminiProAgent', () => {
   describe('constructor', () => {
     it('sets provider and model correctly', () => {
       expect(agent.provider).toBe('gemini');
-      expect(agent.model).toBe('gemini-2.5-pro-preview');
+      expect(agent.model).toBe('gemini-2.0-flash');
     });
 
     it('allows custom model override', () => {
       const customAgent = new GeminiProAgent({
         apiKey: mockApiKey,
-        model: 'gemini-2.0-flash',
+        model: 'gemini-2.5-pro-preview',
       });
-      expect(customAgent.model).toBe('gemini-2.0-flash');
+      expect(customAgent.model).toBe('gemini-2.5-pro-preview');
     });
   });
 
@@ -92,7 +92,7 @@ describe('GeminiProAgent', () => {
       const result = await agent.review('const query = "SELECT * FROM users WHERE id = " + userId');
 
       expect(result.provider).toBe('gemini');
-      expect(result.model).toBe('gemini-2.5-pro-preview');
+      expect(result.model).toBe('gemini-2.0-flash');
       expect(result.issues).toHaveLength(1);
       expect(result.issues[0].severity).toBe('high');
       expect(result.summary).toBe('Found 1 critical security issue');
@@ -164,21 +164,28 @@ describe('GeminiProAgent', () => {
   });
 
   describe('thinking config', () => {
-    it('uses thinkingLevel for gemini-2.5 models', async () => {
-      const { GoogleGenAI } = await import('@google/genai');
-      const mockInstance = (agent as any).client as InstanceType<typeof GoogleGenAI>;
-      const generateContent = mockInstance.models.generateContent as ReturnType<typeof vi.fn>;
+    it('uses thinkingBudget when configured', async () => {
+      const thinkingAgent = new GeminiProAgent({
+        apiKey: mockApiKey,
+        thinkingBudget: 1024,
+        includeThoughts: true,
+      });
 
-      generateContent.mockResolvedValue({
+      const { GoogleGenAI } = await import('@google/genai');
+      const mockInstance = new GoogleGenAI(mockApiKey);
+      (mockInstance.models.generateContent as ReturnType<typeof vi.fn>).mockResolvedValue({
         text: '{"issues": [], "summary": "Clean"}',
         usageMetadata: {},
       });
 
-      await agent.initialize();
-      await agent.review('const x = 1');
+      (thinkingAgent as any).client = mockInstance;
+      await thinkingAgent.initialize();
+      await thinkingAgent.review('const x = 1');
 
+      const generateContent = mockInstance.models.generateContent as ReturnType<typeof vi.fn>;
       const callArgs = generateContent.mock.calls[0][0];
-      expect(callArgs.config.thinkingConfig.thinkingLevel).toBe('high');
+      expect(callArgs.config.thinkingConfig.thinkingBudget).toBe(1024);
+      expect(callArgs.config.thinkingConfig.includeThoughts).toBe(true);
     });
   });
 
