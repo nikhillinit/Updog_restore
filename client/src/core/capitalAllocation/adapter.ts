@@ -19,7 +19,7 @@ import {
   type ExplicitUnits,
 } from './units';
 import { roundPercentDerivedToCents } from './rounding';
-import { normalizeWeightsToBps } from './allocateLRM';
+import { normalizeWeightsToBps, normalizeWeightsLenient } from './allocateLRM';
 import { sortAndValidateCohorts } from './sorting';
 
 // =============================================================================
@@ -36,13 +36,18 @@ export interface TruthCaseInput {
     vintage_year?: number;
     target_reserve_pct?: number | null;
     reserve_policy?: 'static_pct' | 'dynamic_ratio';
+    /** Pacing window in months (default 24) */
+    pacing_window_months?: number;
     /** Explicit unit configuration (preferred over inference) */
     units?: 'millions' | 'raw';
   };
   constraints?: {
     min_cash_buffer?: number | null;
+    /** Max allocation per cohort as percentage of commitment (e.g., 0.6 = 60%) */
     max_allocation_per_cohort?: number | null;
     max_deployment_rate?: number | null;
+    /** Rebalance frequency (can be here or in timeline) */
+    rebalance_frequency?: 'quarterly' | 'monthly' | 'annual';
   };
   timeline?: {
     start_date?: string;
@@ -79,7 +84,8 @@ export interface NormalizedInput {
   commitmentCents: number;
   minCashBufferCents: number;
   effectiveBufferCents: number;
-  maxAllocationPerCohortCents: number | null;
+  /** Max allocation per cohort as percentage (e.g., 0.6 = 60% of commitment) */
+  maxAllocationPerCohortPct: number | null;
 
   // Flows in cents
   contributionsCents: CashFlow[];
@@ -92,6 +98,9 @@ export interface NormalizedInput {
   startDate: string;
   endDate: string;
   rebalanceFrequency: 'quarterly' | 'monthly' | 'annual';
+
+  // Pacing
+  pacingWindowMonths: number;
 
   // Policy
   reservePolicy: 'static_pct' | 'dynamic_ratio';
@@ -146,6 +155,7 @@ export function adaptTruthCaseInput(input: TruthCaseInput): NormalizedInput {
     amount: flow.amount,
     amountCents: toCentsWithInference(flow.amount, unitScale),
     type: 'distribution' as const,
+    recycle_eligible: (flow as any).recycle_eligible, // Preserve recycle_eligible for CA-019/CA-020
   }));
 
   // Step 6: Normalize cohorts
@@ -154,13 +164,17 @@ export function adaptTruthCaseInput(input: TruthCaseInput): NormalizedInput {
   // Step 7: Extract timeline
   const startDate = input.timeline?.start_date ?? deriveStartDate(input);
   const endDate = input.timeline?.end_date ?? deriveEndDate(input);
-  const rebalanceFrequency = input.timeline?.rebalance_frequency ?? 'quarterly';
+  // Check both locations for rebalance_frequency (constraints takes precedence)
+  const rebalanceFrequency = input.constraints?.rebalance_frequency
+    ?? input.timeline?.rebalance_frequency
+    ?? 'quarterly';
 
-  // Step 8: Max allocation per cohort
-  const maxAllocationPerCohortCents =
-    input.constraints?.max_allocation_per_cohort != null
-      ? toCentsWithInference(input.constraints.max_allocation_per_cohort, unitScale)
-      : null;
+  // Step 8: Pacing window
+  const pacingWindowMonths = input.fund.pacing_window_months ?? 24;
+
+  // Step 9: Max allocation per cohort (percentage, NOT converted to cents)
+  // Truth cases use this as a percentage of commitment (e.g., 0.6 = 60%)
+  const maxAllocationPerCohortPct = input.constraints?.max_allocation_per_cohort ?? null;
 
   return {
     original: input,
@@ -168,13 +182,14 @@ export function adaptTruthCaseInput(input: TruthCaseInput): NormalizedInput {
     commitmentCents,
     minCashBufferCents,
     effectiveBufferCents,
-    maxAllocationPerCohortCents,
+    maxAllocationPerCohortPct,
     contributionsCents,
     distributionsCents,
     cohorts,
     startDate,
     endDate,
     rebalanceFrequency,
+    pacingWindowMonths,
     reservePolicy: input.fund.reserve_policy ?? 'static_pct',
     targetReservePct,
   };
@@ -222,6 +237,29 @@ function validateUnitConsistency(input: TruthCaseInput, _unitScale: number): voi
 }
 
 /**
+ * Detect if cohorts have lifecycle variation (non-overlapping date ranges).
+ * Returns true if cohorts have different active periods, indicating that
+ * global weight sum > 1.0 is acceptable (per-period normalization applies).
+ */
+function detectLifecycleVariation(cohorts: Array<{ start_date?: string; end_date?: string; startDate?: string; endDate?: string }>): boolean {
+  if (cohorts.length <= 1) return false;
+
+  // Check if all cohorts have the same date range
+  const dateRanges = cohorts.map((c) => ({
+    start: c.start_date ?? c.startDate ?? '0000-01-01',
+    end: c.end_date ?? c.endDate ?? '9999-12-31',
+  }));
+
+  const firstRange = dateRanges[0];
+  const allSame = dateRanges.every(
+    (r) => r.start === firstRange.start && r.end === firstRange.end
+  );
+
+  // If any cohort has a different date range, there's lifecycle variation
+  return !allSame;
+}
+
+/**
  * Normalize cohorts: validate weights, sort, create implicit if needed.
  */
 function normalizeCohorts(
@@ -237,8 +275,13 @@ function normalizeCohorts(
   }
 
   // Validate and normalize weights
+  // For lifecycle cohorts (varying date ranges), use lenient normalization
+  // to allow weights that don't sum to 1.0 globally
   const weights = rawCohorts.map((c) => c.weight ?? 0);
-  const normalizedWeightsBps = normalizeWeightsToBps(weights);
+  const hasLifecycleVariation = detectLifecycleVariation(rawCohorts);
+  const normalizedWeightsBps = hasLifecycleVariation
+    ? normalizeWeightsLenient(weights)
+    : normalizeWeightsToBps(weights);
 
   // Validate dates and sort
   const sortableCohorts = rawCohorts.map((c, index) => ({
