@@ -20,6 +20,7 @@ export {
 export {
   WEIGHT_SCALE,
   normalizeWeightsToBps,
+  convertWeightsToBps,
   allocateLRM,
   allocateFromDecimalWeights,
   verifyCA018,
@@ -136,3 +137,41 @@ export {
   type InvariantResult,
   type ConservationCheckResult,
 } from './invariants';
+
+// Period generation
+export {
+  generatePeriods,
+  isDateInPeriod,
+  findPeriodForDate,
+  type Period,
+  type RebalanceFrequency,
+} from './periods';
+
+// Pacing calculations
+export {
+  calculateBasePacingTarget,
+  calculatePacingTargets,
+  getPacingTargetForPeriod,
+  calculateDeployableAmount,
+  type PacingTarget,
+  type PacingConfig,
+} from './pacing';
+
+// Cohort lifecycle
+export {
+  isCohortActiveOnDate,
+  isCohortActiveInPeriod,
+  getActiveCohorts,
+  normalizeActiveWeights,
+  allocateToCohorts,
+  accumulateAllocations,
+  type CohortAllocation,
+} from './cohorts';
+
+// Period-loop engine
+export {
+  executePeriodLoop,
+  requiresPeriodLoop,
+  type PeriodLoopOutput,
+  type PacingTargetOutput,
+} from './periodLoopEngine';

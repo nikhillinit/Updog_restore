@@ -13,7 +13,9 @@ import {
   adaptTruthCaseInput,
   shouldSkipTruthCase,
   executeCapitalAllocation,
+  executePeriodLoop,
   type TruthCaseInput,
+  type PeriodLoopOutput,
 } from '@/core/capitalAllocation';
 import capitalCases from '../../../docs/capital-allocation.truth-cases.json';
 
@@ -87,13 +89,10 @@ function inferTestUnitScale(commitment: number): number {
 }
 
 /**
- * Cases that use the planning/pacing model (not cash-constrained).
- * These require period-loop architecture to implement correctly.
- *
- * The engine currently implements "cash model" (allocation = ending_cash - reserve)
- * which matches CA-002, CA-003 but not the planning model cases.
+ * Cases that use the period-loop architecture.
+ * These have explicit cohorts, multi-period timelines, or pacing targets.
  */
-const PACING_MODEL_CASES = new Set([
+const PERIOD_LOOP_CASES = new Set([
   'CA-007', // Year-end cutoff with carryforward
   'CA-008', // Monthly pacing
   'CA-009', // Quarterly pacing with carryover
@@ -101,14 +100,28 @@ const PACING_MODEL_CASES = new Set([
   'CA-011', // Pipeline drought with pacing floor
   'CA-012', // 24-month vs 18-month pacing
   'CA-013', // Reserve floor precedence
-  'CA-014', // Two cohorts with fixed weights (expects capacity model: 4M allocation on 4M cash with 2M reserve)
+  'CA-014', // Two cohorts with fixed weights
   'CA-015', // Per-cohort cap binding
   'CA-016', // Cohort lifecycle
   'CA-017', // Quarterly rebalance
-  'CA-018', // Rounding/tie-breaks (expects capacity model: 1M allocation on 1M cash with 1M reserve)
+  'CA-018', // Rounding/tie-breaks
   'CA-019', // Capital recall
   'CA-020', // Integration test
 ]);
+
+/**
+ * Check if a case requires period-loop engine.
+ */
+function requiresPeriodLoopEngine(tc: CATruthCase): boolean {
+  // Explicit check for known period-loop cases
+  if (PERIOD_LOOP_CASES.has(tc.id)) return true;
+
+  // Heuristic: cases with explicit cohorts or pacing targets
+  if (tc.inputs.cohorts && tc.inputs.cohorts.length > 0) return true;
+  if (tc.expected.pacing_targets_by_period && tc.expected.pacing_targets_by_period.length > 0) return true;
+
+  return false;
+}
 
 /**
  * Allocation expectation overrides for known semantic discrepancies.
@@ -197,22 +210,17 @@ describe('Capital Allocation Truth Cases', () => {
       return;
     }
 
-    // Skip pacing model cases until period-loop architecture is implemented
-    if (PACING_MODEL_CASES.has(tc.id)) {
-      it.skip(`${tc.id}: ${tc.description} - Requires period-loop architecture (pacing model)`, () => {
-        skipped++;
-      });
-      return;
-    }
-
     it(`${tc.id}: ${tc.description}`, () => {
       try {
         // Convert and adapt input
         const rawInput = convertToEngineInput(tc);
         const normalizedInput = adaptTruthCaseInput(rawInput);
 
-        // Execute engine
-        const result = executeCapitalAllocation(normalizedInput);
+        // Choose engine based on case requirements
+        const usePeriodLoop = requiresPeriodLoopEngine(tc);
+        const result = usePeriodLoop
+          ? executePeriodLoop(normalizedInput)
+          : executeCapitalAllocation(normalizedInput);
 
         // Validate reserve_balance if present in expected
         if (tc.expected.reserve_balance !== undefined) {

@@ -76,6 +76,30 @@ export function normalizeWeightsToBps(weights: number[]): number[] {
 }
 
 /**
+ * Convert decimal weights to basis points without strict normalization.
+ * Used for lifecycle cohorts where weights may sum to > 1.0.
+ *
+ * The normalization to WEIGHT_SCALE is done at allocation time
+ * when only active cohorts are considered.
+ *
+ * @param weights - Array of decimal weights (may sum to > 1.0)
+ * @returns Array of integer basis points (proportional to input)
+ */
+export function convertWeightsToBps(weights: number[]): number[] {
+  if (weights.length === 0) {
+    return [];
+  }
+
+  // Rule: No negative weights
+  if (weights.some((w) => w < 0)) {
+    throw new Error('Cohort weights cannot be negative');
+  }
+
+  // Convert each weight to BPS scale (0.5 -> 5_000_000)
+  return weights.map((w) => Math.round(w * WEIGHT_SCALE));
+}
+
+/**
  * Allocate total cents to cohorts using Largest Remainder Method.
  *
  * Algorithm:

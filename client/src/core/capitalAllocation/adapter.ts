@@ -27,7 +27,7 @@ import {
   type ExplicitUnits,
 } from './units';
 import { dollarsToCents, roundPercentDerivedToCents } from './rounding';
-import { normalizeWeightsToBps, WEIGHT_SCALE as LRM_WEIGHT_SCALE } from './allocateLRM';
+import { normalizeWeightsToBps, convertWeightsToBps, WEIGHT_SCALE as LRM_WEIGHT_SCALE } from './allocateLRM';
 import { sortAndValidateCohorts, isCanonicalDate } from './sorting';
 
 // =============================================================================
@@ -228,6 +228,18 @@ function validateUnitConsistency(input: TruthCaseInput, unitScale: number): void
 }
 
 /**
+ * Check if cohorts have lifecycle dates (different start/end dates).
+ * Lifecycle cohorts may have weights that sum to > 1.0 due to overlapping periods.
+ */
+function hasLifecycleCohorts(cohorts: TruthCaseInput['cohorts']): boolean {
+  if (!cohorts || cohorts.length <= 1) return false;
+
+  // Check if any cohorts have different end dates
+  const endDates = new Set(cohorts.map((c) => c.end_date ?? c.endDate ?? null));
+  return endDates.size > 1;
+}
+
+/**
  * Normalize cohorts: validate weights, sort, create implicit if needed.
  */
 function normalizeCohorts(
@@ -243,8 +255,12 @@ function normalizeCohorts(
   }
 
   // Validate and normalize weights
+  // Use lenient conversion for lifecycle cohorts (weights may sum to > 1.0)
   const weights = rawCohorts.map((c) => c.weight ?? 0);
-  const normalizedWeightsBps = normalizeWeightsToBps(weights);
+  const isLifecycle = hasLifecycleCohorts(rawCohorts);
+  const normalizedWeightsBps = isLifecycle
+    ? convertWeightsToBps(weights)
+    : normalizeWeightsToBps(weights);
 
   // Validate dates and sort
   const sortableCohorts = rawCohorts.map((c, index) => ({
