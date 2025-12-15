@@ -373,10 +373,20 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
 
     if (category === 'cohort_engine') {
       // Cohort engine: allocate contributions only (CAPACITY PLANNING MODEL)
-      // Reserve is a planning target, NOT a constraint on allocation
-      // Recalls (cashImpact) add to cash but NOT to allocatable pool (CA-019)
-      // Only contributions are allocatable, not recalls or recycling proceeds
-      allocableCents = Math.max(0, cashInCents);
+      // Recalls (cashImpact) add to cash but NOT to allocatable pool
+      // Per CA-019: when timeline has distributions, apply floor holdback
+      // Per CA-014/CA-016: without any distributions, allocate full contributions
+      const hasAnyDistributions = input.distributionsCents.length > 0;
+
+      if (hasAnyDistributions) {
+        // Has distributions in timeline: apply reserve floor holdback (CA-019)
+        const reserveFloorCents = input.minCashBufferCents;
+        const cashAboveFloorCents = Math.max(0, cumulativeCashCents - reserveFloorCents);
+        allocableCents = Math.min(Math.max(0, cashInCents), cashAboveFloorCents);
+      } else {
+        // No distributions (CA-014, CA-016): allocate full contributions
+        allocableCents = Math.max(0, cashInCents);
+      }
     } else if (category === 'pacing_engine') {
       // Pacing engine: allocation capped by pacing target (CAPACITY PLANNING MODEL)
       // Use period's cash or pacing target, whichever is smaller
