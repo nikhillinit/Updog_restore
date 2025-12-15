@@ -401,7 +401,7 @@
     "react-resizable-panels": "^2.1.7",
     "react-router-dom": "^7.9.5",
     "recharts": "^3.4.1",
-    "redis": "^4.7.1",
+    "redis": "^5.10.0",
     "sanitize-html": "2.17.0",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
