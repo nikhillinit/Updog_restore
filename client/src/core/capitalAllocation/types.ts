@@ -150,6 +150,7 @@ export type CAEngineInput = z.infer<typeof CAEngineInputSchema>;
 
 export const ViolationTypeSchema = z.enum([
   'buffer_breach',
+  'reserve_below_minimum',
   'over_allocation',
   'cap_exceeded',
   'negative_balance',

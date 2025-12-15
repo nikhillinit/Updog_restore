@@ -340,9 +340,15 @@ function verifyInvariants(
   if (reserveBalanceCents < input.effectiveBufferCents) {
     // Check if this is a true breach (not enough cash to meet buffer)
     if (cashLedger.endingCashCents < input.effectiveBufferCents) {
+      // Use specific violation type based on which constraint is binding
+      // CA-004: reserve_below_minimum when min_cash_buffer > 0 and reserve < min_cash_buffer
+      const isMinBufferViolation =
+        input.minCashBufferCents > 0 && reserveBalanceCents < input.minCashBufferCents;
+      const violationType = isMinBufferViolation ? 'reserve_below_minimum' : 'buffer_breach';
+
       violations.push(
         createViolation(
-          'buffer_breach',
+          violationType,
           `Reserve balance (${reserveBalanceCents}) is below effective buffer ` +
           `(${input.effectiveBufferCents}). Insufficient cash to meet reserve requirement.`,
           {
