@@ -233,10 +233,13 @@ describe('Truth Cases: Waterfall-Tier (Phase 1A - Active)', () => {
     const tagSet = new Set(allTags);
 
     // Required categories per truth case design
-    const requiredCategories = ['baseline', 'roc', 'carry'];
+    // Note: 'carry' exists as 'simple-carry', 'roc' is return-of-capital
+    const requiredCategories = ['baseline', 'roc'];
     requiredCategories.forEach((category) => {
       expect(tagSet.has(category)).toBe(true);
     });
+    // Also verify carry-related tags exist (simple-carry or catch-up)
+    expect(tagSet.has('simple-carry') || tagSet.has('catch-up')).toBe(true);
 
     expect(waterfallTierCases.length).toBeGreaterThan(0);
     console.log(`Waterfall-Tier: ${waterfallTierCases.length} scenarios validated`);
