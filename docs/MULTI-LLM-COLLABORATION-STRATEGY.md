@@ -2,7 +2,226 @@
 
 **Status:** APPROVED STRATEGY
 **Created:** 2025-12-15
+**Updated:** 2025-12-15 (Skills Integration + Technical Corrections)
 **Target:** Automate multi-LLM coding collaboration using paid subscriptions
+
+---
+
+## Skills-First Development Workflow
+
+This strategy integrates the project's Skills Library to ensure systematic,
+quality-gated development. Each phase activates specific skills.
+
+### Master Skill Activation Matrix
+
+| Phase | Primary Skills | Secondary Skills | Quality Gate |
+|-------|---------------|------------------|--------------|
+| **0: Foundation** | `task-decomposition`, `writing-plans` | `inversion-thinking` | Plan approved |
+| **1: Gemini** | `test-driven-development`, `iterative-improvement` | `systematic-debugging` | Tests pass |
+| **2: ChatGPT** | `test-driven-development`, `defense-in-depth` | `root-cause-tracing` | Browser stable |
+| **3: Consensus** | `multi-model-consensus`, `pattern-recognition` | `ai-model-selection` | Math verified |
+| **4: CLI** | `api-design-principles`, `iterative-improvement` | `continuous-improvement` | UX validated |
+| **5: Testing** | `dispatching-parallel-agents`, `verification-before-completion` | `memory-management` | 90%+ coverage |
+
+### Skill Workflow: Feature Development
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    PRO BRIDGE DEVELOPMENT WORKFLOW                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │ PHASE 0: PLANNING                                               │   │
+│  │                                                                  │   │
+│  │  1. inversion-thinking                                          │   │
+│  │     └─ "What would make this integration catastrophically fail?"│   │
+│  │     └─ Identify: stale selectors, auth expiry, quota overshoot  │   │
+│  │                                                                  │   │
+│  │  2. task-decomposition                                          │   │
+│  │     └─ Break into 10-30 minute subtasks                         │   │
+│  │     └─ Identify parallel vs sequential dependencies             │   │
+│  │                                                                  │   │
+│  │  3. writing-plans                                               │   │
+│  │     └─ TDD steps (2-5 min each)                                 │   │
+│  │     └─ Save to docs/plans/YYYY-MM-DD-pro-bridge-phaseN.md       │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                              │                                          │
+│                              ▼                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │ PHASE 1-4: IMPLEMENTATION (Per Subtask)                         │   │
+│  │                                                                  │   │
+│  │  1. test-driven-development (auto-activates)                    │   │
+│  │     └─ RED: Write failing test                                  │   │
+│  │     └─ GREEN: Minimal implementation                            │   │
+│  │     └─ REFACTOR: Improve design                                 │   │
+│  │                                                                  │   │
+│  │  2. iterative-improvement (3-iteration max)                     │   │
+│  │     └─ Generate → Evaluate (3 criteria) → Optimize              │   │
+│  │     └─ Criteria: Functional, Safe, Conventional                 │   │
+│  │                                                                  │   │
+│  │  3. IF failure: systematic-debugging                            │   │
+│  │     └─ Iron Law: NO FIXES WITHOUT ROOT CAUSE                    │   │
+│  │     └─ Phase 1: Investigate → Phase 2: Analyze                  │   │
+│  │     └─ Phase 3: Hypothesis → Phase 4: Implement                 │   │
+│  │                                                                  │   │
+│  │  4. IF 3+ independent failures: dispatching-parallel-agents     │   │
+│  │     └─ Spawn parallel investigation agents                      │   │
+│  │     └─ Each uses systematic-debugging                           │   │
+│  │     └─ Synthesize with pattern-recognition                      │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                              │                                          │
+│                              ▼                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │ PHASE 5: VALIDATION                                             │   │
+│  │                                                                  │   │
+│  │  1. multi-model-consensus (meta: test our own tool!)            │   │
+│  │     └─ Cross-validate consensus math with MCP tools             │   │
+│  │     └─ Gemini + Claude verify severity counting                 │   │
+│  │                                                                  │   │
+│  │  2. verification-before-completion                              │   │
+│  │     └─ Run all tests, confirm output                            │   │
+│  │     └─ Evidence before assertions                               │   │
+│  │                                                                  │   │
+│  │  3. continuous-improvement                                      │   │
+│  │     └─ What worked? What was inefficient?                       │   │
+│  │     └─ Update CHANGELOG.md, DECISIONS.md                        │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                              │                                          │
+│                              ▼                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │ ONGOING: MEMORY MANAGEMENT                                      │   │
+│  │                                                                  │   │
+│  │  memory-management                                              │   │
+│  │  └─ Track: consensus patterns, model response times             │   │
+│  │  └─ Document: selector changes, auth issues                     │   │
+│  │  └─ Confidence levels: HIGH/MEDIUM/LOW per finding              │   │
+│  │                                                                  │   │
+│  │  pattern-recognition                                            │   │
+│  │  └─ Identify: common divergence patterns                        │   │
+│  │  └─ Flag: repeated model disagreements                          │   │
+│  │  └─ Link: cause-effect for consensus failures                   │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Phase-Specific Skill Checklists
+
+#### Phase 0: Foundation Setup
+```markdown
+## Skill Checklist: Foundation
+
+### inversion-thinking (Before Implementation)
+- [ ] "What would make browser automation fail catastrophically?"
+  - Stale selectors (ChatGPT UI updates weekly)
+  - Cookie expiry without detection
+  - Zombie Chrome processes locking profile
+  - Quota overshoot from race conditions
+- [ ] Convert to do-not checklist:
+  - DO NOT hardcode selectors without fallbacks
+  - DO NOT assume session persistence
+  - DO NOT skip process lock acquisition
+  - DO NOT check-then-act on quota (use atomic reserve)
+
+### task-decomposition
+- [ ] Complexity: COMPLEX (6 phases, >8 hours)
+- [ ] Subtasks identified with 10-30 min granularity
+- [ ] Dependencies mapped (Phase 1 || Phase 2, then Phase 3)
+- [ ] Success criteria per subtask defined
+
+### writing-plans
+- [ ] TDD steps for each subtask (2-5 min each)
+- [ ] Plan saved to docs/plans/
+- [ ] Frequent commit points identified
+```
+
+#### Phase 1-2: Implementation
+```markdown
+## Skill Checklist: Implementation
+
+### test-driven-development (Per Feature)
+- [ ] RED: Test written first, fails as expected
+- [ ] GREEN: Minimal code to pass
+- [ ] REFACTOR: Clean up, no behavior change
+- [ ] Commit after each GREEN
+
+### iterative-improvement (Per Feature)
+- [ ] Iteration 1: Basic implementation
+- [ ] Evaluate against 3 criteria:
+  - Functional: Does it work?
+  - Safe: No regressions?
+  - Conventional: Follows patterns?
+- [ ] Iteration 2: Address feedback (if needed)
+- [ ] Iteration 3: Final polish (if needed)
+- [ ] Max 3 iterations (beyond = architectural issue)
+
+### systematic-debugging (On Failure)
+- [ ] Phase 1: Root Cause Investigation
+  - What is the actual error?
+  - Where does it originate?
+- [ ] Phase 2: Pattern Analysis
+  - Is this a known pattern?
+  - Compare with working code
+- [ ] Phase 3: Hypothesis Testing
+  - Form hypothesis
+  - Test minimally
+- [ ] Phase 4: Implementation
+  - Fix root cause, not symptom
+  - Verify fix doesn't regress
+```
+
+#### Phase 3: Consensus Orchestrator
+```markdown
+## Skill Checklist: Consensus
+
+### multi-model-consensus (Meta: Test Our Tool)
+- [ ] Use mcp__multi-ai-collab__ai_consensus to validate:
+  - Severity counting math
+  - Issue overlap calculation
+  - Merge logic correctness
+- [ ] Cross-validate with Gemini + Claude
+- [ ] Document divergences
+
+### pattern-recognition (Consensus Patterns)
+- [ ] Note repeated themes in model disagreements
+- [ ] Flag: which issues always diverge?
+- [ ] Link cause-effect: why do models disagree?
+- [ ] Create cheatsheet: consensus-patterns.md
+
+### ai-model-selection (Routing Logic)
+- [ ] Verify routing decisions are optimal
+- [ ] Complexity thresholds validated
+- [ ] Cost optimization confirmed
+```
+
+#### Phase 5: Validation
+```markdown
+## Skill Checklist: Validation
+
+### dispatching-parallel-agents (Test Coverage)
+- [ ] Identify independent test domains:
+  - Gemini adapter tests
+  - ChatGPT session tests
+  - Consensus math tests
+  - CLI argument tests
+- [ ] Dispatch parallel agents per domain
+- [ ] Synthesize results with pattern-recognition
+
+### verification-before-completion
+- [ ] All tests pass (npm test)
+- [ ] Integration tests pass (RUN_INTEGRATION_TESTS=1)
+- [ ] Manual smoke test completed
+- [ ] No console errors in browser automation
+- [ ] Quota tracking verified
+
+### continuous-improvement
+- [ ] What worked well?
+- [ ] What was inefficient?
+- [ ] Any surprising insights?
+- [ ] What will change next time?
+- [ ] Update CHANGELOG.md
+- [ ] Update DECISIONS.md if architectural
+```
 
 ---
 
