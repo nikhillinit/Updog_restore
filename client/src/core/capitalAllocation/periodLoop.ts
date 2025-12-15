@@ -49,6 +49,9 @@ export interface PeriodResult {
   allocationCents: number;
   allocationsByCohort: Map<string, number>;
   reserveBalanceCents: number;
+  // Distribution classification (CA-019, CA-020)
+  cashImpactCents: number; // Recall inflows (from negative distributions)
+  recyclingPoolDeltaCents: number; // From recycle_eligible distributions
 }
 
 export interface PeriodLoopOutput {
@@ -57,6 +60,9 @@ export interface PeriodLoopOutput {
   allocationsByCohort: Map<string, number>;
   finalReserveBalanceCents: number;
   violations: Violation[];
+  // Distribution classification totals (CA-019, CA-020)
+  totalCashImpactCents: number;
+  totalRecyclingPoolDeltaCents: number;
 }
 
 // =============================================================================
@@ -209,6 +215,63 @@ export function getActiveCohorts(
 }
 
 // =============================================================================
+// Distribution Classification (CA-019, CA-020)
+// =============================================================================
+
+interface DistributionClassification {
+  /** Net cash delta from distributions (+ for inflows, - for outflows) */
+  cashDeltaCents: number;
+  /** Recycling pool increase (from recycle_eligible positive distributions) */
+  recyclingPoolDeltaCents: number;
+  /** Cash impact from recalls (from negative distributions) */
+  cashImpactCents: number;
+  /** LP payout outflow (from non-recyclable positive distributions) */
+  lpPayoutOutflowCents: number;
+}
+
+/**
+ * Classify distributions by type and compute cash effects.
+ *
+ * Rules (per CA-019, CA-020):
+ * - Negative amount: Recall/clawback - cash IN, NOT recyclable
+ * - Positive + recycle_eligible: Proceeds - cash IN, adds to recycling pool
+ * - Positive + !recycle_eligible: LP payout - cash OUT
+ */
+function classifyDistributions(
+  distributions: Array<{ amountCents?: number; recycle_eligible?: boolean }>
+): DistributionClassification {
+  let cashDeltaCents = 0;
+  let recyclingPoolDeltaCents = 0;
+  let cashImpactCents = 0;
+  let lpPayoutOutflowCents = 0;
+
+  for (const d of distributions) {
+    const amt = d.amountCents ?? 0;
+
+    if (amt < 0) {
+      // Recall / clawback: cash inflow, NOT recyclable
+      const inflow = Math.abs(amt);
+      cashDeltaCents += inflow;
+      cashImpactCents += inflow;
+      continue;
+    }
+
+    if (d.recycle_eligible === true) {
+      // Recyclable proceeds: cash inflow, increases recycling pool
+      cashDeltaCents += amt;
+      recyclingPoolDeltaCents += amt;
+      continue;
+    }
+
+    // Default: LP payout (cash outflow)
+    cashDeltaCents -= amt;
+    lpPayoutOutflowCents += amt;
+  }
+
+  return { cashDeltaCents, recyclingPoolDeltaCents, cashImpactCents, lpPayoutOutflowCents };
+}
+
+// =============================================================================
 // Period Loop Engine
 // =============================================================================
 
@@ -242,6 +305,8 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
 
   // Track cumulative state
   let cumulativeCashCents = 0;
+  let totalCashImpactCents = 0;
+  let totalRecyclingPoolDeltaCents = 0;
   const cumulativeAllocationsByCohort = new Map<string, number>();
   const violations: Violation[] = [];
 
@@ -262,18 +327,25 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
       (f) => f.date >= period.startDate && f.date <= period.endDate
     );
 
-    // Calculate cash movement
+    // Calculate cash from contributions
     const cashInCents = periodContributions.reduce(
       (sum, f) => sum + (f.amountCents ?? 0),
       0
     );
-    const cashOutCents = periodDistributions.reduce(
-      (sum, f) => sum + Math.abs(f.amountCents ?? 0),
-      0
-    );
 
-    // Update cumulative cash (before allocation)
-    cumulativeCashCents += cashInCents - cashOutCents;
+    // Classify distributions (CA-019, CA-020)
+    const distClass = classifyDistributions(periodDistributions);
+
+    // For reporting: track gross outflow (positive distributions only)
+    const cashOutCents = distClass.lpPayoutOutflowCents;
+
+    // Update cumulative cash: contributions + distribution effects
+    // distClass.cashDeltaCents already accounts for recalls, recycling, and LP payouts
+    cumulativeCashCents += cashInCents + distClass.cashDeltaCents;
+
+    // Accumulate totals
+    totalCashImpactCents += distClass.cashImpactCents;
+    totalRecyclingPoolDeltaCents += distClass.recyclingPoolDeltaCents;
 
     // Calculate period pacing target (prorated for partial periods)
     const periodPacingTargetCents = calculatePeriodPacingTarget(
@@ -292,8 +364,8 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
     // Calculate available cash after reserve (only used for integration)
     const cashAfterReserveCents = Math.max(0, cumulativeCashCents - reserveTargetCents);
 
-    // Period's net cash flow (what came in this period)
-    const periodNetCashCents = cashInCents - cashOutCents;
+    // Period's net cash flow (contributions + distribution effects)
+    const periodNetCashCents = cashInCents + distClass.cashDeltaCents;
 
     // Calculate allocation based on category
     // CAPACITY PLANNING MODEL: reserve is a planning target, not a cash constraint
@@ -384,6 +456,9 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
       allocationCents: periodAllocationTotal,
       allocationsByCohort: periodAllocationsByCohort,
       reserveBalanceCents,
+      // Distribution classification (CA-019, CA-020)
+      cashImpactCents: distClass.cashImpactCents,
+      recyclingPoolDeltaCents: distClass.recyclingPoolDeltaCents,
     });
   }
 
@@ -404,6 +479,9 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
     allocationsByCohort: cumulativeAllocationsByCohort,
     finalReserveBalanceCents,
     violations,
+    // Distribution classification totals (CA-019, CA-020)
+    totalCashImpactCents,
+    totalRecyclingPoolDeltaCents,
   };
 }
 
@@ -461,5 +539,10 @@ export function convertPeriodLoopOutput(
     endingCashCents,
     effective_buffer: centsToOutputUnits(input.effectiveBufferCents, input.unitScale),
     effectiveBufferCents: input.effectiveBufferCents,
+    // Distribution classification (CA-019, CA-020)
+    cash_impact: centsToOutputUnits(loopOutput.totalCashImpactCents, input.unitScale),
+    cashImpactCents: loopOutput.totalCashImpactCents,
+    recycling_pool_delta: centsToOutputUnits(loopOutput.totalRecyclingPoolDeltaCents, input.unitScale),
+    recyclingPoolDeltaCents: loopOutput.totalRecyclingPoolDeltaCents,
   };
 }

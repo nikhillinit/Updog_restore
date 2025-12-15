@@ -162,6 +162,7 @@ export function adaptTruthCaseInput(input: TruthCaseInput): NormalizedInput {
     amount: flow.amount,
     amountCents: toCentsWithInference(flow.amount, unitScale),
     type: 'distribution' as const,
+    recycle_eligible: (flow as any).recycle_eligible, // Preserve recycle_eligible for CA-019/CA-020
   }));
 
   // Step 6: Normalize cohorts
