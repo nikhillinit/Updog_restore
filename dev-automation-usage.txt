@@ -1,0 +1,2 @@
+=== dev-automation usage check ===
+No package.json references
