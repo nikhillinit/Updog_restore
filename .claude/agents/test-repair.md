@@ -114,3 +114,51 @@ When invoked or when tests fail:
 - **Waterfall Updates**: Always use helpers from `client/src/lib/waterfall.ts`
 - **Schema Validation**: Cross-reference Zod schemas in `/shared` for data
   fixtures
+
+## Browser-Only Bug Detection
+
+When a bug only reproduces in a real browser (not in jsdom):
+
+### Indicators for E2E Test Need
+
+- Bug involves: beforeunload, ResizeObserver, complex focus management
+- Error only occurs in real browser event loop
+- Timing/debounce issues that jsdom cannot replicate
+- Test comments mention "jsdom limitations" or "manual QA required"
+
+### Delegation to playwright-test-author
+
+1. Identify that bug requires browser-only test
+2. Delegate to `playwright-test-author` agent with:
+   - Bug description and reproduction steps
+   - Expected vs actual behavior
+   - Which browser API is involved
+
+3. Review returned test for:
+   - Proper data-testid selectors
+   - Isolation (no shared state)
+   - Cleanup on teardown
+
+4. If components lack data-testid, add required attributes
+
+### Delegation Pattern
+
+```
+test-repair detects browser-only bug
+       |
+       v
+Can jsdom test this behavior?
+       |
+       +-- YES --> Write unit test as normal
+       |
+       +-- NO --> Delegate to playwright-test-author
+                          |
+                          v
+                    Receive E2E test files
+                          |
+                          v
+                    Add missing data-testid
+                          |
+                          v
+                    Verify test passes
+```

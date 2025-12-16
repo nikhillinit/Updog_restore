@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2025-12-14
+last_updated: 2025-12-16
 categories: [documentation, navigation]
 keywords: [index, docs, navigation, routing, documentation]
 source_of_truth: true
@@ -17,7 +17,7 @@ maintenance:
 # Documentation Index
 
 **Purpose**: Central routing table for all project documentation **Audience**:
-Humans AND Agents **Last Updated**: 2025-12-14
+Humans AND Agents **Last Updated**: 2025-12-16
 
 ---
 
@@ -36,6 +36,7 @@ Humans AND Agents **Last Updated**: 2025-12-14
 | [Phoenix Project](#phoenix-project)             | Truth-case validation, VC modeling      | PHOENIX-SOT/README.md          |
 | [Domain Knowledge](#domain-knowledge-notebooklm)| VC fund modeling truth sources          | notebooklm-sources/            |
 | [Skills & Tools](#skills--tools)                | Available agents, tools, skills         | DEVELOPMENT-TOOLING-CATALOG.md |
+| [CI Quality Gates](#ci-quality-gates)           | Baseline validation, schema drift, perf | CLAUDE-INFRA-V4-INTEGRATION-PLAN.md |
 | [Troubleshooting](#troubleshooting)             | Debugging, common issues                | SIDECAR_GUIDE.md               |
 
 ---
@@ -292,6 +293,44 @@ The canonical domain knowledge base for ALL Phoenix validation work. 22 files,
 
 ---
 
+## CI Quality Gates
+
+**Status**: [ACTIVE] **Audience**: Agents **Added**: 2025-12-16 (v4 optimal infrastructure)
+
+Validator-diagnoser architecture for quality assurance. CI scripts detect issues;
+specialized agents diagnose root causes.
+
+| Document                                                                           | Description                                  | When to Use                    |
+| ---------------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------ |
+| [CLAUDE-INFRA-V4-INTEGRATION-PLAN.md](CLAUDE-INFRA-V4-INTEGRATION-PLAN.md)         | Integration plan for v4 infrastructure       | Understanding quality gates    |
+| [../scripts/baseline-check.sh](../scripts/baseline-check.sh)                       | Quality metric validation (tests, TS, lint)  | CI baseline ratcheting         |
+| [../scripts/validate-schema-drift.sh](../scripts/validate-schema-drift.sh)         | Schema alignment validation                  | Migration/Drizzle/Zod sync     |
+| [../scripts/bench-check.sh](../scripts/bench-check.sh)                             | Performance benchmark validation             | Perf regression detection      |
+| [../scripts/validate-claude-infra.ts](../scripts/validate-claude-infra.ts)         | Claude infra consistency check               | Agent/skill integrity          |
+
+**Diagnoser Agents** (delegated from code-reviewer):
+
+| Agent                        | Invoked When                              | Role                              |
+| ---------------------------- | ----------------------------------------- | --------------------------------- |
+| baseline-regression-explainer| baseline-check.sh fails                   | Diagnose test/TS/lint regression  |
+| schema-drift-checker         | validate-schema-drift.sh fails            | Diagnose schema layer mismatch    |
+| perf-regression-triager      | bench-check.sh fails                      | Diagnose performance regression   |
+| parity-auditor               | Truth-case tests fail                     | Assess Excel parity impact        |
+| playwright-test-author       | Browser-only bug detected                 | Create E2E tests                  |
+
+**New Skills** (quality gate governance):
+
+- **test-pyramid** - E2E scope control, test level governance
+- **statistical-testing** - Monte Carlo validation, seeded testing
+- **react-hook-form-stability** - RHF infinite loop prevention
+- **baseline-governance** - Quality gate policies, ratcheting strategy
+- **financial-calc-correctness** - Excel parity methodology
+- **claude-infra-integrity** - .claude/ directory consistency
+
+**Key Pattern**: Validators run in CI (deterministic exit codes) → Diagnoser agents explain failures and recommend fixes.
+
+---
+
 ## Troubleshooting
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
@@ -337,7 +376,7 @@ for complete workflow
 ## Maintenance
 
 **Document Owner**: Development Team **Review Cycle**: Monthly (or after major
-structural changes) **Last Updated**: 2025-12-14 **Next Review**: 2026-01-14
+structural changes) **Last Updated**: 2025-12-16 **Next Review**: 2026-01-14
 
 **Update Triggers**:
 

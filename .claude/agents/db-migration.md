@@ -522,6 +522,52 @@ companyId: uuid('company_id').references(() => companies.id, {
 - Have rollback plan
 - Consider zero-downtime strategies (blue-green, column duplication)
 
+## Schema Drift Validation
+
+After applying any migration, validate schema alignment across layers:
+
+### Post-Migration Verification
+
+1. Run schema drift validator:
+   ```bash
+   ./scripts/validate-schema-drift.sh
+   ```
+
+2. If validator fails, delegate to `schema-drift-checker` agent:
+   - Provide: migration name, error output
+   - Request: drift report and fix suggestions
+
+3. Review alignment report for:
+   - Migration <-> Drizzle schema
+   - Drizzle <-> Zod schemas
+   - Zod <-> Mock factories
+
+4. Fix drift before completing migration task
+
+5. Only mark migration complete after alignment verified
+
+### Delegation Pattern
+
+```
+db-migration detects schema change
+       |
+       v
+Run: ./scripts/validate-schema-drift.sh
+       |
+       +-- PASS --> Continue with migration
+       |
+       +-- FAIL --> Delegate to schema-drift-checker
+                          |
+                          v
+                    Receive drift report
+                          |
+                          v
+                    Apply suggested fixes
+                          |
+                          v
+                    Re-run validator
+```
+
 ## Escalation
 
 For production schema changes:
