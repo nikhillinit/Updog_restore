@@ -122,7 +122,12 @@ export function normalizeWeightsLenient(weights: number[]): number[] {
 
   // Adjust last element to ensure exact sum
   if (bpsSum !== WEIGHT_SCALE) {
-    rawBps[rawBps.length - 1] += WEIGHT_SCALE - bpsSum;
+    const lastIndex = rawBps.length - 1;
+    const lastValue = rawBps[lastIndex];
+    if (lastValue === undefined) {
+      throw new Error('Last element in rawBps is undefined');
+    }
+    rawBps[lastIndex] = lastValue + (WEIGHT_SCALE - bpsSum);
   }
 
   return rawBps;

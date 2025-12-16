@@ -155,7 +155,11 @@ export function adaptTruthCaseInput(input: TruthCaseInput): NormalizedInput {
     amount: flow.amount,
     amountCents: toCentsWithInference(flow.amount, unitScale),
     type: 'distribution' as const,
-    recycle_eligible: (flow as any).recycle_eligible, // Preserve recycle_eligible for CA-019/CA-020
+    // Preserve recycle_eligible for CA-019/CA-020
+    recycle_eligible:
+      'recycle_eligible' in flow
+        ? (flow as { recycle_eligible?: boolean }).recycle_eligible
+        : undefined,
   }));
 
   // Step 6: Normalize cohorts
@@ -165,9 +169,8 @@ export function adaptTruthCaseInput(input: TruthCaseInput): NormalizedInput {
   const startDate = input.timeline?.start_date ?? deriveStartDate(input);
   const endDate = input.timeline?.end_date ?? deriveEndDate(input);
   // Check both locations for rebalance_frequency (constraints takes precedence)
-  const rebalanceFrequency = input.constraints?.rebalance_frequency
-    ?? input.timeline?.rebalance_frequency
-    ?? 'quarterly';
+  const rebalanceFrequency =
+    input.constraints?.rebalance_frequency ?? input.timeline?.rebalance_frequency ?? 'quarterly';
 
   // Step 8: Pacing window
   const pacingWindowMonths = input.fund.pacing_window_months ?? 24;
@@ -241,7 +244,9 @@ function validateUnitConsistency(input: TruthCaseInput, _unitScale: number): voi
  * Returns true if cohorts have different active periods, indicating that
  * global weight sum > 1.0 is acceptable (per-period normalization applies).
  */
-function detectLifecycleVariation(cohorts: Array<{ start_date?: string; end_date?: string; startDate?: string; endDate?: string }>): boolean {
+function detectLifecycleVariation(
+  cohorts: Array<{ start_date?: string; end_date?: string; startDate?: string; endDate?: string }>
+): boolean {
   if (cohorts.length <= 1) return false;
 
   // Check if all cohorts have the same date range
@@ -251,9 +256,10 @@ function detectLifecycleVariation(cohorts: Array<{ start_date?: string; end_date
   }));
 
   const firstRange = dateRanges[0];
-  const allSame = dateRanges.every(
-    (r) => r.start === firstRange.start && r.end === firstRange.end
-  );
+  if (!firstRange) {
+    return false; // No cohorts means no lifecycle
+  }
+  const allSame = dateRanges.every((r) => r.start === firstRange.start && r.end === firstRange.end);
 
   // If any cohort has a different date range, there's lifecycle variation
   return !allSame;
@@ -278,19 +284,30 @@ function normalizeCohorts(
   // For lifecycle cohorts (varying date ranges), use lenient normalization
   // to allow weights that don't sum to 1.0 globally
   const weights = rawCohorts.map((c) => c.weight ?? 0);
-  const hasLifecycleVariation = detectLifecycleVariation(rawCohorts);
+  // Cast to extract only date fields for lifecycle detection
+  const hasLifecycleVariation = detectLifecycleVariation(
+    rawCohorts as Array<{
+      start_date?: string;
+      end_date?: string;
+      startDate?: string;
+      endDate?: string;
+    }>
+  );
   const normalizedWeightsBps = hasLifecycleVariation
     ? normalizeWeightsLenient(weights)
     : normalizeWeightsToBps(weights);
 
   // Validate dates and sort
-  const sortableCohorts = rawCohorts.map((c, index) => ({
-    ...c,
-    weightBps: normalizedWeightsBps[index] ?? 0,
-    originalIndex: index,
-  }));
+  const sortableCohorts = rawCohorts.map((c, index) => {
+    const weightBps = normalizedWeightsBps[index] ?? 0;
+    return {
+      ...c,
+      weightBps,
+      originalIndex: index,
+    };
+  });
 
-  // Sort cohorts
+  // Sort cohorts - sortAndValidateCohorts is generic and preserves the full type
   const sortedCohorts = sortAndValidateCohorts(sortableCohorts);
 
   // Convert to internal representation
