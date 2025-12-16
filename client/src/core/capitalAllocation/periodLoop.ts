@@ -23,10 +23,7 @@ import {
   type Violation,
   type ReserveBalancePoint,
 } from './types';
-import {
-  type NormalizedInput,
-  centsToOutputUnits,
-} from './adapter';
+import { type NormalizedInput, centsToOutputUnits } from './adapter';
 import { allocateLRM, WEIGHT_SCALE } from './allocateLRM';
 import { roundPercentDerivedToCents } from './rounding';
 
@@ -94,12 +91,13 @@ export function generatePeriods(
         periodEnd = new Date(current.getFullYear(), current.getMonth() + 1, 0);
         break;
 
-      case 'quarterly':
+      case 'quarterly': {
         const quarter = Math.floor(current.getMonth() / 3) + 1;
         periodId = `${current.getFullYear()}-Q${quarter}`;
         const quarterEndMonth = quarter * 3;
         periodEnd = new Date(current.getFullYear(), quarterEndMonth, 0);
         break;
+      }
 
       case 'annual':
         periodId = String(current.getFullYear());
@@ -180,8 +178,8 @@ export function calculatePeriodPacingTarget(
     const start = new Date(periodStart);
     const end = new Date(periodEnd);
     // Calculate months between dates (inclusive)
-    const months = (end.getFullYear() - start.getFullYear()) * 12 +
-      (end.getMonth() - start.getMonth()) + 1;
+    const months =
+      (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
     return Math.round(monthlyTargetCents * months);
   }
 
@@ -203,10 +201,7 @@ export function calculatePeriodPacingTarget(
 /**
  * Get cohorts active during a given date.
  */
-export function getActiveCohorts(
-  cohorts: InternalCohort[],
-  date: string
-): InternalCohort[] {
+export function getActiveCohorts(cohorts: InternalCohort[], date: string): InternalCohort[] {
   return cohorts.filter((c) => {
     const start = c.startDate;
     const end = c.endDate || '9999-12-31';
@@ -298,7 +293,12 @@ function allocateWithCaps(
   if (maxAllocationPct === null || allocableCents <= 0 || cohorts.length === 0) {
     const allocations = allocateLRM(allocableCents, weightsBps);
     for (let i = 0; i < cohorts.length; i++) {
-      result.set(cohorts[i].id, allocations[i]);
+      const cohort = cohorts[i];
+      const allocation = allocations[i];
+      if (cohort === undefined || allocation === undefined) {
+        throw new Error(`Cohort or allocation at index ${i} is undefined`);
+      }
+      result.set(cohort.id, allocation);
     }
     return result;
   }
@@ -323,14 +323,22 @@ function allocateWithCaps(
     if (uncapped.length === 0) break;
 
     // Re-normalize weights for uncapped cohorts
-    const uncappedWeightSum = uncapped.reduce((s, cs) => s + cs.weightBps, 0);
+    const uncappedWeightSum = uncapped.reduce((s, cs) => {
+      if (cs.weightBps === undefined) {
+        throw new Error('Cohort weightBps is undefined');
+      }
+      return s + cs.weightBps;
+    }, 0);
     if (uncappedWeightSum === 0) break;
 
     // Calculate pro-rata shares and check for caps
     let spill = 0;
-    const shares: Array<{ cs: typeof cohortState[0]; share: number }> = [];
+    const shares: Array<{ cs: (typeof cohortState)[0]; share: number }> = [];
 
     for (const cs of uncapped) {
+      if (cs.weightBps === undefined) {
+        throw new Error('Cohort weightBps is undefined in uncapped loop');
+      }
       const share = Math.round((remaining * cs.weightBps) / uncappedWeightSum);
       shares.push({ cs, share });
     }
@@ -375,9 +383,15 @@ function allocateWithCaps(
  */
 export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
   // Extract pacing window and category from original input
-  const pacingWindowMonths =
-    (input.original as any).fund?.pacing_window_months ?? input.pacingWindowMonths ?? 24;
-  const category = (input.original as any).category || 'reserve_engine';
+  const originalFund =
+    'fund' in input.original
+      ? (input.original as { fund?: { pacing_window_months?: number } }).fund
+      : undefined;
+  const pacingWindowMonths = originalFund?.pacing_window_months ?? input.pacingWindowMonths ?? 24;
+
+  const originalCategory =
+    'category' in input.original ? (input.original as { category?: string }).category : undefined;
+  const category = originalCategory || 'reserve_engine';
 
   // Calculate monthly pacing target
   // - reserve_engine: (commitment - reserve) / window (CA-007)
@@ -390,11 +404,7 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
   );
 
   // Generate periods
-  const periods = generatePeriods(
-    input.startDate,
-    input.endDate,
-    input.rebalanceFrequency
-  );
+  const periods = generatePeriods(input.startDate, input.endDate, input.rebalanceFrequency);
 
   // Track cumulative state
   let cumulativeCashCents = 0;
@@ -421,13 +431,20 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
     );
 
     // Calculate cash from contributions
-    const cashInCents = periodContributions.reduce(
-      (sum, f) => sum + (f.amountCents ?? 0),
-      0
-    );
+    const cashInCents = periodContributions.reduce((sum, f) => sum + (f.amountCents ?? 0), 0);
 
     // Classify distributions (CA-019, CA-020)
-    const distClass = classifyDistributions(periodDistributions);
+    // Extract only the properties needed by classifyDistributions
+    // Cast to ensure optional properties match the expected type
+    const distClass = classifyDistributions(
+      periodDistributions.map(
+        (d) =>
+          ({
+            amountCents: d.amountCents,
+            recycle_eligible: d.recycle_eligible,
+          }) as { amountCents?: number; recycle_eligible?: boolean }
+      )
+    );
 
     // For reporting: track gross outflow (positive distributions only)
     const cashOutCents = distClass.lpPayoutOutflowCents;
@@ -454,8 +471,8 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
     // Calculate reserve target (for reporting, not constraining allocation in most categories)
     const reserveTargetCents = input.effectiveBufferCents;
 
-    // Calculate available cash after reserve (only used for integration)
-    const cashAfterReserveCents = Math.max(0, cumulativeCashCents - reserveTargetCents);
+    // Note: cashAfterReserveCents was calculated here but not used in current logic
+    // Removed to satisfy ESLint no-unused-vars rule
 
     // Period's net cash flow (contributions + distribution effects)
     const periodNetCashCents = cashInCents + distClass.cashDeltaCents;
@@ -518,21 +535,28 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
       const activeWeightSum = activeWeights.reduce((a, b) => a + b, 0);
 
       // Normalize to WEIGHT_SCALE if not already
-      const normalizedWeights = activeWeightSum === WEIGHT_SCALE
-        ? activeWeights
-        : activeWeights.map((w) => Math.round((w / activeWeightSum) * WEIGHT_SCALE));
+      const normalizedWeights =
+        activeWeightSum === WEIGHT_SCALE
+          ? activeWeights
+          : activeWeights.map((w) => Math.round((w / activeWeightSum) * WEIGHT_SCALE));
 
       // Ensure exact sum (adjust last element for rounding)
       const normalizedSum = normalizedWeights.reduce((a, b) => a + b, 0);
       if (normalizedSum !== WEIGHT_SCALE && normalizedWeights.length > 0) {
-        normalizedWeights[normalizedWeights.length - 1] += WEIGHT_SCALE - normalizedSum;
+        const lastIndex = normalizedWeights.length - 1;
+        const lastValue = normalizedWeights[lastIndex];
+        if (lastValue === undefined) {
+          throw new Error('Last normalized weight is undefined');
+        }
+        normalizedWeights[lastIndex] = lastValue + (WEIGHT_SCALE - normalizedSum);
       }
 
       // Use cap+spill allocation (CA-015, CA-020)
       // For cohort_engine and integration: apply max_allocation_per_cohort cap with spill
-      const capPct = (category === 'cohort_engine' || category === 'integration')
-        ? input.maxAllocationPerCohortPct
-        : null;
+      const capPct =
+        category === 'cohort_engine' || category === 'integration'
+          ? input.maxAllocationPerCohortPct
+          : null;
       periodAllocationsByCohort = allocateWithCaps(
         allocableCents,
         activeCohorts,
@@ -593,7 +617,7 @@ export function executePeriodLoop(input: NormalizedInput): PeriodLoopOutput {
 
   const finalReserveBalanceCents =
     periodResults.length > 0
-      ? periodResults[periodResults.length - 1].reserveBalanceCents
+      ? (periodResults[periodResults.length - 1]?.reserveBalanceCents ?? 0)
       : 0;
 
   return {
@@ -665,7 +689,10 @@ export function convertPeriodLoopOutput(
     // Distribution classification (CA-019, CA-020)
     cash_impact: centsToOutputUnits(loopOutput.totalCashImpactCents, input.unitScale),
     cashImpactCents: loopOutput.totalCashImpactCents,
-    recycling_pool_delta: centsToOutputUnits(loopOutput.totalRecyclingPoolDeltaCents, input.unitScale),
+    recycling_pool_delta: centsToOutputUnits(
+      loopOutput.totalRecyclingPoolDeltaCents,
+      input.unitScale
+    ),
     recyclingPoolDeltaCents: loopOutput.totalRecyclingPoolDeltaCents,
   };
 }

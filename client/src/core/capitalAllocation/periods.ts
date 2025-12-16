@@ -31,6 +31,9 @@ export type RebalanceFrequency = 'monthly' | 'quarterly' | 'annual';
  */
 function parseDate(dateStr: string): { year: number; month: number; day: number } {
   const [yearStr, monthStr, dayStr] = dateStr.split('-');
+  if (!yearStr || !monthStr || !dayStr) {
+    throw new Error(`Invalid date format: ${dateStr}`);
+  }
   return {
     year: parseInt(yearStr, 10),
     month: parseInt(monthStr, 10),
@@ -108,9 +111,7 @@ function generateMonthlyPeriods(
 
   while (year < end.year || (year === end.year && month <= end.month)) {
     const periodStart =
-      year === start.year && month === start.month
-        ? originalStart
-        : formatDate(year, month, 1);
+      year === start.year && month === start.month ? originalStart : formatDate(year, month, 1);
 
     const periodEndDay = lastDayOfMonth(year, month);
     let periodEnd =
@@ -156,14 +157,10 @@ function generateQuarterlyPeriods(
     const qEndDay = lastDayOfMonth(year, qEndMonth);
 
     const isFirstPeriod = year === start.year && quarter === getQuarter(start.month);
-    const periodStart = isFirstPeriod
-      ? originalStart
-      : formatDate(year, qStartMonth, 1);
+    const periodStart = isFirstPeriod ? originalStart : formatDate(year, qStartMonth, 1);
 
     const isLastPeriod = year === end.year && quarter >= endQuarter;
-    let periodEnd = isLastPeriod
-      ? originalEnd
-      : formatDate(year, qEndMonth, qEndDay);
+    let periodEnd = isLastPeriod ? originalEnd : formatDate(year, qEndMonth, qEndDay);
 
     if (periodEnd > originalEnd) {
       periodEnd = originalEnd;
