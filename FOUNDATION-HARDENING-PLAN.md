@@ -23,7 +23,8 @@
 **Top 20 Failing Test Files (by failure count):**
 
 1. integration/ops-webhook.test.ts - 17 failures (webhook operations)
-2. unit/modeling-wizard-persistence.test.tsx - 3 failures (wizard state)
+2. unit/modeling-wizard-persistence.test.tsx - 10 failures (wizard state)
+   [UPDATED: 3-4 fixable, 7 RED-phase]
 3. unit/api/portfolio-intelligence.test.ts - 3 failures (portfolio APIs)
 4. unit/stage-validation-mode.test.ts - 11 failures (validation store)
 5. unit/xirr-golden-set.test.ts - 2 failures (XIRR edge cases)
@@ -70,8 +71,9 @@
 
 - Fix ops-webhook mocking (17 failures → potential +17 passes)
 - Fix stage-validation-mode Redis mocking (11 failures → potential +11 passes)
-- Repair modeling-wizard state persistence (3 failures → potential +3 passes)
-- Total potential: +31 tests minimum
+- Repair modeling-wizard test issues (10 failures → +4 passes immediate, 7
+  deferred to ADR-016)
+- Total potential: +32 tests minimum (revised from +31)
 
 **Approach:**
 

@@ -7,11 +7,11 @@ keywords: [index, docs, navigation, routing, documentation]
 source_of_truth: true
 agent_routing:
   priority: 2
-  route_hint: "Central navigation for all documentation."
+  route_hint: 'Central navigation for all documentation.'
   use_cases: [doc_discovery, onboarding]
 maintenance:
-  owner: "Core Team"
-  review_cadence: "P90D"
+  owner: 'Core Team'
+  review_cadence: 'P90D'
 ---
 
 # Documentation Index
@@ -23,21 +23,21 @@ Humans AND Agents **Last Updated**: 2025-12-16
 
 ## Quick Navigation
 
-| Category                                        | When to Use                             | Primary Docs                   |
-| ----------------------------------------------- | --------------------------------------- | ------------------------------ |
-| [Getting Started](#getting-started)             | First time setup, onboarding            | README.md                      |
-| [Development](#development)                     | Building features, coding workflows     | CLAUDE.md, CAPABILITIES.md     |
-| [Testing](#testing)                             | Running tests, fixing failures          | tests/README.md                |
-| [Deployment](#deployment)                       | Deploying to staging/production         | scripts/README.md              |
-| [Architecture](#architecture)                   | Design decisions, technical strategy    | DECISIONS.md                   |
-| [AI & Automation](#ai--automation)              | Agent development, AI workflows         | ai-utils/README.md             |
-| [Workflows & CI/CD](#workflows--cicd)           | GitHub Actions, deployment scripts      | workflows/README.md            |
-| [Scripts](#scripts)                             | NPM scripts, utility commands           | package.json, scripts/         |
-| [Phoenix Project](#phoenix-project)             | Truth-case validation, VC modeling      | PHOENIX-SOT/README.md          |
-| [Domain Knowledge](#domain-knowledge-notebooklm)| VC fund modeling truth sources          | notebooklm-sources/            |
-| [Skills & Tools](#skills--tools)                | Available agents, tools, skills         | DEVELOPMENT-TOOLING-CATALOG.md |
-| [CI Quality Gates](#ci-quality-gates)           | Baseline validation, schema drift, perf | CLAUDE-INFRA-V4-INTEGRATION-PLAN.md |
-| [Troubleshooting](#troubleshooting)             | Debugging, common issues                | SIDECAR_GUIDE.md               |
+| Category                                         | When to Use                             | Primary Docs                        |
+| ------------------------------------------------ | --------------------------------------- | ----------------------------------- |
+| [Getting Started](#getting-started)              | First time setup, onboarding            | README.md                           |
+| [Development](#development)                      | Building features, coding workflows     | CLAUDE.md, CAPABILITIES.md          |
+| [Testing](#testing)                              | Running tests, fixing failures          | tests/README.md                     |
+| [Deployment](#deployment)                        | Deploying to staging/production         | scripts/README.md                   |
+| [Architecture](#architecture)                    | Design decisions, technical strategy    | DECISIONS.md                        |
+| [AI & Automation](#ai--automation)               | Agent development, AI workflows         | ai-utils/README.md                  |
+| [Workflows & CI/CD](#workflows--cicd)            | GitHub Actions, deployment scripts      | workflows/README.md                 |
+| [Scripts](#scripts)                              | NPM scripts, utility commands           | package.json, scripts/              |
+| [Phoenix Project](#phoenix-project)              | Truth-case validation, VC modeling      | PHOENIX-SOT/README.md               |
+| [Domain Knowledge](#domain-knowledge-notebooklm) | VC fund modeling truth sources          | notebooklm-sources/                 |
+| [Skills & Tools](#skills--tools)                 | Available agents, tools, skills         | DEVELOPMENT-TOOLING-CATALOG.md      |
+| [CI Quality Gates](#ci-quality-gates)            | Baseline validation, schema drift, perf | CLAUDE-INFRA-V4-INTEGRATION-PLAN.md |
+| [Troubleshooting](#troubleshooting)              | Debugging, common issues                | SIDECAR_GUIDE.md                    |
 
 ---
 
@@ -79,10 +79,16 @@ Humans AND Agents **Last Updated**: 2025-12-16
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                                        | Description                                | When to Use                         |
-| ------------------------------------------------------------------------------- | ------------------------------------------ | ----------------------------------- |
-| [tests/README.md](../tests/README.md)                                           | Testing strategy (Unit, Integration, E2E)  | Writing tests, fixing test failures |
-| [cheatsheets/pr-merge-verification.md](../cheatsheets/pr-merge-verification.md) | PR verification baseline (74.7% pass rate) | Before merging PRs                  |
+| Document                                                                                                   | Description                                                 | When to Use                                                  |
+| ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------ |
+| [tests/README.md](../tests/README.md)                                                                      | Testing strategy (Unit, Integration, E2E)                   | Writing tests, fixing test failures                          |
+| [FOUNDATION-HARDENING-EXECUTION-PLAN.md](../FOUNDATION-HARDENING-EXECUTION-PLAN.md)                        | v4 execution plan: 72.3% → 90%+ test pass rate              | Active sprint execution                                      |
+| [FOUNDATION-HARDENING-PLAN.md](../FOUNDATION-HARDENING-PLAN.md)                                            | Original scope documentation (superseded by execution plan) | Historical reference                                         |
+| [plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md](plans/IMPLEMENTATION-PARITY-INTEGRATION-STRATEGY.md) | Triage decision framework for divergence fixes              | When encountering implementation mismatches during hardening |
+| [ARCHITECTURAL-DEBT.md](ARCHITECTURAL-DEBT.md)                                                             | Complex refactoring registry (10+ files, architectural)     | Documenting deferred architectural work                      |
+| [plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md)               | Analysis of 22 recent PRs, divergence patterns              | Understanding implementation parity issues                   |
+| [plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md](plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md)   | Fee-specific divergence analysis                            | When working on fee-related code                             |
+| [cheatsheets/pr-merge-verification.md](../cheatsheets/pr-merge-verification.md)                            | PR verification baseline (74.7% pass rate)                  | Before merging PRs                                           |
 
 **Key Commands**:
 
@@ -91,7 +97,8 @@ Humans AND Agents **Last Updated**: 2025-12-16
 - `npm test -- --project=client` - Client tests only
 - `/test-smart` - Run tests for changed files only
 
-**Baseline**: 74.7% pass rate (998/1,337 tests) as of 2025-11-17
+**Baseline**: 72.3% pass rate (1275/1762 tests) as of 2025-12-15 (Foundation
+Hardening baseline)
 
 ---
 
@@ -125,7 +132,7 @@ Humans AND Agents **Last Updated**: 2025-12-16
 | Document                                                             | Description                           | When to Use                       |
 | -------------------------------------------------------------------- | ------------------------------------- | --------------------------------- |
 | [DECISIONS.md](../DECISIONS.md)                                      | Architectural Decision Records (ADRs) | Understanding technical rationale |
-| [adr/](adr/)                                                          | Additional ADRs (12 files)            | Monte Carlo, mem0, stages         |
+| [adr/](adr/)                                                         | Additional ADRs (12 files)            | Monte Carlo, mem0, stages         |
 | [DEVELOPMENT_STRATEGY.md](DEVELOPMENT_STRATEGY.md)                   | Long-term development strategy        | Strategic planning                |
 | [MULTI-AI-DEVELOPMENT-WORKFLOW.md](MULTI-AI-DEVELOPMENT-WORKFLOW.md) | Multi-AI collaboration patterns       | Leveraging multiple AIs           |
 
@@ -139,11 +146,11 @@ Humans AND Agents **Last Updated**: 2025-12-16
 ADR-010, ADR-011, ADR-012 exist in BOTH `DECISIONS.md` AND `docs/adr/` with
 different content. When referencing, specify the file path explicitly:
 
-| ADR | In DECISIONS.md                      | In docs/adr/                     |
-| --- | ------------------------------------ | -------------------------------- |
-| 010 | PowerLawDistribution API Design      | Monte Carlo Validation Strategy  |
-| 011 | Anti-Pattern Prevention Strategy     | Typed Stage Normalization        |
-| 012 | Evidence-Based Document Reviews      | mem0 Integration                 |
+| ADR | In DECISIONS.md                  | In docs/adr/                    |
+| --- | -------------------------------- | ------------------------------- |
+| 010 | PowerLawDistribution API Design  | Monte Carlo Validation Strategy |
+| 011 | Anti-Pattern Prevention Strategy | Typed Stage Normalization       |
+| 012 | Evidence-Based Document Reviews  | mem0 Integration                |
 
 **Resolution needed**: docs/adr/ ADRs should be renumbered to ADR-017+.
 
@@ -216,14 +223,15 @@ different content. When referencing, specify the file path explicitly:
 
 ## Phoenix Project
 
-**Status**: [ACTIVE] **Audience**: Agents **Current Phase**: 1B (Fees/Waterfall-Ledger validated)
+**Status**: [ACTIVE] **Audience**: Agents **Current Phase**: 1B
+(Fees/Waterfall-Ledger validated)
 
-| Document                                                                                             | Description                            | When to Use                       |
-| ---------------------------------------------------------------------------------------------------- | -------------------------------------- | --------------------------------- |
-| [PHOENIX-SOT/README.md](PHOENIX-SOT/README.md)                                                       | Phoenix project single source of truth | Phoenix workflows                 |
-| [PHOENIX-SOT/execution-plan-v2.34.md](PHOENIX-SOT/execution-plan-v2.34.md)                           | 2000+ line execution plan              | Phase 0/1A/1B/2/3+ implementation |
-| [notebooklm-sources/](notebooklm-sources/)                                                            | Domain knowledge (85K words, 22 files) | VC fund modeling truth sources    |
-| [notebooklm-sources/PHASE2-COMPLETE.md](notebooklm-sources/PHASE2-COMPLETE.md)                       | Phase 2 engine docs completion summary | Understanding Phase 2 deliverables|
+| Document                                                                       | Description                            | When to Use                        |
+| ------------------------------------------------------------------------------ | -------------------------------------- | ---------------------------------- |
+| [PHOENIX-SOT/README.md](PHOENIX-SOT/README.md)                                 | Phoenix project single source of truth | Phoenix workflows                  |
+| [PHOENIX-SOT/execution-plan-v2.34.md](PHOENIX-SOT/execution-plan-v2.34.md)     | 2000+ line execution plan              | Phase 0/1A/1B/2/3+ implementation  |
+| [notebooklm-sources/](notebooklm-sources/)                                     | Domain knowledge (85K words, 22 files) | VC fund modeling truth sources     |
+| [notebooklm-sources/PHASE2-COMPLETE.md](notebooklm-sources/PHASE2-COMPLETE.md) | Phase 2 engine docs completion summary | Understanding Phase 2 deliverables |
 
 **Key Features**:
 
@@ -245,22 +253,23 @@ different content. When referencing, specify the file path explicitly:
 
 ## Domain Knowledge (NotebookLM)
 
-**Status**: [ACTIVE] **Audience**: Agents **Completion**: Phase 2 COMPLETE (Nov 6, 2025)
+**Status**: [ACTIVE] **Audience**: Agents **Completion**: Phase 2 COMPLETE (Nov
+6, 2025)
 
 The canonical domain knowledge base for ALL Phoenix validation work. 22 files,
 ~85,000 words of AI-consumable truth sources.
 
-| Document                                                                       | Description                           | When to Use                      |
-| ------------------------------------------------------------------------------ | ------------------------------------- | -------------------------------- |
-| [notebooklm-sources/xirr.md](notebooklm-sources/xirr.md)                        | XIRR calculation semantics            | XIRR validation, Excel parity    |
-| [notebooklm-sources/waterfall.md](notebooklm-sources/waterfall.md)              | Waterfall distribution logic          | Carry, clawback, tier validation |
-| [notebooklm-sources/fees.md](notebooklm-sources/fees.md)                        | Fee calculation standards             | Management/performance fees      |
-| [notebooklm-sources/capital-allocation.md](notebooklm-sources/capital-allocation.md) | Capital allocation policy        | Capital deployment logic         |
-| [notebooklm-sources/exit-recycling.md](notebooklm-sources/exit-recycling.md)    | Exit recycling rules                  | Recycled capital handling        |
-| [notebooklm-sources/reserves/](notebooklm-sources/reserves/)                    | ReserveEngine docs (4 files, ~23 pages)| Reserve allocation strategies   |
-| [notebooklm-sources/pacing/](notebooklm-sources/pacing/)                        | PacingEngine docs (4 files, ~26 pages) | Investment pacing patterns      |
-| [notebooklm-sources/cohorts/](notebooklm-sources/cohorts/)                      | CohortEngine docs (3 files, ~69 pages) | Cohort-based analytics          |
-| [notebooklm-sources/monte-carlo/](notebooklm-sources/monte-carlo/)              | Monte Carlo docs (4 files, ~120 pages) | Simulation engine               |
+| Document                                                                             | Description                             | When to Use                      |
+| ------------------------------------------------------------------------------------ | --------------------------------------- | -------------------------------- |
+| [notebooklm-sources/xirr.md](notebooklm-sources/xirr.md)                             | XIRR calculation semantics              | XIRR validation, Excel parity    |
+| [notebooklm-sources/waterfall.md](notebooklm-sources/waterfall.md)                   | Waterfall distribution logic            | Carry, clawback, tier validation |
+| [notebooklm-sources/fees.md](notebooklm-sources/fees.md)                             | Fee calculation standards               | Management/performance fees      |
+| [notebooklm-sources/capital-allocation.md](notebooklm-sources/capital-allocation.md) | Capital allocation policy               | Capital deployment logic         |
+| [notebooklm-sources/exit-recycling.md](notebooklm-sources/exit-recycling.md)         | Exit recycling rules                    | Recycled capital handling        |
+| [notebooklm-sources/reserves/](notebooklm-sources/reserves/)                         | ReserveEngine docs (4 files, ~23 pages) | Reserve allocation strategies    |
+| [notebooklm-sources/pacing/](notebooklm-sources/pacing/)                             | PacingEngine docs (4 files, ~26 pages)  | Investment pacing patterns       |
+| [notebooklm-sources/cohorts/](notebooklm-sources/cohorts/)                           | CohortEngine docs (3 files, ~69 pages)  | Cohort-based analytics           |
+| [notebooklm-sources/monte-carlo/](notebooklm-sources/monte-carlo/)                   | Monte Carlo docs (4 files, ~120 pages)  | Simulation engine                |
 
 **Quality Metrics**:
 
@@ -295,28 +304,29 @@ The canonical domain knowledge base for ALL Phoenix validation work. 22 files,
 
 ## CI Quality Gates
 
-**Status**: [ACTIVE] **Audience**: Agents **Added**: 2025-12-16 (v4 optimal infrastructure)
+**Status**: [ACTIVE] **Audience**: Agents **Added**: 2025-12-16 (v4 optimal
+infrastructure)
 
-Validator-diagnoser architecture for quality assurance. CI scripts detect issues;
-specialized agents diagnose root causes.
+Validator-diagnoser architecture for quality assurance. CI scripts detect
+issues; specialized agents diagnose root causes.
 
-| Document                                                                           | Description                                  | When to Use                    |
-| ---------------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------ |
-| [CLAUDE-INFRA-V4-INTEGRATION-PLAN.md](CLAUDE-INFRA-V4-INTEGRATION-PLAN.md)         | Integration plan for v4 infrastructure       | Understanding quality gates    |
-| [../scripts/baseline-check.sh](../scripts/baseline-check.sh)                       | Quality metric validation (tests, TS, lint)  | CI baseline ratcheting         |
-| [../scripts/validate-schema-drift.sh](../scripts/validate-schema-drift.sh)         | Schema alignment validation                  | Migration/Drizzle/Zod sync     |
-| [../scripts/bench-check.sh](../scripts/bench-check.sh)                             | Performance benchmark validation             | Perf regression detection      |
-| [../scripts/validate-claude-infra.ts](../scripts/validate-claude-infra.ts)         | Claude infra consistency check               | Agent/skill integrity          |
+| Document                                                                   | Description                                 | When to Use                 |
+| -------------------------------------------------------------------------- | ------------------------------------------- | --------------------------- |
+| [CLAUDE-INFRA-V4-INTEGRATION-PLAN.md](CLAUDE-INFRA-V4-INTEGRATION-PLAN.md) | Integration plan for v4 infrastructure      | Understanding quality gates |
+| [../scripts/baseline-check.sh](../scripts/baseline-check.sh)               | Quality metric validation (tests, TS, lint) | CI baseline ratcheting      |
+| [../scripts/validate-schema-drift.sh](../scripts/validate-schema-drift.sh) | Schema alignment validation                 | Migration/Drizzle/Zod sync  |
+| [../scripts/bench-check.sh](../scripts/bench-check.sh)                     | Performance benchmark validation            | Perf regression detection   |
+| [../scripts/validate-claude-infra.ts](../scripts/validate-claude-infra.ts) | Claude infra consistency check              | Agent/skill integrity       |
 
 **Diagnoser Agents** (delegated from code-reviewer):
 
-| Agent                        | Invoked When                              | Role                              |
-| ---------------------------- | ----------------------------------------- | --------------------------------- |
-| baseline-regression-explainer| baseline-check.sh fails                   | Diagnose test/TS/lint regression  |
-| schema-drift-checker         | validate-schema-drift.sh fails            | Diagnose schema layer mismatch    |
-| perf-regression-triager      | bench-check.sh fails                      | Diagnose performance regression   |
-| parity-auditor               | Truth-case tests fail                     | Assess Excel parity impact        |
-| playwright-test-author       | Browser-only bug detected                 | Create E2E tests                  |
+| Agent                         | Invoked When                   | Role                             |
+| ----------------------------- | ------------------------------ | -------------------------------- |
+| baseline-regression-explainer | baseline-check.sh fails        | Diagnose test/TS/lint regression |
+| schema-drift-checker          | validate-schema-drift.sh fails | Diagnose schema layer mismatch   |
+| perf-regression-triager       | bench-check.sh fails           | Diagnose performance regression  |
+| parity-auditor                | Truth-case tests fail          | Assess Excel parity impact       |
+| playwright-test-author        | Browser-only bug detected      | Create E2E tests                 |
 
 **New Skills** (quality gate governance):
 
@@ -327,7 +337,8 @@ specialized agents diagnose root causes.
 - **financial-calc-correctness** - Excel parity methodology
 - **claude-infra-integrity** - .claude/ directory consistency
 
-**Key Pattern**: Validators run in CI (deterministic exit codes) → Diagnoser agents explain failures and recommend fixes.
+**Key Pattern**: Validators run in CI (deterministic exit codes) → Diagnoser
+agents explain failures and recommend fixes.
 
 ---
 
