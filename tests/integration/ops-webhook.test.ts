@@ -26,7 +26,7 @@ describe('Ops Webhook: Auto-Downgrade', () => {
     process.env.REDIS_URL = 'redis://localhost:6379';
 
     // Re-import the route after setting env vars
-    const modulePath = '../../server/routes/_ops-stage-validation';
+    const modulePath = '../../server/routes/_ops-stage-validation.ts';
     delete require.cache[require.resolve(modulePath)];
     const opsRoute = (await import(modulePath)).default;
 
@@ -327,7 +327,7 @@ describe('Ops Webhook: Auto-Downgrade', () => {
       delete process.env.ALERTMANAGER_WEBHOOK_SECRET;
 
       await expect(async () => {
-        const modulePath = '../../server/routes/_ops-stage-validation';
+        const modulePath = '../../server/routes/_ops-stage-validation.ts';
         delete require.cache[require.resolve(modulePath)];
         await import(modulePath);
       }).rejects.toThrow('ALERTMANAGER_WEBHOOK_SECRET');
@@ -337,7 +337,7 @@ describe('Ops Webhook: Auto-Downgrade', () => {
       process.env.ALERTMANAGER_WEBHOOK_SECRET = 'short';
 
       await expect(async () => {
-        const modulePath = '../../server/routes/_ops-stage-validation';
+        const modulePath = '../../server/routes/_ops-stage-validation.ts';
         delete require.cache[require.resolve(modulePath)];
         await import(modulePath);
       }).rejects.toThrow('ALERTMANAGER_WEBHOOK_SECRET');
