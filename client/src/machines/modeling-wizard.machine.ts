@@ -186,7 +186,7 @@ export interface ModelingWizardContext {
    * Tracks which navigation action triggered persistence.
    * Used to execute navigation after successful persistence.
    */
-  navigationIntent: 'next' | 'back' | 'goto' | null;
+  navigationIntent: 'next' | 'back' | 'goto' | 'auto-save' | null;
 
   /**
    * Target step for GOTO navigation intent.
@@ -332,6 +332,9 @@ function persistToStorage(context: ModelingWizardContext): void {
  * @throws Error with specific message for each failure type
  */
 export const persistDataService = fromPromise(async ({ input }: { input: ModelingWizardContext }) => {
+  // Force async rejection semantics (prevents synchronous throws from escaping before promise chain)
+  await Promise.resolve();
+
   try {
     const storageData = {
       steps: input.steps,
@@ -351,18 +354,21 @@ export const persistDataService = fromPromise(async ({ input }: { input: Modelin
     if (error instanceof Error) {
       if (error.name === 'QuotaExceededError') {
         console.error('[ModelingWizard] Storage quota exceeded:', error);
-        throw new Error('Storage limit exceeded');
+        throw Object.assign(new Error('Storage limit exceeded'), { name: 'QuotaExceededError' });
       }
 
       if (error.name === 'SecurityError') {
         console.error('[ModelingWizard] Storage access blocked (privacy mode):', error);
-        throw new Error('Storage unavailable (privacy mode)');
+        throw Object.assign(new Error('Storage unavailable (privacy mode)'), { name: 'SecurityError' });
       }
     }
 
     // Generic error fallback
     console.error('[ModelingWizard] Failed to save to localStorage:', error);
-    throw new Error('Could not save data');
+    const genericError = error instanceof Error ? error : new Error('Could not save data');
+    throw Object.assign(new Error(genericError.message), {
+      name: genericError.name || 'PersistenceError'
+    });
   }
 });
 
@@ -676,6 +682,19 @@ export const modelingWizardMachine = setup({
     }),
 
     /**
+     * Clear persistence error after successful persistence
+     */
+    clearPersistenceError: assign({ persistenceError: null }),
+
+    /**
+     * Set persistence error when persistence fails
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setPersistenceError: assign({
+      persistenceError: ({ event }: { event: any }) => (event.error as Error).message
+    }),
+
+    /**
      * Navigate to previous step
      */
     goToPreviousStep: assign(({ context }) => {
@@ -697,9 +716,11 @@ export const modelingWizardMachine = setup({
      * Jump to a specific step
      */
     goToStep: assign(({ context, event }) => {
-      if (event.type !== 'GOTO') return context;
+      const step = event.type === 'GOTO' ? event.step : context.targetStep;
 
-      const { step } = event;
+      if (!step) {
+        return context;
+      }
 
       return {
         ...context,
@@ -721,6 +742,125 @@ export const modelingWizardMachine = setup({
         totalSteps: getTotalSteps(event.skip)
       };
     }),
+
+    /**
+     * Track navigation intent triggered by manual navigation controls
+     */
+    setNavigationIntent: assign(({ context, event }: { context: ModelingWizardContext; event: ModelingWizardEvents }) => {
+      if (event.type === 'NEXT') {
+        return {
+          ...context,
+          navigationIntent: 'next' as const,
+          targetStep: null
+        };
+      }
+
+      if (event.type === 'BACK') {
+        return {
+          ...context,
+          navigationIntent: 'back' as const,
+          targetStep: null
+        };
+      }
+
+      if (event.type === 'GOTO') {
+        return {
+          ...context,
+          navigationIntent: 'goto' as const,
+          targetStep: event.step
+        };
+      }
+
+      return context;
+    }),
+
+    /**
+     * Capture auto-save intent so UI can differentiate from manual navigation
+     */
+    setAutoSaveIntent: assign(({ context }: { context: ModelingWizardContext }) => ({
+      ...context,
+      navigationIntent: 'auto-save' as const,
+      targetStep: null
+    })),
+
+    /**
+     * Clear navigation intent after persistence completes
+     */
+    clearNavigationIntent: assign(({ context }) => ({
+      ...context,
+      navigationIntent: null,
+      targetStep: null
+    })),
+
+    /**
+     * Execute navigation intent after successful persistence
+     */
+    executeNavigationIntent: assign(({ context }) => {
+      const { navigationIntent, targetStep, currentStep, skipOptionalSteps, completedSteps, visitedSteps } = context;
+
+      if (navigationIntent === 'next') {
+        const nextStep = getNextStep(currentStep, skipOptionalSteps);
+        if (!nextStep) return context;
+
+        const newCompletedSteps = new Set(completedSteps);
+        newCompletedSteps.add(currentStep);
+
+        return {
+          ...context,
+          currentStep: nextStep,
+          currentStepIndex: getStepIndex(nextStep),
+          completedSteps: newCompletedSteps,
+          visitedSteps: new Set([...visitedSteps, nextStep])
+        };
+      }
+
+      if (navigationIntent === 'back') {
+        const prevStep = getPreviousStep(currentStep, skipOptionalSteps);
+        if (!prevStep) return context;
+
+        return {
+          ...context,
+          currentStep: prevStep,
+          currentStepIndex: getStepIndex(prevStep)
+        };
+      }
+
+      if (navigationIntent === 'goto' && targetStep) {
+        return {
+          ...context,
+          currentStep: targetStep,
+          currentStepIndex: getStepIndex(targetStep),
+          visitedSteps: new Set([...visitedSteps, targetStep])
+        };
+      }
+
+      // auto-save or null intent - no navigation
+      return context;
+    }),
+
+    /**
+     * Increment retry count for exponential backoff
+     */
+    incrementRetryCount: assign(({ context }) => ({
+      ...context,
+      retryCount: context.retryCount + 1
+    })),
+
+    /**
+     * Reset retry count after successful persistence
+     */
+    resetRetryCount: assign(({ context }) => ({
+      ...context,
+      retryCount: 0
+    })),
+
+    /**
+     * Record persistence attempt timestamp
+     */
+    recordPersistAttempt: assign(({ context }) => ({
+      ...context,
+      lastPersistAttempt: Date.now()
+    })),
 
     /**
      * Persist current context to localStorage
@@ -831,6 +971,13 @@ export const modelingWizardMachine = setup({
      */
     canRetry: ({ context }) => {
       return context.submissionRetryCount < 3;
+    },
+
+    /**
+     * Check if persistence can be retried (max 3 attempts)
+     */
+    canRetryPersistence: ({ context }) => {
+      return context.retryCount < 3;
     }
   },
 
@@ -838,7 +985,15 @@ export const modelingWizardMachine = setup({
     /**
      * Auto-save interval
      */
-    autoSaveInterval: ({ context }) => context.autoSaveInterval
+    autoSaveInterval: ({ context }) => context.autoSaveInterval,
+
+    /**
+     * Exponential backoff for persistence retry
+     * retryCount 0 -> 1000ms, 1 -> 2000ms, 2 -> 4000ms
+     */
+    PERSIST_RETRY_DELAY: ({ context }) => {
+      return Math.pow(2, context.retryCount) * 1000;
+    }
   }
 
 }).createMachine({
@@ -870,59 +1025,121 @@ export const modelingWizardMachine = setup({
     active: {
       initial: 'editing',
 
-      // Auto-save timer
-      after: {
-        autoSaveInterval: {
-          actions: ['persistToStorage', 'markSaved'],
-          target: 'active'
-        }
-      },
-
       states: {
         /**
          * User is editing the current step
          */
         editing: {
-          on: {
-            SAVE_STEP: {
-              actions: ['saveStep']
+          initial: 'idle',
+
+          states: {
+            /**
+             * Normal editing mode - no persistence errors
+             */
+            idle: {
+              // Auto-save timer (action-only, no target to avoid re-entry)
+              after: {
+                autoSaveInterval: {
+                  actions: ['setAutoSaveIntent', 'persistToStorage', 'markSaved', 'clearNavigationIntent']
+                }
+              },
+
+              on: {
+                SAVE_STEP: {
+                  actions: ['saveStep']
+                },
+
+                NEXT: {
+                  guard: 'isCurrentStepValid',
+                  actions: ['setNavigationIntent', 'recordPersistAttempt'],
+                  target: '#modelingWizard.active.persisting'
+                },
+
+                BACK: {
+                  guard: 'hasPreviousStep',
+                  actions: ['setNavigationIntent', 'recordPersistAttempt'],
+                  target: '#modelingWizard.active.persisting'
+                },
+
+                GOTO: {
+                  actions: ['setNavigationIntent', 'recordPersistAttempt'],
+                  target: '#modelingWizard.active.persisting'
+                },
+
+                TOGGLE_SKIP_OPTIONAL: {
+                  actions: ['toggleSkipOptional', 'persistToStorage']
+                },
+
+                // Reactive validation on portfolio changes
+                PORTFOLIO_CHANGED: {
+                  actions: 'validatePortfolio'
+                },
+
+                // Calculate reserves (only enabled if valid)
+                CALCULATE_RESERVES: {
+                  target: '#modelingWizard.active.calculatingReserves'
+                  // Note: UI should guard this with context.portfolioValidation?.valid check
+                },
+
+                SUBMIT: {
+                  guard: 'isCurrentStepValid',
+                  target: '#modelingWizard.active.submitting'
+                }
+              }
             },
 
-            NEXT: {
-              guard: 'isCurrentStepValid',
-              actions: ['goToNextStep', 'persistToStorage'],
-              target: 'editing'
-            },
+            /**
+             * Persistence failed - user can retry or dismiss error
+             */
+            persistFailed: {
+              on: {
+                RETRY_PERSIST: {
+                  actions: ['clearPersistenceError'],
+                  target: '#modelingWizard.active.persisting'
+                },
 
-            BACK: {
-              guard: 'hasPreviousStep',
-              actions: ['goToPreviousStep', 'persistToStorage'],
-              target: 'editing'
-            },
+                DISMISS_PERSIST_ERROR: {
+                  actions: ['clearPersistenceError', 'clearNavigationIntent', 'resetRetryCount'],
+                  target: 'idle'
+                }
+              }
+            }
+          }
+        },
 
-            GOTO: {
-              actions: ['goToStep', 'persistToStorage'],
-              target: 'editing'
+        /**
+         * Persisting wizard state to localStorage
+         */
+        persisting: {
+          invoke: {
+            src: 'persistDataService',
+            input: ({ context }) => context,
+            onDone: {
+              target: 'editing.idle',
+              actions: ['executeNavigationIntent', 'clearNavigationIntent', 'clearPersistenceError', 'resetRetryCount', 'markSaved']
             },
+            onError: [
+              {
+                guard: 'canRetryPersistence',
+                target: 'delaying',
+                actions: ['setPersistenceError']
+              },
+              {
+                target: 'editing.persistFailed',
+                actions: ['setPersistenceError']
+              }
+            ]
+          }
+        },
 
-            TOGGLE_SKIP_OPTIONAL: {
-              actions: ['toggleSkipOptional', 'persistToStorage']
-            },
-
-            // Reactive validation on portfolio changes
-            PORTFOLIO_CHANGED: {
-              actions: 'validatePortfolio'
-            },
-
-            // Calculate reserves (only enabled if valid)
-            CALCULATE_RESERVES: {
-              target: 'calculatingReserves'
-              // Note: UI should guard this with context.portfolioValidation?.valid check
-            },
-
-            SUBMIT: {
-              guard: 'isCurrentStepValid',
-              target: 'submitting'
+        /**
+         * Exponential backoff delay before retry
+         */
+        delaying: {
+          after: {
+            PERSIST_RETRY_DELAY: {
+              target: 'persisting',
+              actions: ['incrementRetryCount']
             }
           }
         },
