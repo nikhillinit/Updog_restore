@@ -55,7 +55,11 @@ export function normalizeActiveWeights(activeCohorts: InternalCohort[]): number[
 
   const currentSum = normalized.reduce((a, b) => a + b, 0);
   if (currentSum !== WEIGHT_SCALE) {
-    normalized[0] += WEIGHT_SCALE - currentSum;
+    const firstValue = normalized[0];
+    if (firstValue === undefined) {
+      throw new Error('First element in normalized is undefined');
+    }
+    normalized[0] = firstValue + (WEIGHT_SCALE - currentSum);
   }
 
   return normalized;
@@ -91,22 +95,25 @@ export function allocateToCohorts(
   const lrmAllocations = allocateLRM(totalCents, normalizedWeights);
 
   const globalCapCents =
-    globalCapPct != null && commitmentCents > 0
-      ? Math.floor(commitmentCents * globalCapPct)
-      : null;
+    globalCapPct != null && commitmentCents > 0 ? Math.floor(commitmentCents * globalCapPct) : null;
 
-  const cappedAllocations = applyCohortsCapWithSpill(
-    activeCohorts,
-    lrmAllocations,
-    globalCapCents
-  );
+  const cappedAllocations = applyCohortsCapWithSpill(activeCohorts, lrmAllocations, globalCapCents);
 
   const allocationMap = new Map<string, { allocationCents: number; capped: boolean }>();
 
   for (let i = 0; i < activeCohorts.length; i++) {
-    allocationMap.set(activeCohorts[i].id, {
-      allocationCents: cappedAllocations.allocations[i],
-      capped: cappedAllocations.capped[i],
+    const cohort = activeCohorts[i];
+    const allocationCents = cappedAllocations.allocations[i];
+    const capped = cappedAllocations.capped[i];
+    if (cohort === undefined) {
+      throw new Error(`Cohort at index ${i} is undefined`);
+    }
+    if (allocationCents === undefined || capped === undefined) {
+      throw new Error(`Allocation or capped status at index ${i} is undefined`);
+    }
+    allocationMap.set(cohort.id, {
+      allocationCents,
+      capped,
     });
   }
 
@@ -135,13 +142,25 @@ function applyCohortsCapWithSpill(
   let carryForward = 0;
 
   for (let i = 0; i < cohorts.length; i++) {
-    allocations[i] += carryForward;
+    const currentAllocation = allocations[i];
+    if (currentAllocation === undefined) {
+      throw new Error(`Allocation at index ${i} is undefined`);
+    }
+    allocations[i] = currentAllocation + carryForward;
     carryForward = 0;
 
-    const cohortCap = cohorts[i].maxAllocationCents ?? globalCapCents ?? Infinity;
+    const cohort = cohorts[i];
+    if (cohort === undefined) {
+      throw new Error(`Cohort at index ${i} is undefined`);
+    }
+    const cohortCap = cohort.maxAllocationCents ?? globalCapCents ?? Infinity;
 
-    if (allocations[i] > cohortCap) {
-      carryForward = allocations[i] - cohortCap;
+    const updatedAllocation = allocations[i];
+    if (updatedAllocation === undefined) {
+      throw new Error(`Updated allocation at index ${i} is undefined`);
+    }
+    if (updatedAllocation > cohortCap) {
+      carryForward = updatedAllocation - cohortCap;
       allocations[i] = cohortCap;
       capped[i] = true;
     }
@@ -158,9 +177,7 @@ export function accumulateAllocations(
   cohorts: InternalCohort[],
   periodAllocations: CohortAllocation[]
 ): InternalCohort[] {
-  const allocationMap = new Map(
-    periodAllocations.map((a) => [a.cohort.id, a.allocationCents])
-  );
+  const allocationMap = new Map(periodAllocations.map((a) => [a.cohort.id, a.allocationCents]));
 
   return cohorts.map((c) => ({
     ...c,

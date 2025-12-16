@@ -284,6 +284,8 @@
     "docs:lint": "remark docs/analysis --frail --quiet",
     "docs:check-links": "node scripts/check-doc-links.mjs",
     "docs:verify": "npm run docs:lint && npm run docs:check-links",
+    "validate:claude-md": "npx markdown-link-check CLAUDE.md --config .markdown-link-check.json",
+    "docs:verify:all": "npm run docs:verify && npm run validate:claude-md",
     "docs:routing:generate": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/generate-discovery-map.ts",
     "docs:routing:check": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/generate-discovery-map.ts --check",
     "docs:routing:query": "node tools_local/node_modules/tsx/dist/cli.mjs scripts/routeQueryFast.ts"

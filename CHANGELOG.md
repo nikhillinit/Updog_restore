@@ -6,7 +6,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2025-12-13
+## [Unreleased] - 2025-12-14
+
+### Fixed
+
+- **CLAUDE.md Corruption Cleanup**
+  - Removed 39 corrupted `- memory` placeholder lines (lines 345-383)
+  - Impact: 508 → 468 lines
+  - Root cause: Artifact from initial file creation (commit 94becf73, Oct
+    7 2025)
+
+### Added
+
+- **CLAUDE.md Validation Infrastructure**
+  - `validate:claude-md` script using markdown-link-check
+  - `.markdown-link-check.json` configuration (10s timeout, retry on 429)
+  - `docs:verify:all` script for comprehensive documentation validation
+  - Technical Note: Existing validation (`docs:lint`, `docs:check-links`) only
+    covered `docs/analysis/`, new validation ensures CLAUDE.md link integrity
+
+- **Cheatsheets Index**
+  - `cheatsheets/INDEX.md` - Categorized catalog of all 30 existing cheatsheets
+  - Categories: Agent System (3), Workflows (5), Memory (3), Testing (2),
+    Quality (6), Code Quality (3), Development Workflows (5), API (1),
+    Miscellaneous (2)
+
+### Changed
+
+- **CLAUDE.md Content Consolidation**
+  - Reduced from 468 → 219 lines (53% reduction, within target 180-220)
+  - Removed: Waterfall Update Pattern (34 lines) - covered by
+    waterfall-specialist agent
+  - Consolidated: Quality-First Development (71 → 16 lines) - details in
+    anti-pattern-prevention.md
+  - Consolidated: No Emoji Policy (53 → 3 lines) - details in
+    emoji-free-documentation.md
+  - Consolidated: PR Verification (28 → 1 line) - details in
+    pr-merge-verification.md
+  - Consolidated: Memory Management, Commands, Skills (40 → 4 lines)
+  - Consolidated: AI-Augmented Development (23 → 3 lines)
+  - Consolidated: Document Review Protocol (18 → 2 lines)
+  - All verbose content preserved in existing cheatsheets, linked via INDEX.md
+  - All 7 links validated successfully
+
+## [2025-12-13]
 
 ### Deprecated
 
