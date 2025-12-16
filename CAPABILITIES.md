@@ -105,6 +105,14 @@ maintenance:
 - **perf-guard** - Performance regression detection
 - **general-purpose** - Research and exploration
 
+**CI Quality Gate Diagnosers (v4 optimal):**
+
+- **schema-drift-checker** - Diagnose schema alignment across Migration/Drizzle/Zod/Mock layers
+- **playwright-test-author** - Create E2E tests for browser-only behaviors (invoked by test-repair)
+- **parity-auditor** - Assess Excel parity impact for financial calculation changes
+- **perf-regression-triager** - Diagnose performance regressions from bench-check
+- **baseline-regression-explainer** - Diagnose quality metric regressions (tests, TS, lint, bundle)
+
 **Shared with User-Level (Project overrides):**
 
 - chaos-engineer, code-explorer, context-orchestrator, database-expert,
@@ -314,6 +322,15 @@ Integration (+46% growth from 13 baseline)
   golden testing (always use formulas, not hardcoded values)
 - **api-design-principles** - REST API design for Express + TypeScript + Zod +
   BullMQ (resource-oriented, hierarchical nesting, sync/async patterns)
+
+### Quality Gate & Infrastructure Skills (6) - NEW 2025-12-16
+
+- **test-pyramid** - E2E scope control, test level governance (unit vs integration vs E2E)
+- **statistical-testing** - Monte Carlo validation patterns, seeded testing, CI stability
+- **react-hook-form-stability** - RHF infinite loop prevention, autosave patterns
+- **baseline-governance** - Quality gate policies, ratcheting strategy, baseline change approval
+- **financial-calc-correctness** - Excel parity methodology, truth case validation, tolerance norms
+- **claude-infra-integrity** - .claude/ directory consistency, agent naming, skill references
 
 ### Superpowers Slash Commands
 
