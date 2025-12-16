@@ -1,0 +1,5 @@
+npm error Missing script: "phoenix:truth"
+npm error
+npm error To see a list of scripts, run:
+npm error   npm run
+npm error A complete log of this run can be found in: C:\Users\nikhi\AppData\Local\npm-cache\_logs\2025-12-16T04_45_40_391Z-debug-0.log
