@@ -365,6 +365,114 @@ expectations.
 
 ---
 
+### Wizard Persistence - Persistence-Gated Navigation (RED→GREEN)
+
+**Discovered:** 2025-12-16 (During PR #287 review) **Impact:** Navigation
+executes before localStorage persistence completes, allowing data loss if
+persistence fails. 8 RED-phase tests documenting expected behavior are skipped
+to preserve Foundation Hardening baseline.
+
+**Severity:** MEDIUM (P2) **Effort:** 1-2 days **Status:** DEFERRED
+(Post-hardening feature sprint)
+
+**Symptom:**
+
+- User triggers NEXT/BACK/GOTO navigation events
+- Navigation happens immediately (synchronous action)
+- localStorage save happens after navigation (action ordering issue)
+- If QuotaExceededError or SecurityError occurs, user already navigated away
+- Data loss: form state not persisted, user unaware of failure
+
+**Evidence:**
+
+- 8 RED-phase tests failing (intentionally) in
+  tests/unit/modeling-wizard-persistence.test.tsx
+- Tests marked with `describe.skip()` at line 26 to prevent baseline
+  contamination
+- Foundation layer (context fields, error detection, retry logic) implemented in
+  PR #287
+- Navigation-blocking behavior NOT implemented (core functionality missing)
+
+**Root Cause:** Current implementation uses synchronous actions:
+`actions: ['goToNextStep', 'persistToStorage']` Both execute immediately without
+waiting. XState v5 invoke pattern needed to block navigation until persistence
+completes.
+
+**Proposed Fix Shape:** Refactor state machine to use async invoke service:
+
+1. NEXT/BACK/GOTO events → set `navigationIntent` context field
+2. Transition to `persisting` state
+3. Invoke `persistDataService` (async)
+4. onDone: execute `executeNavigationIntent` action → actual navigation
+5. onError: transition to `persistFailed` state, show error UI
+
+**Blast Radius:**
+
+- 2 files modified:
+  - client/src/machines/modeling-wizard.machine.ts (state machine refactor)
+  - client/src/components/modeling-wizard/WizardShell.tsx (error UI)
+- 1 file added:
+  - tests/integration/wizard-persistence-edge-cases.test.ts (new integration
+    tests)
+
+**Gate Risk:**
+
+- Schema drift: None (no Zod schema changes)
+- Truth-case parity: None (wizard state not part of Phoenix truth cases)
+- Performance regression: Negligible (adds ~100ms localStorage latency to
+  navigation)
+
+**Skipped Tests (lines 74-597 in modeling-wizard-persistence.test.tsx):**
+
+1. [RED] should persist data BEFORE navigating to next step
+2. [RED] should NOT navigate when persistence fails (QuotaExceededError)
+3. [RED] should support retry after persistence failure
+4. [RED] should allow navigation even if auto-save persistence fails
+5. [RED] should NOT navigate backward when persistence fails
+6. [RED] should cleanup gracefully when component unmounts during persistence
+7. [RED] should implement exponential backoff for retries
+8. [RED] should have context fields for persistence tracking
+
+**Recommended Fix:**
+
+1. Refactor state machine (client/src/machines/modeling-wizard.machine.ts):
+   - Remove synchronous navigation actions from NEXT/BACK/GOTO transitions
+   - Add `setNavigationIntent` action to capture intent
+   - Add `persisting` state with invoke: `persistDataService`
+   - Add `executeNavigationIntent` action on invoke.onDone
+   - Keep existing retry logic and `persistFailed` state
+
+2. Add error UI (client/src/components/modeling-wizard/WizardShell.tsx):
+   - Add `persistenceError` prop (similar to existing `submissionError`)
+   - Render alert when `state.matches({ active: { editing: 'persistFailed' } })`
+   - Add "Retry" button → `send({ type: 'RETRY_PERSIST' })`
+   - Add "Dismiss" button → `send({ type: 'DISMISS_PERSIST_ERROR' })`
+
+3. Add telemetry (client/src/services/telemetry.ts - new file):
+   - `wizard_persist_failed` event: { errorType, attempt, isQuota,
+     isPrivateMode, state }
+   - `wizard_persist_retry` event: { attempt, delayMs }
+   - `wizard_persist_recovered` event: { attempts, elapsedMs }
+
+4. Add integration tests
+   (tests/integration/wizard-persistence-edge-cases.test.ts):
+   - Test localStorage quota exceeded (fill storage, trigger save)
+   - Test SecurityError (mock privacy mode)
+   - Test browser close during retry (verify state persistence)
+
+5. Remove `describe.skip()` from
+   tests/unit/modeling-wizard-persistence.test.tsx:26
+   - Verify all 12 tests passing (4 foundation + 8 RED → GREEN)
+
+**Blockers:** None
+
+**Related PRs:**
+
+- PR #287: Foundation layer implementation (context, errors, retry)
+- ADR-016: Documents XState v5 invoke pattern rationale
+
+---
+
 ## Required Entry Schema
 
 **Every entry MUST include all fields below. No exceptions.**
@@ -418,9 +526,10 @@ explaining the issue]
 
 ## Summary Statistics
 
-**Total Entries:** 8 **CRITICAL (P0):** 1 **HIGH (P1):** 3 **MEDIUM (P2):** 4
+**Total Entries:** 9 **CRITICAL (P0):** 1 **HIGH (P1):** 3 **MEDIUM (P2):** 5
 
-**Estimated Effort:** 9-12 days total (for all P0/P1 items)
+**Estimated Effort:** 9-12 days total (for all P0/P1 items), +1-2 days for P2
+wizard persistence
 
 ---
 
