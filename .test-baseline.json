@@ -1,0 +1,11 @@
+{
+  "version": "7.3",
+  "created": "2025-12-17T21:52:38.089Z",
+  "policy": {
+    "maxFailedTests": 372,
+    "maxSkippedTests": 91,
+    "maxSuiteFailures": 17,
+    "minTotalTests": 1781
+  },
+  "note": "Ratchets can only decrease (except minTotalTests which can only increase). Use --update to lock in improvements."
+}
