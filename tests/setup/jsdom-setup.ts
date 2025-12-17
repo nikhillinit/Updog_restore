@@ -69,3 +69,29 @@ if (typeof globalThis !== 'undefined') {
     },
   };
 }
+
+// Mock ResizeObserver - jsdom doesn't implement this but many UI libraries need it
+// (shadcn, recharts, radix-ui, etc.)
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+if (typeof window !== 'undefined' && !window.ResizeObserver) {
+  window.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+}
+
+// Mock matchMedia - jsdom doesn't implement this but Tailwind/responsive hooks need it
+if (typeof window !== 'undefined' && !window.matchMedia) {
+  window.matchMedia = (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  });
+}

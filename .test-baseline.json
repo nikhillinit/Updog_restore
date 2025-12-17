@@ -1,11 +1,12 @@
 {
-  "version": "7.3",
+  "version": "7.4",
   "created": "2025-12-17T00:00:00.000Z",
+  "updated": "2025-12-17T12:00:00.000Z",
   "policy": {
-    "maxFailedTests": 384,
+    "maxFailedTests": 373,
     "maxSkippedTests": 91,
-    "maxSuiteFailures": 22,
-    "minTotalTests": 1762
+    "maxSuiteFailures": 17,
+    "minTotalTests": 1781
   },
-  "note": "Ratchets can only tighten: max values can only decrease, min values can only increase. Use --update to lock in improvements."
+  "note": "Ratchets can only tighten: max values can only decrease, min values can only increase. Phase 1 complete: -11 failed, -5 suites, +19 tests."
 }
