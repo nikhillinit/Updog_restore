@@ -422,7 +422,9 @@ completes.
 - Performance regression: Negligible (adds ~100ms localStorage latency to
   navigation)
 
-**Skipped Tests (lines 74-597 in modeling-wizard-persistence.test.tsx):**
+**Skipped Tests:**
+
+_RED-phase tests (lines 74-597 in modeling-wizard-persistence.test.tsx):_
 
 1. [RED] should persist data BEFORE navigating to next step
 2. [RED] should NOT navigate when persistence fails (QuotaExceededError)
@@ -432,6 +434,11 @@ completes.
 6. [RED] should cleanup gracefully when component unmounts during persistence
 7. [RED] should implement exponential backoff for retries
 8. [RED] should have context fields for persistence tracking
+
+_Test infrastructure issues (lines 735, 783):_ 9. persistDataService should
+throw on QuotaExceededError (Vitest unhandled rejection detection) 10.
+persistDataService should throw on SecurityError (Vitest unhandled rejection
+detection)
 
 **Recommended Fix:**
 
