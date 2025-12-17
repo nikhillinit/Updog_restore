@@ -152,6 +152,17 @@ playwright-report/
 test-results/
 coverage/
 
+# Test baseline artifacts (ephemeral - regenerated per run)
+artifacts/test-results.json
+artifacts/test-results-*.json
+artifacts/test-run.stderr.txt
+artifacts/test-summary.json
+artifacts/cluster-analysis.json
+artifacts/cluster-analysis.txt
+
+# Baseline files (MUST COMMIT for CI ratchet enforcement)
+!.test-baseline.json
+
 # Waterfall evaluator test output logs (regenerated per run)
 waterfall-baseline.txt
 waterfall-unmasked-output.txt
