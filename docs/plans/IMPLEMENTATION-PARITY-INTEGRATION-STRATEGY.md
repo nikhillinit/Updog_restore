@@ -461,6 +461,11 @@ Add reference to this integration strategy:
 4. **Evidence-Based** - Only fix divergences proven to cause test failures
 5. **Single Canonical** - Each domain gets ONE authoritative implementation
 
+**Phoenix Coordination**: See
+[PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md](PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md)
+for how Phoenix truth-case validation coordinates with this implementation
+parity strategy.
+
 ---
 
 ## Decision Log
