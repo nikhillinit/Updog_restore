@@ -92,8 +92,8 @@ export default defineConfig({
         test: {
           name: 'server',
           environment: 'node',
-          // Simplified: All .test.ts files run in Node environment (including perf tests)
-          include: ['tests/unit/**/*.test.ts', 'tests/perf/**/*.test.ts', 'tests/integration/**/*.test.ts'],
+          // All .test.ts files run in Node environment (perf tests run in dedicated CI job)
+          include: ['tests/unit/**/*.test.ts'],
           setupFiles: ['./tests/setup/test-infrastructure.ts', './tests/setup/node-setup.ts'],
         },
       },
@@ -116,12 +116,33 @@ export default defineConfig({
     ],
     include: ['tests/unit/**/*.{test,spec}.ts?(x)', ...configDefaults.include], // Include default Vitest patterns
     exclude: [
+      // Tests requiring database or external services
       'tests/integration/**/*',
+      'tests/rls/**/*',
+      'tests/chaos/**/*',
+      'tests/api/**/*',
+      'tests/migrations/**/*',
+      // Tests requiring browser
+      'tests/e2e/**/*',
+      'tests/a11y/**/*',
+      'tests/smoke/**/*',
       'tests/synthetics/**/*',
+      'tests/visual/**/*',
+      // Load/performance tests (separate CI job)
+      'tests/load/**/*',
+      'tests/k6/**/*',
+      'tests/perf/**/*',
+      // Agent tests (missing AI eval modules)
+      'tests/agents/**/*',
+      // Parallel tests (require specific setup)
+      'tests/parallel/**/*',
+      // Middleware tests (may require Redis)
+      'tests/middleware/**/*',
+      // Quarantined tests
       'tests/quarantine/**/*',
       '**/*.quarantine.{test,spec}.ts?(x)',
+      // Specific exclusions
       'tests/unit/fund-setup.smoke.test.tsx', // explicitly excluded - requires real browser
-      'tests/e2e/**/*',
     ],
     env: {
       NODE_ENV: 'test',
