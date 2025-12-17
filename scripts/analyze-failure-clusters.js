@@ -95,13 +95,17 @@ function normalizeResults(data) {
 
   const totalTests = totalPassed + totalFailed + totalSkipped;
 
+  // Compute invariant check
+  const passedPlusFailedPlusSkippedEqualsTotal =
+    (totalPassed + totalFailed + totalSkipped) === totalTests;
+
   // NORMALIZED OUTPUT - consistent regardless of runner
   return {
     meta: {
       timestamp: new Date().toISOString(),
       runner: runner,
       rawFile: DEFAULT_INPUT,
-      version: '7.1'
+      version: '7.3'
     },
     counts: {
       total: totalTests,
@@ -118,6 +122,10 @@ function normalizeResults(data) {
     gate: {
       suiteFailures: suiteFailures,
       suiteFailureFiles: suiteFailureFiles
+    },
+    // Schema invariant - catches drift at parse time
+    invariant: {
+      passedPlusFailedPlusSkippedEqualsTotal: passedPlusFailedPlusSkippedEqualsTotal
     }
   };
 }

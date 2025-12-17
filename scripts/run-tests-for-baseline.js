@@ -21,6 +21,7 @@ const path = require('path');
 const ARTIFACTS_DIR = 'artifacts';
 const RESULTS_FILE = path.join(ARTIFACTS_DIR, 'test-results.json');
 const STDERR_FILE = path.join(ARTIFACTS_DIR, 'test-run.stderr.txt');
+const SUMMARY_FILE = path.join(ARTIFACTS_DIR, 'test-summary.json');
 const MIN_FILE_SIZE = 100;
 
 // Ensure artifacts directory exists
@@ -29,9 +30,14 @@ if (!fs.existsSync(ARTIFACTS_DIR)) {
   console.log(`Created ${ARTIFACTS_DIR}/`);
 }
 
-// Clear previous stderr file
-if (fs.existsSync(STDERR_FILE)) {
-  fs.unlinkSync(STDERR_FILE);
+// CRITICAL: Delete old artifacts BEFORE running tests
+// This prevents "false success" from stale files if Vitest crashes
+const oldArtifacts = [RESULTS_FILE, STDERR_FILE, SUMMARY_FILE];
+for (const file of oldArtifacts) {
+  if (fs.existsSync(file)) {
+    fs.unlinkSync(file);
+    console.log(`Deleted stale artifact: ${file}`);
+  }
 }
 
 // Open stderr file for writing
