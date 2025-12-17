@@ -29,6 +29,9 @@ vi.mock('@/server/db', () => ({
   },
 }));
 
+// Import the mocked db (vi.mock is hoisted, so this gets the mock)
+import { db } from '@/server/db';
+
 vi.mock('@/server/middleware/performance-monitor', () => ({
   monitor: {
     createTimer: vi.fn(() => ({
@@ -160,7 +163,6 @@ describe('MonteCarloEngine - Configuration Validation', () => {
 
 describe('MonteCarloEngine - Simulation Runs', () => {
   beforeEach(() => {
-    const { db } = require('@/server/db');
     db.query.funds.findFirst.mockResolvedValue(createMockFund());
     db.query.fundBaselines.findFirst.mockResolvedValue(createMockBaseline());
     db.query.varianceReports.findMany.mockResolvedValue([]);
@@ -213,7 +215,6 @@ describe('MonteCarloEngine - Simulation Runs', () => {
 
 describe('MonteCarloEngine - Percentile Calculations', () => {
   beforeEach(() => {
-    const { db } = require('@/server/db');
     db.query.funds.findFirst.mockResolvedValue(createMockFund());
     db.query.fundBaselines.findFirst.mockResolvedValue(createMockBaseline());
     db.query.varianceReports.findMany.mockResolvedValue([]);
@@ -287,7 +288,6 @@ describe('MonteCarloEngine - Percentile Calculations', () => {
 
 describe('MonteCarloEngine - Risk Metrics', () => {
   beforeEach(() => {
-    const { db } = require('@/server/db');
     db.query.funds.findFirst.mockResolvedValue(createMockFund());
     db.query.fundBaselines.findFirst.mockResolvedValue(createMockBaseline());
     db.query.varianceReports.findMany.mockResolvedValue([]);
@@ -378,7 +378,6 @@ describe('MonteCarloEngine - Risk Metrics', () => {
 
 describe('MonteCarloEngine - Reserve Optimization', () => {
   beforeEach(() => {
-    const { db } = require('@/server/db');
     db.query.funds.findFirst.mockResolvedValue(createMockFund());
     db.query.fundBaselines.findFirst.mockResolvedValue(createMockBaseline());
     db.query.varianceReports.findMany.mockResolvedValue([]);
@@ -452,7 +451,6 @@ describe('MonteCarloEngine - Reserve Optimization', () => {
 
 describe('MonteCarloEngine - Scenario Analysis', () => {
   beforeEach(() => {
-    const { db } = require('@/server/db');
     db.query.funds.findFirst.mockResolvedValue(createMockFund());
     db.query.fundBaselines.findFirst.mockResolvedValue(createMockBaseline());
     db.query.varianceReports.findMany.mockResolvedValue([]);
@@ -516,7 +514,6 @@ describe('MonteCarloEngine - Scenario Analysis', () => {
 
 describe('MonteCarloEngine - Actionable Insights', () => {
   beforeEach(() => {
-    const { db } = require('@/server/db');
     db.query.funds.findFirst.mockResolvedValue(createMockFund());
     db.query.fundBaselines.findFirst.mockResolvedValue(createMockBaseline());
     db.query.varianceReports.findMany.mockResolvedValue([]);
@@ -583,7 +580,6 @@ describe('MonteCarloEngine - Actionable Insights', () => {
 
 describe('MonteCarloEngine - Performance Distributions', () => {
   beforeEach(() => {
-    const { db } = require('@/server/db');
     db.query.funds.findFirst.mockResolvedValue(createMockFund());
     db.query.fundBaselines.findFirst.mockResolvedValue(createMockBaseline());
     db.query.varianceReports.findMany.mockResolvedValue([]);
@@ -663,7 +659,6 @@ describe('MonteCarloEngine - Performance Distributions', () => {
 
 describe('MonteCarloEngine - Output Structure', () => {
   beforeEach(() => {
-    const { db } = require('@/server/db');
     db.query.funds.findFirst.mockResolvedValue(createMockFund());
     db.query.fundBaselines.findFirst.mockResolvedValue(createMockBaseline());
     db.query.varianceReports.findMany.mockResolvedValue([]);
@@ -708,7 +703,6 @@ describe('MonteCarloEngine - Output Structure', () => {
 
 describe('MonteCarloEngine - Edge Cases', () => {
   beforeEach(() => {
-    const { db } = require('@/server/db');
     db.query.funds.findFirst.mockResolvedValue(createMockFund());
     db.query.fundBaselines.findFirst.mockResolvedValue(createMockBaseline());
     db.query.varianceReports.findMany.mockResolvedValue([]);
@@ -751,7 +745,6 @@ describe('MonteCarloEngine - Edge Cases', () => {
   });
 
   it('should handle missing baseline gracefully', async () => {
-    const { db } = require('@/server/db');
     db.query.fundBaselines.findFirst.mockResolvedValue(null);
 
     const engine = new MonteCarloEngine(12345);
@@ -762,7 +755,6 @@ describe('MonteCarloEngine - Edge Cases', () => {
   });
 
   it('should handle missing fund gracefully', async () => {
-    const { db } = require('@/server/db');
     db.query.funds.findFirst.mockResolvedValue(null);
 
     const engine = new MonteCarloEngine(12345);
