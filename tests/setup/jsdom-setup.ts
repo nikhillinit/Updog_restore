@@ -10,6 +10,15 @@
 import { afterEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { configure } from '@testing-library/react';
+import * as React from 'react';
+
+// Make React available globally for JSX files that don't explicitly import it
+// This is needed because some source files use JSX without importing React
+// (valid in React 17+ with new JSX transform, but esbuild needs the global for some cases)
+if (typeof globalThis !== 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).React = React;
+}
 
 // Assert jsdom environment was initialized by Vitest
 if (typeof window === 'undefined' || typeof document === 'undefined') {
