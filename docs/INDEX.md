@@ -259,6 +259,11 @@ different content. When referencing, specify the file path explicitly:
 The canonical domain knowledge base for ALL Phoenix validation work. 22 files,
 ~85,000 words of AI-consumable truth sources.
 
+**Foundation Hardening Coordination**:
+[PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md](plans/PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md) -
+How Phoenix validation coordinates with Foundation Hardening implementation
+parity work
+
 | Document                                                                             | Description                             | When to Use                      |
 | ------------------------------------------------------------------------------------ | --------------------------------------- | -------------------------------- |
 | [notebooklm-sources/xirr.md](notebooklm-sources/xirr.md)                             | XIRR calculation semantics              | XIRR validation, Excel parity    |

@@ -89,6 +89,14 @@ blocks test repair)
 **Evidence:**
 
 - [COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md#section-1-xirr-divergence)
+- **Phoenix Truth Cases**: N XIRR scenarios
+  ([/docs/xirr.truth-cases.json](/docs/xirr.truth-cases.json)) - Excel parity
+  validation
+- **Phoenix Domain Knowledge**:
+  [/docs/notebooklm-sources/xirr.md](/docs/notebooklm-sources/xirr.md) (Doc
+  Score: 96.3% Promptfoo)
+- **Coordination**:
+  [PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md](plans/PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md)
 
 **Recommended Fix:**
 
@@ -133,6 +141,13 @@ Mixing values without explicit conversion causes silent bugs.
 **Evidence:**
 
 - [COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md#section-2-capital-allocation-divergence)
+- **Phoenix Truth Cases**: N CA scenarios
+  ([/docs/capital-allocation.truth-cases.json](/docs/capital-allocation.truth-cases.json))
+- **Phoenix Domain Knowledge**:
+  [/docs/notebooklm-sources/capital-allocation.md](/docs/notebooklm-sources/capital-allocation.md)
+  (Doc Score: 99% Promptfoo)
+- **Coordination**:
+  [PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md](plans/PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md)
 
 **Recommended Fix:**
 
@@ -176,6 +191,15 @@ clawback support. Different GP distributions for same fund parameters.
 **Evidence:**
 
 - [COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md](plans/COMPREHENSIVE-DIVERGENCE-ASSESSMENT.md#section-3-waterfall-divergence)
+- **Phoenix Truth Cases**: N ledger scenarios
+  ([/docs/waterfall-ledger.truth-cases.json](/docs/waterfall-ledger.truth-cases.json)),
+  N tier scenarios
+  ([/docs/waterfall-tier.truth-cases.json](/docs/waterfall-tier.truth-cases.json))
+- **Phoenix Domain Knowledge**:
+  [/docs/notebooklm-sources/waterfall.md](/docs/notebooklm-sources/waterfall.md)
+  (Doc Score: 94.3% Promptfoo)
+- **Coordination**:
+  [PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md](plans/PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md)
 
 **Recommended Fix:**
 
@@ -218,6 +242,13 @@ using `called_capital_period` (from fees.ts) has no equivalent in other systems.
 **Evidence:**
 
 - [FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md](plans/FOUNDATION-HARDENING-FEE-ALIGNMENT-REVIEW.md)
+- **Phoenix Truth Cases**: N fee scenarios
+  ([/docs/fees.truth-cases.json](/docs/fees.truth-cases.json))
+- **Phoenix Domain Knowledge**:
+  [/docs/notebooklm-sources/fees.md](/docs/notebooklm-sources/fees.md) (Doc
+  Score: 94.5% Promptfoo)
+- **Coordination**:
+  [PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md](plans/PHOENIX-FOUNDATION-HARDENING-CROSSWALK.md)
 
 **Recommended Fix:**
 
