@@ -24,6 +24,10 @@ const alias = {
   '@shared': resolve(projectRoot, './shared'),
   '@assets': resolve(projectRoot, './assets'),
 
+  // Schema aliases (matches tsconfig.json)
+  '@schema/': resolve(projectRoot, './schema/src/'),
+  '@schema': resolve(projectRoot, './schema/src/index.ts'),
+
   // Test mocks
   '@upstash/redis': resolve(projectRoot, './tests/mocks/upstash-redis.ts'),
 };
