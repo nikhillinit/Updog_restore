@@ -21,8 +21,8 @@ let pool: any;
 
 // Use mock database in test environment
 if (isTest) {
-  // Import the database mock for testing
-  const { databaseMock } = require('../tests/helpers/database-mock');
+  // Import the database mock for testing (explicit .cjs extension for Node resolution)
+  const { databaseMock } = require('../tests/helpers/database-mock.cjs');
   db = databaseMock;
   pool = null;
 } else if (isVercel) {

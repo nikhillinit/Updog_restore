@@ -17,6 +17,12 @@
       "completedAt": "2025-12-11T19:40:27.303Z",
       "commit": "8e27032ff40041d112d84889a26ef44f253c3df2",
       "message": "docs(xirr): Phase 1.2 session handoff for next continuation\n\nComplete handoff document for Phase 1.2 continuation:\n- Session summary: 1/8 tests fixed (Test 13)\n- Pass rate improvement: 36/51 → 37/51 (+1.9%)\n- Investigation framework created and ready to use\n- Remaining work: 7 tests (likely 5-7 more truth bugs)\n- Quick start guide for next session (30-60 min estimated)\n\nTools ready:\n- scripts/investigate-all-failures.ts (batch analysis)\n- scripts/debug-xirr.ts (manual deep-dive)\n- docs/xirr-failing-cases-export.json (test data)\n\nNext steps checklist:\n1. Run batch investigation script\n2. Update truth cases JSON for confirmed bugs\n3. Excel validation for multi-flow cases\n4. Re-run test suite\n5. Generate final baseline\n\nTarget: 44-46/51 (86-90%) pass rate\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>"
+    },
+    {
+      "id": "Phase 3",
+      "completedAt": "2025-12-17T23:32:20.294Z",
+      "commit": "3fe0207fd409cbdeab3691ab73a04e2ab9fffabe",
+      "message": "chore(test): lock Phase 3 baseline - JSX runtime cascade complete\n\nFoundation Hardening Sprint Complete: Phases 0-3\nTotal improvement: -157 failed tests (-40.9%)\nPass rate: 73.0% → 82.1% (+9.1 pts)\nGap to 90%: 299 → 140 tests\n\nPhase Progression:\n- Phase 0: 384 failed (baseline)\n- Phase 1: 372 failed (-12, DB seam fix)\n- Phase 2: 272 failed (-100, require bypass + ResizeObserver)\n- Phase 3: 227 failed (-45, JSX runtime auto-import)\n\nPatterns Eliminated:\n✓ Cannot find module '@/lib/...' (15)\n✓ Cannot find module '@/schemas/...' (7)\n✓ Cannot find module '@/server/db' (48)\n✓ ResizeObserver is not defined (44)\n✓ React is not defined (65)\n\nRemaining Top Blockers (227 tests):\n1. STACK_TRACE_ERROR (43 tests)\n2. Cannot read 'status' (26 tests)\n3. Performance prediction mock (21 tests)\n4. Database constraints (15 tests)\n5. sector.stages not iterable (9 tests)\n\nPath A viable: 318 available, 140 needed for 90%\nNext: Targeted pattern fixes or systematic debugging"
     }
   ],
   "lastUpdated": "2025-12-11T10:50:30.515Z",
