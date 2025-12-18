@@ -124,7 +124,9 @@ export function calculateWeightedAvgRoundSize(
     const allocation = sector.allocation / 100; // Convert to decimal
 
     // Get first stage round size (entry point)
-    const entryStage = sector.stages[0];
+    // Guard against undefined/empty stages array
+    const stages = sector.stages ?? [];
+    const entryStage = stages[0];
     if (entryStage) {
       totalWeightedRoundSize += entryStage.roundSize * allocation;
       totalWeight += allocation;
@@ -219,8 +221,10 @@ function buildStagePopulationMap(
     // Start with entry stage
     let currentPopulation = sectorDeals;
 
-    for (let i = 0; i < sector.stages.length; i++) {
-      const stage = sector.stages[i];
+    // Guard against undefined/empty stages array
+    const stages = sector.stages ?? [];
+    for (let i = 0; i < stages.length; i++) {
+      const stage = stages[i];
       if (!stage) continue;
 
       // Add to this stage's population
@@ -257,7 +261,9 @@ export function calculateFollowOnCascade(
   // Get stage metadata (round sizes, valuations) from sector profiles
   const stageMetadata = new Map<string, { roundSize: number; valuation: number; esop: number }>();
   for (const sector of sectorProfiles) {
-    for (const stage of sector.stages) {
+    // Guard against undefined/empty stages array
+    const stages = sector.stages ?? [];
+    for (const stage of stages) {
       if (!stageMetadata.has(stage.stage)) {
         stageMetadata.set(stage.stage, {
           roundSize: stage.roundSize,

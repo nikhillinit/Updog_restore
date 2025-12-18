@@ -138,7 +138,9 @@ export function generateSyntheticPortfolio(
     const sectorDeals = Math.round(estimatedDeals * sectorAllocation);
 
     // Get entry stage (first stage in cohort)
-    const entryStage = sector.stages[0];
+    // Guard against undefined/empty stages array
+    const stages = sector.stages ?? [];
+    const entryStage = stages[0];
     if (!entryStage) continue;
 
     // Create companies for this sector
@@ -210,9 +212,11 @@ export function buildGraduationMatrix(
 
   // Extract graduation rates from each sector's stage progression
   for (const sector of sectorProfiles) {
-    for (let i = 0; i < sector.stages.length - 1; i++) {
-      const currentStage = sector.stages[i];
-      const nextStage = sector.stages[i + 1];
+    // Guard against undefined/empty stages array
+    const stages = sector.stages ?? [];
+    for (let i = 0; i < stages.length - 1; i++) {
+      const currentStage = stages[i];
+      const nextStage = stages[i + 1];
 
       if (!currentStage || !nextStage) continue;
 
@@ -283,7 +287,9 @@ export function buildStageStrategies(
   // Create map of stage metadata from sector profiles
   const stageMetadata = new Map<string, InvestmentStageCohort>();
   for (const sector of sectorProfiles) {
-    for (const stage of sector.stages) {
+    // Guard against undefined/empty stages array
+    const stages = sector.stages ?? [];
+    for (const stage of stages) {
       if (!stageMetadata.has(stage.stage)) {
         stageMetadata.set(stage.stage, stage);
       }

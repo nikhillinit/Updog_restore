@@ -40,8 +40,12 @@ class DatabaseMock {
         status: ['active', 'archived', 'processing', 'failed']
       },
       checks: {
-        data_integrity_score: (value: any) => {
-          const score = parseFloat(value);
+        data_integrity_score: (row: any) => {
+          // Check constraint receives entire row, must access specific field
+          if (row.data_integrity_score === undefined || row.data_integrity_score === null) {
+            return true; // Allow null/undefined
+          }
+          const score = parseFloat(row.data_integrity_score);
           return score >= 0.0 && score <= 1.0;
         }
       }
@@ -53,8 +57,12 @@ class DatabaseMock {
         comparison_type: ['period_over_period', 'baseline_comparison', 'peer_analysis', 'scenario_analysis']
       },
       checks: {
-        confidence_score: (value: any) => {
-          const score = parseFloat(value);
+        confidence_score: (row: any) => {
+          // Check constraint receives entire row, must access specific field
+          if (row.confidence_score === undefined || row.confidence_score === null) {
+            return true; // Allow null/undefined
+          }
+          const score = parseFloat(row.confidence_score);
           return score >= 0.0 && score <= 1.0;
         },
         self_comparison: (row: any) => {
@@ -78,8 +86,12 @@ class DatabaseMock {
         status: ['pending', 'in_progress', 'completed', 'failed', 'cancelled']
       },
       checks: {
-        restoration_duration_ms: (value: any) => {
-          return parseFloat(value) >= 0;
+        restoration_duration_ms: (row: any) => {
+          // Check constraint receives entire row, must access specific field
+          if (row.restoration_duration_ms === undefined || row.restoration_duration_ms === null) {
+            return true; // Allow null/undefined
+          }
+          return parseFloat(row.restoration_duration_ms) >= 0;
         }
       },
       foreignKeys: {

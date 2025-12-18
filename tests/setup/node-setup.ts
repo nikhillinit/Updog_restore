@@ -27,8 +27,21 @@ vi.mock('fs', async (importOriginal) => {
   };
 });
 
-// Mock network calls
-global.fetch = vi.fn();
+// Mock network calls with proper Response shape
+// This prevents "Cannot read properties of undefined (reading 'status')" errors
+global.fetch = vi.fn().mockImplementation(async () => ({
+  status: 200,
+  ok: true,
+  headers: new Map([
+    ['content-type', 'application/json'],
+    ['etag', 'W/"mock-etag"'],
+  ]),
+  json: async () => ({}),
+  text: async () => '',
+  blob: async () => new Blob(),
+  arrayBuffer: async () => new ArrayBuffer(0),
+  clone: function() { return this; },
+}));
 
 // Setup console suppression for cleaner test output
 const originalConsole = { ...console };
