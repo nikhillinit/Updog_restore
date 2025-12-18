@@ -1,212 +1,289 @@
-# Plan: Database Mock Bug Fix
+# Plan: Database Mock Bug Fix (Optimal Build Plan v2)
 
-## Executive Summary
+## Critical Analysis of Proposals
 
-Two interconnected bugs are causing test failures:
-1. **Loader boundary bug**: `server/db.ts` uses `require()` to load a TypeScript file, which fails outside Vitest context
-2. **Check constraint bug**: 3 check functions expect `(value)` but receive `(row)`, causing 15+ test failures
+### Proposal A: "Single Source of Truth" (CJS with `require('vitest')`)
+**Rejected** - Has a fatal flaw:
+- `require('vitest')` in CJS creates hidden coupling
+- Would fail if file is accidentally loaded outside Vitest context
+- Adds complexity without benefit
 
-## Problem Analysis
+### Proposal B: Pure CJS with `createSpy()` (No Dependencies)
+**Selected** - Superior approach:
+- Zero external dependencies
+- Self-contained spy implementation
+- Truly portable CJS
 
-### Bug 1: Loader Boundary Issue
+### Key Discovery: Tests Don't Share State
 
-**Current state** (`server/db.ts:25`):
-```javascript
-const { databaseMock } = require('../tests/helpers/database-mock');
+Analysis of test patterns reveals:
+```
+setupDatabaseMock() usage:     0 tests (function exists but unused)
+vi.mock('server/db') inline:  10+ tests (each defines own mock)
 ```
 
-**Problem**:
-- `database-mock.ts` is a TypeScript file with ESM imports (`import { vi } from 'vitest'`)
-- Node.js `require()` cannot load TypeScript files natively
-- The `vi.fn()` calls fail outside Vitest test runner context
-- Error: "Unexpected strict mode reserved word" at database-mock.cjs:11:18
-
-**Impact**: 7 integration test suites fail to load
-
-### Bug 2: Check Constraint Signature Mismatch
-
-**Current state** (`database-mock.ts:555`):
-```javascript
-// All check functions now receive the entire row
-if (!(checkFn as Function)(row)) {
-```
-
-**Problem**: 3 check functions still expect `(value)` not `(row)`:
-
-| Function | Line | Signature | Actual Behavior |
-|----------|------|-----------|-----------------|
-| `data_integrity_score` | 43 | `(value: any)` | `parseFloat(row)` returns NaN |
-| `confidence_score` | 56 | `(value: any)` | `parseFloat(row)` returns NaN |
-| `restoration_duration_ms` | 81 | `(value: any)` | `parseFloat(row)` returns NaN |
-
-When `parseFloat(objectRow)` returns `NaN`, the range check `NaN >= 0.0 && NaN <= 1.0` evaluates to `false`, triggering spurious constraint failures.
-
-**Impact**: 15+ "Check constraint failed" test errors
+**Implication**: The CJS mock is a **fallback** for initial module loading, not a shared state container. Tests use inline `vi.mock()` definitions. This simplifies the fix significantly.
 
 ---
 
-## Proposed Solution: Option A (Pure CJS Mock)
+## Root Cause Analysis
 
-### Rationale
+### Bug 1: Loader Boundary (7 suites blocked)
 
-Option A (pure CJS) is superior to Option B (ESM import) because:
-1. **No loader complexity** - Works with plain Node.js `require()`
-2. **Decoupled from Vitest** - No `vi.fn()` dependency
-3. **Minimal change surface** - Only add one file, update one line
-4. **Clean separation** - Test-time mock (TS) vs runtime mock (CJS) are distinct concerns
+**Crash sequence**:
+1. Test imports route → route imports `server/db`
+2. `server/db.ts` top-level code runs (before vi.mock() can intercept)
+3. `isTest=true` → `require('../tests/helpers/database-mock')`
+4. Node resolves to `.ts` file → **CRASH** (TypeScript syntax in require context)
 
-### Implementation Steps
+**Fix**: Create proper `.cjs` that Node can load without transformation.
 
-#### Step 1: Create Pure CJS Mock
+### Bug 2: Check Constraint Logic (15+ failures)
 
-Create `tests/helpers/database-mock.cjs`:
+**Current code** (`database-mock.ts:552-558`):
+```typescript
+for (const [checkName, checkFn] of Object.entries(constraints.checks)) {
+  // All check functions now receive the entire row
+  if (!(checkFn as Function)(row)) {  // Always passes row
+```
+
+**But check functions are inconsistent**:
+| Function | Expects | Gets | Result |
+|----------|---------|------|--------|
+| `data_integrity_score` | `value` | `row` | `parseFloat(row)` = NaN → false |
+| `confidence_score` | `value` | `row` | `parseFloat(row)` = NaN → false |
+| `self_comparison` | `row` | `row` | Works correctly |
+| `period_ordering` | `row` | `row` | Works correctly |
+
+**Fix**: Smart heuristic - if `row[checkName]` exists, pass value; else pass row.
+
+---
+
+## Optimal Implementation
+
+### Step 1: Create `tests/helpers/database-mock.cjs`
 
 ```javascript
+'use strict';
+
 /**
- * Pure CommonJS Database Mock for Node.js require() context
+ * Pure CommonJS DB mock for server/db.ts test initialization.
+ * MUST NOT require TS/ESM modules or vitest.
  *
- * Used by server/db.ts when NODE_ENV=test outside Vitest.
- * Provides minimal stub interface - full mock in database-mock.ts.
+ * This is a FALLBACK - tests use vi.mock() with their own definitions.
  */
 
-class DatabaseMock {
-  constructor() {
-    this.mockData = new Map();
-    this.callHistory = [];
-  }
-
-  // Stub methods that return resolved promises
-  execute = async (query, params) => [];
-  select = () => ({ from: () => ({ where: () => ({ limit: () => Promise.resolve([]) }) }) });
-  insert = (table) => ({ values: (data) => ({ returning: () => Promise.resolve([{ id: 'mock-id', ...data }]) }) });
-  update = () => ({ set: () => ({ where: () => ({ returning: () => Promise.resolve([]) }) }) });
-  delete = () => ({ from: () => ({ where: () => ({ execute: () => Promise.resolve({ affectedRows: 0 }) }) }) });
-  transaction = async (callback) => callback(this);
-  run = this.execute;
-  query = this.execute;
-  close = async () => {};
-
-  // Test utilities
-  setMockData(tableName, data) { this.mockData.set(tableName, data); }
-  getMockData(tableName) { return this.mockData.get(tableName) || []; }
-  clearMockData() { this.mockData.clear(); }
-  getCallHistory() { return this.callHistory; }
-  clearCallHistory() { this.callHistory = []; }
-  reset() { this.clearMockData(); this.clearCallHistory(); }
+function createSpy(fn) {
+  const spy = (...args) => {
+    spy.calls.push(args);
+    return fn(...args);
+  };
+  spy.calls = [];
+  spy.mockClear = () => { spy.calls = []; };
+  return spy;
 }
 
-const databaseMock = new DatabaseMock();
+function createDatabaseMock() {
+  const db = {};
 
-module.exports = { databaseMock, DatabaseMock };
+  // Raw SQL interface
+  db.execute = createSpy(async () => []);
+  db.query = db.execute;
+  db.run = db.execute;
+
+  // Transaction
+  db.transaction = createSpy(async (cb) => cb(db));
+
+  // Drizzle-style builders (chainable stubs)
+  db.select = createSpy(() => ({
+    from: createSpy(() => ({
+      where: createSpy(() => ({
+        limit: createSpy(() => Promise.resolve([])),
+        execute: createSpy(() => Promise.resolve([])),
+      })),
+      limit: createSpy(() => Promise.resolve([])),
+      execute: createSpy(() => Promise.resolve([])),
+    })),
+  }));
+
+  db.insert = createSpy(() => ({
+    values: createSpy((data) => {
+      const result = { id: `mock-${Date.now()}`, ...data };
+      const chain = {
+        returning: createSpy(() => Promise.resolve([result])),
+        execute: createSpy(() => Promise.resolve([result])),
+      };
+      return { ...chain, onConflictDoUpdate: createSpy(() => chain) };
+    }),
+    execute: createSpy(() => Promise.resolve([{ id: `mock-${Date.now()}` }])),
+  }));
+
+  db.update = createSpy(() => ({
+    set: createSpy(() => ({
+      where: createSpy(() => ({
+        returning: createSpy(() => Promise.resolve([])),
+        execute: createSpy(() => Promise.resolve([])),
+      })),
+      execute: createSpy(() => Promise.resolve([])),
+    })),
+  }));
+
+  db.delete = createSpy(() => ({
+    from: createSpy(() => ({
+      where: createSpy(() => ({
+        execute: createSpy(() => Promise.resolve({ affectedRows: 1 })),
+      })),
+      execute: createSpy(() => Promise.resolve({ affectedRows: 1 })),
+    })),
+  }));
+
+  db.close = createSpy(async () => {});
+
+  db.__reset = () => {
+    Object.values(db).forEach(v => {
+      if (v && typeof v.mockClear === 'function') v.mockClear();
+    });
+  };
+
+  return db;
+}
+
+const databaseMock = createDatabaseMock();
+
+module.exports = { databaseMock, createDatabaseMock };
 ```
 
-**Key characteristics**:
-- Pure JavaScript, no TypeScript
-- No vitest dependency (`vi.fn()` replaced with plain functions)
-- CommonJS exports (`module.exports`)
-- Same interface shape as the TypeScript mock
+**Why this is optimal**:
+- Zero dependencies (no `require('vitest')`)
+- `createSpy()` provides `.calls` + `.mockClear()` (covers 90% of spy needs)
+- Chainable builders match Drizzle interface
+- `__reset()` for cleanup between tests
 
-#### Step 2: Update server/db.ts
+### Step 2: Update `server/db.ts:25`
 
-Change line 25 from:
-```javascript
+```typescript
+// Before
 const { databaseMock } = require('../tests/helpers/database-mock');
-```
 
-To:
-```javascript
+// After
 const { databaseMock } = require('../tests/helpers/database-mock.cjs');
 ```
 
-The explicit `.cjs` extension ensures Node.js loads the CommonJS file.
+Explicit `.cjs` ensures Node loads the CommonJS file without transformation.
 
-#### Step 3: Fix Check Constraint Functions
+### Step 3: Fix `validateConstraints()` with Smart Heuristic
 
-Update the 3 check functions in `database-mock.ts` to accept `(row)` and extract the field value:
+In `database-mock.ts`, replace lines 551-558:
 
 ```typescript
-// Line 43-47: data_integrity_score
-data_integrity_score: (row: any) => {
-  const value = row.data_integrity_score;
-  if (value === undefined || value === null) return true;
-  const score = parseFloat(value);
-  return score >= 0.0 && score <= 1.0;
-}
+// Validate check constraints
+if (constraints.checks) {
+  for (const [checkName, checkFn] of Object.entries(constraints.checks)) {
+    // Smart heuristic: pass value if field exists, else pass row
+    const hasField = Object.prototype.hasOwnProperty.call(row, checkName);
+    const arg = hasField ? row[checkName] : row;
 
-// Line 56-59: confidence_score
-confidence_score: (row: any) => {
-  const value = row.confidence_score;
-  if (value === undefined || value === null) return true;
-  const score = parseFloat(value);
-  return score >= 0.0 && score <= 1.0;
-}
-
-// Line 81-83: restoration_duration_ms
-restoration_duration_ms: (row: any) => {
-  const value = row.restoration_duration_ms;
-  if (value === undefined || value === null) return true;
-  return parseFloat(value) >= 0;
+    if (!(checkFn as Function)(arg)) {
+      throw new Error(`Check constraint '${checkName}' failed`);
+    }
+  }
 }
 ```
 
-**Pattern**: All check functions now consistently:
-1. Accept `(row: any)`
-2. Extract the specific field value
-3. Handle undefined/null gracefully (return true for optional fields)
-4. Perform the actual validation
+**Why this is elegant**:
+- No changes to check function signatures
+- Value-style checks (`data_integrity_score`) get `row.data_integrity_score`
+- Row-style checks (`period_ordering`) get full row
+- Backward compatible
+
+### Step 4: Add SQL-Compliant Null Handling
+
+SQL CHECK constraints pass when expression is TRUE **or NULL**. Update value-checks:
+
+```typescript
+// data_integrity_score (line 43)
+data_integrity_score: (value: any) => {
+  if (value === undefined || value === null || value === '') return true;
+  const score = Number(value);
+  return Number.isFinite(score) && score >= 0.0 && score <= 1.0;
+},
+
+// confidence_score (line 56)
+confidence_score: (value: any) => {
+  if (value === undefined || value === null || value === '') return true;
+  const score = Number(value);
+  return Number.isFinite(score) && score >= 0.0 && score <= 1.0;
+},
+
+// restoration_duration_ms (line 81)
+restoration_duration_ms: (value: any) => {
+  if (value === undefined || value === null) return true;
+  const val = Number(value);
+  return Number.isFinite(val) && val >= 0;
+},
+```
+
+**Why `Number.isFinite()` over `parseFloat()`**:
+- `parseFloat("123abc")` returns 123 (partial parse)
+- `Number("123abc")` returns NaN (strict)
+- `Number.isFinite()` catches NaN and Infinity
 
 ---
 
-## Verification Plan
+## Execution Order
 
-### After Step 1 & 2 (Loader Fix):
-```bash
-npm test -- --project=server tests/integration/
 ```
-Expected: 7 suites should load and run (may have other failures, but no loader errors)
+1. CREATE database-mock.cjs        (fixes loader crash)
+2. EDIT server/db.ts:25            (explicit .cjs path)
+3. RUN validation:
+   npx vitest run tests/integration/interleaved-thinking.test.ts
 
-### After Step 3 (Constraint Fix):
-```bash
-npm run baseline:test:check
-```
-Expected: 15+ fewer "Check constraint failed" errors
+4. EDIT validateConstraints()      (smart heuristic)
+5. EDIT check functions            (null handling)
+6. RUN baseline:
+   npm run baseline:test:check
 
-### Final Verification:
-```bash
-npm run baseline:test:check
+7. COMMIT with exact metrics from artifacts/test-summary.json
 ```
-Record exact metrics from `artifacts/test-summary.json`
 
 ---
 
-## Risk Assessment
+## Verification Commands
 
-| Risk | Mitigation |
-|------|------------|
-| CJS mock behavior differs from TS mock | CJS mock is minimal stub; full mock used during Vitest runs |
-| Missing methods in CJS mock | Same interface shape, stubs return empty/resolved |
-| Check constraint fix introduces regressions | Tests will verify the fix works |
+```bash
+# Step 1-2: Confirm loader fix (suite should LOAD, may have test failures)
+npx vitest run tests/integration/interleaved-thinking.test.ts
+
+# Step 4-5: Confirm constraint fix
+npm run baseline:test:check
+
+# Exact metrics (REQUIRED before commit)
+cat artifacts/test-summary.json | jq '.counts, .gate'
+```
 
 ---
 
 ## Expected Outcomes
 
-1. **7 integration suites unblocked** - No more loader errors
-2. **15+ constraint failures fixed** - Check functions work correctly
-3. **Exact metrics available** - Can run `baseline:test:check` for real numbers
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| suiteFailures | 17 | 10 | -7 (loader fix) |
+| Check constraint errors | ~15 | ~0 | -15 (heuristic + null) |
 
 ---
 
-## Files to Modify
+## Files Modified
 
-1. **CREATE**: `tests/helpers/database-mock.cjs` (new file, ~40 lines)
-2. **EDIT**: `server/db.ts` line 25 (add `.cjs` extension)
-3. **EDIT**: `tests/helpers/database-mock.ts` lines 43-47, 56-59, 81-83 (fix check signatures)
+| File | Action | Lines |
+|------|--------|-------|
+| `tests/helpers/database-mock.cjs` | CREATE | ~70 |
+| `server/db.ts` | EDIT | 1 (line 25) |
+| `tests/helpers/database-mock.ts` | EDIT | ~15 (lines 43-47, 56-59, 81-83, 551-558) |
 
 ---
 
-## Governance Notes
+## Governance Compliance
 
-- This fix targets **infrastructure bugs**, not TDD RED phase tests
-- Unlocks suites that should pass, not suites revealing unimplemented features
-- Should improve NonPassing count, moving toward 90% target
+- **W=25 allowance**: This fix should decrease score (unlock working tests)
+- **No "estimated"**: Commit only with exact metrics from `artifacts/test-summary.json`
+- **Infrastructure fix**: Targets harness bugs, not TDD RED phase tests
