@@ -21,10 +21,14 @@ let pool: any;
 
 // Use mock database in test environment
 if (isTest) {
-  // Import the database mock for testing (explicit .cjs extension for Node resolution)
-  const { databaseMock } = require('../tests/helpers/database-mock.cjs');
-  db = databaseMock;
-  pool = null;
+  // database-mock.cjs exports are intentionally untyped in TS context
+  const { databaseMock, poolMock } = require('../tests/helpers/database-mock.cjs') as {
+    databaseMock: unknown;
+    poolMock: unknown;
+  };
+
+  db = databaseMock as any;
+  pool = poolMock as any;
 } else if (isVercel) {
   // Use HTTP driver for Vercel (no persistent connections)
   const { drizzle } = require('drizzle-orm/neon-http');

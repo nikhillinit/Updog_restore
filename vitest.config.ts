@@ -93,8 +93,16 @@ export default defineConfig({
           name: 'server',
           environment: 'node',
           // Simplified: All .test.ts files run in Node environment (including perf tests)
-          include: ['tests/unit/**/*.test.ts', 'tests/perf/**/*.test.ts', 'tests/integration/**/*.test.ts'],
-          setupFiles: ['./tests/setup/test-infrastructure.ts', './tests/setup/node-setup.ts'],
+          include: [
+            'tests/unit/**/*.test.ts',
+            'tests/perf/**/*.test.ts',
+            'tests/integration/**/*.test.ts',
+          ],
+          setupFiles: [
+            './tests/setup/db-delegate-link.ts', // FIRST: wire delegate before any tests
+            './tests/setup/test-infrastructure.ts',
+            './tests/setup/node-setup.ts',
+          ],
         },
       },
       {

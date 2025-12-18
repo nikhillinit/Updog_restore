@@ -22,16 +22,13 @@ import {
   SnapshotNotFoundError,
   SnapshotVersionConflictError,
   FundNotFoundError,
-} from '../../server/services/snapshot-service';
-import {
-  createTestSnapshot,
-  SAMPLE_SNAPSHOTS,
-} from '../fixtures/portfolio-fixtures';
+} from '@/server/services/snapshot-service';
+import { createTestSnapshot, SAMPLE_SNAPSHOTS } from '../../fixtures/portfolio-fixtures';
 import {
   assertValidSnapshot,
   assertValidUUID,
   generateIdempotencyKey,
-} from '../utils/portfolio-test-utils';
+} from '../../utils/portfolio-test-utils';
 
 describe('SnapshotService (Phase 0-ALPHA - TDD RED)', () => {
   let service: SnapshotService;
