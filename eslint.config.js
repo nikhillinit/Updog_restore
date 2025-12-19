@@ -4,7 +4,7 @@ import ts from '@typescript-eslint/eslint-plugin';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import unusedImports from 'eslint-plugin-unused-imports';
-// import securityConfig from './eslint.security.config.js'; // TODO: Re-enable after fixing flat config compatibility
+import securityConfig from './eslint.security.config.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
@@ -38,8 +38,8 @@ const boundaryRules = {
 };
 
 export default [
-  // Security rules
-  // securityConfig, // TODO: Re-enable after fixing flat config compatibility
+  // Security rules - flat config format (ESLint 9.x compatible)
+  ...securityConfig,
   // Global ignores should be first
   {
     ignores: [

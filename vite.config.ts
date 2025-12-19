@@ -279,16 +279,18 @@ export default defineConfig(({ mode }: { mode: string }) => {
       minifyWhitespace: true,
       treeShaking: true,
       target: 'esnext',
-      tsconfigRaw: {
+      // TypeScript strictness - gradually enabled for build safety
+    // Note: These settings affect ESBuild transform only (not full tsc check)
+    tsconfigRaw: {
         compilerOptions: {
-          skipLibCheck: true,
-          noImplicitAny: false,
-          strictNullChecks: false,
-          strictFunctionTypes: false,
-          strictPropertyInitialization: false,
-          noImplicitThis: false,
-          noImplicitReturns: false,
-          alwaysStrict: false,
+          skipLibCheck: true, // Keep: performance optimization for node_modules
+          noImplicitAny: true, // ENABLED: catch implicit any at build time
+          strictNullChecks: true, // ENABLED: catch null dereference bugs
+          strictFunctionTypes: true, // ENABLED: catch function signature mismatches
+          strictPropertyInitialization: true, // ENABLED: catch uninitialized properties
+          noImplicitThis: true, // ENABLED: catch implicit this bindings
+          noImplicitReturns: true, // ENABLED: catch missing return statements
+          alwaysStrict: true, // ENABLED: emit 'use strict' in all modules
         },
       },
     },

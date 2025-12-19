@@ -4,7 +4,7 @@ import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
 import { storage } from '../storage';
-import type { Request, Response } from '../types/request-response';
+import type { Request, Response } from 'express';
 
 const router = Router();
 const execAsync = promisify(exec);

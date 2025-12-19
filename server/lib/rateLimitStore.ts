@@ -40,7 +40,7 @@ export async function createRateLimitStore(): Promise<Store | undefined> {
         return result as string | number | null;
       },
       prefix: 'rate-limit:',
-    });
+    }) as unknown as Store;
   } catch (error) {
     console.warn('⚠️ Rate limit Redis unavailable, falling back to memory store:', error);
     return undefined;

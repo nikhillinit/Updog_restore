@@ -25,11 +25,6 @@ import type { ApiError } from '@shared/types';
 
 const router = Router();
 
-// Extend Request type to include user property for authentication
-interface AuthenticatedRequest extends Request {
-  user?: { id: string };
-}
-
 // ============================================================================
 // VALIDATION SCHEMAS
 // ============================================================================
@@ -144,7 +139,7 @@ const QuickScenarioSchema = z.object({
  * Create a new fund strategy model
  * POST /api/portfolio/strategies
  */
-router["post"]('/api/portfolio/strategies', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/strategies', idempotency, async (req: Request, res: Response) => {
   try {
     // Get fund ID from query parameter
     const fundId = req.query['fundId'];
@@ -339,7 +334,7 @@ router['get']('/api/portfolio/strategies/:fundId', async (req: Request, res: Res
  * Update a strategy
  * PUT /api/portfolio/strategies/:id
  */
-router["put"]('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest, res: Response) => {
+router["put"]('/api/portfolio/strategies/:id', async (req: Request, res: Response) => {
   try {
     const strategyId = req.params['id'];
     if (!strategyId) {
@@ -395,7 +390,7 @@ router["put"]('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest,
  * Delete a strategy
  * DELETE /api/portfolio/strategies/:id
  */
-router["delete"]('/api/portfolio/strategies/:id', async (req: AuthenticatedRequest, res: Response) => {
+router["delete"]('/api/portfolio/strategies/:id', async (req: Request, res: Response) => {
   try {
     const strategyId = req.params['id'];
     if (!strategyId) {
@@ -440,7 +435,7 @@ router["delete"]('/api/portfolio/strategies/:id', async (req: AuthenticatedReque
  * Create a portfolio scenario
  * POST /api/portfolio/scenarios
  */
-router["post"]('/api/portfolio/scenarios', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/scenarios', idempotency, async (req: Request, res: Response) => {
   try {
     const fundId = req.query['fundId'];
     if (!fundId) {
@@ -565,7 +560,7 @@ router['get']('/api/portfolio/scenarios/:fundId', async (req: Request, res: Resp
  * Compare multiple scenarios
  * POST /api/portfolio/scenarios/compare
  */
-router["post"]('/api/portfolio/scenarios/compare', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/scenarios/compare', idempotency, async (req: Request, res: Response) => {
   try {
     const validation = CompareScenarioSchema.safeParse(req.body);
     if (!validation.success) {
@@ -625,7 +620,7 @@ router["post"]('/api/portfolio/scenarios/compare', idempotency, async (req: Auth
  * Run Monte Carlo simulation on a scenario
  * POST /api/portfolio/scenarios/:id/simulate
  */
-router["post"]('/api/portfolio/scenarios/:id/simulate', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/scenarios/:id/simulate', idempotency, async (req: Request, res: Response) => {
   try {
     const scenarioId = req.params['id'];
     if (!scenarioId) {
@@ -712,7 +707,7 @@ router["post"]('/api/portfolio/scenarios/:id/simulate', idempotency, async (req:
  * Optimize reserve allocation
  * POST /api/portfolio/reserves/optimize
  */
-router["post"]('/api/portfolio/reserves/optimize', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/reserves/optimize', idempotency, async (req: Request, res: Response) => {
   try {
     const fundId = req.query['fundId'];
     if (!fundId) {
@@ -850,7 +845,7 @@ router['get']('/api/portfolio/reserves/strategies/:fundId', async (req: Request,
  * Backtest reserve strategy
  * POST /api/portfolio/reserves/backtest
  */
-router["post"]('/api/portfolio/reserves/backtest', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/reserves/backtest', idempotency, async (req: Request, res: Response) => {
   try {
     const validation = BacktestReserveSchema.safeParse(req.body);
     if (!validation.success) {
@@ -922,7 +917,7 @@ router["post"]('/api/portfolio/reserves/backtest', idempotency, async (req: Auth
  * Generate performance forecast
  * POST /api/portfolio/forecasts
  */
-router["post"]('/api/portfolio/forecasts', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/forecasts', idempotency, async (req: Request, res: Response) => {
   try {
     const fundId = req.query['fundId'];
     if (!fundId) {
@@ -1054,7 +1049,7 @@ router['get']('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: 
  * Validate forecast against actuals
  * POST /api/portfolio/forecasts/validate
  */
-router["post"]('/api/portfolio/forecasts/validate', async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/forecasts/validate', async (req: Request, res: Response) => {
   try {
     const validation = ValidateForecastSchema.safeParse(req.body);
     if (!validation.success) {
@@ -1196,7 +1191,7 @@ router['get']('/api/portfolio/templates', async (req: Request, res: Response) =>
  * Generate quick scenario from parameters
  * POST /api/portfolio/quick-scenario
  */
-router["post"]('/api/portfolio/quick-scenario', async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/portfolio/quick-scenario', async (req: Request, res: Response) => {
   try {
     const validation = QuickScenarioSchema.safeParse(req.body);
     if (!validation.success) {
