@@ -271,7 +271,7 @@ async function handleThinkingQuery(
   // Agentic loop - allow up to 5 tool use iterations
   for (let iteration = 0; iteration < 5; iteration++) {
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
+      model: 'claude-opus-4-5-20251101',
       max_tokens: maxTokens,
       temperature,
       messages,
@@ -514,7 +514,7 @@ router.get(
       ],
       models: [
         {
-          id: 'claude-sonnet-4-5-20250929',
+          id: 'claude-opus-4-5-20251101',
           name: 'Claude Sonnet 4.5',
           thinkingSupport: true,
           minThinkingTokens: 1024,
@@ -522,7 +522,7 @@ router.get(
         },
       ],
       pricing: {
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-5-20251101',
         input_per_1m: PRICING.input,
         output_per_1m: PRICING.output,
         currency: 'USD',

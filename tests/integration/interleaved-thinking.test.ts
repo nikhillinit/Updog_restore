@@ -81,7 +81,7 @@ describe('Interleaved Thinking API', () => {
             text: 'The answer is 42.',
           },
         ],
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-5-20251101',
         usage: {
           input_tokens: 100,
           output_tokens: 50,
@@ -132,7 +132,7 @@ describe('Interleaved Thinking API', () => {
             },
           },
         ],
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-5-20251101',
         usage: {
           input_tokens: 150,
           output_tokens: 100,
@@ -155,7 +155,7 @@ describe('Interleaved Thinking API', () => {
             text: '15% of $1,000,000 is $150,000.',
           },
         ],
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-5-20251101',
         usage: {
           input_tokens: 200,
           output_tokens: 80,
@@ -215,7 +215,7 @@ describe('Interleaved Thinking API', () => {
             text: 'Test response',
           },
         ],
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-5-20251101',
         usage: {
           input_tokens: 50,
           output_tokens: 25,
@@ -287,7 +287,7 @@ describe('Interleaved Thinking API', () => {
             text: 'Portfolio concentration risk assessment: Moderate risk due to...',
           },
         ],
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-5-20251101',
         usage: {
           input_tokens: 200,
           output_tokens: 150,
@@ -329,7 +329,7 @@ describe('Interleaved Thinking API', () => {
             text: 'Comprehensive portfolio analysis: Given 30 companies with avg check $500k...',
           },
         ],
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-5-20251101',
         usage: {
           input_tokens: 500,
           output_tokens: 400,
@@ -388,7 +388,7 @@ describe('Interleaved Thinking API', () => {
             text: 'Quick analysis result',
           },
         ],
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-5-20251101',
         usage: {
           input_tokens: 100,
           output_tokens: 50,
@@ -428,7 +428,7 @@ describe('Interleaved Thinking API', () => {
         ],
         models: [
           {
-            id: 'claude-sonnet-4-5-20250929',
+            id: 'claude-opus-4-5-20251101',
             name: 'Claude Sonnet 4.5',
             thinkingSupport: true,
             minThinkingTokens: 1024,
@@ -436,7 +436,7 @@ describe('Interleaved Thinking API', () => {
           },
         ],
         pricing: {
-          model: 'claude-sonnet-4-5-20250929',
+          model: 'claude-opus-4-5-20251101',
           input_per_1m: 3.0,
           output_per_1m: 15.0,
           currency: 'USD',
@@ -508,7 +508,7 @@ describe('Interleaved Thinking API', () => {
             },
           },
         ],
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-5-20251101',
         usage: { input_tokens: 150, output_tokens: 100 },
         stop_reason: 'tool_use',
       });
@@ -523,7 +523,7 @@ describe('Interleaved Thinking API', () => {
             text: 'I found 2 funds in the database.',
           },
         ],
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-5-20251101',
         usage: { input_tokens: 200, output_tokens: 50 },
         stop_reason: 'end_turn',
       });
@@ -555,7 +555,7 @@ describe('Interleaved Thinking API', () => {
             },
           },
         ],
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-5-20251101',
         usage: { input_tokens: 150, output_tokens: 100 },
         stop_reason: 'tool_use',
       });
@@ -570,7 +570,7 @@ describe('Interleaved Thinking API', () => {
             text: 'I encountered an error executing the query.',
           },
         ],
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-5-20251101',
         usage: { input_tokens: 200, output_tokens: 50 },
         stop_reason: 'end_turn',
       });
@@ -605,7 +605,7 @@ describe('Interleaved Thinking API', () => {
             },
           },
         ],
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-5-20251101',
         usage: { input_tokens: 150, output_tokens: 100 },
         stop_reason: 'tool_use',
       });
@@ -620,7 +620,7 @@ describe('Interleaved Thinking API', () => {
             text: 'The result is 32 (12 + 20).',
           },
         ],
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-5-20251101',
         usage: { input_tokens: 200, output_tokens: 50 },
         stop_reason: 'end_turn',
       });
@@ -651,7 +651,7 @@ describe('Interleaved Thinking API', () => {
             },
           },
         ],
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-5-20251101',
         usage: { input_tokens: 150, output_tokens: 100 },
         stop_reason: 'tool_use',
       });
@@ -666,7 +666,7 @@ describe('Interleaved Thinking API', () => {
             text: 'I encountered a calculation error.',
           },
         ],
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-5-20251101',
         usage: { input_tokens: 200, output_tokens: 50 },
         stop_reason: 'end_turn',
       });
