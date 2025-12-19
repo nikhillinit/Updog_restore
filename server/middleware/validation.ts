@@ -1,11 +1,39 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { ZodSchema } from 'zod';
+import type { ZodSchema, infer as ZodInfer } from 'zod';
 import type { ApiError } from '@shared/types';
+import type { ParsedQs } from 'qs';
 
 interface ValidationSchemas {
   body?: ZodSchema<unknown>;
   query?: ZodSchema<unknown>;
   params?: ZodSchema<unknown>;
+}
+
+/**
+ * Type-safe query parameter assignment
+ * Converts Zod-validated data to Express-compatible query format
+ */
+function toQueryParams(data: unknown): ParsedQs {
+  if (typeof data !== 'object' || data === null) {
+    return {};
+  }
+  // ParsedQs is the Express query type - values are string | string[] | ParsedQs | ParsedQs[]
+  return data as ParsedQs;
+}
+
+/**
+ * Type-safe route parameter assignment
+ * Converts Zod-validated data to Express-compatible params format
+ */
+function toRouteParams(data: unknown): Record<string, string> {
+  if (typeof data !== 'object' || data === null) {
+    return {};
+  }
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(data)) {
+    result[key] = String(value);
+  }
+  return result;
 }
 
 export function validateRequest(schemas: ValidationSchemas) {
@@ -20,7 +48,7 @@ export function validateRequest(schemas: ValidationSchemas) {
             message: 'Request body validation failed',
             details: { validationErrors: result.error.issues },
           };
-          return res["status"](400)["json"](error);
+          return res.status(400).json(error);
         }
         req.body = result.data;
       }
@@ -34,9 +62,10 @@ export function validateRequest(schemas: ValidationSchemas) {
             message: 'Query parameter validation failed',
             details: { validationErrors: result.error.issues },
           };
-          return res["status"](400)["json"](error);
+          return res.status(400).json(error);
         }
-        req.query = result.data as Record<string, string | string[]>;
+        // Use type-safe conversion instead of direct cast
+        req.query = toQueryParams(result.data);
       }
 
       // Validate route parameters
@@ -48,9 +77,10 @@ export function validateRequest(schemas: ValidationSchemas) {
             message: 'Route parameter validation failed',
             details: { validationErrors: result.error.issues },
           };
-          return res["status"](400)["json"](error);
+          return res.status(400).json(error);
         }
-        req.params = result.data as Record<string, string>;
+        // Use type-safe conversion instead of direct cast
+        req.params = toRouteParams(result.data);
       }
 
       next();
@@ -59,7 +89,7 @@ export function validateRequest(schemas: ValidationSchemas) {
         error: 'Validation error',
         message: error instanceof Error ? error.message : 'Unknown validation error',
       };
-      res["status"](500)["json"](apiError);
+      res.status(500).json(apiError);
     }
   };
 }
