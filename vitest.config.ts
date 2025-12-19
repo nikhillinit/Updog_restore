@@ -139,6 +139,14 @@ export default defineConfig({
     env: {
       NODE_ENV: 'test',
       TZ: 'UTC',
+      REDIS_URL: 'memory://', // Prevent real Redis connections in tests
+      // JWT configuration (min 32 chars required by server/config.ts:16)
+      JWT_SECRET: 'test-jwt-secret-must-be-at-least-32-characters-long-for-hs256-validation',
+      JWT_ALG: 'HS256',
+      JWT_ISSUER: 'updog', // CORRECTED: Must match server/config.ts:15 defaults
+      JWT_AUDIENCE: 'updog-app', // CORRECTED: Must match server/config.ts:15 defaults
+      // Alertmanager webhook signature validation
+      ALERTMANAGER_WEBHOOK_SECRET: 'test-alertmanager-webhook-secret-minimum-32-characters-long',
     },
   },
 });
