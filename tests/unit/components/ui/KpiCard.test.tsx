@@ -1,30 +1,19 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { KpiCard } from '../KpiCard';
+import { KpiCard } from '@/components/ui/KpiCard';
 
 describe('KpiCard Component', () => {
-
   describe('Basic Rendering', () => {
     it('renders with label and value', () => {
-      render(
-        <KpiCard
-          label="Net IRR"
-          value="24.5%"
-        />
-      );
+      render(<KpiCard label="Net IRR" value="24.5%" />);
 
       expect(screen.getByText('Net IRR')).toBeInTheDocument();
       expect(screen.getByText('24.5%')).toBeInTheDocument();
     });
 
     it('renders without delta when not provided', () => {
-      const { container } = render(
-        <KpiCard
-          label="Total Fund Size"
-          value="$100M"
-        />
-      );
+      const { container } = render(<KpiCard label="Total Fund Size" value="$100M" />);
 
       expect(screen.getByText('Total Fund Size')).toBeInTheDocument();
       expect(screen.getByText('$100M')).toBeInTheDocument();
@@ -36,14 +25,7 @@ describe('KpiCard Component', () => {
 
   describe('Delta and Intent Styling', () => {
     it('renders positive intent with correct styling', () => {
-      render(
-        <KpiCard
-          label="Net IRR"
-          value="24.5%"
-          delta="+2.1%"
-          intent="positive"
-        />
-      );
+      render(<KpiCard label="Net IRR" value="24.5%" delta="+2.1%" intent="positive" />);
 
       const deltaElement = screen.getByText('+2.1%');
       expect(deltaElement).toBeInTheDocument();
@@ -51,14 +33,7 @@ describe('KpiCard Component', () => {
     });
 
     it('renders negative intent with correct styling', () => {
-      render(
-        <KpiCard
-          label="Portfolio Value"
-          value="$85M"
-          delta="-5.2%"
-          intent="negative"
-        />
-      );
+      render(<KpiCard label="Portfolio Value" value="$85M" delta="-5.2%" intent="negative" />);
 
       const deltaElement = screen.getByText('-5.2%');
       expect(deltaElement).toBeInTheDocument();
@@ -66,14 +41,7 @@ describe('KpiCard Component', () => {
     });
 
     it('renders neutral intent with correct styling', () => {
-      render(
-        <KpiCard
-          label="Deployed Capital"
-          value="$50M"
-          delta="0%"
-          intent="neutral"
-        />
-      );
+      render(<KpiCard label="Deployed Capital" value="$50M" delta="0%" intent="neutral" />);
 
       const deltaElement = screen.getByText('0%');
       expect(deltaElement).toBeInTheDocument();
@@ -81,13 +49,7 @@ describe('KpiCard Component', () => {
     });
 
     it('defaults to neutral intent when not specified', () => {
-      render(
-        <KpiCard
-          label="Companies"
-          value="30"
-          delta="+3"
-        />
-      );
+      render(<KpiCard label="Companies" value="30" delta="+3" />);
 
       const deltaElement = screen.getByText('+3');
       expect(deltaElement).toHaveClass('text-charcoal/60');
@@ -96,12 +58,7 @@ describe('KpiCard Component', () => {
 
   describe('Press On Ventures Brand Styling', () => {
     it('uses correct card styling with brand colors', () => {
-      const { container } = render(
-        <KpiCard
-          label="Test Metric"
-          value="100"
-        />
-      );
+      const { container } = render(<KpiCard label="Test Metric" value="100" />);
 
       const card = container.firstChild as HTMLElement;
       expect(card).toHaveClass('rounded-lg');
@@ -113,12 +70,7 @@ describe('KpiCard Component', () => {
     });
 
     it('applies hover effect styling', () => {
-      const { container } = render(
-        <KpiCard
-          label="Test Metric"
-          value="100"
-        />
-      );
+      const { container } = render(<KpiCard label="Test Metric" value="100" />);
 
       const card = container.firstChild as HTMLElement;
       expect(card).toHaveClass('transition-all');
@@ -126,13 +78,7 @@ describe('KpiCard Component', () => {
     });
 
     it('uses tabular-nums for numeric values', () => {
-      render(
-        <KpiCard
-          label="IRR"
-          value="24.5%"
-          delta="+2.1%"
-        />
-      );
+      render(<KpiCard label="IRR" value="24.5%" delta="+2.1%" />);
 
       const valueElement = screen.getByText('24.5%');
       const deltaElement = screen.getByText('+2.1%');
@@ -142,12 +88,7 @@ describe('KpiCard Component', () => {
     });
 
     it('uses charcoal color for text', () => {
-      render(
-        <KpiCard
-          label="Test Metric"
-          value="100"
-        />
-      );
+      render(<KpiCard label="Test Metric" value="100" />);
 
       const labelElement = screen.getByText('Test Metric');
       const valueElement = screen.getByText('100');
@@ -159,13 +100,7 @@ describe('KpiCard Component', () => {
 
   describe('Custom className', () => {
     it('accepts and applies custom className', () => {
-      const { container } = render(
-        <KpiCard
-          label="Test"
-          value="100"
-          className="custom-class"
-        />
-      );
+      const { container } = render(<KpiCard label="Test" value="100" className="custom-class" />);
 
       const card = container.firstChild as HTMLElement;
       expect(card).toHaveClass('custom-class');
@@ -178,13 +113,7 @@ describe('KpiCard Component', () => {
   describe('Ref forwarding', () => {
     it('forwards ref correctly', () => {
       const ref = React.createRef<HTMLDivElement>();
-      render(
-        <KpiCard
-          ref={ref}
-          label="Test"
-          value="100"
-        />
-      );
+      render(<KpiCard ref={ref} label="Test" value="100" />);
 
       expect(ref.current).toBeInstanceOf(HTMLDivElement);
     });
@@ -192,14 +121,7 @@ describe('KpiCard Component', () => {
 
   describe('Financial Metrics Examples', () => {
     it('displays IRR metric correctly', () => {
-      render(
-        <KpiCard
-          label="Net IRR"
-          value="24.5%"
-          delta="+2.1%"
-          intent="positive"
-        />
-      );
+      render(<KpiCard label="Net IRR" value="24.5%" delta="+2.1%" intent="positive" />);
 
       expect(screen.getByText('Net IRR')).toBeInTheDocument();
       expect(screen.getByText('24.5%')).toBeInTheDocument();
@@ -207,26 +129,14 @@ describe('KpiCard Component', () => {
     });
 
     it('displays fund size metric correctly', () => {
-      render(
-        <KpiCard
-          label="Total Fund Size"
-          value="$100M"
-        />
-      );
+      render(<KpiCard label="Total Fund Size" value="$100M" />);
 
       expect(screen.getByText('Total Fund Size')).toBeInTheDocument();
       expect(screen.getByText('$100M')).toBeInTheDocument();
     });
 
     it('displays portfolio companies metric correctly', () => {
-      render(
-        <KpiCard
-          label="Portfolio Companies"
-          value="30"
-          delta="+3"
-          intent="positive"
-        />
-      );
+      render(<KpiCard label="Portfolio Companies" value="30" delta="+3" intent="positive" />);
 
       expect(screen.getByText('Portfolio Companies')).toBeInTheDocument();
       expect(screen.getByText('30')).toBeInTheDocument();
@@ -234,14 +144,7 @@ describe('KpiCard Component', () => {
     });
 
     it('displays negative performance metric correctly', () => {
-      render(
-        <KpiCard
-          label="Portfolio Value"
-          value="$85.2M"
-          delta="-5.2%"
-          intent="negative"
-        />
-      );
+      render(<KpiCard label="Portfolio Value" value="$85.2M" delta="-5.2%" intent="negative" />);
 
       expect(screen.getByText('Portfolio Value')).toBeInTheDocument();
       expect(screen.getByText('$85.2M')).toBeInTheDocument();
@@ -253,13 +156,7 @@ describe('KpiCard Component', () => {
 
   describe('Layout and Structure', () => {
     it('renders with correct component structure', () => {
-      const { container } = render(
-        <KpiCard
-          label="Test Metric"
-          value="100"
-          delta="+10%"
-        />
-      );
+      const { container } = render(<KpiCard label="Test Metric" value="100" delta="+10%" />);
 
       // Check main container
       const card = container.firstChild as HTMLElement;
@@ -271,13 +168,7 @@ describe('KpiCard Component', () => {
     });
 
     it('applies correct spacing between elements', () => {
-      const { container } = render(
-        <KpiCard
-          label="Test Metric"
-          value="100"
-          delta="+10%"
-        />
-      );
+      const { container } = render(<KpiCard label="Test Metric" value="100" delta="+10%" />);
 
       const contentContainer = container.querySelector('.flex.flex-col');
       expect(contentContainer).toHaveClass('space-y-2');

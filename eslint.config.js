@@ -293,6 +293,15 @@ export default [
         global: 'readonly',
       },
     },
+    rules: {
+      // Relax strict TypeScript checks for test files
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+    },
   },
   // AI and core reserves - deterministic math enforcement
   {

@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   PerformancePredictionEngine,
-  type PredictionConfig
+  type PredictionConfig,
 } from '../../../server/services/performance-prediction';
 import { db } from '../../../server/db';
 
@@ -18,23 +18,23 @@ vi.mock('../../../server/db', () => ({
     query: {
       fundMetrics: {
         findMany: vi.fn(),
-        findFirst: vi.fn()
+        findFirst: vi.fn(),
       },
       funds: {
         findFirst: vi.fn(),
-        findMany: vi.fn()
-      }
+        findMany: vi.fn(),
+      },
     },
     insert: vi.fn(() => ({
-      values: vi.fn(() => Promise.resolve())
-    }))
-  }
+      values: vi.fn(() => Promise.resolve()),
+    })),
+  },
 }));
 
 vi.mock('@shared/schema', () => ({
-  performancePredictions: 'mocked-predictions-table',
+  performanceForecasts: 'mocked-forecasts-table',
   fundMetrics: 'mocked-metrics-table',
-  funds: 'mocked-funds-table'
+  funds: 'mocked-funds-table',
 }));
 
 describe('PerformancePredictionEngine', () => {
@@ -54,7 +54,7 @@ describe('PerformancePredictionEngine', () => {
       confidenceLevel: 0.95,
       includeSeasonality: false,
       includeTrendAnalysis: true,
-      includeMarketFactors: false
+      includeMarketFactors: false,
     };
 
     // Mock historical data with realistic fund metrics
@@ -67,7 +67,7 @@ describe('PerformancePredictionEngine', () => {
         multiple: 1.8,
         dpi: 0.3,
         tvpi: 1.8,
-        rvpi: 1.5
+        rvpi: 1.5,
       },
       {
         id: 2,
@@ -77,7 +77,7 @@ describe('PerformancePredictionEngine', () => {
         multiple: 2.1,
         dpi: 0.5,
         tvpi: 2.1,
-        rvpi: 1.6
+        rvpi: 1.6,
       },
       {
         id: 3,
@@ -87,7 +87,7 @@ describe('PerformancePredictionEngine', () => {
         multiple: 2.4,
         dpi: 0.7,
         tvpi: 2.4,
-        rvpi: 1.7
+        rvpi: 1.7,
       },
       {
         id: 4,
@@ -97,7 +97,7 @@ describe('PerformancePredictionEngine', () => {
         multiple: 2.8,
         dpi: 0.9,
         tvpi: 2.8,
-        rvpi: 1.9
+        rvpi: 1.9,
       },
       {
         id: 5,
@@ -107,8 +107,8 @@ describe('PerformancePredictionEngine', () => {
         multiple: 3.1,
         dpi: 1.2,
         tvpi: 3.1,
-        rvpi: 1.9
-      }
+        rvpi: 1.9,
+      },
     ];
 
     // Setup default mock responses
@@ -128,13 +128,13 @@ describe('PerformancePredictionEngine', () => {
         expect(results.length).toBeGreaterThan(0);
 
         // Check that we get predictions for major metrics
-        const metrics = results.map(r => r.metric);
+        const metrics = results.map((r) => r.metric);
         expect(metrics).toContain('irr');
         expect(metrics).toContain('multiple');
         expect(metrics).toContain('dpi');
 
         // Verify structure of each prediction result
-        results.forEach(result => {
+        results.forEach((result) => {
           expect(result.fundId).toBe(mockConfig.fundId);
           expect(result.metric).toBeDefined();
           expect(result.predictions).toBeInstanceOf(Array);
@@ -143,7 +143,7 @@ describe('PerformancePredictionEngine', () => {
           expect(result.modelMetadata).toBeDefined();
 
           // Check prediction structure
-          result.predictions.forEach(pred => {
+          result.predictions.forEach((pred) => {
             expect(pred.timestamp).toBeInstanceOf(Date);
             expect(typeof pred.value).toBe('number');
             expect(typeof pred.lowerBound).toBe('number');
@@ -168,14 +168,19 @@ describe('PerformancePredictionEngine', () => {
       });
 
       it('should handle different model types', async () => {
-        const modelTypes: PredictionConfig['modelType'][] = ['linear', 'exponential', 'polynomial', 'ensemble'];
+        const modelTypes: PredictionConfig['modelType'][] = [
+          'linear',
+          'exponential',
+          'polynomial',
+          'ensemble',
+        ];
 
         for (const modelType of modelTypes) {
           const config = { ...mockConfig, modelType };
           const results = await engine.generatePredictions(config);
 
           expect(results.length).toBeGreaterThan(0);
-          results.forEach(result => {
+          results.forEach((result) => {
             expect(result.modelMetadata.type).toBe(modelType);
           });
         }
@@ -188,7 +193,7 @@ describe('PerformancePredictionEngine', () => {
           const config = { ...mockConfig, predictionHorizon: horizon };
           const results = await engine.generatePredictions(config);
 
-          results.forEach(result => {
+          results.forEach((result) => {
             expect(result.predictions).toHaveLength(horizon);
           });
         }
@@ -201,8 +206,8 @@ describe('PerformancePredictionEngine', () => {
           const config = { ...mockConfig, confidenceLevel };
           const results = await engine.generatePredictions(config);
 
-          results.forEach(result => {
-            result.predictions.forEach(pred => {
+          results.forEach((result) => {
+            result.predictions.forEach((pred) => {
               expect(pred.confidence).toBe(confidenceLevel);
 
               // Higher confidence should mean wider intervals
@@ -214,15 +219,20 @@ describe('PerformancePredictionEngine', () => {
       });
 
       it('should fail with insufficient historical data', async () => {
-        (db.query.fundMetrics.findMany as any).mockResolvedValue([mockHistoricalData[0], mockHistoricalData[1]]);
+        (db.query.fundMetrics.findMany as any).mockResolvedValue([
+          mockHistoricalData[0],
+          mockHistoricalData[1],
+        ]);
 
-        await expect(engine.generatePredictions(mockConfig)).rejects.toThrow('Insufficient historical data');
+        await expect(engine.generatePredictions(mockConfig)).rejects.toThrow(
+          'Insufficient historical data'
+        );
       });
 
       it('should store predictions in database', async () => {
         await engine.generatePredictions(mockConfig);
 
-        expect((db.insert as any)).toHaveBeenCalled();
+        expect(db.insert as any).toHaveBeenCalled();
       });
     });
 
@@ -231,7 +241,7 @@ describe('PerformancePredictionEngine', () => {
         const config = { ...mockConfig, modelType: 'linear' as const };
         const results = await engine.generatePredictions(config);
 
-        const irrResult = results.find(r => r.metric === 'irr');
+        const irrResult = results.find((r) => r.metric === 'irr');
         expect(irrResult).toBeDefined();
 
         if (irrResult) {
@@ -240,7 +250,7 @@ describe('PerformancePredictionEngine', () => {
           const firstPrediction = irrResult.predictions[0].value;
 
           expect(firstPrediction).toBeGreaterThan(lastHistoricalIRR * 0.8); // Allow some variation
-          expect(firstPrediction).toBeLessThan(lastHistoricalIRR * 1.5);   // But not too extreme
+          expect(firstPrediction).toBeLessThan(lastHistoricalIRR * 1.5); // But not too extreme
         }
       });
 
@@ -248,8 +258,8 @@ describe('PerformancePredictionEngine', () => {
         const config = { ...mockConfig, modelType: 'linear' as const };
         const results = await engine.generatePredictions(config);
 
-        results.forEach(result => {
-          result.predictions.forEach(pred => {
+        results.forEach((result) => {
+          result.predictions.forEach((pred) => {
             expect(pred.lowerBound).toBeLessThanOrEqual(pred.value);
             expect(pred.value).toBeLessThanOrEqual(pred.upperBound);
           });
@@ -260,9 +270,9 @@ describe('PerformancePredictionEngine', () => {
     describe('Exponential Smoothing Model', () => {
       it('should handle volatile time series data', async () => {
         // Create more volatile data
-        const volatileData = mockHistoricalData.map((data, index) => ({
+        const volatileData = mockHistoricalData.map((data, _index) => ({
           ...data,
-          irr: data.irr + (Math.random() - 0.5) * 0.1
+          irr: data.irr + (Math.random() - 0.5) * 0.1,
         }));
 
         (db.query.fundMetrics.findMany as any).mockResolvedValue(volatileData);
@@ -272,7 +282,7 @@ describe('PerformancePredictionEngine', () => {
 
         expect(results.length).toBeGreaterThan(0);
 
-        const irrResult = results.find(r => r.metric === 'irr');
+        const irrResult = results.find((r) => r.metric === 'irr');
         expect(irrResult).toBeDefined();
         expect(irrResult?.modelMetadata.type).toBe('exponential');
       });
@@ -283,7 +293,7 @@ describe('PerformancePredictionEngine', () => {
         // Create data with quadratic pattern
         const quadraticData = mockHistoricalData.map((data, index) => ({
           ...data,
-          irr: 0.1 + 0.02 * index + 0.001 * index * index
+          irr: 0.1 + 0.02 * index + 0.001 * index * index,
         }));
 
         (db.query.fundMetrics.findMany as any).mockResolvedValue(quadraticData);
@@ -293,7 +303,7 @@ describe('PerformancePredictionEngine', () => {
 
         expect(results.length).toBeGreaterThan(0);
 
-        const irrResult = results.find(r => r.metric === 'irr');
+        const irrResult = results.find((r) => r.metric === 'irr');
         expect(irrResult?.modelMetadata.type).toBe('polynomial');
         expect(irrResult?.modelMetadata.parameters.degree).toBe(2);
       });
@@ -308,7 +318,7 @@ describe('PerformancePredictionEngine', () => {
           multiple: 2.0,
           dpi: 0.5,
           tvpi: 2.0,
-          rvpi: 1.5
+          rvpi: 1.5,
         }));
 
         (db.query.fundMetrics.findMany as any).mockResolvedValue(illConditionedData);
@@ -327,7 +337,7 @@ describe('PerformancePredictionEngine', () => {
 
         expect(results.length).toBeGreaterThan(0);
 
-        const irrResult = results.find(r => r.metric === 'irr');
+        const irrResult = results.find((r) => r.metric === 'irr');
         expect(irrResult?.modelMetadata.type).toBe('ensemble');
         expect(irrResult?.modelMetadata.parameters.models).toBeInstanceOf(Array);
         expect(irrResult?.modelMetadata.parameters.weights).toBeInstanceOf(Array);
@@ -337,7 +347,7 @@ describe('PerformancePredictionEngine', () => {
         const config = { ...mockConfig, modelType: 'ensemble' as const };
         const results = await engine.generatePredictions(config);
 
-        const irrResult = results.find(r => r.metric === 'irr');
+        const irrResult = results.find((r) => r.metric === 'irr');
         if (irrResult) {
           const weights = irrResult.modelMetadata.parameters.weights as number[];
 
@@ -346,7 +356,7 @@ describe('PerformancePredictionEngine', () => {
           expect(weightSum).toBeCloseTo(1, 2);
 
           // All weights should be non-negative
-          weights.forEach(weight => {
+          weights.forEach((weight) => {
             expect(weight).toBeGreaterThanOrEqual(0);
           });
         }
@@ -370,7 +380,7 @@ describe('PerformancePredictionEngine', () => {
         // Create declining trend data
         const decliningData = mockHistoricalData.map((data, index) => ({
           ...data,
-          irr: 0.3 - 0.02 * index // Declining IRR
+          irr: 0.3 - 0.02 * index, // Declining IRR
         }));
 
         (db.query.fundMetrics.findMany as any).mockResolvedValue(decliningData);
@@ -383,9 +393,9 @@ describe('PerformancePredictionEngine', () => {
 
       it('should identify stable trends', async () => {
         // Create stable data
-        const stableData = mockHistoricalData.map(data => ({
+        const stableData = mockHistoricalData.map((data) => ({
           ...data,
-          irr: 0.18 + (Math.random() - 0.5) * 0.01 // Small random variation around 18%
+          irr: 0.18 + (Math.random() - 0.5) * 0.01, // Small random variation around 18%
         }));
 
         (db.query.fundMetrics.findMany as any).mockResolvedValue(stableData);
@@ -402,11 +412,11 @@ describe('PerformancePredictionEngine', () => {
           id: i,
           fundId: 1,
           asOfDate: new Date(2022, i, 1),
-          irr: 0.15 + 0.05 * Math.sin(i * Math.PI / 6), // Quarterly seasonality
-          multiple: 2.0 + 0.3 * Math.sin(i * Math.PI / 6),
+          irr: 0.15 + 0.05 * Math.sin((i * Math.PI) / 6), // Quarterly seasonality
+          multiple: 2.0 + 0.3 * Math.sin((i * Math.PI) / 6),
           dpi: 0.8,
           tvpi: 2.0,
-          rvpi: 1.2
+          rvpi: 1.2,
         }));
 
         (db.query.fundMetrics.findMany as any).mockResolvedValue(seasonalData);
@@ -421,9 +431,14 @@ describe('PerformancePredictionEngine', () => {
       });
 
       it('should fail with insufficient data', async () => {
-        (db.query.fundMetrics.findMany as any).mockResolvedValue([mockHistoricalData[0], mockHistoricalData[1]]);
+        (db.query.fundMetrics.findMany as any).mockResolvedValue([
+          mockHistoricalData[0],
+          mockHistoricalData[1],
+        ]);
 
-        await expect(engine.analyzeTrends(1, 12)).rejects.toThrow('Insufficient data for trend analysis');
+        await expect(engine.analyzeTrends(1, 12)).rejects.toThrow(
+          'Insufficient data for trend analysis'
+        );
       });
     });
   });
@@ -442,7 +457,7 @@ describe('PerformancePredictionEngine', () => {
             multiple: 3.2,
             dpi: 1.3,
             tvpi: 3.2,
-            rvpi: 1.9
+            rvpi: 1.9,
           },
           {
             id: 7,
@@ -452,8 +467,8 @@ describe('PerformancePredictionEngine', () => {
             multiple: 3.4,
             dpi: 1.4,
             tvpi: 3.4,
-            rvpi: 2.0
-          }
+            rvpi: 2.0,
+          },
         ];
 
         (db.query.fundMetrics.findMany as any).mockResolvedValue(dataWithAnomalies);
@@ -465,7 +480,7 @@ describe('PerformancePredictionEngine', () => {
         expect(anomalies.anomalyScore).toBeLessThanOrEqual(1);
 
         // Check anomaly structure
-        anomalies.anomalies.forEach(anomaly => {
+        anomalies.anomalies.forEach((anomaly) => {
           expect(anomaly.timestamp).toBeInstanceOf(Date);
           expect(typeof anomaly.value).toBe('number');
           expect(typeof anomaly.expectedValue).toBe('number');
@@ -506,14 +521,14 @@ describe('PerformancePredictionEngine', () => {
           id: 1,
           name: 'Test Fund',
           createdAt: new Date('2022-01-01'),
-          isActive: true
+          isActive: true,
         };
 
         mockCohortFunds = [
           { id: 1, createdAt: new Date('2022-01-01'), isActive: true },
           { id: 2, createdAt: new Date('2022-03-15'), isActive: true },
           { id: 3, createdAt: new Date('2022-06-30'), isActive: true },
-          { id: 4, createdAt: new Date('2022-11-10'), isActive: true }
+          { id: 4, createdAt: new Date('2022-11-10'), isActive: true },
         ];
 
         (db.query.funds as any).findFirst.mockResolvedValue(mockFund);
@@ -532,7 +547,9 @@ describe('PerformancePredictionEngine', () => {
         expect(cohortAnalysis.performanceProfile.jCurve).toBeInstanceOf(Array);
         expect(cohortAnalysis.performanceProfile.peakIRR).toBeDefined();
         expect(cohortAnalysis.performanceProfile.timeToBreakeven).toBeGreaterThanOrEqual(-1);
-        expect(['investment', 'growth', 'harvest', 'mature']).toContain(cohortAnalysis.performanceProfile.currentStage);
+        expect(['investment', 'growth', 'harvest', 'mature']).toContain(
+          cohortAnalysis.performanceProfile.currentStage
+        );
 
         // Check comparisons
         expect(typeof cohortAnalysis.comparisons.vsMedian).toBe('number');
@@ -546,7 +563,7 @@ describe('PerformancePredictionEngine', () => {
           { age: 1, expected: 'investment' },
           { age: 3, expected: 'growth' },
           { age: 8, expected: 'harvest' },
-          { age: 12, expected: 'mature' }
+          { age: 12, expected: 'mature' },
         ];
 
         for (const stage of stages) {
@@ -585,7 +602,7 @@ describe('PerformancePredictionEngine', () => {
         const scenarios = [
           { name: 'Optimistic', adjustments: { irr: 0.1, multiple: 0.2 } },
           { name: 'Pessimistic', adjustments: { irr: -0.1, multiple: -0.15 } },
-          { name: 'Market Crash', adjustments: { irr: -0.25, multiple: -0.4 } }
+          { name: 'Market Crash', adjustments: { irr: -0.25, multiple: -0.4 } },
         ];
 
         const results = await engine.generateScenarios(1, scenarios);
@@ -600,8 +617,8 @@ describe('PerformancePredictionEngine', () => {
           expect(scenarioResults!.length).toBeGreaterThan(0);
 
           // Check that adjustments were applied
-          scenarioResults!.forEach(result => {
-            result.predictions.forEach(pred => {
+          scenarioResults!.forEach((result) => {
+            result.predictions.forEach((pred) => {
               if (scenario.adjustments[result.metric]) {
                 // Adjusted predictions should reflect the scenario
                 expect(typeof pred.value).toBe('number');
@@ -620,11 +637,11 @@ describe('PerformancePredictionEngine', () => {
         id: i,
         fundId: 1,
         asOfDate: new Date(2019, i, 1),
-        irr: 0.10 + 0.001 * i + (Math.random() - 0.5) * 0.02,
+        irr: 0.1 + 0.001 * i + (Math.random() - 0.5) * 0.02,
         multiple: 1.5 + 0.02 * i + (Math.random() - 0.5) * 0.1,
         dpi: 0.2 + 0.01 * i,
         tvpi: 1.5 + 0.02 * i,
-        rvpi: 1.0 + 0.005 * i
+        rvpi: 1.0 + 0.005 * i,
       }));
 
       (db.query.fundMetrics.findMany as any).mockResolvedValue(largeDataset);
@@ -643,7 +660,7 @@ describe('PerformancePredictionEngine', () => {
         { ...mockHistoricalData[1] },
         { ...mockHistoricalData[2], multiple: null },
         { ...mockHistoricalData[3] },
-        { ...mockHistoricalData[4] }
+        { ...mockHistoricalData[4] },
       ];
 
       (db.query.fundMetrics.findMany as any).mockResolvedValue(sparseData);
@@ -657,7 +674,7 @@ describe('PerformancePredictionEngine', () => {
     it('should validate prediction accuracy calculations', async () => {
       const results = await engine.generatePredictions(mockConfig);
 
-      results.forEach(result => {
+      results.forEach((result) => {
         // R-squared should be between -1 and 1
         expect(result.accuracy.r2Score).toBeGreaterThanOrEqual(-1);
         expect(result.accuracy.r2Score).toBeLessThanOrEqual(1);
@@ -675,11 +692,11 @@ describe('PerformancePredictionEngine', () => {
     it('should handle edge cases in time series', async () => {
       const edgeCases = [
         // All identical values
-        mockHistoricalData.map(d => ({ ...d, irr: 0.15 })),
+        mockHistoricalData.map((d) => ({ ...d, irr: 0.15 })),
         // Extreme volatility
         mockHistoricalData.map((d, i) => ({ ...d, irr: i % 2 === 0 ? 0.5 : 0.05 })),
         // Very small values
-        mockHistoricalData.map(d => ({ ...d, irr: 0.001 }))
+        mockHistoricalData.map((d) => ({ ...d, irr: 0.001 })),
       ];
 
       for (const edgeCase of edgeCases) {
@@ -689,8 +706,8 @@ describe('PerformancePredictionEngine', () => {
         expect(results.length).toBeGreaterThan(0);
 
         // Predictions should still be reasonable
-        results.forEach(result => {
-          result.predictions.forEach(pred => {
+        results.forEach((result) => {
+          result.predictions.forEach((pred) => {
             expect(isFinite(pred.value)).toBe(true);
             expect(isFinite(pred.lowerBound)).toBe(true);
             expect(isFinite(pred.upperBound)).toBe(true);
@@ -704,28 +721,32 @@ describe('PerformancePredictionEngine', () => {
     it('should query historical data with correct parameters', async () => {
       await engine.generatePredictions(mockConfig);
 
-      expect((db.query.fundMetrics.findMany as any)).toHaveBeenCalledWith({
+      expect(db.query.fundMetrics.findMany as any).toHaveBeenCalledWith({
         where: expect.any(Object),
-        orderBy: expect.any(Object)
+        orderBy: expect.any(Object),
       });
     });
 
     it('should store predictions with correct metadata', async () => {
       const results = await engine.generatePredictions(mockConfig);
 
-      expect((db.insert as any)).toHaveBeenCalledTimes(results.length);
+      expect(db.insert as any).toHaveBeenCalledTimes(results.length);
 
       // Verify the structure of stored data
       const insertCalls = (db.insert as any).mock.calls;
-      insertCalls.forEach(call => {
+      insertCalls.forEach((call) => {
         expect(call[0]).toBe('mocked-predictions-table');
       });
     });
 
     it('should handle database query errors gracefully', async () => {
-      (db.query.fundMetrics.findMany as any).mockRejectedValue(new Error('Database connection failed'));
+      (db.query.fundMetrics.findMany as any).mockRejectedValue(
+        new Error('Database connection failed')
+      );
 
-      await expect(engine.generatePredictions(mockConfig)).rejects.toThrow('Performance prediction failed');
+      await expect(engine.generatePredictions(mockConfig)).rejects.toThrow(
+        'Performance prediction failed'
+      );
     });
   });
 
@@ -737,7 +758,7 @@ describe('PerformancePredictionEngine', () => {
         // Exponential growth
         mockHistoricalData.map((d, i) => ({ ...d, irr: 0.1 * Math.pow(1.1, i) })),
         // Cyclical pattern
-        mockHistoricalData.map((d, i) => ({ ...d, irr: 0.15 + 0.05 * Math.sin(i) }))
+        mockHistoricalData.map((d, i) => ({ ...d, irr: 0.15 + 0.05 * Math.sin(i) })),
       ];
 
       for (const pattern of patterns) {
@@ -745,7 +766,7 @@ describe('PerformancePredictionEngine', () => {
 
         const results = await engine.generatePredictions({ ...mockConfig, modelType: 'ensemble' });
 
-        const irrResult = results.find(r => r.metric === 'irr');
+        const irrResult = results.find((r) => r.metric === 'irr');
         if (irrResult) {
           // Ensemble model should maintain reasonable accuracy
           expect(irrResult.accuracy.r2Score).toBeGreaterThan(-0.5);
@@ -754,15 +775,15 @@ describe('PerformancePredictionEngine', () => {
     });
 
     it('should provide consistent predictions for stable time series', async () => {
-      const stableData = mockHistoricalData.map(d => ({ ...d, irr: 0.18 }));
+      const stableData = mockHistoricalData.map((d) => ({ ...d, irr: 0.18 }));
       (db.query.fundMetrics.findMany as any).mockResolvedValue(stableData);
 
       const results = await engine.generatePredictions(mockConfig);
-      const irrResult = results.find(r => r.metric === 'irr');
+      const irrResult = results.find((r) => r.metric === 'irr');
 
       if (irrResult) {
         // All predictions should be close to the stable value
-        irrResult.predictions.forEach(pred => {
+        irrResult.predictions.forEach((pred) => {
           expect(pred.value).toBeCloseTo(0.18, 1);
         });
       }
