@@ -134,6 +134,7 @@ export default defineConfig({
       '**/*.quarantine.{test,spec}.ts?(x)',
       'tests/unit/fund-setup.smoke.test.tsx', // explicitly excluded - requires real browser
       'tests/e2e/**/*',
+      '**/*.template.{test,spec}.ts?(x)', // Template files - not executable tests
     ],
     env: {
       NODE_ENV: 'test',
