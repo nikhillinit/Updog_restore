@@ -6,7 +6,7 @@
 import type { Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth, requireRole, type AuthenticatedRequest } from '../../lib/auth/jwt.js';
+import { requireAuth, requireRole } from '../../lib/auth/jwt.js';
 import { db } from '../../db';
 import { reserveApprovals, approvalSignatures, approvalAuditLog, approvalPartners } from '@shared/schemas/reserve-approvals.js';
 import { eq, and, gte } from 'drizzle-orm';
@@ -37,7 +37,7 @@ const createApprovalSchema = z.object({
 /**
  * POST /api/v1/reserve-approvals - Create new approval request
  */
-router["post"]('/', requireRole('reserve_admin'), (async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/', requireRole('reserve_admin'), (async (req: Request, res: Response) => {
   try {
     const validation = createApprovalSchema.safeParse(req.body);
     if (!validation.success) {
@@ -106,7 +106,7 @@ router["post"]('/', requireRole('reserve_admin'), (async (req: AuthenticatedRequ
 /**
  * GET /api/v1/reserve-approvals - List pending approvals
  */
-router['get']('/', (async (req: AuthenticatedRequest, res: Response) => {
+router['get']('/', (async (req: Request, res: Response) => {
   try {
     const status = req.query.status as string || 'pending';
     
@@ -156,7 +156,7 @@ router['get']('/', (async (req: AuthenticatedRequest, res: Response) => {
 /**
  * GET /api/v1/reserve-approvals/:id - Get specific approval details
  */
-router['get']('/:id', (async (req: AuthenticatedRequest, res: Response) => {
+router['get']('/:id', (async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
@@ -197,7 +197,7 @@ router['get']('/:id', (async (req: AuthenticatedRequest, res: Response) => {
 /**
  * POST /api/v1/reserve-approvals/:id/sign - Sign an approval
  */
-router["post"]('/:id/sign', requireRole('partner'), (async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/:id/sign', requireRole('partner'), (async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { verificationCode } = req.body; // Optional 2FA code
@@ -333,7 +333,7 @@ router["post"]('/:id/sign', requireRole('partner'), (async (req: AuthenticatedRe
 /**
  * POST /api/v1/reserve-approvals/:id/reject - Reject an approval
  */
-router["post"]('/:id/reject', requireRole('partner'), (async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/:id/reject', requireRole('partner'), (async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;

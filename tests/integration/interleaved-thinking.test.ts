@@ -429,7 +429,7 @@ describe('Interleaved Thinking API', () => {
         models: [
           {
             id: 'claude-opus-4-5-20251101',
-            name: 'Claude Sonnet 4.5',
+            name: 'Claude Opus 4.5',
             thinkingSupport: true,
             minThinkingTokens: 1024,
             maxThinkingTokens: 32000,

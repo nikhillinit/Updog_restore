@@ -1,6 +1,8 @@
 /**
  * JWT Authentication for Flag Admin API
  * Production-grade token validation with RS256/JWKS and strict validation
+ *
+ * Uses unified Express.User interface from types/express.d.ts
  */
 
 import type { Algorithm, JwtPayload } from 'jsonwebtoken';
@@ -10,21 +12,6 @@ import { getConfig } from '../../config';
 import { authMetrics } from '../../telemetry';
 
 export type JWTClaims = JwtPayload & { sub: string; role?: string; email?: string };
-
-export interface AuthenticatedRequest extends Request {
-  user: {
-    id: string;      // Maps to JWT 'sub' claim
-    sub: string;
-    email: string;
-    roles: string[];
-    ip: string;
-    userAgent: string;
-  };
-  session?: {
-    id: string;
-    [key: string]: any;
-  };
-}
 
 const cfg = getConfig();
 
@@ -44,15 +31,27 @@ export function verifyAccessToken(token: string): JWTClaims {
 export const requireAuth = () => (req: Request, res: Response, next: NextFunction) => {
   const h = req.header("authorization") || "";
   const token = h.startsWith("Bearer ") ? h.slice(7) : undefined;
-  
+
   if (!token) {
     authMetrics.jwtMissingToken.inc?.();
     return res.sendStatus(401);
   }
-  
+
   try {
-    (req as any).user = verifyAccessToken(token);
+    const claims = verifyAccessToken(token);
+    // Assign authenticated user properties to req.user (uses Express.User augmentation from types/express.d.ts)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+    (req as any).user = {
+      id: claims.sub,
+      sub: claims.sub,
+      email: claims.email ?? claims.sub,
+      role: claims.role,
+      roles: claims.role ? [claims.role] : [],
+      ip: req.ip || 'unknown',
+      userAgent: req.header("user-agent") || 'unknown',
+    };
     next();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     console.warn("JWT verification failed", { name: err?.name, message: err?.message });
     authMetrics.jwtVerificationFailed.inc?.();
@@ -61,11 +60,12 @@ export const requireAuth = () => (req: Request, res: Response, next: NextFunctio
 };
 
 export const requireRole = (role: string) => (req: Request, res: Response, next: NextFunction) => {
-  const user = (req as any).user as JWTClaims | undefined;
+  const user = req.user;
   if (!user || user.role !== role) return res.sendStatus(403);
   next();
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function signToken(data: any): string {
   const cfg = getConfig();
   return jwt.sign(data, cfg.JWT_SECRET!, {

@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { ZodSchema, infer as ZodInfer } from 'zod';
+import type { ZodSchema } from 'zod';
 import type { ApiError } from '@shared/types';
 import type { ParsedQs } from 'qs';
 

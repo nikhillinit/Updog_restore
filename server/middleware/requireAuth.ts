@@ -10,31 +10,17 @@
 import type { Request, Response, NextFunction } from 'express';
 
 /**
- * Authenticated request with user information
- */
-export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email?: string;
-    orgId?: string;
-    fundIds?: number[]; // Funds this user has access to
-  };
-}
-
-/**
  * Simple authentication middleware
  *
  * For MVP: Checks for a valid session/token
  * For Production: Replace with your actual auth system (JWT, session, etc.)
  */
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  const authReq = req as AuthenticatedRequest;
-
   // TODO: Replace with your actual auth check
   // This is a placeholder that checks for a user session or API key
 
   // Option 1: Session-based auth
-  if (authReq.user?.id) {
+  if (req.user?.id) {
     return next();
   }
 
@@ -42,9 +28,13 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   const apiKey = req.headers['x-api-key'] as string;
   if (apiKey && process.env["API_KEY"] && apiKey === process.env["API_KEY"]) {
     // Mock user for API key auth
-    authReq.user = {
+    req.user = {
       id: 'api-key-user',
+      sub: 'api-key-user',
       email: 'api@system.local',
+      roles: [],
+      ip: req.ip || 'unknown',
+      userAgent: req.header("user-agent") || 'unknown',
       fundIds: [], // API key has access to all funds
     };
     return next();
@@ -63,7 +53,6 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
  * Use this after requireAuth to check fund-level permissions
  */
 export function requireFundAccess(req: Request, res: Response, next: NextFunction): void {
-  const authReq = req as AuthenticatedRequest;
   const fundIdParam = req.params.fundId;
 
   if (!fundIdParam) {
@@ -84,10 +73,10 @@ export function requireFundAccess(req: Request, res: Response, next: NextFunctio
 
   // Check if user has access to this fund
   // TODO: Replace with actual permission check from database
-  const userFundIds = authReq.user?.fundIds || [];
+  const userFundIds = req.user?.fundIds || [];
 
   // API key users (empty fundIds array) have access to all funds
-  if (userFundIds.length === 0 && authReq.user?.id === 'api-key-user') {
+  if (userFundIds.length === 0 && req.user?.id === 'api-key-user') {
     return next();
   }
 
@@ -108,13 +97,11 @@ export function requireFundAccess(req: Request, res: Response, next: NextFunctio
  * Use for sensitive operations like cache invalidation
  */
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
-  const authReq = req as AuthenticatedRequest;
-
   // TODO: Replace with actual admin check
   // For now, check if user has admin flag or specific role
 
-  const isAdmin = (authReq.user as any)?.isAdmin === true ||
-                  (authReq.user as any)?.role === 'admin';
+  const isAdmin = req.user?.isAdmin === true ||
+                  req.user?.role === 'admin';
 
   if (isAdmin) {
     return next();

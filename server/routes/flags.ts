@@ -7,7 +7,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { getClientFlags, getFlags, getFlagsVersion, getFlagsHash, updateFlag, getFlagHistory, getCacheStatus, activateKillSwitch } from '../lib/flags.js';
-import { requireAuth, requireRole, type AuthenticatedRequest } from '../lib/auth/jwt.js';
+import { requireAuth, requireRole } from '../lib/auth/jwt.js';
 import { z } from 'zod';
 
 export const flagsRouter = Router();
@@ -149,7 +149,6 @@ const updateFlagSchema = z.object({
  * PATCH /api/admin/flags/:key - Update flag with versioning
  */
 adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: Response) => {
-  const authReq = req as AuthenticatedRequest;
   try {
     const { key } = req.params;
     const validation = updateFlagSchema.safeParse(req.body);
@@ -190,13 +189,13 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: 
         preview: {
           key,
           updates,
-          actor: authReq.user.email,
+          actor: req.user.email,
           timestamp: new Date().toISOString()
         }
       });
     }
 
-    await updateFlag(key!, updates as any, authReq.user, reason!);
+    await updateFlag(key!, updates as any, req.user, reason!);
     
     const newVersion = await getFlagsVersion();
     

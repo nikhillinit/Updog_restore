@@ -203,7 +203,7 @@ async function executeTool(name: string, input: Record<string, any>): Promise<st
 // ============================================================================
 
 const PRICING = {
-  // Claude Sonnet 4.5 pricing per 1M tokens (as of Jan 2025)
+  // Claude Opus 4.5 pricing per 1M tokens (as of Jan 2025)
   input: 3.0, // $3 per 1M input tokens
   output: 15.0, // $15 per 1M output tokens
 } as const;
@@ -515,7 +515,7 @@ router.get(
       models: [
         {
           id: 'claude-opus-4-5-20251101',
-          name: 'Claude Sonnet 4.5',
+          name: 'Claude Opus 4.5',
           thinkingSupport: true,
           minThinkingTokens: 1024,
           maxThinkingTokens: 32000,
