@@ -100,7 +100,8 @@ export default defineConfig({
             'tests/api/**/*.test.ts',
           ],
           setupFiles: [
-            './tests/setup/db-delegate-link.ts', // FIRST: wire delegate before any tests
+            './tests/setup/node-setup-redis.ts', // FIRST: Mock Redis before any imports
+            './tests/setup/db-delegate-link.ts', // wire delegate before any tests
             './tests/setup/test-infrastructure.ts',
             './tests/setup/node-setup.ts',
           ],
