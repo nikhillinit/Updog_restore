@@ -968,6 +968,13 @@ describe('Performance and Scalability', () => {
   beforeEach(() => {
     sandbox = createSandbox();
     vi.clearAllMocks();
+
+    // Reset insert mock to original implementation (may have been overridden by previous tests)
+    mockDb.insert.mockImplementation(() => ({
+      values: vi.fn(() => ({
+        returning: vi.fn(() => Promise.resolve([{ id: 'test-id' }]))
+      }))
+    }));
   });
 
   afterEach(async () => {

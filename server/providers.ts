@@ -58,7 +58,7 @@ export async function buildProviders(cfg: ReturnType<typeof import('./config/ind
       await client.connect();
       rateLimitStore = new RedisStore({
         sendCommand: (command: string, ...args: string[]) => client.call(command, ...args),
-      });
+      }) as unknown as RateLimitStore;
       console.log('[providers] Redis rate limit store enabled');
     } catch (error) {
       console.warn(`[providers] Redis rate limit store failed, using memory: ${error instanceof Error ? error.message : String(error)}`);

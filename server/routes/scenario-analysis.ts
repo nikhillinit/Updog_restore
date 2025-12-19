@@ -57,17 +57,22 @@ const PortfolioAnalysisQuerySchema = z.object({
 // Middleware: Authorization
 // ============================================================================
 
+// Extend Request type for scenario routes
+interface ScenarioRequest extends Request {
+  userId: string;
+}
+
 /**
  * Check if user has access to fund/company
  * Simplified for 5-person internal tool (all have access, just track who)
  */
 function requireFundAccess(permission: 'read' | 'write') {
-  return (req: any, res: Response, next: any) => {
-    const userId = req.user?.id || 'system';
+  return (req: Request, res: Response, next: any) => {
+    const userId = (req as any).user?.id || 'system';
 
     // For internal tool: Just track user, don't block
     // Future: Add actual permission checks when team grows
-    req.userId = userId;
+    (req as ScenarioRequest).userId = userId;
 
     next();
   };
@@ -245,6 +250,7 @@ router["post"]('/companies/:companyId/scenarios',
     try {
       const { companyId } = req.params;
       const { name, description } = req.body;
+      const userId = (req as ScenarioRequest).userId;
 
       const scenario = await db.insert(scenarios).values({
         company_id: companyId,
@@ -252,12 +258,12 @@ router["post"]('/companies/:companyId/scenarios',
         description,
         version: 1,
         is_default: false,
-        created_by: req.userId,
+        created_by: userId,
       }).returning();
 
       // Audit log
       await auditLog({
-        userId: req.userId,
+        userId,
         entityType: 'scenario',
         entityId: scenario[0].id,
         action: 'CREATE',
@@ -363,7 +369,7 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
 
       // BLOCKER #2 FIX: Audit logging
       await auditLog({
-        userId: req.userId,
+        userId: (req as ScenarioRequest).userId,
         entityType: 'scenario',
         entityId: scenarioId,
         action: 'UPDATE',
@@ -440,7 +446,7 @@ router["delete"]('/companies/:companyId/scenarios/:scenarioId',
 
       // Audit log
       await auditLog({
-        userId: req.userId,
+        userId: (req as ScenarioRequest).userId,
         entityType: 'scenario',
         entityId: scenarioId,
         action: 'DELETE',

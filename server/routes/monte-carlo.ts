@@ -14,7 +14,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { unifiedMonteCarloService } from '../services/monte-carlo-service-unified';
-import type { Request, Response, NextFunction } from '../types/request-response';
+import type { Request, Response, NextFunction } from 'express';
 import { assertFiniteDeep } from '../middleware/engine-guards';
 import { recordHttpMetrics } from '../metrics';
 import { toNumber } from '@shared/number';

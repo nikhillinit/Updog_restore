@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { errorBudgetManager } from '../lib/error-budget';
-import type { Request, Response } from '../types/request-response';
+import type { Request, Response } from 'express';
 
 const router = Router();
 

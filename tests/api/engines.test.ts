@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { ReserveEngine, type ReserveInput } from '../../client/src/core/reserves/ReserveEngine';
 import { PacingEngine, type PacingInput } from '../../client/src/core/pacing/PacingEngine';
 
-describe.skip('ReserveEngine', () => {
+describe('ReserveEngine', () => {
   const mockPortfolio: ReserveInput[] = [
     {
       id: 1,
@@ -66,7 +66,7 @@ describe.skip('ReserveEngine', () => {
   });
 });
 
-describe.skip('PacingEngine', () => {
+describe('PacingEngine', () => {
   const mockPacingInput: PacingInput = {
     fundSize: 50000000,
     deploymentQuarter: 1,

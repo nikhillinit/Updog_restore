@@ -16,11 +16,6 @@ import type { ApiError } from '@shared/types';
 
 const router = Router();
 
-// Extend Request type to include user property
-interface AuthenticatedRequest extends Request {
-  user?: { id: string };
-}
-
 // === VALIDATION SCHEMAS ===
 
 const CreateBaselineSchema = z.object({
@@ -70,7 +65,7 @@ const VarianceAnalysisSchema = z.object({
  * Create a new baseline for a fund
  * POST /api/funds/:id/baselines
  */
-router["post"]('/api/funds/:id/baselines', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/funds/:id/baselines', idempotency, async (req: Request, res: Response) => {
   try {
     // Parse and validate fund ID
     let fundId: number;
@@ -264,7 +259,7 @@ router["delete"]('/api/funds/:id/baselines/:baselineId', async (req: Request, re
  * Generate variance report
  * POST /api/funds/:id/variance-reports
  */
-router["post"]('/api/funds/:id/variance-reports', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/funds/:id/variance-reports', idempotency, async (req: Request, res: Response) => {
   try {
     let fundId: number;
     try {
@@ -407,7 +402,7 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
  * Create alert rule
  * POST /api/funds/:id/alert-rules
  */
-router["post"]('/api/funds/:id/alert-rules', async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/funds/:id/alert-rules', async (req: Request, res: Response) => {
   try {
     let fundId: number;
     try {
@@ -524,7 +519,7 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
  * Acknowledge an alert
  * POST /api/alerts/:alertId/acknowledge
  */
-router["post"]('/api/alerts/:alertId/acknowledge', async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/alerts/:alertId/acknowledge', async (req: Request, res: Response) => {
   try {
     const alertId = req.params['alertId'];
     if (!alertId) {
@@ -574,7 +569,7 @@ router["post"]('/api/alerts/:alertId/acknowledge', async (req: AuthenticatedRequ
  * Resolve an alert
  * POST /api/alerts/:alertId/resolve
  */
-router["post"]('/api/alerts/:alertId/resolve', async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/alerts/:alertId/resolve', async (req: Request, res: Response) => {
   try {
     const alertId = req.params['alertId'];
     if (!alertId) {
@@ -626,7 +621,7 @@ router["post"]('/api/alerts/:alertId/resolve', async (req: AuthenticatedRequest,
  * Perform complete variance analysis
  * POST /api/funds/:id/variance-analysis
  */
-router["post"]('/api/funds/:id/variance-analysis', idempotency, async (req: AuthenticatedRequest, res: Response) => {
+router["post"]('/api/funds/:id/variance-analysis', idempotency, async (req: Request, res: Response) => {
   try {
     let fundId: number;
     try {

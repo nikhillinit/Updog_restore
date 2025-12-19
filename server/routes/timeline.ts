@@ -253,7 +253,7 @@ const createSnapshotSchema = z.object({
  * This factory allows cache integration when app context is available.
  */
 function createDefaultTimelineRouter(app?: Express) {
-  const cache = app ? createCacheAdapter(app['locals'].cache) : undefined;
+  const cache = app ? createCacheAdapter((app as any).locals.cache) : undefined;
   const timelineService = new TimeTravelAnalyticsService(db, cache);
   return createTimelineRouter(timelineService);
 }
