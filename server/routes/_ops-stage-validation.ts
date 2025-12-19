@@ -22,10 +22,16 @@ router.post('/_ops/stage-validation/auto-downgrade', express.json(), async (req,
   if (!ts || Date.now() - ts > 300_000) return res.status(401).json({ error: 'expired' });
 
   const alertName = req.body?.groupLabels?.alertname || 'unknown';
-  await setStageValidationMode('warn', {
-    actor: 'alertmanager',
-    reason: `auto-downgrade triggered by alert: ${alertName}`,
-  });
+
+  try {
+    await setStageValidationMode('warn', {
+      actor: 'alertmanager',
+      reason: `auto-downgrade triggered by alert: ${alertName}`,
+    });
+  } catch (err) {
+    console.error('[ops-webhook] Mode store error:', err);
+    return res.status(500).json({ error: 'mode-store-failed' });
+  }
 
   console.warn(JSON.stringify({
     event: 'stage_validation_auto_downgrade',
