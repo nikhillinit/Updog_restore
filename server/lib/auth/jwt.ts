@@ -13,11 +13,16 @@ export type JWTClaims = JwtPayload & { sub: string; role?: string; email?: strin
 
 export interface AuthenticatedRequest extends Request {
   user: {
+    id: string;      // Maps to JWT 'sub' claim
     sub: string;
     email: string;
     roles: string[];
     ip: string;
     userAgent: string;
+  };
+  session?: {
+    id: string;
+    [key: string]: any;
   };
 }
 

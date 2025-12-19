@@ -3,8 +3,7 @@
 /* eslint-disable no-console */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/exhaustive-deps */
-import type { Express } from "express";
-import type { Request, Response } from "./types/request-response";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";

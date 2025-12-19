@@ -22,7 +22,7 @@ export function rateLimitDetailed(opts?: { store?: Store }): RateLimitRequestHan
     store: opts?.store, // Injected store (undefined => memory store)
     keyGenerator: (req: Request) => {
       // Use library's IPv6-safe key generator
-      return `${ipKeyGenerator(req)}:health-detailed`;
+      return `${ipKeyGenerator(req as any)}:health-detailed`;
     },
     skip: (req: Request) => {
       // Allow on-call to bypass with a valid health key

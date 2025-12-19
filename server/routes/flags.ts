@@ -148,7 +148,8 @@ const updateFlagSchema = z.object({
 /**
  * PATCH /api/admin/flags/:key - Update flag with versioning
  */
-adminRouter.patch('/:key', requireRole('flag_admin'), async (req: AuthenticatedRequest, res: Response) => {
+adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
   try {
     const { key } = req.params;
     const validation = updateFlagSchema.safeParse(req.body);
@@ -180,7 +181,7 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: AuthenticatedR
     }
     
     const { reason, dryRun, ...updates } = validation.data;
-    
+
     // Dry run support
     if (dryRun) {
       // TODO: Preview changes without committing
@@ -189,13 +190,13 @@ adminRouter.patch('/:key', requireRole('flag_admin'), async (req: AuthenticatedR
         preview: {
           key,
           updates,
-          actor: req.user.email,
+          actor: authReq.user.email,
           timestamp: new Date().toISOString()
         }
       });
     }
-    
-    await updateFlag(key, updates, req.user, reason);
+
+    await updateFlag(key!, updates as any, authReq.user, reason!);
     
     const newVersion = await getFlagsVersion();
     

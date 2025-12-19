@@ -8,7 +8,7 @@ import { readinessCheck, livenessCheck } from '../health';
 import { storage } from '../storage';
 import { rateLimitDetailed } from '../middleware/rateLimitDetailed';
 import { setReady, registerInvalidator } from '../health/state';
-import type { Request, Response } from '../types/request-response';
+import type { Request, Response } from 'express';
 import { TTLCache, MemoryKV } from '../lib/ttl-cache';
 import { getVersionInfo } from '../version';
 
@@ -40,7 +40,7 @@ router['get']('/healthz', (_req: Request, res: Response) => {
 
 // Legacy health endpoints (for backward compatibility)
 router['get']('/health', (req: Request, res: Response) => {
-  const providers = req['app'].locals.providers as any;
+  const providers = (req as any).app.locals.providers;
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
   res["json"]({
     status: 'ok',
@@ -50,7 +50,7 @@ router['get']('/health', (req: Request, res: Response) => {
   });
 });
 router['get']('/api/health', (req: Request, res: Response) => {
-  const providers = req['app'].locals.providers as any;
+  const providers = (req as any).app.locals.providers;
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
   res["json"]({
     status: 'ok',
