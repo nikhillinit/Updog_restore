@@ -37,11 +37,11 @@ describe('XIRR Golden Set - Excel Validated', () => {
 
     it('Case 2: Multi-round with partial distributions (Excel validated)', () => {
       const flows = [
-        { date: new Date('2020-01-01'), amount: -50000 },   // Initial
-        { date: new Date('2021-01-01'), amount: -30000 },   // Follow-on
-        { date: new Date('2022-06-15'), amount: 20000 },    // Partial dist
-        { date: new Date('2023-12-31'), amount: -10000 },   // Additional investment
-        { date: new Date('2025-01-01'), amount: 120000 },   // Exit
+        { date: new Date('2020-01-01'), amount: -50000 }, // Initial
+        { date: new Date('2021-01-01'), amount: -30000 }, // Follow-on
+        { date: new Date('2022-06-15'), amount: 20000 }, // Partial dist
+        { date: new Date('2023-12-31'), amount: -10000 }, // Additional investment
+        { date: new Date('2025-01-01'), amount: 120000 }, // Exit
       ];
 
       const result = xirrNewtonBisection(flows);
@@ -75,7 +75,7 @@ describe('XIRR Golden Set - Excel Validated', () => {
         { date: new Date('2020-07-01'), amount: 5000 },
         { date: new Date('2020-10-01'), amount: 5000 },
         { date: new Date('2021-01-01'), amount: 5000 },
-        { date: new Date('2021-04-01'), amount: 250000 },  // Big exit
+        { date: new Date('2021-04-01'), amount: 250000 }, // Big exit
       ];
 
       const result = xirrNewtonBisection(flows);
@@ -90,20 +90,20 @@ describe('XIRR Golden Set - Excel Validated', () => {
     it('Case 5: Negative IRR (loss scenario)', () => {
       const flows = [
         { date: new Date('2020-01-01'), amount: -100000 },
-        { date: new Date('2025-01-01'), amount: 60000 },   // 40% loss
+        { date: new Date('2025-01-01'), amount: 60000 }, // 40% loss
       ];
 
       const result = xirrNewtonBisection(flows);
 
       expect(result.converged).toBe(true);
       // Correct value with 365.25 day count = -0.09708168121772018
-      expect(Math.abs(result.irr! - (-0.09708168121772018))).toBeLessThan(EXCEL_TOLERANCE);
+      expect(Math.abs(result.irr! - -0.09708168121772018)).toBeLessThan(EXCEL_TOLERANCE);
     });
 
     it('Case 6: Near-zero IRR (tiny gain)', () => {
       const flows = [
         { date: new Date('2020-01-01'), amount: -100000 },
-        { date: new Date('2025-01-01'), amount: 100500 },  // 0.5% total
+        { date: new Date('2025-01-01'), amount: 100500 }, // 0.5% total
       ];
 
       const result = xirrNewtonBisection(flows);
@@ -144,7 +144,7 @@ describe('XIRR Golden Set - Excel Validated', () => {
     it('Case 9: Very high multi-year return', () => {
       const flows = [
         { date: new Date('2020-01-01'), amount: -10000 },
-        { date: new Date('2023-01-01'), amount: 500000 },  // 50x
+        { date: new Date('2023-01-01'), amount: 500000 }, // 50x
       ];
 
       const result = xirrNewtonBisection(flows);
@@ -158,11 +158,11 @@ describe('XIRR Golden Set - Excel Validated', () => {
   describe('Pathological Cases - Early Distribution + Follow-on', () => {
     it('Case 10: Early dist then follow-on calls (complex)', () => {
       const flows = [
-        { date: new Date('2020-01-01'), amount: -50000 },   // Initial
-        { date: new Date('2020-06-01'), amount: 80000 },    // Early exit
-        { date: new Date('2021-01-01'), amount: -40000 },   // Reinvest
-        { date: new Date('2022-01-01'), amount: -30000 },   // More investment
-        { date: new Date('2024-01-01'), amount: 120000 },   // Final exit
+        { date: new Date('2020-01-01'), amount: -50000 }, // Initial
+        { date: new Date('2020-06-01'), amount: 80000 }, // Early exit
+        { date: new Date('2021-01-01'), amount: -40000 }, // Reinvest
+        { date: new Date('2022-01-01'), amount: -30000 }, // More investment
+        { date: new Date('2024-01-01'), amount: 120000 }, // Final exit
       ];
 
       const result = xirrNewtonBisection(flows);
@@ -253,9 +253,9 @@ describe('XIRR Golden Set - Excel Validated', () => {
 
     it('Should handle 100 flows in < 50ms', () => {
       const flows = Array.from({ length: 100 }, (_, i) => ({
-        date: new Date(2020 + i / 12, (i % 12), 1),
-        amount: i === 0 ? -100000 : (i === 99 ? 200000 : 0),
-      })).filter(f => f.amount !== 0);
+        date: new Date(2020 + i / 12, i % 12, 1),
+        amount: i === 0 ? -100000 : i === 99 ? 200000 : 0,
+      })).filter((f) => f.amount !== 0);
 
       const start = performance.now();
       xirrNewtonBisection(flows);
@@ -280,12 +280,13 @@ describe('XIRR Method Fallbacks', () => {
   });
 
   it('Should fall back to Brent for Newton failure', () => {
-    // Create pathological case for Newton
+    // Create pathological case for Newton: oscillating flows with valid IRR
+    // NPV crosses zero around ~26x annual rate, challenging for Newton's derivative
     const flows = [
       { date: new Date('2020-01-01'), amount: -100000 },
-      { date: new Date('2020-01-15'), amount: 250000 },   // Huge spike
-      { date: new Date('2020-02-01'), amount: -180000 },  // Big call
-      { date: new Date('2020-03-01'), amount: 100000 },
+      { date: new Date('2020-01-15'), amount: 150000 }, // Early spike
+      { date: new Date('2020-02-01'), amount: -80000 }, // Call back
+      { date: new Date('2020-03-01'), amount: 50000 }, // Final distribution
     ];
 
     const result = xirrNewtonBisection(flows);

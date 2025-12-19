@@ -1,6 +1,6 @@
 // server/routes/_ops-stage-validation.ts
 import crypto from 'crypto';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import express from 'express';
 import { setStageValidationMode } from '../lib/stage-validation-mode';
 
@@ -25,9 +25,9 @@ if (!SECRET || SECRET.length < 32) {
 router.post(
   '/_ops/stage-validation/auto-downgrade',
   express.json(),
-  async (req: Request<object, object, AlertmanagerWebhookBody>, res) => {
+  async (req: Request, res: Response) => {
     try {
-      const body = req.body ?? {};
+      const body = (req.body ?? {}) as AlertmanagerWebhookBody;
       const raw = JSON.stringify(body);
       const sigHex = String(req.headers['x-alertmanager-signature'] || '');
       const expectedHex = crypto.createHmac('sha256', SECRET).update(raw).digest('hex');

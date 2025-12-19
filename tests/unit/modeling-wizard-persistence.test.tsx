@@ -37,14 +37,14 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
       getItem: vi.fn(),
       setItem: vi.fn(),
       removeItem: vi.fn(),
-      clear: vi.fn()
+      clear: vi.fn(),
     };
 
     // Replace global localStorage
     Object.defineProperty(global, 'localStorage', {
       value: localStorageMock,
       writable: true,
-      configurable: true
+      configurable: true,
     });
 
     // Clear all console mocks to see actual test output
@@ -73,7 +73,7 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
    */
   it('[RED] should persist data BEFORE navigating to next step', async () => {
     const actor = createActor(modelingWizardMachine, {
-      input: { skipOptionalSteps: false, autoSaveInterval: 999999 }
+      input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
     });
 
     actor.start();
@@ -94,8 +94,8 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
         establishmentDate: '2024-01-01',
         isEvergreen: false,
         fundLife: 10,
-        investmentPeriod: 5
-      }
+        investmentPeriod: 5,
+      },
     });
 
     // Get initial step before NEXT
@@ -106,7 +106,7 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
     actor.send({ type: 'NEXT' });
 
     // Give state machine time to process
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     const snapshot = actor.getSnapshot();
 
@@ -141,7 +141,7 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
    */
   it('[RED] should NOT navigate when persistence fails (QuotaExceededError)', async () => {
     const actor = createActor(modelingWizardMachine, {
-      input: { skipOptionalSteps: false, autoSaveInterval: 999999 }
+      input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
     });
 
     actor.start();
@@ -160,8 +160,8 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
         fundSize: 100000000,
         currency: 'USD' as const,
         establishmentDate: '2024-01-01',
-        isEvergreen: false
-      }
+        isEvergreen: false,
+      },
     });
 
     // Mock localStorage.setItem to throw QuotaExceededError
@@ -175,7 +175,7 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
     actor.send({ type: 'NEXT' });
 
     // Give state machine time to process
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     const snapshot = actor.getSnapshot();
 
@@ -219,7 +219,7 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
    */
   it('[RED] should support retry after persistence failure', async () => {
     const actor = createActor(modelingWizardMachine, {
-      input: { skipOptionalSteps: false, autoSaveInterval: 999999 }
+      input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
     });
 
     actor.start();
@@ -237,8 +237,8 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
         fundSize: 100000000,
         currency: 'USD' as const,
         establishmentDate: '2024-01-01',
-        isEvergreen: false
-      }
+        isEvergreen: false,
+      },
     });
 
     // First attempt fails
@@ -254,7 +254,7 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
 
     // Trigger NEXT (will fail first time)
     actor.send({ type: 'NEXT' });
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     const snapshotAfterFailure = actor.getSnapshot();
 
@@ -293,7 +293,7 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
    */
   it('[RED] should allow navigation even if auto-save persistence fails', async () => {
     const actor = createActor(modelingWizardMachine, {
-      input: { skipOptionalSteps: false, autoSaveInterval: 500 } // Short interval for test
+      input: { skipOptionalSteps: false, autoSaveInterval: 500 }, // Short interval for test
     });
 
     actor.start();
@@ -312,21 +312,23 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
         fundSize: 100000000,
         currency: 'USD' as const,
         establishmentDate: '2024-01-01',
-        isEvergreen: false
-      }
+        isEvergreen: false,
+      },
     });
 
     // Mock persistence to fail on auto-save, then succeed for manual NEXT
     localStorageMock.setItem
-      .mockImplementationOnce(() => { throw new Error('Auto-save failed'); })
+      .mockImplementationOnce(() => {
+        throw new Error('Auto-save failed');
+      })
       .mockImplementation(() => undefined);
 
     // Wait for auto-save timer to trigger
-    await new Promise(resolve => setTimeout(resolve, 600));
+    await new Promise((resolve) => setTimeout(resolve, 600));
 
     // Now try manual NEXT - should still work despite auto-save failure
     actor.send({ type: 'NEXT' });
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     const snapshot = actor.getSnapshot();
 
@@ -366,7 +368,7 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
    */
   it('[RED] should NOT navigate backward when persistence fails', async () => {
     const actor = createActor(modelingWizardMachine, {
-      input: { skipOptionalSteps: false, autoSaveInterval: 999999 }
+      input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
     });
 
     actor.start();
@@ -385,13 +387,13 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
         fundSize: 100000000,
         currency: 'USD' as const,
         establishmentDate: '2024-01-01',
-        isEvergreen: false
-      }
+        isEvergreen: false,
+      },
     });
 
     // Move to sectorProfiles
     actor.send({ type: 'NEXT' });
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Verify we're on second step
     expect(actor.getSnapshot().context.currentStep).toBe('sectorProfiles');
@@ -401,13 +403,9 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
       type: 'SAVE_STEP',
       step: 'sectorProfiles',
       data: {
-        sectorProfiles: [
-          { id: 'tech', name: 'Technology', allocation: 100 }
-        ],
-        stageAllocations: [
-          { stage: 'seed', allocation: 100 }
-        ]
-      }
+        sectorProfiles: [{ id: 'tech', name: 'Technology', allocation: 100 }],
+        stageAllocations: [{ stage: 'seed', allocation: 100 }],
+      },
     });
 
     // Mock persistence to fail
@@ -417,7 +415,7 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
 
     // Try to go back
     actor.send({ type: 'BACK' });
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     const snapshot = actor.getSnapshot();
 
@@ -448,7 +446,7 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
    */
   it('[RED] should cleanup gracefully when component unmounts during persistence', async () => {
     const actor = createActor(modelingWizardMachine, {
-      input: { skipOptionalSteps: false, autoSaveInterval: 999999 }
+      input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
     });
 
     actor.start();
@@ -467,13 +465,13 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
         fundSize: 100000000,
         currency: 'USD' as const,
         establishmentDate: '2024-01-01',
-        isEvergreen: false
-      }
+        isEvergreen: false,
+      },
     });
 
     // Mock slow persistence
     localStorageMock.setItem.mockImplementation(() => {
-      return new Promise(resolve => setTimeout(resolve, 1000));
+      return new Promise((resolve) => setTimeout(resolve, 1000));
     });
 
     // Trigger NEXT (starts async persistence)
@@ -483,7 +481,7 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
     actor.stop();
 
     // Wait to ensure no errors thrown
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // TODO: After invoke refactor, verify no active invoke actors
     // Expected: XState cleanup prevents memory leaks
@@ -522,7 +520,7 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
    */
   it('[RED] should implement exponential backoff for retries', async () => {
     const actor = createActor(modelingWizardMachine, {
-      input: { skipOptionalSteps: false, autoSaveInterval: 999999 }
+      input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
     });
 
     actor.start();
@@ -538,8 +536,8 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
         fundSize: 100000000,
         currency: 'USD' as const,
         establishmentDate: '2024-01-01',
-        isEvergreen: false
-      }
+        isEvergreen: false,
+      },
     });
 
     // Track retry timing
@@ -553,9 +551,10 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
     actor.send({ type: 'NEXT' });
 
     // Wait for all retries to complete (1s + 2s + 4s = 7s)
-    await new Promise(resolve => setTimeout(resolve, 8000));
+    await new Promise((resolve) => setTimeout(resolve, 8000));
 
-    const snapshot = actor.getSnapshot();
+    const _snapshot = actor.getSnapshot();
+    void _snapshot; // Reserved for future retry verification
 
     // TODO: After invoke refactor, verify retry timing
     // Expected: retryTimestamps show exponential backoff
@@ -596,7 +595,7 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
    */
   it('[RED] should have context fields for persistence tracking', async () => {
     const actor = createActor(modelingWizardMachine, {
-      input: { skipOptionalSteps: false }
+      input: { skipOptionalSteps: false },
     });
 
     actor.start();
@@ -610,10 +609,10 @@ describe('Modeling Wizard - Persistence Before Navigation (RED PHASE)', () => {
       'retryCount',
       'lastPersistAttempt',
       'navigationIntent',
-      'targetStep'
+      'targetStep',
     ];
 
-    const missingFields = requiredFields.filter(field => !(field in context));
+    const missingFields = requiredFields.filter((field) => !(field in context));
 
     if (missingFields.length > 0) {
       console.log('[EXPECTED FAILURE] Missing context fields for persistence tracking');
@@ -650,14 +649,14 @@ describe('PR #1: Context Fields & Service Integration', () => {
       getItem: vi.fn(),
       setItem: vi.fn(),
       removeItem: vi.fn(),
-      clear: vi.fn()
+      clear: vi.fn(),
     };
 
     // Replace global localStorage
     Object.defineProperty(global, 'localStorage', {
       value: localStorageMock,
       writable: true,
-      configurable: true
+      configurable: true,
     });
 
     vi.clearAllMocks();
@@ -719,7 +718,10 @@ describe('PR #1: Context Fields & Service Integration', () => {
     expect(snapshot.output.currentStep).toBe('generalInfo');
 
     // Verify stored data
-    const storedData = JSON.parse(localStorageMock.setItem.mock.calls[0][1]);
+    const storedData = JSON.parse(localStorageMock.setItem.mock.calls[0][1] as string) as {
+      currentStep: string;
+      lastSaved: number;
+    };
     expect(storedData.currentStep).toBe('generalInfo');
     expect(storedData.lastSaved).toBeGreaterThan(0);
 
@@ -750,26 +752,28 @@ describe('PR #1: Context Fields & Service Integration', () => {
     // Create an actor from the fromPromise service
     const serviceActor = createActor(persistDataService, { input: mockContext });
 
-    // IMPORTANT: Subscribe to error state BEFORE starting to avoid unhandled rejection
-    const errorSnapPromise = waitFor(serviceActor, (state) => state.status === 'error');
-
-    // Catch unhandled rejection to prevent Vitest from failing the test
-    const rejectionHandler = (event: PromiseRejectionEvent) => {
-      event.preventDefault();
-    };
-    global.addEventListener('unhandledrejection', rejectionHandler);
+    // XState fromPromise actors emit error events - subscribe to capture
+    let capturedError: Error | null = null;
+    serviceActor.subscribe({
+      error: (err) => {
+        capturedError = err as Error;
+      },
+    });
 
     serviceActor.start();
 
-    // Wait for the actor to error
-    const snapshot = await errorSnapPromise;
-
-    global.removeEventListener('unhandledrejection', rejectionHandler);
+    // Wait for actor to complete (will error)
+    await vi.waitFor(
+      () => {
+        expect(capturedError).not.toBeNull();
+      },
+      { timeout: 1000 }
+    );
 
     // Verify the error name and message
-    expect(snapshot.error).toBeInstanceOf(Error);
-    expect((snapshot.error as Error).name).toBe('QuotaExceededError');
-    expect((snapshot.error as Error).message).toBe('Storage limit exceeded');
+    expect(capturedError).toBeInstanceOf(Error);
+    expect(capturedError!.name).toBe('QuotaExceededError');
+    expect(capturedError!.message).toBe('Storage limit exceeded');
 
     serviceActor.stop();
     actor.stop();
@@ -798,26 +802,28 @@ describe('PR #1: Context Fields & Service Integration', () => {
     // Create an actor from the fromPromise service
     const serviceActor = createActor(persistDataService, { input: mockContext });
 
-    // IMPORTANT: Subscribe to error state BEFORE starting to avoid unhandled rejection
-    const errorSnapPromise = waitFor(serviceActor, (state) => state.status === 'error');
-
-    // Catch unhandled rejection to prevent Vitest from failing the test
-    const rejectionHandler = (event: PromiseRejectionEvent) => {
-      event.preventDefault();
-    };
-    global.addEventListener('unhandledrejection', rejectionHandler);
+    // XState fromPromise actors emit error events - subscribe to capture
+    let capturedError: Error | null = null;
+    serviceActor.subscribe({
+      error: (err) => {
+        capturedError = err as Error;
+      },
+    });
 
     serviceActor.start();
 
-    // Wait for the actor to error
-    const snapshot = await errorSnapPromise;
-
-    global.removeEventListener('unhandledrejection', rejectionHandler);
+    // Wait for actor to complete (will error)
+    await vi.waitFor(
+      () => {
+        expect(capturedError).not.toBeNull();
+      },
+      { timeout: 1000 }
+    );
 
     // Verify the error name and message
-    expect(snapshot.error).toBeInstanceOf(Error);
-    expect((snapshot.error as Error).name).toBe('SecurityError');
-    expect((snapshot.error as Error).message).toBe('Storage unavailable (privacy mode)');
+    expect(capturedError).toBeInstanceOf(Error);
+    expect(capturedError!.name).toBe('SecurityError');
+    expect(capturedError!.message).toBe('Storage unavailable (privacy mode)');
 
     serviceActor.stop();
     actor.stop();

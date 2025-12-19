@@ -142,7 +142,9 @@ function solveNewton(
 function solveBrent(flows: CashFlow[], t0: Date, tolerance: number): XIRRResult {
   const f = (r: number) => npvAt(r, flows, t0);
 
-  const result = brent(f, -0.95, 15, {
+  // Upper bound 150 (15000% IRR) handles extreme short-term returns
+  // Final IRR is clamped to MAX_RATE (900%) for display
+  const result = brent(f, -0.95, 150, {
     tolerance: Math.min(tolerance, 1e-8),
     maxIterations: 200,
   });
@@ -175,13 +177,13 @@ function solveBisection(
   maxIterations: number
 ): XIRRResult {
   let lo = -0.99;
-  let hi = 50.0; // wide upper bound; final IRR is still clamped
+  let hi = 150.0; // wide upper bound for extreme short-term returns; final IRR is clamped
   let fLo = npvAt(lo, flows, t0);
   let fHi = npvAt(hi, flows, t0);
 
   // Try to ensure a sign change; expand upper bound if needed
   if (fLo * fHi > 0) {
-    hi = 100.0;
+    hi = 500.0;
     fHi = npvAt(hi, flows, t0);
     if (fLo * fHi > 0) {
       // Cannot bracket a root
@@ -276,14 +278,9 @@ export function xirrNewtonBisection(
     return newtonResult;
   }
 
-  // If Newton used all iterations (timeout), treat that as a hard failure and
-  // do not silently "fix" it with fallback.
-  const timedOut = newtonResult.iterations >= maxIterations;
-  if (timedOut) {
-    return newtonResult;
-  }
-
-  // Newton failed early (derivative/divergence) → try Brent
+  // Newton failed (divergence, derivative issues, or timeout) → try Brent
+  // Extreme IRR cases (e.g., 10x return in 6 months) may timeout Newton but
+  // are still valid and solvable by Brent or Bisection.
   const brentResult = solveBrent(flows, t0, tolerance);
   if (brentResult.converged) {
     return {
