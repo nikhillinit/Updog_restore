@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 /**
  * Unit tests for wizard-reserve-bridge
  *
@@ -10,9 +12,13 @@ import {
   generateSyntheticPortfolio,
   buildGraduationMatrix,
   buildStageStrategies,
-  transformWizardToReserveRequest
+  transformWizardToReserveRequest,
 } from '@/lib/wizard-reserve-bridge';
-import type { SectorProfile, StageAllocation, CapitalAllocationOutput } from '@/schemas/modeling-wizard.schemas';
+import type {
+  SectorProfile,
+  StageAllocation,
+  CapitalAllocationOutput,
+} from '@/schemas/modeling-wizard.schemas';
 import type { ModelingWizardContext } from '@/machines/modeling-wizard.machine';
 
 // ============================================================================
@@ -37,7 +43,7 @@ const mockSectorProfiles: SectorProfile[] = [
         failureRate: 30,
         exitValuation: 50.0,
         monthsToGraduate: 18,
-        monthsToExit: 60
+        monthsToExit: 60,
       },
       {
         id: 'series-a',
@@ -50,7 +56,7 @@ const mockSectorProfiles: SectorProfile[] = [
         failureRate: 35,
         exitValuation: 120.0,
         monthsToGraduate: 24,
-        monthsToExit: 72
+        monthsToExit: 72,
       },
       {
         id: 'series-b',
@@ -63,9 +69,9 @@ const mockSectorProfiles: SectorProfile[] = [
         failureRate: 40,
         exitValuation: 300.0,
         monthsToGraduate: 0,
-        monthsToExit: 84
-      }
-    ]
+        monthsToExit: 84,
+      },
+    ],
   },
   {
     id: 'fintech-1',
@@ -84,7 +90,7 @@ const mockSectorProfiles: SectorProfile[] = [
         failureRate: 33,
         exitValuation: 60.0,
         monthsToGraduate: 20,
-        monthsToExit: 66
+        monthsToExit: 66,
       },
       {
         id: 'series-a',
@@ -97,7 +103,7 @@ const mockSectorProfiles: SectorProfile[] = [
         failureRate: 37,
         exitValuation: 140.0,
         monthsToGraduate: 26,
-        monthsToExit: 78
+        monthsToExit: 78,
       },
       {
         id: 'series-b',
@@ -110,10 +116,10 @@ const mockSectorProfiles: SectorProfile[] = [
         failureRate: 45,
         exitValuation: 350.0,
         monthsToGraduate: 0,
-        monthsToExit: 90
-      }
-    ]
-  }
+        monthsToExit: 90,
+      },
+    ],
+  },
 ];
 
 const mockStageAllocations: StageAllocation[] = [
@@ -121,14 +127,14 @@ const mockStageAllocations: StageAllocation[] = [
     stageId: 'series-a',
     stageName: 'Series A',
     maintainOwnership: 12,
-    participationRate: 80
+    participationRate: 80,
   },
   {
     stageId: 'series-b',
     stageName: 'Series B',
     maintainOwnership: 10,
-    participationRate: 70
-  }
+    participationRate: 70,
+  },
 ];
 
 const mockCapitalAllocation: CapitalAllocationOutput = {
@@ -137,20 +143,20 @@ const mockCapitalAllocation: CapitalAllocationOutput = {
   targetEntryOwnership: 15,
   followOnStrategy: {
     reserveRatio: 0.5,
-    stageAllocations: mockStageAllocations
+    stageAllocations: mockStageAllocations,
   },
   pacingModel: {
     investmentsPerYear: 10,
-    deploymentCurve: 'linear'
+    deploymentCurve: 'linear',
   },
   pacingHorizon: [
     {
       id: 'period-1',
       startMonth: 0,
       endMonth: 12,
-      allocationPercent: 100
-    }
-  ]
+      allocationPercent: 100,
+    },
+  ],
 };
 
 const mockWizardContext: ModelingWizardContext = {
@@ -163,16 +169,16 @@ const mockWizardContext: ModelingWizardContext = {
       establishmentDate: '2025-01-01',
       isEvergreen: false,
       fundLife: 10,
-      investmentPeriod: 5
+      investmentPeriod: 5,
     },
     sectorProfiles: {
-      sectorProfiles: mockSectorProfiles.map(s => ({
+      sectorProfiles: mockSectorProfiles.map((s) => ({
         id: s.id,
         name: s.name,
         allocation: s.allocation,
-        description: s.description
+        description: s.description,
       })),
-      stageAllocations: []
+      stageAllocations: [],
     },
     capitalAllocation: {
       initialCheckSize: 2.0,
@@ -181,14 +187,14 @@ const mockWizardContext: ModelingWizardContext = {
         followOnChecks: {
           A: 3.0,
           B: 5.0,
-          C: 8.0
-        }
+          C: 8.0,
+        },
       },
       pacingModel: {
         investmentsPerYear: 10,
-        deploymentCurve: 'linear'
-      }
-    }
+        deploymentCurve: 'linear',
+      },
+    },
   },
   currentStep: 'capitalAllocation',
   currentStepIndex: 2,
@@ -202,7 +208,7 @@ const mockWizardContext: ModelingWizardContext = {
     feesExpenses: [],
     exitRecycling: [],
     waterfall: [],
-    scenarios: []
+    scenarios: [],
   },
   isStepValid: {
     generalInfo: true,
@@ -211,14 +217,14 @@ const mockWizardContext: ModelingWizardContext = {
     feesExpenses: false,
     exitRecycling: false,
     waterfall: false,
-    scenarios: false
+    scenarios: false,
   },
   lastSaved: null,
   isDirty: false,
   submissionError: null,
   submissionRetryCount: 0,
   skipOptionalSteps: false,
-  autoSaveInterval: 30000
+  autoSaveInterval: 30000,
 };
 
 // ============================================================================
@@ -228,24 +234,16 @@ const mockWizardContext: ModelingWizardContext = {
 describe('wizard-reserve-bridge', () => {
   describe('generateSyntheticPortfolio', () => {
     it('should create the correct number of companies', () => {
-      const portfolio = generateSyntheticPortfolio(
-        mockSectorProfiles,
-        2.0,
-        50
-      );
+      const portfolio = generateSyntheticPortfolio(mockSectorProfiles, 2.0, 50);
 
       expect(portfolio).toHaveLength(50);
     });
 
     it('should distribute companies proportionally across sectors', () => {
-      const portfolio = generateSyntheticPortfolio(
-        mockSectorProfiles,
-        2.0,
-        100
-      );
+      const portfolio = generateSyntheticPortfolio(mockSectorProfiles, 2.0, 100);
 
-      const saasCompanies = portfolio.filter(c => c.sector === 'SaaS');
-      const fintechCompanies = portfolio.filter(c => c.sector === 'FinTech');
+      const saasCompanies = portfolio.filter((c) => c.sector === 'SaaS');
+      const fintechCompanies = portfolio.filter((c) => c.sector === 'FinTech');
 
       // 60% SaaS, 40% FinTech
       expect(saasCompanies.length).toBe(60);
@@ -253,26 +251,18 @@ describe('wizard-reserve-bridge', () => {
     });
 
     it('should use entry stage for all companies', () => {
-      const portfolio = generateSyntheticPortfolio(
-        mockSectorProfiles,
-        2.0,
-        50
-      );
+      const portfolio = generateSyntheticPortfolio(mockSectorProfiles, 2.0, 50);
 
       // All companies should be at seed stage (entry stage)
-      expect(portfolio.every(c => c.currentStage === 'seed')).toBe(true);
+      expect(portfolio.every((c) => c.currentStage === 'seed')).toBe(true);
     });
 
     it('should calculate implied ownership correctly', () => {
-      const portfolio = generateSyntheticPortfolio(
-        mockSectorProfiles,
-        2.0,
-        10
-      );
+      const portfolio = generateSyntheticPortfolio(mockSectorProfiles, 2.0, 10);
 
       // Check size = 2.0, entry round size = 3.0
       // Implied ownership = 2.0 / 3.0 = 0.667
-      const saasCompany = portfolio.find(c => c.sector === 'SaaS');
+      const saasCompany = portfolio.find((c) => c.sector === 'SaaS');
       expect(saasCompany?.ownershipPercentage).toBeCloseTo(0.667, 2);
     });
 
@@ -284,15 +274,11 @@ describe('wizard-reserve-bridge', () => {
       );
 
       // No ownership should exceed 100% (1.0)
-      expect(portfolio.every(c => c.ownershipPercentage <= 1.0)).toBe(true);
+      expect(portfolio.every((c) => c.ownershipPercentage <= 1.0)).toBe(true);
     });
 
     it('should set investment details correctly', () => {
-      const portfolio = generateSyntheticPortfolio(
-        mockSectorProfiles,
-        2.0,
-        10
-      );
+      const portfolio = generateSyntheticPortfolio(mockSectorProfiles, 2.0, 10);
 
       const company = portfolio[0];
       expect(company?.totalInvested).toBe(2.0);
@@ -313,15 +299,13 @@ describe('wizard-reserve-bridge', () => {
       const matrix = buildGraduationMatrix(mockSectorProfiles);
 
       // All probabilities should be 0-1 range
-      expect(matrix.rates.every(r => r.probability >= 0 && r.probability <= 1)).toBe(true);
+      expect(matrix.rates.every((r) => r.probability >= 0 && r.probability <= 1)).toBe(true);
     });
 
     it('should calculate valuation multiples correctly', () => {
       const matrix = buildGraduationMatrix(mockSectorProfiles);
 
-      const seedToA = matrix.rates.find(
-        r => r.fromStage === 'seed' && r.toStage === 'series_a'
-      );
+      const seedToA = matrix.rates.find((r) => r.fromStage === 'seed' && r.toStage === 'series_a');
 
       // Valuation multiple from seed (10M) to Series A (30M) = 3x
       // Averaged across SaaS and FinTech
@@ -332,9 +316,7 @@ describe('wizard-reserve-bridge', () => {
     it('should average rates from multiple sectors', () => {
       const matrix = buildGraduationMatrix(mockSectorProfiles);
 
-      const seedToA = matrix.rates.find(
-        r => r.fromStage === 'seed' && r.toStage === 'series_a'
-      );
+      const seedToA = matrix.rates.find((r) => r.fromStage === 'seed' && r.toStage === 'series_a');
 
       // SaaS: 60%, FinTech: 55% → Average: 57.5%
       expect(seedToA?.probability).toBeCloseTo(0.575, 2);
@@ -343,35 +325,23 @@ describe('wizard-reserve-bridge', () => {
 
   describe('buildStageStrategies', () => {
     it('should create strategies for all stage allocations', () => {
-      const strategies = buildStageStrategies(
-        mockStageAllocations,
-        mockSectorProfiles,
-        2.0
-      );
+      const strategies = buildStageStrategies(mockStageAllocations, mockSectorProfiles, 2.0);
 
       expect(strategies.length).toBe(mockStageAllocations.length);
     });
 
     it('should convert target ownership to decimals', () => {
-      const strategies = buildStageStrategies(
-        mockStageAllocations,
-        mockSectorProfiles,
-        2.0
-      );
+      const strategies = buildStageStrategies(mockStageAllocations, mockSectorProfiles, 2.0);
 
       // 12% maintainOwnership → 0.12 targetOwnership
-      const seriesA = strategies.find(s => s.stage === 'series_a');
+      const seriesA = strategies.find((s) => s.stage === 'series_a');
       expect(seriesA?.targetOwnership).toBeCloseTo(0.12, 2);
     });
 
     it('should calculate investment bounds correctly', () => {
-      const strategies = buildStageStrategies(
-        mockStageAllocations,
-        mockSectorProfiles,
-        2.0
-      );
+      const strategies = buildStageStrategies(mockStageAllocations, mockSectorProfiles, 2.0);
 
-      const seriesA = strategies.find(s => s.stage === 'series_a');
+      const seriesA = strategies.find((s) => s.stage === 'series_a');
 
       // Implied check = 2.0 * (12/100) = 0.24
       // Max = 0.24 * 3 = 0.72
@@ -381,24 +351,16 @@ describe('wizard-reserve-bridge', () => {
     });
 
     it('should convert participation rate to probability', () => {
-      const strategies = buildStageStrategies(
-        mockStageAllocations,
-        mockSectorProfiles,
-        2.0
-      );
+      const strategies = buildStageStrategies(mockStageAllocations, mockSectorProfiles, 2.0);
 
-      const seriesA = strategies.find(s => s.stage === 'series_a');
+      const seriesA = strategies.find((s) => s.stage === 'series_a');
       expect(seriesA?.followOnProbability).toBeCloseTo(0.8, 2);
     });
 
     it('should calculate failure rate from graduation and exit rates', () => {
-      const strategies = buildStageStrategies(
-        mockStageAllocations,
-        mockSectorProfiles,
-        2.0
-      );
+      const strategies = buildStageStrategies(mockStageAllocations, mockSectorProfiles, 2.0);
 
-      const seriesA = strategies.find(s => s.stage === 'series_a');
+      const seriesA = strategies.find((s) => s.stage === 'series_a');
 
       // Using SaaS Series A: graduation 50%, exit 15% → failure 35%
       expect(seriesA?.failureRate).toBeCloseTo(0.35, 2);
@@ -414,11 +376,7 @@ describe('wizard-reserve-bridge', () => {
 
     it('should require full capital allocation data', () => {
       expect(() => {
-        transformWizardToReserveRequest(
-          mockWizardContext,
-          mockSectorProfiles,
-          undefined
-        );
+        transformWizardToReserveRequest(mockWizardContext, mockSectorProfiles, undefined);
       }).toThrow('Full capital allocation data');
     });
 

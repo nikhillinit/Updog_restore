@@ -16,6 +16,13 @@ import type {
   SectorProfile,
   CapitalAllocationInput
 } from '@/schemas/modeling-wizard.schemas';
+import { capitalAllocationSchema } from '@/schemas/modeling-wizard.schemas';
+import {
+  calculateCapitalAllocation,
+  validateCapitalAllocation,
+  generateDefaultPacingPeriods,
+  calculatePacingSchedule
+} from '@/lib/capital-allocation-calculations';
 
 // ============================================================================
 // TEST FIXTURES
@@ -193,12 +200,6 @@ describe('CapitalAllocationStep - Schema Validation', () => {
 
 describe('CapitalAllocationStep - Calculation Integration', () => {
   it('integrates with useCapitalAllocationCalculations hook', () => {
-    // Import calculation functions
-    const {
-      calculateCapitalAllocation,
-      validateCapitalAllocation
-    } = require('@/lib/capital-allocation-calculations');
-
     const calculations = calculateCapitalAllocation(
       mockInitialData as any,
       mockSectorProfiles,
@@ -213,8 +214,6 @@ describe('CapitalAllocationStep - Calculation Integration', () => {
   });
 
   it('calculates correct metrics from form values', () => {
-    const { calculateCapitalAllocation } = require('@/lib/capital-allocation-calculations');
-
     const calculations = calculateCapitalAllocation(
       mockInitialData as any,
       mockSectorProfiles,
@@ -234,11 +233,6 @@ describe('CapitalAllocationStep - Calculation Integration', () => {
   });
 
   it('validates capital allocation correctly', () => {
-    const {
-      calculateCapitalAllocation,
-      validateCapitalAllocation
-    } = require('@/lib/capital-allocation-calculations');
-
     const calculations = calculateCapitalAllocation(
       mockInitialData as any,
       mockSectorProfiles,
@@ -273,8 +267,6 @@ describe('CapitalAllocationStep - Calculation Integration', () => {
 
 describe('CapitalAllocationStep - Validation Logic', () => {
   it('validates check size bounds', () => {
-    const { capitalAllocationSchema } = require('@/schemas/modeling-wizard.schemas');
-
     // Too small
     const tooSmall = capitalAllocationSchema.safeParse({
       ...mockInitialData,
@@ -298,8 +290,6 @@ describe('CapitalAllocationStep - Validation Logic', () => {
   });
 
   it('validates pacing allocations sum to 100%', () => {
-    const { capitalAllocationSchema } = require('@/schemas/modeling-wizard.schemas');
-
     // Invalid: sum to 110%
     const invalid = capitalAllocationSchema.safeParse({
       ...mockInitialData,
@@ -317,11 +307,6 @@ describe('CapitalAllocationStep - Validation Logic', () => {
   });
 
   it('detects when total capital exceeds fund size', () => {
-    const {
-      calculateCapitalAllocation,
-      validateCapitalAllocation
-    } = require('@/lib/capital-allocation-calculations');
-
     const highCheckSize = {
       ...mockInitialData,
       initialCheckSize: 5 // 5M * 30 = 150M > 100M fund
@@ -345,11 +330,6 @@ describe('CapitalAllocationStep - Validation Logic', () => {
   });
 
   it('warns about very high implied ownership', () => {
-    const {
-      calculateCapitalAllocation,
-      validateCapitalAllocation
-    } = require('@/lib/capital-allocation-calculations');
-
     const highCheckSize = {
       ...mockInitialData,
       initialCheckSize: 2.5 // Implies >50% ownership
@@ -373,11 +353,6 @@ describe('CapitalAllocationStep - Validation Logic', () => {
   });
 
   it('warns about very low implied ownership', () => {
-    const {
-      calculateCapitalAllocation,
-      validateCapitalAllocation
-    } = require('@/lib/capital-allocation-calculations');
-
     const lowCheckSize = {
       ...mockInitialData,
       initialCheckSize: 0.2 // Implies <5% ownership
@@ -401,8 +376,6 @@ describe('CapitalAllocationStep - Validation Logic', () => {
   });
 
   it('validates reserve ratio bounds in schema', () => {
-    const { capitalAllocationSchema } = require('@/schemas/modeling-wizard.schemas');
-
     // Below minimum
     const tooLow = capitalAllocationSchema.safeParse({
       ...mockInitialData,
@@ -431,10 +404,6 @@ describe('CapitalAllocationStep - Validation Logic', () => {
 
 describe('CapitalAllocationStep - Wizard Context Integration', () => {
   it('uses fundFinancials from previous step for calculations', () => {
-    const {
-      calculateCapitalAllocation
-    } = require('@/lib/capital-allocation-calculations');
-
     const largeFundFinancials = {
       ...mockFundFinancials,
       fundSize: 150,
@@ -459,10 +428,6 @@ describe('CapitalAllocationStep - Wizard Context Integration', () => {
   });
 
   it('uses sectorProfiles from previous step for calculations', () => {
-    const {
-      calculateCapitalAllocation
-    } = require('@/lib/capital-allocation-calculations');
-
     const techOnlyProfiles: SectorProfile[] = [
       {
         id: 'tech',
@@ -502,7 +467,6 @@ describe('CapitalAllocationStep - Wizard Context Integration', () => {
 
   it('validates auto-save behavior with valid data', () => {
     const mockOnSave = vi.fn();
-    const { capitalAllocationSchema } = require('@/schemas/modeling-wizard.schemas');
 
     const validData = {
       ...mockInitialData,
@@ -521,7 +485,6 @@ describe('CapitalAllocationStep - Wizard Context Integration', () => {
 
   it('prevents auto-save with invalid data', () => {
     const mockOnSave = vi.fn();
-    const { capitalAllocationSchema } = require('@/schemas/modeling-wizard.schemas');
 
     const invalidData = {
       ...mockInitialData,
@@ -539,8 +502,6 @@ describe('CapitalAllocationStep - Wizard Context Integration', () => {
   });
 
   it('generates default pacing periods when not provided', () => {
-    const { generateDefaultPacingPeriods } = require('@/lib/capital-allocation-calculations');
-
     const defaultPeriods = generateDefaultPacingPeriods(
       mockFundFinancials.investmentPeriod,
       'linear'
@@ -558,10 +519,6 @@ describe('CapitalAllocationStep - Wizard Context Integration', () => {
   });
 
   it('uses correct vintage year for pacing schedule dates', () => {
-    const {
-      calculatePacingSchedule
-    } = require('@/lib/capital-allocation-calculations');
-
     const schedule = calculatePacingSchedule(
       mockInitialData.pacingHorizon!,
       30, // initial capital
@@ -583,10 +540,6 @@ describe('CapitalAllocationStep - Wizard Context Integration', () => {
 
 describe('CapitalAllocationStep - Edge Cases', () => {
   it('handles zero fund size gracefully', () => {
-    const {
-      calculateCapitalAllocation
-    } = require('@/lib/capital-allocation-calculations');
-
     const calculations = calculateCapitalAllocation(
       mockInitialData as any,
       mockSectorProfiles,
@@ -601,10 +554,6 @@ describe('CapitalAllocationStep - Edge Cases', () => {
   });
 
   it('handles empty sector profiles', () => {
-    const {
-      calculateCapitalAllocation
-    } = require('@/lib/capital-allocation-calculations');
-
     const calculations = calculateCapitalAllocation(
       mockInitialData as any,
       [], // Empty sector profiles
@@ -619,10 +568,6 @@ describe('CapitalAllocationStep - Edge Cases', () => {
   });
 
   it('handles empty stage allocations', () => {
-    const {
-      calculateCapitalAllocation
-    } = require('@/lib/capital-allocation-calculations');
-
     const noFollowOns = {
       ...mockInitialData,
       followOnStrategy: {
@@ -645,10 +590,6 @@ describe('CapitalAllocationStep - Edge Cases', () => {
   });
 
   it('handles very large numbers without overflow', () => {
-    const {
-      calculateCapitalAllocation
-    } = require('@/lib/capital-allocation-calculations');
-
     const largeFund = {
       ...mockInitialData,
       pacingModel: {
@@ -672,10 +613,6 @@ describe('CapitalAllocationStep - Edge Cases', () => {
   });
 
   it('handles decimal precision in calculations', () => {
-    const {
-      calculateCapitalAllocation
-    } = require('@/lib/capital-allocation-calculations');
-
     const decimalCheckSize = {
       ...mockInitialData,
       initialCheckSize: 1.33 // Repeating decimal in calculations
@@ -698,8 +635,6 @@ describe('CapitalAllocationStep - Edge Cases', () => {
   });
 
   it('handles missing optional fields', () => {
-    const { capitalAllocationSchema } = require('@/schemas/modeling-wizard.schemas');
-
     const minimalData = {
       entryStrategy: 'amount-based' as const,
       initialCheckSize: 1.0,
@@ -726,8 +661,6 @@ describe('CapitalAllocationStep - Edge Cases', () => {
   });
 
   it('validates pacing period date ordering', () => {
-    const { capitalAllocationSchema } = require('@/schemas/modeling-wizard.schemas');
-
     // Invalid: end month before start month
     const invalidPeriods = {
       ...mockInitialData,

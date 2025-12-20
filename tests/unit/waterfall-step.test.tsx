@@ -3,7 +3,7 @@
  * Tests UI integration with existing waterfall helpers
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { WaterfallStep } from '@/components/modeling-wizard/steps/WaterfallStep';
 import type { Waterfall } from '@shared/types';
@@ -29,7 +29,7 @@ describe('WaterfallStep', () => {
         type: 'EUROPEAN',
         carryVesting: { cliffYears: 1, vestingYears: 4 },
         hurdle: 0.08,
-        catchUp: 0.8
+        catchUp: 0.8,
       };
 
       render(<WaterfallStep initialData={initialData} onSave={mockOnSave} />);
@@ -50,7 +50,7 @@ describe('WaterfallStep', () => {
         type: 'EUROPEAN',
         carryVesting: { cliffYears: 0, vestingYears: 4 },
         hurdle: 0.08,
-        catchUp: 0.08
+        catchUp: 0.08,
       };
 
       rerender(<WaterfallStep initialData={europeanData} onSave={mockOnSave} />);
@@ -73,7 +73,7 @@ describe('WaterfallStep', () => {
           expect.objectContaining({
             type: 'EUROPEAN',
             hurdle: 0.08,
-            catchUp: 0.08
+            catchUp: 0.08,
           })
         );
       });
@@ -84,7 +84,7 @@ describe('WaterfallStep', () => {
         type: 'EUROPEAN',
         carryVesting: { cliffYears: 1, vestingYears: 5 },
         hurdle: 0.12,
-        catchUp: 1.0
+        catchUp: 1.0,
       };
 
       render(<WaterfallStep initialData={initialData} onSave={mockOnSave} />);
@@ -103,7 +103,7 @@ describe('WaterfallStep', () => {
     it('preserves carry vesting when switching types', async () => {
       const initialData: Waterfall = {
         type: 'AMERICAN',
-        carryVesting: { cliffYears: 2, vestingYears: 6 }
+        carryVesting: { cliffYears: 2, vestingYears: 6 },
       };
 
       render(<WaterfallStep initialData={initialData} onSave={mockOnSave} />);
@@ -114,7 +114,7 @@ describe('WaterfallStep', () => {
       await waitFor(() => {
         expect(mockOnSave).toHaveBeenCalledWith(
           expect.objectContaining({
-            carryVesting: { cliffYears: 2, vestingYears: 6 }
+            carryVesting: { cliffYears: 2, vestingYears: 6 },
           })
         );
       });
@@ -127,7 +127,7 @@ describe('WaterfallStep', () => {
         type: 'EUROPEAN',
         carryVesting: { cliffYears: 0, vestingYears: 4 },
         hurdle: 0.08,
-        catchUp: 0.08
+        catchUp: 0.08,
       };
 
       render(<WaterfallStep initialData={initialData} onSave={mockOnSave} />);
@@ -140,7 +140,7 @@ describe('WaterfallStep', () => {
       await waitFor(() => {
         expect(mockOnSave).toHaveBeenCalledWith(
           expect.objectContaining({
-            hurdle: 0.12
+            hurdle: 0.12,
           })
         );
       });
@@ -151,7 +151,7 @@ describe('WaterfallStep', () => {
       await waitFor(() => {
         expect(mockOnSave).toHaveBeenCalledWith(
           expect.objectContaining({
-            hurdle: 1.0 // Clamped to max
+            hurdle: 1.0, // Clamped to max
           })
         );
       });
@@ -162,7 +162,7 @@ describe('WaterfallStep', () => {
         type: 'EUROPEAN',
         carryVesting: { cliffYears: 0, vestingYears: 4 },
         hurdle: 0.08,
-        catchUp: 0.08
+        catchUp: 0.08,
       };
 
       render(<WaterfallStep initialData={initialData} onSave={mockOnSave} />);
@@ -173,7 +173,7 @@ describe('WaterfallStep', () => {
       await waitFor(() => {
         expect(mockOnSave).toHaveBeenCalledWith(
           expect.objectContaining({
-            catchUp: 1.0
+            catchUp: 1.0,
           })
         );
       });
@@ -194,8 +194,8 @@ describe('WaterfallStep', () => {
           expect.objectContaining({
             carryVesting: {
               cliffYears: 1,
-              vestingYears: 5
-            }
+              vestingYears: 5,
+            },
           })
         );
       });
@@ -259,7 +259,7 @@ describe('WaterfallStep', () => {
         type: 'EUROPEAN',
         carryVesting: { cliffYears: 0, vestingYears: 4 },
         hurdle: 0.08,
-        catchUp: 0.08
+        catchUp: 0.08,
       };
 
       rerender(<WaterfallStep initialData={europeanData} onSave={mockOnSave} />);
@@ -270,7 +270,7 @@ describe('WaterfallStep', () => {
     it('displays carry vesting schedule', () => {
       const initialData: Waterfall = {
         type: 'AMERICAN',
-        carryVesting: { cliffYears: 2, vestingYears: 5 }
+        carryVesting: { cliffYears: 2, vestingYears: 5 },
       };
 
       render(<WaterfallStep initialData={initialData} onSave={mockOnSave} />);
@@ -283,7 +283,7 @@ describe('WaterfallStep', () => {
         type: 'EUROPEAN',
         carryVesting: { cliffYears: 0, vestingYears: 4 },
         hurdle: 0.12,
-        catchUp: 0.8
+        catchUp: 0.8,
       };
 
       render(<WaterfallStep initialData={initialData} onSave={mockOnSave} />);

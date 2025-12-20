@@ -234,18 +234,21 @@ export default defineConfig(({ mode }: { mode: string }) => {
       {
         name: 'dev-telemetry-stub',
         configureServer(server) {
-          server.middlewares.use('/api/telemetry/wizard', async (req: http.IncomingMessage, res: http.ServerResponse) => {
-            try {
-              let body = '';
-              for await (const chunk of req) body += chunk;
-              if (body) JSON.parse(body); // validate JSON without crashing dev
-              res.statusCode = 204;
-              res.end();
-            } catch {
-              res.statusCode = 400;
-              res.end('Bad payload');
+          server.middlewares.use(
+            '/api/telemetry/wizard',
+            async (req: http.IncomingMessage, res: http.ServerResponse) => {
+              try {
+                let body = '';
+                for await (const chunk of req) body += chunk;
+                if (body) JSON.parse(body); // validate JSON without crashing dev
+                res.statusCode = 204;
+                res.end();
+              } catch {
+                res.statusCode = 400;
+                res.end('Bad payload');
+              }
             }
-          });
+          );
         },
       },
       // Use absolute path so Vite doesn't ever look for "client/client/tsconfig.json"
@@ -279,18 +282,19 @@ export default defineConfig(({ mode }: { mode: string }) => {
       minifyWhitespace: true,
       treeShaking: true,
       target: 'esnext',
-      // TypeScript strictness - gradually enabled for build safety
-    // Note: These settings affect ESBuild transform only (not full tsc check)
-    tsconfigRaw: {
+      // ESBuild transpilation settings - type checking is handled by tsc (npm run check)
+      // Keeping skipLibCheck for faster builds; strict settings enforced at tsc level
+      tsconfigRaw: {
         compilerOptions: {
-          skipLibCheck: true, // Keep: performance optimization for node_modules
-          noImplicitAny: true, // ENABLED: catch implicit any at build time
-          strictNullChecks: true, // ENABLED: catch null dereference bugs
-          strictFunctionTypes: true, // ENABLED: catch function signature mismatches
-          strictPropertyInitialization: true, // ENABLED: catch uninitialized properties
-          noImplicitThis: true, // ENABLED: catch implicit this bindings
-          noImplicitReturns: true, // ENABLED: catch missing return statements
-          alwaysStrict: true, // ENABLED: emit 'use strict' in all modules
+          skipLibCheck: true,
+          // Align with tsconfig.json strict settings for transpilation consistency
+          noImplicitAny: true,
+          strictNullChecks: true,
+          strictFunctionTypes: true,
+          strictPropertyInitialization: true,
+          noImplicitThis: true,
+          noImplicitReturns: true,
+          alwaysStrict: true,
         },
       },
     },

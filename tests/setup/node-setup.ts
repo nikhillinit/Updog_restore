@@ -2,7 +2,7 @@
  * Node.js Test Environment Setup
  * Runs ONLY for server-side tests (*.test.ts files)
  */
-import { vi, beforeAll, afterAll } from 'vitest';
+import { vi } from 'vitest';
 
 // Force UTC timezone for consistent date handling
 process.env.TZ = 'UTC';
@@ -22,22 +22,14 @@ vi.mock('fs', async (importOriginal) => {
     mkdirSync: vi.fn(),
     createWriteStream: vi.fn().mockReturnValue({
       write: vi.fn(),
-      end: vi.fn()
-    })
+      end: vi.fn(),
+    }),
   };
 });
 
 // Mock network calls
 global.fetch = vi.fn();
 
-// Setup console suppression for cleaner test output
-const originalConsole = { ...console };
-beforeAll(() => {
-  console.warn = vi.fn();
-  console.error = vi.fn();
-  console.info = vi.fn();
-});
-
-afterAll(() => {
-  Object.assign(console, originalConsole);
-});
+// Note: Console suppression is handled within individual test files via beforeEach/afterEach
+// as appropriate. Module-level beforeAll/afterAll hooks cause "Vitest failed to find the runner"
+// error when executed before test runner initialization.

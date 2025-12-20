@@ -16,7 +16,7 @@ import { join } from 'path';
 import {
   FORBIDDEN_TOKENS,
   validateNoForbiddenKeys,
-  _forbiddenKeysGuard,
+  type _forbiddenKeysGuard,
 } from '@shared/types/forbidden-features';
 
 interface Violation {
@@ -31,12 +31,7 @@ describe('Forbidden Features Protection', () => {
     const violations: Violation[] = [];
 
     // Find all TypeScript files
-    const patterns = [
-      'client/**/*.ts',
-      'client/**/*.tsx',
-      'server/**/*.ts',
-      'shared/**/*.ts',
-    ];
+    const patterns = ['client/**/*.ts', 'client/**/*.tsx', 'server/**/*.ts', 'shared/**/*.ts'];
 
     const allFiles: string[] = [];
     for (const pattern of patterns) {
@@ -60,6 +55,9 @@ describe('Forbidden Features Protection', () => {
     for (const file of allFiles) {
       const filePath = join(process.cwd(), file);
       const content = readFileSync(filePath, 'utf-8');
+
+      if (!content) continue;
+
       const lines = content.split('\n');
 
       lines.forEach((line, index) => {
@@ -71,12 +69,9 @@ describe('Forbidden Features Protection', () => {
         }
 
         // Check for each forbidden token (case-insensitive)
-        FORBIDDEN_TOKENS.forEach(token => {
+        FORBIDDEN_TOKENS.forEach((token) => {
           // Create regex to match token as whole word or property
-          const regex = new RegExp(
-            `\\b${token}\\b|['"\`]${token}['"\`]|${token}:`,
-            'i'
-          );
+          const regex = new RegExp(`\\b${token}\\b|['"\`]${token}['"\`]|${token}:`, 'i');
 
           if (regex.test(line)) {
             violations.push({
@@ -93,7 +88,7 @@ describe('Forbidden Features Protection', () => {
     // Report violations
     if (violations.length > 0) {
       const report = violations
-        .map(v => `  ${v.file}:${v.line} - "${v.token}"\n    ${v.context}`)
+        .map((v) => `  ${v.file}:${v.line} - "${v.token}"\n    ${v.context}`)
         .join('\n\n');
 
       console.error(`\n❌ Found ${violations.length} forbidden token(s):\n`);
@@ -109,7 +104,7 @@ describe('Forbidden Features Protection', () => {
       fundName: 'Test Fund',
       fundSize: 100000000,
       managementFee: 0.02,
-      carriedInterest: 0.20,
+      carriedInterest: 0.2,
       vintage: 2024,
       distribution: 'american', // Not 'european'
       investments: [
@@ -146,16 +141,18 @@ describe('Forbidden Features Protection', () => {
     expect(result.foundKeys.length).toBeGreaterThan(0);
 
     // Should find at least hurdleRate and lineOfCredit
-    const foundTokens = result.foundKeys.map(k =>
-      k.split(' ')[0].split('.').pop()
-    );
+    const foundTokens = result.foundKeys.map((k) => k.split(' ')[0].split('.').pop());
     expect(foundTokens).toContain('hurdleRate');
     expect(foundTokens).toContain('lineOfCredit');
   });
 
   it('compile-time: type guard prevents usage', () => {
-    // Verify the type guard exists and can be imported
-    expect(_forbiddenKeysGuard).toBeDefined();
+    // Verify the type guard can be imported (compile-time check)
+    type TestGuard = _forbiddenKeysGuard; // TypeScript will error if type doesn't exist
+
+    // Suppress unused variable warning
+    const _: TestGuard | undefined = undefined;
+    expect(_).toBeUndefined();
 
     // Verify all tokens are present
     expect(FORBIDDEN_TOKENS).toHaveLength(14);
