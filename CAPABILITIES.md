@@ -80,7 +80,7 @@ maintenance:
 
 - **test-automator** - Comprehensive test generation, TDD, coverage
 
-#### **Project-Level Agents (22)** - Updog_restore specific
+#### **Project-Level Agents (23)** - Updog_restore specific
 
 **Location:** `.claude\agents\`
 
@@ -91,7 +91,8 @@ maintenance:
 
 **Testing & Quality:**
 
-- **test-repair** - Fix failing tests
+- **test-repair** - Fix failing tests, flakiness detection and management
+- **test-scaffolder** - Scaffold test infrastructure for new modules/packages (NEW)
 - **pr-test-analyzer** - PR test coverage review
 - **code-reviewer** - Code quality and style checking
 - **code-simplifier** - Simplify complex code
@@ -323,9 +324,10 @@ Integration (+46% growth from 13 baseline)
 - **api-design-principles** - REST API design for Express + TypeScript + Zod +
   BullMQ (resource-oriented, hierarchical nesting, sync/async patterns)
 
-### Quality Gate & Infrastructure Skills (6) - NEW 2025-12-16
+### Quality Gate & Infrastructure Skills (7) - UPDATED 2025-12-20
 
 - **test-pyramid** - E2E scope control, test level governance (unit vs integration vs E2E)
+- **test-fixture-generator** - Factory functions, golden datasets, batch generators, schema sync (NEW)
 - **statistical-testing** - Monte Carlo validation patterns, seeded testing, CI stability
 - **react-hook-form-stability** - RHF infinite loop prevention, autosave patterns
 - **baseline-governance** - Quality gate policies, ratcheting strategy, baseline change approval

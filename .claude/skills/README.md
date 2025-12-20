@@ -717,9 +717,37 @@ AmericanWaterfallCalculator (adapter)
 
 ---
 
+### Testing Infrastructure
+
+#### [test-fixture-generator](test-fixture-generator/SKILL.md)
+
+**Overview**: Patterns for generating test fixtures, factory functions, and
+golden datasets.
+
+**When to use**: Creating test data, refactoring hard-coded fixtures, building
+golden datasets, stress test data generation
+
+**Core patterns**:
+
+1. Factory functions with sensible defaults and overrides
+2. Golden datasets validated against external sources (Excel)
+3. Batch generators with seeded randomness
+4. Schema synchronization to prevent fixture drift
+
+**Integration**:
+
+- Works with test-scaffolder agent (generates fixtures for new modules)
+- Works with test-repair agent (updates fixtures on schema changes)
+- Referenced by test-pyramid skill (fixtures for all test levels)
+
+**Example**: `createTestFund({ size: '100000000.00' })` → Complete fund object
+with defaults
+
+---
+
 ## Summary
 
-**21 skills across 7 categories**:
+**22 skills across 8 categories**:
 
 - Thinking Frameworks (4)
 - Debugging & Problem Solving (3)
@@ -728,6 +756,7 @@ AmericanWaterfallCalculator (adapter)
 - Integration & Coordination (2)
 - AI Model Utilization (4)
 - Data & API Design (3)
+- Testing Infrastructure (1)
 
 **Core principle**: Use the right tool for the job, layer strategically, track
 progress, and continuously improve.
@@ -740,3 +769,4 @@ progress, and continuously improve.
 - Multiple problems? → **dispatching-parallel-agents**
 - Research? → **notebooklm** + **memory-management**
 - Large task breakdown? → **task-decomposition**
+- Test fixtures? → **test-fixture-generator**
