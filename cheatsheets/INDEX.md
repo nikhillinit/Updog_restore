@@ -42,12 +42,19 @@ Complete reference to all 30 project cheatsheets, organized by category.
 
 ---
 
-## Testing (2 files)
+## Testing (2 files + skills)
 
 - **[testing.md](testing.md)** - Test strategy, Vitest configuration, golden
   test suites, TDD workflows
 - **[service-testing-patterns.md](service-testing-patterns.md)** - API/service
   test patterns, integration testing
+
+**Related Skills & Agents** (in `.claude/`):
+
+- **test-scaffolder agent** - Scaffold test infrastructure for new modules
+- **test-fixture-generator skill** - Factory functions, golden datasets, generators
+- **test-pyramid skill** - E2E scope control, test level governance
+- **test-repair agent** - Fix failures + flakiness detection
 
 ---
 

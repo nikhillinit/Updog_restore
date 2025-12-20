@@ -19,6 +19,8 @@ model: sonnet
   validation)
 - Store fix strategies that worked in the past
 - Learn which tests are fragile and need careful handling
+- **Track flaky test history** (test name, failure frequency, patterns)
+- **Store flakiness signatures** (timing-related, race conditions, order-dependent)
 
 **Before Each Repair**:
 
@@ -162,3 +164,174 @@ Can jsdom test this behavior?
                           v
                     Verify test passes
 ```
+
+## Flakiness Detection and Management
+
+### Flakiness Detection Protocol
+
+When a test fails, determine if it's a **genuine failure** or **flaky behavior**:
+
+#### Step 1: Multi-Run Verification
+
+```bash
+# Run the failing test multiple times to detect flakiness
+npm test -- --filter="[test-name]" --repeat=5
+
+# Or use the test infrastructure helper
+```
+
+```typescript
+import { runTestMultiple } from '@/tests/setup/test-infrastructure';
+
+const { results, failures, passRate } = await runTestMultiple(
+  () => runTest('[test-name]'),
+  5
+);
+
+if (passRate < 1.0 && passRate > 0) {
+  // Flaky test detected!
+}
+```
+
+#### Step 2: Classify Flakiness Type
+
+| Type                   | Symptoms                                   | Detection                          |
+| ---------------------- | ------------------------------------------ | ---------------------------------- |
+| **Timing/Race**        | Passes locally, fails in CI                | Add delays, check for async issues |
+| **Order-Dependent**    | Fails when run with other tests            | Run in isolation vs full suite     |
+| **Resource Contention**| Fails under load                           | Check for shared state/ports       |
+| **Date/Time Sensitive**| Fails at specific times                    | Check for `new Date()` usage       |
+| **Random Data**        | Inconsistent with random inputs            | Check for unseeded randomness      |
+| **Environment**        | Fails on specific OS/Node version          | Compare CI vs local env            |
+
+#### Step 3: Flakiness Signature Storage
+
+After detecting flakiness, store in memory:
+
+```
+Memory Entry:
+- test_file: tests/unit/engines/reserve-engine.test.ts
+- test_name: "should calculate reserves under concurrent updates"
+- flakiness_type: timing_race
+- failure_rate: 0.2 (1 in 5 runs)
+- first_detected: 2024-01-15
+- occurrences: 3
+- root_cause: "Missing await on concurrent Promise.all"
+- fix_applied: "Added proper await and mutex"
+- stabilized: true
+```
+
+### Flakiness Remediation Strategies
+
+#### Timing/Race Conditions
+
+```typescript
+// BAD: No wait for async completion
+fireEvent.click(button);
+expect(screen.getByText('Done')).toBeInTheDocument();
+
+// GOOD: Wait for state update
+fireEvent.click(button);
+await waitFor(() => {
+  expect(screen.getByText('Done')).toBeInTheDocument();
+});
+```
+
+#### Order-Dependent Tests
+
+```typescript
+// BAD: Shared mutable state
+let counter = 0;
+beforeEach(() => { counter++; });
+
+// GOOD: Reset state in beforeEach
+let counter: number;
+beforeEach(() => { counter = 0; });
+```
+
+#### Date/Time Sensitive
+
+```typescript
+// BAD: Real time dependency
+const now = new Date();
+expect(isRecent(record.createdAt)).toBe(true);
+
+// GOOD: Mock time
+vi.useFakeTimers();
+vi.setSystemTime(new Date('2024-01-15T10:00:00Z'));
+// ... test ...
+vi.useRealTimers();
+```
+
+#### Random Data
+
+```typescript
+// BAD: Unseeded random
+const data = generateRandomPortfolio();
+
+// GOOD: Seeded for reproducibility
+const data = generateRandomPortfolio({ seed: 12345 });
+```
+
+### Flake Triage Protocol
+
+Based on test-pyramid skill flake management:
+
+| Occurrence | Action                                         |
+| ---------- | ---------------------------------------------- |
+| 1st flake  | Add to memory watchlist, don't skip            |
+| 2nd flake (within 1 week) | Investigate root cause       |
+| 3rd flake  | Either fix immediately or quarantine           |
+
+### Quarantine Process
+
+When a test cannot be fixed immediately:
+
+1. **Mark as quarantined** in test file:
+
+```typescript
+describe.skip('[QUARANTINED] flaky test suite', () => {
+  // TODO: Fix flakiness - see memory entry flake:reserve-engine-concurrent
+  // Root cause: Race condition in concurrent Promise.all
+  // Quarantined: 2024-01-15
+});
+```
+
+2. **Create tracking entry** in memory with:
+   - Quarantine date
+   - Root cause hypothesis
+   - Estimated fix complexity
+   - Business impact of missing coverage
+
+3. **Review quarantine weekly**:
+   - Tests quarantined > 2 weeks should be fixed or deleted
+   - Accumulating quarantined tests indicates systemic issues
+
+### Flakiness Metrics to Track
+
+Store in memory for trend analysis:
+
+- **Flake Rate**: % of test runs that flake (target: <2%)
+- **Mean Time to Detect**: How long until flakiness is noticed
+- **Mean Time to Fix**: How long flaky tests stay unfixed
+- **Repeat Offenders**: Tests that become flaky multiple times
+- **Flakiness by Category**: Which test types flake most (E2E > Integration > Unit)
+
+### Integration with CI
+
+When analyzing CI failures:
+
+1. Check if test has flakiness history in memory
+2. If known flaky: Retry before reporting failure
+3. If new flake: Run multi-iteration detection
+4. Update memory with CI-specific flakiness patterns
+
+### Reporting
+
+After flakiness analysis, report:
+
+1. **Flakiness Status**: Confirmed flaky / Genuine failure / Inconclusive
+2. **Classification**: Which flakiness type
+3. **Root Cause**: What's causing the flakiness
+4. **Recommendation**: Fix strategy or quarantine decision
+5. **Memory Update**: What was stored for future reference

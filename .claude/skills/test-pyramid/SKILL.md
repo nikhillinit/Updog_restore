@@ -171,6 +171,23 @@ Must follow this skill's rules for admission criteria, selectors, and budget.
 
 ### test-repair Agent
 Uses this skill to decide if test should be at E2E level or demoted.
+Also handles flakiness detection and quarantine per the Flake Management section.
+
+### test-scaffolder Agent
+Uses this skill when scaffolding test infrastructure to determine appropriate
+test levels and ensure proper project structure (server vs client).
+
+### test-automator Agent
+References this skill for coverage strategy and test generation at correct levels.
+
+### pr-test-analyzer Agent
+References this skill to evaluate E2E test justification in PRs.
 
 ### code-reviewer Agent
 References this skill to check if new E2E tests are justified.
+
+## Related Skills
+
+### test-fixture-generator Skill
+Provides fixture patterns (factory functions, golden datasets) that work with
+all test levels. Use for creating test data infrastructure.

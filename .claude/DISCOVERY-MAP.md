@@ -82,6 +82,9 @@ Pattern matching uses OR logic: any match triggers the route.
 | "expectation mode" OR "deterministic parity" | /phoenix-phase2 command | Expectation Mode in command |
 | "distribution table" OR "mc report" | /phoenix-prob-report command | Format Monte Carlo output |
 | "test failing" OR "fix tests" | /phoenix-truth + cheatsheets/pr-merge-verification.md | Baseline comparison |
+| "scaffold tests" OR "new test suite" OR "test infrastructure" | test-scaffolder agent | Create test infrastructure for modules |
+| "flaky test" OR "flakiness" OR "intermittent failure" | test-repair agent (flakiness section) | Flakiness detection and management |
+| "test fixtures" OR "factory functions" OR "golden dataset" | test-fixture-generator skill | Fixture patterns and generators |
 | "precision" OR "parseFloat" OR "Decimal" | phoenix-precision-guardian agent | Numeric drift |
 | "clawback" OR "ledger waterfall" OR "carry" | waterfall-specialist agent | Waterfall semantics |
 | "capital allocation" OR "exit recycling" | phoenix-capital-allocation-analyst agent | Allocation module |
