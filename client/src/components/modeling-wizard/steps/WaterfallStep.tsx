@@ -10,6 +10,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { WaterfallSchema, type Waterfall } from '@shared/types';
 import { applyWaterfallChange } from '@/lib/waterfall';
+import { useDebounceDeep } from '@/hooks/useDebounceDeep';
 import { WaterfallConfig } from './waterfall/WaterfallConfig';
 import { WaterfallSummaryCard } from './waterfall/WaterfallSummaryCard';
 
@@ -25,64 +26,66 @@ const DEFAULT_WATERFALL: Waterfall = {
   type: 'AMERICAN',
   carryVesting: {
     cliffYears: 0,
-    vestingYears: 4
-  }
+    vestingYears: 4,
+  },
 };
 
 export function WaterfallStep({ initialData, onSave }: WaterfallStepProps) {
   const {
     watch,
     setValue,
-    formState: { errors, isValid }
+    formState: { errors, isValid },
   } = useForm<Waterfall>({
     resolver: zodResolver(WaterfallSchema),
     defaultValues: initialData || DEFAULT_WATERFALL,
-    mode: 'onChange'
+    mode: 'onChange',
   });
 
   const waterfall = watch();
+
+  // Debounce form values to prevent watch() from defeating memoization
+  // watch() returns new object every render → breaks memoization
+  // Debouncing with deep equality ensures stable references for auto-save
+  const debouncedWaterfall = useDebounceDeep(waterfall, 250);
 
   /**
    * Handle field updates with validation and clamping
    * Uses existing helper for type-safe updates
    */
-  const handleFieldChange = React.useCallback((
-    field: string,
-    value: unknown
-  ) => {
-    const updated = applyWaterfallChange(waterfall, field, value);
+  const handleFieldChange = React.useCallback(
+    (field: string, value: unknown) => {
+      const updated = applyWaterfallChange(waterfall, field, value);
 
-    // Only update if value changed (performance optimization)
-    if (updated !== waterfall) {
-      // Use type assertion since we know the structure is valid
-      Object.keys(updated).forEach((key) => {
-        setValue(key as 'type' | 'carryVesting', (updated as any)[key], { shouldValidate: true });
-      });
-    }
-  }, [waterfall, setValue]);
+      // Only update if value changed (performance optimization)
+      if (updated !== waterfall) {
+        // Apply updates with proper typing
+        if ('type' in updated) {
+          setValue('type', updated.type, { shouldValidate: true });
+        }
+        if ('carryVesting' in updated) {
+          setValue('carryVesting', updated.carryVesting, { shouldValidate: true });
+        }
+      }
+    },
+    [waterfall, setValue]
+  );
 
   /**
-   * Auto-save when valid
+   * Auto-save when valid (uses debounced value to prevent excessive saves)
    */
   React.useEffect(() => {
     if (isValid) {
-      onSave(waterfall);
+      onSave(debouncedWaterfall);
     }
-  }, [waterfall, isValid, onSave]);
+  }, [debouncedWaterfall, isValid, onSave]);
 
   return (
     <div className="space-y-8">
       {/* Configuration Form */}
-      <WaterfallConfig
-        waterfall={waterfall}
-        errors={errors}
-        onFieldChange={handleFieldChange}
-      />
+      <WaterfallConfig waterfall={waterfall} errors={errors} onFieldChange={handleFieldChange} />
 
       {/* Summary Card */}
-      <WaterfallSummaryCard
-        waterfall={waterfall}
-      />
+      <WaterfallSummaryCard waterfall={waterfall} />
     </div>
   );
 }
