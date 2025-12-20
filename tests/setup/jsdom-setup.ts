@@ -7,7 +7,6 @@
  * Manual overrides break React Testing Library's appendChild logic.
  */
 
-import { afterEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { configure } from '@testing-library/react';
 
@@ -43,10 +42,9 @@ process.env.TZ = 'UTC';
 // Set test environment
 process.env.NODE_ENV = 'test';
 
-// Clean up DOM between tests to prevent leakage
-afterEach(() => {
-  document.body.innerHTML = '';
-});
+// Note: DOM cleanup between tests is handled automatically by @testing-library/react
+// via the cleanup() function called by afterEach in the test runner.
+// Manual afterEach() at module level causes "Vitest failed to find the runner" error.
 
 // Mock import.meta for Vite code
 if (typeof globalThis !== 'undefined') {
