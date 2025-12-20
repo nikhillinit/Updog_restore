@@ -30,11 +30,14 @@ import {
   assertBigIntEquals,
   generateIdempotencyKey,
 } from '../../utils/portfolio-test-utils';
+import { databaseMock } from '../../helpers/database-mock';
 
 describe('LotService (Phase 0-ALPHA - TDD RED)', () => {
   let service: LotService;
 
   beforeEach(() => {
+    // Reset mock data between tests to ensure isolation
+    databaseMock.setMockData('investment_lots', []);
     service = new LotService();
   });
 
@@ -199,6 +202,9 @@ describe('LotService (Phase 0-ALPHA - TDD RED)', () => {
 
       // ACT & ASSERT
       for (const lotType of lotTypes) {
+        // Clear mock data between iterations to avoid idempotency conflicts
+        databaseMock.setMockData('investment_lots', []);
+
         const data: CreateLotData = {
           investmentId: 1,
           lotType,

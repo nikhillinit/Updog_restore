@@ -29,11 +29,22 @@ import {
   assertValidUUID,
   generateIdempotencyKey,
 } from '../../utils/portfolio-test-utils';
+import { databaseMock } from '../../helpers/database-mock';
+
+// Helper to create and insert a test snapshot into mock
+function createAndInsertSnapshot(overrides?: Partial<ReturnType<typeof createTestSnapshot>>) {
+  const snapshot = createTestSnapshot(overrides);
+  const existing = databaseMock.getMockData('forecast_snapshots') || [];
+  databaseMock.setMockData('forecast_snapshots', [...existing, snapshot]);
+  return snapshot;
+}
 
 describe('SnapshotService (Phase 0-ALPHA - TDD RED)', () => {
   let service: SnapshotService;
 
   beforeEach(() => {
+    // Reset mock data between tests to ensure isolation
+    databaseMock.setMockData('forecast_snapshots', []);
     service = new SnapshotService();
   });
 
@@ -222,8 +233,8 @@ describe('SnapshotService (Phase 0-ALPHA - TDD RED)', () => {
 
   describe('get()', () => {
     it('should retrieve snapshot by ID', async () => {
-      // ARRANGE
-      const testSnapshot = SAMPLE_SNAPSHOTS[0];
+      // ARRANGE - Insert snapshot into mock first
+      const testSnapshot = createAndInsertSnapshot();
 
       // ACT
       const snapshot = await service.get(testSnapshot.id);
@@ -245,8 +256,8 @@ describe('SnapshotService (Phase 0-ALPHA - TDD RED)', () => {
     });
 
     it('should return snapshot with all fields populated', async () => {
-      // ARRANGE
-      const testSnapshot = createTestSnapshot({
+      // ARRANGE - Insert snapshot into mock first
+      const testSnapshot = createAndInsertSnapshot({
         status: 'complete',
         calculatedMetrics: { irr: 0.18 },
       });
@@ -262,8 +273,8 @@ describe('SnapshotService (Phase 0-ALPHA - TDD RED)', () => {
 
   describe('update()', () => {
     it('should update snapshot with valid version', async () => {
-      // ARRANGE
-      const testSnapshot = createTestSnapshot();
+      // ARRANGE - Insert snapshot into mock first
+      const testSnapshot = createAndInsertSnapshot();
       const updateData: UpdateSnapshotData = {
         status: 'calculating',
         version: testSnapshot.version,
@@ -279,8 +290,8 @@ describe('SnapshotService (Phase 0-ALPHA - TDD RED)', () => {
     });
 
     it('should update calculated metrics', async () => {
-      // ARRANGE
-      const testSnapshot = createTestSnapshot({ status: 'calculating' });
+      // ARRANGE - Insert snapshot into mock first
+      const testSnapshot = createAndInsertSnapshot({ status: 'calculating' });
       const updateData: UpdateSnapshotData = {
         status: 'complete',
         calculatedMetrics: {
@@ -301,8 +312,8 @@ describe('SnapshotService (Phase 0-ALPHA - TDD RED)', () => {
     });
 
     it('should throw SnapshotVersionConflictError on version mismatch', async () => {
-      // ARRANGE
-      const testSnapshot = createTestSnapshot();
+      // ARRANGE - Insert snapshot into mock first
+      const testSnapshot = createAndInsertSnapshot();
       const staleVersion = testSnapshot.version - BigInt(1); // Stale version
 
       const updateData: UpdateSnapshotData = {
@@ -331,8 +342,8 @@ describe('SnapshotService (Phase 0-ALPHA - TDD RED)', () => {
     });
 
     it('should update multiple fields atomically', async () => {
-      // ARRANGE
-      const testSnapshot = createTestSnapshot({ status: 'calculating' });
+      // ARRANGE - Insert snapshot into mock first
+      const testSnapshot = createAndInsertSnapshot({ status: 'calculating' });
       const updateData: UpdateSnapshotData = {
         status: 'complete',
         calculatedMetrics: { irr: 0.18 },

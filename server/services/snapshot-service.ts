@@ -10,7 +10,11 @@
  * @module server/services/snapshot-service
  */
 
-import type { ForecastSnapshot } from '@shared/schema';
+import { db } from '../db.js';
+import { forecastSnapshots, funds } from '@shared/schema.js';
+import { eq, and, desc, lt } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
+import type { ForecastSnapshot } from '@shared/schema.js';
 
 // =====================
 // TYPE DEFINITIONS
@@ -133,7 +137,45 @@ export class SnapshotService {
    * });
    */
   async create(data: CreateSnapshotData): Promise<ForecastSnapshot> {
-    throw new Error('Not implemented: SnapshotService.create()');
+    // Verify fund exists
+    await this.verifyFundExists(data.fundId);
+
+    // Check for existing snapshot with same idempotency key
+    if (data.idempotencyKey) {
+      const existing = await db.query.forecastSnapshots.findFirst({
+        where: and(
+          eq(forecastSnapshots.fundId, data.fundId),
+          eq(forecastSnapshots.idempotencyKey, data.idempotencyKey)
+        ),
+      });
+
+      if (existing) {
+        return existing;
+      }
+    }
+
+    // Create new snapshot
+    const now = new Date();
+    const [snapshot] = await db
+      .insert(forecastSnapshots)
+      .values({
+        id: randomUUID(),
+        fundId: data.fundId,
+        name: data.name,
+        idempotencyKey: data.idempotencyKey ?? null,
+        status: 'pending',
+        snapshotTime: now,
+        version: BigInt(1),
+        calculatedMetrics: null,
+        fundState: null,
+        portfolioState: null,
+        metricsState: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+
+    return snapshot;
   }
 
   /**
@@ -156,7 +198,40 @@ export class SnapshotService {
    * console.log(result.hasMore); // true if more results available
    */
   async list(fundId: number, filter: ListSnapshotsFilter): Promise<PaginatedSnapshots> {
-    throw new Error('Not implemented: SnapshotService.list()');
+    // Verify fund exists
+    await this.verifyFundExists(fundId);
+
+    const limit = Math.min(filter.limit ?? 50, 100);
+
+    // Query snapshots for fund
+    const snapshots = await db.query.forecastSnapshots.findMany({
+      where: eq(forecastSnapshots.fundId, fundId),
+      orderBy: [desc(forecastSnapshots.snapshotTime), desc(forecastSnapshots.id)],
+      limit: limit + 1,
+    });
+
+    // Apply status filter if specified
+    let filteredSnapshots = filter.status
+      ? snapshots.filter((s) => s.status === filter.status)
+      : snapshots;
+
+    // Determine if there are more results
+    const hasMore = filteredSnapshots.length > limit;
+    if (hasMore) {
+      filteredSnapshots = filteredSnapshots.slice(0, limit);
+    }
+
+    // Generate next cursor if there are more results
+    const nextCursor =
+      hasMore && filteredSnapshots.length > 0
+        ? this.encodeCursor(filteredSnapshots[filteredSnapshots.length - 1].snapshotTime, filteredSnapshots[filteredSnapshots.length - 1].id)
+        : undefined;
+
+    return {
+      snapshots: filteredSnapshots,
+      nextCursor,
+      hasMore,
+    };
   }
 
   /**
@@ -170,7 +245,15 @@ export class SnapshotService {
    * const snapshot = await service.get('uuid');
    */
   async get(snapshotId: string): Promise<ForecastSnapshot> {
-    throw new Error('Not implemented: SnapshotService.get()');
+    const snapshot = await db.query.forecastSnapshots.findFirst({
+      where: eq(forecastSnapshots.id, snapshotId),
+    });
+
+    if (!snapshot) {
+      throw new SnapshotNotFoundError(snapshotId);
+    }
+
+    return snapshot;
   }
 
   /**
@@ -194,7 +277,35 @@ export class SnapshotService {
    * console.log(updated.version); // BigInt(2)
    */
   async update(snapshotId: string, data: UpdateSnapshotData): Promise<ForecastSnapshot> {
-    throw new Error('Not implemented: SnapshotService.update()');
+    // Get current snapshot
+    const current = await this.get(snapshotId);
+
+    // Check version for optimistic locking
+    if (current.version !== data.version) {
+      throw new SnapshotVersionConflictError(snapshotId, data.version, current.version);
+    }
+
+    // Build update object
+    const updateData: Partial<ForecastSnapshot> = {
+      updatedAt: new Date(),
+      version: current.version + BigInt(1),
+    };
+
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.status !== undefined) updateData.status = data.status;
+    if (data.calculatedMetrics !== undefined) updateData.calculatedMetrics = data.calculatedMetrics;
+    if (data.fundState !== undefined) updateData.fundState = data.fundState;
+    if (data.portfolioState !== undefined) updateData.portfolioState = data.portfolioState;
+    if (data.metricsState !== undefined) updateData.metricsState = data.metricsState;
+
+    // Update in database
+    const [updated] = await db
+      .update(forecastSnapshots)
+      .set(updateData)
+      .where(eq(forecastSnapshots.id, snapshotId))
+      .returning();
+
+    return updated || { ...current, ...updateData };
   }
 
   // =====================
@@ -239,7 +350,12 @@ export class SnapshotService {
    * @throws FundNotFoundError if fund does not exist
    */
   private async verifyFundExists(fundId: number): Promise<void> {
-    // TODO: Implement database query
-    throw new Error(`Not implemented: verifyFundExists(${fundId})`);
+    const fund = await db.query.funds.findFirst({
+      where: eq(funds.id, fundId),
+    });
+
+    if (!fund) {
+      throw new FundNotFoundError(fundId);
+    }
   }
 }

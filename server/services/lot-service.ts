@@ -10,7 +10,11 @@
  * @module server/services/lot-service
  */
 
-import type { InvestmentLot } from '@shared/schema';
+import { db } from '../db.js';
+import { investmentLots, investments } from '@shared/schema.js';
+import { eq, and, desc, lt, or } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
+import type { InvestmentLot } from '@shared/schema.js';
 
 // =====================
 // TYPE DEFINITIONS
@@ -151,7 +155,45 @@ export class LotService {
    * });
    */
   async create(fundId: number, data: CreateLotData): Promise<InvestmentLot> {
-    throw new Error('Not implemented: LotService.create()');
+    // Verify investment exists and belongs to fund
+    await this.verifyInvestmentBelongsToFund(data.investmentId, fundId);
+
+    // Validate cost basis calculation
+    this.validateCostBasis(data.sharePriceCents, data.sharesAcquired, data.costBasisCents);
+
+    // Check for existing lot with same idempotency key
+    if (data.idempotencyKey) {
+      const existing = await db.query.investmentLots.findFirst({
+        where: and(
+          eq(investmentLots.investmentId, data.investmentId),
+          eq(investmentLots.idempotencyKey, data.idempotencyKey)
+        ),
+      });
+
+      if (existing) {
+        return existing;
+      }
+    }
+
+    // Create new lot
+    const now = new Date();
+    const [lot] = await db
+      .insert(investmentLots)
+      .values({
+        id: randomUUID(),
+        investmentId: data.investmentId,
+        lotType: data.lotType,
+        sharePriceCents: data.sharePriceCents,
+        sharesAcquired: data.sharesAcquired,
+        costBasisCents: data.costBasisCents,
+        idempotencyKey: data.idempotencyKey ?? null,
+        version: BigInt(1),
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+
+    return lot;
   }
 
   /**
@@ -174,7 +216,40 @@ export class LotService {
    * console.log(result.hasMore); // true if more results available
    */
   async list(fundId: number, filter: ListLotsFilter): Promise<PaginatedLots> {
-    throw new Error('Not implemented: LotService.list()');
+    const limit = Math.min(filter.limit ?? 50, 100);
+
+    // Build where conditions for investment belonging to fund
+    // and optionally filter by investmentId and lotType
+    const lots = await db.query.investmentLots.findMany({
+      where: filter.investmentId
+        ? eq(investmentLots.investmentId, filter.investmentId)
+        : undefined,
+      orderBy: [desc(investmentLots.createdAt), desc(investmentLots.id)],
+      limit: limit + 1, // Fetch one extra to determine if there are more
+    });
+
+    // Apply lotType filter if specified
+    let filteredLots = filter.lotType
+      ? lots.filter((l) => l.lotType === filter.lotType)
+      : lots;
+
+    // Determine if there are more results
+    const hasMore = filteredLots.length > limit;
+    if (hasMore) {
+      filteredLots = filteredLots.slice(0, limit);
+    }
+
+    // Generate next cursor if there are more results
+    const nextCursor =
+      hasMore && filteredLots.length > 0
+        ? this.encodeCursor(filteredLots[filteredLots.length - 1].createdAt, filteredLots[filteredLots.length - 1].id)
+        : undefined;
+
+    return {
+      lots: filteredLots,
+      nextCursor,
+      hasMore,
+    };
   }
 
   // =====================
@@ -197,10 +272,21 @@ export class LotService {
     sharesAcquired: string,
     costBasisCents: bigint
   ): void {
-    // TODO: Implement validation logic
-    throw new Error(
-      `Not implemented: validateCostBasis(${sharePriceCents}, ${sharesAcquired}, ${costBasisCents})`
-    );
+    // Calculate expected cost basis
+    const expectedCostBasis = this.calculateCostBasis(sharePriceCents, sharesAcquired);
+
+    // Allow tolerance of 1 cent per share for rounding
+    const shares = parseFloat(sharesAcquired);
+    const toleranceCents = BigInt(Math.ceil(shares));
+
+    const diff =
+      costBasisCents > expectedCostBasis
+        ? costBasisCents - expectedCostBasis
+        : expectedCostBasis - costBasisCents;
+
+    if (diff > toleranceCents) {
+      throw new CostBasisMismatchError(expectedCostBasis, costBasisCents, sharePriceCents, sharesAcquired);
+    }
   }
 
   /**
@@ -215,10 +301,17 @@ export class LotService {
     investmentId: number,
     fundId: number
   ): Promise<void> {
-    // TODO: Implement database query
-    throw new Error(
-      `Not implemented: verifyInvestmentBelongsToFund(${investmentId}, ${fundId})`
-    );
+    const investment = await db.query.investments.findFirst({
+      where: eq(investments.id, investmentId),
+    });
+
+    if (!investment) {
+      throw new InvestmentNotFoundError(investmentId);
+    }
+
+    if (investment.fundId !== fundId) {
+      throw new InvestmentFundMismatchError(investmentId, fundId);
+    }
   }
 
   /**
