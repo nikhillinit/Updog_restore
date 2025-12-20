@@ -85,6 +85,9 @@ export default defineConfig({
     projects: [
       {
         resolve: { alias }, // Explicit alias for server project (projects don't inherit root resolve)
+        esbuild: {
+          jsxInject: "import React from 'react'",
+        },
         test: {
           name: 'server',
           environment: 'node',
@@ -104,6 +107,9 @@ export default defineConfig({
       },
       {
         resolve: { alias }, // Explicit alias for client project (for consistency)
+        esbuild: {
+          jsxInject: "import React from 'react'",
+        },
         test: {
           name: 'client',
           environment: 'jsdom',
