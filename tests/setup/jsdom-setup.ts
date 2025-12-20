@@ -7,9 +7,9 @@
  * Manual overrides break React Testing Library's appendChild logic.
  */
 
-import { afterEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { configure } from '@testing-library/react';
+import { afterEach } from 'vitest';
+import { cleanup, configure } from '@testing-library/react';
 
 // Assert jsdom environment was initialized by Vitest
 if (typeof window === 'undefined' || typeof document === 'undefined') {
@@ -28,8 +28,12 @@ if (!document.body) {
 // Configure React Testing Library for React 18 compatibility
 configure({
   asyncUtilTimeout: 2000,
-  // Enable automatic cleanup (default behavior)
-  // This prevents "Should not already be working" errors
+});
+
+// React 18: Explicit cleanup after each test (required for React 18.3.1)
+// This prevents hook state pollution between tests and "Cannot read properties of null" errors
+afterEach(() => {
+  cleanup();
 });
 
 // React 18 Concurrent Features Configuration
@@ -43,11 +47,6 @@ process.env.TZ = 'UTC';
 // Set test environment
 process.env.NODE_ENV = 'test';
 
-// Clean up DOM between tests to prevent leakage
-afterEach(() => {
-  document.body.innerHTML = '';
-});
-
 // Mock import.meta for Vite code
 if (typeof globalThis !== 'undefined') {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
@@ -59,4 +58,30 @@ if (typeof globalThis !== 'undefined') {
       },
     },
   };
+}
+
+// Mock ResizeObserver - jsdom doesn't implement this but many UI libraries need it
+// (shadcn, recharts, radix-ui, etc.)
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+if (typeof window !== 'undefined' && !window.ResizeObserver) {
+  window.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+}
+
+// Mock matchMedia - jsdom doesn't implement this but Tailwind/responsive hooks need it
+if (typeof window !== 'undefined' && !window.matchMedia) {
+  window.matchMedia = (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  });
 }

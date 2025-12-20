@@ -67,6 +67,28 @@ declare global {
       };
       /** Unique request identifier for tracing */
       requestId?: string;
+      /** Request ID (short form) - alias for requestId (allocations.ts:348) */
+      rid?: string;
+      /** Request ID (alternate field) - same as rid (reserves-api.ts:250) */
+      id?: string;
+      /** Correlation ID for distributed tracing (correlation.ts:7) */
+      correlationId?: string;
+      /** API version from request header (server.ts:89) */
+      version?: string;
+      /** User security context (locks.ts:80) */
+      context?: any; // TODO: Import UserContext from server/middleware/secure-context
+      /** Rate limit metadata (rateLimits.ts:120) */
+      rateLimit?: {
+        limit: number;
+        remaining: number;
+        reset: Date;
+      };
+      /** RUM v2 performance metrics (metrics-rum.ts:102) */
+      rumV2?: {
+        sessionId: string;
+        pageLoadTime?: number;
+        [key: string]: unknown;
+      };
       /** Audit trail metadata */
       audit?: {
         event: string;

@@ -1,18 +1,19 @@
+// @vitest-environment jsdom
+
 /**
  * DeterministicReserveEngine Test Suite
  * Comprehensive tests for MOIC-based reserve allocation with deterministic seeding
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { DeterministicReserveEngine } from '@/core/reserves/DeterministicReserveEngine';
 import type {
   ReserveAllocationInput,
   PortfolioCompany,
   GraduationMatrix,
   StageStrategy,
-  FeatureFlags
+  FeatureFlags,
 } from '@shared/schemas/reserves-schemas';
-import Decimal from 'decimal.js';
 
 // =============================================================================
 // TEST FIXTURES
@@ -85,7 +86,7 @@ const createStageStrategies = (): StageStrategy[] => [
     stage: 'Series B',
     minInvestment: 1000000,
     maxInvestment: 5000000,
-    targetOwnership: 0.10,
+    targetOwnership: 0.1,
     expectedMOIC: 3.0,
     expectedTimeToExit: 60,
     failureRate: 0.3,
@@ -93,7 +94,9 @@ const createStageStrategies = (): StageStrategy[] => [
   },
 ];
 
-const createAllocationInput = (overrides: Partial<ReserveAllocationInput> = {}): ReserveAllocationInput => ({
+const createAllocationInput = (
+  overrides: Partial<ReserveAllocationInput> = {}
+): ReserveAllocationInput => ({
   portfolio: [createCompany()],
   graduationMatrix: createGraduationMatrix(),
   stageStrategies: createStageStrategies(),
@@ -145,24 +148,27 @@ describe('DeterministicReserveEngine - Input Validation', () => {
     const engine = new DeterministicReserveEngine();
     const input = createAllocationInput({ portfolio: [] });
 
-    await expect(engine.calculateOptimalReserveAllocation(input))
-      .rejects.toThrow('Portfolio cannot be empty');
+    await expect(engine.calculateOptimalReserveAllocation(input)).rejects.toThrow(
+      'Portfolio cannot be empty'
+    );
   });
 
   it('should reject negative available reserves', async () => {
     const engine = new DeterministicReserveEngine();
     const input = createAllocationInput({ availableReserves: -1000000 });
 
-    await expect(engine.calculateOptimalReserveAllocation(input))
-      .rejects.toThrow('Available reserves must be positive');
+    await expect(engine.calculateOptimalReserveAllocation(input)).rejects.toThrow(
+      'Available reserves must be positive'
+    );
   });
 
   it('should reject zero total fund size', async () => {
     const engine = new DeterministicReserveEngine();
     const input = createAllocationInput({ totalFundSize: 0 });
 
-    await expect(engine.calculateOptimalReserveAllocation(input))
-      .rejects.toThrow('Total fund size must be positive');
+    await expect(engine.calculateOptimalReserveAllocation(input)).rejects.toThrow(
+      'Total fund size must be positive'
+    );
   });
 
   it('should accept valid input', async () => {
@@ -430,10 +436,7 @@ describe('DeterministicReserveEngine - Edge Cases', () => {
 
   it('should handle all inactive companies', async () => {
     const engine = new DeterministicReserveEngine();
-    const portfolio = [
-      createCompany({ isActive: false }),
-      createCompany({ isActive: false }),
-    ];
+    const portfolio = [createCompany({ isActive: false }), createCompany({ isActive: false })];
     const input = createAllocationInput({ portfolio });
 
     const result = await engine.calculateOptimalReserveAllocation(input);
@@ -470,7 +473,7 @@ describe('DeterministicReserveEngine - Edge Cases', () => {
     const result = await engine.calculateOptimalReserveAllocation(input);
 
     // All allocations should be >= threshold
-    result.allocations.forEach(allocation => {
+    result.allocations.forEach((allocation) => {
       expect(allocation.recommendedAllocation).toBeGreaterThanOrEqual(1000000);
     });
   });
@@ -484,7 +487,7 @@ describe('DeterministicReserveEngine - Edge Cases', () => {
     const result = await engine.calculateOptimalReserveAllocation(input);
 
     // All allocations should be <= max
-    result.allocations.forEach(allocation => {
+    result.allocations.forEach((allocation) => {
       expect(allocation.recommendedAllocation).toBeLessThanOrEqual(2000000);
     });
   });
@@ -498,7 +501,7 @@ describe('DeterministicReserveEngine - Edge Cases', () => {
 
     const result = await engine.calculateOptimalReserveAllocation(input);
 
-    result.allocations.forEach(allocation => {
+    result.allocations.forEach((allocation) => {
       expect(allocation.portfolioWeight).toBeLessThanOrEqual(0.1);
     });
   });
@@ -538,7 +541,7 @@ describe('DeterministicReserveEngine - Allocation Ranking', () => {
     const result = await engine.calculateOptimalReserveAllocation(input);
 
     // Priorities should be sequential
-    const priorities = result.allocations.map(a => a.priority);
+    const priorities = result.allocations.map((a) => a.priority);
     const sortedPriorities = [...priorities].sort((a, b) => a - b);
     expect(priorities).toEqual(sortedPriorities);
   });
@@ -659,9 +662,7 @@ describe('DeterministicReserveEngine - Performance', () => {
       maxCalculationTimeMs: 5000,
     });
 
-    const portfolio = Array.from({ length: 20 }, (_, i) =>
-      createCompany({ id: `company-${i}` })
-    );
+    const portfolio = Array.from({ length: 20 }, (_, i) => createCompany({ id: `company-${i}` }));
     const input = createAllocationInput({ portfolio });
 
     const startTime = Date.now();
@@ -729,13 +730,8 @@ describe('DeterministicReserveEngine - Output Structure', () => {
 
     const result = await engine.calculateOptimalReserveAllocation(input);
 
-    const totalAllocated = result.allocations.reduce(
-      (sum, a) => sum + a.recommendedAllocation,
-      0
-    );
-    expect(result.unallocatedReserves).toBe(
-      result.inputSummary.availableReserves - totalAllocated
-    );
+    const totalAllocated = result.allocations.reduce((sum, a) => sum + a.recommendedAllocation, 0);
+    expect(result.unallocatedReserves).toBe(result.inputSummary.availableReserves - totalAllocated);
   });
 
   it('should include portfolio metrics', async () => {
