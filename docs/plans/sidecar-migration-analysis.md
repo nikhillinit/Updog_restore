@@ -338,10 +338,152 @@ css: {
 
 ### Medium Risk
 - lightningcss addition (vite.config.ts dependency)
-- Windows developer impact during transition
 
-### High Risk
-- None identified (migration is additive, not breaking)
+### HIGH RISK: Windows Defender Regression
+
+**This is the critical risk that motivated the sidecar architecture in the first place.**
+
+---
+
+## Windows Defender Risk Analysis
+
+### The Original Problem (October 2025)
+
+**Root Cause**: Windows Defender real-time protection **silently blocks** npm from
+writing certain packages to `node_modules/`. This particularly affects:
+- `vite` (dev server code triggers heuristic antivirus detection)
+- `@vitejs/plugin-react`
+- `tsx`
+- `concurrently`
+
+**Symptoms** (from `INCIDENT_LOG_REDIS_DB_HARDENING.md`):
+```bash
+npm install        # Reports success (918 packages)
+npm ls vite        # Returns (empty)
+node_modules/vite  # Does not exist on disk
+npx vite --version # Works (uses npx cache, not local)
+npm run dev        # ERR_MODULE_NOT_FOUND
+```
+
+**What Happens**:
+- npm creates directory structure (`@vitejs/` folder exists but empty)
+- Antivirus intercepts and **blocks file writes** during package extraction
+- npm doesn't report the failure (silent block)
+- 558 other packages install successfully, only vite-related packages affected
+- **Complete development environment failure** - cannot start dev server
+
+### Why Sidecar Was Implemented
+
+The sidecar architecture provides "Windows Defender Immunity":
+
+1. **Isolated workspace**: `tools_local/` is a separate npm workspace
+2. **Pre-installed**: `npm ci --prefix tools_local` runs before main install
+3. **Junction links**: Windows junctions bypass the problematic npm install path
+4. **Source of truth**: `tools_local/node_modules/` has the actual packages
+
+**Theory**: The smaller, separate sidecar install is less likely to trigger
+Windows Defender heuristics than the large main `node_modules/` install.
+
+### Migration Risks for Windows
+
+| Risk | Likelihood | Impact | Description |
+|------|------------|--------|-------------|
+| Silent package blocking | **MEDIUM** | **HIGH** | Windows Defender may block vite/tsx during npm install |
+| Dev environment failure | **MEDIUM** | **HIGH** | Cannot start dev server if vite missing |
+| CI/local divergence | LOW | MEDIUM | Linux CI passes, Windows local fails silently |
+| Developer productivity loss | **MEDIUM** | **HIGH** | Hours debugging "phantom" missing packages |
+
+### Why The Risk May Be Lower Than Expected
+
+Per `docs/WINDOWS_NODE_CORRUPTION_PREVENTION.md`, the "real fix" was simpler:
+
+1. **`npx` usage**: Already in place for some scripts
+2. **dotenv override**: `loadDotenv({ override: true })` in server config
+3. **Explicit dependencies**: All tools declared in package.json
+
+The sidecar may have been a "belt and suspenders" approach on top of these fixes.
+
+**However**: The incident log shows npm install **silently succeeds** while packages
+are blocked - this is insidious and hard to debug without the sidecar safety net.
+
+### Required Mitigations Before Migration
+
+#### 1. Document Windows Defender Exclusion (MANDATORY)
+
+Add to README and onboarding docs:
+```powershell
+# PowerShell (Admin required)
+Add-MpPreference -ExclusionPath "C:\dev\Updog_restore"
+Add-MpPreference -ExclusionPath "$env:USERPROFILE\AppData\Local\npm-cache"
+```
+
+#### 2. Create `setup-windows.ps1` Script
+
+```powershell
+# One-click Windows setup with Defender exclusion
+param([switch]$AddDefenderExclusion)
+
+if ($AddDefenderExclusion) {
+    Write-Host "Adding Windows Defender exclusions (requires Admin)..."
+    Add-MpPreference -ExclusionPath $PWD
+    Add-MpPreference -ExclusionPath "$env:USERPROFILE\AppData\Local\npm-cache"
+}
+
+npm config set longpaths true
+npm config set engine-strict false
+npm install
+npm run doctor:quick
+```
+
+#### 3. Enhance `doctor:quick` Validation
+
+Add explicit disk presence checks (not just `require.resolve`):
+```javascript
+// Check packages exist ON DISK, not just resolvable
+const vitePath = 'node_modules/vite/package.json';
+if (!fs.existsSync(vitePath)) {
+  console.error('CRITICAL: vite not on disk (Windows Defender may have blocked install)');
+  console.error('FIX: Add project folder to Windows Defender exclusions');
+  process.exit(1);
+}
+```
+
+#### 4. Test on Windows CI Before Merging
+
+The existing `.github/workflows/sidecar-windows.yml` should be expanded to test
+post-migration behavior on `windows-latest`.
+
+### Recommended Approach: Conditional Migration
+
+**Do NOT remove sidecar completely without Windows validation period.**
+
+**Option A: Staged Rollout (Recommended)**
+1. Phase 2: Migrate scripts (works with or without sidecar)
+2. Phase 3: Make sidecar optional via `SIDECAR_ENABLE=1`
+3. Phase 3.5: **2-week Windows validation period** with real users
+4. Phase 4: Remove sidecar only after zero Windows Defender incidents
+
+**Option B: Keep Sidecar for Windows Only**
+- CI/Linux: Uses root node_modules (already works)
+- Windows: Continues using sidecar (no change)
+- Simpler, lower risk, but maintains dual-path complexity
+
+**Option C: Full Migration with Defender Exclusion Requirement**
+- Require Defender exclusion as part of Windows setup
+- Document clearly in README, onboarding, error messages
+- Accept that some Windows devs may hit issues initially
+
+### Recommendation
+
+**Proceed with caution.** The migration is technically sound, but the Windows
+Defender issue is **insidious** (silent failures, npm reports success).
+
+**Minimum requirements before Phase 4 (sidecar removal)**:
+1. `setup-windows.ps1` script created and documented
+2. `doctor:quick` enhanced to detect silent install failures
+3. Windows CI job validates full workflow
+4. 2-week validation period with Windows developers
+5. Clear rollback path documented and tested
 
 ---
 
@@ -406,12 +548,40 @@ See `package.json` lines 22, 27-32, 36, 42-45, 50-52, 102-106, 108-113, 131-132,
 
 ## Recommendation
 
-**Proceed with migration.** The plan is low-risk because:
+**Proceed with script migration (Phases 0-2), but defer sidecar removal (Phase 4)
+until Windows Defender mitigations are in place.**
 
-1. Packages already exist in root - no installation needed
-2. CI already uses root node_modules - proven to work
-3. Direct binary names are standard npm practice
-4. Env var escape hatches protect Windows developers
-5. Rollback is a single git checkout
+### What's Safe to Do Now:
+1. Phase 0: Baseline verification
+2. Phase 1: Version synchronization + add lightningcss
+3. Phase 2: Migrate 53 scripts to direct binary calls
+4. Phase 3: Make sidecar optional (env var controlled)
 
-**Estimated Total Effort**: 4-5 hours including testing and documentation updates.
+### What Requires Windows Validation First:
+- Phase 4: Full sidecar removal
+
+### Why This Is The Right Approach:
+
+**Low-risk benefits** (Phases 0-3):
+- Scripts work identically with or without sidecar
+- CI already uses root node_modules - proven to work
+- Direct binary names are standard npm practice
+- Env var escape hatches protect Windows developers
+- Rollback is a single git checkout
+
+**High-risk deferred** (Phase 4):
+- Windows Defender silent blocking is insidious
+- Requires `setup-windows.ps1` and enhanced `doctor:quick`
+- Needs 2-week validation with Windows developers
+- Should only proceed after zero Defender incidents
+
+### Estimated Effort:
+
+| Phase | Effort | Risk | Status |
+|-------|--------|------|--------|
+| 0-2 | 3-4 hours | Low | Ready to proceed |
+| 3 | 30 min | Low | Ready to proceed |
+| 4 | 30 min | **HIGH** | Defer until Windows validation |
+
+**Total (Phases 0-3)**: 4-5 hours
+**Phase 4**: Defer 2+ weeks pending Windows testing
