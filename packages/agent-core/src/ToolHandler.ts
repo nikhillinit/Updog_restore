@@ -12,7 +12,7 @@
  * ```
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+import type Anthropic from '@anthropic-ai/sdk';
 import { logger } from './Logger.js';
 
 /**

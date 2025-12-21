@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 import { ComposedChart } from 'recharts/es6/chart/ComposedChart';
 import { Bar } from 'recharts/es6/cartesian/Bar';
 import { Line } from 'recharts/es6/cartesian/Line';

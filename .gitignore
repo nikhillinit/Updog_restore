@@ -230,3 +230,8 @@ branch_cleanup_reports/
 backups/
 .branch_cleanup_safety_token
 cleanup_*.log
+
+# Sidecar migration artifacts
+.migration-backup/
+.npm-cache/
+.npm-tmp/

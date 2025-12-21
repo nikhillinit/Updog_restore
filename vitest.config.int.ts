@@ -11,7 +11,11 @@ export default defineConfig({
   },
   test: {
     name: 'integration',
-    include: ['tests/integration/**/*.int.spec.ts', 'tests/integration/**/*.spec.ts'],
+    include: [
+      'tests/integration/**/*.int.spec.ts',
+      'tests/integration/**/*.spec.ts',
+      'tests/integration/**/*.test.ts'
+    ],
     exclude: ['tests/unit/**/*', 'tests/synthetics/**/*'],
     environment: 'node',
     testTimeout: 30000,

@@ -57,7 +57,6 @@ import {
 
 // Phase 1.5: Capital Allocation - tests moved to client/src/core/capitalAllocation/__tests__/truthCaseRunner.test.ts
 // Import type only for load verification
-import type { CATruthCase as CapitalAllocationTruthCase } from './capital-allocation-adapter';
 
 // Import all truth-case JSON files
 import xirrCases from '../../../docs/xirr.truth-cases.json';

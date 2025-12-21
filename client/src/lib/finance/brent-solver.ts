@@ -73,7 +73,7 @@ export function brent(
   let c = a;
   let fc = fa;
   let d = b - a;
-  let e = d;
+  const e = d;
   let mflag = true;
 
   for (let iter = 0; iter < maxIterations; iter++) {

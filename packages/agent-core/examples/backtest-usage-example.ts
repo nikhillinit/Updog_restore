@@ -8,7 +8,8 @@
  * 4. Saving reports
  */
 
-import { BacktestRunner, BacktestExecutionCase, BacktestExecutionReport } from '../src/Backtest';
+import type { BacktestExecutionReport } from '../src/Backtest';
+import { BacktestRunner } from '../src/Backtest';
 import { resolve } from 'path';
 
 async function runBacktestExample() {
@@ -36,7 +37,7 @@ async function runBacktestExample() {
   const report: BacktestExecutionReport = await runner.runBacktest(testCases);
 
   // 4. Analyze results
-  console.log('\n' + '='.repeat(60));
+  console.log(`\n${  '='.repeat(60)}`);
   console.log('RESULTS ANALYSIS');
   console.log('='.repeat(60));
   console.log(`Total Cases: ${report.totalCases}`);

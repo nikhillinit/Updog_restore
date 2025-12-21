@@ -122,7 +122,7 @@ export class Logger {
   private logToFile(entry: LogEntry): void {
     try {
       const logFile = join(this.config.logDir, `${this.config.agent}.log`);
-      const jsonEntry = JSON.stringify(entry) + '\n';
+      const jsonEntry = `${JSON.stringify(entry)  }\n`;
       
       if (existsSync(logFile)) {
         appendFileSync(logFile, jsonEntry);

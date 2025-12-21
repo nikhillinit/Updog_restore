@@ -7,8 +7,29 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';
-import express from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
 import router from '../../../server/routes/portfolio-intelligence';
+
+// Mock idempotency middleware BEFORE importing router
+vi.mock('../../../server/middleware/idempotency', () => ({
+  idempotency: () => (req: Request, res: Response, next: NextFunction) => next(),
+  clearIdempotencyCache: vi.fn(),
+  default: (req: Request, res: Response, next: NextFunction) => next(),
+}));
+
+// In-memory storage for test data
+const testStorage = {
+  strategies: new Map<string, unknown>(),
+  scenarios: new Map<string, unknown>(),
+  forecasts: new Map<string, unknown>(),
+  reserveStrategies: new Map<string, unknown>(),
+  comparisons: new Map<string, unknown>(),
+  simulations: new Map<string, unknown>(),
+  optimizations: new Map<string, unknown>(),
+  backtests: new Map<string, unknown>(),
+  validations: new Map<string, unknown>(),
+  quickScenarios: new Map<string, unknown>(),
+};
 
 // Create test Express app
 const createTestApp = () => {
@@ -16,7 +37,7 @@ const createTestApp = () => {
   app.use(express.json());
 
   // Mock authentication middleware
-  app.use((req: any, res, next) => {
+  app.use((req: Request & { user?: { id: string } }, _res: Response, next: NextFunction) => {
     req.user = { id: '1' };
     next();
   });
@@ -24,7 +45,8 @@ const createTestApp = () => {
   app.use(router);
 
   // Error handling middleware
-  app.use((err: any, req: any, res: any, next: any) => {
+  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+    void _next;
     res.status(500).json({ error: 'Internal server error', message: err.message });
   });
 
@@ -35,6 +57,18 @@ describe('Portfolio Intelligence API Routes', () => {
   let app: express.Application;
 
   beforeEach(() => {
+    // Clear all storage
+    testStorage.strategies.clear();
+    testStorage.scenarios.clear();
+    testStorage.forecasts.clear();
+    testStorage.reserveStrategies.clear();
+    testStorage.comparisons.clear();
+    testStorage.simulations.clear();
+    testStorage.optimizations.clear();
+    testStorage.backtests.clear();
+    testStorage.validations.clear();
+    testStorage.quickScenarios.clear();
+
     app = createTestApp();
     vi.clearAllMocks();
   });
@@ -55,36 +89,36 @@ describe('Portfolio Intelligence API Routes', () => {
         checkSizeRange: {
           min: 500000,
           max: 2000000,
-          target: 1000000
+          target: 1000000,
         },
         sectorAllocation: {
-          'fintech': 0.3,
-          'healthtech': 0.25,
-          'enterprise': 0.2,
-          'consumer': 0.15,
-          'deeptech': 0.1
+          fintech: 0.3,
+          healthtech: 0.25,
+          enterprise: 0.2,
+          consumer: 0.15,
+          deeptech: 0.1,
         },
         stageAllocation: {
-          'seed': 0.4,
-          'seriesA': 0.6
+          seed: 0.4,
+          seriesA: 0.6,
         },
         geographicAllocation: {
-          'north_america': 0.7,
-          'europe': 0.2,
-          'asia_pacific': 0.1
+          north_america: 0.7,
+          europe: 0.2,
+          asia_pacific: 0.1,
         },
         initialReservePercentage: 0.5,
         followOnStrategy: {
-          'strategy': 'performance_based'
+          strategy: 'performance_based',
         },
         concentrationLimits: {
-          'max_per_company': 0.15
+          max_per_company: 0.15,
         },
         riskTolerance: 'moderate',
-        targetIrr: 0.20,
+        targetIrr: 0.2,
         targetMultiple: 2.5,
         targetDpi: 1.8,
-        tags: ['growth', 'balanced']
+        tags: ['growth', 'balanced'],
       };
 
       it('should create a new strategy with valid data', async () => {
@@ -138,9 +172,9 @@ describe('Portfolio Intelligence API Routes', () => {
         const invalidData = {
           ...validStrategyData,
           sectorAllocation: {
-            'fintech': 1.5, // Invalid percentage > 1
-            'healthtech': 0.3
-          }
+            fintech: 1.5, // Invalid percentage > 1
+            healthtech: 0.3,
+          },
         };
 
         const response = await request(app)
@@ -164,7 +198,7 @@ describe('Portfolio Intelligence API Routes', () => {
 
       it('should handle missing required fields', async () => {
         const incompleteData = {
-          name: 'Test Strategy'
+          name: 'Test Strategy',
           // Missing required fields
         };
 
@@ -193,9 +227,7 @@ describe('Portfolio Intelligence API Routes', () => {
 
     describe('GET /api/portfolio/strategies/:fundId', () => {
       it('should retrieve strategies for a fund', async () => {
-        const response = await request(app)
-          .get('/api/portfolio/strategies/1')
-          .expect(200);
+        const response = await request(app).get('/api/portfolio/strategies/1').expect(200);
 
         expect(response.body.success).toBe(true);
         expect(response.body.data).toBeInstanceOf(Array);
@@ -203,9 +235,7 @@ describe('Portfolio Intelligence API Routes', () => {
       });
 
       it('should validate fundId parameter', async () => {
-        const response = await request(app)
-          .get('/api/portfolio/strategies/invalid')
-          .expect(400);
+        const response = await request(app).get('/api/portfolio/strategies/invalid').expect(400);
 
         expect(response.body.error).toBe('Invalid fund ID');
       });
@@ -220,9 +250,7 @@ describe('Portfolio Intelligence API Routes', () => {
       });
 
       it('should handle negative fundId', async () => {
-        const response = await request(app)
-          .get('/api/portfolio/strategies/-1')
-          .expect(400);
+        const response = await request(app).get('/api/portfolio/strategies/-1').expect(400);
 
         expect(response.body.error).toBe('Invalid fund ID');
       });
@@ -232,7 +260,7 @@ describe('Portfolio Intelligence API Routes', () => {
       const updateData = {
         name: 'Updated Strategy',
         targetPortfolioSize: 30,
-        riskTolerance: 'aggressive'
+        riskTolerance: 'aggressive',
       };
 
       it('should update a strategy', async () => {
@@ -247,15 +275,12 @@ describe('Portfolio Intelligence API Routes', () => {
       });
 
       it('should require strategy ID', async () => {
-        const response = await request(app)
-          .put('/api/portfolio/strategies/')
-          .send(updateData)
-          .expect(404);
+        await request(app).put('/api/portfolio/strategies/').send(updateData).expect(404);
       });
 
       it('should validate update data', async () => {
         const invalidUpdate = {
-          modelType: 'invalid_type'
+          modelType: 'invalid_type',
         };
 
         const response = await request(app)
@@ -278,9 +303,7 @@ describe('Portfolio Intelligence API Routes', () => {
       });
 
       it('should require strategy ID', async () => {
-        const response = await request(app)
-          .delete('/api/portfolio/strategies/')
-          .expect(404);
+        await request(app).delete('/api/portfolio/strategies/').expect(404);
       });
     });
   });
@@ -296,15 +319,13 @@ describe('Portfolio Intelligence API Routes', () => {
         dealFlowAssumption: 1.0,
         valuationEnvironment: 1.0,
         exitEnvironment: 1.0,
-        plannedInvestments: [
-          { company: 'TestCorp', amount: 1000000, stage: 'Series A' }
-        ],
+        plannedInvestments: [{ company: 'TestCorp', amount: 1000000, stage: 'Series A' }],
         deploymentSchedule: {
-          'q1': 5000000,
-          'q2': 6000000,
-          'q3': 7000000,
-          'q4': 8000000
-        }
+          q1: 5000000,
+          q2: 6000000,
+          q3: 7000000,
+          q4: 8000000,
+        },
       };
 
       it('should create a new scenario', async () => {
@@ -356,9 +377,7 @@ describe('Portfolio Intelligence API Routes', () => {
 
     describe('GET /api/portfolio/scenarios/:fundId', () => {
       it('should retrieve scenarios for a fund', async () => {
-        const response = await request(app)
-          .get('/api/portfolio/scenarios/1')
-          .expect(200);
+        const response = await request(app).get('/api/portfolio/scenarios/1').expect(200);
 
         expect(response.body.success).toBe(true);
         expect(response.body.data).toBeInstanceOf(Array);
@@ -387,15 +406,15 @@ describe('Portfolio Intelligence API Routes', () => {
         baseScenarioId: '550e8400-e29b-41d4-a716-446655440000',
         comparisonScenarioIds: [
           '550e8400-e29b-41d4-a716-446655440001',
-          '550e8400-e29b-41d4-a716-446655440002'
+          '550e8400-e29b-41d4-a716-446655440002',
         ],
         comparisonType: 'strategy_comparison',
         comparisonMetrics: ['irr', 'multiple', 'dpi'],
         weightScheme: {
-          'irr': 0.5,
-          'multiple': 0.3,
-          'dpi': 0.2
-        }
+          irr: 0.5,
+          multiple: 0.3,
+          dpi: 0.2,
+        },
       };
 
       it('should compare multiple scenarios', async () => {
@@ -434,8 +453,9 @@ describe('Portfolio Intelligence API Routes', () => {
       });
 
       it('should limit number of comparison scenarios', async () => {
-        const tooManyScenarios = Array.from({ length: 10 }, (_, i) =>
-          `550e8400-e29b-41d4-a716-44665544000${i}`
+        const tooManyScenarios = Array.from(
+          { length: 10 },
+          (_, i) => `550e8400-e29b-41d4-a716-44665544000${i}`
         );
         const invalidData = { ...validComparisonData, comparisonScenarioIds: tooManyScenarios };
 
@@ -454,14 +474,14 @@ describe('Portfolio Intelligence API Routes', () => {
         numberOfRuns: 10000,
         inputDistributions: {
           irr: { mean: 0.18, volatility: 0.08 },
-          multiple: { mean: 2.5, volatility: 0.6 }
+          multiple: { mean: 2.5, volatility: 0.6 },
         },
         correlationMatrix: {
-          'irr_multiple': 0.7
+          irr_multiple: 0.7,
         },
         constraints: {
-          'max_concentration': 0.25
-        }
+          max_concentration: 0.25,
+        },
       };
 
       it('should run Monte Carlo simulation on scenario', async () => {
@@ -502,7 +522,7 @@ describe('Portfolio Intelligence API Routes', () => {
       });
 
       it('should require scenario ID', async () => {
-        const response = await request(app)
+        await request(app)
           .post('/api/portfolio/scenarios//simulate')
           .send(validSimulationData)
           .expect(404);
@@ -515,13 +535,13 @@ describe('Portfolio Intelligence API Routes', () => {
       const validOptimizationData = {
         strategyType: 'performance_based',
         totalReserveAmount: 25000000,
-        maxPerCompanyPct: 0.20,
+        maxPerCompanyPct: 0.2,
         allocationRules: {
-          'follow_on_threshold': 0.15,
-          'performance_trigger': 2.0
+          follow_on_threshold: 0.15,
+          performance_trigger: 2.0,
         },
         optimizationObjective: 'risk_adjusted_return',
-        monteCarloIterations: 5000
+        monteCarloIterations: 5000,
       };
 
       it('should optimize reserve allocation', async () => {
@@ -561,7 +581,10 @@ describe('Portfolio Intelligence API Routes', () => {
       });
 
       it('should validate optimization objective', async () => {
-        const invalidData = { ...validOptimizationData, optimizationObjective: 'invalid_objective' };
+        const invalidData = {
+          ...validOptimizationData,
+          optimizationObjective: 'invalid_objective',
+        };
 
         const response = await request(app)
           .post('/api/portfolio/reserves/optimize?fundId=1')
@@ -574,9 +597,7 @@ describe('Portfolio Intelligence API Routes', () => {
 
     describe('GET /api/portfolio/reserves/strategies/:fundId', () => {
       it('should retrieve reserve strategies for a fund', async () => {
-        const response = await request(app)
-          .get('/api/portfolio/reserves/strategies/1')
-          .expect(200);
+        const response = await request(app).get('/api/portfolio/reserves/strategies/1').expect(200);
 
         expect(response.body.success).toBe(true);
         expect(response.body.data).toBeInstanceOf(Array);
@@ -605,7 +626,7 @@ describe('Portfolio Intelligence API Routes', () => {
         strategyId: '550e8400-e29b-41d4-a716-446655440000',
         backtestPeriodStart: '2022-01-01T00:00:00.000Z',
         backtestPeriodEnd: '2023-12-31T23:59:59.999Z',
-        benchmarkStrategy: 'market_cap'
+        benchmarkStrategy: 'market_cap',
       };
 
       it('should run reserve strategy backtest', async () => {
@@ -658,8 +679,8 @@ describe('Portfolio Intelligence API Routes', () => {
         assumptions: {
           marketConditions: 'normal',
           exitMultiple: 2.5,
-          timeToExit: 5
-        }
+          timeToExit: 5,
+        },
       };
 
       it('should generate performance forecast', async () => {
@@ -724,7 +745,9 @@ describe('Portfolio Intelligence API Routes', () => {
 
       it('should support forecast type filtering', async () => {
         const response = await request(app)
-          .get('/api/portfolio/forecasts/550e8400-e29b-41d4-a716-446655440000?forecastType=fund_level')
+          .get(
+            '/api/portfolio/forecasts/550e8400-e29b-41d4-a716-446655440000?forecastType=fund_level'
+          )
           .expect(200);
 
         expect(response.body.success).toBe(true);
@@ -739,9 +762,7 @@ describe('Portfolio Intelligence API Routes', () => {
       });
 
       it('should require scenario ID', async () => {
-        const response = await request(app)
-          .get('/api/portfolio/forecasts/')
-          .expect(404);
+        await request(app).get('/api/portfolio/forecasts/').expect(404);
       });
     });
 
@@ -751,9 +772,9 @@ describe('Portfolio Intelligence API Routes', () => {
         actualMetrics: {
           irr: 0.22,
           multiple: 2.8,
-          dpi: 1.5
+          dpi: 1.5,
         },
-        validationPeriod: '2024-12-31T23:59:59.999Z'
+        validationPeriod: '2024-12-31T23:59:59.999Z',
       };
 
       it('should validate forecast against actuals', async () => {
@@ -797,9 +818,7 @@ describe('Portfolio Intelligence API Routes', () => {
   describe('Quick Actions Routes', () => {
     describe('GET /api/portfolio/templates', () => {
       it('should retrieve strategy templates', async () => {
-        const response = await request(app)
-          .get('/api/portfolio/templates')
-          .expect(200);
+        const response = await request(app).get('/api/portfolio/templates').expect(200);
 
         expect(response.body.success).toBe(true);
         expect(response.body.data).toBeInstanceOf(Array);
@@ -847,7 +866,7 @@ describe('Portfolio Intelligence API Routes', () => {
         strategyModelId: '550e8400-e29b-41d4-a716-446655440000',
         marketCondition: 'bull',
         riskProfile: 'moderate',
-        timeHorizon: 10
+        timeHorizon: 10,
       };
 
       it('should generate quick scenario', async () => {
@@ -899,16 +918,15 @@ describe('Portfolio Intelligence API Routes', () => {
           .post('/api/portfolio/quick-scenario')
           .send(conservativeData);
 
-        expect(aggressiveResponse.body.data.quickProjections.expectedIrr)
-          .toBeGreaterThan(conservativeResponse.body.data.quickProjections.expectedIrr);
+        expect(aggressiveResponse.body.data.quickProjections.expectedIrr).toBeGreaterThan(
+          conservativeResponse.body.data.quickProjections.expectedIrr
+        );
       });
     });
 
     describe('GET /api/portfolio/metrics/:scenarioId', () => {
       it('should retrieve real-time metrics for scenario', async () => {
-        const response = await request(app)
-          .get('/api/portfolio/metrics/scenario_123')
-          .expect(200);
+        const response = await request(app).get('/api/portfolio/metrics/scenario_123').expect(200);
 
         expect(response.body.success).toBe(true);
         expect(response.body.data.scenarioId).toBe('scenario_123');
@@ -936,9 +954,7 @@ describe('Portfolio Intelligence API Routes', () => {
       });
 
       it('should require scenario ID', async () => {
-        const response = await request(app)
-          .get('/api/portfolio/metrics/')
-          .expect(404);
+        await request(app).get('/api/portfolio/metrics/').expect(404);
       });
     });
   });
@@ -970,7 +986,7 @@ describe('Portfolio Intelligence API Routes', () => {
         name: 'A'.repeat(10000), // Very long string
         sectorAllocation: Object.fromEntries(
           Array.from({ length: 1000 }, (_, i) => [`sector_${i}`, 0.001])
-        )
+        ),
       };
 
       const response = await request(app)
@@ -988,8 +1004,8 @@ describe('Portfolio Intelligence API Routes', () => {
         checkSizeRange: {
           min: -500000,
           max: 2000000,
-          target: 1000000
-        }
+          target: 1000000,
+        },
       };
 
       const response = await request(app)
@@ -1007,7 +1023,7 @@ describe('Portfolio Intelligence API Routes', () => {
 
       const responses = await Promise.all(requests);
 
-      responses.forEach(response => {
+      responses.forEach((response) => {
         expect(response.status).toBe(200);
         expect(response.body.success).toBe(true);
       });
@@ -1022,7 +1038,7 @@ describe('Portfolio Intelligence API Routes', () => {
         targetPortfolioSize: 25,
         checkSizeRange: { min: 500000, max: 2000000, target: 1000000 },
         sectorAllocation: { tech: 1.0 },
-        stageAllocation: { seriesA: 1.0 }
+        stageAllocation: { seriesA: 1.0 },
       };
 
       const requests = Array.from({ length: 3 }, (_, i) =>
@@ -1033,7 +1049,7 @@ describe('Portfolio Intelligence API Routes', () => {
 
       const responses = await Promise.all(requests);
 
-      responses.forEach(response => {
+      responses.forEach((response) => {
         expect(response.status).toBe(201);
         expect(response.body.success).toBe(true);
       });
@@ -1042,9 +1058,7 @@ describe('Portfolio Intelligence API Routes', () => {
     it('should respond within reasonable time limits', async () => {
       const startTime = Date.now();
 
-      await request(app)
-        .get('/api/portfolio/strategies/1')
-        .expect(200);
+      await request(app).get('/api/portfolio/strategies/1').expect(200);
 
       const responseTime = Date.now() - startTime;
       expect(responseTime).toBeLessThan(1000); // Should respond within 1 second
@@ -1060,7 +1074,7 @@ describe('Portfolio Intelligence API Routes', () => {
         targetPortfolioSize: 25,
         checkSizeRange: { min: 500000, max: 2000000, target: 1000000 },
         sectorAllocation: { tech: 1.0 },
-        stageAllocation: { seriesA: 1.0 }
+        stageAllocation: { seriesA: 1.0 },
       };
 
       const response = await request(app)
@@ -1080,7 +1094,7 @@ describe('Portfolio Intelligence API Routes', () => {
         targetPortfolioSize: 25,
         checkSizeRange: { min: 500000, max: 2000000, target: 1000000 },
         sectorAllocation: { tech: 1.0 },
-        stageAllocation: { seriesA: 1.0 }
+        stageAllocation: { seriesA: 1.0 },
       };
 
       const response = await request(app)
@@ -1098,7 +1112,7 @@ describe('Portfolio Intelligence API Routes', () => {
         '123-456-789',
         'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
         '550e8400-e29b-41d4-a716', // Too short
-        '550e8400-e29b-41d4-a716-446655440000-extra' // Too long
+        '550e8400-e29b-41d4-a716-446655440000-extra', // Too long
       ];
 
       for (const invalidUUID of invalidUUIDs) {
@@ -1108,7 +1122,7 @@ describe('Portfolio Intelligence API Routes', () => {
             baseScenarioId: invalidUUID,
             comparisonScenarioIds: ['550e8400-e29b-41d4-a716-446655440000'],
             comparisonType: 'strategy_comparison',
-            comparisonMetrics: ['irr']
+            comparisonMetrics: ['irr'],
           })
           .expect(400);
 

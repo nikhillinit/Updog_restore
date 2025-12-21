@@ -53,7 +53,7 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
     });
 
     cluster['on']('error', (err: any) => {
-      // eslint-disable-next-line no-console
+       
       console.error('[redis-cluster] error:', err?.message);
     });
 
@@ -97,7 +97,7 @@ export async function connectRedis(): Promise<RedisConn | undefined> {
   });
 
   client['on']('error', (err: any) => {
-    // eslint-disable-next-line no-console
+     
     console.error('[redis] error:', err?.message);
   });
 

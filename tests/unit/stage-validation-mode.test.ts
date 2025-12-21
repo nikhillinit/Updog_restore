@@ -4,8 +4,6 @@
  * Tests the Redis-backed mode store with TTL caching, timeout, and fallback behavior.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock redis module - ALL logic inside factory to avoid hoisting issues

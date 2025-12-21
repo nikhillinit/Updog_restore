@@ -8,11 +8,10 @@
  * 4. Improved calculation formulas
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { DeterministicReserveEngine } from '@shared/core/reserves/DeterministicReserveEngine';
 import { ConstrainedReserveEngine } from '@shared/core/reserves/ConstrainedReserveEngine';
 import { MonteCarloEngine } from '../../../server/services/monte-carlo-engine';
-import { MonteCarloSimulationService } from '../../../server/services/monte-carlo-simulation';
 import { PRNG } from '@shared/utils/prng';
 import {
   validateConservation,

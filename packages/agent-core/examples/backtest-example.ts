@@ -8,12 +8,11 @@
  * 4. Analyze ROI and patterns
  */
 
+import type {
+  BacktestCase} from '../src/BacktestReporter';
 import {
   BacktestReporter,
-  BacktestCase,
-  BacktestReport,
 } from '../src/BacktestReporter';
-import { writeFileSync } from 'fs';
 import { join } from 'path';
 
 // ============================================================================
@@ -326,7 +325,7 @@ async function runBacktestExample() {
   // Markdown report
   const markdownReport = reporter.generateMarkdownReport(report);
   console.log('📄 Markdown report preview (first 500 chars):');
-  console.log(markdownReport.substring(0, 500) + '...\n');
+  console.log(`${markdownReport.substring(0, 500)  }...\n`);
 
   // JSON report
   const jsonReport = reporter.generateJSONReport(report);

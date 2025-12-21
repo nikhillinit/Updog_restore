@@ -3,11 +3,8 @@
  * Uses HTTP driver on Vercel, WebSocket pool elsewhere
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-
 import * as schema from '@shared/schema';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 // Detect test environment
 const isTest = process.env['NODE_ENV'] === 'test' || process.env['VITEST'] === 'true';
@@ -16,19 +13,25 @@ const isTest = process.env['NODE_ENV'] === 'test' || process.env['VITEST'] === '
 const isVercel = process.env['VERCEL'] === '1' || process.env['VERCEL_ENV'];
 
 // Dynamic imports based on environment
-let db: any;
-let pool: any;
+let db: NodePgDatabase<typeof schema>;
+let pool: unknown;
 
 // Use mock database in test environment
 if (isTest) {
   // Import the database mock for testing
-  const { databaseMock } = require('../tests/helpers/database-mock');
+  const { databaseMock } = require('../tests/helpers/database-mock') as {
+    databaseMock: NodePgDatabase<typeof schema>;
+  };
   db = databaseMock;
   pool = null;
 } else if (isVercel) {
   // Use HTTP driver for Vercel (no persistent connections)
-  const { drizzle } = require('drizzle-orm/neon-http');
-  const { neon } = require('@neondatabase/serverless');
+  const { drizzle } = require('drizzle-orm/neon-http') as {
+    drizzle: (client: unknown, options: { schema: typeof schema }) => NodePgDatabase<typeof schema>;
+  };
+  const { neon } = require('@neondatabase/serverless') as {
+    neon: (url: string) => unknown;
+  };
 
   const DATABASE_URL = process.env['DATABASE_URL'] || process.env['NEON_DATABASE_URL'];
 

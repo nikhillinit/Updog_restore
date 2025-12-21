@@ -1,4 +1,5 @@
-import { BaseAgent, AgentConfig, AgentExecutionContext } from '@povc/agent-core';
+import type { AgentConfig, AgentExecutionContext } from '@povc/agent-core';
+import { BaseAgent } from '@povc/agent-core';
 import { withThinking } from '@povc/agent-core/ThinkingMixin';
 import { watch } from 'fs';
 import { readFile } from 'fs/promises';
@@ -337,7 +338,7 @@ Format each issue as: [SEVERITY] Message`,
    * Display review results in console
    */
   private displayReviewResults(result: ReviewResult): void {
-    console.log('\n' + '='.repeat(80));
+    console.log(`\n${  '='.repeat(80)}`);
     console.log(`📊 Codex Review: ${result.filePath}`);
     console.log('='.repeat(80));
 
@@ -375,7 +376,7 @@ Format each issue as: [SEVERITY] Message`,
     printIssues(low, 'LOW', '🔵');
     printIssues(info, 'INFO', 'ℹ️');
 
-    console.log('\n' + '='.repeat(80) + '\n');
+    console.log(`\n${  '='.repeat(80)  }\n`);
   }
 
   /**

@@ -689,7 +689,7 @@ export const modelingWizardMachine = setup({
     /**
      * Set persistence error when persistence fails
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     setPersistenceError: assign({
       persistenceError: ({ event }: { event: any }) => (event.error as Error).message
     }),

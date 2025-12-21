@@ -26,8 +26,9 @@ import {
   MonteCarloSimulationService,
   type SimulationParameters
 } from '../../server/services/monte-carlo-simulation';
+import type {
+  PowerLawDistribution} from '../../server/services/power-law-distribution';
 import {
-  PowerLawDistribution,
   createVCPowerLawDistribution
 } from '../../server/services/power-law-distribution';
 

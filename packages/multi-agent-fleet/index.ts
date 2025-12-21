@@ -4,7 +4,7 @@
  */
 
 import { TestRepairAgent } from '@povc/test-repair-agent';
-import { BaseAgent } from '@povc/agent-core';
+import type { BaseAgent } from '@povc/agent-core';
 
 export interface TestFailure {
   file: string;

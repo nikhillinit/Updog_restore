@@ -10,10 +10,8 @@
 import {
   TenantContextProvider,
   ToolHandler,
-  HybridMemoryManager,
   PatternLearningEngine,
   TokenBudgetManager,
-  MemoryEventBus,
   createHybridMemoryManager,
   getEventBus,
 } from './src/index.js';
@@ -243,7 +241,7 @@ async function demoTokenBudget() {
   console.log('Usage Statistics:');
   console.log('  Total Estimated:', stats.totalEstimated);
   console.log('  Total Actual:', stats.totalActual);
-  console.log('  Efficiency:', (stats.totalActual / stats.totalEstimated * 100).toFixed(1) + '%');
+  console.log('  Efficiency:', `${(stats.totalActual / stats.totalEstimated * 100).toFixed(1)  }%`);
 
   // Get reallocation suggestions
   console.log('\n💡 Reallocation suggestions:');
@@ -313,7 +311,7 @@ async function demoEventBus() {
 // ============================================================================
 
 async function runAllDemos() {
-  console.log('\n' + '='.repeat(60));
+  console.log(`\n${  '='.repeat(60)}`);
   console.log('🚀 NATIVE MEMORY TOOL INTEGRATION - DEMO SUITE');
   console.log('='.repeat(60));
 
@@ -325,7 +323,7 @@ async function runAllDemos() {
     await demoTokenBudget();
     await demoEventBus();
 
-    console.log('\n' + '='.repeat(60));
+    console.log(`\n${  '='.repeat(60)}`);
     console.log('✅ ALL DEMOS COMPLETED SUCCESSFULLY');
     console.log('='.repeat(60));
   } catch (error) {

@@ -19,7 +19,7 @@ import {
  */
 async function mockLlmCall(prompt: string): Promise<string> {
   // This would be replaced with actual LLM API call
-  console.log('LLM Prompt:', prompt.substring(0, 200) + '...\n');
+  console.log('LLM Prompt:', `${prompt.substring(0, 200)  }...\n`);
 
   // Simulate different responses based on iteration
   if (prompt.includes('Previous attempts')) {

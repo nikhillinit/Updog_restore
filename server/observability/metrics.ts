@@ -61,7 +61,7 @@ export function installMetricsRoute(app: import('express').Express) {
 
 export function startRedisHealthProbe(conn?: RedisConn) {
   if (!FEATURES.metrics || !conn) return;
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises
+   
   const t = setInterval(async () => {
     const res = await pingRedis(conn.conn);
     if (res.ok) {

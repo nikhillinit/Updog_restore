@@ -54,7 +54,7 @@ export class TestStateManager {
     const snapshot: Snapshot = {
       // Cloning process.env preserves string | undefined values, but eslint lacks
       // the type refinement on spread env objects here.
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
       env: envSnapshot,
       timers: this.captureTimers(),
       mocks: this.captureMocks(),

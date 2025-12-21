@@ -11,14 +11,13 @@
  * Uses git worktrees for safe isolation from current working directory
  */
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn } from 'child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { Logger } from './Logger';
 import { MetricsCollector } from './MetricsCollector';
-import { AIRouter, AIModel, TaskType } from './Router';
-import { Orchestrator } from './Orchestrator';
-import { BaseAgent, AgentConfig, AgentExecutionContext, AgentResult } from './BaseAgent';
+import type { AIModel, TaskType } from './Router';
+import { AIRouter } from './Router';
 
 // ========================================
 // Core Types

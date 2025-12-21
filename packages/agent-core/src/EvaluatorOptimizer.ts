@@ -275,7 +275,7 @@ export class EvaluatorOptimizer<T = string> {
       return str;
     }
 
-    return str.substring(0, maxLength) + '... (truncated)';
+    return `${str.substring(0, maxLength)  }... (truncated)`;
   }
 
   /**

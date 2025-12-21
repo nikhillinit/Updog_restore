@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it } from 'vitest';
 import { adaptTruthCaseInput, type TruthCaseInput } from '../../client/src/core/capitalAllocation/adapter';
 import { executePeriodLoop, convertPeriodLoopOutput } from '../../client/src/core/capitalAllocation/periodLoop';
 

@@ -20,7 +20,8 @@ model: sonnet
 - Store fix strategies that worked in the past
 - Learn which tests are fragile and need careful handling
 - **Track flaky test history** (test name, failure frequency, patterns)
-- **Store flakiness signatures** (timing-related, race conditions, order-dependent)
+- **Store flakiness signatures** (timing-related, race conditions,
+  order-dependent)
 
 **Before Each Repair**:
 
@@ -108,6 +109,74 @@ When invoked or when tests fail:
 - Domain calculation logic without validation
 - Baseline files (scripts/typescript-baseline.json)
 
+## Code Quality Requirements (MANDATORY)
+
+**When implementing ANY test fixes or service code:**
+
+### Pre-Implementation Checklist
+
+Before writing ANY code:
+
+1. **Read Configuration Files**:
+   - `eslint.config.js` lines 132-138 (type safety rules)
+   - `tsconfig.json` line 32 (strict mode enabled)
+   - `cheatsheets/anti-pattern-prevention.md` (24 cataloged anti-patterns)
+
+2. **Type Safety Standards**:
+   - NEVER use `any` type (`@typescript-eslint/no-explicit-any` is ERROR)
+   - Use `unknown` + type guards for dynamic data
+   - Use proper Drizzle ORM types from `@shared/schema`
+   - TypeScript strict mode is ENABLED
+
+### Pre-Commit Validation (MANDATORY)
+
+Before ANY commit, run all three quality gates:
+
+```bash
+# 1. Linting - MUST show 0 errors, 0 warnings
+npm run lint
+
+# 2. Type Checking - MUST show 0 type errors
+npm run check
+
+# 3. Tests - MUST pass all tests
+npm test -- --run
+```
+
+**Use `/pre-commit-check` command for automated validation.**
+
+### Commit Protocol
+
+- **NEVER** use `git commit --no-verify` to bypass quality hooks
+- **NEVER** commit with known linting violations
+- **NEVER** defer type safety fixes to "followup commit"
+- Fix all violations inline before committing
+
+### Type Safety Examples for Test Code
+
+```typescript
+// ❌ NEVER DO THIS in test mocks
+const mockData: any = { ... };
+const conditions: any[] = [];
+vi.mock('module', () => ({ default: vi.fn() as any }));
+
+// ✓ DO THIS INSTEAD
+const mockData: MockType = { ... };
+const conditions: SQL<unknown>[] = [];
+vi.mock('module', () => ({
+  default: vi.fn<[], ReturnType>()
+}));
+
+// For database mocks - use proper types
+import { type SQL } from 'drizzle-orm';
+import { type User } from '@shared/schema';
+
+const mockUsers: User[] = [];
+const whereConditions: SQL<unknown>[] = [];
+```
+
+See `.claude/WORKFLOW.md` for complete Quality Gate Protocol.
+
 ## Special Considerations
 
 - **Windows Development**: All commands run in PowerShell/CMD, not Git Bash
@@ -169,7 +238,8 @@ Can jsdom test this behavior?
 
 ### Flakiness Detection Protocol
 
-When a test fails, determine if it's a **genuine failure** or **flaky behavior**:
+When a test fails, determine if it's a **genuine failure** or **flaky
+behavior**:
 
 #### Step 1: Multi-Run Verification
 
@@ -195,14 +265,14 @@ if (passRate < 1.0 && passRate > 0) {
 
 #### Step 2: Classify Flakiness Type
 
-| Type                   | Symptoms                                   | Detection                          |
-| ---------------------- | ------------------------------------------ | ---------------------------------- |
-| **Timing/Race**        | Passes locally, fails in CI                | Add delays, check for async issues |
-| **Order-Dependent**    | Fails when run with other tests            | Run in isolation vs full suite     |
-| **Resource Contention**| Fails under load                           | Check for shared state/ports       |
-| **Date/Time Sensitive**| Fails at specific times                    | Check for `new Date()` usage       |
-| **Random Data**        | Inconsistent with random inputs            | Check for unseeded randomness      |
-| **Environment**        | Fails on specific OS/Node version          | Compare CI vs local env            |
+| Type                    | Symptoms                          | Detection                          |
+| ----------------------- | --------------------------------- | ---------------------------------- |
+| **Timing/Race**         | Passes locally, fails in CI       | Add delays, check for async issues |
+| **Order-Dependent**     | Fails when run with other tests   | Run in isolation vs full suite     |
+| **Resource Contention** | Fails under load                  | Check for shared state/ports       |
+| **Date/Time Sensitive** | Fails at specific times           | Check for `new Date()` usage       |
+| **Random Data**         | Inconsistent with random inputs   | Check for unseeded randomness      |
+| **Environment**         | Fails on specific OS/Node version | Compare CI vs local env            |
 
 #### Step 3: Flakiness Signature Storage
 
@@ -242,11 +312,15 @@ await waitFor(() => {
 ```typescript
 // BAD: Shared mutable state
 let counter = 0;
-beforeEach(() => { counter++; });
+beforeEach(() => {
+  counter++;
+});
 
 // GOOD: Reset state in beforeEach
 let counter: number;
-beforeEach(() => { counter = 0; });
+beforeEach(() => {
+  counter = 0;
+});
 ```
 
 #### Date/Time Sensitive
@@ -277,11 +351,11 @@ const data = generateRandomPortfolio({ seed: 12345 });
 
 Based on test-pyramid skill flake management:
 
-| Occurrence | Action                                         |
-| ---------- | ---------------------------------------------- |
-| 1st flake  | Add to memory watchlist, don't skip            |
-| 2nd flake (within 1 week) | Investigate root cause       |
-| 3rd flake  | Either fix immediately or quarantine           |
+| Occurrence                | Action                               |
+| ------------------------- | ------------------------------------ |
+| 1st flake                 | Add to memory watchlist, don't skip  |
+| 2nd flake (within 1 week) | Investigate root cause               |
+| 3rd flake                 | Either fix immediately or quarantine |
 
 ### Quarantine Process
 
@@ -315,7 +389,8 @@ Store in memory for trend analysis:
 - **Mean Time to Detect**: How long until flakiness is noticed
 - **Mean Time to Fix**: How long flaky tests stay unfixed
 - **Repeat Offenders**: Tests that become flaky multiple times
-- **Flakiness by Category**: Which test types flake most (E2E > Integration > Unit)
+- **Flakiness by Category**: Which test types flake most (E2E > Integration >
+  Unit)
 
 ### Integration with CI
 

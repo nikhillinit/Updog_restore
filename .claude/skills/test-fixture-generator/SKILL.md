@@ -109,23 +109,26 @@ export function createTestInvestment(
  * Create test funds with predefined profiles
  */
 export const FundProfiles = {
-  earlyStage: () => createTestFund({
-    name: 'Early Stage Fund',
-    size: '25000000.00',
-    managementFee: '0.0250',
-  }),
+  earlyStage: () =>
+    createTestFund({
+      name: 'Early Stage Fund',
+      size: '25000000.00',
+      managementFee: '0.0250',
+    }),
 
-  growth: () => createTestFund({
-    name: 'Growth Fund',
-    size: '100000000.00',
-    managementFee: '0.0200',
-  }),
+  growth: () =>
+    createTestFund({
+      name: 'Growth Fund',
+      size: '100000000.00',
+      managementFee: '0.0200',
+    }),
 
-  opportunity: () => createTestFund({
-    name: 'Opportunity Fund',
-    size: '50000000.00',
-    managementFee: '0.0150',
-  }),
+  opportunity: () =>
+    createTestFund({
+      name: 'Opportunity Fund',
+      size: '50000000.00',
+      managementFee: '0.0150',
+    }),
 };
 ```
 
@@ -274,7 +277,7 @@ export function validateFixture<T>(
   if (!result.success) {
     throw new Error(
       `Fixture validation failed for ${context}:\n` +
-      result.error.issues.map(i => `  - ${i.path}: ${i.message}`).join('\n')
+        result.error.issues.map((i) => `  - ${i.path}: ${i.message}`).join('\n')
     );
   }
   return result.data;
@@ -318,19 +321,17 @@ For VC fund modeling, use these domain-specific patterns:
 ```typescript
 export interface CashFlowFixture {
   date: Date;
-  amount: number;  // Negative = outflow, Positive = inflow
+  amount: number; // Negative = outflow, Positive = inflow
   type: 'capital_call' | 'distribution' | 'fee' | 'carry';
 }
 
-export function createCashFlowSeries(
-  config: {
-    startDate: Date;
-    initialInvestment: number;
-    holdingPeriodYears: number;
-    exitMultiple: number;
-    managementFeeRate?: number;
-  }
-): CashFlowFixture[] {
+export function createCashFlowSeries(config: {
+  startDate: Date;
+  initialInvestment: number;
+  holdingPeriodYears: number;
+  exitMultiple: number;
+  managementFeeRate?: number;
+}): CashFlowFixture[] {
   const flows: CashFlowFixture[] = [];
 
   // Initial investment
@@ -373,7 +374,7 @@ export const WaterfallScenarios = {
   americanBasic: () => ({
     type: 'AMERICAN' as const,
     hurdleRate: 0.08,
-    carryPercentage: 0.20,
+    carryPercentage: 0.2,
     catchUp: true,
     catchUpPercentage: 1.0,
   }),
@@ -381,15 +382,15 @@ export const WaterfallScenarios = {
   europeanWithClawback: () => ({
     type: 'EUROPEAN' as const,
     hurdleRate: 0.08,
-    carryPercentage: 0.20,
+    carryPercentage: 0.2,
     clawbackEnabled: true,
-    escrowPercentage: 0.30,
+    escrowPercentage: 0.3,
   }),
 
   noHurdle: () => ({
     type: 'AMERICAN' as const,
     hurdleRate: 0,
-    carryPercentage: 0.20,
+    carryPercentage: 0.2,
     catchUp: false,
   }),
 };
@@ -424,7 +425,7 @@ export function createTestFund(data: TestFund): TestFund {
 // BAD: Non-deterministic, can't reproduce failures
 export function generateRandomFunds(count: number) {
   return Array.from({ length: count }, () => ({
-    id: Math.random(),  // Different every run!
+    id: Math.random(), // Different every run!
     // ...
   }));
 }
@@ -435,7 +436,7 @@ export function generateRandomFunds(count: number) {
 ```typescript
 // BAD: Can drift from actual schema
 export const SAMPLE_FUNDS = [
-  { id: 1, name: 'Fund', oldField: 'value' },  // oldField no longer exists!
+  { id: 1, name: 'Fund', oldField: 'value' }, // oldField no longer exists!
 ];
 ```
 
@@ -444,6 +445,7 @@ export const SAMPLE_FUNDS = [
 ### test-scaffolder
 
 When scaffolding tests, automatically generate fixture file with:
+
 - Factory function for primary entity
 - Sample dataset with 3-5 variations
 - Batch generator for stress tests
@@ -451,6 +453,7 @@ When scaffolding tests, automatically generate fixture file with:
 ### test-repair
 
 When fixing tests due to schema changes:
+
 - Update factory defaults
 - Re-validate sample datasets against schema
 - Flag golden datasets that may need re-validation
@@ -458,6 +461,7 @@ When fixing tests due to schema changes:
 ### schema-drift-checker
 
 When schema changes detected:
+
 - Run fixture validation tests
 - Report any fixtures that no longer match schema
 - Suggest factory updates

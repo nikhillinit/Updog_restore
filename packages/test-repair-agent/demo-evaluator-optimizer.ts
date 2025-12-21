@@ -9,7 +9,8 @@
  * 4. Loop continues until PASS or max iterations
  */
 
-import { TestRepairAgent, TestFailure, RepairInput } from './src/TestRepairAgent';
+import type { TestFailure, RepairInput } from './src/TestRepairAgent';
+import { TestRepairAgent } from './src/TestRepairAgent';
 
 async function demo() {
   console.log('═══════════════════════════════════════════════════════════');

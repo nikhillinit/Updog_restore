@@ -10,7 +10,8 @@
  * Uses parameterized test pattern for maintainability.
  */
 
-import { test, expect, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 // Type for feature flag state
 type FeatureFlagState = {

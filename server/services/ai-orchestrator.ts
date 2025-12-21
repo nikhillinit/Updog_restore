@@ -157,10 +157,10 @@ async function incrementBudget(calls: number, cost: number): Promise<number> {
 
 async function auditLog(entry: Record<string, unknown>) {
   await ensureLogDir();
-  const line = JSON.stringify({
+  const line = `${JSON.stringify({
     ts: new Date().toISOString(),
     ...entry,
-  }) + '\n';
+  })  }\n`;
   await fs.appendFile(CONFIG.logPath, line);
 }
 
@@ -708,7 +708,7 @@ import type { ChatMessage } from '../../tools/ai-review/OrchestratorAdapter'; //
 // Ollama support (optional - dynamic require)
 let __ollama__: any = null;
 try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+   
   const Ollama = require('ollama');
   __ollama__ = new Ollama({ host: process.env["OLLAMA_HOST"] ?? 'http://localhost:11434' });
 } catch { /* not installed */ }

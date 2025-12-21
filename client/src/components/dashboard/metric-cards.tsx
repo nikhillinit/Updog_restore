@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 import { Card, CardContent } from "@/components/ui/card";
 import { DollarSign, TrendingUp, Building, Percent } from "lucide-react";
 import type { FundMetrics } from "@/types/fund";

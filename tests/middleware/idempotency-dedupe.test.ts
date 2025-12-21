@@ -3,7 +3,8 @@
  * Validates exactly-once processing and request deduplication
  */
 import { describe, it, expect, beforeAll, beforeEach, test } from 'vitest';
-import express, { Express } from 'express';
+import type { Express } from 'express';
+import express from 'express';
 import request from 'supertest';
 import { idempotency, clearIdempotencyCache } from '../../server/middleware/idempotency';
 import { dedupe, clearDedupeCache } from '../../server/middleware/dedupe';

@@ -3,8 +3,8 @@
  * Creates isolated test server instances
  */
 
-import { Express } from 'express';
-import { Server } from 'http';
+import type { Express } from 'express';
+import type { Server } from 'http';
 
 interface TestServerOptions {
   port?: number;

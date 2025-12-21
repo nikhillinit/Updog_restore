@@ -3,7 +3,7 @@
  * Ensures database migrations are safe and reversible
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { db } from '../../server/db';
 import { sql } from 'drizzle-orm';
 import * as fs from 'fs';
@@ -277,7 +277,7 @@ describe('Migration Verification', () => {
             SELECT 1
             FROM pg_indexes
             WHERE tablename = ${table}
-            AND indexdef LIKE ${'%' + column + '%'}
+            AND indexdef LIKE ${`%${  column  }%`}
           ) as has_index
         `);
 

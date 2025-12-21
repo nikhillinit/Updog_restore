@@ -29,9 +29,10 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { ConversationStorage } from './ConversationMemory.js';
+import type { ConversationStorage } from './ConversationMemory.js';
 import { CacheKeySchema } from './cache/KeySchema.js';
-import { MemoryEventBus, getEventBus } from './MemoryEventBus.js';
+import type { MemoryEventBus} from './MemoryEventBus.js';
+import { getEventBus } from './MemoryEventBus.js';
 import { logger } from './Logger.js';
 import type { AgentResult, AgentExecutionContext } from './BaseAgent.js';
 

@@ -5,7 +5,8 @@
  * and monitoring systems.
  */
 
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { monitor, monteCarloTracker } from '../middleware/performance-monitor.js';
 
 const router = Router();

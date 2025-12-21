@@ -13,7 +13,7 @@
  * @see docs/CA-SEMANTIC-LOCK.md Section 1.2, 1.3
  */
 
-import { type CAEngineOutput, type Violation, createViolation } from './types';
+import { type CAEngineOutput } from './types';
 import { type NormalizedInput } from './adapter';
 import { dollarsToCents, roundPercentDerivedToCents } from './rounding';
 
@@ -258,7 +258,7 @@ export function verifyNonNegativity(
       name: `Non-Negativity: allocation[${index}] (${cohort.cohort})`,
       passed,
       message: passed
-        ? `Allocation for ${cohort.cohort} is ${isNonNegative ? 'non-negative' : 'negative' + suffix}`
+        ? `Allocation for ${cohort.cohort} is ${isNonNegative ? 'non-negative' : `negative${  suffix}`}`
         : `Negative allocation for ${cohort.cohort}: ${cohort.amount}`,
       actual: cohort.amount,
     });

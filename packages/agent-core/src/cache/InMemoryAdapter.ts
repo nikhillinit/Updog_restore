@@ -7,7 +7,7 @@
  * Phase 2 - Issue #2: Redis L2 Cache
  */
 
-import {
+import type {
   CacheAdapter,
   CacheAdapterConfig,
   CacheEntry

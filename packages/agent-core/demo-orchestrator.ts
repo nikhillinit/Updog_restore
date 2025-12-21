@@ -5,7 +5,8 @@
  * Shows dynamic task delegation to specialized worker agents
  */
 
-import { Orchestrator, WorkerResult, Subtask } from './src/Orchestrator';
+import type { WorkerResult, Subtask } from './src/Orchestrator';
+import { Orchestrator } from './src/Orchestrator';
 
 async function demo() {
   console.log('═══════════════════════════════════════════════════════════');

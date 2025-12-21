@@ -4,7 +4,6 @@
  */
 
 import { readFileSync } from 'fs';
-import { BacktestRunner } from './src/Backtest';
 import { BacktestReporter } from './src/BacktestReporter';
 
 async function main() {
@@ -43,7 +42,7 @@ async function main() {
       agentSuccess: success,
       qualityScore,
       agentSolution: `Simulated fix for ${tc.type}: ${tc.description.substring(0, 50)}...`,
-      humanSolution: tc.humanSolution.substring(0, 100) + '...',
+      humanSolution: `${tc.humanSolution.substring(0, 100)  }...`,
       similarityScore: success ? 0.7 + Math.random() * 0.25 : 0.3 + Math.random() * 0.3,
       speedup: success ? 2 + Math.random() * 8 : 1 + Math.random() * 2,
       iterations: Math.floor(1 + Math.random() * 2),
@@ -63,7 +62,7 @@ async function main() {
 
   console.log('\n📝 Markdown Report:\n');
   const mdReport = reporter.generateMarkdownReport(report);
-  console.log(mdReport.substring(0, 1500) + '\n...\n');
+  console.log(`${mdReport.substring(0, 1500)  }\n...\n`);
 
   console.log('✅ Real backtest complete!');
   console.log('\n💡 Note: This used simulated AI responses.');

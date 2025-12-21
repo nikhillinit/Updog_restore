@@ -1,4 +1,5 @@
-import { BaseAgent, AgentExecutionContext } from '@agent-core/BaseAgent';
+import type { AgentExecutionContext } from '@agent-core/BaseAgent';
+import { BaseAgent } from '@agent-core/BaseAgent';
 import { withThinking } from '@agent-core/ThinkingMixin';
 import * as fs from 'fs';
 import * as path from 'path';

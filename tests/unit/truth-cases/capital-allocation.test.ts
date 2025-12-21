@@ -82,7 +82,7 @@ const SCALE_RAW_THRESHOLD = 10_000_000;
  * - commitment >= 10M: raw dollars
  * - 1000 to 10M: ambiguous (default to millions for backwards compatibility)
  */
-function inferTestUnitScale(commitment: number): number {
+function _inferTestUnitScale(commitment: number): number {
   if (commitment < 1000) return 1_000_000; // $M
   if (commitment >= SCALE_RAW_THRESHOLD) return 1; // raw dollars
   return 1_000_000; // fallback to $M for ambiguous zone
@@ -270,7 +270,11 @@ describe('Capital Allocation Truth Cases', () => {
 
         // Validate reserve_balance if present in expected
         if (tc.expected.reserve_balance !== undefined) {
-          assertNumericEqual(result.reserve_balance, tc.expected.reserve_balance, 'reserve_balance');
+          assertNumericEqual(
+            result.reserve_balance,
+            tc.expected.reserve_balance,
+            'reserve_balance'
+          );
         }
 
         // Validate allocations_by_cohort

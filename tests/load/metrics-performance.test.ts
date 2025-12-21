@@ -10,7 +10,7 @@
  * @module tests/load/metrics-performance
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { performance } from 'perf_hooks';
 
 describe('Metrics API Performance - Load Testing', () => {

@@ -1,0 +1,14 @@
+{
+  "testFilesTotal": 113,
+  "timestamp": "2025-12-20T00:48:57.5369544-08:00",
+  "reactIssueDetected": true,
+  "reactDomVersions": "18.3.1, 19.2.0",
+  "buildExit": 0,
+  "gitCommit": "217a11d962544aba36f6e9135f3e64153c8f1484",
+  "testFilesPassing": 67,
+  "tscErrors": 0,
+  "sidecarExit": 0,
+  "integrationFileCount": 26,
+  "reactDupState": "multiple",
+  "reactVersions": "18.3.1, 19.2.0"
+}

@@ -158,16 +158,16 @@ function stableStringify(obj: unknown): string {
   }
 
   if (Array.isArray(obj)) {
-    return '[' + obj.map(stableStringify).join(',') + ']';
+    return `[${  obj.map(stableStringify).join(',')  }]`;
   }
 
   const sortedKeys = Object.keys(obj).sort();
   const pairs = sortedKeys.map(key => {
     const value = (obj as any)[key];
-    return JSON.stringify(key) + ':' + stableStringify(value);
+    return `${JSON.stringify(key)  }:${  stableStringify(value)}`;
   });
 
-  return '{' + pairs.join(',') + '}';
+  return `{${  pairs.join(',')  }}`;
 }
 
 /**

@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
+ 
 import { useLocation } from 'wouter';
 import InvestmentsLayout from '@/components/investments/investments-layout';
 import PortfolioCompanyDetail from '@/components/investments/portfolio-company-detail';

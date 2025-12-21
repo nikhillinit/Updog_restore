@@ -1,4 +1,5 @@
-import { BaseAgent, AgentConfig, AgentExecutionContext } from '@povc/agent-core';
+import type { AgentConfig, AgentExecutionContext } from '@povc/agent-core';
+import { BaseAgent } from '@povc/agent-core';
 import { withThinking } from '@povc/agent-core/ThinkingMixin';
 import { spawn } from 'child_process';
 import { readFileSync, writeFileSync, existsSync } from 'fs';

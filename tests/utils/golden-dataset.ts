@@ -248,7 +248,7 @@ export function exportToGoldenFormat(timeSeries: TimeSeriesRow[]): string {
     ].join(',');
   });
 
-  return header + '\n' + rows.join('\n') + '\n';
+  return `${header  }\n${  rows.join('\n')  }\n`;
 }
 
 /**

@@ -8,15 +8,15 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import type {
+  SortableCohort} from '../sorting';
 import {
   cmp,
   cohortSortKey,
-  compareCohorts,
   sortCohorts,
   isCanonicalDate,
   validateCohortDates,
-  sortAndValidateCohorts,
-  SortableCohort,
+  sortAndValidateCohorts
 } from '../sorting';
 
 describe('Cohort Sorting', () => {

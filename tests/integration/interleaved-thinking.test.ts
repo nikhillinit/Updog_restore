@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /**
  * Integration Tests: Interleaved Thinking API
  *
@@ -34,7 +29,7 @@ import { databaseMock } from '../helpers/database-mock';
 // Mock server/db module to use databaseMock
 vi.mock('../../server/db', () => ({
   db: databaseMock,
-  pool: null
+  pool: null,
 }));
 
 describe('Interleaved Thinking API', () => {
@@ -238,9 +233,7 @@ describe('Interleaved Thinking API', () => {
     });
 
     it('should handle API errors gracefully', async () => {
-      mockAnthropicCreate.mockRejectedValue(
-        new Error('Rate limit exceeded')
-      );
+      mockAnthropicCreate.mockRejectedValue(new Error('Rate limit exceeded'));
 
       const response = await request(app)
         .post('/api/interleaved-thinking/query')
@@ -409,9 +402,7 @@ describe('Interleaved Thinking API', () => {
 
   describe('GET /api/interleaved-thinking/usage', () => {
     it('should return available tools and pricing', async () => {
-      const response = await request(app)
-        .get('/api/interleaved-thinking/usage')
-        .expect(200);
+      const response = await request(app).get('/api/interleaved-thinking/usage').expect(200);
 
       expect(response.body).toMatchObject({
         success: true,
@@ -447,9 +438,7 @@ describe('Interleaved Thinking API', () => {
 
   describe('GET /api/interleaved-thinking/health', () => {
     it('should return healthy status when API key and DB are configured', async () => {
-      const response = await request(app)
-        .get('/api/interleaved-thinking/health')
-        .expect(200);
+      const response = await request(app).get('/api/interleaved-thinking/health').expect(200);
 
       expect(response.body).toMatchObject({
         success: true,
@@ -467,9 +456,7 @@ describe('Interleaved Thinking API', () => {
       const { makeApp } = await import('../../server/app');
       const testApp = makeApp();
 
-      const response = await request(testApp)
-        .get('/api/interleaved-thinking/health')
-        .expect(200);
+      const response = await request(testApp).get('/api/interleaved-thinking/health').expect(200);
 
       expect(response.body).toMatchObject({
         success: true,
