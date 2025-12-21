@@ -464,7 +464,7 @@ export class NotionService {
     mapping: NotionDatabaseMapping
   ): Promise<{ created: number; updated: number }> {
     let created = 0;
-    let updated = 0;
+    const updated = 0;
 
     for (const item of data) {
       try {
@@ -576,7 +576,7 @@ export class NotionService {
     let encrypted = cipher.update(token, 'utf8', 'hex');
     encrypted += cipher.final('hex');
 
-    return iv.toString('hex') + ':' + encrypted;
+    return `${iv.toString('hex')  }:${  encrypted}`;
   }
 
   private decryptToken(encryptedToken: string): string {

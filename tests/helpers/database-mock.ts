@@ -236,6 +236,25 @@ class DatabaseMock {
         created_by: 'users'
       }
     });
+
+    // Investment lots constraints
+    this.constraints.set('investment_lots', {
+      enums: {
+        lot_type: ['initial', 'follow_on', 'secondary']
+      },
+      checks: {
+        idempotency_key_length: (row: any) => {
+          if (row.idempotency_key !== undefined && row.idempotency_key !== null) {
+            const len = row.idempotency_key.length;
+            return len >= 1 && len <= 128;
+          }
+          return true;
+        }
+      },
+      foreignKeys: {
+        investment_id: 'investments'
+      }
+    });
   }
 
   /**
@@ -276,6 +295,62 @@ class DatabaseMock {
         created_at: '2022-01-01T00:00:00Z'
       }
     ]);
+
+    // Mock investments - fund 1 has investments 1-4, fund 2 has investment 5
+    // Using camelCase for Drizzle ORM compatibility
+    this.mockData.set('investments', [
+      {
+        id: 1,
+        fundId: 1,
+        companyId: 1,
+        investmentDate: '2022-01-15T00:00:00Z',
+        amount: '1000000.00',
+        round: 'Series A',
+        createdAt: '2022-01-15T00:00:00Z'
+      },
+      {
+        id: 2,
+        fundId: 1,
+        companyId: 1,
+        investmentDate: '2022-02-15T00:00:00Z',
+        amount: '500000.00',
+        round: 'Series A',
+        createdAt: '2022-02-15T00:00:00Z'
+      },
+      {
+        id: 3,
+        fundId: 1,
+        companyId: 1,
+        investmentDate: '2022-03-15T00:00:00Z',
+        amount: '250000.00',
+        round: 'Series B',
+        createdAt: '2022-03-15T00:00:00Z'
+      },
+      {
+        id: 4,
+        fundId: 1,
+        companyId: 1,
+        investmentDate: '2022-04-15T00:00:00Z',
+        amount: '100000.00',
+        round: 'Series B',
+        createdAt: '2022-04-15T00:00:00Z'
+      },
+      {
+        id: 5,
+        fundId: 2,
+        companyId: 1,
+        investmentDate: '2022-05-15T00:00:00Z',
+        amount: '750000.00',
+        round: 'Series A',
+        createdAt: '2022-05-15T00:00:00Z'
+      }
+    ]);
+
+    // Mock investment_lots (initially empty, populated by tests)
+    this.mockData.set('investment_lots', []);
+
+    // Mock forecast_snapshots (initially empty, populated by tests)
+    this.mockData.set('forecast_snapshots', []);
   }
 
   /**
@@ -395,34 +470,65 @@ class DatabaseMock {
    * Mock the insert method (Drizzle query builder)
    * Pattern: db.insert(table).values(data).returning()
    */
-  insert = vi.fn((table) => ({
-    values: vi.fn((data) => {
-      const result = { id: this.generateId(), ...data };
-      const chain = {
-        returning: vi.fn(() => Promise.resolve([result])),
-        execute: vi.fn(() => Promise.resolve([result]))
-      };
+  insert = vi.fn((table) => {
+    const tableName = this.getTableNameFromObject(table);
+    return {
+      values: vi.fn((data) => {
+        // Generate ID if not provided (for UUID tables)
+        const id = data.id || this.generateId();
+        const result = { ...data, id };
 
-      return {
-        ...chain,
-        onConflictDoUpdate: vi.fn((config) => chain)
-      };
-    }),
-    execute: vi.fn(() => Promise.resolve([{ id: this.generateId() }]))
-  }));
+        // Add to mock data
+        const tableData = this.mockData.get(tableName) || [];
+        tableData.push(result);
+        this.mockData.set(tableName, tableData);
+
+        const chain = {
+          returning: vi.fn(() => Promise.resolve([result])),
+          execute: vi.fn(() => Promise.resolve([result]))
+        };
+
+        return {
+          ...chain,
+          onConflictDoUpdate: vi.fn((config) => chain)
+        };
+      }),
+      execute: vi.fn(() => Promise.resolve([{ id: this.generateId() }]))
+    };
+  });
 
   /**
    * Mock the update method (Drizzle query builder)
    */
-  update = vi.fn(() => ({
-    set: vi.fn(() => ({
-      where: vi.fn(() => ({
-        returning: vi.fn(() => Promise.resolve([])),
+  update = vi.fn((table) => {
+    const tableName = this.getTableNameFromObject(table);
+    return {
+      set: vi.fn((updateData: Record<string, any>) => ({
+        where: vi.fn((condition: any) => {
+          // Get existing data
+          const tableData = this.mockData.get(tableName) || [];
+
+          // Update the first matching row (simplified - real implementation would parse condition)
+          if (tableData.length > 0) {
+            const updated = { ...tableData[0], ...updateData };
+            tableData[0] = updated;
+            this.mockData.set(tableName, tableData);
+
+            return {
+              returning: vi.fn(() => Promise.resolve([updated])),
+              execute: vi.fn(() => Promise.resolve([updated]))
+            };
+          }
+
+          return {
+            returning: vi.fn(() => Promise.resolve([])),
+            execute: vi.fn(() => Promise.resolve([]))
+          };
+        }),
         execute: vi.fn(() => Promise.resolve([]))
-      })),
-      execute: vi.fn(() => Promise.resolve([]))
-    }))
-  }));
+      }))
+    };
+  });
 
   /**
    * Mock the delete method (Drizzle query builder)
@@ -448,7 +554,8 @@ class DatabaseMock {
       update: this.update,
       delete: this.delete,
       rollback: vi.fn(),
-      commit: vi.fn()
+      commit: vi.fn(),
+      query: this.createQueryInterface()
     };
 
     try {
@@ -460,10 +567,73 @@ class DatabaseMock {
   });
 
   /**
+   * Drizzle-style relational query interface
+   */
+  private createQueryInterface() {
+    const createTableQuery = (tableName: string) => ({
+      findFirst: vi.fn(async (options?: any) => {
+        const data = this.mockData.get(tableName) || [];
+        if (data.length === 0) return null;
+
+        // If there's a where clause, try to match it (improved filtering)
+        if (options?.where) {
+          // Try to extract filter criteria from Drizzle where clause
+          const filtered = this.filterData(data, options.where);
+
+          // Debug logging (can be removed later)
+          if (process.env.DEBUG_MOCK) {
+            console.log(`[Mock findFirst] Table: ${tableName}, Data count: ${data.length}, Filtered count: ${filtered.length}`);
+          }
+
+          return filtered[0] || null;
+        }
+        return data[0] || null;
+      }),
+      findMany: vi.fn(async (options?: any) => {
+        const data = this.mockData.get(tableName) || [];
+
+        // Apply where filter if provided
+        let filtered = data;
+        if (options?.where) {
+          filtered = this.filterData(data, options.where);
+        }
+
+        // Apply orderBy if provided
+        if (options?.orderBy) {
+          // Simplified - just reverse for DESC ordering
+          filtered = [...filtered].reverse();
+        }
+
+        // Apply limit if provided
+        if (options?.limit && typeof options.limit === 'number') {
+          return filtered.slice(0, options.limit);
+        }
+
+        return filtered;
+      })
+    });
+
+    return {
+      funds: createTableQuery('funds'),
+      forecastSnapshots: createTableQuery('forecast_snapshots'),
+      portfolioCompanies: createTableQuery('portfoliocompanies'),
+      fundMetrics: createTableQuery('fund_metrics'),
+      fundSnapshots: createTableQuery('fund_snapshots'),
+      fundBaselines: createTableQuery('fund_baselines'),
+      alertRules: createTableQuery('alert_rules'),
+      performanceAlerts: createTableQuery('performance_alerts'),
+      varianceReports: createTableQuery('variance_reports'),
+      users: createTableQuery('users'),
+      investments: createTableQuery('investments'),
+      investmentLots: createTableQuery('investment_lots')
+    };
+  }
+
+  /**
    * Additional helper methods
    */
   run = this.execute; // Alias for execute
-  query = this.execute; // Alias for execute
+  query = this.createQueryInterface(); // Drizzle relational query interface
 
   /**
    * Close connection (no-op for mock)
@@ -487,6 +657,32 @@ class DatabaseMock {
     const match = query.match(pattern);
 
     return match ? match[1] : 'unknown_table';
+  }
+
+  /**
+   * Get table name from Drizzle table object
+   * Simplified version - assumes table object has dbName property or falls back to checking property names
+   */
+  private getTableNameFromObject(table: any): string {
+    // Check common table name patterns
+    if (table && typeof table === 'object') {
+      // Try to get the table name from the object structure
+      if (table[Symbol.for('drizzle:Name')]) {
+        return table[Symbol.for('drizzle:Name')];
+      }
+      // Fallback to checking toString or hardcoded mapping
+      const tableStr = table.toString?.() || '';
+      if (tableStr.includes('forecast_snapshots')) return 'forecast_snapshots';
+      if (tableStr.includes('forecastSnapshots')) return 'forecast_snapshots';
+      if (tableStr.includes('investment_lots')) return 'investment_lots';
+      if (tableStr.includes('investmentLots')) return 'investment_lots';
+      if (tableStr.includes('investments')) return 'investments';
+      if (tableStr.includes('funds')) return 'funds';
+      if (tableStr.includes('users')) return 'users';
+      if (tableStr.includes('companies')) return 'companies';
+      if (tableStr.includes('portfolioCompanies')) return 'portfoliocompanies';
+    }
+    return 'unknown_table';
   }
 
   /**
@@ -581,10 +777,180 @@ class DatabaseMock {
   }
 
   /**
-   * Generate mock ID
+   * Generate mock ID (UUID format for compatibility)
    */
   private generateId(): string {
-    return `mock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // Generate a UUID v4 format for compatibility with tests
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  /**
+   * Filter data based on Drizzle where clause
+   * Simple matcher for eq() and and() patterns
+   */
+  private filterData(data: any[], whereClause: any): any[] {
+    if (!whereClause) return data;
+
+    return data.filter((row: any) => this.matchesWhereClause(row, whereClause));
+  }
+
+  /**
+   * Check if a row matches the where clause
+   * Simplified implementation for testing - extracts filter values and compares
+   */
+  private matchesWhereClause(row: any, whereClause: any): boolean {
+    if (!whereClause) return true;
+
+    // Extract filters from the where clause by walking its structure
+    const filters = this.extractFiltersFromClause(whereClause);
+
+    // Debug logging
+    if (process.env.DEBUG_MOCK && Object.keys(filters).length > 0) {
+      console.log(`[Mock matchesWhereClause] Extracted filters:`, filters);
+      console.log(`[Mock matchesWhereClause] Row:`, row);
+    }
+
+    // If no filters were extracted, the where clause couldn't be parsed
+    // Be conservative: only match if this is a simple empty-table check
+    // Otherwise return false to avoid incorrect matches
+    if (Object.keys(filters).length === 0) {
+      // For safety, don't match when we can't parse the WHERE clause
+      // This prevents returning wrong records for complex queries
+      return false;
+    }
+
+    // Match all extracted filters
+    for (const [key, value] of Object.entries(filters)) {
+      if (row[key] !== value) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Walk the where clause tree and extract filter key-value pairs
+   * Simplified parser for common Drizzle patterns: eq(), and()
+   */
+  private extractFiltersFromClause(clause: any, filters: Record<string, any> = {}, depth: number = 0): Record<string, any> {
+    if (!clause || typeof clause !== 'object' || depth > 10) return filters;
+
+    // Debug: Try to call toSQL if available
+    if (process.env.DEBUG_MOCK && typeof clause.toSQL === 'function') {
+      try {
+        const sql = clause.toSQL();
+        console.log('[extractFilters] SQL:', sql);
+      } catch (e) {
+        console.log('[extractFilters] toSQL failed:', e);
+      }
+    }
+
+    // Special handling for Drizzle SQL bindings - collect column-value pairs
+    const values: any[] = [];
+    const columns: string[] = [];
+
+    // Walk the entire tree to find all values and column names
+    this.collectValuesAndColumns(clause, values, columns);
+
+    // Debug logging
+    if (process.env.DEBUG_MOCK) {
+      console.log('[extractFilters] Columns:', columns);
+      console.log('[extractFilters] Values:', values);
+    }
+
+    // Match columns with values
+    // Heuristic: pair them sequentially, but handle special cases
+    if (columns.length === values.length) {
+      // Perfect match - pair sequentially
+      for (let i = 0; i < columns.length; i++) {
+        if (columns[i] && values[i] !== undefined) {
+          filters[columns[i]] = values[i];
+        }
+      }
+    } else {
+      // Mismatch - try to be smart about common patterns
+      // For idempotency: look for 'id' or 'idempotencyKey' columns
+      const idIdx = columns.findIndex(c => c === 'id' || c.endsWith('Id'));
+      const idemIdx = columns.findIndex(c => c === 'idempotencyKey' || c.includes('idempotency'));
+
+      if (idIdx >= 0 && idIdx < values.length) {
+        filters[columns[idIdx]] = values[idIdx];
+      }
+      if (idemIdx >= 0 && idemIdx < values.length) {
+        filters[columns[idemIdx]] = values[idemIdx];
+      }
+
+      // Fallback: sequential matching for remaining
+      for (let i = 0; i < Math.min(columns.length, values.length); i++) {
+        if (columns[i] && values[i] !== undefined && !(columns[i] in filters)) {
+          filters[columns[i]] = values[i];
+        }
+      }
+    }
+
+    return filters;
+  }
+
+  /**
+   * Recursively collect all values and column names from WHERE clause
+   */
+  private collectValuesAndColumns(obj: any, values: any[], columns: string[], depth: number = 0): void {
+    if (!obj || typeof obj !== 'object' || depth > 10) return;
+
+    // Collect bind values (have encoder property)
+    if (obj.encoder && obj.value !== undefined) {
+      values.push(obj.value);
+    }
+
+    // Collect column names
+    const colName = this.findColumnInTree(obj);
+    if (colName && !columns.includes(colName)) {
+      columns.push(colName);
+    }
+
+    // Handle arrays (like expressions in and())
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        this.collectValuesAndColumns(item, values, columns, depth + 1);
+      }
+      return;
+    }
+
+    // Recurse into nested objects
+    for (const key of Object.keys(obj)) {
+      if (key === 'table' || key === 'tableConfig') continue; // Skip to avoid circular refs
+      const value = obj[key];
+      if (value && typeof value === 'object') {
+        this.collectValuesAndColumns(value, values, columns, depth + 1);
+      }
+    }
+  }
+
+  /**
+   * Try to find column name in an object tree
+   */
+  private findColumnInTree(obj: any): string | null {
+    if (!obj || typeof obj !== 'object') return null;
+
+    // Look for column indicators in order of specificity
+    if (obj.fieldName && typeof obj.fieldName === 'string') return obj.fieldName;
+    if (obj.column?.name && typeof obj.column.name === 'string') return obj.column.name;
+    if (obj.column?.fieldName && typeof obj.column.fieldName === 'string') return obj.column.fieldName;
+
+    // Check for 'name' property (but be careful - lots of things have 'name')
+    if (obj.name && typeof obj.name === 'string' && !obj.name.includes(' ') && obj.name.length < 50) {
+      // Additional check: if it has an 'encoder' sibling, it's likely a column
+      if (obj.encoder || obj.dataType) {
+        return obj.name;
+      }
+    }
+
+    return null;
   }
 
   /**

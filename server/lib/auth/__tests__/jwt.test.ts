@@ -38,7 +38,7 @@ describe('JWT Authentication', () => {
 
     it('should reject token with invalid signature', async () => {
       const token = signToken({ sub: 'user-123' });
-      const tamperedToken = token.slice(0, -5) + 'XXXXX';
+      const tamperedToken = `${token.slice(0, -5)  }XXXXX`;
 
       await expect(verifyAccessToken(tamperedToken)).rejects.toThrow(InvalidTokenError);
     });

@@ -6,7 +6,7 @@
 
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { startTestDb, stopTestDb, seedTestData } from '../../helpers/testcontainers-db';
-import { Client } from 'pg';
+import type { Client } from 'pg';
 
 let db: Client;
 let testData: { userId: number; fundId: number };

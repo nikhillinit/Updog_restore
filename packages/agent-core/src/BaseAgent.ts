@@ -3,12 +3,10 @@ import { MetricsCollector } from './MetricsCollector';
 import { ETagLogger } from './ETagLogger';
 import {
   createThread,
-  getThread,
   addTurn,
-  buildConversationHistory,
   type ThreadContext,
 } from './ConversationMemory';
-import { serializeAsync, serializeSafely } from './SerializationHelper';
+import { serializeAsync } from './SerializationHelper';
 import { ConversationCache, type CacheStats } from './ConversationCache';
 
 export interface AgentConfig {
@@ -137,7 +135,7 @@ export abstract class BaseAgent<TInput = unknown, TOutput = unknown> {
     this.logger.info('Starting agent execution', { context, input });
 
     let lastError: Error | null = null;
-    let attempt = 0;
+    const attempt = 0;
     const maxRetries = this.config.maxRetries || 3;
 
     // Try initial attempt + maxRetries

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { RouteOptimizationAgent, RouteOptimizationInput } from '../RouteOptimizationAgent';
+import type { RouteOptimizationInput } from '../RouteOptimizationAgent';
+import { RouteOptimizationAgent } from '../RouteOptimizationAgent';
 import * as fs from 'fs';
 
 // Mock fs module

@@ -18,10 +18,11 @@
 import { Redis } from '@upstash/redis';
 import { encode, decode } from '@msgpack/msgpack';
 import * as pako from 'pako';
-import {
+import type {
   CacheAdapter,
   CacheAdapterConfig,
-  CacheEntry,
+  CacheEntry} from './CacheAdapter';
+import {
   withTimeout
 } from './CacheAdapter';
 import { CircuitBreaker } from './CircuitBreaker';

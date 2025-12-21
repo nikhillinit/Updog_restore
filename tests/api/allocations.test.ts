@@ -7,7 +7,7 @@
  * @group allocations
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
 import { makeApp } from '../../server/app';
 import { pool } from '../../server/db/pg-circuit';

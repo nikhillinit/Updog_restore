@@ -68,7 +68,7 @@ export interface JCurvePath {
  * @param dpiSoFar - Optional: actual distributions to-date (Current mode)
  * @returns Complete J-curve path with sensitivity bands
  */
-/* eslint-disable-next-line complexity, max-lines-per-function -- TEMP: Track 1A types-only; refactor in follow-up */
+ 
 export function computeJCurvePath(
   cfg: JCurveConfig,
   feeTimelinePerPeriod: Decimal[],
@@ -91,7 +91,7 @@ export function computeJCurvePath(
     tvpiDecimals = seed.map(v => new Decimal(v));
     rmse = undefined;
   } else {
-    let ysSeed = generatePiecewiseSeed(xs, K, cfg);
+    const ysSeed = generatePiecewiseSeed(xs, K, cfg);
 
     // Calibrate to actuals if provided (Current mode)
     if (calledSoFar && calledSoFar.length > 0) {

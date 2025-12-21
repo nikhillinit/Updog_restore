@@ -6,9 +6,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { MonteCarloEngine } from '@/server/services/monte-carlo-engine';
 import type {
-  SimulationConfig,
-  SimulationResults,
-  RiskMetrics
+  SimulationConfig
 } from '@/server/services/monte-carlo-engine';
 
 // Mock database and dependencies

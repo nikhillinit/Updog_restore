@@ -28,7 +28,7 @@ vi.mock('../../server/db', async () => {
 });
 
 // Import after mocking
-import { query, transaction } from '../../server/db';
+import { query } from '../../server/db';
 import reallocationRouter from '../../server/routes/reallocation';
 
 // ============================================================================
@@ -55,7 +55,7 @@ interface TestCompany {
 }
 
 let testFundId: number;
-let testCompanies: TestCompany[] = [];
+const testCompanies: TestCompany[] = [];
 
 /**
  * Setup test database with fund and companies

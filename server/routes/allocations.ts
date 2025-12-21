@@ -438,7 +438,7 @@ router["get"]('/funds/:fundId/companies', asyncHandler(async (req: Request, res:
 
   // Search filter (case-insensitive LIKE)
   if (query.q) {
-    conditions.push(sql`LOWER(${portfolioCompanies.name}) LIKE LOWER(${'%' + query.q + '%'})`);
+    conditions.push(sql`LOWER(${portfolioCompanies.name}) LIKE LOWER(${`%${  query.q  }%`})`);
   }
 
   // Build ORDER BY clause based on sortBy

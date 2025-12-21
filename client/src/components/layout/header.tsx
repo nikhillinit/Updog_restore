@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
+ 
 import { Button } from "@/components/ui/button";
 import { Download, RefreshCw, DollarSign, UserCircle2, ChevronDown, Bell } from "lucide-react";
 import { useFundContext } from "@/contexts/FundContext";

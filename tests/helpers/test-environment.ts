@@ -4,7 +4,7 @@
  */
 
 import getPort from 'get-port';
-import { Express } from 'express';
+import type { Express } from 'express';
 
 interface TestServer {
   app: Express;

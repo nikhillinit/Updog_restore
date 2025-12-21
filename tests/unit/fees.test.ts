@@ -11,7 +11,7 @@ import {
   committedFeeDragPctFromTiers,
   type FeeTier,
 } from '@/lib/fees';
-import { asFraction, asPercentage, type Fraction } from '@shared/units';
+import { type Fraction } from '@shared/units';
 
 describe('Fee Calculations - Unit Discipline', () => {
   describe('committedFeeDragFraction()', () => {

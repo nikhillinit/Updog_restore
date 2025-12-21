@@ -23,12 +23,8 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Queue } from 'bullmq';
 
 // Import schemas and validators
-import {
-  validateStatusTransition,
-  type CreateLotRequest,
-  type CreateSnapshotRequest,
-  type UpdateSnapshotRequest,
-} from '@shared/schemas/portfolio-route';
+
+
 
 // Import test utilities
 import {
@@ -38,18 +34,14 @@ import {
   assertValidPagination,
   assertBigIntEquals,
   seedTestPortfolio,
-  waitFor,
   type SeedResult,
 } from '../utils/portfolio-route-test-utils';
 
 // Import test fixtures
 import {
-  createFundFactory,
   createLotRequestFactory,
   createSnapshotRequestFactory,
   createUpdateSnapshotRequestFactory,
-  getIdempotencyScenarios,
-  getVersionConflictScenarios,
   getStatusTransitionScenarios,
   generateLotBatch,
 } from '../fixtures/portfolio-route-fixtures';

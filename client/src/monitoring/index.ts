@@ -64,8 +64,8 @@ const noopSentry: MockSentry = {
 };
 
 // Export Sentry conditionally based on compile-time flag
-let Sentry: MockSentry = noopSentry;
-let isSentryEnabled = false;
+const Sentry: MockSentry = noopSentry;
+const isSentryEnabled = false;
 
 // Only load real Sentry if compile-time flag is true
 // DISABLED: Sentry is not configured (no VITE_SENTRY_DSN)

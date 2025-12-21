@@ -15,12 +15,12 @@
  */
 
 import type { Application } from 'express';
-import request, { Test as SupertestTest } from 'supertest';
+import type { Test as SupertestTest } from 'supertest';
+import request from 'supertest';
 import { randomUUID } from 'crypto';
 import {
   InvestmentLotV1Schema,
   ForecastSnapshotV1Schema,
-  ReserveAllocationV1Schema,
   ListSnapshotsResponseSchema,
   ListLotsResponseSchema,
   CreateSnapshotResponseSchema,

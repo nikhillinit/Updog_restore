@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { BacktestRunner, BacktestExecutionCase, BacktestExecutionReport } from '../Backtest';
+import type { BacktestExecutionCase, BacktestExecutionReport } from '../Backtest';
+import { BacktestRunner } from '../Backtest';
 import { existsSync } from 'fs';
 import { join } from 'path';
 

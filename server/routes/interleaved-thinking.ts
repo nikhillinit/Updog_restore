@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 
 /**
  * Interleaved Thinking API
@@ -262,7 +262,7 @@ async function handleThinkingQuery(
 
   const thinkingBlocks: string[] = [];
   const toolExecutions: Array<{ name: string; input: any; output: any }> = [];
-  let totalUsage = {
+  const totalUsage = {
     input_tokens: 0,
     output_tokens: 0,
     total_tokens: 0,

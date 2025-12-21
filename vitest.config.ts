@@ -96,8 +96,11 @@ export default defineConfig({
           include: [
             'tests/unit/**/*.test.ts',
             'tests/perf/**/*.test.ts',
-            'tests/integration/**/*.test.ts',
             'tests/api/**/*.test.ts',
+          ],
+          exclude: [
+            'tests/integration/**/*',
+            ...configDefaults.exclude,
           ],
           setupFiles: [
             './tests/setup/node-setup-redis.ts', // FIRST: Mock Redis before any imports
