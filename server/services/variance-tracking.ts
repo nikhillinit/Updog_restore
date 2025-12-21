@@ -96,7 +96,10 @@ export class BaselineService {
       snapshotDate: new Date(),
       totalValue: latestMetrics.totalValue,
       deployedCapital: portfolioData.deployedCapital,
-      createdBy
+      createdBy,
+      isDefault,
+      description,
+      tags
     };
 
       const [baseline] = await db.insert(fundBaselines)
@@ -318,7 +321,21 @@ export class VarianceCalculationService {
       analysisEnd: baseline.periodEnd,
       asOfDate,
       currentMetrics,
-      baselineMetrics
+      baselineMetrics,
+      totalValueVariance: variances.totalValueVariance?.toString() ?? null,
+      totalValueVariancePct: variances.totalValueVariancePct?.toString() ?? null,
+      irrVariance: variances.irrVariance?.toString() ?? null,
+      multipleVariance: variances.multipleVariance?.toString() ?? null,
+      dpiVariance: variances.dpiVariance?.toString() ?? null,
+      tvpiVariance: variances.tvpiVariance?.toString() ?? null,
+      portfolioVariances,
+      significantVariances: insights.significantVariances,
+      varianceFactors: insights.factors,
+      thresholdBreaches: insights.thresholdBreaches,
+      riskLevel: insights.riskLevel,
+      alertsTriggered,
+      generatedBy,
+      reportPeriod
     };
 
       const [report] = await db.insert(varianceReports)
@@ -588,7 +605,12 @@ export class VarianceCalculationService {
       return false;
     }
 
-    const threshold = parseFloat(rule.thresholdValue?.toString() || '0');
+    // Check if threshold is null or undefined
+    if (rule.thresholdValue === null || rule.thresholdValue === undefined) {
+      return false;
+    }
+
+    const threshold = parseFloat(rule.thresholdValue.toString());
 
     switch (rule.operator) {
       case 'gt':
@@ -664,10 +686,17 @@ export class AlertManagementService {
     createdBy: number;
   }): Promise<AlertRule> {
     const ruleData: InsertAlertRule = {
+      fundId: params.fundId,
       name: params.name,
+      description: params.description,
       ruleType: params.ruleType,
       metricName: params.metricName,
       operator: params.operator,
+      thresholdValue: params.thresholdValue.toString(),
+      secondaryThreshold: params.secondaryThreshold?.toString(),
+      severity: params.severity || 'warning',
+      category: params.category || 'performance',
+      checkFrequency: params.checkFrequency || 'daily',
       createdBy: params.createdBy
     };
 
