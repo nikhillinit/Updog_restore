@@ -20,7 +20,7 @@ export async function getEphemeralPort(): Promise<number> {
   } catch {
     // Ignore import errors
   }
-  
+
   // Fallback: find an available port manually
   const net = await import('net');
   return new Promise((resolve, reject) => {
@@ -58,19 +58,19 @@ export async function startTestServer(
   buildApp: () => Promise<Express | FastifyInstance>,
   config: TestServerConfig = {}
 ): Promise<TestServerHandle> {
-  const port = config.port || await getEphemeralPort();
+  const port = config.port || (await getEphemeralPort());
   const host = config.host || '127.0.0.1';
-  
+
   // Apply environment variables if provided
   if (config.env) {
     Object.assign(process.env, config.env);
   }
-  
+
   const app = await buildApp();
-  
+
   // Handle both Express and Fastify
   let server: any;
-  
+
   if ('listen' in app && typeof app.listen === 'function') {
     // Express-style server
     server = await new Promise<any>((resolve, reject) => {
@@ -84,7 +84,7 @@ export async function startTestServer(
   } else {
     throw new Error('Unknown server type');
   }
-  
+
   return {
     port,
     host,
@@ -105,7 +105,7 @@ export async function startTestServer(
       } catch (error) {
         console.warn('Error closing test server:', error);
       }
-    }
+    },
   };
 }
 
@@ -115,29 +115,27 @@ export async function startTestServer(
 export function setupServerCleanup(servers: TestServerHandle[] = []) {
   // Track all servers
   const activeServers = servers;
-  
+
   // Cleanup helper
   const cleanup = async () => {
-    await Promise.all(
-      activeServers.map(s => s.close().catch(() => {}))
-    );
-    activeServers.length = 0;
+    const serversToClose = activeServers.splice(0);
+    await Promise.all(serversToClose.map((s) => s.close().catch(() => {})));
   };
-  
+
   // Register cleanup handlers
   if (typeof afterAll === 'function') {
     afterAll(cleanup);
   }
-  
+
   if (typeof process !== 'undefined') {
     process.on('SIGINT', cleanup);
     process.on('SIGTERM', cleanup);
     process.on('exit', cleanup);
   }
-  
+
   return {
     add: (server: TestServerHandle) => activeServers.push(server),
-    cleanup
+    cleanup,
   };
 }
 
@@ -155,9 +153,9 @@ export async function waitForServer(
   const timeout = options.timeout || 30000;
   const interval = options.interval || 500;
   const healthPath = options.healthPath || '/health';
-  
+
   const startTime = Date.now();
-  
+
   while (Date.now() - startTime < timeout) {
     try {
       const response = await fetch(`${baseUrl}${healthPath}`);
@@ -167,9 +165,9 @@ export async function waitForServer(
     } catch {
       // Server not ready yet
     }
-    
-    await new Promise(resolve => setTimeout(resolve, interval));
+
+    await new Promise((resolve) => setTimeout(resolve, interval));
   }
-  
+
   throw new Error(`Server at ${baseUrl} did not become ready within ${timeout}ms`);
 }
