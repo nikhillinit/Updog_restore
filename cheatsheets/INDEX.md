@@ -52,7 +52,8 @@ Complete reference to all 30 project cheatsheets, organized by category.
 **Related Skills & Agents** (in `.claude/`):
 
 - **test-scaffolder agent** - Scaffold test infrastructure for new modules
-- **test-fixture-generator skill** - Factory functions, golden datasets, generators
+- **test-fixture-generator skill** - Factory functions, golden datasets,
+  generators
 - **test-pyramid skill** - E2E scope control, test level governance
 - **test-repair agent** - Fix failures + flakiness detection
 

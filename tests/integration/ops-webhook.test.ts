@@ -107,7 +107,7 @@ describe('Ops Webhook: Auto-Downgrade', () => {
       const correctSignature = generateSignature(payload);
 
       // Modify one character (should still take same time to compare)
-      const tamperedSignature = 'f' + correctSignature.slice(1);
+      const tamperedSignature = `f${  correctSignature.slice(1)}`;
 
       const response = await request(app)
         .post('/_ops/stage-validation/auto-downgrade')

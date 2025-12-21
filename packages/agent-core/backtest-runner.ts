@@ -24,9 +24,9 @@
  * ]
  */
 
-import { BacktestRunner, BacktestCase } from './src/Backtest';
+import { BacktestRunner } from './src/Backtest';
 import { existsSync } from 'fs';
-import { resolve, join } from 'path';
+import { resolve } from 'path';
 
 interface CLIOptions {
   cases: string;

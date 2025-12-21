@@ -13,7 +13,6 @@
 import { describe, it, expect } from 'vitest';
 import { runFundModel } from '../../client/src/lib/fund-calc';
 import type { FundModelInputs } from '@shared/schemas/fund-model';
-import { Decimal } from 'decimal.js';
 
 describe('Management Fee Horizon Fix (PR #112)', () => {
   it('should charge fees for full 10-year horizon even with early exits', () => {

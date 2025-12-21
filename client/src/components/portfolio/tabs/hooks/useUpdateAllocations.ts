@@ -3,7 +3,7 @@
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFundContext } from '@/contexts/FundContext';
-import type { UpdateAllocationPayload, AllocationsResponse } from '../types';
+import type { UpdateAllocationPayload } from '../types';
 
 interface UpdateAllocationsOptions {
   onSuccess?: () => void;

@@ -7,7 +7,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { BaseAgent, type AgentConfig } from '../BaseAgent';
-import { applyThinkingMixin, type ThinkingResult } from '../ThinkingMixin';
+import { applyThinkingMixin } from '../ThinkingMixin';
 
 // ============================================================================
 // Test Agent Setup

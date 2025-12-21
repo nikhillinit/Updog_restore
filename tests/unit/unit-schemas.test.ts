@@ -321,6 +321,8 @@ describe('Type inference', () => {
       managementFee: 2 as any,
     };
 
+    FundConfigSchema.parse(config);
+
     expect(config.size).toBeDefined();
     expect(config.managementFee).toBeDefined();
   });

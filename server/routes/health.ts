@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 import { Router } from 'express';
 import { readinessCheck, livenessCheck } from '../health';
 import { storage } from '../storage';
@@ -298,7 +298,7 @@ router['get']('/api/health/queues', async (req: Request, res: Response) => {
     try {
       // Import Redis client to check queue status
       const IORedis = await import('ioredis');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dynamic import type incompatibility
+       
       const Redis: any = IORedis.default;
       const redis = new Redis({
         host: process.env["REDIS_HOST"] || 'localhost',

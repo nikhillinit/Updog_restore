@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TestRepairAgent, TestFailure, RepairInput } from '../TestRepairAgent';
+import type { TestFailure, RepairInput } from '../TestRepairAgent';
+import { TestRepairAgent } from '../TestRepairAgent';
 
 describe('Evaluator-Optimizer Pattern', () => {
   let agent: TestRepairAgent;

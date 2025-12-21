@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ 
+ 
+ 
 // Minimal placeholder so the endpoint compiles.
 // Wire to your real model once ready.
 import { getConfig } from '../config';

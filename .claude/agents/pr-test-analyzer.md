@@ -109,6 +109,7 @@ unexpectedly, not when implementation details change.
 When analyzing PRs, consider delegating to or recommending:
 
 - **test-scaffolder** - If PR adds new module without test infrastructure
-- **test-repair** - If PR introduces flaky test patterns (check flakiness section)
+- **test-repair** - If PR introduces flaky test patterns (check flakiness
+  section)
 - **test-fixture-generator skill** - For fixture pattern recommendations
 - **test-pyramid skill** - Reference for E2E admission criteria and test budgets

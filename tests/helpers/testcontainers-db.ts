@@ -1,4 +1,5 @@
-import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers';
+import type { StartedTestContainer} from 'testcontainers';
+import { GenericContainer, Wait } from 'testcontainers';
 import { Client } from 'pg';
 import fs from 'fs';
 import path from 'path';

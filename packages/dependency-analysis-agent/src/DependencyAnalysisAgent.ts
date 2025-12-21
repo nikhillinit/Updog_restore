@@ -1,4 +1,5 @@
-import { BaseAgent, AgentExecutionContext } from '@povc/agent-core';
+import type { AgentExecutionContext } from '@povc/agent-core';
+import { BaseAgent } from '@povc/agent-core';
 import { withThinking } from '@povc/agent-core/ThinkingMixin';
 import * as fs from 'fs';
 import * as path from 'path';

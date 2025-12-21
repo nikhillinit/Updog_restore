@@ -48,6 +48,8 @@ intelligent test design, TDD validation, and thorough coverage analysis.
 
 - **test-scaffolder** - Delegate when new test infrastructure needed for modules
 - **test-repair** - Delegate for fixing failing tests and flakiness detection
-- **test-fixture-generator skill** - Use patterns for factory functions and golden datasets
-- **test-pyramid skill** - Follow for E2E scope control and test level governance
+- **test-fixture-generator skill** - Use patterns for factory functions and
+  golden datasets
+- **test-pyramid skill** - Follow for E2E scope control and test level
+  governance
 - **playwright-test-author** - Delegate for browser-only E2E tests

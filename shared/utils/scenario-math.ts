@@ -239,7 +239,7 @@ export function formatCurrencyForCSV(value: number | null | undefined): string {
  */
 export function formatPercentageForCSV(value: number | null | undefined): string {
   if (value === null || value === undefined) return 'N/A';
-  return new Decimal(value).times(100).toFixed(2) + '%';
+  return `${new Decimal(value).times(100).toFixed(2)  }%`;
 }
 
 // ============================================================================

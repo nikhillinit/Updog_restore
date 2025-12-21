@@ -7,7 +7,8 @@
  * Reference: https://github.com/anthropics/claude-cookbooks/blob/main/patterns/agents/orchestrator_workers.ipynb
  */
 
-import { AIRouter, AIModel, Task, createTask } from './Router';
+import type { AIModel} from './Router';
+import { AIRouter, createTask } from './Router';
 import { Logger } from './Logger';
 
 export interface Subtask {

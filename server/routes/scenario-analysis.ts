@@ -330,7 +330,7 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
 
       // Auto-normalize if requested
       let normalized = false;
-      let original_sum = validation.sum;
+      const original_sum = validation.sum;
       if (body.normalize && !validation.is_valid) {
         cases = normalizeProbabilities(cases);
         normalized = true;

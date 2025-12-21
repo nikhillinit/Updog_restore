@@ -9,12 +9,11 @@
  * Run: npx tsx demo-conversation-memory.ts
  */
 
+import type {
+  AgentExecutionContext} from './src/index';
 import {
   BaseAgent,
-  AgentExecutionContext,
-  createThread,
   getThread,
-  addTurn,
   buildConversationHistory,
   clearAllThreads,
 } from './src/index';
@@ -270,7 +269,7 @@ async function runMultiAgentWorkflow() {
       maxHistoryTokens: 2000,
     });
 
-    console.log(history.history.substring(0, 1000) + '...');
+    console.log(`${history.history.substring(0, 1000)  }...`);
     console.log(`\nTotal tokens: ${history.tokens}`);
   }
 

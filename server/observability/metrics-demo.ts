@@ -14,6 +14,6 @@ installMetricsRoute(app);
 
 const port = Number(process.env['PORT'] ?? 7071);
 app.listen(port, () => {
-  // eslint-disable-next-line no-console
+   
   console.log(`[metrics-demo] listening on :${port}`);
 });

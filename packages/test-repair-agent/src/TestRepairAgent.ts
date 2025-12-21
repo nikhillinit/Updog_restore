@@ -1,7 +1,8 @@
-import { BaseAgent, AgentConfig, AgentExecutionContext } from '@povc/agent-core';
+import type { AgentConfig, AgentExecutionContext } from '@povc/agent-core';
+import { BaseAgent } from '@povc/agent-core';
 import { withThinking } from '@povc/agent-core/ThinkingMixin';
 import { spawn } from 'child_process';
-import { writeFileSync, readFileSync } from 'fs';
+import { writeFileSync } from 'fs';
 import { join } from 'path';
 
 export interface TestFailure {
@@ -146,7 +147,7 @@ export class TestRepairAgent extends withThinking(BaseAgent)<RepairInput, Repair
   ): Promise<{ file: string; changes: string; success: boolean; evaluation: EvaluationResult; iterations: number }> {
     let currentRepair = '';
     let evaluation: EvaluationResult | null = null;
-    let previousAttempts: Array<{ repair: string; feedback: string }> = [];
+    const previousAttempts: Array<{ repair: string; feedback: string }> = [];
 
     for (let iteration = 0; iteration < this.MAX_OPTIMIZATION_ITERATIONS; iteration++) {
       // Generate (or optimize) repair
