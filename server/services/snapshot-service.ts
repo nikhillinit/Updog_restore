@@ -13,7 +13,8 @@
 import { db } from '../db';
 import { forecastSnapshots, funds } from '@shared/schema';
 import type { ForecastSnapshot, InsertForecastSnapshot } from '@shared/schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, type SQL } from 'drizzle-orm';
+import { typedFindFirst, typedFindMany, typedInsert, typedUpdate } from '../db/typed-query';
 
 // =====================
 // TYPE DEFINITIONS
@@ -141,12 +142,14 @@ export class SnapshotService {
 
     // Check for existing snapshot with same idempotency key
     if (data.idempotencyKey) {
-      const existing = await db.query.forecastSnapshots.findFirst({
-        where: and(
-          eq(forecastSnapshots.fundId, data.fundId),
-          eq(forecastSnapshots.idempotencyKey, data.idempotencyKey)
-        )
-      });
+      const existing = await typedFindFirst<typeof forecastSnapshots>(
+        db.query.forecastSnapshots.findFirst({
+          where: and(
+            eq(forecastSnapshots.fundId, data.fundId),
+            eq(forecastSnapshots.idempotencyKey, data.idempotencyKey)
+          ),
+        })
+      );
 
       if (existing) {
         return existing;
@@ -168,12 +171,16 @@ export class SnapshotService {
       version: BigInt(1),
       idempotencyKey: data.idempotencyKey ?? null,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     };
 
-    const [snapshot] = await db.insert(forecastSnapshots)
-      .values(snapshotData)
-      .returning();
+    const [snapshot] = await typedInsert<typeof forecastSnapshots>(
+      db.insert(forecastSnapshots).values(snapshotData).returning()
+    );
+
+    if (!snapshot) {
+      throw new Error('Failed to create snapshot');
+    }
 
     return snapshot;
   }
@@ -202,7 +209,7 @@ export class SnapshotService {
     await this.verifyFundExists(fundId);
 
     const limit = filter.limit ?? 50;
-    const conditions = [eq(forecastSnapshots.fundId, fundId)];
+    const conditions: SQL<unknown>[] = [eq(forecastSnapshots.fundId, fundId)];
 
     // Add status filter if provided
     if (filter.status) {
@@ -218,26 +225,30 @@ export class SnapshotService {
     }
 
     // Fetch limit + 1 to detect if there are more results
-    const snapshots = await db.query.forecastSnapshots.findMany({
-      where: and(...conditions),
-      orderBy: [desc(forecastSnapshots.snapshotTime), desc(forecastSnapshots.id)],
-      limit: limit + 1
-    });
+    const snapshots = await typedFindMany<typeof forecastSnapshots>(
+      db.query.forecastSnapshots.findMany({
+        where: and(...conditions),
+        orderBy: [desc(forecastSnapshots.snapshotTime), desc(forecastSnapshots.id)],
+        limit: limit + 1,
+      })
+    );
 
     const hasMore = snapshots.length > limit;
     const resultSnapshots = hasMore ? snapshots.slice(0, limit) : snapshots;
 
-    let nextCursor: string | undefined;
+    let nextCursor: string | undefined = undefined;
     if (hasMore && resultSnapshots.length > 0) {
       const lastSnapshot = resultSnapshots[resultSnapshots.length - 1];
-      nextCursor = this.encodeCursor(lastSnapshot.snapshotTime, lastSnapshot.id);
+      if (lastSnapshot) {
+        nextCursor = this.encodeCursor(lastSnapshot.snapshotTime, lastSnapshot.id);
+      }
     }
 
     return {
       snapshots: resultSnapshots,
-      nextCursor,
-      hasMore
-    };
+      ...(nextCursor !== undefined ? { nextCursor } : {}),
+      hasMore,
+    } as PaginatedSnapshots;
   }
 
   /**
@@ -251,9 +262,11 @@ export class SnapshotService {
    * const snapshot = await service.get('uuid');
    */
   async get(snapshotId: string): Promise<ForecastSnapshot> {
-    const snapshot = await db.query.forecastSnapshots.findFirst({
-      where: eq(forecastSnapshots.id, snapshotId)
-    });
+    const snapshot = await typedFindFirst<typeof forecastSnapshots>(
+      db.query.forecastSnapshots.findFirst({
+        where: eq(forecastSnapshots.id, snapshotId),
+      })
+    );
 
     if (!snapshot) {
       throw new SnapshotNotFoundError(snapshotId);
@@ -284,9 +297,11 @@ export class SnapshotService {
    */
   async update(snapshotId: string, data: UpdateSnapshotData): Promise<ForecastSnapshot> {
     // Get current snapshot to verify existence and version
-    const current = await db.query.forecastSnapshots.findFirst({
-      where: eq(forecastSnapshots.id, snapshotId)
-    });
+    const current = await typedFindFirst<typeof forecastSnapshots>(
+      db.query.forecastSnapshots.findFirst({
+        where: eq(forecastSnapshots.id, snapshotId),
+      })
+    );
 
     if (!current) {
       throw new SnapshotNotFoundError(snapshotId);
@@ -300,7 +315,7 @@ export class SnapshotService {
     // Build update object with only provided fields
     const updateData: Partial<InsertForecastSnapshot> = {
       updatedAt: new Date(),
-      version: current.version + BigInt(1)
+      version: current.version + BigInt(1),
     };
 
     if (data.name !== undefined) {
@@ -323,13 +338,15 @@ export class SnapshotService {
     }
 
     // Perform update
-    const [updated] = await db.update(forecastSnapshots)
-      ['set'](updateData)
-      .where(and(
-        eq(forecastSnapshots.id, snapshotId),
-        eq(forecastSnapshots.version, data.version)
-      ))
-      .returning();
+    const [updated] = await typedUpdate<typeof forecastSnapshots>(
+      db
+        .update(forecastSnapshots)
+        .set(updateData)
+        .where(
+          and(eq(forecastSnapshots.id, snapshotId), eq(forecastSnapshots.version, data.version))
+        )
+        .returning()
+    );
 
     if (!updated) {
       throw new SnapshotVersionConflictError(snapshotId, data.version, current.version);
@@ -363,7 +380,20 @@ export class SnapshotService {
    */
   private decodeCursor(cursor: string): { timestamp: Date; id: string } {
     try {
-      const decoded = JSON.parse(Buffer.from(cursor, 'base64').toString());
+      const decoded: unknown = JSON.parse(Buffer.from(cursor, 'base64').toString());
+
+      // Type guard for decoded cursor
+      if (
+        typeof decoded !== 'object' ||
+        decoded === null ||
+        !('timestamp' in decoded) ||
+        !('id' in decoded) ||
+        typeof decoded.timestamp !== 'string' ||
+        typeof decoded.id !== 'string'
+      ) {
+        throw new Error('Invalid cursor structure');
+      }
+
       return {
         timestamp: new Date(decoded.timestamp),
         id: decoded.id,
@@ -380,9 +410,11 @@ export class SnapshotService {
    * @throws FundNotFoundError if fund does not exist
    */
   private async verifyFundExists(fundId: number): Promise<void> {
-    const fund = await db.query.funds.findFirst({
-      where: eq(funds.id, fundId)
-    });
+    const fund = await typedFindFirst<typeof funds>(
+      db.query.funds.findFirst({
+        where: eq(funds.id, fundId),
+      })
+    );
 
     if (!fund) {
       throw new FundNotFoundError(fundId);

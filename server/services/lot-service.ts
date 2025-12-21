@@ -11,6 +11,7 @@
  */
 
 import { db } from '../db';
+import { typedFindFirst, typedFindMany, typedInsert } from '../db/typed-query';
 import { investmentLots, investments } from '@shared/schema';
 import type { InvestmentLot, InsertInvestmentLot } from '@shared/schema';
 import { eq, and, desc, lt, or, type SQL } from 'drizzle-orm';
@@ -88,12 +89,7 @@ export class InvestmentFundMismatchError extends Error {
  * Error thrown when cost basis calculation is incorrect
  */
 export class CostBasisMismatchError extends Error {
-  constructor(
-    expected: bigint,
-    actual: bigint,
-    sharePriceCents: bigint,
-    sharesAcquired: string
-  ) {
+  constructor(expected: bigint, actual: bigint, sharePriceCents: bigint, sharesAcquired: string) {
     super(
       `Cost basis mismatch: expected ${expected}, got ${actual} ` +
         `(sharePriceCents=${sharePriceCents}, sharesAcquired=${sharesAcquired})`
@@ -162,12 +158,14 @@ export class LotService {
 
     // 3. Check for existing lot with same idempotency key
     if (data.idempotencyKey) {
-      const existing = await db.query.investmentLots.findFirst({
-        where: and(
-          eq(investmentLots.investmentId, data.investmentId),
-          eq(investmentLots.idempotencyKey, data.idempotencyKey)
-        )
-      });
+      const existing = await typedFindFirst<typeof investmentLots>(
+        db.query.investmentLots.findFirst({
+          where: and(
+            eq(investmentLots.investmentId, data.investmentId),
+            eq(investmentLots.idempotencyKey, data.idempotencyKey)
+          ),
+        })
+      );
 
       if (existing) {
         return existing;
@@ -185,14 +183,14 @@ export class LotService {
       version: BigInt(1),
       idempotencyKey: data.idempotencyKey ?? null,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     };
 
-    const [lot] = await db.insert(investmentLots)
-      .values(lotData)
-      .returning();
+    const [lot] = await typedInsert<typeof investmentLots>(
+      db.insert(investmentLots).values(lotData).returning()
+    );
 
-    return lot;
+    return lot as InvestmentLot;
   }
 
   /**
@@ -230,40 +228,48 @@ export class LotService {
     // Handle cursor-based pagination
     if (filter.cursor) {
       const { timestamp, id } = this.decodeCursor(filter.cursor);
-      conditions.push(
-        or(
-          lt(investmentLots.createdAt, timestamp),
-          and(
-            eq(investmentLots.createdAt, timestamp),
-            lt(investmentLots.id, id)
-          )
-        )
+      const cursorCondition = or(
+        lt(investmentLots.createdAt, timestamp),
+        and(eq(investmentLots.createdAt, timestamp), lt(investmentLots.id, id))
       );
+      if (cursorCondition) {
+        conditions.push(cursorCondition);
+      }
     }
 
     // Query lots with limit + 1 to check for more results
-    const lots = await db.query.investmentLots.findMany({
-      where: conditions.length > 0 ? and(...conditions) : undefined,
-      orderBy: [desc(investmentLots.createdAt), desc(investmentLots.id)],
-      limit: limit + 1
-    });
+    const lots: InvestmentLot[] = await typedFindMany<typeof investmentLots>(
+      db.query.investmentLots.findMany({
+        where: conditions.length > 0 ? and(...conditions) : undefined,
+        orderBy: [desc(investmentLots.createdAt), desc(investmentLots.id)],
+        limit: limit + 1,
+      })
+    );
 
     // Check if there are more results
-    const hasMore = lots.length > limit;
-    const resultLots = hasMore ? lots.slice(0, limit) : lots;
+    const hasMore: boolean = lots.length > limit;
+    const resultLots: InvestmentLot[] = hasMore ? lots.slice(0, limit) : lots;
 
     // Generate next cursor if there are more results
-    let nextCursor: string | undefined;
     if (hasMore && resultLots.length > 0) {
-      const lastLot = resultLots[resultLots.length - 1];
-      nextCursor = this.encodeCursor(lastLot.createdAt, lastLot.id);
+      const lastLot: InvestmentLot = resultLots[resultLots.length - 1]!;
+      const nextCursor: string = this.encodeCursor(lastLot.createdAt, lastLot.id);
+
+      const result: PaginatedLots = {
+        lots: resultLots,
+        nextCursor,
+        hasMore,
+      };
+
+      return result;
     }
 
-    return {
+    const result: PaginatedLots = {
       lots: resultLots,
-      nextCursor,
-      hasMore
+      hasMore,
     };
+
+    return result;
   }
 
   // =====================
@@ -291,9 +297,10 @@ export class LotService {
 
     // Allow tolerance of $10 (1000 cents) for rounding errors
     const tolerance = BigInt(1000);
-    const diff = expectedCostBasis > costBasisCents
-      ? expectedCostBasis - costBasisCents
-      : costBasisCents - expectedCostBasis;
+    const diff =
+      expectedCostBasis > costBasisCents
+        ? expectedCostBasis - costBasisCents
+        : costBasisCents - expectedCostBasis;
 
     if (diff > tolerance) {
       throw new CostBasisMismatchError(
@@ -313,13 +320,12 @@ export class LotService {
    * @throws InvestmentNotFoundError if investment does not exist
    * @throws InvestmentFundMismatchError if investment does not belong to fund
    */
-  private async verifyInvestmentBelongsToFund(
-    investmentId: number,
-    fundId: number
-  ): Promise<void> {
-    const investment = await db.query.investments.findFirst({
-      where: eq(investments.id, investmentId)
-    });
+  private async verifyInvestmentBelongsToFund(investmentId: number, fundId: number): Promise<void> {
+    const investment = await typedFindFirst<typeof investments>(
+      db.query.investments.findFirst({
+        where: eq(investments.id, investmentId),
+      })
+    );
 
     if (!investment) {
       throw new InvestmentNotFoundError(investmentId);
@@ -395,7 +401,10 @@ export class LotService {
    */
   private decodeCursor(cursor: string): { timestamp: Date; id: string } {
     try {
-      const decoded = JSON.parse(Buffer.from(cursor, 'base64').toString());
+      const decoded = JSON.parse(Buffer.from(cursor, 'base64').toString()) as {
+        timestamp: string;
+        id: string;
+      };
       return {
         timestamp: new Date(decoded.timestamp),
         id: decoded.id,
