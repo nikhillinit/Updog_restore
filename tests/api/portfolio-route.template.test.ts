@@ -7,6 +7,7 @@
  *
  * Version: 1.0.0
  * Created: 2025-11-08
+ * @group integration
  *
  * @module tests/api/portfolio-route.template.test
  */
