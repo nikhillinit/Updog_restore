@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import type { z } from 'zod';
 
 /**
  * PromptTemplate: Type-safe prompt construction with variable interpolation

@@ -126,18 +126,24 @@ export default [
   {
     files: [
       '**/auth/**/*.ts',
-      '**/auth/**/*.js',
+      '**/auth/**/*.tsx',
       '**/security/**/*.ts',
-      '**/security/**/*.js',
+      '**/security/**/*.tsx',
       '**/api/**/*.ts',
-      '**/api/**/*.js',
+      '**/api/**/*.tsx',
       '**/routes/**/*.ts',
-      '**/routes/**/*.js',
+      '**/routes/**/*.tsx',
     ],
     plugins: tsPlugin,
     rules: {
       ...typeSafetyRules,
       '@typescript-eslint/no-explicit-any': 'error', // Stricter for security-sensitive
+      'no-console': 'error',
+    },
+  },
+  {
+    files: ['**/auth/**/*.js', '**/security/**/*.js', '**/api/**/*.js', '**/routes/**/*.js'],
+    rules: {
       'no-console': 'error',
     },
   },

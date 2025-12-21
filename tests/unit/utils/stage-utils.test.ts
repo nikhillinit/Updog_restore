@@ -194,11 +194,9 @@ describe('Stage Normalization (server/utils/stage-utils.ts)', () => {
     });
 
     it('should reject null/undefined gracefully', () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
       const resultNull = normalizeInvestmentStage(null as any);
       expect(resultNull.ok).toBe(false);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
       const resultUndefined = normalizeInvestmentStage(undefined as any);
       expect(resultUndefined.ok).toBe(false);
     });

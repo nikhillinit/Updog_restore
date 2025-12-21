@@ -12,7 +12,7 @@ import {
   createVCPowerLawDistribution,
   generatePowerLawReturns,
   type InvestmentStage,
-  type PowerLawConfig
+  type PowerLawConfig,
 } from '../../../server/services/power-law-distribution';
 
 describe('PowerLawDistribution', () => {
@@ -33,9 +33,9 @@ describe('PowerLawDistribution', () => {
     it('should accept custom configuration parameters', () => {
       const customConfig: Partial<PowerLawConfig> = {
         failureRate: 0.65,
-        modestReturnRate: 0.20,
-        alpha: 1.20,
-        maxReturn: 150.0
+        modestReturnRate: 0.2,
+        alpha: 1.2,
+        maxReturn: 150.0,
       };
 
       const customDistribution = new PowerLawDistribution(customConfig, testSeed);
@@ -71,7 +71,7 @@ describe('PowerLawDistribution', () => {
       it('should sample returns for all investment stages', () => {
         const stages: InvestmentStage[] = ['pre-seed', 'seed', 'series-a', 'series-b', 'series-c+'];
 
-        stages.forEach(stage => {
+        stages.forEach((stage) => {
           const sample = distribution.sampleReturn(stage);
           expect(sample.stage).toBe(stage);
           expect(sample.multiple).toBeGreaterThanOrEqual(0);
@@ -85,10 +85,10 @@ describe('PowerLawDistribution', () => {
         const sampleSize = 10000;
         const stages: Record<InvestmentStage, number> = {
           'pre-seed': 0.75,
-          'seed': 0.70,
-          'series-a': 0.50,
+          seed: 0.7,
+          'series-a': 0.5,
           'series-b': 0.35,
-          'series-c+': 0.20
+          'series-c+': 0.2,
         };
 
         Object.entries(stages).forEach(([stage, expectedFailureRate]) => {
@@ -96,7 +96,7 @@ describe('PowerLawDistribution', () => {
             distribution.sampleReturn(stage as InvestmentStage)
           );
 
-          const failureCount = samples.filter(s => s.category === 'failure').length;
+          const failureCount = samples.filter((s) => s.category === 'failure').length;
           const actualFailureRate = failureCount / sampleSize;
 
           // Allow ±3% tolerance for statistical variation
@@ -109,44 +109,44 @@ describe('PowerLawDistribution', () => {
         const samples = Array.from({ length: sampleSize }, () => distribution.sampleReturn('seed'));
 
         const categories = {
-          failure: samples.filter(s => s.category === 'failure'),
-          modest: samples.filter(s => s.category === 'modest'),
-          good: samples.filter(s => s.category === 'good'),
-          homeRun: samples.filter(s => s.category === 'homeRun'),
-          unicorn: samples.filter(s => s.category === 'unicorn')
+          failure: samples.filter((s) => s.category === 'failure'),
+          modest: samples.filter((s) => s.category === 'modest'),
+          good: samples.filter((s) => s.category === 'good'),
+          homeRun: samples.filter((s) => s.category === 'homeRun'),
+          unicorn: samples.filter((s) => s.category === 'unicorn'),
         };
 
         // Check return ranges for each category
         if (categories.failure.length > 0) {
-          categories.failure.forEach(sample => {
+          categories.failure.forEach((sample) => {
             expect(sample.multiple).toBeGreaterThanOrEqual(0);
             expect(sample.multiple).toBeLessThanOrEqual(1);
           });
         }
 
         if (categories.modest.length > 0) {
-          categories.modest.forEach(sample => {
+          categories.modest.forEach((sample) => {
             expect(sample.multiple).toBeGreaterThan(1);
             expect(sample.multiple).toBeLessThanOrEqual(3);
           });
         }
 
         if (categories.good.length > 0) {
-          categories.good.forEach(sample => {
+          categories.good.forEach((sample) => {
             expect(sample.multiple).toBeGreaterThan(3);
             expect(sample.multiple).toBeLessThanOrEqual(10);
           });
         }
 
         if (categories.homeRun.length > 0) {
-          categories.homeRun.forEach(sample => {
+          categories.homeRun.forEach((sample) => {
             expect(sample.multiple).toBeGreaterThan(10);
             expect(sample.multiple).toBeLessThanOrEqual(50);
           });
         }
 
         if (categories.unicorn.length > 0) {
-          categories.unicorn.forEach(sample => {
+          categories.unicorn.forEach((sample) => {
             expect(sample.multiple).toBeGreaterThan(50);
             expect(sample.multiple).toBeLessThanOrEqual(200);
           });
@@ -165,9 +165,11 @@ describe('PowerLawDistribution', () => {
         const sampleSize = 5000;
         const stages: InvestmentStage[] = ['pre-seed', 'seed', 'series-a', 'series-b', 'series-c+'];
 
-        const failureRates = stages.map(stage => {
-          const samples = Array.from({ length: sampleSize }, () => distribution.sampleReturn(stage));
-          const failures = samples.filter(s => s.category === 'failure').length;
+        const failureRates = stages.map((stage) => {
+          const samples = Array.from({ length: sampleSize }, () =>
+            distribution.sampleReturn(stage)
+          );
+          const failures = samples.filter((s) => s.category === 'failure').length;
           return failures / sampleSize;
         });
 
@@ -181,9 +183,11 @@ describe('PowerLawDistribution', () => {
         const sampleSize = 10000;
         const stages: InvestmentStage[] = ['seed', 'series-a', 'series-b', 'series-c+'];
 
-        const unicornRates = stages.map(stage => {
-          const samples = Array.from({ length: sampleSize }, () => distribution.sampleReturn(stage));
-          const unicorns = samples.filter(s => s.category === 'unicorn').length;
+        const unicornRates = stages.map((stage) => {
+          const samples = Array.from({ length: sampleSize }, () =>
+            distribution.sampleReturn(stage)
+          );
+          const unicorns = samples.filter((s) => s.category === 'unicorn').length;
           return unicorns / sampleSize;
         });
 
@@ -210,7 +214,7 @@ describe('PowerLawDistribution', () => {
           distribution.generateInvestmentScenario('seed', 5)
         );
 
-        scenarios.forEach(scenario => {
+        scenarios.forEach((scenario) => {
           if (scenario.multiple > 0) {
             // IRR = (ending_value / beginning_value)^(1/years) - 1
             // Use the actual time horizon used in calculation (min of exitTiming and timeHorizon)
@@ -227,7 +231,7 @@ describe('PowerLawDistribution', () => {
         const stages: InvestmentStage[] = ['pre-seed', 'seed', 'series-a', 'series-b', 'series-c+'];
         const sampleSize = 100;
 
-        const avgExitTimes = stages.map(stage => {
+        const avgExitTimes = stages.map((stage) => {
           const scenarios = Array.from({ length: sampleSize }, () =>
             distribution.generateInvestmentScenario(stage, 10)
           );
@@ -247,7 +251,7 @@ describe('PowerLawDistribution', () => {
         );
 
         // Exit timing should not exceed time horizon in IRR calculation
-        scenarios.forEach(scenario => {
+        scenarios.forEach((scenario) => {
           const actualTimeUsed = Math.min(scenario.exitTiming, shortHorizon);
           if (scenario.multiple > 0) {
             const expectedIRR = Math.pow(scenario.multiple, 1 / actualTimeUsed) - 1;
@@ -260,10 +264,10 @@ describe('PowerLawDistribution', () => {
     describe('generateBatchScenarios', () => {
       it('should generate specified number of scenarios', () => {
         const count = 500;
-        const scenarios = distribution.generateBatchScenarios(count, { 'seed': 1.0 }, 5);
+        const scenarios = distribution.generateBatchScenarios(count, { seed: 1.0 }, 5);
 
         expect(scenarios).toHaveLength(count);
-        scenarios.forEach(scenario => {
+        scenarios.forEach((scenario) => {
           expect(scenario.multiple).toBeGreaterThanOrEqual(0);
           expect(scenario.irr).toBeDefined();
           expect(scenario.stage).toBe('seed');
@@ -273,17 +277,17 @@ describe('PowerLawDistribution', () => {
       it('should respect stage distribution weights', () => {
         const count = 1000;
         const stageDistribution = {
-          'seed': 0.6,
+          seed: 0.6,
           'series-a': 0.3,
-          'series-b': 0.1
+          'series-b': 0.1,
         };
 
         const scenarios = distribution.generateBatchScenarios(count, stageDistribution, 5);
 
         const stageCounts = {
-          'seed': scenarios.filter(s => s.stage === 'seed').length,
-          'series-a': scenarios.filter(s => s.stage === 'series-a').length,
-          'series-b': scenarios.filter(s => s.stage === 'series-b').length
+          seed: scenarios.filter((s) => s.stage === 'seed').length,
+          'series-a': scenarios.filter((s) => s.stage === 'series-a').length,
+          'series-b': scenarios.filter((s) => s.stage === 'series-b').length,
         };
 
         // Check distribution is approximately correct (±5% tolerance)
@@ -295,9 +299,9 @@ describe('PowerLawDistribution', () => {
       it('should handle normalized stage distributions', () => {
         const count = 500;
         const unnormalizedDistribution = {
-          'seed': 60,
+          seed: 60,
           'series-a': 30,
-          'series-b': 10
+          'series-b': 10,
         };
 
         const scenarios = distribution.generateBatchScenarios(count, unnormalizedDistribution, 5);
@@ -305,9 +309,9 @@ describe('PowerLawDistribution', () => {
         expect(scenarios).toHaveLength(count);
 
         const stageCounts = {
-          'seed': scenarios.filter(s => s.stage === 'seed').length,
-          'series-a': scenarios.filter(s => s.stage === 'series-a').length,
-          'series-b': scenarios.filter(s => s.stage === 'series-b').length
+          seed: scenarios.filter((s) => s.stage === 'seed').length,
+          'series-a': scenarios.filter((s) => s.stage === 'series-a').length,
+          'series-b': scenarios.filter((s) => s.stage === 'series-b').length,
         };
 
         // Should normalize to 0.6, 0.3, 0.1
@@ -323,7 +327,7 @@ describe('PowerLawDistribution', () => {
       it('should generate portfolio distributions with correct structure', () => {
         const portfolioSize = 25;
         const scenarios = 1000;
-        const stageDistribution = { 'seed': 0.7, 'series-a': 0.3 };
+        const stageDistribution = { seed: 0.7, 'series-a': 0.3 };
 
         const portfolioDistribution = distribution.generatePortfolioReturns(
           portfolioSize,
@@ -344,11 +348,21 @@ describe('PowerLawDistribution', () => {
         expect(portfolioDistribution.statistics.powerLawAlpha).toBeGreaterThan(0);
 
         // Check percentiles structure
-        expect(portfolioDistribution.percentiles.p5).toBeLessThan(portfolioDistribution.percentiles.p25);
-        expect(portfolioDistribution.percentiles.p25).toBeLessThan(portfolioDistribution.percentiles.p50);
-        expect(portfolioDistribution.percentiles.p50).toBeLessThan(portfolioDistribution.percentiles.p75);
-        expect(portfolioDistribution.percentiles.p75).toBeLessThan(portfolioDistribution.percentiles.p95);
-        expect(portfolioDistribution.percentiles.p95).toBeLessThan(portfolioDistribution.percentiles.p99);
+        expect(portfolioDistribution.percentiles.p5).toBeLessThan(
+          portfolioDistribution.percentiles.p25
+        );
+        expect(portfolioDistribution.percentiles.p25).toBeLessThan(
+          portfolioDistribution.percentiles.p50
+        );
+        expect(portfolioDistribution.percentiles.p50).toBeLessThan(
+          portfolioDistribution.percentiles.p75
+        );
+        expect(portfolioDistribution.percentiles.p75).toBeLessThan(
+          portfolioDistribution.percentiles.p95
+        );
+        expect(portfolioDistribution.percentiles.p95).toBeLessThan(
+          portfolioDistribution.percentiles.p99
+        );
       });
 
       it('should show power law characteristics', () => {
@@ -357,11 +371,11 @@ describe('PowerLawDistribution', () => {
 
         const portfolioDistribution = distribution.generatePortfolioReturns(
           portfolioSize,
-          { 'seed': 1.0 },
+          { seed: 1.0 },
           scenarios
         );
 
-        const multiples = portfolioDistribution.samples.map(s => s.multiple);
+        const multiples = portfolioDistribution.samples.map((s) => s.multiple);
 
         // Should show high skewness (long right tail)
         expect(portfolioDistribution.statistics.skewness).toBeGreaterThan(1);
@@ -370,7 +384,9 @@ describe('PowerLawDistribution', () => {
         expect(portfolioDistribution.statistics.kurtosis).toBeGreaterThan(1);
 
         // Most returns should be low, with few very high returns
-        const belowMedian = multiples.filter(m => m < portfolioDistribution.statistics.median).length;
+        const belowMedian = multiples.filter(
+          (m) => m < portfolioDistribution.statistics.median
+        ).length;
         const totalSamples = multiples.length;
         expect(belowMedian / totalSamples).toBeGreaterThan(0.4); // At least 40% below median
       });
@@ -381,7 +397,7 @@ describe('PowerLawDistribution', () => {
 
         const portfolioDistribution = distribution.generatePortfolioReturns(
           portfolioSize,
-          { 'seed': 1.0 },
+          { seed: 1.0 },
           scenarios
         );
 
@@ -398,23 +414,23 @@ describe('PowerLawDistribution', () => {
       const samples = Array.from({ length: sampleSize }, () => distribution.sampleReturn('seed'));
 
       // Focus on tail returns (> 3x)
-      const tailSamples = samples.filter(s => s.multiple >= 3);
+      const tailSamples = samples.filter((s) => s.multiple >= 3);
 
       if (tailSamples.length > 100) {
         // Sort tail samples
-        const sortedTail = tailSamples.map(s => s.multiple).sort((a, b) => b - a);
+        const sortedTail = tailSamples.map((s) => s.multiple).sort((a, b) => b - a);
 
         // Check that larger returns are less frequent (basic power law property)
-        const high = sortedTail.filter(m => m >= 10).length;
-        const veryHigh = sortedTail.filter(m => m >= 50).length;
+        const high = sortedTail.filter((m) => m >= 10).length;
+        const veryHigh = sortedTail.filter((m) => m >= 50).length;
 
         expect(veryHigh).toBeLessThan(high);
       }
     });
 
     it('should show correct variance scaling', () => {
-      const smallSample = distribution.generatePortfolioReturns(10, { 'seed': 1.0 }, 1000);
-      const largeSample = distribution.generatePortfolioReturns(100, { 'seed': 1.0 }, 1000);
+      const smallSample = distribution.generatePortfolioReturns(10, { seed: 1.0 }, 1000);
+      const largeSample = distribution.generatePortfolioReturns(100, { seed: 1.0 }, 1000);
 
       // Larger portfolios should show different variance characteristics
       expect(largeSample.statistics.standardDeviation).toBeDefined();
@@ -426,17 +442,17 @@ describe('PowerLawDistribution', () => {
       const samples = Array.from({ length: sampleSize }, () => distribution.sampleReturn('seed'));
 
       const categoryCounts = {
-        failure: samples.filter(s => s.category === 'failure').length,
-        modest: samples.filter(s => s.category === 'modest').length,
-        good: samples.filter(s => s.category === 'good').length,
-        homeRun: samples.filter(s => s.category === 'homeRun').length,
-        unicorn: samples.filter(s => s.category === 'unicorn').length
+        failure: samples.filter((s) => s.category === 'failure').length,
+        modest: samples.filter((s) => s.category === 'modest').length,
+        good: samples.filter((s) => s.category === 'good').length,
+        homeRun: samples.filter((s) => s.category === 'homeRun').length,
+        unicorn: samples.filter((s) => s.category === 'unicorn').length,
       };
 
       // Check proportions match configured rates (±2% tolerance)
-      expect(categoryCounts.failure / sampleSize).toBeCloseTo(0.70, 1);
+      expect(categoryCounts.failure / sampleSize).toBeCloseTo(0.7, 1);
       expect(categoryCounts.modest / sampleSize).toBeCloseTo(0.15, 1);
-      expect(categoryCounts.good / sampleSize).toBeCloseTo(0.10, 1);
+      expect(categoryCounts.good / sampleSize).toBeCloseTo(0.1, 1);
       expect(categoryCounts.homeRun / sampleSize).toBeCloseTo(0.04, 1);
       expect(categoryCounts.unicorn / sampleSize).toBeCloseTo(0.01, 1);
     });
@@ -444,12 +460,12 @@ describe('PowerLawDistribution', () => {
 
   describe('No Time Decay Verification', () => {
     it('should not apply time decay to returns', () => {
-      const scenarios5y = distribution.generateBatchScenarios(1000, { 'seed': 1.0 }, 5);
-      const scenarios10y = distribution.generateBatchScenarios(1000, { 'seed': 1.0 }, 10);
+      const scenarios5y = distribution.generateBatchScenarios(1000, { seed: 1.0 }, 5);
+      const scenarios10y = distribution.generateBatchScenarios(1000, { seed: 1.0 }, 10);
 
       // Return multiples should not be systematically different due to time horizon
-      const multiples5y = scenarios5y.map(s => s.multiple);
-      const multiples10y = scenarios10y.map(s => s.multiple);
+      const multiples5y = scenarios5y.map((s) => s.multiple);
+      const multiples10y = scenarios10y.map((s) => s.multiple);
 
       const mean5y = multiples5y.reduce((sum, m) => sum + m, 0) / multiples5y.length;
       const mean10y = multiples10y.reduce((sum, m) => sum + m, 0) / multiples10y.length;
@@ -460,9 +476,9 @@ describe('PowerLawDistribution', () => {
     });
 
     it('should show time horizon only affects IRR calculation', () => {
-      const scenarios = distribution.generateBatchScenarios(100, { 'seed': 1.0 }, 5);
+      const scenarios = distribution.generateBatchScenarios(100, { seed: 1.0 }, 5);
 
-      scenarios.forEach(scenario => {
+      scenarios.forEach((scenario) => {
         // Recalculate IRR for different time horizons
         const irr8y = Math.pow(scenario.multiple, 1 / Math.min(scenario.exitTiming, 8)) - 1;
         const irr3y = Math.pow(scenario.multiple, 1 / Math.min(scenario.exitTiming, 3)) - 1;
@@ -476,7 +492,7 @@ describe('PowerLawDistribution', () => {
 
   describe('Edge Cases and Error Handling', () => {
     it('should handle zero portfolio size', () => {
-      const portfolioDistribution = distribution.generatePortfolioReturns(0, { 'seed': 1.0 }, 100);
+      const portfolioDistribution = distribution.generatePortfolioReturns(0, { seed: 1.0 }, 100);
       expect(portfolioDistribution.samples).toHaveLength(0);
     });
 
@@ -519,7 +535,7 @@ describe('Utility Functions', () => {
   describe('generatePowerLawReturns', () => {
     it('should generate returns for Monte Carlo integration', () => {
       const portfolioSize = 25;
-      const stageDistribution = { 'seed': 0.7, 'series-a': 0.3 };
+      const stageDistribution = { seed: 0.7, 'series-a': 0.3 };
       const timeHorizon = 5;
       const scenarios = 1000;
 
@@ -533,7 +549,7 @@ describe('Utility Functions', () => {
 
       expect(returns).toHaveLength(portfolioSize * scenarios);
 
-      returns.forEach(ret => {
+      returns.forEach((ret) => {
         expect(ret.multiple).toBeGreaterThanOrEqual(0);
         expect(ret.irr).toBeDefined();
         expect(['failure', 'modest', 'good', 'homeRun', 'unicorn']).toContain(ret.category);
@@ -544,16 +560,16 @@ describe('Utility Functions', () => {
 
     it('should handle string stage names from existing system', () => {
       const stageDistribution = {
-        'Seed': 0.5,
+        Seed: 0.5,
         'Series A': 0.3,
-        'Series B': 0.2
+        'Series B': 0.2,
       };
 
       const returns = generatePowerLawReturns(10, stageDistribution, 5, 100, 12345);
 
       expect(returns).toHaveLength(1000);
 
-      const stages = new Set(returns.map(r => r.stage));
+      const stages = new Set(returns.map((r) => r.stage));
       expect(stages.has('seed')).toBe(true);
       expect(stages.has('series-a')).toBe(true);
       expect(stages.has('series-b')).toBe(true);
@@ -565,13 +581,13 @@ describe('Utility Functions', () => {
       const returns = generatePowerLawReturns(5, invalidDistribution, 5, 10, 12345);
 
       expect(returns).toHaveLength(50);
-      returns.forEach(ret => {
+      returns.forEach((ret) => {
         expect(ret.stage).toBe('seed');
       });
     });
 
     it('should be reproducible with same seed', () => {
-      const params = [25, { 'seed': 1.0 }, 5, 100, 12345] as const;
+      const params = [25, { seed: 1.0 }, 5, 100, 12345] as const;
 
       const returns1 = generatePowerLawReturns(...params);
       const returns2 = generatePowerLawReturns(...params);
@@ -591,64 +607,65 @@ describe('Input Validation', () => {
   it('should throw error for invalid portfolioSize (negative)', () => {
     const distribution = createVCPowerLawDistribution(12345);
 
-    expect(() => distribution.generatePortfolioReturns(-10, { seed: 1.0 }, 1000))
-      .toThrow(RangeError);
+    expect(() => distribution.generatePortfolioReturns(-10, { seed: 1.0 }, 1000)).toThrow(
+      RangeError
+    );
   });
 
   it('should throw error for invalid portfolioSize (zero)', () => {
     const distribution = createVCPowerLawDistribution(12345);
 
-    expect(() => distribution.generatePortfolioReturns(0, { seed: 1.0 }, 1000))
-      .toThrow(RangeError);
+    expect(() => distribution.generatePortfolioReturns(0, { seed: 1.0 }, 1000)).toThrow(RangeError);
   });
 
   it('should throw error for invalid portfolioSize (NaN)', () => {
     const distribution = createVCPowerLawDistribution(12345);
 
-    expect(() => distribution.generatePortfolioReturns(NaN, { seed: 1.0 }, 1000))
-      .toThrow(RangeError);
+    expect(() => distribution.generatePortfolioReturns(NaN, { seed: 1.0 }, 1000)).toThrow(
+      RangeError
+    );
   });
 
   it('should throw error for invalid portfolioSize (Infinity)', () => {
     const distribution = createVCPowerLawDistribution(12345);
 
-    expect(() => distribution.generatePortfolioReturns(Infinity, { seed: 1.0 }, 1000))
-      .toThrow(RangeError);
+    expect(() => distribution.generatePortfolioReturns(Infinity, { seed: 1.0 }, 1000)).toThrow(
+      RangeError
+    );
   });
 
   it('should throw error for invalid scenarios (negative)', () => {
     const distribution = createVCPowerLawDistribution(12345);
 
-    expect(() => distribution.generatePortfolioReturns(20, { seed: 1.0 }, -100))
-      .toThrow(RangeError);
+    expect(() => distribution.generatePortfolioReturns(20, { seed: 1.0 }, -100)).toThrow(
+      RangeError
+    );
   });
 
   it('should throw error for invalid scenarios (zero)', () => {
     const distribution = createVCPowerLawDistribution(12345);
 
-    expect(() => distribution.generatePortfolioReturns(20, { seed: 1.0 }, 0))
-      .toThrow(RangeError);
+    expect(() => distribution.generatePortfolioReturns(20, { seed: 1.0 }, 0)).toThrow(RangeError);
   });
 
   it('should throw error for invalid stageDistribution (null)', () => {
     const distribution = createVCPowerLawDistribution(12345);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-    expect(() => distribution.generatePortfolioReturns(20, null as any, 1000))
-      .toThrow(TypeError);
+    expect(() => distribution.generatePortfolioReturns(20, null as any, 1000)).toThrow(TypeError);
   });
 
   it('should throw error for object parameter misuse (catches API signature bug)', () => {
     const distribution = createVCPowerLawDistribution(12345);
 
     // This test catches the exact bug that caused NaN calculations
-    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
-    expect(() => distribution.generatePortfolioReturns(
-      { portfolioSize: 20, stageDistribution: { seed: 1.0 }, scenarios: 1000 } as any,
-      { seed: 1.0 },
-      1000
-    )).toThrow(RangeError);
-    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
+
+    expect(() =>
+      distribution.generatePortfolioReturns(
+        { portfolioSize: 20, stageDistribution: { seed: 1.0 }, scenarios: 1000 } as any,
+        { seed: 1.0 },
+        1000
+      )
+    ).toThrow(RangeError);
   });
 });
 
@@ -659,7 +676,7 @@ describe('Integration with Monte Carlo Engine', () => {
     // Generate large sample to test statistical properties
     const portfolioDistribution = distribution.generatePortfolioReturns(
       30, // 30 companies
-      { 'seed': 0.6, 'series-a': 0.4 }, // Mix of stages
+      { seed: 0.6, 'series-a': 0.4 }, // Mix of stages
       1000 // 1000 scenarios
     );
 
@@ -667,11 +684,13 @@ describe('Integration with Monte Carlo Engine', () => {
     expect(portfolioDistribution.statistics.mean).toBeGreaterThan(1.0); // Should beat 1x on average
     expect(portfolioDistribution.statistics.mean).toBeLessThan(5.0); // But not unrealistically high
     expect(portfolioDistribution.statistics.skewness).toBeGreaterThan(2.0); // Highly skewed
-    expect(portfolioDistribution.percentiles.p50).toBeLessThan(portfolioDistribution.statistics.mean); // Median < mean
+    expect(portfolioDistribution.percentiles.p50).toBeLessThan(
+      portfolioDistribution.statistics.mean
+    ); // Median < mean
 
     // Most scenarios should be modest, few should be huge
-    const lowReturns = portfolioDistribution.samples.filter(s => s.multiple <= 2).length;
-    const highReturns = portfolioDistribution.samples.filter(s => s.multiple >= 10).length;
+    const lowReturns = portfolioDistribution.samples.filter((s) => s.multiple <= 2).length;
+    const highReturns = portfolioDistribution.samples.filter((s) => s.multiple >= 10).length;
     expect(lowReturns).toBeGreaterThan(highReturns);
   });
 
@@ -681,10 +700,10 @@ describe('Integration with Monte Carlo Engine', () => {
     // Test different portfolio sizes common in VC
     const portfolioSizes = [15, 25, 35, 50];
 
-    portfolioSizes.forEach(size => {
+    portfolioSizes.forEach((size) => {
       const scenarios = distribution.generateBatchScenarios(
         size * 100, // 100 scenarios per company
-        { 'seed': 0.5, 'series-a': 0.3, 'series-b': 0.2 },
+        { seed: 0.5, 'series-a': 0.3, 'series-b': 0.2 },
         8 // 8 year time horizon
       );
 
@@ -706,24 +725,24 @@ describe('Integration with Monte Carlo Engine', () => {
     const sampleSize = 10000;
 
     // Compare seed vs series-a outcomes
-    const seedSamples = Array.from({ length: sampleSize }, () =>
-      distribution.sampleReturn('seed')
-    );
+    const seedSamples = Array.from({ length: sampleSize }, () => distribution.sampleReturn('seed'));
     const seriesASamples = Array.from({ length: sampleSize }, () =>
       distribution.sampleReturn('series-a')
     );
 
-    const seedFailureRate = seedSamples.filter(s => s.category === 'failure').length / sampleSize;
-    const seriesAFailureRate = seriesASamples.filter(s => s.category === 'failure').length / sampleSize;
+    const seedFailureRate = seedSamples.filter((s) => s.category === 'failure').length / sampleSize;
+    const seriesAFailureRate =
+      seriesASamples.filter((s) => s.category === 'failure').length / sampleSize;
 
     // Series A should have lower failure rate (the "chasm" crossing effect)
     expect(seriesAFailureRate).toBeLessThan(seedFailureRate);
-    expect(seedFailureRate).toBeCloseTo(0.70, 1);
-    expect(seriesAFailureRate).toBeCloseTo(0.50, 1);
+    expect(seedFailureRate).toBeCloseTo(0.7, 1);
+    expect(seriesAFailureRate).toBeCloseTo(0.5, 1);
 
     // But Series A should have higher upside potential
-    const seedUnicornRate = seedSamples.filter(s => s.category === 'unicorn').length / sampleSize;
-    const seriesAUnicornRate = seriesASamples.filter(s => s.category === 'unicorn').length / sampleSize;
+    const seedUnicornRate = seedSamples.filter((s) => s.category === 'unicorn').length / sampleSize;
+    const seriesAUnicornRate =
+      seriesASamples.filter((s) => s.category === 'unicorn').length / sampleSize;
 
     expect(seriesAUnicornRate).toBeGreaterThan(seedUnicornRate);
   });
@@ -736,7 +755,7 @@ describe('Performance and Memory Tests', () => {
     const startTime = Date.now();
     const largeSim = distribution.generateBatchScenarios(
       50000, // 50K scenarios
-      { 'seed': 0.6, 'series-a': 0.4 },
+      { seed: 0.6, 'series-a': 0.4 },
       5
     );
     const endTime = Date.now();
@@ -749,17 +768,13 @@ describe('Performance and Memory Tests', () => {
     const distribution = createVCPowerLawDistribution();
 
     const promises = Array.from({ length: 5 }, () =>
-      Promise.resolve(distribution.generateBatchScenarios(
-        1000,
-        { 'seed': 1.0 },
-        5
-      ))
+      Promise.resolve(distribution.generateBatchScenarios(1000, { seed: 1.0 }, 5))
     );
 
     const results = await Promise.all(promises);
 
     expect(results).toHaveLength(5);
-    results.forEach(result => {
+    results.forEach((result) => {
       expect(result).toHaveLength(1000);
     });
   });

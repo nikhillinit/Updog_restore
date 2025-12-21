@@ -49,7 +49,6 @@ process.env.NODE_ENV = 'test';
 
 // Mock import.meta for Vite code
 if (typeof globalThis !== 'undefined') {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
   (globalThis as any).import = {
     meta: {
       env: {
