@@ -106,6 +106,74 @@ When invoked or when tests fail:
 - Domain calculation logic without validation
 - Baseline files (scripts/typescript-baseline.json)
 
+## Code Quality Requirements (MANDATORY)
+
+**When implementing ANY test fixes or service code:**
+
+### Pre-Implementation Checklist
+
+Before writing ANY code:
+
+1. **Read Configuration Files**:
+   - `eslint.config.js` lines 132-138 (type safety rules)
+   - `tsconfig.json` line 32 (strict mode enabled)
+   - `cheatsheets/anti-pattern-prevention.md` (24 cataloged anti-patterns)
+
+2. **Type Safety Standards**:
+   - NEVER use `any` type (`@typescript-eslint/no-explicit-any` is ERROR)
+   - Use `unknown` + type guards for dynamic data
+   - Use proper Drizzle ORM types from `@shared/schema`
+   - TypeScript strict mode is ENABLED
+
+### Pre-Commit Validation (MANDATORY)
+
+Before ANY commit, run all three quality gates:
+
+```bash
+# 1. Linting - MUST show 0 errors, 0 warnings
+npm run lint
+
+# 2. Type Checking - MUST show 0 type errors
+npm run check
+
+# 3. Tests - MUST pass all tests
+npm test -- --run
+```
+
+**Use `/pre-commit-check` command for automated validation.**
+
+### Commit Protocol
+
+- **NEVER** use `git commit --no-verify` to bypass quality hooks
+- **NEVER** commit with known linting violations
+- **NEVER** defer type safety fixes to "followup commit"
+- Fix all violations inline before committing
+
+### Type Safety Examples for Test Code
+
+```typescript
+// ❌ NEVER DO THIS in test mocks
+const mockData: any = { ... };
+const conditions: any[] = [];
+vi.mock('module', () => ({ default: vi.fn() as any }));
+
+// ✓ DO THIS INSTEAD
+const mockData: MockType = { ... };
+const conditions: SQL<unknown>[] = [];
+vi.mock('module', () => ({
+  default: vi.fn<[], ReturnType>()
+}));
+
+// For database mocks - use proper types
+import { type SQL } from 'drizzle-orm';
+import { type User } from '@shared/schema';
+
+const mockUsers: User[] = [];
+const whereConditions: SQL<unknown>[] = [];
+```
+
+See `.claude/WORKFLOW.md` for complete Quality Gate Protocol.
+
 ## Special Considerations
 
 - **Windows Development**: All commands run in PowerShell/CMD, not Git Bash

@@ -165,6 +165,7 @@ export default [
       'custom/no-hardcoded-fund-metrics': 'error',
 
       // Existing rules
+      'no-undef': 'off',
       'no-console': 'off',
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',

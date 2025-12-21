@@ -44,6 +44,9 @@ cheatsheets for testing, APIs, and UI conventions.
 - `npm run test:quick` - Skip API tests for faster feedback
 - `npm run lint` - ESLint code quality check
 - `npm run lint:fix` - Auto-fix linting issues
+- **Quality Gates**: See
+  [.claude/WORKFLOW.md](.claude/WORKFLOW.md#quality-gate-protocol) - MANDATORY
+  pre-commit validation
 
 ### Database
 
@@ -148,6 +151,10 @@ report**: `docs/_generated/staleness-report.md` **Regenerate**:
 - **Testing**: Tests alongside source files, comprehensive coverage with Vitest
 - **Patterns**: Composition over inheritance, custom hooks for business logic,
   error boundaries
+- **Type Safety**: TypeScript strict mode enabled, NEVER use `any` type
+  (`@typescript-eslint/no-explicit-any: 'error'`)
+- **Quality Gates**: Run `/pre-commit-check` before commits - linting, type
+  checking, and tests MUST pass
 
 ### Path Aliases (vite.config.ts)
 
