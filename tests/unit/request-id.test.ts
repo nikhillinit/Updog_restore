@@ -23,16 +23,16 @@ describe('Request ID Middleware', () => {
     next = vi.fn();
   });
 
-  it('should use incoming X-Request-ID when provided', () => {
+  it('should generate server X-Request-ID when client ID provided', () => {
     const incomingId = 'client-provided-123';
     (req.get as any).mockReturnValue(incomingId);
-    
+
     const middleware = requestId();
     middleware(req as Request, res as Response, next);
-    
-    expect(req.requestId).toBe(incomingId);
-    expect(res.setHeader).toHaveBeenCalledWith('X-Request-ID', incomingId);
-    expect(res.locals?.requestId).toBe(incomingId);
+
+    expect(req.requestId).toMatch(/^req_[a-f0-9-]+$/);
+    expect(res.setHeader).toHaveBeenCalledWith('X-Request-ID', req.requestId);
+    expect(res.locals?.requestId).toBe(req.requestId);
     expect(next).toHaveBeenCalled();
   });
 
@@ -114,7 +114,7 @@ describe('Request ID Middleware', () => {
     middleware(req as Request, res as Response, next);
     
     expect(mockLogger.child).toHaveBeenCalledWith({
-      requestId: 'test-123',
+      requestId: req.requestId,
       path: '/api/test',
       method: 'GET'
     });

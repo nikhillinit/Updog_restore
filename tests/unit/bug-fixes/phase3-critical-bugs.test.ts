@@ -222,7 +222,10 @@ describe('Phase 3: Critical Bug Fixes', () => {
       expect(sequence1).toEqual(sequence2);
     });
 
-    it('should integrate correctly with MonteCarloEngine', () => {
+    // @group integration
+    // FIXME: Requires live Redis and PostgreSQL for Monte Carlo simulations
+    // Skip until integration test environment is available
+    it.skip('should integrate correctly with MonteCarloEngine', () => {
       const engine1 = new MonteCarloEngine(12345);
       const engine2 = new MonteCarloEngine(12345);
 
@@ -287,7 +290,10 @@ describe('Phase 3: Critical Bug Fixes', () => {
       expect(result.totalOutput).toBe(10000000);
     });
 
-    it('should integrate conservation check into DeterministicReserveEngine', async () => {
+    // @group integration
+    // FIXME: Requires live Redis and PostgreSQL for reserve engine integrations
+    // Skip until integration test environment is available
+    it.skip('should integrate conservation check into DeterministicReserveEngine', async () => {
       const engine = new DeterministicReserveEngine();
 
       const input: ReserveAllocationInput = {

@@ -13,7 +13,10 @@ import {
 } from '../../server/db/redis-factory';
 
 // Mock ioredis
-vi.mock('ioredis');
+vi.mock('ioredis', () => ({
+  __esModule: true,
+  default: vi.fn(),
+}));
 
 // Mock logger to avoid console noise during tests
 vi.mock('../../server/lib/logger', () => ({

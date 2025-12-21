@@ -227,9 +227,11 @@ describe('NumericInput', () => {
       const input = screen.getByRole('textbox');
       await user.click(input);
       await user.type(input, '5000000');
-      await user.tab(); // Blur the input
+      fireEvent.blur(input); // Blur the input
 
-      expect(input).toHaveValue('5,000,000');
+      await waitFor(() => {
+        expect(input).toHaveValue('5,000,000');
+      });
     });
 
     it('handles decimal values correctly', async () => {

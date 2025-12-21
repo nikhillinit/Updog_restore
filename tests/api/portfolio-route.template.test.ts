@@ -1,4 +1,12 @@
 /**
+ * TEMPLATE FILE - NOT FOR PRODUCTION TEST SUITE
+ *
+ * This file serves as a template for creating new portfolio route tests.
+ * Tests in this file are skipped by default.
+ *
+ * To use: Copy this file, remove .template suffix, and adapt tests.
+ */
+/**
  * Portfolio Route API Integration Tests Template
  *
  * This template demonstrates comprehensive testing patterns for the Portfolio Route API,
@@ -7,7 +15,7 @@
  *
  * Version: 1.0.0
  * Created: 2025-11-08
- * @group integration
+ * @group template
  *
  * @module tests/api/portfolio-route.template.test
  */
@@ -50,7 +58,7 @@ import {
 // =====================
 
 /**
- * @group integration
+ * @group template
  * Testcontainers integration test template - requires Docker
  */
 describe.skip('Portfolio Route API - Integration Tests', () => {
