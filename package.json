@@ -139,6 +139,7 @@
     "bench:load": "vitest bench tests/load --reporter=verbose",
     "smart-fix": "node scripts/smart-fix.js",
     "test": "npm run test:unit",
+    "test:all": "npm run test:unit && npm run test:integration",
     "test:ci": "vitest run",
     "test:unit": "cross-env TZ=UTC vitest run --project=server --project=client",
     "test:integration": "cross-env TZ=UTC vitest -c vitest.config.int.ts run",

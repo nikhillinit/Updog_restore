@@ -2,9 +2,13 @@
 
 ## Overview
 
-This skill defines the test pyramid strategy for this repository, establishing clear boundaries for what belongs at each testing level. Its primary purpose is to prevent E2E test sprawl while ensuring critical paths have appropriate coverage.
+This skill defines the test pyramid strategy for this repository, establishing
+clear boundaries for what belongs at each testing level. Its primary purpose is
+to prevent E2E test sprawl while ensuring critical paths have appropriate
+coverage.
 
-**Core principle**: Test at the lowest level that can catch the bug. E2E tests are expensive; use them only when lower levels cannot.
+**Core principle**: Test at the lowest level that can catch the bug. E2E tests
+are expensive; use them only when lower levels cannot.
 
 ## Test Pyramid Distribution
 
@@ -26,17 +30,18 @@ This skill defines the test pyramid strategy for this repository, establishing c
 
 ### Target Metrics
 
-| Level | Coverage Target | Speed Target | Max Count |
-|-------|-----------------|--------------|-----------|
-| Unit | 80%+ line coverage | <10ms each | No limit |
-| Integration | API contracts, DB queries | <100ms each | ~100-200 |
-| E2E (Playwright) | Critical flows only | <30s each | <50 total |
+| Level            | Coverage Target           | Speed Target | Max Count |
+| ---------------- | ------------------------- | ------------ | --------- |
+| Unit             | 80%+ line coverage        | <10ms each   | No limit  |
+| Integration      | API contracts, DB queries | <100ms each  | ~100-200  |
+| E2E (Playwright) | Critical flows only       | <30s each    | <50 total |
 
 ## What Belongs at Each Level
 
 ### Unit Tests
 
 **Test these at unit level:**
+
 - Pure functions (calculations, transformers, validators)
 - React component rendering (with React Testing Library)
 - State management logic (reducers, selectors)
@@ -45,6 +50,7 @@ This skill defines the test pyramid strategy for this repository, establishing c
 - Error handling branches
 
 **Characteristics:**
+
 - No network calls (mock everything external)
 - No database (mock repositories)
 - No browser APIs (jsdom sufficient)
@@ -53,6 +59,7 @@ This skill defines the test pyramid strategy for this repository, establishing c
 ### Integration Tests
 
 **Test these at integration level:**
+
 - API endpoint behavior (request -> response)
 - Database queries (actual DB, not mocks)
 - Service-to-service communication
@@ -61,6 +68,7 @@ This skill defines the test pyramid strategy for this repository, establishing c
 - Cache behavior
 
 **Characteristics:**
+
 - Real database (test instance)
 - Real HTTP (supertest or similar)
 - May involve multiple modules
@@ -69,6 +77,7 @@ This skill defines the test pyramid strategy for this repository, establishing c
 ### E2E Tests (Playwright)
 
 **Test these at E2E level:**
+
 - Critical user journeys (wizard completion, checkout)
 - Browser-only behavior (beforeunload, focus management)
 - Cross-page state persistence
@@ -76,6 +85,7 @@ This skill defines the test pyramid strategy for this repository, establishing c
 - Behaviors that only manifest with real browser event loop
 
 **Characteristics:**
+
 - Real browser (Chromium/Firefox/WebKit)
 - Full stack running
 - Slowest, most expensive
@@ -89,27 +99,27 @@ Before creating an E2E test, ALL of these must be true:
 
 The behavior cannot be tested with jsdom:
 
-| Requires E2E | Can Use jsdom |
-|--------------|---------------|
-| beforeunload dialog | Click handlers |
-| Real focus/blur across iframes | Basic focus events |
-| ResizeObserver callbacks | Most CSS behavior |
-| Clipboard API | Form validation |
-| File download triggers | File input handling |
-| Complex drag-and-drop | Basic drag events |
-| Service worker behavior | Most async behavior |
+| Requires E2E                   | Can Use jsdom       |
+| ------------------------------ | ------------------- |
+| beforeunload dialog            | Click handlers      |
+| Real focus/blur across iframes | Basic focus events  |
+| ResizeObserver callbacks       | Most CSS behavior   |
+| Clipboard API                  | Form validation     |
+| File download triggers         | File input handling |
+| Complex drag-and-drop          | Basic drag events   |
+| Service worker behavior        | Most async behavior |
 
 ### 2. Critical User Flow
 
 The flow has significant business impact:
 
-| E2E Candidate | Unit/Integration Instead |
-|---------------|-------------------------|
-| Wizard completion | Individual step validation |
-| Payment processing | Payment API integration test |
-| User authentication | Auth endpoint integration test |
-| Data export/download | Export function unit test |
-| Onboarding flow | Individual screen rendering |
+| E2E Candidate        | Unit/Integration Instead       |
+| -------------------- | ------------------------------ |
+| Wizard completion    | Individual step validation     |
+| Payment processing   | Payment API integration test   |
+| User authentication  | Auth endpoint integration test |
+| Data export/download | Export function unit test      |
+| Onboarding flow      | Individual screen rendering    |
 
 ### 3. High Regression Risk
 
@@ -122,15 +132,19 @@ You've genuinely tried and it's not possible.
 ## What Does NOT Qualify for E2E
 
 ### Validation Logic
+
 Unit test the validator instead of E2E testing form error display.
 
 ### API Error Handling
+
 Integration test the API, unit test the UI error display.
 
 ### Component Rendering
+
 Unit test component rendering instead of E2E navigating to check visibility.
 
 ### Data Transformations
+
 Unit test the formatter instead of E2E checking display.
 
 ## Selector Strategy
@@ -147,12 +161,12 @@ Unit test the formatter instead of E2E checking display.
 
 ### Hard Limits
 
-| Metric | Limit | Enforcement |
-|--------|-------|-------------|
-| Total E2E tests | <50 | CI fails if exceeded |
-| Single test duration | <30s | Test timeout |
-| Total E2E suite time | <10min | CI budget |
-| Flake rate | <2% | Quarantine trigger |
+| Metric               | Limit  | Enforcement          |
+| -------------------- | ------ | -------------------- |
+| Total E2E tests      | <50    | CI fails if exceeded |
+| Single test duration | <30s   | Test timeout         |
+| Total E2E suite time | <10min | CI budget            |
+| Flake rate           | <2%    | Quarantine trigger   |
 
 ## Flake Management
 
@@ -167,10 +181,35 @@ When E2E test flakes:
 ## Integration with Agents
 
 ### playwright-test-author Subagent
+
 Must follow this skill's rules for admission criteria, selectors, and budget.
 
 ### test-repair Agent
-Uses this skill to decide if test should be at E2E level or demoted.
+
+Uses this skill to decide if test should be at E2E level or demoted. Also
+handles flakiness detection and quarantine per the Flake Management section.
+
+### test-scaffolder Agent
+
+Uses this skill when scaffolding test infrastructure to determine appropriate
+test levels and ensure proper project structure (server vs client).
+
+### test-automator Agent
+
+References this skill for coverage strategy and test generation at correct
+levels.
+
+### pr-test-analyzer Agent
+
+References this skill to evaluate E2E test justification in PRs.
 
 ### code-reviewer Agent
+
 References this skill to check if new E2E tests are justified.
+
+## Related Skills
+
+### test-fixture-generator Skill
+
+Provides fixture patterns (factory functions, golden datasets) that work with
+all test levels. Use for creating test data infrastructure.

@@ -7,11 +7,11 @@ keywords: [capabilities, agents, skills, tools, scripts, existing-solutions]
 source_of_truth: true
 agent_routing:
   priority: 1
-  route_hint: "Read this FIRST before implementing anything new."
+  route_hint: 'Read this FIRST before implementing anything new.'
   use_cases: [capability_discovery, feature_planning]
 maintenance:
-  owner: "Core Team"
-  review_cadence: "P90D"
+  owner: 'Core Team'
+  review_cadence: 'P90D'
 ---
 
 # Claude Code Capability Inventory
@@ -27,8 +27,9 @@ complete infrastructure understanding, also read:
 1. **[.claude/PROJECT-UNDERSTANDING.md](.claude/PROJECT-UNDERSTANDING.md)** -
    Complete infrastructure reference (permanent guide)
 2. **[docs/PHOENIX-SOT/execution-plan-v2.34.md](docs/PHOENIX-SOT/execution-plan-v2.34.md)** -
-   Phoenix validation-first execution plan (current)
-   _(Note: PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md archived - see docs/archive/phoenix/)_
+   Phoenix validation-first execution plan (current) _(Note:
+   PROJECT-PHOENIX-COMPREHENSIVE-STRATEGY.md archived - see
+   docs/archive/phoenix/)_
 3. **[AI-WORKFLOW-COMPLETE-GUIDE.md](AI-WORKFLOW-COMPLETE-GUIDE.md)** - 28
    agents, orchestration patterns
 4. **[COMPREHENSIVE-WORKFLOW-GUIDE.md](COMPREHENSIVE-WORKFLOW-GUIDE.md)** -
@@ -80,7 +81,7 @@ maintenance:
 
 - **test-automator** - Comprehensive test generation, TDD, coverage
 
-#### **Project-Level Agents (22)** - Updog_restore specific
+#### **Project-Level Agents (23)** - Updog_restore specific
 
 **Location:** `.claude\agents\`
 
@@ -91,7 +92,9 @@ maintenance:
 
 **Testing & Quality:**
 
-- **test-repair** - Fix failing tests
+- **test-repair** - Fix failing tests, flakiness detection and management
+- **test-scaffolder** - Scaffold test infrastructure for new modules/packages
+  (NEW)
 - **pr-test-analyzer** - PR test coverage review
 - **code-reviewer** - Code quality and style checking
 - **code-simplifier** - Simplify complex code
@@ -107,11 +110,16 @@ maintenance:
 
 **CI Quality Gate Diagnosers (v4 optimal):**
 
-- **schema-drift-checker** - Diagnose schema alignment across Migration/Drizzle/Zod/Mock layers
-- **playwright-test-author** - Create E2E tests for browser-only behaviors (invoked by test-repair)
-- **parity-auditor** - Assess Excel parity impact for financial calculation changes
-- **perf-regression-triager** - Diagnose performance regressions from bench-check
-- **baseline-regression-explainer** - Diagnose quality metric regressions (tests, TS, lint, bundle)
+- **schema-drift-checker** - Diagnose schema alignment across
+  Migration/Drizzle/Zod/Mock layers
+- **playwright-test-author** - Create E2E tests for browser-only behaviors
+  (invoked by test-repair)
+- **parity-auditor** - Assess Excel parity impact for financial calculation
+  changes
+- **perf-regression-triager** - Diagnose performance regressions from
+  bench-check
+- **baseline-regression-explainer** - Diagnose quality metric regressions
+  (tests, TS, lint, bundle)
 
 **Shared with User-Level (Project overrides):**
 
@@ -323,14 +331,22 @@ Integration (+46% growth from 13 baseline)
 - **api-design-principles** - REST API design for Express + TypeScript + Zod +
   BullMQ (resource-oriented, hierarchical nesting, sync/async patterns)
 
-### Quality Gate & Infrastructure Skills (6) - NEW 2025-12-16
+### Quality Gate & Infrastructure Skills (7) - UPDATED 2025-12-20
 
-- **test-pyramid** - E2E scope control, test level governance (unit vs integration vs E2E)
-- **statistical-testing** - Monte Carlo validation patterns, seeded testing, CI stability
-- **react-hook-form-stability** - RHF infinite loop prevention, autosave patterns
-- **baseline-governance** - Quality gate policies, ratcheting strategy, baseline change approval
-- **financial-calc-correctness** - Excel parity methodology, truth case validation, tolerance norms
-- **claude-infra-integrity** - .claude/ directory consistency, agent naming, skill references
+- **test-pyramid** - E2E scope control, test level governance (unit vs
+  integration vs E2E)
+- **test-fixture-generator** - Factory functions, golden datasets, batch
+  generators, schema sync (NEW)
+- **statistical-testing** - Monte Carlo validation patterns, seeded testing, CI
+  stability
+- **react-hook-form-stability** - RHF infinite loop prevention, autosave
+  patterns
+- **baseline-governance** - Quality gate policies, ratcheting strategy, baseline
+  change approval
+- **financial-calc-correctness** - Excel parity methodology, truth case
+  validation, tolerance norms
+- **claude-infra-integrity** - .claude/ directory consistency, agent naming,
+  skill references
 
 ### Superpowers Slash Commands
 
