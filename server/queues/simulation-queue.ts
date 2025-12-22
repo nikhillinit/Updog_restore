@@ -5,7 +5,8 @@
  * Provides async job processing with progress tracking and SSE streaming support.
  */
 
-import { Queue, Worker, Job, QueueEvents } from 'bullmq';
+import type { Job } from 'bullmq';
+import { Queue, Worker, QueueEvents } from 'bullmq';
 import { EventEmitter } from 'events';
 import type IORedis from 'ioredis';
 
@@ -81,16 +82,14 @@ let queueEvents: QueueEvents | null = null;
 /**
  * Initialize the simulation queue with Redis connection
  */
-export async function initializeSimulationQueue(
-  redisConnection: IORedis
-): Promise<{
+export async function initializeSimulationQueue(redisConnection: IORedis): Promise<{
   queue: Queue<SimulationJobData, SimulationJobResult>;
   close: () => Promise<void>;
 }> {
   const connection = {
-    host: redisConnection.options.host || 'localhost',
-    port: redisConnection.options.port || 6379,
-    password: redisConnection.options.password,
+    host: redisConnection.options['host'] || 'localhost',
+    port: redisConnection.options['port'] || 6379,
+    password: redisConnection.options['password'],
   };
 
   // Create queue
@@ -142,8 +141,10 @@ export async function initializeSimulationQueue(
           });
 
           // Collect results (simplified - actual implementation would aggregate)
-          if (batchResult?.metrics?.tvpiDistribution) {
-            results.push(...batchResult.metrics.tvpiDistribution);
+          const batchMetrics = (batchResult as { metrics?: { tvpiDistribution?: number[] } })
+            .metrics;
+          if (batchMetrics?.tvpiDistribution) {
+            results.push(...batchMetrics.tvpiDistribution);
           }
 
           completedRuns += runsThisBatch;
@@ -251,13 +252,11 @@ export async function enqueueSimulation(
 /**
  * Get job status and result
  */
-export async function getJobStatus(
-  jobId: string
-): Promise<{
+export async function getJobStatus(jobId: string): Promise<{
   status: 'waiting' | 'active' | 'completed' | 'failed' | 'delayed' | 'unknown';
-  progress?: number;
-  result?: SimulationJobResult;
-  error?: string;
+  progress?: number | undefined;
+  result?: SimulationJobResult | undefined;
+  error?: string | undefined;
 }> {
   if (!queue) {
     throw new Error('Simulation queue not initialized');
