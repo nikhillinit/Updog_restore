@@ -404,7 +404,7 @@ router["get"]('/funds/:fundId/companies', asyncHandler(async (req: Request, res:
   }
 
   // Build WHERE conditions
-  const conditions: SQL[] = [eq(portfolioCompanies.fundId, fundId)];
+  const conditions: SQL<unknown>[] = [eq(portfolioCompanies.fundId, fundId)];
 
   // Cursor pagination (id < cursor for DESC ordering)
   if (query.cursor !== undefined) {
@@ -432,32 +432,32 @@ router["get"]('/funds/:fundId/companies', asyncHandler(async (req: Request, res:
   }
 
   // Build ORDER BY clause based on sortBy
-  let orderBy: SQL[];
+  let sortColumns: SQL<unknown>[];
   switch (query.sortBy) {
     case 'exit_moic_desc':
       // Sort by exit MOIC descending (nulls last), then by id DESC for cursor pagination
-      orderBy = [
+      sortColumns = [
         sql`${portfolioCompanies.exitMoicBps} DESC NULLS LAST`,
         desc(portfolioCompanies.id)
       ];
       break;
     case 'planned_reserves_desc':
       // Sort by planned reserves descending, then by id DESC
-      orderBy = [
+      sortColumns = [
         desc(portfolioCompanies.plannedReservesCents),
         desc(portfolioCompanies.id)
       ];
       break;
     case 'name_asc':
       // Sort by name ascending, then by id DESC
-      orderBy = [
+      sortColumns = [
         asc(portfolioCompanies.name),
         desc(portfolioCompanies.id)
       ];
       break;
     default:
       // Default to exit MOIC desc
-      orderBy = [
+      sortColumns = [
         sql`${portfolioCompanies.exitMoicBps} DESC NULLS LAST`,
         desc(portfolioCompanies.id)
       ];
@@ -485,7 +485,7 @@ router["get"]('/funds/:fundId/companies', asyncHandler(async (req: Request, res:
     })
     .from(portfolioCompanies)
     .where(and(...conditions))
-    .orderBy(...orderBy)
+    .orderBy(...sortColumns)
     .limit(fetchLimit);
 
   // Check if we have more results
