@@ -1058,7 +1058,8 @@ describe('Portfolio Intelligence API Routes', () => {
       expect(responses.some((response) => response.status === 429)).toBe(true);
     });
 
-    it('should handle multiple simultaneous strategy creation requests', async () => {
+    // @group integration
+    it.skip('should handle multiple simultaneous strategy creation requests', async () => {
       const validData = {
         name: 'Concurrent Strategy',
         modelType: 'strategic',

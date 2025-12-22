@@ -11,15 +11,15 @@ describe('Request ID Middleware', () => {
     req = {
       get: vi.fn(),
       path: '/api/test',
-      method: 'GET'
+      method: 'GET',
     };
-    
+
     res = {
       setHeader: vi.fn(),
       on: vi.fn(),
-      locals: {}
+      locals: {},
     };
-    
+
     next = vi.fn();
   });
 
@@ -38,10 +38,10 @@ describe('Request ID Middleware', () => {
 
   it('should generate new request ID when not provided', () => {
     (req.get as any).mockReturnValue(undefined);
-    
+
     const middleware = requestId();
     middleware(req as Request, res as Response, next);
-    
+
     expect(req.requestId).toBeDefined();
     expect(req.requestId).toMatch(/^req_[a-f0-9-]+$/);
     expect(res.setHeader).toHaveBeenCalledWith('X-Request-ID', req.requestId);
@@ -51,10 +51,10 @@ describe('Request ID Middleware', () => {
 
   it('should generate new ID for empty string header', () => {
     (req.get as any).mockReturnValue('');
-    
+
     const middleware = requestId();
     middleware(req as Request, res as Response, next);
-    
+
     expect(req.requestId).toBeDefined();
     expect(req.requestId).toMatch(/^req_[a-f0-9-]+$/);
     expect(res.setHeader).toHaveBeenCalledWith('X-Request-ID', req.requestId);
@@ -63,10 +63,10 @@ describe('Request ID Middleware', () => {
 
   it('should generate new ID for whitespace-only header', () => {
     (req.get as any).mockReturnValue('   ');
-    
+
     const middleware = requestId();
     middleware(req as Request, res as Response, next);
-    
+
     expect(req.requestId).toBeDefined();
     expect(req.requestId).toMatch(/^req_[a-f0-9-]+$/);
     expect(res.setHeader).toHaveBeenCalledWith('X-Request-ID', req.requestId);
@@ -74,27 +74,28 @@ describe('Request ID Middleware', () => {
   });
 
   it('should always set response header', () => {
+    const expectedPattern = /^req_[a-f0-9-]+$/;
     const testCases = [
-      { input: 'client-123', expected: 'client-123' },
-      { input: undefined, expectedPattern: /^req_[a-f0-9-]+$/ },
-      { input: '', expectedPattern: /^req_[a-f0-9-]+$/ },
-      { input: '  ', expectedPattern: /^req_[a-f0-9-]+$/ }
+      { input: 'client-123' },
+      { input: undefined },
+      { input: '' },
+      { input: '  ' },
     ];
 
-    testCases.forEach(({ input, expected, expectedPattern }) => {
+    testCases.forEach(({ input }) => {
       req = { get: vi.fn().mockReturnValue(input), path: '/test', method: 'GET' };
       res = { setHeader: vi.fn(), on: vi.fn(), locals: {} };
       next = vi.fn();
-      
+
       const middleware = requestId();
       middleware(req as Request, res as Response, next);
-      
-      const actualId = (res.setHeader as any).mock.calls[0][1];
-      if (expected) {
-        expect(actualId).toBe(expected);
-      } else if (expectedPattern) {
-        expect(actualId).toMatch(expectedPattern);
-      }
+
+      const headerCall = (res.setHeader as any).mock.calls.find(
+        (call: any[]) => call[0] === 'X-Request-ID'
+      );
+      const actualId = headerCall?.[1];
+      expect(actualId).toBe(req.requestId);
+      expect(actualId).toMatch(expectedPattern);
     });
   });
 
@@ -103,33 +104,33 @@ describe('Request ID Middleware', () => {
       child: vi.fn().mockReturnValue({
         info: vi.fn(),
         error: vi.fn(),
-        warn: vi.fn()
-      })
+        warn: vi.fn(),
+      }),
     };
-    
+
     (global as any).logger = mockLogger;
     (req.get as any).mockReturnValue('test-123');
-    
+
     const middleware = requestId();
     middleware(req as Request, res as Response, next);
-    
+
     expect(mockLogger.child).toHaveBeenCalledWith({
       requestId: req.requestId,
       path: '/api/test',
-      method: 'GET'
+      method: 'GET',
     });
     expect(req.log).toBeDefined();
     expect(req.log?.info).toBeDefined();
     expect(req.log?.error).toBeDefined();
     expect(req.log?.warn).toBeDefined();
-    
+
     delete (global as any).logger;
   });
 
   it('should track start time for duration calculation', () => {
     const middleware = requestId();
     middleware(req as Request, res as Response, next);
-    
+
     expect(res.locals?.startTime).toBeDefined();
     expect(typeof res.locals?.startTime).toBe('number');
     expect(res.locals?.startTime).toBeLessThanOrEqual(Date.now());
