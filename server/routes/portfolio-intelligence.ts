@@ -763,29 +763,45 @@ router['post'](
         return res['status'](401)['json'](error);
       }
 
-      const storage = getPortfolioStorage(req);
-      const item = {
-        id: randomUUID(),
-        scenarioId,
-        ...validatedData,
-        summaryStatistics: {
-          mean: { irr: 0.2, multiple: 2.5, dpi: 1.8 },
-          median: { irr: 0.18, multiple: 2.3, dpi: 1.6 },
-          percentiles: { p10: 0.12, p25: 0.15, p75: 0.25, p90: 0.3 },
-        },
-        riskMetrics: {
-          volatility: 0.08,
-          var95: 0.1,
-          cvar95: 0.12,
-          sharpeRatio: 1.8,
-        },
-        createdBy: userId,
-        createdAt: new Date().toISOString(),
+      // Verify scenario exists
+      const scenario = await portfolioIntelligenceService.scenarios.getById(scenarioId);
+      if (!scenario) {
+        const error: ApiError = {
+          error: 'Scenario not found',
+          message: `Scenario ${scenarioId} does not exist`,
+        };
+        return res['status'](404)['json'](error);
+      }
+
+      // TODO: Run actual Monte Carlo simulation here
+      // For now, generate placeholder results that would come from the simulation engine
+      const simulationResults = {
+        mean: { irr: 0.2, multiple: 2.5, dpi: 1.8 },
+        median: { irr: 0.18, multiple: 2.3, dpi: 1.6 },
+        percentiles: { p10: 0.12, p25: 0.15, p75: 0.25, p90: 0.3 },
       };
-      storage.simulations.set(item.id, item);
+      const riskMetrics = {
+        volatility: 0.08,
+        var95: 0.1,
+        cvar95: 0.12,
+        sharpeRatio: 1.8,
+      };
+
+      // Persist simulation to database
+      const simulation = await portfolioIntelligenceService.simulations.create({
+        scenarioId,
+        simulationIterations: validatedData.monteCarloIterations,
+        confidenceLevel: String(validatedData.confidenceLevel),
+        randomSeed: validatedData.randomSeed,
+        summaryStatistics: simulationResults,
+        riskMetrics,
+        status: 'completed',
+        createdBy: userId,
+      });
+
       res.status(201).json({
         success: true,
-        data: item,
+        data: simulation,
         message: 'Monte Carlo simulation completed successfully',
       });
     } catch (error: unknown) {
@@ -856,28 +872,44 @@ router['post'](
         return res['status'](401)['json'](error);
       }
 
-      const storage = getPortfolioStorage(req);
-      const item = {
-        id: randomUUID(),
-        fundId: parsedFundId,
-        ...validatedData,
-        optimalAllocation: {
-          initialReserve: 0.5,
-          followOnReserve: 0.5,
-          allocationByCompany: {},
-        },
-        performanceProjection: {
-          expectedIrr: 0.22,
-          expectedMultiple: 2.8,
-          riskAdjustedReturn: 0.18,
-        },
-        createdBy: userId,
-        createdAt: new Date().toISOString(),
+      // TODO: Run actual optimization algorithm here
+      // For now, generate placeholder results
+      const optimalAllocation = {
+        initialReserve: 0.5,
+        followOnReserve: 0.5,
+        allocationByCompany: {},
       };
-      storage.optimizations.set(item.id, item);
+      const performanceProjection = {
+        expectedIrr: 0.22,
+        expectedMultiple: 2.8,
+        riskAdjustedReturn: 0.18,
+      };
+
+      // Persist reserve strategy to database
+      const reserveStrategy = await portfolioIntelligenceService.reserves.create({
+        fundId: parsedFundId,
+        name: validatedData.name || `Optimization ${new Date().toISOString().split('T')[0]}`,
+        strategyType: validatedData.optimizationObjective || 'balanced',
+        targetReserveRatio: String(validatedData.constraints?.maxReserveRatio || 0.5),
+        minReserveRatio: String(validatedData.constraints?.minReserveRatio || 0.2),
+        maxReserveRatio: String(validatedData.constraints?.maxReserveRatio || 0.6),
+        allocationRules: {
+          optimalAllocation,
+          performanceProjection,
+          constraints: validatedData.constraints,
+          timeHorizon: validatedData.timeHorizon,
+        },
+        isActive: true,
+        createdBy: userId,
+      });
+
       res.status(201).json({
         success: true,
-        data: item,
+        data: {
+          ...reserveStrategy,
+          optimalAllocation,
+          performanceProjection,
+        },
         message: 'Reserve optimization completed successfully',
       });
     } catch (error: unknown) {
@@ -1167,31 +1199,60 @@ router['post']('/api/portfolio/forecasts/validate', async (req: Request, res: Re
       return res['status'](401)['json'](error);
     }
 
-    const storage = getPortfolioStorage(req);
-    const item = {
-      ...validatedData,
-      accuracyMetrics: {
-        mape: 0.12,
-        rmse: 0.08,
-        mae: 0.06,
-      },
-      calibration: {
-        inRange: 0.85,
-        overconfident: 0.1,
-        underconfident: 0.05,
-      },
-      keyInsights: [
-        'Forecast accuracy is within acceptable range',
-        'Model shows slight overconfidence in tail events',
-        'Calibration could be improved for extreme scenarios',
-      ],
-      createdBy: userId,
-      createdAt: new Date().toISOString(),
+    // Verify forecast exists
+    const forecast = await portfolioIntelligenceService.forecasts.getById(validatedData.forecastId);
+    if (!forecast) {
+      const error: ApiError = {
+        error: 'Forecast not found',
+        message: `Forecast ${validatedData.forecastId} does not exist`,
+      };
+      return res['status'](404)['json'](error);
+    }
+
+    // TODO: Calculate actual accuracy metrics from actuals comparison
+    // For now, generate placeholder validation results
+    const accuracyMetrics = {
+      mape: 0.12,
+      rmse: 0.08,
+      mae: 0.06,
     };
-    storage.validations.set(validatedData.forecastId, item);
+    const calibration = {
+      inRange: 0.85,
+      overconfident: 0.1,
+      underconfident: 0.05,
+    };
+    const keyInsights = [
+      'Forecast accuracy is within acceptable range',
+      'Model shows slight overconfidence in tail events',
+      'Calibration could be improved for extreme scenarios',
+    ];
+
+    // Update forecast with validation results
+    const updatedForecast = await portfolioIntelligenceService.forecasts.update(
+      validatedData.forecastId,
+      {
+        status: 'validated',
+        validationResults: {
+          accuracyMetrics,
+          calibration,
+          keyInsights,
+          validatedBy: userId,
+          validatedAt: new Date().toISOString(),
+          actualData: validatedData.actualData,
+          comparisonPeriod: validatedData.comparisonPeriod,
+        },
+      }
+    );
+
     res.json({
       success: true,
-      data: item,
+      data: {
+        forecastId: validatedData.forecastId,
+        accuracyMetrics,
+        calibration,
+        keyInsights,
+        forecast: updatedForecast,
+      },
       message: 'Forecast validation completed successfully',
     });
   } catch (error: unknown) {
