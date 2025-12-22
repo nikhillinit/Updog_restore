@@ -278,6 +278,20 @@ export const fundMetrics = pgTable("fund_metrics", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Fund Distributions - Cash distributions to LPs for IRR/DPI calculations
+export const fundDistributions = pgTable("fund_distributions", {
+  id: serial("id").primaryKey(),
+  fundId: integer("fund_id").references(() => funds.id).notNull(),
+  companyId: integer("company_id").references(() => portfolioCompanies.id),
+  distributionDate: timestamp("distribution_date").notNull(),
+  amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
+  distributionType: text("distribution_type").notNull().default("exit"), // 'exit', 'dividend', 'partial_sale', 'recapitalization'
+  description: text("description"),
+  isRecycled: boolean("is_recycled").default(false), // Whether proceeds were recycled into new investments
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: integer("created_by").references(() => users.id),
+});
+
 export const activities = pgTable("activities", {
   id: serial("id").primaryKey(),
   fundId: integer("fund_id").references(() => funds.id),

@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
+
+
+
+
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { idempotency } from '../middleware/idempotency';
@@ -13,15 +13,25 @@ import { idem } from '../shared/idempotency-instance';
 import { getOrStart } from '../lib/inflight-server';
 import { EnhancedFundModel } from '../core/enhanced-fund-model';
 import { calcDurationMs } from '../metrics';
+import { storage } from '../storage';
 
 const router = Router();
 
+// Schema for creating a fund with full configuration
 const CreateFundSchema = z.object({
+  // Basic fund information
+  name: z.string().min(1, 'Fund name is required'),
+  size: z.number().positive('Fund size must be positive'),
+  managementFee: z.number().min(0).max(0.1).default(0.02), // 0-10%, default 2%
+  carryPercentage: z.number().min(0).max(0.5).default(0.20), // 0-50%, default 20%
+  vintageYear: z.number().int().min(2000).max(2100).default(() => new Date().getFullYear()),
+
+  // Optional: Legacy wizard format support
   basics: z.object({
     name: z.string().min(1),
     size: z.number().positive(),
-    modelVersion: z.literal('reserves-ev1'),
-  }),
+    modelVersion: z.literal('reserves-ev1').optional(),
+  }).optional(),
   strategy: z.object({
     stages: z.array(z.object({
       name: z.string().min(1),
@@ -29,7 +39,7 @@ const CreateFundSchema = z.object({
       exit: percent100(),
       months: positiveInt(),
     })),
-  }),
+  }).optional(),
 });
 
 // Local fund calculation DTO for this endpoint
@@ -45,10 +55,43 @@ router["post"]('/funds', idempotency, async (req: Request, res: Response) => {
     return res["json"]({ error: parsed.error.format() });
   }
 
-  // TODO: persist fund with Drizzle
-  const fundId = `fund_${  Math.random().toString(36).slice(2)}`;
-  res["status"](201);
-  return res["json"]({ id: fundId });
+  try {
+    // Extract fund data - support both direct and legacy wizard formats
+    const data = parsed.data;
+    const fundData = {
+      name: data.name || data.basics?.name || '',
+      size: data.size || data.basics?.size || 0,
+      managementFee: data.managementFee ?? 0.02,
+      carryPercentage: data.carryPercentage ?? 0.20,
+      vintageYear: data.vintageYear ?? new Date().getFullYear(),
+    };
+
+    // Persist fund using storage abstraction (DatabaseStorage or MemStorage)
+    const fund = await storage.createFund(fundData);
+
+    res["status"](201);
+    return res["json"]({
+      success: true,
+      data: {
+        id: fund.id,
+        name: fund.name,
+        size: fund.size,
+        managementFee: fund.managementFee,
+        carryPercentage: fund.carryPercentage,
+        vintageYear: fund.vintageYear,
+        status: fund.status,
+        createdAt: fund.createdAt,
+      },
+      message: 'Fund created successfully',
+    });
+  } catch (error) {
+    console.error('Fund creation error:', error);
+    res["status"](500);
+    return res["json"]({
+      error: 'Failed to create fund',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
 });
 
 router["post"]('/api/funds/calculate', async (req: Request, res: Response, next: NextFunction) => {

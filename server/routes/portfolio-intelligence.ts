@@ -16,6 +16,7 @@ import idempotency from '../middleware/idempotency';
 import { positiveInt, bounded01, nonNegative } from '@shared/schema-helpers';
 import { toNumber, NumberParseError } from '@shared/number';
 import type { ApiError } from '@shared/types';
+import { portfolioIntelligenceService } from '../services/portfolio-intelligence-service';
 // TODO: Re-enable when stage-normalization PR is merged
 // import { parseStageDistribution } from '@shared/schemas/parse-stage-distribution';
 // import { getStageValidationMode } from '../lib/stage-validation-mode';
@@ -332,27 +333,34 @@ router['post']('/api/portfolio/strategies', idempotency, async (req: Request, re
       return res['status'](401)['json'](error);
     }
 
-    // TODO: Implement with actual database service
-    // const strategy = await portfolioIntelligenceService.strategies.create({
-    //   fundId: parsedFundId,
-    //   ...validatedData,
-    //   createdBy: userId
-    // });
-
-    const storage = getPortfolioStorage(req);
-    const item = {
-      id: randomUUID(),
+    // Persist strategy to database
+    const strategy = await portfolioIntelligenceService.strategies.create({
       fundId: parsedFundId,
-      ...validatedData,
+      name: validatedData.name,
+      description: validatedData.description,
+      modelType: validatedData.modelType,
+      targetPortfolioSize: validatedData.targetPortfolioSize,
+      maxPortfolioSize: validatedData.maxPortfolioSize,
+      targetDeploymentPeriodMonths: validatedData.targetDeploymentPeriodMonths,
+      checkSizeRange: validatedData.checkSizeRange,
+      sectorAllocation: validatedData.sectorAllocation,
+      stageAllocation: validatedData.stageAllocation,
+      geographicAllocation: validatedData.geographicAllocation,
+      initialReservePercentage: String(validatedData.initialReservePercentage),
+      followOnStrategy: validatedData.followOnStrategy,
+      concentrationLimits: validatedData.concentrationLimits,
+      riskTolerance: validatedData.riskTolerance,
+      targetIrr: validatedData.targetIrr ? String(validatedData.targetIrr) : undefined,
+      targetMultiple: validatedData.targetMultiple ? String(validatedData.targetMultiple) : undefined,
+      targetDpi: validatedData.targetDpi ? String(validatedData.targetDpi) : undefined,
+      tags: validatedData.tags,
       createdBy: userId,
       isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    storage.strategies.set(item.id, item);
+    });
+
     res.status(201).json({
       success: true,
-      data: item,
+      data: strategy,
       message: 'Strategy model created successfully',
     });
   } catch (error: unknown) {
@@ -386,34 +394,21 @@ router['get']('/api/portfolio/strategies/:fundId', async (req: Request, res: Res
     }
 
     // Parse query parameters
-    // TODO: These will be used when database service is implemented
-    const _isActive =
+    const isActive =
       req.query['isActive'] === 'true'
         ? true
         : req.query['isActive'] === 'false'
           ? false
           : undefined;
-    const _modelType = req.query['modelType'] as string;
-    const _limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
+    const modelType = req.query['modelType'] as string | undefined;
+    const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
 
-    // TODO: Implement with actual database service
-    // const strategies = await portfolioIntelligenceService.strategies.getByFund(fundId, {
-    //   isActive: _isActive,
-    //   modelType: _modelType,
-    //   limit: _limit
-    // });
-
-    // Mock response for now
-    const strategies = [
-      {
-        id: 'strategy_1',
-        fundId,
-        name: 'Base Strategy',
-        modelType: 'strategic',
-        isActive: true,
-        createdAt: new Date().toISOString(),
-      },
-    ];
+    // Fetch strategies from database
+    const strategies = await portfolioIntelligenceService.strategies.getByFund(fundId, {
+      isActive,
+      modelType,
+      limit,
+    });
 
     res['json']({
       success: true,
@@ -581,20 +576,27 @@ router['post']('/api/portfolio/scenarios', idempotency, async (req: Request, res
       return res['status'](401)['json'](error);
     }
 
-    const storage = getPortfolioStorage(req);
-    const item = {
-      id: randomUUID(),
+    // Persist scenario to database
+    const scenario = await portfolioIntelligenceService.scenarios.create({
       fundId: parsedFundId,
-      ...validatedData,
+      strategyModelId: validatedData.strategyModelId,
+      name: validatedData.name,
+      description: validatedData.description,
+      scenarioType: validatedData.scenarioType,
+      marketEnvironment: validatedData.marketEnvironment,
+      dealFlowAssumption: String(validatedData.dealFlowAssumption),
+      valuationEnvironment: String(validatedData.valuationEnvironment),
+      exitEnvironment: String(validatedData.exitEnvironment),
+      plannedInvestments: validatedData.plannedInvestments,
+      deploymentSchedule: validatedData.deploymentSchedule,
+      projectedFundMetrics: {}, // Will be populated by simulation
       status: 'draft',
       createdBy: userId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    storage.scenarios.set(item.id, item);
+    });
+
     res.status(201).json({
       success: true,
-      data: item,
+      data: scenario,
       message: 'Portfolio scenario created successfully',
     });
   } catch (error: unknown) {
@@ -627,21 +629,16 @@ router['get']('/api/portfolio/scenarios/:fundId', async (req: Request, res: Resp
       throw err;
     }
 
-    const _scenarioType = req.query['scenarioType'] as string;
-    const _status = req.query['status'] as string;
-    const _limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
+    const scenarioType = req.query['scenarioType'] as string | undefined;
+    const status = req.query['status'] as string | undefined;
+    const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
 
-    // TODO: Implement database query
-    const scenarios = [
-      {
-        id: 'scenario_1',
-        fundId,
-        name: 'Base Case',
-        scenarioType: 'base_case',
-        status: 'complete',
-        createdAt: new Date().toISOString(),
-      },
-    ];
+    // Fetch scenarios from database
+    const scenarios = await portfolioIntelligenceService.scenarios.getByFund(fundId, {
+      scenarioType,
+      status,
+      limit,
+    });
 
     res['json']({
       success: true,
@@ -900,26 +897,19 @@ router['get']('/api/portfolio/reserves/strategies/:fundId', async (req: Request,
       throw err;
     }
 
-    const _strategyType = req.query['strategyType'] as string;
-    const _isActive =
+    const strategyType = req.query['strategyType'] as string | undefined;
+    const isActive =
       req.query['isActive'] === 'true'
         ? true
         : req.query['isActive'] === 'false'
           ? false
           : undefined;
 
-    // TODO: Implement database query
-    const strategies = [
-      {
-        id: 'reserve_strategy_1',
-        fundId,
-        name: 'Performance-Based Reserve Strategy',
-        strategyType: 'performance_based',
-        isActive: true,
-        lastOptimizedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-      },
-    ];
+    // Fetch reserve strategies from database
+    const strategies = await portfolioIntelligenceService.reserves.getByFund(fundId, {
+      strategyType,
+      isActive,
+    });
 
     res['json']({
       success: true,
@@ -1112,20 +1102,14 @@ router['get']('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: 
       return res['status'](400)['json'](error);
     }
 
-    const _forecastType = req.query['forecastType'] as string;
-    const _status = req.query['status'] as string;
+    const forecastType = req.query['forecastType'] as string | undefined;
+    const status = req.query['status'] as string | undefined;
 
-    // TODO: Implement database query
-    const forecasts = [
-      {
-        id: 'forecast_1',
-        scenarioId,
-        forecastName: 'Base Case Forecast',
-        forecastType: 'fund_level',
-        status: 'complete',
-        createdAt: new Date().toISOString(),
-      },
-    ];
+    // Fetch forecasts from database
+    const forecasts = await portfolioIntelligenceService.forecasts.getByScenario(scenarioId, {
+      forecastType,
+      status,
+    });
 
     res['json']({
       success: true,
