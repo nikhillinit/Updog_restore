@@ -640,7 +640,14 @@ describe('CapitalAllocationStep - Edge Cases', () => {
       initialCheckSize: 1.0,
       followOnStrategy: {
         reserveRatio: 0.5,
-        stageAllocations: []
+        stageAllocations: [
+          {
+            stageId: 'seed',
+            stageName: 'Seed',
+            maintainOwnership: 10,
+            participationRate: 50
+          }
+        ]
       },
       pacingModel: {
         investmentsPerYear: 10,
