@@ -83,6 +83,7 @@ describe('Portfolio Intelligence API Routes', () => {
     testStorage.quickScenarios.clear();
 
     app = createTestApp();
+    app.locals.portfolioStorage = testStorage;
     vi.clearAllMocks();
   });
 
@@ -91,7 +92,7 @@ describe('Portfolio Intelligence API Routes', () => {
   });
 
   describe('Strategy Management Routes', () => {
-    describe.skip('POST /api/portfolio/strategies', () => {
+    describe('POST /api/portfolio/strategies', () => {
       const validStrategyData = {
         name: 'Test Strategy',
         description: 'A test portfolio strategy',
@@ -322,7 +323,7 @@ describe('Portfolio Intelligence API Routes', () => {
   });
 
   describe('Scenario Operations Routes', () => {
-    describe.skip('POST /api/portfolio/scenarios', () => {
+    describe('POST /api/portfolio/scenarios', () => {
       const validScenarioData = {
         strategyModelId: '550e8400-e29b-41d4-a716-446655440000',
         name: 'Test Scenario',
@@ -414,7 +415,7 @@ describe('Portfolio Intelligence API Routes', () => {
       });
     });
 
-    describe.skip('POST /api/portfolio/scenarios/compare', () => {
+    describe('POST /api/portfolio/scenarios/compare', () => {
       const validComparisonData = {
         baseScenarioId: '550e8400-e29b-41d4-a716-446655440000',
         comparisonScenarioIds: [
@@ -481,7 +482,7 @@ describe('Portfolio Intelligence API Routes', () => {
       });
     });
 
-    describe.skip('POST /api/portfolio/scenarios/:id/simulate', () => {
+    describe('POST /api/portfolio/scenarios/:id/simulate', () => {
       const validSimulationData = {
         simulationType: 'portfolio_construction',
         numberOfRuns: 10000,
@@ -544,7 +545,7 @@ describe('Portfolio Intelligence API Routes', () => {
   });
 
   describe('Reserve Optimization Routes', () => {
-    describe.skip('POST /api/portfolio/reserves/optimize', () => {
+    describe('POST /api/portfolio/reserves/optimize', () => {
       const validOptimizationData = {
         strategyType: 'performance_based',
         totalReserveAmount: 25000000,
@@ -634,7 +635,7 @@ describe('Portfolio Intelligence API Routes', () => {
       });
     });
 
-    describe.skip('POST /api/portfolio/reserves/backtest', () => {
+    describe('POST /api/portfolio/reserves/backtest', () => {
       const validBacktestData = {
         strategyId: '550e8400-e29b-41d4-a716-446655440000',
         backtestPeriodStart: '2022-01-01T00:00:00.000Z',
@@ -681,7 +682,7 @@ describe('Portfolio Intelligence API Routes', () => {
   });
 
   describe('Performance Forecasting Routes', () => {
-    describe.skip('POST /api/portfolio/forecasts', () => {
+    describe('POST /api/portfolio/forecasts', () => {
       const validForecastData = {
         scenarioId: '550e8400-e29b-41d4-a716-446655440000',
         baselineId: '550e8400-e29b-41d4-a716-446655440001',
@@ -779,7 +780,7 @@ describe('Portfolio Intelligence API Routes', () => {
       });
     });
 
-    describe.skip('POST /api/portfolio/forecasts/validate', () => {
+    describe('POST /api/portfolio/forecasts/validate', () => {
       const validValidationData = {
         forecastId: '550e8400-e29b-41d4-a716-446655440000',
         actualMetrics: {
@@ -874,7 +875,7 @@ describe('Portfolio Intelligence API Routes', () => {
       });
     });
 
-    describe.skip('POST /api/portfolio/quick-scenario', () => {
+    describe('POST /api/portfolio/quick-scenario', () => {
       const validQuickScenarioData = {
         strategyModelId: '550e8400-e29b-41d4-a716-446655440000',
         marketCondition: 'bull',
@@ -972,7 +973,7 @@ describe('Portfolio Intelligence API Routes', () => {
     });
   });
 
-  describe.skip('Error Handling and Edge Cases', () => {
+  describe('Error Handling and Edge Cases', () => {
     it('should handle internal server errors gracefully', async () => {
       // This would require mocking a database failure or similar
       // For now, we test with malformed data that causes processing errors
@@ -1048,7 +1049,7 @@ describe('Portfolio Intelligence API Routes', () => {
     // FIXME: Security middleware not applied to portfolio-intelligence routes
     // Requires: Import and apply securityMiddlewareStack from server/middleware/security.ts
     // See: server/middleware/security.ts lines 463-470 for middleware stack
-    it.skip('should enforce rate limiting', async () => {
+    it('should enforce rate limiting', async () => {
       const requests = Array.from({ length: 20 }, () =>
         request(app).get('/api/portfolio/strategies/1')
       );
@@ -1059,7 +1060,7 @@ describe('Portfolio Intelligence API Routes', () => {
     });
 
     // @group integration
-    it.skip('should handle multiple simultaneous strategy creation requests', async () => {
+    it('should handle multiple simultaneous strategy creation requests', async () => {
       const validData = {
         name: 'Concurrent Strategy',
         modelType: 'strategic',
@@ -1067,6 +1068,8 @@ describe('Portfolio Intelligence API Routes', () => {
         checkSizeRange: { min: 500000, max: 2000000, target: 1000000 },
         sectorAllocation: { tech: 1.0 },
         stageAllocation: { seriesA: 1.0 },
+        followOnStrategy: { strategy: 'performance_based' },
+        concentrationLimits: { max_per_company: 0.15 },
       };
 
       const requests = Array.from({ length: 3 }, (_, i) =>
@@ -1098,7 +1101,7 @@ describe('Portfolio Intelligence API Routes', () => {
     // FIXME: Security middleware not applied to portfolio-intelligence routes
     // Requires: Import and apply securityMiddlewareStack from server/middleware/security.ts
     // See: server/middleware/security.ts lines 463-470 for middleware stack
-    it.skip('should reject HTML in request body', async () => {
+    it('should reject HTML in request body', async () => {
       const maliciousData = {
         name: '<script>alert("xss")</script>Malicious Strategy',
         description: '<img src="x" onerror="alert(1)">',
@@ -1123,7 +1126,7 @@ describe('Portfolio Intelligence API Routes', () => {
     // FIXME: Security middleware not applied to portfolio-intelligence routes
     // Requires: Import and apply securityMiddlewareStack from server/middleware/security.ts
     // See: server/middleware/security.ts lines 463-470 for middleware stack
-    it.skip('should reject SQL injection in query params', async () => {
+    it('should reject SQL injection in query params', async () => {
       const sqlInjectionAttempt = {
         name: "'; DROP TABLE strategies; --",
         modelType: 'strategic',
@@ -1146,7 +1149,7 @@ describe('Portfolio Intelligence API Routes', () => {
     // FIXME: Security middleware not applied to portfolio-intelligence routes
     // Requires: Import and apply securityMiddlewareStack from server/middleware/security.ts
     // See: server/middleware/security.ts lines 463-470 for middleware stack
-    it.skip('should reject invalid UUIDs in path params', async () => {
+    it('should reject invalid UUIDs in path params', async () => {
       const invalidUUIDs = [
         'not-a-uuid',
         '123-456-789',
