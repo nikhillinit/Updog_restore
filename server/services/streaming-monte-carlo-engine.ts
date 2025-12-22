@@ -21,6 +21,7 @@ import type {
 import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { toSafeNumber } from '@shared/type-safety-utils';
+import { config } from '../config/index.js';
 
 // Import existing types from the original engine
 import type {
@@ -91,7 +92,7 @@ class ConnectionPoolManager {
   private pools: Map<string, Pool> = new Map();
   private readonly maxPoolSize = 10;
   private readonly idleTimeoutMs = 30000;
-  private readonly connectionTimeoutMs = 5000;
+  private readonly connectionTimeoutMs = config.CONNECTION_TIMEOUT_MS;
 
   async getPool(connectionString?: string): Promise<Pool> {
     const connStr = connectionString || process.env['DATABASE_URL']!;

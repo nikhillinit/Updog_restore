@@ -111,8 +111,15 @@ export async function calculateFundMetrics(fundId: number): Promise<CalculatedFu
       })
       .from(fundDistributions)
       .where(eq(fundDistributions.fundId, fundId));
-  } catch {
+  } catch (error) {
     // If table doesn't exist yet, use empty array
+    // Log for observability but don't fail - distributions are optional
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    if (errorMsg.includes('does not exist') || errorMsg.includes('relation')) {
+      console.debug('[fund-metrics] Distributions table not yet created, using empty array');
+    } else {
+      console.warn('[fund-metrics] Failed to fetch distributions:', errorMsg);
+    }
     distributions = [];
   }
 

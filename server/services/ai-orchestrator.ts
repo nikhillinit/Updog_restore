@@ -125,7 +125,12 @@ async function getBudgetData(): Promise<BudgetData> {
   try {
     const data = await fs.readFile(CONFIG.budgetPath, 'utf-8');
     return JSON.parse(data);
-  } catch {
+  } catch (error) {
+    // Budget file doesn't exist or is invalid - initialize with defaults
+    // This is expected on first run
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.warn('[ai-orchestrator] Failed to read budget file:', error instanceof Error ? error.message : String(error));
+    }
     return { date: '', count: 0, total_cost_usd: 0 };
   }
 }
@@ -708,10 +713,13 @@ import type { ChatMessage } from '../../tools/ai-review/OrchestratorAdapter'; //
 // Ollama support (optional - dynamic require)
 let __ollama__: any = null;
 try {
-   
   const Ollama = require('ollama');
   __ollama__ = new Ollama({ host: process.env["OLLAMA_HOST"] ?? 'http://localhost:11434' });
-} catch { /* not installed */ }
+} catch (error) {
+  // Ollama package not installed - this is expected in most deployments
+  // Only log at debug level since it's an optional dependency
+  console.debug('[ai-orchestrator] Ollama not available:', error instanceof Error ? error.message : String(error));
+}
 
 async function askOllama(prompt: string, model: string) {
   if (!__ollama__) throw new Error('ollama not available - install via: npm install ollama');

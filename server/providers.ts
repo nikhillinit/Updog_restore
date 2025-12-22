@@ -189,11 +189,45 @@ async function buildCache(redisUrl: string): Promise<Cache> {
   }
 }
 
-async function buildQueue(_cfg: any): Promise<{ enabled: boolean; close(): Promise<void> }> {
-  // Placeholder for queue implementation
-  // Only implement if you need queues right now
-  return {
-    enabled: false,
-    close: async () => {}
-  };
+async function buildQueue(cfg: ReturnType<typeof import('./config/index.js').loadEnv>): Promise<{ enabled: boolean; close(): Promise<void> }> {
+  // Check if queues should be enabled
+  if (cfg.ENABLE_QUEUES !== '1' || !cfg.REDIS_URL || cfg.REDIS_URL === 'memory://') {
+    console.log('[providers] Queue disabled (ENABLE_QUEUES not set or no Redis)');
+    return {
+      enabled: false,
+      close: async () => {}
+    };
+  }
+
+  try {
+    console.log('[providers] Initializing BullMQ simulation queue...');
+    const { default: IORedis } = await import('ioredis');
+    const { initializeSimulationQueue } = await import('./queues/simulation-queue');
+
+    const redis = new IORedis(cfg.REDIS_URL, {
+      lazyConnect: true,
+      maxRetriesPerRequest: 3,
+      connectTimeout: 5000
+    });
+
+    await redis.connect();
+
+    const { close } = await initializeSimulationQueue(redis);
+
+    console.log('[providers] BullMQ queue initialized successfully');
+
+    return {
+      enabled: true,
+      close: async () => {
+        await close();
+        await redis.quit();
+      }
+    };
+  } catch (error) {
+    console.warn(`[providers] Queue initialization failed: ${error instanceof Error ? error.message : String(error)}`);
+    return {
+      enabled: false,
+      close: async () => {}
+    };
+  }
 }

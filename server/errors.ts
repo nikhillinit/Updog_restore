@@ -53,7 +53,12 @@ export function errorHandler(vite?: ViteDevServerLike) {
    
   return (err: any, _req: any, res: any, _next: any) => {
     if (vite?.ssrFixStacktrace) {
-      try { vite.ssrFixStacktrace(err); } catch {}
+      try {
+        vite.ssrFixStacktrace(err);
+      } catch (ssrError) {
+        // Vite SSR stack trace fix failed - log but don't block error handling
+        console.warn('[errors] Vite SSR stack trace fix failed:', ssrError instanceof Error ? ssrError.message : String(ssrError));
+      }
     }
     const status = typeof err?.statusCode === 'number'
       ? err.statusCode

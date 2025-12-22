@@ -19,6 +19,12 @@ import { assertFiniteDeep } from '../middleware/engine-guards';
 import { recordHttpMetrics } from '../metrics';
 import { toNumber } from '@shared/number';
 import { sanitizeInput } from '../utils/sanitizer.js';
+import {
+  enqueueSimulation,
+  getJobStatus,
+  isQueueInitialized,
+  subscribeToJob,
+} from '../queues/simulation-queue';
 // TODO: Re-enable when stage-normalization PR is merged
 // import { parseStageDistribution } from '@shared/schemas/parse-stage-distribution';
 // import { getStageValidationMode } from '../lib/stage-validation-mode';
@@ -243,6 +249,166 @@ router["post"]('/simulate', validateRequest(simulationConfigSchema), async (req:
       timestamp: new Date().toISOString()
     });
   }
+});
+
+/**
+ * POST /api/monte-carlo/simulate/async
+ * Queue a simulation for background processing (202 Accepted pattern)
+ * Returns immediately with jobId for polling
+ */
+router["post"]('/simulate/async', validateRequest(simulationConfigSchema), async (req: Request, res: Response) => {
+  const correlationId = req.headers['x-correlation-id'] as string || `sim_async_${Date.now()}`;
+
+  try {
+    // Check if queue is available
+    if (!isQueueInitialized()) {
+      // Fall back to synchronous execution if queue not available
+      console.warn(`[MONTE_CARLO] Queue not initialized, falling back to sync execution for ${correlationId}`);
+
+      const result = await unifiedMonteCarloService.runSimulation(req.body);
+      return res["json"]({
+        correlationId,
+        mode: 'sync_fallback',
+        ...result,
+        metadata: {
+          version: '3.0-streaming',
+          engineUsed: result.performance.engineUsed,
+          fallbackTriggered: true,
+          note: 'Queue unavailable, executed synchronously'
+        }
+      });
+    }
+
+    console.log(`[MONTE_CARLO] Queuing async simulation ${correlationId} with ${req.body.runs} scenarios`);
+
+    const { jobId, estimatedWaitMs } = await enqueueSimulation({
+      fundId: req.body.fundId,
+      runs: req.body.runs,
+      timeHorizonYears: req.body.timeHorizonYears,
+      baselineId: req.body.baselineId,
+      portfolioSize: req.body.portfolioSize,
+      requestId: correlationId,
+    });
+
+    // Return 202 Accepted with polling information
+    res.setHeader('Location', `/api/monte-carlo/jobs/${jobId}`);
+    res.setHeader('Retry-After', '5');
+
+    res["status"](202)["json"]({
+      correlationId,
+      jobId,
+      status: 'queued',
+      estimatedWaitMs,
+      message: 'Simulation queued for background processing',
+      _links: {
+        self: `/api/monte-carlo/jobs/${jobId}`,
+        poll: `/api/monte-carlo/jobs/${jobId}`,
+        stream: `/api/monte-carlo/jobs/${jobId}/stream`,
+      },
+    });
+
+  } catch (error) {
+    console.error(`[MONTE_CARLO] Failed to queue simulation ${correlationId}:`, error);
+
+    res["status"](500)["json"]({
+      error: 'QUEUE_FAILED',
+      correlationId,
+      message: error instanceof Error ? sanitizeInput(error.message) : 'Failed to queue simulation',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * GET /api/monte-carlo/jobs/:jobId
+ * Get status and result of a queued simulation
+ */
+router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
+  try {
+    const { jobId } = req.params;
+
+    if (!isQueueInitialized()) {
+      return res["status"](503)["json"]({
+        error: 'QUEUE_UNAVAILABLE',
+        message: 'Background job queue is not available',
+      });
+    }
+
+    const jobStatus = await getJobStatus(jobId);
+
+    if (jobStatus.status === 'unknown') {
+      return res["status"](404)["json"]({
+        error: 'JOB_NOT_FOUND',
+        message: `Job ${jobId} not found`,
+      });
+    }
+
+    // Add retry-after for incomplete jobs
+    if (jobStatus.status === 'waiting' || jobStatus.status === 'active') {
+      res.setHeader('Retry-After', '5');
+    }
+
+    res["json"]({
+      jobId,
+      ...jobStatus,
+      _links: {
+        self: `/api/monte-carlo/jobs/${jobId}`,
+        ...(jobStatus.status === 'waiting' || jobStatus.status === 'active'
+          ? { stream: `/api/monte-carlo/jobs/${jobId}/stream` }
+          : {}),
+      },
+    });
+
+  } catch (error) {
+    res["status"](500)["json"]({
+      error: 'JOB_STATUS_FAILED',
+      message: error instanceof Error ? error.message : 'Failed to get job status',
+    });
+  }
+});
+
+/**
+ * GET /api/monte-carlo/jobs/:jobId/stream
+ * SSE endpoint for real-time job progress updates
+ */
+router['get']('/jobs/:jobId/stream', async (req: Request, res: Response) => {
+  const { jobId } = req.params;
+
+  if (!isQueueInitialized()) {
+    return res["status"](503)["json"]({
+      error: 'QUEUE_UNAVAILABLE',
+      message: 'Background job queue is not available',
+    });
+  }
+
+  // Set up SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+
+  // Send initial connection event
+  res.write(`event: connected\ndata: ${JSON.stringify({ jobId })}\n\n`);
+
+  // Subscribe to job events
+  const unsubscribe = subscribeToJob(jobId, {
+    onProgress: (event) => {
+      res.write(`event: progress\ndata: ${JSON.stringify(event)}\n\n`);
+    },
+    onComplete: (event) => {
+      res.write(`event: complete\ndata: ${JSON.stringify(event)}\n\n`);
+      res.end();
+    },
+    onFailed: (event) => {
+      res.write(`event: error\ndata: ${JSON.stringify(event)}\n\n`);
+      res.end();
+    },
+  });
+
+  // Handle client disconnect
+  req.on('close', () => {
+    unsubscribe();
+  });
 });
 
 /**
