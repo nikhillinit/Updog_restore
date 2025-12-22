@@ -491,9 +491,10 @@ describe('PowerLawDistribution', () => {
   });
 
   describe('Edge Cases and Error Handling', () => {
-    it('should handle zero portfolio size', () => {
-      const portfolioDistribution = distribution.generatePortfolioReturns(0, { seed: 1.0 }, 100);
-      expect(portfolioDistribution.samples).toHaveLength(0);
+    it('should throw error for zero portfolio size', () => {
+      expect(() => {
+        distribution.generatePortfolioReturns(0, { seed: 1.0 }, 100);
+      }).toThrow('portfolioSize must be a positive finite number');
     });
 
     it('should handle empty stage distribution', () => {
@@ -575,15 +576,12 @@ describe('Utility Functions', () => {
       expect(stages.has('series-b')).toBe(true);
     });
 
-    it('should default to seed stage for invalid distributions', () => {
+    it('should throw error for invalid stage distributions', () => {
       const invalidDistribution = { 'invalid-stage': 1.0 };
 
-      const returns = generatePowerLawReturns(5, invalidDistribution, 5, 10, 12345);
-
-      expect(returns).toHaveLength(50);
-      returns.forEach((ret) => {
-        expect(ret.stage).toBe('seed');
-      });
+      expect(() => {
+        generatePowerLawReturns(5, invalidDistribution, 5, 10, 12345);
+      }).toThrow('No valid investment stages found in distribution');
     });
 
     it('should be reproducible with same seed', () => {
