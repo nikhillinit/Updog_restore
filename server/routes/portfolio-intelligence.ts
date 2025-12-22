@@ -459,12 +459,18 @@ router['put']('/api/portfolio/strategies/:id', async (req: Request, res: Respons
       return res['status'](401)['json'](error);
     }
 
-    // TODO: Implement update logic
-    const updatedStrategy = {
-      id: strategyId,
+    // Update strategy via service
+    const updatedStrategy = await portfolioIntelligenceService.strategies.update(strategyId, {
       ...validation.data,
-      updatedAt: new Date().toISOString(),
-    };
+    });
+
+    if (!updatedStrategy) {
+      const error: ApiError = {
+        error: 'Strategy not found',
+        message: `Strategy ${strategyId} does not exist`,
+      };
+      return res['status'](404)['json'](error);
+    }
 
     res['json']({
       success: true,
@@ -505,8 +511,16 @@ router['delete']('/api/portfolio/strategies/:id', async (req: Request, res: Resp
       return res['status'](401)['json'](error);
     }
 
-    // TODO: Implement soft delete (set isActive: false)
-    // await portfolioIntelligenceService.strategies.deactivate(strategyId, userId);
+    // Soft delete (set isActive: false) via service
+    const deactivated = await portfolioIntelligenceService.strategies.deactivate(strategyId);
+
+    if (!deactivated) {
+      const error: ApiError = {
+        error: 'Strategy not found',
+        message: `Strategy ${strategyId} does not exist`,
+      };
+      return res['status'](404)['json'](error);
+    }
 
     res['json']({
       success: true,
