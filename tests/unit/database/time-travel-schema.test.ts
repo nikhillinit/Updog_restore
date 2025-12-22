@@ -43,35 +43,42 @@ describe('Time-Travel Analytics Database Schema', () => {
         trigger_event: 'scheduled',
         captured_at: '2024-12-31T23:59:59Z',
         portfolio_state: {
-          totalValue: 1500000.00,
-          deployedCapital: 1200000.00,
+          totalValue: 1500000.0,
+          deployedCapital: 1200000.0,
           portfolioCount: 15,
           companies: [
-            { id: 1, name: 'TechCorp', valuation: 200000.00 },
-            { id: 2, name: 'HealthInc', valuation: 300000.00 }
-          ]
+            { id: 1, name: 'TechCorp', valuation: 200000.0 },
+            { id: 2, name: 'HealthInc', valuation: 300000.0 },
+          ],
         },
         fund_metrics: {
           irr: 0.15,
           multiple: 1.25,
           dpi: 0.85,
-          tvpi: 1.10
+          tvpi: 1.1,
         },
-        created_by: 1
+        created_by: 1,
       };
 
-      const [result] = await db.execute(`
+      const [result] = await db.execute(
+        `
         INSERT INTO fund_state_snapshots (
           fund_id, snapshot_name, snapshot_type, trigger_event, captured_at,
           portfolio_state, fund_metrics, created_by
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id
-      `, [
-        snapshotData.fund_id, snapshotData.snapshot_name, snapshotData.snapshot_type,
-        snapshotData.trigger_event, snapshotData.captured_at,
-        JSON.stringify(snapshotData.portfolio_state), JSON.stringify(snapshotData.fund_metrics),
-        snapshotData.created_by
-      ]);
+      `,
+        [
+          snapshotData.fund_id,
+          snapshotData.snapshot_name,
+          snapshotData.snapshot_type,
+          snapshotData.trigger_event,
+          snapshotData.captured_at,
+          JSON.stringify(snapshotData.portfolio_state),
+          JSON.stringify(snapshotData.fund_metrics),
+          snapshotData.created_by,
+        ]
+      );
 
       expect(result.id).toBeDefined();
       expect(typeof result.id).toBe('string'); // UUID
@@ -79,105 +86,144 @@ describe('Time-Travel Analytics Database Schema', () => {
 
     it('should enforce valid snapshot_type enum', async () => {
       await expect(
-        db.execute(`
+        db.execute(
+          `
           INSERT INTO fund_state_snapshots (
             fund_id, snapshot_name, snapshot_type, trigger_event, captured_at,
             portfolio_state, fund_metrics, created_by
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          1, 'Invalid Snapshot', 'invalid_type', 'manual', '2024-12-31T23:59:59Z',
-          '{}', '{}', 1
-        ])
+        `,
+          [1, 'Invalid Snapshot', 'invalid_type', 'manual', '2024-12-31T23:59:59Z', '{}', '{}', 1]
+        )
       ).rejects.toThrow();
     });
 
     it('should enforce valid trigger_event enum', async () => {
       await expect(
-        db.execute(`
+        db.execute(
+          `
           INSERT INTO fund_state_snapshots (
             fund_id, snapshot_name, snapshot_type, trigger_event, captured_at,
             portfolio_state, fund_metrics, created_by
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          1, 'Invalid Trigger Snapshot', 'manual', 'invalid_trigger', '2024-12-31T23:59:59Z',
-          '{}', '{}', 1
-        ])
+        `,
+          [
+            1,
+            'Invalid Trigger Snapshot',
+            'manual',
+            'invalid_trigger',
+            '2024-12-31T23:59:59Z',
+            '{}',
+            '{}',
+            1,
+          ]
+        )
       ).rejects.toThrow();
     });
 
     it('should enforce valid status enum', async () => {
       await expect(
-        db.execute(`
+        db.execute(
+          `
           INSERT INTO fund_state_snapshots (
             fund_id, snapshot_name, snapshot_type, trigger_event, captured_at,
             portfolio_state, fund_metrics, created_by, status
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          1, 'Invalid Status Snapshot', 'manual', 'manual', '2024-12-31T23:59:59Z',
-          '{}', '{}', 1, 'invalid_status'
-        ])
+        `,
+          [
+            1,
+            'Invalid Status Snapshot',
+            'manual',
+            'manual',
+            '2024-12-31T23:59:59Z',
+            '{}',
+            '{}',
+            1,
+            'invalid_status',
+          ]
+        )
       ).rejects.toThrow();
     });
 
     it('should validate data_integrity_score bounds (0.00 to 1.00)', async () => {
       // Test invalid data_integrity_score > 1.00
       await expect(
-        db.execute(`
+        db.execute(
+          `
           INSERT INTO fund_state_snapshots (
             fund_id, snapshot_name, snapshot_type, trigger_event, captured_at,
             portfolio_state, fund_metrics, created_by, data_integrity_score
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          1, 'High Integrity Snapshot', 'manual', 'manual', '2024-12-31T23:59:59Z',
-          '{}', '{}', 1, 1.50
-        ])
+        `,
+          [
+            1,
+            'High Integrity Snapshot',
+            'manual',
+            'manual',
+            '2024-12-31T23:59:59Z',
+            '{}',
+            '{}',
+            1,
+            1.5,
+          ]
+        )
       ).rejects.toThrow();
 
       // Test invalid data_integrity_score < 0.00
       await expect(
-        db.execute(`
+        db.execute(
+          `
           INSERT INTO fund_state_snapshots (
             fund_id, snapshot_name, snapshot_type, trigger_event, captured_at,
             portfolio_state, fund_metrics, created_by, data_integrity_score
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          1, 'Low Integrity Snapshot', 'manual', 'manual', '2024-12-31T23:59:59Z',
-          '{}', '{}', 1, -0.10
-        ])
+        `,
+          [
+            1,
+            'Low Integrity Snapshot',
+            'manual',
+            'manual',
+            '2024-12-31T23:59:59Z',
+            '{}',
+            '{}',
+            1,
+            -0.1,
+          ]
+        )
       ).rejects.toThrow();
     });
 
     it('should support complex JSONB fields', async () => {
       const portfolioState = {
-        totalValue: 2500000.00,
-        deployedCapital: 2000000.00,
+        totalValue: 2500000.0,
+        deployedCapital: 2000000.0,
         portfolioCount: 25,
         companies: [
           {
             id: 1,
             name: 'TechCorp Alpha',
-            valuation: 500000.00,
+            valuation: 500000.0,
             stage: 'Series A',
             sector: 'Technology',
             investmentDate: '2023-01-15',
-            ownership: 0.15
+            ownership: 0.15,
           },
           {
             id: 2,
             name: 'HealthTech Beta',
-            valuation: 750000.00,
+            valuation: 750000.0,
             stage: 'Series B',
             sector: 'Healthcare',
             investmentDate: '2023-03-20',
-            ownership: 0.12
-          }
+            ownership: 0.12,
+          },
         ],
         sectorBreakdown: {
-          'Technology': 0.40,
-          'Healthcare': 0.30,
-          'Financial Services': 0.20,
-          'Other': 0.10
-        }
+          Technology: 0.4,
+          Healthcare: 0.3,
+          'Financial Services': 0.2,
+          Other: 0.1,
+        },
       };
 
       const fundMetrics = {
@@ -185,28 +231,47 @@ describe('Time-Travel Analytics Database Schema', () => {
         multiple: 1.45,
         dpi: 0.92,
         tvpi: 1.33,
-        moic: 1.40,
-        unrealizedValue: 1800000.00,
-        realizedValue: 700000.00,
+        moic: 1.4,
+        unrealizedValue: 1800000.0,
+        realizedValue: 700000.0,
         distributionHistory: [
-          { date: '2024-06-30', amount: 200000.00 },
-          { date: '2024-09-30', amount: 150000.00 }
-        ]
+          { date: '2024-06-30', amount: 200000.0 },
+          { date: '2024-09-30', amount: 150000.0 },
+        ],
       };
 
-      const [result] = await db.execute(`
+      const [result] = await db.execute(
+        `
         INSERT INTO fund_state_snapshots (
           fund_id, snapshot_name, snapshot_type, trigger_event, captured_at,
           portfolio_state, fund_metrics, created_by
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id, portfolio_state, fund_metrics
-      `, [
-        1, 'Complex Data Snapshot', 'milestone', 'manual', '2024-12-31T23:59:59Z',
-        JSON.stringify(portfolioState), JSON.stringify(fundMetrics), 1
-      ]);
+      `,
+        [
+          1,
+          'Complex Data Snapshot',
+          'milestone',
+          'manual',
+          '2024-12-31T23:59:59Z',
+          JSON.stringify(portfolioState),
+          JSON.stringify(fundMetrics),
+          1,
+        ]
+      );
 
-      expect(JSON.parse(result.portfolio_state)).toEqual(portfolioState);
-      expect(JSON.parse(result.fund_metrics)).toEqual(fundMetrics);
+      // Database mock returns objects directly, not JSON strings
+      const portfolioStateData =
+        typeof result.portfolio_state === 'string'
+          ? JSON.parse(result.portfolio_state)
+          : result.portfolio_state;
+      const fundMetricsData =
+        typeof result.fund_metrics === 'string'
+          ? JSON.parse(result.fund_metrics)
+          : result.fund_metrics;
+
+      expect(portfolioStateData).toEqual(portfolioState);
+      expect(fundMetricsData).toEqual(fundMetrics);
     });
 
     it('should support metadata and tags', async () => {
@@ -217,25 +282,46 @@ describe('Time-Travel Analytics Database Schema', () => {
         validation: {
           checksRun: 15,
           checksPasssed: 14,
-          warnings: ['Minor calculation variance in sector allocation']
-        }
+          warnings: ['Minor calculation variance in sector allocation'],
+        },
       };
 
       const tags = ['year-end', 'audited', 'board-review', 'high-confidence'];
 
-      const [result] = await db.execute(`
+      const [result] = await db.execute(
+        `
         INSERT INTO fund_state_snapshots (
           fund_id, snapshot_name, snapshot_type, trigger_event, captured_at,
           portfolio_state, fund_metrics, created_by, metadata, tags
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id, metadata, tags
-      `, [
-        1, 'Tagged Snapshot', 'annual', 'scheduled', '2024-12-31T23:59:59Z',
-        '{}', '{}', 1, JSON.stringify(metadata), `{${tags.map(t => `"${t}"`).join(',')}}`
-      ]);
+      `,
+        [
+          1,
+          'Tagged Snapshot',
+          'annual',
+          'scheduled',
+          '2024-12-31T23:59:59Z',
+          '{}',
+          '{}',
+          1,
+          JSON.stringify(metadata),
+          `{${tags.map((t) => `"${t}"`).join(',')}}`,
+        ]
+      );
 
-      expect(JSON.parse(result.metadata)).toEqual(metadata);
-      expect(result.tags).toEqual(tags);
+      // Database mock returns objects directly, not JSON strings
+      const metadataData =
+        typeof result.metadata === 'string' ? JSON.parse(result.metadata) : result.metadata;
+
+      // PostgreSQL array format: {"item1","item2"} - parse if string
+      const tagsData =
+        typeof result.tags === 'string'
+          ? JSON.parse(result.tags.replace(/^{/, '[').replace(/}$/, ']'))
+          : result.tags;
+
+      expect(metadataData).toEqual(metadata);
+      expect(tagsData).toEqual(tags);
     });
   });
 
@@ -245,28 +331,46 @@ describe('Time-Travel Analytics Database Schema', () => {
 
     beforeEach(async () => {
       // Create base snapshots for comparison tests
-      const [baseSnapshot] = await db.execute(`
+      const [baseSnapshot] = await db.execute(
+        `
         INSERT INTO fund_state_snapshots (
           fund_id, snapshot_name, snapshot_type, trigger_event, captured_at,
           portfolio_state, fund_metrics, created_by
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id
-      `, [
-        1, 'Base Snapshot', 'quarterly', 'scheduled', '2024-09-30T23:59:59Z',
-        '{"totalValue": 1000000.00}', '{"irr": 0.12}', 1
-      ]);
+      `,
+        [
+          1,
+          'Base Snapshot',
+          'quarterly',
+          'scheduled',
+          '2024-09-30T23:59:59Z',
+          '{"totalValue": 1000000.00}',
+          '{"irr": 0.12}',
+          1,
+        ]
+      );
       baseSnapshotId = baseSnapshot.id;
 
-      const [compareSnapshot] = await db.execute(`
+      const [compareSnapshot] = await db.execute(
+        `
         INSERT INTO fund_state_snapshots (
           fund_id, snapshot_name, snapshot_type, trigger_event, captured_at,
           portfolio_state, fund_metrics, created_by
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id
-      `, [
-        1, 'Compare Snapshot', 'quarterly', 'scheduled', '2024-12-31T23:59:59Z',
-        '{"totalValue": 1200000.00}', '{"irr": 0.15}', 1
-      ]);
+      `,
+        [
+          1,
+          'Compare Snapshot',
+          'quarterly',
+          'scheduled',
+          '2024-12-31T23:59:59Z',
+          '{"totalValue": 1200000.00}',
+          '{"irr": 0.15}',
+          1,
+        ]
+      );
       compareSnapshotId = compareSnapshot.id;
     });
 
@@ -275,38 +379,43 @@ describe('Time-Travel Analytics Database Schema', () => {
         comparison_name: 'Q3 vs Q4 2024 Comparison',
         comparison_type: 'period_over_period',
         value_changes: {
-          totalValueChange: 200000.00,
-          totalValueChangePct: 0.20,
+          totalValueChange: 200000.0,
+          totalValueChangePct: 0.2,
           irrChange: 0.03,
-          multipleChange: 0.05
+          multipleChange: 0.05,
         },
         portfolio_changes: {
           newInvestments: 2,
           exits: 1,
-          valuationChanges: [
-            { companyId: 1, change: 100000.00, changePct: 0.25 }
-          ]
+          valuationChanges: [{ companyId: 1, change: 100000.0, changePct: 0.25 }],
         },
         insights: {
           topDrivers: ['Strong performance in TechCorp', 'Exit from LegacyCorp'],
           risks: ['Market volatility in Q4'],
-          recommendations: ['Increase allocation to tech sector']
+          recommendations: ['Increase allocation to tech sector'],
         },
-        created_by: 1
+        created_by: 1,
       };
 
-      const [result] = await db.execute(`
+      const [result] = await db.execute(
+        `
         INSERT INTO snapshot_comparisons (
           base_snapshot_id, compare_snapshot_id, comparison_name, comparison_type,
           value_changes, portfolio_changes, insights, created_by
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id
-      `, [
-        baseSnapshotId, compareSnapshotId, comparisonData.comparison_name,
-        comparisonData.comparison_type, JSON.stringify(comparisonData.value_changes),
-        JSON.stringify(comparisonData.portfolio_changes), JSON.stringify(comparisonData.insights),
-        comparisonData.created_by
-      ]);
+      `,
+        [
+          baseSnapshotId,
+          compareSnapshotId,
+          comparisonData.comparison_name,
+          comparisonData.comparison_type,
+          JSON.stringify(comparisonData.value_changes),
+          JSON.stringify(comparisonData.portfolio_changes),
+          JSON.stringify(comparisonData.insights),
+          comparisonData.created_by,
+        ]
+      );
 
       expect(result.id).toBeDefined();
       expect(typeof result.id).toBe('string'); // UUID
@@ -314,44 +423,63 @@ describe('Time-Travel Analytics Database Schema', () => {
 
     it('should enforce valid comparison_type enum', async () => {
       await expect(
-        db.execute(`
+        db.execute(
+          `
           INSERT INTO snapshot_comparisons (
             base_snapshot_id, compare_snapshot_id, comparison_name, comparison_type,
             value_changes, portfolio_changes, insights, created_by
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          baseSnapshotId, compareSnapshotId, 'Invalid Comparison', 'invalid_type',
-          '{}', '{}', '{}', 1
-        ])
+        `,
+          [
+            baseSnapshotId,
+            compareSnapshotId,
+            'Invalid Comparison',
+            'invalid_type',
+            '{}',
+            '{}',
+            '{}',
+            1,
+          ]
+        )
       ).rejects.toThrow();
     });
 
     it('should prevent comparison of snapshot with itself', async () => {
       await expect(
-        db.execute(`
+        db.execute(
+          `
           INSERT INTO snapshot_comparisons (
             base_snapshot_id, compare_snapshot_id, comparison_name, comparison_type,
             value_changes, portfolio_changes, insights, created_by
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          baseSnapshotId, baseSnapshotId, 'Self Comparison', 'point_in_time',
-          '{}', '{}', '{}', 1
-        ])
+        `,
+          [baseSnapshotId, baseSnapshotId, 'Self Comparison', 'point_in_time', '{}', '{}', '{}', 1]
+        )
       ).rejects.toThrow();
     });
 
     it('should validate confidence_score bounds (0.00 to 1.00)', async () => {
       // Test invalid confidence_score > 1.00
       await expect(
-        db.execute(`
+        db.execute(
+          `
           INSERT INTO snapshot_comparisons (
             base_snapshot_id, compare_snapshot_id, comparison_name, comparison_type,
             value_changes, portfolio_changes, insights, created_by, confidence_score
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          baseSnapshotId, compareSnapshotId, 'High Confidence Comparison', 'period_over_period',
-          '{}', '{}', '{}', 1, 1.50
-        ])
+        `,
+          [
+            baseSnapshotId,
+            compareSnapshotId,
+            'High Confidence Comparison',
+            'period_over_period',
+            '{}',
+            '{}',
+            '{}',
+            1,
+            1.5,
+          ]
+        )
       ).rejects.toThrow();
     });
   });
@@ -361,16 +489,16 @@ describe('Time-Travel Analytics Database Schema', () => {
 
     beforeEach(async () => {
       // Create snapshot for timeline events
-      const [snapshot] = await db.execute(`
+      const [snapshot] = await db.execute(
+        `
         INSERT INTO fund_state_snapshots (
           fund_id, snapshot_name, snapshot_type, trigger_event, captured_at,
           portfolio_state, fund_metrics, created_by
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id
-      `, [
-        1, 'Timeline Snapshot', 'milestone', 'manual', '2024-12-31T23:59:59Z',
-        '{}', '{}', 1
-      ]);
+      `,
+        [1, 'Timeline Snapshot', 'milestone', 'manual', '2024-12-31T23:59:59Z', '{}', '{}', 1]
+      );
       snapshotId = snapshot.id;
     });
 
@@ -383,31 +511,39 @@ describe('Time-Travel Analytics Database Schema', () => {
         event_data: {
           companyId: 1,
           companyName: 'TechCorp',
-          investmentAmount: 2000000.00,
-          valuation: 10000000.00,
-          ownership: 0.20,
-          round: 'Series A'
+          investmentAmount: 2000000.0,
+          valuation: 10000000.0,
+          ownership: 0.2,
+          round: 'Series A',
         },
         impact_metrics: {
-          portfolioValueImpact: 2000000.00,
-          ownershipIncrease: 0.20,
-          sectorAllocation: { technology: 0.45 }
+          portfolioValueImpact: 2000000.0,
+          ownershipIncrease: 0.2,
+          sectorAllocation: { technology: 0.45 },
         },
-        created_by: 1
+        created_by: 1,
       };
 
-      const [result] = await db.execute(`
+      const [result] = await db.execute(
+        `
         INSERT INTO timeline_events (
           fund_id, snapshot_id, event_type, event_title, event_description,
           event_date, event_data, impact_metrics, created_by
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id
-      `, [
-        1, snapshotId, eventData.event_type, eventData.event_title,
-        eventData.event_description, eventData.event_date,
-        JSON.stringify(eventData.event_data), JSON.stringify(eventData.impact_metrics),
-        eventData.created_by
-      ]);
+      `,
+        [
+          1,
+          snapshotId,
+          eventData.event_type,
+          eventData.event_title,
+          eventData.event_description,
+          eventData.event_date,
+          JSON.stringify(eventData.event_data),
+          JSON.stringify(eventData.impact_metrics),
+          eventData.created_by,
+        ]
+      );
 
       expect(result.id).toBeDefined();
       expect(typeof result.id).toBe('string'); // UUID
@@ -415,29 +551,50 @@ describe('Time-Travel Analytics Database Schema', () => {
 
     it('should enforce valid event_type enum', async () => {
       await expect(
-        db.execute(`
+        db.execute(
+          `
           INSERT INTO timeline_events (
             fund_id, snapshot_id, event_type, event_title, event_description,
             event_date, event_data, impact_metrics, created_by
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          1, snapshotId, 'invalid_type', 'Invalid Event', 'Test description',
-          '2024-12-31T12:00:00Z', '{}', '{}', 1
-        ])
+        `,
+          [
+            1,
+            snapshotId,
+            'invalid_type',
+            'Invalid Event',
+            'Test description',
+            '2024-12-31T12:00:00Z',
+            '{}',
+            '{}',
+            1,
+          ]
+        )
       ).rejects.toThrow();
     });
 
     it('should enforce valid severity enum', async () => {
       await expect(
-        db.execute(`
+        db.execute(
+          `
           INSERT INTO timeline_events (
             fund_id, snapshot_id, event_type, event_title, event_description,
             event_date, event_data, impact_metrics, created_by, severity
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          1, snapshotId, 'investment', 'Test Event', 'Test description',
-          '2024-12-31T12:00:00Z', '{}', '{}', 1, 'invalid_severity'
-        ])
+        `,
+          [
+            1,
+            snapshotId,
+            'investment',
+            'Test Event',
+            'Test description',
+            '2024-12-31T12:00:00Z',
+            '{}',
+            '{}',
+            1,
+            'invalid_severity',
+          ]
+        )
       ).rejects.toThrow();
     });
 
@@ -446,62 +603,80 @@ describe('Time-Travel Analytics Database Schema', () => {
         transaction: {
           id: 'TXN-2024-001',
           type: 'equity_investment',
-          amount: 5000000.00,
+          amount: 5000000.0,
           currency: 'USD',
-          exchangeRate: 1.0
+          exchangeRate: 1.0,
         },
         company: {
           id: 5,
           name: 'AI Innovations Inc',
           sector: 'Artificial Intelligence',
           stage: 'Series B',
-          location: 'San Francisco, CA'
+          location: 'San Francisco, CA',
         },
         terms: {
-          valuation: 25000000.00,
-          ownership: 0.20,
+          valuation: 25000000.0,
+          ownership: 0.2,
           liquidationPreference: '1x non-participating preferred',
           boardSeats: 1,
           proRataRights: true,
-          antiDilution: 'weighted average narrow'
+          antiDilution: 'weighted average narrow',
         },
         coinvestors: [
-          { name: 'Venture Partners LLC', amount: 3000000.00 },
-          { name: 'Strategic Investor Corp', amount: 2000000.00 }
-        ]
+          { name: 'Venture Partners LLC', amount: 3000000.0 },
+          { name: 'Strategic Investor Corp', amount: 2000000.0 },
+        ],
       };
 
       const impactMetrics = {
-        portfolioValueIncrease: 5000000.00,
+        portfolioValueIncrease: 5000000.0,
         ownershipDilution: 0.02,
         sectorRebalancing: {
           'AI/ML': 0.25,
-          'Technology': 0.40,
-          'Healthcare': 0.25,
-          'Other': 0.10
+          Technology: 0.4,
+          Healthcare: 0.25,
+          Other: 0.1,
         },
         riskProfile: 'medium-high',
         expectedExit: {
           timeframe: '5-7 years',
           estimatedMultiple: '5-10x',
-          exitStrategy: ['IPO', 'Strategic Acquisition']
-        }
+          exitStrategy: ['IPO', 'Strategic Acquisition'],
+        },
       };
 
-      const [result] = await db.execute(`
+      const [result] = await db.execute(
+        `
         INSERT INTO timeline_events (
           fund_id, snapshot_id, event_type, event_title, event_description,
           event_date, event_data, impact_metrics, created_by, severity
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id, event_data, impact_metrics
-      `, [
-        1, snapshotId, 'investment', 'Major Series B Investment',
-        'Led $5M Series B round in AI Innovations Inc', '2024-12-20T10:00:00Z',
-        JSON.stringify(complexEventData), JSON.stringify(impactMetrics), 1, 'high'
-      ]);
+      `,
+        [
+          1,
+          snapshotId,
+          'investment',
+          'Major Series B Investment',
+          'Led $5M Series B round in AI Innovations Inc',
+          '2024-12-20T10:00:00Z',
+          JSON.stringify(complexEventData),
+          JSON.stringify(impactMetrics),
+          1,
+          'high',
+        ]
+      );
 
-      expect(JSON.parse(result.event_data)).toEqual(complexEventData);
-      expect(JSON.parse(result.impact_metrics)).toEqual(impactMetrics);
+      // Database mock returns objects directly, not JSON strings
+      const eventDataData =
+        typeof result.event_data === 'string' ? JSON.parse(result.event_data) : result.event_data;
+      const impactMetricsData =
+        typeof result.impact_metrics === 'string'
+          ? JSON.parse(result.impact_metrics)
+          : result.impact_metrics;
+
+      expect(eventDataData).toEqual(complexEventData);
+      expect(impactMetricsData).toEqual(impactMetrics);
     });
   });
 
@@ -510,16 +685,16 @@ describe('Time-Travel Analytics Database Schema', () => {
 
     beforeEach(async () => {
       // Create snapshot for restoration tests
-      const [snapshot] = await db.execute(`
+      const [snapshot] = await db.execute(
+        `
         INSERT INTO fund_state_snapshots (
           fund_id, snapshot_name, snapshot_type, trigger_event, captured_at,
           portfolio_state, fund_metrics, created_by
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id
-      `, [
-        1, 'Restoration Snapshot', 'milestone', 'manual', '2024-12-31T23:59:59Z',
-        '{}', '{}', 1
-      ]);
+      `,
+        [1, 'Restoration Snapshot', 'milestone', 'manual', '2024-12-31T23:59:59Z', '{}', '{}', 1]
+      );
       snapshotId = snapshot.id;
     });
 
@@ -530,36 +705,45 @@ describe('Time-Travel Analytics Database Schema', () => {
         changes_applied: {
           portfolioChanges: 5,
           metricRecalculations: 3,
-          dataUpdates: ['valuations', 'ownership_percentages', 'metrics']
+          dataUpdates: ['valuations', 'ownership_percentages', 'metrics'],
         },
         before_state: {
-          totalValue: 1500000.00,
-          portfolioCount: 18
+          totalValue: 1500000.0,
+          portfolioCount: 18,
         },
         after_state: {
-          totalValue: 1200000.00,
-          portfolioCount: 15
+          totalValue: 1200000.0,
+          portfolioCount: 15,
         },
         affected_entities: {
           companies: [1, 2, 3],
-          metrics: ['irr', 'multiple', 'tvpi']
+          metrics: ['irr', 'multiple', 'tvpi'],
         },
         restoration_duration_ms: 2500,
-        initiated_by: 1
+        initiated_by: 1,
       };
 
-      const [result] = await db.execute(`
+      const [result] = await db.execute(
+        `
         INSERT INTO state_restoration_logs (
           fund_id, snapshot_id, restoration_type, reason, changes_applied,
           before_state, after_state, affected_entities, restoration_duration_ms, initiated_by
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id
-      `, [
-        1, snapshotId, restorationData.restoration_type, restorationData.reason,
-        JSON.stringify(restorationData.changes_applied), JSON.stringify(restorationData.before_state),
-        JSON.stringify(restorationData.after_state), JSON.stringify(restorationData.affected_entities),
-        restorationData.restoration_duration_ms, restorationData.initiated_by
-      ]);
+      `,
+        [
+          1,
+          snapshotId,
+          restorationData.restoration_type,
+          restorationData.reason,
+          JSON.stringify(restorationData.changes_applied),
+          JSON.stringify(restorationData.before_state),
+          JSON.stringify(restorationData.after_state),
+          JSON.stringify(restorationData.affected_entities),
+          restorationData.restoration_duration_ms,
+          restorationData.initiated_by,
+        ]
+      );
 
       expect(result.id).toBeDefined();
       expect(typeof result.id).toBe('string'); // UUID
@@ -567,40 +751,43 @@ describe('Time-Travel Analytics Database Schema', () => {
 
     it('should enforce valid restoration_type enum', async () => {
       await expect(
-        db.execute(`
+        db.execute(
+          `
           INSERT INTO state_restoration_logs (
             fund_id, snapshot_id, restoration_type, reason, changes_applied,
             before_state, after_state, affected_entities, initiated_by
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          1, snapshotId, 'invalid_type', 'Test reason', '{}', '{}', '{}', '{}', 1
-        ])
+        `,
+          [1, snapshotId, 'invalid_type', 'Test reason', '{}', '{}', '{}', '{}', 1]
+        )
       ).rejects.toThrow();
     });
 
     it('should enforce valid status enum', async () => {
       await expect(
-        db.execute(`
+        db.execute(
+          `
           INSERT INTO state_restoration_logs (
             fund_id, snapshot_id, restoration_type, reason, changes_applied,
             before_state, after_state, affected_entities, initiated_by, status
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          1, snapshotId, 'full', 'Test reason', '{}', '{}', '{}', '{}', 1, 'invalid_status'
-        ])
+        `,
+          [1, snapshotId, 'full', 'Test reason', '{}', '{}', '{}', '{}', 1, 'invalid_status']
+        )
       ).rejects.toThrow();
     });
 
     it('should enforce restoration_duration_ms >= 0 constraint', async () => {
       await expect(
-        db.execute(`
+        db.execute(
+          `
           INSERT INTO state_restoration_logs (
             fund_id, snapshot_id, restoration_type, reason, changes_applied,
             before_state, after_state, affected_entities, restoration_duration_ms, initiated_by
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          1, snapshotId, 'full', 'Test reason', '{}', '{}', '{}', '{}', -100, 1
-        ])
+        `,
+          [1, snapshotId, 'full', 'Test reason', '{}', '{}', '{}', '{}', -100, 1]
+        )
       ).rejects.toThrow();
     });
   });
@@ -631,28 +818,47 @@ describe('Time-Travel Analytics Database Schema', () => {
     it('should enforce foreign key relationships', async () => {
       // Test invalid fund_id reference
       await expect(
-        db.execute(`
+        db.execute(
+          `
           INSERT INTO fund_state_snapshots (
             fund_id, snapshot_name, snapshot_type, trigger_event, captured_at,
             portfolio_state, fund_metrics, created_by
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          99999, 'Invalid Fund Snapshot', 'manual', 'manual', '2024-12-31T23:59:59Z',
-          '{}', '{}', 1
-        ])
+        `,
+          [
+            99999,
+            'Invalid Fund Snapshot',
+            'manual',
+            'manual',
+            '2024-12-31T23:59:59Z',
+            '{}',
+            '{}',
+            1,
+          ]
+        )
       ).rejects.toThrow();
 
       // Test invalid snapshot_id reference in timeline_events
       await expect(
-        db.execute(`
+        db.execute(
+          `
           INSERT INTO timeline_events (
             fund_id, snapshot_id, event_type, event_title, event_description,
             event_date, event_data, impact_metrics, created_by
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          1, '00000000-0000-0000-0000-000000000000', 'investment', 'Invalid Snapshot Event',
-          'Test description', '2024-12-31T12:00:00Z', '{}', '{}', 1
-        ])
+        `,
+          [
+            1,
+            '00000000-0000-0000-0000-000000000000',
+            'investment',
+            'Invalid Snapshot Event',
+            'Test description',
+            '2024-12-31T12:00:00Z',
+            '{}',
+            '{}',
+            1,
+          ]
+        )
       ).rejects.toThrow();
     });
   });
@@ -662,18 +868,33 @@ describe('Time-Travel Analytics Database Schema', () => {
       // Most databases will reject invalid JSON, but let's test with valid JSON structure
       const validJson = { test: 'value' };
 
-      const [result] = await db.execute(`
+      const [result] = await db.execute(
+        `
         INSERT INTO fund_state_snapshots (
           fund_id, snapshot_name, snapshot_type, trigger_event, captured_at,
           portfolio_state, fund_metrics, created_by
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id, portfolio_state
-      `, [
-        1, 'JSON Test Snapshot', 'manual', 'manual', '2024-12-31T23:59:59Z',
-        JSON.stringify(validJson), '{}', 1
-      ]);
+      `,
+        [
+          1,
+          'JSON Test Snapshot',
+          'adhoc',
+          'scheduled',
+          '2024-12-31T23:59:59Z',
+          JSON.stringify(validJson),
+          '{}',
+          1,
+        ]
+      );
 
-      expect(JSON.parse(result.portfolio_state)).toEqual(validJson);
+      // Database mock returns objects directly, not JSON strings
+      const portfolioStateData =
+        typeof result.portfolio_state === 'string'
+          ? JSON.parse(result.portfolio_state)
+          : result.portfolio_state;
+
+      expect(portfolioStateData).toEqual(validJson);
     });
 
     it('should handle deeply nested JSON structures', async () => {
@@ -684,26 +905,41 @@ describe('Time-Travel Analytics Database Schema', () => {
               level4: {
                 level5: {
                   data: 'deep value',
-                  array: [1, 2, 3, { nested: true }]
-                }
-              }
-            }
-          }
-        }
+                  array: [1, 2, 3, { nested: true }],
+                },
+              },
+            },
+          },
+        },
       };
 
-      const [result] = await db.execute(`
+      const [result] = await db.execute(
+        `
         INSERT INTO fund_state_snapshots (
           fund_id, snapshot_name, snapshot_type, trigger_event, captured_at,
           portfolio_state, fund_metrics, created_by
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id, portfolio_state
-      `, [
-        1, 'Deep JSON Snapshot', 'manual', 'manual', '2024-12-31T23:59:59Z',
-        JSON.stringify(deeplyNested), '{}', 1
-      ]);
+      `,
+        [
+          1,
+          'Deep JSON Snapshot',
+          'adhoc',
+          'scheduled',
+          '2024-12-31T23:59:59Z',
+          JSON.stringify(deeplyNested),
+          '{}',
+          1,
+        ]
+      );
 
-      expect(JSON.parse(result.portfolio_state)).toEqual(deeplyNested);
+      // Database mock returns objects directly, not JSON strings
+      const portfolioStateData =
+        typeof result.portfolio_state === 'string'
+          ? JSON.parse(result.portfolio_state)
+          : result.portfolio_state;
+
+      expect(portfolioStateData).toEqual(deeplyNested);
     });
   });
 });

@@ -38,14 +38,23 @@ vi.mock('../../../server/middleware/idempotency', () => ({
 }));
 
 // Mock shared utilities
-vi.mock('@shared/number', () => ({
-  toNumber: (value: string, name: string, _options?: any) => {
-    const num = parseInt(value);
-    if (isNaN(num)) throw new Error(`Invalid ${name}`);
-    return num;
-  },
-  NumberParseError: class NumberParseError extends Error {},
-}));
+vi.mock('@shared/number', () => {
+  class NumberParseErrorMock extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'NumberParseError';
+    }
+  }
+
+  return {
+    toNumber: (value: string, name: string, _options?: any) => {
+      const num = parseInt(value);
+      if (isNaN(num)) throw new NumberParseErrorMock(`Invalid ${name}`);
+      return num;
+    },
+    NumberParseError: NumberParseErrorMock,
+  };
+});
 
 // Import the mocked service and router after mocking
 import { varianceTrackingService as mockVarianceTrackingService } from '../../../server/services/variance-tracking';
@@ -379,7 +388,12 @@ describe('Variance Tracking API', () => {
       });
 
       it('should handle missing report ID', async () => {
-        const _response = await request(app).get('/api/funds/1/variance-reports/').expect(404); // Express router would return 404
+        // Test that trailing slash matches the list endpoint (GET /api/funds/:id/variance-reports)
+        // instead of the specific report endpoint
+        const response = await request(app).get('/api/funds/1/variance-reports/').expect(200);
+        // This should return the list endpoint response
+        expect(response.body.success).toBe(true);
+        expect(response.body.message).toBe('Variance reports endpoint implemented');
       });
     });
   });
@@ -601,7 +615,7 @@ describe('Variance Tracking API', () => {
         mockVarianceTrackingService.performCompleteVarianceAnalysis.mockResolvedValue(mockResult);
 
         const analysisData = {
-          baselineId: 'baseline-123',
+          baselineId: '00000000-0000-0000-0000-000000000123',
           reportName: 'Complete Analysis Report',
         };
 
@@ -618,7 +632,7 @@ describe('Variance Tracking API', () => {
 
         expect(mockVarianceTrackingService.performCompleteVarianceAnalysis).toHaveBeenCalledWith({
           fundId: 1,
-          baselineId: 'baseline-123',
+          baselineId: '00000000-0000-0000-0000-000000000123',
           reportName: 'Complete Analysis Report',
           userId: 1,
         });
@@ -716,13 +730,17 @@ describe('Variance Tracking API', () => {
   });
 
   describe('Authentication and Authorization', () => {
-    it('should require authentication for creating baselines', async () => {
-      // Override middleware to simulate no auth
-      app.use((req: any, res, next) => {
-        req.user = undefined;
-        next();
-      });
+    let unauthApp: express.Express;
 
+    beforeEach(() => {
+      // Create app without authentication middleware
+      unauthApp = express();
+      unauthApp.use(express.json());
+      // Don't add req.user middleware
+      unauthApp.use(varianceRouter);
+    });
+
+    it('should require authentication for creating baselines', async () => {
       const baselineData = {
         name: 'Test Baseline',
         baselineType: 'quarterly',
@@ -730,7 +748,7 @@ describe('Variance Tracking API', () => {
         periodEnd: '2024-12-31T23:59:59Z',
       };
 
-      const response = await request(app)
+      const response = await request(unauthApp)
         .post('/api/funds/1/baselines')
         .send(baselineData)
         .expect(401);
@@ -739,13 +757,7 @@ describe('Variance Tracking API', () => {
     });
 
     it('should require authentication for alert operations', async () => {
-      // Override middleware to simulate no auth
-      app.use((req: any, res, next) => {
-        req.user = undefined;
-        next();
-      });
-
-      const response = await request(app)
+      const response = await request(unauthApp)
         .post('/api/alerts/alert-123/acknowledge')
         .send({})
         .expect(401);

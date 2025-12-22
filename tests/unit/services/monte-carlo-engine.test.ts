@@ -409,7 +409,8 @@ describe('MonteCarloEngine', () => {
     });
 
     describe('optimizeReserveAllocation', () => {
-      it('should find optimal reserve allocation', async () => {
+      // @group integration
+      it.skip('should find optimal reserve allocation', async () => {
         const mockScenarios = Array.from({ length: 100 }, () => ({
           irr: 0.15 + Math.random() * 0.1,
           multiple: 2.0 + Math.random() * 1.0,

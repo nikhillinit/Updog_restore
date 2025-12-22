@@ -1,4 +1,12 @@
 /**
+ * TEMPLATE FILE - NOT FOR PRODUCTION TEST SUITE
+ *
+ * This file serves as a template for creating new portfolio route tests.
+ * Tests in this file are skipped by default.
+ *
+ * To use: Copy this file, remove .template suffix, and adapt tests.
+ */
+/**
  * Portfolio Route API Integration Tests Template
  *
  * This template demonstrates comprehensive testing patterns for the Portfolio Route API,
@@ -7,6 +15,7 @@
  *
  * Version: 1.0.0
  * Created: 2025-11-08
+ * @group template
  *
  * @module tests/api/portfolio-route.template.test
  */
@@ -15,8 +24,10 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from
 import express, { type Application } from 'express';
 import request from 'supertest';
 import { randomUUID } from 'crypto';
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { GenericContainer, type StartedTestContainer } from 'testcontainers';
+// NOTE: Testcontainers imports commented out to prevent module resolution errors
+// Uncomment when using this template
+// import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+// import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
@@ -49,13 +60,14 @@ import {
 // =====================
 
 /**
- * @group integration
+ * @group template
  * Testcontainers integration test template - requires Docker
  */
 describe.skip('Portfolio Route API - Integration Tests', () => {
   // Testcontainers instances
-  let pgContainer: StartedPostgreSqlContainer;
-  let redisContainer: StartedTestContainer;
+  // NOTE: Type annotations commented to prevent module resolution errors
+  let pgContainer: any; // StartedPostgreSqlContainer
+  let redisContainer: any; // StartedTestContainer
 
   // Database and queue clients
   let db: NodePgDatabase;
@@ -74,6 +86,9 @@ describe.skip('Portfolio Route API - Integration Tests', () => {
   // =====================
 
   beforeAll(async () => {
+    // NOTE: Container startup code commented to prevent module resolution errors
+    // Uncomment when using this template
+    /*
     // Start PostgreSQL container
     pgContainer = await new PostgreSqlContainer('postgres:16-alpine')
       .withDatabase('updog_test')
@@ -84,6 +99,7 @@ describe.skip('Portfolio Route API - Integration Tests', () => {
 
     // Start Redis container
     redisContainer = await new GenericContainer('redis:7-alpine').withExposedPorts(6379).start();
+    */
 
     // Initialize database connection
     const connectionString = pgContainer.getConnectionUri();
