@@ -10,7 +10,11 @@ router["post"]("/csp-violations", (req: any, res: any) => {
     console.warn("[CSP] violation", body);
     cspMetrics.violations.inc?.();
     // TODO: forward to logs/metrics sink
-  } catch {}
+  } catch (error) {
+    // Log CSP report processing errors but don't fail the request
+    // CSP reports are fire-and-forget from the browser
+    console.error("[CSP] Failed to process violation report:", error instanceof Error ? error.message : String(error));
+  }
   res.sendStatus(204);
 });
 

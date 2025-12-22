@@ -1,22 +1,27 @@
 /**
- * Export Utilities - Centralized Stubs
+ * Export Utilities - Centralized exports for data export functionality
  *
- * Temporarily stubbed for initial testing phase.
- * Full XLSX integration will be restored after core features are validated.
- *
- * Status: DEV MODE - Functions log warnings instead of executing
- * TODO: Restore full functionality after Phase 3 smoke tests pass
+ * Provides Excel and CSV export capabilities with security protections
+ * against formula injection attacks.
  */
 
+import { exportXlsx, exportCsv } from '../exporters';
+import { exportReserves as exportReserveData, type ExportData, type ExportOptions } from '../export-reserves';
+
 /**
- * Export reserve data to Excel format
+ * Export reserve data to Excel or CSV format
  * @param data - Reserve data to export
+ * @param options - Export configuration options
  * @returns Promise that resolves when export completes
  */
-export async function exportReserves(data?: unknown): Promise<void> {
-  console.warn('[dev] Export feature temporarily disabled - will be restored after core testing');
-  console.log('[dev] Would export data:', data ? 'data present' : 'no data');
-  return Promise.resolve();
+export async function exportReserves(data: ExportData, options?: Partial<ExportOptions>): Promise<void> {
+  const defaultOptions: ExportOptions = {
+    format: 'excel',
+    includeMetadata: true,
+    includeSummary: true,
+    ...options,
+  };
+  return exportReserveData(data, defaultOptions);
 }
 
 /**
@@ -25,16 +30,51 @@ export async function exportReserves(data?: unknown): Promise<void> {
  * @param filename - Target filename
  * @returns Promise that resolves when export completes
  */
-export async function exportToExcel(data?: unknown[], filename?: string): Promise<void> {
-  console.warn('[dev] Export to Excel temporarily disabled');
-  console.log('[dev] Would export to:', filename || 'export.xlsx');
-  return Promise.resolve();
+export async function exportToExcel(data: unknown[], filename = 'export.xlsx'): Promise<void> {
+  return exportXlsx(data, filename);
 }
 
 /**
- * Export portfolio data
+ * Generic CSV export function
+ * @param data - Array of data to export
+ * @param filename - Target filename
+ * @returns Promise that resolves when export completes
  */
-export async function exportPortfolio(data?: unknown): Promise<void> {
-  console.warn('[dev] Portfolio export temporarily disabled');
-  return Promise.resolve();
+export async function exportToCsv(data: unknown[], filename = 'export.csv'): Promise<void> {
+  return exportCsv(data, filename);
 }
+
+/**
+ * Export portfolio data to Excel
+ * @param portfolioData - Portfolio companies data
+ * @param filename - Target filename
+ */
+export async function exportPortfolio(
+  portfolioData: Array<{
+    name: string;
+    sector?: string;
+    stage?: string;
+    investmentAmount?: number;
+    currentValuation?: number;
+    [key: string]: unknown;
+  }>,
+  filename = 'portfolio-export.xlsx'
+): Promise<void> {
+  // Transform portfolio data for export
+  const exportRows = portfolioData.map((company) => ({
+    'Company Name': company.name,
+    'Sector': company.sector || 'N/A',
+    'Stage': company.stage || 'N/A',
+    'Investment Amount': company.investmentAmount || 0,
+    'Current Valuation': company.currentValuation || 0,
+    ...Object.fromEntries(
+      Object.entries(company)
+        .filter(([key]) => !['name', 'sector', 'stage', 'investmentAmount', 'currentValuation'].includes(key))
+    ),
+  }));
+
+  return exportXlsx(exportRows, filename);
+}
+
+// Re-export types for consumers
+export type { ExportData, ExportOptions } from '../export-reserves';

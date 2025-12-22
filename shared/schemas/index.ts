@@ -17,5 +17,8 @@ export * from './extended-fund-model';
 // Portfolio API schemas
 export * from './portfolio-route';
 
+// Stage normalization utilities
+export * from './parse-stage-distribution';
+
 // Re-export Decimal for convenience
 export { Decimal } from 'decimal.js';

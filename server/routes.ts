@@ -19,6 +19,7 @@ import { recordHttpMetrics } from "./metrics";
 import { toNumber, NumberParseError } from "@shared/number";
 import type { ReserveInput, PacingInput, CohortInput, ApiError, ReserveSummary, PacingSummary, CohortSummary } from "@shared/types";
 import { monitor } from "./middleware/performance-monitor.js";
+import { config } from "./config/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -50,6 +51,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Performance monitoring routes
   const performanceRoutes = await import('./routes/performance-metrics.js');
   app.use('/api/performance', performanceRoutes.default);
+
+  // Server-Sent Events (SSE) routes for real-time updates
+  const sseRoutes = await import('./routes/sse-events.js');
+  app.use('/', sseRoutes.default);
 
   // Reallocation routes (Phase 1b)
   const reallocationRoutes = await import('./routes/reallocation.js');
@@ -652,7 +657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const vintageYearQuery = req.query.vintageYear;
       const cohortSizeQuery = req.query.cohortSize;
       
-      let fundId = 1; // Default fund
+      let fundId = config.DEFAULT_FUND_ID; // Default fund (from env config)
       let vintageYear = new Date().getFullYear() - 1; // Default to last year
       let cohortSize = 10; // Default cohort size
       

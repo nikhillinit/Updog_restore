@@ -17,15 +17,15 @@ import { db } from '../db';
 import { portfolioCompanies } from '@shared/schema';
 import { eq, and, lt, sql, desc, asc } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
-// TODO: Re-enable when stage-normalization PR is merged
-// import { normalizeInvestmentStage } from '@shared/schemas/investment-stages';
-// import { getStageValidationMode } from '../lib/stage-validation-mode';
-// import {
-//   recordValidationDuration,
-//   recordValidationSuccess,
-//   recordUnknownStage,
-// } from '../observability/stage-metrics';
-// import { setStageWarningHeaders } from '../middleware/deprecation-headers';
+// Stage normalization and validation
+import { normalizeStage, CANONICAL_STAGES } from '@shared/schemas/parse-stage-distribution';
+import { getStageValidationMode } from '../lib/stage-validation-mode';
+import {
+  recordValidationDuration,
+  recordValidationSuccess,
+  recordUnknownStage,
+} from '../observability/stage-metrics';
+import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 
 const router = Router();
 
@@ -371,46 +371,36 @@ router["get"]('/funds/:fundId/companies', asyncHandler(async (req: Request, res:
 
   const query = queryResult.data;
 
-  // TODO: Re-enable when stage-normalization PR is merged
   // Validate and normalize stage filter if provided
   let normalizedStage: string | undefined;
   if (query.stage) {
-    // Temporarily disabled - requires stage-normalization dependencies
-    normalizedStage = query.stage; // Pass-through without validation
-    /*
-    const startTime = performance.now();
-    const result = normalizeInvestmentStage(query.stage);
-    const duration = (performance.now() - startTime) / 1000;
+    const validationStart = performance.now();
+    const normalized = normalizeStage(query.stage);
+    const duration = (performance.now() - validationStart) / 1000;
     recordValidationDuration('GET /api/funds/:fundId/companies', duration);
 
-    if (!result.ok) {
-      const mode = getStageValidationMode();
+    if (!normalized) {
+      const mode = await getStageValidationMode();
       recordUnknownStage('GET /api/funds/:fundId/companies', mode);
       setStageWarningHeaders(res, [query.stage]);
 
       if (mode === 'enforce') {
-        return res.status(400).json({
+        return res["status"](400)["json"]({
           error: 'invalid_query_parameters',
           message: 'Invalid investment stage in query parameters',
           details: {
             code: 'INVALID_STAGE',
             invalid: [query.stage],
-            validStages: [
-              'pre-seed',
-              'seed',
-              'series-a',
-              'series-b',
-              'series-c',
-              'series-c+',
-            ],
+            validStages: [...CANONICAL_STAGES],
           }
         });
       }
+      // In 'warn' mode, pass through the original stage value
+      normalizedStage = query.stage;
     } else {
-      normalizedStage = result.value;
+      normalizedStage = normalized;
       recordValidationSuccess('GET /api/funds/:fundId/companies');
     }
-    */
   }
 
   // Build WHERE conditions
