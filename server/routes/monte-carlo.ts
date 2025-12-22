@@ -25,14 +25,8 @@ import {
   isQueueInitialized,
   subscribeToJob,
 } from '../queues/simulation-queue';
-// TODO: Re-enable when stage-normalization PR is merged
-// import { parseStageDistribution } from '@shared/schemas/parse-stage-distribution';
-// import { getStageValidationMode } from '../lib/stage-validation-mode';
-// import {
-//   recordValidationDuration,
-//   recordValidationSuccess,
-//   recordUnknownStage,
-// } from '../observability/stage-metrics';
+import { parseStageDistribution, CANONICAL_STAGES } from '@shared/schemas/parse-stage-distribution';
+import { getStageValidationMode } from '../lib/stage-validation-mode';
 // import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 
 const router = Router();
@@ -171,49 +165,36 @@ router["post"]('/simulate', validateRequest(simulationConfigSchema), async (req:
   const correlationId = req.headers['x-correlation-id'] as string || `sim_${Date.now()}`;
 
   try {
-    // TODO: Re-enable when stage-normalization PR is merged
     // Validate stage distribution if provided in simulation config
-    let normalizedStages: any = null;
+    let normalizedStages: Record<string, number> | null = null;
     if (req.body.stageDistribution) {
-      // Temporarily disabled - requires stage-normalization dependencies
-      normalizedStages = req.body.stageDistribution; // Pass-through without validation
-      /*
-      const startTime = performance.now();
-      const { normalized, invalidInputs, suggestions } = parseStageDistribution(
+      const { normalized, invalidInputs, suggestions, isValid, errors } = parseStageDistribution(
         req.body.stageDistribution
       );
-      const duration = (performance.now() - startTime) / 1000;
-      recordValidationDuration('POST /api/monte-carlo/simulate', duration);
 
       if (invalidInputs.length > 0) {
-        const mode = getStageValidationMode();
-        recordUnknownStage('POST /api/monte-carlo/simulate', mode);
-        setStageWarningHeaders(res, invalidInputs);
+        const mode = await getStageValidationMode();
+        // Add warning header for deprecated/invalid stage names
+        res.setHeader('X-Stage-Warning', `Unknown stages: ${invalidInputs.join(', ')}`);
 
         if (mode === 'enforce') {
-          return res.status(400).json({
+          return res["status"](400)["json"]({
             error: 'INVALID_STAGE_DISTRIBUTION',
             message: 'Unknown investment stage(s) in stageDistribution.',
             details: {
               invalid: invalidInputs,
               suggestions,
-              validStages: [
-                'pre-seed',
-                'seed',
-                'series-a',
-                'series-b',
-                'series-c',
-                'series-c+',
-              ],
+              validStages: [...CANONICAL_STAGES],
+              errors,
             },
             correlationId,
           });
         }
+        // In 'warn' mode, log but continue with normalized values
+        console.warn(`[MONTE_CARLO] Unknown stage names in ${correlationId}: ${invalidInputs.join(', ')}`);
       }
 
       normalizedStages = normalized;
-      recordValidationSuccess('POST /api/monte-carlo/simulate');
-      */
     }
 
     // Create simulation config with normalized stages if validation passed

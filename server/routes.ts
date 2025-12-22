@@ -52,6 +52,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const performanceRoutes = await import('./routes/performance-metrics.js');
   app.use('/api/performance', performanceRoutes.default);
 
+  // Server-Sent Events (SSE) routes for real-time updates
+  const sseRoutes = await import('./routes/sse-events.js');
+  app.use('/', sseRoutes.default);
+
   // Reallocation routes (Phase 1b)
   const reallocationRoutes = await import('./routes/reallocation.js');
   app.use(reallocationRoutes.default);

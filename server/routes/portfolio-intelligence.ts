@@ -17,15 +17,15 @@ import { positiveInt, bounded01, nonNegative } from '@shared/schema-helpers';
 import { toNumber, NumberParseError } from '@shared/number';
 import type { ApiError } from '@shared/types';
 import { portfolioIntelligenceService } from '../services/portfolio-intelligence-service';
-// TODO: Re-enable when stage-normalization PR is merged
-// import { parseStageDistribution } from '@shared/schemas/parse-stage-distribution';
-// import { getStageValidationMode } from '../lib/stage-validation-mode';
-// import {
-//   recordValidationDuration,
-//   recordValidationSuccess,
-//   recordUnknownStage,
-// } from '../observability/stage-metrics';
-// import { setStageWarningHeaders } from '../middleware/deprecation-headers';
+// Stage normalization and validation
+import { parseStageDistribution, CANONICAL_STAGES } from '@shared/schemas/parse-stage-distribution';
+import { getStageValidationMode } from '../lib/stage-validation-mode';
+import {
+  recordValidationDuration,
+  recordValidationSuccess,
+  recordUnknownStage,
+} from '../observability/stage-metrics';
+import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 
 // Type for portfolio storage
 type PortfolioStorage = {
@@ -274,55 +274,44 @@ router['post']('/api/portfolio/strategies', idempotency, async (req: Request, re
 
     const validatedData = validation.data;
 
-    // TODO: Re-enable when stage-normalization PR is merged
-    // Temporarily disabled - stage allocation validation requires stage-normalization dependencies
-    /*
     // Validate stage allocation using stage normalization
-    const startTime = performance.now();
-    const stageAllocationArray = Object.entries(data.stageAllocation || {}).map(([stage, weight]) => ({
-      stage,
-      weight,
-    }));
-    const { normalized, invalidInputs, suggestions, sum } = parseStageDistribution(
-      stageAllocationArray
-    );
-    const duration = (performance.now() - startTime) / 1000;
-    recordValidationDuration('POST /api/portfolio/strategies', duration);
+    let normalizedStageAllocation = validatedData.stageAllocation;
+    if (validatedData.stageAllocation && Object.keys(validatedData.stageAllocation).length > 0) {
+      const validationStart = performance.now();
+      // Convert stageAllocation to percentage format for parseStageDistribution
+      const stagePercentages: Record<string, number> = {};
+      for (const [stage, weight] of Object.entries(validatedData.stageAllocation)) {
+        stagePercentages[stage] = (weight as number) * 100; // Convert 0-1 to 0-100
+      }
+      const { normalized, invalidInputs, suggestions } = parseStageDistribution(stagePercentages);
+      const duration = (performance.now() - validationStart) / 1000;
+      recordValidationDuration('POST /api/portfolio/strategies', duration);
 
-    if (invalidInputs.length > 0) {
-      const mode = getStageValidationMode();
-      recordUnknownStage('POST /api/portfolio/strategies', mode);
-      setStageWarningHeaders(res, invalidInputs);
+      if (invalidInputs.length > 0) {
+        const mode = await getStageValidationMode();
+        recordUnknownStage('POST /api/portfolio/strategies', mode);
+        setStageWarningHeaders(res, invalidInputs);
 
-      if (mode === 'enforce') {
-        const error: ApiError = {
-          error: 'Invalid stage allocation',
-          message: 'Unknown investment stage(s) in stageAllocation.',
-          details: {
-            code: 'INVALID_STAGE',
-            invalid: invalidInputs,
-            suggestions,
-            validStages: [
-              'pre-seed',
-              'seed',
-              'series-a',
-              'series-b',
-              'series-c',
-              'series-c+',
-            ],
-          },
-        };
-        return res.status(400).json(error);
+        if (mode === 'enforce') {
+          const error: ApiError = {
+            error: 'Invalid stage allocation',
+            message: 'Unknown investment stage(s) in stageAllocation.',
+            details: {
+              code: 'INVALID_STAGE',
+              invalid: invalidInputs,
+              suggestions,
+              validStages: [...CANONICAL_STAGES],
+            },
+          };
+          return res['status'](400)['json'](error);
+        }
+      } else {
+        // Use normalized stage allocation if validation passed
+        normalizedStageAllocation = normalized;
+        recordValidationSuccess('POST /api/portfolio/strategies');
       }
     }
 
-    // Use normalized stage allocation if validation passed
-    if (Object.keys(normalized).length > 0) {
-      data.stageAllocation = normalized;
-    }
-
-    recordValidationSuccess('POST /api/portfolio/strategies');
-    */
     const userId = getUserId(req);
 
     if (!userId) {
@@ -344,7 +333,7 @@ router['post']('/api/portfolio/strategies', idempotency, async (req: Request, re
       targetDeploymentPeriodMonths: validatedData.targetDeploymentPeriodMonths,
       checkSizeRange: validatedData.checkSizeRange,
       sectorAllocation: validatedData.sectorAllocation,
-      stageAllocation: validatedData.stageAllocation,
+      stageAllocation: normalizedStageAllocation,
       geographicAllocation: validatedData.geographicAllocation,
       initialReservePercentage: String(validatedData.initialReservePercentage),
       followOnStrategy: validatedData.followOnStrategy,
