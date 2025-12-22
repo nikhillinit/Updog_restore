@@ -279,7 +279,7 @@ router["post"]('/api/portfolio/strategies', idempotency, async (req: Request, re
 
     recordValidationSuccess('POST /api/portfolio/strategies');
     */
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user && req.user.id ? parseInt(req.user.id, 10) : 0;
 
     if (!userId) {
       const error: ApiError = {
@@ -312,11 +312,11 @@ router["post"]('/api/portfolio/strategies', idempotency, async (req: Request, re
       data: item,
       message: 'Strategy model created successfully'
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Strategy creation error:', error);
     const apiError: ApiError = {
       error: 'Failed to create strategy',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: getErrorMessage(error)
     };
     res["status"](500)["json"](apiError);
   }
@@ -372,11 +372,11 @@ router['get']('/api/portfolio/strategies/:fundId', async (req: Request, res: Res
       data: strategies,
       count: strategies.length
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Strategies fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch strategies',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: getErrorMessage(error)
     };
     res["status"](500)["json"](apiError);
   }
@@ -407,7 +407,7 @@ router["put"]('/api/portfolio/strategies/:id', async (req: Request, res: Respons
       return res["status"](400)["json"](error);
     }
 
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user && req.user.id ? parseInt(req.user.id, 10) : 0;
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
@@ -428,11 +428,11 @@ router["put"]('/api/portfolio/strategies/:id', async (req: Request, res: Respons
       data: updatedStrategy,
       message: 'Strategy updated successfully'
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Strategy update error:', error);
     const apiError: ApiError = {
       error: 'Failed to update strategy',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: getErrorMessage(error)
     };
     res["status"](500)["json"](apiError);
   }
@@ -453,7 +453,7 @@ router["delete"]('/api/portfolio/strategies/:id', async (req: Request, res: Resp
       return res["status"](400)["json"](error);
     }
 
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user && req.user.id ? parseInt(req.user.id, 10) : 0;
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
@@ -469,11 +469,11 @@ router["delete"]('/api/portfolio/strategies/:id', async (req: Request, res: Resp
       success: true,
       message: 'Strategy deactivated successfully'
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Strategy deletion error:', error);
     const apiError: ApiError = {
       error: 'Failed to delete strategy',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: getErrorMessage(error)
     };
     res["status"](500)["json"](apiError);
   }
@@ -524,7 +524,7 @@ router["post"]('/api/portfolio/scenarios', idempotency, async (req: Request, res
 
     const validatedData = validation.data;
 
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user && req.user.id ? parseInt(req.user.id, 10) : 0;
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
@@ -549,11 +549,11 @@ router["post"]('/api/portfolio/scenarios', idempotency, async (req: Request, res
       data: item,
       message: 'Portfolio scenario created successfully'
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Scenario creation error:', error);
     const apiError: ApiError = {
       error: 'Failed to create scenario',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: getErrorMessage(error)
     };
     res["status"](500)["json"](apiError);
   }
@@ -579,9 +579,9 @@ router['get']('/api/portfolio/scenarios/:fundId', async (req: Request, res: Resp
       throw err;
     }
 
-    const scenarioType = req.query['scenarioType'] as string;
-    const status = req.query['status'] as string;
-    const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
+    const _scenarioType = req.query['scenarioType'] as string;
+    const _status = req.query['status'] as string;
+    const _limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
 
     // TODO: Implement database query
     const scenarios = [
@@ -600,11 +600,11 @@ router['get']('/api/portfolio/scenarios/:fundId', async (req: Request, res: Resp
       data: scenarios,
       count: scenarios.length
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Scenarios fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch scenarios',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: getErrorMessage(error)
     };
     res["status"](500)["json"](apiError);
   }
@@ -628,7 +628,7 @@ router["post"]('/api/portfolio/scenarios/compare', idempotency, async (req: Requ
 
     const validatedData = validation.data;
 
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user && req.user.id ? parseInt(req.user.id, 10) : 0;
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
@@ -651,11 +651,11 @@ router["post"]('/api/portfolio/scenarios/compare', idempotency, async (req: Requ
       data: item,
       message: 'Scenario comparison completed successfully'
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Scenario comparison error:', error);
     const apiError: ApiError = {
       error: 'Failed to compare scenarios',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: getErrorMessage(error)
     };
     res["status"](500)["json"](apiError);
   }
@@ -688,7 +688,7 @@ router["post"]('/api/portfolio/scenarios/:id/simulate', idempotency, async (req:
 
     const validatedData = validation.data;
 
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user && req.user.id ? parseInt(req.user.id, 10) : 0;
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
@@ -711,11 +711,11 @@ router["post"]('/api/portfolio/scenarios/:id/simulate', idempotency, async (req:
       data: item,
       message: 'Monte Carlo simulation completed successfully'
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Simulation error:', error);
     const apiError: ApiError = {
       error: 'Failed to run simulation',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: getErrorMessage(error)
     };
     res["status"](500)["json"](apiError);
   }
@@ -766,7 +766,7 @@ router["post"]('/api/portfolio/reserves/optimize', idempotency, async (req: Requ
 
     const validatedData = validation.data;
 
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user && req.user.id ? parseInt(req.user.id, 10) : 0;
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
@@ -789,11 +789,11 @@ router["post"]('/api/portfolio/reserves/optimize', idempotency, async (req: Requ
       data: item,
       message: 'Reserve optimization completed successfully'
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Reserve optimization error:', error);
     const apiError: ApiError = {
       error: 'Failed to optimize reserves',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: getErrorMessage(error)
     };
     res["status"](500)["json"](apiError);
   }
@@ -819,8 +819,8 @@ router['get']('/api/portfolio/reserves/strategies/:fundId', async (req: Request,
       throw err;
     }
 
-    const strategyType = req.query['strategyType'] as string;
-    const isActive = req.query['isActive'] === 'true' ? true : req.query['isActive'] === 'false' ? false : undefined;
+    const _strategyType = req.query['strategyType'] as string;
+    const _isActive = req.query['isActive'] === 'true' ? true : req.query['isActive'] === 'false' ? false : undefined;
 
     // TODO: Implement database query
     const strategies = [
@@ -840,11 +840,11 @@ router['get']('/api/portfolio/reserves/strategies/:fundId', async (req: Request,
       data: strategies,
       count: strategies.length
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Reserve strategies fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch reserve strategies',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: getErrorMessage(error)
     };
     res["status"](500)["json"](apiError);
   }
@@ -868,7 +868,7 @@ router["post"]('/api/portfolio/reserves/backtest', idempotency, async (req: Requ
 
     const validatedData = validation.data;
 
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user && req.user.id ? parseInt(req.user.id, 10) : 0;
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
@@ -890,11 +890,11 @@ router["post"]('/api/portfolio/reserves/backtest', idempotency, async (req: Requ
       data: item,
       message: 'Reserve strategy backtest completed successfully'
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Backtest error:', error);
     const apiError: ApiError = {
       error: 'Failed to run backtest',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: getErrorMessage(error)
     };
     res["status"](500)["json"](apiError);
   }
@@ -945,7 +945,7 @@ router["post"]('/api/portfolio/forecasts', idempotency, async (req: Request, res
 
     const validatedData = validation.data;
 
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user && req.user.id ? parseInt(req.user.id, 10) : 0;
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
@@ -970,11 +970,11 @@ router["post"]('/api/portfolio/forecasts', idempotency, async (req: Request, res
       data: item,
       message: 'Performance forecast generated successfully'
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Forecast generation error:', error);
     const apiError: ApiError = {
       error: 'Failed to generate forecast',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: getErrorMessage(error)
     };
     res["status"](500)["json"](apiError);
   }
@@ -995,8 +995,8 @@ router['get']('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: 
       return res["status"](400)["json"](error);
     }
 
-    const forecastType = req.query['forecastType'] as string;
-    const status = req.query['status'] as string;
+    const _forecastType = req.query['forecastType'] as string;
+    const _status = req.query['status'] as string;
 
     // TODO: Implement database query
     const forecasts = [
@@ -1015,11 +1015,11 @@ router['get']('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: 
       data: forecasts,
       count: forecasts.length
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Forecasts fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch forecasts',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: getErrorMessage(error)
     };
     res["status"](500)["json"](apiError);
   }
@@ -1043,7 +1043,7 @@ router["post"]('/api/portfolio/forecasts/validate', async (req: Request, res: Re
 
     const validatedData = validation.data;
 
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user && req.user.id ? parseInt(req.user.id, 10) : 0;
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
@@ -1064,11 +1064,11 @@ router["post"]('/api/portfolio/forecasts/validate', async (req: Request, res: Re
       data: item,
       message: 'Forecast validation completed successfully'
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Forecast validation error:', error);
     const apiError: ApiError = {
       error: 'Failed to validate forecast',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: getErrorMessage(error)
     };
     res["status"](500)["json"](apiError);
   }
@@ -1138,11 +1138,11 @@ router['get']('/api/portfolio/templates', async (req: Request, res: Response) =>
       data: filteredTemplates,
       count: filteredTemplates.length
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Templates fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch templates',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: getErrorMessage(error)
     };
     res["status"](500)["json"](apiError);
   }
@@ -1166,7 +1166,7 @@ router["post"]('/api/portfolio/quick-scenario', async (req: Request, res: Respon
 
     const validatedData = validation.data;
 
-    const userId = parseInt(req.user?.id || '0');
+    const userId = req.user && req.user.id ? parseInt(req.user.id, 10) : 0;
     if (!userId) {
       const error: ApiError = {
         error: 'Authentication required',
@@ -1191,11 +1191,11 @@ router["post"]('/api/portfolio/quick-scenario', async (req: Request, res: Respon
       data: item,
       message: 'Quick scenario generated successfully'
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Quick scenario error:', error);
     const apiError: ApiError = {
       error: 'Failed to generate quick scenario',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: getErrorMessage(error)
     };
     res["status"](500)["json"](apiError);
   }
@@ -1216,8 +1216,8 @@ router['get']('/api/portfolio/metrics/:scenarioId', async (req: Request, res: Re
       return res["status"](400)["json"](error);
     }
 
-    const metricType = req.query['metricType'] as string;
-    const timeRange = req.query['timeRange'] as string || '1y';
+    const _metricType = req.query['metricType'] as string;
+    const _timeRange = req.query['timeRange'] as string || '1y';
 
     // TODO: Implement real-time metrics calculation
     const metrics = {
@@ -1265,11 +1265,11 @@ router['get']('/api/portfolio/metrics/:scenarioId', async (req: Request, res: Re
         dataFreshness: 'real-time'
       }
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Metrics fetch error:', error);
     const apiError: ApiError = {
       error: 'Failed to fetch metrics',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: getErrorMessage(error)
     };
     res["status"](500)["json"](apiError);
   }
