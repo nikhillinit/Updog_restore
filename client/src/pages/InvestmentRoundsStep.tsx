@@ -254,7 +254,8 @@ export default function InvestmentRoundsStep() {
                             value={round.name}
                             onChange={(e) =>
                               handleUpdateRound(round.id, {
-                                name: e.target.value,
+                                name: e.target
+                                  .value as import('@/types/investment-rounds').StageName,
                               })
                             }
                             className={cn(
