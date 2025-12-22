@@ -147,10 +147,11 @@ export class CircuitBreakerCache implements Cache {
           this.successes = 0;
         }
         return v;
-      } catch {
+      } catch (error) {
         // Probe failed -> go back to OPEN and serve fallback
         this.failures++;
         this.toOpen(now);
+        console.debug('[circuit-breaker-cache] Half-open probe failed, returning to OPEN state:', error instanceof Error ? error.message : String(error));
         return this.fallbackStore.get<T>(key);
       } finally {
         this.halfOpenInFlight = Math.max(0, this.halfOpenInFlight - 1);
@@ -169,10 +170,13 @@ export class CircuitBreakerCache implements Cache {
       this.successes++;
       this.lastSuccessTime = now;
       return v;
-    } catch {
+    } catch (error) {
       this.failures++;
       this.lastFailureTime = now;
-      if (this.failures >= this.config.failureThreshold) this.toOpen(now);
+      if (this.failures >= this.config.failureThreshold) {
+        console.warn('[circuit-breaker-cache] Failure threshold reached, opening circuit:', error instanceof Error ? error.message : String(error));
+        this.toOpen(now);
+      }
       return this.fallbackStore.get<T>(key);
     }
   }
@@ -191,23 +195,25 @@ export class CircuitBreakerCache implements Cache {
   
   async delete(key: string): Promise<boolean> {
     let deleted = false;
-    
+
     // Try both stores
     if (this.state === 'closed') {
       try {
         deleted = await this.backingStore.delete(key);
-      } catch {
-        // Continue to fallback
+      } catch (error) {
+        // Continue to fallback, log for observability
+        console.debug('[circuit-breaker-cache] Primary store delete failed, trying fallback:', error instanceof Error ? error.message : String(error));
       }
     }
-    
+
     try {
       const fallbackDeleted = await this.fallbackStore.delete(key);
       deleted = deleted || fallbackDeleted;
-    } catch {
-      // Ignore fallback errors
+    } catch (error) {
+      // Fallback delete failed - log but don't fail
+      console.debug('[circuit-breaker-cache] Fallback store delete failed:', error instanceof Error ? error.message : String(error));
     }
-    
+
     return deleted;
   }
   
@@ -215,14 +221,17 @@ export class CircuitBreakerCache implements Cache {
     if (this.state === 'closed') {
       try {
         return await this.backingStore.keys();
-      } catch {
+      } catch (error) {
         // Fall back to fallback store
+        console.debug('[circuit-breaker-cache] Primary store keys() failed, trying fallback:', error instanceof Error ? error.message : String(error));
       }
     }
-    
+
     try {
       return await this.fallbackStore.keys();
-    } catch {
+    } catch (error) {
+      // Both stores failed - log and return empty
+      console.warn('[circuit-breaker-cache] All stores failed for keys():', error instanceof Error ? error.message : String(error));
       return [];
     }
   }

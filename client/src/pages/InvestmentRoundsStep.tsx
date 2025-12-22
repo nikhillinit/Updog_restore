@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import { Plus, Trash2, ArrowLeft, ArrowRight, ChevronUp, ChevronDown, AlertCircl
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { useFundSelector, useFundAction } from '@/stores/useFundSelector';
+import type { StrategyStage } from '@/stores/fundStore';
 
 // Import business logic and types
 import { getDefaultRounds } from '@/lib/investment-round-defaults';
@@ -32,10 +34,29 @@ export default function InvestmentRoundsStep() {
   const [rounds, setRounds] = useState<InvestmentRound[]>(getDefaultRounds());
   const [summary, setSummary] = useState<RoundSummary | null>(null);
 
+  // Get the fromInvestmentStrategy action to sync data to fundStore
+  const fromInvestmentStrategy = useFundAction(s => s.fromInvestmentStrategy);
+
   // Calculate summary whenever rounds change
   useEffect(() => {
     setSummary(calculateRoundSummary(rounds));
   }, [rounds]);
+
+  // Sync rounds to fundStore whenever they change
+  // This enables other wizard steps (like CapitalStructure) to access investment round data
+  useEffect(() => {
+    // Convert InvestmentRound[] to StrategyStage format for fundStore
+    const stages: StrategyStage[] = rounds.map((round) => ({
+      id: round.id,
+      name: round.name,
+      graduate: round.graduationRate,
+      exit: round.exitRate,
+      months: round.monthsToGraduate,
+    }));
+
+    // Sync to fundStore (this persists to localStorage via zustand persist middleware)
+    fromInvestmentStrategy({ stages, sectorProfiles: [], allocations: [] });
+  }, [rounds, fromInvestmentStrategy]);
 
   // Validation for all rounds
   const validationErrors = useMemo(() => {

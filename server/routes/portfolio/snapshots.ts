@@ -7,8 +7,15 @@ import {
   ListSnapshotsRequestSchema,
   UpdateSnapshotRequestSchema,
 } from '../../../shared/schemas/portfolio-route.js';
+import {
+  SnapshotService,
+  SnapshotNotFoundError,
+  SnapshotVersionConflictError,
+  FundNotFoundError,
+} from '../../services/snapshot-service';
 
 const router = Router();
+const snapshotService = new SnapshotService();
 
 // ============================================================================
 // Validation Schemas (Path Params)
@@ -21,28 +28,6 @@ const FundIdParamSchema = z.object({
 const SnapshotIdParamSchema = z.object({
   snapshotId: z.string().uuid(),
 });
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Verify that a fund exists in the database.
- * Throws 404 error if fund not found.
- */
-async function verifyFundExists(_fundId: number): Promise<void> {
-  // TODO: Implement database query
-  throw new Error('Not implemented');
-}
-
-/**
- * Verify that a snapshot exists and optionally belongs to a specific fund.
- * Throws 404 error if snapshot not found.
- */
-async function verifySnapshotExists(_snapshotId: string, _fundId?: number): Promise<void> {
-  // TODO: Implement database query
-  throw new Error('Not implemented');
-}
 
 // ============================================================================
 // Route Handlers
@@ -68,21 +53,42 @@ router.post(
       });
     }
 
-    const { name: _name, idempotencyKey: _idempotencyKey } = bodyResult.data;
+    const { name, idempotencyKey } = bodyResult.data;
 
-    // 3. Verify fund exists
-    await verifyFundExists(fundId);
+    try {
+      // 3. Create snapshot using service
+      const snapshot = await snapshotService.create({
+        fundId,
+        name,
+        idempotencyKey,
+      });
 
-    // TODO: Implement snapshot creation logic
-    // - Check idempotency key (if provided)
-    // - Create snapshot record (status: pending)
-    // - Queue BullMQ job
-    // - Return 202 with snapshot ID
-
-    return res.status(501).json({
-      error: 'not_implemented',
-      message: 'Snapshot creation not yet implemented',
-    });
+      // Return 202 Accepted with location header for polling
+      return res.status(202).json({
+        success: true,
+        data: {
+          id: snapshot.id,
+          fundId: snapshot.fundId,
+          name: snapshot.name,
+          status: snapshot.status,
+          snapshotTime: snapshot.snapshotTime,
+          version: snapshot.version.toString(),
+        },
+        message: 'Snapshot creation initiated',
+        _links: {
+          self: `/api/snapshots/${snapshot.id}`,
+          poll: `/api/snapshots/${snapshot.id}`,
+        },
+      });
+    } catch (error) {
+      if (error instanceof FundNotFoundError) {
+        return res.status(404).json({
+          error: 'fund_not_found',
+          message: error.message,
+        });
+      }
+      throw error;
+    }
   })
 );
 
@@ -106,20 +112,41 @@ router.get(
       });
     }
 
-    const { cursor: _cursor, limit: _limit, status: _status } = queryResult.data;
+    const { cursor, limit, status } = queryResult.data;
 
-    // 3. Verify fund exists
-    await verifyFundExists(fundId);
+    try {
+      // 3. List snapshots using service
+      const result = await snapshotService.list(fundId, {
+        cursor,
+        limit,
+        status: status as 'pending' | 'calculating' | 'complete' | 'error' | undefined,
+      });
 
-    // TODO: Implement snapshot listing logic
-    // - Build query conditions (fundId, status filter, cursor)
-    // - Fetch limit+1 rows (detect hasMore)
-    // - Return paginated response
-
-    return res.status(501).json({
-      error: 'not_implemented',
-      message: 'Snapshot listing not yet implemented',
-    });
+      return res.json({
+        success: true,
+        data: result.snapshots.map((s) => ({
+          id: s.id,
+          fundId: s.fundId,
+          name: s.name,
+          status: s.status,
+          snapshotTime: s.snapshotTime,
+          version: s.version.toString(),
+          createdAt: s.createdAt,
+        })),
+        pagination: {
+          hasMore: result.hasMore,
+          ...(result.nextCursor ? { nextCursor: result.nextCursor } : {}),
+        },
+      });
+    } catch (error) {
+      if (error instanceof FundNotFoundError) {
+        return res.status(404).json({
+          error: 'fund_not_found',
+          message: error.message,
+        });
+      }
+      throw error;
+    }
   })
 );
 
@@ -133,18 +160,41 @@ router.get(
     // 1. Validate path params
     const { snapshotId } = SnapshotIdParamSchema.parse(req.params);
 
-    // 2. Verify snapshot exists
-    await verifySnapshotExists(snapshotId);
+    try {
+      // 2. Get snapshot using service
+      const snapshot = await snapshotService.getById(snapshotId);
 
-    // TODO: Implement snapshot retrieval logic
-    // - Fetch snapshot from database
-    // - If calculating: include progress from Redis
-    // - If not complete: include retryAfter
+      // Add retry-after header for incomplete snapshots
+      if (snapshot.status === 'pending' || snapshot.status === 'calculating') {
+        res.setHeader('Retry-After', '5');
+      }
 
-    return res.status(501).json({
-      error: 'not_implemented',
-      message: 'Snapshot retrieval not yet implemented',
-    });
+      return res.json({
+        success: true,
+        data: {
+          id: snapshot.id,
+          fundId: snapshot.fundId,
+          name: snapshot.name,
+          status: snapshot.status,
+          snapshotTime: snapshot.snapshotTime,
+          calculatedMetrics: snapshot.calculatedMetrics,
+          fundState: snapshot.fundState,
+          portfolioState: snapshot.portfolioState,
+          metricsState: snapshot.metricsState,
+          version: snapshot.version.toString(),
+          createdAt: snapshot.createdAt,
+          updatedAt: snapshot.updatedAt,
+        },
+      });
+    } catch (error) {
+      if (error instanceof SnapshotNotFoundError) {
+        return res.status(404).json({
+          error: 'snapshot_not_found',
+          message: error.message,
+        });
+      }
+      throw error;
+    }
   })
 );
 
@@ -168,26 +218,54 @@ router.put(
       });
     }
 
-    const {
-      name: _name,
-      status: _status,
-      calculatedMetrics: _calculatedMetrics,
-      version: _version,
-    } = bodyResult.data;
+    const { name, status, calculatedMetrics, version } = bodyResult.data;
 
-    // 3. Verify snapshot exists
-    await verifySnapshotExists(snapshotId);
+    // Version is required for optimistic locking
+    if (version === undefined) {
+      return res.status(400).json({
+        error: 'version_required',
+        message: 'Version field is required for optimistic locking',
+      });
+    }
 
-    // TODO: Implement snapshot update logic
-    // - Validate status transition (if status provided)
-    // - Update with WHERE version = ? clause
-    // - Check rowCount (if 0, return 409 Conflict)
-    // - Return updated snapshot
+    try {
+      // 3. Update snapshot using service
+      const snapshot = await snapshotService.update(snapshotId, {
+        name,
+        status: status as 'pending' | 'calculating' | 'complete' | 'error' | undefined,
+        calculatedMetrics,
+        version: BigInt(version),
+      });
 
-    return res.status(501).json({
-      error: 'not_implemented',
-      message: 'Snapshot update not yet implemented',
-    });
+      return res.json({
+        success: true,
+        data: {
+          id: snapshot.id,
+          fundId: snapshot.fundId,
+          name: snapshot.name,
+          status: snapshot.status,
+          snapshotTime: snapshot.snapshotTime,
+          calculatedMetrics: snapshot.calculatedMetrics,
+          version: snapshot.version.toString(),
+          updatedAt: snapshot.updatedAt,
+        },
+        message: 'Snapshot updated successfully',
+      });
+    } catch (error) {
+      if (error instanceof SnapshotNotFoundError) {
+        return res.status(404).json({
+          error: 'snapshot_not_found',
+          message: error.message,
+        });
+      }
+      if (error instanceof SnapshotVersionConflictError) {
+        return res.status(409).json({
+          error: 'version_conflict',
+          message: error.message,
+        });
+      }
+      throw error;
+    }
   })
 );
 

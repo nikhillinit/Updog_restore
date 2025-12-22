@@ -278,6 +278,20 @@ export const fundMetrics = pgTable("fund_metrics", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Fund Distributions - Cash distributions to LPs for IRR/DPI calculations
+export const fundDistributions = pgTable("fund_distributions", {
+  id: serial("id").primaryKey(),
+  fundId: integer("fund_id").references(() => funds.id).notNull(),
+  companyId: integer("company_id").references(() => portfolioCompanies.id),
+  distributionDate: timestamp("distribution_date").notNull(),
+  amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
+  distributionType: text("distribution_type").notNull().default("exit"), // 'exit', 'dividend', 'partial_sale', 'recapitalization'
+  description: text("description"),
+  isRecycled: boolean("is_recycled").default(false), // Whether proceeds were recycled into new investments
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: integer("created_by").references(() => users.id),
+});
+
 export const activities = pgTable("activities", {
   id: serial("id").primaryKey(),
   fundId: integer("fund_id").references(() => funds.id),
@@ -1731,3 +1745,144 @@ export const insertReallocationAuditSchema = createInsertSchema(reallocationAudi
 
 export type ReallocationAudit = typeof reallocationAudit.$inferSelect;
 export type InsertReallocationAudit = typeof reallocationAudit.$inferInsert;
+
+// ============================================================================
+// NOTION INTEGRATION TABLES
+// ============================================================================
+
+// Notion workspace connections - stores OAuth tokens and workspace info
+export const notionConnections = pgTable("notion_connections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: text("workspace_id").notNull().unique(),
+  workspaceName: text("workspace_name").notNull(),
+  accessToken: text("access_token").notNull(), // Encrypted
+  tokenType: text("token_type").notNull().default("bearer"),
+  botId: text("bot_id"),
+  ownerType: text("owner_type"), // 'user' or 'workspace'
+  ownerId: text("owner_id"),
+  duplicatedTemplateId: text("duplicated_template_id"),
+  status: text("status").notNull().default("active"), // 'active', 'revoked', 'expired'
+  scopes: jsonb("scopes").$type<string[]>(),
+  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table: any) => ({
+  workspaceIdx: index("idx_notion_connections_workspace")['on'](table.workspaceId),
+  statusIdx: index("idx_notion_connections_status")['on'](table.status),
+}));
+
+// Notion sync jobs - tracks data synchronization operations
+export const notionSyncJobs = pgTable("notion_sync_jobs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  connectionId: uuid("connection_id").references(() => notionConnections.id).notNull(),
+  fundId: integer("fund_id").references(() => funds.id),
+  syncType: text("sync_type").notNull(), // 'full', 'incremental', 'manual'
+  direction: text("direction").notNull().default("inbound"), // 'inbound', 'outbound', 'bidirectional'
+  status: text("status").notNull().default("pending"), // 'pending', 'running', 'completed', 'failed'
+  progress: integer("progress").default(0), // 0-100
+  itemsProcessed: integer("items_processed").default(0),
+  itemsCreated: integer("items_created").default(0),
+  itemsUpdated: integer("items_updated").default(0),
+  itemsFailed: integer("items_failed").default(0),
+  errorMessage: text("error_message"),
+  errorDetails: jsonb("error_details"),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table: any) => ({
+  connectionIdx: index("idx_notion_sync_jobs_connection")['on'](table.connectionId),
+  statusIdx: index("idx_notion_sync_jobs_status")['on'](table.status),
+  fundIdx: index("idx_notion_sync_jobs_fund")['on'](table.fundId),
+}));
+
+// Notion portfolio company configurations - integration settings per company
+export const notionPortfolioConfigs = pgTable("notion_portfolio_configs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  companyId: integer("company_id").references(() => portfolioCompanies.id).notNull(),
+  companyName: text("company_name").notNull(),
+  connectionId: uuid("connection_id").references(() => notionConnections.id),
+  integrationStatus: text("integration_status").notNull().default("pending_approval"), // 'pending_approval', 'active', 'suspended', 'disconnected'
+  sharedDatabases: jsonb("shared_databases").$type<Array<{
+    databaseId: string;
+    databaseName: string;
+    purpose: string;
+    accessLevel: string;
+  }>>(),
+  automationRules: jsonb("automation_rules").$type<Array<{
+    id: string;
+    trigger: string;
+    action: string;
+    isActive: boolean;
+  }>>(),
+  communicationSettings: jsonb("communication_settings").$type<{
+    allowNotifications: boolean;
+    notificationChannels: string[];
+    reportingSchedule: string;
+  }>(),
+  lastActivityAt: timestamp("last_activity_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table: any) => ({
+  companyIdx: index("idx_notion_portfolio_configs_company")['on'](table.companyId),
+  connectionIdx: index("idx_notion_portfolio_configs_connection")['on'](table.connectionId),
+  statusIdx: index("idx_notion_portfolio_configs_status")['on'](table.integrationStatus),
+}));
+
+// Notion database mappings - field-level mapping configuration
+export const notionDatabaseMappings = pgTable("notion_database_mappings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  connectionId: uuid("connection_id").references(() => notionConnections.id).notNull(),
+  notionDatabaseId: text("notion_database_id").notNull(),
+  notionDatabaseName: text("notion_database_name"),
+  mappingType: text("mapping_type").notNull(), // 'portfolio_company', 'investment', 'kpi', 'board_report'
+  fieldMappings: jsonb("field_mappings").$type<Array<{
+    notionField: string;
+    localField: string;
+    transform?: string;
+  }>>(),
+  syncEnabled: boolean("sync_enabled").default(true),
+  syncDirection: text("sync_direction").default("inbound"), // 'inbound', 'outbound', 'bidirectional'
+  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table: any) => ({
+  connectionIdx: index("idx_notion_database_mappings_connection")['on'](table.connectionId),
+  databaseIdx: index("idx_notion_database_mappings_database")['on'](table.notionDatabaseId),
+  typeIdx: index("idx_notion_database_mappings_type")['on'](table.mappingType),
+}));
+
+// Insert schemas for Notion tables
+export const insertNotionConnectionSchema = createInsertSchema(notionConnections).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertNotionSyncJobSchema = createInsertSchema(notionSyncJobs).omit({
+  id: true,
+  createdAt: true
+});
+
+export const insertNotionPortfolioConfigSchema = createInsertSchema(notionPortfolioConfigs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertNotionDatabaseMappingSchema = createInsertSchema(notionDatabaseMappings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+// Type exports for Notion tables
+export type NotionConnection = typeof notionConnections.$inferSelect;
+export type InsertNotionConnection = typeof notionConnections.$inferInsert;
+export type NotionSyncJob = typeof notionSyncJobs.$inferSelect;
+export type InsertNotionSyncJob = typeof notionSyncJobs.$inferInsert;
+export type NotionPortfolioConfig = typeof notionPortfolioConfigs.$inferSelect;
+export type InsertNotionPortfolioConfig = typeof notionPortfolioConfigs.$inferInsert;
+export type NotionDatabaseMapping = typeof notionDatabaseMappings.$inferSelect;
+export type InsertNotionDatabaseMapping = typeof notionDatabaseMappings.$inferInsert;

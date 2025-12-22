@@ -11,20 +11,21 @@ import type { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import idempotency from '../middleware/idempotency';
-// TODO: Apply security middleware once test infrastructure supports it
-// import { securityMiddlewareStack } from '../middleware/security';
+// DEFERRED: Security middleware disabled in tests (rate limiting conflicts with test expectations)
+// Enable when test mocking is implemented: import { securityMiddlewareStack } from '../middleware/security';
 import { positiveInt, bounded01, nonNegative } from '@shared/schema-helpers';
 import { toNumber, NumberParseError } from '@shared/number';
 import type { ApiError } from '@shared/types';
-// TODO: Re-enable when stage-normalization PR is merged
-// import { parseStageDistribution } from '@shared/schemas/parse-stage-distribution';
-// import { getStageValidationMode } from '../lib/stage-validation-mode';
-// import {
-//   recordValidationDuration,
-//   recordValidationSuccess,
-//   recordUnknownStage,
-// } from '../observability/stage-metrics';
-// import { setStageWarningHeaders } from '../middleware/deprecation-headers';
+import { portfolioIntelligenceService } from '../services/portfolio-intelligence-service';
+// Stage normalization and validation
+import { parseStageDistribution, CANONICAL_STAGES } from '@shared/schemas/parse-stage-distribution';
+import { getStageValidationMode } from '../lib/stage-validation-mode';
+import {
+  recordValidationDuration,
+  recordValidationSuccess,
+  recordUnknownStage,
+} from '../observability/stage-metrics';
+import { setStageWarningHeaders } from '../middleware/deprecation-headers';
 
 // Type for portfolio storage
 type PortfolioStorage = {
@@ -89,10 +90,9 @@ const getUserId = (req: Request): number => {
 
 const router = Router();
 
-// TODO: Apply security middleware once test infrastructure supports it
-// Security middleware (rate limiting, input sanitization, etc.) is disabled in tests
-// because it conflicts with test expectations (see portfolio-intelligence.test.ts lines 1049-1151)
-// router.use(securityMiddlewareStack);
+// DEFERRED: Security middleware disabled for test compatibility
+// Rate limiting conflicts with test expectations (see portfolio-intelligence.test.ts:1049-1151)
+// Enable when test mocking infrastructure is added: router.use(securityMiddlewareStack);
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -273,55 +273,44 @@ router['post']('/api/portfolio/strategies', idempotency, async (req: Request, re
 
     const validatedData = validation.data;
 
-    // TODO: Re-enable when stage-normalization PR is merged
-    // Temporarily disabled - stage allocation validation requires stage-normalization dependencies
-    /*
     // Validate stage allocation using stage normalization
-    const startTime = performance.now();
-    const stageAllocationArray = Object.entries(data.stageAllocation || {}).map(([stage, weight]) => ({
-      stage,
-      weight,
-    }));
-    const { normalized, invalidInputs, suggestions, sum } = parseStageDistribution(
-      stageAllocationArray
-    );
-    const duration = (performance.now() - startTime) / 1000;
-    recordValidationDuration('POST /api/portfolio/strategies', duration);
+    let normalizedStageAllocation = validatedData.stageAllocation;
+    if (validatedData.stageAllocation && Object.keys(validatedData.stageAllocation).length > 0) {
+      const validationStart = performance.now();
+      // Convert stageAllocation to percentage format for parseStageDistribution
+      const stagePercentages: Record<string, number> = {};
+      for (const [stage, weight] of Object.entries(validatedData.stageAllocation)) {
+        stagePercentages[stage] = (weight as number) * 100; // Convert 0-1 to 0-100
+      }
+      const { normalized, invalidInputs, suggestions } = parseStageDistribution(stagePercentages);
+      const duration = (performance.now() - validationStart) / 1000;
+      recordValidationDuration('POST /api/portfolio/strategies', duration);
 
-    if (invalidInputs.length > 0) {
-      const mode = getStageValidationMode();
-      recordUnknownStage('POST /api/portfolio/strategies', mode);
-      setStageWarningHeaders(res, invalidInputs);
+      if (invalidInputs.length > 0) {
+        const mode = await getStageValidationMode();
+        recordUnknownStage('POST /api/portfolio/strategies', mode);
+        setStageWarningHeaders(res, invalidInputs);
 
-      if (mode === 'enforce') {
-        const error: ApiError = {
-          error: 'Invalid stage allocation',
-          message: 'Unknown investment stage(s) in stageAllocation.',
-          details: {
-            code: 'INVALID_STAGE',
-            invalid: invalidInputs,
-            suggestions,
-            validStages: [
-              'pre-seed',
-              'seed',
-              'series-a',
-              'series-b',
-              'series-c',
-              'series-c+',
-            ],
-          },
-        };
-        return res.status(400).json(error);
+        if (mode === 'enforce') {
+          const error: ApiError = {
+            error: 'Invalid stage allocation',
+            message: 'Unknown investment stage(s) in stageAllocation.',
+            details: {
+              code: 'INVALID_STAGE',
+              invalid: invalidInputs,
+              suggestions,
+              validStages: [...CANONICAL_STAGES],
+            },
+          };
+          return res['status'](400)['json'](error);
+        }
+      } else {
+        // Use normalized stage allocation if validation passed
+        normalizedStageAllocation = normalized;
+        recordValidationSuccess('POST /api/portfolio/strategies');
       }
     }
 
-    // Use normalized stage allocation if validation passed
-    if (Object.keys(normalized).length > 0) {
-      data.stageAllocation = normalized;
-    }
-
-    recordValidationSuccess('POST /api/portfolio/strategies');
-    */
     const userId = getUserId(req);
 
     if (!userId) {
@@ -332,27 +321,34 @@ router['post']('/api/portfolio/strategies', idempotency, async (req: Request, re
       return res['status'](401)['json'](error);
     }
 
-    // TODO: Implement with actual database service
-    // const strategy = await portfolioIntelligenceService.strategies.create({
-    //   fundId: parsedFundId,
-    //   ...validatedData,
-    //   createdBy: userId
-    // });
-
-    const storage = getPortfolioStorage(req);
-    const item = {
-      id: randomUUID(),
+    // Persist strategy to database
+    const strategy = await portfolioIntelligenceService.strategies.create({
       fundId: parsedFundId,
-      ...validatedData,
+      name: validatedData.name,
+      description: validatedData.description,
+      modelType: validatedData.modelType,
+      targetPortfolioSize: validatedData.targetPortfolioSize,
+      maxPortfolioSize: validatedData.maxPortfolioSize,
+      targetDeploymentPeriodMonths: validatedData.targetDeploymentPeriodMonths,
+      checkSizeRange: validatedData.checkSizeRange,
+      sectorAllocation: validatedData.sectorAllocation,
+      stageAllocation: normalizedStageAllocation,
+      geographicAllocation: validatedData.geographicAllocation,
+      initialReservePercentage: String(validatedData.initialReservePercentage),
+      followOnStrategy: validatedData.followOnStrategy,
+      concentrationLimits: validatedData.concentrationLimits,
+      riskTolerance: validatedData.riskTolerance,
+      targetIrr: validatedData.targetIrr ? String(validatedData.targetIrr) : undefined,
+      targetMultiple: validatedData.targetMultiple ? String(validatedData.targetMultiple) : undefined,
+      targetDpi: validatedData.targetDpi ? String(validatedData.targetDpi) : undefined,
+      tags: validatedData.tags,
       createdBy: userId,
       isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    storage.strategies.set(item.id, item);
+    });
+
     res.status(201).json({
       success: true,
-      data: item,
+      data: strategy,
       message: 'Strategy model created successfully',
     });
   } catch (error: unknown) {
@@ -386,34 +382,21 @@ router['get']('/api/portfolio/strategies/:fundId', async (req: Request, res: Res
     }
 
     // Parse query parameters
-    // TODO: These will be used when database service is implemented
-    const _isActive =
+    const isActive =
       req.query['isActive'] === 'true'
         ? true
         : req.query['isActive'] === 'false'
           ? false
           : undefined;
-    const _modelType = req.query['modelType'] as string;
-    const _limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
+    const modelType = req.query['modelType'] as string | undefined;
+    const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
 
-    // TODO: Implement with actual database service
-    // const strategies = await portfolioIntelligenceService.strategies.getByFund(fundId, {
-    //   isActive: _isActive,
-    //   modelType: _modelType,
-    //   limit: _limit
-    // });
-
-    // Mock response for now
-    const strategies = [
-      {
-        id: 'strategy_1',
-        fundId,
-        name: 'Base Strategy',
-        modelType: 'strategic',
-        isActive: true,
-        createdAt: new Date().toISOString(),
-      },
-    ];
+    // Fetch strategies from database
+    const strategies = await portfolioIntelligenceService.strategies.getByFund(fundId, {
+      isActive,
+      modelType,
+      limit,
+    });
 
     res['json']({
       success: true,
@@ -464,12 +447,18 @@ router['put']('/api/portfolio/strategies/:id', async (req: Request, res: Respons
       return res['status'](401)['json'](error);
     }
 
-    // TODO: Implement update logic
-    const updatedStrategy = {
-      id: strategyId,
+    // Update strategy via service
+    const updatedStrategy = await portfolioIntelligenceService.strategies.update(strategyId, {
       ...validation.data,
-      updatedAt: new Date().toISOString(),
-    };
+    });
+
+    if (!updatedStrategy) {
+      const error: ApiError = {
+        error: 'Strategy not found',
+        message: `Strategy ${strategyId} does not exist`,
+      };
+      return res['status'](404)['json'](error);
+    }
 
     res['json']({
       success: true,
@@ -510,8 +499,16 @@ router['delete']('/api/portfolio/strategies/:id', async (req: Request, res: Resp
       return res['status'](401)['json'](error);
     }
 
-    // TODO: Implement soft delete (set isActive: false)
-    // await portfolioIntelligenceService.strategies.deactivate(strategyId, userId);
+    // Soft delete (set isActive: false) via service
+    const deactivated = await portfolioIntelligenceService.strategies.deactivate(strategyId);
+
+    if (!deactivated) {
+      const error: ApiError = {
+        error: 'Strategy not found',
+        message: `Strategy ${strategyId} does not exist`,
+      };
+      return res['status'](404)['json'](error);
+    }
 
     res['json']({
       success: true,
@@ -581,20 +578,27 @@ router['post']('/api/portfolio/scenarios', idempotency, async (req: Request, res
       return res['status'](401)['json'](error);
     }
 
-    const storage = getPortfolioStorage(req);
-    const item = {
-      id: randomUUID(),
+    // Persist scenario to database
+    const scenario = await portfolioIntelligenceService.scenarios.create({
       fundId: parsedFundId,
-      ...validatedData,
+      strategyModelId: validatedData.strategyModelId,
+      name: validatedData.name,
+      description: validatedData.description,
+      scenarioType: validatedData.scenarioType,
+      marketEnvironment: validatedData.marketEnvironment,
+      dealFlowAssumption: String(validatedData.dealFlowAssumption),
+      valuationEnvironment: String(validatedData.valuationEnvironment),
+      exitEnvironment: String(validatedData.exitEnvironment),
+      plannedInvestments: validatedData.plannedInvestments,
+      deploymentSchedule: validatedData.deploymentSchedule,
+      projectedFundMetrics: {}, // Will be populated by simulation
       status: 'draft',
       createdBy: userId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    storage.scenarios.set(item.id, item);
+    });
+
     res.status(201).json({
       success: true,
-      data: item,
+      data: scenario,
       message: 'Portfolio scenario created successfully',
     });
   } catch (error: unknown) {
@@ -627,21 +631,16 @@ router['get']('/api/portfolio/scenarios/:fundId', async (req: Request, res: Resp
       throw err;
     }
 
-    const _scenarioType = req.query['scenarioType'] as string;
-    const _status = req.query['status'] as string;
-    const _limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
+    const scenarioType = req.query['scenarioType'] as string | undefined;
+    const status = req.query['status'] as string | undefined;
+    const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
 
-    // TODO: Implement database query
-    const scenarios = [
-      {
-        id: 'scenario_1',
-        fundId,
-        name: 'Base Case',
-        scenarioType: 'base_case',
-        status: 'complete',
-        createdAt: new Date().toISOString(),
-      },
-    ];
+    // Fetch scenarios from database
+    const scenarios = await portfolioIntelligenceService.scenarios.getByFund(fundId, {
+      scenarioType,
+      status,
+      limit,
+    });
 
     res['json']({
       success: true,
@@ -752,29 +751,46 @@ router['post'](
         return res['status'](401)['json'](error);
       }
 
-      const storage = getPortfolioStorage(req);
-      const item = {
-        id: randomUUID(),
-        scenarioId,
-        ...validatedData,
-        summaryStatistics: {
-          mean: { irr: 0.2, multiple: 2.5, dpi: 1.8 },
-          median: { irr: 0.18, multiple: 2.3, dpi: 1.6 },
-          percentiles: { p10: 0.12, p25: 0.15, p75: 0.25, p90: 0.3 },
-        },
-        riskMetrics: {
-          volatility: 0.08,
-          var95: 0.1,
-          cvar95: 0.12,
-          sharpeRatio: 1.8,
-        },
-        createdBy: userId,
-        createdAt: new Date().toISOString(),
+      // Verify scenario exists
+      const scenario = await portfolioIntelligenceService.scenarios.getById(scenarioId);
+      if (!scenario) {
+        const error: ApiError = {
+          error: 'Scenario not found',
+          message: `Scenario ${scenarioId} does not exist`,
+        };
+        return res['status'](404)['json'](error);
+      }
+
+      // MVP STUB: Monte Carlo simulation returns placeholder results
+      // Integration with actual simulation engine deferred to Phase 2
+      // See: client/src/core/simulation/MonteCarloEngine.ts for engine reference
+      const simulationResults = {
+        mean: { irr: 0.2, multiple: 2.5, dpi: 1.8 },
+        median: { irr: 0.18, multiple: 2.3, dpi: 1.6 },
+        percentiles: { p10: 0.12, p25: 0.15, p75: 0.25, p90: 0.3 },
       };
-      storage.simulations.set(item.id, item);
+      const riskMetrics = {
+        volatility: 0.08,
+        var95: 0.1,
+        cvar95: 0.12,
+        sharpeRatio: 1.8,
+      };
+
+      // Persist simulation to database
+      const simulation = await portfolioIntelligenceService.simulations.create({
+        scenarioId,
+        simulationIterations: validatedData.monteCarloIterations,
+        confidenceLevel: String(validatedData.confidenceLevel),
+        randomSeed: validatedData.randomSeed,
+        summaryStatistics: simulationResults,
+        riskMetrics,
+        status: 'completed',
+        createdBy: userId,
+      });
+
       res.status(201).json({
         success: true,
-        data: item,
+        data: simulation,
         message: 'Monte Carlo simulation completed successfully',
       });
     } catch (error: unknown) {
@@ -845,28 +861,45 @@ router['post'](
         return res['status'](401)['json'](error);
       }
 
-      const storage = getPortfolioStorage(req);
-      const item = {
-        id: randomUUID(),
-        fundId: parsedFundId,
-        ...validatedData,
-        optimalAllocation: {
-          initialReserve: 0.5,
-          followOnReserve: 0.5,
-          allocationByCompany: {},
-        },
-        performanceProjection: {
-          expectedIrr: 0.22,
-          expectedMultiple: 2.8,
-          riskAdjustedReturn: 0.18,
-        },
-        createdBy: userId,
-        createdAt: new Date().toISOString(),
+      // MVP STUB: Reserve optimization returns placeholder allocation
+      // Integration with DeterministicReserveEngine deferred to Phase 2
+      // See: client/src/core/reserves/ReserveEngine.ts for engine reference
+      const optimalAllocation = {
+        initialReserve: 0.5,
+        followOnReserve: 0.5,
+        allocationByCompany: {},
       };
-      storage.optimizations.set(item.id, item);
+      const performanceProjection = {
+        expectedIrr: 0.22,
+        expectedMultiple: 2.8,
+        riskAdjustedReturn: 0.18,
+      };
+
+      // Persist reserve strategy to database
+      const reserveStrategy = await portfolioIntelligenceService.reserves.create({
+        fundId: parsedFundId,
+        name: validatedData.name || `Optimization ${new Date().toISOString().split('T')[0]}`,
+        strategyType: validatedData.optimizationObjective || 'balanced',
+        targetReserveRatio: String(validatedData.constraints?.maxReserveRatio || 0.5),
+        minReserveRatio: String(validatedData.constraints?.minReserveRatio || 0.2),
+        maxReserveRatio: String(validatedData.constraints?.maxReserveRatio || 0.6),
+        allocationRules: {
+          optimalAllocation,
+          performanceProjection,
+          constraints: validatedData.constraints,
+          timeHorizon: validatedData.timeHorizon,
+        },
+        isActive: true,
+        createdBy: userId,
+      });
+
       res.status(201).json({
         success: true,
-        data: item,
+        data: {
+          ...reserveStrategy,
+          optimalAllocation,
+          performanceProjection,
+        },
         message: 'Reserve optimization completed successfully',
       });
     } catch (error: unknown) {
@@ -900,26 +933,19 @@ router['get']('/api/portfolio/reserves/strategies/:fundId', async (req: Request,
       throw err;
     }
 
-    const _strategyType = req.query['strategyType'] as string;
-    const _isActive =
+    const strategyType = req.query['strategyType'] as string | undefined;
+    const isActive =
       req.query['isActive'] === 'true'
         ? true
         : req.query['isActive'] === 'false'
           ? false
           : undefined;
 
-    // TODO: Implement database query
-    const strategies = [
-      {
-        id: 'reserve_strategy_1',
-        fundId,
-        name: 'Performance-Based Reserve Strategy',
-        strategyType: 'performance_based',
-        isActive: true,
-        lastOptimizedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-      },
-    ];
+    // Fetch reserve strategies from database
+    const strategies = await portfolioIntelligenceService.reserves.getByFund(fundId, {
+      strategyType,
+      isActive,
+    });
 
     res['json']({
       success: true,
@@ -1112,20 +1138,14 @@ router['get']('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: 
       return res['status'](400)['json'](error);
     }
 
-    const _forecastType = req.query['forecastType'] as string;
-    const _status = req.query['status'] as string;
+    const forecastType = req.query['forecastType'] as string | undefined;
+    const status = req.query['status'] as string | undefined;
 
-    // TODO: Implement database query
-    const forecasts = [
-      {
-        id: 'forecast_1',
-        scenarioId,
-        forecastName: 'Base Case Forecast',
-        forecastType: 'fund_level',
-        status: 'complete',
-        createdAt: new Date().toISOString(),
-      },
-    ];
+    // Fetch forecasts from database
+    const forecasts = await portfolioIntelligenceService.forecasts.getByScenario(scenarioId, {
+      forecastType,
+      status,
+    });
 
     res['json']({
       success: true,
@@ -1169,31 +1189,60 @@ router['post']('/api/portfolio/forecasts/validate', async (req: Request, res: Re
       return res['status'](401)['json'](error);
     }
 
-    const storage = getPortfolioStorage(req);
-    const item = {
-      ...validatedData,
-      accuracyMetrics: {
-        mape: 0.12,
-        rmse: 0.08,
-        mae: 0.06,
-      },
-      calibration: {
-        inRange: 0.85,
-        overconfident: 0.1,
-        underconfident: 0.05,
-      },
-      keyInsights: [
-        'Forecast accuracy is within acceptable range',
-        'Model shows slight overconfidence in tail events',
-        'Calibration could be improved for extreme scenarios',
-      ],
-      createdBy: userId,
-      createdAt: new Date().toISOString(),
+    // Verify forecast exists
+    const forecast = await portfolioIntelligenceService.forecasts.getById(validatedData.forecastId);
+    if (!forecast) {
+      const error: ApiError = {
+        error: 'Forecast not found',
+        message: `Forecast ${validatedData.forecastId} does not exist`,
+      };
+      return res['status'](404)['json'](error);
+    }
+
+    // MVP STUB: Forecast validation returns placeholder accuracy metrics
+    // Actual MAPE/RMSE calculation requires historical data comparison - Phase 2
+    const accuracyMetrics = {
+      mape: 0.12,
+      rmse: 0.08,
+      mae: 0.06,
     };
-    storage.validations.set(validatedData.forecastId, item);
+    const calibration = {
+      inRange: 0.85,
+      overconfident: 0.1,
+      underconfident: 0.05,
+    };
+    const keyInsights = [
+      'Forecast accuracy is within acceptable range',
+      'Model shows slight overconfidence in tail events',
+      'Calibration could be improved for extreme scenarios',
+    ];
+
+    // Update forecast with validation results
+    const updatedForecast = await portfolioIntelligenceService.forecasts.update(
+      validatedData.forecastId,
+      {
+        status: 'validated',
+        validationResults: {
+          accuracyMetrics,
+          calibration,
+          keyInsights,
+          validatedBy: userId,
+          validatedAt: new Date().toISOString(),
+          actualData: validatedData.actualData,
+          comparisonPeriod: validatedData.comparisonPeriod,
+        },
+      }
+    );
+
     res.json({
       success: true,
-      data: item,
+      data: {
+        forecastId: validatedData.forecastId,
+        accuracyMetrics,
+        calibration,
+        keyInsights,
+        forecast: updatedForecast,
+      },
       message: 'Forecast validation completed successfully',
     });
   } catch (error: unknown) {
@@ -1219,7 +1268,7 @@ router['get']('/api/portfolio/templates', async (req: Request, res: Response) =>
     const category = req.query['category'] as string;
     const riskProfile = req.query['riskProfile'] as string;
 
-    // TODO: Implement template query
+    // MVP: Static strategy templates - database-backed templates deferred to Phase 2
     const templates = [
       {
         id: 'template_1',
@@ -1366,7 +1415,9 @@ router['get']('/api/portfolio/metrics/:scenarioId', async (req: Request, res: Re
     const _metricType = req.query['metricType'] as string;
     const _timeRange = (req.query['timeRange'] as string) || '1y';
 
-    // TODO: Implement real-time metrics calculation
+    // MVP STUB: Scenario metrics returns sample data
+    // Real-time calculation from portfolio data deferred to Phase 2
+    // Use SSE endpoint /api/events/fund/:fundId for live updates
     const metrics = {
       scenarioId,
       lastUpdated: new Date().toISOString(),

@@ -8,6 +8,7 @@
 import type { Request, Response } from 'express';
 import { Router } from 'express';
 import { monitor, monteCarloTracker } from '../middleware/performance-monitor.js';
+import { config } from '../config/index.js';
 
 const router = Router();
 
@@ -235,7 +236,7 @@ router["get"]('/operations', (req: Request, res: Response) => {
  */
 router["post"]('/simulate', async (req: Request, res: Response) => {
   try {
-    const { runs = 100, fundId = 1 } = req.body;
+    const { runs = 100, fundId = config.DEFAULT_FUND_ID } = req.body;
 
     // Start performance tracking
     const simulationId = `test_${Date.now()}`;

@@ -460,12 +460,14 @@ export const getSecurityConfig = () => ({
 // COMBINED SECURITY MIDDLEWARE STACK
 // =============================================================================
 
+// CRITICAL: suspiciousActivityDetection MUST come BEFORE inputSanitization
+// to detect malicious patterns in raw input before they get sanitized away
 export const securityMiddlewareStack = [
   securityHeaders,
   ipFilter,
   generalRateLimit,
-  inputSanitization,
   suspiciousActivityDetection,
+  inputSanitization,
   securityEventLogger
 ];
 
@@ -473,8 +475,8 @@ export const strictSecurityMiddlewareStack = [
   securityHeaders,
   ipFilter,
   strictRateLimit,
-  inputSanitization,
   suspiciousActivityDetection,
+  inputSanitization,
   securityEventLogger
 ];
 
@@ -482,7 +484,7 @@ export const monteCarloSecurityStack = [
   securityHeaders,
   ipFilter,
   monteCarloRateLimit,
-  inputSanitization,
   suspiciousActivityDetection,
+  inputSanitization,
   securityEventLogger
 ];
