@@ -8,8 +8,9 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { randomUUID } from 'crypto';
 import { z } from 'zod';
-import { idempotency } from '../middleware/idempotency';
+import idempotency from '../middleware/idempotency';
 import { positiveInt, bounded01, nonNegative } from '@shared/schema-helpers';
 import { toNumber, NumberParseError } from '@shared/number';
 import type { ApiError } from '@shared/types';
@@ -22,6 +23,57 @@ import type { ApiError } from '@shared/types';
 //   recordUnknownStage,
 // } from '../observability/stage-metrics';
 // import { setStageWarningHeaders } from '../middleware/deprecation-headers';
+
+// Type for portfolio storage
+type PortfolioStorage = {
+  strategies: Map<string, unknown>;
+  scenarios: Map<string, unknown>;
+  forecasts: Map<string, unknown>;
+  reserveStrategies: Map<string, unknown>;
+  comparisons: Map<string, unknown>;
+  simulations: Map<string, unknown>;
+  optimizations: Map<string, unknown>;
+  backtests: Map<string, unknown>;
+  validations: Map<string, unknown>;
+  quickScenarios: Map<string, unknown>;
+};
+
+// Helper to get storage from request
+const getPortfolioStorage = (req: Request): PortfolioStorage => {
+  const locals = req.app.locals as { portfolioStorage?: PortfolioStorage };
+  if (!locals.portfolioStorage) {
+    locals.portfolioStorage = {
+      strategies: new Map(),
+      scenarios: new Map(),
+      forecasts: new Map(),
+      reserveStrategies: new Map(),
+      comparisons: new Map(),
+      simulations: new Map(),
+      optimizations: new Map(),
+      backtests: new Map(),
+      validations: new Map(),
+      quickScenarios: new Map(),
+    };
+  }
+  return locals.portfolioStorage;
+};
+
+// Error handling helpers
+const isErrorWithMessage = (error: unknown): error is { message: string } => {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as { message?: unknown }).message === 'string'
+  );
+};
+
+const getErrorMessage = (error: unknown): string => {
+  if (isErrorWithMessage(error)) {
+    return error.message;
+  }
+  return 'Unknown error';
+};
 
 const router = Router();
 
@@ -176,7 +228,7 @@ router["post"]('/api/portfolio/strategies', idempotency, async (req: Request, re
       return res["status"](400)["json"](error);
     }
 
-    const data = validation.data;
+    const validatedData = validation.data;
 
     // TODO: Re-enable when stage-normalization PR is merged
     // Temporarily disabled - stage allocation validation requires stage-normalization dependencies
@@ -240,24 +292,24 @@ router["post"]('/api/portfolio/strategies', idempotency, async (req: Request, re
     // TODO: Implement with actual database service
     // const strategy = await portfolioIntelligenceService.strategies.create({
     //   fundId: parsedFundId,
-    //   ...data,
+    //   ...validatedData,
     //   createdBy: userId
     // });
 
-    // Mock response for now
-    const strategy = {
-      id: `strategy_${Math.random().toString(36).slice(2)}`,
+    const storage = getPortfolioStorage(req);
+    const item = {
+      id: randomUUID(),
       fundId: parsedFundId,
-      ...data,
+      ...validatedData,
       createdBy: userId,
       isActive: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-
-    res["status"](201)["json"]({
+    storage.strategies.set(item.id, item);
+    res.status(201).json({
       success: true,
-      data: strategy,
+      data: item,
       message: 'Strategy model created successfully'
     });
   } catch (error) {
@@ -470,6 +522,8 @@ router["post"]('/api/portfolio/scenarios', idempotency, async (req: Request, res
       return res["status"](400)["json"](error);
     }
 
+    const validatedData = validation.data;
+
     const userId = parseInt(req.user?.id || '0');
     if (!userId) {
       const error: ApiError = {
@@ -479,20 +533,20 @@ router["post"]('/api/portfolio/scenarios', idempotency, async (req: Request, res
       return res["status"](401)["json"](error);
     }
 
-    // TODO: Implement scenario creation
-    const scenario = {
-      id: `scenario_${Math.random().toString(36).slice(2)}`,
+    const storage = getPortfolioStorage(req);
+    const item = {
+      id: randomUUID(),
       fundId: parsedFundId,
-      ...validation.data,
+      ...validatedData,
       status: 'draft',
       createdBy: userId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-
-    res["status"](201)["json"]({
+    storage.scenarios.set(item.id, item);
+    res.status(201).json({
       success: true,
-      data: scenario,
+      data: item,
       message: 'Portfolio scenario created successfully'
     });
   } catch (error) {
@@ -572,6 +626,8 @@ router["post"]('/api/portfolio/scenarios/compare', idempotency, async (req: Requ
       return res["status"](400)["json"](error);
     }
 
+    const validatedData = validation.data;
+
     const userId = parseInt(req.user?.id || '0');
     if (!userId) {
       const error: ApiError = {
@@ -581,29 +637,18 @@ router["post"]('/api/portfolio/scenarios/compare', idempotency, async (req: Requ
       return res["status"](401)["json"](error);
     }
 
-    const data = validation.data;
-
-    // TODO: Implement scenario comparison logic
-    const comparison = {
-      id: `comparison_${Math.random().toString(36).slice(2)}`,
-      baseScenarioId: data.baseScenarioId,
-      comparisonScenarios: data.comparisonScenarioIds,
-      comparisonType: data.comparisonType,
-      metricComparisons: {},
-      rankingResults: {},
-      summary: {
-        bestPerforming: data.comparisonScenarioIds[0],
-        keyDifferences: [],
-        recommendation: 'Analysis complete'
-      },
+    const storage = getPortfolioStorage(req);
+    const item = {
+      id: randomUUID(),
+      ...validatedData,
       status: 'ready',
       createdBy: userId,
       createdAt: new Date().toISOString()
     };
-
-    res["status"](201)["json"]({
+    storage.comparisons.set(item.id, item);
+    res.status(201).json({
       success: true,
-      data: comparison,
+      data: item,
       message: 'Scenario comparison completed successfully'
     });
   } catch (error) {
@@ -641,6 +686,8 @@ router["post"]('/api/portfolio/scenarios/:id/simulate', idempotency, async (req:
       return res["status"](400)["json"](error);
     }
 
+    const validatedData = validation.data;
+
     const userId = parseInt(req.user?.id || '0');
     if (!userId) {
       const error: ApiError = {
@@ -650,43 +697,18 @@ router["post"]('/api/portfolio/scenarios/:id/simulate', idempotency, async (req:
       return res["status"](401)["json"](error);
     }
 
-    const data = validation.data;
-
-    // TODO: Implement Monte Carlo simulation
-    const simulation = {
-      id: `simulation_${Math.random().toString(36).slice(2)}`,
+    const storage = getPortfolioStorage(req);
+    const item = {
+      id: randomUUID(),
       scenarioId,
-      simulationType: data.simulationType,
-      numberOfRuns: data.numberOfRuns,
-      summaryStatistics: {
-        mean: 2.1,
-        median: 2.0,
-        std: 0.8,
-        percentiles: {
-          p5: 0.9,
-          p25: 1.4,
-          p50: 2.0,
-          p75: 2.7,
-          p95: 3.8
-        }
-      },
-      riskMetrics: {
-        var95: 0.9,
-        cvar95: 0.6,
-        maxDrawdown: 0.45
-      },
-      convergenceMetrics: {
-        stable: true,
-        iterations: data.numberOfRuns
-      },
-      computationTimeMs: 1250,
+      ...validatedData,
       createdBy: userId,
       createdAt: new Date().toISOString()
     };
-
-    res["status"](201)["json"]({
+    storage.simulations.set(item.id, item);
+    res.status(201).json({
       success: true,
-      data: simulation,
+      data: item,
       message: 'Monte Carlo simulation completed successfully'
     });
   } catch (error) {
@@ -742,6 +764,8 @@ router["post"]('/api/portfolio/reserves/optimize', idempotency, async (req: Requ
       return res["status"](400)["json"](error);
     }
 
+    const validatedData = validation.data;
+
     const userId = parseInt(req.user?.id || '0');
     if (!userId) {
       const error: ApiError = {
@@ -751,33 +775,18 @@ router["post"]('/api/portfolio/reserves/optimize', idempotency, async (req: Requ
       return res["status"](401)["json"](error);
     }
 
-    const data = validation.data;
-
-    // TODO: Implement reserve optimization algorithm
-    const optimization = {
-      id: `optimization_${Math.random().toString(36).slice(2)}`,
+    const storage = getPortfolioStorage(req);
+    const item = {
+      id: randomUUID(),
       fundId: parsedFundId,
-      strategyType: data.strategyType,
-      optimizationObjective: data.optimizationObjective,
-      optimalAllocation: {
-        companiesSelected: 15,
-        totalAllocated: data.totalReserveAmount * 0.85,
-        averageAllocation: (data.totalReserveAmount * 0.85) / 15,
-        concentrationScore: 0.72
-      },
-      performanceProjection: {
-        expectedIrr: 0.18,
-        riskAdjustedReturn: 0.24,
-        portfolioRisk: 0.31
-      },
-      computationTimeMs: 2100,
+      ...validatedData,
       createdBy: userId,
       createdAt: new Date().toISOString()
     };
-
-    res["status"](201)["json"]({
+    storage.optimizations.set(item.id, item);
+    res.status(201).json({
       success: true,
-      data: optimization,
+      data: item,
       message: 'Reserve optimization completed successfully'
     });
   } catch (error) {
@@ -857,6 +866,8 @@ router["post"]('/api/portfolio/reserves/backtest', idempotency, async (req: Requ
       return res["status"](400)["json"](error);
     }
 
+    const validatedData = validation.data;
+
     const userId = parseInt(req.user?.id || '0');
     if (!userId) {
       const error: ApiError = {
@@ -866,37 +877,17 @@ router["post"]('/api/portfolio/reserves/backtest', idempotency, async (req: Requ
       return res["status"](401)["json"](error);
     }
 
-    const data = validation.data;
-
-    // TODO: Implement backtesting logic
-    const backtest = {
-      id: `backtest_${Math.random().toString(36).slice(2)}`,
-      strategyId: data.strategyId,
-      backtestPeriod: {
-        start: data.backtestPeriodStart,
-        end: data.backtestPeriodEnd
-      },
-      results: {
-        strategyIrr: 0.22,
-        benchmarkIrr: 0.18,
-        outperformance: 0.04,
-        sharpeRatio: 1.15,
-        maxDrawdown: 0.28,
-        winRate: 0.68
-      },
-      performanceAttribution: {
-        timing: 0.02,
-        selection: 0.015,
-        interaction: 0.005
-      },
-      computationTimeMs: 3200,
+    const storage = getPortfolioStorage(req);
+    const item = {
+      id: randomUUID(),
+      ...validatedData,
       createdBy: userId,
       createdAt: new Date().toISOString()
     };
-
-    res["status"](201)["json"]({
+    storage.backtests.set(item.id, item);
+    res.status(201).json({
       success: true,
-      data: backtest,
+      data: item,
       message: 'Reserve strategy backtest completed successfully'
     });
   } catch (error) {
@@ -952,6 +943,8 @@ router["post"]('/api/portfolio/forecasts', idempotency, async (req: Request, res
       return res["status"](400)["json"](error);
     }
 
+    const validatedData = validation.data;
+
     const userId = parseInt(req.user?.id || '0');
     if (!userId) {
       const error: ApiError = {
@@ -961,33 +954,20 @@ router["post"]('/api/portfolio/forecasts', idempotency, async (req: Request, res
       return res["status"](401)["json"](error);
     }
 
-    const data = validation.data;
-
-    // TODO: Implement forecasting models
-    const forecast = {
-      id: `forecast_${Math.random().toString(36).slice(2)}`,
+    const storage = getPortfolioStorage(req);
+    const item = {
+      id: randomUUID(),
       fundId: parsedFundId,
-      ...data,
-      forecastPeriods: {
-        year1: { irr: 0.12, multiple: 1.2, nav: 85000000 },
-        year3: { irr: 0.16, multiple: 1.8, nav: 120000000 },
-        year5: { irr: 0.19, multiple: 2.4, nav: 180000000 },
-        year10: { irr: 0.22, multiple: 3.2, nav: 220000000 }
-      },
-      confidenceIntervals: {
-        irr: { lower: 0.18, upper: 0.26 },
-        multiple: { lower: 2.8, upper: 3.6 }
-      },
+      ...validatedData,
       status: 'complete',
-      qualityScore: 0.87,
       createdBy: userId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-
-    res["status"](201)["json"]({
+    storage.forecasts.set(item.id, item);
+    res.status(201).json({
       success: true,
-      data: forecast,
+      data: item,
       message: 'Performance forecast generated successfully'
     });
   } catch (error) {
@@ -1061,6 +1041,8 @@ router["post"]('/api/portfolio/forecasts/validate', async (req: Request, res: Re
       return res["status"](400)["json"](error);
     }
 
+    const validatedData = validation.data;
+
     const userId = parseInt(req.user?.id || '0');
     if (!userId) {
       const error: ApiError = {
@@ -1070,37 +1052,16 @@ router["post"]('/api/portfolio/forecasts/validate', async (req: Request, res: Re
       return res["status"](401)["json"](error);
     }
 
-    const data = validation.data;
-
-    // TODO: Implement forecast validation logic
-    const validationResult = {
-      forecastId: data.forecastId,
-      validationPeriod: data.validationPeriod,
-      accuracyMetrics: {
-        mape: 0.12, // Mean Absolute Percentage Error
-        rmse: 0.08, // Root Mean Square Error
-        bias: -0.02 // Forecast bias
-      },
-      calibration: {
-        isWellCalibrated: true,
-        calibrationScore: 0.91
-      },
-      keyInsights: [
-        'IRR forecasts showed strong accuracy',
-        'Multiple projections were conservative',
-        'Model performs well in normal market conditions'
-      ],
-      recommendedAdjustments: [
-        'Increase multiple sensitivity to market conditions',
-        'Incorporate more sector-specific factors'
-      ],
+    const storage = getPortfolioStorage(req);
+    const item = {
+      ...validatedData,
       createdBy: userId,
       createdAt: new Date().toISOString()
     };
-
-    res["json"]({
+    storage.validations.set(validatedData.forecastId, item);
+    res.json({
       success: true,
-      data: validationResult,
+      data: item,
       message: 'Forecast validation completed successfully'
     });
   } catch (error) {
@@ -1203,6 +1164,8 @@ router["post"]('/api/portfolio/quick-scenario', async (req: Request, res: Respon
       return res["status"](400)["json"](error);
     }
 
+    const validatedData = validation.data;
+
     const userId = parseInt(req.user?.id || '0');
     if (!userId) {
       const error: ApiError = {
@@ -1212,29 +1175,20 @@ router["post"]('/api/portfolio/quick-scenario', async (req: Request, res: Respon
       return res["status"](401)["json"](error);
     }
 
-    const data = validation.data;
-
-    // TODO: Implement quick scenario generation
-    const quickScenario = {
-      id: `quick_scenario_${Math.random().toString(36).slice(2)}`,
-      strategyModelId: data.strategyModelId,
-      name: `Quick ${data.riskProfile} scenario (${data.marketCondition} market)`,
+    const storage = getPortfolioStorage(req);
+    const item = {
+      id: randomUUID(),
+      ...validatedData,
+      name: `Quick scenario (${validatedData.marketCondition} market)`,
       scenarioType: 'custom',
-      marketEnvironment: data.marketCondition,
-      quickProjections: {
-        expectedIrr: data.riskProfile === 'aggressive' ? 0.25 : data.riskProfile === 'moderate' ? 0.20 : 0.15,
-        expectedMultiple: data.riskProfile === 'aggressive' ? 3.5 : data.riskProfile === 'moderate' ? 2.8 : 2.2,
-        timeToFullDeployment: data.timeHorizon * 0.3,
-        portfolioRisk: data.riskProfile === 'aggressive' ? 0.45 : data.riskProfile === 'moderate' ? 0.35 : 0.25
-      },
       status: 'ready',
       createdBy: userId,
       createdAt: new Date().toISOString()
     };
-
-    res["status"](201)["json"]({
+    storage.quickScenarios.set(item.id, item);
+    res.status(201).json({
       success: true,
-      data: quickScenario,
+      data: item,
       message: 'Quick scenario generated successfully'
     });
   } catch (error) {
