@@ -1,19 +1,21 @@
-# Foundation Hardening Strategy Improvements
+# Foundation Hardening Strategy Improvements v2
 
 **Status**: SUPPLEMENT to FOUNDATION-HARDENING-EXECUTION-PLAN.md
 **Created**: 2025-12-23
-**Based On**: Skills analysis (inversion-thinking, pattern-recognition, task-decomposition, systematic-debugging, root-cause-tracing)
+**Revised**: 2025-12-23 (v2 - incorporating review feedback)
+**Based On**: Skills analysis + external review
 
 ---
 
 ## Executive Summary
 
 This document enhances the existing Foundation Hardening Sprint plan with:
-1. **Failure Mode Triage Flowchart** - Pattern-specific diagnostics
-2. **Confidence Scoring** - Risk-adjusted cluster prioritization
-3. **Flakiness Detection Protocol** - Before repair, detect intermittent failures
-4. **Rollback Strategy** - Per-phase tags and recovery procedures
-5. **Test Repair Debugging Enhancements** - Context-specific systematic debugging
+1. **Unified Triage Flowchart** - Starts with flakiness detection, then pattern classification
+2. **Six Failure Patterns** - A through F, covering all common test failure modes
+3. **Priority Scoring** - Impact, confidence, effort, and blast radius
+4. **Sharpened 3-Fix Rule** - Falsified hypotheses, not just attempts
+5. **Failure Evidence Template** - Standard format for fix documentation
+6. **Rollback Strategy** - Per-phase tags and recovery procedures
 
 ---
 
@@ -29,7 +31,7 @@ This document enhances the existing Foundation Hardening Sprint plan with:
 | Shared seam contamination | Owner assignment for Redis/webhook | Hotspot ownership rule |
 | Skipped batch gates | Run after EVERY cluster | Batch gate enforcement |
 | Mock drift undetected | Schema-drift validation | `npm run validate:schema-drift` |
-| 3+ failed fix attempts | Architecture escalation | 3-fix rule |
+| 3+ falsified hypotheses | Architecture escalation | Sharpened 3-fix rule |
 | No recovery checkpoints | Per-phase tags | Rollback protocol |
 
 ### Do-Not Checklist (Pre-Commit Verification)
@@ -40,195 +42,344 @@ Before each cluster completion:
 - [ ] Did NOT modify shared seams without owner coordination
 - [ ] Did NOT skip batch gates
 - [ ] Did NOT ignore schema-drift warnings
-- [ ] Did NOT exceed 3 fix attempts without escalation
+- [ ] Did NOT exceed 3 falsified hypotheses without escalation
 - [ ] Did NOT merge without rollback tag
 
 ---
 
-## 2. Pattern Recognition: Failure Mode Classification
+## 2. Pattern Recognition: Six Failure Modes
 
-### Identified Patterns (from commit history analysis)
+### Complete Pattern Taxonomy
 
-| Pattern | Frequency | Signature | Diagnostic |
-|---------|-----------|-----------|------------|
-| **A: Async Race** | ~30% | "undefined", "timeout", flaky results | Missing `await`, non-deterministic setup |
-| **B: Mock Drift** | ~25% | Type mismatch, wrong field names | Schema evolved, mocks static |
-| **C: Import Resolution** | ~15% | "Cannot find module", wrong extension | ESM/CJS confusion, missing .ts |
-| **D: Type Confusion** | ~10% | Boundary conversion errors | cents vs dollars, different error types |
+| Pattern | Frequency | Signature | Primary Cause | Quick Checks |
+|---------|-----------|-----------|---------------|--------------|
+| **A: Async Race** | ~25% | "undefined", timeout, flaky | Missing `await`, floating promises | Static analysis, trace async chain |
+| **B: Mock Drift** | ~20% | Type mismatch, wrong fields | Schema evolved, mocks static | `validate:schema-drift` |
+| **C: Import Resolution** | ~15% | "Cannot find module" | ESM/CJS confusion, missing .ts | `tsc --noEmit` |
+| **D: Type Confusion** | ~10% | Boundary conversion errors | cents vs dollars, error types | Review layer boundaries |
+| **E: Shared State / Order** | ~20% | Passes alone, fails in suite | Globals, singletons, mock leakage | Run isolated, run shuffled |
+| **F: Time/Timer Dependency** | ~10% | DST/locale oddities, timer hangs | Date.now, fake timers not restored | Force TZ=UTC, check pending timers |
 
-### Failure Mode Triage Flowchart
+### Pattern E: Shared State / Order Dependence (CRITICAL - Often Missed)
 
-```
-TEST FAILS
-    |
-    v
-+-------------------+
-| Error message?    |
-+-------------------+
-    |
-    +---> "undefined" or "null"
-    |         |
-    |         v
-    |     Check async: grep "await" in setup
-    |         |
-    |         +---> Missing await? --> PATTERN A FIX
-    |         |
-    |         +---> Await present? --> Check mock data --> PATTERN B
-    |
-    +---> "type mismatch" or "unexpected type"
-    |         |
-    |         v
-    |     npm run validate:schema-drift
-    |         |
-    |         +---> Drift detected? --> PATTERN B FIX
-    |         |
-    |         +---> No drift? --> Check imports --> PATTERN C
-    |
-    +---> "Cannot find module"
-    |         |
-    |         v
-    |     Check import path + extension
-    |         |
-    |         +---> Missing .ts? --> PATTERN C FIX
-    |         |
-    |         +---> Path wrong? --> Check vite aliases
-    |
-    +---> Timeout or hangs
-              |
-              v
-          Run with --inspect-brk
-              |
-              +---> Infinite loop? --> Fix algorithm
-              |
-              +---> Unresolved promise? --> PATTERN A FIX
-```
+**Signature**:
+- Passes when run alone, fails in suite
+- Fails after specific other tests
+- "already mocked", "already initialized", "cannot redefine property"
 
-### Pattern-Specific Diagnostic Commands
+**Primary Causes**:
+- Module-level singletons cached across tests
+- Mutated globals (`process.env`, `Date`, `Math.random`, `fetch`, `localStorage`)
+- Fake timers enabled in one test and not restored
+- Test order dependence (file A sets something file B assumes)
 
+**Diagnostics**:
 ```bash
-# Pattern A: Async Race Detection
-# Check for missing awaits in test file
-grep -n "beforeEach\|afterEach\|beforeAll\|afterAll" <test-file> | \
-  xargs -I {} sh -c 'grep -A5 "{}" <test-file> | grep -v "await"'
+# Run isolated (single test, fresh process)
+npm test -- <test-file> --isolate
 
-# Pattern B: Mock Drift Detection
-npm run validate:schema-drift -- --verbose <test-file>
+# Run with shuffled order (surface order dependence)
+npm test -- <test-file> --sequence=shuffle
 
-# Pattern C: Import Resolution Check
-# Verify all imports resolve
-npx tsc --noEmit <test-file> 2>&1 | grep "Cannot find"
+# Add teardown assertions
+afterEach(() => {
+  expect(vi.getTimerCount()).toBe(0);  // No pending timers
+  vi.restoreAllMocks();                 // All mocks restored
+});
+```
 
-# Pattern D: Type Boundary Check
-# Check for numeric conversions at boundaries
-grep -n "parseFloat\|parseInt\|Number\|\.toFixed" <test-file>
+### Pattern F: Time/Timer Dependency
+
+**Signature**:
+- Fails around clock boundaries (midnight, DST)
+- Locale/timezone oddities
+- Timer hangs or "timeout exceeded"
+
+**Primary Causes**:
+- `Date.now()` or `new Date()` in assertions
+- `setTimeout`/`setInterval` without fake timers
+- Fake timers enabled but not advanced or restored
+
+**Diagnostics**:
+```bash
+# Force stable timezone
+TZ=UTC npm test -- <test-file>
+
+# Check for pending timers in teardown
+afterEach(() => {
+  const pending = vi.getTimerCount();
+  if (pending > 0) {
+    console.error(`[LEAK] ${pending} pending timers`);
+    vi.runOnlyPendingTimers();
+  }
+});
 ```
 
 ---
 
-## 3. Confidence-Based Cluster Prioritization
+## 3. Unified Triage Flowchart
 
-### Enhanced Cluster Assessment
+**Key Change**: The flowchart now STARTS with flakiness detection, preventing the "read stack trace first" habit that wastes time.
 
-| Cluster | Failures | Pattern Match | Confidence | Risk | Recommended Order |
-|---------|----------|---------------|------------|------|-------------------|
-| ops-webhook | 17 | 80% Pattern A | HIGH | LOW | 1st (independent seam) |
-| stage-validation | 11 | 60% B, 40% A | MEDIUM | MEDIUM | 2nd (depends on webhook patterns) |
-| modeling-wizard | 10 | Mixed (7 deferred) | LOW | HIGH | 3rd (architecture questions) |
+```
+TEST MARKED AS FAILING
+         |
+         v
++------------------------+
+| Run detect-flaky (N=10)|
++------------------------+
+         |
+         +---> Mixed pass/fail (FLAKY)
+         |         |
+         |         v
+         |     FLAKY PATH: Investigate E, A, F first
+         |     1. Shared state (E): Run isolated, run shuffled
+         |     2. Async race (A): Check floating promises
+         |     3. Timer issues (F): Check pending timers, TZ
+         |
+         +---> All fail (DETERMINISTIC)
+         |         |
+         |         v
+         |     DETERMINISTIC PATH: Classify by signature
+         |         |
+         |         +---> "undefined"/"null" --> Pattern A or E
+         |         |
+         |         +---> "type mismatch" --> Pattern B or D
+         |         |
+         |         +---> "Cannot find module" --> Pattern C
+         |         |
+         |         +---> Timeout/hang --> Pattern A or F
+         |
+         +---> All pass (CANNOT REPRODUCE)
+                   |
+                   v
+               ENVIRONMENT PATH:
+               - Check CI vs local differences
+               - Check TZ/locale settings
+               - Check parallelism/ordering
+```
 
-### Confidence Scoring Criteria
+### First Response Actions by Path
 
-**HIGH Confidence** (>70% expected success):
-- Pattern clearly matches known fix
-- Similar fix succeeded in recent PR
-- Independent of other clusters
-- Well-documented in existing tests
+**FLAKY PATH**:
+1. Run `npm test -- <test> --isolate` (Pattern E check)
+2. Run `npm test -- <test> --sequence=shuffle` (order dependence)
+3. Check for floating promises with ESLint rule (Pattern A)
+4. Add teardown assertions for timers/mocks (Pattern F)
 
-**MEDIUM Confidence** (40-70% expected success):
-- Pattern partially matches
-- Depends on other cluster's interface
-- Some architectural uncertainty
-- May require coordination
+**DETERMINISTIC PATH**:
+1. Read full error message (not summary)
+2. Match signature to pattern A/B/C/D/E/F
+3. Apply pattern-specific diagnostic
+4. Fix with single variable change
 
-**LOW Confidence** (<40% expected success):
-- Mixed or unclear patterns
-- Significant architectural questions
-- Many deferred tests
-- High risk of regression
-
-### Prioritization Rule
-
-**Execute clusters in confidence order** (HIGH -> MEDIUM -> LOW):
-- HIGH confidence builds momentum and patterns
-- MEDIUM confidence benefits from established patterns
-- LOW confidence gets maximum context from previous work
+**ENVIRONMENT PATH**:
+1. Compare CI logs with local output
+2. Check `TZ`, `CI`, `NODE_ENV` settings
+3. Check test parallelism settings
+4. Consider CI-only test infrastructure differences
 
 ---
 
-## 4. Flakiness Detection Protocol
+## 4. Priority Scoring (Enhanced)
 
-### Before Repair: 5-Run Flakiness Check
+### From Confidence-Only to Multi-Factor Scoring
 
+**Previous**: Order clusters by confidence (expected success rate)
+
+**Problem**: HIGH-confidence cluster might be low-impact, while MEDIUM cluster blocks everything
+
+**New Formula**:
+```
+Priority Score = (Impact x Confidence) / Effort
+
+Then apply: Blast Radius Penalty
+- Shared seam (Redis/webhook/DB): -20% priority
+- Independent cluster: No penalty
+```
+
+### Scoring Dimensions
+
+| Dimension | HIGH | MEDIUM | LOW |
+|-----------|------|--------|-----|
+| **Impact** | >15 failing tests, blocks other clusters | 5-15 tests, some dependencies | <5 tests, independent |
+| **Confidence** | Pattern match >70%, similar fix worked | Pattern match 40-70%, some unknowns | Pattern unclear, many deferred |
+| **Effort** | S (<1 day) | M (1-2 days) | L (>2 days) |
+| **Blast Radius** | Independent, no shared seams | Uses shared seams (follower) | Owns shared seams (owner) |
+
+### Revised Cluster Assessment
+
+| Cluster | Failures | Impact | Confidence | Effort | Blast | Priority |
+|---------|----------|--------|------------|--------|-------|----------|
+| ops-webhook | 17 | HIGH | HIGH | M | Owner (-20%) | **1st** (owns seam, do first) |
+| stage-validation | 11 | MEDIUM | MEDIUM | M | Follower | 2nd (after webhook seam stable) |
+| modeling-wizard | 10 (7 deferred) | LOW | LOW | L | None | 3rd (deferred tests reduce urgency) |
+
+### Prioritization Rules
+
+1. **Seam owners first**: Clusters that own shared infrastructure must go first
+2. **Followers wait**: Clusters that depend on seams wait for owner to land interface
+3. **Quick wins second**: HIGH confidence + LOW effort after seam stability
+4. **Defer architectural questions**: LOW confidence clusters go last
+
+---
+
+## 5. Sharpened 3-Fix Rule
+
+### Previous Definition (Vague)
+> "3 failed fix attempts" -> escalate
+
+**Problems**:
+- Gameable ("I only tried 2 things")
+- Penalizes healthy iteration
+- Doesn't distinguish learning from spinning
+
+### New Definition
+
+**Escalate when ANY of**:
+- **3 falsified hypotheses**: You formed 3 clear hypotheses, tested each, all were wrong
+- **90 minutes without increased understanding**: Clock is ticking, no new insights
+- **2 regressions introduced**: Your fixes broke other things twice
+
+### Escalation Output Requirements
+
+When escalating, provide:
+
+```markdown
+## Escalation: <test-name>
+
+**Failing test**: tests/unit/example.test.ts
+**Observed behavior**: Expected X, got Y
+**Suspected seam**: Redis mock / DB mock / Shared utility
+
+### Falsified Hypotheses
+1. Hypothesis: Missing await in setup
+   Test: Added await, still fails
+   Learning: Async chain is correct
+
+2. Hypothesis: Mock data stale
+   Test: Updated mock to match schema
+   Learning: Schema is current, issue elsewhere
+
+3. Hypothesis: Import resolution
+   Test: Checked tsc --noEmit
+   Learning: Imports resolve correctly
+
+### Architecture Question
+Why does <seam> behave differently in test vs production?
+```
+
+---
+
+## 6. Improved Diagnostic Commands
+
+### Pattern A: Replace Brittle Grep with Static Analysis
+
+**Previous** (unreliable):
 ```bash
-#!/bin/bash
-# scripts/detect-flaky.sh <test-file>
+grep -n "beforeEach\|afterEach..." <test-file> | xargs ...
+```
 
-TEST_FILE=$1
-PASS_COUNT=0
-FAIL_COUNT=0
+**Improved** (use static analysis):
+```bash
+# Option 1: Run no-floating-promises rule on changed files
+npx eslint --rule '@typescript-eslint/no-floating-promises: error' <test-file>
 
-echo "Running flakiness detection for $TEST_FILE (5 runs)..."
+# Option 2: Search for likely floating promises
+rg -n "it\(|test\(|beforeEach\(|afterEach\(" tests/** | rg "async|Promise"
 
-for i in {1..5}; do
-  if npm test -- "$TEST_FILE" --reporter=silent 2>/dev/null; then
-    ((PASS_COUNT++))
-    echo "Run $i: PASS"
-  else
-    ((FAIL_COUNT++))
-    echo "Run $i: FAIL"
-  fi
-done
+# Option 3: Add to .eslintrc.cjs temporarily
+# "@typescript-eslint/no-floating-promises": "error"
+```
 
-echo ""
-echo "Results: $PASS_COUNT passes, $FAIL_COUNT failures"
+### Pattern C: Fix Import Gate Grep Exit Code
 
-if [ $PASS_COUNT -gt 0 ] && [ $FAIL_COUNT -gt 0 ]; then
-  echo "VERDICT: FLAKY - Investigate Pattern A (async race) first"
+**Previous** (fails incorrectly):
+```bash
+npx tsc --noEmit <cluster-tests> 2>&1 | grep -c "Cannot find"  # Should be 0
+```
+
+**Problem**: `grep -c` returns exit code 1 when count is 0, failing the gate even when "0 is good"
+
+**Fixed**:
+```bash
+# Use if/then pattern
+if npx tsc --noEmit <cluster-tests> 2>&1 | grep -q "Cannot find module"; then
+  echo "Import resolution failures detected"
   exit 1
-elif [ $FAIL_COUNT -eq 5 ]; then
-  echo "VERDICT: DETERMINISTIC - Proceed with standard repair"
-  exit 0
-else
-  echo "VERDICT: PASSING - Test is not failing"
-  exit 0
 fi
-```
-
-### Flakiness Triage Path
-
-```
-Test marked as failing
-    |
-    v
-Run detect-flaky.sh
-    |
-    +---> FLAKY (some passes, some fails)
-    |         |
-    |         v
-    |     Pattern A investigation FIRST
-    |     - Check for missing awaits
-    |     - Check for shared state
-    |     - Check for timing dependencies
-    |     - Add test isolation
-    |
-    +---> DETERMINISTIC (all fail)
-              |
-              v
-          Standard triage flowchart
+echo "Import resolution: OK"
 ```
 
 ---
 
-## 5. Rollback Strategy
+## 7. Pattern-Specific Batch Gates (Corrected)
+
+### Pre-Fix vs Post-Fix Gate Modes
+
+| Phase | Command | Expected Result |
+|-------|---------|-----------------|
+| **Pre-fix** (classify) | `./scripts/detect-flaky.sh <test> 10` | DETERMINISTIC or FLAKY |
+| **Post-fix** (verify) | `./scripts/detect-flaky.sh <test> 10 --expect-pass` | PASSING (all 10 runs) |
+
+### Enhanced Gate Stack
+
+```bash
+# 1. Standard batch gate
+npm test -- <cluster-tests>
+./scripts/baseline-check.sh
+
+# 2. Post-fix stability gate (require N consecutive passes)
+./scripts/detect-flaky.sh <cluster-tests> 10 --expect-pass
+
+# 3. Pattern-specific gates
+
+# Pattern B: Mock drift (zero warnings required)
+npm run validate:schema-drift -- --strict
+
+# Pattern C: Import resolution (corrected grep)
+if npx tsc --noEmit <cluster-tests> 2>&1 | grep -q "Cannot find module"; then
+  echo "GATE FAILED: Import resolution errors"
+  exit 1
+fi
+
+# Pattern E: Order independence
+npm test -- <cluster-tests> --sequence=shuffle
+```
+
+---
+
+## 8. Failure Evidence Template
+
+**Add to every fix commit message body**:
+
+```markdown
+## Fix Evidence
+
+**Failing test(s)**: tests/unit/example.test.ts (lines 45-67)
+**Repro classification**: [flaky|deterministic|CI-only]
+**Pattern**: [A|B|C|D|E|F] - <pattern name>
+
+**Root cause** (1-2 sentences):
+Missing await on Redis client.get() call in beforeEach caused
+promise to hang, leaving shared state from previous test.
+
+**Fix** (1-2 sentences):
+Added await to Redis mock setup, verified mock resets between tests.
+
+**Regression risk**: [low|medium|high]
+Low - change is isolated to test setup, no production code modified.
+
+**Gates run**:
+- [x] npm test -- tests/unit/example.test.ts
+- [x] ./scripts/detect-flaky.sh tests/unit/example.test.ts 10 --expect-pass
+- [x] ./scripts/baseline-check.sh
+- [x] npm run validate:schema-drift
+```
+
+---
+
+## 9. Rollback Strategy
 
 ### Per-Phase Tagging Protocol
 
@@ -252,7 +403,7 @@ git tag --list "hardening-*" --sort=-creatordate | head -10
 # Step 2: Reset to checkpoint
 git reset --hard <target-tag>
 
-# Step 3: Restore dependencies (in case of lockfile changes)
+# Step 3: Restore dependencies
 npm ci
 
 # Step 4: Verify rollback success
@@ -260,7 +411,7 @@ npm test -- --reporter=dot
 ./scripts/baseline-check.sh
 
 # Step 5: Document rollback reason
-git commit --allow-empty -m "rollback: Phase 2.X reverted due to <reason>"
+git commit --allow-empty -m "rollback: Phase 2.X reverted - <reason>"
 ```
 
 ### Rollback Triggers
@@ -273,154 +424,41 @@ git commit --allow-empty -m "rollback: Phase 2.X reverted due to <reason>"
 **Manual rollback decision** if:
 - Cluster taking >2x estimated time
 - Discovery of architectural issue
-- Team morale/velocity concern
+- 3 falsified hypotheses without progress
 
 ---
 
-## 6. Test Repair-Specific Debugging Enhancements
-
-### Enhanced systematic-debugging for Test Repair
-
-#### Phase 1: Root Cause Investigation (Test Context)
-
-**Standard steps** plus:
-
-```bash
-# Test isolation check
-npm test -- <failing-test> --isolate
-
-# Test ordering check
-npm test -- <failing-test> --sequence=first
-npm test -- <all-tests-in-file>  # Compare results
-
-# Find regression commit (if recently passing)
-git bisect start HEAD <last-green-commit>
-git bisect run npm test -- <failing-test>
-```
-
-**Debug logging pattern for tests**:
-
-```typescript
-// Add to test file temporarily
-beforeEach(() => {
-  console.error('[TEST-DEBUG] Setup:', {
-    testName: expect.getState().currentTestName,
-    mocks: Object.keys(vi.mocked || {}),
-    timestamp: Date.now(),
-  });
-});
-
-afterEach(() => {
-  console.error('[TEST-DEBUG] Teardown:', {
-    pendingTimers: vi.getTimerCount?.() || 'N/A',
-  });
-});
-```
-
-#### Phase 2: Pattern Analysis (Test Context)
-
-**Compare with PASSING tests**:
-```bash
-# Find similar passing tests in same file
-grep -l "describe.*$(basename <failing-test> .test.ts)" tests/**/*.test.ts
-```
-
-**Match against failure patterns**:
-- If async-related error -> Pattern A
-- If type/schema error -> Pattern B
-- If import error -> Pattern C
-- If conversion error -> Pattern D
-
-#### Phase 3: Hypothesis Testing (Test Context)
-
-**Single variable rule** - modify ONE of:
-- Mock data
-- Setup/teardown timing
-- Import path
-- Type assertion
-
-**Shared seam rule**:
-If hypothesis involves shared infrastructure (Redis mocks, DB mocks, webhook handlers):
-1. STOP direct modification
-2. Coordinate with seam owner
-3. Document interface contract needed
-4. Wait for owner's change to land
-
-#### Phase 4: Implementation (Test Context)
-
-**Verification sequence**:
-```bash
-# 1. Fix applied
-# 2. Single test passes
-npm test -- <fixed-test>
-
-# 3. All tests in file pass (no regression)
-npm test -- <test-file>
-
-# 4. Batch gate passes
-./scripts/baseline-check.sh
-npm run validate:schema-drift
-```
-
----
-
-## 7. Pattern-Specific Batch Gates
-
-### Enhanced Gate Stack
-
-After standard batch gate, add pattern-specific validation:
-
-```bash
-# Standard batch gate
-npm test -- <cluster-tests>
-./scripts/baseline-check.sh
-
-# Pattern A suspected (async issues)
-npm run detect-flaky -- <cluster-tests>  # Should return "DETERMINISTIC"
-
-# Pattern B suspected (mock drift)
-npm run validate:schema-drift -- --strict  # Zero warnings required
-
-# Pattern C suspected (import issues)
-npx tsc --noEmit <cluster-tests> 2>&1 | grep -c "Cannot find"  # Should be 0
-
-# Pattern D suspected (type boundaries)
-# Manual review of numeric conversions at layer boundaries
-```
-
----
-
-## 8. Integration with Existing Plan
+## 10. Integration with Existing Plan
 
 ### How to Use This Document
 
 1. **Before Phase 2.1 starts**: Review Do-Not Checklist, set up rollback tags
-2. **Before each cluster**: Run flakiness detection, assess confidence
-3. **During repair**: Use triage flowchart for first response
-4. **After each fix**: Run pattern-specific batch gates
+2. **Before each cluster**: Run `detect-flaky` (10 runs), assess priority score
+3. **During repair**: Use unified triage flowchart (flakiness first)
+4. **After each fix**: Run post-fix gate (`--expect-pass`), fill evidence template
 5. **After each phase**: Create completion tag, verify rollback capability
 
 ### Cross-References
 
-- **Operating Rules** (main plan): Enhanced with Do-Not Checklist
-- **Quality Gate Stack** (main plan): Enhanced with pattern-specific gates
-- **Phase 2.1-2.4** (main plan): Enhanced with confidence scoring
-- **systematic-debugging skill**: Enhanced with test-specific adaptations
+- **Operating Rules** (main plan): Enhanced with Do-Not Checklist, sharpened 3-fix rule
+- **Quality Gate Stack** (main plan): Enhanced with post-fix gate mode
+- **Phase 2.1-2.4** (main plan): Enhanced with priority scoring
+- **systematic-debugging skill**: Enhanced with test-specific adaptations, Pattern E/F
 
 ---
 
-## Appendix: Quick Reference Card
+## Appendix A: Quick Reference Card
 
 ```
-TRIAGE QUICK START
-==================
-1. Run flakiness check: ./scripts/detect-flaky.sh <test>
-2. If FLAKY: Pattern A (async) first
-3. If DETERMINISTIC: Use triage flowchart
-4. Match to Pattern A/B/C/D
-5. Apply pattern-specific diagnostic
-6. Fix with single variable change
-7. Run batch gate + pattern gate
+UNIFIED TRIAGE PROCESS
+======================
+1. Run flakiness check: ./scripts/detect-flaky.sh <test> 10
+2. FLAKY?     -> Pattern E (shared state), A (async), F (timer) first
+3. DETERMINISTIC? -> Classify by signature (A/B/C/D/E/F)
+4. Match to pattern, apply specific diagnostic
+5. Fix with single variable change
+6. Run post-fix gate: ./scripts/detect-flaky.sh <test> 10 --expect-pass
+7. Fill evidence template in commit message
 8. Tag checkpoint if phase complete
 
 DO-NOT REMINDERS
@@ -429,6 +467,45 @@ DO-NOT REMINDERS
 - NO shared seam edits without owner
 - NO skipping batch gates
 - NO ignoring schema-drift
-- NO 4th fix attempt (escalate)
+- NO 4th falsified hypothesis (escalate!)
 - NO merge without rollback tag
+
+PATTERN SIGNATURES
+==================
+A (Async):    "undefined", timeout, floating promise
+B (Mock):     type mismatch, wrong field names
+C (Import):   "Cannot find module"
+D (Type):     boundary conversion errors
+E (State):    passes alone, fails in suite
+F (Timer):    DST/locale, timer hangs
+
+ESCALATION TRIGGERS
+===================
+- 3 falsified hypotheses
+- 90 min without new understanding
+- 2 regressions introduced
+```
+
+---
+
+## Appendix B: detect-flaky.sh Usage
+
+```bash
+# Pre-fix: detect if test is flaky or deterministic
+./scripts/detect-flaky.sh tests/unit/foo.test.ts
+
+# Pre-fix: more runs for higher confidence
+./scripts/detect-flaky.sh tests/unit/foo.test.ts 20
+
+# Post-fix gate: require 10 consecutive passes
+./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 --expect-pass
+
+# Debug: show failure output inline
+./scripts/detect-flaky.sh tests/unit/foo.test.ts 5 --show-failures
+
+# Debug: keep logs for inspection
+./scripts/detect-flaky.sh tests/unit/foo.test.ts 5 --keep-logs
+
+# Pass extra args to test runner
+./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 -- --sequence=shuffle
 ```
