@@ -1,9 +1,9 @@
-# Foundation Hardening Strategy Improvements v2
+# Foundation Hardening Strategy Improvements v3
 
 **Status**: SUPPLEMENT to FOUNDATION-HARDENING-EXECUTION-PLAN.md
 **Created**: 2025-12-23
-**Revised**: 2025-12-23 (v2 - incorporating review feedback)
-**Based On**: Skills analysis + external review
+**Revised**: 2025-12-23 (v3 - critical CI bug fix + efficiency improvements)
+**Based On**: Skills analysis + multiple external reviews
 
 ---
 
@@ -450,14 +450,14 @@ git commit --allow-empty -m "rollback: Phase 2.X reverted - <reason>"
 ## Appendix A: Quick Reference Card
 
 ```
-UNIFIED TRIAGE PROCESS
-======================
+UNIFIED TRIAGE PROCESS (v3)
+===========================
 1. Run flakiness check: ./scripts/detect-flaky.sh <test> 10
 2. FLAKY?     -> Pattern E (shared state), A (async), F (timer) first
 3. DETERMINISTIC? -> Classify by signature (A/B/C/D/E/F)
 4. Match to pattern, apply specific diagnostic
 5. Fix with single variable change
-6. Run post-fix gate: ./scripts/detect-flaky.sh <test> 10 --expect-pass
+6. Run post-fix gate: ./scripts/detect-flaky.sh <test> 10 --expect-pass --fail-fast
 7. Fill evidence template in commit message
 8. Tag checkpoint if phase complete
 
@@ -488,7 +488,7 @@ ESCALATION TRIGGERS
 
 ---
 
-## Appendix B: detect-flaky.sh Usage
+## Appendix B: detect-flaky.sh Usage (v3)
 
 ```bash
 # Pre-fix: detect if test is flaky or deterministic
@@ -500,6 +500,9 @@ ESCALATION TRIGGERS
 # Post-fix gate: require 10 consecutive passes
 ./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 --expect-pass
 
+# Post-fix gate with early abort (saves time in CI)
+./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 --expect-pass --fail-fast
+
 # Debug: show failure output inline
 ./scripts/detect-flaky.sh tests/unit/foo.test.ts 5 --show-failures
 
@@ -509,3 +512,14 @@ ESCALATION TRIGGERS
 # Pass extra args to test runner
 ./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 -- --sequence=shuffle
 ```
+
+### Exit Code Semantics (v3)
+
+| Mode | PASSING | FLAKY | DETERMINISTIC FAILURE |
+|------|---------|-------|-----------------------|
+| Auto (default) | exit 0 | exit 1 | exit 1 |
+| --expect-pass | exit 0 | exit 1 | exit 1 |
+| --expect-fail | exit 1 | exit 1 | exit 0 |
+
+**Key v3 Change**: Auto mode now exits 1 on deterministic failures.
+This prevents broken tests from silently passing CI pipelines.
