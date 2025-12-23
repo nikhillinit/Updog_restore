@@ -484,7 +484,7 @@ router['get'](
     // Fetch limit + 1 to detect if there are more results
     const fetchLimit = query.limit + 1;
 
-    // Execute query - use and() unconditionally (it handles single conditions)
+    // Execute query using and() which properly preserves the query builder chain
     const results = await db
       .select({
         id: portfolioCompanies.id,
@@ -502,7 +502,6 @@ router['get'](
         lastAllocationAt: portfolioCompanies.lastAllocationAt,
       })
       .from(portfolioCompanies)
-      .$dynamic()
       .where(and(...conditions))
       .orderBy(...orderBy)
       .limit(fetchLimit);
