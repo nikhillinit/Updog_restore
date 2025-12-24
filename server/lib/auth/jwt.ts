@@ -11,7 +11,13 @@ import type { Request, Response, NextFunction } from 'express';
 import { getConfig } from '../../config';
 import { authMetrics } from '../../telemetry';
 
-export type JWTClaims = JwtPayload & { sub: string; role?: string; email?: string };
+export type JWTClaims = JwtPayload & {
+  sub: string;
+  role?: string;
+  email?: string;
+  fundIds?: number[];
+  lpId?: number; // LP-specific: Limited Partner ID for LP role users
+};
 
 const cfg = getConfig();
 
@@ -47,6 +53,8 @@ export const requireAuth = () => (req: Request, res: Response, next: NextFunctio
       email: claims.email ?? claims.sub,
       role: claims.role,
       roles: claims.role ? [claims.role] : [],
+      fundIds: claims.fundIds || [],
+      lpId: claims.lpId, // LP-specific: attach if present in token
       ip: req.ip || 'unknown',
       userAgent: req.header("user-agent") || 'unknown',
     };

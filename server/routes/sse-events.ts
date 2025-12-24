@@ -7,7 +7,6 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { z } from 'zod';
 import { logger } from '../logger';
 
 const router = Router();

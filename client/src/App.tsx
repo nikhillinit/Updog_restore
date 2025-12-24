@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FundProvider, useFundContext } from "@/contexts/FundContext";
+import { LPProvider } from "@/contexts/LPContext";
 import { FeatureFlagProvider } from "@/providers/FeatureFlagProvider";
 import { StagingRibbon } from "@/components/StagingRibbon";
 import { ErrorBoundary } from "./components/ui/error-boundary";
@@ -58,6 +59,13 @@ const SharedDashboard = React.lazy(() => import("@/pages/shared-dashboard"));
 const SecondaryMarketPage = React.lazy(() => import("@/pages/secondary-market"));
 // Notion Integration
 const NotionIntegrationPage = React.lazy(() => import("@/pages/notion-integration"));
+// LP Reporting Dashboard
+const LPDashboard = React.lazy(() => import("@/pages/lp/dashboard"));
+const LPFundDetail = React.lazy(() => import("@/pages/lp/fund-detail"));
+const LPCapitalAccount = React.lazy(() => import("@/pages/lp/capital-account"));
+const LPPerformance = React.lazy(() => import("@/pages/lp/performance"));
+const LPReports = React.lazy(() => import("@/pages/lp/reports"));
+const LPSettings = React.lazy(() => import("@/pages/lp/settings"));
 
 const _moduleConfig = {
   dashboard: {
@@ -246,6 +254,13 @@ function Router() {
         <Route path="/reports">{() => <ProtectedRoute component={Reports} />}</Route>
         {/* LP Sharing - No authentication required */}
         <Route path="/shared/:shareId" component={SharedDashboard} />
+        {/* LP Reporting Dashboard - Wrapped with LPProvider */}
+        <Route path="/lp/dashboard">{() => <LPProvider><LPDashboard /></LPProvider>}</Route>
+        <Route path="/lp/fund-detail/:fundId">{() => <LPProvider><LPFundDetail /></LPProvider>}</Route>
+        <Route path="/lp/capital-account">{() => <LPProvider><LPCapitalAccount /></LPProvider>}</Route>
+        <Route path="/lp/performance">{() => <LPProvider><LPPerformance /></LPProvider>}</Route>
+        <Route path="/lp/reports">{() => <LPProvider><LPReports /></LPProvider>}</Route>
+        <Route path="/lp/settings">{() => <LPProvider><LPSettings /></LPProvider>}</Route>
         <Route component={NotFound} />
       </Switch>
     </Suspense>

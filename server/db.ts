@@ -4,7 +4,12 @@
  */
 
 import * as schema from '@shared/schema';
+import * as lpSchema from '@shared/schema-lp-reporting';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+
+// Combined schema for LP reporting support
+const combinedSchema = { ...schema, ...lpSchema };
+type CombinedSchema = typeof schema & typeof lpSchema;
 
 // Detect test environment
 const isTest = process.env['NODE_ENV'] === 'test' || process.env['VITEST'] === 'true';
@@ -13,21 +18,21 @@ const isTest = process.env['NODE_ENV'] === 'test' || process.env['VITEST'] === '
 const isVercel = process.env['VERCEL'] === '1' || process.env['VERCEL_ENV'];
 
 // Dynamic imports based on environment
-let db: NodePgDatabase<typeof schema>;
+let db: NodePgDatabase<CombinedSchema>;
 let pool: unknown;
 
 // Use mock database in test environment
 if (isTest) {
   // Import the database mock for testing
   const { databaseMock } = require('../tests/helpers/database-mock') as {
-    databaseMock: NodePgDatabase<typeof schema>;
+    databaseMock: NodePgDatabase<CombinedSchema>;
   };
   db = databaseMock;
   pool = null;
 } else if (isVercel) {
   // Use HTTP driver for Vercel (no persistent connections)
   const { drizzle } = require('drizzle-orm/neon-http') as {
-    drizzle: (client: unknown, options: { schema: typeof schema }) => NodePgDatabase<typeof schema>;
+    drizzle: (client: unknown, options: { schema: typeof combinedSchema }) => NodePgDatabase<CombinedSchema>;
   };
   const { neon } = require('@neondatabase/serverless') as {
     neon: (url: string) => unknown;
@@ -40,7 +45,7 @@ if (isTest) {
   }
 
   const sql = neon(DATABASE_URL);
-  db = drizzle(sql, { schema });
+  db = drizzle(sql, { schema: combinedSchema });
 
   // No pool in HTTP mode
   pool = null;
@@ -58,7 +63,7 @@ if (isTest) {
   }
 
   pool = new Pool({ connectionString: process.env['DATABASE_URL'] });
-  db = drizzle({ client: pool, schema });
+  db = drizzle({ client: pool, schema: combinedSchema });
 }
 
 export { db, pool };
