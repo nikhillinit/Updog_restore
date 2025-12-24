@@ -64,6 +64,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const fundMetricsRoutes = await import('./routes/fund-metrics.js');
   app.use(fundMetricsRoutes.default);
 
+  // Performance Dashboard API routes (timeseries, breakdown, comparison)
+  const performanceApiRoutes = await import('./routes/performance-api.js');
+  app.use(performanceApiRoutes.default);
+
+  // LP Reporting Dashboard API routes
+  const lpApiRoutes = await import('./routes/lp-api.js');
+  app.use(lpApiRoutes.default);
+
+  // LP Reporting Dashboard health check routes
+  const lpHealthRoutes = await import('./routes/lp-health.js');
+  app.use(lpHealthRoutes.default);
+
   // Middleware to record HTTP metrics
   app.use((req: Request, res: Response, next: (err?: any) => void) => {
     const startTime = Date.now();
@@ -751,6 +763,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes for engine management (non-prod only)
   const { engineAdminRoutes } = await import('./routes/admin/engine.js');
   app.use('/api/admin/engine', engineAdminRoutes);
+
+  // Scenario Comparison Tool routes
+  const scenarioComparisonRoutes = await import('./routes/scenario-comparison.js');
+  app.use(scenarioComparisonRoutes.default);
 
   // Development dashboard routes (development only)
   if (process.env["NODE_ENV"] === 'development') {

@@ -5,6 +5,7 @@ global:
 
 rule_files:
   - "alert-rules.yml"
+  - "lp-alerts.yml"
 
 scrape_configs:
   # UpDog application metrics

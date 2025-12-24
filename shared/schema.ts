@@ -1886,3 +1886,151 @@ export type NotionPortfolioConfig = typeof notionPortfolioConfigs.$inferSelect;
 export type InsertNotionPortfolioConfig = typeof notionPortfolioConfigs.$inferInsert;
 export type NotionDatabaseMapping = typeof notionDatabaseMappings.$inferSelect;
 export type InsertNotionDatabaseMapping = typeof notionDatabaseMappings.$inferInsert;
+
+// ============================================================================
+// SCENARIO COMPARISON TOOL TABLES
+// ============================================================================
+
+/**
+ * Saved comparison configurations for reuse
+ * Allows users to save "templates" for comparison layouts (2-6 scenarios)
+ */
+export const comparisonConfigurations = pgTable("comparison_configurations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  fundId: integer("fund_id").notNull().references(() => funds.id),
+
+  // Configuration identity
+  configName: text("config_name").notNull(),
+  description: text("description"),
+
+  // Scenario selection (2-6 scenarios, mix of deal + portfolio)
+  scenarioIds: text("scenario_ids").array().notNull(),
+  scenarioTypes: jsonb("scenario_types").notNull(), // {"uuid1": "deal", "uuid2": "portfolio", ...}
+
+  // Display preferences
+  displayLayout: text("display_layout").notNull().default("side_by_side"), // 'side_by_side', 'stacked', 'grid'
+  metricsToCompare: text("metrics_to_compare").array().notNull(),
+  sortOrder: text("sort_order").default("tvpi_desc"),
+
+  // Delta visualization preferences
+  showDeltas: boolean("show_deltas").default(true),
+  deltaMode: text("delta_mode").default("percentage"), // 'absolute', 'percentage', 'both'
+  baselineScenarioId: uuid("baseline_scenario_id"),
+  highlightThreshold: decimal("highlight_threshold", { precision: 5, scale: 4 }).default("0.1"), // 10%
+
+  // Color coding preferences
+  colorScheme: text("color_scheme").default("traffic_light"), // 'traffic_light', 'heatmap', 'grayscale'
+  betterWorseIndicators: boolean("better_worse_indicators").default(true),
+
+  // Usage tracking
+  useCount: integer("use_count").notNull().default(0),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+
+  // Sharing and permissions
+  isPublic: boolean("is_public").default(false),
+  createdBy: integer("created_by").notNull().references(() => users.id),
+  sharedWith: text("shared_with").array().default([]),
+
+  // Versioning for optimistic locking
+  version: integer("version").notNull().default(1),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table: any) => ({
+  fundCreatorIdx: index("comparison_configs_fund_creator_idx")['on'](
+    table.fundId,
+    table.createdBy,
+    table.lastUsedAt.desc()
+  ),
+  publicIdx: index("comparison_configs_public_idx")['on'](
+    table.isPublic,
+    table.useCount.desc()
+  ),
+  usageIdx: index("comparison_configs_usage_idx")['on'](
+    table.useCount.desc(),
+    table.lastUsedAt.desc()
+  ),
+  nameSearchIdx: index("comparison_configs_name_search_idx")['on'](
+    table.fundId,
+    table.configName
+  ),
+  uniqueConfigName: unique("comparison_configs_unique_name")['on'](
+    table.fundId,
+    table.createdBy,
+    table.configName
+  ),
+}));
+
+/**
+ * Tracks comparison access patterns for:
+ * - User behavior analytics
+ * - Cache warming decisions
+ * - Popular comparison patterns
+ * - Audit trail
+ */
+export const comparisonAccessHistory = pgTable("comparison_access_history", {
+  id: uuid("id").defaultRandom().primaryKey(),
+
+  // What was accessed
+  comparisonId: uuid("comparison_id").references(() => scenarioComparisons.id, { onDelete: "cascade" }),
+  configurationId: uuid("configuration_id").references(() => comparisonConfigurations.id, { onDelete: "set null" }),
+  fundId: integer("fund_id").notNull().references(() => funds.id),
+
+  // Access details
+  accessType: text("access_type").notNull(), // 'view', 'refresh', 'export', 'share'
+  scenariosCompared: text("scenarios_compared").array().notNull(),
+  metricsViewed: text("metrics_viewed").array(),
+
+  // User context
+  userId: integer("user_id").references(() => users.id),
+  sessionId: text("session_id"),
+
+  // Performance metrics
+  loadTimingMs: integer("load_timing_ms"),
+  cacheHit: boolean("cache_hit").default(false),
+  dataFreshnessHours: integer("data_freshness_hours"),
+
+  // Access metadata
+  accessSource: text("access_source").default("web_ui"), // 'web_ui', 'api', 'scheduled_report'
+  userAgent: text("user_agent"),
+  ipAddress: text("ip_address"),
+
+  accessedAt: timestamp("accessed_at", { withTimezone: true }).defaultNow(),
+}, (table: any) => ({
+  comparisonTimeIdx: index("comparison_access_comparison_time_idx")['on'](
+    table.comparisonId,
+    table.accessedAt.desc()
+  ),
+  userFundIdx: index("comparison_access_user_fund_idx")['on'](
+    table.userId,
+    table.fundId,
+    table.accessedAt.desc()
+  ),
+  fundAccessIdx: index("comparison_access_fund_idx")['on'](
+    table.fundId,
+    table.accessType,
+    table.accessedAt.desc()
+  ),
+  cacheAnalysisIdx: index("comparison_access_cache_idx")['on'](
+    table.cacheHit,
+    table.loadTimingMs
+  ),
+}));
+
+// Insert schemas for comparison tool tables
+export const insertComparisonConfigurationSchema = createInsertSchema(comparisonConfigurations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertComparisonAccessHistorySchema = createInsertSchema(comparisonAccessHistory).omit({
+  id: true,
+  accessedAt: true,
+});
+
+// Type exports for comparison tool tables
+export type ComparisonConfiguration = typeof comparisonConfigurations.$inferSelect;
+export type InsertComparisonConfiguration = typeof comparisonConfigurations.$inferInsert;
+export type ComparisonAccessHistory = typeof comparisonAccessHistory.$inferSelect;
+export type InsertComparisonAccessHistory = typeof comparisonAccessHistory.$inferInsert;

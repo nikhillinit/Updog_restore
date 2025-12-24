@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'wouter';
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -9,13 +9,21 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Plus, Trash2, ArrowLeft, ArrowRight, ChevronUp, ChevronDown, AlertCircle } from "lucide-react";
+} from '@/components/ui/table';
+import {
+  Plus,
+  Trash2,
+  ArrowLeft,
+  ArrowRight,
+  ChevronUp,
+  ChevronDown,
+  AlertCircle,
+} from 'lucide-react';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { cn } from "@/lib/utils";
-import { useFundSelector, useFundAction } from '@/stores/useFundSelector';
-import type { StrategyStage } from '@/stores/fundStore';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
+import { useFundAction } from '@/stores/useFundSelector';
+// Removed StrategyStage import - not needed since we map to StageSchema shape directly
 
 // Import business logic and types
 import { getDefaultRounds } from '@/lib/investment-round-defaults';
@@ -25,7 +33,7 @@ import {
   calculateRoundSummary,
   formatCurrency,
   formatPercent,
-  formatMonths
+  formatMonths,
 } from '@/lib/investment-round-utils';
 import type { InvestmentRound, RoundSummary, ValuationType } from '@/types/investment-rounds';
 
@@ -35,7 +43,7 @@ export default function InvestmentRoundsStep() {
   const [summary, setSummary] = useState<RoundSummary | null>(null);
 
   // Get the fromInvestmentStrategy action to sync data to fundStore
-  const fromInvestmentStrategy = useFundAction(s => s.fromInvestmentStrategy);
+  const fromInvestmentStrategy = useFundAction((s) => s.fromInvestmentStrategy);
 
   // Calculate summary whenever rounds change
   useEffect(() => {
@@ -45,13 +53,13 @@ export default function InvestmentRoundsStep() {
   // Sync rounds to fundStore whenever they change
   // This enables other wizard steps (like CapitalStructure) to access investment round data
   useEffect(() => {
-    // Convert InvestmentRound[] to StrategyStage format for fundStore
-    const stages: StrategyStage[] = rounds.map((round) => ({
+    // Convert InvestmentRound[] to shape expected by fromInvestmentStrategy
+    // StageSchema expects: { id, name, graduationRate, exitRate }
+    const stages = rounds.map((round) => ({
       id: round.id,
       name: round.name,
-      graduate: round.graduationRate,
-      exit: round.exitRate,
-      months: round.monthsToGraduate,
+      graduationRate: round.graduationRate,
+      exitRate: round.exitRate,
     }));
 
     // Sync to fundStore (this persists to localStorage via zustand persist middleware)
@@ -61,7 +69,7 @@ export default function InvestmentRoundsStep() {
   // Validation for all rounds
   const validationErrors = useMemo(() => {
     const errors: Record<string, string[]> = {};
-    rounds.forEach(round => {
+    rounds.forEach((round) => {
       const roundErrors = validateRound(round);
       if (roundErrors.length > 0) {
         errors[round.id] = roundErrors;
@@ -75,10 +83,12 @@ export default function InvestmentRoundsStep() {
 
   // Round update handler
   const handleUpdateRound = (id: string, updates: Partial<InvestmentRound>) => {
-    setRounds(prev => prev.map(round => {
-      if (round.id !== id) return round;
-      return applyRoundUpdate(round, updates);
-    }));
+    setRounds((prev) =>
+      prev.map((round) => {
+        if (round.id !== id) return round;
+        return applyRoundUpdate(round, updates);
+      })
+    );
   };
 
   // Add new round
@@ -98,7 +108,7 @@ export default function InvestmentRoundsStep() {
       monthsToGraduate: 18,
       monthsToExit: 24,
       exitValuation: 0,
-      isCustom: true
+      isCustom: true,
     };
     setRounds([...rounds, newRound]);
   };
@@ -109,12 +119,12 @@ export default function InvestmentRoundsStep() {
       alert('You must have at least one investment round defined.');
       return;
     }
-    setRounds(prev => prev.filter(round => round.id !== id));
+    setRounds((prev) => prev.filter((round) => round.id !== id));
   };
 
   // Move round up/down
   const handleMoveRound = (id: string, direction: 'up' | 'down') => {
-    const index = rounds.findIndex(r => r.id === id);
+    const index = rounds.findIndex((r) => r.id === id);
     if (
       (direction === 'up' && index === 0) ||
       (direction === 'down' && index === rounds.length - 1)
@@ -130,14 +140,14 @@ export default function InvestmentRoundsStep() {
 
   // Handle valuation type change
   const handleValuationTypeChange = (id: string, newType: ValuationType) => {
-    const round = rounds.find(r => r.id === id);
+    const round = rounds.find((r) => r.id === id);
     if (!round) return;
 
     // When switching types, maintain the current value as the new input
     const newValuation = newType === 'Pre-Money' ? round.preMoney : round.postMoney;
     handleUpdateRound(id, {
       valuationType: newType,
-      valuation: newValuation
+      valuation: newValuation,
     });
   };
 
@@ -151,8 +161,9 @@ export default function InvestmentRoundsStep() {
         <Alert className="bg-blue-50 border-blue-200 mb-4">
           <AlertCircle className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-blue-800 text-sm">
-            <strong>Important:</strong> Do not delete later stage rounds, even if your fund doesn't participate in them.
-            These rounds are needed to model future valuations and portfolio company trajectories.
+            <strong>Important:</strong> Do not delete later stage rounds, even if your fund doesn't
+            participate in them. These rounds are needed to model future valuations and portfolio
+            company trajectories.
           </AlertDescription>
         </Alert>
 
@@ -160,10 +171,19 @@ export default function InvestmentRoundsStep() {
         {summary && (
           <div className="mb-4 pb-3 border-b border-[#E0D8D1]">
             <p className="text-sm font-poppins text-[#292929]/70">
-              Modeling a <strong className="text-[#292929]">{formatMonths(summary.totalFundLifeMonths)}</strong> journey
-              with <strong className="text-[#292929]">{formatCurrency(summary.totalRoundSize)}</strong> capital
-              across stages, averaging <strong className="text-emerald-600">{formatPercent(summary.averageGraduationRate)}</strong> graduation
-              and <strong className="text-blue-600">{formatPercent(summary.averageExitRate)}</strong> exit rates.
+              Modeling a{' '}
+              <strong className="text-[#292929]">
+                {formatMonths(summary.totalFundLifeMonths)}
+              </strong>{' '}
+              journey with{' '}
+              <strong className="text-[#292929]">{formatCurrency(summary.totalRoundSize)}</strong>{' '}
+              capital across stages, averaging{' '}
+              <strong className="text-emerald-600">
+                {formatPercent(summary.averageGraduationRate)}
+              </strong>{' '}
+              graduation and{' '}
+              <strong className="text-blue-600">{formatPercent(summary.averageExitRate)}</strong>{' '}
+              exit rates.
             </p>
           </div>
         )}
@@ -221,9 +241,9 @@ export default function InvestmentRoundsStep() {
                     <TableRow
                       key={round.id}
                       className={cn(
-                        "border-b border-[#E0D8D1]",
-                        index % 2 === 0 ? "bg-white" : "bg-gray-50/50",
-                        hasRoundErrors && "bg-red-50/30"
+                        'border-b border-[#E0D8D1]',
+                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50',
+                        hasRoundErrors && 'bg-red-50/30'
                       )}
                     >
                       {/* Stage Name */}
@@ -232,12 +252,15 @@ export default function InvestmentRoundsStep() {
                           <Input
                             type="text"
                             value={round.name}
-                            onChange={(e) => handleUpdateRound(round.id, {
-                              name: e.target.value as any
-                            })}
+                            onChange={(e) =>
+                              handleUpdateRound(round.id, {
+                                name: e.target
+                                  .value as import('@/types/investment-rounds').StageName,
+                              })
+                            }
                             className={cn(
-                              "h-8 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins font-medium",
-                              hasRoundErrors && "border-red-300 focus:border-red-500"
+                              'h-8 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins font-medium',
+                              hasRoundErrors && 'border-red-300 focus:border-red-500'
                             )}
                           />
                           {round.isCustom && (
@@ -259,12 +282,14 @@ export default function InvestmentRoundsStep() {
                             min="0"
                             step="0.1"
                             value={round.roundSize}
-                            onChange={(e) => handleUpdateRound(round.id, {
-                              roundSize: parseFloat(e.target.value) || 0
-                            })}
+                            onChange={(e) =>
+                              handleUpdateRound(round.id, {
+                                roundSize: parseFloat(e.target.value) || 0,
+                              })
+                            }
                             className={cn(
-                              "h-8 pl-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins",
-                              hasRoundErrors && "border-red-300 focus:border-red-500"
+                              'h-8 pl-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins',
+                              hasRoundErrors && 'border-red-300 focus:border-red-500'
                             )}
                           />
                         </div>
@@ -276,10 +301,10 @@ export default function InvestmentRoundsStep() {
                           <button
                             type="button"
                             className={cn(
-                              "flex-1 text-xs px-2 font-poppins transition-colors",
+                              'flex-1 text-xs px-2 font-poppins transition-colors',
                               round.valuationType === 'Pre-Money'
-                                ? "bg-blue-500 text-white"
-                                : "bg-white text-gray-700 hover:bg-gray-100"
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-white text-gray-700 hover:bg-gray-100'
                             )}
                             onClick={() => handleValuationTypeChange(round.id, 'Pre-Money')}
                           >
@@ -288,10 +313,10 @@ export default function InvestmentRoundsStep() {
                           <button
                             type="button"
                             className={cn(
-                              "flex-1 text-xs px-2 font-poppins transition-colors",
+                              'flex-1 text-xs px-2 font-poppins transition-colors',
                               round.valuationType === 'Post-Money'
-                                ? "bg-blue-500 text-white"
-                                : "bg-white text-gray-700 hover:bg-gray-100"
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-white text-gray-700 hover:bg-gray-100'
                             )}
                             onClick={() => handleValuationTypeChange(round.id, 'Post-Money')}
                           >
@@ -311,12 +336,14 @@ export default function InvestmentRoundsStep() {
                             min="0"
                             step="1"
                             value={round.valuation}
-                            onChange={(e) => handleUpdateRound(round.id, {
-                              valuation: parseFloat(e.target.value) || 0
-                            })}
+                            onChange={(e) =>
+                              handleUpdateRound(round.id, {
+                                valuation: parseFloat(e.target.value) || 0,
+                              })
+                            }
                             className={cn(
-                              "h-8 pl-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins",
-                              hasRoundErrors && "border-red-300 focus:border-red-500"
+                              'h-8 pl-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins',
+                              hasRoundErrors && 'border-red-300 focus:border-red-500'
                             )}
                           />
                         </div>
@@ -331,12 +358,14 @@ export default function InvestmentRoundsStep() {
                             max="30"
                             step="0.5"
                             value={round.esopPct}
-                            onChange={(e) => handleUpdateRound(round.id, {
-                              esopPct: parseFloat(e.target.value) || 0
-                            })}
+                            onChange={(e) =>
+                              handleUpdateRound(round.id, {
+                                esopPct: parseFloat(e.target.value) || 0,
+                              })
+                            }
                             className={cn(
-                              "h-8 pr-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins",
-                              hasRoundErrors && "border-red-300 focus:border-red-500"
+                              'h-8 pr-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins',
+                              hasRoundErrors && 'border-red-300 focus:border-red-500'
                             )}
                           />
                           <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
@@ -354,12 +383,14 @@ export default function InvestmentRoundsStep() {
                             max="100"
                             step="1"
                             value={round.graduationRate}
-                            onChange={(e) => handleUpdateRound(round.id, {
-                              graduationRate: parseFloat(e.target.value) || 0
-                            })}
+                            onChange={(e) =>
+                              handleUpdateRound(round.id, {
+                                graduationRate: parseFloat(e.target.value) || 0,
+                              })
+                            }
                             className={cn(
-                              "h-8 pr-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins",
-                              hasRoundErrors && "border-red-300 focus:border-red-500"
+                              'h-8 pr-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins',
+                              hasRoundErrors && 'border-red-300 focus:border-red-500'
                             )}
                           />
                           <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
@@ -377,12 +408,14 @@ export default function InvestmentRoundsStep() {
                             max="100"
                             step="1"
                             value={round.exitRate}
-                            onChange={(e) => handleUpdateRound(round.id, {
-                              exitRate: parseFloat(e.target.value) || 0
-                            })}
+                            onChange={(e) =>
+                              handleUpdateRound(round.id, {
+                                exitRate: parseFloat(e.target.value) || 0,
+                              })
+                            }
                             className={cn(
-                              "h-8 pr-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins",
-                              hasRoundErrors && "border-red-300 focus:border-red-500"
+                              'h-8 pr-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins',
+                              hasRoundErrors && 'border-red-300 focus:border-red-500'
                             )}
                           />
                           <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
@@ -413,12 +446,14 @@ export default function InvestmentRoundsStep() {
                           min="0"
                           step="1"
                           value={round.monthsToGraduate}
-                          onChange={(e) => handleUpdateRound(round.id, {
-                            monthsToGraduate: parseInt(e.target.value) || 0
-                          })}
+                          onChange={(e) =>
+                            handleUpdateRound(round.id, {
+                              monthsToGraduate: parseInt(e.target.value) || 0,
+                            })
+                          }
                           className={cn(
-                            "h-8 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins",
-                            hasRoundErrors && "border-red-300 focus:border-red-500"
+                            'h-8 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins',
+                            hasRoundErrors && 'border-red-300 focus:border-red-500'
                           )}
                         />
                       </TableCell>
@@ -430,12 +465,14 @@ export default function InvestmentRoundsStep() {
                           min="0"
                           step="1"
                           value={round.monthsToExit}
-                          onChange={(e) => handleUpdateRound(round.id, {
-                            monthsToExit: parseInt(e.target.value) || 0
-                          })}
+                          onChange={(e) =>
+                            handleUpdateRound(round.id, {
+                              monthsToExit: parseInt(e.target.value) || 0,
+                            })
+                          }
                           className={cn(
-                            "h-8 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins",
-                            hasRoundErrors && "border-red-300 focus:border-red-500"
+                            'h-8 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins',
+                            hasRoundErrors && 'border-red-300 focus:border-red-500'
                           )}
                         />
                       </TableCell>
@@ -451,12 +488,14 @@ export default function InvestmentRoundsStep() {
                             min="0"
                             step="1"
                             value={round.exitValuation}
-                            onChange={(e) => handleUpdateRound(round.id, {
-                              exitValuation: parseFloat(e.target.value) || 0
-                            })}
+                            onChange={(e) =>
+                              handleUpdateRound(round.id, {
+                                exitValuation: parseFloat(e.target.value) || 0,
+                              })
+                            }
                             className={cn(
-                              "h-8 pl-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins",
-                              hasRoundErrors && "border-red-300 focus:border-red-500"
+                              'h-8 pl-5 text-sm px-2 border-[#E0D8D1] focus:border-[#292929] font-poppins',
+                              hasRoundErrors && 'border-red-300 focus:border-red-500'
                             )}
                           />
                         </div>
@@ -514,10 +553,13 @@ export default function InvestmentRoundsStep() {
           <Alert className="bg-red-50 border-red-200 mb-4">
             <AlertCircle className="h-4 w-4 text-red-600" />
             <AlertDescription className="text-red-800 text-sm">
-              <strong>{totalErrors} validation error{totalErrors !== 1 ? 's' : ''} found.</strong> Please review the highlighted rows and fix the errors before proceeding.
+              <strong>
+                {totalErrors} validation error{totalErrors !== 1 ? 's' : ''} found.
+              </strong>{' '}
+              Please review the highlighted rows and fix the errors before proceeding.
               <ul className="list-disc list-inside mt-2 space-y-1 text-xs">
                 {Object.entries(validationErrors).map(([roundId, errors]) => {
-                  const round = rounds.find(r => r.id === roundId);
+                  const round = rounds.find((r) => r.id === roundId);
                   return (
                     <li key={roundId}>
                       <strong>{round?.name}:</strong> {errors.join(', ')}

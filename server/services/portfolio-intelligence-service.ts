@@ -6,7 +6,7 @@
  */
 
 import { db } from '../db';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import {
   fundStrategyModels,
   portfolioScenarios,
@@ -39,10 +39,7 @@ export const portfolioIntelligenceService = {
 
   strategies: {
     async create(data: InsertFundStrategyModel): Promise<FundStrategyModel> {
-      const [strategy] = await db
-        .insert(fundStrategyModels)
-        .values(data)
-        .returning();
+      const [strategy] = await db.insert(fundStrategyModels).values(data).returning();
       if (!strategy) throw new Error('Failed to create strategy');
       return strategy;
     },
@@ -107,10 +104,7 @@ export const portfolioIntelligenceService = {
 
   scenarios: {
     async create(data: InsertPortfolioScenario): Promise<PortfolioScenario> {
-      const [scenario] = await db
-        .insert(portfolioScenarios)
-        .values(data)
-        .returning();
+      const [scenario] = await db.insert(portfolioScenarios).values(data).returning();
       if (!scenario) throw new Error('Failed to create scenario');
       return scenario;
     },
@@ -165,10 +159,7 @@ export const portfolioIntelligenceService = {
 
   comparisons: {
     async create(data: InsertScenarioComparison): Promise<ScenarioComparison> {
-      const [comparison] = await db
-        .insert(scenarioComparisons)
-        .values(data)
-        .returning();
+      const [comparison] = await db.insert(scenarioComparisons).values(data).returning();
       if (!comparison) throw new Error('Failed to create comparison');
       return comparison;
     },
@@ -188,10 +179,7 @@ export const portfolioIntelligenceService = {
 
   simulations: {
     async create(data: InsertMonteCarloSimulation): Promise<MonteCarloSimulation> {
-      const [simulation] = await db
-        .insert(monteCarloSimulations)
-        .values(data)
-        .returning();
+      const [simulation] = await db.insert(monteCarloSimulations).values(data).returning();
       if (!simulation) throw new Error('Failed to create simulation');
       return simulation;
     },
@@ -219,10 +207,7 @@ export const portfolioIntelligenceService = {
 
   reserves: {
     async create(data: InsertReserveAllocationStrategy): Promise<ReserveAllocationStrategy> {
-      const [strategy] = await db
-        .insert(reserveAllocationStrategies)
-        .values(data)
-        .returning();
+      const [strategy] = await db.insert(reserveAllocationStrategies).values(data).returning();
       if (!strategy) throw new Error('Failed to create reserve strategy');
       return strategy;
     },
@@ -271,10 +256,7 @@ export const portfolioIntelligenceService = {
 
   forecasts: {
     async create(data: InsertPerformanceForecast): Promise<PerformanceForecast> {
-      const [forecast] = await db
-        .insert(performanceForecasts)
-        .values(data)
-        .returning();
+      const [forecast] = await db.insert(performanceForecasts).values(data).returning();
       if (!forecast) throw new Error('Failed to create forecast');
       return forecast;
     },

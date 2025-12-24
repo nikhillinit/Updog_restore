@@ -15,10 +15,24 @@ let defaultMode: Mode = computeDefaultFromEnv();
 const TTL_MS = 5000; // in-process cache TTL
 const TIMEOUT_MS = 100; // redis get timeout
 
-const redis = createClient({ url: process.env.REDIS_URL });
-await redis.connect().catch((err) => {
-  console.error('[stage-mode] Redis connect failed; using cache/default', err);
-});
+// Lazy Redis initialization - only connect when needed
+let redis: ReturnType<typeof createClient> | null = null;
+let redisConnectPromise: Promise<void> | null = null;
+
+async function getRedisClient() {
+  if (!redis && process.env.REDIS_URL && process.env.REDIS_URL !== 'memory://') {
+    redis = createClient({ url: process.env.REDIS_URL });
+    redisConnectPromise = redis.connect().catch((err) => {
+      console.error('[stage-mode] Redis connect failed; using cache/default', err);
+      redis = null; // Mark as failed
+      redisConnectPromise = null;
+    });
+  }
+  if (redisConnectPromise) {
+    await redisConnectPromise;
+  }
+  return redis;
+}
 
 let cache: { mode: Mode; expiresAt: number } | null = null;
 
@@ -32,12 +46,19 @@ export async function getStageValidationMode(): Promise<Mode> {
   const now = Date.now();
   if (cache && now < cache.expiresAt) return cache.mode;
 
+  const client = await getRedisClient();
+  if (!client) {
+    // Redis not available - use cache/default
+    return cache?.mode ?? defaultMode;
+  }
+
   try {
     const v = await Promise.race<Mode | null>([
-      redis.get(KEY) as Promise<Mode | null>,
+      client.get(KEY) as Promise<Mode | null>,
       new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), TIMEOUT_MS)),
     ]);
     const mode = v && ['off', 'warn', 'enforce'].includes(v) ? (v as Mode) : defaultMode;
+    // eslint-disable-next-line require-atomic-updates
     cache = { mode, expiresAt: now + TTL_MS };
     return mode;
   } catch (err) {
@@ -56,7 +77,17 @@ export async function setStageValidationMode(
   if (!['off', 'warn', 'enforce'].includes(next)) throw new Error('invalid mode');
 
   const oldMode = cache?.mode ?? defaultMode;
-  await redis.set(KEY, next);
+  const client = await getRedisClient();
+
+  if (client) {
+    try {
+      await client.set(KEY, next);
+    } catch (err) {
+      console.warn('[stage-mode] redis.set failed; updating cache only', (err as Error)?.message);
+    }
+  }
+
+  // eslint-disable-next-line require-atomic-updates
   cache = { mode: next, expiresAt: Date.now() + TTL_MS };
 
   // Structured audit log for mode flips

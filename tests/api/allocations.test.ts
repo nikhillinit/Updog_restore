@@ -17,7 +17,7 @@ import { makeApp } from '../../server/app';
 import { pool } from '../../server/db/pg-circuit';
 import type { Express } from 'express';
 
-describe.skip('Fund Allocation Management API', () => {
+describe('Fund Allocation Management API', () => {
   let app: Express;
   let testFundId: number;
   let testCompanyIds: number[];

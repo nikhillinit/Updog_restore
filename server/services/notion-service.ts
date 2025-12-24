@@ -8,7 +8,6 @@ import { APIResponseError } from '@notionhq/client';
 import crypto from 'crypto';
 import type {
   NotionWorkspaceConnection,
-  NotionDatabaseMapping as NotionDatabaseMappingType,
   NotionSyncJob,
   NotionPage,
   NotionDatabase,
@@ -26,7 +25,6 @@ import {
   notionConnections,
   notionSyncJobs,
   notionPortfolioConfigs,
-  notionDatabaseMappings,
   portfolioCompanies,
   investments,
 } from '@shared/schema';

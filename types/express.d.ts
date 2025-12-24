@@ -48,6 +48,8 @@ declare global {
       orgId?: string;
       /** Fund IDs user has access to (from requireAuth middleware) */
       fundIds?: number[];
+      /** Limited Partner ID (LP-specific, from JWT claims for role='lp') */
+      lpId?: number;
       /** Admin flag (for requireAuth middleware compatibility) */
       isAdmin?: boolean;
       /** Session data (optional, for JWT middleware) */

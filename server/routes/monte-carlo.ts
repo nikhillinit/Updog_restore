@@ -307,6 +307,12 @@ router["post"]('/simulate/async', validateRequest(simulationConfigSchema), async
 router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
   try {
     const { jobId } = req.params;
+    if (!jobId) {
+      return res["status"](400)["json"]({
+        error: 'INVALID_JOB_ID',
+        message: 'Job ID is required',
+      });
+    }
 
     if (!isQueueInitialized()) {
       return res["status"](503)["json"]({
@@ -354,6 +360,12 @@ router['get']('/jobs/:jobId', async (req: Request, res: Response) => {
  */
 router['get']('/jobs/:jobId/stream', async (req: Request, res: Response) => {
   const { jobId } = req.params;
+  if (!jobId) {
+    return res["status"](400)["json"]({
+      error: 'INVALID_JOB_ID',
+      message: 'Job ID is required',
+    });
+  }
 
   if (!isQueueInitialized()) {
     return res["status"](503)["json"]({

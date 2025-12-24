@@ -31,9 +31,11 @@ if (process.env.NODE_ENV !== 'test') {
 interface JwtPayload {
   userId?: string;
   email?: string; // REQUIRED by verifyAccessToken
-  role?: 'flag_read' | 'flag_admin' | 'user'; // CORRECT roles (NOT 'admin')
+  role?: 'flag_read' | 'flag_admin' | 'user' | 'lp'; // CORRECT roles (NOT 'admin')
   orgId?: string;
   permissions?: string[];
+  fundIds?: number[]; // Funds the user has access to
+  lpId?: number; // LP-specific: Limited Partner ID for LP role users
 }
 
 /**
@@ -50,6 +52,8 @@ export function makeJwt(payload: JwtPayload = {}) {
       role: payload.role || 'user',
       orgId: payload.orgId,
       permissions: payload.permissions,
+      fundIds: payload.fundIds || [1, 2, 3], // Default access to common test funds
+      lpId: payload.lpId, // LP-specific: include if provided
     },
     JWT_SECRET,
     {
@@ -92,6 +96,22 @@ export const asUser = () =>
     role: 'user',
     email: 'user@example.com',
     userId: 'regular-user',
+  });
+
+/**
+ * Generate LP (Limited Partner) token
+ * Grants access to LP reporting endpoints
+ *
+ * @param lpId - Limited Partner ID (defaults to 1)
+ * @param fundIds - Fund IDs this LP has access to (defaults to [1, 2])
+ */
+export const asLP = (lpId: number = 1, fundIds: number[] = [1, 2]) =>
+  makeJwt({
+    role: 'lp',
+    email: `lp${lpId}@example.com`,
+    userId: `lp-user-${lpId}`,
+    lpId,
+    fundIds,
   });
 
 /**
