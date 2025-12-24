@@ -502,17 +502,26 @@ class DatabaseMock {
 
   /**
    * Mock the select method (Drizzle query builder)
+   * Complete thenable implementation with all required methods
    */
-  select = vi.fn(() => ({
-    from: vi.fn(() => ({
-      where: vi.fn(() => ({
-        limit: vi.fn(() => Promise.resolve([])),
-        execute: vi.fn(() => Promise.resolve([])),
-      })),
-      limit: vi.fn(() => Promise.resolve([])),
-      execute: vi.fn(() => Promise.resolve([])),
-    })),
-  }));
+  select = vi.fn(() => {
+    const execute = vi.fn(() => Promise.resolve([]));
+    const builder = {
+      from: vi.fn((_table?: unknown) => builder),
+      where: vi.fn((_condition?: SQL<unknown> | Record<string, unknown>) => builder),
+      orderBy: vi.fn((..._args: unknown[]) => builder),
+      limit: vi.fn((_value?: number) => builder),
+      execute,
+      then: vi.fn(
+        (onFulfilled?: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) =>
+          execute().then(onFulfilled, onRejected)
+      ),
+      catch: vi.fn((onRejected?: (reason: unknown) => unknown) => execute().catch(onRejected)),
+      finally: vi.fn((onFinally?: () => void) => execute().finally(onFinally)),
+    };
+
+    return builder;
+  });
 
   /**
    * Mock the insert method (Drizzle query builder)
