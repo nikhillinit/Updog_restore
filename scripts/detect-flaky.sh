@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Flakiness Detection Script (v4)
+# Flakiness Detection Script (v5)
 #
 # Usage:
 #   ./scripts/detect-flaky.sh <test-target> [runs] [options] [-- <extra test args>]
@@ -13,13 +13,18 @@
 #   --show-failures            Tail failing output inline
 #   --keep-logs                Keep per-run logs even on PASSING
 #   --reporter=<name>          Test reporter (default: dot)
+#   --timeout=<seconds>        Timeout per test run (default: 300 = 5 min)
+#   --test-cmd=<command>       Test command prefix (default: "npm test --")
+#   --json                     Output JSON summary (for CI integration)
 #   --no-color                 Disable ANSI colors
-#   --                         Pass remaining args to `npm test -- ...`
+#   --version                  Print version and exit
+#   --                         Pass remaining args to test command
 #
 # Exit codes:
 #   0: Expected outcome observed (or --report-only)
 #   1: Unexpected / flaky / failing outcome
 #   2: Usage / script error
+#   124: Timeout (propagated from timeout command)
 #   130: Interrupted (SIGINT)
 #   143: Terminated (SIGTERM)
 #
@@ -30,9 +35,12 @@
 
 set -euo pipefail
 
+VERSION="5.0.0"
+MIN_RECOMMENDED_RUNS=5
+
 usage() {
   cat <<'USAGE'
-Flakiness Detection Script (v4)
+Flakiness Detection Script (v5)
 
 Usage:
   ./scripts/detect-flaky.sh <test-target> [runs] [options] [-- <extra test args>]
@@ -45,7 +53,11 @@ Options:
   --show-failures            Tail failing output inline
   --keep-logs                Keep per-run logs even on PASSING
   --reporter=<name>          Test reporter (default: dot)
+  --timeout=<seconds>        Timeout per test run (default: 300 = 5 min)
+  --test-cmd=<command>       Test command prefix (default: "npm test --")
+  --json                     Output JSON summary (for CI integration)
   --no-color                 Disable ANSI colors
+  --version                  Print version and exit
 
 Examples:
   # Pre-fix: detect if test is flaky or deterministic
@@ -54,11 +66,14 @@ Examples:
   # Post-fix gate: require 10 consecutive passes, abort on first fail
   ./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 --expect-pass --fail-fast
 
+  # With timeout (2 minutes per run) and custom test command
+  ./scripts/detect-flaky.sh tests/foo.test.ts 5 --timeout=120 --test-cmd="yarn test --"
+
+  # JSON output for CI integration
+  ./scripts/detect-flaky.sh tests/foo.test.ts 10 --json
+
   # Classification only (always exits 0, for scripting)
   ./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 --report-only
-
-  # Debug: show failures and keep logs
-  ./scripts/detect-flaky.sh tests/unit/foo.test.ts 5 --show-failures --keep-logs
 
 Fail-fast semantics:
   --expect-pass --fail-fast  Stop on first FAILURE (gate violated)
@@ -69,9 +84,24 @@ Exit codes:
   0: expected outcome (or --report-only)
   1: flaky / unexpected outcome
   2: usage or script error
+  124: timeout exceeded
   130: interrupted (Ctrl+C)
 USAGE
 }
+
+# Handle --version and --help before argument parsing
+for arg in "$@"; do
+  case "$arg" in
+    --version|-V)
+      echo "detect-flaky.sh v${VERSION}"
+      exit 0
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+  esac
+done
 
 if [[ $# -lt 1 ]]; then
   usage
@@ -80,6 +110,12 @@ fi
 
 TEST_TARGET="$1"
 shift
+
+# Validate test target is not empty
+if [[ -z "$TEST_TARGET" ]]; then
+  echo "[detect-flaky] ERROR: test target cannot be empty" >&2
+  exit 2
+fi
 
 # Optional numeric RUNS (default 5)
 RUNS="5"
@@ -100,6 +136,9 @@ FAIL_FAST="0"               # 0 | 1
 REPORT_ONLY="0"             # 0 | 1 (always exit 0)
 REPORTER="dot"              # vitest supports: default, verbose, dot, json, junit...
 NO_COLOR_FLAG="0"           # 0 | 1
+JSON_OUTPUT="0"             # 0 | 1
+TIMEOUT_SECONDS="300"       # 5 minutes default
+TEST_CMD="npm test --"      # Configurable test command
 EXTRA_ARGS=()
 
 # Parse flags until --
@@ -133,6 +172,23 @@ while [[ $# -gt 0 ]]; do
       NO_COLOR_FLAG="1"
       shift
       ;;
+    --json)
+      JSON_OUTPUT="1"
+      NO_COLOR_FLAG="1"  # Disable colors for JSON mode
+      shift
+      ;;
+    --timeout=*)
+      TIMEOUT_SECONDS="${1#*=}"
+      if ! [[ "$TIMEOUT_SECONDS" =~ ^[0-9]+$ ]]; then
+        echo "[detect-flaky] ERROR: --timeout must be a positive integer" >&2
+        exit 2
+      fi
+      shift
+      ;;
+    --test-cmd=*)
+      TEST_CMD="${1#*=}"
+      shift
+      ;;
     --reporter=*)
       REPORTER="${1#*=}"
       shift
@@ -141,10 +197,6 @@ while [[ $# -gt 0 ]]; do
       shift
       EXTRA_ARGS+=("$@")
       break
-      ;;
-    -h|--help)
-      usage
-      exit 0
       ;;
     *)
       EXTRA_ARGS+=("$1")
@@ -176,11 +228,13 @@ fi
 # Temp dir for run logs
 TMP_DIR="$(mktemp -d -t detect-flaky.XXXXXX)"
 VERDICT="UNKNOWN"
+TIMEOUT_COUNT=0
+START_TIME=$(date +%s)
 
 cleanup() {
   # Keep logs when requested or when verdict is not clean passing
   if [[ "$KEEP_LOGS" == "1" ]]; then
-    echo "${C_BLU}[detect-flaky] Logs kept at: $TMP_DIR${C_RST}"
+    [[ "$JSON_OUTPUT" != "1" ]] && echo "${C_BLU}[detect-flaky] Logs kept at: $TMP_DIR${C_RST}"
     return 0
   fi
 
@@ -189,23 +243,74 @@ cleanup() {
       rm -rf "$TMP_DIR" || true
       ;;
     *)
-      echo "${C_BLU}[detect-flaky] Logs kept at: $TMP_DIR${C_RST}"
+      [[ "$JSON_OUTPUT" != "1" ]] && echo "${C_BLU}[detect-flaky] Logs kept at: $TMP_DIR${C_RST}"
       ;;
   esac
 }
 
 on_interrupt() {
   VERDICT="INTERRUPTED"
-  echo ""
-  echo "${C_YLW}[detect-flaky] Interrupted${C_RST}"
+  if [[ "$JSON_OUTPUT" == "1" ]]; then
+    output_json
+  else
+    echo ""
+    echo "${C_YLW}[detect-flaky] Interrupted${C_RST}"
+  fi
   exit 130
 }
 
 on_terminate() {
   VERDICT="TERMINATED"
-  echo ""
-  echo "${C_YLW}[detect-flaky] Terminated${C_RST}"
+  if [[ "$JSON_OUTPUT" == "1" ]]; then
+    output_json
+  else
+    echo ""
+    echo "${C_YLW}[detect-flaky] Terminated${C_RST}"
+  fi
   exit 143
+}
+
+# JSON output function
+output_json() {
+  local end_time=$(date +%s)
+  local duration=$((end_time - START_TIME))
+  local exit_code=0
+
+  case "$VERDICT" in
+    PASSING) exit_code=0 ;;
+    FLAKY|"DETERMINISTIC FAILURE"|"FAILED GATE"|"NOT DETERMINISTIC") exit_code=1 ;;
+    INTERRUPTED) exit_code=130 ;;
+    TERMINATED) exit_code=143 ;;
+    *) exit_code=1 ;;
+  esac
+
+  if [[ "$REPORT_ONLY" == "1" ]]; then
+    exit_code=0
+  fi
+
+  cat <<EOF
+{
+  "version": "${VERSION}",
+  "target": "${TEST_TARGET}",
+  "verdict": "${VERDICT}",
+  "runs": {
+    "requested": ${RUNS},
+    "completed": ${RAN},
+    "passed": ${PASS_COUNT},
+    "failed": ${FAIL_COUNT},
+    "timeout": ${TIMEOUT_COUNT}
+  },
+  "config": {
+    "expect_mode": "${EXPECT_MODE}",
+    "fail_fast": ${FAIL_FAST},
+    "timeout_seconds": ${TIMEOUT_SECONDS},
+    "test_cmd": "${TEST_CMD}"
+  },
+  "duration_seconds": ${duration},
+  "exit_code": ${exit_code},
+  "logs_dir": "${TMP_DIR}"
+}
+EOF
 }
 
 # Trap EXIT for cleanup, INT/TERM for proper signal exit codes
@@ -220,18 +325,29 @@ PASS_COUNT=0
 FAIL_COUNT=0
 RAN=0
 
-echo "${C_BLD}==============================================${C_RST}"
-echo "${C_BLD}Flakiness Detection (v4)${C_RST}"
-echo "  Target    : ${C_BLU}$TEST_TARGET${C_RST}"
-echo "  Runs      : $RUNS"
-echo "  Expect    : $EXPECT_MODE"
-echo "  Fail-fast : $FAIL_FAST"
-echo "  Report-only: $REPORT_ONLY"
-echo "  Reporter  : $REPORTER"
-if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
-  echo "  Extra     : ${EXTRA_ARGS[*]}"
+# Print header (unless JSON mode)
+if [[ "$JSON_OUTPUT" != "1" ]]; then
+  echo "${C_BLD}==============================================${C_RST}"
+  echo "${C_BLD}Flakiness Detection (v${VERSION})${C_RST}"
+  echo "  Target     : ${C_BLU}$TEST_TARGET${C_RST}"
+  echo "  Runs       : $RUNS"
+  echo "  Expect     : $EXPECT_MODE"
+  echo "  Fail-fast  : $FAIL_FAST"
+  echo "  Timeout    : ${TIMEOUT_SECONDS}s per run"
+  echo "  Test cmd   : $TEST_CMD"
+  echo "  Report-only: $REPORT_ONLY"
+  echo "  Reporter   : $REPORTER"
+  if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
+    echo "  Extra      : ${EXTRA_ARGS[*]}"
+  fi
+  echo "${C_BLD}==============================================${C_RST}"
+
+  # Warn if runs < recommended minimum
+  if [[ "$RUNS" -lt "$MIN_RECOMMENDED_RUNS" ]]; then
+    echo "${C_YLW}[detect-flaky] WARNING: $RUNS runs may not reliably detect flakiness.${C_RST}"
+    echo "${C_YLW}             Recommend at least $MIN_RECOMMENDED_RUNS runs for confidence.${C_RST}"
+  fi
 fi
-echo "${C_BLD}==============================================${C_RST}"
 
 # Use a stable baseline environment by default.
 # (You can override by explicitly setting env vars when invoking the script.)
@@ -239,21 +355,55 @@ echo "${C_BLD}==============================================${C_RST}"
 : "${CI:=1}"
 export TZ CI
 
+# Check if timeout command is available
+HAS_TIMEOUT=0
+if command -v timeout >/dev/null 2>&1; then
+  HAS_TIMEOUT=1
+elif [[ "$JSON_OUTPUT" != "1" && "$TIMEOUT_SECONDS" != "300" ]]; then
+  echo "${C_YLW}[detect-flaky] WARNING: 'timeout' command not found. --timeout will be ignored.${C_RST}"
+fi
+
 # Main test loop - C-style for portability (no external 'seq' dependency)
 for ((i=1; i<=RUNS; i++)); do
   RAN=$i
   LOG_FILE="$TMP_DIR/run-$i.log"
-  echo -n "Run $i/$RUNS: "
 
-  # Run the test command; capture output for later inspection.
-  if npm test -- "$TEST_TARGET" --reporter="$REPORTER" "${EXTRA_ARGS[@]}" >"$LOG_FILE" 2>&1; then
+  [[ "$JSON_OUTPUT" != "1" ]] && echo -n "Run $i/$RUNS: "
+
+  # Build the test command
+  # shellcheck disable=SC2206
+  TEST_COMMAND=($TEST_CMD "$TEST_TARGET" --reporter="$REPORTER" "${EXTRA_ARGS[@]}")
+
+  # Run with or without timeout
+  RUN_EXIT_CODE=0
+  if [[ "$HAS_TIMEOUT" == "1" ]]; then
+    if timeout "${TIMEOUT_SECONDS}s" "${TEST_COMMAND[@]}" >"$LOG_FILE" 2>&1; then
+      RUN_EXIT_CODE=0
+    else
+      RUN_EXIT_CODE=$?
+    fi
+  else
+    if "${TEST_COMMAND[@]}" >"$LOG_FILE" 2>&1; then
+      RUN_EXIT_CODE=0
+    else
+      RUN_EXIT_CODE=$?
+    fi
+  fi
+
+  # Handle result
+  if [[ "$RUN_EXIT_CODE" -eq 0 ]]; then
     ((PASS_COUNT+=1))
-    echo "${C_GRN}PASS${C_RST}"
+    [[ "$JSON_OUTPUT" != "1" ]] && echo "${C_GRN}PASS${C_RST}"
+  elif [[ "$RUN_EXIT_CODE" -eq 124 ]]; then
+    # Timeout occurred
+    ((FAIL_COUNT+=1))
+    ((TIMEOUT_COUNT+=1))
+    [[ "$JSON_OUTPUT" != "1" ]] && echo "${C_RED}TIMEOUT${C_RST} (exceeded ${TIMEOUT_SECONDS}s)"
   else
     ((FAIL_COUNT+=1))
-    echo "${C_RED}FAIL${C_RST}"
+    [[ "$JSON_OUTPUT" != "1" ]] && echo "${C_RED}FAIL${C_RST}"
 
-    if [[ "$SHOW_FAILURES" == "1" ]]; then
+    if [[ "$SHOW_FAILURES" == "1" && "$JSON_OUTPUT" != "1" ]]; then
       echo "${C_DIM}---- Failure output (run $i) ----${C_RST}"
       tail -n 80 "$LOG_FILE" || true
       echo "${C_DIM}---------------------------------${C_RST}"
@@ -264,42 +414,51 @@ for ((i=1; i<=RUNS; i++)); do
   if [[ "$FAIL_FAST" == "1" ]]; then
     # --expect-pass: stop on first failure (gate violated)
     if [[ "$EXPECT_MODE" == "pass" && "$FAIL_COUNT" -gt 0 ]]; then
-      echo "${C_YLW}[detect-flaky] --fail-fast: Gate violated (failure detected)${C_RST}"
+      [[ "$JSON_OUTPUT" != "1" ]] && echo "${C_YLW}[detect-flaky] --fail-fast: Gate violated (failure detected)${C_RST}"
       break
     fi
 
     # --expect-fail: stop on first pass (reproducibility violated)
     if [[ "$EXPECT_MODE" == "fail" && "$PASS_COUNT" -gt 0 ]]; then
-      echo "${C_YLW}[detect-flaky] --fail-fast: Reproducibility violated (pass detected)${C_RST}"
+      [[ "$JSON_OUTPUT" != "1" ]] && echo "${C_YLW}[detect-flaky] --fail-fast: Reproducibility violated (pass detected)${C_RST}"
       break
     fi
 
     # auto mode: only stop when flakiness is PROVEN (seen both pass AND fail)
     # This preserves ability to distinguish FLAKY from DETERMINISTIC
     if [[ "$EXPECT_MODE" == "auto" && "$PASS_COUNT" -gt 0 && "$FAIL_COUNT" -gt 0 ]]; then
-      echo "${C_YLW}[detect-flaky] --fail-fast: Flakiness proven (seen pass AND fail)${C_RST}"
+      [[ "$JSON_OUTPUT" != "1" ]] && echo "${C_YLW}[detect-flaky] --fail-fast: Flakiness proven (seen pass AND fail)${C_RST}"
       break
     fi
   fi
 done
 
-echo ""
-echo "${C_BLD}==============================================${C_RST}"
-echo "${C_BLD}RESULTS${C_RST}"
-echo "${C_BLD}==============================================${C_RST}"
-echo "Ran      : $RAN / $RUNS"
-echo "Passes   : ${C_GRN}$PASS_COUNT${C_RST}"
-echo "Failures : ${C_RED}$FAIL_COUNT${C_RST}"
-echo ""
-
 # Helper function to exit with proper code (respects --report-only)
 exit_with_code() {
   local code="$1"
+  if [[ "$JSON_OUTPUT" == "1" ]]; then
+    output_json
+  fi
   if [[ "$REPORT_ONLY" == "1" ]]; then
     exit 0
   fi
   exit "$code"
 }
+
+# Print results (unless JSON mode - handled at exit)
+if [[ "$JSON_OUTPUT" != "1" ]]; then
+  echo ""
+  echo "${C_BLD}==============================================${C_RST}"
+  echo "${C_BLD}RESULTS${C_RST}"
+  echo "${C_BLD}==============================================${C_RST}"
+  echo "Ran      : $RAN / $RUNS"
+  echo "Passes   : ${C_GRN}$PASS_COUNT${C_RST}"
+  echo "Failures : ${C_RED}$FAIL_COUNT${C_RST}"
+  if [[ "$TIMEOUT_COUNT" -gt 0 ]]; then
+    echo "Timeouts : ${C_RED}$TIMEOUT_COUNT${C_RST}"
+  fi
+  echo ""
+fi
 
 # Decision logic based on expect mode
 
@@ -307,32 +466,37 @@ if [[ "$EXPECT_MODE" == "pass" ]]; then
   # Gate mode: all runs must pass
   if [[ "$FAIL_COUNT" -eq 0 ]]; then
     VERDICT="PASSING"
-    echo "VERDICT: ${C_GRN}${C_BLD}PASSING${C_RST} (stable across $RAN runs)"
+    [[ "$JSON_OUTPUT" != "1" ]] && echo "VERDICT: ${C_GRN}${C_BLD}PASSING${C_RST} (stable across $RAN runs)"
     exit_with_code 0
   fi
 
   VERDICT="FAILED GATE"
-  if [[ "$PASS_COUNT" -gt 0 ]]; then
-    echo "VERDICT: ${C_YLW}${C_BLD}FAILED GATE (FLAKY)${C_RST} (some passes, some fails)"
-  else
-    echo "VERDICT: ${C_RED}${C_BLD}FAILED GATE (DETERMINISTIC)${C_RST} (failed every run)"
-  fi
+  if [[ "$JSON_OUTPUT" != "1" ]]; then
+    if [[ "$PASS_COUNT" -gt 0 ]]; then
+      echo "VERDICT: ${C_YLW}${C_BLD}FAILED GATE (FLAKY)${C_RST} (some passes, some fails)"
+    else
+      echo "VERDICT: ${C_RED}${C_BLD}FAILED GATE (DETERMINISTIC)${C_RST} (failed every run)"
+    fi
 
-  echo ""
-  echo "${C_RED}Gate FAILED: Expected PASS across all runs, but failures occurred.${C_RST}"
-  echo ""
-  echo "Tip: rerun without --fail-fast if you need detailed flaky vs deterministic classification."
-  echo ""
-  echo "Investigate (in order of likelihood):"
-  echo "  1. Shared state / order dependence (Pattern E)"
-  echo "     - Run with --isolate or shuffled order"
-  echo "     - Check for module-level singletons, global mutations"
-  echo "  2. Async race / missing await (Pattern A)"
-  echo "     - Search for floating promises in setup/teardown"
-  echo "     - Enable @typescript-eslint/no-floating-promises"
-  echo "  3. Timer/time dependency (Pattern F)"
-  echo "     - Check for Date.now, setTimeout without fake timers"
-  echo "     - Verify TZ=UTC is set"
+    echo ""
+    echo "${C_RED}Gate FAILED: Expected PASS across all runs, but failures occurred.${C_RST}"
+    if [[ "$TIMEOUT_COUNT" -gt 0 ]]; then
+      echo "${C_YLW}Note: $TIMEOUT_COUNT run(s) timed out. Consider increasing --timeout.${C_RST}"
+    fi
+    echo ""
+    echo "Tip: rerun without --fail-fast if you need detailed flaky vs deterministic classification."
+    echo ""
+    echo "Investigate (in order of likelihood):"
+    echo "  1. Shared state / order dependence (Pattern E)"
+    echo "     - Run with --isolate or shuffled order"
+    echo "     - Check for module-level singletons, global mutations"
+    echo "  2. Async race / missing await (Pattern A)"
+    echo "     - Search for floating promises in setup/teardown"
+    echo "     - Enable @typescript-eslint/no-floating-promises"
+    echo "  3. Timer/time dependency (Pattern F)"
+    echo "     - Check for Date.now, setTimeout without fake timers"
+    echo "     - Verify TZ=UTC is set"
+  fi
   exit_with_code 1
 fi
 
@@ -340,21 +504,25 @@ if [[ "$EXPECT_MODE" == "fail" ]]; then
   # Prove deterministic failure mode
   if [[ "$FAIL_COUNT" -eq "$RAN" && "$RAN" -eq "$RUNS" ]]; then
     VERDICT="DETERMINISTIC FAILURE"
-    echo "VERDICT: ${C_GRN}${C_BLD}DETERMINISTIC FAILURE${C_RST} (reproduced every run)"
-    echo ""
-    echo "Failure is reproducible. Proceed with standard pattern triage (A-F)."
+    if [[ "$JSON_OUTPUT" != "1" ]]; then
+      echo "VERDICT: ${C_GRN}${C_BLD}DETERMINISTIC FAILURE${C_RST} (reproduced every run)"
+      echo ""
+      echo "Failure is reproducible. Proceed with standard pattern triage (A-F)."
+    fi
     exit_with_code 0
   fi
 
   VERDICT="NOT DETERMINISTIC"
-  if [[ "$PASS_COUNT" -eq "$RAN" ]]; then
-    echo "VERDICT: ${C_YLW}${C_BLD}NOT DETERMINISTIC (all passed)${C_RST}"
-    echo ""
-    echo "Cannot reproduce. Check environment differences vs CI."
-  else
-    echo "VERDICT: ${C_YLW}${C_BLD}NOT DETERMINISTIC (flaky)${C_RST}"
-    echo ""
-    echo "Failure is intermittent. Investigate flakiness patterns first."
+  if [[ "$JSON_OUTPUT" != "1" ]]; then
+    if [[ "$PASS_COUNT" -eq "$RAN" ]]; then
+      echo "VERDICT: ${C_YLW}${C_BLD}NOT DETERMINISTIC (all passed)${C_RST}"
+      echo ""
+      echo "Cannot reproduce. Check environment differences vs CI."
+    else
+      echo "VERDICT: ${C_YLW}${C_BLD}NOT DETERMINISTIC (flaky)${C_RST}"
+      echo ""
+      echo "Failure is intermittent. Investigate flakiness patterns first."
+    fi
   fi
   exit_with_code 1
 fi
@@ -367,40 +535,50 @@ fi
 
 if [[ "$PASS_COUNT" -gt 0 && "$FAIL_COUNT" -gt 0 ]]; then
   VERDICT="FLAKY"
-  echo "VERDICT: ${C_YLW}${C_BLD}FLAKY${C_RST}"
-  echo ""
-  echo "This target shows intermittent behavior."
-  echo ""
-  echo "Investigate in this order: ${C_BLD}Pattern E${C_RST} (shared state) -> ${C_BLD}A${C_RST} (async) -> ${C_BLD}F${C_RST} (timers)"
-  echo ""
-  echo "Quick diagnostics:"
-  echo "  npm test -- \"$TEST_TARGET\" --reporter=verbose"
-  echo "  npm test -- \"$TEST_TARGET\" --isolate"
-  echo "  npm test -- \"$TEST_TARGET\" --sequence=shuffle"
+  if [[ "$JSON_OUTPUT" != "1" ]]; then
+    echo "VERDICT: ${C_YLW}${C_BLD}FLAKY${C_RST}"
+    echo ""
+    echo "This target shows intermittent behavior."
+    echo ""
+    echo "Investigate in this order: ${C_BLD}Pattern E${C_RST} (shared state) -> ${C_BLD}A${C_RST} (async) -> ${C_BLD}F${C_RST} (timers)"
+    echo ""
+    echo "Quick diagnostics:"
+    echo "  $TEST_CMD \"$TEST_TARGET\" --reporter=verbose"
+    echo "  $TEST_CMD \"$TEST_TARGET\" --isolate"
+    echo "  $TEST_CMD \"$TEST_TARGET\" --sequence=shuffle"
+  fi
   exit_with_code 1
 fi
 
 if [[ "$FAIL_COUNT" -gt 0 ]]; then
   VERDICT="DETERMINISTIC FAILURE"
-  echo "VERDICT: ${C_RED}${C_BLD}DETERMINISTIC FAILURE${C_RST}"
-  echo ""
-  echo "This failure reproduces consistently."
-  echo "Proceed with standard pattern triage (A/B/C/D/E/F)."
-  echo ""
-  echo "Run with verbose output for context:"
-  echo "  npm test -- \"$TEST_TARGET\" --reporter=verbose"
-  echo ""
-  echo "To prove reproducibility for documentation:"
-  echo "  ./scripts/detect-flaky.sh \"$TEST_TARGET\" $RUNS --expect-fail"
+  if [[ "$JSON_OUTPUT" != "1" ]]; then
+    echo "VERDICT: ${C_RED}${C_BLD}DETERMINISTIC FAILURE${C_RST}"
+    echo ""
+    echo "This failure reproduces consistently."
+    echo "Proceed with standard pattern triage (A/B/C/D/E/F)."
+    if [[ "$TIMEOUT_COUNT" -gt 0 ]]; then
+      echo ""
+      echo "${C_YLW}Note: $TIMEOUT_COUNT run(s) timed out. This may indicate Pattern F (timers/hanging).${C_RST}"
+    fi
+    echo ""
+    echo "Run with verbose output for context:"
+    echo "  $TEST_CMD \"$TEST_TARGET\" --reporter=verbose"
+    echo ""
+    echo "To prove reproducibility for documentation:"
+    echo "  ./scripts/detect-flaky.sh \"$TEST_TARGET\" $RUNS --expect-fail"
+  fi
   exit_with_code 1
 fi
 
 VERDICT="PASSING"
-echo "VERDICT: ${C_GRN}${C_BLD}PASSING${C_RST}"
-echo ""
-echo "This target passes consistently."
-echo "If it's failing in CI, investigate environment differences:"
-echo "  - TZ/locale settings"
-echo "  - CPU/memory constraints"
-echo "  - Test ordering / parallelism"
+if [[ "$JSON_OUTPUT" != "1" ]]; then
+  echo "VERDICT: ${C_GRN}${C_BLD}PASSING${C_RST}"
+  echo ""
+  echo "This target passes consistently."
+  echo "If it's failing in CI, investigate environment differences:"
+  echo "  - TZ/locale settings"
+  echo "  - CPU/memory constraints"
+  echo "  - Test ordering / parallelism"
+fi
 exit_with_code 0

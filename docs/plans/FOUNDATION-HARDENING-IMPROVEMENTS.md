@@ -1,9 +1,9 @@
-# Foundation Hardening Strategy Improvements v4
+# Foundation Hardening Strategy Improvements v5
 
 **Status**: SUPPLEMENT to FOUNDATION-HARDENING-EXECUTION-PLAN.md
 **Created**: 2025-12-23
-**Revised**: 2025-12-24 (v4 - mode-aware fail-fast, --report-only, NO_COLOR support)
-**Based On**: Skills analysis + multiple external reviews
+**Revised**: 2025-12-24 (v5 - timeout, configurable test cmd, JSON output, validation)
+**Based On**: Skills analysis + multiple external reviews + inversion thinking
 **See Also**: [TRIAGE_CARD.md](../../TRIAGE_CARD.md) - Single-page reference
 
 ---
@@ -451,22 +451,29 @@ git commit --allow-empty -m "rollback: Phase 2.X reverted - <reason>"
 ## Appendix A: Quick Reference Card
 
 ```
-UNIFIED TRIAGE PROCESS (v4)
+UNIFIED TRIAGE PROCESS (v5)
 ===========================
-1. Run flakiness check: ./scripts/detect-flaky.sh <test> 10
+1. Run flakiness check: ./scripts/detect-flaky.sh <test> 10 --timeout=120
 2. FLAKY?     -> Pattern E (shared state), A (async), F (timer) first
 3. DETERMINISTIC? -> Classify by signature (A/B/C/D/E/F)
-4. Match to pattern, apply specific diagnostic
-5. Fix with single variable change
-6. Run post-fix gate: ./scripts/detect-flaky.sh <test> 10 --expect-pass --fail-fast
-7. Fill evidence template in commit message
-8. Tag checkpoint if phase complete
+4. TIMEOUT?  -> Pattern F (timers/hanging) - check open handles
+5. Match to pattern, apply specific diagnostic
+6. Fix with single variable change
+7. Run post-fix gate: ./scripts/detect-flaky.sh <test> 10 --expect-pass --fail-fast
+8. Fill evidence template in commit message
+9. Tag checkpoint if phase complete
 
-FAIL-FAST SEMANTICS (v4)
+FAIL-FAST SEMANTICS (v5)
 ========================
 --expect-pass --fail-fast: stops on first FAILURE
 --expect-fail --fail-fast: stops on first PASS
 auto --fail-fast: stops when flakiness PROVEN (seen pass AND fail)
+
+NEW IN v5
+=========
+--timeout=<s>: per-run timeout (default 300s)
+--test-cmd=<c>: custom test command (yarn, pnpm)
+--json: machine-readable output for CI
 
 DO-NOT REMINDERS
 ================
@@ -495,47 +502,41 @@ ESCALATION TRIGGERS
 
 ---
 
-## Appendix B: detect-flaky.sh Usage (v4)
+## Appendix B: detect-flaky.sh Usage (v5)
 
 ```bash
 # Pre-fix: detect if test is flaky or deterministic
 ./scripts/detect-flaky.sh tests/unit/foo.test.ts
 
-# Pre-fix: more runs for higher confidence
-./scripts/detect-flaky.sh tests/unit/foo.test.ts 20
-
 # Post-fix gate: require 10 consecutive passes, abort on first fail
 ./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 --expect-pass --fail-fast
 
-# Prove reproducibility (for documentation)
-./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 --expect-fail
+# With timeout (2 minutes per run) - prevents CI hangs
+./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 --timeout=120
+
+# Custom test command (for yarn, pnpm, or custom runners)
+./scripts/detect-flaky.sh tests/foo.test.ts 5 --test-cmd="yarn test --"
+
+# JSON output for CI integration
+./scripts/detect-flaky.sh tests/foo.test.ts 10 --json
 
 # Classification only (always exits 0, for scripting)
 ./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 --report-only
 
-# Debug: show failure output inline
-./scripts/detect-flaky.sh tests/unit/foo.test.ts 5 --show-failures
-
-# Debug: keep logs for inspection
-./scripts/detect-flaky.sh tests/unit/foo.test.ts 5 --keep-logs
-
-# Disable colors (or set NO_COLOR=1)
-./scripts/detect-flaky.sh tests/unit/foo.test.ts --no-color
-
-# Pass extra args to test runner
-./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 -- --sequence=shuffle
+# Check version
+./scripts/detect-flaky.sh --version
 ```
 
-### Exit Code Semantics (v4)
+### Exit Code Semantics (v5)
 
-| Mode | PASSING | FLAKY | DETERMINISTIC FAILURE |
-|------|---------|-------|-----------------------|
-| Auto (default) | exit 0 | exit 1 | exit 1 |
-| --expect-pass | exit 0 | exit 1 | exit 1 |
-| --expect-fail | exit 1 | exit 1 | exit 0 |
-| --report-only | exit 0 | exit 0 | exit 0 |
+| Mode | PASSING | FLAKY | DETERMINISTIC | TIMEOUT |
+|------|---------|-------|---------------|---------|
+| Auto (default) | exit 0 | exit 1 | exit 1 | exit 1 |
+| --expect-pass | exit 0 | exit 1 | exit 1 | exit 1 |
+| --expect-fail | exit 1 | exit 1 | exit 0 | exit 1 |
+| --report-only | exit 0 | exit 0 | exit 0 | exit 0 |
 
-### Fail-Fast Semantics (v4) - Mode-Aware
+### Fail-Fast Semantics - Mode-Aware
 
 | Mode | --fail-fast Stops When |
 |------|------------------------|
@@ -543,8 +544,29 @@ ESCALATION TRIGGERS
 | --expect-fail | First PASS (reproducibility violated) |
 | auto | Flakiness PROVEN (seen pass AND fail) |
 
-**Key v4 Changes**:
-1. **Mode-aware --fail-fast**: In auto mode, only stops when flakiness is proven (preserves FLAKY vs DETERMINISTIC distinction)
-2. **--report-only**: Always exits 0 for classification-only use (prevents future "fixes" that break CI safety)
-3. **NO_COLOR support**: Respects `NO_COLOR=1` env var and `--no-color` flag
-4. **Separate signal handlers**: Proper exit codes (130 for SIGINT, 143 for SIGTERM)
+### v5 New Features (Skills-Derived)
+
+**From Inversion Thinking** ("What would make this fail in CI?"):
+1. **--timeout=\<seconds\>**: Timeout per run (default 300s) - prevents CI hangs
+2. **--test-cmd=\<command\>**: Configurable test command - works with yarn/pnpm
+3. **Input validation**: Empty test targets rejected with clear error
+
+**From Pattern Recognition** (gaps vs jest/pytest):
+4. **--json**: Machine-readable output for CI integration
+5. **--version**: Version tracking for debugging
+6. **Statistical warning**: Warns if runs < 5 (insufficient for confidence)
+
+### JSON Output Example
+
+```json
+{
+  "version": "5.0.0",
+  "target": "tests/unit/foo.test.ts",
+  "verdict": "FLAKY",
+  "runs": { "requested": 10, "completed": 5, "passed": 3, "failed": 2, "timeout": 0 },
+  "config": { "expect_mode": "auto", "fail_fast": 1, "timeout_seconds": 300 },
+  "duration_seconds": 45,
+  "exit_code": 1,
+  "logs_dir": "/tmp/detect-flaky.abc123"
+}
+```

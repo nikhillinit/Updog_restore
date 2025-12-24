@@ -114,7 +114,7 @@ Verification:
 
 ---
 
-## Quick Reference: detect-flaky.sh (v4)
+## Quick Reference: detect-flaky.sh (v5)
 
 ```bash
 # Pre-fix: detect if test is flaky or deterministic
@@ -123,8 +123,11 @@ Verification:
 # Post-fix gate: require 10 consecutive passes, abort on first fail
 ./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 --expect-pass --fail-fast
 
-# Prove reproducibility (for documentation)
-./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 --expect-fail
+# With timeout (prevents CI hangs) and custom test command
+./scripts/detect-flaky.sh tests/foo.test.ts 10 --timeout=120 --test-cmd="yarn test --"
+
+# JSON output for CI integration
+./scripts/detect-flaky.sh tests/foo.test.ts 10 --json
 
 # Classification only (always exits 0, for scripting)
 ./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 --report-only
@@ -162,4 +165,4 @@ Verification:
 
 ---
 
-*Last updated: 2024-12-23 (v4)*
+*Last updated: 2024-12-24 (v5)*
