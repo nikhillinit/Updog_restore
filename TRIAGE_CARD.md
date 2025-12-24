@@ -114,7 +114,7 @@ Verification:
 
 ---
 
-## Quick Reference: detect-flaky.sh (v5)
+## Quick Reference: detect-flaky.sh (v5.1)
 
 ```bash
 # Pre-fix: detect if test is flaky or deterministic
@@ -136,14 +136,17 @@ Verification:
 ./scripts/detect-flaky.sh tests/unit/foo.test.ts 5 --show-failures --keep-logs
 ```
 
-### Exit Code Semantics
+### Exit Code Semantics (v5.1)
 
-| Mode | PASSING | FLAKY | DETERMINISTIC |
-|------|---------|-------|---------------|
-| Auto (default) | exit 0 | exit 1 | exit 1 |
-| --expect-pass | exit 0 | exit 1 | exit 1 |
-| --expect-fail | exit 1 | exit 1 | exit 0 |
-| --report-only | exit 0 | exit 0 | exit 0 |
+| Mode | PASSING | FLAKY | DETERMINISTIC | TIMEOUT |
+|------|---------|-------|---------------|---------|
+| Auto (default) | exit 0 | exit 1 | exit 1 | exit 1 |
+| --expect-pass | exit 0 | exit 1 | exit 1 | exit 1 |
+| --expect-fail | exit 1 | exit 1 | exit 0 | exit 0 |
+| --report-only | exit 0 | exit 0 | exit 0 | exit 0 |
+
+**NOTE**: Timeouts are treated as failures (exit 1, not 124).
+The timeout count is included in JSON output: `"timed_out": N`
 
 ### Fail-Fast Semantics (Mode-Aware)
 
@@ -165,4 +168,4 @@ Verification:
 
 ---
 
-*Last updated: 2024-12-24 (v5)*
+*Last updated: 2025-12-24 (v5.1)*

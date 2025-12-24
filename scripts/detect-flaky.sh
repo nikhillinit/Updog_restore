@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Flakiness Detection Script (v5)
+# Flakiness Detection Script (v5.1)
 #
 # Usage:
 #   ./scripts/detect-flaky.sh <test-target> [runs] [options] [-- <extra test args>]
@@ -22,11 +22,13 @@
 #
 # Exit codes:
 #   0: Expected outcome observed (or --report-only)
-#   1: Unexpected / flaky / failing outcome
+#   1: Unexpected / flaky / failing / timeout outcome
 #   2: Usage / script error
-#   124: Timeout (propagated from timeout command)
 #   130: Interrupted (SIGINT)
 #   143: Terminated (SIGTERM)
+#
+# NOTE: Timeouts are treated as failures (exit 1), not exit 124.
+# The timeout count is included in JSON output for debugging.
 #
 # Fail-fast semantics per mode:
 #   --expect-pass --fail-fast  → stop on first FAILURE (gate violated)
@@ -35,12 +37,12 @@
 
 set -euo pipefail
 
-VERSION="5.0.0"
+VERSION="5.1.0"
 MIN_RECOMMENDED_RUNS=5
 
 usage() {
   cat <<'USAGE'
-Flakiness Detection Script (v5)
+Flakiness Detection Script (v5.1)
 
 Usage:
   ./scripts/detect-flaky.sh <test-target> [runs] [options] [-- <extra test args>]
@@ -55,7 +57,10 @@ Options:
   --reporter=<name>          Test reporter (default: dot)
   --timeout=<seconds>        Timeout per test run (default: 300 = 5 min)
   --test-cmd=<command>       Test command prefix (default: "npm test --")
+                             NOTE: Use quotes for multi-word commands:
+                             --test-cmd="yarn test --"
   --json                     Output JSON summary (for CI integration)
+                             NOTE: stdout will contain ONLY valid JSON
   --no-color                 Disable ANSI colors
   --version                  Print version and exit
 
@@ -69,7 +74,7 @@ Examples:
   # With timeout (2 minutes per run) and custom test command
   ./scripts/detect-flaky.sh tests/foo.test.ts 5 --timeout=120 --test-cmd="yarn test --"
 
-  # JSON output for CI integration
+  # JSON output for CI integration (stdout is pure JSON)
   ./scripts/detect-flaky.sh tests/foo.test.ts 10 --json
 
   # Classification only (always exits 0, for scripting)
@@ -82,9 +87,8 @@ Fail-fast semantics:
 
 Exit codes:
   0: expected outcome (or --report-only)
-  1: flaky / unexpected outcome
+  1: flaky / unexpected / timeout outcome
   2: usage or script error
-  124: timeout exceeded
   130: interrupted (Ctrl+C)
 USAGE
 }
@@ -205,6 +209,20 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Parse TEST_CMD into an array safely
+# This handles quoted commands like "yarn test --" correctly
+TEST_CMD_ARRAY=()
+eval "TEST_CMD_ARRAY=($TEST_CMD)" 2>/dev/null || {
+  echo "[detect-flaky] ERROR: Invalid --test-cmd syntax: $TEST_CMD" >&2
+  echo "[detect-flaky] Use quotes for multi-word commands: --test-cmd=\"yarn test --\"" >&2
+  exit 2
+}
+
+if [[ ${#TEST_CMD_ARRAY[@]} -eq 0 ]]; then
+  echo "[detect-flaky] ERROR: --test-cmd cannot be empty" >&2
+  exit 2
+fi
+
 # ANSI color codes
 # Disabled if: not a TTY, NO_COLOR env is set, or --no-color flag
 if [[ -t 1 && "${NO_COLOR:-}" != "1" && "$NO_COLOR_FLAG" != "1" ]]; then
@@ -231,10 +249,19 @@ VERDICT="UNKNOWN"
 TIMEOUT_COUNT=0
 START_TIME=$(date +%s)
 
+# Helper for human output (only when not in JSON mode)
+log_human() {
+  [[ "$JSON_OUTPUT" != "1" ]] && echo "$@"
+}
+
+log_human_n() {
+  [[ "$JSON_OUTPUT" != "1" ]] && echo -n "$@"
+}
+
 cleanup() {
   # Keep logs when requested or when verdict is not clean passing
   if [[ "$KEEP_LOGS" == "1" ]]; then
-    [[ "$JSON_OUTPUT" != "1" ]] && echo "${C_BLU}[detect-flaky] Logs kept at: $TMP_DIR${C_RST}"
+    log_human "${C_BLU}[detect-flaky] Logs kept at: $TMP_DIR${C_RST}"
     return 0
   fi
 
@@ -243,7 +270,7 @@ cleanup() {
       rm -rf "$TMP_DIR" || true
       ;;
     *)
-      [[ "$JSON_OUTPUT" != "1" ]] && echo "${C_BLU}[detect-flaky] Logs kept at: $TMP_DIR${C_RST}"
+      log_human "${C_BLU}[detect-flaky] Logs kept at: $TMP_DIR${C_RST}"
       ;;
   esac
 }
@@ -270,7 +297,16 @@ on_terminate() {
   exit 143
 }
 
-# JSON output function
+# JSON output function - escapes special characters for valid JSON
+json_escape() {
+  local str="$1"
+  str="${str//\\/\\\\}"   # Escape backslashes
+  str="${str//\"/\\\"}"   # Escape quotes
+  str="${str//$'\n'/\\n}" # Escape newlines
+  str="${str//$'\t'/\\t}" # Escape tabs
+  echo "$str"
+}
+
 output_json() {
   local end_time=$(date +%s)
   local duration=$((end_time - START_TIME))
@@ -288,23 +324,28 @@ output_json() {
     exit_code=0
   fi
 
+  local escaped_target escaped_cmd
+  escaped_target=$(json_escape "$TEST_TARGET")
+  escaped_cmd=$(json_escape "$TEST_CMD")
+
   cat <<EOF
 {
   "version": "${VERSION}",
-  "target": "${TEST_TARGET}",
+  "target": "${escaped_target}",
   "verdict": "${VERDICT}",
   "runs": {
     "requested": ${RUNS},
-    "completed": ${RAN},
-    "passed": ${PASS_COUNT},
-    "failed": ${FAIL_COUNT},
-    "timeout": ${TIMEOUT_COUNT}
+    "completed": ${RAN:-0},
+    "passed": ${PASS_COUNT:-0},
+    "failed": ${FAIL_COUNT:-0},
+    "timed_out": ${TIMEOUT_COUNT}
   },
   "config": {
     "expect_mode": "${EXPECT_MODE}",
     "fail_fast": ${FAIL_FAST},
+    "report_only": ${REPORT_ONLY},
     "timeout_seconds": ${TIMEOUT_SECONDS},
-    "test_cmd": "${TEST_CMD}"
+    "test_cmd": "${escaped_cmd}"
   },
   "duration_seconds": ${duration},
   "exit_code": ${exit_code},
@@ -334,7 +375,7 @@ if [[ "$JSON_OUTPUT" != "1" ]]; then
   echo "  Expect     : $EXPECT_MODE"
   echo "  Fail-fast  : $FAIL_FAST"
   echo "  Timeout    : ${TIMEOUT_SECONDS}s per run"
-  echo "  Test cmd   : $TEST_CMD"
+  echo "  Test cmd   : ${TEST_CMD_ARRAY[*]}"
   echo "  Report-only: $REPORT_ONLY"
   echo "  Reporter   : $REPORTER"
   if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
@@ -360,7 +401,7 @@ HAS_TIMEOUT=0
 if command -v timeout >/dev/null 2>&1; then
   HAS_TIMEOUT=1
 elif [[ "$JSON_OUTPUT" != "1" && "$TIMEOUT_SECONDS" != "300" ]]; then
-  echo "${C_YLW}[detect-flaky] WARNING: 'timeout' command not found. --timeout will be ignored.${C_RST}"
+  echo "${C_YLW}[detect-flaky] WARNING: 'timeout' command not found. --timeout will be ignored.${C_RST}" >&2
 fi
 
 # Main test loop - C-style for portability (no external 'seq' dependency)
@@ -368,22 +409,21 @@ for ((i=1; i<=RUNS; i++)); do
   RAN=$i
   LOG_FILE="$TMP_DIR/run-$i.log"
 
-  [[ "$JSON_OUTPUT" != "1" ]] && echo -n "Run $i/$RUNS: "
+  log_human_n "Run $i/$RUNS: "
 
-  # Build the test command
-  # shellcheck disable=SC2206
-  TEST_COMMAND=($TEST_CMD "$TEST_TARGET" --reporter="$REPORTER" "${EXTRA_ARGS[@]}")
+  # Build the full test command with target and reporter
+  FULL_CMD=("${TEST_CMD_ARRAY[@]}" "$TEST_TARGET" --reporter="$REPORTER" "${EXTRA_ARGS[@]}")
 
   # Run with or without timeout
   RUN_EXIT_CODE=0
   if [[ "$HAS_TIMEOUT" == "1" ]]; then
-    if timeout "${TIMEOUT_SECONDS}s" "${TEST_COMMAND[@]}" >"$LOG_FILE" 2>&1; then
+    if timeout "${TIMEOUT_SECONDS}s" "${FULL_CMD[@]}" >"$LOG_FILE" 2>&1; then
       RUN_EXIT_CODE=0
     else
       RUN_EXIT_CODE=$?
     fi
   else
-    if "${TEST_COMMAND[@]}" >"$LOG_FILE" 2>&1; then
+    if "${FULL_CMD[@]}" >"$LOG_FILE" 2>&1; then
       RUN_EXIT_CODE=0
     else
       RUN_EXIT_CODE=$?
@@ -391,17 +431,18 @@ for ((i=1; i<=RUNS; i++)); do
   fi
 
   # Handle result
+  # NOTE: Timeout (exit 124) is treated as a failure, counted separately for debugging
   if [[ "$RUN_EXIT_CODE" -eq 0 ]]; then
     ((PASS_COUNT+=1))
-    [[ "$JSON_OUTPUT" != "1" ]] && echo "${C_GRN}PASS${C_RST}"
+    log_human "${C_GRN}PASS${C_RST}"
   elif [[ "$RUN_EXIT_CODE" -eq 124 ]]; then
-    # Timeout occurred
+    # Timeout occurred - counts as failure
     ((FAIL_COUNT+=1))
     ((TIMEOUT_COUNT+=1))
-    [[ "$JSON_OUTPUT" != "1" ]] && echo "${C_RED}TIMEOUT${C_RST} (exceeded ${TIMEOUT_SECONDS}s)"
+    log_human "${C_RED}TIMEOUT${C_RST} (exceeded ${TIMEOUT_SECONDS}s)"
   else
     ((FAIL_COUNT+=1))
-    [[ "$JSON_OUTPUT" != "1" ]] && echo "${C_RED}FAIL${C_RST}"
+    log_human "${C_RED}FAIL${C_RST}"
 
     if [[ "$SHOW_FAILURES" == "1" && "$JSON_OUTPUT" != "1" ]]; then
       echo "${C_DIM}---- Failure output (run $i) ----${C_RST}"
@@ -414,20 +455,20 @@ for ((i=1; i<=RUNS; i++)); do
   if [[ "$FAIL_FAST" == "1" ]]; then
     # --expect-pass: stop on first failure (gate violated)
     if [[ "$EXPECT_MODE" == "pass" && "$FAIL_COUNT" -gt 0 ]]; then
-      [[ "$JSON_OUTPUT" != "1" ]] && echo "${C_YLW}[detect-flaky] --fail-fast: Gate violated (failure detected)${C_RST}"
+      log_human "${C_YLW}[detect-flaky] --fail-fast: Gate violated (failure detected)${C_RST}"
       break
     fi
 
     # --expect-fail: stop on first pass (reproducibility violated)
     if [[ "$EXPECT_MODE" == "fail" && "$PASS_COUNT" -gt 0 ]]; then
-      [[ "$JSON_OUTPUT" != "1" ]] && echo "${C_YLW}[detect-flaky] --fail-fast: Reproducibility violated (pass detected)${C_RST}"
+      log_human "${C_YLW}[detect-flaky] --fail-fast: Reproducibility violated (pass detected)${C_RST}"
       break
     fi
 
     # auto mode: only stop when flakiness is PROVEN (seen both pass AND fail)
     # This preserves ability to distinguish FLAKY from DETERMINISTIC
     if [[ "$EXPECT_MODE" == "auto" && "$PASS_COUNT" -gt 0 && "$FAIL_COUNT" -gt 0 ]]; then
-      [[ "$JSON_OUTPUT" != "1" ]] && echo "${C_YLW}[detect-flaky] --fail-fast: Flakiness proven (seen pass AND fail)${C_RST}"
+      log_human "${C_YLW}[detect-flaky] --fail-fast: Flakiness proven (seen pass AND fail)${C_RST}"
       break
     fi
   fi
@@ -455,7 +496,7 @@ if [[ "$JSON_OUTPUT" != "1" ]]; then
   echo "Passes   : ${C_GRN}$PASS_COUNT${C_RST}"
   echo "Failures : ${C_RED}$FAIL_COUNT${C_RST}"
   if [[ "$TIMEOUT_COUNT" -gt 0 ]]; then
-    echo "Timeouts : ${C_RED}$TIMEOUT_COUNT${C_RST}"
+    echo "Timeouts : ${C_RED}$TIMEOUT_COUNT${C_RST} (included in failures)"
   fi
   echo ""
 fi
@@ -463,10 +504,10 @@ fi
 # Decision logic based on expect mode
 
 if [[ "$EXPECT_MODE" == "pass" ]]; then
-  # Gate mode: all runs must pass
+  # Gate mode: all runs must pass (timeouts count as failures)
   if [[ "$FAIL_COUNT" -eq 0 ]]; then
     VERDICT="PASSING"
-    [[ "$JSON_OUTPUT" != "1" ]] && echo "VERDICT: ${C_GRN}${C_BLD}PASSING${C_RST} (stable across $RAN runs)"
+    log_human "VERDICT: ${C_GRN}${C_BLD}PASSING${C_RST} (stable across $RAN runs)"
     exit_with_code 0
   fi
 
@@ -502,10 +543,14 @@ fi
 
 if [[ "$EXPECT_MODE" == "fail" ]]; then
   # Prove deterministic failure mode
+  # NOTE: Timeouts count as failures, so they satisfy --expect-fail
   if [[ "$FAIL_COUNT" -eq "$RAN" && "$RAN" -eq "$RUNS" ]]; then
     VERDICT="DETERMINISTIC FAILURE"
     if [[ "$JSON_OUTPUT" != "1" ]]; then
       echo "VERDICT: ${C_GRN}${C_BLD}DETERMINISTIC FAILURE${C_RST} (reproduced every run)"
+      if [[ "$TIMEOUT_COUNT" -gt 0 ]]; then
+        echo "${C_YLW}Note: $TIMEOUT_COUNT run(s) were timeouts. This may indicate Pattern F.${C_RST}"
+      fi
       echo ""
       echo "Failure is reproducible. Proceed with standard pattern triage (A-F)."
     fi
@@ -528,7 +573,7 @@ if [[ "$EXPECT_MODE" == "fail" ]]; then
 fi
 
 # Auto mode (default) - detect and classify test behavior
-# CRITICAL: In auto mode, any failure (flaky OR deterministic) must exit 1
+# CRITICAL: In auto mode, any failure (flaky OR deterministic OR timeout) must exit 1
 # This prevents broken tests from silently passing CI pipelines.
 # Use --expect-fail to prove deterministic failure (exit 0).
 # Use --report-only if you just want classification without exit codes.
@@ -543,9 +588,9 @@ if [[ "$PASS_COUNT" -gt 0 && "$FAIL_COUNT" -gt 0 ]]; then
     echo "Investigate in this order: ${C_BLD}Pattern E${C_RST} (shared state) -> ${C_BLD}A${C_RST} (async) -> ${C_BLD}F${C_RST} (timers)"
     echo ""
     echo "Quick diagnostics:"
-    echo "  $TEST_CMD \"$TEST_TARGET\" --reporter=verbose"
-    echo "  $TEST_CMD \"$TEST_TARGET\" --isolate"
-    echo "  $TEST_CMD \"$TEST_TARGET\" --sequence=shuffle"
+    echo "  ${TEST_CMD_ARRAY[*]} \"$TEST_TARGET\" --reporter=verbose"
+    echo "  ${TEST_CMD_ARRAY[*]} \"$TEST_TARGET\" --isolate"
+    echo "  ${TEST_CMD_ARRAY[*]} \"$TEST_TARGET\" --sequence=shuffle"
   fi
   exit_with_code 1
 fi
@@ -563,7 +608,7 @@ if [[ "$FAIL_COUNT" -gt 0 ]]; then
     fi
     echo ""
     echo "Run with verbose output for context:"
-    echo "  $TEST_CMD \"$TEST_TARGET\" --reporter=verbose"
+    echo "  ${TEST_CMD_ARRAY[*]} \"$TEST_TARGET\" --reporter=verbose"
     echo ""
     echo "To prove reproducibility for documentation:"
     echo "  ./scripts/detect-flaky.sh \"$TEST_TARGET\" $RUNS --expect-fail"

@@ -1,8 +1,8 @@
-# Foundation Hardening Strategy Improvements v5
+# Foundation Hardening Strategy Improvements v5.1
 
 **Status**: SUPPLEMENT to FOUNDATION-HARDENING-EXECUTION-PLAN.md
 **Created**: 2025-12-23
-**Revised**: 2025-12-24 (v5 - timeout, configurable test cmd, JSON output, validation)
+**Revised**: 2025-12-24 (v5.1 - exit code consistency, safe --test-cmd parsing, JSON escaping)
 **Based On**: Skills analysis + multiple external reviews + inversion thinking
 **See Also**: [TRIAGE_CARD.md](../../TRIAGE_CARD.md) - Single-page reference
 
@@ -502,7 +502,7 @@ ESCALATION TRIGGERS
 
 ---
 
-## Appendix B: detect-flaky.sh Usage (v5)
+## Appendix B: detect-flaky.sh Usage (v5.1)
 
 ```bash
 # Pre-fix: detect if test is flaky or deterministic
@@ -515,9 +515,10 @@ ESCALATION TRIGGERS
 ./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 --timeout=120
 
 # Custom test command (for yarn, pnpm, or custom runners)
+# NOTE: Use quotes for multi-word commands
 ./scripts/detect-flaky.sh tests/foo.test.ts 5 --test-cmd="yarn test --"
 
-# JSON output for CI integration
+# JSON output for CI integration (stdout is pure JSON)
 ./scripts/detect-flaky.sh tests/foo.test.ts 10 --json
 
 # Classification only (always exits 0, for scripting)
@@ -527,14 +528,17 @@ ESCALATION TRIGGERS
 ./scripts/detect-flaky.sh --version
 ```
 
-### Exit Code Semantics (v5)
+### Exit Code Semantics (v5.1)
 
 | Mode | PASSING | FLAKY | DETERMINISTIC | TIMEOUT |
 |------|---------|-------|---------------|---------|
 | Auto (default) | exit 0 | exit 1 | exit 1 | exit 1 |
 | --expect-pass | exit 0 | exit 1 | exit 1 | exit 1 |
-| --expect-fail | exit 1 | exit 1 | exit 0 | exit 1 |
+| --expect-fail | exit 1 | exit 1 | exit 0 | exit 0 |
 | --report-only | exit 0 | exit 0 | exit 0 | exit 0 |
+
+**NOTE**: Timeouts are treated as failures (exit 1), not exit 124.
+The timeout count is available in JSON output as `"timed_out": N`.
 
 ### Fail-Fast Semantics - Mode-Aware
 
@@ -544,27 +548,33 @@ ESCALATION TRIGGERS
 | --expect-fail | First PASS (reproducibility violated) |
 | auto | Flakiness PROVEN (seen pass AND fail) |
 
-### v5 New Features (Skills-Derived)
+### v5.1 Changes (Review-Driven)
 
-**From Inversion Thinking** ("What would make this fail in CI?"):
-1. **--timeout=\<seconds\>**: Timeout per run (default 300s) - prevents CI hangs
-2. **--test-cmd=\<command\>**: Configurable test command - works with yarn/pnpm
-3. **Input validation**: Empty test targets rejected with clear error
+**Exit code consistency**:
+- Timeouts now exit 1 (not 124) - consistent with other failures
+- `--expect-fail` with timeouts exits 0 (timeouts satisfy failure requirement)
+- `--report-only` always exits 0, even with timeouts
 
-**From Pattern Recognition** (gaps vs jest/pytest):
-4. **--json**: Machine-readable output for CI integration
-5. **--version**: Version tracking for debugging
-6. **Statistical warning**: Warns if runs < 5 (insufficient for confidence)
+**Safe --test-cmd parsing**:
+- Command string properly parsed into array
+- Handles `--test-cmd="yarn test --"` correctly
+- Error on invalid syntax with helpful message
 
-### JSON Output Example
+**JSON output improvements**:
+- `--json` implies `--no-color` automatically
+- Added `"timed_out"` field separate from `"failed"`
+- Added `"report_only"` to config in output
+- Special characters in test target/command are escaped
+
+### JSON Output Example (v5.1)
 
 ```json
 {
-  "version": "5.0.0",
+  "version": "5.1.0",
   "target": "tests/unit/foo.test.ts",
   "verdict": "FLAKY",
-  "runs": { "requested": 10, "completed": 5, "passed": 3, "failed": 2, "timeout": 0 },
-  "config": { "expect_mode": "auto", "fail_fast": 1, "timeout_seconds": 300 },
+  "runs": { "requested": 10, "completed": 5, "passed": 3, "failed": 2, "timed_out": 0 },
+  "config": { "expect_mode": "auto", "fail_fast": 1, "report_only": 0, "timeout_seconds": 300, "test_cmd": "npm test --" },
   "duration_seconds": 45,
   "exit_code": 1,
   "logs_dir": "/tmp/detect-flaky.abc123"
