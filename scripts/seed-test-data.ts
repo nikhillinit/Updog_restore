@@ -42,7 +42,7 @@ interface SeedOptions {
 const TEST_DATA = {
   fund: {
     name: 'Test Venture Fund I',
-    size: '100000000', // $100M
+    size: 100000000, // $100M
     vintage: 2023,
     managementFeeRate: 2.0,
     carriedInterestRate: 20.0,
@@ -183,7 +183,9 @@ async function seedTestData(options: SeedOptions = {}) {
           sector: companyData.sector,
           stage: companyData.stage as any,
           status: (companyData.status || 'active') as any,
-          valuation: companyData.initialValuation.toString(),
+          investmentAmount: companyData.initialInvestment,
+          investmentDate: new Date('2023-01-01'),
+          currentValuation: companyData.initialValuation,
           createdAt: new Date(),
           updatedAt: new Date(),
         } as any).returning();
