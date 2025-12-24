@@ -3,6 +3,7 @@
 **Domain:** Performance dashboards, variance analysis, time-travel, exports
 **Estimated Time:** 50 minutes
 **Prerequisites:** Test fund with investment history, completed transactions
+**Last Reviewed:** 2025-12-24
 
 ---
 

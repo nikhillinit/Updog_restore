@@ -36,10 +36,12 @@ async function getRedisClient() {
 
 let cache: { mode: Mode; expiresAt: number } | null = null;
 
-// TEST-ONLY: Reset cache and default mode (for test isolation)
+// TEST-ONLY: Reset cache, default mode, and Redis client (for test isolation)
 export function _resetStageValidationModeForTesting() {
   cache = null;
   defaultMode = computeDefaultFromEnv();
+  redis = null;
+  redisConnectPromise = null;
 }
 
 export async function getStageValidationMode(): Promise<Mode> {

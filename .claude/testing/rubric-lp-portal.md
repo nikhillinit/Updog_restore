@@ -3,6 +3,7 @@
 **Domain:** Limited Partner (LP) access, capital accounts, distributions
 **Estimated Time:** 40 minutes
 **Prerequisites:** Test fund with LP accounts, capital calls, distributions
+**Last Reviewed:** 2025-12-24
 
 ---
 

@@ -1,5 +1,7 @@
 # Brainstorming
 
+**Last Reviewed:** 2025-12-24
+
 ## Overview
 
 Transform rough ideas into fully-formed designs through structured questioning

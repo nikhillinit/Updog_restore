@@ -199,11 +199,12 @@ async function withRetryAndTimeout<T>(
 
       clearTimeout(timeoutId);
       return result;
-    } catch (error: any) {
-      lastError = error;
+    } catch (error: unknown) {
+      lastError = error instanceof Error ? error : new Error(String(error));
 
       // Don't retry on auth errors
-      if (error.message?.includes('API key') || error.message?.includes('401')) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('API key') || errorMessage.includes('401')) {
         throw error;
       }
 
@@ -268,17 +269,17 @@ async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIRes
         max_tokens: 8192,
         messages: [{ role: 'user', content: prompt }],
         tools: tools.length > 0 ? tools : undefined,
-        betas: options?.enableContextClearing ? ['context-management-2025-06-27' as any] : undefined,
-        ...(contextManagement ? { context_management: contextManagement as any } : {}),
+        betas: options?.enableContextClearing ? ['context-management-2025-06-27' as never] : undefined,
+        ...(contextManagement ? { context_management: contextManagement as never } : {}),
         // Opus 4.5: Set effort to 'high' for deep reasoning
-        ...(process.env["CLAUDE_EFFORT"] ? { effort: process.env["CLAUDE_EFFORT"] as any } : {}),
-      } as any),
+        ...(process.env["CLAUDE_EFFORT"] ? { effort: process.env["CLAUDE_EFFORT"] as never } : {}),
+      } as never),
       'claude'
     );
 
     const text = response.content
-      .filter((c) => c.type === 'text')
-      .map((c) => (c as any).text)
+      .filter((c: never) => c.type === 'text')
+      .map((c: never) => (c as { text: string }).text)
       .join('\n');
 
     const usage = {
@@ -336,10 +337,10 @@ async function askGPT(prompt: string): Promise<AIResponse> {
       cost_usd: estimateCost('gpt', usage),
       elapsed_ms: Date.now() - startTime,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       model: 'gpt',
-      error: error.message ?? 'Unknown error',
+      error: error instanceof Error ? error.message : 'Unknown error',
       elapsed_ms: Date.now() - startTime,
     };
   }
@@ -379,10 +380,10 @@ async function askGemini(prompt: string): Promise<AIResponse> {
       cost_usd: estimateCost('gemini', usage),
       elapsed_ms: Date.now() - startTime,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       model: 'gemini',
-      error: error.message ?? 'Unknown error',
+      error: error instanceof Error ? error.message : 'Unknown error',
       elapsed_ms: Date.now() - startTime,
     };
   }
@@ -421,10 +422,10 @@ async function askDeepSeek(prompt: string): Promise<AIResponse> {
       cost_usd: estimateCost('deepseek', usage),
       elapsed_ms: Date.now() - startTime,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       model: 'deepseek',
-      error: error.message ?? 'Unknown error',
+      error: error instanceof Error ? error.message : 'Unknown error',
       elapsed_ms: Date.now() - startTime,
     };
   }
@@ -713,7 +714,7 @@ export async function collaborativeSolve({
 import type { ChatMessage } from '../../tools/ai-review/OrchestratorAdapter'; // relative import from server/
 
 // Ollama support (optional - dynamic require)
-let __ollama__: any = null;
+let __ollama__: unknown = null;
 try {
   const Ollama = require('ollama');
   __ollama__ = new Ollama({ host: process.env["OLLAMA_HOST"] ?? 'http://localhost:11434' });
@@ -726,7 +727,8 @@ try {
 async function askOllama(prompt: string, model: string) {
   if (!__ollama__) throw new Error('ollama not available - install via: npm install ollama');
   const started = Date.now();
-  const res = await __ollama__.chat({ model, messages: [{ role: 'user', content: prompt }] });
+  const ollama = __ollama__ as { chat: (opts: { model: string; messages: { role: string; content: string }[] }) => Promise<{ message?: { content?: string }; prompt_eval_count?: number; eval_count?: number }> };
+  const res = await ollama.chat({ model, messages: [{ role: 'user', content: prompt }] });
   return {
     text: res?.message?.content ?? '',
     usage: {
@@ -770,7 +772,7 @@ const __userText = (messages: ChatMessage[]) =>
   messages.find(m => m.role === 'user')?.content ?? '';
 
 export const AIRouter = {
-  async call(providerId: string, messages: ChatMessage[], _opts?: any) {
+  async call(providerId: string, messages: ChatMessage[], _opts?: Record<string, unknown>) {
     const prompt = __userText(messages);
 
     if (providerId.startsWith('ollama:')) {

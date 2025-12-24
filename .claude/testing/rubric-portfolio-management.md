@@ -3,6 +3,7 @@
 **Domain:** Portfolio companies, investments, cap tables
 **Estimated Time:** 60 minutes
 **Prerequisites:** Test fund created, database seeded
+**Last Reviewed:** 2025-12-24
 
 ---
 
