@@ -1114,12 +1114,11 @@ describe('Portfolio Intelligence API Routes', () => {
 
       const response = await request(app)
         .post('/api/portfolio/strategies?fundId=1')
-        .send(maliciousData)
-        .expect(201);
+        .send(maliciousData);
 
-      // The response should not contain the malicious script tags
-      expect(response.body.data.name).not.toContain('<script>');
-      expect(response.body.data.description).not.toContain('<img');
+      // Should reject malicious HTML input with 400
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBeDefined();
     });
 
     // @group integration
@@ -1138,11 +1137,11 @@ describe('Portfolio Intelligence API Routes', () => {
 
       const response = await request(app)
         .post('/api/portfolio/strategies?fundId=1')
-        .send(sqlInjectionAttempt)
-        .expect(201);
+        .send(sqlInjectionAttempt);
 
-      // Should create the strategy but sanitize the name
-      expect(response.body.success).toBe(true);
+      // Should reject SQL injection attempt with 400
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBeDefined();
     });
 
     // @group integration
