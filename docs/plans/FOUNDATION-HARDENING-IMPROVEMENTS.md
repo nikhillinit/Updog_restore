@@ -1,9 +1,10 @@
-# Foundation Hardening Strategy Improvements v3
+# Foundation Hardening Strategy Improvements v4
 
 **Status**: SUPPLEMENT to FOUNDATION-HARDENING-EXECUTION-PLAN.md
 **Created**: 2025-12-23
-**Revised**: 2025-12-23 (v3 - critical CI bug fix + efficiency improvements)
+**Revised**: 2025-12-24 (v4 - mode-aware fail-fast, --report-only, NO_COLOR support)
 **Based On**: Skills analysis + multiple external reviews
+**See Also**: [TRIAGE_CARD.md](../../TRIAGE_CARD.md) - Single-page reference
 
 ---
 
@@ -450,7 +451,7 @@ git commit --allow-empty -m "rollback: Phase 2.X reverted - <reason>"
 ## Appendix A: Quick Reference Card
 
 ```
-UNIFIED TRIAGE PROCESS (v3)
+UNIFIED TRIAGE PROCESS (v4)
 ===========================
 1. Run flakiness check: ./scripts/detect-flaky.sh <test> 10
 2. FLAKY?     -> Pattern E (shared state), A (async), F (timer) first
@@ -460,6 +461,12 @@ UNIFIED TRIAGE PROCESS (v3)
 6. Run post-fix gate: ./scripts/detect-flaky.sh <test> 10 --expect-pass --fail-fast
 7. Fill evidence template in commit message
 8. Tag checkpoint if phase complete
+
+FAIL-FAST SEMANTICS (v4)
+========================
+--expect-pass --fail-fast: stops on first FAILURE
+--expect-fail --fail-fast: stops on first PASS
+auto --fail-fast: stops when flakiness PROVEN (seen pass AND fail)
 
 DO-NOT REMINDERS
 ================
@@ -488,7 +495,7 @@ ESCALATION TRIGGERS
 
 ---
 
-## Appendix B: detect-flaky.sh Usage (v3)
+## Appendix B: detect-flaky.sh Usage (v4)
 
 ```bash
 # Pre-fix: detect if test is flaky or deterministic
@@ -497,11 +504,14 @@ ESCALATION TRIGGERS
 # Pre-fix: more runs for higher confidence
 ./scripts/detect-flaky.sh tests/unit/foo.test.ts 20
 
-# Post-fix gate: require 10 consecutive passes
-./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 --expect-pass
-
-# Post-fix gate with early abort (saves time in CI)
+# Post-fix gate: require 10 consecutive passes, abort on first fail
 ./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 --expect-pass --fail-fast
+
+# Prove reproducibility (for documentation)
+./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 --expect-fail
+
+# Classification only (always exits 0, for scripting)
+./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 --report-only
 
 # Debug: show failure output inline
 ./scripts/detect-flaky.sh tests/unit/foo.test.ts 5 --show-failures
@@ -509,17 +519,32 @@ ESCALATION TRIGGERS
 # Debug: keep logs for inspection
 ./scripts/detect-flaky.sh tests/unit/foo.test.ts 5 --keep-logs
 
+# Disable colors (or set NO_COLOR=1)
+./scripts/detect-flaky.sh tests/unit/foo.test.ts --no-color
+
 # Pass extra args to test runner
 ./scripts/detect-flaky.sh tests/unit/foo.test.ts 10 -- --sequence=shuffle
 ```
 
-### Exit Code Semantics (v3)
+### Exit Code Semantics (v4)
 
 | Mode | PASSING | FLAKY | DETERMINISTIC FAILURE |
 |------|---------|-------|-----------------------|
 | Auto (default) | exit 0 | exit 1 | exit 1 |
 | --expect-pass | exit 0 | exit 1 | exit 1 |
 | --expect-fail | exit 1 | exit 1 | exit 0 |
+| --report-only | exit 0 | exit 0 | exit 0 |
 
-**Key v3 Change**: Auto mode now exits 1 on deterministic failures.
-This prevents broken tests from silently passing CI pipelines.
+### Fail-Fast Semantics (v4) - Mode-Aware
+
+| Mode | --fail-fast Stops When |
+|------|------------------------|
+| --expect-pass | First FAILURE (gate violated) |
+| --expect-fail | First PASS (reproducibility violated) |
+| auto | Flakiness PROVEN (seen pass AND fail) |
+
+**Key v4 Changes**:
+1. **Mode-aware --fail-fast**: In auto mode, only stops when flakiness is proven (preserves FLAKY vs DETERMINISTIC distinction)
+2. **--report-only**: Always exits 0 for classification-only use (prevents future "fixes" that break CI safety)
+3. **NO_COLOR support**: Respects `NO_COLOR=1` env var and `--no-color` flag
+4. **Separate signal handlers**: Proper exit codes (130 for SIGINT, 143 for SIGTERM)
