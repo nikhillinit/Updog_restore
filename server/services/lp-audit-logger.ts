@@ -49,7 +49,7 @@ export type ResourceType =
 
 export interface AuditLogEntry {
   lpId: number;
-  userId?: number;
+  userId?: string | number; // String from JWT, converted to number for DB
   action: AuditAction;
   resourceType: ResourceType;
   resourceId?: string;
@@ -98,10 +98,23 @@ export class LPAuditLogger {
         userAgent = req.headers['user-agent'];
       }
 
+      // Convert userId to number for DB (null if not numeric)
+      let userIdNum: number | null = null;
+      if (entry.userId !== undefined) {
+        if (typeof entry.userId === 'number') {
+          userIdNum = entry.userId;
+        } else {
+          const parsed = parseInt(entry.userId, 10);
+          if (!Number.isNaN(parsed)) {
+            userIdNum = parsed;
+          }
+        }
+      }
+
       // Insert audit record (append-only, never update)
       await db.insert(lpAuditLog).values({
         lpId: entry.lpId,
-        userId: entry.userId || null,
+        userId: userIdNum,
         action: entry.action,
         resourceType: entry.resourceType,
         resourceId: entry.resourceId || null,
@@ -127,7 +140,7 @@ export class LPAuditLogger {
   /**
    * Log LP profile view
    */
-  async logProfileView(lpId: number, userId: number | undefined, req?: Request): Promise<void> {
+  async logProfileView(lpId: number, userId: string | number | undefined, req?: Request): Promise<void> {
     await this.log(
       {
         lpId,
@@ -143,7 +156,7 @@ export class LPAuditLogger {
   /**
    * Log LP summary view
    */
-  async logSummaryView(lpId: number, userId: number | undefined, req?: Request): Promise<void> {
+  async logSummaryView(lpId: number, userId: string | number | undefined, req?: Request): Promise<void> {
     await this.log(
       {
         lpId,
@@ -161,7 +174,7 @@ export class LPAuditLogger {
    */
   async logCapitalAccountView(
     lpId: number,
-    userId: number | undefined,
+    userId: string | number | undefined,
     fundIds: number[] | undefined,
     req?: Request
   ): Promise<void> {
@@ -183,7 +196,7 @@ export class LPAuditLogger {
   async logFundDetailView(
     lpId: number,
     fundId: number,
-    userId: number | undefined,
+    userId: string | number | undefined,
     req?: Request
   ): Promise<void> {
     await this.log(
@@ -205,7 +218,7 @@ export class LPAuditLogger {
   async logHoldingsView(
     lpId: number,
     fundId: number,
-    userId: number | undefined,
+    userId: string | number | undefined,
     req?: Request
   ): Promise<void> {
     await this.log(
@@ -226,7 +239,7 @@ export class LPAuditLogger {
    */
   async logPerformanceView(
     lpId: number,
-    userId: number | undefined,
+    userId: string | number | undefined,
     fundId: number | undefined,
     req?: Request
   ): Promise<void> {
@@ -245,7 +258,7 @@ export class LPAuditLogger {
   /**
    * Log benchmark view
    */
-  async logBenchmarkView(lpId: number, userId: number | undefined, req?: Request): Promise<void> {
+  async logBenchmarkView(lpId: number, userId: string | number | undefined, req?: Request): Promise<void> {
     await this.log(
       {
         lpId,
@@ -264,7 +277,7 @@ export class LPAuditLogger {
     lpId: number,
     reportId: string,
     reportType: string,
-    userId: number | undefined,
+    userId: string | number | undefined,
     req?: Request
   ): Promise<void> {
     await this.log(
@@ -283,7 +296,7 @@ export class LPAuditLogger {
   /**
    * Log report list view
    */
-  async logReportListView(lpId: number, userId: number | undefined, req?: Request): Promise<void> {
+  async logReportListView(lpId: number, userId: string | number | undefined, req?: Request): Promise<void> {
     await this.log(
       {
         lpId,
@@ -301,7 +314,7 @@ export class LPAuditLogger {
   async logReportStatusView(
     lpId: number,
     reportId: string,
-    userId: number | undefined,
+    userId: string | number | undefined,
     req?: Request
   ): Promise<void> {
     await this.log(
@@ -322,7 +335,7 @@ export class LPAuditLogger {
   async logReportDownload(
     lpId: number,
     reportId: string,
-    userId: number | undefined,
+    userId: string | number | undefined,
     req?: Request
   ): Promise<void> {
     await this.log(

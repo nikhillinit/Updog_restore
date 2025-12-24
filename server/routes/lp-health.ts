@@ -187,12 +187,11 @@ async function checkReportStorage(): Promise<ReportStorageCheckResult> {
       path: storagePath,
       exists: true,
       writable,
-      error:
-        !isDirectory
-          ? 'Report storage path is not a directory'
-          : writable
-            ? undefined
-            : 'Report storage path is not writable',
+      ...(!isDirectory
+        ? { error: 'Report storage path is not a directory' }
+        : !writable
+          ? { error: 'Report storage path is not writable' }
+          : {}),
     };
   } catch (error) {
     return {

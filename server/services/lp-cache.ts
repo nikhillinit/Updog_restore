@@ -63,23 +63,23 @@ export class LPReportingCache {
 
     try {
       // Try cache first
-      const cached = await this.redis.get(key);
+      const cached = await this.redis['get'](key);
       if (cached) {
-        logger.debug('Cache hit: LP summary', { lpId });
+        logger.debug({ lpId }, 'Cache hit: LP summary');
         return JSON.parse(cached);
       }
 
       // Cache miss: fetch and store
       const data = await fetchFn();
       if (data) {
-        await this.set(key, data, this.config.ttlSeconds['summary'], [
+        await this.set(key, data, this.config.ttlSeconds['summary'] ?? 300, [
           `lp:${lpId}:summary`,
           `lp:${lpId}:*`,
         ]);
       }
       return data;
     } catch (error) {
-      logger.error('Cache error in getLPSummary', { lpId, error });
+      logger.error({ lpId, error }, 'Cache error in getLPSummary');
       // Fallback to direct fetch on cache error
       return fetchFn();
     }
@@ -107,15 +107,15 @@ export class LPReportingCache {
     const key = `lp:${lpId}:capital-activity:${fundStr}:${dateRange}`;
 
     try {
-      const cached = await this.redis.get(key);
+      const cached = await this.redis['get'](key);
       if (cached) {
-        logger.debug('Cache hit: Capital activities', { lpId, commitmentId });
+        logger.debug({ lpId, commitmentId }, 'Cache hit: Capital activities');
         return JSON.parse(cached);
       }
 
       const data = await fetchFn();
       if (data) {
-        await this.set(key, data, this.config.ttlSeconds['capitalActivity'], [
+        await this.set(key, data, this.config.ttlSeconds['capitalActivity'] ?? 600, [
           `lp:${lpId}:capital-activity`,
           `commitment:${commitmentId}:*`,
           `lp:${lpId}:*`,
@@ -123,7 +123,7 @@ export class LPReportingCache {
       }
       return data;
     } catch (error) {
-      logger.error('Cache error in getCapitalActivities', { lpId, error });
+      logger.error({ lpId, error }, 'Cache error in getCapitalActivities');
       return fetchFn();
     }
   }
@@ -145,15 +145,15 @@ export class LPReportingCache {
     const key = `lp:${lpId}:fund:${fundId}:performance`;
 
     try {
-      const cached = await this.redis.get(key);
+      const cached = await this.redis['get'](key);
       if (cached) {
-        logger.debug('Cache hit: Fund performance', { lpId, fundId });
+        logger.debug({ lpId, fundId }, 'Cache hit: Fund performance');
         return JSON.parse(cached);
       }
 
       const data = await fetchFn();
       if (data) {
-        await this.set(key, data, this.config.ttlSeconds['performance'], [
+        await this.set(key, data, this.config.ttlSeconds['performance'] ?? 600, [
           `fund:${fundId}:performance`,
           `lp:${lpId}:performance`,
           `lp:${lpId}:*`,
@@ -161,7 +161,7 @@ export class LPReportingCache {
       }
       return data;
     } catch (error) {
-      logger.error('Cache error in getFundPerformance', { lpId, fundId, error });
+      logger.error({ lpId, fundId, error }, 'Cache error in getFundPerformance');
       return fetchFn();
     }
   }
@@ -178,22 +178,22 @@ export class LPReportingCache {
     const key = `lp:${lpId}:performance:aggregate`;
 
     try {
-      const cached = await this.redis.get(key);
+      const cached = await this.redis['get'](key);
       if (cached) {
-        logger.debug('Cache hit: Aggregate performance', { lpId });
+        logger.debug({ lpId }, 'Cache hit: Aggregate performance');
         return JSON.parse(cached);
       }
 
       const data = await fetchFn();
       if (data) {
-        await this.set(key, data, this.config.ttlSeconds['performance'], [
+        await this.set(key, data, this.config.ttlSeconds['performance'] ?? 600, [
           `lp:${lpId}:performance`,
           `lp:${lpId}:*`,
         ]);
       }
       return data;
     } catch (error) {
-      logger.error('Cache error in getAggregatePerformance', { lpId, error });
+      logger.error({ lpId, error }, 'Cache error in getAggregatePerformance');
       return fetchFn();
     }
   }
@@ -215,15 +215,15 @@ export class LPReportingCache {
     const key = `lp:${lpId}:fund:${fundId}:holdings`;
 
     try {
-      const cached = await this.redis.get(key);
+      const cached = await this.redis['get'](key);
       if (cached) {
-        logger.debug('Cache hit: Pro-rata holdings', { lpId, fundId });
+        logger.debug({ lpId, fundId }, 'Cache hit: Pro-rata holdings');
         return JSON.parse(cached);
       }
 
       const data = await fetchFn();
       if (data) {
-        await this.set(key, data, this.config.ttlSeconds['holdings'], [
+        await this.set(key, data, this.config.ttlSeconds['holdings'] ?? 3600, [
           `fund:${fundId}:holdings`,
           `lp:${lpId}:holdings`,
           `lp:${lpId}:*`,
@@ -231,7 +231,7 @@ export class LPReportingCache {
       }
       return data;
     } catch (error) {
-      logger.error('Cache error in getProRataHoldings', { lpId, fundId, error });
+      logger.error({ lpId, fundId, error }, 'Cache error in getProRataHoldings');
       return fetchFn();
     }
   }
@@ -257,22 +257,22 @@ export class LPReportingCache {
     const key = `lp:${lpId}:commitment:${commitmentId}:timeseries:${granularity}:${dateRange}`;
 
     try {
-      const cached = await this.redis.get(key);
+      const cached = await this.redis['get'](key);
       if (cached) {
-        logger.debug('Cache hit: Performance timeseries', { commitmentId, granularity });
+        logger.debug({ commitmentId, granularity }, 'Cache hit: Performance timeseries');
         return JSON.parse(cached);
       }
 
       const data = await fetchFn();
       if (data) {
-        await this.set(key, data, this.config.ttlSeconds['timeseries'], [
+        await this.set(key, data, this.config.ttlSeconds['timeseries'] ?? 3600, [
           `commitment:${commitmentId}:timeseries`,
           `lp:${lpId}:*`,
         ]);
       }
       return data;
     } catch (error) {
-      logger.error('Cache error in getPerformanceTimeseries', { commitmentId, error });
+      logger.error({ commitmentId, error }, 'Cache error in getPerformanceTimeseries');
       return fetchFn();
     }
   }
@@ -290,23 +290,23 @@ export class LPReportingCache {
       // Scan for keys matching pattern
       const cursor = '0';
       const keysToDelete: string[] = [];
-      let scan = await this.redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      let scan = await this.redis['scan'](cursor, 'MATCH', pattern, 'COUNT', 100);
 
       while (true) {
         const [newCursor, keys] = scan;
         keysToDelete.push(...keys);
 
         if (newCursor === '0') break;
-        scan = await this.redis.scan(newCursor, 'MATCH', pattern, 'COUNT', 100);
+        scan = await this.redis['scan'](newCursor, 'MATCH', pattern, 'COUNT', 100);
       }
 
       if (keysToDelete.length > 0) {
-        await this.redis.del(...keysToDelete);
-        logger.info('Invalidated cache by tag', { pattern, count: keysToDelete.length });
+        await this.redis['del'](...keysToDelete);
+        logger.info({ pattern, count: keysToDelete.length }, 'Invalidated cache by tag');
       }
       return keysToDelete.length;
     } catch (error) {
-      logger.error('Error invalidating cache by tag', { pattern, error });
+      logger.error({ pattern, error }, 'Error invalidating cache by tag');
       return 0;
     }
   }
@@ -328,9 +328,9 @@ export class LPReportingCache {
         await this.invalidateByTag(pattern);
       }
 
-      logger.info('Invalidated cache after capital activity', { lpId, fundId });
+      logger.info({ lpId, fundId }, 'Invalidated cache after capital activity');
     } catch (error) {
-      logger.error('Error invalidating cache after capital activity', { lpId, fundId, error });
+      logger.error({ lpId, fundId, error }, 'Error invalidating cache after capital activity');
     }
   }
 
@@ -349,12 +349,9 @@ export class LPReportingCache {
         await this.invalidateByTag(pattern);
       }
 
-      logger.info('Invalidated cache after performance update', { commitmentId });
+      logger.info({ commitmentId }, 'Invalidated cache after performance update');
     } catch (error) {
-      logger.error('Error invalidating cache after performance update', {
-        commitmentId,
-        error,
-      });
+      logger.error({ commitmentId, error }, 'Error invalidating cache after performance update');
     }
   }
 
@@ -364,10 +361,10 @@ export class LPReportingCache {
   async clearLPCache(lpId: string): Promise<number> {
     try {
       const count = await this.invalidateByTag(`lp:${lpId}:*`);
-      logger.info('Cleared LP cache', { lpId, count });
+      logger.info({ lpId, count }, 'Cleared LP cache');
       return count;
     } catch (error) {
-      logger.error('Error clearing LP cache', { lpId, error });
+      logger.error({ lpId, error }, 'Error clearing LP cache');
       return 0;
     }
   }
@@ -390,21 +387,21 @@ export class LPReportingCache {
       const serialized = JSON.stringify(value);
 
       // Set main key with TTL
-      await this.redis.setex(key, ttl, serialized);
+      await this.redis['setex'](key, ttl, serialized);
 
       // Set tag references (with longer TTL than data)
       for (const tag of tags) {
         const tagKey = `tag:${tag}`;
-        await this.redis.setex(
+        await this.redis['setex'](
           tagKey,
           Math.max(ttl * 2, 24 * 60 * 60), // At least 24h
           '1'
         );
       }
 
-      logger.debug('Cache set', { key, ttl, tags: tags.length });
+      logger.debug({ key, ttl, tags: tags.length }, 'Cache set');
     } catch (error) {
-      logger.error('Error setting cache', { key, error });
+      logger.error({ key, error }, 'Error setting cache');
     }
   }
 
@@ -413,10 +410,10 @@ export class LPReportingCache {
    */
   async get(key: string): Promise<any | null> {
     try {
-      const value = await this.redis.get(key);
+      const value = await this.redis['get'](key);
       return value ? JSON.parse(value) : null;
     } catch (error) {
-      logger.error('Error getting cache', { key, error });
+      logger.error({ key, error }, 'Error getting cache');
       return null;
     }
   }
@@ -426,10 +423,10 @@ export class LPReportingCache {
    */
   async delete(key: string): Promise<boolean> {
     try {
-      const result = await this.redis.del(key);
+      const result = await this.redis['del'](key);
       return result > 0;
     } catch (error) {
-      logger.error('Error deleting cache', { key, error });
+      logger.error({ key, error }, 'Error deleting cache');
       return false;
     }
   }
@@ -443,8 +440,8 @@ export class LPReportingCache {
     memoryUsage: string;
   }> {
     try {
-      const info = await this.redis.info('memory');
-      const dbSize = await this.redis.dbsize();
+      const info = await this.redis['info']('memory');
+      const dbSize = await this.redis['dbsize']();
 
       // Parse memory info
       const memoryUsageLine = info.split('\n').find((line: string) => line.includes('used_memory:'));
@@ -458,7 +455,7 @@ export class LPReportingCache {
         memoryUsage: `${(memoryBytes / 1024 / 1024).toFixed(2)} MB`,
       };
     } catch (error) {
-      logger.error('Error getting cache stats', { error });
+      logger.error({ error }, 'Error getting cache stats');
       return { cacheSize: 0, estimatedItemCount: 0, memoryUsage: 'unknown' };
     }
   }

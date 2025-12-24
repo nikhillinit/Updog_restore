@@ -883,6 +883,12 @@ router.get(
       const reportId = req.params['reportId'];
       const lpId = req.lpProfile?.id;
 
+      if (!reportId) {
+        return res.status(400).json(
+          createErrorResponse('INVALID_REQUEST', 'Report ID is required')
+        );
+      }
+
       if (!lpId) {
         return res.status(404).json(
           createErrorResponse('LP_NOT_FOUND', 'LP profile not found')
@@ -933,6 +939,12 @@ router.get(
     try {
       const reportId = req.params['reportId'];
       const lpId = req.lpProfile?.id;
+
+      if (!reportId) {
+        return res.status(400).json(
+          createErrorResponse('INVALID_REQUEST', 'Report ID is required')
+        );
+      }
 
       if (!lpId) {
         return res.status(404).json(

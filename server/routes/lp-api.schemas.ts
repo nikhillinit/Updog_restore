@@ -25,8 +25,13 @@ const isoDateString = z.string().regex(dateRegex, dateFormat);
 
 const stringToBoolean = z
   .string()
-  .transform((val) => val === 'true')
-  .optional();
+  .optional()
+  .transform((val) => val === 'true');
+
+const stringToBooleanDefaultTrue = z
+  .string()
+  .optional()
+  .transform((val) => val === undefined || val === 'true');
 
 /** Maximum number of fund IDs per request */
 const MAX_FUND_IDS = 10;
@@ -164,7 +169,7 @@ export type ReportConfigOutput = z.output<typeof ReportConfigSchema>;
 
 export const FundDetailQuerySchema = z.object({
   asOfDate: isoDateString.optional(),
-  includeHoldings: stringToBoolean.default(true),
+  includeHoldings: stringToBooleanDefaultTrue,
   skipCache: stringToBoolean,
 });
 

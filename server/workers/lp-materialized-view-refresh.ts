@@ -1,6 +1,6 @@
 import { Queue, Worker, Job } from 'bullmq';
-import { Redis } from 'ioredis';
-import { logger } from '@shared/logger';
+import Redis from 'ioredis';
+import { logger } from '../lib/logger';
 
 /**
  * LP REPORTING DASHBOARD - Materialized View Refresh Worker
@@ -88,17 +88,14 @@ export class MaterializedViewRefreshWorker {
       const delay = this.calculateDelay(job);
       const queuedJob = await this.queue.add('refresh', job, { delay });
 
-      logger.info('View refresh job scheduled', {
-        jobId: queuedJob.id,
-        type: job.type,
-        viewName: job.viewName,
-        lpId: job.lpId,
-        delay,
-      });
+      logger.info(
+        { jobId: queuedJob.id, type: job.type, viewName: job.viewName, lpId: job.lpId, delay },
+        'View refresh job scheduled'
+      );
 
       return queuedJob;
     } catch (error) {
-      logger.error('Error scheduling view refresh', { error, job });
+      logger.error({ error, job }, 'Error scheduling view refresh');
       throw error;
     }
   }
@@ -110,9 +107,9 @@ export class MaterializedViewRefreshWorker {
   async refreshImmediately(viewName?: string): Promise<RefreshMetrics> {
     const job: ViewRefreshJob = {
       type: 'scheduled',
-      viewName,
       timestamp: new Date(),
       reason: 'immediate-refresh',
+      ...(viewName !== undefined ? { viewName } : {}),
     };
 
     return this.processRefresh(
@@ -133,14 +130,14 @@ export class MaterializedViewRefreshWorker {
 
     try {
       // Check if already debounced
-      const isDebounced = await this.redis.get(debounceKey);
+      const isDebounced = await this.redis['get'](debounceKey);
       if (isDebounced) {
-        logger.debug('View refresh debounced', { lpId, fundId });
+        logger.debug({ lpId, fundId }, 'View refresh debounced');
         return;
       }
 
       // Set debounce flag
-      await this.redis.setex(debounceKey, Math.ceil(this.EVENT_THROTTLE_MS / 1000), '1');
+      await this.redis['setex'](debounceKey, Math.ceil(this.EVENT_THROTTLE_MS / 1000), '1');
 
       // Schedule refresh
       const job: ViewRefreshJob = {
@@ -153,7 +150,7 @@ export class MaterializedViewRefreshWorker {
 
       await this.scheduleRefresh(job);
     } catch (error) {
-      logger.error('Error triggering capital activity refresh', { lpId, fundId, error });
+      logger.error({ lpId, fundId, error }, 'Error triggering capital activity refresh');
     }
   }
 
@@ -185,9 +182,15 @@ export class MaterializedViewRefreshWorker {
   }> {
     try {
       const counts = await this.queue.getJobCounts();
-      return counts;
+      return {
+        active: counts['active'] ?? 0,
+        waiting: counts['waiting'] ?? 0,
+        completed: counts['completed'] ?? 0,
+        failed: counts['failed'] ?? 0,
+        delayed: counts['delayed'] ?? 0,
+      };
     } catch (error) {
-      logger.error('Error getting queue stats', { error });
+      logger.error({ error }, 'Error getting queue stats');
       return { active: 0, waiting: 0, completed: 0, failed: 0, delayed: 0 };
     }
   }
@@ -198,12 +201,12 @@ export class MaterializedViewRefreshWorker {
   async start(): Promise<void> {
     try {
       await this.worker.waitUntilReady();
-      logger.info('Materialized view refresh worker started');
+      logger.info({}, 'Materialized view refresh worker started');
 
       // Schedule initial refresh
       await this.scheduleInitialRefresh();
     } catch (error) {
-      logger.error('Error starting worker', { error });
+      logger.error({ error }, 'Error starting worker');
       throw error;
     }
   }
@@ -215,9 +218,9 @@ export class MaterializedViewRefreshWorker {
     try {
       await this.worker.close();
       await this.queue.close();
-      logger.info('Materialized view refresh worker stopped');
+      logger.info({}, 'Materialized view refresh worker stopped');
     } catch (error) {
-      logger.error('Error stopping worker', { error });
+      logger.error({ error }, 'Error stopping worker');
       throw error;
     }
   }
@@ -236,11 +239,10 @@ export class MaterializedViewRefreshWorker {
     const startTime = Date.now();
 
     try {
-      logger.info('Starting view refresh', {
-        jobId: job.id,
-        type: job.data.type,
-        viewName: job.data.viewName,
-      });
+      logger.info(
+        { jobId: job.id, type: job.data.type, viewName: job.data.viewName },
+        'Starting view refresh'
+      );
 
       // Update job progress
       await job.updateProgress(10);
@@ -279,22 +281,19 @@ export class MaterializedViewRefreshWorker {
 
       await job.updateProgress(100);
 
-      logger.info('View refresh completed', {
-        jobId: job.id,
-        duration: metrics.duration,
-        views: views.length,
-      });
+      logger.info(
+        { jobId: job.id, duration: metrics.duration, views: views.length },
+        'View refresh completed'
+      );
 
       return metrics;
     } catch (error) {
       const duration = Date.now() - startTime;
 
-      logger.error('View refresh failed', {
-        jobId: job.id,
-        error,
-        duration,
-        attempt: job.attemptsMade,
-      });
+      logger.error(
+        { jobId: job.id, error, duration, attempt: job.attemptsMade },
+        'View refresh failed'
+      );
 
       // Record failed metric
       const metrics: RefreshMetrics = {
@@ -314,7 +313,7 @@ export class MaterializedViewRefreshWorker {
    */
   private async refreshView(viewName: string, job: Job<ViewRefreshJob>): Promise<void> {
     try {
-      logger.info('Refreshing view', { viewName, jobId: job.id });
+      logger.info({ viewName, jobId: job.id }, 'Refreshing view');
 
       // Execute REFRESH MATERIALIZED VIEW CONCURRENTLY
       // This would require raw SQL access to the database
@@ -327,9 +326,9 @@ export class MaterializedViewRefreshWorker {
       // This would be executed via the database connection:
       // await db.execute(sql.raw(refreshQuery));
 
-      logger.info('View refreshed successfully', { viewName });
+      logger.info({ viewName }, 'View refreshed successfully');
     } catch (error) {
-      logger.error('Error refreshing view', { viewName, error });
+      logger.error({ viewName, error }, 'Error refreshing view');
       throw error;
     }
   }
@@ -385,12 +384,12 @@ export class MaterializedViewRefreshWorker {
 
       await this.scheduleRefresh(job);
 
-      logger.info('Initial view refresh scheduled', {
-        delayMs,
-        nextRefreshTime: nextRefresh.toISOString(),
-      });
+      logger.info(
+        { delayMs, nextRefreshTime: nextRefresh.toISOString() },
+        'Initial view refresh scheduled'
+      );
     } catch (error) {
-      logger.error('Error scheduling initial refresh', { error });
+      logger.error({ error }, 'Error scheduling initial refresh');
     }
   }
 
@@ -399,19 +398,19 @@ export class MaterializedViewRefreshWorker {
    */
   private setupEventHandlers(): void {
     this.worker.on('completed', (job) => {
-      logger.info('Refresh job completed', { jobId: job.id });
+      logger.info({ jobId: job.id }, 'Refresh job completed');
     });
 
     this.worker.on('failed', (job, error) => {
-      logger.error('Refresh job failed', { jobId: job?.id, error });
+      logger.error({ jobId: job?.id, error }, 'Refresh job failed');
     });
 
     this.worker.on('error', (error) => {
-      logger.error('Worker error', { error });
+      logger.error({ error }, 'Worker error');
     });
 
     this.queue.on('error', (error) => {
-      logger.error('Queue error', { error });
+      logger.error({ error }, 'Queue error');
     });
   }
 }

@@ -8,7 +8,7 @@ import {
   lpPerformanceSnapshots,
   capitalActivities,
 } from '@shared/schema-lp-reporting';
-import { funds, portfolioInvestments } from '@shared/schema';
+import { funds } from '@shared/schema';
 
 /**
  * LP Reporting Dashboard - Optimized Query Functions
@@ -32,8 +32,8 @@ import { funds, portfolioInvestments } from '@shared/schema';
 // =============================================================================
 
 export interface LPSummary {
-  lpId: string;
-  legalName: string;
+  lpId: number;
+  name: string;
   fundCount: number;
   totalCommitmentCents: bigint;
   totalContributedCents: bigint;
@@ -44,15 +44,15 @@ export interface LPSummary {
 }
 
 export interface CapitalTransaction {
-  id: string;
-  commitmentId: string;
+  id: number;
+  commitmentId: number;
   fundId: number;
   fundName: string;
-  type: 'contribution' | 'distribution' | 'fee' | 'other';
+  type: 'capital_call' | 'distribution' | 'recallable_distribution';
   activityDate: Date;
   amountCents: bigint;
   description?: string;
-  status: 'pending' | 'completed' | 'failed';
+  status: 'pending' | 'completed' | 'cancelled';
 }
 
 export interface CapitalTransactionPage {
@@ -66,7 +66,7 @@ export interface FundPerformanceMetrics {
   fundName: string;
   vintage: number;
   asOfDate: Date;
-  irrPercent: number;
+  irr: number;
   moic: number;
   dpi: number;
   rvpi: number;
@@ -94,7 +94,7 @@ export interface PortfolioHolding {
 
 export interface PerformanceTimeseriesPoint {
   date: Date;
-  irrPercent: number;
+  irr: number;
   moic: number;
   dpi: number;
   rvpi: number;
@@ -115,7 +115,7 @@ export interface PerformanceTimeseriesPoint {
  * CACHE: 5 minute TTL via cache layer
  * INDEX: Primary key on lp_id in materialized view
  */
-export async function getLPSummary(lpId: string): Promise<LPSummary | null> {
+export async function getLPSummary(lpId: number): Promise<LPSummary | null> {
   try {
     // This query reads from the materialized view: lp_dashboard_summary
     // The view aggregates:
@@ -129,7 +129,7 @@ export async function getLPSummary(lpId: string): Promise<LPSummary | null> {
       where: (table, { eq }) => eq(table.id, lpId),
       columns: {
         id: true,
-        legalName: true,
+        name: true,
       },
     });
 
@@ -142,7 +142,7 @@ export async function getLPSummary(lpId: string): Promise<LPSummary | null> {
 
     return summary;
   } catch (error) {
-    logger.error('Error fetching LP summary', { lpId, error });
+    logger.error({ lpId, error }, 'Error fetching LP summary');
     throw error;
   }
 }
@@ -151,7 +151,7 @@ export async function getLPSummary(lpId: string): Promise<LPSummary | null> {
  * Aggregate LP metrics from canonical tables
  * Used as fallback when materialized view is being refreshed
  */
-async function aggregateLPMetrics(lpId: string): Promise<LPSummary | null> {
+async function aggregateLPMetrics(lpId: number): Promise<LPSummary | null> {
   try {
     // This would be a real aggregation query
     // For now, placeholder implementation showing the structure
@@ -159,7 +159,7 @@ async function aggregateLPMetrics(lpId: string): Promise<LPSummary | null> {
       where: (table, { eq }) => eq(table.id, lpId),
       columns: {
         id: true,
-        legalName: true,
+        name: true,
       },
     });
 
@@ -167,7 +167,7 @@ async function aggregateLPMetrics(lpId: string): Promise<LPSummary | null> {
 
     return {
       lpId: lp.id,
-      legalName: lp.legalName || 'Unknown',
+      name: lp.name || 'Unknown',
       fundCount: 0,
       totalCommitmentCents: BigInt(0),
       totalContributedCents: BigInt(0),
@@ -177,7 +177,7 @@ async function aggregateLPMetrics(lpId: string): Promise<LPSummary | null> {
       unfundedCommitmentCents: BigInt(0),
     };
   } catch (error) {
-    logger.error('Error aggregating LP metrics', { lpId, error });
+    logger.error({ lpId, error }, 'Error aggregating LP metrics');
     throw error;
   }
 }
@@ -200,7 +200,7 @@ async function aggregateLPMetrics(lpId: string): Promise<LPSummary | null> {
  * This allows resuming pagination from any point without offset recalculation
  */
 export async function getCapitalAccountTransactions(
-  lpId: string,
+  lpId: number,
   options: {
     fundIds?: number[];
     startDate?: Date;
@@ -246,16 +246,11 @@ export async function getCapitalAccountTransactions(
         id: true,
         commitmentId: true,
         fundId: true,
-        type: true,
+        activityType: true,
         activityDate: true,
         amountCents: true,
         description: true,
         status: true,
-      },
-      with: {
-        fund: {
-          columns: { name: true },
-        },
       },
     });
 
@@ -264,24 +259,40 @@ export async function getCapitalAccountTransactions(
     const paginatedTransactions = transactions.slice(0, limit);
 
     // Build next cursor from last transaction
-    const nextCursor = hasMore
-      ? buildCursor(
-          paginatedTransactions[paginatedTransactions.length - 1].id,
-          paginatedTransactions[paginatedTransactions.length - 1].activityDate
-        )
+    const lastTx = paginatedTransactions[paginatedTransactions.length - 1];
+    const nextCursor = hasMore && lastTx
+      ? buildCursor(lastTx.id, lastTx.activityDate)
       : null;
 
-    const mappedTransactions: CapitalTransaction[] = paginatedTransactions.map((t) => ({
-      id: t.id,
-      commitmentId: t.commitmentId,
-      fundId: t.fundId,
-      fundName: t.fund?.name || 'Unknown',
-      type: t.type as CapitalTransaction['type'],
-      activityDate: t.activityDate,
-      amountCents: t.amountCents,
-      description: t.description || undefined,
-      status: t.status as CapitalTransaction['status'],
-    }));
+    // Get fund names for all fundIds in result set
+    const fundIdSet = new Set(paginatedTransactions.map((t) => t.fundId).filter((id): id is number => id !== null));
+    const fundNames = new Map<number, string>();
+    if (fundIdSet.size > 0) {
+      const fundList = await db.query.funds.findMany({
+        where: (table, { inArray: inArr }) => inArr(table.id, [...fundIdSet]),
+        columns: { id: true, name: true },
+      });
+      for (const f of fundList) {
+        fundNames.set(f.id, f.name);
+      }
+    }
+
+    const mappedTransactions: CapitalTransaction[] = paginatedTransactions.map((t) => {
+      const tx: CapitalTransaction = {
+        id: t.id,
+        commitmentId: t.commitmentId,
+        fundId: t.fundId ?? 0,
+        fundName: t.fundId ? (fundNames.get(t.fundId) || 'Unknown') : 'Unknown',
+        type: t.activityType as CapitalTransaction['type'],
+        activityDate: t.activityDate,
+        amountCents: t.amountCents,
+        status: (t.status || 'completed') as CapitalTransaction['status'],
+      };
+      if (t.description) {
+        tx.description = t.description;
+      }
+      return tx;
+    });
 
     return {
       transactions: mappedTransactions,
@@ -289,16 +300,18 @@ export async function getCapitalAccountTransactions(
       totalCount: transactions.length,
     };
   } catch (error) {
-    logger.error('Error fetching capital account transactions', { lpId, error });
+    logger.error({ lpId, error }, 'Error fetching capital account transactions');
     throw error;
   }
 }
 
 // Helper: Parse cursor
-function parseCursor(cursor: string): { id: string; activityDate: Date } | null {
+function parseCursor(cursor: string): { id: number; activityDate: Date } | null {
   try {
-    const [id, dateStr] = cursor.split('::');
-    if (!id || !dateStr) return null;
+    const [idStr, dateStr] = cursor.split('::');
+    if (!idStr || !dateStr) return null;
+    const id = Number(idStr);
+    if (Number.isNaN(id)) return null;
     return {
       id,
       activityDate: new Date(dateStr),
@@ -309,7 +322,7 @@ function parseCursor(cursor: string): { id: string; activityDate: Date } | null 
 }
 
 // Helper: Build cursor
-function buildCursor(id: string, activityDate: Date): string {
+function buildCursor(id: number, activityDate: Date): string {
   return `${id}::${activityDate.toISOString()}`;
 }
 
@@ -327,7 +340,7 @@ function buildCursor(id: string, activityDate: Date): string {
  * Returns latest calculated metrics for the LP's position in the fund
  */
 export async function getFundPerformance(
-  lpId: string,
+  lpId: number,
   fundId: number
 ): Promise<FundPerformanceMetrics | null> {
   try {
@@ -339,7 +352,7 @@ export async function getFundPerformance(
     });
 
     if (!commitment) {
-      logger.warn('LP commitment not found', { lpId, fundId });
+      logger.warn({ lpId, fundId }, 'LP commitment not found');
       return null;
     }
 
@@ -349,18 +362,18 @@ export async function getFundPerformance(
       orderBy: (table) => desc(table.snapshotDate),
       columns: {
         snapshotDate: true,
-        irrPercent: true,
-        moicPercent: true,
-        dpiPercent: true,
-        rvpiPercent: true,
-        tvpiPercent: true,
-        grossIrrPercent: true,
-        netIrrPercent: true,
+        irr: true,
+        moic: true,
+        dpi: true,
+        rvpi: true,
+        tvpi: true,
+        grossIrr: true,
+        netIrr: true,
       },
     });
 
     if (!snapshot) {
-      logger.warn('Performance snapshot not found', { lpId, fundId });
+      logger.warn({ lpId, fundId }, 'Performance snapshot not found');
       return null;
     }
 
@@ -369,25 +382,26 @@ export async function getFundPerformance(
       columns: { name: true, vintageYear: true },
     });
 
-    return {
+    const result: FundPerformanceMetrics = {
       fundId,
       fundName: fund?.name || 'Unknown',
       vintage: fund?.vintageYear || 0,
       asOfDate: snapshot.snapshotDate,
-      irrPercent: parseFloat(snapshot.irrPercent?.toString() || '0'),
-      moic: parseFloat(snapshot.moicPercent?.toString() || '1'),
-      dpi: parseFloat(snapshot.dpiPercent?.toString() || '0'),
-      rvpi: parseFloat(snapshot.rvpiPercent?.toString() || '0'),
-      tvpi: parseFloat(snapshot.tvpiPercent?.toString() || '0'),
-      grossIrr: snapshot.grossIrrPercent
-        ? parseFloat(snapshot.grossIrrPercent.toString())
-        : undefined,
-      netIrr: snapshot.netIrrPercent
-        ? parseFloat(snapshot.netIrrPercent.toString())
-        : undefined,
+      irr: parseFloat(snapshot.irr?.toString() || '0'),
+      moic: parseFloat(snapshot.moic?.toString() || '1'),
+      dpi: parseFloat(snapshot.dpi?.toString() || '0'),
+      rvpi: parseFloat(snapshot.rvpi?.toString() || '0'),
+      tvpi: parseFloat(snapshot.tvpi?.toString() || '0'),
     };
+    if (snapshot.grossIrr) {
+      result.grossIrr = parseFloat(snapshot.grossIrr.toString());
+    }
+    if (snapshot.netIrr) {
+      result.netIrr = parseFloat(snapshot.netIrr.toString());
+    }
+    return result;
   } catch (error) {
-    logger.error('Error fetching fund performance', { lpId, fundId, error });
+    logger.error({ lpId, fundId, error }, 'Error fetching fund performance');
     throw error;
   }
 }
@@ -407,99 +421,16 @@ export async function getFundPerformance(
  * - LP's pro-rata ownership based on commitment
  * - Cost basis and current value scaled to LP share
  * - Unrealized gains and multiples
+ *
+ * TODO: Implement when portfolioInvestments table is added to schema
  */
 export async function getProRataHoldings(
-  lpId: string,
+  lpId: number,
   fundId: number
 ): Promise<PortfolioHolding[]> {
-  try {
-    // Get LP's commitment amount
-    const commitment = await db.query.lpFundCommitments.findFirst({
-      where: (table, { eq, and }) =>
-        and(eq(table.lpId, lpId), eq(table.fundId, fundId)),
-      columns: { id: true, commitmentAmountCents: true },
-    });
-
-    if (!commitment) {
-      logger.warn('LP commitment not found for holdings', { lpId, fundId });
-      return [];
-    }
-
-    // Get all company investments for the fund
-    const investments = await db.query.portfolioInvestments.findMany({
-      where: (table, { eq }) => eq(table.fundId, fundId),
-      columns: {
-        id: true,
-        companyId: true,
-        investmentAmountCents: true,
-        investmentDate: true,
-        currentValuationCents: true,
-        lastValuationDate: true,
-      },
-      with: {
-        company: {
-          columns: {
-            name: true,
-            sector: true,
-            stage: true,
-            ownershipCurrentPct: true,
-          },
-        },
-      },
-    });
-
-    // Get total fund commitments for LP pro-rata calculation
-    const fundTotalCommitments = await db.query.lpFundCommitments.findMany({
-      where: (table, { eq }) => eq(table.fundId, fundId),
-      columns: { commitmentAmountCents: true },
-    });
-
-    const totalCommitmentsCents = fundTotalCommitments.reduce(
-      (sum, c) => sum + (c.commitmentAmountCents || BigInt(0)),
-      BigInt(0)
-    );
-
-    const lpProRata = new Decimal(commitment.commitmentAmountCents?.toString() || '0').dividedBy(
-      new Decimal(totalCommitmentsCents.toString() || '1')
-    );
-
-    // Calculate LP's pro-rata holdings
-    const holdings: PortfolioHolding[] = investments.map((inv) => {
-      const costBasisCents = new Decimal(inv.investmentAmountCents?.toString() || '0').times(
-        lpProRata
-      );
-      const currentValueCents = new Decimal(inv.currentValuationCents?.toString() || '0').times(
-        lpProRata
-      );
-      const unrealizedGainCents = currentValueCents.minus(costBasisCents);
-      const unrealizedMultiple =
-        costBasisCents.greaterThan(0)
-          ? currentValueCents.dividedBy(costBasisCents).toNumber()
-          : 0;
-
-      return {
-        holdingId: `${commitment.id}-${inv.companyId}`,
-        companyId: inv.companyId,
-        companyName: inv.company?.name || 'Unknown',
-        fundId,
-        fundName: 'N/A', // Set by caller if needed
-        sector: inv.company?.sector,
-        stage: inv.company?.stage,
-        investmentDate: inv.investmentDate || new Date(),
-        costBasisCents: BigInt(costBasisCents.toFixed(0)),
-        currentValueCents: BigInt(currentValueCents.toFixed(0)),
-        ownershipPercent: (inv.company?.ownershipCurrentPct || 0) * lpProRata.toNumber(),
-        unrealizedGainCents: BigInt(unrealizedGainCents.toFixed(0)),
-        unrealizedMultiple,
-        lastValuationDate: inv.lastValuationDate || new Date(),
-      };
-    });
-
-    return holdings;
-  } catch (error) {
-    logger.error('Error fetching pro-rata holdings', { lpId, fundId, error });
-    throw error;
-  }
+  // Stub implementation - portfolioInvestments table not yet in schema
+  logger.warn({ lpId, fundId }, 'getProRataHoldings not implemented - portfolioInvestments table missing');
+  return [];
 }
 
 // =============================================================================
@@ -517,7 +448,7 @@ export async function getProRataHoldings(
  * Used for performance trend charts in UI
  */
 export async function getPerformanceTimeseries(
-  commitmentId: string,
+  commitmentId: number,
   startDate: Date,
   endDate: Date,
   granularity: 'monthly' | 'quarterly' = 'quarterly'
@@ -534,11 +465,11 @@ export async function getPerformanceTimeseries(
       orderBy: (table) => asc(table.snapshotDate),
       columns: {
         snapshotDate: true,
-        irrPercent: true,
-        moicPercent: true,
-        dpiPercent: true,
-        rvpiPercent: true,
-        tvpiPercent: true,
+        irr: true,
+        moic: true,
+        dpi: true,
+        rvpi: true,
+        tvpi: true,
         navCents: true,
         paidInCents: true,
         distributedCents: true,
@@ -550,17 +481,17 @@ export async function getPerformanceTimeseries(
 
     return downsampled.map((s) => ({
       date: s.snapshotDate,
-      irrPercent: parseFloat(s.irrPercent?.toString() || '0'),
-      moic: parseFloat(s.moicPercent?.toString() || '1'),
-      dpi: parseFloat(s.dpiPercent?.toString() || '0'),
-      rvpi: parseFloat(s.rvpiPercent?.toString() || '0'),
-      tvpi: parseFloat(s.tvpiPercent?.toString() || '0'),
+      irr: parseFloat(s.irr?.toString() || '0'),
+      moic: parseFloat(s.moic?.toString() || '1'),
+      dpi: parseFloat(s.dpi?.toString() || '0'),
+      rvpi: parseFloat(s.rvpi?.toString() || '0'),
+      tvpi: parseFloat(s.tvpi?.toString() || '0'),
       navCents: s.navCents || BigInt(0),
       paidInCents: s.paidInCents || BigInt(0),
       distributedCents: s.distributedCents || BigInt(0),
     }));
   } catch (error) {
-    logger.error('Error fetching performance timeseries', { commitmentId, error });
+    logger.error({ commitmentId, error }, 'Error fetching performance timeseries');
     throw error;
   }
 }
@@ -597,7 +528,7 @@ function downsampleSnapshots(
 // UTILITY: Get all LPs in system (for bulk operations)
 // =============================================================================
 
-export async function getAllLPs(limit: number = 1000): Promise<string[]> {
+export async function getAllLPs(limit: number = 1000): Promise<number[]> {
   try {
     const lps = await db.query.limitedPartners.findMany({
       limit,
@@ -605,7 +536,7 @@ export async function getAllLPs(limit: number = 1000): Promise<string[]> {
     });
     return lps.map((lp) => lp.id);
   } catch (error) {
-    logger.error('Error fetching all LPs', { error });
+    logger.error({ error }, 'Error fetching all LPs');
     throw error;
   }
 }
@@ -635,10 +566,10 @@ export async function explainQuery(queryName: string): Promise<any> {
     }
 
     // Execute EXPLAIN (would require raw SQL access)
-    logger.info('Query plan available', { queryName, query });
+    logger.info({ queryName, query }, 'Query plan available');
     return { queryName, query };
   } catch (error) {
-    logger.error('Error analyzing query', { queryName, error });
+    logger.error({ queryName, error }, 'Error analyzing query');
     throw error;
   }
 }

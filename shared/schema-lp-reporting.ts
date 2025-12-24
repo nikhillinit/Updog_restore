@@ -118,12 +118,15 @@ export const capitalActivities = pgTable(
     description: text('description'),
     referenceNumber: varchar('reference_number', { length: 100 }),
     idempotencyKey: varchar('idempotency_key', { length: 128 }),
+    fundId: integer('fund_id').references(() => funds.id), // Denormalized for query efficiency
+    status: varchar('status', { length: 50 }).default('completed'), // 'pending', 'completed', 'cancelled'
     version: bigint('version', { mode: 'bigint' }).notNull().default(sql`0`),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => ({
     commitmentIdIdx: index('capital_activities_commitment_id_idx').on(table.commitmentId),
+    fundIdIdx: index('capital_activities_fund_id_idx').on(table.fundId),
     activityDateIdx: index('capital_activities_activity_date_idx').on(table.activityDate.desc()),
     idempotencyUniqueIdx: unique().on(table.idempotencyKey),
     cursorIdx: index('capital_activities_cursor_idx').on(
@@ -225,6 +228,11 @@ export const lpPerformanceSnapshots = pgTable(
     dpi: decimal('dpi', { precision: 10, scale: 4 }), // Distributions to Paid-In
     rvpi: decimal('rvpi', { precision: 10, scale: 4 }), // Residual Value to Paid-In
     benchmarkIRR: decimal('benchmark_irr', { precision: 10, scale: 6 }), // Benchmark comparison (e.g., Cambridge Associates)
+    grossIrr: decimal('gross_irr', { precision: 10, scale: 6 }), // Gross IRR before fees
+    netIrr: decimal('net_irr', { precision: 10, scale: 6 }), // Net IRR after fees
+    navCents: bigint('nav_cents', { mode: 'number' }), // Net Asset Value in cents
+    paidInCents: bigint('paid_in_cents', { mode: 'number' }), // Total paid-in capital in cents
+    distributedCents: bigint('distributed_cents', { mode: 'number' }), // Total distributions in cents
     version: bigint('version', { mode: 'bigint' }).notNull().default(sql`0`),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
