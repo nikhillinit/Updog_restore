@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { bigint, boolean, check, date, decimal, index, integer, jsonb, pgEnum, pgTable, serial, text, timestamp, unique, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
@@ -248,6 +248,21 @@ export const scenarioCases = pgTable("scenario_cases", {
 }, (table) => ({
   scenarioIdIdx: index("idx_scenario_cases_scenario_id")['on'](table.scenarioId),
   createdAtIdx: index("idx_scenario_cases_created_at")['on'](table.createdAt.desc()),
+}));
+
+export const scenariosRelations = relations(scenarios, ({ many, one }) => ({
+  cases: many(scenarioCases),
+  company: one(portfolioCompanies, {
+    fields: [scenarios.companyId],
+    references: [portfolioCompanies.id],
+  }),
+}));
+
+export const scenarioCasesRelations = relations(scenarioCases, ({ one }) => ({
+  scenario: one(scenarios, {
+    fields: [scenarioCases.scenarioId],
+    references: [scenarios.id],
+  }),
 }));
 
 export const scenarioAuditLogs = pgTable("scenario_audit_logs", {

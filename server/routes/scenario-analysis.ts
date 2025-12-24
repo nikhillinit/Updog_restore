@@ -190,7 +190,8 @@ router["get"]('/companies/:companyId/scenarios/:scenarioId',
           eq(scenarios.companyId, companyId)
         ),
         with: {
-          cases: include.includes('cases')
+          cases: true,
+          company: true
         }
       });
 
@@ -199,7 +200,8 @@ router["get"]('/companies/:companyId/scenarios/:scenarioId',
       }
 
       // Add MOIC to each case
-      const casesWithMOIC = scenario.cases ? addMOICToCases(scenario.cases) : [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+      const casesWithMOIC = addMOICToCases(scenario.cases as any);
 
       // Calculate weighted summary
       const weighted_summary = include.includes('weighted_summary') && casesWithMOIC.length > 0
@@ -486,7 +488,7 @@ router["post"]('/companies/:companyId/reserves/optimize',
       // 1. Fetch scenario data
       const scenario = await db.query.scenarios.findFirst({
         where: eq(scenarios.id, scenario_id),
-        with: { cases: true, company: true }
+        with: { cases: true }
       });
 
       if (!scenario) {

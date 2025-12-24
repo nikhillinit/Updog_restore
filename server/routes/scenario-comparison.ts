@@ -165,7 +165,7 @@ router.post(
           follow_ons: Number(c.followOns),
           exit_proceeds: Number(c.exitProceeds),
           exit_valuation: Number(c.exitValuation),
-          months_to_exit: c.monthsToExit ?? undefined,
+          ...(c.monthsToExit != null ? { months_to_exit: Number(c.monthsToExit) } : {}),
         })),
       }));
 

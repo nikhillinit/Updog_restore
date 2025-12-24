@@ -6,8 +6,8 @@ describe('NaN-safe equality', () => {
     // Object.is treats NaN as equal to NaN
     expect(eq(NaN, NaN)).toBe(true);
     
-    // Regular === fails for NaN
-    expect(NaN === NaN).toBe(false);
+    // Use Number.isNaN for direct NaN checks
+    expect(Number.isNaN(NaN)).toBe(true);
   });
 
   it('should handle numeric equality correctly', () => {

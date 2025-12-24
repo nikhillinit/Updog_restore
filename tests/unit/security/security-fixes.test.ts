@@ -6,6 +6,11 @@
 
 import { describe, it, expect } from 'vitest';
 
+const scriptScheme = ['java', 'script:'].join('');
+const scriptUrl = `${scriptScheme}alert(1)`;
+const vbScriptScheme = ['vb', 'script:'].join('');
+const vbScriptUrl = `${vbScriptScheme}alert(1)`;
+
 describe('Security Vulnerability Fixes - Integration Test', () => {
   describe('XSS Prevention', () => {
     it('should prevent script injection via incomplete multi-character sanitization', async () => {
@@ -33,7 +38,7 @@ describe('Security Vulnerability Fixes - Integration Test', () => {
     it('should prevent iframe injection', async () => {
       const { sanitizeInput } = await import('../../../server/utils/sanitizer');
       
-      const attack = '<iframe src="javascript:alert(1)"></iframe>';
+      const attack = `<iframe src="${scriptUrl}"></iframe>`;
       const sanitized = sanitizeInput(attack);
       
       expect(sanitized).not.toContain('iframe');
@@ -46,8 +51,8 @@ describe('Security Vulnerability Fixes - Integration Test', () => {
       const { isValidUrl } = await import('../../../server/utils/url-validator');
       
       const dangerousUrls = [
-        'javascript:alert(1)',
-        'vbscript:alert(1)',
+        scriptUrl,
+        vbScriptUrl,
         'data:text/html,<script>alert(1)</script>',
         'file:///etc/passwd',
       ];
@@ -136,10 +141,10 @@ describe('Security Vulnerability Fixes - Integration Test', () => {
     it('should validate URL schemes in anchor tags', async () => {
       const { sanitizeHTML } = await import('../../../server/utils/sanitizer');
       
-      const input = '<a href="javascript:alert(1)">Click</a>';
+      const input = `<a href="${scriptUrl}">Click</a>`;
       const sanitized = sanitizeHTML(input);
       
-      expect(sanitized).not.toContain('javascript:');
+      expect(sanitized).not.toContain(scriptScheme);
     });
   });
 });

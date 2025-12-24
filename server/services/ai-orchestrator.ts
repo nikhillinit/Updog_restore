@@ -84,9 +84,9 @@ function isBudgetData(value: unknown): value is BudgetData {
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
   return (
-    typeof record.date === 'string' &&
-    typeof record.count === 'number' &&
-    typeof record.total_cost_usd === 'number'
+    typeof record['date'] === 'string' &&
+    typeof record['count'] === 'number' &&
+    typeof record['total_cost_usd'] === 'number'
   );
 }
 
@@ -773,7 +773,7 @@ type OllamaClient = {
 function isOllamaClient(value: unknown): value is OllamaClient {
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
-  return typeof record.chat === 'function';
+  return typeof record['chat'] === 'function';
 }
 
 async function askOllama(prompt: string, model: string) {
@@ -801,7 +801,7 @@ type HuggingFaceGeneratedText = { generated_text: string };
 function isHuggingFaceGeneratedText(value: unknown): value is HuggingFaceGeneratedText {
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
-  return typeof record.generated_text === 'string';
+  return typeof record['generated_text'] === 'string';
 }
 
 async function askHuggingFace(prompt: string, model: string) {
