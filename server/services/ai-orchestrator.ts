@@ -30,21 +30,21 @@ const CONFIG = {
 } as const;
 
 // Initialize AI clients (only if API keys present)
-const anthropic = process.env["ANTHROPIC_API_KEY"]
-  ? new Anthropic({ apiKey: process.env["ANTHROPIC_API_KEY"] })
+const anthropic = process.env['ANTHROPIC_API_KEY']
+  ? new Anthropic({ apiKey: process.env['ANTHROPIC_API_KEY'] })
   : null;
 
-const openai = process.env["OPENAI_API_KEY"]
-  ? new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] })
+const openai = process.env['OPENAI_API_KEY']
+  ? new OpenAI({ apiKey: process.env['OPENAI_API_KEY'] })
   : null;
 
-const gemini = process.env["GOOGLE_API_KEY"]
-  ? new GoogleGenerativeAI(process.env["GOOGLE_API_KEY"])
+const gemini = process.env['GOOGLE_API_KEY']
+  ? new GoogleGenerativeAI(process.env['GOOGLE_API_KEY'])
   : null;
 
-const deepseek = process.env["DEEPSEEK_API_KEY"]
+const deepseek = process.env['DEEPSEEK_API_KEY']
   ? new OpenAI({
-      apiKey: process.env["DEEPSEEK_API_KEY"],
+      apiKey: process.env['DEEPSEEK_API_KEY'],
       baseURL: 'https://api.deepseek.com',
     })
   : null;
@@ -80,26 +80,36 @@ interface BudgetData {
   total_cost_usd: number;
 }
 
+function isBudgetData(value: unknown): value is BudgetData {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.date === 'string' &&
+    typeof record.count === 'number' &&
+    typeof record.total_cost_usd === 'number'
+  );
+}
+
 // ============================================================================
 // Pricing (via environment variables for easy updates)
 // ============================================================================
 
 const PRICING = {
   claude: {
-    input: parseFloat(process.env["CLAUDE_INPUT_COST"] ?? '0.015'),
-    output: parseFloat(process.env["CLAUDE_OUTPUT_COST"] ?? '0.075'),
+    input: parseFloat(process.env['CLAUDE_INPUT_COST'] ?? '0.015'),
+    output: parseFloat(process.env['CLAUDE_OUTPUT_COST'] ?? '0.075'),
   },
   gpt: {
-    input: parseFloat(process.env["GPT_INPUT_COST"] ?? '0.00015'),
-    output: parseFloat(process.env["GPT_OUTPUT_COST"] ?? '0.0006'),
+    input: parseFloat(process.env['GPT_INPUT_COST'] ?? '0.00015'),
+    output: parseFloat(process.env['GPT_OUTPUT_COST'] ?? '0.0006'),
   },
   gemini: {
-    input: parseFloat(process.env["GEMINI_INPUT_COST"] ?? '0'),
-    output: parseFloat(process.env["GEMINI_OUTPUT_COST"] ?? '0'),
+    input: parseFloat(process.env['GEMINI_INPUT_COST'] ?? '0'),
+    output: parseFloat(process.env['GEMINI_OUTPUT_COST'] ?? '0'),
   },
   deepseek: {
-    input: parseFloat(process.env["DEEPSEEK_INPUT_COST"] ?? '0.00014'),
-    output: parseFloat(process.env["DEEPSEEK_OUTPUT_COST"] ?? '0.00028'),
+    input: parseFloat(process.env['DEEPSEEK_INPUT_COST'] ?? '0.00014'),
+    output: parseFloat(process.env['DEEPSEEK_OUTPUT_COST'] ?? '0.00028'),
   },
 } as const;
 
@@ -107,8 +117,7 @@ function estimateCost(model: ModelName, usage?: AIResponse['usage']): number {
   if (!usage) return 0;
   const rates = PRICING[model];
   return (
-    (usage.prompt_tokens / 1000) * rates.input +
-    (usage.completion_tokens / 1000) * rates.output
+    (usage.prompt_tokens / 1000) * rates.input + (usage.completion_tokens / 1000) * rates.output
   );
 }
 
@@ -124,12 +133,19 @@ async function ensureLogDir() {
 async function getBudgetData(): Promise<BudgetData> {
   try {
     const data = await fs.readFile(CONFIG.budgetPath, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
+    const parsed: unknown = JSON.parse(data);
+    if (!isBudgetData(parsed)) {
+      throw new Error('Invalid budget data');
+    }
+    return parsed;
+  } catch (error: unknown) {
     // Budget file doesn't exist or is invalid - initialize with defaults
     // This is expected on first run
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      console.warn('[ai-orchestrator] Failed to read budget file:', error instanceof Error ? error.message : String(error));
+      console.warn(
+        '[ai-orchestrator] Failed to read budget file:',
+        error instanceof Error ? error.message : String(error)
+      );
     }
     return { date: '', count: 0, total_cost_usd: 0 };
   }
@@ -165,7 +181,7 @@ async function auditLog(entry: Record<string, unknown>) {
   const line = `${JSON.stringify({
     ts: new Date().toISOString(),
     ...entry,
-  })  }\n`;
+  })}\n`;
   await fs.appendFile(CONFIG.logPath, line);
 }
 
@@ -177,10 +193,7 @@ function sha256(text: string): string {
 // Provider Implementations with Retry Logic
 // ============================================================================
 
-async function withRetryAndTimeout<T>(
-  fn: () => Promise<T>,
-  model: ModelName
-): Promise<T> {
+async function withRetryAndTimeout<T>(fn: () => Promise<T>, _model: ModelName): Promise<T> {
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= CONFIG.maxRetries; attempt++) {
@@ -210,7 +223,7 @@ async function withRetryAndTimeout<T>(
 
       // Wait before retry (exponential backoff)
       if (attempt < CONFIG.maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
       }
     }
   }
@@ -225,6 +238,10 @@ export interface ClaudeOptions {
   threadId?: string;
 }
 
+function isClaudeTextBlock(block: Anthropic.ContentBlock): block is Anthropic.TextBlock {
+  return block.type === 'text';
+}
+
 async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIResponse> {
   if (!anthropic) {
     return { model: 'claude', error: 'ANTHROPIC_API_KEY not configured' };
@@ -236,50 +253,60 @@ async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIRes
     // Configure tools (native memory tool)
     const tools: Anthropic.Tool[] = [];
     if (options?.enableMemory) {
-      tools.push({
-        type: 'memory_20250818' as any, // Native memory tool
+      const memoryTool = {
+        type: 'memory_20250818' as unknown as never, // Native memory tool
         name: 'memory',
-      } as any);
+      } as unknown as Anthropic.Tool;
+      tools.push(memoryTool);
     }
 
     // Configure context management (context clearing)
-    const contextManagement = options?.enableContextClearing ? {
-      edits: [
-        {
-          type: 'clear_tool_uses_20250919' as any,
-          trigger: {
-            type: 'input_tokens' as any,
-            value: 5000,
-          },
-          keep: {
-            type: 'tool_uses' as any,
-            value: 3,
-          },
-          clear_at_least: {
-            type: 'input_tokens' as any,
-            value: 3000,
-          },
-        },
-      ],
-    } : undefined;
+    const contextManagement = options?.enableContextClearing
+      ? ({
+          edits: [
+            {
+              type: 'clear_tool_uses_20250919' as unknown as never,
+              trigger: {
+                type: 'input_tokens' as unknown as never,
+                value: 5000,
+              },
+              keep: {
+                type: 'tool_uses' as unknown as never,
+                value: 3,
+              },
+              clear_at_least: {
+                type: 'input_tokens' as unknown as never,
+                value: 3000,
+              },
+            },
+          ],
+        } as unknown)
+      : undefined;
 
     const response = await withRetryAndTimeout(
-      () => anthropic.messages.create({
-        model: process.env["CLAUDE_MODEL"] ?? 'claude-opus-4-5-20251101',
-        max_tokens: 8192,
-        messages: [{ role: 'user', content: prompt }],
-        tools: tools.length > 0 ? tools : undefined,
-        betas: options?.enableContextClearing ? ['context-management-2025-06-27' as never] : undefined,
-        ...(contextManagement ? { context_management: contextManagement as never } : {}),
-        // Opus 4.5: Set effort to 'high' for deep reasoning
-        ...(process.env["CLAUDE_EFFORT"] ? { effort: process.env["CLAUDE_EFFORT"] as never } : {}),
-      } as never),
+      () =>
+        anthropic.messages.create({
+          model: process.env['CLAUDE_MODEL'] ?? 'claude-opus-4-5-20251101',
+          max_tokens: 8192,
+          messages: [{ role: 'user', content: prompt }],
+          tools: tools.length > 0 ? tools : undefined,
+          betas: options?.enableContextClearing
+            ? ['context-management-2025-06-27' as never]
+            : undefined,
+          ...(contextManagement
+            ? { context_management: contextManagement as unknown as never }
+            : {}),
+          // Opus 4.5: Set effort to 'high' for deep reasoning
+          ...(process.env['CLAUDE_EFFORT']
+            ? { effort: process.env['CLAUDE_EFFORT'] as never }
+            : {}),
+        } as never),
       'claude'
     );
 
     const text = response.content
-      .filter((c: never) => c.type === 'text')
-      .map((c: never) => (c as { text: string }).text)
+      .filter(isClaudeTextBlock)
+      .map((block) => block.text)
       .join('\n');
 
     const usage = {
@@ -295,10 +322,11 @@ async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIRes
       cost_usd: estimateCost('claude', usage),
       elapsed_ms: Date.now() - startTime,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return {
       model: 'claude',
-      error: error.message ?? 'Unknown error',
+      error: message,
       elapsed_ms: Date.now() - startTime,
     };
   }
@@ -313,11 +341,12 @@ async function askGPT(prompt: string): Promise<AIResponse> {
 
   try {
     const response = await withRetryAndTimeout(
-      () => openai.chat.completions.create({
-        model: process.env["OPENAI_MODEL"] ?? 'gpt-4o-mini',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 16384,
-      }),
+      () =>
+        openai.chat.completions.create({
+          model: process.env['OPENAI_MODEL'] ?? 'gpt-4o-mini',
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 16384,
+        }),
       'gpt'
     );
 
@@ -355,13 +384,10 @@ async function askGemini(prompt: string): Promise<AIResponse> {
 
   try {
     const model = gemini.getGenerativeModel({
-      model: process.env["GEMINI_MODEL"] ?? 'gemini-1.5-flash',
+      model: process.env['GEMINI_MODEL'] ?? 'gemini-1.5-flash',
     });
 
-    const response = await withRetryAndTimeout(
-      () => model.generateContent(prompt),
-      'gemini'
-    );
+    const response = await withRetryAndTimeout(() => model.generateContent(prompt), 'gemini');
 
     const text = response.response.text();
     const metadata = response.response.usageMetadata;
@@ -398,11 +424,12 @@ async function askDeepSeek(prompt: string): Promise<AIResponse> {
 
   try {
     const response = await withRetryAndTimeout(
-      () => deepseek.chat.completions.create({
-        model: process.env["DEEPSEEK_MODEL"] ?? 'deepseek-chat',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 8192,
-      }),
+      () =>
+        deepseek.chat.completions.create({
+          model: process.env['DEEPSEEK_MODEL'] ?? 'deepseek-chat',
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 8192,
+        }),
       'deepseek'
     );
 
@@ -619,7 +646,7 @@ export async function aiConsensus({
   });
 
   // Generate consensus summary
-  const successfulResponses = responses.filter(r => !r.error);
+  const successfulResponses = responses.filter((r) => !r.error);
   const totalCost = responses.reduce((sum, r) => sum + (r.cost_usd ?? 0), 0);
 
   let consensus = '';
@@ -662,13 +689,17 @@ export async function collaborativeSolve({
     // Sequential: Each AI builds on previous insights
     let cumulativeInsights = '';
 
-    for (let i = 0; i < models.length; i++) {
+    for (let i = 0; i < models.length; i += 1) {
       const model = models[i];
+      if (!model) {
+        continue;
+      }
       let prompt = `Step ${i + 1}: Analyze this problem: ${problem}.`;
 
       if (cumulativeInsights) {
         prompt += `\n\nPrevious insights:\n${cumulativeInsights}`;
-        prompt += '\n\nBuild on these insights and provide your unique perspective and solution approach.';
+        prompt +=
+          '\n\nBuild on these insights and provide your unique perspective and solution approach.';
       } else {
         prompt += ' Provide your unique perspective and solution approach.';
       }
@@ -716,60 +747,98 @@ import type { ChatMessage } from '../../tools/ai-review/OrchestratorAdapter'; //
 // Ollama support (optional - dynamic require)
 let __ollama__: unknown = null;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const Ollama = require('ollama');
-  __ollama__ = new Ollama({ host: process.env["OLLAMA_HOST"] ?? 'http://localhost:11434' });
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+  __ollama__ = new Ollama({ host: process.env['OLLAMA_HOST'] ?? 'http://localhost:11434' });
 } catch (error) {
   // Ollama package not installed - this is expected in most deployments
   // Only log at debug level since it's an optional dependency
-  console.debug('[ai-orchestrator] Ollama not available:', error instanceof Error ? error.message : String(error));
+  console.debug(
+    '[ai-orchestrator] Ollama not available:',
+    error instanceof Error ? error.message : String(error)
+  );
+}
+
+type OllamaChatMessage = { role: string; content: string };
+type OllamaChatResponse = {
+  message?: { content?: string };
+  prompt_eval_count?: number;
+  eval_count?: number;
+};
+type OllamaClient = {
+  chat: (opts: { model: string; messages: OllamaChatMessage[] }) => Promise<OllamaChatResponse>;
+};
+
+function isOllamaClient(value: unknown): value is OllamaClient {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  return typeof record.chat === 'function';
 }
 
 async function askOllama(prompt: string, model: string) {
   if (!__ollama__) throw new Error('ollama not available - install via: npm install ollama');
   const started = Date.now();
-  const ollama = __ollama__ as { chat: (opts: { model: string; messages: { role: string; content: string }[] }) => Promise<{ message?: { content?: string }; prompt_eval_count?: number; eval_count?: number }> };
-  const res = await ollama.chat({ model, messages: [{ role: 'user', content: prompt }] });
+  const ollamaClient = __ollama__;
+  if (!isOllamaClient(ollamaClient)) {
+    throw new Error('ollama not available - install via: npm install ollama');
+  }
+  const res = await ollamaClient.chat({ model, messages: [{ role: 'user', content: prompt }] });
   return {
     text: res?.message?.content ?? '',
     usage: {
       inputTokens: res?.prompt_eval_count ?? 0,
       outputTokens: res?.eval_count ?? 0,
-      costUsd: 0
+      costUsd: 0,
     },
-    elapsed: Date.now() - started
+    elapsed: Date.now() - started,
   };
 }
 
 // HuggingFace (native fetch)
+type HuggingFaceGeneratedText = { generated_text: string };
+
+function isHuggingFaceGeneratedText(value: unknown): value is HuggingFaceGeneratedText {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  return typeof record.generated_text === 'string';
+}
+
 async function askHuggingFace(prompt: string, model: string) {
   const started = Date.now();
   const r = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env["HF_TOKEN"] ?? ''}`,
-      'Content-Type': 'application/json'
+      Authorization: `Bearer ${process.env['HF_TOKEN'] ?? ''}`,
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       inputs: prompt,
-      parameters: { max_new_tokens: 2048, temperature: 0.3, return_full_text: false }
-    })
+      parameters: { max_new_tokens: 2048, temperature: 0.3, return_full_text: false },
+    }),
   });
   if (!r.ok) throw new Error(`HF ${model} -> ${r.status}`);
-  const j = await r["json"]();
-  const text = Array.isArray(j) ? j[0]?.generated_text : j?.generated_text ?? '';
+  const payload: unknown = await r.json();
+  const text = Array.isArray(payload)
+    ? isHuggingFaceGeneratedText(payload[0])
+      ? payload[0].generated_text
+      : ''
+    : isHuggingFaceGeneratedText(payload)
+      ? payload.generated_text
+      : '';
   return {
     text,
     usage: {
       inputTokens: Math.ceil(prompt.length / 4),
       outputTokens: Math.ceil((text?.length ?? 0) / 4),
-      costUsd: 0.15
+      costUsd: 0.15,
     },
-    elapsed: Date.now() - started
+    elapsed: Date.now() - started,
   };
 }
 
 const __userText = (messages: ChatMessage[]) =>
-  messages.find(m => m.role === 'user')?.content ?? '';
+  messages.find((m) => m.role === 'user')?.content ?? '';
 
 export const AIRouter = {
   async call(providerId: string, messages: ChatMessage[], _opts?: Record<string, unknown>) {
@@ -788,23 +857,51 @@ export const AIRouter = {
     // Wire to your existing cloud functions (budgeting/retry already there)
     if (providerId === 'gpt' || providerId === 'gpt4') {
       const r = await askGPT(prompt);
-      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens, outputTokens: r.usage?.completion_tokens, costUsd: r.cost_usd } };
+      return {
+        text: r.text ?? '',
+        usage: {
+          inputTokens: r.usage?.prompt_tokens,
+          outputTokens: r.usage?.completion_tokens,
+          costUsd: r.cost_usd,
+        },
+      };
     }
     if (providerId === 'gemini') {
       const r = await askGemini(prompt);
-      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens, outputTokens: r.usage?.completion_tokens, costUsd: r.cost_usd } };
+      return {
+        text: r.text ?? '',
+        usage: {
+          inputTokens: r.usage?.prompt_tokens,
+          outputTokens: r.usage?.completion_tokens,
+          costUsd: r.cost_usd,
+        },
+      };
     }
     if (providerId === 'deepseek') {
       const r = await askDeepSeek(prompt);
-      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens, outputTokens: r.usage?.completion_tokens, costUsd: r.cost_usd } };
+      return {
+        text: r.text ?? '',
+        usage: {
+          inputTokens: r.usage?.prompt_tokens,
+          outputTokens: r.usage?.completion_tokens,
+          costUsd: r.cost_usd,
+        },
+      };
     }
     if (providerId === 'claude') {
       const r = await askClaude(prompt);
-      return { text: r.text ?? '', usage: { inputTokens: r.usage?.prompt_tokens, outputTokens: r.usage?.completion_tokens, costUsd: r.cost_usd } };
+      return {
+        text: r.text ?? '',
+        usage: {
+          inputTokens: r.usage?.prompt_tokens,
+          outputTokens: r.usage?.completion_tokens,
+          costUsd: r.cost_usd,
+        },
+      };
     }
 
     throw new Error(`Unknown providerId: ${providerId}`);
-  }
+  },
 };
 
 export default AIRouter;
