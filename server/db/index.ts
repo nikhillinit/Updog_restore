@@ -4,12 +4,7 @@
  */
 
 // Drizzle ORM exports
-import { db as dbInstance } from './pool';
-import type { NodePgDatabase } from './pool';
-import type * as schema from '@shared/schema';
-
-export const db: NodePgDatabase<typeof schema> = dbInstance;
-export type { NodePgDatabase };
+export { db } from './pool';
 
 // PostgreSQL exports
 export {

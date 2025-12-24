@@ -4,9 +4,6 @@ import * as schema from '@shared/schema';
 import * as lpSchema from '@shared/schema-lp-reporting';
 import { logger } from './logger';
 
-// Combined schema type for full type safety
-type CombinedSchema = typeof schema & typeof lpSchema;
-
 // Parse connection string to get database name
 const dbName = process.env['DATABASE_URL']?.split('/').pop()?.split('?')[0] || 'unknown';
 
@@ -68,6 +65,8 @@ export async function closePool() {
   }
 }
 
-export const db: NodePgDatabase<CombinedSchema> = drizzle(pool, {
-  schema: { ...schema, ...lpSchema }
+export const db = drizzle(pool, {
+  schema: { ...schema, ...lpSchema },
 });
+
+export type { NodePgDatabase };
