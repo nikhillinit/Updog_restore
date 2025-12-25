@@ -36,8 +36,18 @@ interface TableConstraints {
 // Drizzle query option types
 interface QueryOptions {
   where?: SQL<unknown> | Record<string, unknown>;
-  orderBy?: SQL<unknown> | Record<string, unknown>;
+  orderBy?:
+    | SQL<unknown>
+    | Record<string, unknown>
+    | Array<SQL<unknown> | Record<string, unknown>>
+    | ((...args: unknown[]) => unknown);
   limit?: number;
+}
+
+interface OrderByClause {
+  column: string;
+  direction: 'asc' | 'desc';
+  nulls?: 'first' | 'last';
 }
 
 // Call history entry type
@@ -646,8 +656,7 @@ class DatabaseMock {
 
         // Apply orderBy if provided
         if (options?.orderBy) {
-          // Simplified - just reverse for DESC ordering
-          filtered = [...filtered].reverse();
+          filtered = this.applyOrderBy(filtered, options.orderBy);
         }
 
         // Apply limit if provided
@@ -855,6 +864,283 @@ class DatabaseMock {
     if (!whereClause) return data;
 
     return data.filter((row: MockQueryResult) => this.matchesWhereClause(row, whereClause));
+  }
+
+  /**
+   * Apply orderBy clauses to mock results
+   */
+  private applyOrderBy(
+    data: MockQueryResult[],
+    orderBy: QueryOptions['orderBy']
+  ): MockQueryResult[] {
+    const clauses = this.parseOrderByClauses(orderBy);
+    if (clauses.length === 0) return data;
+
+    return [...data].sort((a, b) => this.compareOrderBy(a, b, clauses));
+  }
+
+  private parseOrderByClauses(orderBy: QueryOptions['orderBy']): OrderByClause[] {
+    if (!orderBy) return [];
+
+    const rawClauses = Array.isArray(orderBy) ? orderBy : [orderBy];
+    const clauses: OrderByClause[] = [];
+
+    for (const clause of rawClauses) {
+      if (!clause || typeof clause !== 'object') continue;
+
+      if (!this.looksLikeSqlObject(clause)) {
+        const mapClauses = this.extractOrderByFromMap(clause as Record<string, unknown>);
+        if (mapClauses.length > 0) {
+          clauses.push(...mapClauses);
+          continue;
+        }
+      }
+
+      const sqlClause = this.extractOrderByFromSql(clause);
+      if (sqlClause) clauses.push(sqlClause);
+    }
+
+    return clauses;
+  }
+
+  private extractOrderByFromMap(clause: Record<string, unknown>): OrderByClause[] {
+    const entries = Object.entries(clause).filter(
+      ([, value]) => typeof value === 'string' || typeof value === 'number'
+    );
+    if (entries.length === 0) return [];
+
+    return entries.map(([column, value]) => ({
+      column,
+      direction: String(value).toLowerCase() === 'desc' ? 'desc' : 'asc',
+    }));
+  }
+
+  private extractOrderByFromSql(clause: unknown): OrderByClause | null {
+    const column = this.extractOrderByColumn(clause);
+    if (!column) return null;
+
+    const { direction, nulls } = this.extractOrderByDirection(clause);
+    return { column, direction, nulls };
+  }
+
+  private extractOrderByColumn(clause: unknown): string | null {
+    const columns: string[] = [];
+    this.collectValuesAndColumns(clause, [], columns);
+    if (columns.length > 0) return columns[0];
+
+    const sqlText = this.extractSqlText(clause);
+    return this.extractColumnNameFromSqlText(sqlText);
+  }
+
+  private extractOrderByDirection(clause: unknown): {
+    direction: 'asc' | 'desc';
+    nulls?: 'first' | 'last';
+  } {
+    const sqlText = this.extractSqlText(clause);
+    const text = sqlText ? sqlText.toLowerCase() : '';
+
+    let direction: 'asc' | 'desc' = 'asc';
+    if (/\bdesc\b/i.test(text)) direction = 'desc';
+    else if (/\basc\b/i.test(text)) direction = 'asc';
+
+    let nulls: 'first' | 'last' | undefined;
+    if (/\bnulls\s+first\b/i.test(text)) nulls = 'first';
+    else if (/\bnulls\s+last\b/i.test(text)) nulls = 'last';
+
+    if (!sqlText && clause && typeof clause === 'object') {
+      const fallback = this.extractDirectionFromObject(clause as Record<string, unknown>);
+      if (fallback) direction = fallback;
+    }
+
+    return { direction, nulls };
+  }
+
+  private extractDirectionFromObject(clause: Record<string, unknown>): 'asc' | 'desc' | null {
+    const candidates = ['direction', 'order', 'sort', 'sortOrder'];
+    for (const key of candidates) {
+      const value = clause[key];
+      if (typeof value === 'string') {
+        const lowered = value.toLowerCase();
+        if (lowered === 'asc' || lowered === 'desc') return lowered;
+      }
+    }
+
+    if (typeof clause.desc === 'boolean') return clause.desc ? 'desc' : 'asc';
+    if (typeof clause.asc === 'boolean') return clause.asc ? 'asc' : 'desc';
+
+    return null;
+  }
+
+  private looksLikeSqlObject(value: unknown): boolean {
+    if (!value || typeof value !== 'object') return false;
+    return (
+      'toSQL' in value || 'queryChunks' in value || 'sql' in value || 'shouldInlineParams' in value
+    );
+  }
+
+  private extractSqlText(clause: unknown): string | null {
+    if (!clause || typeof clause !== 'object') return null;
+
+    const clauseRecord = clause as Record<string, unknown>;
+
+    if (typeof clauseRecord.sql === 'string') return clauseRecord.sql;
+
+    if (Array.isArray(clauseRecord.queryChunks)) {
+      const text = clauseRecord.queryChunks
+        .map((chunk: unknown) => {
+          if (typeof chunk === 'string') return chunk;
+          if (!chunk || typeof chunk !== 'object') return '';
+          const chunkRecord = chunk as Record<string, unknown>;
+          if (typeof chunkRecord.sql === 'string') return chunkRecord.sql;
+          if (typeof chunkRecord.text === 'string') return chunkRecord.text;
+          if (typeof chunkRecord.name === 'string') return chunkRecord.name;
+          if (typeof chunkRecord.fieldName === 'string') return chunkRecord.fieldName;
+          return '';
+        })
+        .join(' ');
+      if (text.trim()) return text;
+    }
+
+    if (typeof clauseRecord.toSQL === 'function') {
+      try {
+        const result = clauseRecord.toSQL();
+        if (result && typeof result === 'object') {
+          const resultRecord = result as Record<string, unknown>;
+          if (typeof resultRecord.sql === 'string') return resultRecord.sql;
+        }
+      } catch {
+        // Ignore SQL rendering failures in the mock
+      }
+    }
+
+    if ('_' in clauseRecord) {
+      const internal = clauseRecord._;
+      if (typeof internal === 'string') return internal;
+      if (internal && typeof internal === 'object') {
+        const internalRecord = internal as Record<string, unknown>;
+        if (typeof internalRecord.sql === 'string') return internalRecord.sql;
+      }
+    }
+
+    const text = (clause as { toString?: () => string }).toString?.();
+    if (typeof text === 'string' && text !== '[object Object]') return text;
+
+    return null;
+  }
+
+  private extractColumnNameFromSqlText(sqlText: string | null): string | null {
+    if (!sqlText) return null;
+
+    const cleaned = sqlText.replace(/["`]/g, ' ').replace(/\s+/g, ' ').trim();
+    const directionMatch = cleaned.match(/\b(asc|desc)\b/i);
+    if (directionMatch && directionMatch.index !== undefined) {
+      const before = cleaned.slice(0, directionMatch.index).trim();
+      const parts = before.split(' ');
+      const last = parts[parts.length - 1];
+      if (last) {
+        const column = last.split('.').pop();
+        if (column) return column;
+      }
+    }
+
+    const identifiers = cleaned.match(/\b[a-zA-Z_][\w]*\b/g);
+    if (!identifiers || identifiers.length === 0) return null;
+
+    const blacklist = new Set(['nulls', 'first', 'last', 'asc', 'desc']);
+    for (let i = identifiers.length - 1; i >= 0; i--) {
+      const candidate = identifiers[i];
+      if (!blacklist.has(candidate.toLowerCase())) return candidate;
+    }
+
+    return null;
+  }
+
+  private compareOrderBy(a: MockQueryResult, b: MockQueryResult, clauses: OrderByClause[]): number {
+    for (const clause of clauses) {
+      const aValue = this.getOrderByValue(a, clause.column);
+      const bValue = this.getOrderByValue(b, clause.column);
+
+      const comparison = this.compareOrderByValues(aValue, bValue, clause.direction, clause.nulls);
+      if (comparison !== 0) return comparison;
+    }
+
+    return 0;
+  }
+
+  private getOrderByValue(row: MockQueryResult, column: string): unknown {
+    if (column in row) return row[column];
+
+    const camel = this.toCamelCase(column);
+    if (camel in row) return row[camel];
+
+    const snake = this.toSnakeCase(column);
+    if (snake in row) return row[snake];
+
+    return row[column];
+  }
+
+  private compareOrderByValues(
+    aValue: unknown,
+    bValue: unknown,
+    direction: 'asc' | 'desc',
+    nulls?: 'first' | 'last'
+  ): number {
+    const aNull = aValue === null || aValue === undefined;
+    const bNull = bValue === null || bValue === undefined;
+    if (aNull || bNull) {
+      if (aNull && bNull) return 0;
+      const placement = nulls ?? (direction === 'desc' ? 'last' : 'first');
+      return aNull ? (placement === 'first' ? -1 : 1) : placement === 'first' ? 1 : -1;
+    }
+
+    const comparison = this.basicCompare(aValue, bValue);
+    if (comparison === 0) return 0;
+    return direction === 'desc' ? -comparison : comparison;
+  }
+
+  private basicCompare(aValue: unknown, bValue: unknown): number {
+    const aNormalized = this.normalizeOrderValue(aValue);
+    const bNormalized = this.normalizeOrderValue(bValue);
+
+    if (typeof aNormalized === 'number' && typeof bNormalized === 'number') {
+      return aNormalized === bNormalized ? 0 : aNormalized < bNormalized ? -1 : 1;
+    }
+
+    if (typeof aNormalized === 'bigint' && typeof bNormalized === 'bigint') {
+      return aNormalized === bNormalized ? 0 : aNormalized < bNormalized ? -1 : 1;
+    }
+
+    const aString = typeof aNormalized === 'string' ? aNormalized : String(aNormalized);
+    const bString = typeof bNormalized === 'string' ? bNormalized : String(bNormalized);
+    const result = aString.localeCompare(bString);
+    return result < 0 ? -1 : result > 0 ? 1 : 0;
+  }
+
+  private normalizeOrderValue(value: unknown): unknown {
+    if (value instanceof Date) return value.getTime();
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed !== '') {
+        const numberValue = Number(trimmed);
+        if (!Number.isNaN(numberValue)) return numberValue;
+      }
+      return value;
+    }
+
+    return value;
+  }
+
+  private toCamelCase(value: string): string {
+    if (!value.includes('_')) return value;
+    return value.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
+  }
+
+  private toSnakeCase(value: string): string {
+    return value
+      .replace(/([A-Z])/g, '_$1')
+      .replace(/__/g, '_')
+      .toLowerCase();
   }
 
   /**
