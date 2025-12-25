@@ -86,8 +86,8 @@ interface BudgetData {
 
 const PRICING = {
   claude: {
-    input: parseFloat(process.env["CLAUDE_INPUT_COST"] ?? '0.003'),
-    output: parseFloat(process.env["CLAUDE_OUTPUT_COST"] ?? '0.015'),
+    input: parseFloat(process.env["CLAUDE_INPUT_COST"] ?? '0.015'),
+    output: parseFloat(process.env["CLAUDE_OUTPUT_COST"] ?? '0.075'),
   },
   gpt: {
     input: parseFloat(process.env["GPT_INPUT_COST"] ?? '0.00015'),
@@ -264,12 +264,14 @@ async function askClaude(prompt: string, options?: ClaudeOptions): Promise<AIRes
 
     const response = await withRetryAndTimeout(
       () => anthropic.messages.create({
-        model: process.env["CLAUDE_MODEL"] ?? 'claude-3-5-sonnet-latest',
+        model: process.env["CLAUDE_MODEL"] ?? 'claude-opus-4-5-20251101',
         max_tokens: 8192,
         messages: [{ role: 'user', content: prompt }],
         tools: tools.length > 0 ? tools : undefined,
         betas: options?.enableContextClearing ? ['context-management-2025-06-27' as any] : undefined,
         ...(contextManagement ? { context_management: contextManagement as any } : {}),
+        // Opus 4.5: Set effort to 'high' for deep reasoning
+        ...(process.env["CLAUDE_EFFORT"] ? { effort: process.env["CLAUDE_EFFORT"] as any } : {}),
       } as any),
       'claude'
     );

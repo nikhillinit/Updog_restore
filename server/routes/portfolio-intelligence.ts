@@ -11,8 +11,7 @@ import type { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import idempotency from '../middleware/idempotency';
-// DEFERRED: Security middleware disabled in tests (rate limiting conflicts with test expectations)
-// Enable when test mocking is implemented: import { securityMiddlewareStack } from '../middleware/security';
+import { securityMiddlewareStack } from '../middleware/security';
 import { positiveInt, bounded01, nonNegative } from '@shared/schema-helpers';
 import { toNumber, NumberParseError } from '@shared/number';
 import type { ApiError } from '@shared/types';
@@ -89,10 +88,7 @@ const getUserId = (req: Request): number => {
 };
 
 const router = Router();
-
-// DEFERRED: Security middleware disabled for test compatibility
-// Rate limiting conflicts with test expectations (see portfolio-intelligence.test.ts:1049-1151)
-// Enable when test mocking infrastructure is added: router.use(securityMiddlewareStack);
+router.use(securityMiddlewareStack);
 
 // ============================================================================
 // VALIDATION SCHEMAS

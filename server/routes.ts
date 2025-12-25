@@ -764,9 +764,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { engineAdminRoutes } = await import('./routes/admin/engine.js');
   app.use('/api/admin/engine', engineAdminRoutes);
 
-  // Scenario Comparison Tool routes
-  const scenarioComparisonRoutes = await import('./routes/scenario-comparison.js');
-  app.use(scenarioComparisonRoutes.default);
+  // Scenario Comparison Tool routes (WIP - file not yet implemented)
+  // const scenarioComparisonRoutes = await import('./routes/scenario-comparison.js');
+  // app.use(scenarioComparisonRoutes.default);
 
   // Development dashboard routes (development only)
   if (process.env["NODE_ENV"] === 'development') {
