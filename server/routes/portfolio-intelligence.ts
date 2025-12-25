@@ -339,7 +339,9 @@ router['post']('/api/portfolio/strategies', idempotency, async (req: Request, re
       concentrationLimits: validatedData.concentrationLimits,
       riskTolerance: validatedData.riskTolerance,
       targetIrr: validatedData.targetIrr ? String(validatedData.targetIrr) : undefined,
-      targetMultiple: validatedData.targetMultiple ? String(validatedData.targetMultiple) : undefined,
+      targetMultiple: validatedData.targetMultiple
+        ? String(validatedData.targetMultiple)
+        : undefined,
       targetDpi: validatedData.targetDpi ? String(validatedData.targetDpi) : undefined,
       tags: validatedData.tags,
       createdBy: userId,
@@ -778,19 +780,30 @@ router['post'](
 
       // Persist simulation to database
       const simulation = await portfolioIntelligenceService.simulations.create({
+        fundId: scenario.fundId,
         scenarioId,
-        simulationIterations: validatedData.monteCarloIterations,
-        confidenceLevel: String(validatedData.confidenceLevel),
-        randomSeed: validatedData.randomSeed,
+        simulationName: `${scenario.name ?? 'Scenario'} Simulation`,
+        simulationType: validatedData.simulationType,
+        numberOfRuns: validatedData.numberOfRuns,
+        inputDistributions: validatedData.inputDistributions,
+        correlationMatrix: validatedData.correlationMatrix,
+        constraints: validatedData.constraints,
         summaryStatistics: simulationResults,
-        riskMetrics,
-        status: 'completed',
+        percentileResults: simulationResults.percentiles,
+        varCalculations: { var95: riskMetrics.var95 },
+        cvarCalculations: { cvar95: riskMetrics.cvar95 },
+        downsideRisk: { volatility: riskMetrics.volatility },
+        tailRiskAnalysis: { sharpeRatio: riskMetrics.sharpeRatio },
         createdBy: userId,
       });
 
       res.status(201).json({
         success: true,
-        data: simulation,
+        data: {
+          ...simulation,
+          summaryStatistics: simulationResults,
+          riskMetrics,
+        },
         message: 'Monte Carlo simulation completed successfully',
       });
     } catch (error: unknown) {
@@ -878,17 +891,24 @@ router['post'](
       // Persist reserve strategy to database
       const reserveStrategy = await portfolioIntelligenceService.reserves.create({
         fundId: parsedFundId,
-        name: validatedData.name || `Optimization ${new Date().toISOString().split('T')[0]}`,
-        strategyType: validatedData.optimizationObjective || 'balanced',
-        targetReserveRatio: String(validatedData.constraints?.maxReserveRatio || 0.5),
-        minReserveRatio: String(validatedData.constraints?.minReserveRatio || 0.2),
-        maxReserveRatio: String(validatedData.constraints?.maxReserveRatio || 0.6),
+        name: `Optimization ${new Date().toISOString().split('T')[0]}`,
+        strategyType: validatedData.strategyType,
         allocationRules: {
+          ...validatedData.allocationRules,
           optimalAllocation,
           performanceProjection,
-          constraints: validatedData.constraints,
-          timeHorizon: validatedData.timeHorizon,
         },
+        triggerConditions: validatedData.allocationRules,
+        totalReserveAmount: String(validatedData.totalReserveAmount),
+        reserveTranches: {
+          base: {
+            amount: validatedData.totalReserveAmount,
+            maxPerCompanyPct: validatedData.maxPerCompanyPct,
+          },
+        },
+        maxPerCompanyPct: String(validatedData.maxPerCompanyPct),
+        optimizationObjective: validatedData.optimizationObjective,
+        monteCarloIterations: validatedData.monteCarloIterations,
         isActive: true,
         createdBy: userId,
       });
@@ -1228,8 +1248,8 @@ router['post']('/api/portfolio/forecasts/validate', async (req: Request, res: Re
           keyInsights,
           validatedBy: userId,
           validatedAt: new Date().toISOString(),
-          actualData: validatedData.actualData,
-          comparisonPeriod: validatedData.comparisonPeriod,
+          actualData: validatedData.actualMetrics,
+          comparisonPeriod: validatedData.validationPeriod,
         },
       }
     );
