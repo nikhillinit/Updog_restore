@@ -514,13 +514,55 @@ class DatabaseMock {
    * Mock the select method (Drizzle query builder)
    * Complete thenable implementation with all required methods
    */
-  select = vi.fn(() => {
-    const execute = vi.fn(() => Promise.resolve([]));
+  select = vi.fn((_fields?: unknown) => {
+    void _fields;
+    const mock = this;
+    let tableName: string | null = null;
+    let whereClause: SQL<unknown> | Record<string, unknown> | undefined;
+    let orderByClause: QueryOptions['orderBy'] | undefined;
+    let limitValue: number | undefined;
+
+    const execute = vi.fn(async () => {
+      if (!tableName) return [];
+
+      const data = mock.mockData.get(tableName) || [];
+      let filtered = data;
+
+      if (whereClause) {
+        filtered = mock.filterData(filtered, whereClause);
+      }
+
+      if (orderByClause) {
+        filtered = mock.applyOrderBy(filtered, orderByClause);
+      }
+
+      if (typeof limitValue === 'number') {
+        filtered = filtered.slice(0, limitValue);
+      }
+
+      return filtered;
+    });
     const builder = {
-      from: vi.fn((_table?: unknown) => builder),
-      where: vi.fn((_condition?: SQL<unknown> | Record<string, unknown>) => builder),
-      orderBy: vi.fn((..._args: unknown[]) => builder),
-      limit: vi.fn((_value?: number) => builder),
+      from: vi.fn((table?: unknown) => {
+        tableName = table ? mock.getTableNameFromObject(table) : null;
+        return builder;
+      }),
+      where: vi.fn((condition?: SQL<unknown> | Record<string, unknown>) => {
+        whereClause = condition;
+        return builder;
+      }),
+      orderBy: vi.fn((...args: unknown[]) => {
+        if (args.length === 1) {
+          orderByClause = args[0] as QueryOptions['orderBy'];
+        } else if (args.length > 1) {
+          orderByClause = args as QueryOptions['orderBy'];
+        }
+        return builder;
+      }),
+      limit: vi.fn((value?: number) => {
+        limitValue = typeof value === 'number' ? value : undefined;
+        return builder;
+      }),
       execute,
       then: vi.fn(
         (onFulfilled?: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) =>
