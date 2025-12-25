@@ -362,3 +362,181 @@ npx playwright codegen localhost:4173
 - Avoid hardcoded IDs that might conflict
 - Clean up after tests (database, localStorage, etc.)
 - Use deterministic data for reproducible tests
+
+## Test Data Seeding
+
+### Quick Start
+
+```bash
+# Seed database with comprehensive test data
+npm run db:seed:test
+
+# Reset and reseed (clears existing test data)
+npm run db:seed:test:reset
+
+# Minimal dataset for quick tests
+npm run db:seed:test:minimal
+```
+
+### Test Data Schema
+
+The `db:seed:test` script creates the following test data for QA and E2E testing:
+
+#### Test Fund
+- **Name**: Test Venture Fund I
+- **Size**: $100M
+- **Vintage**: 2023
+- **Management Fee**: 2.0% on committed capital (quarterly payment)
+- **Carried Interest**: 20% with 8% preferred return, 100% catch-up
+- **GP Commitment**: 2%
+- **Status**: Active
+
+#### Portfolio Companies (4 companies)
+
+| Company Name | Sector | Stage | Initial Investment | Valuation | Ownership | Status | Exit Details |
+|---|---|---|---|---|---|---|---|
+| Alpha SaaS Corp | SaaS | Series A | $1M | $10M | 10% | Active | - |
+| Beta AI Labs | AI/ML | Seed | $500K | $5M | 10% | Active | - |
+| Gamma Fintech Inc | Fintech | Series B | $5M | $50M | 10% | Active | - |
+| Delta Biotech | Biotech | Series A | $2M | $20M | 10% | Exited | $30M (1.5x MOIC) |
+
+**Follow-on Investments** (automatically created for Series A+ companies):
+- Alpha SaaS Corp: $500K at $20M valuation (2.5% ownership)
+- Gamma Fintech Inc: $2.5M at $100M valuation (2.5% ownership)
+- Delta Biotech: $1M at $40M valuation (2.5% ownership)
+
+#### LP Accounts (3 LPs)
+
+| LP Name | Email | Commitment | Capital Called | Call % | Distributions | DPI |
+|---|---|---|---|---|---|---|
+| Institutional LP 1 | lp1@test.com | $10M | $5M | 50% | $2M | 0.4x |
+| Institutional LP 2 | lp2@test.com | $20M | $10M | 50% | $4M | 0.4x |
+| Family Office LP | lp3@test.com | $5M | $2.5M | 50% | $1M | 0.4x |
+
+**Distribution Records**: All LPs have one distribution record dated 2023-12-15 (type: capital_return)
+
+#### Scenarios (3 scenarios)
+
+| Scenario | Description | Success Rate | Avg Multiple | Deployment Pace |
+|---|---|---|---|---|
+| Base Case | Conservative assumptions with historical market returns | 25% | 3.0x | Steady |
+| Bull Case | Optimistic assumptions with above-market returns | 40% | 5.0x | Aggressive |
+| Bear Case | Conservative assumptions with below-market returns | 15% | 2.0x | Cautious |
+
+### Minimal Mode
+
+Use `--minimal` flag for faster test data creation (skips LP accounts, scenarios, and follow-on investments):
+
+```bash
+npm run db:seed:test:minimal
+```
+
+**Minimal dataset includes**:
+- 1 test fund
+- 4 portfolio companies
+- 4 initial investments only (no follow-ons)
+
+**Use minimal mode for**:
+- Quick smoke tests
+- Development iteration
+- Unit test data requirements
+
+### Test Data Cleanup
+
+After testing, clean up test data:
+
+```bash
+# Automatic cleanup (recommended)
+npm run db:seed:test:reset
+
+# Manual cleanup via SQL
+psql $DATABASE_URL -c "DELETE FROM funds WHERE name = 'Test Venture Fund I';"
+```
+
+**Note**: Using `--reset` flag automatically removes all dependent records (cascade delete).
+
+### Using Test Data in Tests
+
+**E2E Tests (Playwright)**:
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.beforeEach(async ({ page }) => {
+  // Seed runs once before test suite
+  // Data persists across tests for performance
+  await page.goto('/funds');
+});
+
+test('should display test fund', async ({ page }) => {
+  await expect(page.getByText('Test Venture Fund I')).toBeVisible();
+});
+```
+
+**Integration Tests (Vitest)**:
+```typescript
+import { describe, it, expect, beforeAll } from 'vitest';
+import { db } from '../server/db';
+import { funds } from '../shared/schema';
+import { eq } from 'drizzle-orm';
+
+describe('Fund API', () => {
+  let testFundId: number;
+
+  beforeAll(async () => {
+    // Find test fund seeded by db:seed:test
+    const [fund] = await db.select()
+      .from(funds)
+      .where(eq(funds.name, 'Test Venture Fund I'));
+    testFundId = fund.id;
+  });
+
+  it('should fetch fund details', async () => {
+    const response = await fetch(`/api/funds/${testFundId}`);
+    expect(response.status).toBe(200);
+  });
+});
+```
+
+### Test Data Requirements by Domain
+
+**Fund Setup Tests**: Requires clean state (no pre-existing data)
+```bash
+npm run db:seed:test:reset && npm run test:e2e -- fund-setup
+```
+
+**Portfolio Management Tests**: Requires companies and investments
+```bash
+npm run db:seed:test && npm run test:e2e -- portfolio
+```
+
+**LP Portal Tests**: Requires LP accounts with distributions
+```bash
+npm run db:seed:test && npm run test:e2e -- lp-portal
+```
+
+**Calculation Engine Tests**: Requires exited companies for MOIC/IRR
+```bash
+npm run db:seed:test && npm run test -- xirr
+```
+
+### Data Consistency Validation
+
+Verify test data integrity after seeding:
+
+```bash
+# Check fund created
+psql $DATABASE_URL -c "SELECT id, name, size FROM funds WHERE name = 'Test Venture Fund I';"
+
+# Check companies created
+psql $DATABASE_URL -c "SELECT COUNT(*) FROM portfolio_companies WHERE fund_id = (SELECT id FROM funds WHERE name = 'Test Venture Fund I');"
+
+# Check LP accounts
+psql $DATABASE_URL -c "SELECT COUNT(*) FROM limited_partners WHERE fund_id = (SELECT id FROM funds WHERE name = 'Test Venture Fund I');"
+```
+
+Expected counts:
+- Funds: 1
+- Portfolio Companies: 4
+- Investments: 7 (full mode) or 4 (minimal mode)
+- LP Accounts: 3 (full mode) or 0 (minimal mode)
+- Scenarios: 3 (full mode) or 0 (minimal mode)

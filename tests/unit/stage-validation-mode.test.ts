@@ -66,6 +66,7 @@ describe('Stage Validation Mode Store', () => {
     // Reset environment (set BEFORE calling reset function)
     delete process.env.STAGE_VALIDATION_MODE;
     delete process.env.REDIS_URL;
+    process.env.REDIS_URL = 'redis://localhost:6379'; // Enable Redis for mock testing
 
     // Reset module cache and default mode
     _resetStageValidationModeForTesting();

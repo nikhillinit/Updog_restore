@@ -333,26 +333,26 @@ rg "export const [tableName]" shared/schema.ts
 ### If Tests Parse But Fail with Assertion Errors
 
 - [x] **Good**: Syntax is fixed
-- 🔍 **Next**: Check service implementations (don't assume schema missing)
-- 📝 **Pattern**: Read service code, verify methods exist and return correct data
+-  **Next**: Check service implementations (don't assume schema missing)
+-  **Pattern**: Read service code, verify methods exist and return correct data
 
 ### If Tests Fail with "Cannot read properties of undefined"
 
-- 🔍 **Check**: Mock structure matches actual Drizzle query chains
-- 🔍 **Check**: Service methods actually implemented
-- 📝 **Pattern**: Use grep to find actual service usage: `rg "db\." server/services/[service-name]`
+-  **Check**: Mock structure matches actual Drizzle query chains
+-  **Check**: Service methods actually implemented
+-  **Pattern**: Use grep to find actual service usage: `rg "db\." server/services/[service-name]`
 
 ### If TypeScript Errors After Service Changes
 
-- 🔍 **Check**: Schema field types (decimal = string, not number)
-- 🔍 **Check**: Field names match schema exactly
-- 📝 **Pattern**: Search schema file: `rg "export const [tableName]" shared/schema.ts`
+-  **Check**: Schema field types (decimal = string, not number)
+-  **Check**: Field names match schema exactly
+-  **Pattern**: Search schema file: `rg "export const [tableName]" shared/schema.ts`
 
 ### If Server Tests Regress
 
 - [WARN] **Stop**: Don't proceed until regression identified
-- 🔍 **Check**: What changed in shared service code
-- 📝 **Pattern**: Run just the regressed file to isolate issue
+-  **Check**: What changed in shared service code
+-  **Pattern**: Run just the regressed file to isolate issue
 
 ---
 

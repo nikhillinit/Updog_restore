@@ -162,21 +162,28 @@ hours → 30 minutes
 #### [brainstorming](brainstorming.md)
 
 **Overview**: Transform rough ideas into fully-formed designs through structured
-questioning.
+questioning and optional multi-AI refinement.
 
-**When to use**: Before writing code, creating new features, exploring solutions
+**When to use**: Before writing code, creating new features, exploring solutions,
+refining complex designs
 
-**Six phases**:
+**Seven phases** (3.5 is optional):
 
 1. Understanding - Ask questions one at a time
 2. Exploration - Propose 2-3 approaches with trade-offs
 3. Design Presentation - Present incrementally, validate each section
-4. Documentation - Write design doc
-5. Worktree Setup - Isolated workspace
-6. Planning - Implementation plan
+4. **3.5. Design Refinement** - Structured critique + multi-AI validation (optional)
+5. Documentation - Write design doc
+6. Worktree Setup - Isolated workspace
+7. Planning - Implementation plan
+
+**New in v2**: Phase 3.5 adds structured refinement using extended-thinking-framework
+for critique and multi-ai-collab MCP tools (ask_all_ais, ai_debate, ai_consensus)
+for validation. Use for complex features, high-stakes decisions, or unclear trade-offs.
 
 **Example**: "I want to add caching" → Clarify goals → Explore Redis vs
-memoization → Design with validation → Document → Plan
+memoization → Design with validation → Refine with multi-AI perspectives →
+Document → Plan
 
 ---
 
@@ -340,17 +347,19 @@ documentation
 ```
 1. brainstorming (refine idea → design)
    ↓
-2. inversion-thinking (identify failure modes)
+2. brainstorming Phase 3.5 (optional: critique + multi-AI validation)
    ↓
-3. task-decomposition (break into subtasks)
+3. inversion-thinking (identify failure modes)
    ↓
-4. writing-plans (create detailed steps per subtask)
+4. task-decomposition (break into subtasks)
    ↓
-5. Execute plan with /test-smart
+5. writing-plans (create detailed steps per subtask)
    ↓
-6. memory-management (track progress)
+6. Execute plan with /test-smart
    ↓
-7. continuous-improvement (reflect on process)
+7. memory-management (track progress)
+   ↓
+8. continuous-improvement (reflect on process)
 ```
 
 ### Research & Analysis Workflow
@@ -399,7 +408,7 @@ documentation
 
 ```
 Planning:
-  brainstorming + inversion-thinking + task-decomposition + writing-plans
+  brainstorming (with Phase 3.5 refinement) + inversion-thinking + task-decomposition + writing-plans
 
 Debugging:
   systematic-debugging + root-cause-tracing + pattern-recognition
@@ -414,7 +423,10 @@ Quality:
   pattern-recognition + multi-ai-collab + continuous-improvement
 
 Complex Features:
-  brainstorming + task-decomposition + dispatching-parallel-agents
+  brainstorming (Phase 3.5 for validation) + task-decomposition + dispatching-parallel-agents
+
+Design Refinement:
+  brainstorming Phase 3 → Phase 3.5 (critique) → multi-ai-collab (validation) → Phase 4 (document)
 ```
 
 ## Best Practices
