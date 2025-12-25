@@ -10,7 +10,7 @@ import { fundEvents, fundSnapshots, funds, type FundEvent } from '@shared/schema
 import type { SQL } from 'drizzle-orm';
 import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { compare } from 'fast-json-patch';
+import * as jsonpatch from 'fast-json-patch';
 import { NotFoundError } from '../errors';
 import { logger } from '../logger';
 
@@ -320,7 +320,7 @@ export class TimeTravelAnalyticsService {
     let differences = null;
     if (includeDiff && state1.state && state2.state) {
       // Use basic comparison for state differences
-      differences = compare(state1.state as object, state2.state as object);
+      differences = jsonpatch.compare(state1.state as object, state2.state as object);
     }
 
     return {
