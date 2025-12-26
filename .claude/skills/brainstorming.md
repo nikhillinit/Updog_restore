@@ -16,15 +16,15 @@ incrementally for validation.**
 
 ## Quick Reference
 
-| Phase                       | Key Activities                      | Tool Usage                                 | Output                               |
-| --------------------------- | ----------------------------------- | ------------------------------------------ | ------------------------------------ |
-| **1. Understanding**        | Ask questions (one at a time)       | AskUserQuestion for choices                | Purpose, constraints, criteria       |
-| **2. Exploration**          | Propose 2-3 approaches              | AskUserQuestion for approach selection     | Architecture options with trade-offs |
-| **3. Design Presentation**  | Present in 200-300 word sections    | Open-ended questions                       | Complete design with validation      |
-| **3.5. Design Refinement**  | Critique & multi-AI validation      | extended-thinking, multi-ai-collab tools   | Refined, validated design            |
-| **4. Design Documentation** | Write design document               | writing-clearly-and-concisely skill        | Design doc in docs/plans/            |
-| **5. Worktree Setup**       | Set up isolated workspace           | using-git-worktrees skill                  | Ready development environment        |
-| **6. Planning Handoff**     | Create implementation plan          | writing-plans skill                        | Detailed task breakdown              |
+| Phase                       | Key Activities                   | Tool Usage                               | Output                               |
+| --------------------------- | -------------------------------- | ---------------------------------------- | ------------------------------------ |
+| **1. Understanding**        | Ask questions (one at a time)    | AskUserQuestion for choices              | Purpose, constraints, criteria       |
+| **2. Exploration**          | Propose 2-3 approaches           | AskUserQuestion for approach selection   | Architecture options with trade-offs |
+| **3. Design Presentation**  | Present in 200-300 word sections | Open-ended questions                     | Complete design with validation      |
+| **3.5. Design Refinement**  | Critique & multi-AI validation   | extended-thinking, multi-ai-collab tools | Refined, validated design            |
+| **4. Design Documentation** | Write design document            | writing-clearly-and-concisely skill      | Design doc in docs/plans/            |
+| **5. Worktree Setup**       | Set up isolated workspace        | using-git-worktrees skill                | Ready development environment        |
+| **6. Planning Handoff**     | Create implementation plan       | writing-plans skill                      | Detailed task breakdown              |
 
 ## The Process
 
@@ -252,7 +252,8 @@ User validates: "Perfect"
 
 ### Phase 3.5: Design Refinement (Optional)
 
-**Goal**: Validate and refine design through structured critique and multi-perspective analysis
+**Goal**: Validate and refine design through structured critique and
+multi-perspective analysis
 
 #### When to Use
 
@@ -273,11 +274,9 @@ Use **extended-thinking-framework** to analyze the design:
 ```markdown
 Let me apply structured critique to this design...
 
-**Strengths**: [What works well]
-**Weaknesses**: [Potential issues or gaps]
-**Risks**: [What could go wrong]
-**Alternatives**: [Other approaches to consider]
-**Missing Context**: [What's not addressed]
+**Strengths**: [What works well] **Weaknesses**: [Potential issues or gaps]
+**Risks**: [What could go wrong] **Alternatives**: [Other approaches to
+consider] **Missing Context**: [What's not addressed]
 ```
 
 **Step 2: Multi-AI Validation (When Available)**
@@ -287,7 +286,8 @@ Leverage **multi-ai-collab MCP tools** for diverse perspectives:
 ```typescript
 // Get multiple AI perspectives on the design
 ask_all_ais({
-  prompt: 'Review this caching design for Monte Carlo simulations. Focus on: architecture soundness, edge cases, performance implications, and maintainability.',
+  prompt:
+    'Review this caching design for Monte Carlo simulations. Focus on: architecture soundness, edge cases, performance implications, and maintainability.',
   temperature: 0.7,
 });
 ```
@@ -417,43 +417,38 @@ Based on critique:
 
 **When to Use Multi-AI Tools in Design Workflow**:
 
-| Scenario                           | Tool                 | Purpose                            |
-| ---------------------------------- | -------------------- | ---------------------------------- |
-| Get diverse design perspectives    | ask_all_ais          | Compare approaches across models   |
-| Debate architecture trade-offs     | ai_debate            | Explore pros/cons with opposition  |
-| Validate critical decisions        | ai_consensus         | Ensure alignment on key choices    |
-| Generate creative alternatives     | gemini_brainstorm    | Explore novel approaches           |
-| Deep technical analysis            | gemini_think_deep    | Extended reasoning on complexity   |
-| Code-specific review               | gemini_code_review   | Security, performance, readability |
-| Architecture design validation     | gemini_architecture  | System design soundness            |
-| Debugging complex issues           | openai_debug         | Error analysis and resolution      |
-| Get OpenAI perspective             | openai_think_deep    | Alternative deep analysis          |
-| Collaborative problem-solving      | collaborative_solve  | Multi-AI approach to complex issue |
+| Scenario                        | Tool                | Purpose                            |
+| ------------------------------- | ------------------- | ---------------------------------- |
+| Get diverse design perspectives | ask_all_ais         | Compare approaches across models   |
+| Debate architecture trade-offs  | ai_debate           | Explore pros/cons with opposition  |
+| Validate critical decisions     | ai_consensus        | Ensure alignment on key choices    |
+| Generate creative alternatives  | gemini_brainstorm   | Explore novel approaches           |
+| Deep technical analysis         | gemini_think_deep   | Extended reasoning on complexity   |
+| Code-specific review            | gemini_code_review  | Security, performance, readability |
+| Architecture design validation  | gemini_architecture | System design soundness            |
+| Debugging complex issues        | openai_debug        | Error analysis and resolution      |
+| Get OpenAI perspective          | openai_think_deep   | Alternative deep analysis          |
+| Collaborative problem-solving   | collaborative_solve | Multi-AI approach to complex issue |
 
 **Example Workflow: Caching Design Refinement**
 
 ```markdown
-1. **Initial Design** (Phase 3)
-   Present: Redis-backed caching architecture
-   User: "Looks good, but worried about edge cases"
+1. **Initial Design** (Phase 3) Present: Redis-backed caching architecture User:
+   "Looks good, but worried about edge cases"
 
-2. **Refinement** (Phase 3.5)
-   Action: Generate structured critique
-   Result: Identified cache stampede risk, stale data concerns
+2. **Refinement** (Phase 3.5) Action: Generate structured critique Result:
+   Identified cache stampede risk, stale data concerns
 
-3. **Multi-AI Validation**
-   Tool: ask_all_ais
-   Prompt: "Review Redis caching design for edge cases and risks"
-   Result: All models recommend TTL jitter, monitoring metrics
+3. **Multi-AI Validation** Tool: ask_all_ais Prompt: "Review Redis caching
+   design for edge cases and risks" Result: All models recommend TTL jitter,
+   monitoring metrics
 
-4. **Trade-off Debate**
-   Tool: ai_debate (gemini vs openai)
-   Topic: "Simple Redis vs Hybrid caching approach"
-   Result: Consensus on simple Redis for v1, hybrid for v2 if needed
+4. **Trade-off Debate** Tool: ai_debate (gemini vs openai) Topic: "Simple Redis
+   vs Hybrid caching approach" Result: Consensus on simple Redis for v1, hybrid
+   for v2 if needed
 
-5. **Final Validation**
-   Present: Revised design with improvements
-   User: "Perfect, addresses all concerns"
+5. **Final Validation** Present: Revised design with improvements User:
+   "Perfect, addresses all concerns"
 
 6. **Proceed** → Phase 4 (Documentation)
 ```
@@ -620,16 +615,18 @@ Then use **writing-plans** skill:
 **Plan saved to**: `docs/plans/2025-11-06-monte-carlo-caching.md`
 ```
 
-**Note**: Phases renumbered after Phase 3.5 addition. Original Phase 4-6 are now Phase 5-7 in the process flow, but retain original numbering in headers for backward compatibility.
+**Note**: Phases renumbered after Phase 3.5 addition. Original Phase 4-6 are now
+Phase 5-7 in the process flow, but retain original numbering in headers for
+backward compatibility.
 
 ## When to Use AskUserQuestion Tool
 
 ### Use For:
 
-✅ **Phase 1 clarifying questions** with 2-4 clear options ✅ **Phase 2
-architectural approach selection** (2-3 alternatives) ✅ Any decision with
-**distinct, mutually exclusive choices** ✅ When options have **clear
-trade-offs** to present
+- **Phase 1 clarifying questions** with 2-4 clear options
+- **Phase 2 architectural approach selection** (2-3 alternatives)
+- Any decision with **distinct, mutually exclusive choices**
+- When options have **clear trade-offs** to present
 
 **Example**:
 
@@ -646,9 +643,10 @@ AskUserQuestion({
 
 ### Use Open-Ended Questions For:
 
-✅ **Phase 3 design validation** ("Does this look right?") ✅ When you need
-**detailed feedback** ✅ When structured options would **limit creative input**
-✅ Gathering requirements that aren't multiple-choice
+- **Phase 3 design validation** ("Does this look right?")
+- When you need **detailed feedback**
+- When structured options would **limit creative input**
+- Gathering requirements that aren't multiple-choice
 
 **Example**:
 
@@ -662,31 +660,30 @@ AskUserQuestion({
 
 ### One Question at a Time (Phase 1)
 
-❌ **Bad**: "What's the goal? What are the constraints? How much time do you
-have? What's your budget?"
+**Bad**: "What's the goal? What are the constraints? How much time do you have?
+What's your budget?"
 
-✅ **Good**: "What's the primary goal for this feature?" [Wait for answer, then
-ask next]
+**Good**: "What's the primary goal for this feature?" [Wait for answer, then ask
+next]
 
 ### Explore Alternatives (Phase 2)
 
-❌ **Bad**: "Here's how we'll implement it: [single approach]"
+**Bad**: "Here's how we'll implement it: [single approach]"
 
-✅ **Good**: "I see three approaches: [A, B, C with trade-offs]. Which
-resonates?"
+**Good**: "I see three approaches: [A, B, C with trade-offs]. Which resonates?"
 
 ### YAGNI Ruthlessly
 
-❌ **Bad**: "Let's add analytics, A/B testing, and multi-region support"
+**Bad**: "Let's add analytics, A/B testing, and multi-region support"
 
-✅ **Good**: "For v1, focus on core caching. Analytics can be added later if
+**Good**: "For v1, focus on core caching. Analytics can be added later if
 needed."
 
 ### Incremental Validation (Phase 3)
 
-❌ **Bad**: [Dumps 2000-word design in one message]
+**Bad**: [Dumps 2000-word design in one message]
 
-✅ **Good**: [Presents 200-300 word sections, validates each before continuing]
+**Good**: [Presents 200-300 word sections, validates each before continuing]
 
 ### Flexible Progression
 
@@ -854,7 +851,8 @@ types safely with type-specific signatures.
 
 ### Phase 3.5: Design Refinement (Optional)
 
-- [ ] Generated structured critique (strengths, weaknesses, risks, missing context)
+- [ ] Generated structured critique (strengths, weaknesses, risks, missing
+      context)
 - [ ] Applied extended-thinking-framework for deep analysis
 - [ ] Used multi-AI tools for validation (if appropriate)
   - [ ] ask_all_ais for diverse perspectives
@@ -958,7 +956,8 @@ Next time:
 1. Understanding - Ask questions one at a time (AskUserQuestion for choices)
 2. Exploration - Propose 2-3 approaches with trade-offs
 3. Design Presentation - Present incrementally, validate each section
-4. **3.5. Design Refinement** - Structured critique + multi-AI validation (optional)
+4. **3.5. Design Refinement** - Structured critique + multi-AI validation
+   (optional)
 5. Documentation - Write design doc (writing-clearly-and-concisely)
 6. Worktree Setup - Isolated workspace (using-git-worktrees)
 7. Planning - Implementation plan (writing-plans)
@@ -972,3 +971,7 @@ Next time:
 
 **Key Principles**: One question at a time, explore alternatives, YAGNI,
 incremental validation, structured refinement for complex decisions
+
+---
+
+_Last Updated: 2025-11-07_ _Version: 3.5 (multi-AI refinement phase added)_
