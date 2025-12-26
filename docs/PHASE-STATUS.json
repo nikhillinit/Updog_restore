@@ -27,7 +27,7 @@
     {
       "id": "Phase 2 (Implementation)",
       "completedAt": "2025-12-26T05:40:00.000Z",
-      "commit": "pending",
+      "commit": "ffd19ab9",
       "message": "feat(foundation): Phase 2 - Quick win edge cases (3 tests enabled)\n\nImplementation Summary:\n- LiquidityEngine: Added zero-cash guard (prevents division by zero)\n- LotService: Fixed cursor pagination with mock DB enhancements\n- DatabaseMock: Enhanced WHERE clause filtering with cursor support\n- Package.json: Removed duplicate test:all script\n- Baseline-browser-mapping: Updated to latest version\n\nTests Enabled (3/4 targeted):\n1. liquidity-engine.test.ts:535 - Zero cash position handling\n2. lot-service.test.ts:283 - Cursor pagination\n3. lot-service.test.ts:312 - Empty array filtering\n\nDeferred (1 test):\n- lot-service.test.ts:92 - Idempotency (requires real DB, Phase 4)\n\nMetrics:\n- Tests passing: 1881 (baseline: 1875, +6 net gain)\n- Tests skipped: 430 (baseline: 436, -6)\n- Pass rate: 81.40% (baseline: 81.14%, +0.26%)\n- No regressions in existing tests\n\nFiles Modified:\n- client/src/core/LiquidityEngine.ts (+13/-5)\n- server/services/lot-service.ts (+27/-3)\n- tests/helpers/database-mock.ts (+93/-5)\n- tests/unit/engines/liquidity-engine.test.ts (+1/-3)\n- tests/unit/services/lot-service.test.ts (+10/-7)\n- package.json (duplicate removed)\n- package-lock.json (baseline-browser-mapping updated)"
     }
   ],
