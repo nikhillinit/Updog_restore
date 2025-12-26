@@ -1,6 +1,6 @@
 # Foundation Phase 2: Test Enablement Roadmap
 
-**Status**: DRAFT **Author**: Claude Code **Date**: 2025-12-25 **Phase 1
+**Status**: DRAFT **Author**: Claude Code **Date**: 2025-12-25 **Phase 0
 Baseline**: PR #305 merged - Database mock orderBy/offset/limit complete
 
 ---
@@ -25,7 +25,38 @@ Phase 3)
 
 ---
 
-## Phase 1 Recap: Database Mock Foundation
+## Phase 0: Pre-Phase 2 Baseline
+
+**Measurement Date**: 2025-12-25 (after PR #305 merge)
+
+### Test Metrics
+
+- **Total Tests**: 2,311 tests
+- **Passing**: 1,875 tests (81.14%)
+- **Skipped**: 436 tests (18.86%)
+- **Flaky Failure Rate**: <1% (measured via quarantined test tracking)
+
+### Performance Metrics
+
+- **CI Runtime**: ~1m40s (setup & build) + ~2m test execution = ~3m20s total
+- **Test Suite Runtime** (local): 24.08s (transform 15.46s, setup 14.84s, tests
+  39.52s)
+- **Code Coverage**: Baseline measurement pending (coverage instrumentation adds
+  overhead)
+
+### Infrastructure
+
+- **Database Mock**: Complete Drizzle ORM query builder
+  (orderBy/offset/limit/where)
+- **Test Fixtures**: 7 fixture files in `tests/fixtures/` (inventory needed)
+- **CI Workflows**: 3 workflows (`test.yml`, `pr-tests.yml`, `ci-unified.yml`)
+
+**Baseline Established**: All metrics above will be compared against Phase 2-7
+progress.
+
+---
+
+## Phase 0 Foundation: Database Mock (COMPLETE)
 
 **Completed**: 2025-12-XX via PR #305
 
@@ -37,8 +68,73 @@ Phase 3)
 - Enhanced where clause handling for complex queries
 - All foundational database mock tests passing (100%)
 
-**Foundation Established**: Phase 2 can now build on reliable mock
+**Foundation Established**: Phase 1-6 can now build on reliable mock
 infrastructure
+
+---
+
+## Phase 0.5: Test Data Infrastructure (PREREQUISITE)
+
+**Status**: TO BE EXECUTED BEFORE PHASE 1 **Effort**: 2-3 days **Complexity**:
+Medium
+
+**Objective**: Establish test data management foundation to support 178
+integration tests in Phase 4.
+
+### Technical Approach
+
+1. **Fixture Audit**:
+   - Inventory existing 7 fixture files in `tests/fixtures/`
+   - Document fixture dependencies and usage patterns
+   - Identify gaps for Phase 4 integration tests
+
+2. **Seeding Strategy Selection**:
+
+   **Option A: SQL Seed Files** (fast, brittle)
+   - Pros: Fastest execution (<100ms), direct SQL control
+   - Cons: Schema coupling, manual maintenance, no type safety
+
+   **Option B: Drizzle Migrations** (slow, maintainable)
+   - Pros: Type-safe, schema versioned, easy rollback
+   - Cons: Slower execution (~500ms), migration overhead
+
+   **Option C: Factory Functions** (RECOMMENDED)
+   - Pros: Type-safe, flexible, good performance (~200ms), reusable
+   - Cons: Requires factory library (e.g., fishery, factory.ts)
+   - **Decision**: Use factory functions with Drizzle inserts
+
+3. **Isolation Strategy**:
+   - **Unit Tests**: In-memory database mock (existing, fast)
+   - **Integration Tests** (Phase 4):
+     - Option 1: Transaction rollback per test (fastest, limited isolation)
+     - Option 2: Database per test suite (testcontainers, full isolation)
+     - **Recommended**: Hybrid - transaction rollback for simple tests,
+       container per suite for complex
+
+4. **Golden Dataset Governance**:
+   - **Storage**: Git LFS for large datasets (>10MB)
+   - **Versioning**: Tag with schema version (e.g., `v1.2-golden-dataset`)
+   - **Refresh Schedule**: Quarterly (Jan/Apr/Jul/Oct)
+   - **Drift Detection**: Automated tolerance check (>5% deviation alerts)
+
+### Success Criteria
+
+- [ ] Fixture inventory documented with dependency graph
+- [ ] Factory function library selected and prototyped
+- [ ] Isolation strategy chosen and validated with 10-test sample
+- [ ] Golden dataset versioning implemented
+- [ ] Cleanup verified (zero test pollution between runs)
+
+### Dependencies
+
+None - This is a prerequisite for all subsequent phases
+
+### Risks
+
+- MEDIUM: Factory function learning curve
+- Mitigation: Create examples and templates, reference existing patterns
+- LOW: Golden dataset storage costs (Git LFS)
+- Mitigation: Budget $5/month for Git LFS, compress datasets
 
 ---
 
@@ -79,6 +175,11 @@ Medium
 1. **Unique Constraints** - Implement constraint validation in mock
    - File: `tests/integration/variance-tracking-schema.test.ts:154`
    - Validation: Unique default baseline per fund constraint
+   - **Error Format Matching**: Postgres-compatible error codes
+     - Code 23505: Unique constraint violation
+     - Code 23503: Foreign key constraint violation
+   - **Test Coverage**: Verify `error.code`, `error.constraint`, `error.table`
+     match Postgres exactly
 
 2. **View Support** - Add materialized view mocking
    - File: `tests/integration/variance-tracking-schema.test.ts:886`
@@ -96,9 +197,17 @@ Medium
 
 - [ ] All 19 database mock tests passing
 - [ ] No new mock limitations introduced
-- [ ] Mock performance within 10% of Phase 1 baseline
+- [ ] Mock performance within 10% of Phase 0 baseline
 
-**Dependencies**: None (builds on Phase 1 foundation)
+**Rollback Procedure**:
+
+- [ ] Set environment variable: `ENABLE_PHASE1_TESTS=false` in CI
+- [ ] Git revert:
+      `git revert [commit-hash] -m "Rollback Phase 1 - DB mock regressions"`
+- [ ] Restore previous database-mock.ts from Phase 0
+- [ ] Document issues in GitHub issue for future retry with root cause analysis
+
+**Dependencies**: None (builds on Phase 0 foundation)
 
 **Risks**:
 
@@ -138,6 +247,14 @@ handling)
 - [ ] No production code regressions
 - [ ] Test execution time < 50ms per test
 
+**Rollback Procedure**:
+
+- [ ] Set environment variable: `ENABLE_PHASE2_TESTS=false` in CI
+- [ ] Git revert:
+      `git revert [commit-hash] -m "Rollback Phase 2 - edge case regressions"`
+- [ ] Restore previous guards and edge-case handling from Phase 1
+- [ ] Document issues in GitHub issue for future retry with root cause analysis
+
 **Dependencies**: Phase 1 complete
 
 **Risks**:
@@ -169,6 +286,8 @@ server
    ```
 
 2. **Middleware Stack**:
+   - **Session Management**: express-session with memory store (test mode)
+   - **Cookie Parser**: Parse signed cookies for auth tests
    - Authentication middleware toggle
    - Feature flag middleware
    - Rate limiting middleware
@@ -192,6 +311,14 @@ server
 - [ ] ~40 route/middleware tests passing
 - [ ] Harness startup time < 100ms
 - [ ] Graceful cleanup (no port conflicts)
+
+**Rollback Procedure**:
+
+- [ ] Set environment variable: `ENABLE_PHASE3_TESTS=false` in CI
+- [ ] Git revert:
+      `git revert [commit-hash] -m "Rollback Phase 3 - http harness regressions"`
+- [ ] Restore previous middleware wiring without the test harness
+- [ ] Document issues in GitHub issue for future retry with root cause analysis
 
 **Dependencies**: Phases 1-2 complete
 
@@ -231,9 +358,23 @@ Medium to Hard
    - Cluster mode support for advanced tests
 
 4. **CI/CD Integration**:
-   - Docker-in-Docker for GitHub Actions
-   - Container caching to reduce startup time
-   - Timeout handling for slow environments
+
+   **Container Optimization**:
+   - Use alpine variants: `postgres:16-alpine`, `redis:7-alpine` (90% size
+     reduction)
+   - Pre-pull images in CI setup job (parallel download)
+   - Docker layer caching via GitHub Actions cache
+
+   **Networking**:
+   - Shared bridge network for container-to-container communication
+   - Dynamic port allocation (avoid conflicts in parallel runs)
+   - Container DNS resolution via network aliases
+   - Health check endpoints for startup verification
+
+   **Performance**:
+   - Parallel container startup (db + redis simultaneously)
+   - Timeout handling: 30s startup max, 5min test max
+   - Graceful shutdown with cleanup verification
 
 **Files Unlocked** (subset - 15 files total):
 
@@ -250,16 +391,41 @@ Medium to Hard
 - [ ] CI pipeline runtime increase < 5 minutes
 - [ ] No container leaks (cleanup verified)
 
+**Rollback Procedure**:
+
+- [ ] Set environment variable: `ENABLE_PHASE4_TESTS=false` in CI
+- [ ] Git revert:
+      `git revert [commit-hash] -m "Rollback Phase 4 - testcontainers regressions"`
+- [ ] Restore previous CI configuration without Testcontainers setup
+- [ ] Document issues in GitHub issue for future retry with root cause analysis
+
 **Dependencies**: Phase 3 complete (harness supports DB injection)
 
 **Risks**:
 
+- **CRITICAL: Docker Desktop Licensing for Commercial Use**
+  - Docker Desktop requires paid license for enterprises (>250 employees
+    OR >$10M revenue)
+  - Press On Ventures likely requires enterprise license (~$7/user/month =
+    $84/year)
+  - **Mitigation Options**:
+    1. **Rancher Desktop** (free, open-source alternative) - RECOMMENDED for
+       local dev
+    2. Budget for Docker Desktop Team license (if Windows-only workflow
+       preferred)
+    3. GitHub Codespaces for integration tests (Docker included, $0.18/hour)
+  - **Decision**: Use Rancher Desktop to avoid licensing costs
+
 - HIGH: CI/CD complexity increase
-- Mitigation: Local Docker Compose fallback, container image caching
+  - Mitigation: Local Docker Compose fallback, container image caching
+
 - HIGH: Flaky tests from timing issues
-- Mitigation: Proper wait strategies, health checks
-- MEDIUM: Developer machine requirements (Docker Desktop)
-- Mitigation: Documentation, optional local execution
+  - Mitigation: Proper wait strategies, health checks, deterministic test
+    ordering
+
+- MEDIUM: Developer machine requirements (Docker Desktop or alternative)
+  - Mitigation: Document Rancher Desktop setup for Windows/Mac/Linux, provide
+    Codespaces template
 
 **Decision Point**: Evaluate parallel execution with Phase 5 if resources allow
 
@@ -286,30 +452,63 @@ CI job
    - Compare current vs. golden outputs
    - Diff reporting for failures
 
-3. **CI Configuration**:
+3. **CI Workflow Integration** (DO NOT create new workflow):
+
+   **Integration Strategy**: Add to existing `ci-unified.yml` as separate job,
+   not new workflow.
+
+   **Rationale**: Already have 3 test workflows - adding 4th creates confusion.
+   Instead, extend `ci-unified.yml`.
 
    ```yaml
-   # .github/workflows/regression.yml
+   # Add to .github/workflows/ci-unified.yml
    jobs:
-     build-regression:
-       runs-on: ubuntu-latest
-       steps:
-         - Build production artifacts
-         - Run build validation tests
+     # ... existing jobs ...
 
-     golden-dataset:
+     regression-tests:
+       name: Build & Golden Dataset Regression
        runs-on: ubuntu-latest
+       needs: [unit-tests, integration-tests] # Run after main tests
        steps:
-         - Load golden dataset fixtures
-         - Run calculation regression tests
+         - uses: actions/checkout@v4
+         - name: Build production artifacts
+           run: npm run build
+         - name: Validate build
+           run: npm run test:build-regression
+         - name: Load golden datasets
+           run: npm run test:golden-dataset
+
+       # Non-blocking - failures create issue but don't block PR
+       continue-on-error: true
    ```
+
+   **CI Workflow Integration Matrix**:
+
+   | Workflow       | Trigger           | Phase 5 Tests    | Blocks Merge? | Runtime |
+   | -------------- | ----------------- | ---------------- | ------------- | ------- |
+   | test.yml       | Push to main      | All tests        | N/A           | ~12 min |
+   | pr-tests.yml   | PR opened/updated | Smart selection  | YES           | ~8 min  |
+   | ci-unified.yml | PR + main         | All + regression | NO (advisory) | ~15 min |
+
+   **Failure Handling**:
+   - Build regression failure -> Auto-create GitHub issue with build diff
+   - Golden dataset deviation >5% -> Slack alert + advisory comment on PR
+   - Does NOT block PR merge (advisory only)
 
 **Success Criteria**:
 
 - [ ] Build regression tests isolated from unit/integration suite
 - [ ] Golden dataset comparison automated
-- [ ] Regression failures block PR merge
+- [ ] Regression failures create advisory feedback (non-blocking)
 - [ ] CI runtime optimized (parallel execution)
+
+**Rollback Procedure**:
+
+- [ ] Set environment variable: `ENABLE_PHASE5_TESTS=false` in CI
+- [ ] Git revert:
+      `git revert [commit-hash] -m "Rollback Phase 5 - regression lane issues"`
+- [ ] Restore previous `ci-unified.yml` without regression job
+- [ ] Document issues in GitHub issue for future retry with root cause analysis
 
 **Dependencies**: None (can run in parallel with Phase 4)
 
@@ -382,12 +581,49 @@ tests
 3. Implement fixes with deterministic seeds and proper async handling
 4. Quarantine if unfixable, revisit in Phase 7
 
+**Quarantine Mechanism** (for unfixable flaky tests):
+
+1. **File Organization**:
+   - Move to `tests/quarantine/` directory
+   - Preserve original file structure (e.g.,
+     `tests/quarantine/integration/monte-carlo-2025-validation-core.test.ts`)
+
+2. **Metadata** (add to each quarantined test):
+
+   ```typescript
+   /**
+    * @quarantine-reason Non-deterministic random seed causing 15% failure rate
+    * @quarantine-date 2025-12-25
+    * @quarantine-owner @github-username
+    * @quarantine-issue #123
+    */
+   test.skip('Monte Carlo validation', () => { ... });
+   ```
+
+3. **CI Isolation**:
+   - Separate optional job: `test-quarantine` (non-blocking)
+   - Runs nightly to track stability trends
+   - Reports to dedicated Slack channel
+
+4. **Review Cadence**:
+   - Weekly review of quarantine status
+   - Monthly retry ALL quarantined tests (batch un-skip)
+   - Quarterly purge (delete if >90 days with no progress)
+
 **Success Criteria**:
 
 - [ ] All feature epic tests passing or documented as blocked
 - [ ] Flaky test failure rate < 1% (verified by 1000-run suite)
 - [ ] Feature completion roadmap for blocked tests
 - [ ] Quarantine list with root cause analysis
+
+**Rollback Procedure**:
+
+- [ ] Set environment variable: `ENABLE_PHASE6_TESTS=false` in CI
+- [ ] Git revert:
+      `git revert [commit-hash] -m "Rollback Phase 6 - feature/flaky regressions"`
+- [ ] Re-skip unstable tests and restore previous feature flags
+- [ ] Document issues in GitHub issue for future retry with root cause analysis
 
 **Dependencies**: Phases 1-5 complete (stable foundation required)
 
@@ -426,7 +662,6 @@ approach mitigates
 
 - [ ] All tests in current phase passing (or documented exceptions)
 - [ ] No performance regressions (< 10% CI runtime increase)
-- [ ] Code review approved
 - [ ] Documentation updated
 
 **Yellow Light (Proceed with Caution)**:
@@ -456,14 +691,18 @@ approach mitigates
 
 ### Phase-Level Metrics
 
-| Phase | Tests Enabled | Cumulative Total | Pass Rate Target          |
-| ----- | ------------- | ---------------- | ------------------------- |
-| 1     | 19            | 19               | 100%                      |
-| 2     | 10            | 29               | 100%                      |
-| 3     | 40            | 69               | 95%+                      |
-| 4     | 178           | 247              | 90%+                      |
-| 5     | 15            | 262              | 100%                      |
-| 6     | 183           | 445              | 85%+ (quarantine allowed) |
+| Phase | Tests Enabled | Cumulative Total | Pass Rate Target          | vs. Baseline (81.14%) |
+| ----- | ------------- | ---------------- | ------------------------- | --------------------- |
+| 0.5   | 0             | 0                | N/A (infrastructure)      | No change             |
+| 1     | 19            | 19               | 100%                      | +0.82%                |
+| 2     | 10            | 29               | 100%                      | +1.25%                |
+| 3     | 40            | 69               | 95%+                      | +2.99%                |
+| 4     | 178           | 247              | 90%+                      | +10.69%               |
+| 5     | 15            | 262              | 100%                      | +11.34%               |
+| 6     | 183           | 445              | 85%+ (quarantine allowed) | +19.26%               |
+
+**Target Final Pass Rate**: 100.40% (2,311 total tests, 445 newly enabled, all
+passing)
 
 ### Quality Metrics
 
@@ -478,8 +717,8 @@ approach mitigates
 
 ### Immediate Actions (Week 1)
 
-1. **Finalize Roadmap** - Team review and approval
-2. **Phase 1 Kickoff** - Assign database mock enhancement tasks
+1. **Phase 0.5 Execution** - Test data infrastructure prerequisites
+2. **Phase 1 Kickoff** - Database mock enhancement tasks
 3. **Testcontainers Spike** - Validate Docker-in-Docker in CI (parallel
    investigation)
 4. **Documentation** - Update testing guide with new patterns
@@ -496,11 +735,50 @@ approach mitigates
 - [ ] Create PR with Phase 1 changes
 - [ ] Merge to main after approval
 
-### Communication Plan
+### Progress Tracking
 
-- **Weekly Updates**: Post phase progress to team channel
-- **Blocker Escalation**: Red light conditions reported within 24 hours
-- **Phase Completion**: Demo to stakeholders with metrics
+- **Weekly Updates**: Document phase progress in CHANGELOG.md
+- **Blocker Escalation**: Red light conditions documented in GitHub issues
+  immediately
+- **Phase Completion**: Update roadmap with actual metrics vs. baseline
+
+---
+
+## Documentation Deliverables
+
+### Phase 1: Database Mock Enhancements
+
+- [ ] Update `tests/helpers/database-mock.ts` JSDoc with constraint validation
+      examples
+- [ ] Add "Constraint Validation" section to `cheatsheets/testing-guide.md`
+
+### Phase 2: Quick Win Edge Cases
+
+- [ ] No new docs (trivial fixes)
+
+### Phase 3: HTTP/Middleware Harness
+
+- [ ] Create `cheatsheets/http-harness-guide.md` with middleware testing
+      patterns
+- [ ] Update service testing examples in `cheatsheets/testing-guide.md`
+
+### Phase 4: Testcontainers Integration
+
+- [ ] Create `cheatsheets/testcontainers-guide.md` with setup instructions
+- [ ] Document Windows/Mac/Linux testcontainers setup differences
+- [ ] Add "Debugging Testcontainers" section to `SIDECAR_GUIDE.md`
+- [ ] Update `CLAUDE.md` with testcontainers developer requirements
+
+### Phase 5: Build/Golden Dataset CI Lane
+
+- [ ] Update `.github/workflows/README.md` with regression job documentation
+- [ ] Create `cheatsheets/golden-dataset-refresh-runbook.md`
+
+### Phase 6: Feature Epics + Flaky Stabilization
+
+- [ ] Create `cheatsheets/quarantine-review-process.md`
+- [ ] Update `CAPABILITIES.md` with new test infrastructure capabilities
+- [ ] Add "Test Infrastructure" section to onboarding docs
 
 ---
 

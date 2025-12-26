@@ -23,6 +23,7 @@ import {
   InvestmentFundMismatchError,
   CostBasisMismatchError,
 } from '@/server/services/lot-service';
+import { databaseMock } from '../../helpers/database-mock';
 
 import {
   assertValidLot,
@@ -35,6 +36,7 @@ describe('LotService (Phase 0-ALPHA - TDD RED)', () => {
   let service: LotService;
 
   beforeEach(() => {
+    databaseMock.clearMockData();
     service = new LotService();
   });
 
@@ -87,7 +89,7 @@ describe('LotService (Phase 0-ALPHA - TDD RED)', () => {
       expect(lot.idempotencyKey).toBeNull();
     });
 
-    // FIXME: Idempotency key matching not working - returns new lot instead of existing
+    // Deferred to Phase 4 - requires real database UPSERT
     // @group integration - Phase 0-ALPHA feature needs database upsert logic
     it.skip('should return existing lot on duplicate idempotency key', async () => {
       // ARRANGE
@@ -278,12 +280,30 @@ describe('LotService (Phase 0-ALPHA - TDD RED)', () => {
       expect(result.lots.length).toBeLessThanOrEqual(limit);
     });
 
-    // FIXME: Cursor pagination not implemented - returns empty results
-    // @group integration - Phase 0-ALPHA feature needs cursor-based query logic
-    it.skip('should paginate with cursor', async () => {
+    it('should paginate with cursor', async () => {
       // ARRANGE
       const fundId = 1;
       const limit = 2;
+      databaseMock.setMockData('investment_lots', [
+        {
+          id: 'lot-1',
+          investmentId: 1,
+          lotType: 'initial',
+          createdAt: new Date('2024-01-01T00:00:00Z'),
+        },
+        {
+          id: 'lot-2',
+          investmentId: 1,
+          lotType: 'initial',
+          createdAt: new Date('2024-02-01T00:00:00Z'),
+        },
+        {
+          id: 'lot-3',
+          investmentId: 1,
+          lotType: 'initial',
+          createdAt: new Date('2024-03-01T00:00:00Z'),
+        },
+      ]);
 
       // ACT
       const page1 = await service.list(fundId, { limit });
@@ -307,9 +327,7 @@ describe('LotService (Phase 0-ALPHA - TDD RED)', () => {
       }
     });
 
-    // FIXME: List query not filtering correctly - returns lots from other funds
-    // @group integration - Phase 0-ALPHA feature needs proper WHERE clause isolation
-    it.skip('should return empty array if no lots exist', async () => {
+    it('should return empty array if no lots exist', async () => {
       // ARRANGE
       const fundId = 1;
 

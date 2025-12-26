@@ -213,7 +213,7 @@ class DatabaseMock {
         },
       },
       unique: {
-        default_baseline: (
+        fund_baselines_default_unique: (
           row: Record<string, unknown>,
           existingData: Record<string, unknown>[]
         ) => {
@@ -1309,6 +1309,13 @@ class DatabaseMock {
 
     // Extract filters from the where clause by walking its structure
     const filters = this.extractFiltersFromClause(whereClause);
+    const cursorMatch = this.matchesCursorClause(row, whereClause);
+
+    if (cursorMatch !== null) {
+      delete filters.created_at;
+      delete filters.createdAt;
+      delete filters.id;
+    }
 
     // Debug logging
     if (process.env.DEBUG_MOCK && Object.keys(filters).length > 0) {
@@ -1320,19 +1327,100 @@ class DatabaseMock {
     // Be conservative: only match if this is a simple empty-table check
     // Otherwise return false to avoid incorrect matches
     if (Object.keys(filters).length === 0) {
-      // For safety, don't match when we can't parse the WHERE clause
-      // This prevents returning wrong records for complex queries
-      return false;
+      return cursorMatch ?? false;
     }
 
     // Match all extracted filters
     for (const [key, value] of Object.entries(filters)) {
-      if (row[key] !== value) {
+      const rowValue = this.getOrderByValue(row, key);
+      if (rowValue !== value) {
         return false;
       }
     }
 
-    return true;
+    return cursorMatch ?? true;
+  }
+
+  private matchesCursorClause(
+    row: MockQueryResult,
+    whereClause: SQL<unknown> | Record<string, unknown>
+  ): boolean | null {
+    const sqlText = this.extractSqlText(whereClause);
+    if (!sqlText) return null;
+
+    const normalized = sqlText.toLowerCase();
+    const hasCreatedAt = normalized.includes('created_at') || normalized.includes('createdat');
+    const hasId = normalized.includes('.id') || normalized.includes(' id');
+    if (!hasCreatedAt || !hasId || !normalized.includes('<')) {
+      return null;
+    }
+
+    let params = this.extractSqlParams(whereClause);
+    if (params.length === 0) {
+      const values: unknown[] = [];
+      this.collectValuesAndColumns(whereClause, values, []);
+      params = values;
+    }
+    if (params.length < 2) return null;
+
+    let cursorTimestamp = params.find((param) => this.coerceDateValue(param) !== null);
+    const cursorId = [...params].reverse().find((param) => this.coerceDateValue(param) === null);
+    if (cursorTimestamp === undefined) {
+      const filters = this.extractFiltersFromClause(whereClause);
+      cursorTimestamp = filters.created_at ?? filters.createdAt;
+    }
+    if (cursorTimestamp === undefined) return null;
+
+    const rowCreatedAt = this.getOrderByValue(row, 'created_at');
+    const rowId = this.getOrderByValue(row, 'id');
+    const rowTimestamp = this.coerceDateValue(rowCreatedAt);
+    const cursorTime = this.coerceDateValue(cursorTimestamp);
+
+    if (rowTimestamp === null || cursorTime === null || rowId === undefined || rowId === null) {
+      return null;
+    }
+
+    if (rowTimestamp < cursorTime) return true;
+    if (rowTimestamp > cursorTime) return false;
+
+    if (cursorId === undefined) return false;
+    return this.basicCompare(rowId, cursorId) < 0;
+  }
+
+  private extractSqlParams(clause: unknown): unknown[] {
+    if (!clause || typeof clause !== 'object') return [];
+    const clauseRecord = clause as Record<string, unknown>;
+
+    if (Array.isArray(clauseRecord.params)) {
+      return clauseRecord.params as unknown[];
+    }
+
+    if (typeof clauseRecord.toSQL === 'function') {
+      try {
+        const result = clauseRecord.toSQL();
+        if (result && typeof result === 'object') {
+          const params = (result as { params?: unknown[] }).params;
+          if (Array.isArray(params)) return params;
+        }
+      } catch {
+        // Ignore SQL rendering failures in the mock
+      }
+    }
+
+    return [];
+  }
+
+  private coerceDateValue(value: unknown): number | null {
+    if (value instanceof Date) return value.getTime();
+    if (typeof value === 'number') {
+      const time = new Date(value).getTime();
+      return Number.isNaN(time) ? null : time;
+    }
+    if (typeof value === 'string') {
+      const time = new Date(value).getTime();
+      return Number.isNaN(time) ? null : time;
+    }
+    return null;
   }
 
   /**
