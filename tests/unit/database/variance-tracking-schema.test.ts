@@ -151,9 +151,8 @@ describe('Variance Tracking Database Schema', () => {
       ).rejects.toThrow();
     });
 
-    it.skip('should enforce unique default baseline per fund', async () => {
-      // FIXME: Database mock doesn't enforce UNIQUE constraints
-      // Need real database or enhanced mock to test this properly
+    it('should enforce unique default baseline per fund', async () => {
+      // Database mock now enforces UNIQUE constraints with Postgres-compatible errors
       // Create first default baseline
       await db.execute(`
         INSERT INTO fund_baselines (
@@ -179,9 +178,8 @@ describe('Variance Tracking Database Schema', () => {
       ).rejects.toThrow();
     });
 
-    it.skip('should validate confidence bounds (0.00 to 1.00)', async () => {
-      // FIXME: Database mock doesn't enforce CHECK constraints
-      // Need real database or enhanced mock to test this properly
+    it('should validate confidence bounds (0.00 to 1.00)', async () => {
+      // Database mock now enforces CHECK constraints including confidence bounds
       // Test invalid confidence > 1.00
       await expect(
         db.execute(`
@@ -883,9 +881,8 @@ describe('Variance Tracking Database Schema', () => {
       );
     });
 
-    it.skip('should query active_baselines view', async () => {
-      // FIXME: Database mock doesn't support VIEWs
-      // Need real database to test JOIN-based views properly
+    it('should query active_baselines view', async () => {
+      // Database mock now supports JOIN-based views including active_baselines
       const baselines = await db.execute('SELECT * FROM active_baselines WHERE fund_id = 1');
 
       expect(baselines).toHaveLength(1);
