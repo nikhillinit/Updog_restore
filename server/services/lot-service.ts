@@ -215,7 +215,7 @@ export class LotService {
   async list(fundId: number, filter: ListLotsFilter): Promise<PaginatedLots> {
     const limit = filter.limit ?? 50;
     const conditions: SQL<unknown>[] = [];
-    const isTestEnv = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+    const isTestEnv = process.env.NODE_ENV === 'test' || process.env['VITEST'] === 'true';
     const isMockDb = typeof (db as { getMockData?: unknown }).getMockData === 'function';
     const shouldMockCursor = Boolean(filter.cursor && (isTestEnv || isMockDb));
 
