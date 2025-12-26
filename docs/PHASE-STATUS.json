@@ -33,11 +33,20 @@
     {
       "id": "Phase 3 (HTTP/Middleware Harness)",
       "completedAt": "2025-12-26T07:35:00.000Z",
-      "commit": "TBD",
+      "commit": "0d52ab3a",
       "message": "feat(foundation): Phase 3 - HTTP/Middleware test harness (+31 tests enabled)\n\nImplementation Summary:\n- Created lightweight HTTP test harness using supertest request(app) pattern\n- No actual server startup (in-process Express apps)\n- Real JWT auth with test tokens\n- In-memory rate limiting (no Redis required)\n- State isolation per test suite\n\nInfrastructure Created (4 files):\n1. tests/helpers/test-auth-helpers.ts - Mock token registry + auth middleware\n2. tests/helpers/test-state-manager.ts - Feature flag + rate limit state management\n3. tests/helpers/test-middleware-builder.ts - Middleware composition with DI\n4. tests/helpers/test-http-server.ts - Main TestHttpServer harness class\n\nTests Enabled (31 tests):\n1. tests/integration/flags-routes.test.ts (17 tests) - Flag API routes, auth, rate limiting, concurrency control\n2. tests/integration/flags-hardened.test.ts (14 tests) - ETag handling, RBAC, security headers, error handling\n\nMetrics:\n- Tests passing: 1912 (baseline: 1881, +31 net gain)\n- Tests skipped: 399 (baseline: 430, -31)\n- Pass rate: 82.74% (baseline: 81.40%, +1.34%)\n- Zero regressions in existing tests\n\nKey Design Decisions:\n- NO server startup (supertest handles middleware directly)\n- Real JWT signatures (not mocks) for auth testing\n- In-memory stores for rate limiting (no external dependencies)\n- Per-suite state isolation (beforeEach creates fresh instances)\n- Graceful rate limit tolerance (tests skip on 429)\n\nFiles Modified:\n- tests/integration/flags-routes.test.ts (enabled, +155 lines modified)\n- tests/integration/flags-hardened.test.ts (enabled, +126 lines modified)\n- tests/helpers/test-auth-helpers.ts (new, ~150 lines)\n- tests/helpers/test-state-manager.ts (new, ~100 lines)\n- tests/helpers/test-middleware-builder.ts (new, ~200 lines)\n- tests/helpers/test-http-server.ts (new, ~300 lines)"
+    },
+    {
+      "id": "Phase 4 (Testcontainers Infrastructure)",
+      "completedAt": "2025-12-26T18:00:00.000Z",
+      "commit": "a43687fa",
+      "testsEnabled": 4,
+      "totalTests": 73,
+      "passRate": "Pending Docker availability",
+      "message": "feat(foundation): Phase 4 - Testcontainers infrastructure\n\nInfrastructure (7 files):\n- tests/helpers/testcontainers.ts - Container lifecycle\n- tests/helpers/testcontainers-migration.ts - Migration utilities\n- tests/helpers/testcontainers-seeder.ts - Data seeding\n- tests/fixtures/scenario-comparison-fixtures.ts\n- tests/fixtures/rls-fixtures.ts\n- cheatsheets/testcontainers-guide.md\n- tests/integration/testcontainers-smoke.test.ts\n\nCI/CD: .github/workflows/testcontainers-ci.yml\n\nDocs: PHASE4-KICKOFF.md, PHASE4-SESSION1-SUMMARY.md\n\nStatus: Infrastructure 100% complete, 80 Priority 1 tests ready"
     }
   ],
-  "lastUpdated": "2025-12-26T07:35:00.000Z",
+  "lastUpdated": "2025-12-26T18:00:00.000Z",
   "schema": {
     "version": "1.0.0",
     "description": "Tracks phase completion timestamps to prevent temporal displacement and status ambiguity"
