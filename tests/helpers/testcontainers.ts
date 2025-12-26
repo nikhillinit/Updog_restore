@@ -15,6 +15,7 @@ import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import type { StartedTestContainer } from 'testcontainers';
 import { GenericContainer, Wait } from 'testcontainers';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
 import * as schema from '@shared/schema';
 
@@ -50,13 +51,32 @@ export async function setupTestDB(): Promise<StartedPostgreSqlContainer> {
   console.log(`[testcontainers] PostgreSQL started on port ${container.getPort()}`);
 
   // Run migrations
-  // TODO: Implement migration running after Drizzle config finalized
-  // const connectionUri = container.getConnectionUri();
-  // const pool = new Pool({ connectionString: connectionUri });
-  // const db = drizzle(pool, { schema });
-  // console.log('[testcontainers] Running Drizzle migrations...');
-  // await migrate(db, { migrationsFolder: './drizzle' });
-  // console.log('[testcontainers] Migrations complete');
+  const pool = new Pool({
+    connectionString: container.getConnectionUri(),
+    max: 1, // Single connection for migrations
+  });
+
+  try {
+    const db = drizzle(pool, { schema });
+
+    // Create required PostgreSQL extensions BEFORE running migrations
+    console.log('[testcontainers] Creating PostgreSQL extensions...');
+    await pool.query('CREATE EXTENSION IF NOT EXISTS pgcrypto;'); // For gen_random_uuid()
+    await pool.query('CREATE EXTENSION IF NOT EXISTS vector;'); // For pgvector (agent_memories)
+    console.log('[testcontainers] Extensions created');
+
+    console.log('[testcontainers] Running Drizzle migrations...');
+    await migrate(db, {
+      migrationsFolder: './migrations',
+      migrationsTable: 'drizzle_migrations',
+    });
+    console.log('[testcontainers] Migrations complete');
+  } catch (error) {
+    console.error('[testcontainers] Migration failed', error);
+    throw error;
+  } finally {
+    await pool.end();
+  }
 
   return container;
 }

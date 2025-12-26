@@ -10,6 +10,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
+  setupTestContainers,
+  cleanupTestContainers,
   getPostgresConnectionString,
   getRedisConnection,
   withTransaction,
@@ -19,13 +21,16 @@ import Redis from 'ioredis';
 
 describe('Testcontainers Infrastructure', () => {
   beforeAll(async () => {
-    // Setup is handled by global-setup.testcontainers.ts
-    // This just verifies containers are running
-    console.log('[smoke-test] Verifying containers are ready...');
-  });
+    // Start containers for this test suite
+    console.log('[smoke-test] Starting testcontainers...');
+    await setupTestContainers();
+    console.log('[smoke-test] Containers ready');
+  }, 60000); // 60 second timeout for container startup
 
   afterAll(async () => {
-    // Cleanup is handled by global teardown
+    // Clean up containers after tests complete
+    console.log('[smoke-test] Cleaning up containers...');
+    await cleanupTestContainers();
   });
 
   describe('PostgreSQL Container', () => {
