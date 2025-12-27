@@ -501,8 +501,8 @@ CREATE TABLE "variance_reports" (
 	"updated_at" timestamp with time zone DEFAULT now()
 );
 --> statement-breakpoint
-ALTER TABLE "reserve_decisions" ALTER COLUMN "fund_id" SET DATA TYPE integer;--> statement-breakpoint
-ALTER TABLE "reserve_decisions" ALTER COLUMN "company_id" SET DATA TYPE integer;--> statement-breakpoint
+ALTER TABLE "reserve_decisions" ALTER COLUMN "fund_id" SET DATA TYPE integer USING "fund_id"::integer;--> statement-breakpoint
+ALTER TABLE "reserve_decisions" ALTER COLUMN "company_id" SET DATA TYPE integer USING "company_id"::integer;--> statement-breakpoint
 ALTER TABLE "fund_metrics" ADD COLUMN "as_of_date" timestamp NOT NULL;--> statement-breakpoint
 ALTER TABLE "funds" ADD COLUMN "establishment_date" date;--> statement-breakpoint
 ALTER TABLE "funds" ADD COLUMN "is_active" boolean DEFAULT true;--> statement-breakpoint
