@@ -170,22 +170,15 @@ report**: `docs/_generated/staleness-report.md` **Regenerate**:
   monitoring
 - **Code Quality**: Codacy integration, Trivy security scanning
 
-## Windows Development: Sidecar Architecture
+## Development Setup
 
-⚠️ **Important:** All npm commands and linking scripts must be run from
-**PowerShell** or **CMD**. Running them from Git Bash or WSL can create
-incorrect junctions, causing build failures.
-
-This project uses an isolated sidecar workspace (`tools_local/`) to ensure
-reliable tool resolution on Windows.
-
-### Quick Start (Windows Setup)
+### Quick Start
 
 ```bash
-# 1. Install all dependencies
-npm ci --prefix tools_local && npm install
+# Install all dependencies
+npm install
 
-# 2. Verify everything is linked
+# Verify setup
 npm run doctor
 ```
 
@@ -193,27 +186,17 @@ npm run doctor
 
 - `npm run doctor` - Complete health check (all systems)
 - `npm run doctor:quick` - Fast module resolution check
-- `npm run doctor:links` - Full junction verification
-- `npm run doctor:sidecar` - Sidecar workspace validation
 
-### How It Works
+### Node.js Compatibility
 
-- **Sidecar workspace** (`tools_local/`) contains Vite + all plugins
-- **Windows junctions** link packages into root `node_modules/` with absolute
-  paths
-- **Auto-healing**: `postinstall` hook recreates junctions after any
-  `npm install`
-- **Config-driven**: Package list in `scripts/sidecar-packages.json`
+- **Supported**: Node.js >= 20.19.0 (including Node 22.x)
+- **Package Manager**: npm >= 10.8.0
 
-### Troubleshooting
+### Legacy Note
 
-| Symptom                      | Fix                                      |
-| ---------------------------- | ---------------------------------------- |
-| `Cannot find package 'vite'` | `node scripts/link-sidecar-packages.mjs` |
-| Pre-commit fails             | `npm run doctor:links` then retry        |
-| After `npm install`          | Auto-fixed by postinstall hook           |
-
-See [SIDECAR_GUIDE.md](SIDECAR_GUIDE.md) for complete troubleshooting guide.
+The sidecar architecture (`tools_local/`) was eliminated on 2025-12-20.
+All dependencies are now installed directly via `npm install`.
+See [SIDECAR_GUIDE.md](SIDECAR_GUIDE.md) for historical reference only.
 
 ## Quality & Documentation Standards
 

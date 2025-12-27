@@ -1,8 +1,17 @@
 # Sidecar Architecture Guide
 
-This project uses a **sidecar workspace** (`tools_local/`) to isolate Vite and
-related dependencies from the main `node_modules`, preventing Windows-specific
-installation issues and ensuring reliable module resolution.
+> **DEPRECATED (2025-12-20)**: The sidecar architecture has been eliminated.
+> All dependencies are now installed directly via `npm install`.
+> This document is retained for historical reference only.
+>
+> **Current setup**: Just run `npm install` - no sidecar needed.
+
+---
+
+**Historical Context**: This project previously used a **sidecar workspace**
+(`tools_local/`) to isolate Vite and related dependencies from the main
+`node_modules`, preventing Windows-specific installation issues and ensuring
+reliable module resolution.
 
 ## Architecture Overview
 
