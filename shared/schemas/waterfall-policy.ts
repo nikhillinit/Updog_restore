@@ -255,19 +255,62 @@ export function calculateAmericanWaterfall(
       }
 
       case 'gp_catch_up': {
-        // GP catch-up
+        // GP catch-up using industry-standard parity formula
+        // GP catch-up target = LP_preferred × (carry_rate / (1 - carry_rate))
+        // This ensures GP reaches parity at the target carry percentage
         const catchUpRate = tier.catchUpRate || new Decimal(1);
-        const allocation = Decimal.min(remaining, remaining.times(catchUpRate));
 
-        gpTotal = gpTotal.plus(allocation);
-        remaining = remaining.minus(allocation);
+        // Find the carry rate from the carry tier
+        const carryTier = sortedTiers.find((t) => t.tierType === 'carry');
+        const carryRate = carryTier?.rate || new Decimal(0.2);
 
-        breakdown.push({
-          tier: tier.tierType,
-          amount: allocation,
-          lpAmount: new Decimal(0),
-          gpAmount: allocation,
-        });
+        // Sum LP preferred return from breakdown
+        const lpPreferred = breakdown
+          .filter((b) => b.tier === 'preferred_return')
+          .reduce((sum, b) => sum.plus(b.lpAmount), new Decimal(0));
+
+        // Calculate GP catch-up target using parity formula
+        // When carryRate is 0.2 (20%), formula gives: lpPreferred * (0.2 / 0.8) = lpPreferred * 0.25
+        // This means for every $4 of LP preferred, GP needs $1 to reach 20% parity
+        let gpTarget = new Decimal(0);
+        if (carryRate.gt(0) && carryRate.lt(1)) {
+          gpTarget = lpPreferred.times(carryRate).div(new Decimal(1).minus(carryRate));
+        }
+
+        // Calculate how much GP still needs to reach target (in case of multiple catch-up entries)
+        const gpAlreadyReceived = breakdown
+          .filter((b) => b.tier === 'gp_catch_up')
+          .reduce((sum, b) => sum.plus(b.gpAmount), new Decimal(0));
+
+        const targetRemaining = Decimal.max(gpTarget.minus(gpAlreadyReceived), new Decimal(0));
+
+        // GP receives catchUpRate% of remaining proceeds until target reached
+        // With 100% catchUpRate, GP gets all proceeds (up to target)
+        // With 50% catchUpRate, GP gets 50% of proceeds (up to target), LP gets other 50%
+        const maxGpFromRemaining = remaining.times(catchUpRate);
+
+        const gpAllocation = Decimal.min(targetRemaining, maxGpFromRemaining, remaining);
+
+        // For partial catch-up (< 100%), LP also gets share during catch-up phase
+        let lpAllocation = new Decimal(0);
+        if (catchUpRate.lt(1) && gpAllocation.gt(0)) {
+          // Calculate total distribution in this tier based on GP getting catchUpRate%
+          const totalCatchUpDist = gpAllocation.div(catchUpRate);
+          lpAllocation = Decimal.min(totalCatchUpDist.minus(gpAllocation), remaining.minus(gpAllocation));
+        }
+
+        gpTotal = gpTotal.plus(gpAllocation);
+        lpTotal = lpTotal.plus(lpAllocation);
+        remaining = remaining.minus(gpAllocation).minus(lpAllocation);
+
+        if (gpAllocation.gt(0) || lpAllocation.gt(0)) {
+          breakdown.push({
+            tier: tier.tierType,
+            amount: gpAllocation.plus(lpAllocation),
+            lpAmount: lpAllocation,
+            gpAmount: gpAllocation,
+          });
+        }
         break;
       }
 
