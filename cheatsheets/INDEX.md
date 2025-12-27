@@ -42,12 +42,14 @@ Complete reference to all 30 project cheatsheets, organized by category.
 
 ---
 
-## Testing (2 files + skills)
+## Testing (3 files + skills)
 
 - **[testing.md](testing.md)** - Test strategy, Vitest configuration, golden
   test suites, TDD workflows
 - **[service-testing-patterns.md](service-testing-patterns.md)** - API/service
   test patterns, integration testing
+- **[testcontainers-guide.md](testcontainers-guide.md)** - Docker-based
+  integration testing, container setup, CI/CD configuration
 
 **Related Skills & Agents** (in `.claude/`):
 

@@ -85,7 +85,7 @@ tools_local/      # Windows sidecar workspace (DO NOT MODIFY)
 
 ---
 
-## 4. TypeScript Baseline System ⚠️ CRITICAL
+## 4. TypeScript Baseline System WARNING: CRITICAL
 
 **Status**: 500 TypeScript errors baselined (gradual reduction in progress)
 
@@ -130,14 +130,14 @@ git commit -m "feat: <feature> (baseline updated: <reason>)"
 
 **DO NOT**:
 
-- ❌ Introduce new TypeScript errors without updating baseline
-- ❌ Modify `.tsc-baseline.json` manually
-- ❌ Skip `baseline:save` after fixing errors
-- ❌ Use `tsc-baseline` package
+- [ ] Introduce new TypeScript errors without updating baseline
+- [ ] Modify `.tsc-baseline.json` manually
+- [ ] Skip `baseline:save` after fixing errors
+- [ ] Use `tsc-baseline` package
 
 ---
 
-## 5. Windows Sidecar Architecture ⚠️ IMPORTANT
+## 5. Windows Sidecar Architecture WARNING: IMPORTANT
 
 **Problem**: Windows has module resolution issues with Vite and related plugins
 
@@ -147,15 +147,15 @@ git commit -m "feat: <feature> (baseline updated: <reason>)"
 
 **DO NOT**:
 
-- ❌ Install Vite or plugins directly (`npm install vite`)
-- ❌ Modify `tools_local/` directory
-- ❌ Run commands from Git Bash on Windows
+- [ ] Install Vite or plugins directly (`npm install vite`)
+- [ ] Modify `tools_local/` directory
+- [ ] Run commands from Git Bash on Windows
 
 **DO**:
 
-- ✅ Use PowerShell or CMD on Windows
-- ✅ Run `npm run doctor` if module resolution fails
-- ✅ Use `npm run doctor:links` to verify junctions
+- [x] Use PowerShell or CMD on Windows
+- [x] Run `npm run doctor` if module resolution fails
+- [x] Use `npm run doctor:links` to verify junctions
 
 **Recovery**:
 
@@ -229,7 +229,7 @@ import { schema } from '@shared/schemas'; // shared/
 import { asset } from '@assets/logo.png'; // assets/
 ```
 
-### Waterfall Update Pattern ⚠️ SPECIAL CASE
+### Waterfall Update Pattern WARNING: SPECIAL CASE
 
 **All waterfall (carry distribution) updates MUST use centralized helper**:
 
@@ -304,7 +304,7 @@ npm run db:studio         # Open Drizzle Studio
 
 ## 9. Common Pitfalls & Solutions
 
-### ❌ DO NOT Do This
+### [ ] DO NOT Do This
 
 1. **Install Vite directly**
 
@@ -335,7 +335,7 @@ npm run db:studio         # Open Drizzle Studio
 4. **Modify `.tsc-baseline.json` manually**
    - Always use `npm run baseline:save`
 
-### ✅ DO This
+### [x] DO This
 
 1. **Module resolution fails?**
 
@@ -445,10 +445,10 @@ Baseline: 490 → 492 errors (documented in DECISIONS.md).
 
 **TypeScript Baseline System**:
 
-- ✅ Implemented (PR #162)
-- ⚠️ Awaiting merge (CI infrastructure issues)
-- 📊 Current: 500 errors (client: 53, server: 434, shared: 1)
-- 🎯 Goal: Zero errors within 6 months
+- [x] Implemented (PR #162)
+- WARNING: Awaiting merge (CI infrastructure issues)
+- Current: 500 errors (client: 53, server: 434, shared: 1)
+- Goal: Zero errors within 6 months
 
 **Immediate Priorities** (Post-merge):
 
@@ -465,5 +465,6 @@ Baseline: 490 → 492 errors (documented in DECISIONS.md).
 
 ---
 
-_Last updated: 2025-10-16_ _Baseline version: 2.0.0 (context-aware hashing)_
-_For questions about this file, see [CLAUDE.md](CLAUDE.md)_
+_Last updated: 2025-10-31_ _Baseline version: 2.0.0 (context-aware hashing)_
+_For questions about this file, see [CLAUDE.md](CLAUDE.md)_ _Note: TypeScript
+baseline system operational, error count being actively reduced_

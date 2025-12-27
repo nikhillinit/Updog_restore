@@ -3,10 +3,40 @@
  *
  * Provides a mock implementation of the database connection
  * that matches the Drizzle ORM interface for consistent testing.
+ *
+ * Features:
+ * - Postgres-compatible error codes for constraint violations
+ * - Unique constraint validation with error.code = '23505'
+ * - Check constraint validation (bounds, ordering, etc.)
+ * - Materialized view support (active_baselines, critical_alerts, variance_summary)
+ * - Inline SQL VALUES parsing (in addition to parameterized queries)
+ * - Foreign key constraint validation
+ * - Enum constraint validation
+ *
+ * Phase 1 Enhancements (2025-12-26):
+ * - Added PostgresError class for Postgres-compatible constraint violations
+ * - Enhanced parseInsertValues to handle inline VALUES (not just parameterized)
+ * - Confidence bounds validation for fund_baselines table
+ * - Unique constraint errors now include code, constraint, and table properties
  */
 
 import { vi } from 'vitest';
 import type { SQL } from 'drizzle-orm';
+
+// Postgres-compatible error class for constraint violations
+class PostgresError extends Error {
+  code: string;
+  constraint?: string;
+  table?: string;
+
+  constructor(message: string, code: string, constraint?: string, table?: string) {
+    super(message);
+    this.name = 'PostgresError';
+    this.code = code;
+    this.constraint = constraint;
+    this.table = table;
+  }
+}
 
 // Mock result types
 interface MockQueryResult {
@@ -183,7 +213,7 @@ class DatabaseMock {
         },
       },
       unique: {
-        default_baseline: (
+        fund_baselines_default_unique: (
           row: Record<string, unknown>,
           existingData: Record<string, unknown>[]
         ) => {
@@ -803,10 +833,12 @@ class DatabaseMock {
 
     // Extract column names from INSERT statement
     const columnMatch = query.match(/INSERT INTO\s+\w+\s*\(([^)]+)\)/i);
-    if (columnMatch && params.length > 0) {
-      const columns = columnMatch[1].split(',').map((col) => col.trim());
+    if (!columnMatch) return row;
 
-      // Map parameters to columns
+    const columns = columnMatch[1].split(',').map((col) => col.trim());
+
+    // Case 1: Parameterized query with ? placeholders
+    if (params.length > 0) {
       for (let i = 0; i < Math.min(columns.length, params.length); i++) {
         const columnName = columns[i];
         let value = params[i];
@@ -829,9 +861,74 @@ class DatabaseMock {
 
         row[columnName] = value;
       }
+    } else {
+      // Case 2: Inline VALUES in SQL (no parameters)
+      const valuesMatch = query.match(/VALUES\s*\(([^)]+)\)/i);
+      if (valuesMatch) {
+        const values = this.parseInlineValues(valuesMatch[1]);
+        for (let i = 0; i < Math.min(columns.length, values.length); i++) {
+          row[columns[i]] = values[i];
+        }
+      }
     }
 
     return row;
+  }
+
+  /**
+   * Parse inline VALUES from SQL (e.g., VALUES (1, 'text', true, 10.5))
+   */
+  private parseInlineValues(valuesStr: string): unknown[] {
+    const values: unknown[] = [];
+    let current = '';
+    let inString = false;
+    let stringChar = '';
+
+    for (let i = 0; i < valuesStr.length; i++) {
+      const char = valuesStr[i];
+
+      if ((char === "'" || char === '"') && valuesStr[i - 1] !== '\\') {
+        if (!inString) {
+          inString = true;
+          stringChar = char;
+        } else if (char === stringChar) {
+          inString = false;
+          stringChar = '';
+        } else {
+          current += char;
+        }
+      } else if (char === ',' && !inString) {
+        values.push(this.parseValue(current.trim()));
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+
+    if (current.trim()) {
+      values.push(this.parseValue(current.trim()));
+    }
+
+    return values;
+  }
+
+  /**
+   * Parse a single value from SQL
+   */
+  private parseValue(value: string): unknown {
+    if (value === 'NULL' || value === 'null') return null;
+    if (value === 'TRUE' || value === 'true') return true;
+    if (value === 'FALSE' || value === 'false') return false;
+    if (/^-?\d+$/.test(value)) return parseInt(value, 10);
+    if (/^-?\d+\.\d+$/.test(value)) return parseFloat(value);
+    // Remove quotes from strings
+    if (
+      (value.startsWith("'") && value.endsWith("'")) ||
+      (value.startsWith('"') && value.endsWith('"'))
+    ) {
+      return value.slice(1, -1);
+    }
+    return value;
   }
 
   /**
@@ -870,8 +967,14 @@ class DatabaseMock {
 
     // Validate unique constraints
     if (constraints.unique) {
-      for (const [_uniqueName, uniqueFn] of Object.entries(constraints.unique)) {
-        uniqueFn(row, existingData);
+      for (const [uniqueName, uniqueFn] of Object.entries(constraints.unique)) {
+        try {
+          uniqueFn(row, existingData);
+        } catch (error) {
+          // Wrap in Postgres-compatible error with code 23505
+          const message = error instanceof Error ? error.message : String(error);
+          throw new PostgresError(message, '23505', uniqueName, tableName);
+        }
       }
     }
 
@@ -1206,6 +1309,13 @@ class DatabaseMock {
 
     // Extract filters from the where clause by walking its structure
     const filters = this.extractFiltersFromClause(whereClause);
+    const cursorMatch = this.matchesCursorClause(row, whereClause);
+
+    if (cursorMatch !== null) {
+      delete filters.created_at;
+      delete filters.createdAt;
+      delete filters.id;
+    }
 
     // Debug logging
     if (process.env.DEBUG_MOCK && Object.keys(filters).length > 0) {
@@ -1217,19 +1327,100 @@ class DatabaseMock {
     // Be conservative: only match if this is a simple empty-table check
     // Otherwise return false to avoid incorrect matches
     if (Object.keys(filters).length === 0) {
-      // For safety, don't match when we can't parse the WHERE clause
-      // This prevents returning wrong records for complex queries
-      return false;
+      return cursorMatch ?? false;
     }
 
     // Match all extracted filters
     for (const [key, value] of Object.entries(filters)) {
-      if (row[key] !== value) {
+      const rowValue = this.getOrderByValue(row, key);
+      if (rowValue !== value) {
         return false;
       }
     }
 
-    return true;
+    return cursorMatch ?? true;
+  }
+
+  private matchesCursorClause(
+    row: MockQueryResult,
+    whereClause: SQL<unknown> | Record<string, unknown>
+  ): boolean | null {
+    const sqlText = this.extractSqlText(whereClause);
+    if (!sqlText) return null;
+
+    const normalized = sqlText.toLowerCase();
+    const hasCreatedAt = normalized.includes('created_at') || normalized.includes('createdat');
+    const hasId = normalized.includes('.id') || normalized.includes(' id');
+    if (!hasCreatedAt || !hasId || !normalized.includes('<')) {
+      return null;
+    }
+
+    let params = this.extractSqlParams(whereClause);
+    if (params.length === 0) {
+      const values: unknown[] = [];
+      this.collectValuesAndColumns(whereClause, values, []);
+      params = values;
+    }
+    if (params.length < 2) return null;
+
+    let cursorTimestamp = params.find((param) => this.coerceDateValue(param) !== null);
+    const cursorId = [...params].reverse().find((param) => this.coerceDateValue(param) === null);
+    if (cursorTimestamp === undefined) {
+      const filters = this.extractFiltersFromClause(whereClause);
+      cursorTimestamp = filters.created_at ?? filters.createdAt;
+    }
+    if (cursorTimestamp === undefined) return null;
+
+    const rowCreatedAt = this.getOrderByValue(row, 'created_at');
+    const rowId = this.getOrderByValue(row, 'id');
+    const rowTimestamp = this.coerceDateValue(rowCreatedAt);
+    const cursorTime = this.coerceDateValue(cursorTimestamp);
+
+    if (rowTimestamp === null || cursorTime === null || rowId === undefined || rowId === null) {
+      return null;
+    }
+
+    if (rowTimestamp < cursorTime) return true;
+    if (rowTimestamp > cursorTime) return false;
+
+    if (cursorId === undefined) return false;
+    return this.basicCompare(rowId, cursorId) < 0;
+  }
+
+  private extractSqlParams(clause: unknown): unknown[] {
+    if (!clause || typeof clause !== 'object') return [];
+    const clauseRecord = clause as Record<string, unknown>;
+
+    if (Array.isArray(clauseRecord.params)) {
+      return clauseRecord.params as unknown[];
+    }
+
+    if (typeof clauseRecord.toSQL === 'function') {
+      try {
+        const result = clauseRecord.toSQL();
+        if (result && typeof result === 'object') {
+          const params = (result as { params?: unknown[] }).params;
+          if (Array.isArray(params)) return params;
+        }
+      } catch {
+        // Ignore SQL rendering failures in the mock
+      }
+    }
+
+    return [];
+  }
+
+  private coerceDateValue(value: unknown): number | null {
+    if (value instanceof Date) return value.getTime();
+    if (typeof value === 'number') {
+      const time = new Date(value).getTime();
+      return Number.isNaN(time) ? null : time;
+    }
+    if (typeof value === 'string') {
+      const time = new Date(value).getTime();
+      return Number.isNaN(time) ? null : time;
+    }
+    return null;
   }
 
   /**

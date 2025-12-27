@@ -5,7 +5,7 @@ Level**: LOW (existing infrastructure is comprehensive)
 
 ---
 
-## 🎯 **EXECUTIVE SUMMARY**
+## **EXECUTIVE SUMMARY**
 
 The repository contains **TWO comprehensive schema files** with **850+ lines**
 of production-ready validation:
@@ -34,19 +34,19 @@ where needed.
 
 ---
 
-## 📊 **DETAILED SCHEMA INVENTORY**
+## **DETAILED SCHEMA INVENTORY**
 
 ### **File 1: modeling-wizard.schemas.ts (599 lines)**
 
 #### **Shared Primitives** (lines 14-63)
 
-- ✅ `currencySchema` - USD, EUR, GBP
-- ✅ `percentageSchema` - 0-100 validation
-- ✅ `decimalPercentageSchema` - 0-1 validation
-- ✅ `positiveNumberSchema` - Must be > 0
-- ✅ `nonNegativeNumberSchema` - Must be ≥ 0
-- ✅ `yearSchema` - 2000-2030 range
-- ✅ `isoDateSchema` - YYYY-MM-DD format
+- [x] `currencySchema` - USD, EUR, GBP
+- [x] `percentageSchema` - 0-100 validation
+- [x] `decimalPercentageSchema` - 0-1 validation
+- [x] `positiveNumberSchema` - Must be > 0
+- [x] `nonNegativeNumberSchema` - Must be ≥ 0
+- [x] `yearSchema` - 2000-2030 range
+- [x] `isoDateSchema` - YYYY-MM-DD format
 
 #### **Step 1: General Info** (lines 68-149)
 
@@ -93,9 +93,9 @@ export const sectorProfilesSchema = z
 
 **Validation Rules**:
 
-- ✅ Sector allocations sum = 100% (tolerance 0.01%)
-- ✅ Stage allocations sum = 100% (tolerance 0.01%)
-- ⚠️ Warn if any sector > 60%
+- [x] Sector allocations sum = 100% (tolerance 0.01%)
+- [x] Stage allocations sum = 100% (tolerance 0.01%)
+- WARNING: Warn if any sector > 60%
 
 #### **Step 3: Capital Allocation** (lines 231-278)
 
@@ -131,9 +131,9 @@ export const capitalAllocationSchema = z
 
 **Validation Rules**:
 
-- ✅ Reserve ratio 30-70% (LP-credible range)
-- ✅ Follow-on checks ordered: A ≤ B ≤ C
-- ⚠️ Warn if initial check unusually large
+- [x] Reserve ratio 30-70% (LP-credible range)
+- [x] Follow-on checks ordered: A ≤ B ≤ C
+- WARNING: Warn if initial check unusually large
 
 #### **Step 4: Fees & Expenses** (lines 283-369)
 
@@ -167,9 +167,9 @@ export const feesExpensesSchema = z
 
 **Validation Rules**:
 
-- ✅ Management fee 0-5%
-- ⚠️ Warn if fee > 3% (above market) or < 1.5% (unsustainable)
-- ✅ Step-down rate must be lower than initial rate
+- [x] Management fee 0-5%
+- WARNING: Warn if fee > 3% (above market) or < 1.5% (unsustainable)
+- [x] Step-down rate must be lower than initial rate
 
 #### **Step 5: Exit Recycling** (lines 374-419)
 
@@ -227,9 +227,9 @@ export const completeWizardSchema = z.object({
 
 #### **Validation Helpers** (lines 560-599)
 
-- ✅ `validateWizardStep<T>()` - Validate single step
-- ✅ `getValidationErrors()` - Extract flat error list
-- ✅ `isWarning()` - Distinguish warnings from errors
+- [x] `validateWizardStep<T>()` - Validate single step
+- [x] `getValidationErrors()` - Extract flat error list
+- [x] `isWarning()` - Distinguish warnings from errors
 
 ---
 
@@ -343,25 +343,25 @@ File 1's `followOnStrategy`.
 
 ---
 
-## 🔀 **MAPPING TO PROPOSED PLAN**
+## **MAPPING TO PROPOSED PLAN**
 
 ### **Proposed Schema** → **Existing Schema**
 
-| Proposed (Plan)           | Exists In                               | Status                             | Action                   |
-| ------------------------- | --------------------------------------- | ---------------------------------- | ------------------------ |
-| `GeneralInfoSchema`       | `modeling-wizard.schemas.ts` (line 68)  | ✅ Exists                          | **Use existing**         |
-| `SectorProfilesSchema`    | `modeling-wizard.schemas.ts` (line 177) | ✅ Exists                          | **Use existing**         |
-| `CapitalAllocationSchema` | `modeling-wizard.schemas.ts` (line 232) | ✅ Exists                          | **Use existing**         |
-| `FeesExpensesSchema`      | `modeling-wizard.schemas.ts` (line 289) | ✅ Exists                          | **Use existing**         |
-| `WaterfallSchema`         | `modeling-wizard.schemas.ts` (line 442) | ✅ Exists                          | **Use existing**         |
-| `ScenariosSchema`         | `modeling-wizard.schemas.ts` (line 512) | ✅ Exists                          | **Use existing**         |
-| `WizardFormSchema`        | `modeling-wizard.schemas.ts` (line 541) | ✅ Exists (`completeWizardSchema`) | **Use existing**         |
-| `StorableWizardSchema`    | ❌ **NOT in either file**               | Missing                            | **Add to existing file** |
-| `TeamSchema`              | ❌ **NOT in either file**               | Missing                            | **Add if needed**        |
+| Proposed (Plan)           | Exists In                               | Status                              | Action                   |
+| ------------------------- | --------------------------------------- | ----------------------------------- | ------------------------ |
+| `GeneralInfoSchema`       | `modeling-wizard.schemas.ts` (line 68)  | [x] Exists                          | **Use existing**         |
+| `SectorProfilesSchema`    | `modeling-wizard.schemas.ts` (line 177) | [x] Exists                          | **Use existing**         |
+| `CapitalAllocationSchema` | `modeling-wizard.schemas.ts` (line 232) | [x] Exists                          | **Use existing**         |
+| `FeesExpensesSchema`      | `modeling-wizard.schemas.ts` (line 289) | [x] Exists                          | **Use existing**         |
+| `WaterfallSchema`         | `modeling-wizard.schemas.ts` (line 442) | [x] Exists                          | **Use existing**         |
+| `ScenariosSchema`         | `modeling-wizard.schemas.ts` (line 512) | [x] Exists                          | **Use existing**         |
+| `WizardFormSchema`        | `modeling-wizard.schemas.ts` (line 541) | [x] Exists (`completeWizardSchema`) | **Use existing**         |
+| `StorableWizardSchema`    | [ ] **NOT in either file**              | Missing                             | **Add to existing file** |
+| `TeamSchema`              | [ ] **NOT in either file**              | Missing                             | **Add if needed**        |
 
 ---
 
-## 🆕 **SCHEMAS TO ADD (Minimal)**
+## NEW: **SCHEMAS TO ADD (Minimal)**
 
 Only **TWO** schemas need to be added:
 
@@ -440,7 +440,7 @@ export const generalInfoSchema = z
     isEvergreen: z.boolean().default(false),
     fundLife: z.number().int().min(1).max(20).optional(),
     investmentPeriod: z.number().int().min(1).max(10).optional(),
-    team: teamSchema.optional(), // ✅ ADD THIS LINE
+    team: teamSchema.optional(), // [x] ADD THIS LINE
   })
   .superRefine(/* ... */);
 ```
@@ -450,7 +450,7 @@ existing schema doesn't have it. This is a **true gap** that needs to be filled.
 
 ---
 
-## ⚠️ **CRITICAL DIFFERENCES BETWEEN FILES**
+## WARNING: **CRITICAL DIFFERENCES BETWEEN FILES**
 
 ### **Naming Conventions**
 
@@ -470,7 +470,7 @@ existing schema doesn't have it. This is a **true gap** that needs to be filled.
 
 ---
 
-## 🎯 **INTEGRATION STRATEGY**
+## **INTEGRATION STRATEGY**
 
 ### **Option A: Minimal Changes (RECOMMENDED)**
 
@@ -479,10 +479,10 @@ source**, and add only missing pieces.
 
 **Steps**:
 
-1. ✅ Use existing schemas from File 1 for wizard steps 1-7
-2. ✅ Add `storableWizardSchema` to File 1 (for localStorage)
-3. ✅ Add `teamSchema` to File 1 (if needed for general info)
-4. ✅ Update `wizard-calculations.ts` imports:
+1. [x] Use existing schemas from File 1 for wizard steps 1-7
+2. [x] Add `storableWizardSchema` to File 1 (for localStorage)
+3. [x] Add `teamSchema` to File 1 (if needed for general info)
+4. [x] Update `wizard-calculations.ts` imports:
 
    ```typescript
    // OLD (proposed, but incorrect):
@@ -494,14 +494,14 @@ source**, and add only missing pieces.
 
 **Pros**:
 
-- ✅ Zero duplication
-- ✅ Leverages 599 lines of battle-tested code
-- ✅ Preserves LP-credible constraints
-- ✅ Minimal changes (2 schemas added, ~50 lines)
+- [x] Zero duplication
+- [x] Leverages 599 lines of battle-tested code
+- [x] Preserves LP-credible constraints
+- [x] Minimal changes (2 schemas added, ~50 lines)
 
 **Cons**:
 
-- ⚠️ Need to understand existing structure
+- WARNING: Need to understand existing structure
 
 **Effort**: 2-3 hours
 
@@ -521,15 +521,15 @@ source**, and add only missing pieces.
 
 **Pros**:
 
-- ✅ Single source of truth
-- ✅ No duplication
+- [x] Single source of truth
+- [x] No duplication
 
 **Cons**:
 
-- ❌ High effort (8-12 hours)
-- ❌ High risk (breaking changes across codebase)
-- ❌ Requires extensive testing
-- ❌ May break existing wizard machine
+- [ ] High effort (8-12 hours)
+- [ ] High risk (breaking changes across codebase)
+- [ ] Requires extensive testing
+- [ ] May break existing wizard machine
 
 **Effort**: 8-12 hours
 
@@ -542,12 +542,12 @@ from scratch.
 
 **Cons**:
 
-- ❌ Duplicates 850+ lines of existing code
-- ❌ Loses LP-credible constraints
-- ❌ Loses cross-field validation
-- ❌ Loses detailed error messages
-- ❌ Creates two competing schema sources
-- ❌ Maintenance nightmare
+- [ ] Duplicates 850+ lines of existing code
+- [ ] Loses LP-credible constraints
+- [ ] Loses cross-field validation
+- [ ] Loses detailed error messages
+- [ ] Creates two competing schema sources
+- [ ] Maintenance nightmare
 
 **Effort**: 4-6 hours (writing) + ongoing maintenance burden
 
@@ -555,7 +555,7 @@ from scratch.
 
 ---
 
-## ✅ **RECOMMENDED ACTION PLAN**
+## [x] **RECOMMENDED ACTION PLAN**
 
 ### **Immediate Next Steps** (2-3 hours)
 
@@ -588,7 +588,7 @@ from scratch.
 
 ---
 
-## 📊 **IMPACT ANALYSIS**
+## **IMPACT ANALYSIS**
 
 ### **Before (Proposed Plan)**
 
@@ -609,7 +609,7 @@ savings
 
 ---
 
-## 🎓 **KEY LEARNINGS**
+## **KEY LEARNINGS**
 
 1. **Always audit existing code before creating new files**
    - The repository had 850+ lines of schemas already written
@@ -632,12 +632,13 @@ savings
 
 ---
 
-## 📋 **NEXT DOCUMENT**
+## **NEXT DOCUMENT**
 
 See [RESERVE_ADAPTER_INTEGRATION.md](./RESERVE_ADAPTER_INTEGRATION.md) for
 reserve adapter analysis.
 
 ---
 
-**Status**: ✅ Complete **Recommendation**: **Use Option A (Minimal Changes)**
-**Effort**: 2-3 hours **Risk**: LOW
+**Status**: [x] Complete (2024-11-01) **Last Updated**: 2024-11-01
+**Recommendation**: **Use Option A (Minimal Changes)** **Effort**: 2-3 hours
+**Risk**: LOW **Implementation**: Schema mappings validated and deployed

@@ -1,0 +1,104 @@
+name: Testcontainers Integration Tests
+
+# Run on main pushes, PRs, or manual triggers.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  testcontainers:
+    name: Testcontainers
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # No services section: testcontainers manages Docker services itself.
+    env:
+      ENABLE_PHASE4_TESTS: 'true'
+      TZ: UTC
+
+    steps:
+      # Source checkout.
+      - uses: actions/checkout@v4
+
+      # Node.js setup with built-in npm cache.
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      # Cache Docker images to reduce cold-start time for testcontainers.
+      - name: Prepare Docker cache directory
+        run: mkdir -p /tmp/docker-cache
+
+      - name: Cache Docker images
+        id: docker-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/docker-cache
+          key: docker-${{ runner.os }}-postgres-16-alpine-redis-7-alpine-${{ hashFiles('.github/workflows/testcontainers-ci.yml') }}
+          restore-keys: |
+            docker-${{ runner.os }}-postgres-16-alpine-redis-7-alpine-
+
+      - name: Load cached Docker images
+        if: steps.docker-cache.outputs.cache-hit == 'true'
+        run: |
+          if [ -f /tmp/docker-cache/postgres-16-alpine.tar ]; then docker load -i /tmp/docker-cache/postgres-16-alpine.tar; fi
+          if [ -f /tmp/docker-cache/redis-7-alpine.tar ]; then docker load -i /tmp/docker-cache/redis-7-alpine.tar; fi
+
+      - name: Pull Docker images (cache miss)
+        if: steps.docker-cache.outputs.cache-hit != 'true'
+        run: |
+          docker pull postgres:16-alpine
+          docker pull redis:7-alpine
+          docker save postgres:16-alpine -o /tmp/docker-cache/postgres-16-alpine.tar
+          docker save redis:7-alpine -o /tmp/docker-cache/redis-7-alpine.tar
+
+      # Retry until Docker is ready to accept container commands.
+      - name: Verify Docker daemon
+        run: |
+          for attempt in {1..10}; do
+            if docker info > /dev/null 2>&1; then
+              echo "Docker daemon ready."
+              exit 0
+            fi
+            echo "Docker not ready yet, retrying..."
+            sleep 3
+          done
+          echo "Docker daemon not ready after retries."
+          exit 1
+
+      # Smoke test first; testcontainers handles health checks via Wait strategies.
+      - name: Run testcontainers smoke test (with retries)
+        run: |
+          set -e
+          for attempt in 1 2 3; do
+            echo "Smoke test attempt $attempt..."
+            if npm test -- tests/integration/testcontainers-smoke.test.ts; then
+              exit 0
+            fi
+            echo "Smoke test failed; retrying in 10s..."
+            sleep 10
+          done
+          exit 1
+
+      # Full integration suite once containers are verified.
+      - name: Run full integration test suite
+        run: npm test
+
+      # Upload test artifacts on failure for debugging.
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testcontainers-test-results
+          path: |
+            test-results/**
+            coverage/**
+          if-no-files-found: warn
+          retention-days: 7

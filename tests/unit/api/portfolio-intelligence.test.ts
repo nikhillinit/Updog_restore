@@ -47,48 +47,44 @@ const testStorage = {
 };
 
 const seedScenarioId = 'scenario_123';
+const seedStrategyModelId = '550e8400-e29b-41d4-a716-446655440111';
 const seedForecastId = '550e8400-e29b-41d4-a716-446655440000';
 
-const ensurePortfolioSeeds = () => {
+const ensurePortfolioSeeds = async () => {
   const scenarios = databaseMock.getMockData('portfolio_scenarios');
   if (!scenarios.some((row) => row.id === seedScenarioId)) {
-    databaseMock.setMockData('portfolio_scenarios', [
-      ...scenarios,
-      {
-        id: seedScenarioId,
-        fundId: 1,
-        name: 'Seed Scenario',
-        scenarioType: 'base_case',
-        marketEnvironment: 'normal',
-        dealFlowAssumption: '1.0',
-        valuationEnvironment: '1.0',
-        exitEnvironment: '1.0',
-        plannedInvestments: [],
-        deploymentSchedule: {},
-        projectedFundMetrics: {},
-        status: 'draft',
-        createdBy: 1,
-      },
-    ]);
+    await portfolioIntelligenceService.scenarios.create({
+      id: seedScenarioId,
+      fundId: 1,
+      strategyModelId: seedStrategyModelId,
+      name: 'Seed Scenario',
+      scenarioType: 'base_case',
+      marketEnvironment: 'normal',
+      dealFlowAssumption: '1.0',
+      valuationEnvironment: '1.0',
+      exitEnvironment: '1.0',
+      plannedInvestments: [],
+      deploymentSchedule: {},
+      projectedFundMetrics: {},
+      status: 'draft',
+      createdBy: 1,
+    });
   }
 
   const forecasts = databaseMock.getMockData('performance_forecasts');
   if (!forecasts.some((row) => row.id === seedForecastId)) {
-    databaseMock.setMockData('performance_forecasts', [
-      ...forecasts,
-      {
-        id: seedForecastId,
-        fundId: 1,
-        scenarioId: seedScenarioId,
-        forecastName: 'Seed Forecast',
-        forecastType: 'fund_level',
-        forecastHorizonYears: 10,
-        forecastPeriods: [],
-        methodology: 'monte_carlo',
-        createdBy: 1,
-        status: 'draft',
-      },
-    ]);
+    await portfolioIntelligenceService.forecasts.create({
+      id: seedForecastId,
+      fundId: 1,
+      scenarioId: seedScenarioId,
+      forecastName: 'Seed Forecast',
+      forecastType: 'fund_level',
+      forecastHorizonYears: 10,
+      forecastPeriods: [],
+      methodology: 'monte_carlo',
+      createdBy: 1,
+      status: 'draft',
+    });
   }
 };
 
@@ -117,7 +113,7 @@ const createTestApp = () => {
 describe('Portfolio Intelligence API Routes', () => {
   let app: express.Application;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Clear all storage
     testStorage.strategies.clear();
     testStorage.scenarios.clear();
@@ -134,7 +130,7 @@ describe('Portfolio Intelligence API Routes', () => {
     app.locals.portfolioStorage = testStorage;
     vi.clearAllMocks();
 
-    ensurePortfolioSeeds();
+    await ensurePortfolioSeeds();
   });
 
   afterEach(() => {
@@ -547,7 +543,7 @@ describe('Portfolio Intelligence API Routes', () => {
           max_concentration: 0.25,
         },
       };
-      const scenarioId = 'scenario_123';
+      const scenarioId = seedScenarioId;
 
       it('should run Monte Carlo simulation on scenario', async () => {
         const response = await request(app)
@@ -833,7 +829,7 @@ describe('Portfolio Intelligence API Routes', () => {
 
     describe('POST /api/portfolio/forecasts/validate', () => {
       const validValidationData = {
-        forecastId: '550e8400-e29b-41d4-a716-446655440000',
+        forecastId: seedForecastId,
         actualMetrics: {
           irr: 0.22,
           multiple: 2.8,
@@ -843,23 +839,13 @@ describe('Portfolio Intelligence API Routes', () => {
       };
 
       it('should validate forecast against actuals', async () => {
-        const forecast = await portfolioIntelligenceService.forecasts.create({
-          fundId: 1,
-          forecastName: 'Validation Seed Forecast',
-          forecastType: 'fund_level',
-          forecastHorizonYears: 10,
-          forecastPeriods: [{ year: 1, expectedValue: 1.2 }],
-          methodology: 'monte_carlo',
-          createdBy: 1,
-          status: 'complete',
-        });
         const response = await request(app)
           .post('/api/portfolio/forecasts/validate')
-          .send({ ...validValidationData, forecastId: forecast.id })
+          .send(validValidationData)
           .expect(200);
 
         expect(response.body.success).toBe(true);
-        expect(response.body.data.forecastId).toBe(forecast.id);
+        expect(response.body.data.forecastId).toBe(seedForecastId);
         expect(response.body.data.accuracyMetrics).toBeDefined();
         expect(response.body.data.calibration).toBeDefined();
         expect(response.body.data.keyInsights).toBeInstanceOf(Array);

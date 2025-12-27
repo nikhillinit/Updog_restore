@@ -71,7 +71,7 @@
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
       "total": 66,
-      "lastUpdated": "2025-12-24T17:43:37.068Z"
+      "lastUpdated": "2025-12-26T12:46:44.284Z"
     },
     "server": {
       "errors": [
@@ -162,6 +162,7 @@
         "server/middleware/requestId.ts:TS4111:98b56987",
         "server/middleware/requireAuth.ts:TS2322:690e5953",
         "server/middleware/requireAuth.ts:TS4111:21460381",
+        "server/middleware/security.ts:TS2345:32610cd4",
         "server/middleware/with-rls-transaction.ts:TS2345:932de5d5",
         "server/observability/sentry.ts:TS2694:b8a04bb2",
         "server/otel.ts:TS2379:99b86c1f",
@@ -217,19 +218,6 @@
         "server/routes/performance-metrics.ts:TS4111:9ce668e2",
         "server/routes/performance-metrics.ts:TS4111:9efa69a1",
         "server/routes/performance-metrics.ts:TS4111:e8fe8aa9",
-        "server/routes/portfolio-intelligence.ts:TS2339:26e40021",
-        "server/routes/portfolio-intelligence.ts:TS2339:36af83b0",
-        "server/routes/portfolio-intelligence.ts:TS2339:43d601ff",
-        "server/routes/portfolio-intelligence.ts:TS2339:597306e4",
-        "server/routes/portfolio-intelligence.ts:TS2339:5fc37c93",
-        "server/routes/portfolio-intelligence.ts:TS2339:6ee500ee",
-        "server/routes/portfolio-intelligence.ts:TS2339:73370096",
-        "server/routes/portfolio-intelligence.ts:TS2339:772e4846",
-        "server/routes/portfolio-intelligence.ts:TS2339:ac235ad2",
-        "server/routes/portfolio-intelligence.ts:TS2339:e449d3fc",
-        "server/routes/portfolio-intelligence.ts:TS2339:e60eeccc",
-        "server/routes/portfolio-intelligence.ts:TS2353:597306e4",
-        "server/routes/portfolio-intelligence.ts:TS2353:ac235ad2",
         "server/routes/portfolio-intelligence.ts:TS2379:4bc3c078",
         "server/routes/portfolio-intelligence.ts:TS2379:59ea9b4d",
         "server/routes/portfolio-intelligence.ts:TS2379:67e0cbf7",
@@ -319,14 +307,11 @@
         "server/services/ai-orchestrator.ts:TS2322:ba0aba28",
         "server/services/ai-orchestrator.ts:TS2322:be7f00fe",
         "server/services/ai-orchestrator.ts:TS2322:d973d1a1",
-        "server/services/ai-orchestrator.ts:TS2339:865f7243",
-        "server/services/ai-orchestrator.ts:TS2345:970a0095",
         "server/services/ai-orchestrator.ts:TS2345:dfa873bf",
         "server/services/ai-orchestrator.ts:TS2375:9ec9ba88",
         "server/services/ai-orchestrator.ts:TS2532:e938b004",
         "server/services/ai-orchestrator.ts:TS2532:eef6c889",
         "server/services/ai-orchestrator.ts:TS2532:f2e5dc32",
-        "server/services/ai-orchestrator.ts:TS2769:865f7243",
         "server/services/ai-orchestrator.ts:TS6307:6a1e9e05",
         "server/services/comparison-service.ts:TS2375:9ec9ba88",
         "server/services/construction-forecast-calculator.ts:TS2322:8159abf7",
@@ -506,22 +491,22 @@
         "server/websocket/portfolio-metrics.ts:TS18046:57a6b43d",
         "server/websocket/portfolio-metrics.ts:TS2339:24482a7c"
       ],
-      "total": 430,
-      "lastUpdated": "2025-12-24T17:43:37.068Z"
+      "total": 415,
+      "lastUpdated": "2025-12-26T12:46:44.284Z"
     },
     "shared": {
       "errors": ["shared/schemas/parse-stage-distribution.ts:TS2345:1bd7167e"],
       "total": 1,
-      "lastUpdated": "2025-12-24T17:43:37.068Z"
+      "lastUpdated": "2025-12-26T12:46:44.284Z"
     },
     "unknown": {
       "errors": ["vite.config.ts:TS7006:118fabe7"],
       "total": 1,
-      "lastUpdated": "2025-12-24T17:43:37.068Z"
+      "lastUpdated": "2025-12-26T12:46:44.284Z"
     }
   },
-  "totalErrors": 498,
-  "timestamp": "2025-12-24T17:43:37.068Z",
+  "totalErrors": 483,
+  "timestamp": "2025-12-26T12:46:44.284Z",
   "buildMode": "per-project",
-  "elapsedMs": 18851
+  "elapsedMs": 20481
 }

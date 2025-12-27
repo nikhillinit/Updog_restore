@@ -1,14 +1,18 @@
 # Synthetic Test Debugging Runbook
 
 ## Overview
-This runbook provides step-by-step guidance for debugging and fixing synthetic test failures.
+
+This runbook provides step-by-step guidance for debugging and fixing synthetic
+test failures.
 
 ## Common Failure Patterns
 
 ### 1. Timeout Failures
+
 **Symptoms**: Test fails with timeout errors, usually after 30-60 seconds.
 
 **Debugging Steps**:
+
 1. Check if the target URL is accessible:
    ```bash
    curl -I $SYNTHETIC_URL
@@ -24,14 +28,17 @@ This runbook provides step-by-step guidance for debugging and fixing synthetic t
    ```
 
 **Resolution**:
+
 - Ensure `SYNTHETIC_URL` secret is set for production runs
 - Add retry logic with exponential backoff
 - Use `waitForLoadState('networkidle')` for dynamic content
 
 ### 2. Selector Not Found
+
 **Symptoms**: "Element not found" or "Cannot find element with data-testid"
 
 **Debugging Steps**:
+
 1. Run locally with headed mode:
    ```bash
    npx playwright test --headed --debug
@@ -46,14 +53,17 @@ This runbook provides step-by-step guidance for debugging and fixing synthetic t
    ```
 
 **Resolution**:
+
 - Update selectors in `client/src/lib/testIds.ts`
 - Use more resilient selector strategies (data-testid > role > text)
 - Add explicit waits: `await element.waitFor({ state: 'visible' })`
 
 ### 3. Flaky Tests
+
 **Symptoms**: Tests pass/fail inconsistently
 
 **Debugging Steps**:
+
 1. Run test multiple times locally:
    ```bash
    for i in {1..10}; do npx playwright test; done
@@ -65,6 +75,7 @@ This runbook provides step-by-step guidance for debugging and fixing synthetic t
 3. Check for race conditions in the application
 
 **Resolution**:
+
 - Add explicit waits instead of arbitrary delays
 - Use `waitForLoadState()` appropriately
 - Implement retry logic at the action level:
@@ -75,6 +86,7 @@ This runbook provides step-by-step guidance for debugging and fixing synthetic t
 ## Synthetic Test Configuration
 
 ### GitHub Actions Setup
+
 ```yaml
 # .github/workflows/synthetics-e2e.yml
 - name: Resolve BASE_URL
@@ -88,12 +100,14 @@ This runbook provides step-by-step guidance for debugging and fixing synthetic t
 ```
 
 ### Environment Variables
+
 - `SYNTHETIC_URL`: Production/staging URL for synthetic tests
 - `BASE_URL`: Fallback URL (default: http://localhost:5000)
 
 ## Test Structure Best Practices
 
 ### 1. Retry Logic
+
 ```javascript
 let retries = 3;
 while (retries > 0) {
@@ -109,6 +123,7 @@ while (retries > 0) {
 ```
 
 ### 2. Conditional Steps
+
 ```javascript
 const element = page.getByTestId('element-id');
 if (await element.isVisible().catch(() => false)) {
@@ -117,6 +132,7 @@ if (await element.isVisible().catch(() => false)) {
 ```
 
 ### 3. Smart Waits
+
 ```javascript
 // Wait for specific conditions
 await page.waitForLoadState('networkidle');
@@ -127,6 +143,7 @@ await expect(page.locator('.spinner')).not.toBeVisible();
 ## Debugging Commands
 
 ### Local Test Execution
+
 ```bash
 # Run specific test file
 npx playwright test tests/synthetics/wizard.e2e.spec.ts
@@ -143,6 +160,7 @@ npx playwright test -g "completes full wizard flow"
 ```
 
 ### CI Debugging
+
 ```bash
 # Download artifacts from failed run
 gh run download <run-id> -n playwright-artifacts-<run-id>
@@ -154,16 +172,19 @@ npx playwright show-report ./playwright-report
 ## Monitoring and Alerting
 
 ### Success Rate Tracking
+
 Monitor synthetic test success rate:
+
 ```bash
 gh run list --workflow=synthetics-e2e.yml --json conclusion | \
-  jq '[.[] | select(.conclusion != null)] | 
-      group_by(.conclusion) | 
-      map({(.[0].conclusion): length}) | 
+  jq '[.[] | select(.conclusion != null)] |
+      group_by(.conclusion) |
+      map({(.[0].conclusion): length}) |
       add'
 ```
 
 ### Required Success Rate
+
 - Target: ≥ 95% over 30-day window
 - Alert threshold: < 90% over 24 hours
 - Page threshold: < 80% immediate
@@ -179,12 +200,14 @@ gh run list --workflow=synthetics-e2e.yml --json conclusion | \
 ## Recovery Procedures
 
 ### Quick Recovery
+
 1. Verify external services are operational
 2. Check for recent deployments that may have broken selectors
 3. Temporarily increase timeouts
 4. Add skip flag if blocking deployments
 
 ### Full Recovery
+
 1. Run synthetic tests locally to reproduce
 2. Fix root cause (selector, timing, application bug)
 3. Deploy fix and verify in staging
@@ -199,6 +222,5 @@ gh run list --workflow=synthetics-e2e.yml --json conclusion | \
 
 ---
 
-*Last Updated: 2025-08-26*
-*Version: 1.0*
-*Owner: Platform Team*
+_Last Updated: 2025-10-06_ _Version: 1.0_ _Owner: Platform Team_ _Note: Runbook
+validated, testIds.ts centralization completed_

@@ -22,11 +22,19 @@ router.post('/_ops/stage-validation/auto-downgrade', express.json(), async (req,
   const expectedHex = crypto.createHmac('sha256', SECRET).update(raw).digest('hex');
 
   const isValidHex = (value: string) => value.length % 2 === 0 && /^[0-9a-f]+$/i.test(value);
-  if (sigHex.length !== expectedHex.length || !isValidHex(sigHex)) {
-    return res.status(401).json({ error: 'invalid-signature' });
-  }
+  const expectedBuffer = Buffer.from(expectedHex, 'hex');
+  const hasValidLength = sigHex.length === expectedHex.length;
+  const sigIsValidHex = hasValidLength && isValidHex(sigHex);
 
-  const ok = crypto.timingSafeEqual(Buffer.from(sigHex, 'hex'), Buffer.from(expectedHex, 'hex'));
+  let ok = false;
+  if (sigIsValidHex) {
+    const sigBuffer = Buffer.from(sigHex, 'hex');
+    ok =
+      sigBuffer.length === expectedBuffer.length &&
+      crypto.timingSafeEqual(sigBuffer, expectedBuffer);
+  } else {
+    crypto.timingSafeEqual(expectedBuffer, Buffer.alloc(expectedBuffer.length));
+  }
   if (!ok) return res.status(401).json({ error: 'invalid-signature' });
 
   const body = req.body as WebhookBody;
