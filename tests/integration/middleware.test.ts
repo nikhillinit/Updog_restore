@@ -385,8 +385,8 @@ describe('Critical Middleware Tests', () => {
       expect(res.body.requestId).toBe(res.headers['x-request-id']);
     });
 
-    // FIXME: Needs proper shutdown sequence testing
-    it.skip('should reject during shutdown without parsing large body', async () => {
+    // Shutdown guard runs before JSON parsing to keep large bodies from being parsed.
+    it('should reject during shutdown without parsing large body', async () => {
       setReady(false);
 
       const testApp = express();

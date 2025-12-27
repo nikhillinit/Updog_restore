@@ -32,8 +32,8 @@ export class LiquidityEngine {
    * Analyze cash transactions and calculate key metrics
    */
   public analyzeCashFlows(transactions: CashTransaction[]): CashFlowAnalysis {
-    const currentYear = new Date().getFullYear();
-    const currentQuarter = Math.floor((new Date().getMonth() + 3) / 3);
+    const _currentYear = new Date().getFullYear();
+    const _currentQuarter = Math.floor((new Date().getMonth() + 3) / 3);
 
     // Group transactions by type and period
     const byType = this.groupTransactionsByType(transactions);
@@ -51,8 +51,8 @@ export class LiquidityEngine {
 
     return {
       summary: {
-        totalInflows: this.sumTransactions(transactions.filter(t => t.amount > 0)),
-        totalOutflows: Math.abs(this.sumTransactions(transactions.filter(t => t.amount < 0))),
+        totalInflows: this.sumTransactions(transactions.filter((t) => t.amount > 0)),
+        totalOutflows: Math.abs(this.sumTransactions(transactions.filter((t) => t.amount < 0))),
         netCashFlow: this.sumTransactions(transactions),
         transactionCount: transactions.length,
         avgTransactionSize: this.sumTransactions(transactions) / Math.max(transactions.length, 1),
@@ -77,7 +77,7 @@ export class LiquidityEngine {
     months: number = 12
   ): LiquidityForecast {
     const startDate = new Date();
-    const endDate = new Date(startDate.getTime() + (months * 30 * 24 * 60 * 60 * 1000));
+    const endDate = new Date(startDate.getTime() + months * 30 * 24 * 60 * 60 * 1000);
 
     // Project future cash flows
     const projectedInflows = this.projectInflows(transactions, recurringExpenses, months);
@@ -94,7 +94,11 @@ export class LiquidityEngine {
     const scenarios = this.generateScenarios(baseCase, projectedInflows, projectedOutflows);
 
     // Calculate risk metrics
-    const riskMetrics = this.calculateLiquidityRiskMetrics(baseCase, scenarios);
+    const riskMetrics = this.calculateLiquidityRiskMetrics(
+      baseCase,
+      scenarios,
+      currentPosition.totalCash
+    );
 
     return {
       fundId: this.fundId,
@@ -132,28 +136,25 @@ export class LiquidityEngine {
     const scenarios: StressTestScenario[] = [];
 
     // Scenario 1: Delayed distributions
-    scenarios.push(this.calculateDelayedDistributionsScenario(
-      currentPosition,
-      stressFactors.distributionDelay
-    ));
+    scenarios.push(
+      this.calculateDelayedDistributionsScenario(currentPosition, stressFactors.distributionDelay)
+    );
 
     // Scenario 2: Accelerated investment pace
-    scenarios.push(this.calculateAcceleratedInvestmentScenario(
-      currentPosition,
-      stressFactors.investmentAcceleration
-    ));
+    scenarios.push(
+      this.calculateAcceleratedInvestmentScenario(
+        currentPosition,
+        stressFactors.investmentAcceleration
+      )
+    );
 
     // Scenario 3: LP funding delays
-    scenarios.push(this.calculateLPFundingDelayScenario(
-      currentPosition,
-      stressFactors.lpFundingDelay
-    ));
+    scenarios.push(
+      this.calculateLPFundingDelayScenario(currentPosition, stressFactors.lpFundingDelay)
+    );
 
     // Scenario 4: Market downturn (combined stress)
-    scenarios.push(this.calculateMarketDownturnScenario(
-      currentPosition,
-      stressFactors
-    ));
+    scenarios.push(this.calculateMarketDownturnScenario(currentPosition, stressFactors));
 
     // Calculate aggregate risk
     const worstCaseScenario = scenarios.reduce((worst, scenario) =>
@@ -233,8 +234,13 @@ export class LiquidityEngine {
     return {
       calls: optimizedCalls,
       totalAmount: optimizedCalls.reduce((sum, call) => sum + call.amount, 0),
-      utilizationRate: (optimizedCalls.reduce((sum, call) => sum + call.amount, 0) / currentPosition.totalCommitted) * 100,
-      averageCallSize: optimizedCalls.reduce((sum, call) => sum + call.amount, 0) / Math.max(optimizedCalls.length, 1),
+      utilizationRate:
+        (optimizedCalls.reduce((sum, call) => sum + call.amount, 0) /
+          currentPosition.totalCommitted) *
+        100,
+      averageCallSize:
+        optimizedCalls.reduce((sum, call) => sum + call.amount, 0) /
+        Math.max(optimizedCalls.length, 1),
       timeline: {
         firstCall: optimizedCalls[0]?.noticeDate || new Date(),
         lastCall: optimizedCalls[optimizedCalls.length - 1]?.dueDate || new Date(),
@@ -249,10 +255,12 @@ export class LiquidityEngine {
   // PRIVATE HELPER METHODS
   // =============================================================================
 
-  private groupTransactionsByType(transactions: CashTransaction[]): Record<CashTransactionType, number> {
+  private groupTransactionsByType(
+    transactions: CashTransaction[]
+  ): Record<CashTransactionType, number> {
     const groups: Partial<Record<CashTransactionType, number>> = {};
 
-    transactions.forEach(transaction => {
+    transactions.forEach((transaction) => {
       groups[transaction.type] = (groups[transaction.type] || 0) + transaction.amount;
     });
 
@@ -262,7 +270,7 @@ export class LiquidityEngine {
   private groupTransactionsByQuarter(transactions: CashTransaction[]): QuarterlyData[] {
     const quarterMap = new Map<string, CashTransaction[]>();
 
-    transactions.forEach(transaction => {
+    transactions.forEach((transaction) => {
       const date = new Date(transaction.plannedDate);
       const quarter = `${date.getFullYear()}-Q${Math.floor((date.getMonth() + 3) / 3)}`;
 
@@ -274,8 +282,8 @@ export class LiquidityEngine {
 
     return Array.from(quarterMap.entries()).map(([quarter, txns]) => ({
       quarter,
-      totalInflow: this.sumTransactions(txns.filter(t => t.amount > 0)),
-      totalOutflow: Math.abs(this.sumTransactions(txns.filter(t => t.amount < 0))),
+      totalInflow: this.sumTransactions(txns.filter((t) => t.amount > 0)),
+      totalOutflow: Math.abs(this.sumTransactions(txns.filter((t) => t.amount < 0))),
       netFlow: this.sumTransactions(txns),
       transactionCount: txns.length,
     }));
@@ -284,7 +292,7 @@ export class LiquidityEngine {
   private groupTransactionsByMonth(transactions: CashTransaction[]): MonthlyData[] {
     const monthMap = new Map<string, CashTransaction[]>();
 
-    transactions.forEach(transaction => {
+    transactions.forEach((transaction) => {
       const date = new Date(transaction.plannedDate);
       const month = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
 
@@ -296,22 +304,22 @@ export class LiquidityEngine {
 
     return Array.from(monthMap.entries()).map(([month, txns]) => ({
       month,
-      totalInflow: this.sumTransactions(txns.filter(t => t.amount > 0)),
-      totalOutflow: Math.abs(this.sumTransactions(txns.filter(t => t.amount < 0))),
+      totalInflow: this.sumTransactions(txns.filter((t) => t.amount > 0)),
+      totalOutflow: Math.abs(this.sumTransactions(txns.filter((t) => t.amount < 0))),
       netFlow: this.sumTransactions(txns),
       transactionCount: txns.length,
     }));
   }
 
   private calculateRunningBalances(transactions: CashTransaction[]): RunningBalance[] {
-    const sortedTransactions = [...transactions].sort((a, b) =>
-      new Date(a.plannedDate).getTime() - new Date(b.plannedDate).getTime()
+    const sortedTransactions = [...transactions].sort(
+      (a, b) => new Date(a.plannedDate).getTime() - new Date(b.plannedDate).getTime()
     );
 
     const balances: RunningBalance[] = [];
     let runningBalance = 0;
 
-    sortedTransactions.forEach(transaction => {
+    sortedTransactions.forEach((transaction) => {
       runningBalance += transaction.amount;
       balances.push({
         date: new Date(transaction.plannedDate),
@@ -324,9 +332,9 @@ export class LiquidityEngine {
   }
 
   private identifyCashFlowPatterns(monthlyData: MonthlyData[]): CashFlowPattern {
-    const inflows = monthlyData.map(d => d.totalInflow);
-    const outflows = monthlyData.map(d => d.totalOutflow);
-    const netFlows = monthlyData.map(d => d.netFlow);
+    const inflows = monthlyData.map((d) => d.totalInflow);
+    const outflows = monthlyData.map((d) => d.totalOutflow);
+    const netFlows = monthlyData.map((d) => d.netFlow);
 
     return {
       inflowTrend: this.calculateTrend(inflows),
@@ -339,8 +347,8 @@ export class LiquidityEngine {
   }
 
   private calculateCashVelocity(transactions: CashTransaction[]): CashVelocity {
-    const inflows = transactions.filter(t => t.amount > 0);
-    const outflows = transactions.filter(t => t.amount < 0);
+    const inflows = transactions.filter((t) => t.amount > 0);
+    const outflows = transactions.filter((t) => t.amount < 0);
 
     const avgInflowFrequency = this.calculateAverageFrequency(inflows);
     const avgOutflowFrequency = this.calculateAverageFrequency(outflows);
@@ -348,7 +356,8 @@ export class LiquidityEngine {
     return {
       inflowVelocity: avgInflowFrequency,
       outflowVelocity: avgOutflowFrequency,
-      turnoverRatio: Math.abs(this.sumTransactions(outflows)) / Math.max(this.sumTransactions(inflows), 1),
+      turnoverRatio:
+        Math.abs(this.sumTransactions(outflows)) / Math.max(this.sumTransactions(inflows), 1),
       cycleTime: avgInflowFrequency + avgOutflowFrequency,
     };
   }
@@ -359,7 +368,7 @@ export class LiquidityEngine {
     months: number
   ): ProjectedInflows {
     // Analyze historical patterns
-    const historicalInflows = transactions.filter(t => t.amount > 0);
+    const historicalInflows = transactions.filter((t) => t.amount > 0);
 
     // Project capital calls based on deployment schedule
     const capitalCalls = this.projectCapitalCalls(historicalInflows, months);
@@ -399,7 +408,8 @@ export class LiquidityEngine {
     outflows: ProjectedOutflows
   ): BaseScenario {
     const totalInflows = inflows.capitalCalls + inflows.distributions + inflows.other;
-    const totalOutflows = outflows.investments + outflows.expenses + outflows.managementFees + outflows.other;
+    const totalOutflows =
+      outflows.investments + outflows.expenses + outflows.managementFees + outflows.other;
 
     return {
       endingCash: currentPosition.totalCash + totalInflows - totalOutflows,
@@ -411,8 +421,8 @@ export class LiquidityEngine {
 
   private generateScenarios(
     baseCase: BaseScenario,
-    inflows: ProjectedInflows,
-    outflows: ProjectedOutflows
+    _inflows: ProjectedInflows,
+    _outflows: ProjectedOutflows
   ): Array<{ name: string; probability: number; projectedCash: number; notes?: string }> {
     return [
       {
@@ -438,18 +448,23 @@ export class LiquidityEngine {
 
   private calculateLiquidityRiskMetrics(
     baseCase: BaseScenario,
-    scenarios: Array<{ name: string; probability: number; projectedCash: number }>
+    scenarios: Array<{ name: string; probability: number; projectedCash: number }>,
+    totalCash: number
   ): LiquidityRiskMetrics {
-    const weightedAverageCash = scenarios.reduce((sum, scenario) =>
-      sum + (scenario.projectedCash * scenario.probability), 0
+    const weightedAverageCash = scenarios.reduce(
+      (sum, scenario) => sum + scenario.projectedCash * scenario.probability,
+      0
     );
 
     const monthlyBurnRate = this.estimateMonthlyBurnRate();
+    const liquidityDenominator = Math.max(monthlyBurnRate * 3, 1);
+    const runwayDenominator = Math.max(monthlyBurnRate, 1);
+    const runwayMonths = totalCash === 0 ? 0 : weightedAverageCash / runwayDenominator;
 
     return {
-      liquidityRatio: weightedAverageCash / (monthlyBurnRate * 3), // 3-month coverage
+      liquidityRatio: weightedAverageCash / liquidityDenominator, // 3-month coverage
       burnRate: monthlyBurnRate,
-      runwayMonths: weightedAverageCash / Math.max(monthlyBurnRate, 1),
+      runwayMonths,
       riskScore: this.calculateRiskScore(scenarios),
     };
   }
@@ -525,7 +540,7 @@ export class LiquidityEngine {
   private calculateAverageFrequency(transactions: CashTransaction[]): number {
     if (transactions.length < 2) return 0;
 
-    const dates = transactions.map(t => new Date(t.plannedDate).getTime()).sort();
+    const dates = transactions.map((t) => new Date(t.plannedDate).getTime()).sort();
     let totalGap = 0;
 
     for (let i = 1; i < dates.length; i++) {
@@ -541,27 +556,27 @@ export class LiquidityEngine {
 
   private projectCapitalCalls(transactions: CashTransaction[], months: number): number {
     // Simple projection based on historical patterns
-    const historicalCalls = transactions.filter(t => t.type === 'capital_call');
+    const historicalCalls = transactions.filter((t) => t.type === 'capital_call');
     const monthlyAverage = this.sumTransactions(historicalCalls) / Math.max(months, 1);
     return monthlyAverage * months;
   }
 
   private projectDistributions(transactions: CashTransaction[], months: number): number {
-    const historicalDistributions = transactions.filter(t => t.type === 'distribution');
+    const historicalDistributions = transactions.filter((t) => t.type === 'distribution');
     const monthlyAverage = this.sumTransactions(historicalDistributions) / Math.max(months, 1);
     return monthlyAverage * months;
   }
 
   private projectOtherInflows(transactions: CashTransaction[], months: number): number {
-    const otherInflows = transactions.filter(t =>
-      t.amount > 0 && !['capital_call', 'distribution'].includes(t.type)
+    const otherInflows = transactions.filter(
+      (t) => t.amount > 0 && !['capital_call', 'distribution'].includes(t.type)
     );
     const monthlyAverage = this.sumTransactions(otherInflows) / Math.max(months, 1);
     return monthlyAverage * months;
   }
 
   private projectInvestments(transactions: CashTransaction[], months: number): number {
-    const investments = transactions.filter(t =>
+    const investments = transactions.filter((t) =>
       ['investment', 'follow_on', 'bridge_loan'].includes(t.type)
     );
     const monthlyAverage = Math.abs(this.sumTransactions(investments)) / Math.max(months, 1);
@@ -572,11 +587,14 @@ export class LiquidityEngine {
     return recurringExpenses.reduce((total, expense) => {
       if (!expense.isActive) return total;
 
-      const monthlyAmount = expense.frequency === 'monthly' ? expense.amount :
-                          expense.frequency === 'quarterly' ? expense.amount / 3 :
-                          expense.amount / 12;
+      const monthlyAmount =
+        expense.frequency === 'monthly'
+          ? expense.amount
+          : expense.frequency === 'quarterly'
+            ? expense.amount / 3
+            : expense.amount / 12;
 
-      return total + (monthlyAmount * months);
+      return total + monthlyAmount * months;
     }, 0);
   }
 
@@ -587,17 +605,28 @@ export class LiquidityEngine {
   }
 
   private projectOtherOutflows(transactions: CashTransaction[], months: number): number {
-    const otherOutflows = transactions.filter(t =>
-      t.amount < 0 && !['investment', 'follow_on', 'bridge_loan', 'expense', 'management_fee'].includes(t.type)
+    const otherOutflows = transactions.filter(
+      (t) =>
+        t.amount < 0 &&
+        !['investment', 'follow_on', 'bridge_loan', 'expense', 'management_fee'].includes(t.type)
     );
     const monthlyAverage = Math.abs(this.sumTransactions(otherOutflows)) / Math.max(months, 1);
     return monthlyAverage * months;
   }
 
-  private estimateCashFlowVolatility(inflows: ProjectedInflows, outflows: ProjectedOutflows): number {
+  private estimateCashFlowVolatility(
+    inflows: ProjectedInflows,
+    outflows: ProjectedOutflows
+  ): number {
     // Simple volatility estimate
-    const totalFlow = inflows.capitalCalls + inflows.distributions + inflows.other +
-                     outflows.investments + outflows.expenses + outflows.managementFees + outflows.other;
+    const totalFlow =
+      inflows.capitalCalls +
+      inflows.distributions +
+      inflows.other +
+      outflows.investments +
+      outflows.expenses +
+      outflows.managementFees +
+      outflows.other;
     return totalFlow * 0.15; // Assume 15% volatility
   }
 
@@ -607,9 +636,11 @@ export class LiquidityEngine {
     return annualExpenses / 12;
   }
 
-  private calculateRiskScore(scenarios: Array<{ projectedCash: number; probability: number }>): number {
+  private calculateRiskScore(
+    scenarios: Array<{ projectedCash: number; probability: number }>
+  ): number {
     // Calculate risk score based on probability of negative cash flow
-    const negativeScenarios = scenarios.filter(s => s.projectedCash < 0);
+    const negativeScenarios = scenarios.filter((s) => s.projectedCash < 0);
     const probabilityOfNegative = negativeScenarios.reduce((sum, s) => sum + s.probability, 0);
     return probabilityOfNegative;
   }
@@ -622,7 +653,7 @@ export class LiquidityEngine {
     return {
       name: 'Delayed Distributions',
       description: `Portfolio distributions delayed by ${delayMonths} months`,
-      endingCash: position.totalCash - (this.estimateMonthlyBurnRate() * delayMonths),
+      endingCash: position.totalCash - this.estimateMonthlyBurnRate() * delayMonths,
       impactRating: delayMonths > 6 ? 'high' : delayMonths > 3 ? 'medium' : 'low',
       probability: 0.3,
     };
@@ -646,11 +677,11 @@ export class LiquidityEngine {
     position: CashPosition,
     delayMonths: number
   ): StressTestScenario {
-    const delayedCapital = position.totalCommitted * 0.3; // Assume 30% of committed delayed
+    const _delayedCapital = position.totalCommitted * 0.3; // Assume 30% of committed delayed
     return {
       name: 'LP Funding Delays',
       description: `LP capital call responses delayed by ${delayMonths} months`,
-      endingCash: position.totalCash - (this.estimateMonthlyBurnRate() * delayMonths),
+      endingCash: position.totalCash - this.estimateMonthlyBurnRate() * delayMonths,
       impactRating: delayMonths > 3 ? 'high' : delayMonths > 1 ? 'medium' : 'low',
       probability: 0.15,
     };
@@ -661,13 +692,14 @@ export class LiquidityEngine {
     factors: StressTestFactors
   ): StressTestScenario {
     const combinedImpact =
-      (this.estimateMonthlyBurnRate() * factors.distributionDelay) +
-      (position.availableInvestment * (factors.investmentAcceleration - 1)) +
-      (this.estimateMonthlyBurnRate() * factors.lpFundingDelay);
+      this.estimateMonthlyBurnRate() * factors.distributionDelay +
+      position.availableInvestment * (factors.investmentAcceleration - 1) +
+      this.estimateMonthlyBurnRate() * factors.lpFundingDelay;
 
     return {
       name: 'Market Downturn',
-      description: 'Combined stress scenario: delayed distributions, funding delays, and continued investment pressure',
+      description:
+        'Combined stress scenario: delayed distributions, funding delays, and continued investment pressure',
       endingCash: position.totalCash - combinedImpact,
       impactRating: 'high',
       probability: 0.05,
@@ -675,8 +707,12 @@ export class LiquidityEngine {
   }
 
   private assessOverallRiskLevel(scenarios: StressTestScenario[]): 'low' | 'medium' | 'high' {
-    const highRiskScenarios = scenarios.filter(s => s.impactRating === 'high' && s.endingCash < 0);
-    const mediumRiskScenarios = scenarios.filter(s => s.impactRating === 'medium' && s.endingCash < 0);
+    const highRiskScenarios = scenarios.filter(
+      (s) => s.impactRating === 'high' && s.endingCash < 0
+    );
+    const mediumRiskScenarios = scenarios.filter(
+      (s) => s.impactRating === 'medium' && s.endingCash < 0
+    );
 
     if (highRiskScenarios.length > 0) return 'high';
     if (mediumRiskScenarios.length > 1) return 'medium';
@@ -686,7 +722,7 @@ export class LiquidityEngine {
   private generateRiskRecommendations(scenarios: StressTestScenario[]): string[] {
     const recommendations: string[] = [];
 
-    const negativeScenarios = scenarios.filter(s => s.endingCash < 0);
+    const negativeScenarios = scenarios.filter((s) => s.endingCash < 0);
 
     if (negativeScenarios.length > 0) {
       recommendations.push('Consider increasing cash reserves or accelerating capital calls');
@@ -694,7 +730,7 @@ export class LiquidityEngine {
       recommendations.push('Implement contingency funding arrangements');
     }
 
-    const highRiskScenarios = scenarios.filter(s => s.impactRating === 'high');
+    const highRiskScenarios = scenarios.filter((s) => s.impactRating === 'high');
     if (highRiskScenarios.length > 1) {
       recommendations.push('Develop comprehensive risk mitigation strategies');
       recommendations.push('Consider credit facility or emergency funding sources');
@@ -715,7 +751,11 @@ export class LiquidityEngine {
     const targetAmount = shortfall + bufferAmount;
 
     // Apply constraints
-    const maxCall = Math.min(targetAmount, availableCommitted, constraints.maxCallAmount || Infinity);
+    const maxCall = Math.min(
+      targetAmount,
+      availableCommitted,
+      constraints.maxCallAmount || Infinity
+    );
     const minCall = Math.max(maxCall, constraints.minCallAmount || 0);
 
     return Math.min(maxCall, Math.max(minCall, targetAmount));
@@ -726,7 +766,9 @@ export class LiquidityEngine {
     noticePeriodDays: number,
     paymentPeriodDays: number
   ): { noticeDate: Date; dueDate: Date } {
-    const noticeDate = new Date(investmentDate.getTime() - (noticePeriodDays + paymentPeriodDays) * 24 * 60 * 60 * 1000);
+    const noticeDate = new Date(
+      investmentDate.getTime() - (noticePeriodDays + paymentPeriodDays) * 24 * 60 * 60 * 1000
+    );
     const dueDate = new Date(investmentDate.getTime() - noticePeriodDays * 24 * 60 * 60 * 1000);
 
     return { noticeDate, dueDate };
@@ -734,13 +776,13 @@ export class LiquidityEngine {
 
   private consolidateCapitalCalls(
     calls: OptimizedCapitalCall[],
-    constraints: CapitalCallConstraints
+    _constraints: CapitalCallConstraints
   ): OptimizedCapitalCall[] {
     // Simple consolidation logic - merge calls within the same month
     const consolidatedCalls: OptimizedCapitalCall[] = [];
     const callsByMonth = new Map<string, OptimizedCapitalCall[]>();
 
-    calls.forEach(call => {
+    calls.forEach((call) => {
       const monthKey = `${call.noticeDate.getFullYear()}-${call.noticeDate.getMonth()}`;
       if (!callsByMonth.has(monthKey)) {
         callsByMonth.set(monthKey, []);
@@ -748,7 +790,7 @@ export class LiquidityEngine {
       callsByMonth.get(monthKey)!.push(call);
     });
 
-    callsByMonth.forEach(monthCalls => {
+    callsByMonth.forEach((monthCalls) => {
       const firstCall = monthCalls.at(0);
       if (monthCalls.length === 1 && isDefined(firstCall)) {
         consolidatedCalls.push(firstCall);
@@ -761,8 +803,8 @@ export class LiquidityEngine {
           noticeDate: firstCall.noticeDate,
           dueDate: firstCall.dueDate,
           purpose: `Consolidated capital call for ${monthCalls.length} investments`,
-          investments: monthCalls.flatMap(call => call.investments),
-          priority: Math.min(...monthCalls.map(call => call.priority)),
+          investments: monthCalls.flatMap((call) => call.investments),
+          priority: Math.min(...monthCalls.map((call) => call.priority)),
           utilization: monthCalls.reduce((sum, call) => sum + call.utilization, 0),
         };
         consolidatedCalls.push(mergedCall);
@@ -780,13 +822,15 @@ export class LiquidityEngine {
     let score = 100;
 
     // Penalize too many small calls
-    const avgCallSize = calls.reduce((sum, call) => sum + call.amount, 0) / Math.max(calls.length, 1);
+    const avgCallSize =
+      calls.reduce((sum, call) => sum + call.amount, 0) / Math.max(calls.length, 1);
     if (avgCallSize < (constraints.minCallAmount || 0)) {
       score -= 20;
     }
 
     // Reward consolidated calls
-    if (calls.length < calls.length * 0.7) { // Assuming some consolidation happened
+    if (calls.length < calls.length * 0.7) {
+      // Assuming some consolidation happened
       score += 10;
     }
 
@@ -795,8 +839,11 @@ export class LiquidityEngine {
       const currentCall = calls.at(i);
       const previousCall = calls.at(i - 1);
       if (isDefined(currentCall) && isDefined(previousCall)) {
-        const daysBetween = (currentCall.noticeDate.getTime() - previousCall.noticeDate.getTime()) / (24 * 60 * 60 * 1000);
-        if (daysBetween < 30) { // Less than 30 days apart
+        const daysBetween =
+          (currentCall.noticeDate.getTime() - previousCall.noticeDate.getTime()) /
+          (24 * 60 * 60 * 1000);
+        if (daysBetween < 30) {
+          // Less than 30 days apart
           score -= 5;
         }
       }

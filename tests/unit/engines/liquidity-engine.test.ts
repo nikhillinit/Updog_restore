@@ -530,9 +530,7 @@ describe('LiquidityEngine - Edge Cases', () => {
     expect(analysis.summary.netCashFlow).toBe(0);
   });
 
-  // FIXME: Zero cash edge case not handled properly - division by zero or undefined
-  // @group integration - Needs guard clause for zero cash scenarios
-  it.skip('should handle zero cash position', () => {
+  it('should handle zero cash position', () => {
     const engine = new LiquidityEngine('fund-1', 50000000);
     const position = createCashPosition({ totalCash: 0 });
 
