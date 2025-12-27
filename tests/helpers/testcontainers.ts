@@ -39,7 +39,7 @@ let globalState: ContainerState | null = null;
 export async function setupTestDB(): Promise<StartedPostgreSqlContainer> {
   console.log('[testcontainers] Starting PostgreSQL container...');
 
-  const container = await new PostgreSqlContainer('postgres:16-alpine')
+  const container = await new PostgreSqlContainer('pgvector/pgvector:pg16')
     .withExposedPorts(5432)
     .withDatabase('test_db')
     .withUsername('test_user')
