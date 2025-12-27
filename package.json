@@ -4,7 +4,7 @@
   "type": "module",
   "license": "MIT",
   "engines": {
-    "node": "20.19.x",
+    "node": ">=20.19.0",
     "npm": ">=10.8.0"
   },
   "packageManager": "npm@10.9.0",
