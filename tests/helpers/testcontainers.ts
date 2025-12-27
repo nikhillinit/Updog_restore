@@ -50,13 +50,18 @@ export async function setupTestDB(): Promise<StartedPostgreSqlContainer> {
 
   console.log(`[testcontainers] PostgreSQL started on port ${container.getPort()}`);
 
-  // Run migrations
+  // Run migrations with connection retry logic
   const pool = new Pool({
     connectionString: container.getConnectionUri(),
     max: 1, // Single connection for migrations
+    connectionTimeoutMillis: 10000, // 10s connection timeout
+    idleTimeoutMillis: 30000, // 30s idle timeout
   });
 
   try {
+    // Wait for PostgreSQL to be ready with exponential backoff
+    await waitForPostgres(pool, 5, 1000); // 5 retries, 1s initial delay
+
     const db = drizzle(pool, { schema });
 
     // Create required PostgreSQL extensions BEFORE running migrations
@@ -185,6 +190,43 @@ export function getRedisConnection(): { host: string; port: number } {
     host: globalState.redis.getHost(),
     port: globalState.redis.getMappedPort(6379),
   };
+}
+
+/**
+ * Wait for PostgreSQL to be ready to accept queries with exponential backoff
+ *
+ * @param pool - PostgreSQL connection pool
+ * @param maxRetries - Maximum number of retry attempts (default: 5)
+ * @param initialDelay - Initial delay in milliseconds (default: 1000)
+ * @throws Error if PostgreSQL is not ready after max retries
+ */
+async function waitForPostgres(
+  pool: Pool,
+  maxRetries: number = 5,
+  initialDelay: number = 1000
+): Promise<void> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // Simple query to verify PostgreSQL is ready
+      await pool.query('SELECT 1');
+      console.log(`[testcontainers] PostgreSQL ready after ${attempt + 1} attempt(s)`);
+      return;
+    } catch (error) {
+      const delay = initialDelay * Math.pow(2, attempt);
+      console.log(
+        `[testcontainers] PostgreSQL not ready (attempt ${attempt + 1}/${maxRetries}), retrying in ${delay}ms...`
+      );
+
+      if (attempt === maxRetries - 1) {
+        console.error('[testcontainers] PostgreSQL failed to become ready', error);
+        throw new Error(
+          `PostgreSQL not ready after ${maxRetries} attempts: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
 }
 
 /**
