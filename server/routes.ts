@@ -776,6 +776,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // const scenarioComparisonRoutes = await import('./routes/scenario-comparison.js');
   // app.use(scenarioComparisonRoutes.default);
 
+  // Metrics & Observability routes (feature-flagged)
+  if (FEATURES.metrics) {
+    // Prometheus metrics endpoint (/metrics)
+    const { metricsRouter } = await import('./routes/metrics-endpoint.js');
+    app.use(metricsRouter);
+
+    // Error budget reporting (/api/error-budget)
+    const errorBudgetRoutes = await import('./routes/error-budget.js');
+    app.use('/api/error-budget', errorBudgetRoutes.default);
+  }
+
   // Development dashboard routes (development only)
   if (process.env["NODE_ENV"] === 'development') {
     const devDashboardRoutes = await import('./routes/dev-dashboard.js');
