@@ -51,6 +51,15 @@ and this project adheres to
 
 ### Fixed
 
+- **CI Workflow TypeScript Baseline Integration** (CRITICAL)
+  - CI was failing on all 482 baselined TypeScript errors due to using raw `tsc`
+    instead of `npm run baseline:check`
+  - Updated `.github/workflows/ci-unified.yml` to respect `.tsc-baseline.json`
+    in both setup and check jobs
+  - Prevents false CI failures from pre-existing type issues while catching new
+    errors
+  - Aligns CI behavior with local pre-push hooks
+
 - **TypeScript Error Reduction**
   - Baseline: 483 → 482 errors (-1)
   - Removed: `server/routes/reserves-api.ts:TS18046:92155b20`
