@@ -95,7 +95,15 @@ class ConnectionPoolManager {
   private readonly connectionTimeoutMs = config.CONNECTION_TIMEOUT_MS;
 
   async getPool(connectionString?: string): Promise<Pool> {
-    const connStr = connectionString || process.env['DATABASE_URL']!;
+    const connStr = connectionString || process.env['DATABASE_URL'];
+
+    if (!connStr) {
+      throw new Error(
+        'DATABASE_URL environment variable is not set. ' +
+        'StreamingMonteCarloEngine requires a database connection.'
+      );
+    }
+
     const poolKey = this.hashConnectionString(connStr);
 
     if (!this.pools.has(poolKey)) {
@@ -291,11 +299,30 @@ class StreamingAggregator {
 
 export class StreamingMonteCarloEngine {
   private connectionManager = new ConnectionPoolManager();
-  private db: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private db: any = null;
+  private dbInitPromise: Promise<void> | null = null;
   private currentStats: StreamingStats | null = null;
 
   constructor() {
-    this.initializeDatabase();
+    // Lazy initialization - don't connect to DB until actually needed
+    // This allows the engine to be instantiated in test environments
+    // without requiring DATABASE_URL
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async ensureDatabase(): Promise<any> {
+    if (this.db) {
+      return this.db;
+    }
+
+    // Prevent concurrent initialization
+    if (!this.dbInitPromise) {
+      this.dbInitPromise = this.initializeDatabase();
+    }
+
+    await this.dbInitPromise;
+    return this.db;
   }
 
   private async initializeDatabase(): Promise<void> {
@@ -740,10 +767,11 @@ export class StreamingMonteCarloEngine {
   // Reuse existing methods from the original engine
   private async getBaselineData(fundId: number, baselineId?: string): Promise<FundBaseline> {
     // Implementation same as original engine
+    const db = await this.ensureDatabase();
     let baseline: FundBaseline | undefined;
 
     if (baselineId) {
-      baseline = await this.db.query.fundBaselines.findFirst({
+      baseline = await db.query.fundBaselines.findFirst({
         where: and(
           eq(schema.fundBaselines.id, baselineId),
           eq(schema.fundBaselines.fundId, fundId),
@@ -751,7 +779,7 @@ export class StreamingMonteCarloEngine {
         )
       });
     } else {
-      baseline = await this.db.query.fundBaselines.findFirst({
+      baseline = await db.query.fundBaselines.findFirst({
         where: and(
           eq(schema.fundBaselines.fundId, fundId),
           eq(schema.fundBaselines.isDefault, true),
@@ -769,7 +797,8 @@ export class StreamingMonteCarloEngine {
 
   private async getPortfolioInputs(fundId: number, baseline: FundBaseline): Promise<PortfolioInputs> {
     // Implementation same as original engine
-    const fund = await this.db.query.funds.findFirst({
+    const db = await this.ensureDatabase();
+    const fund = await db.query.funds.findFirst({
       where: eq(schema.funds.id, fundId)
     });
 
@@ -810,7 +839,8 @@ export class StreamingMonteCarloEngine {
 
   private async calibrateDistributions(fundId: number, baseline: FundBaseline): Promise<DistributionParameters> {
     // Implementation same as original engine
-    const reports = await this.db.query.varianceReports.findMany({
+    const db = await this.ensureDatabase();
+    const reports = await db.query.varianceReports.findMany({
       where: and(
         eq(schema.varianceReports.fundId, fundId),
         eq(schema.varianceReports.baselineId, baseline.id)
@@ -950,6 +980,7 @@ export class StreamingMonteCarloEngine {
   }
 
   private async storeResults(results: SimulationResults): Promise<void> {
+    const db = await this.ensureDatabase();
     const simulationData: InsertMonteCarloSimulation = {
       fundId: results.config.fundId,
       simulationName: `Streaming Monte Carlo Simulation ${new Date().toISOString()}`,
@@ -960,7 +991,7 @@ export class StreamingMonteCarloEngine {
       createdBy: 1, // TODO: Get from context
     };
 
-    await this.db.insert(schema.monteCarloSimulations).values(simulationData);
+    await db.insert(schema.monteCarloSimulations).values(simulationData);
   }
 
   private setRandomSeed(seed: number): void {
