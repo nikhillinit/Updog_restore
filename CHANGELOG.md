@@ -40,11 +40,14 @@ and this project adheres to
 
 ### Removed
 
-- **Dead Code Cleanup** (801 lines total)
-  - `server/routes/reserves-api.ts` (668 lines) - Never imported, superseded by
-    v1/reserves.ts
+- **Dead Code Cleanup** (1,093 lines total)
+  - `server/routes/reserves-api.ts` (668 lines) - 132 ESLint violations,
+    superseded by v1/reserves.ts
   - `server/routes/reserves.ts` (133 lines) - Duplicate implementation
+  - `tests/unit/api/reserves-api.test.ts` (292 lines) - Tests for deleted
+    reserves-api.ts
   - Active route preserved: `server/routes/v1/reserves.ts`
+  - Note: reserves-api.ts had 24 `any` type errors (would block commit)
 
 ### Fixed
 
