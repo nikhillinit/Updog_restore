@@ -15,6 +15,8 @@ export const FEATURES = {
   sessions: flag(process.env['ENABLE_SESSIONS'], false),
   metrics: flag(process.env['ENABLE_METRICS'], true), // enable locally by default
   statGating: flag(process.env['ENABLE_STAT_GATING'], false),
+  // Portfolio Intelligence API - graduated from WIP
+  portfolioIntelligence: flag(process.env['ENABLE_PORTFOLIO_INTELLIGENCE'], true),
 };
 
 export type FeatureBag = typeof FEATURES;
