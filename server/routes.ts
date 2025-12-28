@@ -11,8 +11,14 @@ import { fileURLToPath } from "url";
 import { z } from "zod";
 import { storage } from "./storage";
 import { insertPortfolioCompanySchema, insertActivitySchema } from "@shared/schema";
+// TODO: Issue #309 - Move core engines to shared package
+// These engines are used by scaffold routes (/api/reserves, /api/pacing, /api/cohorts)
+// For now, import from client (ESLint boundary violation - tracked for refactoring)
+// eslint-disable-next-line no-restricted-imports
 import { generateReserveSummary } from "../client/src/core/reserves/ReserveEngine.js";
+// eslint-disable-next-line no-restricted-imports
 import { generatePacingSummary } from "../client/src/core/pacing/PacingEngine.js";
+// eslint-disable-next-line no-restricted-imports
 import { generateCohortSummary } from "../client/src/core/cohorts/CohortEngine.js";
 import { registerFundConfigRoutes } from "./routes/fund-config.js";
 import { recordHttpMetrics } from "./metrics";

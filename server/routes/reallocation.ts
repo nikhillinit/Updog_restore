@@ -14,7 +14,7 @@ import type { Request, Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
 import { query, transaction } from '../db';
-import { dollarsToCents, centsToDollars } from '../../client/src/lib/units';
+import { dollarsToCents, centsToDollars } from '@shared/units';
 
 const router = Router();
 

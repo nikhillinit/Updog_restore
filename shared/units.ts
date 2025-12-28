@@ -218,3 +218,42 @@ export const isBasisPoints = (n: number): n is BasisPoints => {
 export const isDollars = (n: number): n is Dollars => {
   return Number.isFinite(n) && n >= 0;
 };
+
+// ============================================================================
+// Monetary Conversions (Dollars <-> Cents)
+// ============================================================================
+
+/**
+ * Convert dollars to cents (storage format)
+ *
+ * Critical: All monetary values should be stored as integer cents
+ * to prevent floating-point precision errors.
+ *
+ * @param dollars - Dollar amount (e.g., 1000000.50)
+ * @returns Integer cents (e.g., 100000050)
+ *
+ * @example
+ * dollarsToCents(1000000.50) // => 100000050
+ * dollarsToCents(0.01)       // => 1
+ * dollarsToCents(0.005)      // => 1 (rounds to nearest cent)
+ */
+export function dollarsToCents(dollars: number): number {
+  return Math.round(dollars * 100);
+}
+
+/**
+ * Convert cents to dollars (display format)
+ *
+ * Use at display boundaries only - internal calculations should
+ * remain in cents to preserve precision.
+ *
+ * @param cents - Integer cents (e.g., 100000050)
+ * @returns Dollar amount (e.g., 1000000.50)
+ *
+ * @example
+ * centsToDollars(100000050) // => 1000000.50
+ * centsToDollars(1)         // => 0.01
+ */
+export function centsToDollars(cents: number): number {
+  return cents / 100;
+}

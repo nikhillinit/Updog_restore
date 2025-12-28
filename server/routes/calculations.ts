@@ -2,8 +2,11 @@ import type { Request, Response } from 'express';
 import express from 'express';
 import { FundModelInputsSchema } from '@shared/schemas/fund-model';
 import type { FundModelInputs } from '@shared/schemas/fund-model';
+import { formatForCSV } from '@shared/lib/decimal-utils';
+// TODO: Issue #309 - Move fund-calc to shared package
+// For now, import from client (ESLint boundary violation - tracked for refactoring)
+// eslint-disable-next-line no-restricted-imports
 import { runFundModel } from '../../client/src/lib/fund-calc.js';
-import { formatForCSV } from '../../client/src/lib/decimal-utils.js';
 
 const router = express.Router();
 
