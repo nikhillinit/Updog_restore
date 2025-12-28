@@ -71,7 +71,7 @@
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
       "total": 66,
-      "lastUpdated": "2025-12-26T12:46:44.284Z"
+      "lastUpdated": "2025-12-28T07:09:20.938Z"
     },
     "server": {
       "errors": [
@@ -235,7 +235,6 @@
         "server/routes/reallocation.ts:TS2347:89356ff9",
         "server/routes/reallocation.ts:TS2347:d5230198",
         "server/routes/reallocation.ts:TS4111:9b084339",
-        "server/routes/reserves-api.ts:TS18046:92155b20",
         "server/routes/scenario-analysis.ts:TS2304:0bc61cb1",
         "server/routes/scenario-analysis.ts:TS2322:629669a5",
         "server/routes/scenario-analysis.ts:TS2322:d9b69327",
@@ -491,22 +490,26 @@
         "server/websocket/portfolio-metrics.ts:TS18046:57a6b43d",
         "server/websocket/portfolio-metrics.ts:TS2339:24482a7c"
       ],
-      "total": 415,
-      "lastUpdated": "2025-12-26T12:46:44.284Z"
+      "total": 414,
+      "lastUpdated": "2025-12-28T07:09:20.938Z"
     },
     "shared": {
-      "errors": ["shared/schemas/parse-stage-distribution.ts:TS2345:1bd7167e"],
+      "errors": [
+        "shared/schemas/parse-stage-distribution.ts:TS2345:1bd7167e"
+      ],
       "total": 1,
-      "lastUpdated": "2025-12-26T12:46:44.284Z"
+      "lastUpdated": "2025-12-28T07:09:20.938Z"
     },
     "unknown": {
-      "errors": ["vite.config.ts:TS7006:118fabe7"],
+      "errors": [
+        "vite.config.ts:TS7006:118fabe7"
+      ],
       "total": 1,
-      "lastUpdated": "2025-12-26T12:46:44.284Z"
+      "lastUpdated": "2025-12-28T07:09:20.938Z"
     }
   },
-  "totalErrors": 483,
-  "timestamp": "2025-12-26T12:46:44.284Z",
+  "totalErrors": 482,
+  "timestamp": "2025-12-28T07:09:20.938Z",
   "buildMode": "per-project",
-  "elapsedMs": 20481
+  "elapsedMs": 19438
 }
