@@ -6,6 +6,66 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Portfolio Intelligence API Routes** (Feature-flagged)
+  - 17 endpoints at `/api/portfolio/*` for portfolio modeling and strategy
+    management
+  - Feature flag: `ENABLE_PORTFOLIO_INTELLIGENCE` (default: false for safe
+    rollout)
+  - Endpoints include: strategies, scenarios, reserves, forecasts, metrics,
+    rebalancing
+  - Complete service layer with Drizzle ORM integration
+
+- **Metrics & Observability Routes** (Feature-flagged)
+  - Prometheus metrics endpoint at `/metrics`
+  - Error budget reporting at `/api/error-budget`
+  - Gated by existing `ENABLE_METRICS` flag (default: true in development)
+
+- **ADR-013: Scenario Comparison Activation Decision**
+  - Decision framework for activating scenario-comparison API
+  - Documents technical readiness and product approval requirements
+  - Location: `docs/adr/ADR-013-scenario-comparison-activation.md`
+
+- **Implementation Plan Documentation**
+  - Comprehensive backend/testing improvements plan
+  - Location: `docs/plans/2025-12-28-backend-testing-improvements.md`
+  - Includes: Phase 0 (test infrastructure), Phase 1 (route registration), Phase
+    2 (scenario comparison decision), Phase 3 (frontend tests), Phase 4 (metrics
+    routes), Phase 5 (dead code cleanup)
+  - Archived superseded planning docs: `IMPLEMENTATION_PLAN.md`,
+    `PLAN_CRITIQUE.md` → `docs/archive/planning/`
+
+### Removed
+
+- **Dead Code Cleanup** (1,093 lines total)
+  - `server/routes/reserves-api.ts` (668 lines) - 132 ESLint violations,
+    superseded by v1/reserves.ts
+  - `server/routes/reserves.ts` (133 lines) - Duplicate implementation
+  - `tests/unit/api/reserves-api.test.ts` (292 lines) - Tests for deleted
+    reserves-api.ts
+  - Active route preserved: `server/routes/v1/reserves.ts`
+  - Note: reserves-api.ts had 24 `any` type errors (would block commit)
+
+### Fixed
+
+- **CI Workflow TypeScript Baseline Integration** (CRITICAL)
+  - CI was failing on all 482 baselined TypeScript errors due to using raw `tsc`
+    instead of `npm run baseline:check`
+  - Updated `.github/workflows/ci-unified.yml` to respect `.tsc-baseline.json`
+    in both setup and check jobs
+  - Prevents false CI failures from pre-existing type issues while catching new
+    errors
+  - Aligns CI behavior with local pre-push hooks
+
+- **TypeScript Error Reduction**
+  - Baseline: 483 → 482 errors (-1)
+  - Removed: `server/routes/reserves-api.ts:TS18046:92155b20`
+
+---
+
 ## [Unreleased] - 2025-12-14
 
 ### Fixed

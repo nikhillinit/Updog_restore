@@ -764,9 +764,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { engineAdminRoutes } = await import('./routes/admin/engine.js');
   app.use('/api/admin/engine', engineAdminRoutes);
 
-  // Scenario Comparison Tool routes (WIP - file not yet implemented)
+  // Portfolio Intelligence API routes (feature-flagged)
+  // Routes use /api/portfolio/* prefix internally
+  const { FEATURES } = await import('./config/features.js');
+  if (FEATURES.portfolioIntelligence) {
+    const portfolioIntelligenceRoutes = await import('./routes/portfolio-intelligence.js');
+    app.use(portfolioIntelligenceRoutes.default);
+  }
+
+  // Scenario Comparison Tool routes (WIP - awaiting product approval)
   // const scenarioComparisonRoutes = await import('./routes/scenario-comparison.js');
   // app.use(scenarioComparisonRoutes.default);
+
+  // Metrics & Observability routes (feature-flagged)
+  if (FEATURES.metrics) {
+    // Prometheus metrics endpoint (/metrics)
+    const { metricsRouter } = await import('./routes/metrics-endpoint.js');
+    app.use(metricsRouter);
+
+    // Error budget reporting (/api/error-budget)
+    const errorBudgetRoutes = await import('./routes/error-budget.js');
+    app.use('/api/error-budget', errorBudgetRoutes.default);
+  }
 
   // Development dashboard routes (development only)
   if (process.env["NODE_ENV"] === 'development') {
