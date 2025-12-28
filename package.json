@@ -388,7 +388,7 @@
     "lru-cache": "^11.1.0",
     "lucide-react": "^0.553.0",
     "mathjs": "15.1.0",
-    "ml-levenberg-marquardt": "^4.0.0",
+    "ml-levenberg-marquardt": "^5.0.0",
     "nats": "2.16.0",
     "ollama": "0.6.2",
     "openai": "^6.8.1",
