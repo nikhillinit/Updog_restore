@@ -342,19 +342,21 @@ From
 
 _Identified via secondary Codex review scan_
 
-### Pattern 8: TypeScript Directive Bypasses (20+ locations)
+### Pattern 8: TypeScript Directive Bypasses (338 locations - CORRECTED)
 
 ```
 Detected: @ts-ignore and @ts-expect-error usage
-- 20+ occurrences across codebase
+- 338 occurrences across codebase (CORRECTED from initial "20+" estimate)
 - Locations include:
   - server/otel.ts:3
   - client/src/core/flags/flagAdapter.ts:26,28
   - tests/setup.ts:16,40
   - server/engine/fault-injector.ts:74
+  - ...and 334 more locations
 
 Pattern Type: TYPE_BYPASS
 Impact: Hidden type errors, future refactoring difficulty
+Note: Codex evaluation verified actual count on 2025-12-29
 ```
 
 **Action Items:**
@@ -721,6 +723,35 @@ npm run check
 | **Server XIRR silent failure (P0 BLOCKER)**                  | DONE                                           | pending   |
 | **Dead code deletion (lib/irr.ts - 179 lines)**              | DONE                                           | pending   |
 | **Test bug fix (XIRR null semantics)**                       | DONE                                           | pending   |
+| **Delete lp-api.ts.backup (Tier 0)**                         | DONE                                           | pending   |
+
+### Codex Evaluation Summary (2025-12-29)
+
+**Verdict:** CONDITIONAL PASS → Refinements Applied
+
+**Verified Completions (9 items):**
+
+- [x] XIRR null semantics (returns null, not 0)
+- [x] DPI null semantics documented
+- [x] IRR null handling in VarianceMetrics
+- [x] Dead code lib/irr.ts deleted (179 lines)
+- [x] Test expectations updated (.toBeNull())
+- [x] TypeScript baseline maintained
+- [x] Type annotations with TODO comments
+- [x] Debug logging added
+- [x] Plan documented with multi-agent findings
+
+**Corrections Applied:**
+
+- @ts-ignore count: 20+ → 338 (actual verified count)
+- Backup file lp-api.ts.backup: deleted (was still present)
+- TypeScript baseline: 477 → 475 errors
+
+**Remaining Recommendations:**
+
+- SimulationInputs index signature (P0 Critical) - needs removal
+- ReserveInputSchema duplication - needs resolution
+- 35 missing test cases - add to P1 roadmap
 
 ### Ultrathink Multi-Agent Deep Analysis (6 Parallel Agents)
 
@@ -887,14 +918,14 @@ patterns
 | XIRR implementations          | 6      | 5 (dead code deleted) | 3        | 1        | 1        | 1        |
 | ReserveInputSchema dups       | 2      | 2                     | 1        | 1        | 1        | 1        |
 | Files with `any` disable      | 150+   | 150+                  | 145      | 140      | 130      | 120      |
-| TypeScript baseline errors    | 477    | 0                     | 0        | 0        | 0        | 0        |
-| Backup files in repo          | 2      | 0                     | 0        | 0        | 0        | 0        |
+| TypeScript baseline errors    | 477    | 475                   | 0        | 0        | 0        | 0        |
+| Backup files in repo          | 2      | 1 → 0 (DONE)          | 0        | 0        | 0        | 0        |
 | Docker hardcoded passwords    | 3      | 0                     | 0        | 0        | 0        | 0        |
 | **RS256 JWT support**         | NO     | YES                   | YES      | YES      | YES      | YES      |
 | **Silent failure patterns**   | 10     | 7                     | 5        | 2        | 0        | 0        |
 | **Codex P0/P1 open**          | 3      | 1                     | 0        | 0        | 0        | 0        |
 | **TODO/FIXME comments**       | 148    | 148                   | 135      | 120      | 105      | 90       |
-| **@ts-ignore directives**     | 20+    | 20+                   | 15       | 10       | 5        | 0        |
+| **@ts-ignore directives**     | 338    | 338                   | 300      | 250      | 200      | 150      |
 | **Async forEach/map**         | 0      | 0                     | 0        | 0        | 0        | 0        |
 | **npm audit vulnerabilities** | 16     | 16                    | 10       | 5        | 0        | 0        |
 | **Schema drift issues (new)** | 11     | 11                    | 8        | 4        | 2        | 0        |
