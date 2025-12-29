@@ -1,25 +1,40 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
-import type { Express, Request, Response } from "express";
-import { createServer, type Server } from "http";
-import { readFileSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
-import { z } from "zod";
-import { storage } from "./storage";
-import { insertPortfolioCompanySchema, insertActivitySchema } from "@shared/schema";
-import { generateReserveSummary } from "../client/src/core/reserves/ReserveEngine.js";
-import { generatePacingSummary } from "../client/src/core/pacing/PacingEngine.js";
-import { generateCohortSummary } from "../client/src/core/cohorts/CohortEngine.js";
-import { registerFundConfigRoutes } from "./routes/fund-config.js";
-import { recordHttpMetrics } from "./metrics";
-import { toNumber, NumberParseError } from "@shared/number";
-import type { ReserveInput, PacingInput, CohortInput, ApiError, ReserveSummary, PacingSummary, CohortSummary } from "@shared/types";
-import { monitor } from "./middleware/performance-monitor.js";
-import { config } from "./config/index.js";
+import type { Express, Request, Response, NextFunction } from 'express';
+import type { RequestListener } from 'http';
+import { createServer, type Server } from 'http';
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { z } from 'zod';
+import { storage } from './storage';
+import {
+  insertPortfolioCompanySchema,
+  insertActivitySchema,
+  insertInvestmentSchema,
+  type Activity,
+} from '@shared/schema';
+// TODO: Issue #309 - Move core engines to shared package
+// These engines are used by scaffold routes (/api/reserves, /api/pacing, /api/cohorts)
+// For now, import from client (ESLint boundary violation - tracked for refactoring)
+// eslint-disable-next-line no-restricted-imports
+import { generateReserveSummary } from '../client/src/core/reserves/ReserveEngine.js';
+// eslint-disable-next-line no-restricted-imports
+import { generatePacingSummary } from '../client/src/core/pacing/PacingEngine.js';
+// eslint-disable-next-line no-restricted-imports
+import { generateCohortSummary } from '../client/src/core/cohorts/CohortEngine.js';
+import { registerFundConfigRoutes } from './routes/fund-config.js';
+import { recordHttpMetrics } from './metrics';
+import { toNumber, NumberParseError } from '@shared/number';
+import type {
+  ReserveInput,
+  PacingInput,
+  CohortInput,
+  ApiError,
+  ReserveSummary,
+  PacingSummary,
+  CohortSummary,
+} from '@shared/types';
+import { monitor } from './middleware/performance-monitor.js';
+import { config } from './config/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -77,70 +92,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(lpHealthRoutes.default);
 
   // Middleware to record HTTP metrics
-  app.use((req: Request, res: Response, next: (err?: any) => void) => {
+  app.use((req: Request, res: Response, next: NextFunction) => {
     const startTime = Date.now();
-    
+
     res['on']('finish', () => {
       const duration = (Date.now() - startTime) / 1000;
-      recordHttpMetrics(req.method || 'UNKNOWN', req.route?.path || req.path || 'unknown', res.statusCode, duration);
+      // Express Route type has path property, but req.route may be undefined
+      const route = req.route as { path?: string } | undefined;
+      const routePath = route?.path ?? req.path ?? 'unknown';
+      recordHttpMetrics(req.method || 'UNKNOWN', routePath, res.statusCode, duration);
     });
-    
+
     next();
   });
-  
+
   // Fund routes - Type-safe error responses
-  app['get']("/api/funds", async (req: Request, res: Response) => {
+  app['get']('/api/funds', async (req: Request, res: Response) => {
     try {
       const funds = await storage.getAllFunds();
-      res["json"](funds);
+      res['json'](funds);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database query failed',
-        message: error instanceof Error ? error.message : 'Failed to fetch funds'
+        message: error instanceof Error ? error.message : 'Failed to fetch funds',
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
-  app['get']("/api/funds/:id", async (req: Request, res: Response) => {
+  app['get']('/api/funds/:id', async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
       const id = toNumber(idParam, 'ID');
-      
+
       if (id <= 0) {
         const error: ApiError = {
           error: 'Invalid fund ID',
-          message: `Fund ID must be a positive integer, received: ${idParam}`
+          message: `Fund ID must be a positive integer, received: ${idParam}`,
         };
-        return res["status"](400)["json"](error);
+        return res['status'](400)['json'](error);
       }
-      
+
       const fund = await storage.getFund(id);
       if (!fund) {
         const error: ApiError = {
           error: 'Fund not found',
-          message: `No fund exists with ID: ${id}`
+          message: `No fund exists with ID: ${id}`,
         };
-        return res["status"](404)["json"](error);
+        return res['status'](404)['json'](error);
       }
-      res["json"](fund);
+      res['json'](fund);
     } catch (error) {
       if (error instanceof NumberParseError) {
         const apiError: ApiError = {
           error: 'Invalid fund ID',
-          message: error.message
+          message: error.message,
         };
-        return res["status"](400)["json"](apiError);
+        return res['status'](400)['json'](apiError);
       }
       const apiError: ApiError = {
         error: 'Database query failed',
-        message: error instanceof Error ? error.message : 'Failed to fetch fund'
+        message: error instanceof Error ? error.message : 'Failed to fetch fund',
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
-  app.post("/api/funds", async (req: Request, res: Response) => {
+  app.post('/api/funds', async (req: Request, res: Response) => {
     try {
       // For now, validate only the basic fund fields that can be stored
       // TODO: Add support for storing investment strategy, exit recycling, and waterfall
@@ -150,19 +168,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         deployedCapital: z.number().nonnegative().optional(),
         managementFee: z.number().min(0).max(1),
         carryPercentage: z.number().min(0).max(1),
-        vintageYear: z.number().int().min(2000).max(2030)
+        vintageYear: z.number().int().min(2000).max(2030),
       });
-      
+
       const result = basicFundSchema.safeParse(req.body);
       if (!result.success) {
         const error: ApiError = {
           error: 'Invalid fund data',
           message: 'Fund validation failed',
-          details: { validationErrors: result.error.issues }
+          details: { validationErrors: result.error.issues },
         };
-        return res["status"](400)["json"](error);
+        return res['status'](400)['json'](error);
       }
-      
+
       // Convert to format expected by storage layer
       const basicFundData = {
         name: result.data.name,
@@ -171,210 +189,218 @@ export async function registerRoutes(app: Express): Promise<Server> {
         managementFee: result.data.managementFee.toString(),
         carryPercentage: result.data.carryPercentage.toString(),
         vintageYear: result.data.vintageYear,
-        status: 'active'
+        status: 'active',
       };
-      
+
       const fund = await storage.createFund(basicFundData);
-      res["status"](201)["json"](fund);
+      res['status'](201)['json'](fund);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database operation failed',
-        message: error instanceof Error ? error.message : 'Failed to create fund'
+        message: error instanceof Error ? error.message : 'Failed to create fund',
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
   // Portfolio company routes - Type-safe with query validation
-  app['get']("/api/portfolio-companies", async (req: Request, res: Response) => {
+  app['get']('/api/portfolio-companies', async (req: Request, res: Response) => {
     try {
       const fundIdQuery = req.query.fundId;
       let fundId: number | undefined = undefined;
-      
+
       if (fundIdQuery) {
         const parsedId = toNumber(fundIdQuery as string, 'fund ID');
         if (parsedId <= 0) {
           const error: ApiError = {
             error: 'Invalid fund ID query',
-            message: `Fund ID must be a positive integer, received: ${fundIdQuery}`
+            message: `Fund ID must be a positive integer, received: ${fundIdQuery}`,
           };
-          return res["status"](400)["json"](error);
+          return res['status'](400)['json'](error);
         }
         fundId = parsedId;
       }
-      
+
       const companies = await storage.getPortfolioCompanies(fundId);
-      res["json"](companies);
+      res['json'](companies);
     } catch (error) {
       if (error instanceof NumberParseError) {
         const apiError: ApiError = {
           error: 'Invalid fund ID query',
-          message: error.message
+          message: error.message,
         };
-        return res["status"](400)["json"](apiError);
+        return res['status'](400)['json'](apiError);
       }
       const apiError: ApiError = {
         error: 'Database query failed',
-        message: error instanceof Error ? error.message : 'Failed to fetch portfolio companies'
+        message: error instanceof Error ? error.message : 'Failed to fetch portfolio companies',
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
-  app['get']("/api/portfolio-companies/:id", async (req: Request, res: Response) => {
+  app['get']('/api/portfolio-companies/:id', async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
       const id = toNumber(idParam, 'ID');
-      
+
       if (id <= 0) {
         const error: ApiError = {
           error: 'Invalid company ID',
-          message: `Company ID must be a positive integer, received: ${idParam}`
+          message: `Company ID must be a positive integer, received: ${idParam}`,
         };
-        return res["status"](400)["json"](error);
+        return res['status'](400)['json'](error);
       }
-      
+
       const company = await storage.getPortfolioCompany(id);
       if (!company) {
         const error: ApiError = {
           error: 'Company not found',
-          message: `No portfolio company exists with ID: ${id}`
+          message: `No portfolio company exists with ID: ${id}`,
         };
-        return res["status"](404)["json"](error);
+        return res['status'](404)['json'](error);
       }
-      res["json"](company);
+      res['json'](company);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database query failed',
-        message: error instanceof Error ? error.message : 'Failed to fetch portfolio company'
+        message: error instanceof Error ? error.message : 'Failed to fetch portfolio company',
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
-  app.post("/api/portfolio-companies", async (req: Request, res: Response) => {
+  app.post('/api/portfolio-companies', async (req: Request, res: Response) => {
     try {
       const result = insertPortfolioCompanySchema.safeParse(req.body);
       if (!result.success) {
         const error: ApiError = {
           error: 'Invalid company data',
           message: 'Portfolio company validation failed',
-          details: { validationErrors: result.error.issues }
+          details: { validationErrors: result.error.issues },
         };
-        return res["status"](400)["json"](error);
+        return res['status'](400)['json'](error);
       }
+      // Use validated data from Zod result
       const companyData = {
-        name: req.body.name,
-        sector: req.body.sector,
-        stage: req.body.stage,
-        investmentAmount: req.body.investmentAmount
+        name: result.data.name,
+        sector: result.data.sector,
+        stage: result.data.stage,
+        investmentAmount: result.data.investmentAmount,
       };
       const company = await storage.createPortfolioCompany(companyData);
-      res["status"](201)["json"](company);
+      res['status'](201)['json'](company);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database operation failed',
-        message: error instanceof Error ? error.message : 'Failed to create portfolio company'
+        message: error instanceof Error ? error.message : 'Failed to create portfolio company',
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
   // Fund metrics routes - Type-safe parameter validation
-  app['get']("/api/fund-metrics/:fundId", async (req: Request, res: Response) => {
+  app['get']('/api/fund-metrics/:fundId', async (req: Request, res: Response) => {
     try {
       const fundIdParam = req.params.fundId;
       const fundId = toNumber(fundIdParam, 'fund ID');
-      
+
       if (fundId <= 0) {
         const error: ApiError = {
           error: 'Invalid fund ID',
-          message: `Fund ID must be a positive integer, received: ${fundIdParam}`
+          message: `Fund ID must be a positive integer, received: ${fundIdParam}`,
         };
-        return res["status"](400)["json"](error);
+        return res['status'](400)['json'](error);
       }
-      
+
       const metrics = await storage.getFundMetrics(fundId);
-      res["json"](metrics);
+      res['json'](metrics);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database query failed',
-        message: error instanceof Error ? error.message : 'Failed to fetch fund metrics'
+        message: error instanceof Error ? error.message : 'Failed to fetch fund metrics',
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
   // Activity routes - Type-safe query parameter handling
-  app['get']("/api/activities", async (req: Request, res: Response) => {
+  app['get']('/api/activities', async (req: Request, res: Response) => {
     try {
       const fundIdQuery = req.query.fundId;
       let fundId: number | undefined = undefined;
-      
+
       if (fundIdQuery) {
         const parsedId = toNumber(fundIdQuery as string, 'fund ID');
         if (parsedId <= 0) {
           const error: ApiError = {
             error: 'Invalid fund ID query',
-            message: `Fund ID must be a positive integer, received: ${fundIdQuery}`
+            message: `Fund ID must be a positive integer, received: ${fundIdQuery}`,
           };
-          return res["status"](400)["json"](error);
+          return res['status'](400)['json'](error);
         }
         fundId = parsedId;
       }
-      
+
       const activities = await storage.getActivities(fundId);
-      res["json"](activities.sort((a: any, b: any) => b.activityDate.getTime() - a.activityDate.getTime()));
+      // Sort activities by date descending (most recent first)
+      const sortedActivities = activities.sort((a: Activity, b: Activity) => {
+        const dateA = a.activityDate ? new Date(a.activityDate).getTime() : 0;
+        const dateB = b.activityDate ? new Date(b.activityDate).getTime() : 0;
+        return dateB - dateA;
+      });
+      res['json'](sortedActivities);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database query failed',
-        message: error instanceof Error ? error.message : 'Failed to fetch activities'
+        message: error instanceof Error ? error.message : 'Failed to fetch activities',
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
-  app.post("/api/activities", async (req: Request, res: Response) => {
+  app.post('/api/activities', async (req: Request, res: Response) => {
     try {
       const result = insertActivitySchema.safeParse(req.body);
       if (!result.success) {
         const error: ApiError = {
           error: 'Invalid activity data',
           message: 'Activity validation failed',
-          details: { validationErrors: result.error.issues }
+          details: { validationErrors: result.error.issues },
         };
-        return res["status"](400)["json"](error);
+        return res['status'](400)['json'](error);
       }
+      // Use validated data from Zod result
       const activityData = {
-        type: req.body.type,
-        title: req.body.title,
-        activityDate: new Date(req.body.activityDate)
+        type: result.data.type,
+        title: result.data.title,
+        activityDate: result.data.activityDate ? new Date(result.data.activityDate) : new Date(),
       };
       const activity = await storage.createActivity(activityData);
-      res["status"](201)["json"](activity);
+      res['status'](201)['json'](activity);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database operation failed',
-        message: error instanceof Error ? error.message : 'Failed to create activity'
+        message: error instanceof Error ? error.message : 'Failed to create activity',
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
   // Dashboard summary route - Type-safe with comprehensive validation
-  app['get']("/api/dashboard-summary/:fundId", async (req: Request, res: Response) => {
+  app['get']('/api/dashboard-summary/:fundId', async (req: Request, res: Response) => {
     try {
       const fundIdParam = req.params.fundId;
       const fundId = toNumber(fundIdParam, 'fund ID');
-      
+
       if (fundId <= 0) {
         const error: ApiError = {
           error: 'Invalid fund ID',
-          message: `Fund ID must be a positive integer, received: ${fundIdParam}`
+          message: `Fund ID must be a positive integer, received: ${fundIdParam}`,
         };
-        return res["status"](400)["json"](error);
+        return res['status'](400)['json'](error);
       }
-      
+
       const [fund, portfolioCompanies, activities, metrics] = await Promise.all([
         storage.getFund(fundId),
         storage.getPortfolioCompanies(fundId),
@@ -385,19 +411,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!fund) {
         const error: ApiError = {
           error: 'Fund not found',
-          message: `No fund exists with ID: ${fundId}`
+          message: `No fund exists with ID: ${fundId}`,
         };
-        return res["status"](404)["json"](error);
+        return res['status'](404)['json'](error);
       }
 
       const latestMetrics = metrics.length > 0 ? metrics[metrics.length - 1] : null;
       const recentActivities = activities.slice(0, 5);
 
       // Type-safe summary calculation
-      const fundSize = toNumber(fund.size || 0, "fund size");
-      const deployedCapital = toNumber(fund.deployedCapital || 0, "deployed capital");
-      const currentIRR = latestMetrics ? toNumber(latestMetrics.irr || 0, "IRR") * 100 : 0;
-      
+      const fundSize = toNumber(fund.size || 0, 'fund size');
+      const deployedCapital = toNumber(fund.deployedCapital || 0, 'deployed capital');
+      const currentIRR = latestMetrics ? toNumber(latestMetrics.irr || 0, 'IRR') * 100 : 0;
+
       const dashboardSummary = {
         fund,
         portfolioCompanies,
@@ -407,345 +433,372 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalCompanies: portfolioCompanies.length,
           deploymentRate: fundSize !== 0 ? (deployedCapital / fundSize) * 100 : 0,
           currentIRR,
-        }
+        },
       };
-      
-      res["json"](dashboardSummary);
+
+      res['json'](dashboardSummary);
     } catch (error) {
       console.error('Dashboard summary error:', error);
       const apiError: ApiError = {
         error: 'Dashboard data processing failed',
         message: error instanceof Error ? error.message : 'Failed to fetch dashboard summary',
-        details: { fundId: req.params.fundId }
+        details: { fundId: req.params['fundId'] },
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
   // Investment routes - Type-safe with query validation
-  app['get']("/api/investments", async (req: Request, res: Response) => {
+  app['get']('/api/investments', async (req: Request, res: Response) => {
     try {
       const fundIdQuery = req.query.fundId;
       let fundId: number | undefined = undefined;
-      
+
       if (fundIdQuery) {
         const parsedId = toNumber(fundIdQuery as string, 'fund ID');
         if (parsedId <= 0) {
           const error: ApiError = {
             error: 'Invalid fund ID query',
-            message: `Fund ID must be a positive integer, received: ${fundIdQuery}`
+            message: `Fund ID must be a positive integer, received: ${fundIdQuery}`,
           };
-          return res["status"](400)["json"](error);
+          return res['status'](400)['json'](error);
         }
         fundId = parsedId;
       }
-      
+
       const investments = await storage.getInvestments(fundId);
-      res["json"](investments);
+      res['json'](investments);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database query failed',
-        message: error instanceof Error ? error.message : 'Failed to fetch investments'
+        message: error instanceof Error ? error.message : 'Failed to fetch investments',
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
-  app['get']("/api/investments/:id", async (req: Request, res: Response) => {
+  app['get']('/api/investments/:id', async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
       const id = toNumber(idParam, 'ID');
-      
+
       if (id <= 0) {
         const error: ApiError = {
           error: 'Invalid investment ID',
-          message: `Investment ID must be a positive integer, received: ${idParam}`
+          message: `Investment ID must be a positive integer, received: ${idParam}`,
         };
-        return res["status"](400)["json"](error);
+        return res['status'](400)['json'](error);
       }
-      
+
       const investment = await storage.getInvestment(id);
       if (!investment) {
         const error: ApiError = {
           error: 'Investment not found',
-          message: `No investment exists with ID: ${id}`
+          message: `No investment exists with ID: ${id}`,
         };
-        return res["status"](404)["json"](error);
+        return res['status'](404)['json'](error);
       }
-      res["json"](investment);
+      res['json'](investment);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database query failed',
-        message: error instanceof Error ? error.message : 'Failed to fetch investment'
+        message: error instanceof Error ? error.message : 'Failed to fetch investment',
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
-  app.post("/api/investments", async (req: Request, res: Response) => {
+  app.post('/api/investments', async (req: Request, res: Response) => {
     try {
-      // Note: Investment schema validation should be added here
-      // For now, trust storage layer to handle validation
-      if (!req.body || Object.keys(req.body).length === 0) {
+      // Validate investment data with Zod schema
+      const result = insertInvestmentSchema.safeParse(req.body);
+      if (!result.success) {
         const error: ApiError = {
           error: 'Invalid investment data',
-          message: 'Request body cannot be empty'
+          message: 'Investment validation failed',
+          details: { validationErrors: result.error.issues },
         };
-        return res["status"](400)["json"](error);
+        return res['status'](400)['json'](error);
       }
-      
-      const investment = await storage.createInvestment(req.body);
-      res["status"](201)["json"](investment);
+
+      const investment = await storage.createInvestment(result.data);
+      res['status'](201)['json'](investment);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database operation failed',
-        message: error instanceof Error ? error.message : 'Failed to create investment'
+        message: error instanceof Error ? error.message : 'Failed to create investment',
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
   // Investment rounds routes - Type-safe parameter validation
-  app.post("/api/investments/:id/rounds", async (req: Request, res: Response) => {
+  app.post('/api/investments/:id/rounds', async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
       const investmentId = toNumber(idParam, 'investment ID');
-      
+
       if (investmentId <= 0) {
         const error: ApiError = {
           error: 'Invalid investment ID',
-          message: `Investment ID must be a positive integer, received: ${idParam}`
+          message: `Investment ID must be a positive integer, received: ${idParam}`,
         };
-        return res["status"](400)["json"](error);
+        return res['status'](400)['json'](error);
       }
-      
-      if (!req.body || Object.keys(req.body).length === 0) {
+
+      const body = req.body as Record<string, unknown> | null;
+      if (!body || Object.keys(body).length === 0) {
         const error: ApiError = {
           error: 'Invalid round data',
-          message: 'Request body cannot be empty'
+          message: 'Request body cannot be empty',
         };
-        return res["status"](400)["json"](error);
+        return res['status'](400)['json'](error);
       }
-      
-      const round = await storage.addInvestmentRound(investmentId, req.body);
-      res["status"](201)["json"](round);
+
+      const round: unknown = await storage.addInvestmentRound(investmentId, body);
+      res['status'](201)['json'](round);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database operation failed',
-        message: error instanceof Error ? error.message : 'Failed to add investment round'
+        message: error instanceof Error ? error.message : 'Failed to add investment round',
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
   // Performance cases routes - Type-safe parameter validation
-  app.post("/api/investments/:id/cases", async (req: Request, res: Response) => {
+  app.post('/api/investments/:id/cases', async (req: Request, res: Response) => {
     try {
       const idParam = req.params.id;
       const investmentId = toNumber(idParam, 'investment ID');
-      
+
       if (investmentId <= 0) {
         const error: ApiError = {
           error: 'Invalid investment ID',
-          message: `Investment ID must be a positive integer, received: ${idParam}`
+          message: `Investment ID must be a positive integer, received: ${idParam}`,
         };
-        return res["status"](400)["json"](error);
+        return res['status'](400)['json'](error);
       }
-      
-      if (!req.body || Object.keys(req.body).length === 0) {
+
+      const body = req.body as Record<string, unknown> | null;
+      if (!body || Object.keys(body).length === 0) {
         const error: ApiError = {
           error: 'Invalid case data',
-          message: 'Request body cannot be empty'
+          message: 'Request body cannot be empty',
         };
-        return res["status"](400)["json"](error);
+        return res['status'](400)['json'](error);
       }
-      
-      const performanceCase = await storage.addPerformanceCase(investmentId, req.body);
-      res["status"](201)["json"](performanceCase);
+
+      const performanceCase: unknown = await storage.addPerformanceCase(investmentId, body);
+      res['status'](201)['json'](performanceCase);
     } catch (error) {
       const apiError: ApiError = {
         error: 'Database operation failed',
-        message: error instanceof Error ? error.message : 'Failed to add performance case'
+        message: error instanceof Error ? error.message : 'Failed to add performance case',
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
   // Reserve Engine routes - Type-safe with comprehensive error handling
-  app['get']("/api/reserves/:fundId", async (req: Request, res: Response) => {
+  app['get']('/api/reserves/:fundId', async (req: Request, res: Response) => {
     try {
       const fundIdParam = req.params.fundId;
       const fundId = toNumber(fundIdParam, 'fund ID');
-      
+
       if (fundId <= 0) {
         const error: ApiError = {
           error: 'Invalid fund ID',
-          message: `Fund ID must be a positive integer, received: ${fundIdParam}`
+          message: `Fund ID must be a positive integer, received: ${fundIdParam}`,
         };
-        return res["status"](400)["json"](error);
+        return res['status'](400)['json'](error);
       }
-      
+
       // Load portfolio fixture data
       const portfolioPath = join(__dirname, '../tests/fixtures/portfolio.json');
-      let portfolioData: any;
-      
+
+      // Type for portfolio fixture JSON structure
+      interface PortfolioFixtureCompany {
+        invested?: number;
+        ownership?: number;
+        stage?: string;
+        sector?: string;
+      }
+      interface PortfolioFixtureData {
+        companies: PortfolioFixtureCompany[];
+      }
+
+      let portfolioData: PortfolioFixtureData;
+
       try {
-        portfolioData = JSON.parse(readFileSync(portfolioPath, 'utf-8'));
-      } catch (fileError) {
+        const rawData: unknown = JSON.parse(readFileSync(portfolioPath, 'utf-8'));
+        // Validate basic structure
+        if (
+          !rawData ||
+          typeof rawData !== 'object' ||
+          !('companies' in rawData) ||
+          !Array.isArray((rawData as PortfolioFixtureData).companies)
+        ) {
+          throw new Error('Invalid portfolio fixture format');
+        }
+        portfolioData = rawData as PortfolioFixtureData;
+      } catch {
         const error: ApiError = {
           error: 'Portfolio data unavailable',
-          message: 'Could not load portfolio fixture data'
+          message: 'Could not load portfolio fixture data',
         };
-        return res["status"](500)["json"](error);
+        return res['status'](500)['json'](error);
       }
-      
+
       // Transform to ReserveInput format with validation
-      const portfolio: ReserveInput[] = portfolioData.companies.map((company: any, index: number) => ({
-        id: index + 1,
-        invested: typeof company.invested === 'number' ? company.invested : 500000,
-        ownership: typeof company.ownership === 'number' ? company.ownership : 0.15,
-        stage: typeof company.stage === 'string' ? company.stage : 'Series A',
-        sector: typeof company.sector === 'string' ? company.sector : 'Tech'
-      }));
-      
+      const portfolio: ReserveInput[] = portfolioData.companies.map(
+        (company: PortfolioFixtureCompany, index: number) => ({
+          id: index + 1,
+          invested: typeof company.invested === 'number' ? company.invested : 500000,
+          ownership: typeof company.ownership === 'number' ? company.ownership : 0.15,
+          stage: typeof company.stage === 'string' ? company.stage : 'Series A',
+          sector: typeof company.sector === 'string' ? company.sector : 'Tech',
+        })
+      );
+
       // Generate comprehensive reserve summary
       const summary: ReserveSummary = generateReserveSummary(fundId, portfolio);
-      
-      res["json"](summary);
+
+      res['json'](summary);
     } catch (error) {
       console.error('ReserveEngine error:', error);
       const apiError: ApiError = {
         error: 'Reserve engine processing failed',
         message: error instanceof Error ? error.message : 'Unknown error',
-        details: { fundId: req.params.fundId }
+        details: { fundId: req.params['fundId'] },
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
   // Pacing Engine routes - Type-safe with query parameter support
-  app['get']("/api/pacing/summary", async (req: Request, res: Response) => {
+  app['get']('/api/pacing/summary', async (req: Request, res: Response) => {
     try {
       // Extract and validate query parameters
       const fundSizeParam = req.query.fundSize as string;
       const quarterParam = req.query.deploymentQuarter as string;
       const marketConditionParam = req.query.marketCondition as string;
-      
+
       const pacingInput: PacingInput = {
         fundSize: fundSizeParam ? toNumber(fundSizeParam, 'fund size') : 50000000, // $50M default
         deploymentQuarter: quarterParam ? toNumber(quarterParam, 'deployment quarter') : 1, // Q1 default
-        marketCondition: (marketConditionParam as 'bull' | 'bear' | 'neutral') || 'neutral'
+        marketCondition: (marketConditionParam as 'bull' | 'bear' | 'neutral') || 'neutral',
       };
-      
+
       // Validate market condition
       if (!['bull', 'bear', 'neutral'].includes(pacingInput.marketCondition)) {
         const error: ApiError = {
           error: 'Invalid market condition',
-          message: `Market condition must be 'bull', 'bear', or 'neutral', received: ${marketConditionParam}`
+          message: `Market condition must be 'bull', 'bear', or 'neutral', received: ${marketConditionParam}`,
         };
-        return res["status"](400)["json"](error);
+        return res['status'](400)['json'](error);
       }
-      
+
       // Generate comprehensive pacing summary
       const summary: PacingSummary = generatePacingSummary(pacingInput);
-      
-      res["json"](summary);
+
+      res['json'](summary);
     } catch (error) {
       console.error('PacingEngine error:', error);
       const apiError: ApiError = {
         error: 'Pacing engine processing failed',
         message: error instanceof Error ? error.message : 'Unknown error',
-        details: { query: req.query }
+        details: { query: req.query },
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
   // Cohort Engine routes - Type-safe vintage cohort analysis (SCAFFOLD)
-  app['get']("/api/cohorts/analysis", async (req: Request, res: Response) => {
+  app['get']('/api/cohorts/analysis', async (req: Request, res: Response) => {
     try {
       // Extract and validate query parameters
       const fundIdQuery = req.query.fundId;
       const vintageYearQuery = req.query.vintageYear;
       const cohortSizeQuery = req.query.cohortSize;
-      
+
       let fundId = config.DEFAULT_FUND_ID; // Default fund (from env config)
       let vintageYear = new Date().getFullYear() - 1; // Default to last year
       let cohortSize = 10; // Default cohort size
-      
+
       if (fundIdQuery) {
         const parsedId = toNumber(fundIdQuery as string, 'fund ID');
         if (parsedId <= 0) {
           const error: ApiError = {
             error: 'Invalid fund ID',
-            message: `Fund ID must be a positive integer, received: ${fundIdQuery}`
+            message: `Fund ID must be a positive integer, received: ${fundIdQuery}`,
           };
-          return res["status"](400)["json"](error);
+          return res['status'](400)['json'](error);
         }
         fundId = parsedId;
       }
-      
+
       if (vintageYearQuery) {
         try {
           const parsedYear = toNumber(vintageYearQuery as string, 'vintage year');
           if (parsedYear < 2000 || parsedYear > 2030) {
             const error: ApiError = {
               error: 'Invalid vintage year',
-              message: `Vintage year must be between 2000-2030, received: ${vintageYearQuery}`
+              message: `Vintage year must be between 2000-2030, received: ${vintageYearQuery}`,
             };
-            return res["status"](400)["json"](error);
+            return res['status'](400)['json'](error);
           }
           vintageYear = parsedYear;
-        } catch (e) {
+        } catch {
           const error: ApiError = {
             error: 'Invalid vintage year',
-            message: `Vintage year must be a valid number, received: ${vintageYearQuery}`
+            message: `Vintage year must be a valid number, received: ${vintageYearQuery}`,
           };
-          return res["status"](400)["json"](error);
+          return res['status'](400)['json'](error);
         }
       }
-      
+
       if (cohortSizeQuery) {
         try {
           const parsedSize = toNumber(cohortSizeQuery as string, 'cohort size');
           if (parsedSize <= 0 || parsedSize > 1000) {
             const error: ApiError = {
               error: 'Invalid cohort size',
-              message: `Cohort size must be between 1-1000, received: ${cohortSizeQuery}`
+              message: `Cohort size must be between 1-1000, received: ${cohortSizeQuery}`,
             };
-            return res["status"](400)["json"](error);
+            return res['status'](400)['json'](error);
           }
           cohortSize = parsedSize;
-        } catch (e) {
+        } catch {
           const error: ApiError = {
             error: 'Invalid cohort size',
-            message: `Cohort size must be a valid number, received: ${cohortSizeQuery}`
+            message: `Cohort size must be a valid number, received: ${cohortSizeQuery}`,
           };
-          return res["status"](400)["json"](error);
+          return res['status'](400)['json'](error);
         }
       }
-      
+
       const cohortInput: CohortInput = {
         fundId,
         vintageYear,
-        cohortSize
+        cohortSize,
       };
-      
+
       // Generate comprehensive cohort summary
       const summary: CohortSummary = generateCohortSummary(cohortInput);
-      
-      res["json"](summary);
+
+      res['json'](summary);
     } catch (error) {
       console.error('CohortEngine error:', error);
       const apiError: ApiError = {
         error: 'Cohort analysis failed',
         message: error instanceof Error ? error.message : 'Unknown error',
-        details: { 
+        details: {
           query: req.query,
-          note: 'This is a scaffolded endpoint for future cohort analysis features'
-        }
+          note: 'This is a scaffolded endpoint for future cohort analysis features',
+        },
       };
-      res["status"](500)["json"](apiError);
+      res['status'](500)['json'](apiError);
     }
   });
 
@@ -788,12 +841,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Development dashboard routes (development only)
-  if (process.env["NODE_ENV"] === 'development') {
+  if (process.env['NODE_ENV'] === 'development') {
     const devDashboardRoutes = await import('./routes/dev-dashboard.js');
     app.use('/api/dev-dashboard', devDashboardRoutes.default);
   }
 
-  const httpServer = createServer(app as any);
+  // Express app is compatible with http.RequestListener
+  const httpServer = createServer(app as unknown as RequestListener);
 
   // Setup WebSocket servers
   const { setupWebSocketServers } = await import('./websocket/index.js');
