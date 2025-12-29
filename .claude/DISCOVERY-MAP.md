@@ -101,6 +101,11 @@ Pattern matching uses OR logic: any match triggers the route.
 | "reserves" OR "pro-rata" OR "ownership"                       | phoenix-reserves-optimizer agent                      | Reserve allocation                       |
 | "graduation" OR "moic" OR "forecasting"                       | phoenix-probabilistic-engineer agent                  | Phase 2 probabilistic                    |
 | "brand" OR "styling" OR "dashboard layout"                    | phoenix-brand-reporting-stylist agent                 | Brand consistency                        |
+| "phase 3" OR "LP reports" OR "PDF export"                     | docs/PHOENIX-SOT/execution-plan-v3.0-phase3-addendum.md | Phase 3 planning                       |
+| "brand guidelines" OR "logo usage" OR "POV colors"            | docs/PHOENIX-SOT/brand-bridge.md                      | Press On Ventures brand specification    |
+| "print css" OR "print stylesheet" OR "dashboard print"        | client/src/styles/print.css                           | Print-optimized styling                  |
+| "design tokens" OR "brand tokens" OR "theme tokens"           | client/src/lib/brand-tokens.ts                        | Programmatic brand values                |
+| "pdf generation" OR "tear sheet" OR "quarterly report"        | client/src/utils/pdf/                                 | PDF export utilities                     |
 | "docs sync" OR "jsdoc" OR "calculations.md"                   | phoenix-docs-scribe agent                             | Documentation sync                       |
 | "deploy" OR "production" OR "rollout"                         | docs/workflows/PRODUCTION_SCRIPTS.md                  | Deployment docs                          |
 | "workflow" OR "ci" OR "github actions"                        | docs/workflows/README.md                              | CI/CD docs                               |
