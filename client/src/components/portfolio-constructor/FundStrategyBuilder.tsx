@@ -1,3 +1,9 @@
+/**
+ * Fund Strategy Builder
+ *
+ * Uses BrandChartThemeProvider for consistent chart styling.
+ * Migration: Replaced hardcoded COLORS with getChartColor() from chart-theme.
+ */
 import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +42,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PortfolioState } from "@/pages/portfolio-constructor";
+import { getChartColor } from '@/lib/chart-theme';
 
 interface AllocationBucket {
   id: string;
@@ -105,7 +112,7 @@ const defaultBuckets: AllocationBucket[] = [
   }
 ];
 
-const COLORS = ['#2563eb', '#dc2626', '#059669', '#7c3aed', '#ea580c', '#0891b2', '#be123c'];
+// Removed hardcoded COLORS - now using getChartColor() from chart-theme
 
 export function FundStrategyBuilder({
   portfolioState,
@@ -161,7 +168,7 @@ export function FundStrategyBuilder({
       name: `New ${selectedCategory}`,
       targetPercentage: 0,
       allocatedAmount: 0,
-      color: COLORS[buckets.length % COLORS.length] ?? '#000000',
+      color: getChartColor(buckets.length),
       category: selectedCategory ?? 'Strategy'
     };
     setBuckets(prev => [...prev, newBucket]);

@@ -1,8 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
+/**
+ * Benchmarking Dashboard
+ *
+ * Uses BrandChartThemeProvider for consistent chart styling.
+ * Migration: Replaced hardcoded COLORS with getChartColor() from chart-theme.
+ */
+
 import { BarChart } from 'recharts/es6/chart/BarChart';
 import { Bar } from 'recharts/es6/cartesian/Bar';
 import { XAxis } from 'recharts/es6/cartesian/XAxis';
@@ -34,6 +37,7 @@ import {
   Info
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { getChartColor } from '@/lib/chart-theme';
 
 // Mock data - in real app, this would come from API
 const PORTFOLIO_COMPANIES = [
@@ -130,7 +134,7 @@ const BENCHMARK_DATA = [
   }
 ];
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+// Removed hardcoded COLORS - now using getChartColor() from chart-theme
 
 export default function BenchmarkingDashboard() {
   const [selectedCompany, setSelectedCompany] = useState(PORTFOLIO_COMPANIES[0]);
