@@ -688,15 +688,34 @@ npm run check
 | Async forEach/map anti-patterns | VERIFIED (correctly implemented) | N/A |
 | Mixed rounding modes | VERIFIED (intentional per CA-SEMANTIC-LOCK.md) | N/A |
 | StageSchema unification | DONE | `753cbcb` |
+| Empty catch blocks (mutex, errorHandling) | DONE | `fbe49d6` |
+| XIRR parity test fix (365 → 365.25) | DONE | `fbe49d6` |
+| TODO/FIXME triage | ANALYZED | N/A |
+| XIRR consolidation analysis | ANALYZED | N/A |
+
+### Analysis Results (Informing Future Work)
+
+**XIRR Analysis (6 implementations found):**
+- Canonical: `client/src/lib/finance/xirr.ts` (3-tier fallback: Newton→Brent→Bisection)
+- Secondary: `client/src/lib/xirr.ts` (2-tier: Newton→Bisection)
+- Legacy: `client/src/core/selectors/xirr.ts` (THROWS exceptions - risk)
+- Server: `server/services/actual-metrics-calculator.ts` (returns 0 on error - silent)
+- Day count: All now use 365.25 (parity test bug fixed)
+
+**TODO/FIXME Analysis (94 comments):**
+- P0 (Security): 9 items (auth middleware stubs)
+- P1 (Bugs): 62 items (DLQ stubs, XIRR solver issues)
+- P2 (Debt): 23 items
+- P3 (Nice-to-have): 54 items
+- Top priority: Implement real auth in `server/middleware/requireAuth.ts`
 
 ### Remaining
 
 | Item | Priority | Effort | Notes |
 |------|----------|--------|-------|
-| XIRR consolidation | P2 | 24h | 365 vs 365.25 day count |
+| XIRR consolidation (migration) | P2 | 16h | Use finance/xirr.ts as canonical |
 | Type safety (any elimination) | P2 | 40h | 150+ files |
-| Empty catch blocks | P2 | 8h | 30+ locations |
-| TODO/FIXME triage | P3 | 16h | 128 comments |
+| Auth middleware implementation | P0 | 8h | 3 stubs in requireAuth.ts |
 
 ---
 
@@ -705,7 +724,7 @@ npm run check
 | Metric | Before | After | Sprint 1 | Sprint 2 | Sprint 3 | Sprint 4 |
 |--------|--------|-------|----------|----------|----------|----------|
 | StageSchema definitions | 6 | 1 (canonical) | 1 | 1 | 1 | 1 |
-| XIRR implementations | 2 | 2 | 2 | 1 | 1 | 1 |
+| XIRR implementations | 6 | 6 (1 canonical identified) | 3 | 1 | 1 | 1 |
 | ReserveInputSchema dups | 2 | 2 | 1 | 1 | 1 | 1 |
 | Files with `any` disable | 150+ | 150+ | 145 | 140 | 130 | 120 |
 | TypeScript baseline errors | 477 | 0 | 0 | 0 | 0 | 0 |
