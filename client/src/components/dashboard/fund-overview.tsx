@@ -1,8 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
- 
- 
- 
- 
+/**
+ * Fund Overview Dashboard
+ *
+ * Uses BrandChartThemeProvider for consistent chart styling.
+ * Migration: Replaced hardcoded COLORS with getChartColor() from chart-theme.
+ */
+
 import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
 import { AreaChart } from 'recharts/es6/chart/AreaChart';
 import { Area } from 'recharts/es6/cartesian/Area';
@@ -18,6 +21,7 @@ import { DashboardCard } from './DashboardCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFundContext } from '@/contexts/FundContext';
 import { DollarSign, BarChart3, Users, TrendingUp } from 'lucide-react';
+import { getChartColor, rechartsProps } from '@/lib/chart-theme';
 
 // Sample data matching target UI
 const areaChartData = [
@@ -43,7 +47,7 @@ const pieChartData = [
   { name: 'Enterprise', value: 5 }
 ];
 
-const COLORS = ['#292929', '#555555', '#777777', '#999999', '#E0D8D1'];
+// Removed hardcoded COLORS - now using getChartColor() from chart-theme
 
 export default function FundOverview() {
   const { currentFund } = useFundContext();
@@ -179,8 +183,8 @@ export default function FundOverview() {
                     }}
                     labelLine={false}
                   >
-                    {pieChartData.map((entry: any, index: any) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {pieChartData.map((_entry: unknown, index: number) => (
+                      <Cell key={`cell-${index}`} fill={getChartColor(index)} />
                     ))}
                   </Pie>
                   <Tooltip 
