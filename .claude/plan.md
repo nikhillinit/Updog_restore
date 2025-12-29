@@ -687,12 +687,12 @@ npm run check
 | Silent mutation onError patterns (3 files) | DONE | `aca494b` |
 | Async forEach/map anti-patterns | VERIFIED (correctly implemented) | N/A |
 | Mixed rounding modes | VERIFIED (intentional per CA-SEMANTIC-LOCK.md) | N/A |
+| StageSchema unification | DONE | `753cbcb` |
 
 ### Remaining
 
 | Item | Priority | Effort | Notes |
 |------|----------|--------|-------|
-| StageSchema unification | P1 | 32h | 6+ definitions, requires migration |
 | XIRR consolidation | P2 | 24h | 365 vs 365.25 day count |
 | Type safety (any elimination) | P2 | 40h | 150+ files |
 | Empty catch blocks | P2 | 8h | 30+ locations |
@@ -704,7 +704,7 @@ npm run check
 
 | Metric | Before | After | Sprint 1 | Sprint 2 | Sprint 3 | Sprint 4 |
 |--------|--------|-------|----------|----------|----------|----------|
-| StageSchema definitions | 6 | 6 | 1 | 1 | 1 | 1 |
+| StageSchema definitions | 6 | 1 (canonical) | 1 | 1 | 1 | 1 |
 | XIRR implementations | 2 | 2 | 2 | 1 | 1 | 1 |
 | ReserveInputSchema dups | 2 | 2 | 1 | 1 | 1 | 1 |
 | Files with `any` disable | 150+ | 150+ | 145 | 140 | 130 | 120 |
