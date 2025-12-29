@@ -335,7 +335,8 @@ function validateDistribution(dist: PerformanceDistribution): ValidationResult {
 
 4. [x] Task 2.4: Reserve Ranking Validation (COMPLETE - 9 budget constraint
        tests)
-5. [ ] Task 2.5: Monte Carlo Orchestrator
+5. [x] Task 2.5: Monte Carlo Orchestrator (COMPLETE - 16 unit tests, 13
+       integration skipped)
 6. [ ] Task 2.6: Expectation Mode Validation
 
 ### Phase 2C: Validation (Day 5)
@@ -353,7 +354,8 @@ function validateDistribution(dist: PerformanceDistribution): ValidationResult {
 - [x] All 7 MOIC variants implemented with tests - COMPLETE (31 tests)
 - [x] Reserves ranking respects budget constraints - COMPLETE (9 validation
       tests)
-- [ ] Monte Carlo orchestrator preserves Phase 1 accuracy
+- [x] Monte Carlo orchestrator preserves Phase 1 accuracy - COMPLETE
+      (expectation mode implemented)
 - [ ] Distribution validation passes
 - [ ] Reproducibility confirmed (same seed = same results)
 
