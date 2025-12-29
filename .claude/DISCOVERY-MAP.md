@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: agents
-last_updated: 2025-12-14
+last_updated: 2025-12-29
 owner: 'Platform Team'
 review_cadence: P30D
 categories: [discovery, agents, routing]
@@ -106,6 +106,10 @@ Pattern matching uses OR logic: any match triggers the route.
 | "workflow" OR "ci" OR "github actions"                        | docs/workflows/README.md                              | CI/CD docs                               |
 | "architecture" OR "decision" OR "why"                         | DECISIONS.md                                          | ADR rationale                            |
 | "change history" OR "what changed"                            | CHANGELOG.md                                          | Chronological changes                    |
+| "log change" OR "changelog entry"                             | /log-change command                                   | Guided CHANGELOG.md entry                |
+| "log decision" OR "adr entry" OR "architectural decision"     | /log-decision command                                 | Guided ADR entry for DECISIONS.md        |
+| "which agent" OR "agent selection" OR "find agent"            | .claude/AGENT-DIRECTORY.md                            | Canonical agent locations                |
+| "test strategy" OR "test agent" OR "which test"               | .claude/docs/TEST-STRATEGY.md                         | Test agent routing guide                 |
 | "error" OR "debug" OR "troubleshoot"                          | SIDECAR_GUIDE.md                                      | Platform issues                          |
 | "module not found" OR "typescript" OR "path"                  | SIDECAR_GUIDE.md                                      | TS/module resolution                     |
 
@@ -205,6 +209,9 @@ Q6: Is the document >24h old AND contains execution claims?
 | /fix-auto            | Auto-fix lint/format/tests    | Quick cleanup                       |
 | /deploy-check        | Pre-deployment validation     | Before production                   |
 | /workflows           | Interactive tool helper       | Finding the right tool              |
+| /log-change          | Guided CHANGELOG.md entry     | After features/fixes                |
+| /log-decision        | Guided ADR entry              | Architectural decisions             |
+| /pre-commit-check    | Quality validation            | Before committing                   |
 
 ---
 
