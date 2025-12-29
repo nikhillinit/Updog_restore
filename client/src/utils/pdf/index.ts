@@ -1,27 +1,31 @@
 /**
  * PDF Export Utilities - Press On Ventures
- * Phase 3A: Foundation - PDF generation infrastructure
+ * Phase 3B: PDF generation with @react-pdf/renderer
  *
  * This module provides PDF generation capabilities for LP-facing reports.
  *
  * Implementation Status:
  * - [x] Types and interfaces defined
  * - [x] Theme tokens exported
- * - [ ] @react-pdf/renderer integration (requires npm install)
- * - [ ] PdfDocument component
- * - [ ] PdfHeader component
- * - [ ] PdfFooter component
+ * - [x] @react-pdf/renderer integration
+ * - [x] PdfDocument component
+ * - [x] PdfHeader component
+ * - [x] PdfFooter component
+ * - [x] PdfTable component
+ * - [x] PdfMetricCard component
  *
- * Usage (after full implementation):
+ * Usage:
  * ```tsx
- * import { generatePdf, PdfDocument, pdfTheme } from '@/utils/pdf';
+ * import { generatePdf, PdfDocument, pdfTheme, downloadBlob } from '@/utils/pdf';
  *
- * const blob = await generatePdf(<TearSheetDocument data={fundData} />);
+ * const blob = await generatePdf(<TearSheetTemplate data={fundData} />);
  * downloadBlob(blob, 'tear-sheet.pdf');
  * ```
  */
 
+import { pdf } from '@react-pdf/renderer';
 import { brandTokens, colors, typography, pdf as pdfTokens } from '@/lib/brand-tokens';
+import { registerFonts } from './fonts';
 
 // =============================================================================
 // Types
@@ -35,26 +39,7 @@ export interface PdfMetadata {
   createdAt?: Date;
 }
 
-export interface PdfHeaderProps {
-  title?: string;
-  subtitle?: string;
-  showLogo?: boolean;
-  showDate?: boolean;
-}
-
-export interface PdfFooterProps {
-  showPageNumbers?: boolean;
-  showCopyright?: boolean;
-  customText?: string;
-  confidential?: boolean;
-}
-
-export interface PdfDocumentProps {
-  metadata: PdfMetadata;
-  header?: PdfHeaderProps;
-  footer?: PdfFooterProps;
-  children: React.ReactNode;
-}
+// PdfHeaderProps, PdfFooterProps, and PdfDocumentProps are re-exported from './components'
 
 export interface TearSheetData {
   companyName: string;
@@ -393,62 +378,33 @@ export function getCopyrightText(year = new Date().getFullYear()): string {
 }
 
 // =============================================================================
-// Placeholder Components (implement with @react-pdf/renderer)
-// =============================================================================
-
-/**
- * PDF Document wrapper component
- *
- * TODO: Implement with @react-pdf/renderer after npm install
- *
- * ```tsx
- * import { Document, Page } from '@react-pdf/renderer';
- *
- * export const PdfDocument: React.FC<PdfDocumentProps> = ({
- *   metadata,
- *   header,
- *   footer,
- *   children,
- * }) => (
- *   <Document
- *     title={metadata.title}
- *     author={metadata.author}
- *     subject={metadata.subject}
- *     keywords={metadata.keywords?.join(', ')}
- *   >
- *     <Page size="LETTER" style={pdfStyles.page}>
- *       {header && <PdfHeader {...header} />}
- *       <View style={{ flex: 1 }}>{children}</View>
- *       {footer && <PdfFooter {...footer} />}
- *     </Page>
- *   </Document>
- * );
- * ```
- */
-export const PDF_IMPLEMENTATION_PENDING = true;
-
-// =============================================================================
-// Export Helpers
+// PDF Generation
 // =============================================================================
 
 /**
  * Generate PDF blob from React PDF document
  *
- * TODO: Implement with @react-pdf/renderer
+ * @param document - React element using @react-pdf/renderer components
+ * @returns Promise<Blob> - PDF file as blob
  *
+ * @example
  * ```tsx
- * import { pdf } from '@react-pdf/renderer';
+ * import { generatePdf, downloadBlob } from '@/utils/pdf';
+ * import { TearSheetTemplate } from '@/utils/pdf/templates/TearSheetTemplate';
  *
- * export async function generatePdf(document: React.ReactElement): Promise<Blob> {
- *   return await pdf(document).toBlob();
- * }
+ * const handleExport = async () => {
+ *   const blob = await generatePdf(<TearSheetTemplate data={tearSheetData} />);
+ *   downloadBlob(blob, 'tear-sheet.pdf');
+ * };
  * ```
  */
-export async function generatePdf(_document: React.ReactElement): Promise<Blob> {
-  // Placeholder - implement with @react-pdf/renderer
-  throw new Error(
-    'PDF generation not yet implemented. Install @react-pdf/renderer: npm install @react-pdf/renderer'
-  );
+export async function generatePdf(document: React.ReactElement): Promise<Blob> {
+  // Ensure fonts are registered before generating PDF
+  registerFonts();
+
+  // Generate PDF blob
+  const blob = await pdf(document).toBlob();
+  return blob;
 }
 
 /**
@@ -467,3 +423,31 @@ export function downloadBlob(blob: Blob, filename: string): void {
 
 // Re-export brand tokens for convenience
 export { brandTokens, colors, typography };
+
+// Re-export PDF components
+export {
+  PdfDocument,
+  PdfHeader,
+  PdfFooter,
+  PdfTable,
+  PdfMetricCard,
+  type PdfDocumentProps,
+  type PdfHeaderProps,
+  type PdfFooterProps,
+  type PdfTableProps,
+  type PdfMetricCardProps,
+  type TableColumn,
+} from './components';
+
+// Re-export font utilities
+export { registerFonts, areFontsRegistered, PDF_FONTS } from './fonts';
+
+// Re-export chart export utilities
+export {
+  exportChartToImage,
+  exportChartsToImages,
+  useChartExport,
+  createChartPlaceholder,
+  type ChartExportOptions,
+  type ChartExportResult,
+} from './chart-export';
