@@ -16,8 +16,22 @@ import type {
   opsPolicySchema,
 } from './wizard-schemas';
 
+// Import canonical stage utilities
+import {
+  type CanonicalStage,
+  normalizeStage,
+  toCamelCaseStage,
+  STAGE_LABELS as CANONICAL_STAGE_LABELS,
+} from '@shared/schemas/stage';
+
+// Re-export canonical utilities
+export { normalizeStage, toCamelCaseStage, type CanonicalStage };
+
 /**
- * Stage Types
+ * Stage Types (camelCase format for wizard UI)
+ *
+ * @deprecated For new code, consider using CanonicalStage with toCamelCaseStage()
+ * for conversion. This maintains the legacy camelCase format for backward compatibility.
  */
 export type Stage = 'preSeed' | 'seed' | 'seriesA' | 'seriesB' | 'seriesC' | 'seriesD';
 
@@ -31,6 +45,9 @@ export const STAGE_LABEL: Record<Stage, string> = {
   seriesC: 'Series C',
   seriesD: 'Series D+',
 };
+
+// Re-export canonical labels for reference
+export { CANONICAL_STAGE_LABELS };
 
 /**
  * Inferred Types from Zod Schemas

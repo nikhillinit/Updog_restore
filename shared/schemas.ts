@@ -1,6 +1,31 @@
 import { z } from 'zod';
 import { nonNegative, bounded01 } from './schema-helpers';
 
+// Import canonical stage utilities for normalization
+import {
+  CanonicalStageSchema,
+  normalizeStage,
+  normalizeStageOrUndefined,
+  isValidStage,
+  STAGE_LABELS,
+  type CanonicalStage,
+} from './schemas/stage';
+
+// Re-export canonical utilities for consumers
+export {
+  CanonicalStageSchema,
+  normalizeStage,
+  normalizeStageOrUndefined,
+  isValidStage,
+  STAGE_LABELS,
+  type CanonicalStage,
+};
+
+/**
+ * @deprecated Use CanonicalStageSchema from './schemas/stage' for new code.
+ * This legacy schema uses no-separator format for backward compatibility.
+ * Use normalizeStage() to convert to canonical format.
+ */
 export const StageSchema = z.enum(['preseed', 'seed', 'series_a', 'series_b', 'series_c', 'series_dplus']);
 export const Dollars = nonNegative().finite();
 export const Percent = bounded01();

@@ -3,8 +3,21 @@
  * These types provide a single source of truth for data flowing through the engine
  */
 
-// Re-export the stage type from shared schemas
+// Import canonical stage types from shared schemas
+import type { CanonicalStage } from '@shared/schemas/stage';
+import { normalizeStage, toNoSeparatorStage } from '@shared/schemas/stage';
+
+// Re-export canonical utilities
+export { normalizeStage, toNoSeparatorStage };
+
+/**
+ * @deprecated Use CanonicalStage from '@shared/schemas/stage' for new code.
+ * This type alias maintains backward compatibility with existing no-separator format.
+ */
 export type Stage = 'preseed' | 'seed' | 'series_a' | 'series_b' | 'series_c' | 'series_dplus';
+
+// Export canonical type for new code
+export type { CanonicalStage };
 
 // Engine input types that match what ConstrainedReserveEngine expects
 export interface EngineCompany {
