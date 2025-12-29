@@ -246,3 +246,104 @@ VALIDATION RESULTS:
 | `tests/unit/engines/graduation-rate-engine.test.ts` | 331 | Graduation tests |
 | `tests/unit/engines/moic-calculator.test.ts` | 478 | MOIC tests |
 | `docs/plans/2025-12-29-phase2-planning.md` | 377 | Planning doc |
+
+---
+
+## Appendix B: Relevant Skills and Agents for Phase 2
+
+Based on review of `CAPABILITIES.md` and `.claude/` directory, these are the specialized tools available for Phase 2 implementation.
+
+### Primary Agents (Use via Task tool)
+
+| Agent | Purpose | When to Use |
+|-------|---------|-------------|
+| **phoenix-probabilistic-engineer** | Phase 2 owner - graduation, MOIC, Monte Carlo | Tasks 2.4-2.7 implementation |
+| **phoenix-reserves-optimizer** | Reserve allocation, "next dollar" decisions | Task 2.4 (Reserve Ranking) |
+| **phoenix-precision-guardian** | Numeric precision, Decimal.js enforcement | If precision drift detected |
+| **phoenix-truth-case-runner** | Run deterministic truth suite | Gate checks before Phase 2 work |
+| **waterfall-specialist** | Waterfall/carry calculations | If waterfall issues arise |
+
+### Primary Skills (Auto-activate or use via Skill tool)
+
+| Skill | Purpose | Activation |
+|-------|---------|------------|
+| **phoenix-advanced-forecasting** | Architecture for graduation, MOIC, MC | Auto-activates on Phase 2 engines |
+| **phoenix-reserves-optimizer** | Reserve sizing and allocation patterns | Auto-activates on reserve code |
+| **statistical-testing** | Monte Carlo validation, seeded testing | Auto-activates on simulation code |
+| **financial-calc-correctness** | Excel parity, tolerance norms | Auto-activates on financial calcs |
+| **test-fixture-generator** | Factory functions, golden datasets | When creating test data |
+
+### Commands
+
+| Command | Purpose | When to Use |
+|---------|---------|-------------|
+| `/phoenix-phase2` | Full Phase 2 workflow with gate check | Start of each Phase 2 task |
+| `/phoenix-truth` | Run deterministic truth suite | Before/after each implementation |
+| `/phoenix-prob-report` | Format Monte Carlo distribution table | After Task 2.5 (MC Orchestrator) |
+| `/test-smart` | Intelligent test selection | Quick validation |
+| `/fix-auto` | Automated lint/format/test fixes | After implementation |
+
+### Recommended Workflow for Remaining Tasks
+
+**Task 2.4 (Reserve Ranking):**
+```bash
+# 1. Gate check
+/phoenix-truth
+
+# 2. Launch specialist agent
+Task("phoenix-reserves-optimizer", "Validate reserve ranking respects budget constraints")
+
+# 3. Run tests
+/test-smart
+```
+
+**Task 2.5 (Monte Carlo Orchestrator):**
+```bash
+# 1. Gate check
+/phoenix-truth
+
+# 2. Launch probabilistic engineer
+Task("phoenix-probabilistic-engineer", "Implement Monte Carlo orchestrator with Phase 1 engine injection")
+
+# 3. Validate with Phase 2 workflow
+/phoenix-phase2 focus=monte-carlo seed=42 iters=200
+```
+
+**Task 2.6 (Expectation Mode):**
+```bash
+# Use statistical-testing skill for validation patterns
+Skill("statistical-testing")
+
+# Launch agent for implementation
+Task("phoenix-probabilistic-engineer", "Validate Expectation Mode convergence")
+```
+
+**Task 2.7 (Distribution Sanity):**
+```bash
+# Full Phase 2 validation
+/phoenix-phase2 focus=all seed=42 iters=2000
+
+# Generate PR-ready summary
+/phoenix-prob-report
+```
+
+### Skill Auto-Activation Patterns
+
+These skills automatically load when editing specific files:
+
+| Files Being Edited | Skill That Auto-Activates |
+|-------------------|---------------------------|
+| `client/src/core/graduation/*` | phoenix-advanced-forecasting |
+| `client/src/core/moic/*` | phoenix-advanced-forecasting |
+| `client/src/core/reserves/*` | phoenix-reserves-optimizer |
+| `server/services/monte-carlo*` | statistical-testing |
+| `*.truth-cases.json` | phoenix-truth-case-orchestrator |
+
+### Memory-Enabled Agents
+
+All Phoenix agents have cross-session memory enabled:
+
+- `agent:phoenix-probabilistic-engineer` - Learns probabilistic patterns
+- `agent:phoenix-reserves-optimizer` - Remembers reserve optimization strategies
+- `agent:phoenix-precision-guardian` - Tracks precision violations
+- `agent:phoenix-truth-case-runner` - Learns truth case patterns
