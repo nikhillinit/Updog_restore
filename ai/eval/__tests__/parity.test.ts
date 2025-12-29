@@ -59,9 +59,9 @@ function calculateXIRR(cashFlows: CashFlow[]): Decimal {
   const dates = cashFlows.map(cf => new Date(cf.period_date).getTime());
   const baseDate = dates[0];
 
-  // Days from base date (Actual/365)
+  // Days from base date (Actual/365.25 to match Excel XIRR behavior)
   const days = dates.map(d => (d - baseDate) / (1000 * 60 * 60 * 24));
-  const years = days.map(d => new Decimal(d).div(365));
+  const years = days.map(d => new Decimal(d).div(365.25));
 
   // Newton-Raphson: find rate where NPV = 0
   let rate = new Decimal(0.1); // Initial guess
