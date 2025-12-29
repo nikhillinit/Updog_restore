@@ -27,4 +27,4 @@ GitHub Actions will:
 
 Timeline: 5-10 minutes
 
-See: .github/workflows/deploy-staging.yml
+See: .github/workflows/archive/deploy-staging.yml (archived 2025-12-29)
