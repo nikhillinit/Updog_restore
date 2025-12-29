@@ -13,8 +13,7 @@
 import type { Request, Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
-import { query, transaction } from '../db';
-import type { PoolClient } from 'pg';
+import { query, transaction, type PoolClient } from '../db/index';
 import { dollarsToCents, centsToDollars } from '@shared/units';
 
 const router = Router();
@@ -112,9 +111,7 @@ interface ReallocationCommitResponse {
 /**
  * Fetch current allocations for a fund
  */
-async function fetchCurrentAllocations(
-  fundId: number
-): Promise<CompanyAllocation[]> {
+async function fetchCurrentAllocations(fundId: number): Promise<CompanyAllocation[]> {
   const result = await query<CompanyAllocation>(
     `SELECT
        id as company_id,
@@ -138,16 +135,17 @@ function calculateDeltas(
   current: CompanyAllocation[],
   proposed: ProposedAllocation[]
 ): AllocationDelta[] {
-  const proposedMap = new Map(
-    proposed.map(p => [p.company_id, p.planned_reserves_cents])
-  );
+  const proposedMap = new Map(proposed.map((p) => [p.company_id, p.planned_reserves_cents]));
 
-  return current.map(curr => {
+  return current.map((curr) => {
     const to_cents = proposedMap.get(curr.company_id) ?? curr.planned_reserves_cents;
     const delta_cents = to_cents - curr.planned_reserves_cents;
-    const delta_pct = curr.planned_reserves_cents === 0
-      ? (to_cents > 0 ? 100 : 0)
-      : (delta_cents / curr.planned_reserves_cents) * 100;
+    const delta_pct =
+      curr.planned_reserves_cents === 0
+        ? to_cents > 0
+          ? 100
+          : 0
+        : (delta_cents / curr.planned_reserves_cents) * 100;
 
     let status: 'increased' | 'decreased' | 'unchanged';
     if (delta_cents > 0) status = 'increased';
@@ -179,8 +177,8 @@ function detectWarnings(
   const errors: string[] = [];
 
   // Build maps for efficient lookup
-  const currentMap = new Map(current.map(c => [c.company_id, c]));
-  const _proposedMap = new Map(proposed.map(p => [p.company_id, p]));
+  const currentMap = new Map(current.map((c) => [c.company_id, c]));
+  const _proposedMap = new Map(proposed.map((p) => [p.company_id, p]));
 
   // Check 1: Cap exceeded (blocking error)
   for (const prop of proposed) {
@@ -262,7 +260,9 @@ async function verifyVersionConsistency(
     [fundId]
   );
 
-  const actualVersions = result.rows.map((r: { allocation_version: number }) => r.allocation_version);
+  const actualVersions = result.rows.map(
+    (r: { allocation_version: number }) => r.allocation_version
+  );
   const consistent = actualVersions.length === 1 && actualVersions[0] === expectedVersion;
 
   return { consistent, actualVersions };
@@ -272,17 +272,15 @@ async function verifyVersionConsistency(
  * Get fund size for validation
  */
 async function getFundSize(fundId: number): Promise<number> {
-  const result = await query<{ size: string }>(
-    `SELECT size FROM funds WHERE id = $1`,
-    [fundId]
-  );
+  const result = await query<{ size: string }>(`SELECT size FROM funds WHERE id = $1`, [fundId]);
 
-  if (result.rows.length === 0) {
+  const fundRow = result.rows[0];
+  if (!fundRow) {
     throw new Error(`Fund ${fundId} not found`);
   }
 
   // Convert from decimal string to cents
-  return dollarsToCents(parseFloat(result.rows[0].size));
+  return dollarsToCents(parseFloat(fundRow.size));
 }
 
 // ============================================================================
@@ -301,93 +299,90 @@ async function getFundSize(fundId: number): Promise<number> {
  *
  * @returns ReallocationPreviewResponse with deltas, warnings, and validation
  */
-router["post"](
-  '/api/funds/:fundId/reallocation/preview',
-  async (req: Request, res: Response) => {
-    try {
-      const fundId = parseInt(req.params.fundId, 10);
-      if (isNaN(fundId) || fundId <= 0) {
-        return res["status"](400)["json"]({ error: 'Invalid fund ID' });
-      }
+router['post']('/api/funds/:fundId/reallocation/preview', async (req: Request, res: Response) => {
+  try {
+    const fundId = parseInt(req.params.fundId, 10);
+    if (isNaN(fundId) || fundId <= 0) {
+      return res['status'](400)['json']({ error: 'Invalid fund ID' });
+    }
 
-      // Validate request body
-      const parseResult = ReallocationPreviewRequestSchema.safeParse(req.body);
-      if (!parseResult.success) {
-        return res["status"](400)["json"]({
-          error: 'Invalid request body',
-          details: parseResult.error.format(),
-        });
-      }
-
-      const { current_version, proposed_allocations } = parseResult.data;
-
-      // Fetch current allocations
-      const currentAllocations = await fetchCurrentAllocations(fundId);
-      if (currentAllocations.length === 0) {
-        return res["status"](404)["json"]({ error: 'Fund has no portfolio companies' });
-      }
-
-      // Verify version consistency
-      const { consistent, actualVersions } = await verifyVersionConsistency(
-        fundId,
-        current_version
-      );
-      if (!consistent) {
-        return res["status"](409)["json"]({
-          error: 'Version conflict',
-          message: `Expected version ${current_version}, but found ${actualVersions.join(', ')}`,
-          current_versions: actualVersions,
-        });
-      }
-
-      // Get fund size for validation
-      const fundSize = await getFundSize(fundId);
-
-      // Calculate deltas
-      const deltas = calculateDeltas(currentAllocations, proposed_allocations);
-
-      // Calculate totals
-      const total_allocated_before = deltas.reduce((sum, d) => sum + d.from_cents, 0);
-      const total_allocated_after = deltas.reduce((sum, d) => sum + d.to_cents, 0);
-      const delta_cents = total_allocated_after - total_allocated_before;
-      const delta_pct = total_allocated_before === 0
-        ? (total_allocated_after > 0 ? 100 : 0)
-        : (delta_cents / total_allocated_before) * 100;
-
-      // Detect warnings and errors
-      const { warnings, errors } = detectWarnings(
-        deltas,
-        currentAllocations,
-        proposed_allocations,
-        fundSize
-      );
-
-      // Build response
-      const response: ReallocationPreviewResponse = {
-        deltas,
-        totals: {
-          total_allocated_before,
-          total_allocated_after,
-          delta_cents,
-          delta_pct,
-        },
-        warnings,
-        validation: {
-          is_valid: errors.length === 0,
-          errors,
-        },
-      };
-
-      return res["status"](200)["json"](response);
-    } catch (error) {
-      console.error('[Reallocation Preview] Error:', error);
-      return res["status"](500)["json"]({
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
+    // Validate request body
+    const parseResult = ReallocationPreviewRequestSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res['status'](400)['json']({
+        error: 'Invalid request body',
+        details: parseResult.error.format(),
       });
     }
+
+    const { current_version, proposed_allocations } = parseResult.data;
+
+    // Fetch current allocations
+    const currentAllocations = await fetchCurrentAllocations(fundId);
+    if (currentAllocations.length === 0) {
+      return res['status'](404)['json']({ error: 'Fund has no portfolio companies' });
+    }
+
+    // Verify version consistency
+    const { consistent, actualVersions } = await verifyVersionConsistency(fundId, current_version);
+    if (!consistent) {
+      return res['status'](409)['json']({
+        error: 'Version conflict',
+        message: `Expected version ${current_version}, but found ${actualVersions.join(', ')}`,
+        current_versions: actualVersions,
+      });
+    }
+
+    // Get fund size for validation
+    const fundSize = await getFundSize(fundId);
+
+    // Calculate deltas
+    const deltas = calculateDeltas(currentAllocations, proposed_allocations);
+
+    // Calculate totals
+    const total_allocated_before = deltas.reduce((sum, d) => sum + d.from_cents, 0);
+    const total_allocated_after = deltas.reduce((sum, d) => sum + d.to_cents, 0);
+    const delta_cents = total_allocated_after - total_allocated_before;
+    const delta_pct =
+      total_allocated_before === 0
+        ? total_allocated_after > 0
+          ? 100
+          : 0
+        : (delta_cents / total_allocated_before) * 100;
+
+    // Detect warnings and errors
+    const { warnings, errors } = detectWarnings(
+      deltas,
+      currentAllocations,
+      proposed_allocations,
+      fundSize
+    );
+
+    // Build response
+    const response: ReallocationPreviewResponse = {
+      deltas,
+      totals: {
+        total_allocated_before,
+        total_allocated_after,
+        delta_cents,
+        delta_pct,
+      },
+      warnings,
+      validation: {
+        is_valid: errors.length === 0,
+        errors,
+      },
+    };
+
+    return res['status'](200)['json'](response);
+  } catch (error) {
+    console.error('[Reallocation Preview] Error:', error);
+    return res['status'](500)['json']({
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
-);
+});
 
 /**
  * POST /api/funds/:fundId/reallocation/commit
@@ -403,51 +398,53 @@ router["post"](
  *
  * @returns ReallocationCommitResponse with success status, new version, and audit ID
  */
-router["post"](
-  '/api/funds/:fundId/reallocation/commit',
-  async (req: Request, res: Response) => {
-    try {
-      const fundId = parseInt(req.params.fundId, 10);
-      if (isNaN(fundId) || fundId <= 0) {
-        return res["status"](400)["json"]({ error: 'Invalid fund ID' });
-      }
+router['post']('/api/funds/:fundId/reallocation/commit', async (req: Request, res: Response) => {
+  try {
+    const fundId = parseInt(req.params.fundId, 10);
+    if (isNaN(fundId) || fundId <= 0) {
+      return res['status'](400)['json']({ error: 'Invalid fund ID' });
+    }
 
-      // Validate request body
-      const parseResult = ReallocationCommitRequestSchema.safeParse(req.body);
-      if (!parseResult.success) {
-        return res["status"](400)["json"]({
-          error: 'Invalid request body',
-          details: parseResult.error.format(),
-        });
-      }
+    // Validate request body
+    const parseResult = ReallocationCommitRequestSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res['status'](400)['json']({
+        error: 'Invalid request body',
+        details: parseResult.error.format(),
+      });
+    }
 
-      const { current_version, proposed_allocations, reason, user_id } = parseResult.data;
+    const { current_version, proposed_allocations, reason, user_id } = parseResult.data;
 
-      // Execute transaction
-      const result = await transaction(async (client: PoolClient) => {
-        // Step 1: Verify version and lock rows
-        const versionCheck = await client.query<{ allocation_version: number }>(
-          `SELECT allocation_version
+    // Execute transaction
+    const result = await transaction(async (client: PoolClient) => {
+      // Step 1: Verify version and lock rows
+      const versionCheck = await client.query<{ allocation_version: number }>(
+        `SELECT allocation_version
            FROM portfoliocompanies
            WHERE fund_id = $1
            FOR UPDATE`,
-          [fundId]
+        [fundId]
+      );
+
+      if (versionCheck.rows.length === 0) {
+        throw new Error('Fund has no portfolio companies');
+      }
+
+      const actualVersions = [
+        ...new Set(
+          versionCheck.rows.map((r: { allocation_version: number }) => r.allocation_version)
+        ),
+      ];
+      if (actualVersions.length !== 1 || actualVersions[0] !== current_version) {
+        throw new Error(
+          `Version conflict: expected ${current_version}, found ${actualVersions.join(', ')}`
         );
+      }
 
-        if (versionCheck.rows.length === 0) {
-          throw new Error('Fund has no portfolio companies');
-        }
-
-        const actualVersions = [...new Set(versionCheck.rows.map((r: { allocation_version: number }) => r.allocation_version))];
-        if (actualVersions.length !== 1 || actualVersions[0] !== current_version) {
-          throw new Error(
-            `Version conflict: expected ${current_version}, found ${actualVersions.join(', ')}`
-          );
-        }
-
-        // Step 2: Fetch current allocations for audit
-        const currentResult = await client.query<CompanyAllocation>(
-          `SELECT
+      // Step 2: Fetch current allocations for audit
+      const currentResult = await client.query<CompanyAllocation>(
+        `SELECT
              id as company_id,
              name as company_name,
              planned_reserves_cents,
@@ -457,69 +454,71 @@ router["post"](
            FROM portfoliocompanies
            WHERE fund_id = $1
            ORDER BY id`,
-          [fundId]
-        );
+        [fundId]
+      );
 
-        const currentAllocations = currentResult.rows;
-        const fundSize = await getFundSize(fundId);
+      const currentAllocations = currentResult.rows;
+      const fundSize = await getFundSize(fundId);
 
-        // Step 3: Calculate deltas and validate
-        const deltas = calculateDeltas(currentAllocations, proposed_allocations);
-        const { warnings: _warnings, errors } = detectWarnings(
-          deltas,
-          currentAllocations,
-          proposed_allocations,
-          fundSize
-        );
+      // Step 3: Calculate deltas and validate
+      const deltas = calculateDeltas(currentAllocations, proposed_allocations);
+      const { warnings: _warnings, errors } = detectWarnings(
+        deltas,
+        currentAllocations,
+        proposed_allocations,
+        fundSize
+      );
 
-        // Step 4: Block commit if validation errors exist
-        if (errors.length > 0) {
-          throw new Error(`Validation failed: ${errors.join('; ')}`);
-        }
+      // Step 4: Block commit if validation errors exist
+      if (errors.length > 0) {
+        throw new Error(`Validation failed: ${errors.join('; ')}`);
+      }
 
-        // Step 5: Build batch update query using CASE statements
-        if (proposed_allocations.length === 0) {
-          throw new Error('No allocations to update');
-        }
+      // Step 5: Build batch update query using CASE statements
+      if (proposed_allocations.length === 0) {
+        throw new Error('No allocations to update');
+      }
 
-        // Build parameter array and CASE statements
-        const companyIds = proposed_allocations.map((p) => p.company_id);
-        const params: (number | null)[] = [fundId]; // $1
+      // Build parameter array and CASE statements
+      const companyIds = proposed_allocations.map((p) => p.company_id);
+      const params: (number | null)[] = [fundId]; // $1
 
-        // Build CASE WHEN for planned_reserves_cents
-        const plannedCases = proposed_allocations
-          .map((prop, _idx) => {
-            params.push(prop.company_id); // company_id
-            params.push(prop.planned_reserves_cents); // planned_reserves_cents
-            return `WHEN $${params.length - 1} THEN $${params.length}::BIGINT`;
+      // Build CASE WHEN for planned_reserves_cents
+      const plannedCases = proposed_allocations
+        .map((prop, _idx) => {
+          params.push(prop.company_id); // company_id
+          params.push(prop.planned_reserves_cents); // planned_reserves_cents
+          return `WHEN $${params.length - 1} THEN $${params.length}::BIGINT`;
+        })
+        .join(' ');
+
+      // Build CASE WHEN for allocation_cap_cents (only if provided)
+      const hasCapUpdates = proposed_allocations.some((p) => p.allocation_cap_cents !== undefined);
+      let capCases = '';
+      if (hasCapUpdates) {
+        capCases = proposed_allocations
+          .map((prop) => {
+            if (prop.allocation_cap_cents !== undefined) {
+              const companyIdIdx = params.indexOf(prop.company_id);
+              params.push(prop.allocation_cap_cents);
+              return `WHEN $${companyIdIdx} THEN $${params.length}::BIGINT`;
+            }
+            return '';
           })
+          .filter(Boolean)
           .join(' ');
+      }
 
-        // Build CASE WHEN for allocation_cap_cents (only if provided)
-        const hasCapUpdates = proposed_allocations.some((p) => p.allocation_cap_cents !== undefined);
-        let capCases = '';
-        if (hasCapUpdates) {
-          capCases = proposed_allocations
-            .map((prop) => {
-              if (prop.allocation_cap_cents !== undefined) {
-                const companyIdIdx = params.indexOf(prop.company_id);
-                params.push(prop.allocation_cap_cents);
-                return `WHEN $${companyIdIdx} THEN $${params.length}::BIGINT`;
-              }
-              return '';
-            })
-            .filter(Boolean)
-            .join(' ');
-        }
-
-        // Add company IDs to params
-        const companyIdPlaceholders = companyIds.map((id) => {
+      // Add company IDs to params
+      const companyIdPlaceholders = companyIds
+        .map((id) => {
           params.push(id);
           return `$${params.length}`;
-        }).join(',');
+        })
+        .join(',');
 
-        // Construct UPDATE query
-        const updateQuery = `
+      // Construct UPDATE query
+      const updateQuery = `
           UPDATE portfoliocompanies
           SET
             planned_reserves_cents = CASE id ${plannedCases} ELSE planned_reserves_cents END,
@@ -529,21 +528,21 @@ router["post"](
           WHERE fund_id = $1 AND id IN (${companyIdPlaceholders})
         `;
 
-        // Execute batch update
-        const updateResult = await client.query(updateQuery, params);
+      // Execute batch update
+      const updateResult = await client.query(updateQuery, params);
 
-        // Step 6: Insert audit log
-        const newVersion = current_version + 1;
-        const changesJson = deltas.map((d) => ({
-          company_id: d.company_id,
-          company_name: d.company_name,
-          from_cents: d.from_cents,
-          to_cents: d.to_cents,
-          delta_cents: d.delta_cents,
-        }));
+      // Step 6: Insert audit log
+      const newVersion = current_version + 1;
+      const changesJson = deltas.map((d) => ({
+        company_id: d.company_id,
+        company_name: d.company_name,
+        from_cents: d.from_cents,
+        to_cents: d.to_cents,
+        delta_cents: d.delta_cents,
+      }));
 
-        const auditResult = await client.query<{ id: string }>(
-          `INSERT INTO reallocation_audit (
+      const auditResult = await client.query<{ id: string }>(
+        `INSERT INTO reallocation_audit (
              fund_id,
              user_id,
              baseline_version,
@@ -552,63 +551,62 @@ router["post"](
              reason
            ) VALUES ($1, $2, $3, $4, $5, $6)
            RETURNING id`,
-          [
-            fundId,
-            user_id ?? null,
-            current_version,
-            newVersion,
-            JSON.stringify(changesJson),
-            reason ?? null,
-          ]
-        );
+        [
+          fundId,
+          user_id ?? null,
+          current_version,
+          newVersion,
+          JSON.stringify(changesJson),
+          reason ?? null,
+        ]
+      );
 
-        const auditRow = auditResult.rows[0];
-        if (!auditRow) {
-          throw new Error('Failed to create audit record');
-        }
+      const auditRow = auditResult.rows[0];
+      if (!auditRow) {
+        throw new Error('Failed to create audit record');
+      }
 
-        return {
-          new_version: newVersion,
-          updated_count: updateResult.rowCount ?? 0,
-          audit_id: auditRow.id,
-        };
-      });
-
-      // Build response
-      const response: ReallocationCommitResponse = {
-        success: true,
-        new_version: result.new_version,
-        updated_count: result.updated_count,
-        audit_id: result.audit_id,
-        timestamp: new Date().toISOString(),
+      return {
+        new_version: newVersion,
+        updated_count: updateResult.rowCount ?? 0,
+        audit_id: auditRow.id,
       };
+    });
 
-      return res["status"](200)["json"](response);
-    } catch (error) {
-      console.error('[Reallocation Commit] Error:', error);
+    // Build response
+    const response: ReallocationCommitResponse = {
+      success: true,
+      new_version: result.new_version,
+      updated_count: result.updated_count,
+      audit_id: result.audit_id,
+      timestamp: new Date().toISOString(),
+    };
 
-      // Check for version conflict
-      if (error instanceof Error && error.message.includes('Version conflict')) {
-        return res["status"](409)["json"]({
-          error: 'Version conflict',
-          message: error.message,
-        });
-      }
+    return res['status'](200)['json'](response);
+  } catch (error) {
+    console.error('[Reallocation Commit] Error:', error);
 
-      // Check for validation errors
-      if (error instanceof Error && error.message.includes('Validation failed')) {
-        return res["status"](400)["json"]({
-          error: 'Validation failed',
-          message: error.message,
-        });
-      }
-
-      return res["status"](500)["json"]({
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
+    // Check for version conflict
+    if (error instanceof Error && error.message.includes('Version conflict')) {
+      return res['status'](409)['json']({
+        error: 'Version conflict',
+        message: error.message,
       });
     }
+
+    // Check for validation errors
+    if (error instanceof Error && error.message.includes('Validation failed')) {
+      return res['status'](400)['json']({
+        error: 'Validation failed',
+        message: error.message,
+      });
+    }
+
+    return res['status'](500)['json']({
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
-);
+});
 
 export default router;

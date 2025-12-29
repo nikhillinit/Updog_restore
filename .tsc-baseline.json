@@ -71,7 +71,7 @@
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
       "total": 66,
-      "lastUpdated": "2025-12-29T01:10:16.629Z"
+      "lastUpdated": "2025-12-29T01:38:42.490Z"
     },
     "server": {
       "errors": [
@@ -176,7 +176,6 @@
         "server/routes.ts:TS4111:4c31ad00",
         "server/routes.ts:TS4111:5445747f",
         "server/routes.ts:TS4111:63452232",
-        "server/routes.ts:TS4111:8c7bb0e7",
         "server/routes.ts:TS4111:c9080835",
         "server/routes.ts:TS4111:eddb1ec9",
         "server/routes.ts:TS4111:f8f409fe",
@@ -229,7 +228,6 @@
         "server/routes/portfolio/snapshots.ts:TS2379:012c2f11",
         "server/routes/portfolio/snapshots.ts:TS2379:7b87e481",
         "server/routes/portfolio/snapshots.ts:TS2379:e8e89d82",
-        "server/routes/reallocation.ts:TS2305:b47b65d8",
         "server/routes/reallocation.ts:TS2345:9b084339",
         "server/routes/reallocation.ts:TS4111:9b084339",
         "server/routes/scenario-analysis.ts:TS2304:0bc61cb1",
@@ -487,26 +485,22 @@
         "server/websocket/portfolio-metrics.ts:TS18046:57a6b43d",
         "server/websocket/portfolio-metrics.ts:TS2339:24482a7c"
       ],
-      "total": 411,
-      "lastUpdated": "2025-12-29T01:10:16.629Z"
+      "total": 409,
+      "lastUpdated": "2025-12-29T01:38:42.490Z"
     },
     "shared": {
-      "errors": [
-        "shared/schemas/parse-stage-distribution.ts:TS2345:1bd7167e"
-      ],
+      "errors": ["shared/schemas/parse-stage-distribution.ts:TS2345:1bd7167e"],
       "total": 1,
-      "lastUpdated": "2025-12-29T01:10:16.629Z"
+      "lastUpdated": "2025-12-29T01:38:42.490Z"
     },
     "unknown": {
-      "errors": [
-        "vite.config.ts:TS7006:118fabe7"
-      ],
+      "errors": ["vite.config.ts:TS7006:118fabe7"],
       "total": 1,
-      "lastUpdated": "2025-12-29T01:10:16.629Z"
+      "lastUpdated": "2025-12-29T01:38:42.490Z"
     }
   },
-  "totalErrors": 479,
-  "timestamp": "2025-12-29T01:10:16.629Z",
+  "totalErrors": 477,
+  "timestamp": "2025-12-29T01:38:42.490Z",
   "buildMode": "per-project",
-  "elapsedMs": 19503
+  "elapsedMs": 20571
 }
