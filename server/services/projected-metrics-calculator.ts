@@ -15,8 +15,14 @@
 
 import type { ProjectedMetrics } from '@shared/types/metrics';
 import type { Fund, PortfolioCompany } from '@shared/schema';
+// TODO: Issue #309 - Move core engines to shared package
+// These engines contain deterministic calculation logic used by both client and server
+// For now, import from client (ESLint boundary violation - tracked for refactoring)
+// eslint-disable-next-line no-restricted-imports
 import { generateReserveSummary } from '../../client/src/core/reserves/ReserveEngine.js';
+// eslint-disable-next-line no-restricted-imports
 import { generatePacingSummary } from '../../client/src/core/pacing/PacingEngine.js';
+// eslint-disable-next-line no-restricted-imports
 import { generateCohortSummary } from '../../client/src/core/cohorts/CohortEngine.js';
 import type { ReserveInput, PacingInput, CohortInput } from '@shared/types';
 import { ConstructionForecastCalculator } from './construction-forecast-calculator';

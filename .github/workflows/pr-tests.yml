@@ -41,7 +41,8 @@ jobs:
         run: |
           mkdir -p reports
           # Run with JSON reporter for machine-readable output
-          npx vitest -c vitest.config.unit.ts run --reporter=json > reports/vitest-results.json || true
+          # Uses default vitest.config.ts which has test.projects for server and client
+          npx vitest run --reporter=json > reports/vitest-results.json || true
           echo "vitest_exit=$?" >> $GITHUB_OUTPUT
         env:
           CI: true
