@@ -110,6 +110,10 @@ Pattern matching uses OR logic: any match triggers the route.
 | "log decision" OR "adr entry" OR "architectural decision"     | /log-decision command                                 | Guided ADR entry for DECISIONS.md        |
 | "which agent" OR "agent selection" OR "find agent"            | .claude/AGENT-DIRECTORY.md                            | Canonical agent locations                |
 | "test strategy" OR "test agent" OR "which test"               | .claude/docs/TEST-STRATEGY.md                         | Test agent routing guide                 |
+| "react performance" OR "re-render" OR "useMemo" OR "useCallback" | react-performance-optimization skill               | Memoization, code splitting              |
+| "async error" OR "retry" OR "circuit breaker" OR "resilience" | async-error-resilience skill                          | BullMQ patterns, graceful degradation    |
+| "phoenix workflow" OR "which phoenix skill"                   | phoenix-workflow-orchestrator skill                   | Phoenix skill routing master             |
+| "schema evolution" OR "drizzle migration" OR "db:push"        | database-schema-evolution skill                       | Zero-downtime migrations                 |
 | "error" OR "debug" OR "troubleshoot"                          | SIDECAR_GUIDE.md                                      | Platform issues                          |
 | "module not found" OR "typescript" OR "path"                  | SIDECAR_GUIDE.md                                      | TS/module resolution                     |
 
