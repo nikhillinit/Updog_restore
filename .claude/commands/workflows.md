@@ -6,7 +6,7 @@ description: Interactive helper showing available tools and when to use them
 
 Interactive guide to available commands, agents, and when to use them.
 
-## 🛠️ Available Commands
+## Available Commands
 
 ### `/test-smart`
 **When to use:** After making code changes, before committing
@@ -27,7 +27,7 @@ Interactive guide to available commands, agents, and when to use them.
 **When to use:** Need help choosing which tool to use
 **What it does:** Shows this interactive guide
 
-## 🤖 Available Agents
+## Available Agents
 
 ### `waterfall-specialist`
 **When to use:** Editing waterfall calculation logic or related UI
@@ -51,7 +51,7 @@ Interactive guide to available commands, agents, and when to use them.
 **Example:** `Use db-migration agent before I push schema changes`
 **Files:** `shared/db/schema/*`
 
-## 📋 Decision Tree
+## Decision Tree
 
 ```
 ┌─ Made code changes?
@@ -77,7 +77,7 @@ Interactive guide to available commands, agents, and when to use them.
      └─→ /deploy-check (full validation)
 ```
 
-## 🗓️ Routine Workflows
+## Routine Workflows
 
 ### Daily Development
 ```
@@ -114,7 +114,7 @@ Interactive guide to available commands, agents, and when to use them.
 - [ ] perf-guard agent (bundle trend)
 ```
 
-## 🎯 Common Scenarios
+## Common Scenarios
 
 ### Scenario: "I'm adding a new feature"
 ```
@@ -151,7 +151,7 @@ Interactive guide to available commands, agents, and when to use them.
 5. All green? Safe to deploy!
 ```
 
-## 📚 Memory Management
+## Memory Management
 
 **CHANGELOG.md** (`/log-change`)
 - Every feature, bug fix, dependency update
@@ -167,14 +167,14 @@ Interactive guide to available commands, agents, and when to use them.
 - Complex workflows
 - Domain knowledge
 
-## 🔗 Quick Links
+## Quick Links
 
 - [CLAUDE.md](../CLAUDE.md) - Core architecture
 - [CHANGELOG.md](../../CHANGELOG.md) - Recent changes
 - [DECISIONS.md](../../DECISIONS.md) - Architectural decisions
 - [cheatsheets/](../../cheatsheets/) - Detailed guides
 
-## 💡 Tips
+## Tips
 
 - **Use agents proactively**: Don't wait for failures, invoke for validation
 - **Commands are fast**: /test-smart and /fix-auto save time
