@@ -1,3 +1,28 @@
+---
+status: ACTIVE
+audience: both
+last_updated: 2025-12-29
+owner: 'Platform Developer'
+review_cadence: P30D
+categories: [tech-debt, planning, architecture]
+keywords:
+  [
+    technical-debt,
+    remediation,
+    type-safety,
+    xirr,
+    schema-drift,
+    silent-failures,
+  ]
+agent_routing:
+  priority: 2
+  use_cases: [task_execution, capability_discovery]
+related_code:
+  - 'shared/types.ts'
+  - 'shared/schemas.ts'
+  - 'client/src/lib/finance/xirr.ts'
+---
+
 # Technical Debt Remediation Plan (v5 - Complete)
 
 **Generated:** 2025-12-29 **Branch:** `claude/identify-tech-debt-ucn56`
