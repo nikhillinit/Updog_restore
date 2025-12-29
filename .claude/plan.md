@@ -694,9 +694,10 @@ npm run check
 | XIRR consolidation analysis | ANALYZED | N/A |
 | **Dual requireAuth security fix** | DONE | `4ddad7a` |
 | **XIRR safe wrappers (UI crash prevention)** | DONE | `4ddad7a` |
-| **scenario-analysis.ts shadow auth fix** | DONE | pending |
-| **safeCalculateSimpleIRR logging** | DONE | pending |
-| **Duplicate normalizeStage removal** | DONE | pending |
+| **scenario-analysis.ts shadow auth fix** | DONE | `3c4a392` |
+| **safeCalculateSimpleIRR logging** | DONE | `3c4a392` |
+| **Duplicate normalizeStage removal** | DONE | `3c4a392` |
+| **Server XIRR silent failure (P0 BLOCKER)** | DONE | pending |
 
 ### Ultrathink Multi-Agent Deep Analysis (6 Parallel Agents)
 
@@ -750,12 +751,22 @@ The Codex review identified critical security issues that were immediately addre
 - P2 (Debt): 23 items
 - P3 (Nice-to-have): 63 items (DLQ stubs demoted)
 
+### Codex Evaluation (Final Pass)
+
+**Verdict:** CONDITIONAL PASS → **FULL PASS** (after BLOCKER fix)
+
+**BLOCKER-001 Fixed:** Server XIRR at `actual-metrics-calculator.ts` was returning `Decimal(0)` on calculation failure, causing LPs to see "0.00% IRR" instead of "N/A". Now correctly returns `null` with debug logging.
+
+**Scope Adjustment:** XIRR consolidation increased from 16h → 24h (22 files identified vs 6)
+
 ### Remaining
 
 | Item | Priority | Effort | Notes |
 |------|----------|--------|-------|
-| XIRR consolidation (migration) | P2 | 16h | Use finance/xirr.ts as canonical |
-| Type safety (any elimination) | P2 | 40h | 150+ files |
+| Reserve approval stubs (notifications) | P1 | 4h | `reserve-approvals.ts` - 4 TODOs blocking workflow |
+| LP report generation stubs | P1 | 4h | `lp-api.ts` - 2 TODOs blocking reports |
+| XIRR consolidation (migration) | P2 | 24h | 22 files (was 16h/6 files) |
+| Type safety (any elimination) | P2 | 40h | TOP 10 files: 26-33h high-impact |
 
 ---
 
