@@ -169,6 +169,16 @@ export class ActualMetricsCalculator {
   /**
    * XIRR (Extended Internal Rate of Return) calculation
    *
+   * @deprecated TODO: Migrate to shared XIRR implementation.
+   * The canonical implementation at 'client/src/lib/finance/xirr.ts' provides:
+   * - More robust 3-tier fallback (Newton -> Brent -> Bisection)
+   * - Proper null return on non-convergence (this version returns last estimate)
+   *
+   * Migration requires:
+   * 1. Create shared/lib/xirr.ts with canonical algorithm
+   * 2. Add Decimal.js precision mode support
+   * 3. Update both client and server imports
+   *
    * Uses Newton-Raphson method to find the rate that makes NPV = 0
    * Returns null when calculation cannot converge (insufficient data, divergence)
    */

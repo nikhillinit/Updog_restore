@@ -71,7 +71,7 @@
         "client/src/utils/async-iteration.ts:TS2345:b0efeb74"
       ],
       "total": 66,
-      "lastUpdated": "2025-12-29T07:38:57.873Z"
+      "lastUpdated": "2025-12-29T08:07:59.210Z"
     },
     "server": {
       "errors": [
@@ -322,44 +322,10 @@
         "server/services/metrics-aggregator.ts:TS2375:95c88681",
         "server/services/metrics-aggregator.ts:TS2375:b8e4267b",
         "server/services/metrics-aggregator.ts:TS2379:e307ca23",
-        "server/services/monte-carlo-engine.ts:TS18046:c5ee5336",
-        "server/services/monte-carlo-engine.ts:TS2322:61e3689c",
-        "server/services/monte-carlo-engine.ts:TS2532:f9b13494",
         "server/services/monte-carlo-service-unified.ts:TS18046:0c915c32",
         "server/services/monte-carlo-service-unified.ts:TS18046:56f33ec7",
         "server/services/monte-carlo-service-unified.ts:TS18046:860bff6a",
         "server/services/monte-carlo-service-unified.ts:TS18046:f7eacf3d",
-        "server/services/monte-carlo-simulation.ts:TS18048:073981b4",
-        "server/services/monte-carlo-simulation.ts:TS18048:61a11ae5",
-        "server/services/monte-carlo-simulation.ts:TS18048:62b398b1",
-        "server/services/monte-carlo-simulation.ts:TS18048:9985b418",
-        "server/services/monte-carlo-simulation.ts:TS18048:a8995121",
-        "server/services/monte-carlo-simulation.ts:TS18048:b755df06",
-        "server/services/monte-carlo-simulation.ts:TS18048:c115374d",
-        "server/services/monte-carlo-simulation.ts:TS2322:506af200",
-        "server/services/monte-carlo-simulation.ts:TS2322:8146bf3b",
-        "server/services/monte-carlo-simulation.ts:TS2322:9cca33a8",
-        "server/services/monte-carlo-simulation.ts:TS2322:bafcc0f1",
-        "server/services/monte-carlo-simulation.ts:TS2322:cf6209be",
-        "server/services/monte-carlo-simulation.ts:TS2322:d15dbd9f",
-        "server/services/monte-carlo-simulation.ts:TS2322:d1bc5d42",
-        "server/services/monte-carlo-simulation.ts:TS2322:dc11e5ea",
-        "server/services/monte-carlo-simulation.ts:TS2345:a9629b40",
-        "server/services/monte-carlo-simulation.ts:TS2532:17f03f75",
-        "server/services/monte-carlo-simulation.ts:TS2532:27a98d12",
-        "server/services/monte-carlo-simulation.ts:TS2532:7f522a6d",
-        "server/services/monte-carlo-simulation.ts:TS2532:8d4a765b",
-        "server/services/monte-carlo-simulation.ts:TS2532:9a2ea40a",
-        "server/services/monte-carlo-simulation.ts:TS2532:9c454740",
-        "server/services/monte-carlo-simulation.ts:TS2532:a7893777",
-        "server/services/monte-carlo-simulation.ts:TS2532:a9286efb",
-        "server/services/monte-carlo-simulation.ts:TS2532:b72b6a9d",
-        "server/services/monte-carlo-simulation.ts:TS2532:d7da2b80",
-        "server/services/monte-carlo-simulation.ts:TS4111:073981b4",
-        "server/services/monte-carlo-simulation.ts:TS4111:61a11ae5",
-        "server/services/monte-carlo-simulation.ts:TS4111:62b398b1",
-        "server/services/monte-carlo-simulation.ts:TS4111:a8995121",
-        "server/services/monte-carlo-simulation.ts:TS4111:c115374d",
         "server/services/notion-service.ts:TS18046:00762c98",
         "server/services/notion-service.ts:TS18046:0c36a7e7",
         "server/services/notion-service.ts:TS18046:a6b6e362",
@@ -478,26 +444,26 @@
         "server/websocket/portfolio-metrics.ts:TS18046:57a6b43d",
         "server/websocket/portfolio-metrics.ts:TS2339:24482a7c"
       ],
-      "total": 402,
-      "lastUpdated": "2025-12-29T07:38:57.873Z"
+      "total": 368,
+      "lastUpdated": "2025-12-29T08:07:59.210Z"
     },
     "shared": {
       "errors": [
         "shared/schemas/parse-stage-distribution.ts:TS2345:1bd7167e"
       ],
       "total": 1,
-      "lastUpdated": "2025-12-29T07:38:57.873Z"
+      "lastUpdated": "2025-12-29T08:07:59.210Z"
     },
     "unknown": {
       "errors": [
         "vite.config.ts:TS7006:118fabe7"
       ],
       "total": 1,
-      "lastUpdated": "2025-12-29T07:38:57.873Z"
+      "lastUpdated": "2025-12-29T08:07:59.210Z"
     }
   },
-  "totalErrors": 470,
-  "timestamp": "2025-12-29T07:38:57.873Z",
+  "totalErrors": 436,
+  "timestamp": "2025-12-29T08:07:59.210Z",
   "buildMode": "per-project",
-  "elapsedMs": 19686
+  "elapsedMs": 20670
 }
