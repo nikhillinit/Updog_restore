@@ -692,8 +692,26 @@ npm run check
 | XIRR parity test fix (365 → 365.25) | DONE | `fbe49d6` |
 | TODO/FIXME triage | ANALYZED | N/A |
 | XIRR consolidation analysis | ANALYZED | N/A |
-| **Dual requireAuth security fix** | DONE | pending |
-| **XIRR safe wrappers (UI crash prevention)** | DONE | pending |
+| **Dual requireAuth security fix** | DONE | `4ddad7a` |
+| **XIRR safe wrappers (UI crash prevention)** | DONE | `4ddad7a` |
+| **scenario-analysis.ts shadow auth fix** | DONE | pending |
+| **safeCalculateSimpleIRR logging** | DONE | pending |
+| **Duplicate normalizeStage removal** | DONE | pending |
+
+### Ultrathink Multi-Agent Deep Analysis (6 Parallel Agents)
+
+Executed comprehensive analysis using 6 specialized agents in parallel:
+
+| Agent | Key Finding | Action Taken |
+|-------|-------------|--------------|
+| **Type Design Analyzer** | 2,029 `any` usages across 416 files; TOP 10 files identified | Documented in roadmap |
+| **Parity Auditor** | XIRR 5-week consolidation roadmap; 70% code reduction possible | Created `docs/xirr-consolidation-roadmap.md` |
+| **Schema Drift Checker** | 9 DRIFT issues including duplicate `normalizeStage` | Fixed duplicate in reserves/types.ts |
+| **Silent Failure Hunter** | 13 patterns found; `safeCalculateSimpleIRR` had no logging | Added debug logging |
+| **Code Reviewer** | Shadow `requireFundAccess` in scenario-analysis.ts (P0 SECURITY) | Replaced with JWT auth |
+| **TODO Analyzer** | 83 production TODOs; 11 P1 items blocking features | Prioritized in roadmap |
+
+**Critical Fix Applied:** `server/routes/scenario-analysis.ts` had a local `requireFundAccess` function that did NO authorization - just tracked user and called `next()`. This was replaced with proper JWT auth from `server/lib/auth/jwt.ts`.
 
 ### Codex Third-Pass Findings (Quick Wins Implemented)
 

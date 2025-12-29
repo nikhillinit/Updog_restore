@@ -100,13 +100,12 @@ export function isRawStagePolicy(obj: any): obj is {
          obj.stage != null;
 }
 
-// Helper to normalize stage strings
-export function normalizeStage(stageStr: string): Stage {
-  const normalized = stageStr.toLowerCase().replace(/[-\s]/g, '_');
-  
-  if (!isValidStage(normalized)) {
-    throw new Error(`Invalid stage: ${stageStr}. Valid stages: preseed, seed, series_a, series_b, series_c, series_dplus`);
-  }
-  
-  return normalized;
-}
+/**
+ * @deprecated Use normalizeStage from '@shared/schemas/stage' (re-exported above).
+ * This local implementation is removed - use the canonical version instead.
+ *
+ * For Stage (legacy no-separator format), use:
+ *   import { normalizeStage, toNoSeparatorStage } from '@shared/schemas/stage';
+ *   const canonicalStage = normalizeStage(stageStr);
+ *   const legacyStage = toNoSeparatorStage(canonicalStage);
+ */
