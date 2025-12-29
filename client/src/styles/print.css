@@ -1,0 +1,399 @@
+/**
+ * Print Stylesheet - Press On Ventures
+ * Phase 3A: Foundation - Print-optimized styling for dashboards and reports
+ *
+ * Usage: Import in main stylesheet or index.css
+ * @import './styles/print.css';
+ */
+
+@media print {
+  /* ==========================================================================
+     1. Page Setup
+     ========================================================================== */
+
+  @page {
+    size: letter;
+    margin: 0.75in;
+  }
+
+  @page :first {
+    margin-top: 0.5in;
+  }
+
+  /* ==========================================================================
+     2. Color Preservation
+     ========================================================================== */
+
+  /* Force browsers to print background colors and images */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* ==========================================================================
+     3. Hide Non-Essential UI Elements
+     ========================================================================== */
+
+  /* Navigation and chrome */
+  nav,
+  .nav,
+  .navbar,
+  .sidebar,
+  aside,
+  .breadcrumb,
+  .breadcrumbs {
+    display: none !important;
+  }
+
+  /* Interactive elements */
+  button:not(.print-visible),
+  .btn:not(.print-visible),
+  input,
+  select,
+  textarea,
+  .dropdown,
+  .popover,
+  .tooltip,
+  .modal,
+  .dialog {
+    display: none !important;
+  }
+
+  /* Utility classes */
+  .no-print,
+  .hide-print,
+  .print-hide,
+  [data-print="hide"] {
+    display: none !important;
+  }
+
+  /* Show print-only elements */
+  .print-only,
+  .show-print,
+  [data-print="show"] {
+    display: block !important;
+  }
+
+  /* ==========================================================================
+     4. Typography Optimization
+     ========================================================================== */
+
+  body {
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #292929 !important;
+    background: white !important;
+  }
+
+  h1 {
+    font-size: 22pt;
+    font-weight: 700;
+    margin-bottom: 12pt;
+    page-break-after: avoid;
+  }
+
+  h2 {
+    font-size: 16pt;
+    font-weight: 700;
+    margin-bottom: 8pt;
+    page-break-after: avoid;
+  }
+
+  h3 {
+    font-size: 13pt;
+    font-weight: 600;
+    margin-bottom: 6pt;
+    page-break-after: avoid;
+  }
+
+  h4 {
+    font-size: 11pt;
+    font-weight: 600;
+    margin-bottom: 4pt;
+    page-break-after: avoid;
+  }
+
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* ==========================================================================
+     5. Link Handling
+     ========================================================================== */
+
+  /* Show URLs after links (optional - uncomment if needed) */
+  /*
+  a[href^="http"]:after,
+  a[href^="https"]:after {
+    content: " (" attr(href) ")";
+    font-size: 9pt;
+    color: #666;
+  }
+  */
+
+  /* Remove link styling for cleaner print */
+  a {
+    color: #292929 !important;
+    text-decoration: none !important;
+  }
+
+  /* ==========================================================================
+     6. Page Break Control
+     ========================================================================== */
+
+  /* Prevent breaking inside these elements */
+  .card,
+  .chart-container,
+  .kpi,
+  .metric-card,
+  .table-container,
+  figure,
+  img,
+  svg,
+  blockquote,
+  pre,
+  code {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Force page breaks */
+  .page-break,
+  .print-page-break,
+  [data-print-break="before"] {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .page-break-after,
+  [data-print-break="after"] {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  /* Keep headings with following content */
+  h1, h2, h3, h4, h5, h6 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* ==========================================================================
+     7. Tables
+     ========================================================================== */
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 10pt;
+  }
+
+  thead {
+    display: table-header-group; /* Repeat header on each page */
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  th {
+    background-color: #F2F2F2 !important;
+    color: #292929 !important;
+    font-weight: 600;
+    padding: 8pt 10pt;
+    text-align: left;
+    border-bottom: 1px solid #E0D8D1;
+  }
+
+  td {
+    padding: 6pt 10pt;
+    border-bottom: 1px solid #F2F2F2;
+  }
+
+  /* ==========================================================================
+     8. Cards and Containers
+     ========================================================================== */
+
+  .card,
+  [class*="Card"] {
+    border: 1px solid #E0D8D1 !important;
+    box-shadow: none !important;
+    margin-bottom: 12pt;
+    padding: 12pt;
+    background: white !important;
+  }
+
+  /* ==========================================================================
+     9. Charts and Visualizations
+     ========================================================================== */
+
+  .chart-container,
+  .recharts-wrapper,
+  [class*="Chart"] {
+    max-width: 100%;
+    height: auto !important;
+    min-height: 200pt;
+    break-inside: avoid;
+  }
+
+  /* Ensure SVG charts render properly */
+  svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* ==========================================================================
+     10. Brand-Specific Styles
+     ========================================================================== */
+
+  /* Press On Ventures colors for print */
+  .bg-pov-dark,
+  .bg-\\[\\#292929\\] {
+    background-color: #292929 !important;
+    color: white !important;
+  }
+
+  .bg-pov-beige,
+  .bg-\\[\\#E0D8D1\\] {
+    background-color: #E0D8D1 !important;
+  }
+
+  .bg-pov-light,
+  .bg-\\[\\#F2F2F2\\] {
+    background-color: #F2F2F2 !important;
+  }
+
+  /* Logo sizing for print */
+  .pov-logo {
+    max-width: 150pt;
+    height: auto;
+  }
+
+  .pov-logo-sm {
+    max-width: 80pt;
+  }
+
+  .pov-logo-lg {
+    max-width: 200pt;
+  }
+
+  /* ==========================================================================
+     11. Header and Footer (for reports)
+     ========================================================================== */
+
+  .print-header {
+    position: running(header);
+    display: block !important;
+  }
+
+  .print-footer {
+    position: running(footer);
+    display: block !important;
+    font-size: 9pt;
+    color: #666;
+    text-align: center;
+    padding-top: 8pt;
+    border-top: 1px solid #E0D8D1;
+  }
+
+  /* ==========================================================================
+     12. Utility Classes
+     ========================================================================== */
+
+  /* Force full width in print */
+  .print-full-width {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  /* Compact spacing for print */
+  .print-compact {
+    padding: 4pt !important;
+    margin: 4pt !important;
+  }
+
+  /* Print-specific margins */
+  .print-mt-0 { margin-top: 0 !important; }
+  .print-mb-0 { margin-bottom: 0 !important; }
+  .print-p-0 { padding: 0 !important; }
+
+  /* ==========================================================================
+     13. Dashboard-Specific Optimizations
+     ========================================================================== */
+
+  /* KPI grid for print */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8pt;
+  }
+
+  .kpi {
+    padding: 8pt;
+    border: 1px solid #E0D8D1;
+    background: white;
+  }
+
+  /* Executive dashboard layout */
+  .executive-dashboard {
+    display: block;
+  }
+
+  .executive-dashboard > * {
+    margin-bottom: 16pt;
+  }
+
+  /* Waterfall chart optimization */
+  .waterfall-chart {
+    page-break-inside: avoid;
+    min-height: 300pt;
+  }
+
+  /* Monte Carlo fan chart */
+  .monte-carlo-chart {
+    page-break-inside: avoid;
+    min-height: 250pt;
+  }
+}
+
+/* ==========================================================================
+   14. Print Preview Mode (for on-screen preview)
+   ========================================================================== */
+
+.print-preview {
+  background: #f5f5f5;
+  padding: 20px;
+}
+
+.print-preview .print-page {
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  margin: 20px auto;
+  padding: 0.75in;
+  max-width: 8.5in;
+  min-height: 11in;
+}
+
+.print-preview .print-page-break {
+  border-top: 2px dashed #ccc;
+  margin: 20px 0;
+  position: relative;
+}
+
+.print-preview .print-page-break::after {
+  content: "Page Break";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #f5f5f5;
+  padding: 0 10px;
+  font-size: 12px;
+  color: #999;
+}

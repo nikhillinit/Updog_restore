@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: agents
-last_updated: 2025-12-14
+last_updated: 2025-12-29
 owner: 'Platform Team'
 review_cadence: P30D
 categories: [discovery, agents, routing]
@@ -101,11 +101,28 @@ Pattern matching uses OR logic: any match triggers the route.
 | "reserves" OR "pro-rata" OR "ownership"                       | phoenix-reserves-optimizer agent                      | Reserve allocation                       |
 | "graduation" OR "moic" OR "forecasting"                       | phoenix-probabilistic-engineer agent                  | Phase 2 probabilistic                    |
 | "brand" OR "styling" OR "dashboard layout"                    | phoenix-brand-reporting-stylist agent                 | Brand consistency                        |
+| "phase 3" OR "LP reports" OR "PDF export"                     | docs/PHOENIX-SOT/execution-plan-v3.0-phase3-addendum.md | Phase 3 planning                       |
+| "brand guidelines" OR "logo usage" OR "POV colors"            | docs/PHOENIX-SOT/brand-bridge.md                      | Press On Ventures brand specification    |
+| "print css" OR "print stylesheet" OR "dashboard print"        | client/src/styles/print.css                           | Print-optimized styling                  |
+| "design tokens" OR "brand tokens" OR "theme tokens"           | client/src/lib/brand-tokens.ts                        | Programmatic brand values                |
+| "pdf generation" OR "tear sheet" OR "quarterly report"        | client/src/utils/pdf/                                 | PDF export utilities                     |
 | "docs sync" OR "jsdoc" OR "calculations.md"                   | phoenix-docs-scribe agent                             | Documentation sync                       |
 | "deploy" OR "production" OR "rollout"                         | docs/workflows/PRODUCTION_SCRIPTS.md                  | Deployment docs                          |
 | "workflow" OR "ci" OR "github actions"                        | docs/workflows/README.md                              | CI/CD docs                               |
 | "architecture" OR "decision" OR "why"                         | DECISIONS.md                                          | ADR rationale                            |
 | "change history" OR "what changed"                            | CHANGELOG.md                                          | Chronological changes                    |
+| "log change" OR "changelog entry"                             | /log-change command                                   | Guided CHANGELOG.md entry                |
+| "log decision" OR "adr entry" OR "architectural decision"     | /log-decision command                                 | Guided ADR entry for DECISIONS.md        |
+| "which agent" OR "agent selection" OR "find agent"            | .claude/AGENT-DIRECTORY.md                            | Canonical agent locations                |
+| "test strategy" OR "test agent" OR "which test"               | .claude/docs/TEST-STRATEGY.md                         | Test agent routing guide                 |
+| "react performance" OR "re-render" OR "useMemo" OR "useCallback" | react-performance-optimization skill               | Memoization, code splitting              |
+| "async error" OR "retry" OR "circuit breaker" OR "resilience" | async-error-resilience skill                          | BullMQ patterns, graceful degradation    |
+| "phoenix workflow" OR "which phoenix skill"                   | phoenix-workflow-orchestrator skill                   | Phoenix skill routing master             |
+| "schema evolution" OR "drizzle migration" OR "db:push"        | database-schema-evolution skill                       | Zero-downtime migrations                 |
+| "pr ready" OR "pre-pr" OR "before pull request"               | /pr-ready command                                     | Full pre-PR validation workflow          |
+| "db validate" OR "schema check" OR "before db:push"           | /db-validate command                                  | Pre-push schema validation               |
+| "orchestrate" OR "chain agents" OR "auto validate"            | workflow-orchestrator agent                           | Auto-chain agents based on changes       |
+| "agent metrics" OR "agent performance" OR "usage tracking"    | .claude/AGENT-METRICS.md                              | Agent performance tracking               |
 | "error" OR "debug" OR "troubleshoot"                          | SIDECAR_GUIDE.md                                      | Platform issues                          |
 | "module not found" OR "typescript" OR "path"                  | SIDECAR_GUIDE.md                                      | TS/module resolution                     |
 
@@ -205,6 +222,11 @@ Q6: Is the document >24h old AND contains execution claims?
 | /fix-auto            | Auto-fix lint/format/tests    | Quick cleanup                       |
 | /deploy-check        | Pre-deployment validation     | Before production                   |
 | /workflows           | Interactive tool helper       | Finding the right tool              |
+| /log-change          | Guided CHANGELOG.md entry     | After features/fixes                |
+| /log-decision        | Guided ADR entry              | Architectural decisions             |
+| /pre-commit-check    | Quality validation            | Before committing                   |
+| /pr-ready            | Full pre-PR validation        | Before creating pull request        |
+| /db-validate         | Schema validation             | Before npm run db:push              |
 
 ---
 

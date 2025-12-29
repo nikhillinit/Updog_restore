@@ -1,3 +1,8 @@
+---
+description: "Initialize session context with Memory Manager integration"
+allowed-tools: Read, Bash
+---
+
 Initialize session context with Memory Manager integration.
 
 ## Your Task
