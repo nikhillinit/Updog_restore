@@ -1,0 +1,18 @@
+/**
+ * Graduation Rate Engine Module
+ *
+ * Phase 2 Phoenix: Probabilistic layer for modeling company stage transitions.
+ * Supports both expectation mode (deterministic) and stochastic mode (seeded Monte Carlo).
+ */
+
+export {
+  GraduationRateEngine,
+  createDefaultGraduationConfig,
+  fromFundDataGraduationRates,
+  type Stage,
+  type TransitionProbabilities,
+  type GraduationConfig,
+  type TransitionResult,
+  type CohortProjection,
+  type GraduationSummary,
+} from './GraduationRateEngine';
