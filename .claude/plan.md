@@ -1,8 +1,8 @@
-# Technical Debt Remediation Plan (v3 - Skill-Enhanced)
+# Technical Debt Remediation Plan (v4 - Codex-Validated)
 
 **Generated:** 2025-12-29
 **Branch:** `claude/identify-tech-debt-ucn56`
-**Methodology:** Extended Thinking Framework + Inversion Thinking + Pattern Recognition
+**Methodology:** Extended Thinking Framework + Inversion Thinking + Pattern Recognition + Codex Review Patterns
 
 ---
 
@@ -158,6 +158,86 @@ Recommendation: Establish "consolidation checkpoints" in development workflow
 → Run schema-drift-checker weekly
 → Track type safety baseline trends
 ```
+
+---
+
+## Codex Review: Identified Oversights
+
+Applied Codex bot patterns (100% accuracy, caught $14M financial bug) to identify gaps in initial analysis.
+
+### Pattern 5: Silent Error Swallowing (30+ locations)
+
+```
+Detected: Empty catch blocks swallowing errors
+- client/src/services/funds.ts:193, 220, 237, 297 → } catch {}
+- server/infra/circuit-breaker-cache.ts → .catch(() => {})
+- Multiple hooks using response.json().catch(() => ({}))
+
+Root Cause: Telemetry/cache failures shouldn't break main flow
+Problem: No logging means silent failures are invisible
+Impact: Debugging difficulty, undetected issues in production
+Pattern Type: SILENT_FAILURE
+```
+
+**Recommended Fix:**
+```typescript
+// Instead of: } catch {}
+// Use: } catch (e) { logger.debug('Telemetry failed', { error: e }); }
+```
+
+### Pattern 6: Incomplete Security Implementation (P0)
+
+```
+Detected: RS256 JWT support not implemented
+- server/lib/auth/jwt.ts:34 → throw new Error("RS256 not currently supported")
+- Config allows RS256: server/config.ts:15 → z.enum(["HS256","RS256"])
+- Would block production if RS256 configured
+
+Status: Open from Codex bot PR #88 review
+Impact: Authentication failure for RS256-configured environments
+Pattern Type: SECURITY_GAP
+```
+
+**Action Items:**
+- [ ] Implement RS256 with jwks-rsa package
+- [ ] Add JWKS URL validation
+- [ ] Add issuer/audience checks
+- [ ] Test with RS256-configured environment
+
+### Pattern 7: Untracked TODO/FIXME Comments (128 across 67 files)
+
+```
+Detected: Significant documented but untracked tech debt
+- 128 TODO/FIXME/HACK/XXX comments
+- 67 files affected
+- Highest concentrations:
+  - server/compass/routes.ts (10)
+  - .claude/report-generation-architecture.ts (7)
+  - client/src/lib/fund-calc-v2.ts (6)
+  - tests/unit/api/portfolio-intelligence.test.ts (6)
+  - workers/dlq.ts (5)
+  - client/src/lib/fund-calc.ts (5)
+
+Pattern Type: UNTRACKED_DEBT
+```
+
+**Action Items:**
+- [ ] Audit all TODO/FIXME and create GitHub issues
+- [ ] Prioritize by location (production code > tests)
+- [ ] Add pre-commit hook to require issue reference for new TODOs
+
+### Codex Bot Historical Findings (Outstanding)
+
+From [CODEX-BOT-FINDINGS-SUMMARY.md](docs/code-review/CODEX-BOT-FINDINGS-SUMMARY.md):
+
+| Issue | Status | Severity | Location |
+|-------|--------|----------|----------|
+| RS256 JWT regression | OPEN | P0 | `server/lib/auth/jwt.ts` |
+| Management fee horizon bug | FIXED | P0 | `client/src/lib/fund-calc.ts` |
+| useFundSelector crash | CHECK | P1 | `client/src/stores/useFundSelector.ts` |
+| Investment strategy data loss | PARTIAL | P1 | `client/src/pages/InvestmentStrategyStep.tsx` |
+
+**Verification:** 4 critical issues, 1 fixed, 3 need review
 
 ---
 
@@ -425,6 +505,9 @@ npm run check
 | TypeScript baseline errors | ~45 | 45 | 43 | 40 | 35 |
 | Backup files in repo | 1 | 0 | 0 | 0 | 0 |
 | Docker hardcoded passwords | 3 | 0 | 0 | 0 | 0 |
+| **Empty catch blocks** | 30+ | 30 | 25 | 20 | 15 |
+| **TODO/FIXME comments** | 128 | 128 | 120 | 110 | 100 |
+| **Codex P0/P1 open** | 3 | 2 | 1 | 0 | 0 |
 
 ---
 
@@ -461,6 +544,28 @@ npm run check
 
 **Impact:** Development velocity, bug discovery rate
 
+### Decision 4: RS256 JWT Implementation (P0 Security)
+
+**Options:**
+- A: Implement RS256 with jwks-rsa package (full JWKS support)
+- B: Remove RS256 from config enum (document as unsupported)
+- C: Defer until production requires it
+
+**Recommendation:** Option A if RS256 is planned for production, Option B if not
+
+**Impact:** Authentication infrastructure, production deployment blocking
+
+### Decision 5: Silent Error Handling Strategy
+
+**Options:**
+- A: Add debug logging to all empty catch blocks
+- B: Keep empty catches for telemetry, log for infrastructure
+- C: Create centralized error swallowing utility with configurable logging
+
+**Recommendation:** Option C - centralized with feature flag for verbose logging
+
+**Impact:** Debugging capability, log volume, observability
+
 ---
 
 ## Quality Gate: Pre-Merge Checklist
@@ -485,3 +590,7 @@ Before merging ANY tech debt PR:
 - Cross-domain patterns detected via Pattern Recognition
 - Prioritization uses SQALE-based Impact/Effort ratio from tech-debt-tracker skill
 - All verification integrates with existing Phoenix truth cases and baseline systems
+- **Codex validation added:** Applied patterns from Codex bot (100% accuracy, caught $14M bug)
+- **3 additional patterns identified:** Silent failures, RS256 security gap, untracked TODOs
+- **128 TODO/FIXME comments** across 67 files added to tracking
+- **Codex P0/P1 issues** cross-referenced with historical findings
