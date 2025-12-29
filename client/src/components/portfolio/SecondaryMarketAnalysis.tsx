@@ -1,6 +1,9 @@
 /**
  * Secondary Market Analysis Component
  * Provides liquidity analysis, secondary valuation tracking, and market opportunity assessment
+ *
+ * Uses BrandChartThemeProvider for consistent chart styling.
+ * Migration: Replaced hardcoded COLORS with getChartColor() from chart-theme.
  */
 
 import React, { useState, useMemo } from 'react';
@@ -21,6 +24,7 @@ import {
   Info
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { getChartColor } from '@/lib/chart-theme';
 
 interface SecondaryPosition {
   id: string;
@@ -127,7 +131,7 @@ const MOCK_OPPORTUNITIES: MarketOpportunity[] = [
   }
 ];
 
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+// Removed hardcoded COLORS - now using getChartColor() from chart-theme
 
 export const SecondaryMarketAnalysis: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState('portfolio');
@@ -324,7 +328,7 @@ export const SecondaryMarketAnalysis: React.FC = () => {
                       label={(props: any) => `${props.sector || ''}: ${formatCurrency(props.value || 0)}`}
                     >
                       {sectorDistribution.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`cell-${index}`} fill={getChartColor(index)} />
                       ))}
                     </Pie>
                     <Tooltip formatter={(value: number) => formatCurrency(value)} />

@@ -10,6 +10,19 @@ and this project adheres to
 
 ### Added
 
+- **Phoenix Phase 3C: Chart Theme Infrastructure Complete** (2025-12-29)
+  - Wired `BrandChartThemeProvider` to App.tsx for global chart theming
+  - Added `npm run phoenix:truth` scripts for running truth case tests
+  - Fixed test runner by installing cross-env dependency
+  - Migrated all 6 chart components from hardcoded COLORS to `getChartColor()`:
+    - `fund-overview.tsx` - Dashboard pie chart
+    - `nivo-allocation-pie.tsx` - Allocation visualization
+    - `FundStrategyBuilder.tsx` - Strategy allocation charts
+    - `benchmarking-dashboard.tsx` - Portfolio vs global benchmarks
+    - `SecondaryMarketAnalysis.tsx` - Sector distribution pie chart
+    - `tag-performance-analysis.tsx` - Tag performance bar/pie charts
+  - Execution plan: `docs/plans/2025-12-29-phase3c-solo-execution.md`
+
 - **Phoenix Phase 1 Complete: All Truth Cases Validated** (2025-12-29)
   - Capital Allocation: 20/20 scenarios validated (100% pass rate)
   - Exit Recycling: 20/20 scenarios validated (100% pass rate)

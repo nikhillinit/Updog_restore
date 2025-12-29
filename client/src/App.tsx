@@ -9,6 +9,7 @@ import { LPProvider } from "@/contexts/LPContext";
 import { FeatureFlagProvider } from "@/providers/FeatureFlagProvider";
 import { StagingRibbon } from "@/components/StagingRibbon";
 import { ErrorBoundary } from "./components/ui/error-boundary";
+import { BrandChartThemeProvider } from "@/lib/chart-theme/chart-theme-provider";
 import './styles/demo-animations.css';
 
 // Layout components
@@ -272,16 +273,18 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <FeatureFlagProvider>
-          <StagingRibbon />
-          <FundProvider>
-            <TooltipProvider>
-              <DemoBanner />
-              <Toaster />
-              <AppLayout>
-                <Router />
-              </AppLayout>
-            </TooltipProvider>
-          </FundProvider>
+          <BrandChartThemeProvider>
+            <StagingRibbon />
+            <FundProvider>
+              <TooltipProvider>
+                <DemoBanner />
+                <Toaster />
+                <AppLayout>
+                  <Router />
+                </AppLayout>
+              </TooltipProvider>
+            </FundProvider>
+          </BrandChartThemeProvider>
         </FeatureFlagProvider>
       </QueryClientProvider>
     </ErrorBoundary>

@@ -1,3 +1,9 @@
+/**
+ * Nivo Allocation Pie Chart
+ *
+ * Uses BrandChartThemeProvider for consistent chart styling.
+ * Migration: Replaced hardcoded COLORS with getChartColor() from chart-theme.
+ */
 import React from 'react';
 import { PieChart } from 'recharts/es6/chart/PieChart';
 import { Pie } from 'recharts/es6/polar/Pie';
@@ -6,6 +12,7 @@ import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/cha
 import { Tooltip } from 'recharts/es6/component/Tooltip';
 import { Legend } from 'recharts/es6/component/Legend';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getChartColor } from '@/lib/chart-theme';
 
 interface AllocationData {
   id: string;
@@ -20,7 +27,7 @@ interface NivoAllocationPieProps {
   height?: number;
 }
 
-const COLORS = ['#2563eb', '#dc2626', '#16a34a', '#ca8a04', '#7c3aed', '#ea580c'];
+// Removed hardcoded COLORS - now using getChartColor() from chart-theme
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
@@ -45,12 +52,12 @@ export default function NivoAllocationPie({
   height = 400 
 }: NivoAllocationPieProps) {
   // Transform data for Recharts
-  const total = data.reduce((sum: any, item: any) => sum + item.value, 0);
-  const chartData = data.map((item: any, index: any) => ({
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+  const chartData = data.map((item, index) => ({
     name: item.label,
     value: item.value,
     total: total,
-    fill: item.color || COLORS[index % COLORS.length]
+    fill: item.color || getChartColor(index)
   }));
 
   return (
