@@ -270,8 +270,9 @@ export class MonteCarloOrchestrator {
    * Reset the orchestrator with a new seed
    */
   reset(seed?: number): void {
-    this.prng.reset(seed);
-    this.engine = new MonteCarloEngine(seed);
+    const effectiveSeed = seed ?? Date.now();
+    this.prng.reset(effectiveSeed);
+    this.engine = new MonteCarloEngine(effectiveSeed);
   }
 
   // ============================================================================

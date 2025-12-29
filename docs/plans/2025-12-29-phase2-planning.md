@@ -341,7 +341,7 @@ function validateDistribution(dist: PerformanceDistribution): ValidationResult {
 
 ### Phase 2C: Validation (Day 5)
 
-7. [ ] Task 2.7: Distribution Sanity
+7. [x] Task 2.7: Distribution Sanity (COMPLETE - 33 validation tests)
 8. [ ] Final integration tests
 9. [ ] Documentation update
 
@@ -356,7 +356,7 @@ function validateDistribution(dist: PerformanceDistribution): ValidationResult {
       tests)
 - [x] Monte Carlo orchestrator preserves Phase 1 accuracy - COMPLETE
       (expectation mode implemented)
-- [ ] Distribution validation passes
+- [x] Distribution validation passes - COMPLETE (33 sanity validation tests)
 - [x] Reproducibility confirmed (same seed = same results) - COMPLETE (22
       determinism tests)
 
