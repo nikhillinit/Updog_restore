@@ -753,6 +753,176 @@ npm run check
 - ReserveInputSchema duplication - needs resolution
 - 35 missing test cases - add to P1 roadmap
 
+---
+
+## Ultrathink Deep Analysis (2025-12-29)
+
+_Applied Extended Thinking + Systemic Debugging + Pattern Recognition + Socratic
+Thinking + Brainstorming_
+
+### P0 Critical: SimulationInputs Index Signature
+
+**Current State** (`shared/types.ts:28-41`):
+
+```typescript
+export interface SimulationInputs {
+  baseMOIC?: number;
+  baseIRR?: number;
+  // ... 8 optional properties
+  [key: string]: any; // DANGER: Bypasses all type safety
+}
+```
+
+**Root Cause Analysis (Systemic Debugging):**
+
+- Added as "quick fix" to spread additional fund data without defining types
+- Allows ANY property with ANY value, making TypeScript useless
+- All consumers lose type safety when using this interface
+
+**Impact Assessment:**
+
+- Type errors silently pass compilation
+- Runtime errors in financial calculations possible
+- Debugging difficulty when wrong data types passed
+
+**Solution Options (Brainstorming):**
+
+| Option               | Description                              | Pros                  | Cons                  | Effort |
+| -------------------- | ---------------------------------------- | --------------------- | --------------------- | ------ |
+| A: Remove + Explicit | Define all properties explicitly         | Full type safety      | Need to enumerate all | 4h     |
+| B: Metadata property | Add `metadata?: Record<string, unknown>` | Contained flexibility | Some unsafety         | 1h     |
+| C: Discriminated     | Union type per simulation type           | Most type-safe        | Complex migration     | 8h     |
+
+**Recommended Fix (Option B - Balanced):**
+
+```typescript
+export interface SimulationInputs {
+  baseMOIC?: number;
+  baseIRR?: number;
+  initialCapital?: number;
+  monteCarloRuns?: number;
+  periods?: number;
+  growthRate?: number;
+  growthVolatility?: number;
+  distributionRate?: number;
+  distributionVolatility?: number;
+  moicVolatility?: number;
+  irrVolatility?: number;
+  // Explicit container for additional data (not index signature)
+  metadata?: Record<string, unknown>;
+}
+```
+
+**Migration Steps:**
+
+1. Add `metadata` property
+2. Find all usages spreading into SimulationInputs
+3. Move spread properties into `metadata`
+4. Remove index signature
+5. Run TypeScript - fix any new errors
+6. Run tests
+
+### P1: ReserveInputSchema Duplication
+
+**Current State:**
+
+Two completely different schemas with the same name:
+
+```typescript
+// shared/schemas.ts:57-62 (Engine-level input)
+export const ReserveInputSchema = z.object({
+  availableReserves: nonNegative(),
+  companies: z.array(CompanySchema).min(0),
+  stagePolicies: z.array(StagePolicySchema).min(1),
+  constraints: ConstraintsSchema.optional(),
+});
+
+// shared/types.ts:89-95 (Company-level input)
+export const ReserveInputSchema = z.object({
+  id: z.number().int().positive(),
+  invested: z.number().min(0),
+  ownership: z.number().min(0).max(1),
+  stage: z.string().min(1),
+  sector: z.string().min(1),
+});
+```
+
+**Root Cause Analysis (Systemic Debugging):**
+
+- Original schema in `schemas.ts` for reserve engine input
+- Second schema added in `types.ts` for company-level validation
+- Name collision causes import ambiguity
+
+**Socratic Questions:**
+
+1. _Which is canonical?_ → Both are valid but serve different purposes
+2. _What's the import behavior?_ → Depends on import path, causes confusion
+3. _Which is used by ReserveEngine?_ → `types.ts` version (line 8)
+
+**Recommended Fix:**
+
+```typescript
+// shared/types.ts - Rename to clarify purpose
+export const ReserveCompanyInputSchema = z.object({
+  id: z.number().int().positive(),
+  invested: z.number().min(0),
+  ownership: z.number().min(0).max(1),
+  stage: z.string().min(1),
+  sector: z.string().min(1),
+});
+export type ReserveCompanyInput = z.infer<typeof ReserveCompanyInputSchema>;
+
+// shared/schemas.ts - Keep as-is (canonical engine input)
+export const ReserveInputSchema = z.object({...}); // Unchanged
+```
+
+**Migration Steps:**
+
+1. Rename `types.ts:ReserveInputSchema` → `ReserveCompanyInputSchema`
+2. Update type alias: `ReserveInput` → `ReserveCompanyInput`
+3. Update imports in `ReserveEngine.ts` (line 8)
+4. Search for other consumers and update
+5. Run TypeScript - fix any errors
+6. Run tests
+
+### Cross-Cutting Pattern Analysis
+
+**Pattern 1: Type Erosion**
+
+- When `any` is introduced to "fix" type errors quickly
+- 338 @ts-ignore directives in codebase
+- SimulationInputs index signature is extreme example
+
+**Pattern 2: Name Collision**
+
+- Same identifier for different concepts
+- ReserveInputSchema is one example
+- Also seen in StageSchema (6 definitions, now unified)
+
+**Pattern 3: Schema Drift**
+
+- Multiple schemas evolving independently
+- `schema-drift-checker` agent now detects this
+- Prevention: Schema alignment guide in cheatsheets
+
+### Dependency Order
+
+```
+Fix Order (respects dependencies):
+1. SimulationInputs (P0) - No dependencies, fix first
+2. ReserveInputSchema (P1) - May affect SimulationInputs consumers
+3. 35 missing tests (P1) - Test the above fixes
+```
+
+### Estimated Effort
+
+| Item                      | Effort | Risk | Verification                    |
+| ------------------------- | ------ | ---- | ------------------------------- |
+| SimulationInputs fix      | 2h     | Low  | `npm run check`, affected tests |
+| ReserveInputSchema rename | 1h     | Low  | `npm run check`, engine tests   |
+| Test case additions       | 14-18h | Low  | Coverage report                 |
+| **Total remaining P0+P1** | 17-21h |      |                                 |
+
 ### Ultrathink Multi-Agent Deep Analysis (6 Parallel Agents)
 
 Executed comprehensive analysis using 6 specialized agents in parallel:
@@ -912,25 +1082,27 @@ patterns
 
 ## Metrics Dashboard
 
-| Metric                        | Before | After                 | Sprint 1 | Sprint 2 | Sprint 3 | Sprint 4 |
-| ----------------------------- | ------ | --------------------- | -------- | -------- | -------- | -------- |
-| StageSchema definitions       | 6      | 1 (canonical)         | 1        | 1        | 1        | 1        |
-| XIRR implementations          | 6      | 5 (dead code deleted) | 3        | 1        | 1        | 1        |
-| ReserveInputSchema dups       | 2      | 2                     | 1        | 1        | 1        | 1        |
-| Files with `any` disable      | 150+   | 150+                  | 145      | 140      | 130      | 120      |
-| TypeScript baseline errors    | 477    | 475                   | 0        | 0        | 0        | 0        |
-| Backup files in repo          | 2      | 1 → 0 (DONE)          | 0        | 0        | 0        | 0        |
-| Docker hardcoded passwords    | 3      | 0                     | 0        | 0        | 0        | 0        |
-| **RS256 JWT support**         | NO     | YES                   | YES      | YES      | YES      | YES      |
-| **Silent failure patterns**   | 10     | 7                     | 5        | 2        | 0        | 0        |
-| **Codex P0/P1 open**          | 3      | 1                     | 0        | 0        | 0        | 0        |
-| **TODO/FIXME comments**       | 148    | 148                   | 135      | 120      | 105      | 90       |
-| **@ts-ignore directives**     | 338    | 338                   | 300      | 250      | 200      | 150      |
-| **Async forEach/map**         | 0      | 0                     | 0        | 0        | 0        | 0        |
-| **npm audit vulnerabilities** | 16     | 16                    | 10       | 5        | 0        | 0        |
-| **Schema drift issues (new)** | 11     | 11                    | 8        | 4        | 2        | 0        |
-| **Type design issues (new)**  | 12     | 12                    | 10       | 6        | 3        | 0        |
-| **Parity issues (new)**       | 7      | 7                     | 5        | 3        | 1        | 0        |
+| Metric                        | Before | After                  | Sprint 1 | Sprint 2 | Sprint 3 | Sprint 4 |
+| ----------------------------- | ------ | ---------------------- | -------- | -------- | -------- | -------- |
+| StageSchema definitions       | 6      | 1 (canonical)          | 1        | 1        | 1        | 1        |
+| XIRR implementations          | 6      | 5 (dead code deleted)  | 3        | 1        | 1        | 1        |
+| ReserveInputSchema dups       | 2      | 2                      | 1        | 1        | 1        | 1        |
+| Files with `any` disable      | 150+   | 150+                   | 145      | 140      | 130      | 120      |
+| TypeScript baseline errors    | 477    | 475                    | 0        | 0        | 0        | 0        |
+| Backup files in repo          | 2      | 1 → 0 (DONE)           | 0        | 0        | 0        | 0        |
+| Docker hardcoded passwords    | 3      | 0                      | 0        | 0        | 0        | 0        |
+| **RS256 JWT support**         | NO     | YES                    | YES      | YES      | YES      | YES      |
+| **Silent failure patterns**   | 10     | 7                      | 5        | 2        | 0        | 0        |
+| **Codex P0/P1 open**          | 3      | 2 (ultrathink)         | 0        | 0        | 0        | 0        |
+| **Index signature [any]**     | 1      | 1 (SimulationInputs)   | 0        | 0        | 0        | 0        |
+| **Schema name collisions**    | 2      | 1 (ReserveInputSchema) | 0        | 0        | 0        | 0        |
+| **TODO/FIXME comments**       | 148    | 148                    | 135      | 120      | 105      | 90       |
+| **@ts-ignore directives**     | 338    | 338                    | 300      | 250      | 200      | 150      |
+| **Async forEach/map**         | 0      | 0                      | 0        | 0        | 0        | 0        |
+| **npm audit vulnerabilities** | 16     | 16                     | 10       | 5        | 0        | 0        |
+| **Schema drift issues (new)** | 11     | 11                     | 8        | 4        | 2        | 0        |
+| **Type design issues (new)**  | 12     | 12                     | 10       | 6        | 3        | 0        |
+| **Parity issues (new)**       | 7      | 7                      | 5        | 3        | 1        | 0        |
 
 ---
 
@@ -1265,3 +1437,15 @@ alert_thresholds:
 - **Total issues identified: 51+** across 11 categories
 - **New decisions required: 2** (rounding standardization, branded types)
 - **Branch work confirmed:** PRs #291, #299, #313 already addressed some items
+- **Ultrathink Deep Analysis (2025-12-29):**
+  - Extended Thinking: Analyzed SimulationInputs and ReserveInputSchema issues
+  - Systemic Debugging: Root cause analysis for type erosion patterns
+  - Pattern Recognition: 3 cross-cutting patterns (Type Erosion, Name Collision,
+    Schema Drift)
+  - Socratic Thinking: Clarified canonical schema ownership
+  - Brainstorming: 3 solution options per issue with effort estimates
+  - **P0 SimulationInputs**: Replace `[key: string]: any` with
+    `metadata?: Record<string, unknown>` (2h)
+  - **P1 ReserveInputSchema**: Rename to `ReserveCompanyInputSchema` in types.ts
+    (1h)
+  - **Total remaining P0+P1 effort**: 17-21 hours
