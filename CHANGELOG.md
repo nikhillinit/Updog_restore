@@ -10,6 +10,16 @@ and this project adheres to
 
 ### Added
 
+- **Phoenix Phase 1 Complete: All Truth Cases Validated** (2025-12-29)
+  - Capital Allocation: 20/20 scenarios validated (100% pass rate)
+  - Exit Recycling: 20/20 scenarios validated (100% pass rate)
+  - Created `tests/unit/truth-cases/exit-recycling.test.ts` - New test runner
+  - Total: 129 truth cases across 6 modules, 100% pass rate
+  - Module breakdown: XIRR (50), Waterfall-tier (15), Waterfall-ledger (14),
+    Fees (10), Capital Allocation (20), Exit Recycling (20)
+  - Updated `docs/phase0-validation-report.md` with complete results
+  - Implementation plan: `docs/plans/2025-12-29-phoenix-phases-1.4-1.7-completion.md`
+
 - **Portfolio Intelligence API Routes** (Feature-flagged)
   - 17 endpoints at `/api/portfolio/*` for portfolio modeling and strategy
     management
