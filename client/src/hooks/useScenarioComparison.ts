@@ -476,8 +476,10 @@ export function usePrefetchComparison() {
 export function useTrackAccess(): UseMutationResult<void, Error, TrackAccessRequest> {
   return useMutation({
     mutationFn: trackAccess,
-    // Silent - don't show errors for tracking
-    onError: () => {},
+    // Silent UI - don't show errors for tracking, but log for observability
+    onError: (error) => {
+      console.debug('[useTrackAccess] Tracking failed (non-blocking):', error.message);
+    },
   });
 }
 
