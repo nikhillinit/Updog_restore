@@ -692,22 +692,45 @@ npm run check
 | XIRR parity test fix (365 → 365.25) | DONE | `fbe49d6` |
 | TODO/FIXME triage | ANALYZED | N/A |
 | XIRR consolidation analysis | ANALYZED | N/A |
+| **Dual requireAuth security fix** | DONE | pending |
+| **XIRR safe wrappers (UI crash prevention)** | DONE | pending |
+
+### Codex Third-Pass Findings (Quick Wins Implemented)
+
+The Codex review identified critical security issues that were immediately addressed:
+
+1. **Dual requireAuth Implementations (P0 BLOCKER - Fixed)**
+   - **Issue:** `server/middleware/requireAuth.ts` was an MVP stub with weak API key bypass
+   - **Risk:** Security confusion between stub and real JWT auth in `server/lib/auth/jwt.ts`
+   - **Resolution:**
+     - Migrated `requireFundAccess` to `server/lib/auth/jwt.ts`
+     - Updated imports in `performance-api.ts` and `fund-metrics.ts`
+     - Deleted the stub file
+
+2. **XIRR Exception Throwing (P0 - Fixed)**
+   - **Issue:** `client/src/core/selectors/xirr.ts` throws `XIRRCalculationError` which can crash React
+   - **Risk:** UI crashes when XIRR calculation fails (insufficient data, non-convergence)
+   - **Resolution:** Added `safeCalculateXIRR()` and `safeCalculateSimpleIRR()` wrappers that return `null` instead of throwing
+
+3. **DLQ Priority Demotion (P3)**
+   - **Issue:** DLQ empty array return was flagged as P1
+   - **Assessment:** Worker infrastructure is secondary; this is maintenance debt, not critical
+   - **Action:** Demoted from P1 to P3
 
 ### Analysis Results (Informing Future Work)
 
 **XIRR Analysis (6 implementations found):**
-- Canonical: `client/src/lib/finance/xirr.ts` (3-tier fallback: Newton→Brent→Bisection)
-- Secondary: `client/src/lib/xirr.ts` (2-tier: Newton→Bisection)
-- Legacy: `client/src/core/selectors/xirr.ts` (THROWS exceptions - risk)
+- Canonical: `client/src/lib/finance/xirr.ts` (3-tier fallback: Newton→Brent→Bisection, returns null)
+- Secondary: `client/src/lib/xirr.ts` (2-tier: Newton→Bisection, returns null)
+- Legacy: `client/src/core/selectors/xirr.ts` (now has safe wrappers)
 - Server: `server/services/actual-metrics-calculator.ts` (returns 0 on error - silent)
 - Day count: All now use 365.25 (parity test bug fixed)
 
 **TODO/FIXME Analysis (94 comments):**
-- P0 (Security): 9 items (auth middleware stubs)
-- P1 (Bugs): 62 items (DLQ stubs, XIRR solver issues)
+- P0 (Security): 0 items (auth middleware stub DELETED)
+- P1 (Bugs): 53 items (XIRR solver issues)
 - P2 (Debt): 23 items
-- P3 (Nice-to-have): 54 items
-- Top priority: Implement real auth in `server/middleware/requireAuth.ts`
+- P3 (Nice-to-have): 63 items (DLQ stubs demoted)
 
 ### Remaining
 
@@ -715,7 +738,6 @@ npm run check
 |------|----------|--------|-------|
 | XIRR consolidation (migration) | P2 | 16h | Use finance/xirr.ts as canonical |
 | Type safety (any elimination) | P2 | 40h | 150+ files |
-| Auth middleware implementation | P0 | 8h | 3 stubs in requireAuth.ts |
 
 ---
 

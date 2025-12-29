@@ -146,6 +146,48 @@ export const requireRole = (role: string) => (req: Request, res: Response, next:
   next();
 };
 
+/**
+ * Require user to have access to a specific fund
+ * Use after requireAuth to check fund-level permissions
+ */
+export const requireFundAccess = (req: Request, res: Response, next: NextFunction) => {
+  const fundIdParam = req.params.fundId;
+
+  if (!fundIdParam) {
+    return res.status(400).json({
+      error: 'Bad Request',
+      message: 'Fund ID is required',
+    });
+  }
+
+  const fundId = parseInt(fundIdParam, 10);
+
+  if (isNaN(fundId)) {
+    return res.status(400).json({
+      error: 'Bad Request',
+      message: 'Invalid fund ID',
+    });
+  }
+
+  // Check if user has access to this fund
+  const userFundIds = req.user?.fundIds || [];
+
+  // Empty fundIds array means access to all funds (admin/superuser pattern)
+  if (userFundIds.length === 0) {
+    return next();
+  }
+
+  if (userFundIds.includes(fundId)) {
+    return next();
+  }
+
+  // User doesn't have access to this fund
+  return res.status(403).json({
+    error: 'Forbidden',
+    message: `You do not have access to fund ${fundId}`,
+  });
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function signToken(data: any): string {
   const cfg = getConfig();

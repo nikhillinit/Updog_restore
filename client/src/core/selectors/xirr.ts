@@ -302,3 +302,77 @@ export function verifyNPV(cashFlows: CashFlowEvent[], rate: number): number {
 export function formatIRR(rate: number, decimalPlaces = 2): string {
   return `${(rate * 100).toFixed(decimalPlaces)}%`;
 }
+
+// ============================================================================
+// SAFE WRAPPERS (for UI use - never throw, return null on failure)
+// ============================================================================
+
+/**
+ * Safe XIRR result type for UI consumption
+ */
+export interface SafeXIRRResult {
+  rate: number | null;
+  error?: string;
+  converged: boolean;
+}
+
+/**
+ * Safe wrapper for calculateXIRR - never throws, returns null rate on failure
+ * Use this in React components and selectors to prevent UI crashes
+ *
+ * @param cashFlows - Array of cash flow events
+ * @param config - Optional XIRR configuration
+ * @returns SafeXIRRResult with rate (null on failure), optional error message
+ *
+ * @example
+ * ```typescript
+ * const result = safeCalculateXIRR(cashFlows);
+ * if (result.rate !== null) {
+ *   console.log(`IRR: ${formatIRR(result.rate)}`);
+ * } else {
+ *   console.log(`Cannot calculate IRR: ${result.error}`);
+ * }
+ * ```
+ */
+export function safeCalculateXIRR(
+  cashFlows: CashFlowEvent[],
+  config: XIRRConfig = {}
+): SafeXIRRResult {
+  try {
+    const result = calculateXIRR(cashFlows, config);
+    return {
+      rate: result.rate,
+      converged: result.converged,
+    };
+  } catch (err) {
+    const errorMessage = err instanceof XIRRCalculationError
+      ? err.message
+      : err instanceof Error
+        ? err.message
+        : 'Unknown XIRR calculation error';
+    return {
+      rate: null,
+      error: errorMessage,
+      converged: false,
+    };
+  }
+}
+
+/**
+ * Safe wrapper for calculateSimpleIRR - never throws, returns null on failure
+ * Use this in React components and selectors to prevent UI crashes
+ *
+ * @param cashFlows - Array of cash flow amounts
+ * @param config - Optional XIRR configuration
+ * @returns IRR as decimal, or null if calculation fails
+ */
+export function safeCalculateSimpleIRR(
+  cashFlows: number[],
+  config?: XIRRConfig
+): number | null {
+  try {
+    return calculateSimpleIRR(cashFlows, config);
+  } catch {
+    return null;
+  }
+}
