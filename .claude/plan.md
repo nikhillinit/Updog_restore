@@ -2,7 +2,93 @@
 
 **Generated:** 2025-12-29
 **Branch:** `claude/identify-tech-debt-ucn56`
-**Methodology:** Extended Thinking Framework + Inversion Thinking + Pattern Recognition + Codex Review Patterns + Tech-Debt Command
+**Methodology:** Extended Thinking Framework + Inversion Thinking + Pattern Recognition + Codex Review Patterns + Tech-Debt Command + Multi-Agent Analysis
+
+---
+
+## Multi-Agent Deep Analysis (Parallel Execution)
+
+*5 specialized agents executed in parallel to identify additional patterns*
+
+### Agent 1: Silent-Failure-Hunter Findings
+
+**10 NEW critical silent failure patterns** beyond the 30+ empty catch blocks already documented:
+
+| Priority | Issue | File | Impact |
+|----------|-------|------|--------|
+| CRITICAL | Silent mutation `onError: () => {}` | `useScenarioComparison.ts:480` | Analytics invisibly fail |
+| CRITICAL | Fire-and-forget fetch (no error handling) | `rollout-orchestrator.ts:323` | Rollout state inconsistent |
+| HIGH | `void fetch` pattern | `wizard-telemetry.ts:22` | Telemetry gaps |
+| HIGH | DLQ returns empty array on error | `dlq.ts:79-82` | Dead letters invisible |
+| HIGH | ConversationCache returns null on error | `ConversationCache.ts:123` | AI context loss |
+| HIGH | Circuit breaker silent `.catch(() => {})` | `circuit-breaker-cache.ts:189,191` | Cache inconsistency |
+| HIGH | Missing error ID infrastructure | N/A | No Sentry grouping |
+| MEDIUM | Mutex error chain suppression | `mutex.ts:6` | Debug difficulty |
+| MEDIUM | PostgresMemoryStore silent fail | `PostgresMemoryStore.ts:248` | Memory silently broken |
+| MEDIUM | Worker health no alerting | `health-server.ts:74` | Degradation unnoticed |
+
+### Agent 2: Schema-Drift-Checker Findings
+
+**11 schema drift issues** beyond StageSchema conflicts:
+
+| Priority | Issue | Location |
+|----------|-------|----------|
+| P1 | ReserveInputSchema name collision | `schemas.ts:32` vs `types.ts:89` |
+| P1 | CompanyStageSchema hyphenation (hyphens vs underscores) | `reserve-engine.contract.ts:19` vs `reserves-schemas.ts:11` |
+| P1 | WaterfallSchema case mismatch (`AMERICAN` vs `american`) | `types.ts:320` vs `fund-wire-schema.ts:36` |
+| P2 | Database stage fields lack CHECK constraints | `schema.ts:75,313` |
+| P2 | Version field type inconsistency (bigint vs integer) | Multiple tables |
+| P3 | BigInt mode inconsistency for financial fields | `portfolioCompanies.deployedReservesCents` |
+| P3 | API field naming convention mismatch (camelCase vs snake_case) | `allocations.ts:525-526` |
+
+### Agent 3: Type-Design-Analyzer Findings
+
+**12 type design issues** (not `any` usage - actual design problems):
+
+| Severity | Issue | Location | Recommendation |
+|----------|-------|----------|----------------|
+| Critical | `SimulationInputs` index signature `[key: string]: any` | `types.ts:28-41` | Remove index signature |
+| High | No branded types for IDs (FundId, CompanyId) | Multiple | Add branded ID types |
+| High | Monetary values not using `Dollars` branded type | `metrics.ts`, `scenario.ts` | Use existing `Dollars` type |
+| Medium | Probability not using `Fraction` branded type | `scenario.ts:71` | Use existing `Fraction` type |
+| Medium | 4 different Stage enum definitions | Multiple files | Single source of truth |
+| Medium | `LegacyPortfolioStrategy` index signature | `portfolio-strategy-schema.ts:204` | Remove index signature |
+| Low | `InvestmentRound` mixes input/computed fields | `investment-rounds.ts:28-57` | Separate types |
+
+### Agent 4: Parity-Auditor Findings
+
+**7 calculation parity issues** beyond XIRR day-count:
+
+| Priority | Issue | Location | Impact |
+|----------|-------|----------|--------|
+| HIGH | Date arithmetic inconsistency (month-end) | `fund-calc.ts:165-173` | Period boundary misalignment |
+| HIGH | **Mixed rounding modes (CRITICAL)** | Multiple files | Waterfall mass conservation violation |
+| MEDIUM | Precision loss (Decimal→number) | Multiple | ±$0.01 per calc |
+| MEDIUM | Period boundary ambiguity | Cash flow handling | IRR ±0.5% |
+| LOW | Management fee prorating | fund-calc | No deviation |
+| LOW | Duplicate TVPI/DPI calculations | 5 locations | Maintenance risk |
+| LOW | Percentage display vs storage | Multiple | Document only |
+
+**CRITICAL: Mixed Rounding Modes**
+- `decimal-utils.ts:20` → `ROUND_HALF_UP`
+- `capitalAllocation/rounding.ts:19-30` → Banker's rounding (`ROUND_HALF_EVEN`)
+- `units.ts` → `Math.round()` (ROUND_HALF_UP)
+
+**Impact:** Excel uses ROUND_HALF_UP; Banker's rounding differs on .5 ties
+
+### Agent 5: Branch Explorer Findings
+
+**Existing work on branches:**
+- Current branch has 6 documented plan iterations (v1-v6)
+- PR #313 partially addressed Issues #309, #311, #312
+- PR #291: Week 1-2 Foundation Hardening merged
+- PR #299: Type safety improvements (96% test pass)
+- Parallel branch `claude/parallel-project-evaluation-MvJA3` contains alternative plans
+
+**Already Fixed (confirmed):**
+- Management fee horizon bug (PR #112) - Codex P0 FIXED
+- Dead code cleanup - 1,093 lines removed
+- 17 portfolio endpoints registered
 
 ---
 
@@ -605,6 +691,10 @@ npm run check
 | **@ts-ignore directives** | 20+ | 20 | 15 | 10 | 5 |
 | **Async forEach/map** | 10 | 10 | 5 | 2 | 0 |
 | **npm audit vulnerabilities** | 4 | 2 | 0 | 0 | 0 |
+| **Silent failure patterns (new)** | 10 | 8 | 5 | 2 | 0 |
+| **Schema drift issues (new)** | 11 | 8 | 4 | 2 | 0 |
+| **Type design issues (new)** | 12 | 10 | 6 | 3 | 0 |
+| **Parity issues (new)** | 7 | 5 | 3 | 1 | 0 |
 
 ---
 
@@ -662,6 +752,33 @@ npm run check
 **Recommendation:** Option C - centralized with feature flag for verbose logging
 
 **Impact:** Debugging capability, log volume, observability
+
+### Decision 6: Rounding Mode Standardization (P0 - Mass Conservation)
+
+**Options:**
+- A: Standardize on `ROUND_HALF_UP` (Excel parity)
+- B: Standardize on `ROUND_HALF_EVEN` (Banker's rounding, reduces bias)
+- C: Document per-context rounding rules
+
+**Recommendation:** Option A - `ROUND_HALF_UP` for Excel parity in financial calculations
+
+**Impact:** Waterfall distributions, all monetary calculations, Excel truth case alignment
+
+**Files to Update:**
+- `client/src/core/capitalAllocation/rounding.ts:19-30`
+- Verify consistency with `shared/lib/decimal-utils.ts:20`
+
+### Decision 7: Branded Type Adoption
+
+**Options:**
+- A: Add branded ID types (FundId, CompanyId, ScenarioId)
+- B: Add branded monetary types (enforce Dollars usage)
+- C: Both A and B
+- D: Defer until next major refactor
+
+**Recommendation:** Option C - both provide significant type safety gains
+
+**Impact:** Cross-ID bugs prevented, unit mismatch bugs prevented
 
 ---
 
@@ -886,4 +1003,12 @@ alert_thresholds:
   - Pattern 9: Async forEach/map anti-patterns (10 locations)
   - Pattern 10: npm audit vulnerabilities (4 packages)
   - Pattern 11: Infinite loop patterns (3 locations)
-- **Total patterns identified: 11** across 7 categories
+- **Multi-agent parallel analysis executed (5 agents):**
+  - Silent-failure-hunter: 10 NEW critical patterns
+  - Schema-drift-checker: 11 additional drift issues
+  - Type-design-analyzer: 12 type design problems
+  - Parity-auditor: 7 calculation parity risks (1 CRITICAL: mixed rounding)
+  - Branch explorer: Confirmed existing fixes, found parallel work
+- **Total issues identified: 51+** across 11 categories
+- **New decisions required: 2** (rounding standardization, branded types)
+- **Branch work confirmed:** PRs #291, #299, #313 already addressed some items
