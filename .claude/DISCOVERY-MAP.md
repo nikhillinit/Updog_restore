@@ -114,6 +114,10 @@ Pattern matching uses OR logic: any match triggers the route.
 | "async error" OR "retry" OR "circuit breaker" OR "resilience" | async-error-resilience skill                          | BullMQ patterns, graceful degradation    |
 | "phoenix workflow" OR "which phoenix skill"                   | phoenix-workflow-orchestrator skill                   | Phoenix skill routing master             |
 | "schema evolution" OR "drizzle migration" OR "db:push"        | database-schema-evolution skill                       | Zero-downtime migrations                 |
+| "pr ready" OR "pre-pr" OR "before pull request"               | /pr-ready command                                     | Full pre-PR validation workflow          |
+| "db validate" OR "schema check" OR "before db:push"           | /db-validate command                                  | Pre-push schema validation               |
+| "orchestrate" OR "chain agents" OR "auto validate"            | workflow-orchestrator agent                           | Auto-chain agents based on changes       |
+| "agent metrics" OR "agent performance" OR "usage tracking"    | .claude/AGENT-METRICS.md                              | Agent performance tracking               |
 | "error" OR "debug" OR "troubleshoot"                          | SIDECAR_GUIDE.md                                      | Platform issues                          |
 | "module not found" OR "typescript" OR "path"                  | SIDECAR_GUIDE.md                                      | TS/module resolution                     |
 
@@ -216,6 +220,8 @@ Q6: Is the document >24h old AND contains execution claims?
 | /log-change          | Guided CHANGELOG.md entry     | After features/fixes                |
 | /log-decision        | Guided ADR entry              | Architectural decisions             |
 | /pre-commit-check    | Quality validation            | Before committing                   |
+| /pr-ready            | Full pre-PR validation        | Before creating pull request        |
+| /db-validate         | Schema validation             | Before npm run db:push              |
 
 ---
 
