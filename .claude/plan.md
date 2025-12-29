@@ -674,27 +674,53 @@ npm run check
 
 ---
 
+## Implementation Status (2025-12-29)
+
+### Completed
+
+| Item | Status | Commit |
+|------|--------|--------|
+| Delete backup files (.bak) | DONE | `aca494b` |
+| Replace Docker hardcoded passwords | DONE | `aca494b` |
+| Verify Codex P1 issues (useFundSelector, InvestmentStrategy) | DONE (already fixed) | N/A |
+| RS256 JWT support | DONE | `aca494b` |
+| Silent mutation onError patterns (3 files) | DONE | `aca494b` |
+| Async forEach/map anti-patterns | VERIFIED (correctly implemented) | N/A |
+| Mixed rounding modes | VERIFIED (intentional per CA-SEMANTIC-LOCK.md) | N/A |
+
+### Remaining
+
+| Item | Priority | Effort | Notes |
+|------|----------|--------|-------|
+| StageSchema unification | P1 | 32h | 6+ definitions, requires migration |
+| XIRR consolidation | P2 | 24h | 365 vs 365.25 day count |
+| Type safety (any elimination) | P2 | 40h | 150+ files |
+| Empty catch blocks | P2 | 8h | 30+ locations |
+| TODO/FIXME triage | P3 | 16h | 128 comments |
+
+---
+
 ## Metrics Dashboard
 
-| Metric | Current | Sprint 1 | Sprint 2 | Sprint 3 | Sprint 4 |
-|--------|---------|----------|----------|----------|----------|
-| StageSchema definitions | 6 | 6 | 1 | 1 | 1 |
-| XIRR implementations | 2 | 2 | 2 | 1 | 1 |
-| ReserveInputSchema dups | 2 | 1 | 1 | 1 | 1 |
-| Files with `any` disable | 150+ | 150 | 145 | 140 | 130 |
-| TypeScript baseline errors | ~45 | 45 | 43 | 40 | 35 |
-| Backup files in repo | 1 | 0 | 0 | 0 | 0 |
-| Docker hardcoded passwords | 3 | 0 | 0 | 0 | 0 |
-| **Empty catch blocks** | 30+ | 30 | 25 | 20 | 15 |
-| **TODO/FIXME comments** | 128 | 128 | 120 | 110 | 100 |
-| **Codex P0/P1 open** | 3 | 2 | 1 | 0 | 0 |
-| **@ts-ignore directives** | 20+ | 20 | 15 | 10 | 5 |
-| **Async forEach/map** | 10 | 10 | 5 | 2 | 0 |
-| **npm audit vulnerabilities** | 4 | 2 | 0 | 0 | 0 |
-| **Silent failure patterns (new)** | 10 | 8 | 5 | 2 | 0 |
-| **Schema drift issues (new)** | 11 | 8 | 4 | 2 | 0 |
-| **Type design issues (new)** | 12 | 10 | 6 | 3 | 0 |
-| **Parity issues (new)** | 7 | 5 | 3 | 1 | 0 |
+| Metric | Before | After | Sprint 1 | Sprint 2 | Sprint 3 | Sprint 4 |
+|--------|--------|-------|----------|----------|----------|----------|
+| StageSchema definitions | 6 | 6 | 1 | 1 | 1 | 1 |
+| XIRR implementations | 2 | 2 | 2 | 1 | 1 | 1 |
+| ReserveInputSchema dups | 2 | 2 | 1 | 1 | 1 | 1 |
+| Files with `any` disable | 150+ | 150+ | 145 | 140 | 130 | 120 |
+| TypeScript baseline errors | 477 | 0 | 0 | 0 | 0 | 0 |
+| Backup files in repo | 2 | 0 | 0 | 0 | 0 | 0 |
+| Docker hardcoded passwords | 3 | 0 | 0 | 0 | 0 | 0 |
+| **RS256 JWT support** | NO | YES | YES | YES | YES | YES |
+| **Silent failure patterns** | 10 | 7 | 5 | 2 | 0 | 0 |
+| **Codex P0/P1 open** | 3 | 1 | 0 | 0 | 0 | 0 |
+| **TODO/FIXME comments** | 128 | 128 | 120 | 110 | 100 | 90 |
+| **@ts-ignore directives** | 20+ | 20+ | 15 | 10 | 5 | 0 |
+| **Async forEach/map** | 0 | 0 | 0 | 0 | 0 | 0 |
+| **npm audit vulnerabilities** | 16 | 16 | 10 | 5 | 0 | 0 |
+| **Schema drift issues (new)** | 11 | 11 | 8 | 4 | 2 | 0 |
+| **Type design issues (new)** | 12 | 12 | 10 | 6 | 3 | 0 |
+| **Parity issues (new)** | 7 | 7 | 5 | 3 | 1 | 0 |
 
 ---
 
