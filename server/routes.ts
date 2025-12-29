@@ -597,7 +597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       try {
         portfolioData = JSON.parse(readFileSync(portfolioPath, 'utf-8'));
-      } catch (fileError) {
+      } catch {
         const error: ApiError = {
           error: 'Portfolio data unavailable',
           message: 'Could not load portfolio fixture data'
@@ -702,7 +702,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return res["status"](400)["json"](error);
           }
           vintageYear = parsedYear;
-        } catch (e) {
+        } catch {
           const error: ApiError = {
             error: 'Invalid vintage year',
             message: `Vintage year must be a valid number, received: ${vintageYearQuery}`
@@ -710,7 +710,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res["status"](400)["json"](error);
         }
       }
-      
+
       if (cohortSizeQuery) {
         try {
           const parsedSize = toNumber(cohortSizeQuery as string, 'cohort size');
@@ -722,7 +722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return res["status"](400)["json"](error);
           }
           cohortSize = parsedSize;
-        } catch (e) {
+        } catch {
           const error: ApiError = {
             error: 'Invalid cohort size',
             message: `Cohort size must be a valid number, received: ${cohortSizeQuery}`

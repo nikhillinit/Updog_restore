@@ -14,6 +14,7 @@ import type { Request, Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
 import { query, transaction } from '../db';
+import type { PoolClient } from 'pg';
 import { dollarsToCents, centsToDollars } from '@shared/units';
 
 const router = Router();
@@ -52,8 +53,8 @@ const ReallocationCommitRequestSchema = ReallocationPreviewRequestSchema.extend(
 // ============================================================================
 
 type ProposedAllocation = z.infer<typeof ProposedAllocationSchema>;
-type ReallocationPreviewRequest = z.infer<typeof ReallocationPreviewRequestSchema>;
-type ReallocationCommitRequest = z.infer<typeof ReallocationCommitRequestSchema>;
+type _ReallocationPreviewRequest = z.infer<typeof ReallocationPreviewRequestSchema>;
+type _ReallocationCommitRequest = z.infer<typeof ReallocationCommitRequestSchema>;
 
 interface CompanyAllocation {
   company_id: number;
@@ -179,7 +180,7 @@ function detectWarnings(
 
   // Build maps for efficient lookup
   const currentMap = new Map(current.map(c => [c.company_id, c]));
-  const proposedMap = new Map(proposed.map(p => [p.company_id, p]));
+  const _proposedMap = new Map(proposed.map(p => [p.company_id, p]));
 
   // Check 1: Cap exceeded (blocking error)
   for (const prop of proposed) {
@@ -423,7 +424,7 @@ router["post"](
       const { current_version, proposed_allocations, reason, user_id } = parseResult.data;
 
       // Execute transaction
-      const result = await transaction(async (client: any) => {
+      const result = await transaction(async (client: PoolClient) => {
         // Step 1: Verify version and lock rows
         const versionCheck = await client.query<{ allocation_version: number }>(
           `SELECT allocation_version
@@ -464,7 +465,7 @@ router["post"](
 
         // Step 3: Calculate deltas and validate
         const deltas = calculateDeltas(currentAllocations, proposed_allocations);
-        const { warnings, errors } = detectWarnings(
+        const { warnings: _warnings, errors } = detectWarnings(
           deltas,
           currentAllocations,
           proposed_allocations,
@@ -487,7 +488,7 @@ router["post"](
 
         // Build CASE WHEN for planned_reserves_cents
         const plannedCases = proposed_allocations
-          .map((prop, idx) => {
+          .map((prop, _idx) => {
             params.push(prop.company_id); // company_id
             params.push(prop.planned_reserves_cents); // planned_reserves_cents
             return `WHEN $${params.length - 1} THEN $${params.length}::BIGINT`;
@@ -561,10 +562,15 @@ router["post"](
           ]
         );
 
+        const auditRow = auditResult.rows[0];
+        if (!auditRow) {
+          throw new Error('Failed to create audit record');
+        }
+
         return {
           new_version: newVersion,
           updated_count: updateResult.rowCount ?? 0,
-          audit_id: auditResult.rows[0].id,
+          audit_id: auditRow.id,
         };
       });
 
