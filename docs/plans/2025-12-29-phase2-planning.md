@@ -307,8 +307,8 @@ function validateDistribution(dist: PerformanceDistribution): ValidationResult {
 
 ### Phase 2A: Foundation (Days 1-2)
 1. [x] Gate Check - Verify Phase 1 passes
-2. [ ] Task 2.2: Graduation Rate Engine
-3. [ ] Task 2.3: MOIC Suite (7 variants)
+2. [x] Task 2.2: Graduation Rate Engine (COMPLETE - commit bfefaa6)
+3. [x] Task 2.3: MOIC Suite (7 variants) (COMPLETE - commit bfefaa6)
 
 ### Phase 2B: Orchestration (Days 3-4)
 4. [ ] Task 2.4: Reserve Ranking Validation
@@ -324,9 +324,9 @@ function validateDistribution(dist: PerformanceDistribution): ValidationResult {
 
 ## Gate Criteria (Exit Conditions)
 
-- [ ] Phase 1 truth case pass rate >= 95% (baseline maintained)
-- [ ] Graduation engine has deterministic expectation mode
-- [ ] All 7 MOIC variants implemented with tests
+- [x] Phase 1 truth case pass rate >= 95% (baseline maintained) - 100% (129/129)
+- [x] Graduation engine has deterministic expectation mode - COMPLETE
+- [x] All 7 MOIC variants implemented with tests - COMPLETE (31 tests)
 - [ ] Reserves ranking respects budget constraints
 - [ ] Monte Carlo orchestrator preserves Phase 1 accuracy
 - [ ] Distribution validation passes
