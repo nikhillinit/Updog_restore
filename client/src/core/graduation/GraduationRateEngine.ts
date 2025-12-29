@@ -304,8 +304,8 @@ export class GraduationRateEngine {
 
       for (let i = 0; i < companyStages.length; i++) {
         const currentStage = companyStages[i];
-        if (currentStage === 'exit' || currentStage === 'failed') {
-          continue; // Terminal state
+        if (!currentStage || currentStage === 'exit' || currentStage === 'failed') {
+          continue; // Terminal state or undefined
         }
 
         const transition = this.calculateTransition(currentStage);
@@ -356,9 +356,8 @@ export class GraduationRateEngine {
     const exits = finalProjection?.stageDistribution.exit ?? 0;
     const failures = finalProjection?.stageDistribution.failed ?? 0;
 
-    return {
+    const summary: GraduationSummary = {
       mode: this.config.expectationMode ? 'expectation' : 'stochastic',
-      seed: this.config.seed,
       totalCompanies: initialCompanies,
       expectedGraduationRate: total > 0 ? exits / total : 0,
       expectedFailureRate: total > 0 ? failures / total : 0,
@@ -372,6 +371,13 @@ export class GraduationRateEngine {
       },
       quarterlyProjections: projections,
     };
+
+    // Only add seed for stochastic mode
+    if (this.config.seed !== undefined) {
+      summary.seed = this.config.seed;
+    }
+
+    return summary;
   }
 
   /**
@@ -427,9 +433,8 @@ export function createDefaultGraduationConfig(
   expectationMode: boolean = true,
   seed: number = 42
 ): GraduationConfig {
-  return {
+  const config: GraduationConfig = {
     expectationMode,
-    seed: expectationMode ? undefined : seed,
     transitions: {
       seedToA: { graduate: 35, fail: 45, remain: 20 },
       aToB: { graduate: 45, fail: 35, remain: 20 },
@@ -437,6 +442,13 @@ export function createDefaultGraduationConfig(
       cToExit: { graduate: 65, fail: 15, remain: 20 },
     },
   };
+
+  // Only add seed for stochastic mode
+  if (!expectationMode) {
+    config.seed = seed;
+  }
+
+  return config;
 }
 
 /**
@@ -448,9 +460,8 @@ export function fromFundDataGraduationRates(
   expectationMode: boolean = true,
   seed: number = 42
 ): GraduationConfig {
-  return {
+  const config: GraduationConfig = {
     expectationMode,
-    seed: expectationMode ? undefined : seed,
     transitions: {
       seedToA: {
         graduate: graduationRates.seedToA.graduate,
@@ -471,4 +482,11 @@ export function fromFundDataGraduationRates(
       cToExit: { graduate: 65, fail: 15, remain: 20 },
     },
   };
+
+  // Only add seed for stochastic mode
+  if (!expectationMode) {
+    config.seed = seed;
+  }
+
+  return config;
 }
