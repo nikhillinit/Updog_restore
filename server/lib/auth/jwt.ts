@@ -151,7 +151,7 @@ export const requireRole = (role: string) => (req: Request, res: Response, next:
  * Use after requireAuth to check fund-level permissions
  */
 export const requireFundAccess = (req: Request, res: Response, next: NextFunction) => {
-  const fundIdParam = req.params.fundId;
+  const fundIdParam = req.params['fundId'];
 
   if (!fundIdParam) {
     return res.status(400).json({
