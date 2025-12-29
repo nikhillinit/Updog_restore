@@ -1,8 +1,17 @@
 /**
- * XIRR (Extended Internal Rate of Return) Calculation
+ * @deprecated This file is DEPRECATED. Use '@/lib/finance/xirr' instead.
  *
- * Implements the Newton-Raphson method for calculating IRR with irregular cash flows.
- * This matches Excel's XIRR function behavior.
+ * Migration Guide:
+ * - calculateXIRR() -> safeXIRR() (returns SafeXIRRResult with irr field)
+ * - safeCalculateXIRR() -> safeXIRR()
+ * - XIRRCalculationError -> No longer thrown; safeXIRR returns null irr + error string
+ *
+ * The canonical implementation at '@/lib/finance/xirr' provides:
+ * - More robust 3-tier fallback (Newton -> Brent -> Bisection)
+ * - Never throws - use safeXIRR() for all UI contexts
+ * - Compatible with CashFlowEvent (string dates)
+ *
+ * This file will be removed in a future version.
  *
  * @module xirr
  */
@@ -66,11 +75,7 @@ function yearsBetween(startDate: string, endDate: string): number {
  * @param baseDate - Base date for calculating time periods (uses first cash flow date if not provided)
  * @returns Net Present Value
  */
-function calculateNPV(
-  cashFlows: CashFlowEvent[],
-  rate: number,
-  baseDate?: string
-): number {
+function calculateNPV(cashFlows: CashFlowEvent[], rate: number, baseDate?: string): number {
   if (cashFlows.length === 0) return 0;
 
   const base = baseDate || cashFlows[0]!.date;
@@ -123,8 +128,8 @@ function validateCashFlows(cashFlows: CashFlowEvent[]): void {
   }
 
   // Check for at least one positive and one negative cash flow
-  const hasPositive = cashFlows.some(cf => cf.amount > 0);
-  const hasNegative = cashFlows.some(cf => cf.amount < 0);
+  const hasPositive = cashFlows.some((cf) => cf.amount > 0);
+  const hasNegative = cashFlows.some((cf) => cf.amount < 0);
 
   if (!hasPositive || !hasNegative) {
     throw new XIRRCalculationError(
@@ -137,10 +142,7 @@ function validateCashFlows(cashFlows: CashFlowEvent[]): void {
   for (const cf of cashFlows) {
     const date = new Date(cf.date);
     if (isNaN(date.getTime())) {
-      throw new XIRRCalculationError(
-        `Invalid date in cash flow: ${cf.date}`,
-        cashFlows
-      );
+      throw new XIRRCalculationError(`Invalid date in cash flow: ${cf.date}`, cashFlows);
     }
   }
 }
@@ -174,15 +176,8 @@ function validateCashFlows(cashFlows: CashFlowEvent[]): void {
  * console.log(`IRR: ${(result.rate * 100).toFixed(2)}%`); // IRR: 28.45%
  * ```
  */
-export function calculateXIRR(
-  cashFlows: CashFlowEvent[],
-  config: XIRRConfig = {}
-): XIRRResult {
-  const {
-    maxIterations = 100,
-    tolerance = 1e-6,
-    initialGuess = 0.1,
-  } = config;
+export function calculateXIRR(cashFlows: CashFlowEvent[], config: XIRRConfig = {}): XIRRResult {
+  const { maxIterations = 100, tolerance = 1e-6, initialGuess = 0.1 } = config;
 
   // Validate inputs
   validateCashFlows(cashFlows);
@@ -258,10 +253,7 @@ export function calculateXIRR(
  * console.log(`IRR: ${(irr * 100).toFixed(2)}%`); // IRR: 16.04%
  * ```
  */
-export function calculateSimpleIRR(
-  cashFlows: number[],
-  config?: XIRRConfig
-): number {
+export function calculateSimpleIRR(cashFlows: number[], config?: XIRRConfig): number {
   const baseDate = new Date('2000-01-01'); // Arbitrary base date
   const cashFlowEvents: CashFlowEvent[] = cashFlows.map((amount, index) => ({
     date: new Date(
@@ -345,11 +337,12 @@ export function safeCalculateXIRR(
       converged: result.converged,
     };
   } catch (err) {
-    const errorMessage = err instanceof XIRRCalculationError
-      ? err.message
-      : err instanceof Error
+    const errorMessage =
+      err instanceof XIRRCalculationError
         ? err.message
-        : 'Unknown XIRR calculation error';
+        : err instanceof Error
+          ? err.message
+          : 'Unknown XIRR calculation error';
     return {
       rate: null,
       error: errorMessage,
@@ -366,16 +359,16 @@ export function safeCalculateXIRR(
  * @param config - Optional XIRR configuration
  * @returns IRR as decimal, or null if calculation fails
  */
-export function safeCalculateSimpleIRR(
-  cashFlows: number[],
-  config?: XIRRConfig
-): number | null {
+export function safeCalculateSimpleIRR(cashFlows: number[], config?: XIRRConfig): number | null {
   try {
     return calculateSimpleIRR(cashFlows, config);
   } catch (err) {
     // Log for debugging but don't block UI
     if (typeof console !== 'undefined') {
-      console.debug('[safeCalculateSimpleIRR] Calculation failed:', err instanceof Error ? err.message : err);
+      console.debug(
+        '[safeCalculateSimpleIRR] Calculation failed:',
+        err instanceof Error ? err.message : err
+      );
     }
     return null;
   }
