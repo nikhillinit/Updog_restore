@@ -5,11 +5,12 @@
 
 import * as schema from '@shared/schema';
 import * as lpSchema from '@shared/schema-lp-reporting';
+import * as approvalSchema from '@shared/schemas/reserve-approvals';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
-// Combined schema for LP reporting support
-const combinedSchema = { ...schema, ...lpSchema };
-type CombinedSchema = typeof schema & typeof lpSchema;
+// Combined schema for LP reporting + reserve approval support
+const combinedSchema = { ...schema, ...lpSchema, ...approvalSchema };
+type CombinedSchema = typeof schema & typeof lpSchema & typeof approvalSchema;
 
 // Detect test environment
 const isTest = process.env['NODE_ENV'] === 'test' || process.env['VITEST'] === 'true';
@@ -32,7 +33,10 @@ if (isTest) {
 } else if (isVercel) {
   // Use HTTP driver for Vercel (no persistent connections)
   const { drizzle } = require('drizzle-orm/neon-http') as {
-    drizzle: (client: unknown, options: { schema: typeof combinedSchema }) => NodePgDatabase<CombinedSchema>;
+    drizzle: (
+      client: unknown,
+      options: { schema: typeof combinedSchema }
+    ) => NodePgDatabase<CombinedSchema>;
   };
   const { neon } = require('@neondatabase/serverless') as {
     neon: (url: string) => unknown;
