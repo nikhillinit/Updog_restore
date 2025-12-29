@@ -302,7 +302,7 @@ export type BrandTokens = typeof brandTokens;
  */
 export function getChartColor(index: number, extended = false): string {
   const palette = extended ? chart.colorsExtended : chart.colors;
-  return palette[index % palette.length];
+  return palette[index % palette.length] ?? colors.dark;
 }
 
 /**
