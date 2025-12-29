@@ -52,10 +52,13 @@ function toEngineCompany(input: ParityCompany): EngineCompany {
     throw new Error(`Invalid company data structure: ${JSON.stringify(input)}`);
   }
 
+  // Note: normalizeStage returns CanonicalStage but EngineCompany.stage uses
+  // deprecated Stage type. This cast is safe as both types share the same core values.
+  // TODO: Update EngineCompany to use CanonicalStage directly (tracked in tech debt plan)
   return {
     id: String(input.id),
     name: String(input.name ?? input.id),
-    stage: normalizeStage(input.stage),
+    stage: normalizeStage(input.stage) as EngineCompany['stage'],
     invested: Number(input.invested ?? input.allocated ?? 0),
     ownership: Number(input.ownership ?? 0),
     ...(input.reserveCap != null ? { reserveCap: Number(input.reserveCap) } : {})
@@ -67,8 +70,11 @@ function toEngineStagePolicy(input: ParityStagePolicy): EngineStagePolicy {
     throw new Error(`Invalid stage policy structure: ${JSON.stringify(input)}`);
   }
 
+  // Note: normalizeStage returns CanonicalStage but EngineStagePolicy.stage uses
+  // deprecated Stage type. This cast is safe as both types share the same core values.
+  // TODO: Update EngineStagePolicy to use CanonicalStage directly (tracked in tech debt plan)
   return {
-    stage: normalizeStage(input.stage),
+    stage: normalizeStage(input.stage) as EngineStagePolicy['stage'],
     reserveMultiple: Number(input.reserveMultiple ?? input.reserve_ratio ?? 1.0),
     weight: Number(input.weight ?? 1.0)
   };

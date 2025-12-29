@@ -1,8 +1,26 @@
+/**
+ * @deprecated This file is DEPRECATED. Use '@/lib/finance/xirr' instead.
+ *
+ * Migration Guide:
+ * - calculateXIRR() -> xirrNewtonBisection() or safeXIRR()
+ * - calculateIRRFromPeriods() -> calculateIRRFromPeriods() (same name, new location)
+ * - buildCashflowSchedule() -> buildCashflowSchedule() (same name, new location)
+ *
+ * The canonical implementation at '@/lib/finance/xirr' provides:
+ * - More robust 3-tier fallback (Newton -> Brent -> Bisection)
+ * - Better performance (native numbers vs Decimal.js)
+ * - Safe wrappers for UI use
+ *
+ * This file will be removed in a future version.
+ */
+
 import { toDecimal } from './decimal-utils';
 import type { PeriodResult } from '@shared/schemas/fund-model';
 
 /**
  * XIRR (Extended Internal Rate of Return) Calculator
+ *
+ * @deprecated Use '@/lib/finance/xirr' instead - see file header for migration guide.
  *
  * Calculates IRR using Newton-Raphson method with bisection fallback.
  * Matches Excel XIRR function behavior for parity testing.

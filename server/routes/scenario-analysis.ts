@@ -20,6 +20,7 @@ import {
 import type {
   ScenarioAnalysisResponse
 } from '@shared/types/scenario';
+import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
 
 const router = Router();
 
@@ -54,7 +55,7 @@ const PortfolioAnalysisQuerySchema = z.object({
 });
 
 // ============================================================================
-// Middleware: Authorization
+// Middleware: User tracking for audit
 // ============================================================================
 
 // Extend Request type for scenario routes
@@ -63,19 +64,12 @@ interface ScenarioRequest extends Request {
 }
 
 /**
- * Check if user has access to fund/company
- * Simplified for 5-person internal tool (all have access, just track who)
+ * Extract user ID for audit logging (use after requireAuth)
  */
-function requireFundAccess(permission: 'read' | 'write') {
-  return (req: Request, res: Response, next: any) => {
-    const userId = (req as any).user?.id || 'system';
-
-    // For internal tool: Just track user, don't block
-    // Future: Add actual permission checks when team grows
-    (req as ScenarioRequest).userId = userId;
-
-    next();
-  };
+function extractUserId(req: Request, _res: Response, next: () => void) {
+  const userId = req.user?.id || 'system';
+  (req as ScenarioRequest).userId = userId;
+  next();
 }
 
 // ============================================================================
@@ -109,7 +103,9 @@ async function auditLog(params: {
  * Returns Construction vs Current comparison with pagination and caching
  */
 router["get"]('/funds/:fundId/portfolio-analysis',
-  requireFundAccess('read'),
+  requireAuth(),
+  requireFundAccess,
+  extractUserId,
   async (req: Request, res: Response) => {
     try {
       const { fundId } = req.params;
@@ -178,7 +174,8 @@ router["get"]('/funds/:fundId/portfolio-analysis',
  * Get scenario with cases, rounds, and weighted summary
  */
 router["get"]('/companies/:companyId/scenarios/:scenarioId',
-  requireFundAccess('read'),
+  requireAuth(),
+  extractUserId,
   async (req: Request, res: Response) => {
     try {
       const { companyId, scenarioId } = req.params;
@@ -245,7 +242,8 @@ router["get"]('/companies/:companyId/scenarios/:scenarioId',
  * Create new scenario
  */
 router["post"]('/companies/:companyId/scenarios',
-  requireFundAccess('write'),
+  requireAuth(),
+  extractUserId,
   async (req: Request, res: Response) => {
     try {
       const { companyId } = req.params;
@@ -287,7 +285,8 @@ router["post"]('/companies/:companyId/scenarios',
  * Update scenario cases with optimistic locking
  */
 router["patch"]('/companies/:companyId/scenarios/:scenarioId',
-  requireFundAccess('write'),
+  requireAuth(),
+  extractUserId,
   async (req: Request, res: Response) => {
     try {
       const { companyId, scenarioId } = req.params;
@@ -417,7 +416,8 @@ router["patch"]('/companies/:companyId/scenarios/:scenarioId',
  * Delete scenario and all its cases
  */
 router["delete"]('/companies/:companyId/scenarios/:scenarioId',
-  requireFundAccess('write'),
+  requireAuth(),
+  extractUserId,
   async (req: Request, res: Response) => {
     try {
       const { companyId, scenarioId } = req.params;
@@ -474,7 +474,8 @@ router["delete"]('/companies/:companyId/scenarios/:scenarioId',
  * Call DeterministicReserveEngine to suggest optimal reserve allocation
  */
 router["post"]('/companies/:companyId/reserves/optimize',
-  requireFundAccess('write'),
+  requireAuth(),
+  extractUserId,
   async (req: Request, res: Response) => {
     try {
       const { companyId } = req.params;

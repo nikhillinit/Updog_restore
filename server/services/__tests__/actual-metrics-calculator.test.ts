@@ -33,18 +33,12 @@ describe('ActualMetricsCalculator - XIRR Validation', () => {
    * Result: 0.2011 or 20.11%
    */
   it('should calculate IRR correctly for simple 2-cashflow scenario', async () => {
-    const mockInvestments = [
-      { date: new Date('2020-01-01'), amount: 10000000 }
-    ];
+    const mockInvestments = [{ date: new Date('2020-01-01'), amount: 10000000 }];
     const mockDistributions: Array<{ date: Date; amount: number }> = [];
     const mockNAV = new Decimal(25000000);
 
     // Access private method for testing
-    const irr = await (calculator as any).calculateIRR(
-      mockInvestments,
-      mockDistributions,
-      mockNAV
-    );
+    const irr = await (calculator as any).calculateIRR(mockInvestments, mockDistributions, mockNAV);
 
     // Expected: 0.2011 (20.11%)
     // Allow 0.01% tolerance (0.0001)
@@ -67,18 +61,12 @@ describe('ActualMetricsCalculator - XIRR Validation', () => {
   it('should calculate IRR correctly for multiple rounds with partial exit', async () => {
     const mockInvestments = [
       { date: new Date('2020-01-01'), amount: 5000000 },
-      { date: new Date('2021-01-01'), amount: 10000000 }
+      { date: new Date('2021-01-01'), amount: 10000000 },
     ];
-    const mockDistributions = [
-      { date: new Date('2023-01-01'), amount: 5000000 }
-    ];
+    const mockDistributions = [{ date: new Date('2023-01-01'), amount: 5000000 }];
     const mockNAV = new Decimal(40000000);
 
-    const irr = await (calculator as any).calculateIRR(
-      mockInvestments,
-      mockDistributions,
-      mockNAV
-    );
+    const irr = await (calculator as any).calculateIRR(mockInvestments, mockDistributions, mockNAV);
 
     // Expected: ~0.534 (53.4%)
     // Allow 0.1% tolerance (0.001)
@@ -99,17 +87,11 @@ describe('ActualMetricsCalculator - XIRR Validation', () => {
    * Result: ~0.246 or 24.6%
    */
   it('should handle J-curve with temporary losses', async () => {
-    const mockInvestments = [
-      { date: new Date('2020-01-01'), amount: 20000000 }
-    ];
+    const mockInvestments = [{ date: new Date('2020-01-01'), amount: 20000000 }];
     const mockDistributions: Array<{ date: Date; amount: number }> = [];
     const mockNAV = new Decimal(60000000);
 
-    const irr = await (calculator as any).calculateIRR(
-      mockInvestments,
-      mockDistributions,
-      mockNAV
-    );
+    const irr = await (calculator as any).calculateIRR(mockInvestments, mockDistributions, mockNAV);
 
     // Expected: ~0.246 (24.6%)
     expect(irr.toNumber()).toBeCloseTo(0.246, 3);
@@ -126,23 +108,17 @@ describe('ActualMetricsCalculator - XIRR Validation', () => {
    * This is a low-yield scenario (12% return)
    */
   it('should handle monthly distributions correctly', async () => {
-    const mockInvestments = [
-      { date: new Date('2020-01-01'), amount: 10000000 }
-    ];
+    const mockInvestments = [{ date: new Date('2020-01-01'), amount: 10000000 }];
 
     // 12 monthly distributions of $100K
     const mockDistributions = Array.from({ length: 12 }, (_, i) => ({
       date: new Date(2020, i, 15), // 15th of each month
-      amount: 100000
+      amount: 100000,
     }));
 
     const mockNAV = new Decimal(10000000);
 
-    const irr = await (calculator as any).calculateIRR(
-      mockInvestments,
-      mockDistributions,
-      mockNAV
-    );
+    const irr = await (calculator as any).calculateIRR(mockInvestments, mockDistributions, mockNAV);
 
     // Expected: ~0.12 (12%)
     expect(irr.toNumber()).toBeCloseTo(0.12, 2);
@@ -151,41 +127,31 @@ describe('ActualMetricsCalculator - XIRR Validation', () => {
   /**
    * Edge Case: No Cashflows
    *
-   * Should return 0 IRR
+   * Should return null (cannot calculate IRR without cashflows)
    */
-  it('should return 0 for no cashflows', async () => {
+  it('should return null for no cashflows', async () => {
     const mockInvestments: Array<{ date: Date; amount: number }> = [];
     const mockDistributions: Array<{ date: Date; amount: number }> = [];
     const mockNAV = new Decimal(0);
 
-    const irr = await (calculator as any).calculateIRR(
-      mockInvestments,
-      mockDistributions,
-      mockNAV
-    );
+    const irr = await (calculator as any).calculateIRR(mockInvestments, mockDistributions, mockNAV);
 
-    expect(irr.toNumber()).toBe(0);
+    expect(irr).toBeNull();
   });
 
   /**
    * Edge Case: Single Cashflow
    *
-   * Cannot calculate IRR with only one cashflow
+   * Cannot calculate IRR with only one cashflow - returns null
    */
-  it('should return 0 for single cashflow', async () => {
-    const mockInvestments = [
-      { date: new Date('2020-01-01'), amount: 1000000 }
-    ];
+  it('should return null for single cashflow', async () => {
+    const mockInvestments = [{ date: new Date('2020-01-01'), amount: 1000000 }];
     const mockDistributions: Array<{ date: Date; amount: number }> = [];
     const mockNAV = new Decimal(0);
 
-    const irr = await (calculator as any).calculateIRR(
-      mockInvestments,
-      mockDistributions,
-      mockNAV
-    );
+    const irr = await (calculator as any).calculateIRR(mockInvestments, mockDistributions, mockNAV);
 
-    expect(irr.toNumber()).toBe(0);
+    expect(irr).toBeNull();
   });
 
   /**
@@ -196,17 +162,11 @@ describe('ActualMetricsCalculator - XIRR Validation', () => {
    * Expected: Negative IRR (~-29%)
    */
   it('should calculate negative IRR for losses', async () => {
-    const mockInvestments = [
-      { date: new Date('2020-01-01'), amount: 10000000 }
-    ];
+    const mockInvestments = [{ date: new Date('2020-01-01'), amount: 10000000 }];
     const mockDistributions: Array<{ date: Date; amount: number }> = [];
     const mockNAV = new Decimal(1000000);
 
-    const irr = await (calculator as any).calculateIRR(
-      mockInvestments,
-      mockDistributions,
-      mockNAV
-    );
+    const irr = await (calculator as any).calculateIRR(mockInvestments, mockDistributions, mockNAV);
 
     // Expected: ~-0.29 (-29%)
     expect(irr.toNumber()).toBeLessThan(0);
@@ -221,17 +181,11 @@ describe('ActualMetricsCalculator - XIRR Validation', () => {
    * Expected: ~900% IRR
    */
   it('should handle very high returns', async () => {
-    const mockInvestments = [
-      { date: new Date('2020-01-01'), amount: 1000000 }
-    ];
+    const mockInvestments = [{ date: new Date('2020-01-01'), amount: 1000000 }];
     const mockDistributions: Array<{ date: Date; amount: number }> = [];
     const mockNAV = new Decimal(100000000);
 
-    const irr = await (calculator as any).calculateIRR(
-      mockInvestments,
-      mockDistributions,
-      mockNAV
-    );
+    const irr = await (calculator as any).calculateIRR(mockInvestments, mockDistributions, mockNAV);
 
     // Expected: ~9.0 (900%)
     // Algorithm should handle this without overflow
@@ -255,25 +209,21 @@ describe('ActualMetricsCalculator - XIRR Validation', () => {
   it('should handle realistic VC fund scenario', async () => {
     const mockInvestments = [
       { date: new Date('2020-01-01'), amount: 30000000 },
-      { date: new Date('2021-01-01'), amount: 20000000 }
+      { date: new Date('2021-01-01'), amount: 20000000 },
     ];
 
     const mockDistributions = [
       { date: new Date('2023-01-01'), amount: 10000000 },
-      { date: new Date('2024-01-01'), amount: 15000000 }
+      { date: new Date('2024-01-01'), amount: 15000000 },
     ];
 
     const mockNAV = new Decimal(120000000);
 
-    const irr = await (calculator as any).calculateIRR(
-      mockInvestments,
-      mockDistributions,
-      mockNAV
-    );
+    const irr = await (calculator as any).calculateIRR(mockInvestments, mockDistributions, mockNAV);
 
     // Expected: ~0.24 (24%)
-    expect(irr.toNumber()).toBeGreaterThan(0.20);
-    expect(irr.toNumber()).toBeLessThan(0.30);
+    expect(irr.toNumber()).toBeGreaterThan(0.2);
+    expect(irr.toNumber()).toBeLessThan(0.3);
   });
 });
 

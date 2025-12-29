@@ -285,3 +285,44 @@ export const FundModelOutputsSchema = z.object({
 });
 
 export type FundModelOutputs = z.infer<typeof FundModelOutputsSchema>;
+
+// ============================================================================
+// CANONICAL STAGE ADAPTERS (for interoperability)
+// ============================================================================
+
+import {
+  type CanonicalStage,
+  normalizeStage as canonicalNormalizeStage,
+  CoreStageSchema as CanonicalCoreStageSchema,
+} from './stage';
+
+/**
+ * Convert canonical stage to fund-model format.
+ * Note: fund-model uses a subset of stages (no pre_seed, series_d, late_stage)
+ *
+ * @param stage - Canonical stage (snake_case)
+ * @returns Fund-model stage or null if not in subset
+ */
+export function toFundModelStage(stage: CanonicalStage): Stage | null {
+  const mapping: Partial<Record<CanonicalStage, Stage>> = {
+    seed: 'seed',
+    series_a: 'series_a',
+    series_b: 'series_b',
+    series_c: 'series_c',
+    growth: 'growth',
+  };
+  return mapping[stage] ?? null;
+}
+
+/**
+ * Convert fund-model stage to canonical format.
+ *
+ * @param stage - Stage from fund-model schema
+ * @returns Canonical stage (snake_case)
+ */
+export function fromFundModelStage(stage: Stage): CanonicalStage {
+  return canonicalNormalizeStage(stage);
+}
+
+// Re-export canonical types for consumers who need both formats
+export { type CanonicalStage, CanonicalCoreStageSchema };

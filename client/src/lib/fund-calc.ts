@@ -1,6 +1,6 @@
-import type { Decimal} from './decimal-utils';
+import type { Decimal } from './decimal-utils';
 import { toDecimal, sum, safeDivide, roundRatio, roundPercent } from './decimal-utils';
-import { calculateIRRFromPeriods } from './xirr';
+import { calculateIRRFromPeriods } from './finance/xirr';
 import type { FundModelInputs, FundModelOutputs, PeriodResult } from '@shared/schemas/fund-model';
 
 /**
@@ -107,8 +107,8 @@ export function calculateKPIs(periodResults: PeriodResult[]): {
   irrAnnualized: number;
 } {
   // Calculate cumulative totals
-  const totalDistributions = sum(periodResults.map(p => p.distributions));
-  const totalContributions = sum(periodResults.map(p => p.contributions));
+  const totalDistributions = sum(periodResults.map((p) => p.distributions));
+  const totalContributions = sum(periodResults.map((p) => p.contributions));
 
   // Get final NAV
   const finalNAV = toDecimal(periodResults[periodResults.length - 1]?.nav ?? 0);
@@ -163,7 +163,7 @@ export function generatePeriodDates(
   for (let i = 0; i < numPeriods; i++) {
     // Calculate period start
     const periodStart = new Date(baseDate);
-    periodStart.setMonth(baseDate.getMonth() + (i * periodLengthMonths));
+    periodStart.setMonth(baseDate.getMonth() + i * periodLengthMonths);
     periodStart.setHours(0, 0, 0, 0);
 
     // Calculate period end (last moment of last day of period)
@@ -200,25 +200,25 @@ export function validateInputs(inputs: FundModelInputs): string[] {
   }
 
   // Check: Check sizes <= stage allocations
-  inputs.stageAllocations.forEach(stage => {
+  inputs.stageAllocations.forEach((stage) => {
     const stageCapital = inputs.fundSize * stage.allocationPct;
     const avgCheck = inputs.averageCheckSizes[stage.stage];
     if (avgCheck && avgCheck > stageCapital) {
       errors.push(
         `Check size for ${stage.stage} ($${(avgCheck / 1e6).toFixed(2)}M) ` +
-        `exceeds stage allocation ($${(stageCapital / 1e6).toFixed(2)}M)`
+          `exceeds stage allocation ($${(stageCapital / 1e6).toFixed(2)}M)`
       );
     }
   });
 
   // Check: Graduation time < Exit time
-  inputs.stageAllocations.forEach(stage => {
+  inputs.stageAllocations.forEach((stage) => {
     const gradTime = inputs.monthsToGraduate[stage.stage];
     const exitTime = inputs.monthsToExit[stage.stage];
     if (gradTime && exitTime && gradTime >= exitTime) {
       errors.push(
         `Graduation time for ${stage.stage} (${gradTime} months) ` +
-        `must be less than exit time (${exitTime} months)`
+          `must be less than exit time (${exitTime} months)`
       );
     }
   });
@@ -243,7 +243,7 @@ function deployCompanies(inputs: FundModelInputs): CompanyResult[] {
   let globalCompanyIndex = 0;
 
   // Deploy companies sequentially by stage (seed → growth)
-  inputs.stageAllocations.forEach(stageAlloc => {
+  inputs.stageAllocations.forEach((stageAlloc) => {
     // Calculate capital available for this stage (after reserves)
     const stageCapital = toDecimal(inputs.fundSize).times(stageAlloc.allocationPct);
     const reserveCapital = stageCapital.times(inputs.reservePoolPct);
@@ -259,20 +259,24 @@ function deployCompanies(inputs: FundModelInputs): CompanyResult[] {
       const initialInvestment = avgCheckSize.toNumber();
 
       // Deterministic exit bucket assignment (cycle through buckets)
-      const exitBuckets: Array<'failure' | 'acquired' | 'ipo' | 'secondary'> =
-        ['failure', 'acquired', 'ipo', 'secondary'];
+      const exitBuckets: Array<'failure' | 'acquired' | 'ipo' | 'secondary'> = [
+        'failure',
+        'acquired',
+        'ipo',
+        'secondary',
+      ];
       const exitBucket = exitBuckets[globalCompanyIndex % 4];
 
       companies.push({
         companyId,
         stageAtEntry: stageAlloc.stage,
         initialInvestment,
-        followOnInvestment: 0,  // Will be calculated during simulation
+        followOnInvestment: 0, // Will be calculated during simulation
         totalInvested: initialInvestment,
-        ownershipAtExit: 0.15,  // TODO: Make configurable per stage
+        ownershipAtExit: 0.15, // TODO: Make configurable per stage
         exitBucket,
-        exitValue: 0,  // Will be calculated at exit
-        proceedsToFund: 0,  // Will be calculated at exit
+        exitValue: 0, // Will be calculated at exit
+        proceedsToFund: 0, // Will be calculated at exit
       });
 
       globalCompanyIndex++;
@@ -289,16 +293,13 @@ function deployCompanies(inputs: FundModelInputs): CompanyResult[] {
  * @param companies - Deployed companies
  * @returns Array of period results
  */
-function simulatePeriods(
-  inputs: FundModelInputs,
-  companies: CompanyResult[]
-): PeriodResult[] {
+function simulatePeriods(inputs: FundModelInputs, companies: CompanyResult[]): PeriodResult[] {
   const periods: PeriodResult[] = [];
 
   // Calculate total periods based on BOTH longest exit time AND management fee horizon
   // Fix for PR #112 review: Ensure we simulate through full fee period to avoid understating expenses
   const maxExitMonths = Math.max(
-    ...inputs.stageAllocations.map(s => inputs.monthsToExit[s.stage] || 0)
+    ...inputs.stageAllocations.map((s) => inputs.monthsToExit[s.stage] || 0)
   );
   const managementFeeMonths = inputs.managementFeeYears * 12;
 
@@ -309,7 +310,7 @@ function simulatePeriods(
 
   // Generate period dates
   const periodDates = generatePeriodDates(
-    new Date().toISOString(),  // TODO: Make configurable
+    new Date().toISOString(), // TODO: Make configurable
     inputs.periodLengthMonths,
     numPeriods + 1
   );
@@ -331,7 +332,7 @@ function simulatePeriods(
     inputs.managementFeeYears,
     0
   );
-  const period0Investments = sum(companies.map(c => c.initialInvestment));
+  const period0Investments = sum(companies.map((c) => c.initialInvestment));
 
   cumulativeContributions = cumulativeContributions.plus(period0Contributions);
   cumulativeManagementFees = cumulativeManagementFees.plus(period0Fees);
@@ -353,8 +354,8 @@ function simulatePeriods(
     investments: period0Investments.toNumber(),
     managementFees: period0Fees,
     exitProceeds: 0,
-    distributions: 0,  // Policy A: distributions in exit period only
-    unrealizedPnl: 0,  // TODO: Add mark-to-market logic
+    distributions: 0, // Policy A: distributions in exit period only
+    unrealizedPnl: 0, // TODO: Add mark-to-market logic
     nav: period0NAV.toNumber(),
     tvpi: roundRatio(safeDivide(period0NAV, cumulativeContributions)),
     dpi: 0,
@@ -368,7 +369,7 @@ function simulatePeriods(
     // Calculate exits for this period
     let periodExitProceeds = toDecimal(0);
 
-    companies.forEach(company => {
+    companies.forEach((company) => {
       const stageExitMonths = inputs.monthsToExit[company.stageAtEntry] || 0;
 
       // Check if company exits in this period
@@ -401,21 +402,19 @@ function simulatePeriods(
     cumulativeExitProceeds = cumulativeExitProceeds.plus(periodExitProceeds);
     cumulativeDistributions = cumulativeDistributions.plus(periodDistributions);
     cumulativeManagementFees = cumulativeManagementFees.plus(periodFees);
-    uninvestedCash = uninvestedCash.plus(periodExitProceeds).minus(periodDistributions).minus(periodFees);
+    uninvestedCash = uninvestedCash
+      .plus(periodExitProceeds)
+      .minus(periodDistributions)
+      .minus(periodFees);
 
     // Calculate NAV: remaining investments + uninvested cash
     const remainingInvestments = sum(
-      companies
-        .filter(c => c.exitValue === 0)
-        .map(c => c.totalInvested)
+      companies.filter((c) => c.exitValue === 0).map((c) => c.totalInvested)
     );
     const periodNAV = remainingInvestments.plus(uninvestedCash);
 
     // Calculate KPIs for this period
-    const periodTVPI = safeDivide(
-      cumulativeDistributions.plus(periodNAV),
-      cumulativeContributions
-    );
+    const periodTVPI = safeDivide(cumulativeDistributions.plus(periodNAV), cumulativeContributions);
     const periodDPI = safeDivide(cumulativeDistributions, cumulativeContributions);
 
     const currentPeriod = periodDates[periodIndex];
@@ -425,16 +424,16 @@ function simulatePeriods(
       periodIndex,
       periodStart: currentPeriod.start,
       periodEnd: currentPeriod.end,
-      contributions: 0,  // Only period 0 has contributions
-      investments: 0,    // Only period 0 has initial investments
+      contributions: 0, // Only period 0 has contributions
+      investments: 0, // Only period 0 has initial investments
       managementFees: periodFees,
       exitProceeds: periodExitProceeds.toNumber(),
       distributions: periodDistributions.toNumber(),
-      unrealizedPnl: 0,  // TODO: Add mark-to-market logic
+      unrealizedPnl: 0, // TODO: Add mark-to-market logic
       nav: periodNAV.toNumber(),
       tvpi: roundRatio(periodTVPI),
       dpi: roundRatio(periodDPI),
-      irrAnnualized: 0,  // TODO: Calculate period IRR
+      irrAnnualized: 0, // TODO: Calculate period IRR
     });
   }
 
@@ -450,10 +449,10 @@ function simulatePeriods(
 function getExitMultiple(exitBucket: 'failure' | 'acquired' | 'ipo' | 'secondary'): Decimal {
   // Deterministic average exit multiples per bucket
   const multiples: Record<string, Decimal> = {
-    failure: toDecimal(0.1),    // 0.1x (90% loss)
-    acquired: toDecimal(3.0),   // 3x
-    ipo: toDecimal(15.0),       // 15x
-    secondary: toDecimal(5.0),  // 5x
+    failure: toDecimal(0.1), // 0.1x (90% loss)
+    acquired: toDecimal(3.0), // 3x
+    ipo: toDecimal(15.0), // 15x
+    secondary: toDecimal(5.0), // 5x
   };
 
   return multiples[exitBucket];
