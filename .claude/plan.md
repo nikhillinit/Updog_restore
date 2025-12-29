@@ -241,6 +241,100 @@ From [CODEX-BOT-FINDINGS-SUMMARY.md](docs/code-review/CODEX-BOT-FINDINGS-SUMMARY
 
 ---
 
+## Additional Codex Patterns (Second Pass)
+
+*Identified via secondary Codex review scan*
+
+### Pattern 8: TypeScript Directive Bypasses (20+ locations)
+
+```
+Detected: @ts-ignore and @ts-expect-error usage
+- 20+ occurrences across codebase
+- Locations include:
+  - server/otel.ts:3
+  - client/src/core/flags/flagAdapter.ts:26,28
+  - tests/setup.ts:16,40
+  - server/engine/fault-injector.ts:74
+
+Pattern Type: TYPE_BYPASS
+Impact: Hidden type errors, future refactoring difficulty
+```
+
+**Action Items:**
+- [ ] Audit all @ts-ignore for valid justification
+- [ ] Convert to @ts-expect-error with explanation where appropriate
+- [ ] Fix underlying type issues where possible
+
+### Pattern 9: Async Array Method Anti-patterns (10 locations)
+
+```
+Detected: forEach/map with async callbacks
+- 10 occurrences across 8 files
+- Example: array.forEach(async (item) => {...})
+- Problem: Does not await, errors silently swallowed
+
+Locations:
+- server/routes/v1/reserve-approvals.ts
+- packages/agent-core/src/Orchestrator.ts
+- client/src/lib/predictive-cache.ts
+- scripts/seed-test-data.ts (3 occurrences)
+
+Pattern Type: ASYNC_ANTIPATTERN
+Impact: Race conditions, silent failures, unpredictable behavior
+```
+
+**Recommended Fix:**
+```typescript
+// Instead of:
+items.forEach(async (item) => await processItem(item));
+
+// Use:
+await Promise.all(items.map(item => processItem(item)));
+// Or for sequential:
+for (const item of items) { await processItem(item); }
+```
+
+### Pattern 10: Dependency Vulnerabilities (4 packages)
+
+```
+Detected: npm audit vulnerabilities
+Source: GitHub Dependabot + npm audit
+
+Vulnerabilities:
+- tmp (<=0.2.3): Arbitrary file write via symlink (Low)
+- xlsx: Potential security issues (check CVEs)
+- @lhci/cli: Transitive via tmp/inquirer (Low)
+- external-editor: Transitive via tmp (Low)
+
+Pattern Type: SUPPLY_CHAIN
+Impact: Potential security exploits in dev/CI environment
+```
+
+**Action Items:**
+- [ ] Run `npm audit fix` for automatic fixes
+- [ ] Review xlsx usage for security (consider exceljs alternative)
+- [ ] Update @lhci/cli if breaking changes acceptable
+- [ ] Add npm audit to CI pipeline
+
+### Pattern 11: Infinite Loop Patterns (3 locations)
+
+```
+Detected: Unbounded loops without clear exit
+- shared/utils/prng.ts:116 → while (true)
+- scripts/normalize-stages-batched.ts:18 → for (;;)
+- archive/*/normalize-stages-batched.ts:18 → for (;;)
+
+Pattern Type: POTENTIAL_HANG
+Impact: Process hang if exit condition not met
+```
+
+**Action Items:**
+- [ ] Add maximum iteration limits
+- [ ] Add timeout safeguards
+- [ ] Document expected exit conditions
+
+---
+
 ## SQALE-Based Prioritization
 
 Using tech-debt-tracker methodology: **Impact/Effort Ratio**
@@ -508,6 +602,9 @@ npm run check
 | **Empty catch blocks** | 30+ | 30 | 25 | 20 | 15 |
 | **TODO/FIXME comments** | 128 | 128 | 120 | 110 | 100 |
 | **Codex P0/P1 open** | 3 | 2 | 1 | 0 | 0 |
+| **@ts-ignore directives** | 20+ | 20 | 15 | 10 | 5 |
+| **Async forEach/map** | 10 | 10 | 5 | 2 | 0 |
+| **npm audit vulnerabilities** | 4 | 2 | 0 | 0 | 0 |
 
 ---
 
@@ -784,3 +881,9 @@ alert_thresholds:
   - Team allocation recommendations (20% sprint capacity)
   - Success metrics & KPIs with trend alerts
   - ROI projection: $15,300 investment → $8,800/month savings (< 2 month payback)
+- **Second Codex pass identified 4 additional patterns:**
+  - Pattern 8: @ts-ignore directives (20+ locations)
+  - Pattern 9: Async forEach/map anti-patterns (10 locations)
+  - Pattern 10: npm audit vulnerabilities (4 packages)
+  - Pattern 11: Infinite loop patterns (3 locations)
+- **Total patterns identified: 11** across 7 categories
